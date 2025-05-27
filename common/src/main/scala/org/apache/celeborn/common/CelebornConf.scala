@@ -1262,6 +1262,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         }).reduce(_ ++ _)
     }.orElse(Some(Map("MEMORY" -> List("SSD", "HDD", "HDFS", "S3", "OSS"))))
 
+  def workerShutdownCooldownTime: Long = get(WORKER_SHUTDOWN_COOLDOWN_TIME)
+
   // //////////////////////////////////////////////////////
   //                   Decommission                      //
   // //////////////////////////////////////////////////////
@@ -4151,6 +4153,14 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10ms")
 
+  val WORKER_SHUTDOWN_COOLDOWN_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.worker.shutdown.cooldownTime")
+      .categories("worker")
+      .doc("Additional cooldown time for all shutdown operations to complete during worker decommission or graceful shutdown")
+      .version("0.6.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
+
   val WORKER_DECOMMISSION_CHECK_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.worker.decommission.checkInterval")
       .categories("worker")
@@ -4176,14 +4186,6 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .booleanConf
       .createWithDefault(false)
-
-  val WORKER_GRACEFUL_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.graceful.shutdown.timeout")
-      .categories("worker")
-      .doc("The worker's graceful shutdown timeout time.")
-      .version("0.2.0")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("600s")
 
   val WORKER_CHECK_SLOTS_FINISHED_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.worker.graceful.shutdown.checkSlotsFinished.interval")
@@ -4230,6 +4232,15 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("120s")
+
+  val WORKER_GRACEFUL_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.graceful.shutdown.timeout")
+      .categories("worker")
+      .doc(s"The worker's graceful shutdown timeout time. This should include " +
+        s"${WORKER_CHECK_SLOTS_FINISHED_TIMEOUT.key} and ${WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT.key}.")
+      .version("0.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("600s")
 
   val WORKER_PARTITION_READ_BUFFERS_MIN: ConfigEntry[Int] =
     buildConf("celeborn.worker.partition.initial.readBuffersMin")

@@ -147,7 +147,7 @@ public final class ShutdownHookManager {
   }
 
   static long getShutdownTimeout(CelebornConf conf) {
-    long duration = conf.workerGracefulShutdownTimeoutMs();
+    long duration = conf.workerGracefulShutdownTimeoutMs() + conf.workerShutdownCooldownTime();
     if (duration < TIMEOUT_MINIMUM) {
       duration = TIMEOUT_MINIMUM;
     }
