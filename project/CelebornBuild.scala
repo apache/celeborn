@@ -80,7 +80,8 @@ object Dependencies {
   val swaggerUiVersion = "4.9.1"
   val jerseyVersion = "2.39.1"
   val jettyVersion = "9.4.56.v20240826"
-  val jakartaServeletApiVersion = "4.0.4"
+  val javaxServletApiVersion = "4.0.1"
+  val jakartaServeletApiVersion = "5.0.0"
   val openApiToolsJacksonBindNullableVersion = "0.2.6"
   val httpClient5Version = "5.3.1"
   val httpCore5Version = "5.2.4"
@@ -183,11 +184,11 @@ object Dependencies {
   val zstdJni = "com.github.luben" % "zstd-jni" % zstdJniVersion
   val mybatis = "org.mybatis" % "mybatis" % mybatisVersion
   val hikaricp = "com.zaxxer" % "HikariCP" % hikaricpVersion
-  val jettyServer = "org.eclipse.jetty" % "jetty-server" % jettyVersion excludeAll(
-    ExclusionRule("javax.servlet", "javax.servlet-api"))
+  val jettyServer = "org.eclipse.jetty" % "jetty-server" % jettyVersion
   val jettyServlet = "org.eclipse.jetty" % "jetty-servlet" % jettyVersion excludeAll(
     ExclusionRule("javax.servlet", "javax.servlet-api"))
   val jettyProxy = "org.eclipse.jetty" % "jetty-proxy" % jettyVersion
+  val javaxServletApi = "javax.servlet" % "javax.servlet-api" % javaxServletApiVersion
   val jakartaServletApi = "jakarta.servlet" % "jakarta.servlet-api" % jakartaServeletApiVersion
   val jerseyServer = "org.glassfish.jersey.core" % "jersey-server" % jerseyVersion excludeAll(
     ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"))
@@ -707,6 +708,7 @@ object CelebornService {
         Dependencies.jacksonDataFormatYam,
         Dependencies.swaggerJaxrs2,
         Dependencies.swaggerUi,
+        Dependencies.javaxServletApi,
         Dependencies.jakartaServletApi,
         Dependencies.jerseyServer,
         Dependencies.jerseyContainerServletCore,
@@ -959,19 +961,6 @@ trait SparkClientProjects {
     }
   }
 
-  val sparkCommonExcludes = Seq(
-    ExclusionRule("jakarta.annotation", "jakarta.annotation-api"),
-    ExclusionRule("jakarta.validation", "jakarta.validation-api"),
-    ExclusionRule("jakarta.ws.rs", "jakarta.ws.rs-api"),
-    ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"),
-    ExclusionRule("org.eclipse.jetty", "*"),
-    ExclusionRule("org.glassfish.hk2", "*"),
-    ExclusionRule("org.glassfish.jersey.core", "*"),
-    ExclusionRule("org.glassfish.jersey.containers", "*"),
-    ExclusionRule("org.glassfish.jersey.inject", "*"),
-    ExclusionRule("org.glassfish.jersey.media", "*")
-  )
-
   def sparkCommon: Project = {
     Project("celeborn-spark-common", file("client-spark/common"))
       .dependsOn(CelebornCommon.common)
@@ -980,9 +969,9 @@ trait SparkClientProjects {
       .settings (
         commonSettings,
         libraryDependencies ++= Seq(
-          "org.apache.spark" %% "spark-core" % sparkVersion % "provided" excludeAll (sparkCommonExcludes : _*),
-          "org.apache.spark" %% "spark-sql" % sparkVersion % "provided" excludeAll (sparkCommonExcludes : _*),
-          "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests" excludeAll (sparkCommonExcludes : _*)
+          "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
+          "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
+          "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests"
         ) ++ commonUnitTestDependencies
       )
   }
@@ -995,8 +984,10 @@ trait SparkClientProjects {
       .settings (
         commonSettings,
         libraryDependencies ++= Seq(
-          "org.apache.spark" %% "spark-core" % sparkVersion % "provided" excludeAll (sparkCommonExcludes : _*),
-          "org.apache.spark" %% "spark-sql" % sparkVersion % "provided" excludeAll (sparkCommonExcludes : _*),
+          "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
+          "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
+          Dependencies.javaxServletApi % "test",
+          Dependencies.jakartaServletApi % "test"
         ) ++ commonUnitTestDependencies ++ Seq(Dependencies.mockitoInline % "test")
       )
   }
@@ -1008,7 +999,7 @@ trait SparkClientProjects {
       .settings(
         commonSettings,
         libraryDependencies ++= Seq(
-          "org.apache.spark" %% "spark-sql" % sparkVersion % "provided" excludeAll (sparkCommonExcludes : _*),
+          "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
         )
       )
   }
@@ -1020,11 +1011,13 @@ trait SparkClientProjects {
       // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
       .dependsOn(sparkColumnarCommon)
       .dependsOn(sparkClient % "test->test;compile->compile")
-      .dependsOn(CelebornClient.client % "test")
+      .dependsOn(CelebornClient.client % "test->test;compile->compile")
       .settings(
         commonSettings,
         libraryDependencies ++= Seq(
-          "org.apache.spark" %% "spark-sql" % sparkVersion % "provided" excludeAll (sparkCommonExcludes : _*),
+          "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
+          Dependencies.javaxServletApi % "test",
+          Dependencies.jakartaServletApi % "test"
         ) ++ commonUnitTestDependencies ++ Seq(Dependencies.mockitoInline % "test")
       )
   }
@@ -1040,8 +1033,30 @@ trait SparkClientProjects {
       .settings (
         commonSettings,
         libraryDependencies ++= Seq(
-          "org.apache.spark" %% "spark-core" % sparkVersion % "test" excludeAll (sparkCommonExcludes : _*),
-          "org.apache.spark" %% "spark-sql" % sparkVersion % "test" excludeAll (sparkCommonExcludes : _*)
+          "org.apache.spark" %% "spark-core" % sparkVersion % "test" excludeAll(
+            ExclusionRule("jakarta.annotation", "jakarta.annotation-api"),
+            ExclusionRule("jakarta.validation", "jakarta.validation-api"),
+            ExclusionRule("jakarta.ws.rs", "jakarta.ws.rs-api"),
+            ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"),
+            ExclusionRule("org.eclipse.jetty", "*"),
+            ExclusionRule("org.glassfish.hk2", "*"),
+            ExclusionRule("org.glassfish.jersey.core", "*"),
+            ExclusionRule("org.glassfish.jersey.containers", "*"),
+            ExclusionRule("org.glassfish.jersey.inject", "*"),
+            ExclusionRule("org.glassfish.jersey.media", "*")),
+          "org.apache.spark" %% "spark-sql" % sparkVersion % "test" excludeAll(
+            ExclusionRule("jakarta.annotation", "jakarta.annotation-api"),
+            ExclusionRule("jakarta.validation", "jakarta.validation-api"),
+            ExclusionRule("jakarta.ws.rs", "jakarta.ws.rs-api"),
+            ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"),
+            ExclusionRule("org.eclipse.jetty", "*"),
+            ExclusionRule("org.glassfish.hk2", "*"),
+            ExclusionRule("org.glassfish.jersey.core", "*"),
+            ExclusionRule("org.glassfish.jersey.containers", "*"),
+            ExclusionRule("org.glassfish.jersey.inject", "*"),
+            ExclusionRule("org.glassfish.jersey.media", "*")),
+          Dependencies.javaxServletApi % "test",
+          Dependencies.jakartaServletApi % "test"
         ) ++ commonUnitTestDependencies
       )
   }

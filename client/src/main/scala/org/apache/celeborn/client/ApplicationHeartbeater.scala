@@ -169,9 +169,8 @@ class ApplicationHeartbeater(
     }
   }
 
-  private val lock = new AnyRef
   def stop(): Unit = {
-    lock.synchronized {
+    this.synchronized {
       if (!stopped) {
         // Stop appHeartbeat first
         logInfo(s"Stop Application heartbeat $appId")
