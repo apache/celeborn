@@ -28,16 +28,6 @@ image:
   # -- Image pull policy
   pullPolicy: IfNotPresent
 
-service:
-  # -- Specifies service type
-  type: ClusterIP
-  # -- Specifies service port
-  port: 9097
-
-cluster:
-  # -- Specifies Kubernetes cluster name
-  name: cluster
-
 celeborn:
   celeborn.metrics.enabled: false
   celeborn.worker.storage.dirs: /mnt/disk1:disktype=SSD:capacity=1Gi,/mnt/disk2:disktype=SSD:capacity=1Gi
@@ -134,26 +124,10 @@ worker:
 podMonitor:
   # -- Specifies whether to enable creating pod monitors for Celeborn pods
   enable: false
-  # -- Specifies pod metrics endpoint
-  podMetricsEndpoint:
-    # Specifies scheme
-    scheme: http
-    # Specifies scrape interval
-    interval: 5s
-    # Specifies port name
-    portName: metrics
 
 serviceAccount:
   # -- Specifies whether to create a service account for Celeborn
   create: false
-  # -- Specifies the name of the service account
-  name: default
 
 rbac:
   create: false
-  roleName: default
-  roleBindingName: default
-  rules:
-    - apiGroups: [""]
-      resources: ["pods"]
-      verbs: ["create", "list", "delete"]
