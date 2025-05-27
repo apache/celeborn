@@ -24,6 +24,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.amazonaws.AmazonClientException;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.event.ProgressListener;
@@ -65,6 +66,9 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
   private String bucketName;
 
   private Integer s3MultiplePartUploadMaxRetries;
+
+  long initBackoff = 100; // 100ms
+  long maxBackoff = 5000; // 5s
 
   public S3MultipartUploadHandler(
       FileSystem hadoopFs, String bucketName, String key, Integer s3MultiplePartUploadMaxRetries)
@@ -175,7 +179,39 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
     CompleteMultipartUploadRequest compRequest =
         new CompleteMultipartUploadRequest(bucketName, key, uploadId, partETags)
             .withGeneralProgressListener(progressListener);
-    CompleteMultipartUploadResult compResult = s3Client.completeMultipartUpload(compRequest);
+    CompleteMultipartUploadResult compResult = null;
+    for (int attempt = 1; attempt <= this.s3MultiplePartUploadMaxRetries; attempt++) {
+      try {
+        compResult = s3Client.completeMultipartUpload(compRequest);
+        break;
+      } catch (AmazonClientException e) {
+        if (attempt == this.s3MultiplePartUploadMaxRetries
+            || !PredefinedRetryPolicies.DEFAULT_RETRY_CONDITION.shouldRetry(null, e, attempt)) {
+          logger.error(
+              "bucket {} key {} uploadId {} upload failed to complete, will not retry",
+              bucketName,
+              key,
+              uploadId,
+              e);
+          throw e;
+        }
+
+        long backoffTime = Math.min(maxBackoff, initBackoff * (long) Math.pow(2, attempt - 1));
+        try {
+          logger.warn(
+              "bucket {} key {} uploadId {} upload failed to complete, will retry ({}/{})",
+              bucketName,
+              key,
+              uploadId,
+              attempt,
+              this.s3MultiplePartUploadMaxRetries,
+              e);
+          Thread.sleep(backoffTime);
+        } catch (InterruptedException ex) {
+          throw new RuntimeException(ex);
+        }
+      }
+    }
     logger.debug(
         "bucket {} key {} uploadId {} upload completed location is in {} ",
         bucketName,
