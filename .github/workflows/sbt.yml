@@ -222,8 +222,7 @@ jobs:
           check-latest: false
       - name: Test with SBT
         run: |
-# TODO: enable spark4 tests
-          build/sbt -Dspark.shuffle.plugin.class=${{ matrix.shuffle-plugin-class }} -Pspark-${{ matrix.spark }} ++${{ matrix.scala }} "clean; celeborn-spark-group/package"
+          build/sbt -Dspark.shuffle.plugin.class=${{ matrix.shuffle-plugin-class }} -Pspark-${{ matrix.spark }} ++${{ matrix.scala }} "clean; celeborn-spark-group/test"
       - name: Upload test log
         if: failure()
         uses: actions/upload-artifact@v4

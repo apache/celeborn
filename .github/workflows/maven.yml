@@ -173,7 +173,7 @@ jobs:
           PROFILES="-Pgoogle-mirror,spark-${{ matrix.spark }}"
           TEST_MODULES="client-spark/common,client-spark/spark-3,client-spark/spark-3-columnar-common,client-spark/spark-${SPARK_MAJOR_VERSION}-shaded,tests/spark-it"
           build/mvn $PROFILES -pl $TEST_MODULES -am clean install -DskipTests
-#         build/mvn $PROFILES -pl $TEST_MODULES -Dspark.shuffle.sort.io.plugin.class=${{ matrix.shuffle-plugin-class }} test
+          build/mvn $PROFILES -pl $TEST_MODULES -Dspark.shuffle.sort.io.plugin.class=${{ matrix.shuffle-plugin-class }} test
       - name: Upload test log
         if: failure()
         uses: actions/upload-artifact@v4
