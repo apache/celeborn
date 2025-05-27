@@ -52,6 +52,7 @@ import org.apache.celeborn.common.network.util.TransportConf
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, RpcNameConstants, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.{ControlMessages, Message}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
+import org.apache.celeborn.common.rpc.RpcTimeoutException
 import org.apache.celeborn.reflect.DynConstructors
 
 object Utils extends Logging {
@@ -1277,5 +1278,33 @@ object Utils extends Logging {
       clientChannelId: String,
       rpcRequestId: Long): String = {
     s"$shuffleKey-$clientChannelId-$rpcRequestId"
+  }
+
+  def withRetryOnTimeoutOrIOException[T](numRetries: Int, retryWait: Long)(block: => T): T = {
+    var retriesLeft = numRetries
+    while (retriesLeft >= 0) {
+      retriesLeft -= 1
+      try {
+        return block
+      } catch {
+        case e @ (_: RpcTimeoutException | _: IOException) =>
+          if (retriesLeft > 0) {
+            val random = new Random
+            val retryWaitMs = random.nextInt(retryWait.toInt)
+            try {
+              TimeUnit.MILLISECONDS.sleep(retryWaitMs)
+            } catch {
+              case _: InterruptedException =>
+                throw e
+            }
+          } else {
+            throw e
+          }
+        case e: Exception =>
+          throw e
+      }
+    }
+    // should never be here
+    null.asInstanceOf[T]
   }
 }
