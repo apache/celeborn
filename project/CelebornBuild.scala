@@ -80,8 +80,7 @@ object Dependencies {
   val swaggerUiVersion = "4.9.1"
   val jerseyVersion = "2.39.1"
   val jettyVersion = "9.4.56.v20240826"
-  val javaxServletApiVersion = "4.0.1"
-  val jakartaServeletApiVersion = "5.0.0"
+  val jakartaServeletApiVersion = "4.0.4"
   val openApiToolsJacksonBindNullableVersion = "0.2.6"
   val httpClient5Version = "5.3.1"
   val httpCore5Version = "5.2.4"
@@ -184,11 +183,11 @@ object Dependencies {
   val zstdJni = "com.github.luben" % "zstd-jni" % zstdJniVersion
   val mybatis = "org.mybatis" % "mybatis" % mybatisVersion
   val hikaricp = "com.zaxxer" % "HikariCP" % hikaricpVersion
-  val jettyServer = "org.eclipse.jetty" % "jetty-server" % jettyVersion
+  val jettyServer = "org.eclipse.jetty" % "jetty-server" % jettyVersion excludeAll(
+    ExclusionRule("javax.servlet", "javax.servlet-api"))
   val jettyServlet = "org.eclipse.jetty" % "jetty-servlet" % jettyVersion excludeAll(
     ExclusionRule("javax.servlet", "javax.servlet-api"))
   val jettyProxy = "org.eclipse.jetty" % "jetty-proxy" % jettyVersion
-  val javaxServletApi = "javax.servlet" % "javax.servlet-api" % javaxServletApiVersion
   val jakartaServletApi = "jakarta.servlet" % "jakarta.servlet-api" % jakartaServeletApiVersion
   val jerseyServer = "org.glassfish.jersey.core" % "jersey-server" % jerseyVersion excludeAll(
     ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"))
@@ -708,7 +707,6 @@ object CelebornService {
         Dependencies.jacksonDataFormatYam,
         Dependencies.swaggerJaxrs2,
         Dependencies.swaggerUi,
-        Dependencies.javaxServletApi,
         Dependencies.jakartaServletApi,
         Dependencies.jerseyServer,
         Dependencies.jerseyContainerServletCore,
@@ -1029,8 +1027,6 @@ trait SparkClientProjects {
       .settings (
         commonSettings,
         libraryDependencies ++= Seq(
-          Dependencies.javaxServletApi % "test",
-          Dependencies.jakartaServletApi % "test",
           "org.apache.spark" %% "spark-core" % sparkVersion % "test" excludeAll(
             ExclusionRule("jakarta.annotation", "jakarta.annotation-api"),
             ExclusionRule("jakarta.validation", "jakarta.validation-api"),
