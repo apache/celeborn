@@ -1371,7 +1371,8 @@ object MRClientProjects {
           Dependencies.hadoopClientRuntime,
           Dependencies.hadoopMapreduceClientApp,
           Dependencies.jacksonJaxrsJsonProvider,
-          Dependencies.jakartaActivationApi
+          Dependencies.jakartaActivationApi,
+          Dependencies.javaxServletApi
         ) ++ commonUnitTestDependencies,
         dependencyOverrides += Dependencies.commonsCompress
       )
@@ -1722,6 +1723,7 @@ object TezClientProjects {
           Dependencies.tezApi,
           Dependencies.hadoopCommon,
           Dependencies.slf4jApi,
+          Dependencies.javaxServletApi
         ) ++ commonUnitTestDependencies,
         dependencyOverrides += Dependencies.commonsCompress
       )
