@@ -86,6 +86,7 @@ object Dependencies {
   val httpClient5Version = "5.3.1"
   val httpCore5Version = "5.2.4"
   val jakartaAnnotationApiVersion = "1.3.5"
+  val jakartaWsRsApiVersion = "2.1.6"
   val picocliVersion = "4.7.6"
   val jmhVersion = "1.37"
 
@@ -207,6 +208,7 @@ object Dependencies {
   val httpCore5 = "org.apache.httpcomponents.core5" % "httpcore5" % httpCore5Version
   val httpCore5H2 = "org.apache.httpcomponents.core5" % "httpcore5-h2" % httpCore5Version
   val jakartaAnnotationApi = "jakarta.annotation" % "jakarta.annotation-api" % jakartaAnnotationApiVersion
+  val jakartaWsRsApi = "jakarta.ws.rs" % "jakarta.ws.rs-api" % jakartaWsRsApiVersion
 
   // Test dependencies
   // https://www.scala-sbt.org/1.x/docs/Testing.html
@@ -710,6 +712,8 @@ object CelebornService {
         Dependencies.swaggerUi,
         Dependencies.javaxServletApi,
         Dependencies.jakartaServletApi,
+        Dependencies.jakartaAnnotationApi,
+        Dependencies.jakartaWsRsApi,
         Dependencies.jerseyServer,
         Dependencies.jerseyContainerServletCore,
         Dependencies.jerseyHk2,
