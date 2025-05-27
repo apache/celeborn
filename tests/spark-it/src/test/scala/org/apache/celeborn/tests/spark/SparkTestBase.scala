@@ -44,6 +44,11 @@ trait SparkTestBase extends AnyFunSuite
   val Spark3OrNewer = SPARK_VERSION >= "3.0"
   println(s"Spark version is $SPARK_VERSION, Spark3OrNewer: $Spark3OrNewer")
 
+  System.setProperty("spark.ui.enabled", "false")
+  System.setProperty("spark.metrics.conf", "dummy-file")
+  System.setProperty("spark.metrics.conf.driver.sink.servlet.class", "org.apache.spark.DummyMetricsServlet")
+  System.setProperty("spark.metrics.staticSources.enabled", "false")
+
   private val sampleSeq = (1 to 78)
     .map(Random.alphanumeric)
     .toList
