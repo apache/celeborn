@@ -671,7 +671,7 @@ private[celeborn] class Worker(
             logWarning(
               s"Register worker to master failed, will retry after ${Utils.msDurationToString(interval)}",
               throwable)
-            WorkerSource.incCounter(WorkerSource.REGISTER_WITH_MASTER_FAIL_COUNT)
+            workerSource.incCounter(WorkerSource.REGISTER_WITH_MASTER_FAIL_COUNT)
             exception = throwable
             null
         }
