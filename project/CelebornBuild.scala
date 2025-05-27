@@ -926,9 +926,6 @@ object Spark40 extends SparkClientProjects {
   val scalaBinaryVersion = "2.13"
 
   override val sparkColumnarShuffleVersion: String = "4"
-
-  // TODO: Fix columnar shuffle build issue for Spark 4.0
-  override val includeColumnarShuffle: Boolean = false
 }
 
 trait SparkClientProjects {

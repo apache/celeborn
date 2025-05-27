@@ -440,7 +440,7 @@ private[columnar] trait DirectCopyCelebornColumnType[JvmType] extends CelebornCo
 
 private[columnar] object CELEBORN_STRING
   extends NativeCelebornColumnType(
-    PhysicalStringType(SqlApiConf.get.defaultStringType.collationId),
+    PhysicalStringType(StringType.collationId),
     8)
   with DirectCopyCelebornColumnType[UTF8String] {
 
