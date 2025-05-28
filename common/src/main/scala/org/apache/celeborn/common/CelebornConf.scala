@@ -651,10 +651,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   def channelHeartbeatInterval(module: String): Long = {
-    getTransportConfTimeAsMs(module, CHANNEL_HEARTBEAT_INTERVAL)
-  }
-
-  def clientHeartbeatInterval(module: String): Long = {
     getTransportConfTimeAsMs(module, CHANNEL_HEARTBEAT_INTERVAL, fallbackWithoutModule = true)
   }
 
@@ -894,9 +890,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerPartitionSorterIndexCacheMaxWeight: Long =
     get(WORKER_PARTITION_SORTER_INDEX_CACHE_MAX_WEIGHT)
   def workerPartitionSorterIndexExpire: Long = get(WORKER_PARTITION_SORTER_INDEX_CACHE_EXPIRE)
-  def workerPushHeartbeatEnabled: Boolean = get(WORKER_PUSH_HEARTBEAT_ENABLED)
   def workerPushMaxComponents: Int = get(WORKER_PUSH_COMPOSITEBUFFER_MAXCOMPONENTS)
-  def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
   def workerPartitionSplitEnabled: Boolean = get(WORKER_PARTITION_SPLIT_ENABLED)
   def workerActiveConnectionMax: Option[Long] = get(WORKER_ACTIVE_CONNECTION_MAX)
   def workerJvmProfilerEnabled: Boolean = get(WORKER_JVM_PROFILER_ENABLED)
@@ -1715,7 +1709,15 @@ object CelebornConf extends Logging {
       DeprecatedConfig(
         "celeborn.quota.identity.user-specific.userName",
         "0.6.0",
-        "Please use celeborn.identity.user-specific.userName"))
+        "Please use celeborn.identity.user-specific.userName"),
+      DeprecatedConfig(
+        "celeborn.worker.push.heartbeat.enabled",
+        "0.6.0",
+        "Please use celeborn.<module>.heartbeat.enabled"),
+      DeprecatedConfig(
+        "celeborn.worker.fetch.heartbeat.enabled",
+        "0.6.0",
+        "Please use celeborn.<module>.heartbeat.enabled"))
 
     Map(configs.map { cfg => (cfg.key -> cfg) }: _*)
   }
@@ -4366,14 +4368,6 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefault(0)
 
-  val WORKER_PUSH_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.push.heartbeat.enabled")
-      .categories("worker")
-      .version("0.3.0")
-      .doc("enable the heartbeat from worker to client when pushing data")
-      .booleanConf
-      .createWithDefault(false)
-
   val WORKER_PUSH_COMPOSITEBUFFER_MAXCOMPONENTS: ConfigEntry[Int] =
     buildConf("celeborn.worker.push.compositeBuffer.maxComponents")
       .internal
@@ -4386,14 +4380,6 @@ object CelebornConf extends Logging {
         "might decrease due to frequent memory copy during compaction.")
       .intConf
       .createWithDefault(128)
-
-  val WORKER_FETCH_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.fetch.heartbeat.enabled")
-      .categories("worker")
-      .version("0.3.0")
-      .doc("enable the heartbeat from worker to client when fetching data")
-      .booleanConf
-      .createWithDefault(false)
 
   val WORKER_ACTIVE_CONNECTION_MAX: OptionalConfigEntry[Long] =
     buildConf("celeborn.worker.activeConnection.max")
