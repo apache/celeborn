@@ -285,6 +285,9 @@ function sbt_build_service {
   if [[ $@ == *"aws"* ]]; then
      export SBT_MAVEN_PROFILES="aws"
   fi
+  if [[ $@ == *"aliyun"* ]]; then
+     export SBT_MAVEN_PROFILES="aliyun"
+  fi
   BUILD_COMMAND=("$SBT" clean package)
 
   # Actually build the jar
@@ -339,14 +342,21 @@ function sbt_build_client {
 if [ "$SBT_ENABLED" == "true" ]; then
   sbt_build_service "$@"
   if [ "$RELEASE" == "true" ]; then
+    export JAVA_HOME=$JAVA8_HOME
     sbt_build_client -Pspark-2.4
     sbt_build_client -Pspark-3.4
     sbt_build_client -Pspark-3.5
+    export JAVA_HOME=$JAVA17_HOME
+    sbt_build_client -Pspark-4.0
+    export JAVA_HOME=$JAVA8_HOME
     sbt_build_client -Pflink-1.16
     sbt_build_client -Pflink-1.17
     sbt_build_client -Pflink-1.18
     sbt_build_client -Pflink-1.19
     sbt_build_client -Pflink-1.20
+    export JAVA_HOME=$JAVA11_HOME
+    sbt_build_client -Pflink-2.0
+    export JAVA_HOME=$JAVA8_HOME
     sbt_build_client -Pmr
     sbt_build_client -Ptez
   else
@@ -373,14 +383,21 @@ if [ "$SBT_ENABLED" == "true" ]; then
 else
   if [ "$RELEASE" == "true" ]; then
     build_service
+    export JAVA_HOME=$JAVA8_HOME
     build_spark_client -Pspark-2.4
     build_spark_client -Pspark-3.4
     build_spark_client -Pspark-3.5
+    export JAVA_HOME=$JAVA17_HOME
+    build_spark_client -Pspark-4.0
+    export JAVA_HOME=$JAVA8_HOME
     build_flink_client -Pflink-1.16
     build_flink_client -Pflink-1.17
     build_flink_client -Pflink-1.18
     build_flink_client -Pflink-1.19
     build_flink_client -Pflink-1.20
+    export JAVA_HOME=$JAVA11_HOME
+    build_flink_client -Pflink-2.0
+    export JAVA_HOME=$JAVA8_HOME
     build_mr_client -Pmr
     build_tez_client -Ptez
   else

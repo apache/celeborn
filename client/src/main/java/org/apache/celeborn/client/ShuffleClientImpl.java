@@ -53,9 +53,8 @@ import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientBootstrap;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
-import org.apache.celeborn.common.network.protocol.PushData;
-import org.apache.celeborn.common.network.protocol.PushMergedData;
-import org.apache.celeborn.common.network.protocol.TransportMessage;
+import org.apache.celeborn.common.network.protocol.*;
+import org.apache.celeborn.common.network.protocol.SerdeVersion;
 import org.apache.celeborn.common.network.sasl.SaslClientBootstrap;
 import org.apache.celeborn.common.network.sasl.SaslCredentials;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
@@ -69,7 +68,7 @@ import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.*;
 import org.apache.celeborn.common.write.DataBatches;
-import org.apache.celeborn.common.write.PushFailedBatch;
+import org.apache.celeborn.common.write.LocationPushFailedBatches;
 import org.apache.celeborn.common.write.PushState;
 
 public class ShuffleClientImpl extends ShuffleClient {
@@ -104,7 +103,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected byte[] extension;
 
   // key: appShuffleIdentifier, value: shuffleId
-  protected Map<String, Integer> shuffleIdCache = JavaUtils.newConcurrentHashMap();
+  protected Map<String, Tuple2<Integer, Boolean>> shuffleIdCache = JavaUtils.newConcurrentHashMap();
 
   // key: shuffleId, value: (partitionId, PartitionLocation)
   final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
@@ -151,7 +150,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   public static class ReduceFileGroups {
     public Map<Integer, Set<PartitionLocation>> partitionGroups;
-    public Map<String, Set<PushFailedBatch>> pushFailedBatches;
+    public Map<String, LocationPushFailedBatches> pushFailedBatches;
     public int[] mapAttempts;
     public Set<Integer> partitionIds;
 
@@ -159,7 +158,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         Map<Integer, Set<PartitionLocation>> partitionGroups,
         int[] mapAttempts,
         Set<Integer> partitionIds,
-        Map<String, Set<PushFailedBatch>> pushFailedBatches) {
+        Map<String, LocationPushFailedBatches> pushFailedBatches) {
       this.partitionGroups = partitionGroups;
       this.mapAttempts = mapAttempts;
       this.partitionIds = partitionIds;
@@ -184,6 +183,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   // key: shuffleId
   protected final Map<Integer, Tuple3<ReduceFileGroups, String, Exception>> reduceFileGroupsMap =
       JavaUtils.newConcurrentHashMap();
+
+  private final TransportMessagesHelper messagesHelper = new TransportMessagesHelper();
 
   public ShuffleClientImpl(String appUniqueId, CelebornConf conf, UserIdentifier userIdentifier) {
     super();
@@ -221,8 +222,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             scala.None$.empty());
 
     String module = TransportModuleConstants.DATA_MODULE;
-    dataTransportConf =
-        Utils.fromCelebornConf(conf, module, conf.getInt("celeborn." + module + ".io.threads", 8));
+    dataTransportConf = Utils.fromCelebornConf(conf, module, conf.networkIoThreads(module));
     initDataClientFactoryIfNeeded();
     int pushDataRetryThreads = conf.clientPushRetryThreads();
     pushDataRetryPool =
@@ -334,7 +334,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   + ", revive status "
                   + request.reviveStatus
                   + "("
-                  + Utils.toStatusCode(request.reviveStatus)
+                  + StatusCode.fromValue(request.reviveStatus)
                   + ")"
                   + ", old location: "
                   + request.loc));
@@ -457,7 +457,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                             + " then revive but "
                             + request.reviveStatus
                             + "("
-                            + Utils.toStatusCode(request.reviveStatus)
+                            + StatusCode.fromValue(request.reviveStatus)
                             + ")")));
             return;
           }
@@ -493,7 +493,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                         + " then revive but "
                         + request.reviveStatus
                         + "("
-                        + Utils.toStatusCode(request.reviveStatus)
+                        + StatusCode.fromValue(request.reviveStatus)
                         + ")")));
         return;
       }
@@ -625,7 +625,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public int getShuffleId(
+  public Tuple2<Integer, Boolean> getShuffleId(
       int appShuffleId, String appShuffleIdentifier, boolean isWriter, boolean isBarrierStage) {
     return shuffleIdCache.computeIfAbsent(
         appShuffleIdentifier,
@@ -642,7 +642,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                   pbGetShuffleId,
                   conf.clientRpcRegisterShuffleAskTimeout(),
                   ClassTag$.MODULE$.apply(PbGetShuffleIdResponse.class));
-          return pbGetShuffleIdResponse.getShuffleId();
+          return Tuple2.apply(
+              pbGetShuffleIdResponse.getShuffleId(), pbGetShuffleIdResponse.getSuccess());
         });
   }
 
@@ -688,7 +689,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     while (numRetries > 0) {
       try {
         PbRegisterShuffleResponse response = callable.call();
-        StatusCode respStatus = Utils.toStatusCode(response.getStatus());
+        StatusCode respStatus = StatusCode.fromValue(response.getStatus());
         if (StatusCode.SUCCESS.equals(respStatus)) {
           ConcurrentHashMap<Integer, PartitionLocation> result = JavaUtils.newConcurrentHashMap();
           Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
@@ -1119,9 +1120,9 @@ public class ShuffleClientImpl extends ShuffleClient {
                       attemptId,
                       partitionId,
                       nextBatchId);
-                  if (dataPushFailureTrackingEnabled) {
-                    pushState.addFailedBatch(
-                        latest.getUniqueId(), new PushFailedBatch(mapId, attemptId, nextBatchId));
+                  if (dataPushFailureTrackingEnabled && pushReplicateEnabled) {
+                    pushState.recordFailedBatch(
+                        latest.getUniqueId(), mapId, attemptId, nextBatchId);
                   }
                   ReviveRequest reviveRequest =
                       new ReviveRequest(
@@ -1190,8 +1191,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             @Override
             public void onFailure(Throwable e) {
               if (dataPushFailureTrackingEnabled) {
-                pushState.addFailedBatch(
-                    latest.getUniqueId(), new PushFailedBatch(mapId, attemptId, nextBatchId));
+                pushState.recordFailedBatch(latest.getUniqueId(), mapId, attemptId, nextBatchId);
               }
               if (pushState.exception.get() != null) {
                 return;
@@ -1559,11 +1559,10 @@ public class ShuffleClientImpl extends ShuffleClient {
                 pushState.onSuccess(hostPort);
                 callback.onSuccess(ByteBuffer.wrap(new byte[] {StatusCode.SOFT_SPLIT.getValue()}));
               } else {
-                if (dataPushFailureTrackingEnabled) {
+                if (dataPushFailureTrackingEnabled && pushReplicateEnabled) {
                   for (DataBatches.DataBatch resubmitBatch : batchesNeedResubmit) {
-                    pushState.addFailedBatch(
-                        resubmitBatch.loc.getUniqueId(),
-                        new PushFailedBatch(mapId, attemptId, resubmitBatch.batchId));
+                    pushState.recordFailedBatch(
+                        resubmitBatch.loc.getUniqueId(), mapId, attemptId, resubmitBatch.batchId);
                   }
                 }
                 ReviveRequest[] requests =
@@ -1623,8 +1622,7 @@ public class ShuffleClientImpl extends ShuffleClient {
           public void onFailure(Throwable e) {
             if (dataPushFailureTrackingEnabled) {
               for (int i = 0; i < numBatches; i++) {
-                pushState.addFailedBatch(
-                    partitionUniqueIds[i], new PushFailedBatch(mapId, attemptId, batchIds[i]));
+                pushState.recordFailedBatch(partitionUniqueIds[i], mapId, attemptId, batchIds[i]);
               }
             }
             if (pushState.exception.get() != null) {
@@ -1800,7 +1798,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     try {
       GetReducerFileGroup getReducerFileGroup =
-          new GetReducerFileGroup(shuffleId, isSegmentGranularityVisible);
+          new GetReducerFileGroup(shuffleId, isSegmentGranularityVisible, SerdeVersion.V1);
 
       GetReducerFileGroupResponse response =
           lifecycleManagerRef.askSync(
@@ -1811,6 +1809,14 @@ public class ShuffleClientImpl extends ShuffleClient {
               ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
       switch (response.status()) {
         case SUCCESS:
+          if (response.broadcast() != null && response.broadcast().length > 0) {
+            response =
+                ShuffleClient.deserializeReducerFileGroupResponse(shuffleId, response.broadcast());
+            if (response == null) {
+              throw new CelebornIOException(
+                  "Failed to get GetReducerFileGroupResponse broadcast for shuffle: " + shuffleId);
+            }
+          }
           logger.info(
               "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
               shuffleId,
@@ -1863,6 +1869,22 @@ public class ShuffleClientImpl extends ShuffleClient {
     return updateFileGroup(shuffleId, partitionId, false);
   }
 
+  @Override
+  public boolean isShuffleStageEnd(int shuffleId) throws Exception {
+    if (null != lifecycleManagerRef) {
+      PbGetStageEnd request = PbGetStageEnd.newBuilder().setShuffleId(shuffleId).build();
+      PbGetStageEndResponse response =
+          lifecycleManagerRef.askSync(
+              request,
+              rpcMaxRetries,
+              rpcRetryWait,
+              ClassTag$.MODULE$.apply(PbGetStageEndResponse.class));
+      return response.getStageEnd();
+    } else {
+      throw new RuntimeException("Driver endpoint is null!");
+    }
+  }
+
   public ReduceFileGroups updateFileGroup(
       int shuffleId, int partitionId, boolean isSegmentGranularityVisible)
       throws CelebornIOException {
@@ -1905,7 +1927,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       ExceptionMaker exceptionMaker,
       ArrayList<PartitionLocation> locations,
       ArrayList<PbStreamHandler> streamHandlers,
-      Map<String, Set<PushFailedBatch>> failedBatchSetMap,
+      Map<String, LocationPushFailedBatches> failedBatchSetMap,
       Map<String, Pair<Integer, Integer>> chunksRange,
       int[] mapAttempts,
       MetricsCallback metricsCallback)
@@ -1984,6 +2006,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     shuffleIdCache.clear();
     pushExcludedWorkers.clear();
     fetchExcludedWorkers.clear();
+    messagesHelper.close();
     logger.warn("Shuffle client has been shutdown!");
   }
 

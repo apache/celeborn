@@ -29,10 +29,10 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: Should create worker priority class if `priorityClass.worker.create` is true
+  - it: Should create worker priority class if `worker.priorityClass.create` is true
     set:
-      priorityClass:
-        worker:
+      worker:
+        priorityClass:
           create: true
     asserts:
       - containsDocument:
@@ -42,8 +42,8 @@ tests:
 
   - it: Should use the specified priority class value
     set:
-      priorityClass:
-        worker:
+      worker:
+        priorityClass:
           create: true
           value: 1000
     asserts:

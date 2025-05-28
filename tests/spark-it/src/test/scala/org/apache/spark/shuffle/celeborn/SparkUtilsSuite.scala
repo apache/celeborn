@@ -29,8 +29,11 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
 import org.apache.celeborn.client.ShuffleClient
-import org.apache.celeborn.common.protocol.ShuffleMode
+import org.apache.celeborn.common.protocol.{PartitionLocation, ShuffleMode}
+import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
+import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.tests.spark.SparkTestBase
+import org.apache.celeborn.tests.spark.fetch.failure.ShuffleReaderGetHooks
 
 class SparkUtilsSuite extends AnyFunSuite
   with SparkTestBase
@@ -58,7 +61,7 @@ class SparkUtilsSuite extends AnyFunSuite
         .getOrCreate()
 
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
-      val hook = new ShuffleReaderFetchFailureGetHook(celebornConf)
+      val hook = new ShuffleReaderGetHooks(celebornConf, workerDirs)
       TestCelebornShuffleManager.registerReaderGetHook(hook)
 
       try {
@@ -155,6 +158,63 @@ class SparkUtilsSuite extends AnyFunSuite
       }
     } finally {
       sparkSession.stop()
+    }
+  }
+
+  test("serialize/deserialize GetReducerFileGroupResponse with broadcast") {
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+    val sparkSession = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .config("spark.sql.shuffle.partitions", 2)
+      .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+      .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
+      .config(
+        "spark.shuffle.manager",
+        "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+      .getOrCreate()
+
+    try {
+      val shuffleId = Integer.MAX_VALUE
+      val getReducerFileGroupResponse = GetReducerFileGroupResponse(
+        StatusCode.SUCCESS,
+        Map(Integer.valueOf(shuffleId) -> Set(new PartitionLocation(
+          0,
+          1,
+          "localhost",
+          1,
+          2,
+          3,
+          4,
+          PartitionLocation.Mode.REPLICA)).asJava).asJava,
+        Array(1),
+        Set(Integer.valueOf(shuffleId)).asJava)
+
+      val serializedBytes =
+        SparkUtils.serializeGetReducerFileGroupResponse(shuffleId, getReducerFileGroupResponse)
+      assert(serializedBytes != null && serializedBytes.length > 0)
+      val broadcast = SparkUtils.getReducerFileGroupResponseBroadcasts.values().asScala.head._1
+      assert(broadcast.isValid)
+
+      val deserializedGetReducerFileGroupResponse =
+        SparkUtils.deserializeGetReducerFileGroupResponse(shuffleId, serializedBytes)
+      assert(deserializedGetReducerFileGroupResponse.status == getReducerFileGroupResponse.status)
+      assert(
+        deserializedGetReducerFileGroupResponse.fileGroup == getReducerFileGroupResponse.fileGroup)
+      assert(java.util.Arrays.equals(
+        deserializedGetReducerFileGroupResponse.attempts,
+        getReducerFileGroupResponse.attempts))
+      assert(deserializedGetReducerFileGroupResponse.partitionIds == getReducerFileGroupResponse.partitionIds)
+      assert(
+        deserializedGetReducerFileGroupResponse.pushFailedBatches == getReducerFileGroupResponse.pushFailedBatches)
+
+      assert(!SparkUtils.getReducerFileGroupResponseBroadcasts.isEmpty)
+      SparkUtils.invalidateSerializedGetReducerFileGroupResponse(shuffleId)
+      assert(SparkUtils.getReducerFileGroupResponseBroadcasts.isEmpty)
+      assert(!broadcast.isValid)
+    } finally {
+      sparkSession.stop()
+      SparkUtils.getReducerFileGroupResponseBroadcasts.clear()
+      SparkUtils.getReducerFileGroupResponseBroadcastNum.set(0)
     }
   }
 }

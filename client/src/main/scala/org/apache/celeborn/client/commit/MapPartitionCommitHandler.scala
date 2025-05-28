@@ -31,6 +31,7 @@ import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, Shu
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -39,7 +40,7 @@ import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.common.util.Utils
-import org.apache.celeborn.common.write.PushFailedBatch
+import org.apache.celeborn.common.write.LocationPushFailedBatches
 
 /**
  * This commit handler is for MapPartition ShuffleType, which means that a Map Partition contains all data produced
@@ -185,7 +186,7 @@ class MapPartitionCommitHandler(
       attemptId: Int,
       numMappers: Int,
       partitionId: Int,
-      pushFailedBatches: util.Map[String, util.Set[PushFailedBatch]],
+      pushFailedBatches: util.Map[String, LocationPushFailedBatches],
       recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean) = {
     val inProcessingPartitionIds =
       inProcessMapPartitionEndIds.computeIfAbsent(
@@ -230,7 +231,10 @@ class MapPartitionCommitHandler(
     shuffleIsSegmentGranularityVisible.get(shuffleId)
   }
 
-  override def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+  override def handleGetReducerFileGroup(
+      context: RpcCallContext,
+      shuffleId: Int,
+      serdeVersion: SerdeVersion): Unit = {
     // TODO: if support the downstream map task start early before the upstream reduce task, it should
     //  waiting the upstream task register shuffle, then reply these GetReducerFileGroup.
     //  Note that flink hybrid shuffle should support it in the future.
@@ -244,7 +248,8 @@ class MapPartitionCommitHandler(
       StatusCode.SUCCESS,
       reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
       getMapperAttempts(shuffleId),
-      succeedPartitionIds))
+      succeedPartitionIds,
+      serdeVersion = serdeVersion))
   }
 
   override def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {

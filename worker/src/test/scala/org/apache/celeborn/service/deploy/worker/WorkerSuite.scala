@@ -131,23 +131,24 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
 
   test("handle top resource consumption") {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
+    conf.set(CelebornConf.METRICS_WORKER_APP_TOP_RESOURCE_CONSUMPTION_COUNT, 5)
     worker = new Worker(conf, workerArgs)
     val userIdentifier = new UserIdentifier("default", "celeborn")
-    worker.handleTopResourceConsumption(Map(userIdentifier -> ResourceConsumption(
+    worker.handleTopAppResourceConsumption(Map(userIdentifier -> ResourceConsumption(
       1024,
       1,
       0,
       0,
       Map("app1" -> ResourceConsumption(1024, 1, 0, 0)).asJava)).asJava)
     assert(worker.resourceConsumptionSource.gauges().size == 2)
-    worker.handleTopResourceConsumption(Map(userIdentifier -> ResourceConsumption(
+    worker.handleTopAppResourceConsumption(Map(userIdentifier -> ResourceConsumption(
       1024,
       1,
       0,
       0,
       Map("app2" -> ResourceConsumption(1024, 1, 0, 0)).asJava)).asJava)
     assert(worker.resourceConsumptionSource.gauges().size == 2)
-    worker.handleTopResourceConsumption(Map.empty[UserIdentifier, ResourceConsumption].asJava)
+    worker.handleTopAppResourceConsumption(Map.empty[UserIdentifier, ResourceConsumption].asJava)
     assert(worker.resourceConsumptionSource.gauges().size == 0)
   }
 
@@ -158,7 +159,7 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
 
     worker = new Worker(conf, workerArgs)
     val userIdentifier = new UserIdentifier("default", "celeborn")
-    worker.handleTopResourceConsumption(Map(userIdentifier -> ResourceConsumption(
+    worker.handleTopAppResourceConsumption(Map(userIdentifier -> ResourceConsumption(
       1024,
       1,
       0,

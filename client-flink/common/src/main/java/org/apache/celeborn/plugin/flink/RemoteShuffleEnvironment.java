@@ -191,7 +191,7 @@ public class RemoteShuffleEnvironment
     if (resultPartitionDeploymentDescriptor.getShuffleDescriptor()
         instanceof RemoteShuffleDescriptor) {
       return resultPartitionFactory.create(
-          ownerContext.getOwnerName(), index, resultPartitionDeploymentDescriptor, conf);
+          ownerContext, index, resultPartitionDeploymentDescriptor, conf);
     } else {
       nettyResultIds.add(resultPartitionDeploymentDescriptor.getResultId());
       nettyResultPartitionIds.add(resultPartitionDeploymentDescriptor.getPartitionId());
@@ -222,11 +222,14 @@ public class RemoteShuffleEnvironment
     synchronized (lock) {
       checkState(!isClosed, "The RemoteShuffleEnvironment has already been shut down.");
 
+      InputChannelMetrics inputChannelMetrics =
+          new InputChannelMetrics(ownerContext.getInputGroup(), ownerContext.getParentGroup());
       IndexedInputGate[] inputGates = new IndexedInputGate[inputGateDescriptors.size()];
       for (int gateIndex = 0; gateIndex < inputGates.length; gateIndex++) {
         InputGateDeploymentDescriptor igdd = inputGateDescriptors.get(gateIndex);
         IndexedInputGate inputGate =
-            createInputGateInternal(ownerContext, producerStateProvider, gateIndex, igdd);
+            createInputGateInternal(
+                ownerContext, producerStateProvider, gateIndex, igdd, inputChannelMetrics);
         inputGates[gateIndex] = inputGate;
       }
       return Arrays.asList(inputGates);
@@ -237,18 +240,13 @@ public class RemoteShuffleEnvironment
       ShuffleIOOwnerContext ownerContext,
       PartitionProducerStateProvider producerStateProvider,
       int gateIndex,
-      InputGateDeploymentDescriptor igdd) {
+      InputGateDeploymentDescriptor igdd,
+      InputChannelMetrics inputChannelMetrics) {
     return nettyResultIds.contains(igdd.getConsumedResultId())
         ? shuffleEnvironmentWrapper
             .nettyInputGateFactory()
-            .create(
-                ownerContext,
-                gateIndex,
-                igdd,
-                producerStateProvider,
-                new InputChannelMetrics(
-                    ownerContext.getInputGroup(), ownerContext.getParentGroup()))
-        : inputGateFactory.create(ownerContext.getOwnerName(), gateIndex, igdd);
+            .create(ownerContext, gateIndex, igdd, producerStateProvider, inputChannelMetrics)
+        : inputGateFactory.create(ownerContext, gateIndex, igdd);
   }
 
   @VisibleForTesting

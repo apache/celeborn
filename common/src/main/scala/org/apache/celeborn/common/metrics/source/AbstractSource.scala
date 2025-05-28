@@ -313,15 +313,20 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   protected def doStopTimer(metricsName: String, key: String, labels: Map[String, String]): Unit = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(metricsName, labels)
     try {
-      val (namedTimer, map) = namedTimers.get(metricNameWithLabel)
-      val startTime = Option(map.remove(key))
-      startTime match {
-        case Some(t) =>
-          namedTimer.timer.update(System.nanoTime() - t, TimeUnit.NANOSECONDS)
-          if (namedTimer.timer.getCount % metricsSlidingWindowSize == 0) {
-            addTimerMetrics(namedTimer)
-          }
-        case None =>
+      val pair = namedTimers.get(metricNameWithLabel)
+      if (pair != null) {
+        val (namedTimer, map) = pair
+        val startTime = Option(map.remove(key))
+        startTime match {
+          case Some(t) =>
+            namedTimer.timer.update(System.nanoTime() - t, TimeUnit.NANOSECONDS)
+            if (namedTimer.timer.getCount % metricsSlidingWindowSize == 0) {
+              addTimerMetrics(namedTimer)
+            }
+          case None =>
+        }
+      } else {
+        logWarning(s"Metric $metricNameWithLabel not found!")
       }
     } catch {
       case e: Exception =>
@@ -398,33 +403,80 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     metricsCleaner.scheduleWithFixedDelay(cleanTask, 10, 10, TimeUnit.MINUTES)
   }
 
+  private def addMetricsWithPrometheusHelpType(
+      metricName: String,
+      label: String,
+      value: Any,
+      timestamp: Long,
+      promType: String): String = {
+    val sb = new StringBuilder
+    sb.append(s"# HELP ${metricName}\n")
+    sb.append(s"# TYPE ${metricName} ${promType}\n")
+    sb.append(s"${metricName}$label ${value} $timestamp\n")
+    sb.toString()
+  }
+
   def getCounterMetrics(nc: NamedCounter): String = {
     val timestamp = System.currentTimeMillis
+    val sb = new StringBuilder
     val label = nc.labelString
-    val str = s"${normalizeKey(nc.name)}Count$label ${nc.counter.getCount} $timestamp\n"
-    str
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${normalizeKey(nc.name)}Count",
+      label,
+      nc.counter.getCount,
+      timestamp,
+      "counter"))
+    sb.toString()
   }
 
   def getGaugeMetrics(ng: NamedGauge[_]): String = {
     val timestamp = System.currentTimeMillis
     val sb = new StringBuilder
     val label = ng.labelString
-    sb.append(s"${normalizeKey(ng.name)}Value$label ${ng.gauge.getValue} $timestamp\n")
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${normalizeKey(ng.name)}Value",
+      label,
+      ng.gauge.getValue,
+      timestamp,
+      "gauge"))
     sb.toString()
   }
 
   def getMeterMetrics(nm: NamedMeter): String = {
     val timestamp = System.currentTimeMillis
     val sb = new StringBuilder
+    val prefix = normalizeKey(nm.name)
     val label = nm.labelString
-    sb.append(s"${normalizeKey(nm.name)}Count$label ${nm.meter.getCount} $timestamp\n")
-    sb.append(s"${normalizeKey(nm.name)}MeanRate$label ${nm.meter.getMeanRate} $timestamp\n")
-    sb.append(
-      s"${normalizeKey(nm.name)}OneMinuteRate$label ${nm.meter.getOneMinuteRate} $timestamp\n")
-    sb.append(
-      s"${normalizeKey(nm.name)}FiveMinuteRate$label ${nm.meter.getFiveMinuteRate} $timestamp\n")
-    sb.append(
-      s"${normalizeKey(nm.name)}FifteenMinuteRate$label ${nm.meter.getFifteenMinuteRate} $timestamp\n")
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}Count",
+      label,
+      nm.meter.getCount,
+      timestamp,
+      "counter"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}MeanRate",
+      label,
+      nm.meter.getMeanRate,
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}OneMinuteRate",
+      label,
+      nm.meter.getOneMinuteRate,
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}FiveMinuteRate",
+      label,
+      nm.meter.getFiveMinuteRate,
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}FifteenMinuteRate",
+      label,
+      nm.meter.getFifteenMinuteRate,
+      timestamp,
+      "gauge"))
     sb.toString()
   }
 
@@ -434,22 +486,66 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     val snapshot = nh.histogram.getSnapshot
     val prefix = normalizeKey(nh.name)
     val label = nh.labelString
-    sb.append(s"${prefix}Count$label ${nh.histogram.getCount} $timestamp\n")
-    sb.append(s"${prefix}Max$label ${(snapshot.getMax)} $timestamp\n")
-    sb.append(s"${prefix}Mean$label ${(snapshot.getMean)} $timestamp\n")
-    sb.append(s"${prefix}Min$label ${(snapshot.getMin)} $timestamp\n")
-    sb.append(s"${prefix}50thPercentile$label" +
-      s" ${snapshot.getMedian} $timestamp\n")
-    sb.append(s"${prefix}75thPercentile$label" +
-      s" ${snapshot.get75thPercentile} $timestamp\n")
-    sb.append(s"${prefix}95thPercentile$label" +
-      s" ${snapshot.get95thPercentile} $timestamp\n")
-    sb.append(s"${prefix}98thPercentile$label" +
-      s" ${snapshot.get98thPercentile} $timestamp\n")
-    sb.append(s"${prefix}99thPercentile$label" +
-      s" ${snapshot.get99thPercentile} $timestamp\n")
-    sb.append(s"${prefix}999thPercentile$label" +
-      s" ${snapshot.get999thPercentile} $timestamp\n")
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}Count",
+      label,
+      nh.histogram.getCount,
+      timestamp,
+      "counter"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}Max",
+      label,
+      snapshot.getMax,
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}Mean",
+      label,
+      snapshot.getMean,
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}Min",
+      label,
+      snapshot.getMin,
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}50thPercentile",
+      label,
+      snapshot.getMedian,
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}75thPercentile",
+      label,
+      snapshot.get75thPercentile,
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}95thPercentile",
+      label,
+      snapshot.get95thPercentile,
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}98thPercentile",
+      label,
+      snapshot.get98thPercentile,
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}99thPercentile",
+      label,
+      snapshot.get99thPercentile,
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}999thPercentile",
+      label,
+      snapshot.get999thPercentile,
+      timestamp,
+      "gauge"))
     sb.toString()
   }
 
@@ -459,22 +555,66 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     val snapshot = nt.timer.getSnapshot
     val prefix = normalizeKey(nt.name)
     val label = nt.labelString
-    sb.append(s"${prefix}Count$label ${nt.timer.getCount} $timestamp\n")
-    sb.append(s"${prefix}Max$label ${reportNanosAsMills(snapshot.getMax)} $timestamp\n")
-    sb.append(s"${prefix}Mean$label ${reportNanosAsMills(snapshot.getMean)} $timestamp\n")
-    sb.append(s"${prefix}Min$label ${reportNanosAsMills(snapshot.getMin)} $timestamp\n")
-    sb.append(s"${prefix}50thPercentile$label" +
-      s" ${reportNanosAsMills(snapshot.getMedian)} $timestamp\n")
-    sb.append(s"${prefix}75thPercentile$label" +
-      s" ${reportNanosAsMills(snapshot.get75thPercentile)} $timestamp\n")
-    sb.append(s"${prefix}95thPercentile$label" +
-      s" ${reportNanosAsMills(snapshot.get95thPercentile)} $timestamp\n")
-    sb.append(s"${prefix}98thPercentile$label" +
-      s" ${reportNanosAsMills(snapshot.get98thPercentile)} $timestamp\n")
-    sb.append(s"${prefix}99thPercentile$label" +
-      s" ${reportNanosAsMills(snapshot.get99thPercentile)} $timestamp\n")
-    sb.append(s"${prefix}999thPercentile$label" +
-      s" ${reportNanosAsMills(snapshot.get999thPercentile)} $timestamp\n")
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}Count",
+      label,
+      nt.timer.getCount,
+      timestamp,
+      "counter"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}Max",
+      label,
+      reportNanosAsMills(snapshot.getMax),
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}Mean",
+      label,
+      reportNanosAsMills(snapshot.getMean),
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}Min",
+      label,
+      reportNanosAsMills(snapshot.getMin),
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}50thPercentile",
+      label,
+      reportNanosAsMills(snapshot.getMedian),
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}75thPercentile",
+      label,
+      reportNanosAsMills(snapshot.get75thPercentile),
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}95thPercentile",
+      label,
+      reportNanosAsMills(snapshot.get95thPercentile),
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}98thPercentile",
+      label,
+      reportNanosAsMills(snapshot.get98thPercentile),
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}99thPercentile",
+      label,
+      reportNanosAsMills(snapshot.get99thPercentile),
+      timestamp,
+      "gauge"))
+    sb.append(addMetricsWithPrometheusHelpType(
+      s"${prefix}999thPercentile",
+      label,
+      reportNanosAsMills(snapshot.get999thPercentile),
+      timestamp,
+      "gauge"))
     sb.toString()
   }
 

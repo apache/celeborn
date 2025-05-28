@@ -18,8 +18,6 @@
 package org.apache.celeborn.common.rpc
 
 import java.io.File
-import java.util.Random
-import java.util.concurrent.TimeUnit
 
 import scala.concurrent.Future
 
@@ -151,39 +149,18 @@ abstract class RpcEnv(config: RpcEnvConfig) {
   }
 
   /**
-   * Retrieve the [[RpcEndpointRef]] represented by `address` and `endpointName` with timeout retry.
-   * This is a blocking action.
+   * Retrieve the [[RpcEndpointRef]] represented by `address` and `endpointName` within a specified
+   * timeout, retry if timeout or IOException, throw an exception if this still fails. This is a
+   * blocking action.
    */
   def setupEndpointRef(
       address: RpcAddress,
       endpointName: String,
       retryCount: Int,
       retryWait: Long = defaultRetryWait): RpcEndpointRef = {
-    var numRetries = retryCount
-    while (numRetries > 0) {
-      numRetries -= 1
-      try {
-        return setupEndpointRefByAddr(RpcEndpointAddress(address, endpointName))
-      } catch {
-        case e: RpcTimeoutException =>
-          if (numRetries > 0) {
-            val random = new Random
-            val retryWaitMs = random.nextInt(retryWait.toInt)
-            try {
-              TimeUnit.MILLISECONDS.sleep(retryWaitMs)
-            } catch {
-              case _: InterruptedException =>
-                throw e
-            }
-          } else {
-            throw e
-          }
-        case e: Exception =>
-          throw e
-      }
+    Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
+      return setupEndpointRefByAddr(RpcEndpointAddress(address, endpointName))
     }
-    // should never be here
-    null
   }
 
   /**

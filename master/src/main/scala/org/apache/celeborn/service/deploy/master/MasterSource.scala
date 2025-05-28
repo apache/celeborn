@@ -26,6 +26,7 @@ class MasterSource(conf: CelebornConf) extends AbstractSource(conf, Role.MASTER)
   import MasterSource._
   // add timers
   addTimer(OFFER_SLOTS_TIME)
+  addTimer(UPDATE_RESOURCE_CONSUMPTION_TIME)
   // start cleaner
   startCleaner()
 }
@@ -45,10 +46,13 @@ object MasterSource {
 
   val REGISTERED_SHUFFLE_COUNT = "RegisteredShuffleCount"
   val SHUFFLE_FALLBACK_COUNT = "ShuffleFallbackCount"
-  // The total count including RegisteredShuffleCount(celeborn shuffle) and ShuffleFallbackCount(spark built-in shuffle).
+  // The total count including RegisteredShuffleCount(celeborn shuffle) and ShuffleFallbackCount(engine built-in shuffle).
   val SHUFFLE_TOTAL_COUNT = "ShuffleTotalCount"
 
   val RUNNING_APPLICATION_COUNT = "RunningApplicationCount"
+  val APPLICATION_FALLBACK_COUNT = "ApplicationFallbackCount"
+  // The total count including RunningApplicationCount(celeborn shuffle) and ApplicationFallbackCount(engine built-in shuffle).
+  val APPLICATION_TOTAL_COUNT = "ApplicationTotalCount"
 
   val IS_ACTIVE_MASTER = "IsActiveMaster"
 
@@ -65,4 +69,6 @@ object MasterSource {
   // Capacity
   val DEVICE_CELEBORN_FREE_CAPACITY = "DeviceCelebornFreeBytes"
   val DEVICE_CELEBORN_TOTAL_CAPACITY = "DeviceCelebornTotalBytes"
+
+  val UPDATE_RESOURCE_CONSUMPTION_TIME = "UpdateResourceConsumptionTime"
 }

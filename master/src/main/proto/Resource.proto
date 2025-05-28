@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-syntax = "proto2";
+syntax = "proto3";
 option java_package = "org.apache.celeborn.service.deploy.master.clustermeta";
 option java_outer_classname = "ResourceProtos";
 option java_generic_services = true;
@@ -21,6 +21,7 @@ option java_generate_equals_and_hash = true;
 package deploy.master.meta;
 
 enum Type {
+  Unknown = 0;
   UnRegisterShuffle = 12;
   RequestSlots = 13;
 
@@ -56,9 +57,9 @@ enum WorkerEventType {
 }
 
 message ResourceRequest {
-  required Type cmdType = 1; // Type of the command
+  Type cmdType = 1; // Type of the command
 
-  optional string requestId = 2 [default=""];
+  optional string requestId = 2;
 
   optional RequestSlotsRequest requestSlotsRequest = 10;
   // deprecated
@@ -81,19 +82,19 @@ message ResourceRequest {
 }
 
 message DiskInfo {
-  required string mountPoint = 1;
-  required int64 usableSpace = 2;
-  required int64 avgFlushTime = 3;
-  required int64 usedSlots = 4;
-  required int32 status = 5;
-  required int64 avgFetchTime = 6;
-  required int32 storageType =7;
-  optional int64 totalSpace = 8;
+  string mountPoint = 1;
+  int64 usableSpace = 2;
+  int64 avgFlushTime = 3;
+  int64 usedSlots = 4;
+  int32 status = 5;
+  int64 avgFetchTime = 6;
+  int32 storageType =7;
+  int64 totalSpace = 8;
 }
 
 message RequestSlotsRequest {
-  required string shuffleKey = 1;
-  required string hostName = 2;
+  string shuffleKey = 1;
+  string hostName = 2;
   map<string, SlotInfo> workerAllocations = 3;
 }
 
@@ -102,30 +103,41 @@ message SlotInfo{
 }
 
 message ReleaseSlotsRequest {
-  required string shuffleKey = 1;
+  string shuffleKey = 1;
   repeated string workerIds = 2;
   repeated SlotInfo slots = 3;
 }
 
 message UnregisterShuffleRequest {
-  required string shuffleKey = 1;
+  string shuffleKey = 1;
 }
 
 message BatchUnregisterShuffleRequest {
   repeated string shuffleKeys = 1;
 }
 
+message HeartbeatInfo {
+  string appId = 1;
+  int64 totalWritten = 2;
+  int64 fileCount = 3;
+  int64 shuffleCount = 4;
+  map<string, int64> shuffleFallbackCounts = 5;
+}
+
 message AppHeartbeatRequest {
-  required string appId = 1;
-  required int64 time = 2;
-  required int64 totalWritten = 3;
-  required int64 fileCount = 4;
+  string appId = 1;
+  int64 time = 2;
+  int64 totalWritten = 3;
+  int64 fileCount = 4;
   optional int64 shuffleCount = 5;
   map<string, int64> shuffleFallbackCounts = 6;
+  HeartbeatInfo heartbeatInfo = 7;
+  optional int64 applicationCount = 8;
+  map<string, int64> applicationFallbackCounts = 9;
 }
 
 message AppLostRequest {
-  required string appId = 1;
+  string appId = 1;
 }
 
 message WorkerExcludeRequest {
@@ -134,32 +146,32 @@ message WorkerExcludeRequest {
 }
 
 message WorkerLostRequest {
-  required string host = 1;
-  required int32 rpcPort = 2;
-  required int32 pushPort = 3;
-  required int32 fetchPort = 4 ;
-  required int32 replicatePort = 5;
+  string host = 1;
+  int32 rpcPort = 2;
+  int32 pushPort = 3;
+  int32 fetchPort = 4 ;
+  int32 replicatePort = 5;
 }
 
 message WorkerRemoveRequest {
-  required string host = 1;
-  required int32 rpcPort = 2;
-  required int32 pushPort = 3;
-  required int32 fetchPort = 4 ;
-  required int32 replicatePort = 5;
+  string host = 1;
+  int32 rpcPort = 2;
+  int32 pushPort = 3;
+  int32 fetchPort = 4 ;
+  int32 replicatePort = 5;
 }
 
 message WorkerHeartbeatRequest {
-  required string host = 1;
-  required int32 rpcPort = 2;
-  required int32 pushPort = 3;
-  required int32 fetchPort = 4;
-  required int32 replicatePort = 5;
+  string host = 1;
+  int32 rpcPort = 2;
+  int32 pushPort = 3;
+  int32 fetchPort = 4;
+  int32 replicatePort = 5;
   map<string, DiskInfo> disks = 6;
-  required int64 time = 7;
+  int64 time = 7;
   map<string, ResourceConsumption> userResourceConsumption = 8;
   map<string, int64> estimatedAppDiskUsage = 9; // deprecated
-  required bool highWorkload = 10;
+  bool highWorkload = 10;
   optional WorkerStatus workerStatus = 11;
 }
 
@@ -174,19 +186,19 @@ message WorkerStatus {
     InExit = 6;
   }
 
-  required State state = 1;
-  required int64 stateStartTime = 2;
+  State state = 1;
+  int64 stateStartTime = 2;
 }
 
 message RegisterWorkerRequest {
-  required string host = 1;
-  required int32 rpcPort = 2;
-  required int32 pushPort = 3;
-  required int32 fetchPort = 4;
-  required int32 replicatePort = 5;
+  string host = 1;
+  int32 rpcPort = 2;
+  int32 pushPort = 3;
+  int32 fetchPort = 4;
+  int32 replicatePort = 5;
   map<string, DiskInfo> disks = 6;
   map<string, ResourceConsumption> userResourceConsumption = 7;
-  required int32 internalPort = 8;
+  int32 internalPort = 8;
   optional string networkLocation = 9;
 }
 
@@ -204,52 +216,53 @@ message RemoveWorkersUnavailableInfoRequest {
 
 message WorkerEventRequest {
   repeated WorkerAddress workerAddress = 1;
-  required WorkerEventType workerEventType = 2;
+  WorkerEventType workerEventType = 2;
 }
 
 message WorkerAddress {
-  required string host = 1;
-  required int32 rpcPort = 2;
-  required int32 pushPort = 3;
-  required int32 fetchPort = 4;
-  required int32 replicatePort = 5;
-  required int32 internalPort = 6;
+  string host = 1;
+  int32 rpcPort = 2;
+  int32 pushPort = 3;
+  int32 fetchPort = 4;
+  int32 replicatePort = 5;
+  int32 internalPort = 6;
 }
 
 message UserIdentifier {
-  required string tenantId = 1;
-  required string name = 2;
+  string tenantId = 1;
+  string name = 2;
 }
 
 message ResourceConsumption {
-  required int64 diskBytesWritten = 1;
-  required int64 diskFileCount = 2;
-  required int64 hdfsBytesWritten = 3;
-  required int64 hdfsFileCount = 4;
+  int64 diskBytesWritten = 1;
+  int64 diskFileCount = 2;
+  int64 hdfsBytesWritten = 3;
+  int64 hdfsFileCount = 4;
   map<string, ResourceConsumption> subResourceConsumption = 5;
 }
 
 enum Status {
+  UNKNOWN = 0;
   OK = 1;
   INTERNAL_ERROR= 2;
 }
 
 message ResourceResponse {
-  required Type cmdType = 1; // Type of the command
+  Type cmdType = 1; // Type of the command
 
-  optional bool success = 2 [default=true];
+  optional bool success = 2;
 
   optional string message = 3;
 
-  required Status status = 4;
+  Status status = 4;
 }
 
 message ApplicationMetaRequest {
-  required string appId = 1;
+  string appId = 1;
   optional string secret = 2;
 }
 
 message ReviseLostShufflesRequest {
-  required string appId = 1 ;
+  string appId = 1 ;
   repeated int32 lostShuffles = 2 ;
 }

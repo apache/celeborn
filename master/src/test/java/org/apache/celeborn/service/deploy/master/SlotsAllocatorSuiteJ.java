@@ -22,9 +22,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import scala.Tuple2;
 
+import com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
@@ -36,106 +39,17 @@ import org.apache.celeborn.common.protocol.StorageInfo;
 public class SlotsAllocatorSuiteJ {
   private List<WorkerInfo> prepareWorkers(boolean hasDisks) {
     long assumedPartitionSize = 64 * 1024 * 1024;
-
     Random random = new Random();
-    Map<String, DiskInfo> disks1 = new HashMap<>();
-    DiskInfo diskInfo1 =
-        new DiskInfo(
-            "/mnt/disk1",
-            random.nextInt() + 100 * 1024 * 1024 * 1024L,
-            random.nextInt(1000),
-            random.nextInt(1000),
-            0);
-    DiskInfo diskInfo2 =
-        new DiskInfo(
-            "/mnt/disk2",
-            random.nextInt() + 95 * 1024 * 1024 * 1024L,
-            random.nextInt(1000),
-            random.nextInt(1000),
-            0);
-    DiskInfo diskInfo3 =
-        new DiskInfo(
-            "/mnt/disk3",
-            random.nextInt() + 90 * 1024 * 1024 * 1024L,
-            random.nextInt(1000),
-            random.nextInt(1000),
-            0);
-    diskInfo1.maxSlots_$eq(diskInfo1.actualUsableSpace() / assumedPartitionSize);
-    diskInfo2.maxSlots_$eq(diskInfo2.actualUsableSpace() / assumedPartitionSize);
-    diskInfo3.maxSlots_$eq(diskInfo3.actualUsableSpace() / assumedPartitionSize);
-    if (hasDisks) {
-      disks1.put("/mnt/disk1", diskInfo1);
-      disks1.put("/mnt/disk2", diskInfo2);
-      disks1.put("/mnt/disk3", diskInfo3);
-    }
-
-    Map<String, DiskInfo> disks2 = new HashMap<>();
-    DiskInfo diskInfo4 =
-        new DiskInfo(
-            "/mnt/disk1",
-            random.nextInt() + 100 * 1024 * 1024 * 1024L,
-            random.nextInt(1000),
-            random.nextInt(1000),
-            0);
-    DiskInfo diskInfo5 =
-        new DiskInfo(
-            "/mnt/disk2",
-            random.nextInt() + 95 * 1024 * 1024 * 1024L,
-            random.nextInt(1000),
-            random.nextInt(1000),
-            0);
-    DiskInfo diskInfo6 =
-        new DiskInfo(
-            "/mnt/disk3",
-            random.nextInt() + 90 * 1024 * 1024 * 1024L,
-            random.nextInt(1000),
-            random.nextInt(1000),
-            0);
-    diskInfo4.maxSlots_$eq(diskInfo4.actualUsableSpace() / assumedPartitionSize);
-    diskInfo5.maxSlots_$eq(diskInfo5.actualUsableSpace() / assumedPartitionSize);
-    diskInfo6.maxSlots_$eq(diskInfo6.actualUsableSpace() / assumedPartitionSize);
-    if (hasDisks) {
-      disks2.put("/mnt/disk1", diskInfo4);
-      disks2.put("/mnt/disk2", diskInfo5);
-      disks2.put("/mnt/disk3", diskInfo6);
-    }
-
-    Map<String, DiskInfo> disks3 = new HashMap<>();
-    DiskInfo diskInfo7 =
-        new DiskInfo(
-            "/mnt/disk1",
-            random.nextInt() + 100 * 1024 * 1024 * 1024L,
-            random.nextInt(1000),
-            random.nextInt(1000),
-            0);
-    DiskInfo diskInfo8 =
-        new DiskInfo(
-            "/mnt/disk2",
-            random.nextInt() + 95 * 1024 * 1024 * 1024L,
-            random.nextInt(1000),
-            random.nextInt(1000),
-            0);
-    DiskInfo diskInfo9 =
-        new DiskInfo(
-            "/mnt/disk3",
-            random.nextInt() + 90 * 1024 * 1024 * 1024L,
-            random.nextInt(1000),
-            random.nextInt(1000),
-            0);
-    diskInfo7.maxSlots_$eq(diskInfo7.actualUsableSpace() / assumedPartitionSize);
-    diskInfo8.maxSlots_$eq(diskInfo8.actualUsableSpace() / assumedPartitionSize);
-    diskInfo9.maxSlots_$eq(diskInfo9.actualUsableSpace() / assumedPartitionSize);
-    if (hasDisks) {
-      disks3.put("/mnt/disk2", diskInfo8);
-      disks3.put("/mnt/disk1", diskInfo7);
-      disks3.put("/mnt/disk3", diskInfo9);
-    }
-
-    ArrayList<WorkerInfo> workers = new ArrayList<>(3);
-    workers.add(new WorkerInfo("host1", 9, 10, 110, 113, 116, disks1, null));
-    workers.add(new WorkerInfo("host2", 9, 11, 111, 114, 118, disks2, null));
-    workers.add(new WorkerInfo("host3", 9, 12, 112, 115, 120, disks3, null));
-    return workers;
+    return basePrepareWorkers(
+        3,
+        hasDisks,
+        ImmutableMap.of(
+            "/mnt/disk1", random.nextInt() + 100 * 1024 * 1024 * 1024L,
+            "/mnt/disk2", random.nextInt() + 95 * 1024 * 1024 * 1024L,
+            "/mnt/disk3", random.nextInt() + 90 * 1024 * 1024 * 1024L),
+        assumedPartitionSize,
+        3,
+        random);
   }
 
   @Test
@@ -331,20 +245,36 @@ public class SlotsAllocatorSuiteJ {
       boolean expectSuccess,
       boolean roundRobin,
       boolean enableS3) {
+    checkSlotsOnDFS(
+        workers, partitionIds, shouldReplicate, expectSuccess, roundRobin, enableS3, false);
+  }
+
+  private void checkSlotsOnDFS(
+      List<WorkerInfo> workers,
+      List<Integer> partitionIds,
+      boolean shouldReplicate,
+      boolean expectSuccess,
+      boolean roundRobin,
+      boolean enableS3,
+      boolean enableOss) {
     CelebornConf conf = new CelebornConf();
+    int availableStorageTypes;
     if (enableS3) {
       conf.set("celeborn.active.storage.levels", "S3");
+      availableStorageTypes = StorageInfo.S3_MASK;
+    } else if (enableOss) {
+      conf.set("celeborn.active.storage.levels", "OSS");
+      availableStorageTypes = StorageInfo.OSS_MASK;
     } else {
       conf.set("celeborn.active.storage.levels", "HDFS");
+      availableStorageTypes = StorageInfo.HDFS_MASK;
     }
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots;
     if (roundRobin) {
-      int availableStorageTypes = enableS3 ? StorageInfo.S3_MASK : StorageInfo.HDFS_MASK;
       slots =
           SlotsAllocator.offerSlotsRoundRobin(
               workers, partitionIds, shouldReplicate, false, availableStorageTypes);
     } else {
-      int availableStorageTypes = enableS3 ? StorageInfo.S3_MASK : StorageInfo.HDFS_MASK;
       slots =
           SlotsAllocator.offerSlotsLoadAware(
               workers,
@@ -465,7 +395,7 @@ public class SlotsAllocatorSuiteJ {
     final List<WorkerInfo> workers = prepareWorkers(true);
     // Simulates no available slots behavior with greatly changed estimatedPartitionSize for workers
     // with usable disks.
-    workers.forEach(workerInfo -> workerInfo.updateDiskMaxSlots(Long.MAX_VALUE));
+    workers.forEach(workerInfo -> workerInfo.updateDiskSlots(Long.MAX_VALUE));
     final List<Integer> partitionIds = Collections.singletonList(0);
     final boolean shouldReplicate = false;
 
@@ -501,5 +431,70 @@ public class SlotsAllocatorSuiteJ {
     final boolean shouldReplicate = true;
     checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, true, true);
     checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, false, true);
+  }
+
+  @Test
+  public void testOssOnly() {
+    final List<WorkerInfo> workers = prepareWorkers(false);
+    final List<Integer> partitionIds = new ArrayList<>();
+    for (int i = 0; i < 3000; i++) {
+      partitionIds.add(i);
+    }
+    final boolean shouldReplicate = true;
+    checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, true, false, true);
+  }
+
+  @Test
+  public void testLocalDisksAndOss() {
+    final List<WorkerInfo> workers = prepareWorkers(true);
+    DiskInfo ossDiskInfo1 =
+        new DiskInfo(
+            "OSS", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE, StorageInfo.Type.OSS);
+    DiskInfo ossDiskInfo2 =
+        new DiskInfo(
+            "OSS", Long.MAX_VALUE, 999999, 999999, Integer.MAX_VALUE, StorageInfo.Type.OSS);
+    ossDiskInfo1.maxSlots_$eq(Long.MAX_VALUE);
+    ossDiskInfo2.maxSlots_$eq(Long.MAX_VALUE);
+    workers.get(0).diskInfos().put("OSS", ossDiskInfo1);
+    workers.get(1).diskInfos().put("OSS", ossDiskInfo2);
+    final List<Integer> partitionIds = new ArrayList<>();
+    for (int i = 0; i < 3000; i++) {
+      partitionIds.add(i);
+    }
+    final boolean shouldReplicate = true;
+    checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, true, false, true);
+    checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, false, false, true);
+  }
+
+  static List<WorkerInfo> basePrepareWorkers(
+      int numWorkers,
+      boolean hasDisks,
+      Map<String, Long> diskPartitionToSize,
+      long assumedPartitionSize,
+      int numNetworkLocations,
+      Random random) {
+    return IntStream.range(0, numWorkers)
+        .mapToObj(
+            i -> {
+              Map<String, DiskInfo> disks = new HashMap<>();
+              if (hasDisks) {
+                diskPartitionToSize.forEach(
+                    (diskMountPoint, diskSize) -> {
+                      DiskInfo diskInfo =
+                          new DiskInfo(
+                              diskMountPoint,
+                              diskSize,
+                              random.nextInt(1000),
+                              random.nextInt(1000),
+                              0);
+                      diskInfo.maxSlots_$eq(diskInfo.actualUsableSpace() / assumedPartitionSize);
+                      disks.put(diskMountPoint, diskInfo);
+                    });
+              }
+              WorkerInfo worker = new WorkerInfo("host" + i, i, i, i, i, i, disks, null);
+              worker.networkLocation_$eq(String.valueOf(i % numNetworkLocations));
+              return worker;
+            })
+        .collect(Collectors.toList());
   }
 }

@@ -19,3 +19,7 @@ add_subdirectory(conf)
 add_subdirectory(protocol)
 add_subdirectory(network)
 add_subdirectory(client)
+
+if(CELEBORN_BUILD_TESTS)
+    add_subdirectory(tests)
+endif()

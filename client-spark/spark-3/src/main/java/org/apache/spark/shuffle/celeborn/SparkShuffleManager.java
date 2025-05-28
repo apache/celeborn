@@ -37,6 +37,7 @@ import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.celeborn.reflect.DynMethods;
+import org.apache.celeborn.spark.FailedShuffleCleaner;
 
 /**
  * In order to support Spark Stage resubmit with ShuffleReader FetchFails, Celeborn shuffleId has to
@@ -83,6 +84,8 @@ public class SparkShuffleManager implements ShuffleManager {
   private final ConcurrentHashMap.KeySetView<Integer, Boolean> sortShuffleIds =
       ConcurrentHashMap.newKeySet();
   private final CelebornShuffleFallbackPolicyRunner fallbackPolicyRunner;
+
+  private FailedShuffleCleaner failedShuffleCleaner = null;
 
   private long sendBufferPoolCheckInterval;
   private long sendBufferPoolExpireTimeout;
@@ -139,6 +142,7 @@ public class SparkShuffleManager implements ShuffleManager {
         if (lifecycleManager == null) {
           appUniqueId = celebornConf.appUniqueIdWithUUIDSuffix(appId);
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
+          lifecycleManager.applicationCount().increment();
           lifecycleManager.registerCancelShuffleCallback(SparkUtils::cancelShuffle);
           if (celebornConf.clientStageRerunEnabled()) {
             MapOutputTrackerMaster mapOutputTracker =
@@ -150,6 +154,37 @@ public class SparkShuffleManager implements ShuffleManager {
 
             lifecycleManager.registerShuffleTrackerCallback(
                 shuffleId -> SparkUtils.unregisterAllMapOutput(mapOutputTracker, shuffleId));
+
+            if (celebornConf.clientAdaptiveOptimizeSkewedPartitionReadEnabled()) {
+              lifecycleManager.registerCelebornSkewShuffleCheckCallback(
+                  SparkUtils::isCelebornSkewShuffleOrChildShuffle);
+            }
+          }
+
+          if (lifecycleManager.conf().clientFetchCleanFailedShuffle()) {
+            if (!lifecycleManager.conf().clientStageRerunEnabled()) {
+              throw new IllegalArgumentException(
+                  CelebornConf.CLIENT_STAGE_RERUN_ENABLED().key()
+                      + " has to be "
+                      + "enabled, when "
+                      + CelebornConf.CLIENT_FETCH_CLEAN_FAILED_SHUFFLE().key()
+                      + " is set to true");
+            }
+            failedShuffleCleaner = new FailedShuffleCleaner(lifecycleManager);
+            lifecycleManager.registerValidateCelebornShuffleIdForCleanCallback(
+                (appShuffleIdentifier) ->
+                    SparkUtils.addWriterShuffleIdsToBeCleaned(this, appShuffleIdentifier));
+            lifecycleManager.registerUnregisterShuffleCallback(
+                (celebornShuffleId) -> SparkUtils.removeCleanedShuffleId(this, celebornShuffleId));
+          }
+
+          if (celebornConf.getReducerFileGroupBroadcastEnabled()) {
+            lifecycleManager.registerBroadcastGetReducerFileGroupResponseCallback(
+                (shuffleId, getReducerFileGroupResponse) ->
+                    SparkUtils.serializeGetReducerFileGroupResponse(
+                        shuffleId, getReducerFileGroupResponse));
+            lifecycleManager.registerInvalidatedBroadcastCallback(
+                shuffleId -> SparkUtils.invalidateSerializedGetReducerFileGroupResponse(shuffleId));
           }
         }
       }
@@ -220,6 +255,7 @@ public class SparkShuffleManager implements ShuffleManager {
 
   @Override
   public void stop() {
+    sortShuffleIds.clear();
     if (shuffleClient != null) {
       shuffleClient.shutdown();
       ShuffleClient.reset();
@@ -232,6 +268,9 @@ public class SparkShuffleManager implements ShuffleManager {
     if (_sortShuffleManager != null) {
       _sortShuffleManager.stop();
       _sortShuffleManager = null;
+    }
+    if (celebornConf.clientFetchCleanFailedShuffle()) {
+      failedShuffleCleaner.reset();
     }
   }
 
@@ -453,5 +492,9 @@ public class SparkShuffleManager implements ShuffleManager {
   // for testing
   public LifecycleManager getLifecycleManager() {
     return this.lifecycleManager;
+  }
+
+  public FailedShuffleCleaner getFailedShuffleCleaner() {
+    return this.failedShuffleCleaner;
   }
 }

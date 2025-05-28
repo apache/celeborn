@@ -21,7 +21,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.Utils
 
-abstract class IdentityProvider {
+abstract class IdentityProvider(conf: CelebornConf) {
   def provide(): UserIdentifier
 }
 
@@ -30,6 +30,8 @@ object IdentityProvider extends Logging {
   val DEFAULT_USERNAME = "default"
 
   def instantiate(conf: CelebornConf): IdentityProvider = {
-    Utils.instantiate[IdentityProvider](conf.identityProviderClass)
+    val className = conf.identityProviderClass
+    logDebug(s"Creating instance of $className")
+    Utils.instantiateClassWithCelebornConf[IdentityProvider](className, conf)
   }
 }

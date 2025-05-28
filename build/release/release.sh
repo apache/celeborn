@@ -26,6 +26,9 @@ PROJECT_DIR="$(cd "$(dirname "$0")"/../..; pwd)"
 ASF_USERNAME=${ASF_USERNAME:?"ASF_USERNAME is required"}
 ASF_PASSWORD=${ASF_PASSWORD:?"ASF_PASSWORD is required"}
 RELEASE_RC_NO=${RELEASE_RC_NO:?"RELEASE_RC_NO is required, e.g. 0"}
+JAVA8_HOME=${JAVA8_HOME:?"JAVA8_HOME is required"}
+JAVA11_HOME=${JAVA11_HOME:?"JAVA11_HOME is required"}
+JAVA17_HOME=${JAVA17_HOME:?"JAVA17_HOME is required"}
 
 RELEASE_VERSION=$(awk -F'"' '/ThisBuild \/ version/ {print $2}' version.sbt)
 
@@ -41,6 +44,8 @@ Top level targets are:
 All other inputs are environment variables
 
 RELEASE_RC_NO   - Release RC number, (e.g. 0)
+JAVA8_HOME - Location where the JDK or JRE is installed for JDK 8
+JAVA11_HOME - Location where the JDK or JRE is installed for JDK 11
 
 ASF_USERNAME - Username of ASF committer account
 ASF_PASSWORD - Password of ASF committer account
@@ -95,6 +100,8 @@ upload_svn_staging() {
 }
 
 upload_nexus_staging() {
+  export JAVA_HOME=$JAVA8_HOME
+
   echo "Deploying celeborn-client-spark-2-shaded_2.11"
   ${PROJECT_DIR}/build/sbt -Pspark-2.4 "clean;celeborn-client-spark-2-shaded/publishSigned"
 
@@ -102,7 +109,12 @@ upload_nexus_staging() {
   ${PROJECT_DIR}/build/sbt -Pspark-3.4 "clean;celeborn-client-spark-3-shaded/publishSigned"
 
   echo "Deploying celeborn-client-spark-3-shaded_2.13"
-  ${PROJECT_DIR}/build/sbt -Pspark-3.4 ++2.13 "clean;celeborn-client-spark-3-shaded/publishSigned"
+  ${PROJECT_DIR}/build/sbt -Pspark-3.4 ++2.13.8 "clean;celeborn-client-spark-3-shaded/publishSigned"
+
+  export JAVA_HOME=$JAVA17_HOME
+  echo "Deploying celeborn-client-spark-4-shaded_2.13"
+  ${PROJECT_DIR}/build/sbt -Pspark-4.0 "clean;celeborn-client-spark-4-shaded/publishSigned"
+  export JAVA_HOME=$JAVA8_HOME
 
   echo "Deploying celeborn-client-flink-1.16-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pflink-1.16 "clean;celeborn-client-flink-1_16-shaded/publishSigned"
@@ -118,6 +130,11 @@ upload_nexus_staging() {
 
   echo "Deploying celeborn-client-flink-1.20-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pflink-1.20 "clean;celeborn-client-flink-1_20-shaded/publishSigned"
+
+  export JAVA_HOME=$JAVA11_HOME
+  echo "Deploying celeborn-client-flink-2.0-shaded_2.12"
+  ${PROJECT_DIR}/build/sbt -Pflink-2.0 "clean;celeborn-client-flink-2_0-shaded/publishSigned"
+  export JAVA_HOME=$JAVA8_HOME
 
   echo "Deploying celeborn-client-mr-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pmr "clean;celeborn-client-mr-shaded/publishSigned"

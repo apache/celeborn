@@ -155,8 +155,7 @@ TEST(BaseConfTest, registerToConfInitedWithMutableConfigFile) {
   conf->initialize(filename);
 
   // The annotated kv would not be recorded.
-  EXPECT_THROW(
-      conf->requiredProperty(annotatedKey), CelebornUserError);
+  EXPECT_THROW(conf->requiredProperty(annotatedKey), CelebornUserError);
   // Test init.
   testInitedConf(conf.get(), true, key0, val0);
 
@@ -192,8 +191,7 @@ TEST(BaseConfTest, registerToConfInitedWithImmutableConfigFile) {
   conf->initialize(filename);
 
   // The annotated kv would not be recorded.
-  EXPECT_THROW(
-      conf->requiredProperty(annotatedKey), CelebornUserError);
+  EXPECT_THROW(conf->requiredProperty(annotatedKey), CelebornUserError);
   // Test init.
   testInitedConf(conf.get(), false, key0, val0);
 

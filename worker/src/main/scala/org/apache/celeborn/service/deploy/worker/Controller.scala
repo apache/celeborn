@@ -39,7 +39,7 @@ import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
-import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionDataWriter, PartitionDataWriter, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionMetaHandler, PartitionDataWriter, SegmentMapPartitionMetaHandler, StorageManager}
 
 private[deploy] class Controller(
     override val rpcEnv: RpcEnv,
@@ -186,7 +186,7 @@ private[deploy] class Controller(
       return
     }
 
-    if (storageManager.healthyWorkingDirs().size <= 0 && !conf.hasHDFSStorage && !conf.hasS3Storage) {
+    if (storageManager.healthyWorkingDirs().size <= 0 && !conf.hasHDFSStorage && !conf.hasS3Storage && !conf.hasOssStorage) {
       val msg = "Local storage has no available dirs!"
       logError(s"[handleReserveSlots] $msg")
       context.reply(ReserveSlotsResponse(StatusCode.NO_AVAILABLE_WORKING_DIR, msg))
@@ -344,13 +344,6 @@ private[deploy] class Controller(
                       } else {
                         fileWriter.getMemoryFileInfo
                       }
-                    val fileMeta = fileInfo.getFileMeta
-                    fileMeta match {
-                      case meta: ReduceFileMeta =>
-                        storageInfo.setFileSize(bytes)
-                        storageInfo.setChunkOffsets(meta.getChunkOffsets)
-                      case _ =>
-                    }
                     committedStorageInfos.put(uniqueId, storageInfo)
                     if (fileWriter.getMapIdBitMap != null) {
                       committedMapIdBitMap.put(uniqueId, fileWriter.getMapIdBitMap)
@@ -385,14 +378,14 @@ private[deploy] class Controller(
   private def waitMapPartitionRegionFinished(
       fileWriter: PartitionDataWriter,
       waitTimeout: Long): Unit = {
-    fileWriter match {
-      case writer: MapPartitionDataWriter =>
-        if (writer.checkPartitionRegionFinished(
-            waitTimeout)) {
-          logDebug(s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+    fileWriter.getMetaHandler match {
+      case metaHandler: MapPartitionMetaHandler =>
+        if (metaHandler.checkPartitionRegionFinished(waitTimeout)) {
+          logDebug(
+            s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFilePath}")
         } else {
           logWarning(
-            s"CommitFile failed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+            s"CommitFile failed to waitMapPartitionRegionFinished ${fileWriter.getFilePath}")
         }
       case _ =>
     }
@@ -627,19 +620,20 @@ private[deploy] class Controller(
         new BiFunction[Void, Throwable, Unit] {
           override def apply(v: Void, t: Throwable): Unit = {
             if (null != t) {
+              val errMsg = s"Exception while handling commitFiles for shuffleId: $shuffleKey"
               t match {
                 case _: CancellationException =>
-                  logWarning("While handling commitFiles, canceled.")
+                  logWarning(s"$errMsg, operation was cancelled.")
                 case ee: ExecutionException =>
-                  logError("While handling commitFiles, ExecutionException raised.", ee)
+                  logError(s"$errMsg, ExecutionException was raised.", ee)
                 case ie: InterruptedException =>
-                  logWarning("While handling commitFiles, interrupted.")
+                  logWarning(s"$errMsg, operation was interrupted.")
                   Thread.currentThread().interrupt()
                   throw ie
                 case _: TimeoutException =>
-                  logWarning(s"While handling commitFiles, timeout after $shuffleCommitTimeout ms.")
+                  logWarning(s"$errMsg, operation timed out after $shuffleCommitTimeout ms.")
                 case throwable: Throwable =>
-                  logError("While handling commitFiles, exception occurs.", throwable)
+                  logError(s"$errMsg, an unexpected exception occurred.", throwable)
               }
               commitInfo.synchronized {
                 commitInfo.response = CommitFilesResponse(

@@ -21,6 +21,8 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.google.common.base.Preconditions;
+
 public enum StatusCode {
   // 1/0 Status
   SUCCESS(0),
@@ -89,7 +91,8 @@ public enum StatusCode {
   OPEN_STREAM_FAILED(51),
   SEGMENT_START_FAIL_REPLICA(52),
   SEGMENT_START_FAIL_PRIMARY(53),
-  NO_SPLIT(54);
+  NO_SPLIT(54),
+  WORKER_UNRESPONSIVE(55);
 
   private final byte value;
 
@@ -111,5 +114,11 @@ public enum StatusCode {
       return code;
     }
     throw new IllegalArgumentException("Unknown status code: " + value);
+  }
+
+  public static StatusCode fromValue(int value) {
+    Preconditions.checkArgument(
+        value >= 0 && value < 256, "Value:" + value + " is out of range [0,256).");
+    return fromValue((byte) value);
   }
 }

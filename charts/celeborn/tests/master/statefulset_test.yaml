@@ -24,11 +24,12 @@ release:
   name: celeborn
 
 tests:
-  - it: Should add extra pod annotations if `podAnnotations` is specified
+  - it: Should add extra pod annotations if `master.annotations` is specified
     set:
-      podAnnotations:
-        key1: value1
-        key2: value2
+      master:
+        annotations:
+          key1: value1
+          key2: value2
     asserts:
       - equal:
           path: spec.template.metadata.annotations.key1
@@ -37,15 +38,16 @@ tests:
           path: spec.template.metadata.annotations.key2
           value: value2
 
-  - it: Should use the specified image if `image.repository` and `image.tag` is set
+  - it: Should use the specified image if `image.registry`, `image.repository` and `image.tag` is set
     set:
       image:
+        registry: test-registry
         repository: test-repository
         tag: test-tag
     asserts:
       - equal:
-          path: spec.template.spec.containers[0].image
-          value: test-repository:test-tag
+          path: spec.template.spec.containers[?(@.name=="celeborn")].image
+          value: test-registry/test-repository:test-tag
 
   - it: Should use the specified image pull policy if `image.pullPolicy` is set
     set:
@@ -55,6 +57,161 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].imagePullPolicy
           value: Always
+
+  - it: Should use the specified replicas if `master.replicas` is set
+    set:
+      master:
+        replicas: 10
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 10
+
+  - it: Should add environment variables if `master.env` is set
+    set:
+      master:
+        env:
+          - name: test-env-name-1
+            value: test-env-value-1
+          - name: test-env-name-2
+            valueFrom:
+              configMapKeyRef:
+                name: test-configmap
+                key: test-key
+                optional: false
+          - name: test-env-name-3
+            valueFrom:
+              secretKeyRef:
+                name: test-secret
+                key: test-key
+                optional: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: test-env-name-1
+            value: test-env-value-1
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: test-env-name-2
+            valueFrom:
+              configMapKeyRef:
+                name: test-configmap
+                key: test-key
+                optional: false
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: test-env-name-3
+            valueFrom:
+              secretKeyRef:
+                name: test-secret
+                key: test-key
+                optional: false
+
+  - it: Should add environment variable sources if `master.envFrom` is set
+    set:
+      master:
+        envFrom:
+          - configMapRef:
+              name: test-configmap
+              optional: false
+          - secretRef:
+              name: test-secret
+              optional: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: test-configmap
+              optional: false
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: test-secret
+              optional: false
+
+  - it: Should add volume mounts if `master.volumeMounts` is set
+    set:
+      master:
+        volumeMounts:
+          - name: disk1
+            mountPath: /mnt/disk1
+          - name: disk2
+            mountPath: /mnt/disk2
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: disk1
+            mountPath: /mnt/disk1
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: disk1
+            mountPath: /mnt/disk1
+
+  - it: Should use the specified resources if `master.resources` is set
+    set:
+      master:
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].resources
+          value:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+      - equal:
+          path: spec.template.spec.containers[?(@.name=='celeborn')].resources
+          value:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+
+  - it: Should add container securityContext if `master.securityContext` is set
+    set:
+      master:
+        securityContext:
+          readOnlyRootFilesystem: true
+          runAsUser: 1000
+          runAsGroup: 2000
+          fsGroup: 3000
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          runAsNonRoot: true
+          privileged: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value:
+            readOnlyRootFilesystem: true
+            runAsUser: 1000
+            runAsGroup: 2000
+            fsGroup: 3000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            privileged: false
 
   - it: Should add secrets if `imagePullSecrets` is set
     set:
@@ -69,11 +226,38 @@ tests:
           path: spec.template.spec.imagePullSecrets[1].name
           value: test-secret2
 
-  - it: Should add node selector if `nodeSelector` is set
+  - it: Should add volumes if `master.volumes` is set
     set:
-      nodeSelector:
-        key1: value1
-        key2: value2
+      master:
+        volumes:
+          - name: disk1
+            emptyDir:
+              sizeLimit: 10Gi
+          - name: disk2
+            hostPath:
+              type: DirectoryOrCreate
+              path: /mnt/disk2
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: disk1
+            emptyDir:
+              sizeLimit: 10Gi
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: disk2
+            hostPath:
+              type: DirectoryOrCreate
+              path: /mnt/disk2
+
+  - it: Should add node selector if `master.nodeSelector` is set
+    set:
+      master:
+        nodeSelector:
+          key1: value1
+          key2: value2
     asserts:
       - equal:
           path: spec.template.spec.nodeSelector.key1
@@ -82,16 +266,17 @@ tests:
           path: spec.template.spec.nodeSelector.key2
           value: value2
 
-  - it: Should add tolerations if `tolerations` is set
+  - it: Should add tolerations if `master.tolerations` is set
     set:
-      tolerations:
-        - key: key1
-          operator: Equal
-          value: value1
-          effect: NoSchedule
-        - key: key2
-          operator: Exists
-          effect: NoSchedule
+      master:
+        tolerations:
+          - key: key1
+            operator: Equal
+            value: value1
+            effect: NoSchedule
+          - key: key2
+            operator: Exists
+            effect: NoSchedule
     asserts:
       - equal:
           path: spec.template.spec.tolerations
@@ -104,10 +289,10 @@ tests:
               operator: Exists
               effect: NoSchedule
 
-  - it: Should use the specified affinity if `affinity.master` is set
+  - it: Should use the specified affinity if `master.affinity` is set
     set:
-      affinity:
-        master:
+      master:
+        affinity:
           nodeAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
               nodeSelectorTerms:
@@ -146,38 +331,41 @@ tests:
                       values:
                         - another-node-label-value
 
-  - it: Should use the specified priority class name if `priorityClass.master.name` is set
+  - it: Should use the specified priority class name if `master.priorityClass.name` is set
     set:
-      priorityClass:
-        master:
+      master:
+        priorityClass:
           name: test-priority-class
     asserts:
       - equal:
           path: spec.template.spec.priorityClassName
           value: test-priority-class
 
-  - it: Should use the specified dns policy if `dnsPolicy` is set
+  - it: Should use the specified dns policy if `master.dnsPolicy` is set
     set:
-      dnsPolicy: ClusterFirstWithHostNet
+      master:
+        dnsPolicy: ClusterFirstWithHostNet
     asserts:
       - equal:
           path: spec.template.spec.dnsPolicy
           value: ClusterFirstWithHostNet
 
-  - it: Should enable host network if `hostNetwork` is set to true
+  - it: Should enable host network if `master.hostNetwork` is set to true
     set:
-      hostNetwork: true
+      master:
+        hostNetwork: true
     asserts:
       - equal:
           path: spec.template.spec.hostNetwork
           value: true
 
-  - it: Should use the specified security context if `podSecurityContext` is set
+  - it: Should use the specified security context if `master.podSecurityContext` is set
     set:
-      securityContext:
-        runAsUser: 1000
-        runAsGroup: 2000
-        fsGroup: 3000
+      master:
+        podSecurityContext:
+          runAsUser: 1000
+          runAsGroup: 2000
+          fsGroup: 3000
     asserts:
       - equal:
           path: spec.template.spec.securityContext.runAsUser
@@ -189,10 +377,54 @@ tests:
           path: spec.template.spec.securityContext.fsGroup
           value: 3000
 
-  - it: Should use the specified replicas if `masterReplicas` is set
+  - it: Should add volume claim templates if `master.volumeClaimTemplates` is set
     set:
-      masterReplicas: 10
+      master:
+        volumeClaimTemplates:
+          - metadata:
+              name: test-volume-claim-template-1
+            spec:
+              accessModes:
+                - ReadWriteMany
+              resources:
+                request:
+                  storage: 100Gi
+                limits:
+                  storage: 100Gi
+          - metadata:
+              name: test-volume-claim-template-2
+            spec:
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                request:
+                  storage: 200Gi
+                limits:
+                  storage: 200Gi
     asserts:
-      - equal:
-          path: spec.replicas
-          value: 10
+      - contains:
+          path: spec.volumeClaimTemplates
+          content:
+            metadata:
+              name: test-volume-claim-template-1
+            spec:
+              accessModes:
+                - ReadWriteMany
+              resources:
+                request:
+                  storage: 100Gi
+                limits:
+                  storage: 100Gi
+      - contains:
+          path: spec.volumeClaimTemplates
+          content:
+            metadata:
+              name: test-volume-claim-template-2
+            spec:
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                request:
+                  storage: 200Gi
+                limits:
+                  storage: 200Gi

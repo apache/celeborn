@@ -112,6 +112,8 @@ enum MessageType {
   REVISE_LOST_SHUFFLES = 89;
   REVISE_LOST_SHUFFLES_RESPONSE = 90;
   PUSH_MERGED_DATA_SPLIT_PARTITION_INFO = 91;
+  GET_STAGE_END = 92;
+  GET_STAGE_END_RESPONSE = 93;
 }
 
 enum StreamType {
@@ -356,17 +358,15 @@ message PbMapperEnd {
   int32 attemptId = 3;
   int32 numMappers = 4;
   int32 partitionId = 5;
-  map<string, PbPushFailedBatchSet> pushFailureBatches= 6;
+  map<string, PbLocationPushFailedBatches> pushFailureBatches= 6;
 }
 
-message PbPushFailedBatchSet {
-  repeated PbPushFailedBatch failureBatches = 1;
+message PbLocationPushFailedBatches {
+  map<string, PbFailedBatches> failedBatches = 1;
 }
 
-message PbPushFailedBatch {
-  int32 mapId = 1;
-  int32 attemptId = 2;
-  int32 batchId = 3;
+message PbFailedBatches{
+  repeated int32 failedBatches = 1;
 }
 
 message PbMapperEndResponse {
@@ -389,7 +389,9 @@ message PbGetReducerFileGroupResponse {
   // only map partition mode has succeed partitionIds
   repeated int32 partitionIds = 4;
 
-  map<string, PbPushFailedBatchSet> pushFailedBatches = 5;
+  map<string, PbLocationPushFailedBatches> pushFailedBatches = 5;
+
+  bytes broadcast = 6;
 }
 
 message PbGetShuffleId {
@@ -401,6 +403,7 @@ message PbGetShuffleId {
 
 message PbGetShuffleIdResponse {
   int32 shuffleId = 1;
+  bool success = 2;
 }
 
 message PbReportShuffleFetchFailure {
@@ -461,6 +464,8 @@ message PbHeartbeatFromApplication {
   bool shouldResponse = 6;
   int64 shuffleCount = 7;
   map<string, int64> shuffleFallbackCounts = 8;
+  int64 applicationCount = 9;
+  map<string, int64> applicationFallbackCounts = 10;
 }
 
 message PbHeartbeatFromApplicationResponse {
@@ -697,6 +702,8 @@ message PbSnapshotMetaInfo {
   repeated PbWorkerInfo decommissionWorkers = 17;
   int64 shuffleTotalCount = 18;
   map<string, int64> shuffleFallbackCounts = 19;
+  int64 applicationTotalCount = 20;
+  map<string, int64> applicationFallbackCounts = 21;
 }
 
 message PbOpenStream {
@@ -899,6 +906,14 @@ message PbReviseLostShufflesResponse{
 message PbPushMergedDataSplitPartitionInfo {
   repeated int32 splitPartitionIndexes = 1;
   repeated int32 statusCodes = 2;
+}
+
+message PbGetStageEnd {
+  int32 shuffleId = 1;
+}
+
+message PbGetStageEndResponse {
+  bool stageEnd = 1;
 }
 
 message PbChunkOffsets {

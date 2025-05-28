@@ -135,7 +135,7 @@ index 00000000000..5e190c512df
 +
 +}
 diff --git a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
-index bd2823bcac1..d0c88081527 100644
+index bd2823bcac1..996cf8662f2 100644
 --- a/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
 +++ b/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala
 @@ -33,6 +33,7 @@ import com.google.common.util.concurrent.{Futures, SettableFuture}
@@ -146,15 +146,79 @@ index bd2823bcac1..d0c88081527 100644
  import org.apache.spark.errors.SparkCoreErrors
  import org.apache.spark.executor.{ExecutorMetrics, TaskMetrics}
  import org.apache.spark.internal.Logging
-@@ -1851,7 +1852,7 @@ private[spark] class DAGScheduler(
-           failedStage.failedAttemptIds.add(task.stageAttemptId)
-           val shouldAbortStage =
-             failedStage.failedAttemptIds.size >= maxConsecutiveStageAttempts ||
--            disallowStageRetryForTest
-+            disallowStageRetryForTest || CelebornShuffleState.isCelebornSkewedShuffle(shuffleId)
+@@ -1404,7 +1405,10 @@ private[spark] class DAGScheduler(
+     // The operation here can make sure for the partially completed intermediate stage,
+     // `findMissingPartitions()` returns all partitions every time.
+     stage match {
+-      case sms: ShuffleMapStage if stage.isIndeterminate && !sms.isAvailable =>
++      case sms: ShuffleMapStage if (stage.isIndeterminate ||
++        CelebornShuffleState.isCelebornSkewedShuffle(sms.shuffleDep.shuffleId)) && !sms.isAvailable =>
++        logInfo(s"Unregistering shuffle output for stage ${stage.id}" +
++          s" shuffle ${sms.shuffleDep.shuffleId}")
+         mapOutputTracker.unregisterAllMapAndMergeOutput(sms.shuffleDep.shuffleId)
+         sms.shuffleDep.newShuffleMergeState()
+       case _ =>
+@@ -1760,7 +1764,15 @@ private[spark] class DAGScheduler(
+         // tasks complete, they still count and we can mark the corresponding partitions as
+         // finished. Here we notify the task scheduler to skip running tasks for the same partition,
+         // to save resource.
+-        if (task.stageAttemptId < stage.latestInfo.attemptNumber()) {
++        // CELEBORN-1856, if stage is indeterminate or shuffleMapStage is skewed and read by
++        // Celeborn chunkOffsets, should not call notifyPartitionCompletion, otherwise will
++        // skip running tasks for the same partition because TaskSetManager.dequeueTaskFromList
++        // will skip running task which TaskSetManager.successful(taskIndex) is true.
++        // TODO: Suggest cherry-pick SPARK-45182 and SPARK-45498, ResultStage may has result commit and other issues
++        val isStageIndeterminate = stage.isInstanceOf[ShuffleMapStage] &&
++          CelebornShuffleState.isCelebornSkewedShuffle(
++            stage.asInstanceOf[ShuffleMapStage].shuffleDep.shuffleId)
++        if (task.stageAttemptId < stage.latestInfo.attemptNumber() && !isStageIndeterminate) {
+           taskScheduler.notifyPartitionCompletion(stageId, task.partitionId)
+         }
  
-           // It is likely that we receive multiple FetchFailed for a single stage (because we have
-           // multiple tasks running concurrently on different executors). In that case, it is
+@@ -1843,6 +1855,14 @@ private[spark] class DAGScheduler(
+         val failedStage = stageIdToStage(task.stageId)
+         val mapStage = shuffleIdToMapStage(shuffleId)
+ 
++        // In Celeborn-1139 we support read skew partition by Celeborn chunkOffsets,
++        // it will make shuffle be indeterminate, so abort the ResultStage directly here.
++        if (failedStage.isInstanceOf[ResultStage] && CelebornShuffleState.isCelebornSkewedShuffle(shuffleId)) {
++          val shuffleFailedReason = s"ResultStage:${failedStage.id} fetch failed and the shuffle:$shuffleId " +
++            s"is skewed partition read by Celeborn, so abort it."
++          abortStage(failedStage, shuffleFailedReason, None)
++        }
++
+         if (failedStage.latestInfo.attemptNumber != task.stageAttemptId) {
+           logInfo(s"Ignoring fetch failure from $task as it's from $failedStage attempt" +
+             s" ${task.stageAttemptId} and there is a more recent attempt for that stage " +
+@@ -1921,7 +1941,8 @@ private[spark] class DAGScheduler(
+               // Note that, if map stage is UNORDERED, we are fine. The shuffle partitioner is
+               // guaranteed to be determinate, so the input data of the reducers will not change
+               // even if the map tasks are re-tried.
+-              if (mapStage.isIndeterminate) {
++              val isCelebornShuffleIndeterminate = CelebornShuffleState.isCelebornSkewedShuffle(shuffleId)
++              if (mapStage.isIndeterminate || isCelebornShuffleIndeterminate) {
+                 // It's a little tricky to find all the succeeding stages of `mapStage`, because
+                 // each stage only know its parents not children. Here we traverse the stages from
+                 // the leaf nodes (the result stages of active jobs), and rollback all the stages
+@@ -1932,7 +1953,17 @@ private[spark] class DAGScheduler(
+ 
+                 def collectStagesToRollback(stageChain: List[Stage]): Unit = {
+                   if (stagesToRollback.contains(stageChain.head)) {
+-                    stageChain.drop(1).foreach(s => stagesToRollback += s)
++                    stageChain.drop(1).foreach(s => {
++                      stagesToRollback += s
++                      if (isCelebornShuffleIndeterminate) {
++                        s match {
++                          case currentMapStage: ShuffleMapStage =>
++                            CelebornShuffleState.registerCelebornSkewedShuffle(currentMapStage.shuffleDep.shuffleId)
++                          case _: ResultStage =>
++                          // do nothing, should abort celeborn skewed read stage
++                        }
++                      }
++                    })
+                   } else {
+                     stageChain.head.parents.foreach { s =>
+                       collectStagesToRollback(s :: stageChain)
 diff --git a/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/CelebornShuffleUtil.scala b/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/CelebornShuffleUtil.scala
 new file mode 100644
 index 00000000000..3dc60678461

@@ -86,6 +86,10 @@
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-1.2-api</artifactId>
     </dependency>
+    <dependency>
+      <groupId>com.lmax</groupId>
+      <artifactId>disruptor</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>org.apache.celeborn</groupId>
@@ -119,6 +123,16 @@
       <artifactId>celeborn-common_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.openjdk.jmh</groupId>
+      <artifactId>jmh-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.openjdk.jmh</groupId>
+      <artifactId>jmh-generator-annprocess</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -196,6 +210,21 @@
           <groupId>com.amazonaws</groupId>
           <artifactId>aws-java-sdk-s3</artifactId>
           <version>${aws.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>aliyun</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-aliyun</artifactId>
+          <version>${hadoop.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>com.aliyun.oss</groupId>
+          <artifactId>aliyun-sdk-oss</artifactId>
+          <version>${aliyun-sdk-oss.version}</version>
         </dependency>
       </dependencies>
     </profile>

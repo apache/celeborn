@@ -28,11 +28,13 @@ else
   ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.18
   ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.19
   ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-1.20
+  ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-2.0
   ${PROJECT_DIR}/build/mvn spotless:apply -Pspark-2.4
   ${PROJECT_DIR}/build/mvn spotless:apply -Pspark-3.3
   ${PROJECT_DIR}/build/mvn spotless:apply -Pspark-3.5
   ${PROJECT_DIR}/build/mvn spotless:apply -Pspark-4.0
   ${PROJECT_DIR}/build/mvn spotless:apply -Paws
+  ${PROJECT_DIR}/build/mvn spotless:apply -Paliyun
   ${PROJECT_DIR}/build/mvn spotless:apply -Pmr
   ${PROJECT_DIR}/build/mvn spotless:apply -Ptez
 fi

@@ -39,4 +39,5 @@ notifications:
   commits: commits@celeborn.apache.org
   issues: issues@celeborn.apache.org
   pullrequests: issues@celeborn.apache.org
+  discussions: issues@celeborn.apache.org
   jira_options: link label worklog

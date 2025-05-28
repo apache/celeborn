@@ -1,0 +1,164 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# Pull Request Labeler Github Action Configuration: https://github.com/marketplace/actions/labeler
+
+"kind:build":
+  - changed-files:
+    - any-glob-to-any-file: [
+      '.rat-excludes',
+      '.scalafmt.conf',
+      '**/*pom.xml',
+      '.mvn/**/*',
+      'build/**/*',
+      'dev/**/*',
+      'docker/**/*',
+      'project/**/*',
+      'requirements.txt',
+      'version.sbt',
+    ]
+
+"kind:deploy":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'bin/**/*',
+      'sbin/**/*',
+      'assets/grafana/*',
+      'charts/**/*',
+    ]
+    
+"kind:documentation":
+  - changed-files:
+    - any-glob-to-any-file: [
+      '*.md',
+      'conf/**/*',
+      'docs/**/*',
+      'mkdocs.yml',
+      'assets/diagram/*',
+    ]
+
+"kind:infra":
+  - changed-files:
+    - any-glob-to-any-file: [
+      '.asf.yaml',
+      '.gitattributes',
+      '.github/**/*',
+      '.gitignore',
+      'LICENSE',
+      'LICENSE-binary',
+      'NOTICE',
+      'NOTICE-binary',
+      'codecov.yml',
+      'licenses-binary'
+    ]
+
+"module:cli":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'cli/**/*'
+    ]
+
+"module:client":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'client/**/*',
+      'client-flink/**/*',
+      'client-mr/**/*',
+      'client-spark/**/*',
+      'client-tez/**/*',
+    ]
+
+"module:common":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'common/**/*'
+    ]
+
+"module:cpp":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'cpp/**/*'
+    ]
+
+"module:master":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'master/**/*'
+    ]
+
+"module:openapi":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'openapi/**/*'
+    ]
+
+"module:service":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'service/**/*'
+    ]
+
+"module:spi":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'spi/**/*'
+    ]
+
+"module:tests":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'tests/**/*',
+      'toolkit/**/*',
+    ]
+
+"module:web":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'web/**/*'
+    ]
+
+"module:worker":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'worker/**/*'
+    ]
+
+"module:spark":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'client-spark/**/*',
+      'assets/spark-patch/**/*',
+    ]
+
+"module:flink":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'client-flink/**/*',
+    ]
+
+"module:mr":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'client-mr/**/*',
+    ]
+
+"module:tez":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'client-tez/**/*',
+    ]

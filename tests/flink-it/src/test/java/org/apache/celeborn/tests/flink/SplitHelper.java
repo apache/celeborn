@@ -17,13 +17,16 @@
 
 package org.apache.celeborn.tests.flink;
 
+import java.io.IOException;
+
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
 
@@ -36,12 +39,8 @@ public class SplitHelper {
     DataStream<Tuple2<String, Long>> words =
         env.fromSequence(0, NUM_WORDS)
             .map(
-                new MapFunction<Long, String>() {
-                  @Override
-                  public String map(Long index) throws Exception {
-                    return index + "_" + RandomStringUtils.randomAlphabetic(10);
-                  }
-                })
+                (MapFunction<Long, String>)
+                    index -> index + "_" + RandomStringUtils.randomAlphabetic(10))
             .flatMap(
                 new FlatMapFunction<String, Tuple2<String, Long>>() {
                   @Override
@@ -56,13 +55,22 @@ public class SplitHelper {
         .keyBy(value -> value.f0)
         .sum(1)
         .map((MapFunction<Tuple2<String, Long>, Long>) wordCount -> wordCount.f1)
-        .addSink(
-            new SinkFunction<Long>() {
-              @Override
-              public void invoke(Long value, Context context) throws Exception {
-                Assert.assertEquals(value, WORD_COUNT);
-                //                      Thread.sleep(30 * 1000);
-              }
-            });
+        .sinkTo(
+            (Sink<Long>)
+                writerInitContext ->
+                    new SinkWriter<Long>() {
+                      @Override
+                      public void write(Long value, Context context)
+                          throws IOException, InterruptedException {
+                        Assert.assertEquals(WORD_COUNT, value);
+                      }
+
+                      @Override
+                      public void flush(boolean endOfInput)
+                          throws IOException, InterruptedException {}
+
+                      @Override
+                      public void close() throws Exception {}
+                    });
   }
 }

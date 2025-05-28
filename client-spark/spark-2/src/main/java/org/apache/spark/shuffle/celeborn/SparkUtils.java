@@ -17,7 +17,10 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.HashSet;
@@ -25,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
@@ -37,7 +41,12 @@ import org.apache.spark.BarrierTaskContext;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.SparkContext$;
+import org.apache.spark.SparkEnv;
+import org.apache.spark.SparkEnv$;
 import org.apache.spark.TaskContext;
+import org.apache.spark.broadcast.Broadcast;
+import org.apache.spark.io.CompressionCodec;
+import org.apache.spark.io.CompressionCodec$;
 import org.apache.spark.scheduler.DAGScheduler;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.scheduler.MapStatus$;
@@ -54,7 +63,11 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornRuntimeException;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
+import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.common.util.KeyLock;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.reflect.DynFields;
 
@@ -149,11 +162,17 @@ public class SparkUtils {
       Boolean isWriter) {
     if (handle.throwsFetchFailure()) {
       String appShuffleIdentifier = getAppShuffleIdentifier(handle.shuffleId(), context);
-      return client.getShuffleId(
-          handle.shuffleId(),
-          appShuffleIdentifier,
-          isWriter,
-          context instanceof BarrierTaskContext);
+      Tuple2<Integer, Boolean> res =
+          client.getShuffleId(
+              handle.shuffleId(),
+              appShuffleIdentifier,
+              isWriter,
+              context instanceof BarrierTaskContext);
+      if (!res._2) {
+        throw new CelebornRuntimeException(String.format("Get invalid shuffle id %s", res._1));
+      } else {
+        return res._1;
+      }
     } else {
       return handle.shuffleId();
     }
@@ -290,6 +309,7 @@ public class SparkUtils {
       if (taskSetManager != null) {
         int stageId = taskSetManager.stageId();
         int stageAttemptId = taskSetManager.taskSet().stageAttemptId();
+        int maxTaskFails = taskSetManager.maxTaskFailures();
         String stageUniqId = stageId + "-" + stageAttemptId;
         Set<Long> reportedStageTaskIds =
             reportedStageShuffleFetchFailureTaskIds.computeIfAbsent(
@@ -330,6 +350,17 @@ public class SparkUtils {
                   ti.attemptNumber());
               return true;
             }
+          } else {
+            if (ti.attemptNumber() >= maxTaskFails - 1) {
+              logger.warn(
+                  "StageId={} index={} taskId={} attemptNumber {} reach maxTaskFails {}.",
+                  stageId,
+                  taskInfo.index(),
+                  taskId,
+                  ti.attemptNumber(),
+                  maxTaskFails);
+              return false;
+            }
           }
         }
         return false;
@@ -345,5 +376,122 @@ public class SparkUtils {
     if (sparkContext != null) {
       sparkContext.addSparkListener(listener);
     }
+  }
+
+  /**
+   * A [[KeyLock]] whose key is a shuffle id to ensure there is only one thread accessing the
+   * broadcast belonging to the shuffle id at a time.
+   */
+  private static final KeyLock<Integer> shuffleBroadcastLock = new KeyLock<>();
+
+  @VisibleForTesting
+  public static AtomicInteger getReducerFileGroupResponseBroadcastNum = new AtomicInteger();
+
+  @VisibleForTesting
+  public static Map<Integer, Tuple2<Broadcast<TransportMessage>, byte[]>>
+      getReducerFileGroupResponseBroadcasts = JavaUtils.newConcurrentHashMap();
+
+  public static byte[] serializeGetReducerFileGroupResponse(
+      Integer shuffleId, GetReducerFileGroupResponse response) {
+    SparkContext sparkContext = SparkContext$.MODULE$.getActive().getOrElse(null);
+    if (sparkContext == null) {
+      logger.error("Can not get active SparkContext.");
+      return null;
+    }
+
+    return shuffleBroadcastLock.withLock(
+        shuffleId,
+        () -> {
+          Tuple2<Broadcast<TransportMessage>, byte[]> cachedSerializeGetReducerFileGroupResponse =
+              getReducerFileGroupResponseBroadcasts.get(shuffleId);
+          if (cachedSerializeGetReducerFileGroupResponse != null) {
+            return cachedSerializeGetReducerFileGroupResponse._2;
+          }
+
+          try {
+            logger.info("Broadcasting GetReducerFileGroupResponse for shuffle: {}", shuffleId);
+            TransportMessage transportMessage =
+                (TransportMessage) Utils.toTransportMessage(response);
+            Broadcast<TransportMessage> broadcast =
+                sparkContext.broadcast(
+                    transportMessage,
+                    scala.reflect.ClassManifestFactory.fromClass(TransportMessage.class));
+
+            CompressionCodec codec = CompressionCodec$.MODULE$.createCodec(sparkContext.conf());
+            // Using `org.apache.commons.io.output.ByteArrayOutputStream` instead of the standard
+            // one
+            // This implementation doesn't reallocate the whole memory block but allocates
+            // additional buffers. This way no buffers need to be garbage collected and
+            // the contents don't have to be copied to the new buffer.
+            org.apache.commons.io.output.ByteArrayOutputStream out =
+                new org.apache.commons.io.output.ByteArrayOutputStream();
+            try (ObjectOutputStream oos =
+                new ObjectOutputStream(codec.compressedOutputStream(out))) {
+              oos.writeObject(broadcast);
+            }
+            byte[] _serializeResult = out.toByteArray();
+            getReducerFileGroupResponseBroadcasts.put(
+                shuffleId, Tuple2.apply(broadcast, _serializeResult));
+            getReducerFileGroupResponseBroadcastNum.incrementAndGet();
+            return _serializeResult;
+          } catch (Throwable e) {
+            logger.error(
+                "Failed to serialize GetReducerFileGroupResponse for shuffle: {}", shuffleId, e);
+            return null;
+          }
+        });
+  }
+
+  public static GetReducerFileGroupResponse deserializeGetReducerFileGroupResponse(
+      Integer shuffleId, byte[] bytes) {
+    SparkEnv sparkEnv = SparkEnv$.MODULE$.get();
+    if (sparkEnv == null) {
+      logger.error("Can not get SparkEnv.");
+      return null;
+    }
+
+    return shuffleBroadcastLock.withLock(
+        shuffleId,
+        () -> {
+          GetReducerFileGroupResponse response = null;
+          logger.info(
+              "Deserializing GetReducerFileGroupResponse broadcast for shuffle: {}", shuffleId);
+
+          try {
+            CompressionCodec codec = CompressionCodec$.MODULE$.createCodec(sparkEnv.conf());
+            try (ObjectInputStream objIn =
+                new ObjectInputStream(
+                    codec.compressedInputStream(new ByteArrayInputStream(bytes)))) {
+              Broadcast<TransportMessage> broadcast =
+                  (Broadcast<TransportMessage>) objIn.readObject();
+              response =
+                  (GetReducerFileGroupResponse) Utils.fromTransportMessage(broadcast.value());
+            }
+          } catch (Throwable e) {
+            logger.error(
+                "Failed to deserialize GetReducerFileGroupResponse for shuffle: " + shuffleId, e);
+          }
+          return response;
+        });
+  }
+
+  public static void invalidateSerializedGetReducerFileGroupResponse(Integer shuffleId) {
+    shuffleBroadcastLock.withLock(
+        shuffleId,
+        () -> {
+          try {
+            Tuple2<Broadcast<TransportMessage>, byte[]> cachedSerializeGetReducerFileGroupResponse =
+                getReducerFileGroupResponseBroadcasts.remove(shuffleId);
+            if (cachedSerializeGetReducerFileGroupResponse != null) {
+              cachedSerializeGetReducerFileGroupResponse._1().destroy();
+            }
+          } catch (Throwable e) {
+            logger.error(
+                "Failed to invalidate serialized GetReducerFileGroupResponse for shuffle: "
+                    + shuffleId,
+                e);
+          }
+          return null;
+        });
   }
 }

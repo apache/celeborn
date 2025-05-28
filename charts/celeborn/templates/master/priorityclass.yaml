@@ -15,12 +15,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */ -}}
 
-{{- if .Values.priorityClass.master.create }}
+{{- if .Values.master.priorityClass.create }}
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
-  name: {{ include "celeborn.masterPriorityClassName" . }}
+  name: {{ include "celeborn.master.priorityClass.name" . }}
   labels:
-    {{- include "celeborn.labels" . | nindent 4 }}
-value: {{ .Values.priorityClass.master.value }}
+    {{- include "celeborn.master.labels" . | nindent 4 }}
+value: {{ .Values.master.priorityClass.value }}
 {{- end }}

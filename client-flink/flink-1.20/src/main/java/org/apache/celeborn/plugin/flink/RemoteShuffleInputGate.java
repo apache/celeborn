@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.metrics.SimpleCounter;
@@ -46,6 +47,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.util.CloseableIterator;
@@ -59,7 +61,7 @@ public class RemoteShuffleInputGate extends AbstractRemoteShuffleInputGate {
 
   public RemoteShuffleInputGate(
       CelebornConf celebornConf,
-      String taskName,
+      ShuffleIOOwnerContext ownerContext,
       int gateIndex,
       InputGateDeploymentDescriptor gateDescriptor,
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
@@ -67,7 +69,7 @@ public class RemoteShuffleInputGate extends AbstractRemoteShuffleInputGate {
       int numConcurrentReading) {
     super(
         celebornConf,
-        taskName,
+        ownerContext,
         gateIndex,
         gateDescriptor,
         bufferPoolFactory,
@@ -78,6 +80,13 @@ public class RemoteShuffleInputGate extends AbstractRemoteShuffleInputGate {
   @Override
   public InputChannel getChannel(int channelIndex) {
     return new FakedRemoteInputChannel(channelIndex);
+  }
+
+  @Override
+  public Tuple2<Integer, Integer> getConsumedSubpartitionIndexRange(
+      InputGateDeploymentDescriptor gateDescriptor) {
+    IndexRange indexRange = gateDescriptor.getConsumedSubpartitionIndexRange();
+    return Tuple2.of(indexRange.getStartIndex(), indexRange.getEndIndex());
   }
 
   /** Accommodation for the incompleteness of Flink pluggable shuffle service. */

@@ -29,10 +29,10 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: Should create master priority class if `priorityClass.master.create` is true
+  - it: Should create master priority class if `master.priorityClass.create` is true
     set:
-      priorityClass:
-        master:
+      master:
+        priorityClass:
           create: true
     asserts:
       - containsDocument:
@@ -42,8 +42,8 @@ tests:
 
   - it: Should use the specified priority class value
     set:
-      priorityClass:
-        master:
+      master:
+        priorityClass:
           create: true
           value: 1000
     asserts:

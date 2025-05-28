@@ -50,8 +50,9 @@ import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.network.util.TransportConf
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, RpcNameConstants, TransportModuleConstants}
-import org.apache.celeborn.common.protocol.message.{ControlMessages, Message, StatusCode}
+import org.apache.celeborn.common.protocol.message.{ControlMessages, Message}
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
+import org.apache.celeborn.common.rpc.RpcTimeoutException
 import org.apache.celeborn.reflect.DynConstructors
 
 object Utils extends Logging {
@@ -613,7 +614,7 @@ object Utils extends Logging {
     }
   }
 
-  def instantiateDynamicConfigStoreBackend[T](className: String, conf: CelebornConf): T = {
+  def instantiateClassWithCelebornConf[T](className: String, conf: CelebornConf): T = {
     try {
       DynConstructors.builder().impl(className, classOf[CelebornConf])
         .build[T]()
@@ -621,7 +622,7 @@ object Utils extends Logging {
     } catch {
       case e: Throwable =>
         throw new CelebornException(
-          s"Failed to instantiate dynamic config store backend $className.",
+          s"Failed to instantiate class $className with celeborn conf.",
           e)
     }
   }
@@ -715,6 +716,17 @@ object Utils extends Logging {
 
   def makeMapKey(shuffleId: Int, mapId: Int, attemptId: Int): String = {
     s"$shuffleId-$mapId-$attemptId"
+  }
+
+  def makeAttemptKey(mapId: Int, attemptId: Int): String = {
+    s"$mapId-$attemptId"
+  }
+
+  def splitAttemptKey(attemptKey: String): (Int, Int) = {
+    val splits = attemptKey.split("-")
+    val mapId = splits(0).toInt
+    val attemptId = splits(1).toInt
+    (mapId, attemptId)
   }
 
   def shuffleKeyPrefix(shuffleKey: String): String = {
@@ -1058,121 +1070,6 @@ object Utils extends Logging {
     }
   }
 
-  def toStatusCode(status: Int): StatusCode = {
-    status match {
-      case 0 =>
-        StatusCode.SUCCESS
-      case 1 =>
-        StatusCode.PARTIAL_SUCCESS
-      case 2 =>
-        StatusCode.REQUEST_FAILED
-      case 3 =>
-        StatusCode.SHUFFLE_ALREADY_REGISTERED
-      case 4 =>
-        StatusCode.SHUFFLE_NOT_REGISTERED
-      case 5 =>
-        StatusCode.RESERVE_SLOTS_FAILED
-      case 6 =>
-        StatusCode.SLOT_NOT_AVAILABLE
-      case 7 =>
-        StatusCode.WORKER_NOT_FOUND
-      case 8 =>
-        StatusCode.PARTITION_NOT_FOUND
-      case 9 =>
-        StatusCode.REPLICA_PARTITION_NOT_FOUND
-      case 10 =>
-        StatusCode.DELETE_FILES_FAILED
-      case 11 =>
-        StatusCode.PARTITION_EXISTS
-      case 12 =>
-        StatusCode.REVIVE_FAILED
-      case 13 =>
-        StatusCode.REPLICATE_DATA_FAILED
-      case 14 =>
-        StatusCode.NUM_MAPPER_ZERO
-      case 15 =>
-        StatusCode.MAP_ENDED
-      case 16 =>
-        StatusCode.STAGE_ENDED
-      case 17 =>
-        StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_PRIMARY
-      case 18 =>
-        StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA
-      case 19 =>
-        StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY
-      case 20 =>
-        StatusCode.PUSH_DATA_FAIL_PARTITION_NOT_FOUND
-      case 21 =>
-        StatusCode.HARD_SPLIT
-      case 22 =>
-        StatusCode.SOFT_SPLIT
-      case 23 =>
-        StatusCode.STAGE_END_TIME_OUT
-      case 24 =>
-        StatusCode.SHUFFLE_DATA_LOST
-      case 25 =>
-        StatusCode.WORKER_SHUTDOWN
-      case 26 =>
-        StatusCode.NO_AVAILABLE_WORKING_DIR
-      case 27 =>
-        StatusCode.WORKER_EXCLUDED
-      case 28 =>
-        StatusCode.WORKER_UNKNOWN
-      case 29 =>
-        StatusCode.COMMIT_FILE_EXCEPTION
-      case 30 =>
-        StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED
-      case 31 =>
-        StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED
-      case 32 =>
-        StatusCode.PUSH_DATA_HANDSHAKE_FAIL_REPLICA
-      case 33 =>
-        StatusCode.PUSH_DATA_HANDSHAKE_FAIL_PRIMARY
-      case 34 =>
-        StatusCode.REGION_START_FAIL_REPLICA
-      case 35 =>
-        StatusCode.REGION_START_FAIL_PRIMARY
-      case 36 =>
-        StatusCode.REGION_FINISH_FAIL_REPLICA
-      case 37 =>
-        StatusCode.REGION_FINISH_FAIL_PRIMARY
-      case 38 =>
-        StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY
-      case 39 =>
-        StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA
-      case 40 =>
-        StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY
-      case 41 =>
-        StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
-      case 42 =>
-        StatusCode.PUSH_DATA_TIMEOUT_PRIMARY
-      case 43 =>
-        StatusCode.PUSH_DATA_TIMEOUT_REPLICA
-      case 44 =>
-        StatusCode.PUSH_DATA_PRIMARY_WORKER_EXCLUDED
-      case 45 =>
-        StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED
-      case 46 =>
-        StatusCode.FETCH_DATA_TIMEOUT
-      case 47 =>
-        StatusCode.REVIVE_INITIALIZED
-      case 48 =>
-        StatusCode.DESTROY_SLOTS_MOCK_FAILURE
-      case 49 =>
-        StatusCode.COMMIT_FILES_MOCK_FAILURE
-      case 50 =>
-        StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA
-      case 51 =>
-        StatusCode.OPEN_STREAM_FAILED
-      case 52 =>
-        StatusCode.SEGMENT_START_FAIL_REPLICA
-      case 53 =>
-        StatusCode.SEGMENT_START_FAIL_PRIMARY
-      case _ =>
-        null
-    }
-  }
-
   def toShuffleSplitMode(mode: Int): PartitionSplitMode = {
     mode match {
       case 0 => PartitionSplitMode.SOFT
@@ -1216,8 +1113,9 @@ object Utils extends Logging {
   val SORTED_SUFFIX = ".sorted"
   val INDEX_SUFFIX = ".index"
   val SUFFIX_HDFS_WRITE_SUCCESS = ".success"
-  val COMPATIBLE_HDFS_REGEX = "^(?!s3a://)[a-zA-Z0-9]+://.*"
+  val COMPATIBLE_HDFS_REGEX = "^(?!s3://)(?!s3a://)(?!oss://)[a-zA-Z0-9]+://.*"
   val S3_REGEX = "^s3[a]?://([a-z0-9][a-z0-9-]{1,61}[a-z0-9])(/.*)?$"
+  val OSS_REGEX = "^oss?://([a-z0-9][a-z0-9-]{1,61}[a-z0-9])(/.*)?$"
 
   val UNKNOWN_APP_SHUFFLE_ID = -1
 
@@ -1227,6 +1125,10 @@ object Utils extends Logging {
 
   def isS3Path(path: String): Boolean = {
     path.matches(S3_REGEX)
+  }
+
+  def isOssPath(path: String): Boolean = {
+    path.matches(OSS_REGEX)
   }
 
   def getSortedFilePath(path: String): String = {
@@ -1371,4 +1273,38 @@ object Utils extends Logging {
     connectException || rpcTimeout || fetchChunkTimeout
   }
 
+  def makeOpenStreamRequestId(
+      shuffleKey: String,
+      clientChannelId: String,
+      rpcRequestId: Long): String = {
+    s"$shuffleKey-$clientChannelId-$rpcRequestId"
+  }
+
+  def withRetryOnTimeoutOrIOException[T](numRetries: Int, retryWait: Long)(block: => T): T = {
+    var retriesLeft = numRetries
+    while (retriesLeft >= 0) {
+      retriesLeft -= 1
+      try {
+        return block
+      } catch {
+        case e @ (_: RpcTimeoutException | _: IOException) =>
+          if (retriesLeft > 0) {
+            val random = new Random
+            val retryWaitMs = random.nextInt(retryWait.toInt)
+            try {
+              TimeUnit.MILLISECONDS.sleep(retryWaitMs)
+            } catch {
+              case _: InterruptedException =>
+                throw e
+            }
+          } else {
+            throw e
+          }
+        case e: Exception =>
+          throw e
+      }
+    }
+    // should never be here
+    null.asInstanceOf[T]
+  }
 }

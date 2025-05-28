@@ -42,7 +42,7 @@ public class DynamicConfigServiceFactory {
               break;
             }
           }
-          _INSTANCE = Utils.instantiateDynamicConfigStoreBackend(configStoreBackend, celebornConf);
+          _INSTANCE = Utils.instantiateClassWithCelebornConf(configStoreBackend, celebornConf);
         }
       }
     }

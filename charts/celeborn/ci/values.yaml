@@ -28,124 +28,106 @@ image:
   # -- Image pull policy
   pullPolicy: IfNotPresent
 
-# -- Specifies the number of Celeborn master replicas to deploy
-masterReplicas: 1
-# -- Specifies the number of Celeborn worker replicas to deploy
-workerReplicas: 1
-
-service:
-  # -- Specifies service type
-  type: ClusterIP
-  # -- Specifies service port
-  port: 9097
-
-cluster:
-  # -- Specifies Kubernetes cluster name
-  name: cluster
-
-# Specifies Celeborn volumes.
-# Currently supported volume types are `emptyDir` and `hostPath`.
-# Note that `hostPath` only works in hostPath type using to set `volumes hostPath path`.
-# Celeborn Master will pick first volumes for store raft log.
-# `diskType` only works in Celeborn Worker with hostPath type to manifest local disk type.
-volumes:
-  # -- Specifies volumes for Celeborn master pods
-  master:
-    - mountPath: /mnt/celeborn_ratis
-      type: emptyDir
-      size: 1Gi
-  # -- Specifies volumes for Celeborn worker pods
-  worker:
-    - mountPath: /mnt/disk1
-      type: emptyDir
-      size: 1Gi
-    - mountPath: /mnt/disk2
-      type: emptyDir
-      size: 1Gi
-
-# celeborn configurations
 celeborn:
-  celeborn.master.ha.enabled: false
   celeborn.metrics.enabled: false
-  celeborn.master.http.port: 9098
-  celeborn.worker.http.port: 9096
-  celeborn.worker.monitor.disk.enabled: false
-  celeborn.shuffle.chunk.size: 8m
-  celeborn.rpc.io.serverThreads: 64
-  celeborn.rpc.io.numConnectionsPerPeer: 2
-  celeborn.rpc.io.clientThreads: 64
-  celeborn.rpc.dispatcher.numThreads: 4
-  celeborn.worker.flusher.buffer.size: 256K
-  celeborn.worker.fetch.io.threads: 32
-  celeborn.worker.push.io.threads: 32
-  celeborn.push.stageEnd.timeout: 120s
-  celeborn.application.heartbeat.timeout: 120s
-  celeborn.worker.heartbeat.timeout: 120s
+  celeborn.worker.storage.dirs: /mnt/disk1:disktype=SSD:capacity=1Gi,/mnt/disk2:disktype=SSD:capacity=1Gi
 
-# -- Celeborn configurations
-environments:
-  CELEBORN_MASTER_MEMORY: 100m
-  CELEBORN_WORKER_MEMORY: 100m
-  CELEBORN_WORKER_OFFHEAP_MEMORY: 100m
-  CELEBORN_NO_DAEMONIZE: 1
-  TZ: "Asia/Shanghai"
+master:
+  # -- Number of Celeborn master replicas to deploy, should not less than 3.
+  replicas: 1
 
-# -- Specifies the DNS policy for Celeborn pods to use
-dnsPolicy: ClusterFirstWithHostNet
+  # -- Environment variables for Celeborn master containers.
+  env:
+  - name: CELEBORN_MASTER_MEMORY
+    value: 100m
+  - name: CELEBORN_MASTER_JAVA_OPTS
+    value: -XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-master.out -Dio.netty.leakDetectionLevel=advanced
+  - name: CELEBORN_NO_DAEMONIZE
+    value: "true"
+  - name: TZ
+    value: Asia/Shanghai
 
-# -- Specifies whether to use the host's network namespace
-hostNetwork: true
+  # -- Volume mounts for Celeborn master containers.
+  volumeMounts:
+  - name: celeborn-ratis
+    mountPath: /mnt/celeborn_ratis
 
-resources:
-  # -- Pod resources for Celeborn master pods
-  master:
-    limits:
-      cpu: 100m
-      memory: 800Mi
+  # -- Resources for Celeborn master containers.
+  resources:
     requests:
       cpu: 100m
       memory: 800Mi
-  # -- Pod resources for Celeborn worker pods
-  worker:
     limits:
       cpu: 100m
-      memory: 1Gi
+      memory: 800Mi
+
+  # -- Volumes for Celeborn master pods.
+  volumes:
+  - name: celeborn-ratis
+    emptyDir:
+      sizeLimit: 1Gi
+
+  # -- DNS policy for Celeborn master pods.
+  dnsPolicy: ClusterFirstWithHostNet
+
+  # -- Whether to use the host's network namespace in Celeborn master pods.
+  hostNetwork: true
+
+worker:
+  # -- Number of Celeborn worker replicas to deploy, should less than node number.
+  replicas: 1
+
+  # -- Environment variables for Celeborn worker containers.
+  env:
+  - name: CELEBORN_WORKER_MEMORY
+    value: 100m
+  - name: CELEBORN_WORKER_OFFHEAP_MEMORY
+    value: 100m
+  - name: CELEBORN_WORKER_JAVA_OPTS
+    value: -XX:-PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -Xloggc:gc-worker.out -Dio.netty.leakDetectionLevel=advanced
+  - name: CELEBORN_NO_DAEMONIZE
+    value: "true"
+  - name: TZ
+    value: Asia/Shanghai
+
+  # -- Volume mounts for Celeborn worker containers.
+  volumeMounts:
+  - name: disk1
+    mountPath: /mnt/disk1
+  - name: disk2
+    mountPath: /mnt/disk2
+
+  # -- Resources for Celeborn worker containers.
+  resources:
     requests:
       cpu: 100m
       memory: 1Gi
+    limits:
+      cpu: 100m
+      memory: 1Gi
 
-# -- Container security context
-securityContext:
-  # Specifies the user ID to run the entrypoint of the container process
-  runAsUser: 10006
-  # Specifies the group ID to run the entrypoint of the container process
-  runAsGroup: 10006
-  # Specifies the group ID to use when modifying ownership and permissions of the mounted volumes
-  fsGroup: 10006
+  # --Volumes for Celeborn worker pods.
+  volumes:
+  - name: disk1
+    emptyDir:
+      sizeLimit: 1Gi
+  - name: disk2
+    emptyDir:
+      sizeLimit: 1Gi
+
+  # -- DNS policy for Celeborn worker pods.
+  dnsPolicy: ClusterFirstWithHostNet
+
+  # -- Whether to use the host's network namespace in Celeborn worker pods.
+  hostNetwork: true
 
 podMonitor:
   # -- Specifies whether to enable creating pod monitors for Celeborn pods
   enable: false
-  # -- Specifies pod metrics endpoint
-  podMetricsEndpoint:
-    # Specifies scheme
-    scheme: http
-    # Specifies scrape interval
-    interval: 5s
-    # Specifies port name
-    portName: metrics
 
 serviceAccount:
   # -- Specifies whether to create a service account for Celeborn
   create: false
-  # -- Specifies the name of the service account
-  name: default
 
 rbac:
   create: false
-  roleName: default
-  roleBindingName: default
-  rules:
-    - apiGroups: [""]
-      resources: ["pods"]
-      verbs: ["create", "list", "delete"]

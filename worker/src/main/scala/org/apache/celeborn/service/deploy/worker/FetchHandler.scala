@@ -288,6 +288,12 @@ class FetchHandler(
               shuffleKey,
               fileName)
             makeStreamHandler(streamId, numChunks = 0)
+          case info: DiskFileInfo if info.isOSS =>
+            chunkStreamManager.registerStream(
+              streamId,
+              shuffleKey,
+              fileName)
+            makeStreamHandler(streamId, numChunks = 0)
           case _ =>
             val managedBuffer = fileInfo match {
               case df: DiskFileInfo =>
@@ -349,7 +355,11 @@ class FetchHandler(
       callback: RpcResponseCallback): Unit = {
     checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
     workerSource.recordAppActiveConnection(client, shuffleKey)
-    workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
+    val requestId = Utils.makeOpenStreamRequestId(
+      shuffleKey,
+      client.getChannel.id().toString,
+      rpcRequestId)
+    workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, requestId)
     try {
       val fileInfo = getRawFileInfo(shuffleKey, fileName)
       fileInfo.getFileMeta match {
@@ -394,7 +404,7 @@ class FetchHandler(
         workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
         handleRpcIOException(client, rpcRequestId, shuffleKey, fileName, e, callback)
     } finally {
-      workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
+      workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, requestId)
     }
   }
 

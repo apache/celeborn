@@ -28,7 +28,7 @@ on:
       - branch-*
 
 concurrency:
-  group: style-${{ github.ref }}
+  group: style-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -52,6 +52,7 @@ jobs:
           build/mvn spotless:check -Pgoogle-mirror,flink-1.18
           build/mvn spotless:check -Pgoogle-mirror,flink-1.19
           build/mvn spotless:check -Pgoogle-mirror,flink-1.20
+          build/mvn spotless:check -Pgoogle-mirror,flink-2.0
           build/mvn spotless:check -Pgoogle-mirror,spark-2.4
           build/mvn spotless:check -Pgoogle-mirror,spark-3.3
           build/mvn spotless:check -Pgoogle-mirror,mr

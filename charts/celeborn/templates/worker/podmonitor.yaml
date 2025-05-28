@@ -20,9 +20,9 @@ limitations under the License.
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: {{ include "celeborn.workerPodMonitorName" . }}
+  name: {{ include "celeborn.worker.podMonitor.name" . }}
   labels:
-    {{- include "celeborn.labels" . | nindent 4 }}
+    {{- include "celeborn.worker.labels" . | nindent 4 }}
 spec:
   podMetricsEndpoints:
   - interval: {{ .Values.podMonitor.podMetricsEndpoint.interval }}
@@ -35,7 +35,6 @@ spec:
     - {{ .Release.Namespace }}
   selector:
     matchLabels:
-      {{- include "celeborn.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/role: worker
+      {{- include "celeborn.worker.selectorLabels" . | nindent 6 }}
 {{- end }}
 {{- end }}
