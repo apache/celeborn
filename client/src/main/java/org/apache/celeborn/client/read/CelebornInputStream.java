@@ -325,10 +325,6 @@ public abstract class CelebornInputStream extends InputStream {
       this.shouldDecompress =
           !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE) && needDecompress;
       this.shuffleIntegrityCheckEnabled = conf.clientShuffleIntegrityCheckEnabled();
-      if (this.shuffleIntegrityCheckEnabled) {
-        checkArgument(
-            this.shouldDecompress, "Shuffle integrity check requires shuffle compression");
-      }
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
       this.failedBatches = failedBatchSet;
       this.readSkewPartitionWithoutMapRange = readSkewPartitionWithoutMapRange;
@@ -889,11 +885,11 @@ public abstract class CelebornInputStream extends InputStream {
                   rawDataBuf = new byte[originalLength];
                 }
                 limit = decompressor.decompress(compressedBuf, rawDataBuf, 0);
-                if (shuffleIntegrityCheckEnabled) {
-                  aggregatedActualCommitMetadata.addDataWithOffsetAndLength(rawDataBuf, 0, limit);
-                }
               } else {
                 limit = size;
+              }
+              if (shuffleIntegrityCheckEnabled) {
+                aggregatedActualCommitMetadata.addDataWithOffsetAndLength(rawDataBuf, 0, limit);
               }
               position = 0;
               hasData = true;
