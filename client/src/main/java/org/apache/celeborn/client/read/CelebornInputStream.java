@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.client.read;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
