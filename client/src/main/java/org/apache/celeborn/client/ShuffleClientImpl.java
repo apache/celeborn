@@ -1046,7 +1046,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     // Track commit metadata if shuffle compression and integrity check are enabled and this request
     // is not for pushing metadata itself.
-    if (shuffleCompressionEnabled && shuffleIntegrityCheckEnabled) {
+    if (shuffleIntegrityCheckEnabled) {
       pushState.addDataWithOffsetAndLength(partitionId, data, offset, length);
     }
 
