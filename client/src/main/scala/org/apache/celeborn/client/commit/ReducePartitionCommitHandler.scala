@@ -296,7 +296,7 @@ class ReducePartitionCommitHandler(
             "commitMetadataArray can only be null if shuffleId %s is not registered",
             shuffleId)
           for (i <- 0 until numPartitions) {
-            if (crc32PerPartition(i) != 0) {
+            if (bytesWrittenPerPartition(i) != 0) {
               val commitMetadata = commitMetadataArray(i)
               if (commitMetadata == null) {
                 commitMetadataArray(i) =
