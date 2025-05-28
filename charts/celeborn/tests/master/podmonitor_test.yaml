@@ -22,6 +22,7 @@ templates:
 
 release:
   name: celeborn
+  namespace: celeborn
 
 tests:
   - it: Should not create master pod monitor without api version `monitoring.coreos.com/v1/PodMonitor` even if `podMonitor.enable` is true
@@ -44,6 +45,7 @@ tests:
           apiVersion: monitoring.coreos.com/v1
           kind: PodMonitor
           name: celeborn-master-podmonitor
+          namespace: celeborn
 
   - it: Should use the specified pod metrics endpoints
     capabilities:

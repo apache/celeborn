@@ -22,8 +22,17 @@ templates:
 
 release:
   name: celeborn
+  namespace: celeborn
 
 tests:
+  - it: Should create worker statefulset
+    asserts:
+      - containsDocument:
+          apiVersion: apps/v1
+          kind: StatefulSet
+          name: celeborn-worker
+          namespace: celeborn
+
   - it: Should add extra pod annotations if `worker.annotations` is specified
     set:
       worker:

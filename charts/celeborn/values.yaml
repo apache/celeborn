@@ -41,28 +41,6 @@ image:
 # -- Image pull secrets for private image registry
 imagePullSecrets: []
 
-service:
-  # -- Specifies service type
-  type: ClusterIP
-  # -- Specifies service port
-  port: 9097
-  # -- Specifies service annotations
-  annotations: {}
-
-# -- Specifies whether to create additional NodePort service for each master replica
-additionalNodePortServicePerReplica:
-  enabled: false
-  # -- Specifies service port
-  port: 9097
-  # -- Specifies nodeport start range
-  nodePortStartRange: 30000
-  # -- when using NodePort service type, you can specify map of annotations for each master replica
-  annotations: {}
-
-cluster:
-  # -- Specifies Kubernetes cluster name
-  name: cluster
-
 # -- Celeborn configurations.
 # Ref: [Configuration - Apache Celeborn](https://celeborn.apache.org/docs/latest/configuration).
 celeborn:
@@ -416,6 +394,43 @@ worker:
   #       limits:
   #         storage: 100Gi
 
+serviceAccount:
+  # -- Whether to create a service account for Celeborn.
+  create: false
+  # -- (Optional) Name of the Celeborn service account.
+  name: ""
+
+rbac:
+  create: true
+  roleName: default
+  roleBindingName: default
+  rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "list", "delete"]
+
+service:
+  # -- Specifies service type
+  type: ClusterIP
+  # -- Specifies service port
+  port: 9097
+  # -- Specifies service annotations
+  annotations: {}
+
+# -- Specifies whether to create additional NodePort service for each master replica
+additionalNodePortServicePerReplica:
+  enabled: false
+  # -- Specifies service port
+  port: 9097
+  # -- Specifies nodeport start range
+  nodePortStartRange: 30000
+  # -- when using NodePort service type, you can specify map of annotations for each master replica
+  annotations: {}
+
+cluster:
+  # -- Specifies Kubernetes cluster name
+  name: cluster
+
 podMonitor:
   # -- Specifies whether to enable creating pod monitors for Celeborn pods
   enable: true
@@ -427,18 +442,3 @@ podMonitor:
     interval: 5s
     # Specifies port name
     portName: metrics
-
-serviceAccount:
-  # -- Specifies whether to create a service account for Celeborn
-  create: false
-  # -- Specifies the name of the service account
-  name: default
-
-rbac:
-  create: true
-  roleName: default
-  roleBindingName: default
-  rules:
-  - apiGroups: [""]
-    resources: ["pods"]
-    verbs: ["create", "list", "delete"]

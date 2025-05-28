@@ -19,6 +19,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ include "celeborn.master.statefulSet.name" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "celeborn.master.labels" . | nindent 4 }}
 spec:
@@ -138,7 +139,7 @@ spec:
       volumes:
       - name: celeborn-conf
         configMap:
-          name: {{ include "celeborn.configMapName" . }}
+          name: {{ include "celeborn.configMap.name" . }}
           defaultMode: 0444
           items:
           - key: celeborn-defaults.conf
@@ -171,7 +172,7 @@ spec:
       {{- with .Values.master.hostNetwork }}
       hostNetwork: {{ . }}
       {{- end }}
-      serviceAccountName: {{ include "celeborn.serviceAccountName" . }}
+      serviceAccountName: {{ include "celeborn.serviceAccount.name" . }}
       {{- with .Values.master.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
