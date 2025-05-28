@@ -544,10 +544,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     var response: PbReducerPartitionEndResponse = null
     if (isValid) {
       response =
-        PbReducerPartitionEndResponse.newBuilder().setStatus(StatusCode.SUCCESS.getValue).build();
+        PbReducerPartitionEndResponse.newBuilder().setStatus(StatusCode.SUCCESS.getValue).build()
     } else {
       response = PbReducerPartitionEndResponse.newBuilder().setStatus(
-        +StatusCode.REDUCE_PARTITION_END_FAILED.getValue).setErrorMsg(errorMessage).build();
+        +StatusCode.REDUCE_PARTITION_END_FAILED.getValue).setErrorMsg(errorMessage).build()
     }
     context.reply(response)
   }
