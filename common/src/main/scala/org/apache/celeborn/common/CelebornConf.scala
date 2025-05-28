@@ -2973,7 +2973,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.slots.assign.extraSlots")
       .categories("master")
       .version("0.3.0")
-      .doc("Extra slots number when master assign slots. Provided ")
+      .doc("Extra slots number when master assign slots. Provided enough workers are available.")
       .intConf
       .createWithDefault(2)
 
@@ -2990,7 +2990,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.slot.assign.minWorkers")
       .categories("master")
       .version("0.6.0")
-      .doc("Min workers that slots of one shuffle should be allocated on. Provided we have w")
+      .doc("Min workers that slots of one shuffle should be allocated on. Provided we have enough workers available.")
       .intConf
       .createWithDefault(100)
 
