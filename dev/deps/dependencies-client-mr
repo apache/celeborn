@@ -83,7 +83,7 @@ javax-websocket-client-impl/9.4.51.v20230217//javax-websocket-client-impl-9.4.51
 javax-websocket-server-impl/9.4.51.v20230217//javax-websocket-server-impl-9.4.51.v20230217.jar
 javax.annotation-api/1.3.2//javax.annotation-api-1.3.2.jar
 javax.inject/1//javax.inject-1.jar
-javax.servlet-api/3.1.0//javax.servlet-api-3.1.0.jar
+javax.servlet-api/4.0.1//javax.servlet-api-4.0.1.jar
 javax.websocket-api/1.0//javax.websocket-api-1.0.jar
 javax.websocket-client-api/1.0//javax.websocket-client-api-1.0.jar
 jaxb-api/2.2.11//jaxb-api-2.2.11.jar

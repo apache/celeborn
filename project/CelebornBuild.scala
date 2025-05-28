@@ -80,11 +80,13 @@ object Dependencies {
   val swaggerUiVersion = "4.9.1"
   val jerseyVersion = "2.39.1"
   val jettyVersion = "9.4.56.v20240826"
-  val jakartaServeletApiVersion = "4.0.4"
+  val javaxServletApiVersion = "4.0.1"
+  val jakartaServeletApiVersion = "5.0.0"
   val openApiToolsJacksonBindNullableVersion = "0.2.6"
   val httpClient5Version = "5.3.1"
   val httpCore5Version = "5.2.4"
   val jakartaAnnotationApiVersion = "1.3.5"
+  val jakartaWsRsApiVersion = "2.1.6"
   val picocliVersion = "4.7.6"
   val jmhVersion = "1.37"
 
@@ -183,11 +185,11 @@ object Dependencies {
   val zstdJni = "com.github.luben" % "zstd-jni" % zstdJniVersion
   val mybatis = "org.mybatis" % "mybatis" % mybatisVersion
   val hikaricp = "com.zaxxer" % "HikariCP" % hikaricpVersion
-  val jettyServer = "org.eclipse.jetty" % "jetty-server" % jettyVersion excludeAll(
-    ExclusionRule("javax.servlet", "javax.servlet-api"))
+  val jettyServer = "org.eclipse.jetty" % "jetty-server" % jettyVersion
   val jettyServlet = "org.eclipse.jetty" % "jetty-servlet" % jettyVersion excludeAll(
     ExclusionRule("javax.servlet", "javax.servlet-api"))
   val jettyProxy = "org.eclipse.jetty" % "jetty-proxy" % jettyVersion
+  val javaxServletApi = "javax.servlet" % "javax.servlet-api" % javaxServletApiVersion
   val jakartaServletApi = "jakarta.servlet" % "jakarta.servlet-api" % jakartaServeletApiVersion
   val jerseyServer = "org.glassfish.jersey.core" % "jersey-server" % jerseyVersion excludeAll(
     ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"))
@@ -206,6 +208,7 @@ object Dependencies {
   val httpCore5 = "org.apache.httpcomponents.core5" % "httpcore5" % httpCore5Version
   val httpCore5H2 = "org.apache.httpcomponents.core5" % "httpcore5-h2" % httpCore5Version
   val jakartaAnnotationApi = "jakarta.annotation" % "jakarta.annotation-api" % jakartaAnnotationApiVersion
+  val jakartaWsRsApi = "jakarta.ws.rs" % "jakarta.ws.rs-api" % jakartaWsRsApiVersion
 
   // Test dependencies
   // https://www.scala-sbt.org/1.x/docs/Testing.html
@@ -280,10 +283,10 @@ object CelebornCommonSettings {
   val SCALA_2_12_15 = "2.12.15"
   val SCALA_2_12_17 = "2.12.17"
   val SCALA_2_12_18 = "2.12.18"
-  val scala213 = "2.13.5"
+  val SCALA_2_13_5 = "2.13.5"
   val SCALA_2_13_8 = "2.13.8"
-  val scala213_11 = "2.13.11"
-  val ALL_SCALA_VERSIONS = Seq(SCALA_2_11_12, SCALA_2_12_10, SCALA_2_12_15, SCALA_2_12_17, SCALA_2_12_18, scala213, SCALA_2_13_8, scala213_11)
+  val SCALA_2_13_16 = "2.13.16"
+  val ALL_SCALA_VERSIONS = Seq(SCALA_2_11_12, SCALA_2_12_10, SCALA_2_12_15, SCALA_2_12_17, SCALA_2_12_18, SCALA_2_13_5, SCALA_2_13_8, SCALA_2_13_16)
 
   val DEFAULT_SCALA_VERSION = SCALA_2_12_18
 
@@ -358,6 +361,7 @@ object CelebornCommonSettings {
     Test / javaOptions ++= Seq(
       "-Dspark.shuffle.sort.io.plugin.class="
         + sys.props.getOrElse("spark.shuffle.plugin.class", "org.apache.spark.shuffle.sort.io.LocalDiskShuffleDataIO"),
+      "-Dspark.ui.enabled=false"
     ),
 
     Test / envVars += ("IS_TESTING", "1")
@@ -706,7 +710,10 @@ object CelebornService {
         Dependencies.jacksonDataFormatYam,
         Dependencies.swaggerJaxrs2,
         Dependencies.swaggerUi,
+        Dependencies.javaxServletApi,
         Dependencies.jakartaServletApi,
+        Dependencies.jakartaAnnotationApi,
+        Dependencies.jakartaWsRsApi,
         Dependencies.jerseyServer,
         Dependencies.jerseyContainerServletCore,
         Dependencies.jerseyHk2,
@@ -919,10 +926,10 @@ object Spark40 extends SparkClientProjects {
   val sparkClientShadedProjectName = "celeborn-client-spark-4-shaded"
 
   val lz4JavaVersion = "1.8.0"
-  val sparkProjectScalaVersion = "2.13.11"
+  val sparkProjectScalaVersion = "2.13.16"
 
-  val sparkVersion = "4.0.0-preview2"
-  val zstdJniVersion = "1.5.6-5"
+  val sparkVersion = "4.0.0"
+  val zstdJniVersion = "1.5.6-9"
   val scalaBinaryVersion = "2.13"
 
   override val sparkColumnarShuffleVersion: String = "4"
@@ -983,6 +990,8 @@ trait SparkClientProjects {
         libraryDependencies ++= Seq(
           "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
           "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
+          Dependencies.javaxServletApi % "test",
+          Dependencies.jakartaServletApi % "test"
         ) ++ commonUnitTestDependencies ++ Seq(Dependencies.mockitoInline % "test")
       )
   }
@@ -1006,11 +1015,13 @@ trait SparkClientProjects {
       // ref: https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
       .dependsOn(sparkColumnarCommon)
       .dependsOn(sparkClient % "test->test;compile->compile")
-      .dependsOn(CelebornClient.client % "test")
+      .dependsOn(CelebornClient.client % "test->test;compile->compile")
       .settings(
         commonSettings,
         libraryDependencies ++= Seq(
           "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
+          Dependencies.javaxServletApi % "test",
+          Dependencies.jakartaServletApi % "test"
         ) ++ commonUnitTestDependencies ++ Seq(Dependencies.mockitoInline % "test")
       )
   }
@@ -1026,12 +1037,32 @@ trait SparkClientProjects {
       .settings (
         commonSettings,
         libraryDependencies ++= Seq(
-          "org.apache.spark" %% "spark-core" % sparkVersion % "test",
-          "org.apache.spark" %% "spark-sql" % sparkVersion % "test",
-          "org.apache.spark" %% "spark-core" % sparkVersion % "test" classifier "tests" excludeAll(
+          "org.apache.spark" %% "spark-core" % sparkVersion % "test" excludeAll(
+            ExclusionRule("jakarta.annotation", "jakarta.annotation-api"),
+            ExclusionRule("jakarta.servlet", "jakarta.servlet-api"),
+            ExclusionRule("jakarta.validation", "jakarta.validation-api"),
+            ExclusionRule("jakarta.ws.rs", "jakarta.ws.rs-api"),
+            ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"),
+            ExclusionRule("org.eclipse.jetty", "*"),
+            ExclusionRule("org.glassfish.hk2", "*"),
+            ExclusionRule("org.glassfish.jersey.core", "*"),
+            ExclusionRule("org.glassfish.jersey.containers", "*"),
             ExclusionRule("org.glassfish.jersey.inject", "*"),
-            ExclusionRule("org.glassfish.jersey.core", "*")),
-          "org.apache.spark" %% "spark-sql" % sparkVersion % "test" classifier "tests"
+            ExclusionRule("org.glassfish.jersey.media", "*")),
+          "org.apache.spark" %% "spark-sql" % sparkVersion % "test" excludeAll(
+            ExclusionRule("jakarta.annotation", "jakarta.annotation-api"),
+            ExclusionRule("jakarta.servlet", "jakarta.servlet-api"),
+            ExclusionRule("jakarta.validation", "jakarta.validation-api"),
+            ExclusionRule("jakarta.ws.rs", "jakarta.ws.rs-api"),
+            ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"),
+            ExclusionRule("org.eclipse.jetty", "*"),
+            ExclusionRule("org.glassfish.hk2", "*"),
+            ExclusionRule("org.glassfish.jersey.core", "*"),
+            ExclusionRule("org.glassfish.jersey.containers", "*"),
+            ExclusionRule("org.glassfish.jersey.inject", "*"),
+            ExclusionRule("org.glassfish.jersey.media", "*")),
+          Dependencies.javaxServletApi % "test",
+          Dependencies.jakartaServletApi % "test"
         ) ++ commonUnitTestDependencies
       )
   }
@@ -1346,7 +1377,8 @@ object MRClientProjects {
           Dependencies.hadoopClientRuntime,
           Dependencies.hadoopMapreduceClientApp,
           Dependencies.jacksonJaxrsJsonProvider,
-          Dependencies.jakartaActivationApi
+          Dependencies.jakartaActivationApi,
+          Dependencies.javaxServletApi
         ) ++ commonUnitTestDependencies,
         dependencyOverrides += Dependencies.commonsCompress
       )
@@ -1697,6 +1729,7 @@ object TezClientProjects {
           Dependencies.tezApi,
           Dependencies.hadoopCommon,
           Dependencies.slf4jApi,
+          Dependencies.javaxServletApi
         ) ++ commonUnitTestDependencies,
         dependencyOverrides += Dependencies.commonsCompress
       )
