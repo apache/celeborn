@@ -177,7 +177,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         Utils.fromCelebornConf(conf, module, conf.networkIoThreads(module));
     this.context =
         new TransportContext(
-            dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());
+            dataTransportConf, readClientHandler, conf.closeIdleConnections(module));
     this.setupLifecycleManagerRef(driverHost, port);
     this.driverTimestamp = driverTimestamp;
   }

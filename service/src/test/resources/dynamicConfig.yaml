@@ -18,7 +18,7 @@
    config:
      celeborn.client.push.buffer.initial.size: 100k
      celeborn.client.push.buffer.max.size: 1000k
-     celeborn.worker.fetch.heartbeat.enabled: true
+     celeborn.fetch.heartbeat.enabled: true
      celeborn.client.push.buffer.initial.size.only: 10k
      celeborn.test.timeoutMs.only: 100s
      celeborn.test.enabled.only: false
@@ -36,7 +36,7 @@
    config:
      celeborn.client.push.buffer.initial.size: 10k
      celeborn.client.push.buffer.initial.size.only: 100k
-     celeborn.worker.fetch.heartbeat.enabled: false
+     celeborn.fetch.heartbeat.enabled: false
      celeborn.test.tenant.timeoutMs.only: 100s
      celeborn.test.tenant.enabled.only: false
      celeborn.test.tenant.int.only: 10
@@ -46,7 +46,7 @@
    config:
      celeborn.client.push.buffer.initial.size: 10k
      celeborn.client.push.buffer.initial.size.only: 100k
-     celeborn.worker.fetch.heartbeat.enabled: false
+     celeborn.fetch.heartbeat.enabled: false
      celeborn.test.tenant.timeoutMs.only: 100s
      celeborn.test.tenant.enabled.only: false
      celeborn.test.tenant.int.only: 10

@@ -86,11 +86,10 @@ public class TransportContext implements Closeable {
       AbstractSource source) {
     this.conf = conf;
     this.msgHandler = msgHandler;
-    this.closeIdleConnections = closeIdleConnections || conf.closeIdleConnections();
+    this.closeIdleConnections = closeIdleConnections;
     this.sslFactory = SSLFactory.createSslFactory(conf);
     this.channelsLimiter = channelsLimiter;
-    // either explicitly enabled, or from the transport conf
-    this.enableHeartbeat = enableHeartbeat || conf.channelHeartbeatEnabled();
+    this.enableHeartbeat = enableHeartbeat;
     this.source = source;
 
     logger.info(
@@ -133,11 +132,11 @@ public class TransportContext implements Closeable {
 
   public TransportContext(
       TransportConf conf, BaseMessageHandler msgHandler, boolean closeIdleConnections) {
-    this(conf, msgHandler, closeIdleConnections, null, false, null);
+    this(conf, msgHandler, closeIdleConnections, null, conf.channelHeartbeatEnabled(), null);
   }
 
   public TransportContext(TransportConf conf, BaseMessageHandler msgHandler) {
-    this(conf, msgHandler, false, false, null);
+    this(conf, msgHandler, conf.closeIdleConnections(), conf.channelHeartbeatEnabled(), null);
   }
 
   public TransportClientFactory createClientFactory(List<TransportClientBootstrap> bootstraps) {

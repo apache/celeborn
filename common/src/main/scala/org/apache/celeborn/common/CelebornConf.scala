@@ -858,7 +858,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerReplicateIoThreads: Option[Int] = get(WORKER_REPLICATE_IO_THREADS)
   def registerWorkerTimeout: Long = get(WORKER_REGISTER_TIMEOUT)
   def workerWorkingDir: String = get(WORKER_WORKING_DIR)
-  def workerCloseIdleConnections: Boolean = get(WORKER_CLOSE_IDLE_CONNECTIONS)
   def workerReplicateFastFailDuration: Long = get(WORKER_REPLICATE_FAST_FAIL_DURATION)
   def workerReplicateRandomConnectionEnabled: Boolean =
     get(WORKER_REPLICATE_RANDOM_CONNECTION_ENABLED)
@@ -951,7 +950,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Client                         //
   // //////////////////////////////////////////////////////
-  def clientCloseIdleConnections: Boolean = get(CLIENT_CLOSE_IDLE_CONNECTIONS)
   def clientRegisterShuffleMaxRetry: Int = get(CLIENT_REGISTER_SHUFFLE_MAX_RETRIES)
   def clientRegisterShuffleRetryWaitMs: Long = get(CLIENT_REGISTER_SHUFFLE_RETRY_WAIT)
   def clientReserveSlotsRackAwareEnabled: Boolean = get(CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED)
@@ -1717,7 +1715,15 @@ object CelebornConf extends Logging {
       DeprecatedConfig(
         "celeborn.worker.fetch.heartbeat.enabled",
         "0.6.0",
-        "Please use celeborn.<module>.heartbeat.enabled"))
+        "Please use celeborn.<module>.heartbeat.enabled"),
+      DeprecatedConfig(
+        "celeborn.worker.closeIdleConnections",
+        "0.6.0",
+        "Please use celeborn.<module>.closeIdleConnections"),
+      DeprecatedConfig(
+        "celeborn.client.closeIdleConnections",
+        "0.6.0",
+        "Please use celeborn.<module>.closeIdleConnections"))
 
     Map(configs.map { cfg => (cfg.key -> cfg) }: _*)
   }
@@ -3613,14 +3619,6 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("180s")
 
-  val WORKER_CLOSE_IDLE_CONNECTIONS: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.closeIdleConnections")
-      .categories("worker")
-      .doc("Whether worker will close idle connections.")
-      .version("0.2.0")
-      .booleanConf
-      .createWithDefault(false)
-
   val WORKER_REPLICATE_FAST_FAIL_DURATION: ConfigEntry[Long] =
     buildConf("celeborn.worker.replicate.fastFail.duration")
       .categories("worker")
@@ -5324,14 +5322,6 @@ object CelebornConf extends Logging {
         s"from Master side and Client side, see `${CelebornConf.MASTER_SLOT_ASSIGN_MAX_WORKERS.key}`.")
       .intConf
       .createWithDefault(10000)
-
-  val CLIENT_CLOSE_IDLE_CONNECTIONS: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.closeIdleConnections")
-      .categories("client")
-      .doc("Whether client will close idle connections.")
-      .version("0.3.0")
-      .booleanConf
-      .createWithDefault(true)
 
   val CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.push.dynamicWriteMode.enabled")

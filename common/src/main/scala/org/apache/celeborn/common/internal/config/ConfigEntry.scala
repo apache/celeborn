@@ -40,7 +40,7 @@ The followings are best practices of naming configs for some common cases:
      - celeborn.master.ha.enabled
      - celeborn.master.ha.client.maxRetries
 2. When adding a boolean config, the name should be a verb that describes what
-   happens if this config is set to true, e.g. `celeborn.worker.closeIdleConnections`.
+   happens if this config is set to true, e.g. `celeborn.push.closeIdleConnections`.
 3. When adding a config to specify a time duration, it's better to put the time unit
    in the config name. For example, `featureName.timeoutMs`, which clearly indicates
    that the time unit is millisecond. The config entry should be created with
