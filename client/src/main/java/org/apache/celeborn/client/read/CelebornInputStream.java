@@ -741,7 +741,7 @@ public abstract class CelebornInputStream extends InputStream {
     }
 
     void validateIntegrity() {
-      if (integrityChecked || !shuffleIntegrityCheckEnabled ) {
+      if (integrityChecked || !shuffleIntegrityCheckEnabled) {
         return;
       }
 
