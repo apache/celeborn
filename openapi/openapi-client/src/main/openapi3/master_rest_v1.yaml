@@ -1048,15 +1048,14 @@ components:
     WorkerInterruptionNotice:
       type: object
       properties:
-        host:
-          type: string
-          description: The host of the worker.
+        workerId:
+          $ref: '#/components/schemas/WorkerId'
         interruptionTimestamp:
           type: integer
           format: int64
           description: The datetime of the expected interruption.
       required:
-        - host
+        - workerId
         - interruptionTimestamp
 
     ExcludeWorkerRequest:

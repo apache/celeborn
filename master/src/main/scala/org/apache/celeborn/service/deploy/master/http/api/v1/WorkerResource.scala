@@ -161,7 +161,9 @@ class WorkerResource extends ApiRequestContext {
       }
       val interruptionNotices: Map[String, Long] =
         request.getWorkers.asScala.map(worker =>
-          (worker.getHost, worker.getInterruptionTimestamp.toLong)).toMap
+          (
+            ApiUtils.toWorkerInfo(worker.getWorkerId).toUniqueId,
+            worker.getInterruptionTimestamp.toLong)).toMap
       val (success, msg) = httpService.updateInterruptionNotice(interruptionNotices)
       new HandleResponse().success(success).message(msg)
     }

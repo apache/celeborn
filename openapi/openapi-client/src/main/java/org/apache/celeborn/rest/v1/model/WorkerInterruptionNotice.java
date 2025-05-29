@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
+import org.apache.celeborn.rest.v1.model.WorkerId;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -32,13 +33,13 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
  * WorkerInterruptionNotice
  */
 @JsonPropertyOrder({
-  WorkerInterruptionNotice.JSON_PROPERTY_HOST,
+  WorkerInterruptionNotice.JSON_PROPERTY_WORKER_ID,
   WorkerInterruptionNotice.JSON_PROPERTY_INTERRUPTION_TIMESTAMP
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class WorkerInterruptionNotice {
-  public static final String JSON_PROPERTY_HOST = "host";
-  private String host;
+  public static final String JSON_PROPERTY_WORKER_ID = "workerId";
+  private WorkerId workerId;
 
   public static final String JSON_PROPERTY_INTERRUPTION_TIMESTAMP = "interruptionTimestamp";
   private Long interruptionTimestamp;
@@ -46,29 +47,29 @@ public class WorkerInterruptionNotice {
   public WorkerInterruptionNotice() {
   }
 
-  public WorkerInterruptionNotice host(String host) {
+  public WorkerInterruptionNotice workerId(WorkerId workerId) {
     
-    this.host = host;
+    this.workerId = workerId;
     return this;
   }
 
   /**
-   * The host of the worker.
-   * @return host
+   * Get workerId
+   * @return workerId
    */
   @javax.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_HOST)
+  @JsonProperty(JSON_PROPERTY_WORKER_ID)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
-  public String getHost() {
-    return host;
+  public WorkerId getWorkerId() {
+    return workerId;
   }
 
 
-  @JsonProperty(JSON_PROPERTY_HOST)
+  @JsonProperty(JSON_PROPERTY_WORKER_ID)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setHost(String host) {
-    this.host = host;
+  public void setWorkerId(WorkerId workerId) {
+    this.workerId = workerId;
   }
 
   public WorkerInterruptionNotice interruptionTimestamp(Long interruptionTimestamp) {
@@ -105,20 +106,20 @@ public class WorkerInterruptionNotice {
       return false;
     }
     WorkerInterruptionNotice workerInterruptionNotice = (WorkerInterruptionNotice) o;
-    return Objects.equals(this.host, workerInterruptionNotice.host) &&
+    return Objects.equals(this.workerId, workerInterruptionNotice.workerId) &&
         Objects.equals(this.interruptionTimestamp, workerInterruptionNotice.interruptionTimestamp);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(host, interruptionTimestamp);
+    return Objects.hash(workerId, interruptionTimestamp);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class WorkerInterruptionNotice {\n");
-    sb.append("    host: ").append(toIndentedString(host)).append("\n");
+    sb.append("    workerId: ").append(toIndentedString(workerId)).append("\n");
     sb.append("    interruptionTimestamp: ").append(toIndentedString(interruptionTimestamp)).append("\n");
     sb.append("}");
     return sb.toString();

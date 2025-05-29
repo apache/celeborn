@@ -115,4 +115,6 @@ trait MasterSubcommand extends CliLogging {
 
   private[master] def deleteApps: HandleResponse
 
+  private[master] def updateInterruptionNotices: HandleResponse
+
 }

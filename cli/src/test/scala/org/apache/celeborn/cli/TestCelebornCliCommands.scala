@@ -20,6 +20,8 @@ package org.apache.celeborn.cli
 import java.io.{ByteArrayOutputStream, File, PrintStream}
 import java.nio.file.{Files, Paths}
 
+import picocli.CommandLine.ParameterException
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.common.CelebornConf
@@ -268,6 +270,20 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "success: true")
   }
 
+  test("master --update-interruption-notices legal input") {
+    val args = prepareMasterArgs() ++ Array(
+      "--update-interruption-notices",
+      s"${getWorkerId()}=${Long.MaxValue}")
+    captureOutputAndValidateResponse(args, "success: true")
+  }
+
+  test("master --update-interruption-notices illegal input") {
+    val args = prepareMasterArgs() ++ Array(
+      "--update-interruption-notices",
+      s"${getWorkerId()}=illegalInput")
+    captureErrorAndValidateResponse(args, "Invalid timestamp for worker")
+  }
+
   private def prepareMasterArgs(): Array[String] = {
     Array(
       "master",
@@ -292,6 +308,19 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     }
     val stdout = stdoutStream.toString
     assert(stdout.nonEmpty && stdout.contains(stdoutValidationString))
+  }
+
+  private def captureErrorAndValidateResponse(
+      args: Array[String],
+      stderrValidationString: String): Unit = {
+    val stderrStream = new ByteArrayOutputStream()
+    val stderrPrintStream = new PrintStream(stderrStream)
+    System.setErr(new PrintStream(stderrStream))
+    Console.withErr(stderrPrintStream) {
+      CelebornCli.main(args)
+    }
+    val stderr = stderrStream.toString
+    assert(stderr.nonEmpty && stderr.contains(stderrValidationString))
   }
 
   private def getWorkerId(): String = {

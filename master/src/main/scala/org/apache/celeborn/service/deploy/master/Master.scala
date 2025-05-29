@@ -1299,7 +1299,7 @@ private[celeborn] class Master(
       : HandleResponse = {
     try {
       statusSystem.workersMap.values().asScala.foreach { workerInfo =>
-        workerInterruptionNotices.get(workerInfo.host) match {
+        workerInterruptionNotices.get(workerInfo.toUniqueId) match {
           case Some(update) => workerInfo.nextInterruptionNotice = update
           case None => workerInfo.nextInterruptionNotice = Long.MaxValue
         }

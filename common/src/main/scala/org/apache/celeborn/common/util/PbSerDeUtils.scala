@@ -280,9 +280,9 @@ object PbSerDeUtils {
     }
     // If the next interruption notice is not specified in the message, set to max.
     if (pbWorkerInfo.getNextInterruptionNotice == 0) {
-      workerInfo.nextInterruptionNotice_$eq(Long.MaxValue)
+      workerInfo.nextInterruptionNotice = Long.MaxValue
     } else {
-      workerInfo.nextInterruptionNotice_$eq(pbWorkerInfo.getNextInterruptionNotice)
+      workerInfo.nextInterruptionNotice = pbWorkerInfo.getNextInterruptionNotice
     }
     workerInfo
   }

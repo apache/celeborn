@@ -20,6 +20,7 @@ package org.apache.celeborn.cli.master
 import java.util
 
 import scala.collection.JavaConverters._
+import scala.util.Try
 
 import org.apache.commons.lang3.StringUtils
 import picocli.CommandLine.{Command, ParameterException}
@@ -54,6 +55,9 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     if (masterOptions.showThreadDump) log(runShowThreadDump)
     if (masterOptions.reviseLostShuffles) log(reviseLostShuffles)
     if (masterOptions.deleteApps) log(deleteApps)
+    if (masterOptions.updateInterruptionNotices != null && !StringUtils.isBlank(
+        masterOptions.updateInterruptionNotices))
+      log(updateInterruptionNotices)
     if (masterOptions.addClusterAlias != null && masterOptions.addClusterAlias.nonEmpty)
       runAddClusterAlias
     if (masterOptions.removeClusterAlias != null && masterOptions.removeClusterAlias.nonEmpty)
@@ -178,18 +182,20 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     workerIds
       .trim
       .split(",")
-      .map(workerId => {
-        val splitWorkerId = workerId.split(":")
-        val host = splitWorkerId(0)
-        val rpcPort = splitWorkerId(1).toInt
-        val pushPort = splitWorkerId(2).toInt
-        val fetchPort = splitWorkerId(3).toInt
-        val replicatePort = splitWorkerId(4).toInt
-        new WorkerId().host(host).rpcPort(rpcPort).pushPort(pushPort).fetchPort(
-          fetchPort).replicatePort(replicatePort)
-      })
+      .map(toWorkerId)
       .toList
       .asJava
+  }
+
+  private[master] def toWorkerId(workerIdString: String): WorkerId = {
+    val splitWorkerId = workerIdString.split(":")
+    val host = splitWorkerId(0)
+    val rpcPort = splitWorkerId(1).toInt
+    val pushPort = splitWorkerId(2).toInt
+    val fetchPort = splitWorkerId(3).toInt
+    val replicatePort = splitWorkerId(4).toInt
+    new WorkerId().host(host).rpcPort(rpcPort).pushPort(pushPort).fetchPort(
+      fetchPort).replicatePort(replicatePort)
   }
 
   private[master] def runShowConf: ConfResponse = confApi.getConf
@@ -254,4 +260,36 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     val request = new DeleteAppsRequest().apps(appIds)
     applicationApi.deleteApps(request)
   }
+
+  override private[master] def updateInterruptionNotices: HandleResponse = {
+    val workerInterruptionNotices = masterOptions.updateInterruptionNotices
+      .split(",")
+      .toList
+      .map { pair =>
+        val parts = pair.split("=", 2)
+        if (parts.length != 2) {
+          throw new ParameterException(
+            spec.commandLine(),
+            s"Invalid format for interruption notice: '$pair'. Expected format: workerId=timestamp")
+        }
+        val workerIdStr = parts(0)
+        val timestampStr = parts(1)
+        val timestamp =
+          try {
+            timestampStr.toLong
+          } catch {
+            case _: NumberFormatException =>
+              throw new ParameterException(
+                spec.commandLine(),
+                s"Invalid timestamp for worker '$workerIdStr': '$timestampStr' is not a valid long")
+          }
+        new WorkerInterruptionNotice()
+          .workerId(toWorkerId(workerIdStr))
+          .interruptionTimestamp(timestamp)
+      }
+
+    val request = new UpdateInterruptionNoticeRequest().workers(workerInterruptionNotices.asJava)
+    workerApi.updateInterruptionNotice(request)
+  }
+
 }
