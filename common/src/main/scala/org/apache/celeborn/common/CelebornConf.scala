@@ -1712,19 +1712,19 @@ object CelebornConf extends Logging {
       DeprecatedConfig(
         "celeborn.worker.push.heartbeat.enabled",
         "0.6.0",
-        "Please use celeborn.<module>.heartbeat.enabled"),
+        "Please use celeborn.<module>.heartbeat.enabled or celeborn.heartbeat.enabled"),
       DeprecatedConfig(
         "celeborn.worker.fetch.heartbeat.enabled",
         "0.6.0",
-        "Please use celeborn.<module>.heartbeat.enabled"),
+        "Please use celeborn.<module>.heartbeat.enabled or celeborn.heartbeat.enabled"),
       DeprecatedConfig(
         "celeborn.worker.closeIdleConnections",
         "0.6.0",
-        "Please use celeborn.<module>.closeIdleConnections"),
+        "Please use celeborn.<module>.closeIdleConnections or celeborn.closeIdleConnections"),
       DeprecatedConfig(
         "celeborn.client.closeIdleConnections",
         "0.6.0",
-        "Please use celeborn.<module>.closeIdleConnections"))
+        "Please use celeborn.<module>.closeIdleConnections or celeborn.closeIdleConnections"))
 
     Map(configs.map { cfg => (cfg.key -> cfg) }: _*)
   }
