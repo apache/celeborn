@@ -209,7 +209,7 @@ public abstract class CelebornInputStream extends InputStream {
     private final boolean enabledReadLocalShuffle;
     private final String localHostAddress;
 
-      private boolean shuffleCompressionEnabled;
+    private boolean shuffleCompressionEnabled;
     private boolean shuffleIntegrityCheckEnabled;
     private long fetchExcludedWorkerExpireTimeout;
     private ConcurrentHashMap<String, Long> fetchExcludedWorkers;
@@ -735,7 +735,7 @@ public abstract class CelebornInputStream extends InputStream {
     }
 
     void validateIntegrity() {
-      if (integrityChecked || !shuffleIntegrityCheckEnabled ) {
+      if (integrityChecked || !shuffleIntegrityCheckEnabled) {
         return;
       }
 
