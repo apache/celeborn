@@ -201,6 +201,8 @@ private[celeborn] class Master(
   private val tagsManager = new TagsManager(Option(configService))
 
   private val slotsAssignMaxWorkers = conf.masterSlotAssignMaxWorkers
+  private val slotsAssignMinWorkers = conf.masterSlotAssignMinWorkers
+  private val slotsAssignExtraSlots = conf.masterSlotAssignExtraSlots
   private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
   private val slotsAssignLoadAwareDiskGroupGradient =
     conf.masterSlotAssignLoadAwareDiskGroupGradient
@@ -974,11 +976,14 @@ private[celeborn] class Master(
         .asScala.map { case (worker, slots) => worker.toUniqueId -> slots }.asJava,
       requestSlots.requestId)
 
-    logInfo(s"Offer slots successfully for $numReducers reducers of $shuffleKey" +
-      s" on ${slots.size()} workers.")
-
+    var offerSlotsMsg = s"Successfully offered slots for $numReducers reducers of $shuffleKey" +
+      s" on ${slots.size()} workers"
     val workersNotSelected = availableWorkers.asScala.filter(!slots.containsKey(_))
-    val offerSlotsExtraSize = Math.min(conf.masterSlotAssignExtraSlots, workersNotSelected.size)
+    val offerSlotsExtraSize = Math.min(
+      Math.max(
+        slotsAssignExtraSlots,
+        slots.size() - slotsAssignMinWorkers),
+      workersNotSelected.size)
     if (offerSlotsExtraSize > 0) {
       var index = Random.nextInt(workersNotSelected.size)
       (1 to offerSlotsExtraSize).foreach(_ => {
@@ -987,8 +992,9 @@ private[celeborn] class Master(
           (new util.ArrayList[PartitionLocation](), new util.ArrayList[PartitionLocation]()))
         index = (index + 1) % workersNotSelected.size
       })
-      logInfo(s"Offered extra $offerSlotsExtraSize slots for $shuffleKey")
+      offerSlotsMsg += s", offered $offerSlotsExtraSize extra slots"
     }
+    logInfo(offerSlotsMsg + ".")
 
     ShuffleAuditLogger.audit(
       shuffleKey,
