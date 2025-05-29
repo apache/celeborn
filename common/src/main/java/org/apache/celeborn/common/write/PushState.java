@@ -34,6 +34,7 @@ public class PushState {
   private final int pushBufferMaxSize;
   public AtomicReference<IOException> exception = new AtomicReference<>();
   private final InFlightRequestTracker inFlightRequestTracker;
+  // partition id -> CommitMetadata
   private final ConcurrentHashMap<Integer, CommitMetadata> commitMetadataMap =
       new ConcurrentHashMap<>();
 
