@@ -211,7 +211,6 @@ public abstract class CelebornInputStream extends InputStream {
     private final boolean rangeReadFilter;
     private final boolean enabledReadLocalShuffle;
     private final String localHostAddress;
-    private final Map<String, CommitMetadata> expectedCommitMetadataMap = new HashMap<>();
 
     private boolean shouldDecompress;
     private boolean shuffleIntegrityCheckEnabled;
@@ -743,12 +742,6 @@ public abstract class CelebornInputStream extends InputStream {
 
     void validateIntegrity() {
       if (integrityChecked || !shuffleIntegrityCheckEnabled ) {
-        return;
-        logger.info("Skipping integrity checks since checks have already been performed");
-        return;
-      }
-      if (!shuffleIntegrityCheckEnabled) {
-        logger.info("Skipping integrity checks since shuffleIntegrityCheckEnabled is disabled");
         return;
       }
 
