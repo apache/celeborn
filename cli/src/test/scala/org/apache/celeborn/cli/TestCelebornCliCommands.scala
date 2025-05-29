@@ -20,8 +20,6 @@ package org.apache.celeborn.cli
 import java.io.{ByteArrayOutputStream, File, PrintStream}
 import java.nio.file.{Files, Paths}
 
-import picocli.CommandLine.ParameterException
-
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.common.CelebornConf
