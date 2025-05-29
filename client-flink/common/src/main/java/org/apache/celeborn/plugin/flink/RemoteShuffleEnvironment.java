@@ -120,6 +120,9 @@ public class RemoteShuffleEnvironment
   public void close() {
     LOG.info("Close RemoteShuffleEnvironment.");
     synchronized (lock) {
+      nettyResultIds.clear();
+      nettyResultPartitionIds.clear();
+      shuffleIOMetricGroups.clear();
       try {
         networkBufferPool.destroyAllBufferPools();
       } catch (Throwable t) {
