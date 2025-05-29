@@ -742,7 +742,8 @@ public abstract class CelebornInputStream extends InputStream {
     }
 
     void validateIntegrity() {
-      if (integrityChecked) {
+      if (integrityChecked || !shuffleIntegrityCheckEnabled ) {
+        return;
         logger.info("Skipping integrity checks since checks have already been performed");
         return;
       }
