@@ -982,7 +982,7 @@ private[celeborn] class Master(
     val offerSlotsExtraSize = Math.min(
       Math.max(
         slotsAssignExtraSlots,
-        slots.size() - slotsAssignMinWorkers),
+        slotsAssignMinWorkers - slots.size()),
       workersNotSelected.size)
     if (offerSlotsExtraSize > 0) {
       var index = Random.nextInt(workersNotSelected.size)
