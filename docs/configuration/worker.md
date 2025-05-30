@@ -103,7 +103,7 @@ license: |
 | celeborn.worker.graceful.shutdown.recoverPath | &lt;tmp&gt;/recover | false | The path to store DB. | 0.2.0 |  | 
 | celeborn.worker.graceful.shutdown.saveCommittedFileInfo.interval | 5s | false | Interval for a Celeborn worker to flush committed file infos into Level DB. | 0.3.1 |  | 
 | celeborn.worker.graceful.shutdown.saveCommittedFileInfo.sync | false | false | Whether to call sync method to save committed file infos into Level DB to handle OS crash. | 0.3.1 |  | 
-| celeborn.worker.graceful.shutdown.timeout | 600s | false | The worker's graceful shutdown timeout time. | 0.2.0 |  | 
+| celeborn.worker.graceful.shutdown.timeout | 600s | false | The worker's graceful shutdown timeout time. This should include celeborn.worker.graceful.shutdown.checkSlotsFinished.timeout and celeborn.worker.graceful.shutdown.partitionSorter.shutdownTimeout. | 0.2.0 |  | 
 | celeborn.worker.http.auth.administers |  | false | A comma-separated list of users who have admin privileges, Note, when celeborn.worker.http.auth.supportedSchemes is not set, everyone is treated as administrator. | 0.6.0 |  | 
 | celeborn.worker.http.auth.basic.provider | org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl | false | User-defined password authentication implementation of org.apache.celeborn.common.authentication.PasswdAuthenticationProvider | 0.6.0 |  | 
 | celeborn.worker.http.auth.bearer.provider | org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl | false | User-defined token authentication implementation of org.apache.celeborn.common.authentication.TokenAuthenticationProvider | 0.6.0 |  | 
@@ -174,6 +174,7 @@ license: |
 | celeborn.worker.shuffle.partitionSplit.enabled | true | false | enable the partition split on worker side | 0.3.0 | celeborn.worker.partition.split.enabled | 
 | celeborn.worker.shuffle.partitionSplit.max | 2g | false | Specify the maximum partition size for splitting, and ensure that individual partition files are always smaller than this limit. | 0.3.0 |  | 
 | celeborn.worker.shuffle.partitionSplit.min | 1m | false | Min size for a partition to split | 0.3.0 | celeborn.shuffle.partitionSplit.min | 
+| celeborn.worker.shutdown.cooldownTime | 5s | false | Additional cooldown time for all shutdown operations to complete during worker decommission or graceful shutdown | 0.6.0 |  | 
 | celeborn.worker.sortPartition.indexCache.expire | 180s | false | PartitionSorter's cache item expire time. | 0.4.0 |  | 
 | celeborn.worker.sortPartition.indexCache.maxWeight | 100000 | false | PartitionSorter's cache max weight for index buffer. | 0.4.0 |  | 
 | celeborn.worker.sortPartition.prefetch.enabled | true | false | When true, partition sorter will prefetch the original partition files to page cache and reserve memory configured by `celeborn.worker.sortPartition.reservedMemoryPerPartition` to allocate a block of memory for prefetching while sorting a shuffle file off-heap with page cache for non-hdfs files. Otherwise, partition sorter seeks to position of each block and does not prefetch for non-hdfs files. | 0.5.0 |  | 
