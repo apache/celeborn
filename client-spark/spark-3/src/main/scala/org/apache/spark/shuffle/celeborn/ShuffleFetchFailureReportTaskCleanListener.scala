@@ -25,7 +25,8 @@ class ShuffleFetchFailureReportTaskCleanListener(appId: String) extends SparkLis
   override def onStageCompleted(stageCompleted: SparkListenerStageCompleted): Unit = {
     // scalastyle:off
     println(
-      s"Remove reported shuffle fetch failure task for $appId-${stageCompleted.stageInfo.stageId}-${stageCompleted.stageInfo.attemptNumber()}")
+      s"${new java.util.Date(System.currentTimeMillis())}: " +
+        s"Remove reported shuffle fetch failure task for $appId-${stageCompleted.stageInfo.stageId}-${stageCompleted.stageInfo.attemptNumber()}")
     // scalastyle:on
     SparkUtils.removeStageReportedShuffleFetchFailureTaskIds(
       stageCompleted.stageInfo.stageId,

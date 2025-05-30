@@ -432,7 +432,8 @@ public class SparkUtils {
         reportedStageTaskIds.add(taskId);
         System.out.println(
             String.format(
-                "Checking reported shuffle fetch failure task ids for %s-%s",
+                "%s: Checking reported shuffle fetch failure task ids for %s-%s",
+                new java.util.Date(System.currentTimeMillis()),
                 sparkContext.applicationId(), stageUniqId));
 
         Tuple2<TaskInfo, List<TaskInfo>> taskAttempts = getTaskAttempts(taskSetManager, taskId);

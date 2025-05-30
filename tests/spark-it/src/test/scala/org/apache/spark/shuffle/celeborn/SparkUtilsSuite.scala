@@ -60,6 +60,11 @@ class SparkUtilsSuite extends AnyFunSuite
           "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
         .getOrCreate()
 
+      // scalastyle:off
+      println(s"${new java.util.Date(System.currentTimeMillis)}: " +
+        s"Spark applicationId: ${sparkSession.sparkContext.applicationId}")
+      // scalastyle:on
+
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook = new ShuffleReaderGetHooks(celebornConf, workerDirs)
       TestCelebornShuffleManager.registerReaderGetHook(hook)
