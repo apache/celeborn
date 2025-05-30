@@ -60,18 +60,20 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
       runRemoveClusterAlias
   }
 
-  private[master] def runShowMastersInfo: MasterInfoResponse = masterApi.getMasterGroupInfo
+  private[master] def runShowMastersInfo: MasterInfoResponse =
+    masterApi.getMasterGroupInfo(commonOptions.getAuthHeader)
 
   private[master] def runShowClusterApps: ApplicationsHeartbeatResponse =
-    applicationApi.getApplications
+    applicationApi.getApplications(commonOptions.getAuthHeader)
 
-  private[master] def runShowClusterShuffles: ShufflesResponse = shuffleApi.getShuffles
+  private[master] def runShowClusterShuffles: ShufflesResponse =
+    shuffleApi.getShuffles(commonOptions.getAuthHeader)
 
   private[master] def runExcludeWorkers: HandleResponse = {
     val workerIds = getWorkerIds
     val excludeWorkerRequest = new ExcludeWorkerRequest().add(workerIds)
     logInfo(s"Sending exclude worker requests to master for the following workers: $workerIds")
-    workerApi.excludeWorker(excludeWorkerRequest)
+    workerApi.excludeWorker(excludeWorkerRequest, commonOptions.getAuthHeader)
   }
 
   private[master] def runRemoveExcludedWorkers: HandleResponse = {
@@ -79,7 +81,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     val removeExcludeWorkerRequest = new ExcludeWorkerRequest().remove(workerIds)
     logInfo(
       s"Sending remove exclude worker requests to master for the following workers: $workerIds")
-    workerApi.excludeWorker(removeExcludeWorkerRequest)
+    workerApi.excludeWorker(removeExcludeWorkerRequest, commonOptions.getAuthHeader)
   }
 
   private[master] def runRemoveWorkersUnavailableInfo: HandleResponse = {
@@ -88,7 +90,9 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
       new RemoveWorkersUnavailableInfoRequest().workers(workerIds)
     logInfo(
       s"Sending remove workers unavailable info requests to master for the following workers: $workerIds")
-    workerApi.removeWorkersUnavailableInfo(removeWorkersUnavailableInfoRequest)
+    workerApi.removeWorkersUnavailableInfo(
+      removeWorkersUnavailableInfoRequest,
+      commonOptions.getAuthHeader)
   }
 
   private[master] def runSendWorkerEvent: HandleResponse = {
@@ -106,7 +110,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     val sendWorkerEventRequest =
       new SendWorkerEventRequest().workers(workerIds).eventType(eventType)
     logInfo(s"Sending workerEvent $eventType to workers: $workerIds")
-    workerApi.sendWorkerEvent(sendWorkerEventRequest)
+    workerApi.sendWorkerEvent(sendWorkerEventRequest, commonOptions.getAuthHeader)
   }
 
   private[master] def runShowWorkerEventInfo: WorkerEventsResponse = workerApi.getWorkerEvents
@@ -162,11 +166,13 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
   }
 
   private[master] def runShowLifecycleManagers: HostnamesResponse =
-    applicationApi.getApplicationHostNames
+    applicationApi.getApplicationHostNames(commonOptions.getAuthHeader)
 
-  private[master] def runShowWorkers: WorkersResponse = workerApi.getWorkers
+  private[master] def runShowWorkers: WorkersResponse =
+    workerApi.getWorkers(commonOptions.getAuthHeader)
 
-  private[master] def runShowWorkersTopology: TopologyResponse = workerApi.getWorkersTopology()
+  private[master] def runShowWorkersTopology: TopologyResponse =
+    workerApi.getWorkersTopology(commonOptions.getAuthHeader)
 
   private[master] def getWorkerIds: util.List[WorkerId] = {
     val workerIds = commonOptions.workerIds
@@ -192,15 +198,17 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
       .asJava
   }
 
-  private[master] def runShowConf: ConfResponse = confApi.getConf
+  private[master] def runShowConf: ConfResponse = confApi.getConf(commonOptions.getAuthHeader)
 
   private[master] def runShowDynamicConf: DynamicConfigResponse =
     confApi.getDynamicConf(
       commonOptions.configLevel,
       commonOptions.configTenant,
-      commonOptions.configName)
+      commonOptions.configName,
+      commonOptions.getAuthHeader)
 
-  private[master] def runShowThreadDump: ThreadStackResponse = defaultApi.getThreadDump
+  private[master] def runShowThreadDump: ThreadStackResponse =
+    defaultApi.getThreadDump(commonOptions.getAuthHeader)
 
   private[master] def runAddClusterAlias: Unit = {
     val aliasToAdd = masterOptions.addClusterAlias
@@ -221,7 +229,8 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     logInfo(s"Cluster alias $aliasToRemove removed.")
   }
 
-  private[master] def runShowContainerInfo: ContainerInfo = defaultApi.getContainerInfo
+  private[master] def runShowContainerInfo: ContainerInfo =
+    defaultApi.getContainerInfo(commonOptions.getAuthHeader)
 
   override private[master] def reviseLostShuffles: HandleResponse = {
     if (StringUtils.isAnyBlank(commonOptions.apps, reviseLostShuffleOptions.shuffleIds)) {
@@ -241,7 +250,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
       reviseLostShuffleOptions.shuffleIds.split(",").map(Integer.valueOf): _*)
     val request =
       new ReviseLostShufflesRequest().appId(app).shuffleIds(shuffleIds)
-    applicationApi.reviseLostShuffles(request)
+    applicationApi.reviseLostShuffles(request, commonOptions.getAuthHeader)
   }
 
   override private[master] def deleteApps: HandleResponse = {
@@ -252,6 +261,6 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     }
     val appIds = util.Arrays.asList[String](commonOptions.apps.split(","): _*)
     val request = new DeleteAppsRequest().apps(appIds)
-    applicationApi.deleteApps(request)
+    applicationApi.deleteApps(request, commonOptions.getAuthHeader)
   }
 }

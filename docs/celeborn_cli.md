@@ -103,6 +103,11 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--cluster=cluster_alias]
       --add-cluster-alias=alias
                              Add alias to use in the cli for the given set of
                                masters
+      --auth-header=authHeader
+                             The http `Authorization` header for
+                               authentication. It should be in the format of
+                               `Bearer <token>` or `Basic
+                               <base64-encoded-credentials>`.
       --apps=appId           The application Id list seperated by comma.
       --cluster=cluster_alias
                              The alias of the cluster to use to query masters
@@ -179,6 +184,11 @@ Usage: celeborn-cli worker [-hV] [--apps=appId] [--cluster=cluster_alias]
                            --show-container-info | --show-dynamic-conf |
                            --show-thread-dump)
       --apps=appId           The application Id list seperated by comma.
+      --auth-header=authHeader
+                             The http `Authorization` header for
+                               authentication. It should be in the format of
+                               `Bearer <token>` or `Basic
+                               <base64-encoded-credentials>`.
       --cluster=cluster_alias
                              The alias of the cluster to use to query masters
       --config-level=level   The config level of the dynamic configs
