@@ -44,7 +44,6 @@ import java.util.stream.IntStream;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -56,6 +55,9 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.metrics.groups.ShuffleIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.ShuffleMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.function.SupplierWithException;
 import org.junit.After;
 import org.junit.Before;
@@ -455,7 +457,11 @@ public class RemoteShuffleResultPartitionSuiteJ {
           bufferPoolFactory,
           celebornConf,
           numMappers,
-          new UnregisteredMetricsGroup());
+          new ShuffleIOMetricGroup(
+              new ShuffleMetricGroup(
+                  UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
+                  1,
+                  CelebornConf.CLIENT_METRICS_SCOPE_NAMING_SHUFFLE().defaultValueString())));
       isSetup = false;
       isFinished = false;
       isClosed = false;

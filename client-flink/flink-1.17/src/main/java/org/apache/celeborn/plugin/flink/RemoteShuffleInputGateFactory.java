@@ -19,11 +19,13 @@
 package org.apache.celeborn.plugin.flink;
 
 import java.io.IOException;
+import java.util.Map;
 
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.metrics.groups.ShuffleIOMetricGroup;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -44,7 +46,8 @@ public class RemoteShuffleInputGateFactory extends AbstractRemoteShuffleInputGat
       int gateIndex,
       InputGateDeploymentDescriptor igdd,
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
-      String compressionCodec) {
+      String compressionCodec,
+      Map<Integer, ShuffleIOMetricGroup> shuffleIOMetricGroups) {
     BufferDecompressor bufferDecompressor =
         new BufferDecompressor(networkBufferSize, compressionCodec);
     return new RemoteShuffleInputGate(
@@ -54,6 +57,7 @@ public class RemoteShuffleInputGateFactory extends AbstractRemoteShuffleInputGat
         igdd,
         bufferPoolFactory,
         bufferDecompressor,
-        numConcurrentReading);
+        numConcurrentReading,
+        shuffleIOMetricGroups);
   }
 }
