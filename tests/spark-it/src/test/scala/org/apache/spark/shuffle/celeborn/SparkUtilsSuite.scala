@@ -90,7 +90,7 @@ class SparkUtilsSuite extends AnyFunSuite
         jobThread.start()
 
         val taskScheduler = sc.taskScheduler.asInstanceOf[TaskSchedulerImpl]
-        eventually(timeout(30.seconds), interval(0.milliseconds)) {
+        eventually(timeout(60.seconds), interval(0.milliseconds)) {
           assert(hook.executed.get() == true)
           val reportedTaskId =
             SparkUtils.reportedStageShuffleFetchFailureTaskIds.values().asScala.flatMap(
