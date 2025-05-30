@@ -71,12 +71,13 @@ license: |
 | celeborn.master.port | 9097 | false | Port for master to bind. | 0.2.0 |  | 
 | celeborn.master.rackResolver.refresh.interval | 30s | false | Interval for refreshing the node rack information periodically. | 0.5.0 |  | 
 | celeborn.master.send.applicationMeta.threads | 8 | false | Number of threads used by the Master to send ApplicationMeta to Workers. | 0.5.0 |  | 
-| celeborn.master.slot.assign.extraSlots | 100 | false | Extra slots number when master assign slots. | 0.3.0 | celeborn.slots.assign.extraSlots | 
+| celeborn.master.slot.assign.extraSlots | 2 | false | Extra slots number when master assign slots. Provided enough workers are available. | 0.3.0 | celeborn.slots.assign.extraSlots | 
 | celeborn.master.slot.assign.loadAware.diskGroupGradient | 0.1 | false | This value means how many more workload will be placed into a faster disk group than a slower group. | 0.3.0 | celeborn.slots.assign.loadAware.diskGroupGradient | 
 | celeborn.master.slot.assign.loadAware.fetchTimeWeight | 1.0 | false | Weight of average fetch time when calculating ordering in load-aware assignment strategy | 0.3.0 | celeborn.slots.assign.loadAware.fetchTimeWeight | 
 | celeborn.master.slot.assign.loadAware.flushTimeWeight | 0.0 | false | Weight of average flush time when calculating ordering in load-aware assignment strategy | 0.3.0 | celeborn.slots.assign.loadAware.flushTimeWeight | 
 | celeborn.master.slot.assign.loadAware.numDiskGroups | 5 | false | This configuration is a guidance for load-aware slot allocation algorithm. This value is control how many disk groups will be created. | 0.3.0 | celeborn.slots.assign.loadAware.numDiskGroups | 
 | celeborn.master.slot.assign.maxWorkers | 10000 | false | Max workers that slots of one shuffle can be allocated on. Will choose the smaller positive one from Master side and Client side, see `celeborn.client.slot.assign.maxWorkers`. | 0.3.1 |  | 
+| celeborn.master.slot.assign.minWorkers | 100 | false | Min workers that slots of one shuffle should be allocated on. Provided enough workers are available. | 0.6.0 |  | 
 | celeborn.master.slot.assign.policy | ROUNDROBIN | false | Policy for master to assign slots, Celeborn supports two types of policy: roundrobin and loadaware. Loadaware policy will be ignored when `HDFS` is enabled in `celeborn.storage.availableTypes` | 0.3.0 | celeborn.slots.assign.policy | 
 | celeborn.master.userResourceConsumption.metrics.enabled | false | false | Whether to enable resource consumption metrics. | 0.6.0 |  | 
 | celeborn.master.userResourceConsumption.update.interval | 30s | false | Time length for a window about compute user resource consumption. | 0.3.0 |  | 

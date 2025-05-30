@@ -674,6 +674,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(MASTER_SLOT_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT)
   def masterSlotAssignExtraSlots: Int = get(MASTER_SLOT_ASSIGN_EXTRA_SLOTS)
   def masterSlotAssignMaxWorkers: Int = get(MASTER_SLOT_ASSIGN_MAX_WORKERS)
+  def masterSlotAssignMinWorkers: Int = get(MASTER_SLOT_ASSIGN_MIN_WORKERS)
   def initialEstimatedPartitionSize: Long = get(ESTIMATED_PARTITION_SIZE_INITIAL_SIZE)
   def estimatedPartitionSizeUpdaterInitialDelay: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY)
@@ -2974,9 +2975,9 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.slots.assign.extraSlots")
       .categories("master")
       .version("0.3.0")
-      .doc("Extra slots number when master assign slots.")
+      .doc("Extra slots number when master assign slots. Provided enough workers are available.")
       .intConf
-      .createWithDefault(100)
+      .createWithDefault(2)
 
   val MASTER_SLOT_ASSIGN_MAX_WORKERS: ConfigEntry[Int] =
     buildConf("celeborn.master.slot.assign.maxWorkers")
@@ -2986,6 +2987,14 @@ object CelebornConf extends Logging {
         s"from Master side and Client side, see `celeborn.client.slot.assign.maxWorkers`.")
       .intConf
       .createWithDefault(10000)
+
+  val MASTER_SLOT_ASSIGN_MIN_WORKERS: ConfigEntry[Int] =
+    buildConf("celeborn.master.slot.assign.minWorkers")
+      .categories("master")
+      .version("0.6.0")
+      .doc("Min workers that slots of one shuffle should be allocated on. Provided enough workers are available.")
+      .intConf
+      .createWithDefault(100)
 
   val ESTIMATED_PARTITION_SIZE_INITIAL_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.master.estimatedPartitionSize.initialSize")
