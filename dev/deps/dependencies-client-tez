@@ -64,7 +64,7 @@ jackson-module-scala_2.12/2.15.3//jackson-module-scala_2.12-2.15.3.jar
 jackson-xc/1.9.2//jackson-xc-1.9.2.jar
 jakarta.activation-api/1.2.1//jakarta.activation-api-1.2.1.jar
 jakarta.activation/1.2.2//jakarta.activation-1.2.2.jar
-javax.servlet-api/3.1.0//javax.servlet-api-3.1.0.jar
+javax.servlet-api/4.0.1//javax.servlet-api-4.0.1.jar
 jaxb-api/2.2.2//jaxb-api-2.2.2.jar
 jaxb-impl/2.2.3-1//jaxb-impl-2.2.3-1.jar
 jcip-annotations/1.0-1//jcip-annotations-1.0-1.jar

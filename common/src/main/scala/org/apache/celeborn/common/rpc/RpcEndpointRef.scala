@@ -17,14 +17,12 @@
 
 package org.apache.celeborn.common.rpc
 
-import java.util.Random
-import java.util.concurrent.TimeUnit
-
 import scala.concurrent.Future
 import scala.reflect.ClassTag
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.util.Utils
 
 /**
  * A reference for a remote [[RpcEndpoint]]. [[RpcEndpointRef]] is thread-safe.
@@ -111,7 +109,7 @@ abstract class RpcEndpointRef(conf: CelebornConf)
 
   /**
    * Send a message to the corresponding [[RpcEndpoint.receiveAndReply]] and get its result within a
-   * specified timeout, retry if timeout, throw an exception if this still fails.
+   * specified timeout, retry if timeout or IOException, throw an exception if this still fails.
    *
    * Note: this is a blocking action which may cost a lot of time, so don't call it in a message
    * loop of [[RpcEndpoint]].
@@ -128,31 +126,9 @@ abstract class RpcEndpointRef(conf: CelebornConf)
       timeout: RpcTimeout,
       retryCount: Int,
       retryWait: Long): T = {
-    var numRetries = retryCount
-    while (numRetries > 0) {
-      numRetries -= 1
-      try {
-        val future = ask[T](message, timeout)
-        return timeout.awaitResult(future, address)
-      } catch {
-        case e: RpcTimeoutException =>
-          if (numRetries > 0) {
-            val random = new Random
-            val retryWaitMs = random.nextInt(retryWait.toInt)
-            try {
-              TimeUnit.MILLISECONDS.sleep(retryWaitMs)
-            } catch {
-              case _: InterruptedException =>
-                throw e
-            }
-          } else {
-            throw e
-          }
-        case e: Exception =>
-          throw e
-      }
+    Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
+      val future = ask[T](message, timeout)
+      return timeout.awaitResult(future, address)
     }
-    // should never be here
-    null.asInstanceOf[T]
   }
 }

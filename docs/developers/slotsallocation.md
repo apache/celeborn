@@ -32,7 +32,7 @@ celeborn.master.slot.assign.policy LOADAWARE
 celeborn.master.slot.assign.loadAware.numDiskGroups 5
 celeborn.master.slot.assign.loadAware.diskGroupGradient 0.1
 celeborn.master.slot.assign.loadAware.flushTimeWeight 0
-celeborn.master.slot.assign.loadAware.fetchTimeWeight 0
+celeborn.master.slot.assign.loadAware.fetchTimeWeight 1
 [spark.client.]celeborn.storage.availableTypes HDD,SSD
 ```
 ### Detail
@@ -73,4 +73,4 @@ If a worker has multiple disks, the chosen disk index is `(monotone increasing d
 ## Celeborn Worker's Behavior
 1. When reserve slots Celeborn worker will decide a slot be placed in local disks or HDFS when reserve slots.
 2. If a partition is evicted from memory, the partition might be placed in HDFS.
-3. If a slot is explicitly assigned to HDFS, worker will put the slot in HDFS. 
+3. If a slot is explicitly assigned to HDFS, worker will put the slot in HDFS.

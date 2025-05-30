@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.plugin.flink.metric;
-
-import static org.apache.celeborn.plugin.flink.metric.RemoteShuffleMetricFactory.createShuffleIOOwnerMetricGroup;
+package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Meter;
@@ -26,7 +24,9 @@ import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.metrics.MetricNames;
-import org.apache.flink.runtime.metrics.groups.ProxyMetricGroup;
+import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
+
+import org.apache.celeborn.common.CelebornConf;
 
 /**
  * Metric group that contains shareable pre-defined IO-related metrics. The metrics registration is
@@ -42,8 +42,8 @@ public class ShuffleIOMetricGroup extends ProxyMetricGroup<MetricGroup> {
   private final Meter numBytesOutRate;
   private final Meter numRecordsOutRate;
 
-  public ShuffleIOMetricGroup(MetricGroup taskIOMetricGroup, int shuffleId) {
-    super(createShuffleIOOwnerMetricGroup(taskIOMetricGroup).addGroup(shuffleId));
+  public ShuffleIOMetricGroup(ShuffleMetricGroup parent) {
+    super(parent);
     this.numBytesIn = counter(MetricNames.IO_NUM_BYTES_IN, new SimpleCounter());
     this.numBytesOut = counter(MetricNames.IO_NUM_BYTES_OUT, new SimpleCounter());
     this.numRecordsOut = counter(MetricNames.IO_NUM_RECORDS_OUT, new SimpleCounter());
@@ -79,5 +79,14 @@ public class ShuffleIOMetricGroup extends ProxyMetricGroup<MetricGroup> {
 
   public Meter getNumRecordsOutRate() {
     return numRecordsOutRate;
+  }
+
+  public static ShuffleIOMetricGroup createShuffleIOMetricGroup(
+      ShuffleIOOwnerContext ownerContext, int shuffleId, CelebornConf celebornConf) {
+    return new ShuffleMetricGroup(
+            ownerContext.getParentGroup(),
+            shuffleId,
+            celebornConf.clientFlinkMetricsScopeNamingShuffle())
+        .getIOMetricGroup();
   }
 }

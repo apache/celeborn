@@ -170,7 +170,7 @@ class ApplicationHeartbeater(
   }
 
   def stop(): Unit = {
-    stopped.synchronized {
+    this.synchronized {
       if (!stopped) {
         // Stop appHeartbeat first
         logInfo(s"Stop Application heartbeat $appId")

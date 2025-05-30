@@ -28,6 +28,7 @@ ASF_PASSWORD=${ASF_PASSWORD:?"ASF_PASSWORD is required"}
 RELEASE_RC_NO=${RELEASE_RC_NO:?"RELEASE_RC_NO is required, e.g. 0"}
 JAVA8_HOME=${JAVA8_HOME:?"JAVA8_HOME is required"}
 JAVA11_HOME=${JAVA11_HOME:?"JAVA11_HOME is required"}
+JAVA17_HOME=${JAVA17_HOME:?"JAVA17_HOME is required"}
 
 RELEASE_VERSION=$(awk -F'"' '/ThisBuild \/ version/ {print $2}' version.sbt)
 
@@ -108,7 +109,12 @@ upload_nexus_staging() {
   ${PROJECT_DIR}/build/sbt -Pspark-3.4 "clean;celeborn-client-spark-3-shaded/publishSigned"
 
   echo "Deploying celeborn-client-spark-3-shaded_2.13"
-  ${PROJECT_DIR}/build/sbt -Pspark-3.4 ++2.13.5 "clean;celeborn-client-spark-3-shaded/publishSigned"
+  ${PROJECT_DIR}/build/sbt -Pspark-3.4 ++2.13.8 "clean;celeborn-client-spark-3-shaded/publishSigned"
+
+  export JAVA_HOME=$JAVA17_HOME
+  echo "Deploying celeborn-client-spark-4-shaded_2.13"
+  ${PROJECT_DIR}/build/sbt -Pspark-4.0 "clean;celeborn-client-spark-4-shaded/publishSigned"
+  export JAVA_HOME=$JAVA8_HOME
 
   echo "Deploying celeborn-client-flink-1.16-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pflink-1.16 "clean;celeborn-client-flink-1_16-shaded/publishSigned"
