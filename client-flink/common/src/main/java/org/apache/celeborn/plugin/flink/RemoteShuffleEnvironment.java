@@ -22,11 +22,13 @@ import static org.apache.celeborn.plugin.flink.utils.Utils.checkNotNull;
 import static org.apache.celeborn.plugin.flink.utils.Utils.checkState;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_INPUT;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_OUTPUT;
+import static org.apache.flink.runtime.metrics.groups.ShuffleIOMetricGroup.createShuffleIOMetricGroup;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -45,6 +47,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.metrics.groups.ShuffleIOMetricGroup;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -52,6 +55,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.plugin.flink.netty.NettyShuffleEnvironmentWrapper;
 
 /**
@@ -89,6 +93,9 @@ public class RemoteShuffleEnvironment
   private final ConcurrentHashMap.KeySetView<IntermediateResultPartitionID, Boolean>
       nettyResultPartitionIds = ConcurrentHashMap.newKeySet();
 
+  private final Map<Integer, ShuffleIOMetricGroup> shuffleIOMetricGroups =
+      JavaUtils.newConcurrentHashMap();
+
   /**
    * @param networkBufferPool Network buffer pool for shuffle read and shuffle write.
    * @param resultPartitionManager A trivial {@link ResultPartitionManager}.
@@ -113,6 +120,9 @@ public class RemoteShuffleEnvironment
   public void close() {
     LOG.info("Close RemoteShuffleEnvironment.");
     synchronized (lock) {
+      nettyResultIds.clear();
+      nettyResultPartitionIds.clear();
+      shuffleIOMetricGroups.clear();
       try {
         networkBufferPool.destroyAllBufferPools();
       } catch (Throwable t) {
@@ -190,8 +200,19 @@ public class RemoteShuffleEnvironment
       CelebornConf conf) {
     if (resultPartitionDeploymentDescriptor.getShuffleDescriptor()
         instanceof RemoteShuffleDescriptor) {
+      int shuffleId =
+          ((RemoteShuffleDescriptor) resultPartitionDeploymentDescriptor.getShuffleDescriptor())
+              .getShuffleResource()
+              .getMapPartitionShuffleDescriptor()
+              .getShuffleId();
+      ;
       return resultPartitionFactory.create(
-          ownerContext, index, resultPartitionDeploymentDescriptor, conf);
+          ownerContext.getOwnerName(),
+          index,
+          resultPartitionDeploymentDescriptor,
+          conf,
+          shuffleIOMetricGroups.computeIfAbsent(
+              shuffleId, k -> createShuffleIOMetricGroup(ownerContext, shuffleId, conf)));
     } else {
       nettyResultIds.add(resultPartitionDeploymentDescriptor.getResultId());
       nettyResultPartitionIds.add(resultPartitionDeploymentDescriptor.getPartitionId());
@@ -229,7 +250,12 @@ public class RemoteShuffleEnvironment
         InputGateDeploymentDescriptor igdd = inputGateDescriptors.get(gateIndex);
         IndexedInputGate inputGate =
             createInputGateInternal(
-                ownerContext, producerStateProvider, gateIndex, igdd, inputChannelMetrics);
+                ownerContext,
+                producerStateProvider,
+                gateIndex,
+                igdd,
+                inputChannelMetrics,
+                shuffleIOMetricGroups);
         inputGates[gateIndex] = inputGate;
       }
       return Arrays.asList(inputGates);
@@ -241,12 +267,13 @@ public class RemoteShuffleEnvironment
       PartitionProducerStateProvider producerStateProvider,
       int gateIndex,
       InputGateDeploymentDescriptor igdd,
-      InputChannelMetrics inputChannelMetrics) {
+      InputChannelMetrics inputChannelMetrics,
+      Map<Integer, ShuffleIOMetricGroup> shuffleIOMetricGroups) {
     return nettyResultIds.contains(igdd.getConsumedResultId())
         ? shuffleEnvironmentWrapper
             .nettyInputGateFactory()
             .create(ownerContext, gateIndex, igdd, producerStateProvider, inputChannelMetrics)
-        : inputGateFactory.create(ownerContext, gateIndex, igdd);
+        : inputGateFactory.create(ownerContext, gateIndex, igdd, shuffleIOMetricGroups);
   }
 
   @VisibleForTesting

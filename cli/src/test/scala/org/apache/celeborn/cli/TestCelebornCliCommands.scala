@@ -18,18 +18,39 @@
 package org.apache.celeborn.cli
 
 import java.io.{ByteArrayOutputStream, File, PrintStream}
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
+import java.util.Base64
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.authentication.HttpAuthSchemes
+import org.apache.celeborn.server.common.http.authentication.{UserDefinePasswordAuthenticationProviderImpl, UserDefineTokenAuthenticationProviderImpl}
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.worker.Worker
 
 class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
 
+  private val CELEBORN_ADMINISTER = "celeborn"
   private val celebornConf = new CelebornConf()
+    .set(CelebornConf.MASTER_HTTP_AUTH_SUPPORTED_SCHEMES, Seq("BASIC"))
+    .set(
+      CelebornConf.MASTER_HTTP_AUTH_BASIC_PROVIDER,
+      classOf[UserDefinePasswordAuthenticationProviderImpl].getName)
+    .set(CelebornConf.WORKER_HTTP_AUTH_SUPPORTED_SCHEMES, Seq("BASIC"))
+    .set(
+      CelebornConf.WORKER_HTTP_AUTH_BASIC_PROVIDER,
+      classOf[UserDefinePasswordAuthenticationProviderImpl].getName)
+    .set(CelebornConf.MASTER_HTTP_AUTH_ADMINISTERS, Seq(CELEBORN_ADMINISTER))
+    .set(CelebornConf.WORKER_HTTP_AUTH_ADMINISTERS, Seq(CELEBORN_ADMINISTER))
+
+  private val BASIC_AUTH_HEADER = HttpAuthSchemes.BASIC + " " + new String(
+    Base64.getEncoder.encode(
+      s"$CELEBORN_ADMINISTER:${UserDefinePasswordAuthenticationProviderImpl.VALID_PASSWORD}".getBytes()),
+    StandardCharsets.UTF_8)
+
   protected var master: Master = _
   protected var worker: Worker = _
 
@@ -272,14 +293,18 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     Array(
       "master",
       "--cluster",
-      "unit-test")
+      "unit-test",
+      "--auth-header",
+      BASIC_AUTH_HEADER)
   }
 
   private def prepareWorkerArgs(): Array[String] = {
     Array(
       "worker",
       "--hostport",
-      worker.connectionUrl)
+      worker.connectionUrl,
+      "--auth-header",
+      BASIC_AUTH_HEADER)
   }
 
   private def captureOutputAndValidateResponse(

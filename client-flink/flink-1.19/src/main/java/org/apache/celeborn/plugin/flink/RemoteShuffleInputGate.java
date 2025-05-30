@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.metrics.groups.ShuffleIOMetricGroup;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.throughput.ThroughputCalculator;
@@ -66,7 +68,8 @@ public class RemoteShuffleInputGate extends AbstractRemoteShuffleInputGate {
       InputGateDeploymentDescriptor gateDescriptor,
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
       BufferDecompressor bufferDecompressor,
-      int numConcurrentReading) {
+      int numConcurrentReading,
+      Map<Integer, ShuffleIOMetricGroup> shuffleIOMetricGroups) {
     super(
         celebornConf,
         ownerContext,
@@ -74,7 +77,8 @@ public class RemoteShuffleInputGate extends AbstractRemoteShuffleInputGate {
         gateDescriptor,
         bufferPoolFactory,
         bufferDecompressor,
-        numConcurrentReading);
+        numConcurrentReading,
+        shuffleIOMetricGroups);
   }
 
   @Override

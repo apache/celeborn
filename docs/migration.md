@@ -90,7 +90,7 @@ license: |
 
 - Since 0.6.0, the RESTful api `/listTopDiskUsedApps` both in Master and Worker has been removed. Please use the following PromQL query instead.
   ```text
-  topK(50, sum by (applicationId) (metrics_diskBytesWritten_Value{role="worker", applicationId!=""}))
+  topK(50, sum by (applicationId) (metrics_diskBytesWritten_Value{role="Worker", applicationId!=""}))
   ```
 
 - Since 0.6.0, the out-of-dated Flink 1.14 and Flink 1.15 have been removed from the official support list.

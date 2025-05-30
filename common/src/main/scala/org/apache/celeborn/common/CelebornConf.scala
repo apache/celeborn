@@ -1441,6 +1441,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFlinkResultPartitionSupportFloatingBuffer: Boolean =
     get(CLIENT_RESULT_PARTITION_SUPPORT_FLOATING_BUFFER)
   def clientFlinkDataCompressionEnabled: Boolean = get(CLIENT_DATA_COMPRESSION_ENABLED)
+  def clientFlinkMetricsScopeNamingShuffle: String =
+    get(CLIENT_METRICS_SCOPE_NAMING_SHUFFLE)
   def clientChunkPrefetchEnabled = get(CLIENT_CHUNK_PREFETCH_ENABLED)
   def clientInputStreamCreationWindow = get(CLIENT_INPUTSTREAM_CREATION_WINDOW)
 
@@ -5886,6 +5888,15 @@ object CelebornConf extends Logging {
       .doc("Whether to support floating buffer for result partitions.")
       .booleanConf
       .createWithDefault(true)
+
+  val CLIENT_METRICS_SCOPE_NAMING_SHUFFLE: ConfigEntry[String] =
+    buildConf("celeborn.client.flink.metrics.scope.shuffle")
+      .categories("client")
+      .version("0.6.0")
+      .doc("Defines the scope format string that is applied to all metrics scoped to a shuffle. Only effective when a identifier-based reporter is configured")
+      .stringConf
+      .createWithDefault(
+        "<host>.taskmanager.<tm_id>.<job_name>.<task_name>.<subtask_index>.<shuffle_id>")
 
   val CLIENT_MR_PUSH_DATA_MAX: ConfigEntry[Long] =
     buildConf("celeborn.client.mr.pushData.max")
