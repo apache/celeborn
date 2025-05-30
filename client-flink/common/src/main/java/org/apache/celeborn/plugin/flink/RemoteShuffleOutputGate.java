@@ -21,10 +21,10 @@ import java.io.IOException;
 import java.util.Optional;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.metrics.groups.ShuffleIOMetricGroup;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.util.function.SupplierWithException;
 import org.slf4j.Logger;
@@ -37,7 +37,6 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.plugin.flink.buffer.BufferHeader;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.client.FlinkShuffleClientImpl;
-import org.apache.celeborn.plugin.flink.metric.ShuffleIOMetricGroup;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
@@ -99,7 +98,7 @@ public class RemoteShuffleOutputGate {
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
       CelebornConf celebornConf,
       int numMappers,
-      MetricGroup taskIOMetricGroup) {
+      ShuffleIOMetricGroup shuffleIOMetricGroup) {
     this(
         shuffleDesc,
         numSubs,
@@ -107,7 +106,7 @@ public class RemoteShuffleOutputGate {
         bufferPoolFactory,
         celebornConf,
         numMappers,
-        taskIOMetricGroup,
+        shuffleIOMetricGroup,
         null);
   }
 
@@ -118,7 +117,7 @@ public class RemoteShuffleOutputGate {
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
       CelebornConf celebornConf,
       int numMappers,
-      MetricGroup taskIOMetricGroup,
+      ShuffleIOMetricGroup shuffleIOMetricGroup,
       FlinkShuffleClientImpl flinkShuffleClient) {
     this.shuffleDesc = shuffleDesc;
     this.numSubs = numSubs;
@@ -141,7 +140,7 @@ public class RemoteShuffleOutputGate {
         shuffleDesc.getShuffleResource().getLifecycleManagerTimestamp();
     this.flinkShuffleClient = flinkShuffleClient == null ? getShuffleClient() : flinkShuffleClient;
     this.maxReviveTimes = celebornConf.clientPushMaxReviveTimes();
-    this.shuffleIOMetricGroup = new ShuffleIOMetricGroup(taskIOMetricGroup, shuffleId);
+    this.shuffleIOMetricGroup = shuffleIOMetricGroup;
   }
 
   /** Initialize transportation gate. */
