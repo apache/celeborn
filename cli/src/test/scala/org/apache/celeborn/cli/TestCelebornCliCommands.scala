@@ -295,7 +295,7 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
       "--cluster",
       "unit-test",
       "--auth-header",
-      s"$BASIC_AUTH_HEADER")
+      BASIC_AUTH_HEADER)
   }
 
   private def prepareWorkerArgs(): Array[String] = {
@@ -304,7 +304,7 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
       "--hostport",
       worker.connectionUrl,
       "--auth-header",
-      s"$BASIC_AUTH_HEADER")
+      BASIC_AUTH_HEADER)
   }
 
   private def captureOutputAndValidateResponse(
