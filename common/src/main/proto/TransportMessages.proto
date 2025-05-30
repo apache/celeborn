@@ -185,6 +185,7 @@ message PbWorkerInfo {
   map<string, PbResourceConsumption> userResourceConsumption = 7;
   int32 internalPort = 8;
   string networkLocation = 9;
+  int64 nextInterruptionNotice = 10; // Unix timestamp when disruption is expected to be initiated
 }
 
 message PbFileGroup {

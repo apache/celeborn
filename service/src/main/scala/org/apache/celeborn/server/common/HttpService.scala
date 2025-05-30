@@ -192,6 +192,9 @@ abstract class HttpService extends Service with Logging {
 
   def getWorkerEventInfo(): String = throw new UnsupportedOperationException()
 
+  def updateInterruptionNotice(workerInterruptionNotices: Map[String, Long]): HandleResponse =
+    throw new UnsupportedOperationException()
+
   def startHttpServer(): Unit = {
     httpServer = HttpServer(
       serviceName,

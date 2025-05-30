@@ -193,6 +193,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/HandleResponse'
 
+
+  /api/v1/workers/updateInterruptionNotice:
+    put:
+      tags:
+        - Worker
+      operationId: updateInterruptionNotice
+      description: Update the master with worker disruption info to be used during slot allocation.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInterruptionNoticeRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
+
   /api/v1/workers/events:
     get:
       tags:
@@ -857,6 +878,10 @@ components:
           type: integer
           format: int64
           description: The start time of the worker state.
+        nextInterruptionNotice:
+          type: integer
+          format: int64
+          description: The next interruption notice of the worker.
         networkLocation:
           type: string
           description: The network location of the worker.
@@ -1019,6 +1044,20 @@ components:
         - fetchPort
         - replicatePort
 
+
+    WorkerInterruptionNotice:
+      type: object
+      properties:
+        workerId:
+          $ref: '#/components/schemas/WorkerId'
+        interruptionTimestamp:
+          type: integer
+          format: int64
+          description: The datetime of the expected interruption.
+      required:
+        - workerId
+        - interruptionTimestamp
+
     ExcludeWorkerRequest:
       type: object
       properties:
@@ -1041,6 +1080,15 @@ components:
           description: The workers to be removed from the master workers unavailable info.
           items:
             $ref: '#/components/schemas/WorkerId'
+
+    UpdateInterruptionNoticeRequest:
+      type: object
+      properties:
+        workers:
+          type: array
+          description: The workers to be removed from the master workers unavailable info.
+          items:
+            $ref: '#/components/schemas/WorkerInterruptionNotice'
 
     SendWorkerEventRequest:
       type: object

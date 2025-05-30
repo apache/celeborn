@@ -58,6 +58,7 @@ object ApiUtils {
       .workerState(workerInfo.workerStatus.getState.toString)
       .workerStateStartTime(workerInfo.workerStatus.getStateStartTime)
       .networkLocation(workerInfo.networkLocation)
+      .nextInterruptionNotice(workerInfo.nextInterruptionNotice)
   }
 
   private def workerResourceConsumptions(workerInfo: WorkerInfo)
@@ -120,6 +121,8 @@ object ApiUtils {
         isShutdown && (
           currentStatus.getState == State.InDecommission ||
             currentStatus.getState == State.InDecommissionThenIdle))
+      .networkLocation(workerInfo.networkLocation)
+      .nextInterruptionNotice(workerInfo.nextInterruptionNotice)
   }
 
   def toWorkerInfo(workerId: WorkerId): WorkerInfo = {

@@ -28,7 +28,7 @@ import org.eclipse.jetty.server.handler.ContextHandler
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.server.common.HttpService
 
-private[celeborn] trait ApiRequestContext {
+private[celeborn] trait ApiRequestContext extends Logging {
   @Context
   protected var servletContext: ServletContext = _
 
