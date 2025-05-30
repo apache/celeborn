@@ -36,10 +36,12 @@ import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
+import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.client.listener.WorkerStatusListener
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.CelebornConf.ACTIVE_STORAGE_TYPES
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
@@ -101,6 +103,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
   private val availableStorageTypes = conf.availableStorageTypes
+  private val storageTypes =
+    conf.get(ACTIVE_STORAGE_TYPES).split(",").map(StorageInfo.Type.valueOf).toList
   // app shuffle id -> LinkedHashMap of (app shuffle identifier, (shuffle id, fetch status))
   private val shuffleIdMapping = JavaUtils.newConcurrentHashMap[
     Int,
@@ -1530,8 +1534,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       candidates(primaryIndex).pushPort,
       candidates(primaryIndex).fetchPort,
       candidates(primaryIndex).replicatePort,
-      PartitionLocation.Mode.PRIMARY)
-    primaryLocation.getStorageInfo.availableStorageTypes = availableStorageTypes
+      PartitionLocation.Mode.PRIMARY,
+      null,
+      new StorageInfo("", storageTypes.head, availableStorageTypes),
+      new RoaringBitmap())
     if (pushReplicateEnabled) {
       var replicaIndex = (primaryIndex + 1) % candidates.size
       while (pushRackAwareEnabled && isOnSameRack(primaryIndex, replicaIndex)
@@ -1551,8 +1557,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         candidates(replicaIndex).fetchPort,
         candidates(replicaIndex).replicatePort,
         PartitionLocation.Mode.REPLICA,
-        primaryLocation)
-      replicaLocation.getStorageInfo.availableStorageTypes = availableStorageTypes
+        primaryLocation,
+        new StorageInfo("", storageTypes.head, availableStorageTypes),
+        new RoaringBitmap())
       primaryLocation.setPeer(replicaLocation)
       val primaryAndReplicaPairs = slots.computeIfAbsent(candidates(replicaIndex), newLocationFunc)
       primaryAndReplicaPairs._2.add(replicaLocation)

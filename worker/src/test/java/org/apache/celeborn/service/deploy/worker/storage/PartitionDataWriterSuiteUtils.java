@@ -99,7 +99,7 @@ public class PartitionDataWriterSuiteUtils {
                     flusher,
                     source,
                     fileInfo,
-                    StorageInfo.Type.MEMORY,
+                    StorageInfo.Type.HDD,
                     context,
                     storageManager))
         .when(storagePolicy)
@@ -235,7 +235,7 @@ public class PartitionDataWriterSuiteUtils {
                     flusher,
                     source,
                     fileInfo,
-                    StorageInfo.Type.MEMORY,
+                    StorageInfo.Type.HDD,
                     writerContext,
                     storageManager))
         .when(storagePolicy)

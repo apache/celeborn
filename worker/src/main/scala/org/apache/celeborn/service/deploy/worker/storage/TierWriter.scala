@@ -284,7 +284,7 @@ class MemoryTierWriter(
     partitionDataWriterContext.getPartitionLocation.getFileName,
     partitionDataWriterContext.getShuffleKey,
     storageManager) {
-
+  assert(storageType == StorageInfo.Type.MEMORY)
   val memoryFileStorageMaxFileSize: Long = conf.workerMemoryFileStorageMaxFileSize
 
   storageManager.registerMemoryPartitionWriter(
@@ -382,6 +382,7 @@ class LocalTierWriter(
     partitionDataWriterContext.getPartitionLocation.getFileName,
     partitionDataWriterContext.getShuffleKey,
     storageManager) {
+  assert(storageType == StorageInfo.Type.HDD || storageType == StorageInfo.Type.SSD)
   flusherBufferSize = conf.workerFlusherBufferSize
   private val flushWorkerIndex: Int = flusher.getWorkerIndex
   val userCongestionControlContext: UserCongestionControlContext =
@@ -510,6 +511,8 @@ class DfsTierWriter(
     partitionDataWriterContext.getPartitionLocation.getFileName,
     partitionDataWriterContext.getShuffleKey,
     storageManager) {
+  assert(
+    storageType == StorageInfo.Type.HDFS || storageType == StorageInfo.Type.OSS || storageType == StorageInfo.Type.S3)
   flusherBufferSize = conf.workerHdfsFlusherBufferSize
   private val flushWorkerIndex: Int = flusher.getWorkerIndex
   val hadoopFs: FileSystem = StorageManager.hadoopFs.get(storageType)
