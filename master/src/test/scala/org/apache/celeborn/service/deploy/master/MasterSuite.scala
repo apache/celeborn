@@ -18,20 +18,14 @@
 package org.apache.celeborn.service.deploy.master
 
 import java.nio.file.Files
+
 import org.mockito.Mockito.mock
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
-import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.metrics.source.Role
-import org.apache.celeborn.common.protocol.message.ControlMessages.RequestSlots
-import org.apache.celeborn.common.protocol.{PbCheckForWorkerTimeout, PbRegisterWorker, TransportModuleConstants}
-import org.apache.celeborn.common.rpc.netty.NettyRpcEnvFactory
-import org.apache.celeborn.common.rpc.{RpcEndpoint, RpcEnv, RpcEnvConfig}
-import org.apache.celeborn.common.util.{CelebornExitKind, ThreadUtils}
 
-import java.util
-import scala.collection.JavaConverters.seqAsJavaListConverter
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.protocol.{PbCheckForWorkerTimeout, PbRegisterWorker}
+import org.apache.celeborn.common.util.{CelebornExitKind, ThreadUtils}
 
 class MasterSuite extends AnyFunSuite
   with BeforeAndAfterAll
@@ -43,26 +37,6 @@ class MasterSuite extends AnyFunSuite
     tmpDir.deleteOnExit()
     tmpDir.getAbsolutePath
   }
-
-  def createRpcEnv(
-                    conf: CelebornConf,
-                    name: String,
-                    port: Int,
-                    clientMode: Boolean = false): RpcEnv = {
-    val config = RpcEnvConfig(
-      conf,
-      "test",
-      TransportModuleConstants.RPC_MODULE,
-      "localhost",
-      "localhost",
-      port,
-      0,
-      Role.CLIENT,
-      None,
-      None)
-    new NettyRpcEnvFactory().create(config)
-  }
-
 
   test("test single node startup functionality") {
     withRetryOnPortBindException { () =>
@@ -180,38 +154,4 @@ class MasterSuite extends AnyFunSuite
     assert(master.workerHostAllowedToRegister("deny.k8s.io"))
     master.rpcEnv.shutdown()
   }
-
-  test("test min assign slots") {
-    val conf = new CelebornConf()
-    val randomMasterPort = selectRandomPort()
-    val randomHttpPort = selectRandomPort()
-    conf.set(CelebornConf.HA_ENABLED.key, "false")
-    conf.set(CelebornConf.HA_MASTER_RATIS_STORAGE_DIR.key, getTmpDir())
-    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, getTmpDir())
-    conf.set(CelebornConf.MASTER_HTTP_HOST.key, "127.0.0.1")
-    conf.set(CelebornConf.MASTER_HTTP_PORT.key, randomHttpPort.toString)
-
-    val args = Array("-h", "localhost", "-p", randomMasterPort.toString)
-
-    val masterArgs = new MasterArguments(args, conf)
-    val master = new Master(conf, masterArgs)
-
-    val requestSlots = RequestSlots("app_id", 0, new util.ArrayList(List[Integer](0, 1).asJava), "localhost", false, false, new UserIdentifier("tenant", "user"), 100, conf.availableStorageTypes)
-
-    val anotherEnv = createRpcEnv(new CelebornConf(), "remote", 0)
-
-    anotherEnv.
-
-//    master.receiveAndReply(
-//      mock(classOf[org.apache.celeborn.common.rpc.RpcCallContext]), requestSlots).applyOrElse(
-//      requestSlots,
-//      (_: Any) => fail("Unexpected message"))
-//    master.handleRequestSlots()
-//    assert(master.workerHostAllowedToRegister("test.k8s.io"))
-//    assert(!master.workerHostAllowedToRegister("test.k8s.io.com"))
-//    assert(!master.workerHostAllowedToRegister("test.example.com"))
-//    assert(!master.workerHostAllowedToRegister("deny.k8s.io"))
-    master.rpcEnv.shutdown()
-  }
-
 }
