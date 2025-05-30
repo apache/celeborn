@@ -30,7 +30,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
-import org.apache.celeborn.common.metrics.source.ResourceConsumptionSource
+import org.apache.celeborn.common.metrics.source.{ResourceConsumptionSource, Role}
 import org.apache.celeborn.common.protocol.message.ControlMessages.CheckQuotaResponse
 import org.apache.celeborn.common.quota.{ResourceConsumption, StorageQuota}
 import org.apache.celeborn.common.rpc.RpcEnv
@@ -65,13 +65,15 @@ class QuotaManagerSuite extends CelebornFunSuite
 
   var configService: ConfigService = _
 
+  val metricsInstanceLabel = s"""instance="${Utils.localHostName(conf)}:${conf.masterHttpPort}""""
+
   override def beforeAll(): Unit = {
     conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "FS")
     conf.set(
       CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH.key,
       getTestResourceFile("dynamicConfig-quota.yaml").getPath)
     conf.set("celeborn.master.userResourceConsumption.metrics.enabled", "true")
-    resourceConsumptionSource = new ResourceConsumptionSource(conf, "Master")
+    resourceConsumptionSource = new ResourceConsumptionSource(conf, Role.MASTER)
     DynamicConfigServiceFactory.reset()
     configService = DynamicConfigServiceFactory.getConfigService(conf)
 
@@ -347,13 +349,13 @@ class QuotaManagerSuite extends CelebornFunSuite
     for (i <- 0 until 1000) {
       val user = UserIdentifier("default", s"user$i")
       assert(res.contains(
-        s"""metrics_diskFileCount_Value{name="user$i",role="Master",tenantId="default"}"""))
+        s"""metrics_diskFileCount_Value{$metricsInstanceLabel,name="user$i",role="Master",tenantId="default"}"""))
       assert(res.contains(
-        s"""metrics_diskFileCount_Value{name="user$i",role="Master",tenantId="default"}"""))
+        s"""metrics_diskFileCount_Value{$metricsInstanceLabel,name="user$i",role="Master",tenantId="default"}"""))
       assert(res.contains(
-        s"""metrics_hdfsFileCount_Value{name="user$i",role="Master",tenantId="default"}"""))
+        s"""metrics_hdfsFileCount_Value{$metricsInstanceLabel,name="user$i",role="Master",tenantId="default"}"""))
       assert(res.contains(
-        s"""metrics_hdfsBytesWritten_Value{name="user$i",role="Master",tenantId="default"}"""))
+        s"""metrics_hdfsBytesWritten_Value{$metricsInstanceLabel,name="user$i",role="Master",tenantId="default"}"""))
       assertFalse(quotaManager.checkUserQuotaStatus(user).isAvailable)
       (0 until 1000).foreach {
         index =>
@@ -409,13 +411,13 @@ class QuotaManagerSuite extends CelebornFunSuite
     for (i <- 0 until 1000) {
       val user = UserIdentifier("default", s"user$i")
       assert(res.contains(
-        s"""metrics_diskFileCount_Value{name="user$i",role="Master",tenantId="default"}"""))
+        s"""metrics_diskFileCount_Value{$metricsInstanceLabel,name="user$i",role="Master",tenantId="default"}"""))
       assert(res.contains(
-        s"""metrics_diskFileCount_Value{name="user$i",role="Master",tenantId="default"}"""))
+        s"""metrics_diskFileCount_Value{$metricsInstanceLabel,name="user$i",role="Master",tenantId="default"}"""))
       assert(res.contains(
-        s"""metrics_hdfsFileCount_Value{name="user$i",role="Master",tenantId="default"}"""))
+        s"""metrics_hdfsFileCount_Value{$metricsInstanceLabel,name="user$i",role="Master",tenantId="default"}"""))
       assert(res.contains(
-        s"""metrics_hdfsBytesWritten_Value{name="user$i",role="Master",tenantId="default"}"""))
+        s"""metrics_hdfsBytesWritten_Value{$metricsInstanceLabel,name="user$i",role="Master",tenantId="default"}"""))
       assertFalse(quotaManager.checkUserQuotaStatus(user).isAvailable)
       (0 until 1000).foreach {
         index =>
