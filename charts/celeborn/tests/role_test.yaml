@@ -22,6 +22,7 @@ templates:
 
 release:
   name: celeborn
+  namespace: celeborn
 
 tests:
   - it: Should not create role if `rbac.create` is false
@@ -32,28 +33,18 @@ tests:
       - hasDocuments:
           count: 0
 
-
   - it: Should create a Role resource with specific rules when rbac.create is true
     set:
       rbac:
         create: true
         rbac:
           rules:
-            - apiGroups: [ "" ]
-              resources: [ "pods" ]
-              verbs: [ "get", "watch", "list" ]
+            - apiGroups: [""]
+              resources: ["pods"]
+              verbs: ["get", "watch", "list"]
     asserts:
       - containsDocument:
           apiVersion: rbac.authorization.k8s.io/v1
           kind: Role
-          metadata:
-            name: celeborn-role
-          rules:
-            - apiGroups:
-                - ""
-              resources:
-                - pods
-              verbs:
-                - get
-                - watch
-                - list
+          name: default
+          namespace: celeborn

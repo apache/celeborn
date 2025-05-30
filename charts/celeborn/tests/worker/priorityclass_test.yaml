@@ -22,6 +22,7 @@ templates:
 
 release:
   name: celeborn
+  namespace: celeborn
 
 tests:
   - it: Should not create worker priority as default
@@ -39,6 +40,7 @@ tests:
           apiVersion: scheduling.k8s.io/v1
           kind: PriorityClass
           name: celeborn-worker-priority-class
+          namespace: celeborn
 
   - it: Should use the specified priority class value
     set:

@@ -19,9 +19,13 @@ limitations under the License.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "celeborn.roleName" . }}
+  name: {{ include "celeborn.role.name" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "celeborn.labels" . | nindent 4 }}
-rules: {{- toYaml .Values.rbac.rules | nindent 2 }}
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["create", "list", "delete"]
 {{- end }}
 

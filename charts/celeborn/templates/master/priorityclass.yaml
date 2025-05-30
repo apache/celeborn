@@ -20,6 +20,7 @@ apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
   name: {{ include "celeborn.master.priorityClass.name" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "celeborn.master.labels" . | nindent 4 }}
 value: {{ .Values.master.priorityClass.value }}

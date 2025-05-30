@@ -22,6 +22,7 @@ templates:
 
 release:
   name: celeborn
+  namespace: celeborn
 
 tests:
   - it: Should create master service
@@ -30,6 +31,7 @@ tests:
           apiVersion: v1
           kind: Service
           name: celeborn-master-svc
+          namespace: celeborn
 
   - it: Should have label selectors for master
     asserts:

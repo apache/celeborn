@@ -67,43 +67,37 @@ app.kubernetes.io/name: {{ include "celeborn.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
-{{/*
-Create the name of the service account to use
-*/}}
-{{- define "celeborn.serviceAccountName" -}}
+{{/* Create the name of the service account to use. */}}
+{{- define "celeborn.serviceAccount.name" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "celeborn.fullname" .) .Values.serviceAccount.name }}
+{{- .Values.serviceAccount.name | default (include "celeborn.fullname" .) }}
 {{- else }}
-{{- default "default" .Values.serviceAccount.name }}
+{{- .Values.serviceAccount.name | default "default" }}
 {{- end }}
 {{- end }}
 
-{{/*
-Create the name of the role to use
-*/}}
-{{- define "celeborn.roleName" -}}
+{{/* Create the name of the role to use. */}}
+{{- define "celeborn.role.name" -}}
 {{- if .Values.rbac.create }}
-{{- default (include "celeborn.fullname" .) .Values.rbac.roleName }}
+{{- .Values.rbac.roleName | default (include "celeborn.fullname" .) }}
 {{- else }}
-{{- default "default" .Values.rbac.roleName }}
+{{- .Values.rbac.roleName | default "default" }}
 {{- end }}
 {{- end }}
 
 {{/*
 Create the name of the roleBinding to use
 */}}
-{{- define "celeborn.roleBindingName" -}}
+{{- define "celeborn.roleBinding.name" -}}
 {{- if .Values.rbac.create }}
-{{- default (include "celeborn.fullname" .) .Values.rbac.roleBindingName }}
+{{- .Values.rbac.roleBindingName | default (include "celeborn.fullname" .) }}
 {{- else }}
-{{- default "default" .Values.rbac.roleBindingName }}
+{{- .Values.rbac.roleBindingName | default "default" }}
 {{- end }}
 {{- end }}
 
-{{/*
-Create the name of configmap to use
-*/}}
-{{- define "celeborn.configMapName" -}}
+{{/* Create the name of configmap to use. */}}
+{{- define "celeborn.configMap.name" -}}
 {{ include "celeborn.fullname" . }}-conf
 {{- end -}}
 
