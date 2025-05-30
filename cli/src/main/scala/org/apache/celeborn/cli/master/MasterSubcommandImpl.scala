@@ -203,7 +203,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     new WorkerId().host(host).rpcPort(rpcPort).pushPort(pushPort).fetchPort(
       fetchPort).replicatePort(replicatePort)
   }
-  
+
   private[master] def runShowConf: ConfResponse = confApi.getConf(commonOptions.getAuthHeader)
 
   private[master] def runShowDynamicConf: DynamicConfigResponse =
