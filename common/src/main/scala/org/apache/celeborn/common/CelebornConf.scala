@@ -942,7 +942,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED)
   def clientMrMaxPushData: Long = get(CLIENT_MR_PUSH_DATA_MAX)
   def clientApplicationUUIDSuffixEnabled: Boolean = get(CLIENT_APPLICATION_UUID_SUFFIX_ENABLED)
-  def clientShuffleIntegrityCheckEnabled = get(CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED)
+  def clientShuffleIntegrityCheckEnabled: Boolean = get(CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED)
 
   def appUniqueIdWithUUIDSuffix(appId: String): String = {
     if (clientApplicationUUIDSuffixEnabled) {
