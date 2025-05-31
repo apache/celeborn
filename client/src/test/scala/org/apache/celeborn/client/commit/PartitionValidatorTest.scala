@@ -17,9 +17,8 @@
 
 package org.apache.celeborn.client.commit
 
-import org.mockito.ArgumentMatchers.any
 import org.scalatest.matchers.must.Matchers.{be, include}
-import org.scalatest.matchers.should.Matchers.{an, convertToAnyShouldWrapper}
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CommitMetadata
