@@ -19,6 +19,10 @@ package org.apache.celeborn.common.util
 
 import java.util
 import java.util.Collections
+
+import org.scalatest.matchers.must.Matchers.contain
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.{MasterEndpointResolver, StaticMasterEndpointResolver}
@@ -27,8 +31,6 @@ import org.apache.celeborn.common.identity.DefaultIdentityProvider
 import org.apache.celeborn.common.protocol.{PartitionLocation, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, MapperEnd}
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.scalatest.matchers.must.Matchers.contain
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 class UtilsSuite extends CelebornFunSuite {
 
