@@ -33,7 +33,7 @@ license: |
 
 - Since 0.6.0, Celeborn modified `celeborn.master.hdfs.expireDirs.timeout` to `celeborn.master.dfs.expireDirs.timeout`. Please use `cceleborn.master.dfs.expireDirs.timeout` if you want to set timeout for an expired dirs to be deleted.
 
-- Since 0.6.0, Celeborn introduced `celeborn.master.slot.assign.minWorkers` with default value of `100`, which means Celeborn will involve more workers in offering slots when number of reducers are less.
+- Since 0.6.0, Celeborn changed the default value of `celeborn.master.slot.assign.extraSlots` from `2` to `100`, which means Celeborn will involve more workers in offering slots.
 
 - Since 0.6.0, Celeborn deprecate `celeborn.worker.congestionControl.low.watermark`. Please use `celeborn.worker.congestionControl.diskBuffer.low.watermark` instead.
 
