@@ -105,7 +105,7 @@ license: |
 | celeborn.client.shuffle.dynamicResourceEnabled | false | false | When enabled, the ChangePartitionManager will obtain candidate workers from the availableWorkers pool during heartbeats when worker resource change. | 0.6.0 |  | 
 | celeborn.client.shuffle.dynamicResourceFactor | 0.5 | false | The ChangePartitionManager will check whether (unavailable workers / shuffle allocated workers) is more than the factor before obtaining candidate workers from the requestSlots RPC response when `celeborn.client.shuffle.dynamicResourceEnabled` set true | 0.6.0 |  | 
 | celeborn.client.shuffle.expired.checkInterval | 60s | false | Interval for client to check expired shuffles. | 0.3.0 | celeborn.shuffle.expired.checkInterval | 
-| celeborn.client.shuffle.integrityCheck.enabled | false | false | When `true`, enables end-to-end integrity checks. | 0.6.0 |  |
+| celeborn.client.shuffle.integrityCheck.enabled | false | false | When `true`, enables end-to-end integrity checks. | 0.6.0 |  | 
 | celeborn.client.shuffle.manager.port | 0 | false | Port used by the LifecycleManager on the Driver. | 0.3.0 | celeborn.shuffle.manager.port | 
 | celeborn.client.shuffle.partition.type | REDUCE | false | Type of shuffle's partition. | 0.3.0 | celeborn.shuffle.partition.type | 
 | celeborn.client.shuffle.partitionSplit.mode | SOFT | false | soft: the shuffle file size might be larger than split threshold. hard: the shuffle file size will be limited to split threshold. | 0.3.0 | celeborn.shuffle.partitionSplit.mode | 
