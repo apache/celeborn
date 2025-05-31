@@ -19,7 +19,6 @@ package org.apache.celeborn.common.util
 
 import java.util
 import java.util.Collections
-
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.{MasterEndpointResolver, StaticMasterEndpointResolver}
@@ -28,6 +27,8 @@ import org.apache.celeborn.common.identity.DefaultIdentityProvider
 import org.apache.celeborn.common.protocol.{PartitionLocation, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, MapperEnd}
 import org.apache.celeborn.common.protocol.message.StatusCode
+import org.scalatest.matchers.must.Matchers.contain
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 class UtilsSuite extends CelebornFunSuite {
 
@@ -146,10 +147,18 @@ class UtilsSuite extends CelebornFunSuite {
 
   test("MapperEnd class convert with pb") {
     val mapperEnd =
-      MapperEnd(1, 1, 1, 2, 1, Collections.emptyMap(), 1, new Array[Int](1), new Array[Long](1))
+      MapperEnd(1, 1, 1, 2, 1, Collections.emptyMap(), 1, Array.emptyIntArray, Array.emptyLongArray)
     val mapperEndTrans =
       Utils.fromTransportMessage(Utils.toTransportMessage(mapperEnd)).asInstanceOf[MapperEnd]
-    assert(mapperEnd == mapperEndTrans)
+    assert(mapperEnd.shuffleId == mapperEndTrans.shuffleId)
+    assert(mapperEnd.mapId == mapperEndTrans.mapId)
+    assert(mapperEnd.attemptId == mapperEndTrans.attemptId)
+    assert(mapperEnd.numMappers == mapperEndTrans.numMappers)
+    assert(mapperEnd.partitionId == mapperEndTrans.partitionId)
+    assert(mapperEnd.failedBatchSet == mapperEndTrans.failedBatchSet)
+    assert(mapperEnd.numPartitions == mapperEndTrans.numPartitions)
+    mapperEnd.crc32PerPartition.array should contain theSameElementsInOrderAs mapperEndTrans.crc32PerPartition
+    mapperEnd.bytesWrittenPerPartition.array should contain theSameElementsInOrderAs mapperEndTrans.bytesWrittenPerPartition
   }
 
   test("validate HDFS compatible fs path") {
