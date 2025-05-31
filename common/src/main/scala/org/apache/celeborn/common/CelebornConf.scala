@@ -97,7 +97,44 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     }
   }
 
-  private def getTransportConfContainsImpl[T](module: String, entry: ConfigEntry[T]): Boolean = {
+  private def getTransportConfContainsImpl[T](
+      module: String,
+      entry: ConfigEntry[T],
+      fallbackWithoutModule: Boolean): Boolean = {
+    findTransportConf(module, entry, fallbackWithoutModule).isDefined || (entry match {
+      case fallbackConfig: FallbackConfigEntry[T] => contains(fallbackConfig)
+      case _ => false
+    })
+  }
+
+  private def getTransportConfImpl[T](
+      module: String,
+      configEntry: ConfigEntry[T],
+      converter: String => T,
+      fallbackWithoutModule: Boolean,
+      allowDefault: Boolean = true): Option[T] = {
+    findTransportConf(module, configEntry, fallbackWithoutModule)
+      .map(converter)
+      // Is there a fallback for the config entry itself ?
+      .orElse(configEntry match {
+        case fallbackConfig: FallbackConfigEntry[T] =>
+          if (fallbackConfig.fallback.defaultValue.isDefined || contains(fallbackConfig)) {
+            // We do not expect fallback key to be a transport conf
+            assert(!fallbackConfig.fallback.key.contains("<module>"))
+            Some(get(fallbackConfig.fallback))
+          } else {
+            // We return None if fallback config is defined, but it does not have a default
+            None
+          }
+        case _ =>
+          if (allowDefault) Some(converter(configEntry.defaultValueString)) else None
+      })
+  }
+
+  private def findTransportConf[T](
+      module: String,
+      entry: ConfigEntry[T],
+      fallbackWithoutModule: Boolean): Option[String] = {
     var currentModule = module
 
     while (null != currentModule) {
@@ -105,57 +142,22 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       val opt = getOption(key)
       if (opt.isDefined) {
         warnIfInternalTransportModule(currentModule, key)
-        return true
+        return opt
       }
-
       currentModule = CelebornConf.TRANSPORT_MODULE_FALLBACKS.getOrElse(currentModule, null)
     }
 
-    // Is there a fallback for the config entry itself ?
-    entry match {
-      case fallbackConfig: FallbackConfigEntry[T] =>
-        contains(fallbackConfig)
-      case _ =>
-        false
-    }
-  }
-
-  private def getTransportConfImpl[T](
-      module: String,
-      configEntry: ConfigEntry[T],
-      converter: String => T,
-      allowDefault: Boolean = true): Option[T] = {
-    var currentModule = module
-
-    while (null != currentModule) {
-      val key = configEntry.key.replace("<module>", currentModule)
+    if (fallbackWithoutModule) {
+      // Try without <module>, and if missing, use default
+      val key = entry.key.replace(".<module>.", ".")
       val opt = getOption(key)
       if (opt.isDefined) {
-        warnIfInternalTransportModule(currentModule, key)
-        return opt.map(converter)
+        warnIfInternalTransportModule(module, key)
+        return opt
       }
-
-      currentModule = CelebornConf.TRANSPORT_MODULE_FALLBACKS.getOrElse(currentModule, null)
     }
 
-    // Is there a fallback for the config entry itself ?
-    configEntry match {
-      case fallbackConfig: FallbackConfigEntry[T] =>
-        if (fallbackConfig.fallback.defaultValue.isDefined || contains(fallbackConfig)) {
-          // We do not expect fallback key to be a transport conf
-          assert(!fallbackConfig.fallback.key.contains("<module>"))
-          Some(get(fallbackConfig.fallback))
-        } else {
-          // We return None if fallback config is defined, but it does not have a default
-          None
-        }
-      case _ =>
-        if (allowDefault) {
-          Some(converter(configEntry.defaultValueString))
-        } else {
-          None
-        }
-    }
+    None
   }
 
   def setTransportConfIfMissing[T](
@@ -163,7 +165,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       configEntry: ConfigEntry[T],
       value: String): Unit = {
 
-    if (getTransportConfContainsImpl(module, configEntry)) {
+    if (getTransportConfContainsImpl(module, configEntry, fallbackWithoutModule = false)) {
       return
     }
 
@@ -236,8 +238,15 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   /** Get a transport config */
-  def getTransportConf(module: String, configEntry: ConfigEntry[String]): String = {
-    getTransportConfImpl(module, configEntry, Predef.identity).get
+  def getTransportConf(
+      module: String,
+      configEntry: ConfigEntry[String],
+      fallbackWithoutModule: Boolean = false): String = {
+    getTransportConfImpl(
+      module,
+      configEntry,
+      Predef.identity,
+      fallbackWithoutModule).get
   }
 
   /**
@@ -279,8 +288,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   /** Get time in ms for a transport config */
-  def getTransportConfTimeAsMs(module: String, configEntry: ConfigEntry[Long]): Long = {
-    getTransportConfImpl(module, configEntry, Utils.timeStringAsMs).get
+  def getTransportConfTimeAsMs(
+      module: String,
+      configEntry: ConfigEntry[Long],
+      fallbackWithoutModule: Boolean = false): Long = {
+    getTransportConfImpl(module, configEntry, Utils.timeStringAsMs, fallbackWithoutModule).get
   }
 
   /**
@@ -311,8 +323,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   /** Get a size parameter as bytes for a transport config */
-  def getTransportConfSizeAsBytes(module: String, configEntry: ConfigEntry[Long]): Long = {
-    getTransportConfImpl(module, configEntry, Utils.byteStringAsBytes).get
+  def getTransportConfSizeAsBytes(
+      module: String,
+      configEntry: ConfigEntry[Long],
+      fallbackWithoutModule: Boolean = false): Long = {
+    getTransportConfImpl(module, configEntry, Utils.byteStringAsBytes, fallbackWithoutModule).get
   }
 
   /**
@@ -404,8 +419,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   /** Get a parameter as an integer for a transport config */
-  def getTransportConfInt(module: String, configEntry: ConfigEntry[Int]): Int = {
-    getTransportConfImpl(module, configEntry, Integer.parseInt).get
+  def getTransportConfInt(
+      module: String,
+      configEntry: ConfigEntry[Int],
+      fallbackWithoutModule: Boolean = false): Int = {
+    getTransportConfImpl(module, configEntry, Integer.parseInt, fallbackWithoutModule).get
   }
 
   /**
@@ -433,8 +451,15 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   /** Get a parameter as a long for a transport config */
-  def getTransportConfBoolean(module: String, configEntry: ConfigEntry[Boolean]): Boolean = {
-    getTransportConfImpl(module, configEntry, java.lang.Boolean.parseBoolean).get
+  def getTransportConfBoolean(
+      module: String,
+      configEntry: ConfigEntry[Boolean],
+      fallbackWithoutModule: Boolean = false): Boolean = {
+    getTransportConfImpl(
+      module,
+      configEntry,
+      java.lang.Boolean.parseBoolean,
+      fallbackWithoutModule).get
   }
 
   /** Does the configuration contain a given parameter? */
@@ -447,8 +472,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   private[celeborn] def getTransportConfContains[E](
       module: String,
-      configEntry: ConfigEntry[E]): Boolean = {
-    getTransportConfContainsImpl(module, configEntry)
+      configEntry: ConfigEntry[E],
+      fallbackWithoutModule: Boolean = false): Boolean = {
+    getTransportConfContainsImpl(module, configEntry, fallbackWithoutModule)
   }
 
   /** Copy this object */
@@ -625,7 +651,15 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   def channelHeartbeatInterval(module: String): Long = {
-    getTransportConfTimeAsMs(module, CHANNEL_HEARTBEAT_INTERVAL)
+    getTransportConfTimeAsMs(module, CHANNEL_HEARTBEAT_INTERVAL, fallbackWithoutModule = true)
+  }
+
+  def channelHeartbeatEnabled(module: String): Boolean = {
+    getTransportConfBoolean(module, CHANNEL_HEARTBEAT_ENABLED, fallbackWithoutModule = true)
+  }
+
+  def closeIdleConnections(module: String): Boolean = {
+    getTransportConfBoolean(module, CHANNEL_CLOSE_IDLE_CONNECTIONS, fallbackWithoutModule = true)
   }
 
   def pushDataTimeoutCheckerThreads(module: String): Int = {
@@ -824,7 +858,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerReplicateIoThreads: Option[Int] = get(WORKER_REPLICATE_IO_THREADS)
   def registerWorkerTimeout: Long = get(WORKER_REGISTER_TIMEOUT)
   def workerWorkingDir: String = get(WORKER_WORKING_DIR)
-  def workerCloseIdleConnections: Boolean = get(WORKER_CLOSE_IDLE_CONNECTIONS)
   def workerReplicateFastFailDuration: Long = get(WORKER_REPLICATE_FAST_FAIL_DURATION)
   def workerReplicateRandomConnectionEnabled: Boolean =
     get(WORKER_REPLICATE_RANDOM_CONNECTION_ENABLED)
@@ -856,9 +889,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerPartitionSorterIndexCacheMaxWeight: Long =
     get(WORKER_PARTITION_SORTER_INDEX_CACHE_MAX_WEIGHT)
   def workerPartitionSorterIndexExpire: Long = get(WORKER_PARTITION_SORTER_INDEX_CACHE_EXPIRE)
-  def workerPushHeartbeatEnabled: Boolean = get(WORKER_PUSH_HEARTBEAT_ENABLED)
   def workerPushMaxComponents: Int = get(WORKER_PUSH_COMPOSITEBUFFER_MAXCOMPONENTS)
-  def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
   def workerPartitionSplitEnabled: Boolean = get(WORKER_PARTITION_SPLIT_ENABLED)
   def workerActiveConnectionMax: Option[Long] = get(WORKER_ACTIVE_CONNECTION_MAX)
   def workerJvmProfilerEnabled: Boolean = get(WORKER_JVM_PROFILER_ENABLED)
@@ -919,7 +950,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Client                         //
   // //////////////////////////////////////////////////////
-  def clientCloseIdleConnections: Boolean = get(CLIENT_CLOSE_IDLE_CONNECTIONS)
   def clientRegisterShuffleMaxRetry: Int = get(CLIENT_REGISTER_SHUFFLE_MAX_RETRIES)
   def clientRegisterShuffleRetryWaitMs: Long = get(CLIENT_REGISTER_SHUFFLE_RETRY_WAIT)
   def clientReserveSlotsRackAwareEnabled: Boolean = get(CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED)
@@ -1429,18 +1459,20 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                     TLS                             //
   // //////////////////////////////////////////////////////
   private def getSslConfig[V](config: ConfigEntry[V], module: String): V = {
-    val valueOpt = getTransportConfImpl(module, config, config.valueConverter, allowDefault = false)
+    val valueOpt = getTransportConfImpl(
+      module,
+      config,
+      config.valueConverter,
+      allowDefault = false,
+      fallbackWithoutModule = true)
 
     if (valueOpt.isDefined) {
       return valueOpt.get
     }
 
-    // Try without <module>, and if missing, use default
-
-    // replace the module wildcard and check for global value
-    val globalKey = config.key.replace(".<module>.", ".")
-    val defaultValue = if (config.defaultValue.isDefined) config.defaultValueString else null
-    config.valueConverter(get(globalKey, defaultValue))
+    // Since fallbackWithoutModule = true, globalKey was not found
+    // use default (or null) as the value and convert for result
+    config.valueConverter(if (config.defaultValue.isDefined) config.defaultValueString else null)
   }
 
   private def asFileOrNull(fileName: Option[String]): File = {
@@ -1677,7 +1709,23 @@ object CelebornConf extends Logging {
       DeprecatedConfig(
         "celeborn.quota.identity.user-specific.userName",
         "0.6.0",
-        "Please use celeborn.identity.user-specific.userName"))
+        "Please use celeborn.identity.user-specific.userName"),
+      DeprecatedConfig(
+        "celeborn.worker.push.heartbeat.enabled",
+        "0.6.0",
+        "Please use celeborn.<module>.heartbeat.enabled or celeborn.heartbeat.enabled"),
+      DeprecatedConfig(
+        "celeborn.worker.fetch.heartbeat.enabled",
+        "0.6.0",
+        "Please use celeborn.<module>.heartbeat.enabled or celeborn.heartbeat.enabled"),
+      DeprecatedConfig(
+        "celeborn.worker.closeIdleConnections",
+        "0.6.0",
+        "Please use celeborn.<module>.closeIdleConnections or celeborn.closeIdleConnections"),
+      DeprecatedConfig(
+        "celeborn.client.closeIdleConnections",
+        "0.6.0",
+        "Please use celeborn.<module>.closeIdleConnections or celeborn.closeIdleConnections"))
 
     Map(configs.map { cfg => (cfg.key -> cfg) }: _*)
   }
@@ -2343,6 +2391,28 @@ object CelebornConf extends Logging {
         "Resolver class was not found in the classpath. Please check the class name " +
           "and ensure that it is present in classpath")
       .createWithDefault("org.apache.celeborn.common.client.StaticMasterEndpointResolver")
+
+  val CHANNEL_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.<module>.heartbeat.enabled")
+      .categories("network")
+      .version("0.6.0")
+      .doc("Should heartbeat be enabled by default for the module. \"<module>\" " +
+        "could be push, fetch, replicate, etc. If you would like to provide a " +
+        "fallback value for all modules, please omit the \".<module>\" and use " +
+        "\"celeborn.heartbeat.enabled\".")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CHANNEL_CLOSE_IDLE_CONNECTIONS: ConfigEntry[Boolean] =
+    buildConf("celeborn.<module>.closeIdleConnections")
+      .categories("network")
+      .version("0.6.0")
+      .doc("Should idle connections be closed by by default for the module. " +
+        "\"<module>\" could be client, worker, etc. If you would like to provide " +
+        "a fallback value for all modules, please omit the \".<module>\" and use " +
+        "\"celeborn.closeIdleConnections\".")
+      .booleanConf
+      .createWithDefault(false)
 
   val MASTER_ENDPOINTS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.master.endpoints")
@@ -3551,14 +3621,6 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("180s")
 
-  val WORKER_CLOSE_IDLE_CONNECTIONS: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.closeIdleConnections")
-      .categories("worker")
-      .doc("Whether worker will close idle connections.")
-      .version("0.2.0")
-      .booleanConf
-      .createWithDefault(false)
-
   val WORKER_REPLICATE_FAST_FAIL_DURATION: ConfigEntry[Long] =
     buildConf("celeborn.worker.replicate.fastFail.duration")
       .categories("worker")
@@ -4306,14 +4368,6 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefault(0)
 
-  val WORKER_PUSH_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.push.heartbeat.enabled")
-      .categories("worker")
-      .version("0.3.0")
-      .doc("enable the heartbeat from worker to client when pushing data")
-      .booleanConf
-      .createWithDefault(false)
-
   val WORKER_PUSH_COMPOSITEBUFFER_MAXCOMPONENTS: ConfigEntry[Int] =
     buildConf("celeborn.worker.push.compositeBuffer.maxComponents")
       .internal
@@ -4326,14 +4380,6 @@ object CelebornConf extends Logging {
         "might decrease due to frequent memory copy during compaction.")
       .intConf
       .createWithDefault(128)
-
-  val WORKER_FETCH_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.worker.fetch.heartbeat.enabled")
-      .categories("worker")
-      .version("0.3.0")
-      .doc("enable the heartbeat from worker to client when fetching data")
-      .booleanConf
-      .createWithDefault(false)
 
   val WORKER_ACTIVE_CONNECTION_MAX: OptionalConfigEntry[Long] =
     buildConf("celeborn.worker.activeConnection.max")
@@ -5278,14 +5324,6 @@ object CelebornConf extends Logging {
         s"from Master side and Client side, see `${CelebornConf.MASTER_SLOT_ASSIGN_MAX_WORKERS.key}`.")
       .intConf
       .createWithDefault(10000)
-
-  val CLIENT_CLOSE_IDLE_CONNECTIONS: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.closeIdleConnections")
-      .categories("client")
-      .doc("Whether client will close idle connections.")
-      .version("0.3.0")
-      .booleanConf
-      .createWithDefault(true)
 
   val CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.push.dynamicWriteMode.enabled")

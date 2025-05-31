@@ -260,7 +260,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     this.transportContext =
         new TransportContext(
-            dataTransportConf, new BaseMessageHandler(), conf.clientCloseIdleConnections());
+            dataTransportConf, new BaseMessageHandler(), dataTransportConf.closeIdleConnections());
     if (!authEnabled) {
       logger.info("Initializing data client factory for {}.", appUniqueId);
       dataClientFactory = transportContext.createClientFactory();
