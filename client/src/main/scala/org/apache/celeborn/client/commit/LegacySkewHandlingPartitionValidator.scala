@@ -169,6 +169,5 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
   override def isPartitionComplete(partitionId: Int): Boolean = {
     val sumOfMapRanges: Int = currentTotalMapRangeSumForReducer.get(partitionId)
     sumOfMapRanges == partitionToSubPartitionCount.get(partitionId)
-
   }
 }
