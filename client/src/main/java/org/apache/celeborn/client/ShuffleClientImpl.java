@@ -50,10 +50,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.metrics.source.Role;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
-import org.apache.celeborn.common.network.client.RpcResponseCallback;
-import org.apache.celeborn.common.network.client.TransportClient;
-import org.apache.celeborn.common.network.client.TransportClientBootstrap;
-import org.apache.celeborn.common.network.client.TransportClientFactory;
+import org.apache.celeborn.common.network.client.*;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.network.protocol.SerdeVersion;
 import org.apache.celeborn.common.network.sasl.SaslClientBootstrap;
@@ -652,7 +649,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public void reducerPartitionEnd(
+  public void readReducerPartitionEnd(
       int shuffleId,
       int partitionId,
       int startMapIndex,
@@ -660,8 +657,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       int crc32,
       long bytesWritten)
       throws IOException {
-    PbReducerPartitionEnd pbReducerPartitionEnd =
-        PbReducerPartitionEnd.newBuilder()
+    PbReadReducerPartitionEnd pbReadReducerPartitionEnd =
+        PbReadReducerPartitionEnd.newBuilder()
             .setShuffleId(shuffleId)
             .setPartitionId(partitionId)
             .setStartMaxIndex(startMapIndex)
@@ -670,11 +667,11 @@ public class ShuffleClientImpl extends ShuffleClient {
             .setBytesWritten(bytesWritten)
             .build();
 
-    PbReducerPartitionEndResponse pbReducerPartitionEndResponse =
+    PbReadReducerPartitionEndResponse pbReducerPartitionEndResponse =
         lifecycleManagerRef.askSync(
-            pbReducerPartitionEnd,
+            pbReadReducerPartitionEnd,
             conf.clientRpcRegisterShuffleAskTimeout(),
-            ClassTag$.MODULE$.apply(PbReducerPartitionEndResponse.class));
+            ClassTag$.MODULE$.apply(PbReadReducerPartitionEndResponse.class));
     if (pbReducerPartitionEndResponse.getStatus() != StatusCode.SUCCESS.getValue()) {
       throw new CelebornIOException(pbReducerPartitionEndResponse.getErrorMsg());
     }

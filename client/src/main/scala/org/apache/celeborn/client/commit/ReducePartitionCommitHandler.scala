@@ -161,6 +161,7 @@ class ReducePartitionCommitHandler(
     stageEndShuffleSet.remove(shuffleId)
     inProcessStageEndShuffleSet.remove(shuffleId)
     shuffleMapperAttempts.remove(shuffleId)
+    commitMetadataForReducer.remove(shuffleId)
     super.removeExpiredShuffle(shuffleId)
   }
 
@@ -346,7 +347,7 @@ class ReducePartitionCommitHandler(
       startMapIndex: Int,
       endMapIndex: Int,
       actualCommitMetadata: CommitMetadata): (Boolean, String) = {
-    logInfo(s"finish Partition call: shuffleId: $shuffleId, " +
+    logDebug(s"finish Partition call: shuffleId: $shuffleId, " +
       s"partitionId: $partitionId, " +
       s"startMapIndex: $startMapIndex " +
       s"endMapIndex: $endMapIndex, " +

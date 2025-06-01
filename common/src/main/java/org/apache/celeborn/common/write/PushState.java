@@ -108,11 +108,11 @@ public class PushState {
   }
 
   public int[] getCRC32PerPartition(boolean shuffleIntegrityCheckEnabled, int numPartitions) {
-    int[] crc32PerPartition = new int[numPartitions];
     if (!shuffleIntegrityCheckEnabled) {
-      return crc32PerPartition;
+      return new int[0];
     }
 
+    int[] crc32PerPartition = new int[numPartitions];
     for (Map.Entry<Integer, CommitMetadata> entry : commitMetadataMap.entrySet()) {
       crc32PerPartition[entry.getKey()] = entry.getValue().getChecksum();
     }
@@ -121,11 +121,10 @@ public class PushState {
 
   public long[] getBytesWrittenPerPartition(
       boolean shuffleIntegrityCheckEnabled, int numPartitions) {
-    long[] bytesWrittenPerPartition = new long[numPartitions];
     if (!shuffleIntegrityCheckEnabled) {
-      return bytesWrittenPerPartition;
+      return new long[0];
     }
-
+    long[] bytesWrittenPerPartition = new long[numPartitions];
     for (Map.Entry<Integer, CommitMetadata> entry : commitMetadataMap.entrySet()) {
       bytesWrittenPerPartition[entry.getKey()] = entry.getValue().getBytes();
     }

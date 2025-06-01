@@ -34,23 +34,13 @@ public class CommitMetadata {
     this.crc = new CelebornCRC32((int) checksum);
   }
 
-  void addBytes(long bytes) {
-    while (true) {
-      long val = this.bytes.get();
-      long newVal = val + bytes;
-      if (this.bytes.compareAndSet(val, newVal)) {
-        break;
-      }
-    }
-  }
-
   public void addDataWithOffsetAndLength(byte[] rawDataBuf, int offset, int length) {
-    addBytes(length);
+    this.bytes.addAndGet(length);
     this.crc.addData(rawDataBuf, offset, length);
   }
 
   public void addCommitData(CommitMetadata commitMetadata) {
-    addBytes(commitMetadata.bytes.longValue());
+    this.bytes.addAndGet(commitMetadata.bytes.longValue());
     this.crc.addChecksum(commitMetadata.getChecksum());
   }
 
@@ -77,14 +67,6 @@ public class CommitMetadata {
     boolean bytesMatch = expected.getBytes() == actual.getBytes();
     boolean checksumsMatch = expected.getChecksum() == actual.getChecksum();
     return bytesMatch && checksumsMatch;
-  }
-
-  public static CommitMetadata combineMetadata(
-      CommitMetadata commitMetadata1, CommitMetadata commitMetadata2) {
-    CommitMetadata commitMetadata =
-        new CommitMetadata(commitMetadata1.getChecksum(), commitMetadata1.getBytes());
-    commitMetadata.addCommitData(commitMetadata2);
-    return commitMetadata;
   }
 
   @Override

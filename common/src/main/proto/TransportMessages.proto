@@ -114,8 +114,8 @@ enum MessageType {
   PUSH_MERGED_DATA_SPLIT_PARTITION_INFO = 91;
   GET_STAGE_END = 92;
   GET_STAGE_END_RESPONSE = 93;
-  REDUCER_PARTITION_END = 94;
-  REDUCER_PARTITION_END_RESPONSE = 95;
+  READ_REDUCER_PARTITION_END = 94;
+  READ_REDUCER_PARTITION_END_RESPONSE = 95;
 }
 
 enum StreamType {
@@ -926,7 +926,7 @@ message PbChunkOffsets {
   repeated int64 chunkOffset = 1;
 }
 
-message PbReducerPartitionEnd {
+message PbReadReducerPartitionEnd {
   int32 shuffleId = 1;
   int32 partitionId = 2;
   int32 startMaxIndex = 3;
@@ -935,7 +935,7 @@ message PbReducerPartitionEnd {
   int64 bytesWritten = 6;
 }
 
-message PbReducerPartitionEndResponse {
+message PbReadReducerPartitionEndResponse {
   int32 status = 1;
   string errorMsg = 2;
 }

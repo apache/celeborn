@@ -120,7 +120,7 @@ public class CelebornTezWriter {
     try {
       dataPusher.waitOnTermination();
       shuffleClient.pushMergedData(shuffleId, mapId, attemptNumber);
-      shuffleClient.mapperEnd(shuffleId, mapId, attemptNumber, numMappers);
+      shuffleClient.mapperEnd(shuffleId, mapId, attemptNumber, numMappers, numPartitions);
     } catch (InterruptedException e) {
       throw new IOInterruptedException(e);
     }

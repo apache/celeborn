@@ -40,7 +40,7 @@ import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.client.listener.WorkerStatusListener
-import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.CelebornConf.ACTIVE_STORAGE_TYPES
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
@@ -460,7 +460,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           throw new UnsupportedOperationException(s"Not support $partitionType yet")
       }
 
-    case pb: ReducerPartitionEnd =>
+    case pb: ReadReducerPartitionEnd =>
       val partitionType = getPartitionType(pb.shuffleId)
       partitionType match {
         case PartitionType.REDUCE =>
@@ -541,13 +541,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       startMapIndex,
       endMapIndex,
       new CommitMetadata(crc32, bytesWritten))
-    var response: PbReducerPartitionEndResponse = null
+    var response: PbReadReducerPartitionEndResponse = null
     if (isValid) {
       response =
-        PbReducerPartitionEndResponse.newBuilder().setStatus(StatusCode.SUCCESS.getValue).build()
+        PbReadReducerPartitionEndResponse.newBuilder().setStatus(
+          StatusCode.SUCCESS.getValue).build()
     } else {
-      response = PbReducerPartitionEndResponse.newBuilder().setStatus(
-        +StatusCode.REDUCE_PARTITION_END_FAILED.getValue).setErrorMsg(errorMessage).build()
+      response = PbReadReducerPartitionEndResponse.newBuilder().setStatus(
+        +StatusCode.READ_REDUCER_PARTITION_END_FAILED.getValue).setErrorMsg(errorMessage).build()
     }
     context.reply(response)
   }

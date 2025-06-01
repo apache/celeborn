@@ -26,7 +26,7 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
 
   private val totalSubPartitionsProcessed = JavaUtils.newConcurrentHashMap[Int, RoaringBitmap]()
   private val partitionToSubPartitionCount = JavaUtils.newConcurrentHashMap[Int, Int]()
-  private val subPartitionToCommiMetadata = JavaUtils.newConcurrentHashMap[Int, CommitMetadata]()
+  private val subPartitionToCommitMetadata = JavaUtils.newConcurrentHashMap[Int, CommitMetadata]()
   private val currentCommitMetadataForReducer =
     JavaUtils.newConcurrentHashMap[Int, CommitMetadata]()
 
@@ -37,21 +37,25 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
       actualCommitMetadata: CommitMetadata,
       expectedTotalMapperCount: Int): (Boolean, String) = {
     totalSubPartitionsProcessed.synchronized {
-      var bitmap: RoaringBitmap = new RoaringBitmap()
+      var bitmap: RoaringBitmap = null
       if (totalSubPartitionsProcessed.containsKey(partitionId)) {
         bitmap = totalSubPartitionsProcessed.get(partitionId)
       } else {
+        bitmap = new RoaringBitmap()
         totalSubPartitionsProcessed.put(partitionId, bitmap)
         partitionToSubPartitionCount.put(partitionId, startMapIndex)
       }
       if (bitmap.contains(endMapIndex)) {
         // check if previous entry matches
-        if (subPartitionToCommiMetadata.get(endMapIndex) != actualCommitMetadata) {
-          (false, "")
+        val existingCommitMetadata = subPartitionToCommitMetadata.get(endMapIndex)
+        if (existingCommitMetadata != actualCommitMetadata) {
+          return (
+            false,
+            s"Mismatch in metadata for the same chunk range on retry: $endMapIndex existing: $existingCommitMetadata new: $actualCommitMetadata")
         }
       } else {
         bitmap.add(endMapIndex)
-        subPartitionToCommiMetadata.put(endMapIndex, actualCommitMetadata)
+        subPartitionToCommitMetadata.put(endMapIndex, actualCommitMetadata)
       }
     }
     if (!currentCommitMetadataForReducer.containsKey(partitionId)) {
