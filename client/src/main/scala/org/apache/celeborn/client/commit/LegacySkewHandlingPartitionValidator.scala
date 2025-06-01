@@ -79,7 +79,7 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
       "startMapIndex %s must be less than endMapIndex %s",
       startMapIndex,
       endMapIndex)
-    logError(
+    logDebug(
       s"Validate partition invoked for partitionId $partitionId startMapIndex $startMapIndex endMapIndex $endMapIndex")
     partitionToSubPartitionCount.put(partitionId, expectedTotalMapperCount)
     val subRangeToCommitMetadataMap = subRangeToCommitMetadataPerReducer.computeIfAbsent(
