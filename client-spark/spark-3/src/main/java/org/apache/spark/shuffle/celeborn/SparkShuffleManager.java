@@ -150,7 +150,7 @@ public class SparkShuffleManager implements ShuffleManager {
 
             lifecycleManager.registerReportTaskShuffleFetchFailurePreCheck(
                 taskId -> !SparkUtils.taskAnotherAttemptRunningOrSuccessful(taskId));
-            SparkUtils.addSparkListener(new ShuffleFetchFailureReportTaskCleanListener(appId));
+            SparkUtils.addSparkListener(new ShuffleFetchFailureReportTaskCleanListener());
 
             lifecycleManager.registerShuffleTrackerCallback(
                 shuffleId -> SparkUtils.unregisterAllMapOutput(mapOutputTracker, shuffleId));

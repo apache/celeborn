@@ -19,15 +19,8 @@ package org.apache.spark.shuffle.celeborn
 
 import org.apache.spark.scheduler.{SparkListener, SparkListenerStageCompleted}
 
-import org.apache.celeborn.common.internal.Logging
-
-class ShuffleFetchFailureReportTaskCleanListener(appId: String) extends SparkListener with Logging {
+class ShuffleFetchFailureReportTaskCleanListener extends SparkListener {
   override def onStageCompleted(stageCompleted: SparkListenerStageCompleted): Unit = {
-    // scalastyle:off
-    println(
-      s"${new java.util.Date(System.currentTimeMillis())}: " +
-        s"Remove reported shuffle fetch failure task for $appId-${stageCompleted.stageInfo.stageId}-${stageCompleted.stageInfo.attemptNumber()}")
-    // scalastyle:on
     SparkUtils.removeStageReportedShuffleFetchFailureTaskIds(
       stageCompleted.stageInfo.stageId,
       stageCompleted.stageInfo.attemptNumber())

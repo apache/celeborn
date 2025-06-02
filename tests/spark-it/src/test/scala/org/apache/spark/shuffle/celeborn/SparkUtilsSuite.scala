@@ -60,11 +60,6 @@ class SparkUtilsSuite extends AnyFunSuite
           "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
         .getOrCreate()
 
-      // scalastyle:off
-      println(s"${new java.util.Date(System.currentTimeMillis)}: " +
-        s"Spark applicationId: ${sparkSession.sparkContext.applicationId}")
-      // scalastyle:on
-
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook = new ShuffleReaderGetHooks(celebornConf, workerDirs)
       TestCelebornShuffleManager.registerReaderGetHook(hook)
@@ -90,7 +85,7 @@ class SparkUtilsSuite extends AnyFunSuite
         jobThread.start()
 
         val taskScheduler = sc.taskScheduler.asInstanceOf[TaskSchedulerImpl]
-        eventually(timeout(60.seconds), interval(0.milliseconds)) {
+        eventually(timeout(30.seconds), interval(0.milliseconds)) {
           assert(hook.executed.get() == true)
           val reportedTaskId =
             SparkUtils.reportedStageShuffleFetchFailureTaskIds.values().asScala.flatMap(
