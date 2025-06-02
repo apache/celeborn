@@ -28,7 +28,9 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.event.ProgressListener;
+import com.amazonaws.retry.PredefinedBackoffStrategies;
 import com.amazonaws.retry.PredefinedRetryPolicies;
+import com.amazonaws.retry.RetryPolicy;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
@@ -66,15 +68,21 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
   private String bucketName;
 
   private Integer s3MultiplePartUploadMaxRetries;
-
-  long initBackoff = 100; // 100ms
-  long maxBackoff = 5000; // 5s
+  private Integer baseDelay;
+  private Integer maxBackoff;
 
   public S3MultipartUploadHandler(
-      FileSystem hadoopFs, String bucketName, String key, Integer s3MultiplePartUploadMaxRetries)
+      FileSystem hadoopFs,
+      String bucketName,
+      String key,
+      Integer s3MultiplePartUploadMaxRetries,
+      Integer baseDelay,
+      Integer maxBackoff)
       throws IOException, URISyntaxException {
     this.bucketName = bucketName;
     this.s3MultiplePartUploadMaxRetries = s3MultiplePartUploadMaxRetries;
+    this.baseDelay = baseDelay;
+    this.maxBackoff = maxBackoff;
 
     Configuration conf = hadoopFs.getConf();
     AWSCredentialProviderList providers = new AWSCredentialProviderList();
@@ -84,11 +92,16 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
     providers.add(new EnvironmentVariableCredentialsProvider());
     providers.add(new IAMInstanceCredentialsProvider());
 
+    RetryPolicy retryPolicy =
+        new RetryPolicy(
+            PredefinedRetryPolicies.DEFAULT_RETRY_CONDITION,
+            new PredefinedBackoffStrategies.SDKDefaultBackoffStrategy(
+                baseDelay, baseDelay, maxBackoff),
+            s3MultiplePartUploadMaxRetries,
+            false);
     ClientConfiguration clientConfig =
         new ClientConfiguration()
-            .withRetryPolicy(
-                PredefinedRetryPolicies.getDefaultRetryPolicyWithCustomMaxRetries(
-                    s3MultiplePartUploadMaxRetries))
+            .withRetryPolicy(retryPolicy)
             .withMaxErrorRetry(s3MultiplePartUploadMaxRetries);
     this.s3Client =
         AmazonS3ClientBuilder.standard()
@@ -196,7 +209,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
           throw e;
         }
 
-        long backoffTime = Math.min(maxBackoff, initBackoff * (long) Math.pow(2, attempt - 1));
+        long backoffTime = Math.min(maxBackoff, baseDelay * (long) Math.pow(2, attempt - 1));
         try {
           logger.warn(
               "bucket {} key {} uploadId {} upload failed to complete, will retry ({}/{})",

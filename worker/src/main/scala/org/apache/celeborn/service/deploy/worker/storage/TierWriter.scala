@@ -539,7 +539,9 @@ class DfsTierWriter(
         hadoopFs,
         bucketName,
         key,
-        conf.s3MultiplePartUploadMaxRetries)
+        conf.s3MultiplePartUploadMaxRetries,
+        conf.s3MultiplePartUploadBaseDelay,
+        conf.s3MultiplePartUploadMaxBackoff)
       s3MultipartUploadHandler.startUpload()
     } else if (hdfsFileInfo.isOSS) {
       val configuration = hadoopFs.getConf
