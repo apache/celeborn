@@ -298,7 +298,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
       }
 
     val request = new UpdateInterruptionNoticeRequest().workers(workerInterruptionNotices.asJava)
-    workerApi.updateInterruptionNotice(request)
+    workerApi.updateInterruptionNotice(request, commonOptions.getAuthHeader)
   }
 
 }
