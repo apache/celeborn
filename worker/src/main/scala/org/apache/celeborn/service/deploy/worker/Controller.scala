@@ -645,6 +645,8 @@ private[deploy] class Controller(
 
                 commitInfo.status = CommitInfo.COMMIT_FINISHED
               }
+
+              workerSource.incCounter(WorkerSource.COMMIT_FILES_FAIL_COUNT)
             } else {
               // finish, cancel timeout job first.
               timeout.cancel()
@@ -784,6 +786,8 @@ private[deploy] class Controller(
                 commitInfo.response = replyResponse
                 context.reply(replyResponse)
                 epochIterator.remove()
+
+                workerSource.incCounter(WorkerSource.COMMIT_FILES_FAIL_COUNT)
               }
             }
           }
