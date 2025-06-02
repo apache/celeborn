@@ -191,6 +191,7 @@ object WorkerSource {
   val TAKE_BUFFER_TIME = "TakeBufferTime"
   val FLUSH_DATA_TIME = "FlushDataTime"
   val COMMIT_FILES_TIME = "CommitFilesTime"
+  val COMMIT_FILES_FAIL_COUNT = "CommitFilesFailCount"
   val FLUSH_WORKING_QUEUE_SIZE = "FlushWorkingQueueSize"
 
   // slots
