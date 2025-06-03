@@ -633,4 +633,16 @@ public class SparkUtils {
       SparkShuffleManager sparkShuffleManager, int celebornShuffleId) {
     sparkShuffleManager.getFailedShuffleCleaner().removeCleanedShuffleId(celebornShuffleId);
   }
+
+  /**
+   * org.apache.spark.util.Utils.isLocalMaster
+   *
+   * <p>Note: code copied from Apache Spark.
+   *
+   * <p>SPARK-50515
+   */
+  public static boolean isLocalMaster(SparkConf conf) {
+    String master = conf.get("spark.master", "");
+    return master.equals("local") || master.startsWith("local[");
+  }
 }
