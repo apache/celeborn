@@ -56,8 +56,10 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
 
   override def beforeAll(): Unit = {
     logInfo("test initialized, setup celeborn mini cluster")
-    val (m, w) =
-      setupMiniClusterWithRandomPorts(workerConf = celebornConf.getAll.toMap, workerNum = 1)
+    val (m, w) = setupMiniClusterWithRandomPorts(
+      masterConf = celebornConf.getAll.toMap,
+      workerConf = celebornConf.getAll.toMap,
+      workerNum = 1)
     master = m
     worker = w.head
     super.beforeAll()
