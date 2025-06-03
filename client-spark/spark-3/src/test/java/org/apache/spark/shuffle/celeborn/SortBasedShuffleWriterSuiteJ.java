@@ -64,7 +64,13 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
       ShuffleWriteMetricsReporter metrics)
       throws IOException {
     return new SortBasedShuffleWriter<Integer, String, String>(
-        handle, context, conf, client, metrics, SendBufferPool.get(4, 30, 60));
+        SparkUtils.celebornShuffleId(client, handle, taskContext, true),
+        handle,
+        context,
+        conf,
+        client,
+        metrics,
+        SendBufferPool.get(4, 30, 60));
   }
 
   private SortBasedShuffleWriter<Integer, String, String> createShuffleWriterWithPusher(
@@ -76,7 +82,14 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
       SortBasedPusher pusher)
       throws Exception {
     return new SortBasedShuffleWriter<Integer, String, String>(
-        handle, context, conf, client, metrics, SendBufferPool.get(4, 30, 60), pusher);
+        SparkUtils.celebornShuffleId(client, handle, taskContext, true),
+        handle,
+        context,
+        conf,
+        client,
+        metrics,
+        SendBufferPool.get(4, 30, 60),
+        pusher);
   }
 
   private SortBasedPusher createSortBasedPusher(
@@ -98,18 +111,18 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
     SortBasedPusher pusher =
         new SortBasedPusher(
             taskMemoryManager,
-            /*shuffleClient=*/ client,
-            /*taskContext=*/ taskContext,
-            /*shuffleId=*/ 0,
-            /*mapId=*/ 0,
-            /*attemptNumber=*/ 0,
-            /*taskAttemptId=*/ 0,
-            /*numMappers=*/ 0,
-            /*numPartitions=*/ numPartitions,
+            /* shuffleClient= */ client,
+            /* taskContext= */ taskContext,
+            /* shuffleId= */ 0,
+            /* mapId= */ 0,
+            /* attemptNumber= */ 0,
+            /* taskAttemptId= */ 0,
+            /* numMappers= */ 0,
+            /* numPartitions= */ numPartitions,
             conf,
             metricsReporter::incBytesWritten,
             mapStatusLengths,
-            /*pushSortMemoryThreshold=*/ Utils.byteStringAsBytes("32K"),
+            /* pushSortMemoryThreshold= */ Utils.byteStringAsBytes("32K"),
             SendBufferPool.get(4, 30, 60));
     return pusher;
   }
