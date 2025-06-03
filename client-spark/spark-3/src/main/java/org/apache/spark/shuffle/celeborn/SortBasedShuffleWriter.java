@@ -99,47 +99,17 @@ public class SortBasedShuffleWriter<K, V, C> extends BasedShuffleWriter<K, V, C>
   }
 
   @Override
-  protected void fastWrite0(scala.collection.Iterator iterator) throws IOException {
-    final scala.collection.Iterator<Product2<Integer, UnsafeRow>> records = iterator;
-
-    SQLMetric dataSize = SparkUtils.getDataSize((UnsafeRowSerializer) dep.serializer());
-    while (records.hasNext()) {
-      final Product2<Integer, UnsafeRow> record = records.next();
-      final int partitionId = record._1();
-      final UnsafeRow row = record._2();
-
-      final int rowSize = row.getSizeInBytes();
-      final int serializedRecordSize = 4 + rowSize;
-
-      if (dataSize != null) {
-        dataSize.add(serializedRecordSize);
+  protected void fastWriteBelowMaxBufferSize(UnsafeRow row, int rowSize, int partitionId)
+      throws IOException {
+    boolean success =
+        pusher.insertRecord(row.getBaseObject(), row.getBaseOffset(), rowSize, partitionId, true);
+    if (!success) {
+      doPush();
+      success =
+          pusher.insertRecord(row.getBaseObject(), row.getBaseOffset(), rowSize, partitionId, true);
+      if (!success) {
+        throw new CelebornIOException("Unable to push after switching pusher!");
       }
-
-      if (serializedRecordSize > PUSH_BUFFER_MAX_SIZE) {
-        byte[] giantBuffer = new byte[serializedRecordSize];
-        Platform.putInt(giantBuffer, Platform.BYTE_ARRAY_OFFSET, Integer.reverseBytes(rowSize));
-        Platform.copyMemory(
-            row.getBaseObject(),
-            row.getBaseOffset(),
-            giantBuffer,
-            Platform.BYTE_ARRAY_OFFSET + 4,
-            rowSize);
-        pushGiantRecord(partitionId, giantBuffer, serializedRecordSize);
-      } else {
-        boolean success =
-            pusher.insertRecord(
-                row.getBaseObject(), row.getBaseOffset(), rowSize, partitionId, true);
-        if (!success) {
-          doPush();
-          success =
-              pusher.insertRecord(
-                  row.getBaseObject(), row.getBaseOffset(), rowSize, partitionId, true);
-          if (!success) {
-            throw new CelebornIOException("Unable to push after switching pusher!");
-          }
-        }
-      }
-      tmpRecordsWritten++;
     }
   }
 
@@ -150,46 +120,27 @@ public class SortBasedShuffleWriter<K, V, C> extends BasedShuffleWriter<K, V, C>
   }
 
   @Override
-  protected void write0(scala.collection.Iterator iterator) throws IOException {
-    final scala.collection.Iterator<Product2<K, ?>> records = iterator;
-
-    while (records.hasNext()) {
-      final Product2<K, ?> record = records.next();
-      final K key = record._1();
-      final int partitionId = partitioner.getPartition(key);
-      serBuffer.reset();
-      serOutputStream.writeKey(key, OBJECT_CLASS_TAG);
-      serOutputStream.writeValue(record._2(), OBJECT_CLASS_TAG);
-      serOutputStream.flush();
-
-      final int serializedRecordSize = serBuffer.size();
-      assert (serializedRecordSize > 0);
-
-      if (serializedRecordSize > PUSH_BUFFER_MAX_SIZE) {
-        pushGiantRecord(partitionId, serBuffer.getBuf(), serializedRecordSize);
-      } else {
-        boolean success =
-            pusher.insertRecord(
-                serBuffer.getBuf(),
-                Platform.BYTE_ARRAY_OFFSET,
-                serializedRecordSize,
-                partitionId,
-                false);
-        if (!success) {
-          doPush();
-          success =
-              pusher.insertRecord(
-                  serBuffer.getBuf(),
-                  Platform.BYTE_ARRAY_OFFSET,
-                  serializedRecordSize,
-                  partitionId,
-                  false);
-          if (!success) {
-            throw new IOException("Unable to push after switching pusher!");
-          }
-        }
+  void writeBelowMaxBufferSize(
+      OpenByteArrayOutputStream row, int serializedRecordSize, int partitionId) throws IOException {
+    boolean success =
+        pusher.insertRecord(
+            serBuffer.getBuf(),
+            Platform.BYTE_ARRAY_OFFSET,
+            serializedRecordSize,
+            partitionId,
+            false);
+    if (!success) {
+      doPush();
+      success =
+          pusher.insertRecord(
+              serBuffer.getBuf(),
+              Platform.BYTE_ARRAY_OFFSET,
+              serializedRecordSize,
+              partitionId,
+              false);
+      if (!success) {
+        throw new IOException("Unable to push after switching pusher!");
       }
-      tmpRecordsWritten++;
     }
   }
 
