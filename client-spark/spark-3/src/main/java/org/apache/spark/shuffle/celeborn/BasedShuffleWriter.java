@@ -20,9 +20,6 @@ package org.apache.spark.shuffle.celeborn;
 import java.io.IOException;
 import java.util.concurrent.atomic.LongAdder;
 
-import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
-import org.apache.spark.sql.execution.metric.SQLMetric;
-import org.apache.spark.unsafe.Platform;
 import scala.Option;
 import scala.Product2;
 import scala.collection.Iterator;
@@ -39,8 +36,11 @@ import org.apache.spark.serializer.SerializationStream;
 import org.apache.spark.serializer.SerializerInstance;
 import org.apache.spark.shuffle.ShuffleWriteMetricsReporter;
 import org.apache.spark.shuffle.ShuffleWriter;
+import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
+import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.storage.BlockManagerId;
+import org.apache.spark.unsafe.Platform;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;

@@ -19,14 +19,10 @@ package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
 
-import scala.Product2;
-
 import org.apache.spark.TaskContext;
 import org.apache.spark.annotation.Private;
 import org.apache.spark.shuffle.ShuffleWriteMetricsReporter;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
-import org.apache.spark.sql.execution.UnsafeRowSerializer;
-import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.unsafe.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -19,21 +19,20 @@ package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import org.apache.spark.TaskContext;
+import org.apache.spark.annotation.Private;
+import org.apache.spark.shuffle.ShuffleWriteMetricsReporter;
+import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
+import org.apache.spark.unsafe.Platform;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.write.DataPusher;
 import org.apache.celeborn.client.write.PushTask;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.Utils;
-import org.apache.spark.TaskContext;
-import org.apache.spark.annotation.Private;
-import org.apache.spark.shuffle.ShuffleWriteMetricsReporter;
-import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
-import org.apache.spark.sql.execution.UnsafeRowSerializer;
-import org.apache.spark.sql.execution.metric.SQLMetric;
-import org.apache.spark.unsafe.Platform;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import scala.Product2;
 
 @Private
 public class HashBasedShuffleWriter<K, V, C> extends BasedShuffleWriter<K, V, C> {
@@ -99,7 +98,8 @@ public class HashBasedShuffleWriter<K, V, C> extends BasedShuffleWriter<K, V, C>
   }
 
   @Override
-  void writeBelowMaxBufferSize(OpenByteArrayOutputStream row, int serializedRecordSize, int partitionId)
+  void writeBelowMaxBufferSize(
+      OpenByteArrayOutputStream row, int serializedRecordSize, int partitionId)
       throws IOException, InterruptedException {
     int offset = getOrUpdateOffset(partitionId, serializedRecordSize);
     byte[] buffer = getOrCreateBuffer(partitionId);
