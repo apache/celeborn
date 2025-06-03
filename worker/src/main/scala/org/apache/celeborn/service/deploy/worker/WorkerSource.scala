@@ -60,6 +60,8 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
 
   addCounter(SLOTS_ALLOCATED)
 
+  addCounter(COMMIT_FILES_FAIL_COUNT)
+
   // add timers
   addTimer(COMMIT_FILES_TIME)
   addTimer(RESERVE_SLOTS_TIME)
