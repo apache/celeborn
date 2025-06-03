@@ -28,7 +28,6 @@ import org.apache.spark.rdd.DeterministicLevel;
 import org.apache.spark.shuffle.*;
 import org.apache.spark.shuffle.sort.SortShuffleManager;
 import org.apache.spark.sql.internal.SQLConf;
-import org.apache.spark.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -461,7 +460,7 @@ public class SparkShuffleManager implements ShuffleManager {
   }
 
   private int executorCores(SparkConf conf) {
-    if (Utils.isLocalMaster(conf)) {
+    if (SparkUtils.isLocalMaster(conf)) {
       // SparkContext.numDriverCores is package private.
       return DynMethods.builder("numDriverCores")
           .impl("org.apache.spark.SparkContext$", String.class)
