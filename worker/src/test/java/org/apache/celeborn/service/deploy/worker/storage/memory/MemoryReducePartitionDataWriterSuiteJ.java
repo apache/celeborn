@@ -20,7 +20,6 @@ package org.apache.celeborn.service.deploy.worker.storage.memory;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
@@ -31,7 +30,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import scala.Function0;
-import scala.Tuple4;
 
 import io.netty.buffer.*;
 import org.junit.BeforeClass;
@@ -43,7 +41,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.*;
-import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
