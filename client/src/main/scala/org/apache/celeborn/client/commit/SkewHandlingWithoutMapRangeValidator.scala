@@ -37,10 +37,11 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
       actualCommitMetadata: CommitMetadata,
       expectedTotalMapperCount: Int): (Boolean, String) = {
     totalSubPartitionsProcessed.synchronized {
-      var bitmap: RoaringBitmap = new RoaringBitmap()
+      var bitmap: RoaringBitmap = null
       if (totalSubPartitionsProcessed.containsKey(partitionId)) {
         bitmap = totalSubPartitionsProcessed.get(partitionId)
       } else {
+        bitmap = new RoaringBitmap()
         totalSubPartitionsProcessed.put(partitionId, bitmap)
         partitionToSubPartitionCount.put(partitionId, startMapIndex)
       }
