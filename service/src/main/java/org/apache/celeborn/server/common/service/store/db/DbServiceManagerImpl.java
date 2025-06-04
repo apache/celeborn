@@ -165,6 +165,7 @@ public class DbServiceManagerImpl implements IServiceManager {
     return clusterInfo;
   }
 
+  @Override
   public List<ClusterTag> getClusterTags() {
     try (SqlSession sqlSession = sqlSessionFactory.openSession()) {
       ClusterTagsMapper mapper = sqlSession.getMapper(ClusterTagsMapper.class);

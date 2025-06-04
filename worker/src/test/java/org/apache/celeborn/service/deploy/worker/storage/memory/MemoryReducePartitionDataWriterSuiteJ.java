@@ -82,52 +82,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
   private static StorageManager storageManager;
   private static StoragePolicy storagePolicy;
 
-  private StorageManager prepareMemoryFileTestEnvironment(
-      UserIdentifier userIdentifier,
-      boolean reduceMeta,
-      StorageManager storageManager,
-      StoragePolicy storagePolicy,
-      CelebornConf celebornConf,
-      AbstractSource source,
-      PartitionDataWriterContext writerContext) {
-    ReduceFileMeta reduceFileMeta = new ReduceFileMeta(celebornConf.shuffleChunkSize());
-    MemoryFileInfo memoryFileInfo = new MemoryFileInfo(userIdentifier, false, reduceFileMeta);
-    if (!reduceMeta) {
-      memoryFileInfo.replaceFileMeta(new MapFileMeta(32 * 1024, 10));
-    }
-
-    Mockito.doAnswer(
-            invocation ->
-                new Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File>(
-                    memoryFileInfo, null, null, null))
-        .when(storageManager)
-        .createFile(Mockito.any(), Mockito.anyBoolean());
-
-    Mockito.doAnswer(invocation -> storagePolicy).when(storageManager).storagePolicy();
-
-    AtomicInteger numPendingWriters = new AtomicInteger();
-    FlushNotifier flushNotifier = new FlushNotifier();
-
-    Mockito.doAnswer(
-            invocation ->
-                new MemoryTierWriter(
-                    celebornConf,
-                    new ReducePartitionMetaHandler(
-                        celebornConf.shuffleRangeReadFilterEnabled(), memoryFileInfo),
-                    numPendingWriters,
-                    flushNotifier,
-                    source,
-                    memoryFileInfo,
-                    StorageInfo.Type.MEMORY,
-                    writerContext,
-                    storageManager))
-        .when(storagePolicy)
-        .createFileWriter(
-            Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
-
-    return storageManager;
-  }
-
   @BeforeClass
   public static void beforeAll() {
     CONF.set(CelebornConf.SHUFFLE_CHUNK_SIZE().key(), "1k");
@@ -620,8 +574,8 @@ public class MemoryReducePartitionDataWriterSuiteJ {
 
     closeChunkServer();
 
-    assert storageManager.evictedFileCount().get() > 0;
-    assert MemoryManager.instance().getMemoryFileStorageCounter() == memoryFileStorageBefore;
+    assertTrue(storageManager.evictedFileCount().get() > 0);
+    assertEquals(MemoryManager.instance().getMemoryFileStorageCounter(), memoryFileStorageBefore);
   }
 
   @Test

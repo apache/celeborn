@@ -227,16 +227,16 @@
                   <generatorName>java</generatorName>
                   <generateApiTests>false</generateApiTests>
                   <generateModelTests>false</generateModelTests>
-                  <groupId>${groupId}</groupId>
-                  <artifactId>${artifactId}</artifactId>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
                   <artifactVersion>${project.version}</artifactVersion>
                   <addCompileSourceRoot>false</addCompileSourceRoot>
                   <templateDirectory>${project.basedir}/src/main/openapi3/templates</templateDirectory>
                   <cleanupOutput>true</cleanupOutput>
                   <configOptions>
                     <licenseName>Apache License 2.0</licenseName>
-                    <groupId>${groupId}</groupId>
-                    <artifactId>${artifactId}</artifactId>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>${project.artifactId}</artifactId>
                     <artifactVersion>${project.version}</artifactVersion>
                     <dateLibrary>java8</dateLibrary>
                     <useGzipFeature>true</useGzipFeature>
@@ -263,15 +263,15 @@
                   <generatorName>java</generatorName>
                   <generateApiTests>false</generateApiTests>
                   <generateModelTests>false</generateModelTests>
-                  <groupId>${groupId}</groupId>
-                  <artifactId>${artifactId}</artifactId>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
                   <artifactVersion>${project.version}</artifactVersion>
                   <addCompileSourceRoot>false</addCompileSourceRoot>
                   <templateDirectory>${project.basedir}/src/main/openapi3/templates</templateDirectory>
                   <configOptions>
                     <licenseName>Apache License 2.0</licenseName>
-                    <groupId>${groupId}</groupId>
-                    <artifactId>${artifactId}</artifactId>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>${project.artifactId}</artifactId>
                     <artifactVersion>${project.version}</artifactVersion>
                     <dateLibrary>java8</dateLibrary>
                     <useGzipFeature>true</useGzipFeature>

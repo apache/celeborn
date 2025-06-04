@@ -139,28 +139,6 @@ public class CelebornPartitionUtilSuiteJ {
     Assert.assertEquals(expectResult, result);
   }
 
-  private ArrayList<PartitionLocation> genPartitionLocations(Map<Integer, Long[]> epochToOffsets) {
-    ArrayList<PartitionLocation> locations = new ArrayList<>();
-    epochToOffsets.forEach(
-        (epoch, offsets) -> {
-          PartitionLocation location =
-              new PartitionLocation(
-                  0, epoch, "localhost", 0, 0, 0, 0, PartitionLocation.Mode.PRIMARY);
-          StorageInfo storageInfo =
-              new StorageInfo(
-                  StorageInfo.Type.HDD,
-                  "mountPoint",
-                  false,
-                  "filePath",
-                  StorageInfo.LOCAL_DISK_MASK,
-                  1,
-                  Arrays.asList(offsets));
-          location.setStorageInfo(storageInfo);
-          locations.add(location);
-        });
-    return locations;
-  }
-
   private PartitionLocation genPartitionLocation(int epoch, Long[] offsets) {
     PartitionLocation location =
         new PartitionLocation(0, epoch, "localhost", 0, 0, 0, 0, PartitionLocation.Mode.PRIMARY);

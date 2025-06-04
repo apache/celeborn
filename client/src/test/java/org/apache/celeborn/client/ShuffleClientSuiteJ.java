@@ -511,8 +511,9 @@ public class ShuffleClientSuiteJ {
 
     try {
       shuffleClient.updateFileGroup(0, 0);
+      fail("Expected CelebornIOException to be thrown");
     } catch (CelebornIOException e) {
-      Assert.assertTrue(e.getCause() == null);
+      assertNull(e.getCause());
     }
 
     when(endpointRef.askSync(any(), any(), any()))
@@ -547,8 +548,9 @@ public class ShuffleClientSuiteJ {
 
     try {
       shuffleClient.updateFileGroup(0, 0);
+      fail("Expected CelebornIOException to be thrown");
     } catch (CelebornIOException e) {
-      Assert.assertTrue(e.getCause() == null);
+      assertNull(e.getCause());
     }
 
     when(endpointRef.askSync(any(), any(), any()))
@@ -583,8 +585,9 @@ public class ShuffleClientSuiteJ {
 
     try {
       shuffleClient.updateFileGroup(0, 0);
+      fail("Expected CelebornIOException to be thrown");
     } catch (CelebornIOException e) {
-      Assert.assertTrue(e.getCause() == null);
+      assertNull(e.getCause());
     }
   }
 
