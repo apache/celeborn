@@ -78,13 +78,13 @@ The basic usage of commands for master and worker service can also get with the 
 
 ```shell
 $ celeborn-cli master -h
-Usage: celeborn-cli master [-hV] [--apps=appId] [--cluster=cluster_alias]
-                           [--config-level=level] [--config-name=username]
-                           [--config-tenant=tenant_id] [--host-list=h1,h2,
-                           h3...] [--hostport=host:port] [--worker-ids=w1,w2,
-                           w3...] (--show-masters-info | --show-cluster-apps |
-                           --show-cluster-shuffles | --exclude-worker |
-                           --remove-excluded-worker |
+Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
+                           [--cluster=cluster_alias] [--config-level=level]
+                           [--config-name=username] [--config-tenant=tenant_id]
+                           [--host-list=h1,h2,h3...] [--hostport=host:port]
+                           [--worker-ids=w1,w2,w3...] (--show-masters-info |
+                           --show-cluster-apps | --show-cluster-shuffles |
+                           --exclude-worker | --remove-excluded-worker |
                            --send-worker-event=IMMEDIATELY | DECOMMISSION | 
                            DECOMMISSION_THEN_IDLE | GRACEFUL | RECOMMISSION | 
                            NONE | --show-worker-event-info |
@@ -103,12 +103,12 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--cluster=cluster_alias]
       --add-cluster-alias=alias
                              Add alias to use in the cli for the given set of
                                masters
+      --apps=appId           The application Id list seperated by comma.
       --auth-header=authHeader
                              The http `Authorization` header for
                                authentication. It should be in the format of
                                `Bearer <token>` or `Basic
                                <base64-encoded-credentials>`.
-      --apps=appId           The application Id list seperated by comma.
       --cluster=cluster_alias
                              The alias of the cluster to use to query masters
       --config-level=level   The config level of the dynamic configs
@@ -171,12 +171,12 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--cluster=cluster_alias]
 
 ```shell
 $ celeborn-cli worker -h
-Usage: celeborn-cli worker [-hV] [--apps=appId] [--cluster=cluster_alias]
-                           [--config-level=level] [--config-name=username]
-                           [--config-tenant=tenant_id] [--host-list=h1,h2,
-                           h3...] [--hostport=host:port] [--worker-ids=w1,w2,
-                           w3...] (--show-worker-info | --show-apps-on-worker |
-                           --show-shuffles-on-worker |
+Usage: celeborn-cli worker [-hV] [--apps=appId] [--auth-header=authHeader]
+                           [--cluster=cluster_alias] [--config-level=level]
+                           [--config-name=username] [--config-tenant=tenant_id]
+                           [--host-list=h1,h2,h3...] [--hostport=host:port]
+                           [--worker-ids=w1,w2,w3...] (--show-worker-info |
+                           --show-apps-on-worker | --show-shuffles-on-worker |
                            --show-partition-location-info |
                            --show-unavailable-peers | --is-shutdown |
                            --is-decommissioning | --is-registered |
