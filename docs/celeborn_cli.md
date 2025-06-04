@@ -160,6 +160,8 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--cluster=cluster_alias]
                              Show registered workers topology
       --shuffleIds=<shuffleIds>
                              The shuffle ids to manipulate.
+      --update-interruption-notices
+                             Update interruption notices of workers.
   -V, --version              Print version information and exit.
       --worker-ids=w1,w2,w3...
                              List of workerIds to pass to the command. Each

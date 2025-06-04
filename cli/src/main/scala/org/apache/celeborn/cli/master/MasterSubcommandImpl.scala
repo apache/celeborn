@@ -55,8 +55,7 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     if (masterOptions.showThreadDump) log(runShowThreadDump)
     if (masterOptions.reviseLostShuffles) log(reviseLostShuffles)
     if (masterOptions.deleteApps) log(deleteApps)
-    if (masterOptions.updateInterruptionNotices != null && !StringUtils.isBlank(
-        masterOptions.updateInterruptionNotices))
+    if (!StringUtils.isBlank(masterOptions.updateInterruptionNotices))
       log(updateInterruptionNotices)
     if (masterOptions.addClusterAlias != null && masterOptions.addClusterAlias.nonEmpty)
       runAddClusterAlias
