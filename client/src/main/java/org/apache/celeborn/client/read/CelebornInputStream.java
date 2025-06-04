@@ -740,43 +740,39 @@ public abstract class CelebornInputStream extends InputStream {
       }
     }
 
-    void validateIntegrity() {
+    void validateIntegrity() throws IOException {
       if (integrityChecked || !shuffleIntegrityCheckEnabled) {
         return;
       }
 
       String key = Utils.makeReducerKey(shuffleId, partitionId);
 
-      try {
-        if (readSkewPartitionWithoutMapRange) {
-          shuffleClient.reducerPartitionEnd(
-              shuffleId,
-              partitionId,
-              numberOfSubPartitions,
-              currentIndexOfSubPartition,
-              aggregatedActualCommitMetadata.getChecksum(),
-              aggregatedActualCommitMetadata.getBytes());
-          logger.info(
-              "reducerPartitionEnd successful for {}. actual CommitMetadata: {}",
-              key,
-              aggregatedActualCommitMetadata);
-        } else {
-          shuffleClient.reducerPartitionEnd(
-              shuffleId,
-              partitionId,
-              startMapIndex,
-              endMapIndex,
-              aggregatedActualCommitMetadata.getChecksum(),
-              aggregatedActualCommitMetadata.getBytes());
-          logger.info(
-              "reducerPartitionEnd successful for {}. actual CommitMetadata: {}",
-              key,
-              aggregatedActualCommitMetadata);
-        }
-        integrityChecked = true;
-      } catch (IOException e) {
-        throw new RuntimeException(e);
+      if (readSkewPartitionWithoutMapRange) {
+        shuffleClient.reducerPartitionEnd(
+            shuffleId,
+            partitionId,
+            numberOfSubPartitions,
+            currentIndexOfSubPartition,
+            aggregatedActualCommitMetadata.getChecksum(),
+            aggregatedActualCommitMetadata.getBytes());
+        logger.info(
+            "reducerPartitionEnd successful for {}. actual CommitMetadata: {}",
+            key,
+            aggregatedActualCommitMetadata);
+      } else {
+        shuffleClient.reducerPartitionEnd(
+            shuffleId,
+            partitionId,
+            startMapIndex,
+            endMapIndex,
+            aggregatedActualCommitMetadata.getChecksum(),
+            aggregatedActualCommitMetadata.getBytes());
+        logger.info(
+            "reducerPartitionEnd successful for {}. actual CommitMetadata: {}",
+            key,
+            aggregatedActualCommitMetadata);
       }
+      integrityChecked = true;
     }
 
     private boolean moveToNextChunk() throws IOException {
