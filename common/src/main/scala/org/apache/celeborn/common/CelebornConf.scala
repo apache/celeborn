@@ -1193,8 +1193,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def s3EndpointRegion: String = get(S3_ENDPOINT_REGION).getOrElse("")
 
   def s3MultiplePartUploadMaxRetries: Int = get(S3_MPU_MAX_RETRIES)
-  def s3MultiplePartUploadBaseDelay: Int = get(S3_MPU_BASE_DELAY)
-  def s3MultiplePartUploadMaxBackoff: Int = get(S3_MPU_MAX_BACKOFF)
+  def s3MultiplePartUploadBaseDelay: Int = get(S3_MPU_BASE_DELAY).toInt
+  def s3MultiplePartUploadMaxBackoff: Int = get(S3_MPU_MAX_BACKOFF).toInt
 
   def s3Dir: String = {
     get(S3_DIR).map {
@@ -3189,21 +3189,21 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(5)
 
-  val S3_MPU_BASE_DELAY: ConfigEntry[Int] =
+  val S3_MPU_BASE_DELAY: ConfigEntry[Long] =
     buildConf("celeborn.storage.s3.mpu.baseDelay")
       .categories("worker")
       .version("0.6.0")
       .doc("S3 MPU base sleep time (milliseconds) for retryable exceptions.")
-      .intConf
-      .createWithDefault(100)
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("100ms")
 
-  val S3_MPU_MAX_BACKOFF: ConfigEntry[Int] =
+  val S3_MPU_MAX_BACKOFF: ConfigEntry[Long] =
     buildConf("celeborn.storage.s3.mpu.maxBackoff")
       .categories("worker")
       .version("0.6.0")
       .doc("S3 MPU max sleep time (milliseconds) for retryable exceptions.")
-      .intConf
-      .createWithDefault(20000)
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("20s")
 
   val OSS_ENDPOINT: OptionalConfigEntry[String] =
     buildConf("celeborn.storage.oss.endpoint")
