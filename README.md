@@ -417,7 +417,7 @@ Meanwhile, configure the following settings in YARN and MapReduce config.
 Meanwhile, `MRAppMasterWithCeleborn` disables `yarn.app.mapreduce.am.job.recovery.enable` and sets `mapreduce.job.reduce.slowstart.completedmaps` to 1 by default.
 
 
-### Deploy Tez client
+### Deploy Tez client(Experimental)
 Copy `$CELEBORN_HOME/tez/*.jar` into `mapreduce.application.classpath` and `yarn.application.classpath`.
 Meanwhile, configure the following settings in hive-site config and append `org.apache.tez.dag.app.CelebornDagAppMaster` to your `tez.am.launch.cmd-opts` in the `tez-site.xml`  
 ```properties

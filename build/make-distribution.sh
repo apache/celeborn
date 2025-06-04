@@ -358,7 +358,7 @@ if [ "$SBT_ENABLED" == "true" ]; then
     sbt_build_client -Pflink-2.0
     export JAVA_HOME=$JAVA8_HOME
     sbt_build_client -Pmr
-    sbt_build_client -Ptez
+#    sbt_build_client -Ptez
   else
     echo "build client with $@"
     ENGINE_COUNT=0
