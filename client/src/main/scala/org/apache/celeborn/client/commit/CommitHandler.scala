@@ -426,6 +426,9 @@ abstract class CommitHandler(
     }
   }
 
+  /*
+  Invoked when a reduce partition finishes reading data to perform end to end integrity check validation
+   */
   def finishPartition(
       shuffleId: Int,
       partitionId: Int,
