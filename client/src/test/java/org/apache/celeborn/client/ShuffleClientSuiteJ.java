@@ -511,9 +511,8 @@ public class ShuffleClientSuiteJ {
 
     try {
       shuffleClient.updateFileGroup(0, 0);
-      fail("Expected CelebornIOException to be thrown");
     } catch (CelebornIOException e) {
-      assertNull(e.getCause());
+      fail("Not expecting CelebornIOException to be thrown");
     }
 
     when(endpointRef.askSync(any(), any(), any()))
