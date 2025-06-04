@@ -7055,8 +7055,7 @@
                     "value": 80
                   }
                 ]
-              },
-              "unit": "ms"
+              }
             },
             "overrides": []
           },
@@ -7085,7 +7084,7 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_CommitFilesFailCount_Count{instance=~\"${instance}\"}",
+              "expr": "metrics_CommitFilesFailCount_Count{role=\"Worker\", instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
