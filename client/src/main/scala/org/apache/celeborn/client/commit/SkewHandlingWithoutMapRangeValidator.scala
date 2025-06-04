@@ -47,8 +47,11 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
       }
       if (bitmap.contains(endMapIndex)) {
         // check if previous entry matches
-        if (subPartitionToCommiMetadata.get(endMapIndex) != actualCommitMetadata) {
-          (false, "")
+        val existingCommitMetadata = subPartitionToCommiMetadata.get(endMapIndex)
+        if (existingCommitMetadata != actualCommitMetadata) {
+          return (
+            false,
+            s"Mismatch in metadata for the same chunk range on retry: $endMapIndex existing: $existingCommitMetadata new: $actualCommitMetadata")
         }
       } else {
         bitmap.add(endMapIndex)
