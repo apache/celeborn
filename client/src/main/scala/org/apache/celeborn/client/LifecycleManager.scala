@@ -541,13 +541,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       startMapIndex,
       endMapIndex,
       new CommitMetadata(crc32, bytesWritten))
-    var response: PbReducerPartitionEndResponse = null
+    var response: PbReadReducerPartitionEndResponse = null
     if (isValid) {
       response =
-        PbReducerPartitionEndResponse.newBuilder().setStatus(StatusCode.SUCCESS.getValue).build()
+        PbReadReducerPartitionEndResponse.newBuilder().setStatus(
+          StatusCode.SUCCESS.getValue).build()
     } else {
-      response = PbReducerPartitionEndResponse.newBuilder().setStatus(
-        +StatusCode.REDUCE_PARTITION_END_FAILED.getValue).setErrorMsg(errorMessage).build()
+      response = PbReadReducerPartitionEndResponse.newBuilder().setStatus(
+        +StatusCode.READ_REDUCER_PARTITION_END_FAILED.getValue).setErrorMsg(errorMessage).build()
     }
     context.reply(response)
   }
