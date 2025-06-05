@@ -106,14 +106,21 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
             partitionId,
             actualCommitMetadata,
             new java.util.function.BiFunction[CommitMetadata, CommitMetadata, CommitMetadata] {
-              override def apply(t: CommitMetadata, u: CommitMetadata): CommitMetadata = {
-                if (t == null) {
-                  return u
+              override def apply(
+                  existing: CommitMetadata,
+                  incoming: CommitMetadata): CommitMetadata = {
+                if (existing == null) {
+                  if (incoming != null) {
+                    return new CommitMetadata(incoming.getChecksum, incoming.getBytes)
+                  } else {
+                    return incoming
+                  }
                 }
-                if (u == null) {
-                  return t
+                if (incoming == null) {
+                  return existing
                 }
-                CommitMetadata.combineMetadata(t, u)
+                existing.addCommitData(incoming)
+                existing
               }
             })
           currentTotalMapIdCountForReducer.merge(

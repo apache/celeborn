@@ -5484,10 +5484,10 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.shuffle.integrityCheck.enabled")
+    buildConf("celeborn.client.spark.shuffle.integrityCheck.enabled")
       .categories("client", "shuffle")
       .version("0.6.0")
-      .doc("When `true`, enables end-to-end integrity checks.")
+      .doc("When `true`, enables end-to-end integrity checks for Spark workloads.")
       .booleanConf
       .createWithDefault(false)
 
