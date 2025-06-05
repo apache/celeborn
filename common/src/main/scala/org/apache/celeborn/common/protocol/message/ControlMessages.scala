@@ -623,10 +623,10 @@ object ControlMessages extends Logging {
       new TransportMessage(MessageType.REVISE_LOST_SHUFFLES_RESPONSE, pb.toByteArray)
 
     case pb: PbReadReducerPartitionEnd =>
-      new TransportMessage(MessageType.REDUCER_PARTITION_END, pb.toByteArray)
+      new TransportMessage(MessageType.READ_REDUCER_PARTITION_END, pb.toByteArray)
 
     case pb: PbReadReducerPartitionEndResponse =>
-      new TransportMessage(MessageType.REDUCER_PARTITION_END_RESPONSE, pb.toByteArray)
+      new TransportMessage(MessageType.READ_REDUCER_PARTITION_END_RESPONSE, pb.toByteArray)
 
     case pb: PbReportBarrierStageAttemptFailure =>
       new TransportMessage(MessageType.REPORT_BARRIER_STAGE_ATTEMPT_FAILURE, pb.toByteArray)
@@ -1234,7 +1234,7 @@ object ControlMessages extends Logging {
           crc32Array,
           bytesWrittenPerPartitionArray)
 
-      case REDUCER_PARTITION_END_VALUE =>
+      case READ_REDUCER_PARTITION_END_VALUE =>
         val pbReadReducerPartitionEnd = PbReadReducerPartitionEnd.parseFrom(message.getPayload)
         ReadReducerPartitionEnd(
           pbReadReducerPartitionEnd.getShuffleId,
