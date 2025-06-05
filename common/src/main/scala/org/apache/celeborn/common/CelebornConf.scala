@@ -4990,6 +4990,14 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
+  val CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.shuffle.integrityCheck.enabled")
+      .categories("client", "shuffle")
+      .version("0.6.0")
+      .doc("When `true`, enables end-to-end integrity checks for Spark workloads.")
+      .booleanConf
+      .createWithDefault(false)
+
   val CLIENT_SHUFFLE_MANAGER_PORT: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.manager.port")
       .withAlternative("celeborn.shuffle.manager.port")
@@ -5498,14 +5506,6 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.6.0")
       .doc("Whether to add UUID suffix for application id for unique. When `true`, add UUID suffix for unique application id. Currently, this only applies to Spark and MR.")
-      .booleanConf
-      .createWithDefault(false)
-
-  val CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.spark.shuffle.integrityCheck.enabled")
-      .categories("client", "shuffle")
-      .version("0.6.0")
-      .doc("When `true`, enables end-to-end integrity checks for Spark workloads.")
       .booleanConf
       .createWithDefault(false)
 
