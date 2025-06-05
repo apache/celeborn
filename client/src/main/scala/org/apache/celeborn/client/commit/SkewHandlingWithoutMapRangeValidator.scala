@@ -26,7 +26,7 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
 
   private val totalSubPartitionsProcessed = JavaUtils.newConcurrentHashMap[Int, RoaringBitmap]()
   private val partitionToSubPartitionCount = JavaUtils.newConcurrentHashMap[Int, Int]()
-  private val subPartitionToCommiMetadata = JavaUtils.newConcurrentHashMap[Int, CommitMetadata]()
+  private val subPartitionToCommitMetadata = JavaUtils.newConcurrentHashMap[Int, CommitMetadata]()
   private val currentCommitMetadataForReducer =
     JavaUtils.newConcurrentHashMap[Int, CommitMetadata]()
 
@@ -47,7 +47,7 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
       }
       if (bitmap.contains(endMapIndex)) {
         // check if previous entry matches
-        val existingCommitMetadata = subPartitionToCommiMetadata.get(endMapIndex)
+        val existingCommitMetadata = subPartitionToCommitMetadata.get(endMapIndex)
         if (existingCommitMetadata != actualCommitMetadata) {
           return (
             false,
@@ -55,7 +55,7 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
         }
       } else {
         bitmap.add(endMapIndex)
-        subPartitionToCommiMetadata.put(endMapIndex, actualCommitMetadata)
+        subPartitionToCommitMetadata.put(endMapIndex, actualCommitMetadata)
       }
     }
     if (!currentCommitMetadataForReducer.containsKey(partitionId)) {

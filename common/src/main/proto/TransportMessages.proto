@@ -925,7 +925,7 @@ message PbChunkOffsets {
   repeated int64 chunkOffset = 1;
 }
 
-message PbReducerPartitionEnd {
+message PbReadReducerPartitionEnd {
   int32 shuffleId = 1;
   int32 partitionId = 2;
   int32 startMaxIndex = 3;
@@ -934,7 +934,7 @@ message PbReducerPartitionEnd {
   int64 bytesWritten = 6;
 }
 
-message PbReducerPartitionEndResponse {
+message PbReadReducerPartitionEndResponse {
   int32 status = 1;
   string errorMsg = 2;
 }

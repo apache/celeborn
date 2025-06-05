@@ -208,7 +208,7 @@ public abstract class ShuffleClient {
       int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
       throws IOException;
 
-  public abstract void reducerPartitionEnd(
+  public abstract void readReducerPartitionEnd(
       int shuffleId, int partitionId, int startMapIndex, int endMapIndex, int crc32, long bytes)
       throws IOException;
 

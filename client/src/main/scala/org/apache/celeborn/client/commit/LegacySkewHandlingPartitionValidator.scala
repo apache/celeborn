@@ -35,7 +35,7 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
   private val partitionToSubPartitionCount = JavaUtils.newConcurrentHashMap[Int, Int]()
   private val currentCommitMetadataForReducer =
     JavaUtils.newConcurrentHashMap[Int, CommitMetadata]()
-  private val currentTotalMapRangeSumForReducer = JavaUtils.newConcurrentHashMap[Int, Int]()
+  private val currentTotalMapIdCountForReducer = JavaUtils.newConcurrentHashMap[Int, Int]()
   private val comparator: java.util.Comparator[(Int, Int)] = new Comparator[(Int, Int)] {
     override def compare(o1: (Int, Int), o2: (Int, Int)): Int = {
       val comparator = Integer.compare(o1._1, o2._1)
@@ -116,7 +116,7 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
                 CommitMetadata.combineMetadata(t, u)
               }
             })
-          currentTotalMapRangeSumForReducer.merge(
+          currentTotalMapIdCountForReducer.merge(
             partitionId,
             endMapIndex - startMapIndex,
             new BiFunction[Int, Int, Int] {
@@ -131,14 +131,14 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
         logError(errorMessage)
         return (false, errorMessage)
       }
-      if (!currentTotalMapRangeSumForReducer.containsKey(partitionId)) {
+      if (!currentTotalMapIdCountForReducer.containsKey(partitionId)) {
         checkState(!currentCommitMetadataForReducer.containsKey(
           partitionId,
           "mapper total count missing while processing partitionId %s startMapIndex %s endMapIndex %s",
           partitionId,
           startMapIndex,
           endMapIndex))
-        currentTotalMapRangeSumForReducer.put(partitionId, 0)
+        currentTotalMapIdCountForReducer.put(partitionId, 0)
         currentCommitMetadataForReducer.put(partitionId, new CommitMetadata())
       }
       checkState(
@@ -147,14 +147,14 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
         partitionId,
         startMapIndex,
         endMapIndex)
-      val sumOfMapRanges: Int = currentTotalMapRangeSumForReducer.get(partitionId)
+      val sumOfMapRanges: Int = currentTotalMapIdCountForReducer.get(partitionId)
       val currentCommitMetadata: CommitMetadata =
         currentCommitMetadataForReducer.get(partitionId)
 
       if (sumOfMapRanges > expectedTotalMapperCount) {
         val errorMsg = s"AQE Partition $partitionId failed validation check " +
           s"while processing startMapIndex: $startMapIndex endMapIndex: $endMapIndex " +
-          s"ActualCommitMatadata $currentCommitMetadata > ExpectedTotalMapperCount $expectedTotalMapperCount"
+          s"ActualCommitMetadata $currentCommitMetadata > ExpectedTotalMapperCount $expectedTotalMapperCount"
         logError(errorMsg)
         return (false, errorMsg)
       }
@@ -167,7 +167,7 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
   }
 
   override def isPartitionComplete(partitionId: Int): Boolean = {
-    val sumOfMapRanges: Int = currentTotalMapRangeSumForReducer.get(partitionId)
+    val sumOfMapRanges: Int = currentTotalMapIdCountForReducer.get(partitionId)
     sumOfMapRanges == partitionToSubPartitionCount.get(partitionId)
   }
 }

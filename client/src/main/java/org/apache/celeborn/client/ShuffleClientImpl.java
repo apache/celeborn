@@ -648,7 +648,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public void reducerPartitionEnd(
+  public void readReducerPartitionEnd(
       int shuffleId,
       int partitionId,
       int startMapIndex,
@@ -656,8 +656,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       int crc32,
       long bytesWritten)
       throws IOException {
-    PbReducerPartitionEnd pbReducerPartitionEnd =
-        PbReducerPartitionEnd.newBuilder()
+    PbReadReducerPartitionEnd pbReadReducerPartitionEnd =
+        PbReadReducerPartitionEnd.newBuilder()
             .setShuffleId(shuffleId)
             .setPartitionId(partitionId)
             .setStartMaxIndex(startMapIndex)
@@ -666,11 +666,11 @@ public class ShuffleClientImpl extends ShuffleClient {
             .setBytesWritten(bytesWritten)
             .build();
 
-    PbReducerPartitionEndResponse pbReducerPartitionEndResponse =
+    PbReadReducerPartitionEndResponse pbReducerPartitionEndResponse =
         lifecycleManagerRef.askSync(
-            pbReducerPartitionEnd,
+            pbReadReducerPartitionEnd,
             conf.clientRpcRegisterShuffleAskTimeout(),
-            ClassTag$.MODULE$.apply(PbReducerPartitionEndResponse.class));
+            ClassTag$.MODULE$.apply(PbReadReducerPartitionEndResponse.class));
     if (pbReducerPartitionEndResponse.getStatus() != StatusCode.SUCCESS.getValue()) {
       throw new CelebornIOException(pbReducerPartitionEndResponse.getErrorMsg());
     }

@@ -622,10 +622,10 @@ object ControlMessages extends Logging {
     case pb: PbReviseLostShufflesResponse =>
       new TransportMessage(MessageType.REVISE_LOST_SHUFFLES_RESPONSE, pb.toByteArray)
 
-    case pb: PbReducerPartitionEnd =>
+    case pb: PbReadReducerPartitionEnd =>
       new TransportMessage(MessageType.REDUCER_PARTITION_END, pb.toByteArray)
 
-    case pb: PbReducerPartitionEndResponse =>
+    case pb: PbReadReducerPartitionEndResponse =>
       new TransportMessage(MessageType.REDUCER_PARTITION_END_RESPONSE, pb.toByteArray)
 
     case pb: PbReportBarrierStageAttemptFailure =>
@@ -1235,17 +1235,17 @@ object ControlMessages extends Logging {
           bytesWrittenPerPartitionArray)
 
       case REDUCER_PARTITION_END_VALUE =>
-        val pbReducerPartitionEnd = PbReducerPartitionEnd.parseFrom(message.getPayload)
+        val pbReadReducerPartitionEnd = PbReadReducerPartitionEnd.parseFrom(message.getPayload)
         ReducerPartitionEnd(
-          pbReducerPartitionEnd.getShuffleId,
-          pbReducerPartitionEnd.getPartitionId,
-          pbReducerPartitionEnd.getStartMaxIndex,
-          pbReducerPartitionEnd.getEndMapIndex,
-          pbReducerPartitionEnd.getCrc32,
-          pbReducerPartitionEnd.getBytesWritten)
+          pbReadReducerPartitionEnd.getShuffleId,
+          pbReadReducerPartitionEnd.getPartitionId,
+          pbReadReducerPartitionEnd.getStartMaxIndex,
+          pbReadReducerPartitionEnd.getEndMapIndex,
+          pbReadReducerPartitionEnd.getCrc32,
+          pbReadReducerPartitionEnd.getBytesWritten)
 
-      case REDUCER_PARTITION_END_RESPONSE_VALUE =>
-        PbReducerPartitionEndResponse.parseFrom(message.getPayload)
+      case READ_REDUCER_PARTITION_END_RESPONSE_VALUE =>
+        PbReadReducerPartitionEndResponse.parseFrom(message.getPayload)
 
       case MAPPER_END_RESPONSE_VALUE =>
         val pbMapperEndResponse = PbMapperEndResponse.parseFrom(message.getPayload)
