@@ -942,7 +942,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED)
   def clientMrMaxPushData: Long = get(CLIENT_MR_PUSH_DATA_MAX)
   def clientApplicationUUIDSuffixEnabled: Boolean = get(CLIENT_APPLICATION_UUID_SUFFIX_ENABLED)
-  def clientShuffleIntegrityCheckEnabled: Boolean = get(CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED)
+  def clientShuffleIntegrityCheckEnabled: Boolean = get(CLIENT_SPARK_SHUFFLE_INTEGRITY_CHECK_ENABLED)
 
   def appUniqueIdWithUUIDSuffix(appId: String): String = {
     if (clientApplicationUUIDSuffixEnabled) {
@@ -4990,14 +4990,6 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("60s")
 
-  val CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.spark.shuffle.integrityCheck.enabled")
-      .categories("client", "shuffle")
-      .version("0.6.0")
-      .doc("When `true`, enables end-to-end integrity checks for Spark workloads.")
-      .booleanConf
-      .createWithDefault(false)
-
   val CLIENT_SHUFFLE_MANAGER_PORT: ConfigEntry[Int] =
     buildConf("celeborn.client.shuffle.manager.port")
       .withAlternative("celeborn.shuffle.manager.port")
@@ -5364,6 +5356,14 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("512k")
+
+  val CLIENT_SPARK_SHUFFLE_INTEGRITY_CHECK_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.shuffle.integrityCheck.enabled")
+      .categories("client", "shuffle")
+      .version("0.6.0")
+      .doc("When `true`, enables end-to-end integrity checks for Spark workloads.")
+      .booleanConf
+      .createWithDefault(false)
 
   val SPARK_SHUFFLE_WRITER_MODE: ConfigEntry[String] =
     buildConf("celeborn.client.spark.shuffle.writer")
