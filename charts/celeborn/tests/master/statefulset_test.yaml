@@ -22,8 +22,17 @@ templates:
 
 release:
   name: celeborn
+  namespace: celeborn
 
 tests:
+  - it: Should create master statefulset
+    asserts:
+      - containsDocument:
+          apiVersion: apps/v1
+          kind: StatefulSet
+          name: celeborn-master
+          namespace: celeborn
+
   - it: Should add extra pod annotations if `master.annotations` is specified
     set:
       master:

@@ -22,9 +22,10 @@ templates:
 
 release:
   name: celeborn
+  namespace: celeborn
 
 tests:
-  - it: Should not create a RoleBinding resource when rbac.create is false
+  - it: Should not create a RoleBinding resource when `rbac.create` is false
     set:
       rbac:
         create: false
@@ -32,7 +33,7 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: Should create a RoleBinding resource when rbac.create is true
+  - it: Should create a RoleBinding resource when `rbac.create` is true
     set:
       rbac:
         create: true
@@ -40,12 +41,5 @@ tests:
       - containsDocument:
           apiVersion: rbac.authorization.k8s.io/v1
           kind: RoleBinding
-          metadata:
-            name: celeborn-rolebinding
-          subjects:
-            - kind: ServiceAccount
-              name: default
-          roleRef:
-            apiGroup: rbac.authorization.k8s.io
-            kind: Role
-            name: celeborn-role
+          name: default
+          namespace: celeborn

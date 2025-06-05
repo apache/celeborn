@@ -18,7 +18,8 @@ limitations under the License.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "celeborn.configMapName" . }}
+  name: {{ include "celeborn.configMap.name" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "celeborn.labels" . | nindent 4 }}
 data:
