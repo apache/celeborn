@@ -460,7 +460,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           throw new UnsupportedOperationException(s"Not support $partitionType yet")
       }
 
-    case pb: ReducerPartitionEnd =>
+    case pb: ReadReducerPartitionEnd =>
       val partitionType = getPartitionType(pb.shuffleId)
       partitionType match {
         case PartitionType.REDUCE =>

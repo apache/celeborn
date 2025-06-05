@@ -282,7 +282,7 @@ object ControlMessages extends Logging {
       bytesWrittenPerPartition: Array[Long])
     extends MasterMessage
 
-  case class ReducerPartitionEnd(
+  case class ReadReducerPartitionEnd(
       shuffleId: Int,
       partitionId: Int,
       startMapIndex: Int,
@@ -293,7 +293,7 @@ object ControlMessages extends Logging {
 
   case class MapperEndResponse(status: StatusCode) extends MasterMessage
 
-  case class ReducerPartitionEndResponse(status: StatusCode) extends MasterMessage
+  case class ReadReducerPartitionEndResponse(status: StatusCode) extends MasterMessage
 
   case class GetReducerFileGroup(
       shuffleId: Int,
@@ -1236,7 +1236,7 @@ object ControlMessages extends Logging {
 
       case REDUCER_PARTITION_END_VALUE =>
         val pbReadReducerPartitionEnd = PbReadReducerPartitionEnd.parseFrom(message.getPayload)
-        ReducerPartitionEnd(
+        ReadReducerPartitionEnd(
           pbReadReducerPartitionEnd.getShuffleId,
           pbReadReducerPartitionEnd.getPartitionId,
           pbReadReducerPartitionEnd.getStartMaxIndex,
