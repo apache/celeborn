@@ -745,8 +745,6 @@ public abstract class CelebornInputStream extends InputStream {
         return;
       }
 
-      String key = Utils.makeReducerKey(shuffleId, partitionId);
-
       if (readSkewPartitionWithoutMapRange) {
         shuffleClient.reducerPartitionEnd(
             shuffleId,
@@ -755,10 +753,6 @@ public abstract class CelebornInputStream extends InputStream {
             currentIndexOfSubPartition,
             aggregatedActualCommitMetadata.getChecksum(),
             aggregatedActualCommitMetadata.getBytes());
-        logger.info(
-            "reducerPartitionEnd successful for {}. actual CommitMetadata: {}",
-            key,
-            aggregatedActualCommitMetadata);
       } else {
         shuffleClient.reducerPartitionEnd(
             shuffleId,
@@ -767,11 +761,12 @@ public abstract class CelebornInputStream extends InputStream {
             endMapIndex,
             aggregatedActualCommitMetadata.getChecksum(),
             aggregatedActualCommitMetadata.getBytes());
-        logger.info(
-            "reducerPartitionEnd successful for {}. actual CommitMetadata: {}",
-            key,
-            aggregatedActualCommitMetadata);
       }
+      logger.info(
+          "reducerPartitionEnd successful for shuffleId{}, partitionId{}. actual CommitMetadata: {}",
+          shuffleId,
+          partitionId,
+          aggregatedActualCommitMetadata);
       integrityChecked = true;
     }
 
