@@ -78,15 +78,15 @@ The basic usage of commands for master and worker service can also get with the 
 
 ```shell
 $ celeborn-cli master -h
-Usage: celeborn-cli master [-hV] [--apps=appId] [--cluster=cluster_alias]
-                           [--config-level=level] [--config-name=username]
-                           [--config-tenant=tenant_id] [--host-list=h1,h2,
-                           h3...] [--hostport=host:port] [--worker-ids=w1,w2,
-                           w3...] (--show-masters-info | --show-cluster-apps |
-                           --show-cluster-shuffles | --exclude-worker |
-                           --remove-excluded-worker |
-                           --send-worker-event=IMMEDIATELY | DECOMMISSION | 
-                           DECOMMISSION_THEN_IDLE | GRACEFUL | RECOMMISSION | 
+Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
+                           [--cluster=cluster_alias] [--config-level=level]
+                           [--config-name=username] [--config-tenant=tenant_id]
+                           [--host-list=h1,h2,h3...] [--hostport=host:port]
+                           [--worker-ids=w1,w2,w3...] (--show-masters-info |
+                           --show-cluster-apps | --show-cluster-shuffles |
+                           --exclude-worker | --remove-excluded-worker |
+                           --send-worker-event=IMMEDIATELY | DECOMMISSION |
+                           DECOMMISSION_THEN_IDLE | GRACEFUL | RECOMMISSION |
                            NONE | --show-worker-event-info |
                            --show-lost-workers | --show-excluded-workers |
                            --show-manual-excluded-workers |
@@ -98,17 +98,19 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--cluster=cluster_alias]
                            --show-container-info | --add-cluster-alias=alias |
                            --remove-cluster-alias=alias |
                            --remove-workers-unavailable-info |
-                           --revise-lost-shuffles | --delete-apps)
+                           --revise-lost-shuffles | --delete-apps |
+                           --update-interruption-notices=workerId1=timestamp,
+                           workerId2=timestamp,workerId3=timestamp)
                            [[--shuffleIds=<shuffleIds>]]
       --add-cluster-alias=alias
                              Add alias to use in the cli for the given set of
                                masters
+      --apps=appId           The application Id list seperated by comma.
       --auth-header=authHeader
                              The http `Authorization` header for
                                authentication. It should be in the format of
                                `Bearer <token>` or `Basic
                                <base64-encoded-credentials>`.
-      --apps=appId           The application Id list seperated by comma.
       --cluster=cluster_alias
                              The alias of the cluster to use to query masters
       --config-level=level   The config level of the dynamic configs
@@ -131,7 +133,7 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--cluster=cluster_alias]
                                master.
       --revise-lost-shuffles Revise lost shuffles or remove shuffles for an
                                application.
-      --send-worker-event=IMMEDIATELY | DECOMMISSION | DECOMMISSION_THEN_IDLE | 
+      --send-worker-event=IMMEDIATELY | DECOMMISSION | DECOMMISSION_THEN_IDLE |
         GRACEFUL | RECOMMISSION | NONE
                              Send an event to a worker
       --show-cluster-apps    Show cluster applications
@@ -160,7 +162,8 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--cluster=cluster_alias]
                              Show registered workers topology
       --shuffleIds=<shuffleIds>
                              The shuffle ids to manipulate.
-      --update-interruption-notices
+      --update-interruption-notices=workerId1=timestamp,workerId2=timestamp,
+        workerId3=timestamp
                              Update interruption notices of workers.
   -V, --version              Print version information and exit.
       --worker-ids=w1,w2,w3...
