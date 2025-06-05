@@ -119,7 +119,7 @@ public class DummyShuffleClient extends ShuffleClient {
       int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions) {}
 
   @Override
-  public void reducerPartitionEnd(
+  public void readReducerPartitionEnd(
       int shuffleId, int partitionId, int startMapIndex, int endMapIndex, int crc32, long bytes)
       throws IOException {}
 

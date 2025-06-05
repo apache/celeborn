@@ -746,7 +746,7 @@ public abstract class CelebornInputStream extends InputStream {
       }
 
       if (readSkewPartitionWithoutMapRange) {
-        shuffleClient.reducerPartitionEnd(
+        shuffleClient.readReducerPartitionEnd(
             shuffleId,
             partitionId,
             numberOfSubPartitions,
@@ -754,7 +754,7 @@ public abstract class CelebornInputStream extends InputStream {
             aggregatedActualCommitMetadata.getChecksum(),
             aggregatedActualCommitMetadata.getBytes());
       } else {
-        shuffleClient.reducerPartitionEnd(
+        shuffleClient.readReducerPartitionEnd(
             shuffleId,
             partitionId,
             startMapIndex,
