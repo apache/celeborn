@@ -116,7 +116,8 @@ class MasterSubcommandImpl extends Runnable with MasterSubcommand {
     workerApi.sendWorkerEvent(sendWorkerEventRequest, commonOptions.getAuthHeader)
   }
 
-  private[master] def runShowWorkerEventInfo: WorkerEventsResponse = workerApi.getWorkerEvents
+  private[master] def runShowWorkerEventInfo: WorkerEventsResponse =
+    workerApi.getWorkerEvents(commonOptions.getAuthHeader)
 
   private[master] def runShowLostWorkers: Seq[WorkerTimestampData] = {
     val lostWorkers = runShowWorkers.getLostWorkers.asScala.toSeq

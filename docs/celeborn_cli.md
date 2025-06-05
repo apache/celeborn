@@ -176,12 +176,12 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
 
 ```shell
 $ celeborn-cli worker -h
-Usage: celeborn-cli worker [-hV] [--apps=appId] [--cluster=cluster_alias]
-                           [--config-level=level] [--config-name=username]
-                           [--config-tenant=tenant_id] [--host-list=h1,h2,
-                           h3...] [--hostport=host:port] [--worker-ids=w1,w2,
-                           w3...] (--show-worker-info | --show-apps-on-worker |
-                           --show-shuffles-on-worker |
+Usage: celeborn-cli worker [-hV] [--apps=appId] [--auth-header=authHeader]
+                           [--cluster=cluster_alias] [--config-level=level]
+                           [--config-name=username] [--config-tenant=tenant_id]
+                           [--host-list=h1,h2,h3...] [--hostport=host:port]
+                           [--worker-ids=w1,w2,w3...] (--show-worker-info |
+                           --show-apps-on-worker | --show-shuffles-on-worker |
                            --show-partition-location-info |
                            --show-unavailable-peers | --is-shutdown |
                            --is-decommissioning | --is-registered |
