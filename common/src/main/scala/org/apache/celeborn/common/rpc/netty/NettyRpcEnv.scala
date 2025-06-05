@@ -66,8 +66,8 @@ class NettyRpcEnv(
     new TransportContext(
       transportConf,
       new NettyRpcHandler(dispatcher, this),
-      false,
-      false,
+      transportConf.closeIdleConnections(),
+      transportConf.channelHeartbeatEnabled(),
       config.source.orNull)
 
   private def createClientBootstraps(): java.util.List[TransportClientBootstrap] = {
