@@ -576,6 +576,7 @@ private[celeborn] object RequestMessage {
 /**
  * A response that indicates some failure happens in the receiver side.
  */
+@SerialVersionUID(2793139166962436434L)
 private[celeborn] case class RpcFailure(e: Throwable)
 
 /**
