@@ -1280,23 +1280,22 @@ object Utils extends Logging {
     s"$shuffleKey-$clientChannelId-$rpcRequestId"
   }
 
+  private def waitOrThrow(e: Throwable, retriesLeft: Int, retryWait: Long): Unit = {
+    if (retriesLeft > 0) {
+      val retryWaitMs = new Random().nextInt(retryWait.toInt)
+      try {
+        TimeUnit.MILLISECONDS.sleep(retryWaitMs)
+      } catch {
+        case _: InterruptedException =>
+          throw e
+      }
+    } else {
+      throw e
+    }
+  }
+
   def withRetryOnTimeoutOrIOException[T](numRetries: Int, retryWait: Long)(block: => T): T = {
     var retriesLeft = numRetries
-
-    def waitOrThrow(e: Throwable, retriesLeft: Int, retryWait: Long): Unit = {
-      if (retriesLeft > 0) {
-        val retryWaitMs = new Random().nextInt(retryWait.toInt)
-        try {
-          TimeUnit.MILLISECONDS.sleep(retryWaitMs)
-        } catch {
-          case _: InterruptedException =>
-            throw e
-        }
-      } else {
-        throw e
-      }
-    }
-
     while (retriesLeft >= 0) {
       retriesLeft -= 1
       try {
