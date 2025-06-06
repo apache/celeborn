@@ -20,7 +20,6 @@ package org.apache.celeborn.service.deploy.worker.storage.memory;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
@@ -31,7 +30,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import scala.Function0;
-import scala.Tuple4;
 
 import io.netty.buffer.*;
 import org.junit.BeforeClass;
@@ -43,7 +41,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.*;
-import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
@@ -81,52 +78,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
   private static final TransportConf transConf = new TransportConf("shuffle", new CelebornConf());
   private static StorageManager storageManager;
   private static StoragePolicy storagePolicy;
-
-  private StorageManager prepareMemoryFileTestEnvironment(
-      UserIdentifier userIdentifier,
-      boolean reduceMeta,
-      StorageManager storageManager,
-      StoragePolicy storagePolicy,
-      CelebornConf celebornConf,
-      AbstractSource source,
-      PartitionDataWriterContext writerContext) {
-    ReduceFileMeta reduceFileMeta = new ReduceFileMeta(celebornConf.shuffleChunkSize());
-    MemoryFileInfo memoryFileInfo = new MemoryFileInfo(userIdentifier, false, reduceFileMeta);
-    if (!reduceMeta) {
-      memoryFileInfo.replaceFileMeta(new MapFileMeta(32 * 1024, 10));
-    }
-
-    Mockito.doAnswer(
-            invocation ->
-                new Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File>(
-                    memoryFileInfo, null, null, null))
-        .when(storageManager)
-        .createFile(Mockito.any(), Mockito.anyBoolean());
-
-    Mockito.doAnswer(invocation -> storagePolicy).when(storageManager).storagePolicy();
-
-    AtomicInteger numPendingWriters = new AtomicInteger();
-    FlushNotifier flushNotifier = new FlushNotifier();
-
-    Mockito.doAnswer(
-            invocation ->
-                new MemoryTierWriter(
-                    celebornConf,
-                    new ReducePartitionMetaHandler(
-                        celebornConf.shuffleRangeReadFilterEnabled(), memoryFileInfo),
-                    numPendingWriters,
-                    flushNotifier,
-                    source,
-                    memoryFileInfo,
-                    StorageInfo.Type.MEMORY,
-                    writerContext,
-                    storageManager))
-        .when(storagePolicy)
-        .createFileWriter(
-            Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
-
-    return storageManager;
-  }
 
   @BeforeClass
   public static void beforeAll() {
@@ -620,8 +571,8 @@ public class MemoryReducePartitionDataWriterSuiteJ {
 
     closeChunkServer();
 
-    assert storageManager.evictedFileCount().get() > 0;
-    assert MemoryManager.instance().getMemoryFileStorageCounter() == memoryFileStorageBefore;
+    assertTrue(storageManager.evictedFileCount().get() > 0);
+    assertEquals(MemoryManager.instance().getMemoryFileStorageCounter(), memoryFileStorageBefore);
   }
 
   @Test
