@@ -1300,7 +1300,8 @@ object Utils extends Logging {
     while (retriesLeft >= 0) {
       retriesLeft -= 1
       try {
-        return block
+        val output = block
+        return output
       } catch {
         case e @ (_: RpcTimeoutException | _: IOException) =>
           waitOrThrow(e)
