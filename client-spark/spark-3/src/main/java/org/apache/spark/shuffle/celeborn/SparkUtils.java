@@ -407,6 +407,9 @@ public class SparkUtils {
     reportedStageShuffleFetchFailureTaskIds.remove(stageId + "-" + stageAttemptId);
   }
 
+  // For testing only.
+  protected static volatile Long lastReportedShuffleFetchFailureTaskId = null;
+
   /**
    * Only used to check for the shuffle fetch failure task whether another attempt is running or
    * successful. If another attempt(excluding the reported shuffle fetch failure tasks in current
@@ -430,6 +433,7 @@ public class SparkUtils {
             reportedStageShuffleFetchFailureTaskIds.computeIfAbsent(
                 stageUniqId, k -> new HashSet<>());
         reportedStageTaskIds.add(taskId);
+        lastReportedShuffleFetchFailureTaskId = taskId;
 
         Tuple2<TaskInfo, List<TaskInfo>> taskAttempts = getTaskAttempts(taskSetManager, taskId);
 
