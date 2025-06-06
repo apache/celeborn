@@ -31,7 +31,6 @@ import java.util.function.Supplier;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.*;
@@ -159,6 +158,10 @@ public class TransportClientFactory implements Closeable {
       try {
         return createClient(remoteHost, remotePort, partitionId, supplier.get());
       } catch (Exception e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+          throw e;
+        }
         numTries++;
         logger.warn(
             "Retry create client, times {}/{} with error: {}",
@@ -166,15 +169,11 @@ public class TransportClientFactory implements Closeable {
             maxClientConnectRetries,
             e.getMessage(),
             e);
-        if (e instanceof InterruptedException) {
-          Thread.currentThread().interrupt();
-        }
         if (numTries == maxClientConnectRetries) {
           throw e;
         }
 
-        Uninterruptibles.sleepUninterruptibly(
-            maxClientConnectRetryWaitTimeMs, TimeUnit.MILLISECONDS);
+        Thread.sleep(maxClientConnectRetryWaitTimeMs);
       }
     }
 
