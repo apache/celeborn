@@ -1302,7 +1302,7 @@ object Utils extends Logging {
       try {
         return block
       } catch {
-        case e: RpcTimeoutException =>
+        case e @ (_: RpcTimeoutException | _: IOException) =>
           waitOrThrow(e)
         case e: CelebornIOException if e.getCause != null && e.isInstanceOf[IOException] =>
           waitOrThrow(e)
