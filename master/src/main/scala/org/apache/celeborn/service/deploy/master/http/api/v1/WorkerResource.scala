@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import javax.ws.rs.{BadRequestException, Consumes, GET, Path, POST, Produces}
+import javax.ws.rs.{BadRequestException, Consumes, GET, Path, POST, Produces, PUT}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
@@ -151,6 +151,23 @@ class WorkerResource extends ApiRequestContext {
         }
       new HandleResponse().success(success).message(finalMsg)
     }
+
+  @PUT
+  @Path("/updateInterruptionNotice")
+  def updateInterruptionNotice(request: UpdateInterruptionNoticeRequest): HandleResponse = {
+    ensureMasterIsLeader(master) {
+      if (request.getWorkers.isEmpty) {
+        logWarning("Workers interruption notice list is empty.")
+      }
+      val interruptionNotices: Map[String, Long] =
+        request.getWorkers.asScala.map(worker =>
+          (
+            ApiUtils.toWorkerInfo(worker.getWorkerId).toUniqueId,
+            worker.getInterruptionTimestamp.toLong)).toMap
+      val (success, msg) = httpService.updateInterruptionNotice(interruptionNotices)
+      new HandleResponse().success(success).message(msg)
+    }
+  }
 
   @Operation(description = "List all worker topology info of the master.")
   @ApiResponse(

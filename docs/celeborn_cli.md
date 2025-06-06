@@ -85,8 +85,8 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
                            [--worker-ids=w1,w2,w3...] (--show-masters-info |
                            --show-cluster-apps | --show-cluster-shuffles |
                            --exclude-worker | --remove-excluded-worker |
-                           --send-worker-event=IMMEDIATELY | DECOMMISSION | 
-                           DECOMMISSION_THEN_IDLE | GRACEFUL | RECOMMISSION | 
+                           --send-worker-event=IMMEDIATELY | DECOMMISSION |
+                           DECOMMISSION_THEN_IDLE | GRACEFUL | RECOMMISSION |
                            NONE | --show-worker-event-info |
                            --show-lost-workers | --show-excluded-workers |
                            --show-manual-excluded-workers |
@@ -98,7 +98,9 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
                            --show-container-info | --add-cluster-alias=alias |
                            --remove-cluster-alias=alias |
                            --remove-workers-unavailable-info |
-                           --revise-lost-shuffles | --delete-apps)
+                           --revise-lost-shuffles | --delete-apps |
+                           --update-interruption-notices=workerId1=timestamp,
+                           workerId2=timestamp,workerId3=timestamp)
                            [[--shuffleIds=<shuffleIds>]]
       --add-cluster-alias=alias
                              Add alias to use in the cli for the given set of
@@ -131,7 +133,7 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
                                master.
       --revise-lost-shuffles Revise lost shuffles or remove shuffles for an
                                application.
-      --send-worker-event=IMMEDIATELY | DECOMMISSION | DECOMMISSION_THEN_IDLE | 
+      --send-worker-event=IMMEDIATELY | DECOMMISSION | DECOMMISSION_THEN_IDLE |
         GRACEFUL | RECOMMISSION | NONE
                              Send an event to a worker
       --show-cluster-apps    Show cluster applications
@@ -160,6 +162,9 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
                              Show registered workers topology
       --shuffleIds=<shuffleIds>
                              The shuffle ids to manipulate.
+      --update-interruption-notices=workerId1=timestamp,workerId2=timestamp,
+        workerId3=timestamp
+                             Update interruption notices of workers.
   -V, --version              Print version information and exit.
       --worker-ids=w1,w2,w3...
                              List of workerIds to pass to the command. Each

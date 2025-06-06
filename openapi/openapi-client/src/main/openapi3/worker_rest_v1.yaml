@@ -453,6 +453,13 @@ components:
         isDecommissioning:
           type: boolean
           description: The decommission status of the worker.
+        nextInterruptionNotice:
+          type: integer
+          format: int64
+          description: The next interruption notice of the worker.
+        networkLocation:
+          type: string
+          description: The network location of the worker.
       required:
         - host
         - rpcPort
@@ -552,6 +559,10 @@ components:
           type: integer
           format: int64
           description: The start time of the worker state.
+        nextInterruptionNotice:
+          type: integer
+          format: int64
+          description: The next interruption notice of the worker.
         networkLocation:
           type: string
           description: The network location of the worker.

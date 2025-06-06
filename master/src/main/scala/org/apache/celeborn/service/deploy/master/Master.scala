@@ -1301,6 +1301,26 @@ private[celeborn] class Master(
     }
   }
 
+  override def updateInterruptionNotice(workerInterruptionNotices: Map[String, Long])
+      : HandleResponse = {
+    try {
+      statusSystem.workersMap.values().asScala.foreach { workerInfo =>
+        workerInterruptionNotices.get(workerInfo.toUniqueId) match {
+          case Some(update) => workerInfo.nextInterruptionNotice = update
+          case None => workerInfo.nextInterruptionNotice = Long.MaxValue
+        }
+      }
+      true -> "updateInterruptionNotice successful."
+    } catch {
+      case e: Throwable =>
+        val errorMessage =
+          s"updateInterruptionNotice for ${workerInterruptionNotices.keys.mkString(",")}" +
+            s" failed, message: ${e.getMessage}"
+        logError(errorMessage, e)
+        false -> errorMessage
+    }
+  }
+
   override def getWorkerInfo: String = {
     val sb = new StringBuilder
     sb.append("====================== Workers Info in Master =========================\n")

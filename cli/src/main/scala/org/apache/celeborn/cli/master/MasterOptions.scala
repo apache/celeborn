@@ -120,4 +120,10 @@ final class MasterOptions {
     names = Array("--delete-apps"),
     description = Array("Delete resource of an application."))
   private[master] var deleteApps: Boolean = _
+
+  @Option(
+    names = Array("--update-interruption-notices"),
+    paramLabel = "workerId1=timestamp,workerId2=timestamp,workerId3=timestamp",
+    description = Array("Update interruption notices of workers."))
+  private[master] var updateInterruptionNotices: String = _
 }
