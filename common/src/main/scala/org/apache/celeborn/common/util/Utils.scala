@@ -1283,7 +1283,7 @@ object Utils extends Logging {
   def withRetryOnTimeoutOrIOException[T](numRetries: Int, retryWait: Long)(block: => T): T = {
     var retriesLeft = numRetries
 
-    def waitOrThrow(e: Throwable): Unit = {
+    def waitOrThrow(e: Throwable, retriesLeft: Int, retryWait: Long): Unit = {
       if (retriesLeft > 0) {
         val retryWaitMs = new Random().nextInt(retryWait.toInt)
         try {
@@ -1297,18 +1297,15 @@ object Utils extends Logging {
       }
     }
 
-    var lastError: Throwable = null
     while (retriesLeft >= 0) {
       retriesLeft -= 1
       try {
         return block
       } catch {
         case e @ (_: RpcTimeoutException | _: IOException) =>
-          lastError = e
-          waitOrThrow(e)
+          waitOrThrow(e, retriesLeft, retryWait)
         case e: CelebornIOException if e.getCause != null && e.isInstanceOf[IOException] =>
-          lastError = e
-          waitOrThrow(e)
+          waitOrThrow(e, retriesLeft, retryWait)
         case e: Exception =>
           throw e
       }
