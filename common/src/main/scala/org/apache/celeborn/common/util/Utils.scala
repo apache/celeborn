@@ -1297,15 +1297,17 @@ object Utils extends Logging {
       }
     }
 
+    var lastError: Throwable = null
     while (retriesLeft >= 0) {
       retriesLeft -= 1
       try {
-        val output = block
-        return output
+        return block
       } catch {
         case e @ (_: RpcTimeoutException | _: IOException) =>
+          lastError = e
           waitOrThrow(e)
         case e: CelebornIOException if e.getCause != null && e.isInstanceOf[IOException] =>
+          lastError = e
           waitOrThrow(e)
         case e: Exception =>
           throw e
