@@ -40,6 +40,7 @@ import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.compress.Decompressor;
 import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.CommitMetadata;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
@@ -101,7 +102,9 @@ public abstract class CelebornInputStream extends InputStream {
             partitionId,
             exceptionMaker,
             true,
-            metricsCallback);
+            metricsCallback,
+            startMapIndex,
+            endMapIndex);
       } else {
         return new CelebornInputStreamImpl(
             conf,
@@ -123,7 +126,9 @@ public abstract class CelebornInputStream extends InputStream {
             partitionId,
             exceptionMaker,
             false,
-            metricsCallback);
+            metricsCallback,
+            -1,
+            -1);
       }
     }
   }
@@ -165,6 +170,8 @@ public abstract class CelebornInputStream extends InputStream {
     private final CelebornConf conf;
     private final TransportClientFactory clientFactory;
     private final String shuffleKey;
+    private final int numberOfSubPartitions;
+    private final int currentIndexOfSubPartition;
     private ArrayList<PartitionLocation> locations;
     private ArrayList<PbStreamHandler> streamHandlers;
     private int[] attempts;
@@ -203,6 +210,7 @@ public abstract class CelebornInputStream extends InputStream {
     private final String localHostAddress;
 
     private boolean shuffleCompressionEnabled;
+    private boolean shuffleIntegrityCheckEnabled;
     private long fetchExcludedWorkerExpireTimeout;
     private ConcurrentHashMap<String, Long> fetchExcludedWorkers;
 
@@ -213,6 +221,8 @@ public abstract class CelebornInputStream extends InputStream {
     private int partitionId;
     private ExceptionMaker exceptionMaker;
     private boolean closed = false;
+    private boolean integrityChecked = false;
+    private final CommitMetadata aggregatedActualCommitMetadata = new CommitMetadata();
 
     private final boolean readSkewPartitionWithoutMapRange;
 
@@ -234,7 +244,9 @@ public abstract class CelebornInputStream extends InputStream {
         int partitionId,
         ExceptionMaker exceptionMaker,
         boolean splitSkewPartitionWithoutMapRange,
-        MetricsCallback metricsCallback)
+        MetricsCallback metricsCallback,
+        int numberOfSubPartitions,
+        int currentIndexOfSubPartition)
         throws IOException {
       this(
           conf,
@@ -256,7 +268,9 @@ public abstract class CelebornInputStream extends InputStream {
           partitionId,
           exceptionMaker,
           splitSkewPartitionWithoutMapRange,
-          metricsCallback);
+          metricsCallback,
+          numberOfSubPartitions,
+          currentIndexOfSubPartition);
     }
 
     CelebornInputStreamImpl(
@@ -279,7 +293,9 @@ public abstract class CelebornInputStream extends InputStream {
         int partitionId,
         ExceptionMaker exceptionMaker,
         boolean readSkewPartitionWithoutMapRange,
-        MetricsCallback metricsCallback)
+        MetricsCallback metricsCallback,
+        int numberOfSubPartitions,
+        int currentIndexOfSubPartition)
         throws IOException {
       this.conf = conf;
       this.clientFactory = clientFactory;
@@ -299,9 +315,12 @@ public abstract class CelebornInputStream extends InputStream {
       this.localHostAddress = Utils.localHostName(conf);
       this.shuffleCompressionEnabled =
           !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
+      this.shuffleIntegrityCheckEnabled = conf.clientShuffleIntegrityCheckEnabled();
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
       this.failedBatches = failedBatchSet;
       this.readSkewPartitionWithoutMapRange = readSkewPartitionWithoutMapRange;
+      this.numberOfSubPartitions = numberOfSubPartitions;
+      this.currentIndexOfSubPartition = currentIndexOfSubPartition;
       this.fetchExcludedWorkers = fetchExcludedWorkers;
 
       if (conf.clientPushReplicateEnabled()) {
@@ -715,6 +734,36 @@ public abstract class CelebornInputStream extends InputStream {
       }
     }
 
+    void validateIntegrity() throws IOException {
+      if (integrityChecked || !shuffleIntegrityCheckEnabled) {
+        return;
+      }
+
+      if (readSkewPartitionWithoutMapRange) {
+        shuffleClient.readReducerPartitionEnd(
+            shuffleId,
+            partitionId,
+            numberOfSubPartitions,
+            currentIndexOfSubPartition,
+            aggregatedActualCommitMetadata.getChecksum(),
+            aggregatedActualCommitMetadata.getBytes());
+      } else {
+        shuffleClient.readReducerPartitionEnd(
+            shuffleId,
+            partitionId,
+            startMapIndex,
+            endMapIndex,
+            aggregatedActualCommitMetadata.getChecksum(),
+            aggregatedActualCommitMetadata.getBytes());
+      }
+      logger.info(
+          "reducerPartitionEnd successful for shuffleId{}, partitionId{}. actual CommitMetadata: {}",
+          shuffleId,
+          partitionId,
+          aggregatedActualCommitMetadata);
+      integrityChecked = true;
+    }
+
     private boolean moveToNextChunk() throws IOException {
       if (currentChunk != null) {
         currentChunk.release();
@@ -754,6 +803,7 @@ public abstract class CelebornInputStream extends InputStream {
           firstChunk = false;
         }
         if (currentChunk == null) {
+          validateIntegrity();
           close();
           return false;
         }
@@ -815,6 +865,9 @@ public abstract class CelebornInputStream extends InputStream {
               } else {
                 limit = size;
               }
+              if (shuffleIntegrityCheckEnabled) {
+                aggregatedActualCommitMetadata.addDataWithOffsetAndLength(rawDataBuf, 0, limit);
+              }
               position = 0;
               hasData = true;
               break;
@@ -829,6 +882,10 @@ public abstract class CelebornInputStream extends InputStream {
           }
         }
 
+        if (!hasData) {
+          validateIntegrity();
+          // TODO(gaurav): consider closing the stream
+        }
         return hasData;
       } catch (LZ4Exception | ZstdException | IOException e) {
         logger.error(
