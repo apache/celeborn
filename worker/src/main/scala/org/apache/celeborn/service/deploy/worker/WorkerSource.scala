@@ -60,6 +60,8 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
 
   addCounter(SLOTS_ALLOCATED)
 
+  addCounter(COMMIT_FILES_FAIL_COUNT)
+
   // add timers
   addTimer(COMMIT_FILES_TIME)
   addTimer(RESERVE_SLOTS_TIME)
@@ -188,6 +190,7 @@ object WorkerSource {
   val TAKE_BUFFER_TIME = "TakeBufferTime"
   val FLUSH_DATA_TIME = "FlushDataTime"
   val COMMIT_FILES_TIME = "CommitFilesTime"
+  val COMMIT_FILES_FAIL_COUNT = "CommitFilesFailCount"
   val FLUSH_WORKING_QUEUE_SIZE = "FlushWorkingQueueSize"
 
   // slots
