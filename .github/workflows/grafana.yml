@@ -28,8 +28,8 @@ on:
       - branch-*
 
 jobs:
-  service:
-    runs-on: ubuntu-22.04
+  lint:
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
     steps:
@@ -42,12 +42,12 @@ jobs:
       with:
         python-version: "3.12"
         check-latest: true
-    # https://github.com/grafana/dashboard-linter/blob/main/docs/index.md
+    # See https://github.com/grafana/dashboard-linter
     - name: Install dashboard-linter
       run: go install github.com/grafana/dashboard-linter@latest
     - name: Lint Celeborn Dashboards
       run: |
-        dashboard-linter lint --config assets/grafana/.lint --strict assets/grafana/celeborn-dashboard.json
-        python3 dev/lint_grafana.py assets/grafana/celeborn-dashboard.json
-        dashboard-linter lint --config assets/grafana/.lint --strict assets/grafana/celeborn-jvm-dashboard.json
-        python3 dev/lint_grafana.py assets/grafana/celeborn-jvm-dashboard.json
+        for dashboard in assets/grafana/*.json; do
+          dashboard-linter lint "$dashboard" --config assets/grafana/.lint --strict
+          python3 dev/lint_grafana.py "$dashboard"
+        done
