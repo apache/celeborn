@@ -97,12 +97,12 @@ public class InFlightRequestTracker {
     } else {
       logger.info("Batches of {} in flight is null.", hostAndPushPort);
     }
-    
+
     LongAdder bytesSizePerPair = inflighBytesSizePerAddress.get(hostAndPushPort);
     if (bytesSizePerPair != null) {
       bytesSizePerPair.add(-batchBytesSize);
     }
-    
+
     totalInflightReqs.decrement();
     totalInflightBytes.add(-batchBytesSize);
   }
