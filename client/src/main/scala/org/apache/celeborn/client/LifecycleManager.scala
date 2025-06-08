@@ -1063,7 +1063,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 val pbGetShuffleIdResponse = {
                   logInfo(
                     s"there is no finished map stage associated with appShuffleId $appShuffleId")
-                  PbGetShuffleIdResponse.newBuilder().setShuffleId(UNKNOWN_APP_SHUFFLE_ID).setSuccess(
+                  PbGetShuffleIdResponse.newBuilder().setShuffleId(
+                    UNKNOWN_APP_SHUFFLE_ID).setSuccess(
                     false).build()
                 }
                 context.reply(pbGetShuffleIdResponse)
