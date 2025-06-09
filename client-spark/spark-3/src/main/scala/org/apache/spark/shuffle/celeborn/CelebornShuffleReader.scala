@@ -57,8 +57,30 @@ class CelebornShuffleReader[K, C](
     context: TaskContext,
     conf: CelebornConf,
     metrics: ShuffleReadMetricsReporter,
-    shuffleIdTracker: ExecutorShuffleIdTracker)
+    shuffleIdTracker: ExecutorShuffleIdTracker,
+    needDecompress: Boolean)
   extends ShuffleReader[K, C] with Logging {
+
+  def this(
+      handle: CelebornShuffleHandle[K, _, C],
+      startPartition: Int,
+      endPartition: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      context: TaskContext,
+      conf: CelebornConf,
+      metrics: ShuffleReadMetricsReporter,
+      shuffleIdTracker: ExecutorShuffleIdTracker) = this(
+    handle,
+    startPartition,
+    endPartition,
+    startMapIndex,
+    endMapIndex,
+    context,
+    conf,
+    metrics,
+    shuffleIdTracker,
+    true)
 
   private val dep = handle.dependency
 
@@ -314,7 +336,8 @@ class CelebornShuffleReader[K, C](
             fileGroups.pushFailedBatches,
             partitionId2ChunkRange.get(partitionId),
             fileGroups.mapAttempts,
-            metricsCallback)
+            metricsCallback,
+            needDecompress)
           streams.put(partitionId, inputStream)
         } catch {
           case e: IOException =>

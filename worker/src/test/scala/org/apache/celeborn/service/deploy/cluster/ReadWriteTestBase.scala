@@ -118,7 +118,8 @@ trait ReadWriteTestBase extends AnyFunSuite
       null,
       null,
       null,
-      metricsCallback)
+      metricsCallback,
+      true)
     val outputStream = new ByteArrayOutputStream()
 
     var b = inputStream.read()

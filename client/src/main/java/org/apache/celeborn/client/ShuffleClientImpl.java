@@ -1930,7 +1930,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       Map<String, LocationPushFailedBatches> failedBatchSetMap,
       Map<String, Pair<Integer, Integer>> chunksRange,
       int[] mapAttempts,
-      MetricsCallback metricsCallback)
+      MetricsCallback metricsCallback,
+      boolean needDecompress)
       throws IOException {
     if (shuffleId == Utils$.MODULE$.UNKNOWN_APP_SHUFFLE_ID()) {
       logger.warn("Shuffle data is empty for shuffle {}: UNKNOWN_APP_SHUFFLE_ID.", shuffleId);
@@ -1973,7 +1974,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           shuffleId,
           partitionId,
           exceptionMaker,
-          metricsCallback);
+          metricsCallback,
+          needDecompress);
     }
   }
 

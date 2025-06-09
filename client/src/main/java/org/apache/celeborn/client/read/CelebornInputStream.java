@@ -72,7 +72,8 @@ public abstract class CelebornInputStream extends InputStream {
       int shuffleId,
       int partitionId,
       ExceptionMaker exceptionMaker,
-      MetricsCallback metricsCallback)
+      MetricsCallback metricsCallback,
+      boolean needDecompress)
       throws IOException {
     if (locations == null || locations.isEmpty()) {
       return emptyInputStream;
@@ -101,7 +102,8 @@ public abstract class CelebornInputStream extends InputStream {
             partitionId,
             exceptionMaker,
             true,
-            metricsCallback);
+            metricsCallback,
+            needDecompress);
       } else {
         return new CelebornInputStreamImpl(
             conf,
@@ -123,7 +125,8 @@ public abstract class CelebornInputStream extends InputStream {
             partitionId,
             exceptionMaker,
             false,
-            metricsCallback);
+            metricsCallback,
+            needDecompress);
       }
     }
   }
@@ -202,7 +205,7 @@ public abstract class CelebornInputStream extends InputStream {
     private final boolean enabledReadLocalShuffle;
     private final String localHostAddress;
 
-    private boolean shuffleCompressionEnabled;
+    private boolean shouldDecompress;
     private long fetchExcludedWorkerExpireTimeout;
     private ConcurrentHashMap<String, Long> fetchExcludedWorkers;
 
@@ -234,7 +237,8 @@ public abstract class CelebornInputStream extends InputStream {
         int partitionId,
         ExceptionMaker exceptionMaker,
         boolean splitSkewPartitionWithoutMapRange,
-        MetricsCallback metricsCallback)
+        MetricsCallback metricsCallback,
+        boolean needDecompress)
         throws IOException {
       this(
           conf,
@@ -256,7 +260,8 @@ public abstract class CelebornInputStream extends InputStream {
           partitionId,
           exceptionMaker,
           splitSkewPartitionWithoutMapRange,
-          metricsCallback);
+          metricsCallback,
+          needDecompress);
     }
 
     CelebornInputStreamImpl(
@@ -279,7 +284,8 @@ public abstract class CelebornInputStream extends InputStream {
         int partitionId,
         ExceptionMaker exceptionMaker,
         boolean readSkewPartitionWithoutMapRange,
-        MetricsCallback metricsCallback)
+        MetricsCallback metricsCallback,
+        boolean needDecompress)
         throws IOException {
       this.conf = conf;
       this.clientFactory = clientFactory;
@@ -297,8 +303,8 @@ public abstract class CelebornInputStream extends InputStream {
       this.rangeReadFilter = conf.shuffleRangeReadFilterEnabled();
       this.enabledReadLocalShuffle = conf.enableReadLocalShuffleFile();
       this.localHostAddress = Utils.localHostName(conf);
-      this.shuffleCompressionEnabled =
-          !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
+      this.shouldDecompress =
+          !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE) && needDecompress;
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
       this.failedBatches = failedBatchSet;
       this.readSkewPartitionWithoutMapRange = readSkewPartitionWithoutMapRange;
@@ -737,7 +743,7 @@ public abstract class CelebornInputStream extends InputStream {
     private void init() {
       int bufferSize = conf.clientFetchBufferSize();
 
-      if (shuffleCompressionEnabled) {
+      if (shouldDecompress) {
         int headerLen = Decompressor.getCompressionHeaderLength(conf);
         bufferSize += headerLen;
         compressedBuf = new byte[bufferSize];
@@ -767,7 +773,7 @@ public abstract class CelebornInputStream extends InputStream {
           int batchId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 8);
           int size = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 12);
 
-          if (shuffleCompressionEnabled) {
+          if (shouldDecompress) {
             if (size > compressedBuf.length) {
               compressedBuf = new byte[size];
             }
@@ -805,7 +811,7 @@ public abstract class CelebornInputStream extends InputStream {
             if (!batchSet.contains(batchId)) {
               batchSet.add(batchId);
               callback.incBytesRead(BATCH_HEADER_SIZE + size);
-              if (shuffleCompressionEnabled) {
+              if (shouldDecompress) {
                 // decompress data
                 int originalLength = decompressor.getOriginalLen(compressedBuf);
                 if (rawDataBuf.length < originalLength) {
