@@ -151,7 +151,8 @@ public class DummyShuffleClient extends ShuffleClient {
       Map<String, LocationPushFailedBatches> failedBatchSetMap,
       Map<String, Pair<Integer, Integer>> chunksRange,
       int[] mapAttempts,
-      MetricsCallback metricsCallback)
+      MetricsCallback metricsCallback,
+      boolean needDecompress)
       throws IOException {
     return null;
   }
