@@ -1048,8 +1048,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             }
             context.reply(pbGetShuffleIdResponse)
           case None =>
-            // If no valid finished map stage is found, check if there are any shuffles (even invalid ones)
-            // This can happen in barrier stage resubmission scenarios where all previous shuffles are marked invalid
+            // If no valid finished map stage is found, check if there are any shuffles
             shuffleIds.values.map(v => v._1).toSeq.reverse.headOption match {
               case Some(celebornShuffleId) =>
                 val pbGetShuffleIdResponse = {
