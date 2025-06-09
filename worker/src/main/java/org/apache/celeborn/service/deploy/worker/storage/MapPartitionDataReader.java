@@ -96,6 +96,10 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
   protected boolean errorNotified;
 
   private FileChannel dataFileChannel;
+
+  // The size of the data file, it is initialized in the open method and remains unchanged
+  // afterward.
+  private long dataFileChannelSize;
   private FileChannel indexFileChannel;
 
   private Channel associatedChannel;
@@ -132,6 +136,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
       throws IOException {
     if (!isOpen) {
       this.dataFileChannel = dataFileChannel;
+      this.dataFileChannelSize = dataFileChannel.size();
       this.indexFileChannel = indexFileChannel;
       // index is (offset,length)
       long indexRegionSize = mapFileMeta.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
@@ -340,13 +345,13 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
       logger.debug(
           "readBuffer updateConsumingOffset, {},  {}, {}, {}",
           streamId,
-          dataFileChannel.size(),
+          dataFileChannelSize,
           dataConsumingOffset,
           currentPartitionRemainingBytes);
 
       // if these checks fail, the partition file must be corrupted
       if (dataConsumingOffset < 0
-          || dataConsumingOffset + currentPartitionRemainingBytes > dataFileChannel.size()
+          || dataConsumingOffset + currentPartitionRemainingBytes > dataFileChannelSize
           || currentPartitionRemainingBytes < 0) {
         throw new FileCorruptedException("File " + fileInfo.getFilePath() + " is corrupted");
       }
@@ -383,7 +388,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
         logger.debug(
             "readBuffer end, {},  {}, {}, {}",
             streamId,
-            dataFileChannel.size(),
+            dataFileChannelSize,
             dataConsumingOffset,
             currentPartitionRemainingBytes);
         int prevDataRegion = currentDataRegion;
@@ -394,7 +399,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
       logger.debug(
           "readBuffer run: {}, {}, {}, {}",
           streamId,
-          dataFileChannel.size(),
+          dataFileChannelSize,
           dataConsumingOffset,
           currentPartitionRemainingBytes);
       return true;

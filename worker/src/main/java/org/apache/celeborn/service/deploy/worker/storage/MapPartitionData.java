@@ -25,7 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -186,13 +185,17 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
     }
 
     try {
-      PriorityQueue<MapPartitionDataReader> sortedReaders =
-          new PriorityQueue<>(
-              readers.values().stream()
-                  .filter(MapPartitionDataReader::shouldReadData)
-                  .collect(Collectors.toList()));
-      for (MapPartitionDataReader reader : sortedReaders) {
+      // Find all readers that can read data.
+      // Avoid using Java Stream's collect() operation in this case, as the internal array used
+      // by Stream.collect() may be resized and copied multiple times if the exact size of the
+      // final result is not known in advance
+      PriorityQueue<MapPartitionDataReader> sortedReaders = new PriorityQueue<>();
+      for (MapPartitionDataReader reader : readers.values()) {
+        if (!reader.shouldReadData()) {
+          continue;
+        }
         openReader(reader);
+        sortedReaders.add(reader);
       }
       while (bufferQueue.bufferAvailable() && !sortedReaders.isEmpty()) {
         BufferRecycler bufferRecycler = new BufferRecycler(MapPartitionData.this::recycle);
