@@ -24,13 +24,16 @@ import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import java.util.function.{BiConsumer, IntUnaryOperator}
+
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
+
 import com.google.common.annotations.VisibleForTesting
 import io.netty.buffer.{ByteBufAllocator, PooledByteBufAllocator}
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
@@ -1100,7 +1103,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val hdfsFileInfo = new DiskFileInfo(
           userIdentifier,
           partitionSplitEnabled,
-          getFileMeta(partitionType, null, conf.shuffleChunkSize),
+          getFileMeta(partitionType, s"hdfs", conf.shuffleChunkSize),
           hdfsFilePath,
           StorageInfo.Type.HDFS)
         diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
@@ -1204,9 +1207,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   private def getFileMeta(
-                           partitionType: PartitionType,
-                           mountPoint: String,
-                           chunkSize: Long): FileMeta = {
+      partitionType: PartitionType,
+      mountPoint: String,
+      chunkSize: Long): FileMeta = {
     partitionType match {
       case PartitionType.REDUCE => new ReduceFileMeta(chunkSize)
       case PartitionType.MAP =>

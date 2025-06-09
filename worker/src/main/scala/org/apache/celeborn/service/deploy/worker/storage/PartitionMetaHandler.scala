@@ -216,7 +216,9 @@ class MapPartitionMetaHandler(
           if (indexChannel != null) while (indexBuffer.hasRemaining) indexChannel.write(indexBuffer)
           else if (diskFileInfo.isDFS) {
             val dfsStream = hadoopFs.append(diskFileInfo.getDfsIndexPath)
-            dfsStream.write(indexBuffer.array)
+            val indexBytes = new Array[Byte](indexBuffer.remaining)
+            indexBuffer.get(indexBytes)
+            dfsStream.write(indexBytes)
             dfsStream.close()
           }
         }
