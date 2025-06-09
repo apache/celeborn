@@ -441,6 +441,9 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
               END_OF_SEGMENT,
               endSegmentMemorySegment.size());
       processBuffer(endOfSegmentBuffer, subPartitionId);
+      // drain the bufferPacker to ensure that the EndOfSegment event is not bundled with the data
+      // buffer
+      bufferPacker.drain();
     } catch (Exception e) {
       ExceptionUtils.rethrow(e, "Failed to append end of segment event.");
     }
