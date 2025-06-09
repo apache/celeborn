@@ -238,7 +238,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           partitionLocations,
           subPartitionIndexStart,
           subPartitionIndexEnd,
-          conf.pushDataTimeoutMs());
+          pushDataTimeout);
     }
   }
 
@@ -448,7 +448,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                                 .build()
                                 .toByteArray())
                         .toByteBuffer(),
-                    conf.pushDataTimeoutMs());
+                    pushDataTimeout);
           } catch (IOException e) {
             // ioexeption revive
             return revive(shuffleId, mapId, attemptId, location);
@@ -499,7 +499,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                                 .build()
                                 .toByteArray())
                         .toByteBuffer(),
-                    conf.pushDataTimeoutMs());
+                    pushDataTimeout);
           } catch (IOException e) {
             // ioexeption revive
             return revive(shuffleId, mapId, attemptId, location);
@@ -580,7 +580,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                           .build()
                           .toByteArray())
                   .toByteBuffer(),
-              conf.pushDataTimeoutMs());
+              pushDataTimeout);
           return null;
         });
   }
@@ -620,7 +620,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                           .build()
                           .toByteArray())
                   .toByteBuffer(),
-              conf.pushDataTimeoutMs());
+              pushDataTimeout);
           return null;
         });
   }
