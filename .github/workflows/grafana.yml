@@ -48,6 +48,6 @@ jobs:
     - name: Lint Celeborn Dashboards
       run: |
         for dashboard in assets/grafana/*.json; do
-          dashboard-linter lint "$dashboard" --config assets/grafana/.lint --strict
           python3 dev/lint_grafana.py "$dashboard"
+          dashboard-linter lint "$dashboard" --config assets/grafana/.lint --strict
         done
