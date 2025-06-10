@@ -19,16 +19,44 @@ package org.apache.celeborn.server.common.service.store.db.mapper;
 
 import java.util.List;
 
+import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import org.apache.celeborn.server.common.service.model.ClusterTenantConfig;
 
 public interface ClusterTenantConfigMapper {
 
+  @Insert(
+      "INSERT INTO celeborn_cluster_tenant_config(cluster_id, tenant_id, level, name, config_key, config_value, gmt_create, gmt_modify) "
+          + "VALUES (#{clusterId}, #{tenantId}, #{level}, #{name}, #{configKey}, #{configValue}, #{gmtCreate}, #{gmtModify})")
+  void insert(ClusterTenantConfig clusterTenantConfig);
+
+  @Update(
+      "UPDATE celeborn_cluster_tenant_config SET config_value = #{configValue}, gmt_modify = #{gmtModify} "
+          + "WHERE cluster_id = #{clusterId} AND level = #{level} AND tenant_id = #{tenantId} AND config_key = #{configKey}")
+  int updateConfig(ClusterTenantConfig clusterTenantConfig);
+
+  @Update(
+      "UPDATE celeborn_cluster_tenant_config SET config_value = #{configValue}, gmt_modify = #{gmtModify} "
+          + "WHERE cluster_id = #{clusterId} AND level = #{level} AND tenant_id = #{tenantId} AND name = #{name} AND config_key = #{configKey}")
+  int updateUserConfig(ClusterTenantConfig clusterTenantConfig);
+
+  @Delete(
+      "DELETE FROM celeborn_cluster_tenant_config "
+          + "WHERE cluster_id = #{clusterId} AND level = #{level} AND tenant_id = #{tenantId} AND config_key = #{configKey}")
+  int deleteConfig(ClusterTenantConfig clusterTenantConfig);
+
+  @Delete(
+      "DELETE FROM celeborn_cluster_tenant_config "
+          + "WHERE cluster_id = #{clusterId} AND level = #{level} AND tenant_id = #{tenantId} AND name = #{name} AND config_key = #{configKey}")
+  int deleteUserConfig(ClusterTenantConfig clusterTenantConfig);
+
   @Select(
       "SELECT id, cluster_id, tenant_id, level, name, config_key, config_value, type, gmt_create, gmt_modify "
-          + "FROM celeborn_cluster_tenant_config WHERE cluster_id = #{clusterId} AND level=#{level} LIMIT #{offset}, #{pageSize}")
+          + "FROM celeborn_cluster_tenant_config WHERE cluster_id = #{clusterId} AND level = #{level} LIMIT #{offset}, #{pageSize}")
   List<ClusterTenantConfig> getClusterTenantConfigs(
       @Param("clusterId") int clusterId,
       @Param("level") String configLevel,
@@ -36,7 +64,7 @@ public interface ClusterTenantConfigMapper {
       @Param("pageSize") int pageSize);
 
   @Select(
-      "SELECT count(*) FROM celeborn_cluster_tenant_config WHERE cluster_id = #{clusterId} AND level=#{level}")
+      "SELECT count(*) FROM celeborn_cluster_tenant_config WHERE cluster_id = #{clusterId} AND level = #{level}")
   int getClusterTenantConfigsNum(
       @Param("clusterId") int clusterId, @Param("level") String configLevel);
 }

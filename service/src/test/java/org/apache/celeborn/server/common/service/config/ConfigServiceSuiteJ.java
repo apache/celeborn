@@ -24,6 +24,9 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -61,12 +64,11 @@ public class ConfigServiceSuiteJ {
     verifyTenantUserConfig(configService);
     verifyTags(configService);
 
+    configService.upsertSystemConfig(Collections.singletonMap("celeborn.test.int.only", "100"));
     SqlSessionFactory sqlSessionFactory = DBSessionFactory.get(celebornConf);
     try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) {
       Statement statement = sqlSession.getConnection().createStatement();
 
-      statement.execute(
-          "UPDATE celeborn_cluster_system_config SET config_value = 100 WHERE config_key='celeborn.test.int.only'");
       statement.execute("UPDATE celeborn_cluster_tags SET tag = 'tag3' WHERE tag='tag2'");
     } catch (SQLException e) {
       throw new RuntimeException(e);
@@ -79,6 +81,82 @@ public class ConfigServiceSuiteJ {
         ((DbConfigServiceImpl) configService).getServiceManager(),
         celebornConf,
         DATE_FORMAT.get().parse("2023-08-26 22:08:30").toInstant());
+
+    configService.upsertSystemConfig(
+        Collections.singletonMap("celeborn.test.system.upsert", "insert"));
+    configService.refreshCache();
+    SystemConfig systemConfig = configService.getSystemConfigFromCache();
+    Assert.assertEquals(
+        "insert",
+        systemConfig.getValue(
+            "celeborn.test.system.upsert", null, String.class, ConfigType.STRING));
+    configService.deleteSystemConfigByKeys(Collections.singletonList("celeborn.test.int.only"));
+    configService.refreshCache();
+    systemConfig = configService.getSystemConfigFromCache();
+    Assert.assertFalse(systemConfig.configs.containsKey("celeborn.test.int.only"));
+
+    Map<String, String> tenantConfigs = new HashMap<>();
+    tenantConfigs.put(CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE().key(), "20480");
+    tenantConfigs.put("celeborn.test.tenant.upsert", "insert");
+    configService.upsertTenantConfig(ConfigLevel.TENANT, "tenant_id", null, tenantConfigs);
+    configService.refreshCache();
+    TenantConfig tenantConfig = configService.getRawTenantConfigFromCache("tenant_id");
+    Assert.assertEquals(
+        20480,
+        tenantConfig
+            .getValue(
+                CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE().key(),
+                CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE(),
+                Long.TYPE,
+                ConfigType.BYTES)
+            .longValue());
+    Assert.assertEquals(
+        "insert",
+        tenantConfig.getValue(
+            "celeborn.test.tenant.upsert", null, String.class, ConfigType.STRING));
+    configService.deleteTenantConfigByKeys(
+        ConfigLevel.TENANT,
+        "tenant_id",
+        null,
+        Arrays.asList(
+            CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE().key(), "celeborn.test.tenant.upsert"));
+    configService.refreshCache();
+    tenantConfig = configService.getRawTenantConfigFromCache("tenant_id");
+    Assert.assertFalse(
+        tenantConfig.configs.containsKey(CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE().key()));
+    Assert.assertFalse(tenantConfig.configs.containsKey("celeborn.test.tenant.upsert"));
+
+    tenantConfigs = new HashMap<>();
+    tenantConfigs.put(CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE().key(), "2k");
+    tenantConfigs.put("celeborn.test.tenant.user.upsert", "insert");
+    configService.upsertTenantConfig(ConfigLevel.TENANT_USER, "tenant_id1", "Jerry", tenantConfigs);
+    configService.refreshCache();
+    tenantConfig = configService.getRawTenantUserConfigFromCache("tenant_id1", "Jerry");
+    Assert.assertEquals(
+        2048,
+        tenantConfig
+            .getValue(
+                CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE().key(),
+                CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE(),
+                Long.TYPE,
+                ConfigType.BYTES)
+            .longValue());
+    Assert.assertEquals(
+        "insert",
+        tenantConfig.getValue(
+            "celeborn.test.tenant.user.upsert", null, String.class, ConfigType.STRING));
+    configService.deleteTenantConfigByKeys(
+        ConfigLevel.TENANT_USER,
+        "tenant_id1",
+        "Jerry",
+        Arrays.asList(
+            CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE().key(),
+            "celeborn.test.tenant.user.upsert"));
+    configService.refreshCache();
+    tenantConfig = configService.getRawTenantUserConfigFromCache("tenant_id1", "Jerry");
+    Assert.assertFalse(
+        tenantConfig.configs.containsKey(CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE().key()));
+    Assert.assertFalse(tenantConfig.configs.containsKey("celeborn.test.tenant.user.upsert"));
   }
 
   @Test
@@ -338,8 +416,6 @@ public class ConfigServiceSuiteJ {
   }
 
   private void verifyTagsChanged(ConfigService configService) {
-    System.out.println("Tags changed");
-
     SystemConfig systemConfig = configService.getSystemConfigFromCache();
     Map<String, Set<String>> tags = systemConfig.getTags();
 

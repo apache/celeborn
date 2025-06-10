@@ -24,7 +24,7 @@ import javax.ws.rs.core.{MediaType, UriBuilder}
 
 import scala.collection.JavaConverters._
 
-import org.apache.celeborn.rest.v1.model.{ConfResponse, LoggerInfo, LoggerInfos, ThreadStackResponse}
+import org.apache.celeborn.rest.v1.model.{ConfResponse, DeleteDynamicConfigRequest, LoggerInfo, LoggerInfos, ThreadStackResponse, UpsertDynamicConfigRequest}
 import org.apache.celeborn.server.common.http.HttpTestHelper
 
 abstract class ApiV1BaseResourceSuite extends HttpTestHelper {
@@ -37,6 +37,22 @@ abstract class ApiV1BaseResourceSuite extends HttpTestHelper {
     assert(!response.readEntity(classOf[ConfResponse]).getConfigs.isEmpty)
 
     response = webTarget.path("conf/dynamic").request(MediaType.APPLICATION_JSON).get()
+    assert(HttpServletResponse.SC_SERVICE_UNAVAILABLE == response.getStatus)
+    assert(response.readEntity(classOf[String]).contains("Dynamic configuration is disabled."))
+
+    response =
+      webTarget.path("conf/dynamic/upsert").request(MediaType.APPLICATION_JSON).post(Entity.entity(
+        new UpsertDynamicConfigRequest().level(UpsertDynamicConfigRequest.LevelEnum.SYSTEM).configs(
+          Map("test.system.config" -> "upsert").asJava),
+        MediaType.APPLICATION_JSON))
+    assert(HttpServletResponse.SC_SERVICE_UNAVAILABLE == response.getStatus)
+    assert(response.readEntity(classOf[String]).contains("Dynamic configuration is disabled."))
+
+    response =
+      webTarget.path("conf/dynamic/delete").request(MediaType.APPLICATION_JSON).post(Entity.entity(
+        new DeleteDynamicConfigRequest().level(DeleteDynamicConfigRequest.LevelEnum.SYSTEM).configs(
+          List("test.system.config").asJava),
+        MediaType.APPLICATION_JSON))
     assert(HttpServletResponse.SC_SERVICE_UNAVAILABLE == response.getStatus)
     assert(response.readEntity(classOf[String]).contains("Dynamic configuration is disabled."))
   }

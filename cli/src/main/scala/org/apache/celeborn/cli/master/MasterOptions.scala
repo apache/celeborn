@@ -88,6 +88,12 @@ final class MasterOptions {
   @Option(names = Array("--show-dynamic-conf"), description = Array("Show dynamic master conf"))
   private[master] var showDynamicConf: Boolean = _
 
+  @Option(names = Array("--upsert-dynamic-conf"), description = Array("Upsert dynamic master conf"))
+  private[master] var upsertDynamicConf: Boolean = _
+
+  @Option(names = Array("--delete-dynamic-conf"), description = Array("Delete dynamic master conf"))
+  private[master] var deleteDynamicConf: Boolean = _
+
   @Option(names = Array("--show-thread-dump"), description = Array("Show master thread dump"))
   private[master] var showThreadDump: Boolean = _
 

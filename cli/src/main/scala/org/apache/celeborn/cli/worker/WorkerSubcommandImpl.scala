@@ -17,7 +17,12 @@
 
 package org.apache.celeborn.cli.worker
 
-import picocli.CommandLine.Command
+import java.util
+
+import scala.collection.JavaConverters._
+
+import org.apache.commons.lang3.StringUtils
+import picocli.CommandLine.{Command, ParameterException}
 
 import org.apache.celeborn.rest.v1.model._
 import org.apache.celeborn.rest.v1.model.WorkerExitRequest.TypeEnum
@@ -38,6 +43,8 @@ class WorkerSubcommandImpl extends WorkerSubcommand {
     if (workerOptions.showConf) log(runShowConf)
     if (workerOptions.showContainerInfo) log(runShowContainerInfo)
     if (workerOptions.showDynamicConf) log(runShowDynamicConf)
+    if (workerOptions.upsertDynamicConf) log(runUpsertDynamicConf)
+    if (workerOptions.deleteDynamicConf) log(runDeleteDynamicConf)
     if (workerOptions.showThreadDump) log(runShowThreadDump)
   }
 
@@ -77,6 +84,51 @@ class WorkerSubcommandImpl extends WorkerSubcommand {
       commonOptions.configTenant,
       commonOptions.configName,
       commonOptions.getAuthHeader)
+
+  private[worker] def runUpsertDynamicConf: HandleResponse = {
+    if (StringUtils.isBlank(commonOptions.configLevel)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Config level must be provided for this command.")
+    }
+    if (StringUtils.isBlank(commonOptions.upsertConfigs)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Configs to upsert must be provided for this command.")
+    }
+    val upsertConfigs =
+      commonOptions.upsertConfigs.split(',').map(_.trim).filter(_.nonEmpty).map { config =>
+        val Array(k, v) = config.split(':').map(_.trim)
+        k -> v
+      }.toMap.asJava
+    confApi.upsertDynamicConf(
+      new UpsertDynamicConfigRequest()
+        .level(UpsertDynamicConfigRequest.LevelEnum.fromValue(commonOptions.configLevel))
+        .configs(upsertConfigs)
+        .tenant(commonOptions.configTenant)
+        .name(commonOptions.configName),
+      commonOptions.getAuthHeader)
+  }
+
+  private[worker] def runDeleteDynamicConf: HandleResponse = {
+    if (StringUtils.isBlank(commonOptions.configLevel)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Config level must be provided for this command.")
+    }
+    if (StringUtils.isBlank(commonOptions.deleteConfigs)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Configs to delete must be provided for this command.")
+    }
+    confApi.deleteDynamicConf(
+      new DeleteDynamicConfigRequest()
+        .level(DeleteDynamicConfigRequest.LevelEnum.fromValue(commonOptions.configLevel))
+        .configs(util.Arrays.asList[String](commonOptions.deleteConfigs.split(","): _*))
+        .tenant(commonOptions.configTenant)
+        .name(commonOptions.configName),
+      commonOptions.getAuthHeader)
+  }
 
   private[worker] def runShowThreadDump: ThreadStackResponse =
     defaultApi.getThreadDump(commonOptions.getAuthHeader)

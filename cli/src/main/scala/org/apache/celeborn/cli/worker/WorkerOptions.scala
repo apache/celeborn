@@ -70,6 +70,12 @@ final class WorkerOptions {
   @Option(names = Array("--show-dynamic-conf"), description = Array("Show dynamic worker conf"))
   private[worker] var showDynamicConf: Boolean = _
 
+  @Option(names = Array("--upsert-dynamic-conf"), description = Array("Upsert dynamic worker conf"))
+  private[worker] var upsertDynamicConf: Boolean = _
+
+  @Option(names = Array("--delete-dynamic-conf"), description = Array("Delete dynamic worker conf"))
+  private[worker] var deleteDynamicConf: Boolean = _
+
   @Option(names = Array("--show-thread-dump"), description = Array("Show worker thread dump"))
   private[worker] var showThreadDump: Boolean = _
 
