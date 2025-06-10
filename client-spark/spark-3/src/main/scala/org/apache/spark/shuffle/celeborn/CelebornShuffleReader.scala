@@ -242,11 +242,14 @@ class CelebornShuffleReader[K, C](
       if (fileGroups.partitionGroups.containsKey(partitionId)) {
         // CELEBORN-2032. For the first time of open stream and
         // attemptNumber % 2 = 1, we should read the replica data first.
-        var locations = if (encodedAttemptId % 2 == 1 && locations.exists(p => p != null && p.hasPeer)) {
-          fileGroups.partitionGroups.get(partitionId).map(_.getPeer)
-        } else {
-          fileGroups.partitionGroups.get(partitionId)
-        }
+        val originLocations = fileGroups.partitionGroups.get(partitionId)
+        val hasReplicate = originLocations.asScala.exists(p => p != null && p.hasPeer)
+        var locations =
+          if (encodedAttemptId % 2 == 1 && hasReplicate) {
+            originLocations.asScala.map(_.getPeer).asJava
+          } else {
+            originLocations
+          }
 
         if (splitSkewPartitionWithoutMapRange) {
           val partitionLocation2ChunkRange = CelebornPartitionUtil.splitSkewedPartitionLocations(
