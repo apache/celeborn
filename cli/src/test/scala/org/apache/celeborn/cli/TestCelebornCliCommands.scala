@@ -148,6 +148,28 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "")
   }
 
+  test("worker --upsert-dynamic-conf") {
+    cancel("This test is temporarily disabled since dynamic conf is not enabled in unit tests.")
+    val args = prepareWorkerArgs() ++ Array(
+      "--upsert-dynamic-conf",
+      "--config-level",
+      "SYSTEM",
+      "--upsert-configs",
+      "key1:val1,key2:val2")
+    captureOutputAndValidateResponse(args, "success: true")
+  }
+
+  test("worker --delete-dynamic-conf") {
+    cancel("This test is temporarily disabled since dynamic conf is not enabled in unit tests.")
+    val args = prepareWorkerArgs() ++ Array(
+      "--delete-dynamic-conf",
+      "--config-level",
+      "SYSTEM",
+      "--delete-configs",
+      "conf1,conf2")
+    captureOutputAndValidateResponse(args, "success: true")
+  }
+
   test("worker --show-thread-dump") {
     val args = prepareWorkerArgs() :+ "--show-thread-dump"
     captureOutputAndValidateResponse(args, "ThreadStackResponse")
@@ -228,6 +250,28 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     cancel("This test is temporarily disabled since dynamic conf is not enabled in unit tests.")
     val args = prepareMasterArgs() :+ "--show-dynamic-conf"
     captureOutputAndValidateResponse(args, "")
+  }
+
+  test("master --upsert-dynamic-conf") {
+    cancel("This test is temporarily disabled since dynamic conf is not enabled in unit tests.")
+    val args = prepareMasterArgs() ++ Array(
+      "--upsert-dynamic-conf",
+      "--config-level",
+      "SYSTEM",
+      "--upsert-configs",
+      "key1:val1,key2:val2")
+    captureOutputAndValidateResponse(args, "success: true")
+  }
+
+  test("master --delete-dynamic-conf") {
+    cancel("This test is temporarily disabled since dynamic conf is not enabled in unit tests.")
+    val args = prepareMasterArgs() ++ Array(
+      "--delete-dynamic-conf",
+      "--config-level",
+      "SYSTEM",
+      "--delete-configs",
+      "conf1,conf2")
+    captureOutputAndValidateResponse(args, "success: true")
   }
 
   test("master --show-thread-dump") {

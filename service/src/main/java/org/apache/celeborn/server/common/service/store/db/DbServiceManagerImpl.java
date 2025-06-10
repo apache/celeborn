@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -169,6 +170,87 @@ public class DbServiceManagerImpl implements IServiceManager {
     try (SqlSession sqlSession = sqlSessionFactory.openSession()) {
       ClusterTagsMapper mapper = sqlSession.getMapper(ClusterTagsMapper.class);
       return mapper.getClusterTags(clusterId);
+    }
+  }
+
+  @Override
+  public void upsertSystemConfig(Map<String, String> systemConfigs) {
+    try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) {
+      ClusterSystemConfigMapper mapper = sqlSession.getMapper(ClusterSystemConfigMapper.class);
+      for (Entry<String, String> systemConfig : systemConfigs.entrySet()) {
+        ClusterSystemConfig config = new ClusterSystemConfig();
+        Instant now = Instant.now();
+        config.setClusterId(clusterId);
+        config.setConfigKey(systemConfig.getKey());
+        config.setConfigValue(systemConfig.getValue());
+        config.setGmtCreate(now);
+        config.setGmtModify(now);
+        int updated = mapper.update(config);
+        if (updated == 0) {
+          mapper.insert(config);
+        }
+      }
+    }
+  }
+
+  @Override
+  public void upsertTenantConfig(
+      ConfigLevel configLevel, String tenantId, String name, Map<String, String> tenantConfigs) {
+    try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) {
+      ClusterTenantConfigMapper mapper = sqlSession.getMapper(ClusterTenantConfigMapper.class);
+      for (Entry<String, String> systemConfig : tenantConfigs.entrySet()) {
+        ClusterTenantConfig config = new ClusterTenantConfig();
+        Instant now = Instant.now();
+        config.setClusterId(clusterId);
+        config.setLevel(configLevel.name());
+        config.setTenantId(tenantId);
+        config.setName(name);
+        config.setConfigKey(systemConfig.getKey());
+        config.setConfigValue(systemConfig.getValue());
+        config.setGmtCreate(now);
+        config.setGmtModify(now);
+        int updated =
+            ConfigLevel.TENANT.equals(configLevel)
+                ? mapper.updateConfig(config)
+                : mapper.updateUserConfig(config);
+        if (updated == 0) {
+          mapper.insert(config);
+        }
+      }
+    }
+  }
+
+  @Override
+  public void deleteSystemConfigByKeys(List<String> configKeys) {
+    try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) {
+      ClusterSystemConfigMapper mapper = sqlSession.getMapper(ClusterSystemConfigMapper.class);
+      for (String configKey : configKeys) {
+        ClusterSystemConfig config = new ClusterSystemConfig();
+        config.setClusterId(clusterId);
+        config.setConfigKey(configKey);
+        mapper.delete(config);
+      }
+    }
+  }
+
+  @Override
+  public void deleteTenantConfigByKeys(
+      ConfigLevel configLevel, String tenantId, String name, List<String> configKeys) {
+    try (SqlSession sqlSession = sqlSessionFactory.openSession(true)) {
+      ClusterTenantConfigMapper mapper = sqlSession.getMapper(ClusterTenantConfigMapper.class);
+      for (String configKey : configKeys) {
+        ClusterTenantConfig config = new ClusterTenantConfig();
+        config.setClusterId(clusterId);
+        config.setLevel(configLevel.name());
+        config.setTenantId(tenantId);
+        config.setName(name);
+        config.setConfigKey(configKey);
+        if (ConfigLevel.TENANT.equals(configLevel)) {
+          mapper.deleteConfig(config);
+        } else {
+          mapper.deleteUserConfig(config);
+        }
+      }
     }
   }
 }

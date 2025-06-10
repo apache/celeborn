@@ -93,6 +93,58 @@ paths:
         "503":
           description: Dynamic configuration is disabled.
 
+  /api/v1/conf/dynamic/upsert:
+    post:
+      tags:
+        - Conf
+      operationId: upsertDynamicConf
+      description: |
+        Upsert the dynamic configs.
+        The parameter level specifies the config level of dynamic configs. 
+        The parameter tenant specifies the tenant id of TENANT or TENANT_USER level.
+        The parameter name specifies the user name of TENANT_USER level.
+        Meanwhile, either none or all of the parameter tenant and name are specified for TENANT_USER level.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertDynamicConfigRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+        "503":
+          description: Dynamic configuration is disabled.
+
+  /api/v1/conf/dynamic/delete:
+    post:
+      tags:
+        - Conf
+      operationId: deleteDynamicConf
+      description: |
+        Delete the dynamic configs.
+        The parameter level specifies the config level of dynamic configs. 
+        The parameter tenant specifies the tenant id of TENANT or TENANT_USER level.
+        The parameter name specifies the user name of TENANT_USER level.
+        Meanwhile, either none or all of the parameter tenant and name are specified for TENANT_USER level.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteDynamicConfigRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+        "503":
+          description: Dynamic configuration is disabled.
+
   /api/v1/thread_dump:
     get:
       operationId: getThreadDump
@@ -587,6 +639,56 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DynamicConfig'
+
+    UpsertDynamicConfigRequest:
+      type: object
+      properties:
+        level:
+          type: string
+          description: The config level of dynamic configs.
+          enum:
+            - SYSTEM
+            - TENANT
+            - TENANT_USER
+        configs:
+          type: object
+          description: The dynamic configs to upsert.
+          additionalProperties:
+            type: string
+        tenant:
+          type: string
+          description: The tenant id of TENANT or TENANT_USER level.
+        name:
+          type: string
+          description: The user name of TENANT_USER level.
+      required:
+        - level
+        - configs
+
+    DeleteDynamicConfigRequest:
+      type: object
+      properties:
+        level:
+          type: string
+          description: The config level of dynamic configs.
+          enum:
+            - SYSTEM
+            - TENANT
+            - TENANT_USER
+        configs:
+          type: array
+          description: The dynamic configs to delete.
+          items:
+            type: string
+        tenant:
+          type: string
+          description: The tenant id of TENANT or TENANT_USER level.
+        name:
+          type: string
+          description: The user name of TENANT_USER level.
+      required:
+        - level
+        - configs
 
     ThreadStack:
       type: object
