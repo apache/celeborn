@@ -80,6 +80,10 @@ trait WorkerSubcommand extends BaseCommand {
 
   private[worker] def runShowDynamicConf: DynamicConfigResponse
 
+  private[worker] def runUpsertDynamicConf: HandleResponse
+
+  private[worker] def runDeleteDynamicConf: HandleResponse
+
   private[worker] def runShowThreadDump: ThreadStackResponse
 
 }

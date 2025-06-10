@@ -18,6 +18,7 @@
 package org.apache.celeborn.server.common.service.store;
 
 import java.util.List;
+import java.util.Map;
 
 import org.apache.celeborn.server.common.service.config.TenantConfig;
 import org.apache.celeborn.server.common.service.model.ClusterInfo;
@@ -37,4 +38,12 @@ public interface IServiceManager {
   List<ClusterSystemConfig> getSystemConfig();
 
   List<ClusterTag> getClusterTags();
+
+  void upsertSystemConfig(Map<String, String> systemConfigs);
+
+  void upsertTenantConfig(String tenantId, String userId, Map<String, String> tenantConfigs);
+
+  void deleteSystemConfigByKeys(List<String> configKeys);
+
+  void deleteTenantConfigByKeys(String tenantId, String name, List<String> configKeys);
 }
