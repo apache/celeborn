@@ -28,7 +28,7 @@ class CelebornShuffleHandle[K, V, C](
     val lifecycleManagerPort: Int,
     val userIdentifier: UserIdentifier,
     shuffleId: Int,
-    val throwsFetchFailure: Boolean,
+    val stageRerunEnabled: Boolean,
     val numMappers: Int,
     dependency: ShuffleDependency[K, V, C],
     val extension: Array[Byte])
@@ -39,7 +39,7 @@ class CelebornShuffleHandle[K, V, C](
       lifecycleManagerPort: Int,
       userIdentifier: UserIdentifier,
       shuffleId: Int,
-      throwsFetchFailure: Boolean,
+      stageRerunEnabled: Boolean,
       numMappers: Int,
       dependency: ShuffleDependency[K, V, C]) = this(
     appUniqueId,
@@ -47,7 +47,7 @@ class CelebornShuffleHandle[K, V, C](
     lifecycleManagerPort,
     userIdentifier,
     shuffleId,
-    throwsFetchFailure,
+    stageRerunEnabled,
     numMappers,
     dependency,
     null)

@@ -85,7 +85,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
     }
   }
 
-  test("celeborn spark integration test - unregister shuffle with throwsFetchFailure disabled") {
+  test("celeborn spark integration test - unregister shuffle with stageRerun disabled") {
     if (Spark3OrNewer) {
       val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
       val sparkSession = SparkSession.builder()
@@ -241,7 +241,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
     }
   }
 
-  test(s"celeborn spark integration test - resubmit an unordered barrier stage with throwsFetchFailure enabled") {
+  test(s"celeborn spark integration test - resubmit an unordered barrier stage with stageRerun enabled") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
     val sparkSession = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
@@ -285,7 +285,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
     }
   }
 
-  test(s"celeborn spark integration test - fetch failure in child of an unordered barrier stage with throwsFetchFailure enabled") {
+  test(s"celeborn spark integration test - fetch failure in child of an unordered barrier stage with stageRerun enabled") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2]")
     val sparkSession = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
