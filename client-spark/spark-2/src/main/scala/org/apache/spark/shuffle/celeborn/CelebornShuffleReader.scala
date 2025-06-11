@@ -69,7 +69,7 @@ class CelebornShuffleReader[K, C](
       } catch {
         case e: CelebornRuntimeException =>
           logError(s"Failed to get shuffleId for appShuffleId ${handle.shuffleId}", e)
-          if (handle.throwsFetchFailure) {
+          if (handle.stageRerunEnabled) {
             throw new FetchFailedException(
               null,
               handle.shuffleId,
@@ -142,7 +142,7 @@ class CelebornShuffleReader[K, C](
           if (exceptionRef.get() != null) {
             exceptionRef.get() match {
               case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
-                if (handle.throwsFetchFailure &&
+                if (handle.stageRerunEnabled &&
                   shuffleClient.reportShuffleFetchFailure(
                     handle.shuffleId,
                     shuffleId,
@@ -179,7 +179,7 @@ class CelebornShuffleReader[K, C](
         iter
       } catch {
         case e @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
-          if (handle.throwsFetchFailure &&
+          if (handle.stageRerunEnabled &&
             shuffleClient.reportShuffleFetchFailure(
               handle.shuffleId,
               shuffleId,

@@ -94,7 +94,7 @@ class CelebornShuffleReader[K, C](
     handle.extension)
 
   private val exceptionRef = new AtomicReference[IOException]
-  private val throwsFetchFailure = handle.throwsFetchFailure
+  private val stageRerunEnabled = handle.stageRerunEnabled
   private val encodedAttemptId = SparkCommonUtils.getEncodedAttemptNumber(context)
 
   override def read(): Iterator[Product2[K, C]] = {
@@ -107,7 +107,7 @@ class CelebornShuffleReader[K, C](
       } catch {
         case e: CelebornRuntimeException =>
           logError(s"Failed to get shuffleId for appShuffleId ${handle.shuffleId}", e)
-          if (throwsFetchFailure) {
+          if (stageRerunEnabled) {
             throw new FetchFailedException(
               null,
               handle.shuffleId,
@@ -329,7 +329,7 @@ class CelebornShuffleReader[K, C](
             context.taskAttemptId(),
             startMapIndex,
             endMapIndex,
-            if (throwsFetchFailure) ExceptionMakerHelper.SHUFFLE_FETCH_FAILURE_EXCEPTION_MAKER
+            if (stageRerunEnabled) ExceptionMakerHelper.SHUFFLE_FETCH_FAILURE_EXCEPTION_MAKER
             else null,
             locationList,
             streamHandlers,
@@ -513,7 +513,7 @@ class CelebornShuffleReader[K, C](
       shuffleId: Int,
       partitionId: Int,
       ce: Throwable) = {
-    if (throwsFetchFailure &&
+    if (stageRerunEnabled &&
       shuffleClient.reportShuffleFetchFailure(appShuffleId, shuffleId, context.taskAttemptId())) {
       logWarning(s"Handle fetch exceptions for ${shuffleId}-${partitionId}", ce)
       throw new FetchFailedException(
