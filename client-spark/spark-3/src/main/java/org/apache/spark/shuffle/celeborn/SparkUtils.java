@@ -133,7 +133,7 @@ public class SparkUtils {
       CelebornShuffleHandle<?, ?, ?> handle,
       TaskContext context,
       Boolean isWriter) {
-    if (handle.throwsFetchFailure()) {
+    if (handle.stageRerunEnabled()) {
       String appShuffleIdentifier =
           SparkCommonUtils.encodeAppShuffleIdentifier(handle.shuffleId(), context);
       Tuple2<Integer, Boolean> res =

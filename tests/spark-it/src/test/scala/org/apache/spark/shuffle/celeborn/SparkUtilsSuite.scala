@@ -54,7 +54,7 @@ class SparkUtilsSuite extends AnyFunSuite
         .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
         .config("spark.sql.shuffle.partitions", 2)
         .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
-        .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
+        .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
         .config(
           "spark.shuffle.manager",
           "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
@@ -115,7 +115,7 @@ class SparkUtilsSuite extends AnyFunSuite
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .config("spark.sql.shuffle.partitions", 2)
       .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
-      .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
+      .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
       .config(
         "spark.shuffle.manager",
         "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
@@ -167,7 +167,7 @@ class SparkUtilsSuite extends AnyFunSuite
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .config("spark.sql.shuffle.partitions", 2)
       .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
-      .config("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
+      .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
       .config(
         "spark.shuffle.manager",
         "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")

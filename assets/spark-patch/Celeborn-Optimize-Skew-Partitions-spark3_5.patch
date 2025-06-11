@@ -361,8 +361,8 @@ index 9370b3d8d1d..d36e26a1376 100644
 +      val celebornClientAdaptiveOptimizeSkewedPartitionReadEnabled =
 +        CelebornShuffleState.celebornAdaptiveOptimizeSkewedPartitionReadEnabled && isCelebornShuffle
 +
-+      val throwsFetchFailure = CelebornShuffleState.celebornStageRerunEnabled
-+      if (throwsFetchFailure && celebornClientAdaptiveOptimizeSkewedPartitionReadEnabled) {
++      val stageRerunEnabled = CelebornShuffleState.celebornStageRerunEnabled
++      if (stageRerunEnabled && celebornClientAdaptiveOptimizeSkewedPartitionReadEnabled) {
 +        logInfo(s"Celeborn shuffle retry enabled and shuffle $shuffleId is skewed")
 +        CelebornShuffleState.registerCelebornSkewedShuffle(shuffleId)
 +      }

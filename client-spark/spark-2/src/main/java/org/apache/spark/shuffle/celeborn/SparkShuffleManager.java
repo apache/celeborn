@@ -209,7 +209,7 @@ public class SparkShuffleManager implements ShuffleManager {
                 celebornConf,
                 h.userIdentifier(),
                 h.extension());
-        if (h.throwsFetchFailure()) {
+        if (h.stageRerunEnabled()) {
           SparkUtils.addFailureListenerIfBarrierTask(client, context, h);
         }
         int shuffleId = SparkUtils.celebornShuffleId(client, h, context, true);
