@@ -59,6 +59,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   addCounter(SEGMENT_START_FAIL_COUNT)
 
   addCounter(SLOTS_ALLOCATED)
+  addCounter(REGISTER_WITH_MASTER_FAIL_COUNT)
 
   // add timers
   addTimer(COMMIT_FILES_TIME)
@@ -141,6 +142,8 @@ object WorkerSource {
   val REGISTERED_SHUFFLE_COUNT = "RegisteredShuffleCount"
 
   val RUNNING_APPLICATION_COUNT = "RunningApplicationCount"
+
+  val REGISTER_WITH_MASTER_FAIL_COUNT = "RegisterWithMasterFailCount"
 
   // fetch data
   val OPEN_STREAM_TIME = "OpenStreamTime"
