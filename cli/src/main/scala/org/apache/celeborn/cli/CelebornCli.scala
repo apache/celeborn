@@ -19,18 +19,16 @@ package org.apache.celeborn.cli
 import picocli.CommandLine
 import picocli.CommandLine.Command
 
-import org.apache.celeborn.cli.common.{CliLogging, CliVersionProvider}
+import org.apache.celeborn.cli.common.BaseCommand
 import org.apache.celeborn.cli.master.MasterSubcommandImpl
 import org.apache.celeborn.cli.worker.WorkerSubcommandImpl
 @Command(
   name = "celeborn-cli",
-  versionProvider = classOf[CliVersionProvider],
-  mixinStandardHelpOptions = true,
   description = Array("@|bold Scala|@ Celeborn CLI"),
   subcommands = Array(
     classOf[MasterSubcommandImpl],
     classOf[WorkerSubcommandImpl]))
-class CelebornCli extends Runnable with CliLogging {
+class CelebornCli extends BaseCommand {
   override def run(): Unit = {
     logError(
       "Master or Worker subcommand needs to be provided. Please run -h to see the usage info.")
