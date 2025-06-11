@@ -412,6 +412,8 @@ class LocalTierWriter(
 
   override def writeInternal(buf: ByteBuf): Unit = {
     val numBytes = buf.readableBytes()
+    if (userCongestionControlContext != null)
+      userCongestionControlContext.updateProduceBytes(numBytes)
     val flushBufferReadableBytes = flushBuffer.readableBytes
     if (flushBufferReadableBytes != 0 && flushBufferReadableBytes + numBytes >= flusherBufferSize) {
       flush(false)
@@ -422,13 +424,9 @@ class LocalTierWriter(
     } catch {
       case oom: OutOfMemoryError =>
         MemoryManager.instance.incrementDiskBuffer(numBytes)
-        if (userCongestionControlContext != null)
-          userCongestionControlContext.updateProduceBytes(numBytes)
         throw oom
     }
     MemoryManager.instance.incrementDiskBuffer(numBytes)
-    if (userCongestionControlContext != null)
-      userCongestionControlContext.updateProduceBytes(numBytes)
   }
 
   override def evict(file: TierWriterBase): Unit = ???
