@@ -23,13 +23,13 @@ import picocli.CommandLine.{ArgGroup, Mixin, ParameterException, ParentCommand, 
 import picocli.CommandLine.Model.CommandSpec
 
 import org.apache.celeborn.cli.CelebornCli
-import org.apache.celeborn.cli.common.{CliLogging, CommonOptions}
+import org.apache.celeborn.cli.common.{BaseCommand, CliLogging, CommonOptions}
 import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.rest.v1.master.{ApplicationApi, ConfApi, DefaultApi, MasterApi, ShuffleApi, WorkerApi}
 import org.apache.celeborn.rest.v1.master.invoker.ApiClient
 import org.apache.celeborn.rest.v1.model._
 
-trait MasterSubcommand extends CliLogging {
+trait MasterSubcommand extends BaseCommand {
 
   @ParentCommand
   private var celebornCli: CelebornCli = _

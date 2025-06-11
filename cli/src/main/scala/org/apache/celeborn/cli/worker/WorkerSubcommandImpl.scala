@@ -22,8 +22,8 @@ import picocli.CommandLine.Command
 import org.apache.celeborn.rest.v1.model._
 import org.apache.celeborn.rest.v1.model.WorkerExitRequest.TypeEnum
 
-@Command(name = "worker", mixinStandardHelpOptions = true)
-class WorkerSubcommandImpl extends Runnable with WorkerSubcommand {
+@Command(name = "worker")
+class WorkerSubcommandImpl extends WorkerSubcommand {
 
   override def run(): Unit = {
     if (workerOptions.showWorkerInfo) log(runShowWorkerInfo)

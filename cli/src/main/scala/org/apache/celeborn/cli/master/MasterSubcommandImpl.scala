@@ -28,8 +28,8 @@ import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.rest.v1.model._
 import org.apache.celeborn.rest.v1.model.SendWorkerEventRequest.EventTypeEnum
 
-@Command(name = "master", mixinStandardHelpOptions = true)
-class MasterSubcommandImpl extends Runnable with MasterSubcommand {
+@Command(name = "master")
+class MasterSubcommandImpl extends MasterSubcommand {
   override def run(): Unit = {
     if (masterOptions.showMastersInfo) log(runShowMastersInfo)
     if (masterOptions.showClusterApps) log(runShowClusterApps)

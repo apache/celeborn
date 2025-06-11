@@ -291,6 +291,13 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "success: true")
   }
 
+  test("--version") {
+    val versionInfo = "Could not resolve version of Celeborn since no RELEASE file was found"
+    captureOutputAndValidateResponse(Array("--version"), versionInfo)
+    captureOutputAndValidateResponse(Array("master", "--version"), versionInfo)
+    captureOutputAndValidateResponse(Array("worker", "--version"), versionInfo)
+  }
+
   private def prepareMasterArgs(): Array[String] = {
     Array(
       "master",
