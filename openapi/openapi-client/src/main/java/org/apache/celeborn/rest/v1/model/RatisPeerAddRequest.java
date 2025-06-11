@@ -38,15 +38,16 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   RatisPeerAddRequest.JSON_PROPERTY_PEERS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class RatisPeerAddRequest {
   public static final String JSON_PROPERTY_PEERS = "peers";
+  @javax.annotation.Nonnull
   private List<RatisPeer> peers = new ArrayList<>();
 
   public RatisPeerAddRequest() {
   }
 
-  public RatisPeerAddRequest peers(List<RatisPeer> peers) {
+  public RatisPeerAddRequest peers(@javax.annotation.Nonnull List<RatisPeer> peers) {
     
     this.peers = peers;
     return this;
@@ -75,7 +76,7 @@ public class RatisPeerAddRequest {
 
   @JsonProperty(JSON_PROPERTY_PEERS)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setPeers(List<RatisPeer> peers) {
+  public void setPeers(@javax.annotation.Nonnull List<RatisPeer> peers) {
     this.peers = peers;
   }
 

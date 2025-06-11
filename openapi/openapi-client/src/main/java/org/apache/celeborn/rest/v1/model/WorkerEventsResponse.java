@@ -38,15 +38,16 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   WorkerEventsResponse.JSON_PROPERTY_WORKER_EVENTS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class WorkerEventsResponse {
   public static final String JSON_PROPERTY_WORKER_EVENTS = "workerEvents";
+  @javax.annotation.Nullable
   private List<WorkerEventData> workerEvents = new ArrayList<>();
 
   public WorkerEventsResponse() {
   }
 
-  public WorkerEventsResponse workerEvents(List<WorkerEventData> workerEvents) {
+  public WorkerEventsResponse workerEvents(@javax.annotation.Nullable List<WorkerEventData> workerEvents) {
     
     this.workerEvents = workerEvents;
     return this;
@@ -75,7 +76,7 @@ public class WorkerEventsResponse {
 
   @JsonProperty(JSON_PROPERTY_WORKER_EVENTS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setWorkerEvents(List<WorkerEventData> workerEvents) {
+  public void setWorkerEvents(@javax.annotation.Nullable List<WorkerEventData> workerEvents) {
     this.workerEvents = workerEvents;
   }
 

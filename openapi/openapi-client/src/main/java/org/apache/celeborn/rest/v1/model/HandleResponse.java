@@ -35,18 +35,20 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   HandleResponse.JSON_PROPERTY_SUCCESS,
   HandleResponse.JSON_PROPERTY_MESSAGE
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class HandleResponse {
   public static final String JSON_PROPERTY_SUCCESS = "success";
+  @javax.annotation.Nonnull
   private Boolean success;
 
   public static final String JSON_PROPERTY_MESSAGE = "message";
+  @javax.annotation.Nullable
   private String message;
 
   public HandleResponse() {
   }
 
-  public HandleResponse success(Boolean success) {
+  public HandleResponse success(@javax.annotation.Nonnull Boolean success) {
     
     this.success = success;
     return this;
@@ -67,11 +69,11 @@ public class HandleResponse {
 
   @JsonProperty(JSON_PROPERTY_SUCCESS)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setSuccess(Boolean success) {
+  public void setSuccess(@javax.annotation.Nonnull Boolean success) {
     this.success = success;
   }
 
-  public HandleResponse message(String message) {
+  public HandleResponse message(@javax.annotation.Nullable String message) {
     
     this.message = message;
     return this;
@@ -92,7 +94,7 @@ public class HandleResponse {
 
   @JsonProperty(JSON_PROPERTY_MESSAGE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setMessage(String message) {
+  public void setMessage(@javax.annotation.Nullable String message) {
     this.message = message;
   }
 

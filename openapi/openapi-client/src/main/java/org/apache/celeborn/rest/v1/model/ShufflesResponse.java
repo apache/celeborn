@@ -37,15 +37,16 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   ShufflesResponse.JSON_PROPERTY_SHUFFLE_IDS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class ShufflesResponse {
   public static final String JSON_PROPERTY_SHUFFLE_IDS = "shuffleIds";
+  @javax.annotation.Nullable
   private List<String> shuffleIds = new ArrayList<>();
 
   public ShufflesResponse() {
   }
 
-  public ShufflesResponse shuffleIds(List<String> shuffleIds) {
+  public ShufflesResponse shuffleIds(@javax.annotation.Nullable List<String> shuffleIds) {
     
     this.shuffleIds = shuffleIds;
     return this;
@@ -74,7 +75,7 @@ public class ShufflesResponse {
 
   @JsonProperty(JSON_PROPERTY_SHUFFLE_IDS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setShuffleIds(List<String> shuffleIds) {
+  public void setShuffleIds(@javax.annotation.Nullable List<String> shuffleIds) {
     this.shuffleIds = shuffleIds;
   }
 

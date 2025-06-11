@@ -36,18 +36,20 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   WorkerTimestampData.JSON_PROPERTY_WORKER,
   WorkerTimestampData.JSON_PROPERTY_TIMESTAMP
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class WorkerTimestampData {
   public static final String JSON_PROPERTY_WORKER = "worker";
+  @javax.annotation.Nonnull
   private WorkerData worker;
 
   public static final String JSON_PROPERTY_TIMESTAMP = "timestamp";
+  @javax.annotation.Nonnull
   private Long timestamp;
 
   public WorkerTimestampData() {
   }
 
-  public WorkerTimestampData worker(WorkerData worker) {
+  public WorkerTimestampData worker(@javax.annotation.Nonnull WorkerData worker) {
     
     this.worker = worker;
     return this;
@@ -68,11 +70,11 @@ public class WorkerTimestampData {
 
   @JsonProperty(JSON_PROPERTY_WORKER)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setWorker(WorkerData worker) {
+  public void setWorker(@javax.annotation.Nonnull WorkerData worker) {
     this.worker = worker;
   }
 
-  public WorkerTimestampData timestamp(Long timestamp) {
+  public WorkerTimestampData timestamp(@javax.annotation.Nonnull Long timestamp) {
     
     this.timestamp = timestamp;
     return this;
@@ -93,7 +95,7 @@ public class WorkerTimestampData {
 
   @JsonProperty(JSON_PROPERTY_TIMESTAMP)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setTimestamp(Long timestamp) {
+  public void setTimestamp(@javax.annotation.Nonnull Long timestamp) {
     this.timestamp = timestamp;
   }
 

@@ -43,24 +43,28 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   MasterInfoResponse.JSON_PROPERTY_MASTER_COMMIT_INFO,
   MasterInfoResponse.JSON_PROPERTY_LOG_INFO
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class MasterInfoResponse {
   public static final String JSON_PROPERTY_GROUP_ID = "groupId";
+  @javax.annotation.Nonnull
   private String groupId;
 
   public static final String JSON_PROPERTY_LEADER = "leader";
+  @javax.annotation.Nullable
   private MasterLeader leader;
 
   public static final String JSON_PROPERTY_MASTER_COMMIT_INFO = "masterCommitInfo";
+  @javax.annotation.Nullable
   private List<MasterCommitData> masterCommitInfo = new ArrayList<>();
 
   public static final String JSON_PROPERTY_LOG_INFO = "logInfo";
+  @javax.annotation.Nullable
   private RatisLogInfo logInfo;
 
   public MasterInfoResponse() {
   }
 
-  public MasterInfoResponse groupId(String groupId) {
+  public MasterInfoResponse groupId(@javax.annotation.Nonnull String groupId) {
     
     this.groupId = groupId;
     return this;
@@ -81,11 +85,11 @@ public class MasterInfoResponse {
 
   @JsonProperty(JSON_PROPERTY_GROUP_ID)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setGroupId(String groupId) {
+  public void setGroupId(@javax.annotation.Nonnull String groupId) {
     this.groupId = groupId;
   }
 
-  public MasterInfoResponse leader(MasterLeader leader) {
+  public MasterInfoResponse leader(@javax.annotation.Nullable MasterLeader leader) {
     
     this.leader = leader;
     return this;
@@ -106,11 +110,11 @@ public class MasterInfoResponse {
 
   @JsonProperty(JSON_PROPERTY_LEADER)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setLeader(MasterLeader leader) {
+  public void setLeader(@javax.annotation.Nullable MasterLeader leader) {
     this.leader = leader;
   }
 
-  public MasterInfoResponse masterCommitInfo(List<MasterCommitData> masterCommitInfo) {
+  public MasterInfoResponse masterCommitInfo(@javax.annotation.Nullable List<MasterCommitData> masterCommitInfo) {
     
     this.masterCommitInfo = masterCommitInfo;
     return this;
@@ -139,11 +143,11 @@ public class MasterInfoResponse {
 
   @JsonProperty(JSON_PROPERTY_MASTER_COMMIT_INFO)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setMasterCommitInfo(List<MasterCommitData> masterCommitInfo) {
+  public void setMasterCommitInfo(@javax.annotation.Nullable List<MasterCommitData> masterCommitInfo) {
     this.masterCommitInfo = masterCommitInfo;
   }
 
-  public MasterInfoResponse logInfo(RatisLogInfo logInfo) {
+  public MasterInfoResponse logInfo(@javax.annotation.Nullable RatisLogInfo logInfo) {
     
     this.logInfo = logInfo;
     return this;
@@ -164,7 +168,7 @@ public class MasterInfoResponse {
 
   @JsonProperty(JSON_PROPERTY_LOG_INFO)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setLogInfo(RatisLogInfo logInfo) {
+  public void setLogInfo(@javax.annotation.Nullable RatisLogInfo logInfo) {
     this.logInfo = logInfo;
   }
 

@@ -37,15 +37,16 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   DeleteAppsRequest.JSON_PROPERTY_APPS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class DeleteAppsRequest {
   public static final String JSON_PROPERTY_APPS = "apps";
+  @javax.annotation.Nonnull
   private List<String> apps = new ArrayList<>();
 
   public DeleteAppsRequest() {
   }
 
-  public DeleteAppsRequest apps(List<String> apps) {
+  public DeleteAppsRequest apps(@javax.annotation.Nonnull List<String> apps) {
     
     this.apps = apps;
     return this;
@@ -74,7 +75,7 @@ public class DeleteAppsRequest {
 
   @JsonProperty(JSON_PROPERTY_APPS)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setApps(List<String> apps) {
+  public void setApps(@javax.annotation.Nonnull List<String> apps) {
     this.apps = apps;
   }
 

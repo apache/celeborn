@@ -38,27 +38,32 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   WorkerId.JSON_PROPERTY_FETCH_PORT,
   WorkerId.JSON_PROPERTY_REPLICATE_PORT
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class WorkerId {
   public static final String JSON_PROPERTY_HOST = "host";
+  @javax.annotation.Nonnull
   private String host;
 
   public static final String JSON_PROPERTY_RPC_PORT = "rpcPort";
+  @javax.annotation.Nonnull
   private Integer rpcPort;
 
   public static final String JSON_PROPERTY_PUSH_PORT = "pushPort";
+  @javax.annotation.Nonnull
   private Integer pushPort;
 
   public static final String JSON_PROPERTY_FETCH_PORT = "fetchPort";
+  @javax.annotation.Nonnull
   private Integer fetchPort;
 
   public static final String JSON_PROPERTY_REPLICATE_PORT = "replicatePort";
+  @javax.annotation.Nonnull
   private Integer replicatePort;
 
   public WorkerId() {
   }
 
-  public WorkerId host(String host) {
+  public WorkerId host(@javax.annotation.Nonnull String host) {
     
     this.host = host;
     return this;
@@ -79,11 +84,11 @@ public class WorkerId {
 
   @JsonProperty(JSON_PROPERTY_HOST)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setHost(String host) {
+  public void setHost(@javax.annotation.Nonnull String host) {
     this.host = host;
   }
 
-  public WorkerId rpcPort(Integer rpcPort) {
+  public WorkerId rpcPort(@javax.annotation.Nonnull Integer rpcPort) {
     
     this.rpcPort = rpcPort;
     return this;
@@ -104,11 +109,11 @@ public class WorkerId {
 
   @JsonProperty(JSON_PROPERTY_RPC_PORT)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setRpcPort(Integer rpcPort) {
+  public void setRpcPort(@javax.annotation.Nonnull Integer rpcPort) {
     this.rpcPort = rpcPort;
   }
 
-  public WorkerId pushPort(Integer pushPort) {
+  public WorkerId pushPort(@javax.annotation.Nonnull Integer pushPort) {
     
     this.pushPort = pushPort;
     return this;
@@ -129,11 +134,11 @@ public class WorkerId {
 
   @JsonProperty(JSON_PROPERTY_PUSH_PORT)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setPushPort(Integer pushPort) {
+  public void setPushPort(@javax.annotation.Nonnull Integer pushPort) {
     this.pushPort = pushPort;
   }
 
-  public WorkerId fetchPort(Integer fetchPort) {
+  public WorkerId fetchPort(@javax.annotation.Nonnull Integer fetchPort) {
     
     this.fetchPort = fetchPort;
     return this;
@@ -154,11 +159,11 @@ public class WorkerId {
 
   @JsonProperty(JSON_PROPERTY_FETCH_PORT)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setFetchPort(Integer fetchPort) {
+  public void setFetchPort(@javax.annotation.Nonnull Integer fetchPort) {
     this.fetchPort = fetchPort;
   }
 
-  public WorkerId replicatePort(Integer replicatePort) {
+  public WorkerId replicatePort(@javax.annotation.Nonnull Integer replicatePort) {
     
     this.replicatePort = replicatePort;
     return this;
@@ -179,7 +184,7 @@ public class WorkerId {
 
   @JsonProperty(JSON_PROPERTY_REPLICATE_PORT)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setReplicatePort(Integer replicatePort) {
+  public void setReplicatePort(@javax.annotation.Nonnull Integer replicatePort) {
     this.replicatePort = replicatePort;
   }
 

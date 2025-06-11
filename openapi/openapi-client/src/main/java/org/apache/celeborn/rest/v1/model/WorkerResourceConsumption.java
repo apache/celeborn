@@ -40,27 +40,32 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   WorkerResourceConsumption.JSON_PROPERTY_HDFS_FILE_COUNT,
   WorkerResourceConsumption.JSON_PROPERTY_SUB_RESOURCE_CONSUMPTIONS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class WorkerResourceConsumption {
   public static final String JSON_PROPERTY_DISK_BYTES_WRITTEN = "diskBytesWritten";
+  @javax.annotation.Nullable
   private Long diskBytesWritten;
 
   public static final String JSON_PROPERTY_DISK_FILE_COUNT = "diskFileCount";
+  @javax.annotation.Nullable
   private Long diskFileCount;
 
   public static final String JSON_PROPERTY_HDFS_BYTES_WRITTEN = "hdfsBytesWritten";
+  @javax.annotation.Nullable
   private Long hdfsBytesWritten;
 
   public static final String JSON_PROPERTY_HDFS_FILE_COUNT = "hdfsFileCount";
+  @javax.annotation.Nullable
   private Long hdfsFileCount;
 
   public static final String JSON_PROPERTY_SUB_RESOURCE_CONSUMPTIONS = "subResourceConsumptions";
+  @javax.annotation.Nullable
   private Map<String, WorkerResourceConsumption> subResourceConsumptions = new HashMap<>();
 
   public WorkerResourceConsumption() {
   }
 
-  public WorkerResourceConsumption diskBytesWritten(Long diskBytesWritten) {
+  public WorkerResourceConsumption diskBytesWritten(@javax.annotation.Nullable Long diskBytesWritten) {
     
     this.diskBytesWritten = diskBytesWritten;
     return this;
@@ -81,11 +86,11 @@ public class WorkerResourceConsumption {
 
   @JsonProperty(JSON_PROPERTY_DISK_BYTES_WRITTEN)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setDiskBytesWritten(Long diskBytesWritten) {
+  public void setDiskBytesWritten(@javax.annotation.Nullable Long diskBytesWritten) {
     this.diskBytesWritten = diskBytesWritten;
   }
 
-  public WorkerResourceConsumption diskFileCount(Long diskFileCount) {
+  public WorkerResourceConsumption diskFileCount(@javax.annotation.Nullable Long diskFileCount) {
     
     this.diskFileCount = diskFileCount;
     return this;
@@ -106,11 +111,11 @@ public class WorkerResourceConsumption {
 
   @JsonProperty(JSON_PROPERTY_DISK_FILE_COUNT)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setDiskFileCount(Long diskFileCount) {
+  public void setDiskFileCount(@javax.annotation.Nullable Long diskFileCount) {
     this.diskFileCount = diskFileCount;
   }
 
-  public WorkerResourceConsumption hdfsBytesWritten(Long hdfsBytesWritten) {
+  public WorkerResourceConsumption hdfsBytesWritten(@javax.annotation.Nullable Long hdfsBytesWritten) {
     
     this.hdfsBytesWritten = hdfsBytesWritten;
     return this;
@@ -131,11 +136,11 @@ public class WorkerResourceConsumption {
 
   @JsonProperty(JSON_PROPERTY_HDFS_BYTES_WRITTEN)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setHdfsBytesWritten(Long hdfsBytesWritten) {
+  public void setHdfsBytesWritten(@javax.annotation.Nullable Long hdfsBytesWritten) {
     this.hdfsBytesWritten = hdfsBytesWritten;
   }
 
-  public WorkerResourceConsumption hdfsFileCount(Long hdfsFileCount) {
+  public WorkerResourceConsumption hdfsFileCount(@javax.annotation.Nullable Long hdfsFileCount) {
     
     this.hdfsFileCount = hdfsFileCount;
     return this;
@@ -156,11 +161,11 @@ public class WorkerResourceConsumption {
 
   @JsonProperty(JSON_PROPERTY_HDFS_FILE_COUNT)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setHdfsFileCount(Long hdfsFileCount) {
+  public void setHdfsFileCount(@javax.annotation.Nullable Long hdfsFileCount) {
     this.hdfsFileCount = hdfsFileCount;
   }
 
-  public WorkerResourceConsumption subResourceConsumptions(Map<String, WorkerResourceConsumption> subResourceConsumptions) {
+  public WorkerResourceConsumption subResourceConsumptions(@javax.annotation.Nullable Map<String, WorkerResourceConsumption> subResourceConsumptions) {
     
     this.subResourceConsumptions = subResourceConsumptions;
     return this;
@@ -189,7 +194,7 @@ public class WorkerResourceConsumption {
 
   @JsonProperty(JSON_PROPERTY_SUB_RESOURCE_CONSUMPTIONS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSubResourceConsumptions(Map<String, WorkerResourceConsumption> subResourceConsumptions) {
+  public void setSubResourceConsumptions(@javax.annotation.Nullable Map<String, WorkerResourceConsumption> subResourceConsumptions) {
     this.subResourceConsumptions = subResourceConsumptions;
   }
 

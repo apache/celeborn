@@ -40,17 +40,17 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   DynamicConfig.JSON_PROPERTY_DESC,
   DynamicConfig.JSON_PROPERTY_CONFIGS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class DynamicConfig {
   /**
    * the config level of dynamic configs.
    */
   public enum LevelEnum {
-    SYSTEM("SYSTEM"),
+    SYSTEM(String.valueOf("SYSTEM")),
     
-    TENANT("TENANT"),
+    TENANT(String.valueOf("TENANT")),
     
-    TENANT_USER("TENANT_USER");
+    TENANT_USER(String.valueOf("TENANT_USER"));
 
     private String value;
 
@@ -80,18 +80,21 @@ public class DynamicConfig {
   }
 
   public static final String JSON_PROPERTY_LEVEL = "level";
+  @javax.annotation.Nullable
   private LevelEnum level;
 
   public static final String JSON_PROPERTY_DESC = "desc";
+  @javax.annotation.Nullable
   private String desc;
 
   public static final String JSON_PROPERTY_CONFIGS = "configs";
+  @javax.annotation.Nullable
   private List<ConfigData> configs = new ArrayList<>();
 
   public DynamicConfig() {
   }
 
-  public DynamicConfig level(LevelEnum level) {
+  public DynamicConfig level(@javax.annotation.Nullable LevelEnum level) {
     
     this.level = level;
     return this;
@@ -112,11 +115,11 @@ public class DynamicConfig {
 
   @JsonProperty(JSON_PROPERTY_LEVEL)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setLevel(LevelEnum level) {
+  public void setLevel(@javax.annotation.Nullable LevelEnum level) {
     this.level = level;
   }
 
-  public DynamicConfig desc(String desc) {
+  public DynamicConfig desc(@javax.annotation.Nullable String desc) {
     
     this.desc = desc;
     return this;
@@ -137,11 +140,11 @@ public class DynamicConfig {
 
   @JsonProperty(JSON_PROPERTY_DESC)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setDesc(String desc) {
+  public void setDesc(@javax.annotation.Nullable String desc) {
     this.desc = desc;
   }
 
-  public DynamicConfig configs(List<ConfigData> configs) {
+  public DynamicConfig configs(@javax.annotation.Nullable List<ConfigData> configs) {
     
     this.configs = configs;
     return this;
@@ -170,7 +173,7 @@ public class DynamicConfig {
 
   @JsonProperty(JSON_PROPERTY_CONFIGS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setConfigs(List<ConfigData> configs) {
+  public void setConfigs(@javax.annotation.Nullable List<ConfigData> configs) {
     this.configs = configs;
   }
 

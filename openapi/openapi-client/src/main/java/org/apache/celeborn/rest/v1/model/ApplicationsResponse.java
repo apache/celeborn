@@ -37,15 +37,16 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   ApplicationsResponse.JSON_PROPERTY_APPLICATIONS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class ApplicationsResponse {
   public static final String JSON_PROPERTY_APPLICATIONS = "applications";
+  @javax.annotation.Nonnull
   private List<String> applications = new ArrayList<>();
 
   public ApplicationsResponse() {
   }
 
-  public ApplicationsResponse applications(List<String> applications) {
+  public ApplicationsResponse applications(@javax.annotation.Nonnull List<String> applications) {
     
     this.applications = applications;
     return this;
@@ -74,7 +75,7 @@ public class ApplicationsResponse {
 
   @JsonProperty(JSON_PROPERTY_APPLICATIONS)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setApplications(List<String> applications) {
+  public void setApplications(@javax.annotation.Nonnull List<String> applications) {
     this.applications = applications;
   }
 

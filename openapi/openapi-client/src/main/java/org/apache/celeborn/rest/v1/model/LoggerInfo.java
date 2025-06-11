@@ -35,18 +35,20 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   LoggerInfo.JSON_PROPERTY_NAME,
   LoggerInfo.JSON_PROPERTY_LEVEL
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class LoggerInfo {
   public static final String JSON_PROPERTY_NAME = "name";
+  @javax.annotation.Nonnull
   private String name;
 
   public static final String JSON_PROPERTY_LEVEL = "level";
+  @javax.annotation.Nonnull
   private String level;
 
   public LoggerInfo() {
   }
 
-  public LoggerInfo name(String name) {
+  public LoggerInfo name(@javax.annotation.Nonnull String name) {
     
     this.name = name;
     return this;
@@ -67,11 +69,11 @@ public class LoggerInfo {
 
   @JsonProperty(JSON_PROPERTY_NAME)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setName(String name) {
+  public void setName(@javax.annotation.Nonnull String name) {
     this.name = name;
   }
 
-  public LoggerInfo level(String level) {
+  public LoggerInfo level(@javax.annotation.Nonnull String level) {
     
     this.level = level;
     return this;
@@ -92,7 +94,7 @@ public class LoggerInfo {
 
   @JsonProperty(JSON_PROPERTY_LEVEL)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setLevel(String level) {
+  public void setLevel(@javax.annotation.Nonnull String level) {
     this.level = level;
   }
 

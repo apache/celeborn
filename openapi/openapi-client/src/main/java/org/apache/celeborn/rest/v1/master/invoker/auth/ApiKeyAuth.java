@@ -23,7 +23,7 @@ import org.apache.celeborn.rest.v1.master.invoker.Pair;
 import java.util.Map;
 import java.util.List;
 
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class ApiKeyAuth implements Authentication {
   private final String location;
   private final String paramName;

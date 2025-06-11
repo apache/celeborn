@@ -44,36 +44,44 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   ContainerInfo.JSON_PROPERTY_CONTAINER_CLUSTER,
   ContainerInfo.JSON_PROPERTY_CONTAINER_TAGS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class ContainerInfo {
   public static final String JSON_PROPERTY_CONTAINER_NAME = "containerName";
+  @javax.annotation.Nullable
   private String containerName;
 
   public static final String JSON_PROPERTY_CONTAINER_ADDRESS = "containerAddress";
+  @javax.annotation.Nullable
   private String containerAddress;
 
   public static final String JSON_PROPERTY_CONTAINER_HOST_NAME = "containerHostName";
+  @javax.annotation.Nullable
   private String containerHostName;
 
   public static final String JSON_PROPERTY_CONTAINER_DATA_CENTER = "containerDataCenter";
+  @javax.annotation.Nullable
   private String containerDataCenter;
 
   public static final String JSON_PROPERTY_CONTAINER_AVAILABILITY_ZONE = "containerAvailabilityZone";
+  @javax.annotation.Nullable
   private String containerAvailabilityZone;
 
   public static final String JSON_PROPERTY_CONTAINER_USER = "containerUser";
+  @javax.annotation.Nullable
   private String containerUser;
 
   public static final String JSON_PROPERTY_CONTAINER_CLUSTER = "containerCluster";
+  @javax.annotation.Nullable
   private String containerCluster;
 
   public static final String JSON_PROPERTY_CONTAINER_TAGS = "containerTags";
+  @javax.annotation.Nullable
   private List<String> containerTags = new ArrayList<>();
 
   public ContainerInfo() {
   }
 
-  public ContainerInfo containerName(String containerName) {
+  public ContainerInfo containerName(@javax.annotation.Nullable String containerName) {
     
     this.containerName = containerName;
     return this;
@@ -94,11 +102,11 @@ public class ContainerInfo {
 
   @JsonProperty(JSON_PROPERTY_CONTAINER_NAME)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setContainerName(String containerName) {
+  public void setContainerName(@javax.annotation.Nullable String containerName) {
     this.containerName = containerName;
   }
 
-  public ContainerInfo containerAddress(String containerAddress) {
+  public ContainerInfo containerAddress(@javax.annotation.Nullable String containerAddress) {
     
     this.containerAddress = containerAddress;
     return this;
@@ -119,11 +127,11 @@ public class ContainerInfo {
 
   @JsonProperty(JSON_PROPERTY_CONTAINER_ADDRESS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setContainerAddress(String containerAddress) {
+  public void setContainerAddress(@javax.annotation.Nullable String containerAddress) {
     this.containerAddress = containerAddress;
   }
 
-  public ContainerInfo containerHostName(String containerHostName) {
+  public ContainerInfo containerHostName(@javax.annotation.Nullable String containerHostName) {
     
     this.containerHostName = containerHostName;
     return this;
@@ -144,11 +152,11 @@ public class ContainerInfo {
 
   @JsonProperty(JSON_PROPERTY_CONTAINER_HOST_NAME)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setContainerHostName(String containerHostName) {
+  public void setContainerHostName(@javax.annotation.Nullable String containerHostName) {
     this.containerHostName = containerHostName;
   }
 
-  public ContainerInfo containerDataCenter(String containerDataCenter) {
+  public ContainerInfo containerDataCenter(@javax.annotation.Nullable String containerDataCenter) {
     
     this.containerDataCenter = containerDataCenter;
     return this;
@@ -169,11 +177,11 @@ public class ContainerInfo {
 
   @JsonProperty(JSON_PROPERTY_CONTAINER_DATA_CENTER)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setContainerDataCenter(String containerDataCenter) {
+  public void setContainerDataCenter(@javax.annotation.Nullable String containerDataCenter) {
     this.containerDataCenter = containerDataCenter;
   }
 
-  public ContainerInfo containerAvailabilityZone(String containerAvailabilityZone) {
+  public ContainerInfo containerAvailabilityZone(@javax.annotation.Nullable String containerAvailabilityZone) {
     
     this.containerAvailabilityZone = containerAvailabilityZone;
     return this;
@@ -194,11 +202,11 @@ public class ContainerInfo {
 
   @JsonProperty(JSON_PROPERTY_CONTAINER_AVAILABILITY_ZONE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setContainerAvailabilityZone(String containerAvailabilityZone) {
+  public void setContainerAvailabilityZone(@javax.annotation.Nullable String containerAvailabilityZone) {
     this.containerAvailabilityZone = containerAvailabilityZone;
   }
 
-  public ContainerInfo containerUser(String containerUser) {
+  public ContainerInfo containerUser(@javax.annotation.Nullable String containerUser) {
     
     this.containerUser = containerUser;
     return this;
@@ -219,11 +227,11 @@ public class ContainerInfo {
 
   @JsonProperty(JSON_PROPERTY_CONTAINER_USER)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setContainerUser(String containerUser) {
+  public void setContainerUser(@javax.annotation.Nullable String containerUser) {
     this.containerUser = containerUser;
   }
 
-  public ContainerInfo containerCluster(String containerCluster) {
+  public ContainerInfo containerCluster(@javax.annotation.Nullable String containerCluster) {
     
     this.containerCluster = containerCluster;
     return this;
@@ -244,11 +252,11 @@ public class ContainerInfo {
 
   @JsonProperty(JSON_PROPERTY_CONTAINER_CLUSTER)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setContainerCluster(String containerCluster) {
+  public void setContainerCluster(@javax.annotation.Nullable String containerCluster) {
     this.containerCluster = containerCluster;
   }
 
-  public ContainerInfo containerTags(List<String> containerTags) {
+  public ContainerInfo containerTags(@javax.annotation.Nullable List<String> containerTags) {
     
     this.containerTags = containerTags;
     return this;
@@ -277,7 +285,7 @@ public class ContainerInfo {
 
   @JsonProperty(JSON_PROPERTY_CONTAINER_TAGS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setContainerTags(List<String> containerTags) {
+  public void setContainerTags(@javax.annotation.Nullable List<String> containerTags) {
     this.containerTags = containerTags;
   }
 

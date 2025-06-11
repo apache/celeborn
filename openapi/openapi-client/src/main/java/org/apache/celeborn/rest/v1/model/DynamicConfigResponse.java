@@ -38,15 +38,16 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   DynamicConfigResponse.JSON_PROPERTY_CONFIGS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class DynamicConfigResponse {
   public static final String JSON_PROPERTY_CONFIGS = "configs";
+  @javax.annotation.Nullable
   private List<DynamicConfig> configs = new ArrayList<>();
 
   public DynamicConfigResponse() {
   }
 
-  public DynamicConfigResponse configs(List<DynamicConfig> configs) {
+  public DynamicConfigResponse configs(@javax.annotation.Nullable List<DynamicConfig> configs) {
     
     this.configs = configs;
     return this;
@@ -75,7 +76,7 @@ public class DynamicConfigResponse {
 
   @JsonProperty(JSON_PROPERTY_CONFIGS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setConfigs(List<DynamicConfig> configs) {
+  public void setConfigs(@javax.annotation.Nullable List<DynamicConfig> configs) {
     this.configs = configs;
   }
 

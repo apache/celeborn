@@ -38,15 +38,16 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   ThreadStackResponse.JSON_PROPERTY_THREAD_STACKS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class ThreadStackResponse {
   public static final String JSON_PROPERTY_THREAD_STACKS = "threadStacks";
+  @javax.annotation.Nonnull
   private List<ThreadStack> threadStacks = new ArrayList<>();
 
   public ThreadStackResponse() {
   }
 
-  public ThreadStackResponse threadStacks(List<ThreadStack> threadStacks) {
+  public ThreadStackResponse threadStacks(@javax.annotation.Nonnull List<ThreadStack> threadStacks) {
     
     this.threadStacks = threadStacks;
     return this;
@@ -75,7 +76,7 @@ public class ThreadStackResponse {
 
   @JsonProperty(JSON_PROPERTY_THREAD_STACKS)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setThreadStacks(List<ThreadStack> threadStacks) {
+  public void setThreadStacks(@javax.annotation.Nonnull List<ThreadStack> threadStacks) {
     this.threadStacks = threadStacks;
   }
 

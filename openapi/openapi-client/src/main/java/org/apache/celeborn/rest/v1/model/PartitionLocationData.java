@@ -39,21 +39,23 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   PartitionLocationData.JSON_PROPERTY_STORAGE,
   PartitionLocationData.JSON_PROPERTY_MAP_ID_BIT_MAP
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class PartitionLocationData {
   public static final String JSON_PROPERTY_ID_EPOCH = "idEpoch";
+  @javax.annotation.Nullable
   private String idEpoch;
 
   public static final String JSON_PROPERTY_HOST_AND_PORTS = "hostAndPorts";
+  @javax.annotation.Nullable
   private String hostAndPorts;
 
   /**
    * partition mode.
    */
   public enum ModeEnum {
-    PRIMARY("PRIMARY"),
+    PRIMARY(String.valueOf("PRIMARY")),
     
-    REPLICA("REPLICA");
+    REPLICA(String.valueOf("REPLICA"));
 
     private String value;
 
@@ -83,26 +85,28 @@ public class PartitionLocationData {
   }
 
   public static final String JSON_PROPERTY_MODE = "mode";
+  @javax.annotation.Nullable
   private ModeEnum mode;
 
   public static final String JSON_PROPERTY_PEER = "peer";
+  @javax.annotation.Nullable
   private String peer;
 
   /**
    * The storage hint.
    */
   public enum StorageEnum {
-    MEMORY("MEMORY"),
+    MEMORY(String.valueOf("MEMORY")),
     
-    HDD("HDD"),
+    HDD(String.valueOf("HDD")),
     
-    SSD("SSD"),
+    SSD(String.valueOf("SSD")),
     
-    HDFS("HDFS"),
+    HDFS(String.valueOf("HDFS")),
     
-    OSS("OSS"),
+    OSS(String.valueOf("OSS")),
     
-    S3("S3");
+    S3(String.valueOf("S3"));
 
     private String value;
 
@@ -132,15 +136,17 @@ public class PartitionLocationData {
   }
 
   public static final String JSON_PROPERTY_STORAGE = "storage";
+  @javax.annotation.Nullable
   private StorageEnum storage;
 
   public static final String JSON_PROPERTY_MAP_ID_BIT_MAP = "mapIdBitMap";
+  @javax.annotation.Nullable
   private String mapIdBitMap;
 
   public PartitionLocationData() {
   }
 
-  public PartitionLocationData idEpoch(String idEpoch) {
+  public PartitionLocationData idEpoch(@javax.annotation.Nullable String idEpoch) {
     
     this.idEpoch = idEpoch;
     return this;
@@ -161,11 +167,11 @@ public class PartitionLocationData {
 
   @JsonProperty(JSON_PROPERTY_ID_EPOCH)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setIdEpoch(String idEpoch) {
+  public void setIdEpoch(@javax.annotation.Nullable String idEpoch) {
     this.idEpoch = idEpoch;
   }
 
-  public PartitionLocationData hostAndPorts(String hostAndPorts) {
+  public PartitionLocationData hostAndPorts(@javax.annotation.Nullable String hostAndPorts) {
     
     this.hostAndPorts = hostAndPorts;
     return this;
@@ -186,11 +192,11 @@ public class PartitionLocationData {
 
   @JsonProperty(JSON_PROPERTY_HOST_AND_PORTS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setHostAndPorts(String hostAndPorts) {
+  public void setHostAndPorts(@javax.annotation.Nullable String hostAndPorts) {
     this.hostAndPorts = hostAndPorts;
   }
 
-  public PartitionLocationData mode(ModeEnum mode) {
+  public PartitionLocationData mode(@javax.annotation.Nullable ModeEnum mode) {
     
     this.mode = mode;
     return this;
@@ -211,11 +217,11 @@ public class PartitionLocationData {
 
   @JsonProperty(JSON_PROPERTY_MODE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setMode(ModeEnum mode) {
+  public void setMode(@javax.annotation.Nullable ModeEnum mode) {
     this.mode = mode;
   }
 
-  public PartitionLocationData peer(String peer) {
+  public PartitionLocationData peer(@javax.annotation.Nullable String peer) {
     
     this.peer = peer;
     return this;
@@ -236,11 +242,11 @@ public class PartitionLocationData {
 
   @JsonProperty(JSON_PROPERTY_PEER)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setPeer(String peer) {
+  public void setPeer(@javax.annotation.Nullable String peer) {
     this.peer = peer;
   }
 
-  public PartitionLocationData storage(StorageEnum storage) {
+  public PartitionLocationData storage(@javax.annotation.Nullable StorageEnum storage) {
     
     this.storage = storage;
     return this;
@@ -261,11 +267,11 @@ public class PartitionLocationData {
 
   @JsonProperty(JSON_PROPERTY_STORAGE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setStorage(StorageEnum storage) {
+  public void setStorage(@javax.annotation.Nullable StorageEnum storage) {
     this.storage = storage;
   }
 
-  public PartitionLocationData mapIdBitMap(String mapIdBitMap) {
+  public PartitionLocationData mapIdBitMap(@javax.annotation.Nullable String mapIdBitMap) {
     
     this.mapIdBitMap = mapIdBitMap;
     return this;
@@ -286,7 +292,7 @@ public class PartitionLocationData {
 
   @JsonProperty(JSON_PROPERTY_MAP_ID_BIT_MAP)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setMapIdBitMap(String mapIdBitMap) {
+  public void setMapIdBitMap(@javax.annotation.Nullable String mapIdBitMap) {
     this.mapIdBitMap = mapIdBitMap;
   }
 

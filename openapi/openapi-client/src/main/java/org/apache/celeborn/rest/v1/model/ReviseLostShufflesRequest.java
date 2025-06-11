@@ -38,18 +38,20 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   ReviseLostShufflesRequest.JSON_PROPERTY_APP_ID,
   ReviseLostShufflesRequest.JSON_PROPERTY_SHUFFLE_IDS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class ReviseLostShufflesRequest {
   public static final String JSON_PROPERTY_APP_ID = "appId";
+  @javax.annotation.Nullable
   private String appId;
 
   public static final String JSON_PROPERTY_SHUFFLE_IDS = "shuffleIds";
+  @javax.annotation.Nullable
   private List<Integer> shuffleIds = new ArrayList<>();
 
   public ReviseLostShufflesRequest() {
   }
 
-  public ReviseLostShufflesRequest appId(String appId) {
+  public ReviseLostShufflesRequest appId(@javax.annotation.Nullable String appId) {
     
     this.appId = appId;
     return this;
@@ -70,11 +72,11 @@ public class ReviseLostShufflesRequest {
 
   @JsonProperty(JSON_PROPERTY_APP_ID)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setAppId(String appId) {
+  public void setAppId(@javax.annotation.Nullable String appId) {
     this.appId = appId;
   }
 
-  public ReviseLostShufflesRequest shuffleIds(List<Integer> shuffleIds) {
+  public ReviseLostShufflesRequest shuffleIds(@javax.annotation.Nullable List<Integer> shuffleIds) {
     
     this.shuffleIds = shuffleIds;
     return this;
@@ -103,7 +105,7 @@ public class ReviseLostShufflesRequest {
 
   @JsonProperty(JSON_PROPERTY_SHUFFLE_IDS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setShuffleIds(List<Integer> shuffleIds) {
+  public void setShuffleIds(@javax.annotation.Nullable List<Integer> shuffleIds) {
     this.shuffleIds = shuffleIds;
   }
 

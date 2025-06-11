@@ -37,7 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class LoggerApi extends BaseApi {
 
   public LoggerApi() {
@@ -56,7 +56,7 @@ public class LoggerApi extends BaseApi {
    * @return LoggerInfos
    * @throws ApiException if fails to make API call
    */
-  public LoggerInfos getLogger(String name, Boolean all) throws ApiException {
+  public LoggerInfos getLogger(@javax.annotation.Nullable String name, @javax.annotation.Nullable Boolean all) throws ApiException {
     return this.getLogger(name, all, Collections.emptyMap());
   }
 
@@ -70,7 +70,7 @@ public class LoggerApi extends BaseApi {
    * @return LoggerInfos
    * @throws ApiException if fails to make API call
    */
-  public LoggerInfos getLogger(String name, Boolean all, Map<String, String> additionalHeaders) throws ApiException {
+  public LoggerInfos getLogger(@javax.annotation.Nullable String name, @javax.annotation.Nullable Boolean all, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = null;
     
     // create path and map variables
@@ -128,7 +128,7 @@ public class LoggerApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse setLogger(LoggerInfo loggerInfo) throws ApiException {
+  public HandleResponse setLogger(@javax.annotation.Nullable LoggerInfo loggerInfo) throws ApiException {
     return this.setLogger(loggerInfo, Collections.emptyMap());
   }
 
@@ -141,7 +141,7 @@ public class LoggerApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse setLogger(LoggerInfo loggerInfo, Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse setLogger(@javax.annotation.Nullable LoggerInfo loggerInfo, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = loggerInfo;
     
     // create path and map variables

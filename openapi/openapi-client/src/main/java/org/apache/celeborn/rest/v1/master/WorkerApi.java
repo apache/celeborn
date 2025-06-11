@@ -42,7 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class WorkerApi extends BaseApi {
 
   public WorkerApi() {
@@ -60,7 +60,7 @@ public class WorkerApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse excludeWorker(ExcludeWorkerRequest excludeWorkerRequest) throws ApiException {
+  public HandleResponse excludeWorker(@javax.annotation.Nullable ExcludeWorkerRequest excludeWorkerRequest) throws ApiException {
     return this.excludeWorker(excludeWorkerRequest, Collections.emptyMap());
   }
 
@@ -73,7 +73,7 @@ public class WorkerApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse excludeWorker(ExcludeWorkerRequest excludeWorkerRequest, Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse excludeWorker(@javax.annotation.Nullable ExcludeWorkerRequest excludeWorkerRequest, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = excludeWorkerRequest;
     
     // create path and map variables
@@ -330,7 +330,7 @@ public class WorkerApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse removeWorkersUnavailableInfo(RemoveWorkersUnavailableInfoRequest removeWorkersUnavailableInfoRequest) throws ApiException {
+  public HandleResponse removeWorkersUnavailableInfo(@javax.annotation.Nullable RemoveWorkersUnavailableInfoRequest removeWorkersUnavailableInfoRequest) throws ApiException {
     return this.removeWorkersUnavailableInfo(removeWorkersUnavailableInfoRequest, Collections.emptyMap());
   }
 
@@ -343,7 +343,7 @@ public class WorkerApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse removeWorkersUnavailableInfo(RemoveWorkersUnavailableInfoRequest removeWorkersUnavailableInfoRequest, Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse removeWorkersUnavailableInfo(@javax.annotation.Nullable RemoveWorkersUnavailableInfoRequest removeWorkersUnavailableInfoRequest, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = removeWorkersUnavailableInfoRequest;
     
     // create path and map variables
@@ -399,7 +399,7 @@ public class WorkerApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse sendWorkerEvent(SendWorkerEventRequest sendWorkerEventRequest) throws ApiException {
+  public HandleResponse sendWorkerEvent(@javax.annotation.Nullable SendWorkerEventRequest sendWorkerEventRequest) throws ApiException {
     return this.sendWorkerEvent(sendWorkerEventRequest, Collections.emptyMap());
   }
 
@@ -412,7 +412,7 @@ public class WorkerApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse sendWorkerEvent(SendWorkerEventRequest sendWorkerEventRequest, Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse sendWorkerEvent(@javax.annotation.Nullable SendWorkerEventRequest sendWorkerEventRequest, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = sendWorkerEventRequest;
     
     // create path and map variables
@@ -468,7 +468,7 @@ public class WorkerApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse updateInterruptionNotice(UpdateInterruptionNoticeRequest updateInterruptionNoticeRequest) throws ApiException {
+  public HandleResponse updateInterruptionNotice(@javax.annotation.Nullable UpdateInterruptionNoticeRequest updateInterruptionNoticeRequest) throws ApiException {
     return this.updateInterruptionNotice(updateInterruptionNoticeRequest, Collections.emptyMap());
   }
 
@@ -481,7 +481,7 @@ public class WorkerApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse updateInterruptionNotice(UpdateInterruptionNoticeRequest updateInterruptionNoticeRequest, Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse updateInterruptionNotice(@javax.annotation.Nullable UpdateInterruptionNoticeRequest updateInterruptionNoticeRequest, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = updateInterruptionNoticeRequest;
     
     // create path and map variables

@@ -49,51 +49,64 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   ThreadStack.JSON_PROPERTY_SUSPENDED,
   ThreadStack.JSON_PROPERTY_IN_NATIVE
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class ThreadStack {
   public static final String JSON_PROPERTY_THREAD_ID = "threadId";
+  @javax.annotation.Nonnull
   private Long threadId;
 
   public static final String JSON_PROPERTY_THREAD_NAME = "threadName";
+  @javax.annotation.Nonnull
   private String threadName;
 
   public static final String JSON_PROPERTY_THREAD_STATE = "threadState";
+  @javax.annotation.Nonnull
   private String threadState;
 
   public static final String JSON_PROPERTY_STACK_TRACE = "stackTrace";
+  @javax.annotation.Nonnull
   private List<String> stackTrace = new ArrayList<>();
 
   public static final String JSON_PROPERTY_BLOCKED_BY_THREAD_ID = "blockedByThreadId";
+  @javax.annotation.Nullable
   private Long blockedByThreadId;
 
   public static final String JSON_PROPERTY_BLOCKED_BY_LOCK = "blockedByLock";
+  @javax.annotation.Nullable
   private String blockedByLock;
 
   public static final String JSON_PROPERTY_HOLDING_LOCKS = "holdingLocks";
+  @javax.annotation.Nullable
   private List<String> holdingLocks = new ArrayList<>();
 
   public static final String JSON_PROPERTY_SYNCHRONIZERS = "synchronizers";
+  @javax.annotation.Nullable
   private List<String> synchronizers = new ArrayList<>();
 
   public static final String JSON_PROPERTY_MONITORS = "monitors";
+  @javax.annotation.Nullable
   private List<String> monitors = new ArrayList<>();
 
   public static final String JSON_PROPERTY_LOCK_NAME = "lockName";
+  @javax.annotation.Nullable
   private String lockName;
 
   public static final String JSON_PROPERTY_LOCK_OWNER_NAME = "lockOwnerName";
+  @javax.annotation.Nullable
   private String lockOwnerName;
 
   public static final String JSON_PROPERTY_SUSPENDED = "suspended";
+  @javax.annotation.Nullable
   private Boolean suspended;
 
   public static final String JSON_PROPERTY_IN_NATIVE = "inNative";
+  @javax.annotation.Nullable
   private Boolean inNative;
 
   public ThreadStack() {
   }
 
-  public ThreadStack threadId(Long threadId) {
+  public ThreadStack threadId(@javax.annotation.Nonnull Long threadId) {
     
     this.threadId = threadId;
     return this;
@@ -114,11 +127,11 @@ public class ThreadStack {
 
   @JsonProperty(JSON_PROPERTY_THREAD_ID)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setThreadId(Long threadId) {
+  public void setThreadId(@javax.annotation.Nonnull Long threadId) {
     this.threadId = threadId;
   }
 
-  public ThreadStack threadName(String threadName) {
+  public ThreadStack threadName(@javax.annotation.Nonnull String threadName) {
     
     this.threadName = threadName;
     return this;
@@ -139,11 +152,11 @@ public class ThreadStack {
 
   @JsonProperty(JSON_PROPERTY_THREAD_NAME)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setThreadName(String threadName) {
+  public void setThreadName(@javax.annotation.Nonnull String threadName) {
     this.threadName = threadName;
   }
 
-  public ThreadStack threadState(String threadState) {
+  public ThreadStack threadState(@javax.annotation.Nonnull String threadState) {
     
     this.threadState = threadState;
     return this;
@@ -164,11 +177,11 @@ public class ThreadStack {
 
   @JsonProperty(JSON_PROPERTY_THREAD_STATE)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setThreadState(String threadState) {
+  public void setThreadState(@javax.annotation.Nonnull String threadState) {
     this.threadState = threadState;
   }
 
-  public ThreadStack stackTrace(List<String> stackTrace) {
+  public ThreadStack stackTrace(@javax.annotation.Nonnull List<String> stackTrace) {
     
     this.stackTrace = stackTrace;
     return this;
@@ -197,11 +210,11 @@ public class ThreadStack {
 
   @JsonProperty(JSON_PROPERTY_STACK_TRACE)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setStackTrace(List<String> stackTrace) {
+  public void setStackTrace(@javax.annotation.Nonnull List<String> stackTrace) {
     this.stackTrace = stackTrace;
   }
 
-  public ThreadStack blockedByThreadId(Long blockedByThreadId) {
+  public ThreadStack blockedByThreadId(@javax.annotation.Nullable Long blockedByThreadId) {
     
     this.blockedByThreadId = blockedByThreadId;
     return this;
@@ -222,11 +235,11 @@ public class ThreadStack {
 
   @JsonProperty(JSON_PROPERTY_BLOCKED_BY_THREAD_ID)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setBlockedByThreadId(Long blockedByThreadId) {
+  public void setBlockedByThreadId(@javax.annotation.Nullable Long blockedByThreadId) {
     this.blockedByThreadId = blockedByThreadId;
   }
 
-  public ThreadStack blockedByLock(String blockedByLock) {
+  public ThreadStack blockedByLock(@javax.annotation.Nullable String blockedByLock) {
     
     this.blockedByLock = blockedByLock;
     return this;
@@ -247,11 +260,11 @@ public class ThreadStack {
 
   @JsonProperty(JSON_PROPERTY_BLOCKED_BY_LOCK)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setBlockedByLock(String blockedByLock) {
+  public void setBlockedByLock(@javax.annotation.Nullable String blockedByLock) {
     this.blockedByLock = blockedByLock;
   }
 
-  public ThreadStack holdingLocks(List<String> holdingLocks) {
+  public ThreadStack holdingLocks(@javax.annotation.Nullable List<String> holdingLocks) {
     
     this.holdingLocks = holdingLocks;
     return this;
@@ -280,11 +293,11 @@ public class ThreadStack {
 
   @JsonProperty(JSON_PROPERTY_HOLDING_LOCKS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setHoldingLocks(List<String> holdingLocks) {
+  public void setHoldingLocks(@javax.annotation.Nullable List<String> holdingLocks) {
     this.holdingLocks = holdingLocks;
   }
 
-  public ThreadStack synchronizers(List<String> synchronizers) {
+  public ThreadStack synchronizers(@javax.annotation.Nullable List<String> synchronizers) {
     
     this.synchronizers = synchronizers;
     return this;
@@ -313,11 +326,11 @@ public class ThreadStack {
 
   @JsonProperty(JSON_PROPERTY_SYNCHRONIZERS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSynchronizers(List<String> synchronizers) {
+  public void setSynchronizers(@javax.annotation.Nullable List<String> synchronizers) {
     this.synchronizers = synchronizers;
   }
 
-  public ThreadStack monitors(List<String> monitors) {
+  public ThreadStack monitors(@javax.annotation.Nullable List<String> monitors) {
     
     this.monitors = monitors;
     return this;
@@ -346,11 +359,11 @@ public class ThreadStack {
 
   @JsonProperty(JSON_PROPERTY_MONITORS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setMonitors(List<String> monitors) {
+  public void setMonitors(@javax.annotation.Nullable List<String> monitors) {
     this.monitors = monitors;
   }
 
-  public ThreadStack lockName(String lockName) {
+  public ThreadStack lockName(@javax.annotation.Nullable String lockName) {
     
     this.lockName = lockName;
     return this;
@@ -371,11 +384,11 @@ public class ThreadStack {
 
   @JsonProperty(JSON_PROPERTY_LOCK_NAME)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setLockName(String lockName) {
+  public void setLockName(@javax.annotation.Nullable String lockName) {
     this.lockName = lockName;
   }
 
-  public ThreadStack lockOwnerName(String lockOwnerName) {
+  public ThreadStack lockOwnerName(@javax.annotation.Nullable String lockOwnerName) {
     
     this.lockOwnerName = lockOwnerName;
     return this;
@@ -396,11 +409,11 @@ public class ThreadStack {
 
   @JsonProperty(JSON_PROPERTY_LOCK_OWNER_NAME)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setLockOwnerName(String lockOwnerName) {
+  public void setLockOwnerName(@javax.annotation.Nullable String lockOwnerName) {
     this.lockOwnerName = lockOwnerName;
   }
 
-  public ThreadStack suspended(Boolean suspended) {
+  public ThreadStack suspended(@javax.annotation.Nullable Boolean suspended) {
     
     this.suspended = suspended;
     return this;
@@ -421,11 +434,11 @@ public class ThreadStack {
 
   @JsonProperty(JSON_PROPERTY_SUSPENDED)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSuspended(Boolean suspended) {
+  public void setSuspended(@javax.annotation.Nullable Boolean suspended) {
     this.suspended = suspended;
   }
 
-  public ThreadStack inNative(Boolean inNative) {
+  public ThreadStack inNative(@javax.annotation.Nullable Boolean inNative) {
     
     this.inNative = inNative;
     return this;
@@ -446,7 +459,7 @@ public class ThreadStack {
 
   @JsonProperty(JSON_PROPERTY_IN_NATIVE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setInNative(Boolean inNative) {
+  public void setInNative(@javax.annotation.Nullable Boolean inNative) {
     this.inNative = inNative;
   }
 

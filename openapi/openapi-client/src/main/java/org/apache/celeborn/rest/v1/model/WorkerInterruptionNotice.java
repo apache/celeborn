@@ -36,18 +36,20 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   WorkerInterruptionNotice.JSON_PROPERTY_WORKER_ID,
   WorkerInterruptionNotice.JSON_PROPERTY_INTERRUPTION_TIMESTAMP
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class WorkerInterruptionNotice {
   public static final String JSON_PROPERTY_WORKER_ID = "workerId";
+  @javax.annotation.Nonnull
   private WorkerId workerId;
 
   public static final String JSON_PROPERTY_INTERRUPTION_TIMESTAMP = "interruptionTimestamp";
+  @javax.annotation.Nonnull
   private Long interruptionTimestamp;
 
   public WorkerInterruptionNotice() {
   }
 
-  public WorkerInterruptionNotice workerId(WorkerId workerId) {
+  public WorkerInterruptionNotice workerId(@javax.annotation.Nonnull WorkerId workerId) {
     
     this.workerId = workerId;
     return this;
@@ -68,11 +70,11 @@ public class WorkerInterruptionNotice {
 
   @JsonProperty(JSON_PROPERTY_WORKER_ID)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setWorkerId(WorkerId workerId) {
+  public void setWorkerId(@javax.annotation.Nonnull WorkerId workerId) {
     this.workerId = workerId;
   }
 
-  public WorkerInterruptionNotice interruptionTimestamp(Long interruptionTimestamp) {
+  public WorkerInterruptionNotice interruptionTimestamp(@javax.annotation.Nonnull Long interruptionTimestamp) {
     
     this.interruptionTimestamp = interruptionTimestamp;
     return this;
@@ -93,7 +95,7 @@ public class WorkerInterruptionNotice {
 
   @JsonProperty(JSON_PROPERTY_INTERRUPTION_TIMESTAMP)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setInterruptionTimestamp(Long interruptionTimestamp) {
+  public void setInterruptionTimestamp(@javax.annotation.Nonnull Long interruptionTimestamp) {
     this.interruptionTimestamp = interruptionTimestamp;
   }
 

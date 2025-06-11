@@ -35,18 +35,20 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   RatisPeer.JSON_PROPERTY_ID,
   RatisPeer.JSON_PROPERTY_ADDRESS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class RatisPeer {
   public static final String JSON_PROPERTY_ID = "id";
+  @javax.annotation.Nonnull
   private String id;
 
   public static final String JSON_PROPERTY_ADDRESS = "address";
+  @javax.annotation.Nonnull
   private String address;
 
   public RatisPeer() {
   }
 
-  public RatisPeer id(String id) {
+  public RatisPeer id(@javax.annotation.Nonnull String id) {
     
     this.id = id;
     return this;
@@ -67,11 +69,11 @@ public class RatisPeer {
 
   @JsonProperty(JSON_PROPERTY_ID)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setId(String id) {
+  public void setId(@javax.annotation.Nonnull String id) {
     this.id = id;
   }
 
-  public RatisPeer address(String address) {
+  public RatisPeer address(@javax.annotation.Nonnull String address) {
     
     this.address = address;
     return this;
@@ -92,7 +94,7 @@ public class RatisPeer {
 
   @JsonProperty(JSON_PROPERTY_ADDRESS)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setAddress(String address) {
+  public void setAddress(@javax.annotation.Nonnull String address) {
     this.address = address;
   }
 

@@ -39,7 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class ApplicationApi extends BaseApi {
 
   public ApplicationApi() {
@@ -57,7 +57,7 @@ public class ApplicationApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse deleteApps(DeleteAppsRequest deleteAppsRequest) throws ApiException {
+  public HandleResponse deleteApps(@javax.annotation.Nullable DeleteAppsRequest deleteAppsRequest) throws ApiException {
     return this.deleteApps(deleteAppsRequest, Collections.emptyMap());
   }
 
@@ -70,7 +70,7 @@ public class ApplicationApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse deleteApps(DeleteAppsRequest deleteAppsRequest, Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse deleteApps(@javax.annotation.Nullable DeleteAppsRequest deleteAppsRequest, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = deleteAppsRequest;
     
     // create path and map variables
@@ -260,7 +260,7 @@ public class ApplicationApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse reviseLostShuffles(ReviseLostShufflesRequest reviseLostShufflesRequest) throws ApiException {
+  public HandleResponse reviseLostShuffles(@javax.annotation.Nullable ReviseLostShufflesRequest reviseLostShufflesRequest) throws ApiException {
     return this.reviseLostShuffles(reviseLostShufflesRequest, Collections.emptyMap());
   }
 
@@ -273,7 +273,7 @@ public class ApplicationApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse reviseLostShuffles(ReviseLostShufflesRequest reviseLostShufflesRequest, Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse reviseLostShuffles(@javax.annotation.Nullable ReviseLostShufflesRequest reviseLostShufflesRequest, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = reviseLostShufflesRequest;
     
     // create path and map variables

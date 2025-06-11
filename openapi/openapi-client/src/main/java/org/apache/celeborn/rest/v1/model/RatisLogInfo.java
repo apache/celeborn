@@ -38,24 +38,28 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   RatisLogInfo.JSON_PROPERTY_COMMITTED,
   RatisLogInfo.JSON_PROPERTY_LAST_ENTRY
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class RatisLogInfo {
   public static final String JSON_PROPERTY_LAST_SNAPSHOT = "lastSnapshot";
+  @javax.annotation.Nullable
   private RatisLogTermIndex lastSnapshot;
 
   public static final String JSON_PROPERTY_APPLIED = "applied";
+  @javax.annotation.Nullable
   private RatisLogTermIndex applied;
 
   public static final String JSON_PROPERTY_COMMITTED = "committed";
+  @javax.annotation.Nullable
   private RatisLogTermIndex committed;
 
   public static final String JSON_PROPERTY_LAST_ENTRY = "lastEntry";
+  @javax.annotation.Nullable
   private RatisLogTermIndex lastEntry;
 
   public RatisLogInfo() {
   }
 
-  public RatisLogInfo lastSnapshot(RatisLogTermIndex lastSnapshot) {
+  public RatisLogInfo lastSnapshot(@javax.annotation.Nullable RatisLogTermIndex lastSnapshot) {
     
     this.lastSnapshot = lastSnapshot;
     return this;
@@ -76,11 +80,11 @@ public class RatisLogInfo {
 
   @JsonProperty(JSON_PROPERTY_LAST_SNAPSHOT)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setLastSnapshot(RatisLogTermIndex lastSnapshot) {
+  public void setLastSnapshot(@javax.annotation.Nullable RatisLogTermIndex lastSnapshot) {
     this.lastSnapshot = lastSnapshot;
   }
 
-  public RatisLogInfo applied(RatisLogTermIndex applied) {
+  public RatisLogInfo applied(@javax.annotation.Nullable RatisLogTermIndex applied) {
     
     this.applied = applied;
     return this;
@@ -101,11 +105,11 @@ public class RatisLogInfo {
 
   @JsonProperty(JSON_PROPERTY_APPLIED)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setApplied(RatisLogTermIndex applied) {
+  public void setApplied(@javax.annotation.Nullable RatisLogTermIndex applied) {
     this.applied = applied;
   }
 
-  public RatisLogInfo committed(RatisLogTermIndex committed) {
+  public RatisLogInfo committed(@javax.annotation.Nullable RatisLogTermIndex committed) {
     
     this.committed = committed;
     return this;
@@ -126,11 +130,11 @@ public class RatisLogInfo {
 
   @JsonProperty(JSON_PROPERTY_COMMITTED)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setCommitted(RatisLogTermIndex committed) {
+  public void setCommitted(@javax.annotation.Nullable RatisLogTermIndex committed) {
     this.committed = committed;
   }
 
-  public RatisLogInfo lastEntry(RatisLogTermIndex lastEntry) {
+  public RatisLogInfo lastEntry(@javax.annotation.Nullable RatisLogTermIndex lastEntry) {
     
     this.lastEntry = lastEntry;
     return this;
@@ -151,7 +155,7 @@ public class RatisLogInfo {
 
   @JsonProperty(JSON_PROPERTY_LAST_ENTRY)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setLastEntry(RatisLogTermIndex lastEntry) {
+  public void setLastEntry(@javax.annotation.Nullable RatisLogTermIndex lastEntry) {
     this.lastEntry = lastEntry;
   }
 

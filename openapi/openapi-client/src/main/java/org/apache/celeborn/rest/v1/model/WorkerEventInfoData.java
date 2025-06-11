@@ -35,18 +35,20 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   WorkerEventInfoData.JSON_PROPERTY_EVENT_TYPE,
   WorkerEventInfoData.JSON_PROPERTY_EVENT_TIME
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class WorkerEventInfoData {
   public static final String JSON_PROPERTY_EVENT_TYPE = "eventType";
+  @javax.annotation.Nonnull
   private String eventType;
 
   public static final String JSON_PROPERTY_EVENT_TIME = "eventTime";
+  @javax.annotation.Nonnull
   private Long eventTime;
 
   public WorkerEventInfoData() {
   }
 
-  public WorkerEventInfoData eventType(String eventType) {
+  public WorkerEventInfoData eventType(@javax.annotation.Nonnull String eventType) {
     
     this.eventType = eventType;
     return this;
@@ -67,11 +69,11 @@ public class WorkerEventInfoData {
 
   @JsonProperty(JSON_PROPERTY_EVENT_TYPE)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setEventType(String eventType) {
+  public void setEventType(@javax.annotation.Nonnull String eventType) {
     this.eventType = eventType;
   }
 
-  public WorkerEventInfoData eventTime(Long eventTime) {
+  public WorkerEventInfoData eventTime(@javax.annotation.Nonnull Long eventTime) {
     
     this.eventTime = eventTime;
     return this;
@@ -92,7 +94,7 @@ public class WorkerEventInfoData {
 
   @JsonProperty(JSON_PROPERTY_EVENT_TIME)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setEventTime(Long eventTime) {
+  public void setEventTime(@javax.annotation.Nonnull Long eventTime) {
     this.eventTime = eventTime;
   }
 

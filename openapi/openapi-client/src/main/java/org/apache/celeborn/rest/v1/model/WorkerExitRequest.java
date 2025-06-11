@@ -34,19 +34,19 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   WorkerExitRequest.JSON_PROPERTY_TYPE
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class WorkerExitRequest {
   /**
    * The type of the worker exit request.
    */
   public enum TypeEnum {
-    DECOMMISSION("DECOMMISSION"),
+    DECOMMISSION(String.valueOf("DECOMMISSION")),
     
-    GRACEFUL("GRACEFUL"),
+    GRACEFUL(String.valueOf("GRACEFUL")),
     
-    IMMEDIATELY("IMMEDIATELY"),
+    IMMEDIATELY(String.valueOf("IMMEDIATELY")),
     
-    NONE("NONE");
+    NONE(String.valueOf("NONE"));
 
     private String value;
 
@@ -76,12 +76,13 @@ public class WorkerExitRequest {
   }
 
   public static final String JSON_PROPERTY_TYPE = "type";
+  @javax.annotation.Nullable
   private TypeEnum type = TypeEnum.NONE;
 
   public WorkerExitRequest() {
   }
 
-  public WorkerExitRequest type(TypeEnum type) {
+  public WorkerExitRequest type(@javax.annotation.Nullable TypeEnum type) {
     
     this.type = type;
     return this;
@@ -102,7 +103,7 @@ public class WorkerExitRequest {
 
   @JsonProperty(JSON_PROPERTY_TYPE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setType(TypeEnum type) {
+  public void setType(@javax.annotation.Nullable TypeEnum type) {
     this.type = type;
   }
 

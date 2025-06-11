@@ -39,30 +39,36 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   MasterCommitData.JSON_PROPERTY_START_UP_ROLE,
   MasterCommitData.JSON_PROPERTY_PRIORITY
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class MasterCommitData {
   public static final String JSON_PROPERTY_COMMIT_INDEX = "commitIndex";
+  @javax.annotation.Nonnull
   private Long commitIndex;
 
   public static final String JSON_PROPERTY_ID = "id";
+  @javax.annotation.Nonnull
   private String id;
 
   public static final String JSON_PROPERTY_ADDRESS = "address";
+  @javax.annotation.Nonnull
   private String address;
 
   public static final String JSON_PROPERTY_CLIENT_ADDRESS = "clientAddress";
+  @javax.annotation.Nonnull
   private String clientAddress;
 
   public static final String JSON_PROPERTY_START_UP_ROLE = "startUpRole";
+  @javax.annotation.Nonnull
   private String startUpRole;
 
   public static final String JSON_PROPERTY_PRIORITY = "priority";
+  @javax.annotation.Nullable
   private Integer priority;
 
   public MasterCommitData() {
   }
 
-  public MasterCommitData commitIndex(Long commitIndex) {
+  public MasterCommitData commitIndex(@javax.annotation.Nonnull Long commitIndex) {
     
     this.commitIndex = commitIndex;
     return this;
@@ -83,11 +89,11 @@ public class MasterCommitData {
 
   @JsonProperty(JSON_PROPERTY_COMMIT_INDEX)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setCommitIndex(Long commitIndex) {
+  public void setCommitIndex(@javax.annotation.Nonnull Long commitIndex) {
     this.commitIndex = commitIndex;
   }
 
-  public MasterCommitData id(String id) {
+  public MasterCommitData id(@javax.annotation.Nonnull String id) {
     
     this.id = id;
     return this;
@@ -108,11 +114,11 @@ public class MasterCommitData {
 
   @JsonProperty(JSON_PROPERTY_ID)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setId(String id) {
+  public void setId(@javax.annotation.Nonnull String id) {
     this.id = id;
   }
 
-  public MasterCommitData address(String address) {
+  public MasterCommitData address(@javax.annotation.Nonnull String address) {
     
     this.address = address;
     return this;
@@ -133,11 +139,11 @@ public class MasterCommitData {
 
   @JsonProperty(JSON_PROPERTY_ADDRESS)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setAddress(String address) {
+  public void setAddress(@javax.annotation.Nonnull String address) {
     this.address = address;
   }
 
-  public MasterCommitData clientAddress(String clientAddress) {
+  public MasterCommitData clientAddress(@javax.annotation.Nonnull String clientAddress) {
     
     this.clientAddress = clientAddress;
     return this;
@@ -158,11 +164,11 @@ public class MasterCommitData {
 
   @JsonProperty(JSON_PROPERTY_CLIENT_ADDRESS)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setClientAddress(String clientAddress) {
+  public void setClientAddress(@javax.annotation.Nonnull String clientAddress) {
     this.clientAddress = clientAddress;
   }
 
-  public MasterCommitData startUpRole(String startUpRole) {
+  public MasterCommitData startUpRole(@javax.annotation.Nonnull String startUpRole) {
     
     this.startUpRole = startUpRole;
     return this;
@@ -183,11 +189,11 @@ public class MasterCommitData {
 
   @JsonProperty(JSON_PROPERTY_START_UP_ROLE)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setStartUpRole(String startUpRole) {
+  public void setStartUpRole(@javax.annotation.Nonnull String startUpRole) {
     this.startUpRole = startUpRole;
   }
 
-  public MasterCommitData priority(Integer priority) {
+  public MasterCommitData priority(@javax.annotation.Nullable Integer priority) {
     
     this.priority = priority;
     return this;
@@ -208,7 +214,7 @@ public class MasterCommitData {
 
   @JsonProperty(JSON_PROPERTY_PRIORITY)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setPriority(Integer priority) {
+  public void setPriority(@javax.annotation.Nullable Integer priority) {
     this.priority = priority;
   }
 

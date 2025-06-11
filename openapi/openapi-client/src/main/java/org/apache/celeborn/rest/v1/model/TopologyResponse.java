@@ -38,15 +38,16 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   TopologyResponse.JSON_PROPERTY_TOPOLOGIES
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class TopologyResponse {
   public static final String JSON_PROPERTY_TOPOLOGIES = "topologies";
+  @javax.annotation.Nullable
   private List<TopologyInfo> topologies = new ArrayList<>();
 
   public TopologyResponse() {
   }
 
-  public TopologyResponse topologies(List<TopologyInfo> topologies) {
+  public TopologyResponse topologies(@javax.annotation.Nullable List<TopologyInfo> topologies) {
     
     this.topologies = topologies;
     return this;
@@ -75,7 +76,7 @@ public class TopologyResponse {
 
   @JsonProperty(JSON_PROPERTY_TOPOLOGIES)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setTopologies(List<TopologyInfo> topologies) {
+  public void setTopologies(@javax.annotation.Nullable List<TopologyInfo> topologies) {
     this.topologies = topologies;
   }
 

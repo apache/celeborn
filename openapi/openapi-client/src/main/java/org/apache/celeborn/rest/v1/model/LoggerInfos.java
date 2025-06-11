@@ -38,15 +38,16 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   LoggerInfos.JSON_PROPERTY_LOGGERS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class LoggerInfos {
   public static final String JSON_PROPERTY_LOGGERS = "loggers";
+  @javax.annotation.Nullable
   private List<LoggerInfo> loggers = new ArrayList<>();
 
   public LoggerInfos() {
   }
 
-  public LoggerInfos loggers(List<LoggerInfo> loggers) {
+  public LoggerInfos loggers(@javax.annotation.Nullable List<LoggerInfo> loggers) {
     
     this.loggers = loggers;
     return this;
@@ -75,7 +76,7 @@ public class LoggerInfos {
 
   @JsonProperty(JSON_PROPERTY_LOGGERS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setLoggers(List<LoggerInfo> loggers) {
+  public void setLoggers(@javax.annotation.Nullable List<LoggerInfo> loggers) {
     this.loggers = loggers;
   }
 

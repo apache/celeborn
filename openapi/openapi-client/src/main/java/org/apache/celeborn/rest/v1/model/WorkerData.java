@@ -52,60 +52,76 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   WorkerData.JSON_PROPERTY_NEXT_INTERRUPTION_NOTICE,
   WorkerData.JSON_PROPERTY_NETWORK_LOCATION
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class WorkerData {
   public static final String JSON_PROPERTY_HOST = "host";
+  @javax.annotation.Nonnull
   private String host;
 
   public static final String JSON_PROPERTY_RPC_PORT = "rpcPort";
+  @javax.annotation.Nonnull
   private Integer rpcPort;
 
   public static final String JSON_PROPERTY_PUSH_PORT = "pushPort";
+  @javax.annotation.Nonnull
   private Integer pushPort;
 
   public static final String JSON_PROPERTY_FETCH_PORT = "fetchPort";
+  @javax.annotation.Nonnull
   private Integer fetchPort;
 
   public static final String JSON_PROPERTY_REPLICATE_PORT = "replicatePort";
+  @javax.annotation.Nonnull
   private Integer replicatePort;
 
   public static final String JSON_PROPERTY_INTERNAL_PORT = "internalPort";
+  @javax.annotation.Nullable
   private Integer internalPort;
 
   public static final String JSON_PROPERTY_SLOT_USED = "slotUsed";
+  @javax.annotation.Nullable
   private Long slotUsed;
 
   public static final String JSON_PROPERTY_LAST_HEARTBEAT_TIMESTAMP = "lastHeartbeatTimestamp";
+  @javax.annotation.Nullable
   private Long lastHeartbeatTimestamp;
 
   public static final String JSON_PROPERTY_HEARTBEAT_ELAPSED_SECONDS = "heartbeatElapsedSeconds";
+  @javax.annotation.Nullable
   private Long heartbeatElapsedSeconds;
 
   public static final String JSON_PROPERTY_DISK_INFOS = "diskInfos";
+  @javax.annotation.Nullable
   private Map<String, String> diskInfos = new HashMap<>();
 
   public static final String JSON_PROPERTY_RESOURCE_CONSUMPTIONS = "resourceConsumptions";
+  @javax.annotation.Nullable
   private Map<String, WorkerResourceConsumption> resourceConsumptions = new HashMap<>();
 
   public static final String JSON_PROPERTY_WORKER_REF = "workerRef";
+  @javax.annotation.Nullable
   private String workerRef;
 
   public static final String JSON_PROPERTY_WORKER_STATE = "workerState";
+  @javax.annotation.Nullable
   private String workerState;
 
   public static final String JSON_PROPERTY_WORKER_STATE_START_TIME = "workerStateStartTime";
+  @javax.annotation.Nullable
   private Long workerStateStartTime;
 
   public static final String JSON_PROPERTY_NEXT_INTERRUPTION_NOTICE = "nextInterruptionNotice";
+  @javax.annotation.Nullable
   private Long nextInterruptionNotice;
 
   public static final String JSON_PROPERTY_NETWORK_LOCATION = "networkLocation";
+  @javax.annotation.Nullable
   private String networkLocation;
 
   public WorkerData() {
   }
 
-  public WorkerData host(String host) {
+  public WorkerData host(@javax.annotation.Nonnull String host) {
     
     this.host = host;
     return this;
@@ -126,11 +142,11 @@ public class WorkerData {
 
   @JsonProperty(JSON_PROPERTY_HOST)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setHost(String host) {
+  public void setHost(@javax.annotation.Nonnull String host) {
     this.host = host;
   }
 
-  public WorkerData rpcPort(Integer rpcPort) {
+  public WorkerData rpcPort(@javax.annotation.Nonnull Integer rpcPort) {
     
     this.rpcPort = rpcPort;
     return this;
@@ -151,11 +167,11 @@ public class WorkerData {
 
   @JsonProperty(JSON_PROPERTY_RPC_PORT)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setRpcPort(Integer rpcPort) {
+  public void setRpcPort(@javax.annotation.Nonnull Integer rpcPort) {
     this.rpcPort = rpcPort;
   }
 
-  public WorkerData pushPort(Integer pushPort) {
+  public WorkerData pushPort(@javax.annotation.Nonnull Integer pushPort) {
     
     this.pushPort = pushPort;
     return this;
@@ -176,11 +192,11 @@ public class WorkerData {
 
   @JsonProperty(JSON_PROPERTY_PUSH_PORT)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setPushPort(Integer pushPort) {
+  public void setPushPort(@javax.annotation.Nonnull Integer pushPort) {
     this.pushPort = pushPort;
   }
 
-  public WorkerData fetchPort(Integer fetchPort) {
+  public WorkerData fetchPort(@javax.annotation.Nonnull Integer fetchPort) {
     
     this.fetchPort = fetchPort;
     return this;
@@ -201,11 +217,11 @@ public class WorkerData {
 
   @JsonProperty(JSON_PROPERTY_FETCH_PORT)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setFetchPort(Integer fetchPort) {
+  public void setFetchPort(@javax.annotation.Nonnull Integer fetchPort) {
     this.fetchPort = fetchPort;
   }
 
-  public WorkerData replicatePort(Integer replicatePort) {
+  public WorkerData replicatePort(@javax.annotation.Nonnull Integer replicatePort) {
     
     this.replicatePort = replicatePort;
     return this;
@@ -226,11 +242,11 @@ public class WorkerData {
 
   @JsonProperty(JSON_PROPERTY_REPLICATE_PORT)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setReplicatePort(Integer replicatePort) {
+  public void setReplicatePort(@javax.annotation.Nonnull Integer replicatePort) {
     this.replicatePort = replicatePort;
   }
 
-  public WorkerData internalPort(Integer internalPort) {
+  public WorkerData internalPort(@javax.annotation.Nullable Integer internalPort) {
     
     this.internalPort = internalPort;
     return this;
@@ -251,11 +267,11 @@ public class WorkerData {
 
   @JsonProperty(JSON_PROPERTY_INTERNAL_PORT)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setInternalPort(Integer internalPort) {
+  public void setInternalPort(@javax.annotation.Nullable Integer internalPort) {
     this.internalPort = internalPort;
   }
 
-  public WorkerData slotUsed(Long slotUsed) {
+  public WorkerData slotUsed(@javax.annotation.Nullable Long slotUsed) {
     
     this.slotUsed = slotUsed;
     return this;
@@ -276,11 +292,11 @@ public class WorkerData {
 
   @JsonProperty(JSON_PROPERTY_SLOT_USED)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setSlotUsed(Long slotUsed) {
+  public void setSlotUsed(@javax.annotation.Nullable Long slotUsed) {
     this.slotUsed = slotUsed;
   }
 
-  public WorkerData lastHeartbeatTimestamp(Long lastHeartbeatTimestamp) {
+  public WorkerData lastHeartbeatTimestamp(@javax.annotation.Nullable Long lastHeartbeatTimestamp) {
     
     this.lastHeartbeatTimestamp = lastHeartbeatTimestamp;
     return this;
@@ -301,11 +317,11 @@ public class WorkerData {
 
   @JsonProperty(JSON_PROPERTY_LAST_HEARTBEAT_TIMESTAMP)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setLastHeartbeatTimestamp(Long lastHeartbeatTimestamp) {
+  public void setLastHeartbeatTimestamp(@javax.annotation.Nullable Long lastHeartbeatTimestamp) {
     this.lastHeartbeatTimestamp = lastHeartbeatTimestamp;
   }
 
-  public WorkerData heartbeatElapsedSeconds(Long heartbeatElapsedSeconds) {
+  public WorkerData heartbeatElapsedSeconds(@javax.annotation.Nullable Long heartbeatElapsedSeconds) {
     
     this.heartbeatElapsedSeconds = heartbeatElapsedSeconds;
     return this;
@@ -326,11 +342,11 @@ public class WorkerData {
 
   @JsonProperty(JSON_PROPERTY_HEARTBEAT_ELAPSED_SECONDS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setHeartbeatElapsedSeconds(Long heartbeatElapsedSeconds) {
+  public void setHeartbeatElapsedSeconds(@javax.annotation.Nullable Long heartbeatElapsedSeconds) {
     this.heartbeatElapsedSeconds = heartbeatElapsedSeconds;
   }
 
-  public WorkerData diskInfos(Map<String, String> diskInfos) {
+  public WorkerData diskInfos(@javax.annotation.Nullable Map<String, String> diskInfos) {
     
     this.diskInfos = diskInfos;
     return this;
@@ -359,11 +375,11 @@ public class WorkerData {
 
   @JsonProperty(JSON_PROPERTY_DISK_INFOS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setDiskInfos(Map<String, String> diskInfos) {
+  public void setDiskInfos(@javax.annotation.Nullable Map<String, String> diskInfos) {
     this.diskInfos = diskInfos;
   }
 
-  public WorkerData resourceConsumptions(Map<String, WorkerResourceConsumption> resourceConsumptions) {
+  public WorkerData resourceConsumptions(@javax.annotation.Nullable Map<String, WorkerResourceConsumption> resourceConsumptions) {
     
     this.resourceConsumptions = resourceConsumptions;
     return this;
@@ -392,11 +408,11 @@ public class WorkerData {
 
   @JsonProperty(JSON_PROPERTY_RESOURCE_CONSUMPTIONS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setResourceConsumptions(Map<String, WorkerResourceConsumption> resourceConsumptions) {
+  public void setResourceConsumptions(@javax.annotation.Nullable Map<String, WorkerResourceConsumption> resourceConsumptions) {
     this.resourceConsumptions = resourceConsumptions;
   }
 
-  public WorkerData workerRef(String workerRef) {
+  public WorkerData workerRef(@javax.annotation.Nullable String workerRef) {
     
     this.workerRef = workerRef;
     return this;
@@ -417,11 +433,11 @@ public class WorkerData {
 
   @JsonProperty(JSON_PROPERTY_WORKER_REF)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setWorkerRef(String workerRef) {
+  public void setWorkerRef(@javax.annotation.Nullable String workerRef) {
     this.workerRef = workerRef;
   }
 
-  public WorkerData workerState(String workerState) {
+  public WorkerData workerState(@javax.annotation.Nullable String workerState) {
     
     this.workerState = workerState;
     return this;
@@ -442,11 +458,11 @@ public class WorkerData {
 
   @JsonProperty(JSON_PROPERTY_WORKER_STATE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setWorkerState(String workerState) {
+  public void setWorkerState(@javax.annotation.Nullable String workerState) {
     this.workerState = workerState;
   }
 
-  public WorkerData workerStateStartTime(Long workerStateStartTime) {
+  public WorkerData workerStateStartTime(@javax.annotation.Nullable Long workerStateStartTime) {
     
     this.workerStateStartTime = workerStateStartTime;
     return this;
@@ -467,11 +483,11 @@ public class WorkerData {
 
   @JsonProperty(JSON_PROPERTY_WORKER_STATE_START_TIME)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setWorkerStateStartTime(Long workerStateStartTime) {
+  public void setWorkerStateStartTime(@javax.annotation.Nullable Long workerStateStartTime) {
     this.workerStateStartTime = workerStateStartTime;
   }
 
-  public WorkerData nextInterruptionNotice(Long nextInterruptionNotice) {
+  public WorkerData nextInterruptionNotice(@javax.annotation.Nullable Long nextInterruptionNotice) {
     
     this.nextInterruptionNotice = nextInterruptionNotice;
     return this;
@@ -492,11 +508,11 @@ public class WorkerData {
 
   @JsonProperty(JSON_PROPERTY_NEXT_INTERRUPTION_NOTICE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setNextInterruptionNotice(Long nextInterruptionNotice) {
+  public void setNextInterruptionNotice(@javax.annotation.Nullable Long nextInterruptionNotice) {
     this.nextInterruptionNotice = nextInterruptionNotice;
   }
 
-  public WorkerData networkLocation(String networkLocation) {
+  public WorkerData networkLocation(@javax.annotation.Nullable String networkLocation) {
     
     this.networkLocation = networkLocation;
     return this;
@@ -517,7 +533,7 @@ public class WorkerData {
 
   @JsonProperty(JSON_PROPERTY_NETWORK_LOCATION)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setNetworkLocation(String networkLocation) {
+  public void setNetworkLocation(@javax.annotation.Nullable String networkLocation) {
     this.networkLocation = networkLocation;
   }
 

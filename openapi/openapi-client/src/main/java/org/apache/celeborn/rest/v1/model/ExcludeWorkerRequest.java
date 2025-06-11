@@ -39,18 +39,20 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   ExcludeWorkerRequest.JSON_PROPERTY_ADD,
   ExcludeWorkerRequest.JSON_PROPERTY_REMOVE
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class ExcludeWorkerRequest {
   public static final String JSON_PROPERTY_ADD = "add";
+  @javax.annotation.Nullable
   private List<WorkerId> add = new ArrayList<>();
 
   public static final String JSON_PROPERTY_REMOVE = "remove";
+  @javax.annotation.Nullable
   private List<WorkerId> remove = new ArrayList<>();
 
   public ExcludeWorkerRequest() {
   }
 
-  public ExcludeWorkerRequest add(List<WorkerId> add) {
+  public ExcludeWorkerRequest add(@javax.annotation.Nullable List<WorkerId> add) {
     
     this.add = add;
     return this;
@@ -79,11 +81,11 @@ public class ExcludeWorkerRequest {
 
   @JsonProperty(JSON_PROPERTY_ADD)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setAdd(List<WorkerId> add) {
+  public void setAdd(@javax.annotation.Nullable List<WorkerId> add) {
     this.add = add;
   }
 
-  public ExcludeWorkerRequest remove(List<WorkerId> remove) {
+  public ExcludeWorkerRequest remove(@javax.annotation.Nullable List<WorkerId> remove) {
     
     this.remove = remove;
     return this;
@@ -112,7 +114,7 @@ public class ExcludeWorkerRequest {
 
   @JsonProperty(JSON_PROPERTY_REMOVE)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setRemove(List<WorkerId> remove) {
+  public void setRemove(@javax.annotation.Nullable List<WorkerId> remove) {
     this.remove = remove;
   }
 

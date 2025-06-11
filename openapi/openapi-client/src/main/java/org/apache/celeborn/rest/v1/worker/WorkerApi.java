@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class WorkerApi extends BaseApi {
 
   public WorkerApi() {
@@ -190,7 +190,7 @@ public class WorkerApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse workerExit(WorkerExitRequest workerExitRequest) throws ApiException {
+  public HandleResponse workerExit(@javax.annotation.Nullable WorkerExitRequest workerExitRequest) throws ApiException {
     return this.workerExit(workerExitRequest, Collections.emptyMap());
   }
 
@@ -203,7 +203,7 @@ public class WorkerApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse workerExit(WorkerExitRequest workerExitRequest, Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse workerExit(@javax.annotation.Nullable WorkerExitRequest workerExitRequest, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = workerExitRequest;
     
     // create path and map variables

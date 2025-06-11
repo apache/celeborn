@@ -35,18 +35,20 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   RatisLogTermIndex.JSON_PROPERTY_TERM,
   RatisLogTermIndex.JSON_PROPERTY_INDEX
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class RatisLogTermIndex {
   public static final String JSON_PROPERTY_TERM = "term";
+  @javax.annotation.Nonnull
   private Long term;
 
   public static final String JSON_PROPERTY_INDEX = "index";
+  @javax.annotation.Nonnull
   private Long index;
 
   public RatisLogTermIndex() {
   }
 
-  public RatisLogTermIndex term(Long term) {
+  public RatisLogTermIndex term(@javax.annotation.Nonnull Long term) {
     
     this.term = term;
     return this;
@@ -67,11 +69,11 @@ public class RatisLogTermIndex {
 
   @JsonProperty(JSON_PROPERTY_TERM)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setTerm(Long term) {
+  public void setTerm(@javax.annotation.Nonnull Long term) {
     this.term = term;
   }
 
-  public RatisLogTermIndex index(Long index) {
+  public RatisLogTermIndex index(@javax.annotation.Nonnull Long index) {
     
     this.index = index;
     return this;
@@ -92,7 +94,7 @@ public class RatisLogTermIndex {
 
   @JsonProperty(JSON_PROPERTY_INDEX)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setIndex(Long index) {
+  public void setIndex(@javax.annotation.Nonnull Long index) {
     this.index = index;
   }
 

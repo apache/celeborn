@@ -41,7 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class RatisApi extends BaseApi {
 
   public RatisApi() {
@@ -59,7 +59,7 @@ public class RatisApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse addRatisPeer(RatisPeerAddRequest ratisPeerAddRequest) throws ApiException {
+  public HandleResponse addRatisPeer(@javax.annotation.Nullable RatisPeerAddRequest ratisPeerAddRequest) throws ApiException {
     return this.addRatisPeer(ratisPeerAddRequest, Collections.emptyMap());
   }
 
@@ -72,7 +72,7 @@ public class RatisApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse addRatisPeer(RatisPeerAddRequest ratisPeerAddRequest, Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse addRatisPeer(@javax.annotation.Nullable RatisPeerAddRequest ratisPeerAddRequest, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = ratisPeerAddRequest;
     
     // create path and map variables
@@ -195,7 +195,7 @@ public class RatisApi extends BaseApi {
    * @return File
    * @throws ApiException if fails to make API call
    */
-  public File generateNewRaftMetaConf(RatisLocalRaftMetaConfRequest ratisLocalRaftMetaConfRequest) throws ApiException {
+  public File generateNewRaftMetaConf(@javax.annotation.Nullable RatisLocalRaftMetaConfRequest ratisLocalRaftMetaConfRequest) throws ApiException {
     return this.generateNewRaftMetaConf(ratisLocalRaftMetaConfRequest, Collections.emptyMap());
   }
 
@@ -208,7 +208,7 @@ public class RatisApi extends BaseApi {
    * @return File
    * @throws ApiException if fails to make API call
    */
-  public File generateNewRaftMetaConf(RatisLocalRaftMetaConfRequest ratisLocalRaftMetaConfRequest, Map<String, String> additionalHeaders) throws ApiException {
+  public File generateNewRaftMetaConf(@javax.annotation.Nullable RatisLocalRaftMetaConfRequest ratisLocalRaftMetaConfRequest, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = ratisLocalRaftMetaConfRequest;
     
     // create path and map variables
@@ -398,7 +398,7 @@ public class RatisApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse removeRatisPeer(RatisPeerRemoveRequest ratisPeerRemoveRequest) throws ApiException {
+  public HandleResponse removeRatisPeer(@javax.annotation.Nullable RatisPeerRemoveRequest ratisPeerRemoveRequest) throws ApiException {
     return this.removeRatisPeer(ratisPeerRemoveRequest, Collections.emptyMap());
   }
 
@@ -411,7 +411,7 @@ public class RatisApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse removeRatisPeer(RatisPeerRemoveRequest ratisPeerRemoveRequest, Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse removeRatisPeer(@javax.annotation.Nullable RatisPeerRemoveRequest ratisPeerRemoveRequest, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = ratisPeerRemoveRequest;
     
     // create path and map variables
@@ -534,7 +534,7 @@ public class RatisApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse setRatisPeerPriority(RatisPeerSetPriorityRequest ratisPeerSetPriorityRequest) throws ApiException {
+  public HandleResponse setRatisPeerPriority(@javax.annotation.Nullable RatisPeerSetPriorityRequest ratisPeerSetPriorityRequest) throws ApiException {
     return this.setRatisPeerPriority(ratisPeerSetPriorityRequest, Collections.emptyMap());
   }
 
@@ -547,7 +547,7 @@ public class RatisApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse setRatisPeerPriority(RatisPeerSetPriorityRequest ratisPeerSetPriorityRequest, Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse setRatisPeerPriority(@javax.annotation.Nullable RatisPeerSetPriorityRequest ratisPeerSetPriorityRequest, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = ratisPeerSetPriorityRequest;
     
     // create path and map variables
@@ -670,7 +670,7 @@ public class RatisApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse transferRatisLeader(RatisElectionTransferRequest ratisElectionTransferRequest) throws ApiException {
+  public HandleResponse transferRatisLeader(@javax.annotation.Nullable RatisElectionTransferRequest ratisElectionTransferRequest) throws ApiException {
     return this.transferRatisLeader(ratisElectionTransferRequest, Collections.emptyMap());
   }
 
@@ -683,7 +683,7 @@ public class RatisApi extends BaseApi {
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse transferRatisLeader(RatisElectionTransferRequest ratisElectionTransferRequest, Map<String, String> additionalHeaders) throws ApiException {
+  public HandleResponse transferRatisLeader(@javax.annotation.Nullable RatisElectionTransferRequest ratisElectionTransferRequest, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = ratisElectionTransferRequest;
     
     // create path and map variables

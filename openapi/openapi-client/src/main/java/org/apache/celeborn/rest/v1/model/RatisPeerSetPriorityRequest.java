@@ -36,15 +36,16 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   RatisPeerSetPriorityRequest.JSON_PROPERTY_ADDRESS_PRIORITIES
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class RatisPeerSetPriorityRequest {
   public static final String JSON_PROPERTY_ADDRESS_PRIORITIES = "addressPriorities";
+  @javax.annotation.Nullable
   private Map<String, Integer> addressPriorities = new HashMap<>();
 
   public RatisPeerSetPriorityRequest() {
   }
 
-  public RatisPeerSetPriorityRequest addressPriorities(Map<String, Integer> addressPriorities) {
+  public RatisPeerSetPriorityRequest addressPriorities(@javax.annotation.Nullable Map<String, Integer> addressPriorities) {
     
     this.addressPriorities = addressPriorities;
     return this;
@@ -73,7 +74,7 @@ public class RatisPeerSetPriorityRequest {
 
   @JsonProperty(JSON_PROPERTY_ADDRESS_PRIORITIES)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setAddressPriorities(Map<String, Integer> addressPriorities) {
+  public void setAddressPriorities(@javax.annotation.Nullable Map<String, Integer> addressPriorities) {
     this.addressPriorities = addressPriorities;
   }
 

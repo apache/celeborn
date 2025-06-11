@@ -21,6 +21,6 @@ addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.7")
 
 addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.2.1")
 
-addSbtPlugin("org.openapitools" % "sbt-openapi-generator" % "7.8.0")
+addSbtPlugin("org.openapitools" % "sbt-openapi-generator" % "7.13.0")
 
 addSbtPlugin("com.github.sbt" % "sbt-git" % "2.1.0")

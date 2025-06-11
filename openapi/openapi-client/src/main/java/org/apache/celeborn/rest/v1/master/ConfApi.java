@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class ConfApi extends BaseApi {
 
   public ConfApi() {
@@ -123,7 +123,7 @@ public class ConfApi extends BaseApi {
    * @return DynamicConfigResponse
    * @throws ApiException if fails to make API call
    */
-  public DynamicConfigResponse getDynamicConf(String level, String tenant, String name) throws ApiException {
+  public DynamicConfigResponse getDynamicConf(@javax.annotation.Nullable String level, @javax.annotation.Nullable String tenant, @javax.annotation.Nullable String name) throws ApiException {
     return this.getDynamicConf(level, tenant, name, Collections.emptyMap());
   }
 
@@ -138,7 +138,7 @@ public class ConfApi extends BaseApi {
    * @return DynamicConfigResponse
    * @throws ApiException if fails to make API call
    */
-  public DynamicConfigResponse getDynamicConf(String level, String tenant, String name, Map<String, String> additionalHeaders) throws ApiException {
+  public DynamicConfigResponse getDynamicConf(@javax.annotation.Nullable String level, @javax.annotation.Nullable String tenant, @javax.annotation.Nullable String name, Map<String, String> additionalHeaders) throws ApiException {
     Object localVarPostBody = null;
     
     // create path and map variables

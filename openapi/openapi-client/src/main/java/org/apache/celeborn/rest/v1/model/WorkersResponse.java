@@ -44,30 +44,36 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   WorkersResponse.JSON_PROPERTY_SHUTDOWN_WORKERS,
   WorkersResponse.JSON_PROPERTY_DECOMMISSIONING_WORKERS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class WorkersResponse {
   public static final String JSON_PROPERTY_WORKERS = "workers";
+  @javax.annotation.Nonnull
   private List<WorkerData> workers = new ArrayList<>();
 
   public static final String JSON_PROPERTY_LOST_WORKERS = "lostWorkers";
+  @javax.annotation.Nullable
   private List<WorkerTimestampData> lostWorkers = new ArrayList<>();
 
   public static final String JSON_PROPERTY_EXCLUDED_WORKERS = "excludedWorkers";
+  @javax.annotation.Nullable
   private List<WorkerData> excludedWorkers = new ArrayList<>();
 
   public static final String JSON_PROPERTY_MANUAL_EXCLUDED_WORKERS = "manualExcludedWorkers";
+  @javax.annotation.Nullable
   private List<WorkerData> manualExcludedWorkers = new ArrayList<>();
 
   public static final String JSON_PROPERTY_SHUTDOWN_WORKERS = "shutdownWorkers";
+  @javax.annotation.Nullable
   private List<WorkerData> shutdownWorkers = new ArrayList<>();
 
   public static final String JSON_PROPERTY_DECOMMISSIONING_WORKERS = "decommissioningWorkers";
+  @javax.annotation.Nullable
   private List<WorkerData> decommissioningWorkers = new ArrayList<>();
 
   public WorkersResponse() {
   }
 
-  public WorkersResponse workers(List<WorkerData> workers) {
+  public WorkersResponse workers(@javax.annotation.Nonnull List<WorkerData> workers) {
     
     this.workers = workers;
     return this;
@@ -96,11 +102,11 @@ public class WorkersResponse {
 
   @JsonProperty(JSON_PROPERTY_WORKERS)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setWorkers(List<WorkerData> workers) {
+  public void setWorkers(@javax.annotation.Nonnull List<WorkerData> workers) {
     this.workers = workers;
   }
 
-  public WorkersResponse lostWorkers(List<WorkerTimestampData> lostWorkers) {
+  public WorkersResponse lostWorkers(@javax.annotation.Nullable List<WorkerTimestampData> lostWorkers) {
     
     this.lostWorkers = lostWorkers;
     return this;
@@ -129,11 +135,11 @@ public class WorkersResponse {
 
   @JsonProperty(JSON_PROPERTY_LOST_WORKERS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setLostWorkers(List<WorkerTimestampData> lostWorkers) {
+  public void setLostWorkers(@javax.annotation.Nullable List<WorkerTimestampData> lostWorkers) {
     this.lostWorkers = lostWorkers;
   }
 
-  public WorkersResponse excludedWorkers(List<WorkerData> excludedWorkers) {
+  public WorkersResponse excludedWorkers(@javax.annotation.Nullable List<WorkerData> excludedWorkers) {
     
     this.excludedWorkers = excludedWorkers;
     return this;
@@ -162,11 +168,11 @@ public class WorkersResponse {
 
   @JsonProperty(JSON_PROPERTY_EXCLUDED_WORKERS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setExcludedWorkers(List<WorkerData> excludedWorkers) {
+  public void setExcludedWorkers(@javax.annotation.Nullable List<WorkerData> excludedWorkers) {
     this.excludedWorkers = excludedWorkers;
   }
 
-  public WorkersResponse manualExcludedWorkers(List<WorkerData> manualExcludedWorkers) {
+  public WorkersResponse manualExcludedWorkers(@javax.annotation.Nullable List<WorkerData> manualExcludedWorkers) {
     
     this.manualExcludedWorkers = manualExcludedWorkers;
     return this;
@@ -195,11 +201,11 @@ public class WorkersResponse {
 
   @JsonProperty(JSON_PROPERTY_MANUAL_EXCLUDED_WORKERS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setManualExcludedWorkers(List<WorkerData> manualExcludedWorkers) {
+  public void setManualExcludedWorkers(@javax.annotation.Nullable List<WorkerData> manualExcludedWorkers) {
     this.manualExcludedWorkers = manualExcludedWorkers;
   }
 
-  public WorkersResponse shutdownWorkers(List<WorkerData> shutdownWorkers) {
+  public WorkersResponse shutdownWorkers(@javax.annotation.Nullable List<WorkerData> shutdownWorkers) {
     
     this.shutdownWorkers = shutdownWorkers;
     return this;
@@ -228,11 +234,11 @@ public class WorkersResponse {
 
   @JsonProperty(JSON_PROPERTY_SHUTDOWN_WORKERS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setShutdownWorkers(List<WorkerData> shutdownWorkers) {
+  public void setShutdownWorkers(@javax.annotation.Nullable List<WorkerData> shutdownWorkers) {
     this.shutdownWorkers = shutdownWorkers;
   }
 
-  public WorkersResponse decommissioningWorkers(List<WorkerData> decommissioningWorkers) {
+  public WorkersResponse decommissioningWorkers(@javax.annotation.Nullable List<WorkerData> decommissioningWorkers) {
     
     this.decommissioningWorkers = decommissioningWorkers;
     return this;
@@ -261,7 +267,7 @@ public class WorkersResponse {
 
   @JsonProperty(JSON_PROPERTY_DECOMMISSIONING_WORKERS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setDecommissioningWorkers(List<WorkerData> decommissioningWorkers) {
+  public void setDecommissioningWorkers(@javax.annotation.Nullable List<WorkerData> decommissioningWorkers) {
     this.decommissioningWorkers = decommissioningWorkers;
   }
 

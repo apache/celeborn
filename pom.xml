@@ -154,7 +154,7 @@
     <maven.plugin.surefire.version>3.0.0-M7</maven.plugin.surefire.version>
     <maven.plugin.silencer.version>1.7.19</maven.plugin.silencer.version>
     <maven.plugin.resources.version>3.3.1</maven.plugin.resources.version>
-    <openapi.generator.version>7.8.0</openapi.generator.version>
+    <openapi.generator.version>7.13.0</openapi.generator.version>
 
     <!-- Allow modules to enable / disable certain build plugins easily. -->
     <testJarPhase>prepare-package</testJarPhase>

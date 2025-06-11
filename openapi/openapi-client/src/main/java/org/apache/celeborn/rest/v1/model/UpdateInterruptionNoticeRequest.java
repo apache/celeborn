@@ -38,15 +38,16 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   UpdateInterruptionNoticeRequest.JSON_PROPERTY_WORKERS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class UpdateInterruptionNoticeRequest {
   public static final String JSON_PROPERTY_WORKERS = "workers";
+  @javax.annotation.Nullable
   private List<WorkerInterruptionNotice> workers = new ArrayList<>();
 
   public UpdateInterruptionNoticeRequest() {
   }
 
-  public UpdateInterruptionNoticeRequest workers(List<WorkerInterruptionNotice> workers) {
+  public UpdateInterruptionNoticeRequest workers(@javax.annotation.Nullable List<WorkerInterruptionNotice> workers) {
     
     this.workers = workers;
     return this;
@@ -75,7 +76,7 @@ public class UpdateInterruptionNoticeRequest {
 
   @JsonProperty(JSON_PROPERTY_WORKERS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setWorkers(List<WorkerInterruptionNotice> workers) {
+  public void setWorkers(@javax.annotation.Nullable List<WorkerInterruptionNotice> workers) {
     this.workers = workers;
   }
 

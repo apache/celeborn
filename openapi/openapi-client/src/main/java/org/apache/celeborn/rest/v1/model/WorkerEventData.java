@@ -37,18 +37,20 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   WorkerEventData.JSON_PROPERTY_WORKER,
   WorkerEventData.JSON_PROPERTY_EVENT
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class WorkerEventData {
   public static final String JSON_PROPERTY_WORKER = "worker";
+  @javax.annotation.Nonnull
   private WorkerData worker;
 
   public static final String JSON_PROPERTY_EVENT = "event";
+  @javax.annotation.Nonnull
   private WorkerEventInfoData event;
 
   public WorkerEventData() {
   }
 
-  public WorkerEventData worker(WorkerData worker) {
+  public WorkerEventData worker(@javax.annotation.Nonnull WorkerData worker) {
     
     this.worker = worker;
     return this;
@@ -69,11 +71,11 @@ public class WorkerEventData {
 
   @JsonProperty(JSON_PROPERTY_WORKER)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setWorker(WorkerData worker) {
+  public void setWorker(@javax.annotation.Nonnull WorkerData worker) {
     this.worker = worker;
   }
 
-  public WorkerEventData event(WorkerEventInfoData event) {
+  public WorkerEventData event(@javax.annotation.Nonnull WorkerEventInfoData event) {
     
     this.event = event;
     return this;
@@ -94,7 +96,7 @@ public class WorkerEventData {
 
   @JsonProperty(JSON_PROPERTY_EVENT)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setEvent(WorkerEventInfoData event) {
+  public void setEvent(@javax.annotation.Nonnull WorkerEventInfoData event) {
     this.event = event;
   }
 

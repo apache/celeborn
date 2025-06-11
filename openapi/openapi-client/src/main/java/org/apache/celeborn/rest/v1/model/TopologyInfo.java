@@ -38,18 +38,20 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   TopologyInfo.JSON_PROPERTY_NETWORK_LOCATION,
   TopologyInfo.JSON_PROPERTY_WORKERS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class TopologyInfo {
   public static final String JSON_PROPERTY_NETWORK_LOCATION = "networkLocation";
+  @javax.annotation.Nullable
   private String networkLocation;
 
   public static final String JSON_PROPERTY_WORKERS = "workers";
+  @javax.annotation.Nullable
   private List<String> workers = new ArrayList<>();
 
   public TopologyInfo() {
   }
 
-  public TopologyInfo networkLocation(String networkLocation) {
+  public TopologyInfo networkLocation(@javax.annotation.Nullable String networkLocation) {
     
     this.networkLocation = networkLocation;
     return this;
@@ -70,11 +72,11 @@ public class TopologyInfo {
 
   @JsonProperty(JSON_PROPERTY_NETWORK_LOCATION)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setNetworkLocation(String networkLocation) {
+  public void setNetworkLocation(@javax.annotation.Nullable String networkLocation) {
     this.networkLocation = networkLocation;
   }
 
-  public TopologyInfo workers(List<String> workers) {
+  public TopologyInfo workers(@javax.annotation.Nullable List<String> workers) {
     
     this.workers = workers;
     return this;
@@ -103,7 +105,7 @@ public class TopologyInfo {
 
   @JsonProperty(JSON_PROPERTY_WORKERS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setWorkers(List<String> workers) {
+  public void setWorkers(@javax.annotation.Nullable List<String> workers) {
     this.workers = workers;
   }
 

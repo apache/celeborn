@@ -35,18 +35,20 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   ApplicationHeartbeatData.JSON_PROPERTY_APP_ID,
   ApplicationHeartbeatData.JSON_PROPERTY_LAST_HEARTBEAT_TIMESTAMP
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class ApplicationHeartbeatData {
   public static final String JSON_PROPERTY_APP_ID = "appId";
+  @javax.annotation.Nonnull
   private String appId;
 
   public static final String JSON_PROPERTY_LAST_HEARTBEAT_TIMESTAMP = "lastHeartbeatTimestamp";
+  @javax.annotation.Nonnull
   private Long lastHeartbeatTimestamp;
 
   public ApplicationHeartbeatData() {
   }
 
-  public ApplicationHeartbeatData appId(String appId) {
+  public ApplicationHeartbeatData appId(@javax.annotation.Nonnull String appId) {
     
     this.appId = appId;
     return this;
@@ -67,11 +69,11 @@ public class ApplicationHeartbeatData {
 
   @JsonProperty(JSON_PROPERTY_APP_ID)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setAppId(String appId) {
+  public void setAppId(@javax.annotation.Nonnull String appId) {
     this.appId = appId;
   }
 
-  public ApplicationHeartbeatData lastHeartbeatTimestamp(Long lastHeartbeatTimestamp) {
+  public ApplicationHeartbeatData lastHeartbeatTimestamp(@javax.annotation.Nonnull Long lastHeartbeatTimestamp) {
     
     this.lastHeartbeatTimestamp = lastHeartbeatTimestamp;
     return this;
@@ -92,7 +94,7 @@ public class ApplicationHeartbeatData {
 
   @JsonProperty(JSON_PROPERTY_LAST_HEARTBEAT_TIMESTAMP)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setLastHeartbeatTimestamp(Long lastHeartbeatTimestamp) {
+  public void setLastHeartbeatTimestamp(@javax.annotation.Nonnull Long lastHeartbeatTimestamp) {
     this.lastHeartbeatTimestamp = lastHeartbeatTimestamp;
   }
 

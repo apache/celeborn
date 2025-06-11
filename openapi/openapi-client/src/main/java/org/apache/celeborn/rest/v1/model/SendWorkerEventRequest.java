@@ -39,23 +39,23 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   SendWorkerEventRequest.JSON_PROPERTY_EVENT_TYPE,
   SendWorkerEventRequest.JSON_PROPERTY_WORKERS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class SendWorkerEventRequest {
   /**
    * The type of the event.
    */
   public enum EventTypeEnum {
-    IMMEDIATELY("IMMEDIATELY"),
+    IMMEDIATELY(String.valueOf("IMMEDIATELY")),
     
-    DECOMMISSION("DECOMMISSION"),
+    DECOMMISSION(String.valueOf("DECOMMISSION")),
     
-    DECOMMISSIONTHENIDLE("DECOMMISSIONTHENIDLE"),
+    DECOMMISSIONTHENIDLE(String.valueOf("DECOMMISSIONTHENIDLE")),
     
-    GRACEFUL("GRACEFUL"),
+    GRACEFUL(String.valueOf("GRACEFUL")),
     
-    RECOMMISSION("RECOMMISSION"),
+    RECOMMISSION(String.valueOf("RECOMMISSION")),
     
-    NONE("NONE");
+    NONE(String.valueOf("NONE"));
 
     private String value;
 
@@ -85,15 +85,17 @@ public class SendWorkerEventRequest {
   }
 
   public static final String JSON_PROPERTY_EVENT_TYPE = "eventType";
+  @javax.annotation.Nonnull
   private EventTypeEnum eventType;
 
   public static final String JSON_PROPERTY_WORKERS = "workers";
+  @javax.annotation.Nullable
   private List<WorkerId> workers = new ArrayList<>();
 
   public SendWorkerEventRequest() {
   }
 
-  public SendWorkerEventRequest eventType(EventTypeEnum eventType) {
+  public SendWorkerEventRequest eventType(@javax.annotation.Nonnull EventTypeEnum eventType) {
     
     this.eventType = eventType;
     return this;
@@ -114,11 +116,11 @@ public class SendWorkerEventRequest {
 
   @JsonProperty(JSON_PROPERTY_EVENT_TYPE)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setEventType(EventTypeEnum eventType) {
+  public void setEventType(@javax.annotation.Nonnull EventTypeEnum eventType) {
     this.eventType = eventType;
   }
 
-  public SendWorkerEventRequest workers(List<WorkerId> workers) {
+  public SendWorkerEventRequest workers(@javax.annotation.Nullable List<WorkerId> workers) {
     
     this.workers = workers;
     return this;
@@ -147,7 +149,7 @@ public class SendWorkerEventRequest {
 
   @JsonProperty(JSON_PROPERTY_WORKERS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setWorkers(List<WorkerId> workers) {
+  public void setWorkers(@javax.annotation.Nullable List<WorkerId> workers) {
     this.workers = workers;
   }
 

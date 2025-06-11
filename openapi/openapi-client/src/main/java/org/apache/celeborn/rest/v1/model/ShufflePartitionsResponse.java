@@ -38,18 +38,20 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   ShufflePartitionsResponse.JSON_PROPERTY_PRIMARY_PARTITIONS,
   ShufflePartitionsResponse.JSON_PROPERTY_REPLICA_PARTITIONS
 })
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
 public class ShufflePartitionsResponse {
   public static final String JSON_PROPERTY_PRIMARY_PARTITIONS = "primaryPartitions";
+  @javax.annotation.Nullable
   private Map<String, Map<String, PartitionLocationData>> primaryPartitions = new HashMap<>();
 
   public static final String JSON_PROPERTY_REPLICA_PARTITIONS = "replicaPartitions";
+  @javax.annotation.Nullable
   private Map<String, Map<String, PartitionLocationData>> replicaPartitions = new HashMap<>();
 
   public ShufflePartitionsResponse() {
   }
 
-  public ShufflePartitionsResponse primaryPartitions(Map<String, Map<String, PartitionLocationData>> primaryPartitions) {
+  public ShufflePartitionsResponse primaryPartitions(@javax.annotation.Nullable Map<String, Map<String, PartitionLocationData>> primaryPartitions) {
     
     this.primaryPartitions = primaryPartitions;
     return this;
@@ -78,11 +80,11 @@ public class ShufflePartitionsResponse {
 
   @JsonProperty(JSON_PROPERTY_PRIMARY_PARTITIONS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setPrimaryPartitions(Map<String, Map<String, PartitionLocationData>> primaryPartitions) {
+  public void setPrimaryPartitions(@javax.annotation.Nullable Map<String, Map<String, PartitionLocationData>> primaryPartitions) {
     this.primaryPartitions = primaryPartitions;
   }
 
-  public ShufflePartitionsResponse replicaPartitions(Map<String, Map<String, PartitionLocationData>> replicaPartitions) {
+  public ShufflePartitionsResponse replicaPartitions(@javax.annotation.Nullable Map<String, Map<String, PartitionLocationData>> replicaPartitions) {
     
     this.replicaPartitions = replicaPartitions;
     return this;
@@ -111,7 +113,7 @@ public class ShufflePartitionsResponse {
 
   @JsonProperty(JSON_PROPERTY_REPLICA_PARTITIONS)
   @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
-  public void setReplicaPartitions(Map<String, Map<String, PartitionLocationData>> replicaPartitions) {
+  public void setReplicaPartitions(@javax.annotation.Nullable Map<String, Map<String, PartitionLocationData>> replicaPartitions) {
     this.replicaPartitions = replicaPartitions;
   }
 
