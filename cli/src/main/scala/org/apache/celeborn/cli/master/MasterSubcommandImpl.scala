@@ -24,16 +24,12 @@ import scala.collection.JavaConverters._
 import org.apache.commons.lang3.StringUtils
 import picocli.CommandLine.{Command, ParameterException}
 
-import org.apache.celeborn.cli.common.CliVersionProvider
 import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.rest.v1.model._
 import org.apache.celeborn.rest.v1.model.SendWorkerEventRequest.EventTypeEnum
 
-@Command(
-  name = "master",
-  versionProvider = classOf[CliVersionProvider],
-  mixinStandardHelpOptions = true)
-class MasterSubcommandImpl extends Runnable with MasterSubcommand {
+@Command(name = "master")
+class MasterSubcommandImpl extends MasterSubcommand {
   override def run(): Unit = {
     if (masterOptions.showMastersInfo) log(runShowMastersInfo)
     if (masterOptions.showClusterApps) log(runShowClusterApps)

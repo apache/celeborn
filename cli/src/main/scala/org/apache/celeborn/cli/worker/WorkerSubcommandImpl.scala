@@ -19,15 +19,11 @@ package org.apache.celeborn.cli.worker
 
 import picocli.CommandLine.Command
 
-import org.apache.celeborn.cli.common.CliVersionProvider
 import org.apache.celeborn.rest.v1.model._
 import org.apache.celeborn.rest.v1.model.WorkerExitRequest.TypeEnum
 
-@Command(
-  name = "worker",
-  versionProvider = classOf[CliVersionProvider],
-  mixinStandardHelpOptions = true)
-class WorkerSubcommandImpl extends Runnable with WorkerSubcommand {
+@Command(name = "worker")
+class WorkerSubcommandImpl extends WorkerSubcommand {
 
   override def run(): Unit = {
     if (workerOptions.showWorkerInfo) log(runShowWorkerInfo)
