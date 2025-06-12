@@ -125,14 +125,14 @@ class QuotaManager(
       user: UserIdentifier,
       consumption: ResourceConsumption): QuotaStatus = {
     val quota = getUserStorageQuota(user)
-    checkQuotaSpace(s"$USER_EXHAUSTED user: $user. ", consumption, quota)
+    checkQuotaSpace(s"$USER_EXHAUSTED User: $user. ", consumption, quota)
   }
 
   private def checkTenantQuotaSpace(
       tenantId: String,
       consumption: ResourceConsumption): QuotaStatus = {
     val quota = getTenantStorageQuota(tenantId)
-    checkQuotaSpace(s"$USER_EXHAUSTED tenant: $tenantId. ", consumption, quota)
+    checkQuotaSpace(s"$TENANT_EXHAUSTED Tenant: $tenantId. ", consumption, quota)
   }
 
   private def checkClusterQuotaSpace(consumption: ResourceConsumption): QuotaStatus = {
@@ -282,7 +282,7 @@ class QuotaManager(
       notExpiredUserConsumptions,
       getUserStorageQuota(userIdentifier),
       notExpired,
-      s"$USER_EXHAUSTED user: $userIdentifier. ")
+      s"$USER_EXHAUSTED User: $userIdentifier. ")
     appConsumptions
   }
 
@@ -305,7 +305,7 @@ class QuotaManager(
       notExpiredResourceConsumption,
       getTenantStorageQuota(tenantId),
       notExpired,
-      s"$USER_EXHAUSTED tenant: $tenantId. ")
+      s"$TENANT_EXHAUSTED Tenant: $tenantId. ")
     appConsumptions
   }
 
