@@ -95,7 +95,7 @@ index 00000000000..5e190c512df
 +    ConfigBuilder("spark.celeborn.client.spark.stageRerun.enabled")
 +      .withAlternative("spark.celeborn.client.spark.fetch.throwsFetchFailure")
 +      .booleanConf
-+      .createWithDefault(false)
++      .createWithDefault(true)
 +
 +  private val celebornOptimizeSkewedPartitionReadEnabled = new AtomicBoolean()
 +  private val stageRerunEnabled = new AtomicBoolean()
