@@ -246,7 +246,9 @@ class CelebornShuffleReader[K, C](
         val hasReplicate = originLocations.asScala.exists(p => p != null && p.hasPeer)
         var locations =
           if (encodedAttemptId % 2 == 1 && hasReplicate) {
-            originLocations.asScala.map(_.getPeer).asJava
+            originLocations.asScala.map { p =>
+              if (p != null && p.hasPeer) p.getPeer else p
+            }.asJava
           } else {
             originLocations
           }
