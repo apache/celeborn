@@ -943,7 +943,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientMrMaxPushData: Long = get(CLIENT_MR_PUSH_DATA_MAX)
   def clientApplicationUUIDSuffixEnabled: Boolean = get(CLIENT_APPLICATION_UUID_SUFFIX_ENABLED)
   def clientShuffleIntegrityCheckEnabled: Boolean =
-    get(CLIENT_SPARK_SHUFFLE_INTEGRITY_CHECK_ENABLED)
+    get(CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED)
 
   def appUniqueIdWithUUIDSuffix(appId: String): String = {
     if (clientApplicationUUIDSuffixEnabled) {
@@ -5358,10 +5358,10 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("512k")
 
-  val CLIENT_SPARK_SHUFFLE_INTEGRITY_CHECK_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.spark.shuffle.integrityCheck.enabled")
-      .categories("client", "shuffle")
-      .version("0.6.0")
+  val CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffle.integrityCheck.enabled")
+      .categories("client")
+      .version("0.6.1")
       .doc("When `true`, enables end-to-end integrity checks for Spark workloads.")
       .booleanConf
       .createWithDefault(false)
