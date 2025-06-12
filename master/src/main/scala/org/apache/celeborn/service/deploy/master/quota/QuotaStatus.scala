@@ -24,9 +24,9 @@ case class QuotaStatus(exceed: Boolean = false, exceedReason: String = NORMAL)
 object QuotaStatus {
   val NORMAL: String = ""
   val CLUSTER_EXHAUSTED: String =
-    "Interrupt application caused by the cluster storage usage reach threshold."
+    "Cluster storage usage reach threshold."
   val TENANT_EXHAUSTED: String =
-    "Interrupt application caused by the tenant storage usage reach threshold."
+    "Tenant storage usage reach threshold."
   val USER_EXHAUSTED: String =
-    "Interrupt or reject application caused by the user storage usage reach threshold."
+    "User storage usage reach threshold."
 }
