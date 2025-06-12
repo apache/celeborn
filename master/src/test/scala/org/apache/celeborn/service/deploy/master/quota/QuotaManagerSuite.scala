@@ -154,13 +154,13 @@ class QuotaManagerSuite extends CelebornFunSuite
     val exp1 = CheckQuotaResponse(true, "")
     val exp2 = CheckQuotaResponse(
       false,
-      s"Interrupt or reject application caused by the user storage usage reach threshold. " +
-        s"user: `tenant_01`.`Jerry`.  " +
+      s"User storage usage reach threshold. " +
+        s"User: `tenant_01`.`Jerry`.  " +
         s"HDFS_BYTES_WRITTEN(30.0 GiB) exceeds quota(10.0 GiB). ")
     val exp3 = CheckQuotaResponse(
       false,
-      s"Interrupt or reject application caused by the user storage usage reach threshold. " +
-        s"user: `tenant_01`.`Jerry`.  " +
+      s"User storage usage reach threshold. " +
+        s"User: `tenant_01`.`Jerry`.  " +
         s"DISK_BYTES_WRITTEN(200.0 GiB) exceeds quota(100.0 GiB). " +
         s"DISK_FILE_COUNT(20000) exceeds quota(10000). " +
         s"HDFS_BYTES_WRITTEN(30.0 GiB) exceeds quota(10.0 GiB). ")
@@ -203,16 +203,16 @@ class QuotaManagerSuite extends CelebornFunSuite
     val succeed = CheckQuotaResponse(true, "")
     val failed = CheckQuotaResponse(
       false,
-      s"Interrupt or reject application caused by the user storage usage reach threshold. " +
-        s"user: `tenant_01`.`Jerry`.  " +
+      s"User storage usage reach threshold. " +
+        s"User: `tenant_01`.`Jerry`.  " +
         s"DISK_BYTES_WRITTEN(200.0 GiB) exceeds quota(100.0 GiB). " +
         s"DISK_FILE_COUNT(20000) exceeds quota(10000). " +
         s"HDFS_BYTES_WRITTEN(30.0 GiB) exceeds quota(10.0 GiB). ")
     assert(res1 == failed)
     assert(res2 == CheckQuotaResponse(
       false,
-      "Interrupt or reject application caused by the user storage usage reach threshold. " +
-        "Used: " +
+      "User storage usage reach threshold. " +
+        "User: `tenant_01`.`Jerry`.  Used: " +
         "ResourceConsumption(" +
         "diskBytesWritten: 150.0 GiB, " +
         "diskFileCount: 15000, " +
@@ -236,7 +236,7 @@ class QuotaManagerSuite extends CelebornFunSuite
     assert(res1 == failed)
     assert(res2 == CheckQuotaResponse(
       false,
-      "Interrupt or reject application caused by the user storage usage reach threshold. " +
+      "User storage usage reach threshold. User: `tenant_01`.`Jerry`.  " +
         "Used: ResourceConsumption(" +
         "diskBytesWritten: 150.0 GiB, " +
         "diskFileCount: 15000, " +
@@ -249,7 +249,7 @@ class QuotaManagerSuite extends CelebornFunSuite
         "hdfsFileCount=9223372036854775807]"))
     assert(res3 == CheckQuotaResponse(
       false,
-      "Interrupt application caused by the cluster storage usage reach threshold. " +
+      "Cluster storage usage reach threshold. " +
         "Used: ResourceConsumption(" +
         "diskBytesWritten: 50.0 GiB, " +
         "diskFileCount: 5000, " +
@@ -293,11 +293,11 @@ class QuotaManagerSuite extends CelebornFunSuite
 
     assert(res1 == CheckQuotaResponse(
       false,
-      "Interrupt application caused by the cluster storage usage reach threshold. " +
+      "Cluster storage usage reach threshold. " +
         "DISK_BYTES_WRITTEN(50.0 GiB) exceeds quota(20.0 GiB). "))
     assert(res2 == CheckQuotaResponse(
       false,
-      "Interrupt application caused by the cluster storage usage reach threshold. " +
+      "Cluster storage usage reach threshold. " +
         "Used: " +
         "ResourceConsumption(" +
         "diskBytesWritten: 40.0 GiB, " +
@@ -502,14 +502,15 @@ class QuotaManagerSuite extends CelebornFunSuite
     val res4 = quotaManager1.checkApplicationQuotaStatus("app3")
     assert(res1 == CheckQuotaResponse(
       false,
-      s"Interrupt or reject application caused by the user storage usage reach threshold. " +
-        s"user: `tenant_01`.`Jerry`.  " +
+      s"User storage usage reach threshold. " +
+        s"User: `tenant_01`.`Jerry`.  " +
         s"DISK_BYTES_WRITTEN(200.0 GiB) exceeds quota(100.0 GiB). " +
         s"DISK_FILE_COUNT(20000) exceeds quota(10000). " +
         s"HDFS_BYTES_WRITTEN(30.0 GiB) exceeds quota(10.0 GiB). "))
     assert(res2 == CheckQuotaResponse(
       false,
-      "Interrupt or reject application caused by the user storage usage reach threshold. " +
+      "User storage usage reach threshold. " +
+        "User: `tenant_01`.`Jerry`.  " +
         "Used: ResourceConsumption(" +
         "diskBytesWritten: 150.0 GiB, " +
         "diskFileCount: 15000, " +
@@ -524,8 +525,8 @@ class QuotaManagerSuite extends CelebornFunSuite
     assert(res3 == CheckQuotaResponse(true, ""))
     assert(res4 == CheckQuotaResponse(
       false,
-      "Interrupt or reject application caused by the user storage usage reach threshold. " +
-        "Used: " +
+      "User storage usage reach threshold. " +
+        "User: `tenant_01`.`John`.  Used: " +
         "ResourceConsumption(" +
         "diskBytesWritten: 80.0 GiB, " +
         "diskFileCount: 0, " +
@@ -619,15 +620,16 @@ class QuotaManagerSuite extends CelebornFunSuite
     assert(res1 == CheckQuotaResponse(
       false,
       "" +
-        "Interrupt or reject application caused by the user storage usage reach threshold. " +
-        "user: `tenant_01`.`Jerry`.  DISK_BYTES_WRITTEN(230.0 GiB) exceeds quota(100.0 GiB). "))
+        "User storage usage reach threshold. " +
+        "User: `tenant_01`.`Jerry`.  DISK_BYTES_WRITTEN(230.0 GiB) exceeds quota(100.0 GiB). "))
     assert(res2 == CheckQuotaResponse(
       false,
-      "Interrupt or reject application caused by the user storage usage reach threshold. " +
-        "user: `tenant_01`.`John`.  DISK_BYTES_WRITTEN(220.0 GiB) exceeds quota(100.0 GiB). "))
+      "User storage usage reach threshold. " +
+        "User: `tenant_01`.`John`.  DISK_BYTES_WRITTEN(220.0 GiB) exceeds quota(100.0 GiB). "))
     assert(res3 == CheckQuotaResponse(
       false,
-      "Interrupt or reject application caused by the user storage usage reach threshold. " +
+      "User storage usage reach threshold. " +
+        "User: `tenant_01`.`Jerry`.  " +
         "Used: ResourceConsumption(" +
         "diskBytesWritten: 150.0 GiB, " +
         "diskFileCount: 0, " +
@@ -640,7 +642,8 @@ class QuotaManagerSuite extends CelebornFunSuite
         "hdfsFileCount=9223372036854775807]"))
     assert(res4 == CheckQuotaResponse(
       false,
-      "Interrupt application caused by the tenant storage usage reach threshold. " +
+      "Tenant storage usage reach threshold. " +
+        "Tenant: tenant_01.  " +
         "Used: ResourceConsumption(" +
         "diskBytesWritten: 80.0 GiB, " +
         "diskFileCount: 0, " +
@@ -653,7 +656,8 @@ class QuotaManagerSuite extends CelebornFunSuite
         "hdfsFileCount=9223372036854775807]"))
     assert(res5 == CheckQuotaResponse(
       false,
-      "Interrupt or reject application caused by the user storage usage reach threshold. " +
+      "User storage usage reach threshold. " +
+        "User: `tenant_01`.`John`.  " +
         "Used: ResourceConsumption(" +
         "diskBytesWritten: 150.0 GiB, " +
         "diskFileCount: 0, " +
