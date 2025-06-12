@@ -282,7 +282,7 @@ class QuotaManager(
       notExpiredUserConsumptions,
       getUserStorageQuota(userIdentifier),
       notExpired,
-      s"$USER_EXHAUSTED user: $user. ")
+      s"$USER_EXHAUSTED user: $userIdentifier. ")
     appConsumptions
   }
 
