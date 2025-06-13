@@ -197,21 +197,29 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
   }
 
   private def registerAndFinishPartition(shuffleId: Int): Unit = {
+    val numPartitions = 9
     shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId, attemptId, 1)
     shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId + 1, attemptId, 2)
     shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId + 2, attemptId, 3)
 
     // task number incr to numMappers + 1
     shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId, attemptId + 1, 9)
-    shuffleClient.mapPartitionMapperEnd(shuffleId, mapId, attemptId, numMappers, 1)
+    shuffleClient.mapPartitionMapperEnd(shuffleId, mapId, attemptId, numMappers, numPartitions, 1)
     // another attempt
     shuffleClient.mapPartitionMapperEnd(
       shuffleId,
       mapId,
       attemptId + 1,
       numMappers,
+      numPartitions,
       9)
     // another mapper
-    shuffleClient.mapPartitionMapperEnd(shuffleId, mapId + 1, attemptId, numMappers, mapId + 1)
+    shuffleClient.mapPartitionMapperEnd(
+      shuffleId,
+      mapId + 1,
+      attemptId,
+      numMappers,
+      numPartitions,
+      mapId + 1)
   }
 }
