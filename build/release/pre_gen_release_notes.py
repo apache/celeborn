@@ -32,7 +32,7 @@
 #   set environment variables: RELEASE_TAG and PREVIOUS_RELEASE_TAG, then perform
 #   ./pre_gen_release_notes.py
 # Example:
-#   RELEASE_TAG=v0.6.0 PREVIOUS_RELEASE_TAG=0.5.0 ./pre_gen_release_notes.py
+#   RELEASE_TAG=v0.6.0 PREVIOUS_RELEASE_TAG=v0.5.0 ./pre_gen_release_notes.py
 
 # It outputs
 # - commits-${RELEASE_TAG}.txt:      the canonical commit list
@@ -214,8 +214,8 @@ print("Commits list is successfully written to %s!" % commits_file_name)
 # e.g. * Fu Chen
 contributors_file = open(os.path.join(release_dir, contributors_file_name), "w")
 sorted_authors = list(authors)
-sorted_authors.sort(key=lambda author: author.split(" ")[-1])
-for author in authors:
+sorted_authors.sort(key=lambda author: author.split(" ")[0].lower())
+for author in sorted_authors:
     contributors_file.write("* %s\n" % author)
 contributors_file.close()
 print("Contributors list is successfully written to %s!" % contributors_file_name)
