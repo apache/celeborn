@@ -19,6 +19,7 @@ package org.apache.celeborn.server.common.service.config;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.celeborn.common.CelebornConf;
 
@@ -117,4 +118,38 @@ public interface ConfigService {
 
   /** Shutdowns configuration management service. */
   void shutdown();
+
+  /**
+   * Upsert the system level dynamic configurations of {@link SystemConfig}.
+   *
+   * @param systemConfigs The system level dynamic configurations to upsert.
+   */
+  void upsertSystemConfig(Map<String, String> systemConfigs);
+
+  /**
+   * Upsert the tenant or tenant user level dynamic configurations of {@link TenantConfig}.
+   *
+   * @param tenantId The tenant id to upsert.
+   * @param userId The user id to upsert.
+   * @param tenantConfigs The tenant or tenant user level dynamic configurations to upsert.
+   */
+  void upsertTenantConfig(String tenantId, String userId, Map<String, String> tenantConfigs);
+
+  /**
+   * Delete the system level dynamic configurations of {@link SystemConfig} by config keys.
+   *
+   * @param configKeys The config keys of system level dynamic configurations to delete.
+   */
+  void deleteSystemConfigByKeys(List<String> configKeys);
+
+  /**
+   * Delete the tenant or tenant user level dynamic configurations of {@link TenantConfig} by config
+   * keys.
+   *
+   * @param tenantId The tenant id to delete.
+   * @param userId The user id to delete.
+   * @param configKeys The config keys of tenant or tenant user level dynamic configurations to
+   *     delete.
+   */
+  void deleteTenantConfigByKeys(String tenantId, String userId, List<String> configKeys);
 }
