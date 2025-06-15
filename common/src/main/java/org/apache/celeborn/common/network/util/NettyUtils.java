@@ -79,7 +79,13 @@ public class NettyUtils {
                 DefaultSelectStrategyFactory.INSTANCE)
             : new NioEventLoopGroup(numThreads, threadFactory);
       case EPOLL:
-        return new EpollEventLoopGroup(numThreads, threadFactory);
+        return conflictAvoidChooserEnable
+            ? new EpollEventLoopGroup(
+                numThreads,
+                new ThreadPerTaskExecutor(threadFactory),
+                ConflictAvoidEventExecutorChooserFactory.INSTANCE,
+                DefaultSelectStrategyFactory.INSTANCE)
+            : new EpollEventLoopGroup(numThreads, threadFactory);
       default:
         throw new IllegalArgumentException("Unknown io mode: " + mode);
     }
