@@ -18,6 +18,8 @@
 package org.apache.celeborn.server.common.service.config;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -57,6 +59,28 @@ public class DbConfigServiceImpl extends BaseConfigServiceImpl implements Config
                 Collectors.toMap(
                     tenantConfig -> Pair.of(tenantConfig.getTenantId(), tenantConfig.getName()),
                     Function.identity())));
+  }
+
+  @Override
+  public void upsertSystemConfig(Map<String, String> systemConfigs) {
+    iServiceManager.upsertSystemConfig(systemConfigs);
+  }
+
+  @Override
+  public void upsertTenantConfig(
+      ConfigLevel configLevel, String tenantId, String name, Map<String, String> tenantConfigs) {
+    iServiceManager.upsertTenantConfig(configLevel, tenantId, name, tenantConfigs);
+  }
+
+  @Override
+  public void deleteSystemConfigByKeys(List<String> configKeys) {
+    iServiceManager.deleteSystemConfigByKeys(configKeys);
+  }
+
+  @Override
+  public void deleteTenantConfigByKeys(
+      ConfigLevel configLevel, String tenantId, String name, List<String> configKeys) {
+    iServiceManager.deleteTenantConfigByKeys(configLevel, tenantId, name, configKeys);
   }
 
   @VisibleForTesting

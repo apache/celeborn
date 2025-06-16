@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.server.common.http.api.v1
 
-import javax.ws.rs.{Consumes, GET, Path, Produces, QueryParam, ServiceUnavailableException}
+import javax.ws.rs.{Consumes, GET, Path, POST, Produces, QueryParam, ServiceUnavailableException}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
@@ -30,7 +30,7 @@ import org.apache.commons.lang3.StringUtils
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.util.Utils
-import org.apache.celeborn.rest.v1.model.{ConfigData, ConfResponse, DynamicConfig, DynamicConfigResponse}
+import org.apache.celeborn.rest.v1.model.{ConfigData, ConfResponse, DeleteDynamicConfigRequest, DynamicConfig, DynamicConfigResponse, HandleResponse, UpsertDynamicConfigRequest}
 import org.apache.celeborn.rest.v1.model.DynamicConfig.LevelEnum
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.server.common.service.config.ConfigLevel
@@ -89,6 +89,52 @@ private[api] class ConfResource extends ApiRequestContext {
     }
   }
 
+  @Operation(description = "Upsert the dynamic configs. " +
+    "The parameter level specifies the config level of dynamic configs. " +
+    "The parameter tenant specifies the tenant id of TENANT or TENANT_USER level. " +
+    "The parameter name specifies the user name of TENANT_USER level. " +
+    "Meanwhile, either none or all of the parameter tenant and name are specified for TENANT_USER level.")
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(implementation = classOf[HandleResponse]))))
+  @POST
+  @Path("/dynamic/upsert")
+  def upsertDynamicConf(request: UpsertDynamicConfigRequest): HandleResponse = {
+    if (configService == null) {
+      throw new ServiceUnavailableException(
+        s"Dynamic configuration is disabled. Please check whether to config" +
+          s" `${CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND.key}`.")
+    } else {
+      upsertDynamicConfig(request)
+      new HandleResponse().success(true).message(s"Upsert dynamic configs of `$request`.")
+    }
+  }
+
+  @Operation(description = "Delete the dynamic configs. " +
+    "The parameter level specifies the config level of dynamic configs. " +
+    "The parameter tenant specifies the tenant id of TENANT or TENANT_USER level. " +
+    "The parameter name specifies the user name of TENANT_USER level. " +
+    "Meanwhile, either none or all of the parameter tenant and name are specified for TENANT_USER level.")
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(implementation = classOf[HandleResponse]))))
+  @POST
+  @Path("/dynamic/delete")
+  def deleteDynamicConf(request: DeleteDynamicConfigRequest): HandleResponse = {
+    if (configService == null) {
+      throw new ServiceUnavailableException(
+        s"Dynamic configuration is disabled. Please check whether to config" +
+          s" `${CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND.key}`.")
+    } else {
+      deleteDynamicConfig(request)
+      new HandleResponse().success(true).message(s"Delete dynamic configs of `$request`.")
+    }
+  }
+
   private def getDynamicConfig(level: String, tenant: String, name: String): Seq[DynamicConfig] = {
     if (ConfigLevel.SYSTEM.name().equalsIgnoreCase(level)) {
       val config = configService.getSystemConfigFromCache.getConfigs.asScala
@@ -131,6 +177,34 @@ private[api] class ConfResource extends ApiRequestContext {
       }.toSeq
     } else {
       Seq.empty[DynamicConfig]
+    }
+  }
+
+  private def upsertDynamicConfig(request: UpsertDynamicConfigRequest): Unit = {
+    val level = request.getLevel.name()
+    if (ConfigLevel.SYSTEM.name().equalsIgnoreCase(level)) {
+      configService.upsertSystemConfig(request.getConfigs)
+    } else if (ConfigLevel.TENANT.name().equalsIgnoreCase(level)
+      || ConfigLevel.TENANT_USER.name().equalsIgnoreCase(level)) {
+      configService.upsertTenantConfig(
+        ConfigLevel.valueOf(level),
+        request.getTenant,
+        request.getName,
+        request.getConfigs)
+    }
+  }
+
+  private def deleteDynamicConfig(request: DeleteDynamicConfigRequest): Unit = {
+    val level = request.getLevel.name()
+    if (ConfigLevel.SYSTEM.name().equalsIgnoreCase(level)) {
+      configService.deleteSystemConfigByKeys(request.getConfigs)
+    } else if (ConfigLevel.TENANT.name().equalsIgnoreCase(level)
+      || ConfigLevel.TENANT_USER.name().equalsIgnoreCase(level)) {
+      configService.deleteTenantConfigByKeys(
+        ConfigLevel.valueOf(level),
+        request.getTenant,
+        request.getName,
+        request.getConfigs)
     }
   }
 }

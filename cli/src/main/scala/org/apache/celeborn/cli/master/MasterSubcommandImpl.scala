@@ -51,6 +51,8 @@ class MasterSubcommandImpl extends MasterSubcommand {
     if (masterOptions.showConf) log(runShowConf)
     if (masterOptions.showContainerInfo) log(runShowContainerInfo)
     if (masterOptions.showDynamicConf) log(runShowDynamicConf)
+    if (masterOptions.upsertDynamicConf) log(runUpsertDynamicConf)
+    if (masterOptions.deleteDynamicConf) log(runDeleteDynamicConf)
     if (masterOptions.showThreadDump) log(runShowThreadDump)
     if (masterOptions.reviseLostShuffles) log(reviseLostShuffles)
     if (masterOptions.deleteApps) log(deleteApps)
@@ -211,6 +213,51 @@ class MasterSubcommandImpl extends MasterSubcommand {
       commonOptions.configTenant,
       commonOptions.configName,
       commonOptions.getAuthHeader)
+
+  private[master] def runUpsertDynamicConf: HandleResponse = {
+    if (StringUtils.isBlank(commonOptions.configLevel)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Config level must be provided for this command.")
+    }
+    if (StringUtils.isBlank(commonOptions.upsertConfigs)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Configs to upsert must be provided for this command.")
+    }
+    val upsertConfigs =
+      commonOptions.upsertConfigs.split(',').map(_.trim).filter(_.nonEmpty).map { config =>
+        val Array(k, v) = config.split(':').map(_.trim)
+        k -> v
+      }.toMap.asJava
+    confApi.upsertDynamicConf(
+      new UpsertDynamicConfigRequest()
+        .level(UpsertDynamicConfigRequest.LevelEnum.fromValue(commonOptions.configLevel))
+        .configs(upsertConfigs)
+        .tenant(commonOptions.configTenant)
+        .name(commonOptions.configName),
+      commonOptions.getAuthHeader)
+  }
+
+  private[master] def runDeleteDynamicConf: HandleResponse = {
+    if (StringUtils.isBlank(commonOptions.configLevel)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Config level must be provided for this command.")
+    }
+    if (StringUtils.isBlank(commonOptions.deleteConfigs)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Configs to delete must be provided for this command.")
+    }
+    confApi.deleteDynamicConf(
+      new DeleteDynamicConfigRequest()
+        .level(DeleteDynamicConfigRequest.LevelEnum.fromValue(commonOptions.configLevel))
+        .configs(util.Arrays.asList[String](commonOptions.deleteConfigs.split(","): _*))
+        .tenant(commonOptions.configTenant)
+        .name(commonOptions.configName),
+      commonOptions.getAuthHeader)
+  }
 
   private[master] def runShowThreadDump: ThreadStackResponse =
     defaultApi.getThreadDump(commonOptions.getAuthHeader)
