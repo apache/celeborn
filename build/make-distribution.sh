@@ -73,6 +73,14 @@ while (( "$#" )); do
   shift
 done
 
+if [ "$RELEASE" == "true" ]; then
+  JAVA8_HOME=${JAVA8_HOME:?"JAVA8_HOME is required"}
+  JAVA11_HOME=${JAVA11_HOME:?"JAVA11_HOME is required"}
+  JAVA17_HOME=${JAVA17_HOME:?"JAVA17_HOME is required"}
+  # Set JAVA_HOME to JDK 8 by default for release
+  export JAVA_HOME=$JAVA8_HOME
+fi
+
 if [ -z "$JAVA_HOME" ]; then
   # Fall back on JAVA_HOME from rpm, if found
   if [ $(command -v rpm) ]; then
