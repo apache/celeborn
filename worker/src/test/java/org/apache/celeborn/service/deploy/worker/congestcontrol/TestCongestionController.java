@@ -173,6 +173,8 @@ public class TestCongestionController {
         CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_HIGH_WATERMARK().key(), "1200");
     celebornConf.set(
         CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK().key(), "1000");
+    celebornConf.set(
+            CelebornConf.WORKER_CONGESTION_CONTROL_ONLY_CONGESTION_ON_HIGH_WATERMARK(), false);
     celebornConf.set(CelebornConf.WORKER_CONGESTION_CONTROL_USER_INACTIVE_INTERVAL(), 120L * 1000);
     CongestionController controller1 =
         new CongestionController(source, 10, celebornConf, null) {
@@ -306,6 +308,8 @@ public class TestCongestionController {
         CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_HIGH_WATERMARK().key(), "2000");
     celebornConf1.set(
         CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK().key(), "1600");
+    celebornConf1.set(
+            CelebornConf.WORKER_CONGESTION_CONTROL_ONLY_CONGESTION_ON_HIGH_WATERMARK(), false);
     celebornConf1.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), file1);
     celebornConf1.set(CelebornConf.DYNAMIC_CONFIG_REFRESH_INTERVAL(), 1000L);
     FsConfigServiceImpl configService = new FsConfigServiceImpl(celebornConf1);
@@ -358,6 +362,52 @@ public class TestCongestionController {
     Assert.assertTrue(
         userCongestionControlContext.getUserBufferInfo().getBufferStatusHub().avgBytesPerSec() > 0);
     Assert.assertTrue(controller.getProducedBufferStatusHub().avgBytesPerSec() > 0);
+  }
+
+  @Test
+  public void testOnlyCongestOnHighWatermark() {
+    CelebornConf celebornConf = new CelebornConf();
+    celebornConf.set(
+            CelebornConf.WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_HIGH_WATERMARK().key(), "200");
+    celebornConf.set(
+            CelebornConf.WORKER_CONGESTION_CONTROL_USER_PRODUCE_SPEED_LOW_WATERMARK().key(), "180");
+    celebornConf.set(
+            CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_HIGH_WATERMARK().key(), "800");
+    celebornConf.set(
+            CelebornConf.WORKER_CONGESTION_CONTROL_WORKER_PRODUCE_SPEED_LOW_WATERMARK().key(), "700");
+    celebornConf.set(CelebornConf.WORKER_CONGESTION_CONTROL_USER_INACTIVE_INTERVAL(), 120L * 1000);
+    celebornConf.set(
+            CelebornConf.WORKER_CONGESTION_CONTROL_ONLY_CONGESTION_ON_HIGH_WATERMARK(), true);
+    CongestionController controller1 =
+            new CongestionController(source, 10, celebornConf, null) {
+              @Override
+              public long getTotalPendingBytes() {
+                return 0;
+              }
+
+              @Override
+              public void trimMemoryUsage() {
+                // No op
+              }
+            };
+
+    UserIdentifier user1 = new UserIdentifier("test1", "celeborn");
+    UserCongestionControlContext context1 = controller1.getUserCongestionContext(user1);
+    Assert.assertFalse(controller1.isUserCongested(context1));
+    context1.updateProduceBytes(600);
+    controller1.consumeBytes(600);
+    controller1.checkCongestion();
+    Assert.assertFalse(controller1.isUserCongested(context1));
+
+    UserIdentifier user2 = new UserIdentifier("test2", "celeborn");
+    UserCongestionControlContext context2 = controller1.getUserCongestionContext(user2);
+    context2.updateProduceBytes(300);
+    controller1.consumeBytes(300);
+
+    controller1.checkCongestion();
+    Assert.assertTrue(controller1.isUserCongested(context1));
+    Assert.assertTrue(controller1.isUserCongested(context2));
+    controller1.close();
   }
 
   private void clearBufferStatus(CongestionController controller) {

@@ -249,6 +249,14 @@ public abstract class DynamicConfig {
         ConfigType.BOOLEAN);
   }
 
+  public boolean getOnlyCongestOnHighWatermark() {
+    return getValue(
+        CelebornConf.WORKER_CONGESTION_CONTROL_ONLY_CONGESTION_ON_HIGH_WATERMARK().key(),
+        CelebornConf.WORKER_CONGESTION_CONTROL_ONLY_CONGESTION_ON_HIGH_WATERMARK(),
+        Boolean.TYPE,
+        ConfigType.BOOLEAN);
+  }
+
   public Map<String, String> getConfigs() {
     return configs;
   }

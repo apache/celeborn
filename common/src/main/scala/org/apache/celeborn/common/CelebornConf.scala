@@ -1381,6 +1381,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_CONGESTION_CONTROL_USER_INACTIVE_INTERVAL)
   def workerCongestionControlCheckIntervalMs: Long = get(WORKER_CONGESTION_CONTROL_CHECK_INTERVAL)
 
+  def onlyCongestOnHighWatermark: Boolean =
+    get(WORKER_CONGESTION_CONTROL_ONLY_CONGESTION_ON_HIGH_WATERMARK)
+
   // //////////////////////////////////////////////////////
   //                 Columnar Shuffle                    //
   // //////////////////////////////////////////////////////
@@ -6466,4 +6469,12 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .booleanConf
       .createWithDefaultString("false")
+
+  val WORKER_CONGESTION_CONTROL_ONLY_CONGESTION_ON_HIGH_WATERMARK: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.congestionControl.onlyCongestOnHighWatermark")
+      .categories("worker")
+      .doc("Only trigger congestion when the worker on high watermark")
+      .version("0.7.0")
+      .booleanConf
+      .createWithDefault(true)
 }
