@@ -3279,7 +3279,7 @@ object CelebornConf extends Logging {
       .version("0.5.5")
       .doc("Worker will use gather API if this config is true.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val WORKER_PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD: ConfigEntry[Double] =
     buildConf("celeborn.worker.partitionSorter.directMemoryRatioThreshold")
