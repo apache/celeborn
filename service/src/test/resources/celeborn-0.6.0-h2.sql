@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS celeborn_cluster_tenant_config
     cluster_id   int          NOT NULL,
     tenant_id    varchar(255) NOT NULL,
     level        varchar(255) NOT NULL COMMENT 'config level, valid level is TENANT,USER',
-    name         varchar(255) NOT NULL COMMENT 'tenant sub user',
+    name         varchar(255) DEFAULT NULL COMMENT 'tenant sub user',
     config_key   varchar(255) NOT NULL,
     config_value varchar(255) NOT NULL,
     type         varchar(255) DEFAULT NULL COMMENT 'conf categories, such as quota',

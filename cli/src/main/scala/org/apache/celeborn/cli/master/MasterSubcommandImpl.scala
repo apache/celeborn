@@ -51,6 +51,8 @@ class MasterSubcommandImpl extends MasterSubcommand {
     if (masterOptions.showConf) log(runShowConf)
     if (masterOptions.showContainerInfo) log(runShowContainerInfo)
     if (masterOptions.showDynamicConf) log(runShowDynamicConf)
+    if (masterOptions.upsertDynamicConf) log(runUpsertDynamicConf)
+    if (masterOptions.deleteDynamicConf) log(runDeleteDynamicConf)
     if (masterOptions.showThreadDump) log(runShowThreadDump)
     if (masterOptions.reviseLostShuffles) log(reviseLostShuffles)
     if (masterOptions.deleteApps) log(deleteApps)
@@ -211,6 +213,14 @@ class MasterSubcommandImpl extends MasterSubcommand {
       commonOptions.configTenant,
       commonOptions.configName,
       commonOptions.getAuthHeader)
+
+  private[master] def runUpsertDynamicConf: HandleResponse = {
+    upsertDynamicConf(commonOptions, spec, confApi.upsertDynamicConf)
+  }
+
+  private[master] def runDeleteDynamicConf: HandleResponse = {
+    deleteDynamicConf(commonOptions, spec, confApi.deleteDynamicConf)
+  }
 
   private[master] def runShowThreadDump: ThreadStackResponse =
     defaultApi.getThreadDump(commonOptions.getAuthHeader)
