@@ -23,8 +23,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 
-import org.apache.commons.lang3.JavaVersion;
-import org.apache.commons.lang3.SystemUtils;
 import sun.misc.Unsafe;
 
 /** this class is copied from Apache Spark */
@@ -83,7 +81,7 @@ public final class Platform {
 
     // The implementation of Cleaner changed from JDK 8 to 9
     String cleanerClassName;
-    if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
+    if (Runtime.version().feature() >= 9) {
       cleanerClassName = "jdk.internal.ref.Cleaner";
     } else {
       cleanerClassName = "sun.misc.Cleaner";
@@ -91,7 +89,7 @@ public final class Platform {
     try {
       Class<?> cls = Class.forName("java.nio.DirectByteBuffer");
       Constructor<?> constructor =
-          SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_21)
+          Runtime.version().feature() >= 21
               ? cls.getDeclaredConstructor(Long.TYPE, Long.TYPE)
               : cls.getDeclaredConstructor(Long.TYPE, Integer.TYPE);
       Field cleanerField = cls.getDeclaredField("cleaner");
