@@ -703,8 +703,7 @@ class QuotaManagerSuite extends CelebornFunSuite
     rc.withSubResourceConsumptions(
       Map(
         "app1" -> ResourceConsumption(Utils.byteStringAsBytes("90G"), 0, 0, 0),
-        "app2" -> ResourceConsumption(Utils.byteStringAsBytes("70G"), 0, 0, 0)
-      ).asJava)
+        "app2" -> ResourceConsumption(Utils.byteStringAsBytes("70G"), 0, 0, 0)).asJava)
 
     val rc1 =
       ResourceConsumption(
