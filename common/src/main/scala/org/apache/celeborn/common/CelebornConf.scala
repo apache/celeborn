@@ -6466,4 +6466,40 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .booleanConf
       .createWithDefaultString("false")
+
+  val QUOTA_APP_DISK_BYTES_WRITTEN: ConfigEntry[Long] =
+    buildConf("celeborn.quota.app.diskBytesWritten")
+      .categories("quota")
+      .dynamic
+      .doc("App level quota dynamic configuration for written disk bytes.")
+      .version("0.7.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_APP_DISK_FILE_COUNT: ConfigEntry[Long] =
+    buildConf("celeborn.quota.app.diskFileCount")
+      .categories("quota")
+      .dynamic
+      .doc("App level quota dynamic configuration for written disk file count.")
+      .version("0.7.0")
+      .longConf
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_APP_HDFS_BYTES_WRITTEN: ConfigEntry[Long] =
+    buildConf("celeborn.quota.app.hdfsBytesWritten")
+      .categories("quota")
+      .dynamic
+      .doc("App level quota dynamic configuration for written hdfs bytes.")
+      .version("0.7.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_APP_HDFS_FILE_COUNT: ConfigEntry[Long] =
+    buildConf("celeborn.quota.app.hdfsFileCount")
+      .categories("quota")
+      .dynamic
+      .doc("App level quota dynamic configuration for written hdfs file count.")
+      .version("0.7.0")
+      .longConf
+      .createWithDefault(Long.MaxValue)
 }

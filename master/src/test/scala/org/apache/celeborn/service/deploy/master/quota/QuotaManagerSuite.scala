@@ -670,6 +670,98 @@ class QuotaManagerSuite extends CelebornFunSuite
         "hdfsFileCount=9223372036854775807]"))
     assert(res6 == CheckQuotaResponse(true, ""))
     clearUserConsumption()
+    rpcEnv.shutdown()
+  }
+
+  test("test app level conf") {
+    val conf1 = new CelebornConf()
+    conf1.set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "FS")
+    conf1.set(
+      CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH.key,
+      getTestResourceFile("dynamicConfig-quota-4.yaml").getPath)
+    val rpcEnv = RpcEnv.create(
+      "test-rpc",
+      "rpc",
+      "localhost",
+      9002,
+      conf,
+      "master",
+      None)
+    val statusSystem1 = new SingleMasterMetaManager(rpcEnv, conf)
+    statusSystem1.availableWorkers.add(worker)
+    val quotaManager1 = new QuotaManager(
+      statusSystem1,
+      new MasterSource(conf1),
+      resourceConsumptionSource,
+      conf1,
+      new FsConfigServiceImpl(conf1))
+
+    val user = UserIdentifier("tenant_01", "Jerry")
+    val user1 = UserIdentifier("tenant_01", "John")
+
+    val rc = ResourceConsumption(Utils.byteStringAsBytes("160G"), 0, 0, 0)
+    rc.withSubResourceConsumptions(
+      Map(
+        "app1" -> ResourceConsumption(Utils.byteStringAsBytes("90G"), 0, 0, 0),
+        "app2" -> ResourceConsumption(Utils.byteStringAsBytes("70G"), 0, 0, 0)
+      ).asJava)
+
+    val rc1 =
+      ResourceConsumption(
+        Utils.byteStringAsBytes("80G"),
+        0,
+        0,
+        0)
+
+    rc1.withSubResourceConsumptions(
+      Map(
+        "app3" -> ResourceConsumption(
+          Utils.byteStringAsBytes("80G"),
+          0,
+          0,
+          0)).asJava)
+
+    addUserConsumption(user, rc)
+    addUserConsumption(user1, rc1)
+
+    quotaManager1.updateResourceConsumption()
+    val res1 = quotaManager1.checkUserQuotaStatus(user)
+    val res2 = quotaManager1.checkApplicationQuotaStatus("app1")
+    val res3 = quotaManager1.checkApplicationQuotaStatus("app2")
+    val res4 = quotaManager1.checkApplicationQuotaStatus("app3")
+    assert(res1 == CheckQuotaResponse(
+      false,
+      s"User storage usage reach threshold. User: `tenant_01`.`Jerry`.  " +
+        s"DISK_BYTES_WRITTEN(160.0 GiB) exceeds quota(100.0 GiB). "))
+    assert(res2 == CheckQuotaResponse(
+      false,
+      "Application storage usage reach threshold. " +
+        "appId: app1, Used: ResourceConsumption(" +
+        "diskBytesWritten: 90.0 GiB, " +
+        "diskFileCount: 0, " +
+        "hdfsBytesWritten: 0.0 B, " +
+        "hdfsFileCount: 0), " +
+        "Threshold: Quota[" +
+        "diskBytesWritten=80.0 GiB, " +
+        "diskFileCount=9223372036854775807, " +
+        "hdfsBytesWritten=8.0 EiB, " +
+        "hdfsFileCount=9223372036854775807])"))
+    assert(res3 == CheckQuotaResponse(true, ""))
+    assert(res4 == CheckQuotaResponse(
+      false,
+      "Application storage usage reach threshold. " +
+        "appId: app3, Used: ResourceConsumption(" +
+        "diskBytesWritten: 80.0 GiB, " +
+        "diskFileCount: 0, " +
+        "hdfsBytesWritten: 0.0 B, " +
+        "hdfsFileCount: 0), Threshold: Quota[" +
+        "diskBytesWritten=80.0 GiB, " +
+        "diskFileCount=9223372036854775807, " +
+        "hdfsBytesWritten=8.0 EiB, " +
+        "hdfsFileCount=9223372036854775807])"))
+
+    clearUserConsumption()
+    rpcEnv.shutdown()
   }
 
   def checkUserQuota(userIdentifier: UserIdentifier): CheckQuotaResponse = {
