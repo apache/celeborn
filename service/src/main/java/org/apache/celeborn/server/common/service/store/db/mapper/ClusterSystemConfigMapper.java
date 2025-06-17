@@ -19,11 +19,29 @@ package org.apache.celeborn.server.common.service.store.db.mapper;
 
 import java.util.List;
 
+import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import org.apache.celeborn.server.common.service.model.ClusterSystemConfig;
 
 public interface ClusterSystemConfigMapper {
+
+  @Insert(
+      "INSERT INTO celeborn_cluster_system_config(cluster_id, config_key, config_value, gmt_create, gmt_modify) "
+          + "VALUES (#{clusterId}, #{configKey}, #{configValue}, #{gmtCreate}, #{gmtModify})")
+  void insert(ClusterSystemConfig clusterSystemConfig);
+
+  @Update(
+      "UPDATE celeborn_cluster_system_config SET config_value = #{configValue}, gmt_modify = #{gmtModify} "
+          + "WHERE cluster_id = #{clusterId} AND config_key = #{configKey}")
+  int update(ClusterSystemConfig clusterSystemConfig);
+
+  @Delete(
+      "DELETE FROM celeborn_cluster_system_config "
+          + "WHERE cluster_id = #{clusterId} AND config_key = #{configKey}")
+  int delete(ClusterSystemConfig clusterSystemConfig);
 
   @Select(
       "SELECT id, cluster_id, config_key, config_value, type, gmt_create, gmt_modify "

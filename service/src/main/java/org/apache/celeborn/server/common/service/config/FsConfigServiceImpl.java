@@ -42,7 +42,7 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
   }
 
   @Override
-  public synchronized void refreshCache() throws IOException {
+  public synchronized void refreshCache() {
     try (FileInputStream fileInputStream = new FileInputStream(getConfigFile(System.getenv()))) {
       Map<String, TenantConfig> tenantConfigs = new HashMap<>();
       Map<Pair<String, String>, TenantConfig> tenantUserConfigs = new HashMap<>();
@@ -79,7 +79,31 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
         tenantConfigAtomicReference.set(tenantConfigs);
         tenantUserConfigAtomicReference.set(tenantUserConfigs);
       }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
+  }
+
+  @Override
+  public void upsertSystemConfig(Map<String, String> systemConfigs) {
+    throw new UnsupportedOperationException("Not supported yet.");
+  }
+
+  @Override
+  public void upsertTenantConfig(
+      ConfigLevel configLevel, String tenantId, String name, Map<String, String> tenantConfigs) {
+    throw new UnsupportedOperationException("Not supported yet.");
+  }
+
+  @Override
+  public void deleteSystemConfigByKeys(List<String> configKeys) {
+    throw new UnsupportedOperationException("Not supported yet.");
+  }
+
+  @Override
+  public void deleteTenantConfigByKeys(
+      ConfigLevel configLevel, String tenantId, String name, List<String> configKeys) {
+    throw new UnsupportedOperationException("Not supported yet.");
   }
 
   private Map<String, String> getConfigs(Map<String, Object> configMap) {

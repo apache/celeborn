@@ -38,6 +38,8 @@ class WorkerSubcommandImpl extends WorkerSubcommand {
     if (workerOptions.showConf) log(runShowConf)
     if (workerOptions.showContainerInfo) log(runShowContainerInfo)
     if (workerOptions.showDynamicConf) log(runShowDynamicConf)
+    if (workerOptions.upsertDynamicConf) log(runUpsertDynamicConf)
+    if (workerOptions.deleteDynamicConf) log(runDeleteDynamicConf)
     if (workerOptions.showThreadDump) log(runShowThreadDump)
   }
 
@@ -77,6 +79,14 @@ class WorkerSubcommandImpl extends WorkerSubcommand {
       commonOptions.configTenant,
       commonOptions.configName,
       commonOptions.getAuthHeader)
+
+  private[worker] def runUpsertDynamicConf: HandleResponse = {
+    upsertDynamicConf(commonOptions, spec, confApi.upsertDynamicConf)
+  }
+
+  private[worker] def runDeleteDynamicConf: HandleResponse = {
+    deleteDynamicConf(commonOptions, spec, confApi.deleteDynamicConf)
+  }
 
   private[worker] def runShowThreadDump: ThreadStackResponse =
     defaultApi.getThreadDump(commonOptions.getAuthHeader)

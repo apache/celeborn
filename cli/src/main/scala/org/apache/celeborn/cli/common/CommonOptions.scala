@@ -76,9 +76,21 @@ class CommonOptions {
   private[cli] var configName: String = _
 
   @Option(
+    names = Array("--upsert-configs"),
+    paramLabel = "k1:v1,k2:v2,k3:v3...",
+    description = Array("The dynamic configs to upsert in the format of `[key]:[value]`."))
+  private[cli] var upsertConfigs: String = _
+
+  @Option(
+    names = Array("--delete-configs"),
+    paramLabel = "c1,c2,c3...",
+    description = Array("The comma separated dynamic configs to delete."))
+  private[cli] var deleteConfigs: String = _
+
+  @Option(
     names = Array("--apps"),
     paramLabel = "appId",
-    description = Array("The application Id list seperated by comma."))
+    description = Array("The application Id list separated by comma."))
   private[cli] var apps: String = _
 
   @Option(

@@ -109,6 +109,10 @@ trait MasterSubcommand extends BaseCommand {
 
   private[master] def runShowDynamicConf: DynamicConfigResponse
 
+  private[master] def runUpsertDynamicConf: HandleResponse
+
+  private[master] def runDeleteDynamicConf: HandleResponse
+
   private[master] def runShowThreadDump: ThreadStackResponse
 
   private[master] def reviseLostShuffles: HandleResponse
