@@ -76,6 +76,20 @@ The quota for `system default` is
 - hdfsBytesWritten: 1G
 - diskFileCount: Long.MAX_VALUE
 
+The quota for cluster is
+
+- diskBytesWritten: 200G
+- diskFileCount: Long.MAX_VALUE
+- hdfsBytesWritten: Long.MAX_VALUE
+- diskFileCount: Long.MAX_VALUE
+
+The quota for app is
+
+- diskBytesWritten: 1G
+- diskFileCount: Long.MAX_VALUE
+- hdfsBytesWritten: Long.MAX_VALUE
+- diskFileCount: Long.MAX_VALUE
+
 ### FileSystem Store Backend
 
 This backend reads [quota](#quota-indicators) settings from a user-specified dynamic config file.
@@ -88,6 +102,8 @@ Here's an example quota setting YAML file of above quota examples:
      celeborn.quota.tenant.diskBytesWritten: 1G
      celeborn.quota.tenant.diskFileCount: 100
      celeborn.quota.tenant.hdfsBytesWritten: 1G
+     celeborn.quota.cluster.diskBytesWritten: 200G
+     celeborn.quota.app.diskBytesWritten: 1G
 
 -  tenantId: tenant_01
    level: TENANT
@@ -113,7 +129,9 @@ INSERT INTO `celeborn_cluster_system_config` ( `id`, `cluster_id`, `config_key`,
 VALUES
     ( 1, 1, 'celeborn.quota.tenant.diskBytesWritten', '1G', 'QUOTA', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
     ( 2, 1, 'celeborn.quota.tenant.diskFileCount', '100', 'QUOTA', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
-    ( 3, 1, 'celeborn.quota.tenant.hdfsBytesWritten', '1G', 'QUOTA', '2024-02-27 22:08:30', '2024-02-27 22:08:30' );
+    ( 3, 1, 'celeborn.quota.tenant.hdfsBytesWritten', '1G', 'QUOTA', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
+    ( 4, 1, 'celeborn.quota.cluster.hdfsBytesWritten', '200G', 'QUOTA', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
+    ( 5, 1, 'celeborn.quota.app.hdfsBytesWritten', '1G', 'QUOTA', '2024-02-27 22:08:30', '2024-02-27 22:08:30' );
 
 # TENANT/TENANT_USER level configuration
 INSERT INTO `celeborn_cluster_tenant_config` ( `id`, `cluster_id`, `tenant_id`, `level`, `name`, `config_key`, `config_value`, `type`, `gmt_create`, `gmt_modify` )
