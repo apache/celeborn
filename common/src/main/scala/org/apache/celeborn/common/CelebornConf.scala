@@ -3994,7 +3994,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.flusher.local.gatherAPI.enabled")
       .internal
       .categories("worker")
-      .version("0.6.0")
+      .version("0.5.5")
       .doc("Worker will use gather API if this config is true.")
       .booleanConf
       .createWithDefault(true)
