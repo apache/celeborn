@@ -29,6 +29,8 @@ RELEASE_RC_NO=${RELEASE_RC_NO:?"RELEASE_RC_NO is required, e.g. 0"}
 JAVA8_HOME=${JAVA8_HOME:?"JAVA8_HOME is required"}
 JAVA11_HOME=${JAVA11_HOME:?"JAVA11_HOME is required"}
 JAVA17_HOME=${JAVA17_HOME:?"JAVA17_HOME is required"}
+# Set JAVA_HOME to JDK 8 by default for release
+export JAVA_HOME=$JAVA8_HOME
 
 RELEASE_VERSION=$(awk -F'"' '/ThisBuild \/ version/ {print $2}' version.sbt)
 
