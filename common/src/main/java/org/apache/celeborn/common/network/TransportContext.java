@@ -92,6 +92,12 @@ public class TransportContext implements Closeable {
     this.enableHeartbeat = enableHeartbeat;
     this.source = source;
 
+    logger.info(
+        "Close idle connections = {}, heartbeat enabled = {} for transport module = {}",
+        this.closeIdleConnections,
+        this.enableHeartbeat,
+        conf.getModuleName());
+
     if (null != this.sslFactory) {
       logger.info(
           "SSL factory created for module {}, has keys ? {}",
@@ -126,11 +132,11 @@ public class TransportContext implements Closeable {
 
   public TransportContext(
       TransportConf conf, BaseMessageHandler msgHandler, boolean closeIdleConnections) {
-    this(conf, msgHandler, closeIdleConnections, null, false, null);
+    this(conf, msgHandler, closeIdleConnections, null, conf.channelHeartbeatEnabled(), null);
   }
 
   public TransportContext(TransportConf conf, BaseMessageHandler msgHandler) {
-    this(conf, msgHandler, false, false, null);
+    this(conf, msgHandler, conf.closeIdleConnections(), conf.channelHeartbeatEnabled(), null);
   }
 
   public TransportClientFactory createClientFactory(List<TransportClientBootstrap> bootstraps) {
