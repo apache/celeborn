@@ -1682,10 +1682,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   private def removeExpiredShuffle(): Unit = {
     val currentTime = System.currentTimeMillis()
-    val removeShuffleIds = new ArrayBuffer[Integer]
+    val shuffleIdsToRemove = new ArrayBuffer[Integer]
     unregisterShuffleTime.keys().asScala.foreach { shuffleId =>
       if (unregisterShuffleTime.get(shuffleId) < currentTime - shuffleExpiredCheckIntervalMs) {
-        removeShuffleIds += shuffleId
+        shuffleIdsToRemove += shuffleId
         // clear for the shuffle
         registeredShuffle.remove(shuffleId)
         registeringShuffleRequest.remove(shuffleId)
@@ -1693,7 +1693,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         latestPartitionLocation.remove(shuffleId)
         commitManager.removeExpiredShuffle(shuffleId)
         changePartitionManager.removeExpiredShuffle(shuffleId)
-        if (!batchRemoveExpiredShufflesEnabled) {
+        invalidatedBroadcastGetReducerFileGroupResponse(shuffleId)
+      }
+    }
+
+    if (shuffleIdsToRemove.nonEmpty) {
+      logInfo(s"Clear shuffleIds: (${shuffleIdsToRemove.mkString(", ")}).")
+      if (!batchRemoveExpiredShufflesEnabled) {
+        shuffleIdsToRemove.foreach { shuffleId =>
           val unregisterShuffleResponse = requestMasterUnregisterShuffle(
             UnregisterShuffle(appUniqueId, shuffleId, MasterClient.genRequestId()))
           // if unregister shuffle not success, wait next turn
@@ -1701,24 +1708,18 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             unregisterShuffleTime.remove(shuffleId)
           }
         }
-        invalidatedBroadcastGetReducerFileGroupResponse(shuffleId)
-      }
-    }
-
-    if (removeShuffleIds.nonEmpty) {
-      if (batchRemoveExpiredShufflesEnabled) {
+      } else {
         val unregisterShuffleResponse = batchRequestMasterUnregisterShuffles(
           BatchUnregisterShuffles(
             appUniqueId,
-            removeShuffleIds.asJava,
+            shuffleIdsToRemove.asJava,
             MasterClient.genRequestId()))
         if (StatusCode.SUCCESS == StatusCode.fromValue(unregisterShuffleResponse.getStatus)) {
-          removeShuffleIds.foreach { shuffleId: Integer =>
+          shuffleIdsToRemove.foreach { shuffleId: Integer =>
             unregisterShuffleTime.remove(shuffleId)
           }
         }
       }
-      logInfo(s"Cleared shuffleIds: (${removeShuffleIds.mkString(", ")}).")
     }
   }
 
