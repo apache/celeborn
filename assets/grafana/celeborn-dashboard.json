@@ -3697,7 +3697,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "metrics_PartitionFileSizeBytes_P99{role=\"Worker\", instance=~\"${instance}\"}",
+          "expr": "metrics_PartitionFileSizeBytes_99thPercentile{role=\"Worker\", instance=~\"${instance}\"}",
           "hide": false,
           "instant": false,
           "legendFormat": "${baseLegend}",
@@ -3705,7 +3705,7 @@
           "refId": "A"
         }
       ],
-      "title": "metrics_ PartitionFileSizeBytes_P99",
+      "title": "metrics_ PartitionFileSizeBytes_99thPercentile",
       "type": "timeseries"
     },
     {
@@ -3795,7 +3795,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "metrics_PartitionFileSizeBytes_max{role=\"Worker\", instance=~\"${instance}\"}",
+          "expr": "metrics_PartitionFileSizeBytes_Max{role=\"Worker\", instance=~\"${instance}\"}",
           "hide": false,
           "instant": false,
           "legendFormat": "${baseLegend}",
@@ -3803,7 +3803,7 @@
           "refId": "A"
         }
       ],
-      "title": "metrics_ PartitionFileSizeBytes_MAX",
+      "title": "metrics_PartitionFileSizeBytes_Max",
       "type": "timeseries"
     },
     {
