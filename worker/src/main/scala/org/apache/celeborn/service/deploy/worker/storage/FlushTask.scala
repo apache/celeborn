@@ -33,12 +33,21 @@ private[worker] class LocalFlushTask(
     buffer: CompositeByteBuf,
     fileChannel: FileChannel,
     notifier: FlushNotifier,
-    keepBuffer: Boolean) extends FlushTask(buffer, notifier, keepBuffer) {
+    keepBuffer: Boolean,
+    gatherApiEnabled: Boolean) extends FlushTask(buffer, notifier, keepBuffer) {
   override def flush(): Unit = {
     val buffers = buffer.nioBuffers()
-    for (buffer <- buffers) {
-      while (buffer.hasRemaining) {
-        fileChannel.write(buffer)
+    if (gatherApiEnabled) {
+      val readableBytes = buffer.readableBytes()
+      var written = 0L
+      do {
+        written = fileChannel.write(buffers) + written
+      } while (written != readableBytes)
+    } else {
+      for (buffer <- buffers) {
+        while (buffer.hasRemaining) {
+          fileChannel.write(buffer)
+        }
       }
     }
   }
