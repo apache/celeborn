@@ -296,15 +296,25 @@ public class SparkUtils {
   protected static volatile Long lastReportedShuffleFetchFailureTaskId = null;
 
   /**
-   * Only used to check for the shuffle fetch failure task whether another attempt is running or
-   * successful. If another attempt(excluding the reported shuffle fetch failure tasks in current
-   * stage) is running or successful, return true. Otherwise, return false.
+   * Determines whether a shuffle fetch failure should be reported for the given task.
+   *
+   * <p>Returns false (should NOT report) in the following scenarios: - Other successful attempts
+   * for the same task - Other running attempts and the current failure count hasn't reached the
+   * maximum retry limit - Other attempts already reported shuffle fetch failures for the same task
+   * - TaskSetManager cannot be found (task completed/cleaned up, executor marked as failed, or
+   * stage cancelled/completed)
+   *
+   * <p>Returns true (should report) in all other cases, typically when: - No other attempts exist
+   * or all other attempts have failed - Current failure count has reached the maximum retry limit
+   *
+   * @param taskId the task ID to check
+   * @return true if the shuffle fetch failure should be reported, false otherwise
    */
-  public static boolean taskAnotherAttemptRunningOrSuccessful(long taskId) {
+  public static boolean shouldReportShuffleFetchFailure(long taskId) {
     SparkContext sparkContext = SparkContext$.MODULE$.getActive().getOrElse(null);
     if (sparkContext == null) {
       logger.error("Can not get active SparkContext.");
-      return false;
+      return true;
     }
     TaskSchedulerImpl taskScheduler = (TaskSchedulerImpl) sparkContext.taskScheduler();
     synchronized (taskScheduler) {
@@ -322,7 +332,7 @@ public class SparkUtils {
 
         Tuple2<TaskInfo, List<TaskInfo>> taskAttempts = getTaskAttempts(taskSetManager, taskId);
 
-        if (taskAttempts == null) return false;
+        if (taskAttempts == null) return true;
 
         TaskInfo taskInfo = taskAttempts._1();
         for (TaskInfo ti : taskAttempts._2()) {
@@ -343,7 +353,7 @@ public class SparkUtils {
                   taskId,
                   taskInfo.attemptNumber(),
                   ti.attemptNumber());
-              return true;
+              return false;
             } else if (ti.running()) {
               logger.info(
                   "StageId={} index={} taskId={} attempt={} another attempt {} is running.",
@@ -352,7 +362,7 @@ public class SparkUtils {
                   taskId,
                   taskInfo.attemptNumber(),
                   ti.attemptNumber());
-              return true;
+              return false;
             }
           } else {
             if (ti.attemptNumber() >= maxTaskFails - 1) {
@@ -363,13 +373,16 @@ public class SparkUtils {
                   taskId,
                   ti.attemptNumber(),
                   maxTaskFails);
-              return false;
+              return true;
             }
           }
         }
-        return false;
+        return true;
       } else {
-        logger.error("Can not get TaskSetManager for taskId: {}", taskId);
+        logger.error(
+            "Can not get TaskSetManager for taskId: {}, ignore it. (This typically occurs when: "
+                + " task completed/cleaned up, executor marked as failed, or stage cancelled/completed)",
+            taskId);
         return false;
       }
     }
