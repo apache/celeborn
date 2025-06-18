@@ -379,7 +379,7 @@ public class SparkUtils {
         }
         return true;
       } else {
-        LOG.error(
+        logger.error(
             "Can not get TaskSetManager for taskId: {}, ignore it. (This typically occurs when: "
                 + " task completed/cleaned up, executor marked as failed, or stage cancelled/completed)",
             taskId);
