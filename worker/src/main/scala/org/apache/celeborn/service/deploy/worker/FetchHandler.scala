@@ -23,19 +23,16 @@ import java.util
 import java.util.concurrent.{Future => JFuture}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
-
 import scala.collection.JavaConverters._
-
 import com.google.common.base.Throwables
 import com.google.protobuf.GeneratedMessageV3
 import io.netty.util.concurrent.{Future, GenericFutureListener}
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.MAX_CHUNKS_BEING_TRANSFERRED
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, MapFileMeta, MemoryFileInfo, ReduceFileMeta}
-import org.apache.celeborn.common.network.buffer.{FileChunkBuffers, MemoryChunkBuffers, NettyManagedBuffer, NioManagedBuffer}
+import org.apache.celeborn.common.network.buffer.{FileChunkBuffers, InvertedIndexEnabledFileChunkBuffers, MemoryChunkBuffers, NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.server.BaseMessageHandler
@@ -252,14 +249,20 @@ class FetchHandler(
       // 2. when the current request is a range openStream request.
       if ((endIndex != Int.MaxValue) || (endIndex == Int.MaxValue
           && !fileInfo.addStream(streamId))) {
-        fileInfo = partitionsSorter.getSortedFileInfo(
-          shuffleKey,
-          fileName,
-          fileInfo,
-          startIndex,
-          endIndex)
+        fileInfo match {
+          case info: DiskFileInfo if info.isInvertedIndexEnabled =>
+          // No sorting needed for inverted index enabled file
+          case _ =>
+            fileInfo = partitionsSorter.getSortedFileInfo(
+              shuffleKey,
+              fileName,
+              fileInfo,
+              startIndex,
+              endIndex)
+        }
       }
       val meta = fileInfo.getReduceFileMeta
+      var numChunks = meta.getNumChunks
       val streamHandler =
         if (readLocalShuffle && !fileInfo.isInstanceOf[MemoryFileInfo]) {
           chunkStreamManager.registerStream(
@@ -268,7 +271,7 @@ class FetchHandler(
             fileName)
           makeStreamHandler(
             streamId,
-            meta.getNumChunks,
+            numChunks,
             meta.getChunkOffsets,
             fileInfo.asInstanceOf[DiskFileInfo].getFilePath)
         } else fileInfo match {
@@ -281,7 +284,14 @@ class FetchHandler(
           case _ =>
             val managedBuffer = fileInfo match {
               case df: DiskFileInfo =>
-                new FileChunkBuffers(df, transportConf)
+                if (df.isInvertedIndexEnabled) {
+                  // numChunks will depend on the start + end index
+                  val reader = new InvertedIndexEnabledFileChunkBuffers(df, startIndex, endIndex)
+                  numChunks = reader.getNumChunks
+                  reader
+                } else {
+                  new FileChunkBuffers(df, transportConf)
+                }
               case mf: MemoryFileInfo =>
                 new MemoryChunkBuffers(mf)
             }
@@ -298,7 +308,7 @@ class FetchHandler(
               managedBuffer,
               fileName,
               fetchTimeMetric)
-            if (meta.getNumChunks == 0)
+            if (numChunks == 0)
               logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
                 s"[$startIndex-$endIndex] is empty. Received from client channel " +
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
@@ -308,7 +318,7 @@ class FetchHandler(
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             makeStreamHandler(
               streamId,
-              meta.getNumChunks)
+              numChunks)
         }
       workerSource.incCounter(WorkerSource.OPEN_STREAM_SUCCESS_COUNT)
       PbStreamHandlerOpt.newBuilder().setStreamHandler(streamHandler)

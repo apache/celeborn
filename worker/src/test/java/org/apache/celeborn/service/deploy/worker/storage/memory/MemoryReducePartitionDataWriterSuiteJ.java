@@ -241,6 +241,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 SPLIT_THRESHOLD,
                 splitMode,
                 false,
+                    false,
                 new PartitionLocation(
                     1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
                 "app1-1",
@@ -292,6 +293,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 SPLIT_THRESHOLD,
                 splitMode,
                 false,
+                    false,
                 new PartitionLocation(
                     1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
                 "app1-1",
@@ -343,6 +345,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 SPLIT_THRESHOLD,
                 splitMode,
                 false,
+                    false,
                 new PartitionLocation(
                     1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
                 "app1-1",
@@ -392,6 +395,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 SPLIT_THRESHOLD,
                 splitMode,
                 false,
+                    false,
                 new PartitionLocation(
                     1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
                 "app1-1",
@@ -468,6 +472,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 SPLIT_THRESHOLD,
                 splitMode,
                 false,
+                    false,
                 new PartitionLocation(
                     1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
                 "app1-1",
@@ -587,6 +592,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 SPLIT_THRESHOLD,
                 splitMode,
                 false,
+                    false,
                 new PartitionLocation(
                     1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
                 "app1-1",
@@ -616,6 +622,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 SPLIT_THRESHOLD,
                 splitMode,
                 false,
+                    false,
                 new PartitionLocation(
                     1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
                 "app1-1",
@@ -645,6 +652,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 SPLIT_THRESHOLD,
                 splitMode,
                 false,
+                    false,
                 new PartitionLocation(
                     1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
                 "app1-1",
@@ -673,6 +681,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 SPLIT_THRESHOLD,
                 splitMode,
                 false,
+                    false,
                 new PartitionLocation(
                     1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
                 "app1-1",
@@ -703,6 +712,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 SPLIT_THRESHOLD,
                 splitMode,
                 false,
+                    false,
                 new PartitionLocation(
                     1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
                 "app1-1",
@@ -732,6 +742,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 SPLIT_THRESHOLD,
                 splitMode,
                 false,
+                    false,
                 new PartitionLocation(
                     1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
                 "app1-1",
@@ -763,6 +774,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 SPLIT_THRESHOLD,
                 splitMode,
                 false,
+                    false,
                 new PartitionLocation(
                     1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
                 "app1-1",
@@ -793,6 +805,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 SPLIT_THRESHOLD,
                 splitMode,
                 false,
+                    false,
                 new PartitionLocation(
                     1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
                 "app1-1",
@@ -824,6 +837,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 SPLIT_THRESHOLD,
                 splitMode,
                 false,
+                    false,
                 new PartitionLocation(
                     1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
                 "app1-1",

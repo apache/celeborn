@@ -38,6 +38,7 @@ import org.apache.celeborn.common.util.Utils;
 public class DiskFileInfo extends FileInfo {
   private static final Logger logger = LoggerFactory.getLogger(DiskFileInfo.class);
   private final String filePath;
+  private final boolean invertedIndexEnabled;
   private final StorageInfo.Type storageType;
 
   public DiskFileInfo(
@@ -46,21 +47,35 @@ public class DiskFileInfo extends FileInfo {
       FileMeta fileMeta,
       String filePath,
       StorageInfo.Type storageType) {
+    this(userIdentifier, partitionSplitEnabled, false, fileMeta, filePath, storageType);
+  }
+
+  public DiskFileInfo(
+          UserIdentifier userIdentifier,
+          boolean partitionSplitEnabled,
+          boolean invertedIndexEnabled,
+          FileMeta fileMeta,
+          String filePath,
+          StorageInfo.Type storageType
+  ) {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
     this.filePath = filePath;
     this.storageType = storageType;
+    this.invertedIndexEnabled = invertedIndexEnabled;
   }
 
   // only called when restore from pb or in UT
   public DiskFileInfo(
       UserIdentifier userIdentifier,
       boolean partitionSplitEnabled,
+      boolean invertedIndexEnabled,
       FileMeta fileMeta,
       String filePath,
       long bytesFlushed) {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
     this.filePath = filePath;
     this.storageType = StorageInfo.Type.HDD;
+    this.invertedIndexEnabled = invertedIndexEnabled;
     this.bytesFlushed = bytesFlushed;
   }
 
@@ -78,6 +93,7 @@ public class DiskFileInfo extends FileInfo {
     super(userIdentifier, true, fileMeta);
     this.filePath = filePath;
     this.storageType = StorageInfo.Type.HDD;
+    this.invertedIndexEnabled = false;
   }
 
   public File getFile() {
@@ -151,5 +167,9 @@ public class DiskFileInfo extends FileInfo {
 
   public boolean isHdfs() {
     return Utils.isHdfsPath(filePath);
+  }
+
+  public boolean isInvertedIndexEnabled() {
+    return invertedIndexEnabled;
   }
 }
