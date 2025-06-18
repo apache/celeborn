@@ -498,12 +498,19 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       shuffleId: Int,
       connectFailedWorkers: ShuffleFailedWorkers): Unit = {
     val futures = new util.LinkedList[(Future[RpcEndpointRef], WorkerInfo)]()
-    workers.asScala foreach { workerInfo =>
-      val future = workerRpcEnvInUse.asyncSetupEndpointRefByAddr(RpcEndpointAddress(
-        RpcAddress.apply(workerInfo.host, workerInfo.rpcPort),
-        WORKER_EP))
-      futures.add((future, workerInfo))
+    val outFutures = workers.asScala map { workerInfo =>
+      Future {
+        val future = workerRpcEnvInUse.asyncSetupEndpointRefByAddr(RpcEndpointAddress(
+          RpcAddress.apply(workerInfo.host, workerInfo.rpcPort),
+          WORKER_EP))
+        futures.add((future, workerInfo))
+      }(ec)
     }
+    val cbf =
+      implicitly[
+        CanBuildFrom[mutable.Set[Future[Boolean]], Boolean, mutable.Set[Boolean]]]
+    val futureSeq = Future.sequence(outFutures)(cbf, ec)
+    awaitResult(futureSeq, Duration.Inf)
 
     var timeout = conf.rpcAskTimeout.duration.toMillis
     val delta = 50
