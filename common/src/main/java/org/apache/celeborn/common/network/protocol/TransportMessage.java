@@ -132,11 +132,14 @@ public class TransportMessage implements Serializable {
   }
 
   public ByteBuffer toByteBuffer() {
-    int totalBufferSize = payload.length + 4 + 4;
+    int payloadLength = payload != null ? payload.length : 0;
+    int totalBufferSize = payloadLength + 4 + 4;
     ByteBuffer buffer = ByteBuffer.allocate(totalBufferSize);
     buffer.putInt(messageTypeValue);
-    buffer.putInt(payload.length);
-    buffer.put(payload);
+    buffer.putInt(payloadLength);
+    if (payload != null) {
+      buffer.put(payload);
+    }
     buffer.flip();
     return buffer;
   }
