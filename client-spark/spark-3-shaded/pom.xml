@@ -89,8 +89,11 @@
                 <exclude>META-INF/*.DSA</exclude>
                 <exclude>META-INF/*.RSA</exclude>
                 <exclude>**/log4j.properties</exclude>
-                <exclude>META-INF/LICENSE.txt</exclude>
-                <exclude>META-INF/NOTICE.txt</exclude>
+                <exclude>META-INF/DEPENDENCIES</exclude>
+                <exclude>META-INF/*LICENSE*</exclude>
+                <exclude>META-INF/MANIFEST.MF</exclude>
+                <exclude>META-INF/*NOTICE*</exclude>
+                <exclude>META-INF/**/module-info.class</exclude>
                 <exclude>LICENSE.txt</exclude>
                 <exclude>NOTICE.txt</exclude>
               </excludes>
@@ -115,7 +118,7 @@
             <configuration>
               <target>
                 <echo message="unpacking netty jar"></echo>
-                <unzip dest="${project.build.directory}/unpacked/" src="${project.build.directory}/${artifactId}-${version}.jar"></unzip>
+                <unzip dest="${project.build.directory}/unpacked/" src="${project.build.directory}/${project.artifactId}-${project.version}.jar"></unzip>
                 <echo message="renaming native epoll library"></echo>
                 <move includeemptydirs="false" todir="${project.build.directory}/unpacked/META-INF/native">
                   <fileset dir="${project.build.directory}/unpacked/META-INF/native"></fileset>
@@ -133,7 +136,7 @@
                 <echo message="deleting META-INF/native-image folder"></echo>
                 <delete dir="${project.build.directory}/unpacked/META-INF/native-image"></delete>
                 <echo message="repackaging netty jar"></echo>
-                <jar basedir="${project.build.directory}/unpacked" destfile="${project.build.directory}/${artifactId}-${version}.jar"></jar>
+                <jar basedir="${project.build.directory}/unpacked" destfile="${project.build.directory}/${project.artifactId}-${project.version}.jar"></jar>
               </target>
             </configuration>
           </execution>
