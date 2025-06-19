@@ -245,7 +245,7 @@ class CelebornShuffleReader[K, C](
         val originLocations = fileGroups.partitionGroups.get(partitionId)
         val hasReplicate = originLocations.asScala.exists(p => p != null && p.hasPeer)
         var locations =
-          if (encodedAttemptId % 2 == 1 && hasReplicate) {
+          if (context.attemptNumber % 2 == 1 && hasReplicate) {
             originLocations.asScala.map { p =>
               if (p != null && p.hasPeer) p.getPeer else p
             }.asJava
@@ -266,8 +266,8 @@ class CelebornShuffleReader[K, C](
               partitionLocation2ChunkRange.containsKey(location.getUniqueId)
             }
           locations = filterLocations.asJava
-          partitionId2PartitionLocations.put(partitionId, locations)
         }
+        partitionId2PartitionLocations.put(partitionId, locations)
         makeOpenStreamList(locations)
       }
     }
@@ -310,12 +310,7 @@ class CelebornShuffleReader[K, C](
     val streams = JavaUtils.newConcurrentHashMap[Integer, CelebornInputStream]()
 
     def createInputStream(partitionId: Int): Unit = {
-      val locations =
-        if (splitSkewPartitionWithoutMapRange) {
-          partitionId2PartitionLocations.get(partitionId)
-        } else {
-          fileGroups.partitionGroups.get(partitionId)
-        }
+      val locations = partitionId2PartitionLocations.get(partitionId)
 
       val locationList =
         if (null == locations) {

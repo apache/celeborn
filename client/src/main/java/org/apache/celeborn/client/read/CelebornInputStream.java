@@ -568,13 +568,6 @@ public abstract class CelebornInputStream extends InputStream {
         Optional<PartitionReaderCheckpointMetadata> checkpointMetadata)
         throws IOException, InterruptedException {
 
-      // CELEBORN-2032. For the first creation of a reader (non-retries) and
-      // attemptNumber % 2 = 1, we should read the replica data first.
-      if (location.hasPeer() && fetchChunkRetryCnt == 0 && attemptNumber % 2 == 1) {
-        location = location.getPeer();
-        logger.debug("Read peer {} for attempt {}.", location, attemptNumber);
-      }
-
       StorageInfo storageInfo = location.getStorageInfo();
 
       int startChunkIndex = -1;
