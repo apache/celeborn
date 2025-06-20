@@ -352,7 +352,7 @@ class ReducePartitionCommitHandler(
       s"startMapIndex: $startMapIndex " +
       s"endMapIndex: $endMapIndex, " +
       s"actualCommitMetadata: $actualCommitMetadata")
-    val map = commitMetadataForReducer.get(shuffleId);
+    val map = commitMetadataForReducer.get(shuffleId)
     checkState(
       map != null,
       "CommitMetadata map cannot be null for a registered shuffleId: %d",
