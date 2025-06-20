@@ -54,6 +54,7 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
           CompressionCodec.NONE.toString)
         .getOrCreate()
 
+      // Introduce Data Corruption in single bit in 1 partition location file
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook = new ShuffleReaderGetHookForCorruptedData(celebornConf, workerDirs)
       TestCelebornShuffleManager.registerReaderGetHook(hook)
@@ -93,6 +94,7 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
           "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
         .getOrCreate()
 
+      // Introduce Data Corruption in single bit in 1 partition location file
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook = new ShuffleReaderGetHookForCorruptedData(celebornConf, workerDirs)
       TestCelebornShuffleManager.registerReaderGetHook(hook)
@@ -127,6 +129,7 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
           "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
         .getOrCreate()
 
+      // Introduce Data Corruption in single bit in 1 partition location file
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
       val hook = new ShuffleReaderGetHookForCorruptedData(celebornConf, workerDirs)
       TestCelebornShuffleManager.registerReaderGetHook(hook)
