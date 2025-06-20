@@ -103,9 +103,9 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
           .map { i => (i, value) }.groupByKey(16).collect()
         fail()
       } catch {
+        // verify that the app fails
         case e: Throwable => e.getMessage.contains("Job aborted")
       } finally {
-        // verify that the app fails
         sparkSession.stop()
       }
     }
@@ -137,8 +137,10 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
 
       // verify result
       assert(tuples.length == 1000)
+      for (elem <- tuples) {
+        assert(elem._2.mkString(",").equals(value))
+      }
 
-      // verify that the app fails
       sparkSession.stop()
     }
   }
