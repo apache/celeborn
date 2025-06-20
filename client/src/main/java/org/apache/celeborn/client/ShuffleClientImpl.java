@@ -43,6 +43,7 @@ import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.client.read.MetricsCallback;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornBroadcastException;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.identity.UserIdentifier;
@@ -1813,7 +1814,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             response =
                 ShuffleClient.deserializeReducerFileGroupResponse(shuffleId, response.broadcast());
             if (response == null) {
-              throw new CelebornIOException(
+              throw new CelebornBroadcastException(
                   "Failed to get GetReducerFileGroupResponse broadcast for shuffle: " + shuffleId);
             }
           }

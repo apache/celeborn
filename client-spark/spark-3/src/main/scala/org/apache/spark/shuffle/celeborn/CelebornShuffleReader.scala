@@ -40,7 +40,7 @@ import org.apache.celeborn.client.{ClientUtils, ShuffleClient}
 import org.apache.celeborn.client.ShuffleClientImpl.ReduceFileGroups
 import org.apache.celeborn.client.read.{CelebornInputStream, MetricsCallback}
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.exception.{CelebornIOException, CelebornRuntimeException, PartitionUnRetryAbleException}
+import org.apache.celeborn.common.exception.{CelebornBroadcastException, CelebornIOException, CelebornRuntimeException, PartitionUnRetryAbleException}
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.protocol._
@@ -177,6 +177,7 @@ class CelebornShuffleReader[K, C](
         case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
           // if a task is interrupted, should not report fetch failure
           // if a task update file group timeout, should not report fetch failure
+          // if a task GetReducerFileGroupResponse failed via broadcast, should not report fetch failure
           checkAndReportFetchFailureForUpdateFileGroupFailure(shuffleId, ce)
       }
     } while (fileGroups == null)
@@ -499,8 +500,10 @@ class CelebornShuffleReader[K, C](
       ce: Throwable): Unit = {
     if (ce.getCause != null &&
       (ce.getCause.isInstanceOf[InterruptedException] || ce.getCause.isInstanceOf[
-        TimeoutException])) {
-      logWarning(s"fetch shuffle ${celebornShuffleId} timeout or interrupt", ce)
+        TimeoutException] || ce.getCause.isInstanceOf[CelebornBroadcastException])) {
+      logWarning(
+        s"fetch shuffle ${celebornShuffleId} timeout or interrupt or GetReducerFileGroupResponse failed via broadcast",
+        ce)
       throw ce
     } else {
       handleFetchExceptions(handle.shuffleId, celebornShuffleId, 0, ce)

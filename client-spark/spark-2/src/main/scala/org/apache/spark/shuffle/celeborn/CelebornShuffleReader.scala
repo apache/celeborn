@@ -33,7 +33,7 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.client.read.CelebornInputStream
 import org.apache.celeborn.client.read.MetricsCallback
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.exception.{CelebornIOException, CelebornRuntimeException, PartitionUnRetryAbleException}
+import org.apache.celeborn.common.exception.{CelebornBroadcastException, CelebornIOException, CelebornRuntimeException, PartitionUnRetryAbleException}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 
@@ -122,6 +122,10 @@ class CelebornShuffleReader[K, C](
                 metricsCallback)
               streams.put(partitionId, inputStream)
             } catch {
+              case e: CelebornIOException
+                  if (e.getCause != null && e.getCause.isInstanceOf[CelebornBroadcastException]) =>
+                logError(s"Exception caught when readPartition $partitionId via broadcast!", e)
+                exceptionRef.compareAndSet(null, new IOException(e.getCause))
               case e: IOException =>
                 logError(s"Exception caught when readPartition $partitionId!", e)
                 exceptionRef.compareAndSet(null, e)
