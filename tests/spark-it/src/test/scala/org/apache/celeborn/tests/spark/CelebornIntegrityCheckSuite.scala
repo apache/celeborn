@@ -106,7 +106,10 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
         fail()
       } catch {
         // verify that the app fails
-        case e: Throwable => e.getMessage.contains("Job aborted")
+        case e: Throwable => {
+          e.getMessage.contains("Job aborted")
+          e.getMessage.contains("CommitMetadata mismatch")
+        }
       } finally {
         sparkSession.stop()
       }
