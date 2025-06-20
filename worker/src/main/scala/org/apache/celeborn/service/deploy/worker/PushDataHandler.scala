@@ -469,7 +469,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           key,
           callback)
       }
-    val pushMergedDataCallback = new PushMergedDataCallback(callbackWithTimer)
+    val pushMergedDataCallback = new PushMergedDataCallback(callbackWithTimer, shuffleKey)
 
     // For test
     if (isPrimary && testPushPrimaryDataTimeout &&
@@ -651,7 +651,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                     } else {
                       StatusCode.SUCCESS
                     }
-                  if (replicaReason == StatusCode.HARD_SPLIT.getValue) {
+                  if (replicaReason == StatusCode.HARD_SPLIT.getValue || replicaReason == StatusCode.SOFT_SPLIT.getValue) {
                     if (response.remaining() > 0) {
                       try {
                         val pushMergedDataResponse: PbPushMergedDataSplitPartitionInfo =
@@ -889,7 +889,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     }
   }
 
-  class PushMergedDataCallback(callback: RpcResponseCallback) {
+  class PushMergedDataCallback(callback: RpcResponseCallback, val shuffleKey: String) {
     private val splitPartitionStatuses = new mutable.HashMap[Int, Byte]()
 
     def addSplitPartition(index: Int, statusCode: StatusCode): Unit = {
@@ -930,10 +930,16 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     def onSuccess(status: StatusCode): Unit = {
       val splitPartitionIndexes = new util.ArrayList[Integer]()
       val statusCodes = new util.ArrayList[Integer]()
+      var hasHardSplit = false
+
       splitPartitionStatuses.foreach {
         case (partitionIndex, statusCode) =>
           splitPartitionIndexes.add(partitionIndex)
           statusCodes.add(statusCode)
+          // check if there is any hard split partition
+          if (statusCode == StatusCode.HARD_SPLIT.getValue) {
+            hasHardSplit = true
+          }
       }
       if (splitPartitionStatuses.isEmpty || status == StatusCode.MAP_ENDED) {
         callback.onSuccess(
@@ -947,7 +953,15 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           .asInstanceOf[TransportMessage]
           .toByteBuffer
         val response = ByteBuffer.allocate(1 + pushMergedDataInfoByteBuffer.remaining())
-        response.put(StatusCode.HARD_SPLIT.getValue)
+
+        if (!hasHardSplit) {
+          logDebug(s"PushMergedData has no hard split for shuffle $shuffleKey, " +
+            s"splitPartitionIndex $splitPartitionIndexes")
+          response.put(StatusCode.SOFT_SPLIT.getValue)
+        } else {
+          response.put(StatusCode.HARD_SPLIT.getValue)
+        }
+
         response.put(pushMergedDataInfoByteBuffer)
         response.flip()
         callback.onSuccess(response)
