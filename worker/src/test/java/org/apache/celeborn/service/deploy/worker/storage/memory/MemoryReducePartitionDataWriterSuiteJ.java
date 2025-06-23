@@ -123,7 +123,12 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                     storageManager))
         .when(storagePolicy)
         .createFileWriter(
-            Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+            Mockito.any(),
+            Mockito.any(),
+            Mockito.any(),
+            Mockito.any(),
+            Mockito.any(),
+            Mockito.anyBoolean());
 
     return storageManager;
   }

@@ -47,7 +47,8 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
           partitionType,
           numPendingWrites,
           notifier,
-          orderList)
+          orderList,
+          true)
       }
     }
     logError(s"Create evict file failed for ${partitionDataWriterContext.getPartitionLocation}")
@@ -72,7 +73,8 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
       partitionType: PartitionType,
       numPendingWrites: AtomicInteger,
       notifier: FlushNotifier,
-      order: Option[List[String]] = createFileOrder): TierWriterBase = {
+      order: Option[List[String]] = createFileOrder,
+      evict: Boolean = false): TierWriterBase = {
     logDebug(
       s"create file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
     val location = partitionDataWriterContext.getPartitionLocation
@@ -179,8 +181,14 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
       throw new CelebornIOException("Create file order can not be empty, check your configs")
     }
 
-    val tryCreateFileTypeIndex = order.get.indexOf(
-      partitionDataWriterContext.getPartitionLocation.getStorageInfo.getType.name())
+    val tryCreateFileTypeIndex =
+      if (evict) {
+        0
+      } else {
+        order.get.indexOf(
+          partitionDataWriterContext.getPartitionLocation.getStorageInfo.getType.name())
+      }
+
     val maxSize = order.get.length
     for (i <- tryCreateFileTypeIndex until maxSize) {
       val storageStr = order.get(i)
