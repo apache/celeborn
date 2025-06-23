@@ -48,7 +48,7 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     .set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "DB")
     .set(
       CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_JDBC_URL,
-      "jdbc:h2:mem:test;MODE=MYSQL;INIT=RUNSCRIPT FROM 'classpath:celeborn-h2.sql';DB_CLOSE_DELAY=-1;")
+      "jdbc:h2:mem:test;MODE=MYSQL;INIT=RUNSCRIPT FROM 'classpath:celeborn-0.6.0-h2.sql';DB_CLOSE_DELAY=-1;")
     .set(CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_DRIVER_CLASS_NAME, "org.h2.Driver")
     .set(CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_MAXIMUM_POOL_SIZE, 1)
 
