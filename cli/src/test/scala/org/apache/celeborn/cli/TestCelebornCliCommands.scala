@@ -45,6 +45,12 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
       classOf[UserDefinePasswordAuthenticationProviderImpl].getName)
     .set(CelebornConf.MASTER_HTTP_AUTH_ADMINISTERS, Seq(CELEBORN_ADMINISTER))
     .set(CelebornConf.WORKER_HTTP_AUTH_ADMINISTERS, Seq(CELEBORN_ADMINISTER))
+    .set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "DB")
+    .set(
+      CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_JDBC_URL,
+      "jdbc:h2:mem:test;MODE=MYSQL;INIT=RUNSCRIPT FROM 'classpath:celeborn-0.6.0-h2.sql';DB_CLOSE_DELAY=-1;")
+    .set(CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_DRIVER_CLASS_NAME, "org.h2.Driver")
+    .set(CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_MAXIMUM_POOL_SIZE, 1)
 
   private val BASIC_AUTH_HEADER = HttpAuthSchemes.BASIC + " " + new String(
     Base64.getEncoder.encode(
@@ -143,13 +149,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   }
 
   test("worker --show-dynamic-conf") {
-    cancel("This test is temporarily disabled since dynamic conf is not enabled in unit tests.")
     val args = prepareWorkerArgs() :+ "--show-dynamic-conf"
-    captureOutputAndValidateResponse(args, "")
+    captureOutputAndValidateResponse(args, "DynamicConfigResponse")
   }
 
   test("worker --upsert-dynamic-conf") {
-    cancel("This test is temporarily disabled since dynamic conf is not enabled in unit tests.")
     val args = prepareWorkerArgs() ++ Array(
       "--upsert-dynamic-conf",
       "--config-level",
@@ -160,7 +164,6 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   }
 
   test("worker --delete-dynamic-conf") {
-    cancel("This test is temporarily disabled since dynamic conf is not enabled in unit tests.")
     val args = prepareWorkerArgs() ++ Array(
       "--delete-dynamic-conf",
       "--config-level",
@@ -247,13 +250,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   }
 
   test("master --show-dynamic-conf") {
-    cancel("This test is temporarily disabled since dynamic conf is not enabled in unit tests.")
     val args = prepareMasterArgs() :+ "--show-dynamic-conf"
-    captureOutputAndValidateResponse(args, "")
+    captureOutputAndValidateResponse(args, "DynamicConfigResponse")
   }
 
   test("master --upsert-dynamic-conf") {
-    cancel("This test is temporarily disabled since dynamic conf is not enabled in unit tests.")
     val args = prepareMasterArgs() ++ Array(
       "--upsert-dynamic-conf",
       "--config-level",
@@ -264,7 +265,6 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   }
 
   test("master --delete-dynamic-conf") {
-    cancel("This test is temporarily disabled since dynamic conf is not enabled in unit tests.")
     val args = prepareMasterArgs() ++ Array(
       "--delete-dynamic-conf",
       "--config-level",
