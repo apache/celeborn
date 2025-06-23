@@ -922,14 +922,14 @@
             </includes>
             <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
             <argLine>${argLine} -ea -Xmx4g -Xss4m -XX:MaxMetaspaceSize=2g -XX:ReservedCodeCacheSize=128m ${extraJavaTestArgs} -Dio.netty.tryReflectionSetAccessible=true</argLine>
-            <systemProperties>
+            <systemPropertyVariables>
               <log4j.configuration>file:src/test/resources/log4j.properties</log4j.configuration>
               <log4j2.configurationFile>src/test/resources/log4j2-test.xml</log4j2.configurationFile>
               <java.io.tmpdir>${project.build.directory}/tmp</java.io.tmpdir>
               <spark.driver.memory>8g</spark.driver.memory>
               <spark.shuffle.sort.io.plugin.class>${spark.shuffle.plugin.class}</spark.shuffle.sort.io.plugin.class>
               <spark.ui.enabled>false</spark.ui.enabled>
-            </systemProperties>
+            </systemPropertyVariables>
             <environmentVariables>
               <CELEBORN_LOCAL_HOSTNAME>localhost</CELEBORN_LOCAL_HOSTNAME>
               <FLINK_VERSION>${flink.version}</FLINK_VERSION>
