@@ -18,11 +18,13 @@
 package org.apache.celeborn.service.deploy.worker.profiler
 
 import java.io.IOException
+import java.nio.file.{Path, Paths}
 
 import one.profiler.{AsyncProfiler, AsyncProfilerLoader}
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.util.Utils
 
 /**
  * The JVM profiler provides code profiling of worker based on the the async profiler, a low overhead sampling profiler for Java.
@@ -48,7 +50,10 @@ class JVMProfiler(conf: CelebornConf) extends Logging {
 
   val profiler: Option[AsyncProfiler] = {
     Option(
-      if (enableProfiler && AsyncProfilerLoader.isSupported) AsyncProfilerLoader.load() else null)
+      if (enableProfiler && AsyncProfilerLoader.isSupported) {
+        AsyncProfilerLoader.setExtractionDirectory(extractionDir)
+        AsyncProfilerLoader.load()
+      } else null)
   }
 
   def start(): Unit = {
@@ -76,5 +81,25 @@ class JVMProfiler(conf: CelebornConf) extends Logging {
         running = false
       })
     }
+  }
+
+  private def extractionDir: Path = {
+    val extractionDirectory = applicationsDir
+    if (extractionDirectory.toFile.exists()) {
+      extractionDirectory
+    } else {
+      Utils.createTempDir(conf.workerWorkingDir, "profiler").toPath
+    }
+  }
+
+  private def applicationsDir: Path = {
+    if (Utils.isLinux) {
+      val xdgDataHome = System.getenv("XDG_DATA_HOME")
+      if (xdgDataHome != null && xdgDataHome.nonEmpty) return Paths.get(xdgDataHome)
+      return Paths.get(System.getProperty("user.home"), ".local", "share")
+    } else if (Utils.isMac)
+      return Paths.get(System.getProperty("user.home"), "Library", "Application Support")
+    throw new UnsupportedOperationException(
+      s"Unsupported os ${System.getProperty("os.name").toLowerCase()}")
   }
 }
