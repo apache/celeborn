@@ -81,7 +81,8 @@ class SkewHandlingWithoutMapRangeValidatorTest extends CelebornFunSuite {
     // Verify current metadata
     val currentMetadata = validator.currentCommitMetadata(partitionId)
     currentMetadata shouldNot be(null)
-    currentMetadata shouldBe metadata1.addCommitData(metadata2)
+    metadata1.addCommitData(metadata2)
+    currentMetadata shouldBe metadata1
 
   }
 
@@ -97,7 +98,7 @@ class SkewHandlingWithoutMapRangeValidatorTest extends CelebornFunSuite {
       validator.processSubPartition(partitionId, startMapIndex, i, metadata, startMapIndex)
     }
 
-    validator.isPartitionComplete(partitionId) shouldBe false
+    validator.isPartitionComplete(partitionId) shouldBe true
   }
 
   test("testInvalidStartEndMapIndex") {
@@ -247,7 +248,7 @@ class SkewHandlingWithoutMapRangeValidatorTest extends CelebornFunSuite {
     // Verify completion status for each partition
     validator.isPartitionComplete(partition1) shouldBe true
     validator.isPartitionComplete(partition2) shouldBe true
-    validator.isPartitionComplete(partition2) shouldBe false
+    validator.isPartitionComplete(partition3) shouldBe false
 
     validator.currentCommitMetadata(partition1) shouldBe expectedMetadata1
     validator.currentCommitMetadata(partition2) shouldBe expectedMetadata2
