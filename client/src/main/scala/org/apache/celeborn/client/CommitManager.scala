@@ -200,7 +200,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
       shuffleId,
       numMappers,
       isSegmentGranularityVisible,
-      numPartitions);
+      numPartitions)
   }
 
   def isSegmentGranularityVisible(shuffleId: Int): Boolean = {
