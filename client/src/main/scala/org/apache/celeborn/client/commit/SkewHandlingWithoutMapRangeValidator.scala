@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.client.commit
 
-import com.google.common.base.Preconditions.checkArgument
+import com.google.common.base.Preconditions.{checkArgument, checkState}
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CommitMetadata
@@ -46,6 +46,13 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
       var bitmap: RoaringBitmap = null
       if (totalSubPartitionsProcessed.containsKey(partitionId)) {
         bitmap = totalSubPartitionsProcessed.get(partitionId)
+        val currentSubPartitionCount = partitionToSubPartitionCount.getOrDefault(partitionId, -1)
+        checkState(
+          currentSubPartitionCount == startMapIndex,
+          "total subpartition count mismatch for partitionId %s existing %s new %s",
+          partitionId,
+          currentSubPartitionCount,
+          startMapIndex)
       } else {
         bitmap = new RoaringBitmap()
         totalSubPartitionsProcessed.put(partitionId, bitmap)
@@ -63,7 +70,18 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
         bitmap.add(endMapIndex)
         subPartitionToCommitMetadata.put(endMapIndex, actualCommitMetadata)
       }
+      val partitionProcessed = getTotalNumberOfSubPartitionsProcessed(partitionId)
+      checkState(
+        partitionProcessed <= startMapIndex,
+        "Number of sub-partitions processed %s should less than total number of sub-partitions %s",
+        partitionProcessed,
+        startMapIndex)
     }
+    updateCommitMetadata(partitionId, actualCommitMetadata)
+    (true, "")
+  }
+
+  private def updateCommitMetadata(partitionId: Int, actualCommitMetadata: CommitMetadata) = {
     if (!currentCommitMetadataForReducer.containsKey(partitionId)) {
       currentCommitMetadataForReducer.put(
         partitionId,
@@ -71,7 +89,10 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
     } else {
       currentCommitMetadataForReducer.get(partitionId).addCommitData(actualCommitMetadata)
     }
-    (true, "")
+  }
+
+  private def getTotalNumberOfSubPartitionsProcessed(partitionId: Int) = {
+    totalSubPartitionsProcessed.get(partitionId).getCardinality
   }
 
   override def currentCommitMetadata(partitionId: Int): CommitMetadata = {
@@ -79,7 +100,7 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
   }
 
   override def isPartitionComplete(partitionId: Int): Boolean = {
-    totalSubPartitionsProcessed.get(
-      partitionId).getCardinality == partitionToSubPartitionCount.get(partitionId)
+    getTotalNumberOfSubPartitionsProcessed(partitionId) == partitionToSubPartitionCount.get(
+      partitionId)
   }
 }
