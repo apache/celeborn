@@ -17,8 +17,8 @@
 
 package org.apache.celeborn.client.commit
 
+import com.google.common.base.Preconditions.checkArgument
 import org.roaringbitmap.RoaringBitmap
-
 import org.apache.celeborn.common.CommitMetadata
 import org.apache.celeborn.common.util.JavaUtils
 
@@ -36,6 +36,11 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
       endMapIndex: Int,
       actualCommitMetadata: CommitMetadata,
       expectedTotalMapperCount: Int): (Boolean, String) = {
+    checkArgument(
+      startMapIndex > endMapIndex,
+      "startMapIndex %s must be greater than endMapIndex %s",
+      startMapIndex,
+      endMapIndex)
     totalSubPartitionsProcessed.synchronized {
       var bitmap: RoaringBitmap = null
       if (totalSubPartitionsProcessed.containsKey(partitionId)) {
