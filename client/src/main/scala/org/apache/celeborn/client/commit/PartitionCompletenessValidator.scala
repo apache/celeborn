@@ -48,40 +48,39 @@ class PartitionCompletenessValidator extends Logging {
       expectedCommitMetadata: CommitMetadata,
       expectedTotalMapperCountForParent: Int,
       skewPartitionHandlingWithoutMapRange: Boolean): (Boolean, String) = {
-    var validator = legacySkewHandlingValidator
-    if (skewPartitionHandlingWithoutMapRange) {
-      validator = skewHandlingValidator
-    }
+    val validator =
+      if (skewPartitionHandlingWithoutMapRange) {
+        skewHandlingValidator
+      } else {
+        legacySkewHandlingValidator
+      }
+
     val (successfullyProcessed, error) = validator.processSubPartition(
       partitionId,
       startMapIndex,
       endMapIndex,
       actualCommitMetadata,
       expectedTotalMapperCountForParent)
-    if (!successfullyProcessed) {
-      return (false, error)
-    }
-    if (validator.isPartitionComplete(partitionId)) {
-      val currentCommitMetadata = validator.currentCommitMetadata(partitionId)
-      val matchesMetadata =
-        CommitMetadata.checkCommitMetadata(expectedCommitMetadata, currentCommitMetadata)
+    if (!successfullyProcessed) return (false, error)
 
-      if (matchesMetadata) {
-        logInfo(
-          s"AQE Partition $partitionId completed validation check , " +
-            s"expectedCommitMetadata $expectedCommitMetadata, " +
-            s"actualCommitMetadata $currentCommitMetadata")
-        return (true, "Partition is complete")
-      } else {
-        val errorMsg =
-          s"AQE Partition $partitionId failed validation check" +
-            s"while processing range startMapIndex: $startMapIndex endMapIndex: $endMapIndex" +
-            s"ExpectedCommitMetadata $expectedCommitMetadata, " +
-            s"ActualCommitMetadata $currentCommitMetadata, "
-        logError(errorMsg)
-        return (false, errorMsg)
-      }
+    if (!validator.isPartitionComplete(partitionId)) {
+      return (true, "Partition is valid but still waiting for more data")
     }
-    (true, "Partition is valid but still waiting for more data")
+
+    val currentCommitMetadata = validator.currentCommitMetadata(partitionId)
+    if (!CommitMetadata.checkCommitMetadata(expectedCommitMetadata, currentCommitMetadata)) {
+      val errorMsg =
+        s"AQE Partition $partitionId failed validation check" +
+          s"while processing range startMapIndex: $startMapIndex endMapIndex: $endMapIndex" +
+          s"ExpectedCommitMetadata $expectedCommitMetadata, " +
+          s"ActualCommitMetadata $currentCommitMetadata, "
+      logError(errorMsg)
+      return (false, errorMsg)
+    }
+    logInfo(
+      s"AQE Partition $partitionId completed validation check , " +
+        s"expectedCommitMetadata $expectedCommitMetadata, " +
+        s"actualCommitMetadata $currentCommitMetadata")
+    (true, "Partition is complete")
   }
 }

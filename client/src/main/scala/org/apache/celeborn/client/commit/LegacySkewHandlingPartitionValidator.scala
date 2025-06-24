@@ -123,18 +123,18 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
             s"overlapped with Entry((startMapIndex, endMapIndex), count): $overlappingEntry"
           logError(errorMessage)
           return (false, errorMessage)
-        } else {
-          subRangeToCommitMetadataMap.put(rangeKey, actualCommitMetadata)
-
-          currentCommitMetadataForReducer.merge(
-            partitionId,
-            actualCommitMetadata,
-            metadataMergeBiFunction)
-          currentTotalMapIdCountForReducer.merge(
-            partitionId,
-            endMapIndex - startMapIndex,
-            mapCountMergeBiFunction)
         }
+
+        // Process new range
+        subRangeToCommitMetadataMap.put(rangeKey, actualCommitMetadata)
+        currentCommitMetadataForReducer.merge(
+          partitionId,
+          actualCommitMetadata,
+          metadataMergeBiFunction)
+        currentTotalMapIdCountForReducer.merge(
+          partitionId,
+          endMapIndex - startMapIndex,
+          mapCountMergeBiFunction)
       } else if (existingMetadata != actualCommitMetadata) {
         val errorMessage = s"Commit Metadata for partition: $partitionId " +
           s"not matching for sub-partition with startMapIndex: $startMapIndex endMapIndex: $endMapIndex " +
