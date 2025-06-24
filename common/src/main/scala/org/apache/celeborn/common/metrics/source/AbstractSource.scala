@@ -224,13 +224,15 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def getAndClearTimerMetrics(): List[String] = {
     timerMetrics.synchronized {
-      var timerMetricsSize = timerMetrics.size()
-      val timerMetricsList = ArrayBuffer[String]()
-      while (timerMetricsSize > 0) {
-        timerMetricsList.append(timerMetrics.poll())
-        timerMetricsSize = timerMetricsSize - 1
+      timerMetrics.synchronized {
+        var timerMetricsSize = timerMetrics.size()
+        val timerMetricsList = ArrayBuffer[String]()
+        while (timerMetricsSize > 0) {
+          timerMetricsList.append(timerMetrics.poll())
+          timerMetricsSize = timerMetricsSize - 1
+        }
+        timerMetricsList.toList
       }
-      timerMetricsList.toList
     }
   }
 

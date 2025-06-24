@@ -100,7 +100,7 @@ license: |
 - Since 0.6.0, the client respects the spark.celeborn.storage.availableTypes configuration, 
     ensuring revived partition locations no longer default to memory storage. In contrast, clients prior 
     to 0.6.0 default to memory storage for revived partitions. This means that if memory storage is enabled in 
-    worker nodes, pre-0.6.0 clients may inadvertently utilize memory storage for an application even when memory 
+    worker nodes, clients prior to 0.6.0 may inadvertently utilize memory storage for an application even when memory 
     storage is not enabled for that app.
 
 ## Upgrading from 0.5.0 to 0.5.1
