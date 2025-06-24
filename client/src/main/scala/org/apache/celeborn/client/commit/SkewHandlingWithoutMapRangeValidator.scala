@@ -17,17 +17,18 @@
 
 package org.apache.celeborn.client.commit
 
+import java.util
+
 import com.google.common.base.Preconditions.{checkArgument, checkState}
-import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CommitMetadata
 import org.apache.celeborn.common.util.JavaUtils
 
 class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompletenessValidator {
 
-  private val totalSubPartitionsProcessed = JavaUtils.newConcurrentHashMap[Int, RoaringBitmap]()
+  private val totalSubPartitionsProcessed =
+    JavaUtils.newConcurrentHashMap[Int, util.HashMap[Int, CommitMetadata]]()
   private val partitionToSubPartitionCount = JavaUtils.newConcurrentHashMap[Int, Int]()
-  private val subPartitionToCommitMetadata = JavaUtils.newConcurrentHashMap[Int, CommitMetadata]()
   private val currentCommitMetadataForReducer =
     JavaUtils.newConcurrentHashMap[Int, CommitMetadata]()
 
@@ -43,9 +44,9 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
       startMapIndex,
       endMapIndex)
     totalSubPartitionsProcessed.synchronized {
-      var bitmap: RoaringBitmap = null
+      var subPartitionsProcessed: util.HashMap[Int, CommitMetadata] = null
       if (totalSubPartitionsProcessed.containsKey(partitionId)) {
-        bitmap = totalSubPartitionsProcessed.get(partitionId)
+        subPartitionsProcessed = totalSubPartitionsProcessed.get(partitionId)
         val currentSubPartitionCount = partitionToSubPartitionCount.getOrDefault(partitionId, -1)
         checkState(
           currentSubPartitionCount == startMapIndex,
@@ -54,22 +55,21 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
           currentSubPartitionCount,
           startMapIndex)
       } else {
-        bitmap = new RoaringBitmap()
-        totalSubPartitionsProcessed.put(partitionId, bitmap)
+        subPartitionsProcessed = new util.HashMap[Int, CommitMetadata]()
+        totalSubPartitionsProcessed.put(partitionId, subPartitionsProcessed)
         partitionToSubPartitionCount.put(partitionId, startMapIndex)
       }
-      if (bitmap.contains(endMapIndex)) {
+      if (subPartitionsProcessed.containsKey(endMapIndex)) {
         // check if previous entry matches
-        val existingCommitMetadata = subPartitionToCommitMetadata.get(endMapIndex)
+        val existingCommitMetadata = subPartitionsProcessed.get(endMapIndex)
         if (existingCommitMetadata != actualCommitMetadata) {
           return (
             false,
             s"Mismatch in metadata for the same chunk range on retry: $endMapIndex existing: $existingCommitMetadata new: $actualCommitMetadata")
         }
-      } else {
-        bitmap.add(endMapIndex)
-        subPartitionToCommitMetadata.put(endMapIndex, actualCommitMetadata)
       }
+
+      subPartitionsProcessed.put(endMapIndex, actualCommitMetadata)
       val partitionProcessed = getTotalNumberOfSubPartitionsProcessed(partitionId)
       checkState(
         partitionProcessed <= startMapIndex,
@@ -92,7 +92,7 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
   }
 
   private def getTotalNumberOfSubPartitionsProcessed(partitionId: Int) = {
-    totalSubPartitionsProcessed.get(partitionId).getCardinality
+    totalSubPartitionsProcessed.get(partitionId).size()
   }
 
   override def currentCommitMetadata(partitionId: Int): CommitMetadata = {
