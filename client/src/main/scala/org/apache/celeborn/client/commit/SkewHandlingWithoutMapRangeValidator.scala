@@ -39,6 +39,10 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
       actualCommitMetadata: CommitMetadata,
       expectedTotalMapperCount: Int): (Boolean, String) = {
     checkArgument(
+      endMapIndex >= 0,
+      "index of sub-partition %s must be greater than or equal to 0",
+      endMapIndex)
+    checkArgument(
       startMapIndex > endMapIndex,
       "startMapIndex %s must be greater than endMapIndex %s",
       startMapIndex,
