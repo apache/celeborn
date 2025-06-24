@@ -45,23 +45,45 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
         Integer.compare(o1._2, o2._2)
     }
   }
+  private val mapCountMergeBiFunction = new BiFunction[Int, Int, Int] {
+    override def apply(t: Int, u: Int): Int =
+      Integer.sum(t, u)
+  }
+  private val metadataMergeBiFunction: BiFunction[CommitMetadata, CommitMetadata, CommitMetadata] =
+    new BiFunction[CommitMetadata, CommitMetadata, CommitMetadata] {
+      override def apply(
+          existing: CommitMetadata,
+          incoming: CommitMetadata): CommitMetadata = {
+        if (existing == null) {
+          if (incoming != null) {
+            return new CommitMetadata(incoming.getChecksum, incoming.getBytes)
+          } else {
+            return incoming
+          }
+        }
+        if (incoming == null) {
+          return existing
+        }
+        existing.addCommitData(incoming)
+        existing
+      }
+    }
 
   private def checkOverlappingRange(
       treeMap: java.util.TreeMap[(Int, Int), CommitMetadata],
-      startMapIndex: Int,
-      endMapIndex: Int): (Boolean, ((Int, Int), CommitMetadata)) = {
+      rangeKey: (Int, Int)): (Boolean, ((Int, Int), CommitMetadata)) = {
     val floorEntry: util.Map.Entry[(Int, Int), CommitMetadata] =
-      treeMap.floorEntry((startMapIndex, endMapIndex))
+      treeMap.floorEntry(rangeKey)
     val ceilingEntry: util.Map.Entry[(Int, Int), CommitMetadata] =
-      treeMap.ceilingEntry((startMapIndex, endMapIndex))
+      treeMap.ceilingEntry(rangeKey)
 
     if (floorEntry != null) {
-      if (startMapIndex < floorEntry.getKey._2) {
+      if (rangeKey._1 < floorEntry.getKey._2) {
         return (true, ((floorEntry.getKey._1, floorEntry.getKey._2), floorEntry.getValue))
       }
     }
     if (ceilingEntry != null) {
-      if (endMapIndex > ceilingEntry.getKey._1) {
+      if (rangeKey._2 > ceilingEntry.getKey._1) {
         return (true, ((ceilingEntry.getKey._1, ceilingEntry.getKey._2), ceilingEntry.getValue))
       }
     }
@@ -88,11 +110,12 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
         override def apply(key: Int): util.TreeMap[(Int, Int), CommitMetadata] =
           new util.TreeMap[(Int, Int), CommitMetadata](comparator)
       })
+    val rangeKey = (startMapIndex, endMapIndex)
     subRangeToCommitMetadataMap.synchronized {
-      val existingMetadata = subRangeToCommitMetadataMap.get((startMapIndex, endMapIndex))
+      val existingMetadata = subRangeToCommitMetadataMap.get(rangeKey)
       if (existingMetadata == null) {
         val (isOverlapping, overlappingEntry) =
-          checkOverlappingRange(subRangeToCommitMetadataMap, startMapIndex, endMapIndex)
+          checkOverlappingRange(subRangeToCommitMetadataMap, rangeKey)
         if (isOverlapping) {
           val errorMessage = s"Encountered overlapping map range for partitionId: $partitionId " +
             s" while processing range with startMapIndex: $startMapIndex and endMapIndex: $endMapIndex " +
@@ -101,35 +124,16 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
           logError(errorMessage)
           return (false, errorMessage)
         } else {
-          subRangeToCommitMetadataMap.put((startMapIndex, endMapIndex), actualCommitMetadata)
+          subRangeToCommitMetadataMap.put(rangeKey, actualCommitMetadata)
+
           currentCommitMetadataForReducer.merge(
             partitionId,
             actualCommitMetadata,
-            new java.util.function.BiFunction[CommitMetadata, CommitMetadata, CommitMetadata] {
-              override def apply(
-                  existing: CommitMetadata,
-                  incoming: CommitMetadata): CommitMetadata = {
-                if (existing == null) {
-                  if (incoming != null) {
-                    return new CommitMetadata(incoming.getChecksum, incoming.getBytes)
-                  } else {
-                    return incoming
-                  }
-                }
-                if (incoming == null) {
-                  return existing
-                }
-                existing.addCommitData(incoming)
-                existing
-              }
-            })
+            metadataMergeBiFunction)
           currentTotalMapIdCountForReducer.merge(
             partitionId,
             endMapIndex - startMapIndex,
-            new BiFunction[Int, Int, Int] {
-              override def apply(t: Int, u: Int): Int =
-                Integer.sum(t, u)
-            })
+            mapCountMergeBiFunction)
         }
       } else if (existingMetadata != actualCommitMetadata) {
         val errorMessage = s"Commit Metadata for partition: $partitionId " +

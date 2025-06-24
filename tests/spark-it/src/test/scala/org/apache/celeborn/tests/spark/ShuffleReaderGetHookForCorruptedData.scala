@@ -18,7 +18,6 @@
 package org.apache.celeborn.tests.spark
 
 import java.io.{File, RandomAccessFile}
-import java.nio.ByteBuffer
 import java.util.Random
 import java.util.concurrent.atomic.AtomicBoolean
 
