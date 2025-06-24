@@ -17,14 +17,12 @@
 
 package org.apache.celeborn.service.deploy.master;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import scala.Tuple2;
 
 import com.google.common.collect.ImmutableMap;
@@ -35,6 +33,10 @@ import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import scala.Tuple3;
+
+import static org.junit.Assert.*;
+
 
 public class SlotsAllocatorSuiteJ {
   private List<WorkerInfo> prepareWorkers(boolean hasDisks) {
@@ -49,6 +51,7 @@ public class SlotsAllocatorSuiteJ {
             "/mnt/disk3", random.nextInt() + 90 * 1024 * 1024 * 1024L),
         assumedPartitionSize,
         3,
+        false,
         random);
   }
 
@@ -139,7 +142,7 @@ public class SlotsAllocatorSuiteJ {
     }
     final boolean shouldReplicate = true;
 
-    check(workers, partitionIds, shouldReplicate, true, true);
+    check(workers, partitionIds, shouldReplicate, true, true, false, 0);
   }
 
   private void check(
@@ -147,15 +150,17 @@ public class SlotsAllocatorSuiteJ {
       List<Integer> partitionIds,
       boolean shouldReplicate,
       boolean expectSuccess) {
-    check(workers, partitionIds, shouldReplicate, expectSuccess, false);
+    check(workers, partitionIds, shouldReplicate, expectSuccess, false, false, 0);
   }
 
-  private void check(
+  private Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> check(
       List<WorkerInfo> workers,
       List<Integer> partitionIds,
       boolean shouldReplicate,
       boolean expectSuccess,
-      boolean roundrobin) {
+      boolean roundrobin,
+      boolean interruptionAware,
+      int interruptionAwareThreshold) {
     String shuffleKey = "appId-1";
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM().key(), "2");
@@ -164,7 +169,8 @@ public class SlotsAllocatorSuiteJ {
     if (roundrobin) {
       slots =
           SlotsAllocator.offerSlotsRoundRobin(
-              workers, partitionIds, shouldReplicate, false, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+              workers, partitionIds, shouldReplicate, false, StorageInfo.ALL_TYPES_AVAILABLE_MASK, interruptionAware,
+              interruptionAwareThreshold);
     } else {
       slots =
           SlotsAllocator.offerSlotsLoadAware(
@@ -176,7 +182,9 @@ public class SlotsAllocatorSuiteJ {
               conf.masterSlotAssignLoadAwareDiskGroupGradient(),
               conf.masterSlotAssignLoadAwareFlushTimeWeight(),
               conf.masterSlotAssignLoadAwareFetchTimeWeight(),
-              StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+              StorageInfo.ALL_TYPES_AVAILABLE_MASK,
+              interruptionAware,
+              interruptionAwareThreshold);
     }
     if (expectSuccess) {
       if (shouldReplicate) {
@@ -236,6 +244,7 @@ public class SlotsAllocatorSuiteJ {
       assertTrue(
           "Expect to fail to offer slots, but return " + slots.size() + " slots.", slots.isEmpty());
     }
+    return slots;
   }
 
   private void checkSlotsOnDFS(
@@ -273,7 +282,7 @@ public class SlotsAllocatorSuiteJ {
     if (roundRobin) {
       slots =
           SlotsAllocator.offerSlotsRoundRobin(
-              workers, partitionIds, shouldReplicate, false, availableStorageTypes);
+              workers, partitionIds, shouldReplicate, false, availableStorageTypes, false, 0);
     } else {
       slots =
           SlotsAllocator.offerSlotsLoadAware(
@@ -285,7 +294,7 @@ public class SlotsAllocatorSuiteJ {
               0.1,
               0,
               1,
-              StorageInfo.LOCAL_DISK_MASK | availableStorageTypes);
+              StorageInfo.LOCAL_DISK_MASK | availableStorageTypes, false, 0);
     }
     int allocatedPartitionCount = 0;
     for (Map.Entry<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
@@ -466,12 +475,226 @@ public class SlotsAllocatorSuiteJ {
     checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, false, false, true);
   }
 
+  @ParameterizedTest
+  @CsvSource({"true, true", "true, false", "false, false", "false, true"})
+  public void testInterruptionAwareSlotSelection(boolean shouldReplicate, boolean shouldRackAware) {
+    long assumedPartitionSize = 64 * 1024 * 1024;
+    double interruptionAwarePercentileThreshold = 50;
+    Map<String, Long> diskPartitionToSize = new HashMap<>();
+    diskPartitionToSize.put("/mnt/disk", 512 * 1024 * 1024L); // 0.5gb disk space
+    // Cluster usable space is 50g, with 25g that will not be interrupted.
+    List<WorkerInfo> workers =
+        basePrepareWorkers(100, true, diskPartitionToSize, assumedPartitionSize, 20, true, new Random());
+    Map<String, WorkerInfo> workersMap =
+        workers.stream().collect(Collectors.toMap(WorkerInfo::host, worker -> worker));
+    Tuple3<List<WorkerInfo>, List<WorkerInfo>, List<WorkerInfo>> prioritization =
+        SlotsAllocator.prioritizeWorkersBasedOnInterruptionNotice(
+            workers, shouldReplicate, shouldRackAware, interruptionAwarePercentileThreshold);
+    List<WorkerInfo> workersWithoutInterruptions = prioritization._1();
+    List<WorkerInfo> workersWithLateInterruptions = prioritization._2();
+    List<WorkerInfo> workersWithEarlyInterruptions = prioritization._3();
+    List<String> workersWithoutInterruptionsHosts = extractHosts(workersWithoutInterruptions);
+    List<String> workersWithLateInterruptionsHosts = extractHosts(workersWithLateInterruptions);
+    List<String> workersWithEarlyInterruptionsHosts = extractHosts(workersWithEarlyInterruptions);
+
+    assertEquals(50, workersWithoutInterruptionsHosts.size());
+    assertEquals(25, workersWithLateInterruptionsHosts.size());
+    assertEquals(25, workersWithEarlyInterruptionsHosts.size());
+    IntStream.range(0, 100)
+        .forEach(
+            i -> {
+              String host = "host" + i;
+              if (i % 2 == 0) {
+                assertTrue(workersWithoutInterruptionsHosts.contains(host));
+              } else if (i >= 51) {
+                assertTrue(workersWithLateInterruptionsHosts.contains(host));
+              } else {
+                assertTrue(workersWithEarlyInterruptionsHosts.contains(host));
+              }
+            });
+
+    // With replication enabled: 150 partitions * 128mb (64 primary, 64 replica) is roughly 19gb.
+    // Both primaries and replicas should fit into workersWithoutInterruptions, since 19gb < 25gb
+    // uninterrupted capacity.
+    //
+    // With replication disabled: 150 partitions * 64mb is roughly 9gb.
+    // Similar to the above case, all primaries should fit into workersWithoutInterruptions since
+    // 9gb < 25gb uninterrupted capacity.
+    List<Integer> bestCasePartitionIds =
+        IntStream.range(0, 150).boxed().collect(Collectors.toList());
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
+        slotsFromBestCasePartitionIds =
+        SlotsAllocator.offerSlotsRoundRobin(
+            workers,
+            bestCasePartitionIds,
+            shouldReplicate,
+            shouldRackAware,
+            StorageInfo.ALL_TYPES_AVAILABLE_MASK,
+            true,
+            (int) interruptionAwarePercentileThreshold);
+    slotsFromBestCasePartitionIds
+        .values()
+        .forEach(
+            primaryReplicaSlots -> {
+              List<PartitionLocation> primarySlots = primaryReplicaSlots._1;
+              List<PartitionLocation> replicaSlots = primaryReplicaSlots._2;
+              assertTrue(
+                  primarySlots.stream()
+                      .map(PartitionLocation::getHost)
+                      .allMatch(workersWithoutInterruptionsHosts::contains));
+              if (shouldReplicate) {
+                assertTrue(
+                    replicaSlots.stream()
+                        .map(PartitionLocation::getHost)
+                        .allMatch(workersWithoutInterruptionsHosts::contains));
+                if (shouldRackAware) {
+                  primarySlots.forEach(
+                      slot -> {
+                        WorkerInfo primary = workersMap.get(slot.getHost());
+                        WorkerInfo replica = workersMap.get(slot.getPeer().getHost());
+                        assertNotSame(primary.networkLocation(), replica.networkLocation());
+                      });
+                }
+              }
+            });
+
+    List<WorkerInfo> primaryWorkerCandidates =
+        combineWorkers(workersWithoutInterruptions, workersWithLateInterruptions);
+    List<String> primaryWorkerCandidatesHosts = extractHosts(primaryWorkerCandidates);
+
+    // With replication enabled: 300 partitions * 128mb (64 primary, 64 replica) is roughly 38gb.
+    // In this case, primaries should be in workersWithoutInterruptions +
+    // workersWithLateInterruptions, while
+    // replicas can spill over into workersWithEarlyInterruptions.
+    //
+    // With replication disabled, we increase partitions to 600 to force this case:
+    // 600 partitions * 64mb is roughly 38gb.
+    // Similar to the above case, all primaries should be in workersWithoutInterruptions +
+    // workersWithLateInterruptions.
+    List<Integer> spillOverCasePartitionIds;
+    if (shouldReplicate) {
+      spillOverCasePartitionIds = IntStream.range(0, 300).boxed().collect(Collectors.toList());
+    } else {
+      spillOverCasePartitionIds = IntStream.range(0, 600).boxed().collect(Collectors.toList());
+    }
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
+        slotsFromSpillOverCasePartitionIds =
+        SlotsAllocator.offerSlotsRoundRobin(
+            workers,
+            spillOverCasePartitionIds,
+            shouldReplicate,
+            shouldRackAware,
+            StorageInfo.ALL_TYPES_AVAILABLE_MASK,
+            true,
+            (int) interruptionAwarePercentileThreshold);
+    slotsFromSpillOverCasePartitionIds
+        .values()
+        .forEach(
+            primaryReplicaSlots -> {
+              List<PartitionLocation> primarySlots = primaryReplicaSlots._1;
+              List<PartitionLocation> replicaSlots = primaryReplicaSlots._2;
+              assertTrue(
+                  primarySlots.stream()
+                      .map(PartitionLocation::getHost)
+                      .allMatch(primaryWorkerCandidatesHosts::contains));
+              assertTrue(
+                  primarySlots.stream()
+                      .map(PartitionLocation::getHost)
+                      .noneMatch(workersWithEarlyInterruptionsHosts::contains));
+              if (shouldReplicate) {
+                assertTrue(
+                    replicaSlots.stream()
+                        .map(PartitionLocation::getHost)
+                        .allMatch(
+                            host ->
+                                primaryWorkerCandidatesHosts.contains(host)
+                                    || workersWithEarlyInterruptionsHosts.contains(host)));
+                if (shouldRackAware) {
+                  primarySlots.forEach(
+                      slot -> {
+                        WorkerInfo primary = workersMap.get(slot.getHost());
+                        WorkerInfo replica = workersMap.get(slot.getPeer().getHost());
+                        assertNotSame(primary.networkLocation(), replica.networkLocation());
+                      });
+                }
+              }
+            });
+        // With the slot restrictions in place for LoadAware, we expect to spill replicas into
+        // workersWithEarlyInterruptionsHosts.
+        // But primaries should be in workersWithoutInterruptions + workersWithLateInterruptions.
+        Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
+        loadAwareBestCasePartitionIdsSlots =
+        check(
+            workers,
+            spillOverCasePartitionIds,
+            shouldReplicate,
+            true,
+            false,
+            true,
+            (int) interruptionAwarePercentileThreshold);
+    loadAwareBestCasePartitionIdsSlots
+        .values()
+        .forEach(
+            primaryReplicaSlots -> {
+              List<PartitionLocation> primarySlots = primaryReplicaSlots._1;
+              List<PartitionLocation> replicaSlots = primaryReplicaSlots._2;
+              assertTrue(
+                  primarySlots.stream()
+                      .map(PartitionLocation::getHost)
+                      .allMatch(primaryWorkerCandidatesHosts::contains));
+              assertTrue(
+                  primarySlots.stream()
+                      .map(PartitionLocation::getHost)
+                      .noneMatch(workersWithEarlyInterruptionsHosts::contains));
+              if (shouldReplicate) {
+                assertTrue(
+                    replicaSlots.stream()
+                        .map(PartitionLocation::getHost)
+                        .allMatch(
+                            host ->
+                                primaryWorkerCandidatesHosts.contains(host)
+                                    || workersWithEarlyInterruptionsHosts.contains(host)));
+                if (shouldRackAware) {
+                  primarySlots.forEach(
+                      slot -> {
+                        WorkerInfo primary = workersMap.get(slot.getHost());
+                        WorkerInfo replica = workersMap.get(slot.getPeer().getHost());
+                        assertNotSame(primary.networkLocation(), replica.networkLocation());
+                      });
+                }
+              }
+            });
+  }
+
+  @Test
+  public void testInterruptionAwareSlotSelectionWithNoInterruptions() {
+    long assumedPartitionSize = 64 * 1024 * 1024;
+    Map<String, Long> diskPartitionToSize = new HashMap<>();
+    diskPartitionToSize.put("/mnt/disk", 512 * 1024 * 1024L); // 0.5gb disk space
+    // Cluster usable space is 50g, with 25g that will not be interrupted.
+    List<WorkerInfo> workers =
+        basePrepareWorkers(
+            100, true, diskPartitionToSize, assumedPartitionSize, 20, false, new Random());
+    List<Integer> partitionIds = IntStream.range(0, 600).boxed().collect(Collectors.toList());
+    ;
+    check(workers, partitionIds, true, true, false, true, 50);
+  }
+
+  private List<String> extractHosts(List<WorkerInfo> workers) {
+    return workers.stream().map(WorkerInfo::host).collect(Collectors.toList());
+  }
+
+  private List<WorkerInfo> combineWorkers(List<WorkerInfo>... workerLists) {
+    return Arrays.stream(workerLists).flatMap(List::stream).collect(Collectors.toList());
+  }
+
   static List<WorkerInfo> basePrepareWorkers(
       int numWorkers,
       boolean hasDisks,
       Map<String, Long> diskPartitionToSize,
       long assumedPartitionSize,
       int numNetworkLocations,
+      boolean hasInterruptions,
       Random random) {
     return IntStream.range(0, numWorkers)
         .mapToObj(
@@ -492,6 +715,13 @@ public class SlotsAllocatorSuiteJ {
                     });
               }
               WorkerInfo worker = new WorkerInfo("host" + i, i, i, i, i, i, disks, null);
+              if (hasInterruptions) {
+                if (i % 2 == 0) {
+                  worker.nextInterruptionNotice_$eq(Long.MAX_VALUE);
+                } else {
+                  worker.nextInterruptionNotice_$eq(i);
+                }
+              }
               worker.networkLocation_$eq(String.valueOf(i % numNetworkLocations));
               return worker;
             })

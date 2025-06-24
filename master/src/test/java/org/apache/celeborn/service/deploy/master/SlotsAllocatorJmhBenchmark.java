@@ -63,6 +63,7 @@ public class SlotsAllocatorJmhBenchmark {
               diskPartitionToSize,
               PARTITION_SIZE,
               NUM_NETWORK_LOCATIONS,
+              false,
               new Random());
     }
   }
