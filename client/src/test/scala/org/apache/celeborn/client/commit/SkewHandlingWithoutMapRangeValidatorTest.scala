@@ -207,4 +207,50 @@ class SkewHandlingWithoutMapRangeValidatorTest extends CelebornFunSuite {
       case e: IllegalArgumentException => e.isInstanceOf[IllegalArgumentException] shouldBe true
     }
   }
+
+  test("multiple complete partitions") {
+    // Setup - we'll use 3 different partitions
+    validator = new SkewHandlingWithoutMapRangeValidator
+    val partition1 = 1
+    val partition2 = 2
+    val partition3 = 3
+
+    // Different sizes for each partition
+    val subPartitions1 = 5
+    val subPartitions2 = 8
+    val subPartitions3 = 3
+
+    // Process all sub-partitions for partition1
+    val expectedMetadata1 = new CommitMetadata();
+    for (i <- 0 until subPartitions1) {
+      val metadata = new CommitMetadata(i, 100 + i)
+      validator.processSubPartition(partition1, subPartitions1, i, metadata, subPartitions1)
+      expectedMetadata1.addCommitData(metadata)
+    }
+
+    // Process all sub-partitions for partition2
+    val expectedMetadata2 = new CommitMetadata();
+    for (i <- 0 until subPartitions2) {
+      val metadata = new CommitMetadata(i + 1, 200 + i)
+      validator.processSubPartition(partition2, subPartitions2, i, metadata, subPartitions2)
+      expectedMetadata2.addCommitData(metadata)
+    }
+
+    // Process only some sub-partitions for partition3
+    val expectedMetadata3 = new CommitMetadata();
+    for (i <- 0 until subPartitions3 - 1) { // Deliberately leave one out
+      val metadata = new CommitMetadata(i + 2, 300 + i)
+      validator.processSubPartition(partition3, subPartitions3, i, metadata, subPartitions3)
+      expectedMetadata3.addCommitData(metadata)
+    }
+
+    // Verify completion status for each partition
+    validator.isPartitionComplete(partition1) shouldBe true
+    validator.isPartitionComplete(partition2) shouldBe true
+    validator.isPartitionComplete(partition2) shouldBe false
+
+    validator.currentCommitMetadata(partition1) shouldBe expectedMetadata1
+    validator.currentCommitMetadata(partition2) shouldBe expectedMetadata2
+    validator.currentCommitMetadata(partition3) shouldBe expectedMetadata3
+  }
 }
