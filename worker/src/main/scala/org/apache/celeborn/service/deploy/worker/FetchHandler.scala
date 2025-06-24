@@ -485,7 +485,7 @@ class FetchHandler(
       streamType: StreamType): Unit = {
     streamType match {
       case StreamType.ChunkStream =>
-        val streamState = chunkStreamManager.getStreamState(streamId)
+        val streamState = chunkStreamManager.removeStreamState(streamId)
         if (streamState != null) {
           val (shuffleKey, fileName) = (streamState.shuffleKey, streamState.fileName)
           workerSource.recordAppActiveConnection(client, shuffleKey)
