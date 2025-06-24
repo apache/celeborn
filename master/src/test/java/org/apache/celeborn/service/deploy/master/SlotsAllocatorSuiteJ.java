@@ -717,7 +717,7 @@ public class SlotsAllocatorSuiteJ {
                               random.nextInt(1000),
                               random.nextInt(1000),
                               0);
-                      diskInfo.maxSlots_$eq(diskInfo.actualUsableSpace() / assumedPartitionSize);
+                      diskInfo.availableSlots_$eq(diskInfo.actualUsableSpace() / assumedPartitionSize);
                       disks.put(diskMountPoint, diskInfo);
                     });
               }
