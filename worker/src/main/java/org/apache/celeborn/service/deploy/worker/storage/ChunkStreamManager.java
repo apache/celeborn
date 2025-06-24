@@ -196,6 +196,10 @@ public class ChunkStreamManager {
     return streams.get(streamId);
   }
 
+  public StreamState removeStreamState(long streamId) {
+    return streams.remove(streamId);
+  }
+
   public int getStreamsCount() {
     return streams.size();
   }
