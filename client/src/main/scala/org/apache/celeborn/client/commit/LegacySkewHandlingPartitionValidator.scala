@@ -142,22 +142,8 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
         logError(errorMessage)
         return (false, errorMessage)
       }
-      if (!currentTotalMapIdCountForReducer.containsKey(partitionId)) {
-        checkState(!currentCommitMetadataForReducer.containsKey(
-          partitionId,
-          "mapper total count missing while processing partitionId %s startMapIndex %s endMapIndex %s",
-          partitionId,
-          startMapIndex,
-          endMapIndex))
-        currentTotalMapIdCountForReducer.put(partitionId, 0)
-        currentCommitMetadataForReducer.put(partitionId, new CommitMetadata())
-      }
-      checkState(
-        currentCommitMetadataForReducer.containsKey(partitionId),
-        "mapper written count missing while processing partitionId %s startMapIndex %s endMapIndex %s",
-        partitionId,
-        startMapIndex,
-        endMapIndex)
+
+      validateState(partitionId, startMapIndex, endMapIndex)
       val sumOfMapRanges: Int = currentTotalMapIdCountForReducer.get(partitionId)
       val currentCommitMetadata: CommitMetadata =
         currentCommitMetadataForReducer.get(partitionId)
@@ -171,6 +157,25 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
       }
     }
     (true, "")
+  }
+
+  private def validateState(partitionId: Int, startMapIndex: Int, endMapIndex: Int): Unit = {
+    if (!currentTotalMapIdCountForReducer.containsKey(partitionId)) {
+      checkState(!currentCommitMetadataForReducer.containsKey(
+        partitionId,
+        "mapper total count missing while processing partitionId %s startMapIndex %s endMapIndex %s",
+        partitionId,
+        startMapIndex,
+        endMapIndex))
+      currentTotalMapIdCountForReducer.put(partitionId, 0)
+      currentCommitMetadataForReducer.put(partitionId, new CommitMetadata())
+    }
+    checkState(
+      currentCommitMetadataForReducer.containsKey(partitionId),
+      "mapper written count missing while processing partitionId %s startMapIndex %s endMapIndex %s",
+      partitionId,
+      startMapIndex,
+      endMapIndex)
   }
 
   override def currentCommitMetadata(partitionId: Int): CommitMetadata = {
