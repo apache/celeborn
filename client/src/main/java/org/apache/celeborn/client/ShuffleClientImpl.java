@@ -1489,7 +1489,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           @Override
           public void onSuccess(ByteBuffer response) {
             byte reason = response.get();
-            if (reason == StatusCode.HARD_SPLIT.getValue()) {
+            if (reason == StatusCode.HARD_SPLIT.getValue()
+                || reason == StatusCode.SOFT_SPLIT.getValue()) {
               ArrayList<DataBatches.DataBatch> batchesNeedResubmit;
               if (response.remaining() > 0) {
                 batchesNeedResubmit = new ArrayList<>();
