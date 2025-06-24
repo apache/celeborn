@@ -19,6 +19,7 @@ package org.apache.celeborn.client.commit
 
 import com.google.common.base.Preconditions.checkArgument
 import org.roaringbitmap.RoaringBitmap
+
 import org.apache.celeborn.common.CommitMetadata
 import org.apache.celeborn.common.util.JavaUtils
 
