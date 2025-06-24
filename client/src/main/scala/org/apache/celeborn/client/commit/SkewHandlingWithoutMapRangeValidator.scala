@@ -44,9 +44,7 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
       startMapIndex,
       endMapIndex)
     totalSubPartitionsProcessed.synchronized {
-      var subPartitionsProcessed: util.HashMap[Int, CommitMetadata] = null
       if (totalSubPartitionsProcessed.containsKey(partitionId)) {
-        subPartitionsProcessed = totalSubPartitionsProcessed.get(partitionId)
         val currentSubPartitionCount = partitionToSubPartitionCount.getOrDefault(partitionId, -1)
         checkState(
           currentSubPartitionCount == startMapIndex,
@@ -55,10 +53,10 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
           currentSubPartitionCount,
           startMapIndex)
       } else {
-        subPartitionsProcessed = new util.HashMap[Int, CommitMetadata]()
-        totalSubPartitionsProcessed.put(partitionId, subPartitionsProcessed)
+        totalSubPartitionsProcessed.put(partitionId, new util.HashMap[Int, CommitMetadata]())
         partitionToSubPartitionCount.put(partitionId, startMapIndex)
       }
+      val subPartitionsProcessed = totalSubPartitionsProcessed.get(partitionId)
       if (subPartitionsProcessed.containsKey(endMapIndex)) {
         // check if previous entry matches
         val existingCommitMetadata = subPartitionsProcessed.get(endMapIndex)
@@ -68,7 +66,6 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
             s"Mismatch in metadata for the same chunk range on retry: $endMapIndex existing: $existingCommitMetadata new: $actualCommitMetadata")
         }
       }
-
       subPartitionsProcessed.put(endMapIndex, actualCommitMetadata)
       val partitionProcessed = getTotalNumberOfSubPartitionsProcessed(partitionId)
       checkState(
@@ -81,14 +78,10 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
     (true, "")
   }
 
-  private def updateCommitMetadata(partitionId: Int, actualCommitMetadata: CommitMetadata) = {
-    if (!currentCommitMetadataForReducer.containsKey(partitionId)) {
-      currentCommitMetadataForReducer.put(
-        partitionId,
-        new CommitMetadata(actualCommitMetadata.getChecksum, actualCommitMetadata.getBytes))
-    } else {
-      currentCommitMetadataForReducer.get(partitionId).addCommitData(actualCommitMetadata)
-    }
+  private def updateCommitMetadata(partitionId: Int, actualCommitMetadata: CommitMetadata): Unit = {
+    val currentCommitMetadata =
+      currentCommitMetadataForReducer.getOrDefault(partitionId, new CommitMetadata())
+    currentCommitMetadata.addCommitData(actualCommitMetadata)
   }
 
   private def getTotalNumberOfSubPartitionsProcessed(partitionId: Int) = {
