@@ -238,7 +238,6 @@ class WorkerInfoSuite extends CelebornFunSuite {
     worker2.networkLocation = "/1"
     worker2.nextInterruptionNotice = 1000L
 
-
     val worker3 = new WorkerInfo(
       "h3",
       30001,

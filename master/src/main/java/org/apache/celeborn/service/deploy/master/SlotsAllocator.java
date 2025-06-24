@@ -22,6 +22,7 @@ import java.util.function.IntUnaryOperator;
 import java.util.stream.Collectors;
 
 import scala.Tuple2;
+import scala.Tuple3;
 
 import org.apache.commons.lang3.StringUtils;
 import org.roaringbitmap.RoaringBitmap;
@@ -33,8 +34,6 @@ import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
-import scala.Tuple3;
-
 
 public class SlotsAllocator {
   static class UsableDiskInfo {
@@ -138,7 +137,13 @@ public class SlotsAllocator {
         || StorageInfo.S3Only(availableStorageTypes)
         || StorageInfo.OSSOnly(availableStorageTypes)) {
       return offerSlotsRoundRobin(
-          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes, interruptionAware, interruptionAwareThreshold);
+          workers,
+          partitionIds,
+          shouldReplicate,
+          shouldRackAware,
+          availableStorageTypes,
+          interruptionAware,
+          interruptionAwareThreshold);
     }
 
     List<DiskInfo> usableDisks = new ArrayList<>();
@@ -173,7 +178,13 @@ public class SlotsAllocator {
           StringUtils.join(partitionIds, ','),
           noUsableDisks ? "usable disks" : "available slots");
       return offerSlotsRoundRobin(
-          workers, partitionIds, shouldReplicate, shouldRackAware, availableStorageTypes, interruptionAware, interruptionAwareThreshold);
+          workers,
+          partitionIds,
+          shouldReplicate,
+          shouldRackAware,
+          availableStorageTypes,
+          interruptionAware,
+          interruptionAwareThreshold);
     }
 
     if (!initialized) {
@@ -267,11 +278,11 @@ public class SlotsAllocator {
    * the worst case. <br>
    */
   static Tuple3<List<WorkerInfo>, List<WorkerInfo>, List<WorkerInfo>>
-  prioritizeWorkersBasedOnInterruptionNotice(
-      List<WorkerInfo> workers,
-      boolean shouldReplicate,
-      boolean shouldRackAware,
-      double percentileThreshold) {
+      prioritizeWorkersBasedOnInterruptionNotice(
+          List<WorkerInfo> workers,
+          boolean shouldReplicate,
+          boolean shouldRackAware,
+          double percentileThreshold) {
     Map<Boolean, List<WorkerInfo>> partitioned =
         workers.stream().collect(Collectors.partitioningBy(WorkerInfo::hasInterruptionNotice));
     List<WorkerInfo> workersWithInterruptions = partitioned.get(true);
@@ -337,11 +348,11 @@ public class SlotsAllocator {
     if (interruptionAware) {
       Tuple3<List<WorkerInfo>, List<WorkerInfo>, List<WorkerInfo>>
           workersBasedOnInterruptionNotice =
-          prioritizeWorkersBasedOnInterruptionNotice(
-              workersFromSlotRestrictions,
-              shouldReplicate,
-              shouldRackAware,
-              interruptionAwareThreshold);
+              prioritizeWorkersBasedOnInterruptionNotice(
+                  workersFromSlotRestrictions,
+                  shouldReplicate,
+                  shouldRackAware,
+                  interruptionAwareThreshold);
       workersWithoutInterruptions = workersBasedOnInterruptionNotice._1();
       workersWithLateInterruptions = workersBasedOnInterruptionNotice._2();
       workersWithEarlyInterruptions = workersBasedOnInterruptionNotice._3();
@@ -514,7 +525,11 @@ public class SlotsAllocator {
         }
         storageInfo =
             getStorageInfo(
-                primaryWorkers, nextPrimaryInd, slotsRestrictions, workerDiskIndex, availableStorageTypes);
+                primaryWorkers,
+                nextPrimaryInd,
+                slotsRestrictions,
+                workerDiskIndex,
+                availableStorageTypes);
       } else {
         if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
           while (!primaryWorkers.get(nextPrimaryInd).haveDisk()) {
@@ -525,7 +540,8 @@ public class SlotsAllocator {
           }
         }
         storageInfo =
-            getStorageInfo(primaryWorkers, nextPrimaryInd, null, workerDiskIndex, availableStorageTypes);
+            getStorageInfo(
+                primaryWorkers, nextPrimaryInd, null, workerDiskIndex, availableStorageTypes);
       }
       PartitionLocation primaryPartition =
           createLocation(partitionId, primaryWorkers.get(nextPrimaryInd), null, storageInfo, true);
@@ -536,11 +552,11 @@ public class SlotsAllocator {
           while ((nextReplicaInd == nextPrimaryInd && replicaSameAsPrimary)
               || !haveUsableSlots(slotsRestrictions, replicaWorkers, nextReplicaInd)
               || !satisfyRackAware(
-              shouldRackAware,
-              primaryWorkers,
-              nextPrimaryInd,
-              replicaWorkers,
-              nextReplicaInd)) {
+                  shouldRackAware,
+                  primaryWorkers,
+                  nextPrimaryInd,
+                  replicaWorkers,
+                  nextReplicaInd)) {
             nextReplicaInd = replicaWorkersIncrementIndex.applyAsInt(nextReplicaInd);
             if (nextReplicaInd == replicaIndex) {
               break outer;
@@ -556,7 +572,7 @@ public class SlotsAllocator {
         } else if (shouldRackAware) {
           while ((nextReplicaInd == nextPrimaryInd && replicaSameAsPrimary)
               || !satisfyRackAware(
-              true, primaryWorkers, nextPrimaryInd, replicaWorkers, nextReplicaInd)) {
+                  true, primaryWorkers, nextPrimaryInd, replicaWorkers, nextReplicaInd)) {
             nextReplicaInd = replicaWorkersIncrementIndex.applyAsInt(nextReplicaInd);
             if (nextReplicaInd == replicaIndex) {
               break outer;
@@ -573,11 +589,16 @@ public class SlotsAllocator {
             }
           }
           storageInfo =
-              getStorageInfo(replicaWorkers, nextReplicaInd, null, workerDiskIndex, availableStorageTypes);
+              getStorageInfo(
+                  replicaWorkers, nextReplicaInd, null, workerDiskIndex, availableStorageTypes);
         }
         PartitionLocation replicaPartition =
             createLocation(
-                partitionId, replicaWorkers.get(nextReplicaInd), primaryPartition, storageInfo, false);
+                partitionId,
+                replicaWorkers.get(nextReplicaInd),
+                primaryPartition,
+                storageInfo,
+                false);
         primaryPartition.setPeer(replicaPartition);
         Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
             slots.computeIfAbsent(
@@ -611,8 +632,8 @@ public class SlotsAllocator {
       int nextReplicaInd) {
     return !shouldRackAware
         || !Objects.equals(
-        primaryWorkers.get(primaryIndex).networkLocation(),
-        replicaWorkers.get(nextReplicaInd).networkLocation());
+            primaryWorkers.get(primaryIndex).networkLocation(),
+            replicaWorkers.get(nextReplicaInd).networkLocation());
   }
 
   private static void initLoadAwareAlgorithm(int diskGroups, double diskGroupGradient) {

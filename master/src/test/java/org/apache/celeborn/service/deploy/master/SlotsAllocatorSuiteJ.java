@@ -17,26 +17,25 @@
 
 package org.apache.celeborn.service.deploy.master;
 
+import static org.junit.Assert.*;
+
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import scala.Tuple2;
+import scala.Tuple3;
 
 import com.google.common.collect.ImmutableMap;
 import org.junit.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
-import scala.Tuple3;
-
-import static org.junit.Assert.*;
-
 
 public class SlotsAllocatorSuiteJ {
   private List<WorkerInfo> prepareWorkers(boolean hasDisks) {
@@ -169,7 +168,12 @@ public class SlotsAllocatorSuiteJ {
     if (roundrobin) {
       slots =
           SlotsAllocator.offerSlotsRoundRobin(
-              workers, partitionIds, shouldReplicate, false, StorageInfo.ALL_TYPES_AVAILABLE_MASK, interruptionAware,
+              workers,
+              partitionIds,
+              shouldReplicate,
+              false,
+              StorageInfo.ALL_TYPES_AVAILABLE_MASK,
+              interruptionAware,
               interruptionAwareThreshold);
     } else {
       slots =
@@ -294,7 +298,9 @@ public class SlotsAllocatorSuiteJ {
               0.1,
               0,
               1,
-              StorageInfo.LOCAL_DISK_MASK | availableStorageTypes, false, 0);
+              StorageInfo.LOCAL_DISK_MASK | availableStorageTypes,
+              false,
+              0);
     }
     int allocatedPartitionCount = 0;
     for (Map.Entry<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
@@ -484,7 +490,8 @@ public class SlotsAllocatorSuiteJ {
     diskPartitionToSize.put("/mnt/disk", 512 * 1024 * 1024L); // 0.5gb disk space
     // Cluster usable space is 50g, with 25g that will not be interrupted.
     List<WorkerInfo> workers =
-        basePrepareWorkers(100, true, diskPartitionToSize, assumedPartitionSize, 20, true, new Random());
+        basePrepareWorkers(
+            100, true, diskPartitionToSize, assumedPartitionSize, 20, true, new Random());
     Map<String, WorkerInfo> workersMap =
         workers.stream().collect(Collectors.toMap(WorkerInfo::host, worker -> worker));
     Tuple3<List<WorkerInfo>, List<WorkerInfo>, List<WorkerInfo>> prioritization =
@@ -524,14 +531,14 @@ public class SlotsAllocatorSuiteJ {
         IntStream.range(0, 150).boxed().collect(Collectors.toList());
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
         slotsFromBestCasePartitionIds =
-        SlotsAllocator.offerSlotsRoundRobin(
-            workers,
-            bestCasePartitionIds,
-            shouldReplicate,
-            shouldRackAware,
-            StorageInfo.ALL_TYPES_AVAILABLE_MASK,
-            true,
-            (int) interruptionAwarePercentileThreshold);
+            SlotsAllocator.offerSlotsRoundRobin(
+                workers,
+                bestCasePartitionIds,
+                shouldReplicate,
+                shouldRackAware,
+                StorageInfo.ALL_TYPES_AVAILABLE_MASK,
+                true,
+                (int) interruptionAwarePercentileThreshold);
     slotsFromBestCasePartitionIds
         .values()
         .forEach(
@@ -579,14 +586,14 @@ public class SlotsAllocatorSuiteJ {
     }
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
         slotsFromSpillOverCasePartitionIds =
-        SlotsAllocator.offerSlotsRoundRobin(
-            workers,
-            spillOverCasePartitionIds,
-            shouldReplicate,
-            shouldRackAware,
-            StorageInfo.ALL_TYPES_AVAILABLE_MASK,
-            true,
-            (int) interruptionAwarePercentileThreshold);
+            SlotsAllocator.offerSlotsRoundRobin(
+                workers,
+                spillOverCasePartitionIds,
+                shouldReplicate,
+                shouldRackAware,
+                StorageInfo.ALL_TYPES_AVAILABLE_MASK,
+                true,
+                (int) interruptionAwarePercentileThreshold);
     slotsFromSpillOverCasePartitionIds
         .values()
         .forEach(
@@ -619,19 +626,19 @@ public class SlotsAllocatorSuiteJ {
                 }
               }
             });
-        // With the slot restrictions in place for LoadAware, we expect to spill replicas into
-        // workersWithEarlyInterruptionsHosts.
-        // But primaries should be in workersWithoutInterruptions + workersWithLateInterruptions.
-        Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
+    // With the slot restrictions in place for LoadAware, we expect to spill replicas into
+    // workersWithEarlyInterruptionsHosts.
+    // But primaries should be in workersWithoutInterruptions + workersWithLateInterruptions.
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
         loadAwareBestCasePartitionIdsSlots =
-        check(
-            workers,
-            spillOverCasePartitionIds,
-            shouldReplicate,
-            true,
-            false,
-            true,
-            (int) interruptionAwarePercentileThreshold);
+            check(
+                workers,
+                spillOverCasePartitionIds,
+                shouldReplicate,
+                true,
+                false,
+                true,
+                (int) interruptionAwarePercentileThreshold);
     loadAwareBestCasePartitionIdsSlots
         .values()
         .forEach(
