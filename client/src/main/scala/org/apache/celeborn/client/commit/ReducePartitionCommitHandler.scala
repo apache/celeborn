@@ -398,7 +398,9 @@ class ReducePartitionCommitHandler(
         0 until numMappers foreach (idx => attempts(idx) = -1)
         shuffleMapperAttempts.put(shuffleId, attempts)
       }
-      commitMetadataForReducer.put(shuffleId, new Array[CommitMetadata](numPartitions))
+      if (shuffleIntegrityCheckEnabled) {
+        commitMetadataForReducer.put(shuffleId, new Array[CommitMetadata](numPartitions))
+      }
     }
   }
 
