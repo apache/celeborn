@@ -32,21 +32,19 @@ import org.apache.celeborn.common.util.ThreadUtils
 class LoggerSink(sources: Seq[Source], conf: CelebornConf) extends Sink with Logging {
   val metricsLoggerSinkScrapeOutputEnabled = conf.metricsLoggerSinkScrapeOutputEnabled
   val metricsLoggerSinkScrapeInterval = conf.metricsLoggerSinkScrapeInterval
-  var metricScrapeThread: ScheduledExecutorService = null
+  val metricScrapeThread: ScheduledExecutorService =
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor(s"metrics-scrape-thread")
   override def start(): Unit = {
-    metricScrapeThread =
-      ThreadUtils.newDaemonSingleThreadScheduledExecutor(s"metrics-scrape-thread")
     metricScrapeThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = {
           sources.foreach { source =>
+            val metricsData = source.getMetrics
             if (metricsLoggerSinkScrapeOutputEnabled) {
               // The method `source.getMetrics` will clear `timeMetric` queue.
               // This is essential because the queue can be large enough
               // to cause the worker run out of memory
-              logInfo(s"Source ${source.sourceName} scraped metrics: ${source.getMetrics}")
-            } else {
-              source.getMetrics
+              logInfo(s"Source ${source.sourceName} scraped metrics: ${metricsData}")
             }
           }
         }
@@ -57,11 +55,8 @@ class LoggerSink(sources: Seq[Source], conf: CelebornConf) extends Sink with Log
   }
 
   override def stop(): Unit = {
-    if (metricScrapeThread != null) {
-      ThreadUtils.shutdown(metricScrapeThread)
-    }
+    ThreadUtils.shutdown(metricScrapeThread)
   }
 
   override def report(): Unit = {}
-
 }
