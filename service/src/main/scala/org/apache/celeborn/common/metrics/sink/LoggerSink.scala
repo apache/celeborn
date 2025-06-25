@@ -30,8 +30,8 @@ import org.apache.celeborn.common.util.ThreadUtils
  * @param conf
  */
 class LoggerSink(sources: Seq[Source], conf: CelebornConf) extends Sink with Logging {
-  private val metricsLoggerSinkScrapeOutputEnabled = conf.metricsLoggerSinkScrapeOutputEnabled
-  private val metricsLoggerSinkScrapeInterval = conf.metricsLoggerSinkScrapeInterval
+  val metricsLoggerSinkScrapeOutputEnabled = conf.metricsLoggerSinkScrapeOutputEnabled
+  val metricsLoggerSinkScrapeInterval = conf.metricsLoggerSinkScrapeInterval
   var metricScrapeThread: ScheduledExecutorService = null
   override def start(): Unit = {
     metricScrapeThread =
@@ -39,12 +39,14 @@ class LoggerSink(sources: Seq[Source], conf: CelebornConf) extends Sink with Log
     metricScrapeThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = {
-          if (metricsLoggerSinkScrapeOutputEnabled) {
-            sources.foreach { source =>
+          sources.foreach { source =>
+            if (metricsLoggerSinkScrapeOutputEnabled) {
               // The method `source.getMetrics` will clear `timeMetric` queue.
               // This is essential because the queue can be large enough
               // to cause the worker run out of memory
               logInfo(s"Source ${source.sourceName} scraped metrics: ${source.getMetrics}")
+            } else {
+              source.getMetrics
             }
           }
         }
@@ -61,4 +63,5 @@ class LoggerSink(sources: Seq[Source], conf: CelebornConf) extends Sink with Log
   }
 
   override def report(): Unit = {}
+
 }
