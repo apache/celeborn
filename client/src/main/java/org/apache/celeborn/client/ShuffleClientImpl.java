@@ -25,7 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import scala.Tuple2;
 import scala.Tuple3;
 import scala.reflect.ClassTag$;
 
@@ -549,12 +548,13 @@ public class ShuffleClientImpl extends ShuffleClient {
         numMappers,
         numPartitions,
         () ->
+            // todo: this is the msg to be changed...
             lifecycleManagerRef.askSync(
-                RegisterShuffle$.MODULE$.apply(shuffleId, numMappers, numPartitions),
+                new RegisterShuffle(shuffleId, numMappers, numPartitions, SerdeVersion.V1),
                 conf.clientRpcRegisterShuffleAskTimeout(),
                 rpcMaxRetries,
                 rpcRetryWait,
-                ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
+                ClassTag$.MODULE$.apply(RegisterShuffleResponse.class)));
   }
 
   @Override
@@ -709,23 +709,18 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   private ConcurrentHashMap<Integer, PartitionLocation> registerShuffleInternal(
-      int shuffleId,
-      int numMappers,
-      int numPartitions,
-      Callable<PbRegisterShuffleResponse> callable)
+      int shuffleId, int numMappers, int numPartitions, Callable<RegisterShuffleResponse> callable)
       throws CelebornIOException {
     int numRetries = registerShuffleMaxRetries;
     StatusCode lastFailedStatusCode = null;
     while (numRetries > 0) {
       try {
-        PbRegisterShuffleResponse response = callable.call();
-        StatusCode respStatus = StatusCode.fromValue(response.getStatus());
+        RegisterShuffleResponse response = callable.call();
+        StatusCode respStatus = response.status();
         if (StatusCode.SUCCESS.equals(respStatus)) {
           ConcurrentHashMap<Integer, PartitionLocation> result = JavaUtils.newConcurrentHashMap();
-          Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
-              PbSerDeUtils.fromPbPackedPartitionLocationsPair(
-                  response.getPackedPartitionLocationsPair());
-          for (PartitionLocation location : locations._1) {
+          PartitionLocation[] locations = response.partitionLocations();
+          for (PartitionLocation location : locations) {
             pushExcludedWorkers.remove(location.hostAndPushPort());
             if (location.hasPeer()) {
               pushExcludedWorkers.remove(location.getPeer().hostAndPushPort());
@@ -1855,6 +1850,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       GetReducerFileGroup getReducerFileGroup =
           new GetReducerFileGroup(shuffleId, isSegmentGranularityVisible, SerdeVersion.V1);
 
+      // todo: this is the ref implementation...
       GetReducerFileGroupResponse response =
           lifecycleManagerRef.askSync(
               getReducerFileGroup,

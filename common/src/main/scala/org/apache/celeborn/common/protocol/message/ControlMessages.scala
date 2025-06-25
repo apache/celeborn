@@ -131,17 +131,13 @@ object ControlMessages extends Logging {
       workerEvent: WorkerEventType = WorkerEventType.None)
     extends MasterMessage
 
-  object RegisterShuffle {
-    def apply(
-        shuffleId: Int,
-        numMappers: Int,
-        numPartitions: Int): PbRegisterShuffle =
-      PbRegisterShuffle.newBuilder()
-        .setShuffleId(shuffleId)
-        .setNumMappers(numMappers)
-        .setNumPartitions(numPartitions)
-        .build()
-  }
+  // todo: make this a standalone msg like GetReducerFileGroup?
+  case class RegisterShuffle(
+      shuffleId: Int,
+      numMappers: Int,
+      numPartitions: Int,
+      serdeVersion: SerdeVersion)
+    extends MasterMessage
 
   object RegisterMapPartitionTask {
     def apply(
@@ -161,17 +157,21 @@ object ControlMessages extends Logging {
         .build()
   }
 
-  object RegisterShuffleResponse {
-    def apply(
-        status: StatusCode,
-        partitionLocations: Array[PartitionLocation]): PbRegisterShuffleResponse = {
-      val builder = PbRegisterShuffleResponse.newBuilder()
-        .setStatus(status.getValue)
-      builder.setPackedPartitionLocationsPair(
-        PbSerDeUtils.toPbPackedPartitionLocationsPair(partitionLocations.toList))
-      builder.build()
-    }
-  }
+//  object RegisterShuffleResponse {
+//    def apply(
+//        status: StatusCode,
+//        partitionLocations: Array[PartitionLocation]): PbRegisterShuffleResponse = {
+//      val builder = PbRegisterShuffleResponse.newBuilder()
+//        .setStatus(status.getValue)
+//      builder.setPackedPartitionLocationsPair(
+//        PbSerDeUtils.toPbPackedPartitionLocationsPair(partitionLocations.toList))
+//      builder.build()
+//    }
+//  }
+  case class RegisterShuffleResponse(
+      status: StatusCode,
+      partitionLocations: Array[PartitionLocation],
+      serdeVersion: SerdeVersion) extends MasterMessage
 
   case class RequestSlots(
       applicationId: String,
@@ -674,14 +674,28 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_WORKER_RESPONSE, payload)
 
-    case pb: PbRegisterShuffle =>
-      new TransportMessage(MessageType.REGISTER_SHUFFLE, pb.toByteArray)
+    // todo: change this..! this is the serialize place!
+//    case pb: PbRegisterShuffle =>
+//      new TransportMessage(MessageType.REGISTER_SHUFFLE, pb.toByteArray)
+    case RegisterShuffle(shuffleId, numMappers, numPartitions, serdeVersion) =>
+      val payload = PbRegisterShuffle.newBuilder()
+        .setShuffleId(shuffleId)
+        .setNumMappers(numMappers)
+        .setNumPartitions(numPartitions)
+        .build().toByteArray
+      new TransportMessage(MessageType.REGISTER_SHUFFLE, payload, serdeVersion)
 
     case pb: PbRegisterMapPartitionTask =>
       new TransportMessage(MessageType.REGISTER_MAP_PARTITION_TASK, pb.toByteArray)
 
-    case pb: PbRegisterShuffleResponse =>
-      new TransportMessage(MessageType.REGISTER_SHUFFLE_RESPONSE, pb.toByteArray)
+//    case pb: PbRegisterShuffleResponse =>
+//      new TransportMessage(MessageType.REGISTER_SHUFFLE_RESPONSE, pb.toByteArray)
+    case RegisterShuffleResponse(status, partitionLocations, serdeVersion) =>
+      val payload = PbRegisterShuffleResponse.newBuilder()
+        .setStatus(status.getValue).setPackedPartitionLocationsPair(
+          PbSerDeUtils.toPbPackedPartitionLocationsPair(partitionLocations.toList))
+        .build().toByteArray
+      new TransportMessage(MessageType.REGISTER_SHUFFLE_RESPONSE, payload, serdeVersion)
 
     case RequestSlots(
           applicationId,
@@ -769,6 +783,7 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END_RESPONSE, payload)
 
+    // todo: ref this...
     case GetReducerFileGroup(shuffleId, isSegmentGranularityVisible, serdeVersion) =>
       val payload = PbGetReducerFileGroup.newBuilder()
         .setShuffleId(shuffleId)
@@ -1131,14 +1146,26 @@ object ControlMessages extends Logging {
           pbHeartbeatFromWorkerResponse.getRegistered,
           pbHeartbeatFromWorkerResponse.getWorkerEventType)
 
+      // todo: how to handle the pb return... add optional token?
+      // todo: change this to standalone datatype rather than pb!
       case REGISTER_SHUFFLE_VALUE =>
-        PbRegisterShuffle.parseFrom(message.getPayload)
+        val pbRegisterShuffle = PbRegisterShuffle.parseFrom(message.getPayload)
+        RegisterShuffle(
+          pbRegisterShuffle.getShuffleId,
+          pbRegisterShuffle.getNumMappers,
+          pbRegisterShuffle.getNumPartitions,
+          message.getSerdeVersion)
 
       case REGISTER_MAP_PARTITION_TASK_VALUE =>
         PbRegisterMapPartitionTask.parseFrom(message.getPayload)
 
       case REGISTER_SHUFFLE_RESPONSE_VALUE =>
-        PbRegisterShuffleResponse.parseFrom(message.getPayload)
+        val pbRegisterShuffleResponse = PbRegisterShuffleResponse.parseFrom(message.getPayload)
+        RegisterShuffleResponse(
+          StatusCode.fromValue(pbRegisterShuffleResponse.getStatus),
+          PbSerDeUtils.fromPbPackedPartitionLocationsPair(
+            pbRegisterShuffleResponse.getPackedPartitionLocationsPair)._1.asScala.toArray,
+          message.getSerdeVersion)
 
       case REQUEST_SLOTS_VALUE =>
         val pbRequestSlots = PbRequestSlots.parseFrom(message.getPayload)

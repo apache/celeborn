@@ -30,9 +30,9 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
+import org.apache.celeborn.common.network.protocol.SerdeVersion;
 import org.apache.celeborn.common.protocol.CompressionCodec;
 import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.common.protocol.PbRegisterShuffleResponse;
 import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -90,12 +90,14 @@ public abstract class ShuffleClientBaseSuiteJ {
     primaryLocation.setPeer(replicaLocation);
 
     when(endpointRef.askSync(
-            ControlMessages.RegisterShuffle$.MODULE$.apply(TEST_SHUFFLE_ID, 1, 1),
-            ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)))
+            new ControlMessages.RegisterShuffle(TEST_SHUFFLE_ID, 1, 1, SerdeVersion.V1),
+            ClassTag$.MODULE$.apply(ControlMessages.RegisterShuffleResponse.class)))
         .thenAnswer(
             t ->
-                ControlMessages.RegisterShuffleResponse$.MODULE$.apply(
-                    StatusCode.SUCCESS, new PartitionLocation[] {primaryLocation}));
+                new ControlMessages.RegisterShuffleResponse(
+                    StatusCode.SUCCESS,
+                    new PartitionLocation[] {primaryLocation},
+                    SerdeVersion.V1));
 
     shuffleClient.setupLifecycleManagerRef(endpointRef);
     when(clientFactory.createClient(

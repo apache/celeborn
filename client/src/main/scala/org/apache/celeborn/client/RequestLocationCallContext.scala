@@ -20,6 +20,7 @@ package org.apache.celeborn.client
 import java.util
 
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.{ChangeLocationResponse, RegisterShuffleResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -64,7 +65,8 @@ case class ChangeLocationsCallContext(
   }
 }
 
-case class ApplyNewLocationCallContext(context: RpcCallContext) extends RequestLocationCallContext {
+case class ApplyNewLocationCallContext(context: RpcCallContext, serdeVersion: SerdeVersion)
+  extends RequestLocationCallContext {
   override def reply(
       partitionId: Int,
       status: StatusCode,
@@ -72,8 +74,8 @@ case class ApplyNewLocationCallContext(context: RpcCallContext) extends RequestL
       available: Boolean): Unit = {
     partitionLocationOpt match {
       case Some(partitionLocation) =>
-        context.reply(RegisterShuffleResponse(status, Array(partitionLocation)))
-      case None => context.reply(RegisterShuffleResponse(status, Array.empty))
+        context.reply(RegisterShuffleResponse(status, Array(partitionLocation), serdeVersion))
+      case None => context.reply(RegisterShuffleResponse(status, Array.empty, serdeVersion))
     }
   }
 }
