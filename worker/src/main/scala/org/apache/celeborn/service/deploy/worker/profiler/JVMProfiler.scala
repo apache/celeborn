@@ -31,7 +31,7 @@ import org.apache.celeborn.common.util.Utils
  * This allows a worker to capture CPU and memory profiles for worker which can later be analyzed for performance issues.
  * The profiler captures Java Flight Recorder (jfr) files for each worker read by tools including Java Mission Control and Intellij.
  *
- * <p> Note: The profiler writes the jfr files to the worker's working directory in the worker's local file system and the files can grow to be large so it is advisable
+ * <p>Note: The profiler writes the jfr files to the worker's working directory in the worker's local file system and the files can grow to be large so it is advisable
  * that the worker machines have adequate storage.
  *
  * <p>Note: code copied from Apache Spark.
@@ -83,6 +83,7 @@ class JVMProfiler(conf: CelebornConf) extends Logging {
     }
   }
 
+  /** Returns the directory used for storing the extracted libraries, binaries and JARs. */
   private def extractionDir: Path = {
     val extractionDirectory = applicationsDir
     if (extractionDirectory.toFile.exists()) {
@@ -92,13 +93,20 @@ class JVMProfiler(conf: CelebornConf) extends Logging {
     }
   }
 
+  /**
+   * Returns directory where applications places their files. Specific to operating system.
+   * <p>Note: copied from {@code AsyncProfilerLoader#getApplicationsDir} of ap-loader.
+   *
+   * @return Directory where applications places their files.
+   */
   private def applicationsDir: Path = {
     if (Utils.isLinux) {
       val xdgDataHome = System.getenv("XDG_DATA_HOME")
-      if (xdgDataHome != null && xdgDataHome.nonEmpty) return Paths.get(xdgDataHome)
+      if (xdgDataHome != null && xdgDataHome.nonEmpty) { return Paths.get(xdgDataHome) }
       return Paths.get(System.getProperty("user.home"), ".local", "share")
-    } else if (Utils.isMac)
+    } else if (Utils.isMac) {
       return Paths.get(System.getProperty("user.home"), "Library", "Application Support")
+    }
     throw new UnsupportedOperationException(
       s"Unsupported os ${System.getProperty("os.name").toLowerCase()}")
   }
