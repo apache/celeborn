@@ -32,7 +32,7 @@ import org.apache.celeborn.common.CelebornConf.{METRICS_JSON_PATH, METRICS_PROME
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.sink.{JsonServlet, PrometheusServlet, Sink}
 import org.apache.celeborn.common.metrics.source.Source
-import org.apache.celeborn.common.util.{ThreadUtils, Utils}
+import org.apache.celeborn.common.util.Utils
 
 class MetricsSystem(
     val instance: String,
