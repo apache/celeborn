@@ -19,8 +19,6 @@ package org.apache.celeborn.common;
 
 import static org.junit.Assert.assertEquals;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -52,17 +50,6 @@ public class CommitMetadataTest {
     assertEquals(
         CelebornCRC32.combine(CelebornCRC32.compute(data1), CelebornCRC32.compute(data2)),
         metadata1.getChecksum());
-  }
-
-  @Test
-  public void testEncodeDecode() {
-    CommitMetadata metadata = new CommitMetadata(CelebornCRC32.compute("testdata".getBytes()), 8);
-    ByteBuf buffer = Unpooled.buffer();
-    metadata.encode(buffer);
-
-    CommitMetadata decodedMetadata = CommitMetadata.decode(buffer);
-    assertEquals(metadata.getChecksum(), decodedMetadata.getChecksum());
-    assertEquals(metadata.getBytes(), decodedMetadata.getBytes());
   }
 
   @Test

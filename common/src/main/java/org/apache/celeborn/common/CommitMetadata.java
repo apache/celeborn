@@ -20,18 +20,19 @@ package org.apache.celeborn.common;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
-import io.netty.buffer.ByteBuf;
-
 public class CommitMetadata {
 
-  private AtomicLong bytes = new AtomicLong();
-  private CelebornCRC32 crc = new CelebornCRC32();
+  private final AtomicLong bytes;
+  private final CelebornCRC32 crc;
 
-  public CommitMetadata() {}
+  public CommitMetadata() {
+    this.bytes = new AtomicLong();
+    this.crc = new CelebornCRC32();
+  }
 
-  public CommitMetadata(long checksum, long numBytes) {
+  public CommitMetadata(int checksum, long numBytes) {
     this.bytes = new AtomicLong(numBytes);
-    this.crc = new CelebornCRC32((int) checksum);
+    this.crc = new CelebornCRC32(checksum);
   }
 
   public void addDataWithOffsetAndLength(byte[] rawDataBuf, int offset, int length) {
@@ -40,8 +41,12 @@ public class CommitMetadata {
   }
 
   public void addCommitData(CommitMetadata commitMetadata) {
-    this.bytes.addAndGet(commitMetadata.bytes.longValue());
-    this.crc.addChecksum(commitMetadata.getChecksum());
+    addCommitData(commitMetadata.getChecksum(), commitMetadata.getBytes());
+  }
+
+  public void addCommitData(int checksum, long numBytes) {
+    this.bytes.addAndGet(numBytes);
+    this.crc.addChecksum(checksum);
   }
 
   public int getChecksum() {
@@ -50,17 +55,6 @@ public class CommitMetadata {
 
   public long getBytes() {
     return bytes.get();
-  }
-
-  public void encode(ByteBuf buf) {
-    buf.writeLong(this.getChecksum());
-    buf.writeLong(this.bytes.get());
-  }
-
-  public static CommitMetadata decode(ByteBuf buf) {
-    long checksum = buf.readLong();
-    long numBytes = buf.readLong();
-    return new CommitMetadata(checksum, numBytes);
   }
 
   public static boolean checkCommitMetadata(CommitMetadata expected, CommitMetadata actual) {

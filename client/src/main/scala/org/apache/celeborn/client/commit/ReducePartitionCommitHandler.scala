@@ -281,7 +281,7 @@ class ReducePartitionCommitHandler(
       numPartitions: Int,
       crc32PerPartition: Array[Int],
       bytesWrittenPerPartition: Array[Long]): (Boolean, Boolean) = {
-    shuffleMapperAttempts.synchronized {
+    val (mapperAttemptFinishedSuccess, allMapperFinished) = shuffleMapperAttempts.synchronized {
       if (getMapperAttempts(shuffleId) == null) {
         logDebug(s"[handleMapperEnd] $shuffleId not registered, create one.")
         initMapperAttempts(shuffleId, numMappers, numPartitions)
@@ -290,26 +290,6 @@ class ReducePartitionCommitHandler(
       val attempts = shuffleMapperAttempts.get(shuffleId)
       if (attempts(mapId) < 0) {
         attempts(mapId) = attemptId
-        if (shuffleIntegrityCheckEnabled) {
-          val commitMetadataArray = commitMetadataForReducer.get(shuffleId)
-          checkState(
-            commitMetadataArray != null,
-            "commitMetadataArray can only be null if shuffleId %s is not registered!",
-            shuffleId)
-          for (i <- 0 until numPartitions) {
-            if (bytesWrittenPerPartition(i) != 0) {
-              val commitMetadata = commitMetadataArray(i)
-              if (commitMetadata == null) {
-                commitMetadataArray(i) =
-                  new CommitMetadata(crc32PerPartition(i), bytesWrittenPerPartition(i))
-              } else {
-                commitMetadata.addCommitData(new CommitMetadata(
-                  crc32PerPartition(i),
-                  bytesWrittenPerPartition(i)))
-              }
-            }
-          }
-        }
 
         if (null != pushFailedBatches && !pushFailedBatches.isEmpty) {
           val pushFailedBatchesMap = shufflePushFailedBatches.computeIfAbsent(
@@ -329,6 +309,22 @@ class ReducePartitionCommitHandler(
         (false, false)
       }
     }
+    if (shuffleIntegrityCheckEnabled && mapperAttemptFinishedSuccess) {
+      val commitMetadataArray = commitMetadataForReducer.get(shuffleId)
+      checkState(
+        commitMetadataArray != null,
+        "commitMetadataArray can only be null if shuffleId %s is not registered!",
+        shuffleId)
+      for (i <- 0 until numPartitions) {
+        if (bytesWrittenPerPartition(i) != 0) {
+          val commitMetadata = commitMetadataArray(i)
+          commitMetadata.addCommitData(
+            crc32PerPartition(i),
+            bytesWrittenPerPartition(i))
+        }
+      }
+    }
+    (mapperAttemptFinishedSuccess, allMapperFinished)
   }
 
   override def registerShuffle(
@@ -399,7 +395,7 @@ class ReducePartitionCommitHandler(
         shuffleMapperAttempts.put(shuffleId, attempts)
       }
       if (shuffleIntegrityCheckEnabled) {
-        commitMetadataForReducer.put(shuffleId, new Array[CommitMetadata](numPartitions))
+        commitMetadataForReducer.put(shuffleId, Array.fill(numPartitions)(new CommitMetadata()))
       }
     }
   }
