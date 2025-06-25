@@ -23,7 +23,7 @@ import java.util.zip.CRC32;
 
 public class CelebornCRC32 {
 
-  private AtomicInteger current;
+  private final AtomicInteger current;
 
   CelebornCRC32(int i) {
     this.current = new AtomicInteger(i);
