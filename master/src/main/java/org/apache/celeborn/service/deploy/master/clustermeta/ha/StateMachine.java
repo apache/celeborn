@@ -225,7 +225,7 @@ public class StateMachine extends BaseStateMachine {
 
   @VisibleForTesting
   protected org.apache.celeborn.common.protocol.PbMetaRequestResponse runCommand(
-          PbResourceRequest request, long trxLogIndex) {
+      PbResourceRequest request, long trxLogIndex) {
     try {
       return metaHandler.handleWriteRequest(request);
     } catch (Throwable e) {
