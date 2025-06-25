@@ -48,7 +48,7 @@ class LoggerSink(sources: Seq[Source], conf: CelebornConf) extends Sink with Log
 
   override def stop(): Unit = {
     if (metricScrapeThread != null) {
-      metricScrapeThread.shutdown()
+      ThreadUtils.shutdown(metricScrapeThread)
     }
   }
 
