@@ -118,14 +118,14 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
             .putAllWorkerAllocations(workerAllocations)
             .build();
 
-    org.apache.celeborn.common.protocol.ResourceRequest request =
-        org.apache.celeborn.common.protocol.ResourceRequest.newBuilder()
+    org.apache.celeborn.common.protocol.PbResourceRequest request =
+        org.apache.celeborn.common.protocol.PbResourceRequest.newBuilder()
             .setRequestSlotsRequest(requestSlots)
             .setCmdType(org.apache.celeborn.common.protocol.Type.RequestSlots)
             .setRequestId(UUID.randomUUID().toString())
             .build();
 
-    org.apache.celeborn.common.protocol.ResourceResponse response =
+    org.apache.celeborn.common.protocol.PbResourceRequest response =
         stateMachine.runCommand(request, -1);
     Assert.assertTrue(response.getSuccess());
   }
