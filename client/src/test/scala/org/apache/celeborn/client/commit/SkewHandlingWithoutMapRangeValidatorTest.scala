@@ -216,7 +216,7 @@ class SkewHandlingWithoutMapRangeValidatorTest extends CelebornFunSuite {
     val subPartitions3 = 3
 
     // Process all sub-partitions for partition1
-    val expectedMetadata1 = new CommitMetadata();
+    val expectedMetadata1 = new CommitMetadata()
     for (i <- 0 until subPartitions1) {
       val metadata = new CommitMetadata(i, 100 + i)
       validator.processSubPartition(partition1, subPartitions1, i, metadata, subPartitions1)
