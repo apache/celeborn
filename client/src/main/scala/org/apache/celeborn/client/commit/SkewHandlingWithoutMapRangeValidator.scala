@@ -84,7 +84,13 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
 
   private def updateCommitMetadata(partitionId: Int, actualCommitMetadata: CommitMetadata): Unit = {
     val currentCommitMetadata =
-      currentCommitMetadataForReducer.computeIfAbsent(partitionId, (_: Int) => new CommitMetadata())
+      currentCommitMetadataForReducer.computeIfAbsent(
+        partitionId,
+        new java.util.function.Function[Int, CommitMetadata] {
+          override def apply(partitionId: Int): CommitMetadata = {
+            new CommitMetadata()
+          }
+        })
     currentCommitMetadata.addCommitData(actualCommitMetadata)
   }
 
