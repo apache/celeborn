@@ -23,13 +23,14 @@ import one.profiler.{AsyncProfiler, AsyncProfilerLoader}
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.util.Utils
 
 /**
  * The JVM profiler provides code profiling of worker based on the the async profiler, a low overhead sampling profiler for Java.
  * This allows a worker to capture CPU and memory profiles for worker which can later be analyzed for performance issues.
  * The profiler captures Java Flight Recorder (jfr) files for each worker read by tools including Java Mission Control and Intellij.
  *
- * <p> Note: The profiler writes the jfr files to the worker's working directory in the worker's local file system and the files can grow to be large so it is advisable
+ * <p>Note: The profiler writes the jfr files to the worker's working directory in the worker's local file system and the files can grow to be large so it is advisable
  * that the worker machines have adequate storage.
  *
  * <p>Note: code copied from Apache Spark.
@@ -46,9 +47,15 @@ class JVMProfiler(conf: CelebornConf) extends Logging {
   private val startcmd = s"start,$profilerOptions,file=$profilerLocalDir/profile.jfr"
   private val stopcmd = s"stop,$profilerOptions,file=$profilerLocalDir/profile.jfr"
 
+  private lazy val extractionDir = Utils.createTempDir(profilerLocalDir, "profiler").toPath
+
   val profiler: Option[AsyncProfiler] = {
     Option(
-      if (enableProfiler && AsyncProfilerLoader.isSupported) AsyncProfilerLoader.load() else null)
+      if (enableProfiler && AsyncProfilerLoader.isSupported) {
+        logInfo(s"Profiler extraction directory: ${extractionDir.toString}.")
+        AsyncProfilerLoader.setExtractionDirectory(extractionDir)
+        AsyncProfilerLoader.load()
+      } else { null })
   }
 
   def start(): Unit = {
