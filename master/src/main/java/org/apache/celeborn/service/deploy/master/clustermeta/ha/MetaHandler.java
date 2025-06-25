@@ -34,10 +34,10 @@ import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.protocol.PbDiskInfo;
 import org.apache.celeborn.common.protocol.PbWorkerInfo;
-import org.apache.celeborn.common.protocol.ResourceRequest;
-import org.apache.celeborn.common.protocol.Status;
-import org.apache.celeborn.common.protocol.Type;
-import org.apache.celeborn.common.protocol.WorkerAddress;
+import org.apache.celeborn.common.protocol.PbResourceRequest;
+import org.apache.celeborn.common.protocol.PbMetaRequestStatus;
+import org.apache.celeborn.common.protocol.PbMetaRequestType;
+import org.apache.celeborn.common.protocol.PbWorkerAddress;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.util.CollectionUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
@@ -75,11 +75,11 @@ public class MetaHandler {
         .setSuccess(true);
   }
 
-  public static org.apache.celeborn.common.protocol.ResourceResponse.Builder
-      getMasterMetaResponseBuilder(ResourceRequest request) {
-    return org.apache.celeborn.common.protocol.ResourceResponse.newBuilder()
+  public static org.apache.celeborn.common.protocol.PbMetaRequestResponse.Builder
+      getMasterMetaResponseBuilder(PbResourceRequest request) {
+    return org.apache.celeborn.common.protocol.PbMetaRequestResponse.newBuilder()
         .setCmdType(request.getCmdType())
-        .setStatus(Status.OK)
+        .setStatus(PbMetaRequestStatus.OK)
         .setSuccess(true);
   }
 
@@ -343,10 +343,10 @@ public class MetaHandler {
     return responseBuilder.build();
   }
 
-  public org.apache.celeborn.common.protocol.ResourceResponse handleWriteRequest(
-      ResourceRequest request) {
-    Type cmdType = request.getCmdType();
-    org.apache.celeborn.common.protocol.ResourceResponse.Builder responseBuilder =
+  public org.apache.celeborn.common.protocol.PbMetaRequestResponse handleWriteRequest(
+          PbResourceRequest request) {
+    PbMetaRequestType cmdType = request.getCmdType();
+    org.apache.celeborn.common.protocol.PbMetaRequestResponse.Builder responseBuilder =
         getMasterMetaResponseBuilder(request);
     try {
       String shuffleKey;
@@ -404,6 +404,7 @@ public class MetaHandler {
           long totalWritten = request.getAppHeartbeatRequest().getTotalWritten();
           long fileCount = request.getAppHeartbeatRequest().getFileCount();
           long shuffleCount = request.getAppHeartbeatRequest().getShuffleCount();
+          long applicationCount = request.getAppHeartbeatRequest().getApplicationCount();
           LOG.debug("Handle app heartbeat for {} with shuffle count {}", appId, shuffleCount);
           Map<String, Long> shuffleFallbackCounts =
               request.getAppHeartbeatRequest().getShuffleFallbackCountsMap();
@@ -413,8 +414,17 @@ public class MetaHandler {
                 shuffleFallbackCounts.values().stream().mapToLong(v -> v).sum(),
                 appId);
           }
+          Map<String, Long> applicationFallbackCounts =
+                  request.getAppHeartbeatRequest().getApplicationFallbackCountsMap();
           metaSystem.updateAppHeartbeatMeta(
-              appId, time, totalWritten, fileCount, shuffleCount, shuffleFallbackCounts);
+                  appId,
+                  time,
+                  totalWritten,
+                  fileCount,
+                  shuffleCount,
+                  applicationCount,
+                  shuffleFallbackCounts,
+                  applicationFallbackCounts);
           break;
 
         case AppLost:
@@ -424,9 +434,9 @@ public class MetaHandler {
           break;
 
         case WorkerExclude:
-          List<WorkerAddress> addAddresses =
+          List<PbWorkerAddress> addAddresses =
               request.getWorkerExcludeRequest().getWorkersToAddList();
-          List<WorkerAddress> removeAddresses =
+          List<PbWorkerAddress> removeAddresses =
               request.getWorkerExcludeRequest().getWorkersToRemoveList();
           List<WorkerInfo> workersToAdd =
               addAddresses.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
@@ -575,11 +585,11 @@ public class MetaHandler {
         default:
           throw new IOException("Can not parse this command!" + request);
       }
-      responseBuilder.setStatus(Status.OK);
+      responseBuilder.setStatus(PbMetaRequestStatus.OK);
     } catch (IOException e) {
       LOG.warn("Handle meta write request {} failed!", cmdType, e);
       responseBuilder.setSuccess(false);
-      responseBuilder.setStatus(Status.INTERNAL_ERROR);
+      responseBuilder.setStatus(PbMetaRequestStatus.INTERNAL_ERROR);
       if (e.getMessage() != null) {
         responseBuilder.setMessage(e.getMessage());
       }

@@ -461,7 +461,7 @@ message PbApplicationLostResponse {
   int32 status = 1;
 }
 
-message HeartbeatInfo {
+message PbHeartbeatInfo {
   string appId = 1;
   int64 totalWritten = 2;
   int64 fileCount = 3;
@@ -480,7 +480,7 @@ message PbHeartbeatFromApplication {
   map<string, int64> shuffleFallbackCounts = 8;
   int64 applicationCount = 9;
   map<string, int64> applicationFallbackCounts = 10;
-  HeartbeatInfo heartbeatInfo = 11;
+  PbHeartbeatInfo heartbeatInfo = 11;
 }
 
 message PbHeartbeatFromApplicationResponse {
@@ -949,7 +949,7 @@ message PbReadReducerPartitionEndResponse {
   string errorMsg = 2;
 }
 
-enum Type {
+enum PbMetaRequestType {
   Unknown = 0;
 
   UnRegisterShuffle = 12;
@@ -976,8 +976,8 @@ enum Type {
   ReviseLostShuffles = 29;
 }
 
-message ResourceRequest {
-  Type cmdType = 1; // Type of the command
+message PbResourceRequest {
+  PbMetaRequestType cmdType = 1; // Type of the command
 
   optional string requestId = 2;
 
@@ -985,15 +985,15 @@ message ResourceRequest {
   // deprecated
   optional PbReleaseSlots releaseSlotsRequest = 11;
   optional PbUnregisterShuffle unregisterShuffleRequest = 12;
-  optional AppHeartbeatRequest appHeartbeatRequest = 13;
+  optional PbAppHeartbeatRequest appHeartbeatRequest = 13;
   optional PbApplicationLost appLostRequest = 14;
-  optional WorkerAddress workerLostRequest = 15;
+  optional PbWorkerAddress workerLostRequest = 15;
   optional PbHeartbeatFromWorker workerHeartbeatRequest = 16;
   optional PbRegisterWorker registerWorkerRequest = 17;
   optional PbReportWorkerUnavailable reportWorkerUnavailableRequest = 18;
-  optional WorkerAddress workerRemoveRequest = 19;
+  optional PbWorkerAddress workerRemoveRequest = 19;
   optional PbRemoveWorkersUnavailableInfo removeWorkersUnavailableInfoRequest = 20;
-  optional WorkerExcludeRequest workerExcludeRequest = 21;
+  optional PbWorkerExcludeRequest workerExcludeRequest = 21;
   optional PbWorkerEventRequest workerEventRequest = 22;
   optional PbApplicationMeta applicationMetaRequest = 23;
   optional PbReportWorkerDecommission reportWorkerDecommissionRequest = 24;
@@ -1007,22 +1007,24 @@ message RequestSlotsRequest {
   map<string, PbSlotInfo> workerAllocations = 3;
 }
 
-message AppHeartbeatRequest {
+message PbAppHeartbeatRequest {
   string appId = 1;
   int64 time = 2;
   int64 totalWritten = 3;
   int64 fileCount = 4;
   optional int64 shuffleCount = 5;
   map<string, int64> shuffleFallbackCounts = 6;
-  HeartbeatInfo heartbeatInfo = 7;
+  PbHeartbeatInfo heartbeatInfo = 7;
+  optional int64 applicationCount = 8;
+  map<string, int64> applicationFallbackCounts = 9;
 }
 
-message WorkerExcludeRequest {
-  repeated WorkerAddress workersToAdd = 1;
-  repeated WorkerAddress workersToRemove = 2;
+message PbWorkerExcludeRequest {
+  repeated PbWorkerAddress workersToAdd = 1;
+  repeated PbWorkerAddress workersToRemove = 2;
 }
 
-message WorkerAddress {
+message PbWorkerAddress {
   string host = 1;
   int32 rpcPort = 2;
   int32 pushPort = 3;
@@ -1031,19 +1033,19 @@ message WorkerAddress {
   int32 internalPort = 6;
 }
 
-enum Status {
+enum PbMetaRequestStatus {
   UNKNOWN = 0;
   OK = 1;
   INTERNAL_ERROR= 2;
 }
 
-message ResourceResponse {
-  Type cmdType = 1; // Type of the command
+message PbMetaRequestResponse {
+  PbMetaRequestType cmdType = 1; // Type of the command
 
   optional bool success = 2;
 
   optional string message = 3;
 
-  Status status = 4;
+  PbMetaRequestStatus status = 4;
 }
 
