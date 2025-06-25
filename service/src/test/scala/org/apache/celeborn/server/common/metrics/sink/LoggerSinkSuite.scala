@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.server.common.metrics.sink
 
+import org.apache.logging.log4j.message.SimpleMessage
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.MetricsSystem
@@ -122,7 +124,8 @@ class LoggerSinkSuite extends CelebornFunSuite {
       metricsSystem.stop()
     }
     val validOutput = logAppender.loggingEvents
-      .filter(_.getMessage.getFormattedMessage.contains("scraped metrics"))
+      .filter(
+        _.getMessage.asInstanceOf[SimpleMessage].getFormattedMessage.contains("scraped metrics"))
     assert(validOutput.size > 0)
   }
 }
