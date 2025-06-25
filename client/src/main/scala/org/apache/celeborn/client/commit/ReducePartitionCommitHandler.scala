@@ -87,7 +87,7 @@ class ReducePartitionCommitHandler(
   // partitionId-shuffleId -> number of mappers that have written to this reducer (partition + shuffle)
   private val commitMetadataForReducer =
     JavaUtils.newConcurrentHashMap[Integer, Array[CommitMetadata]]
-  private val aqePartitionCompletenessValidator =
+  private val skewPartitionCompletenessValidator =
     JavaUtils.newConcurrentHashMap[Int, PartitionCompletenessValidator]()
 
   private val getReducerFileGroupResponseBroadcastEnabled = conf.getReducerFileGroupBroadcastEnabled
@@ -370,7 +370,7 @@ class ReducePartitionCommitHandler(
     val splitSkewPartitionWithoutMapRange =
       ClientUtils.readSkewPartitionWithoutMapRange(conf, startMapIndex, endMapIndex)
 
-    val validator = aqePartitionCompletenessValidator.computeIfAbsent(
+    val validator = skewPartitionCompletenessValidator.computeIfAbsent(
       shuffleId,
       new java.util.function.Function[Int, PartitionCompletenessValidator] {
         override def apply(key: Int): PartitionCompletenessValidator =
