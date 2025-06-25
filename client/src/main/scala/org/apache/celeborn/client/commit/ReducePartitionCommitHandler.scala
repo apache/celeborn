@@ -317,8 +317,7 @@ class ReducePartitionCommitHandler(
         shuffleId)
       for (i <- 0 until numPartitions) {
         if (bytesWrittenPerPartition(i) != 0) {
-          val commitMetadata = commitMetadataArray(i)
-          commitMetadata.addCommitData(
+          commitMetadataArray(i).addCommitData(
             crc32PerPartition(i),
             bytesWrittenPerPartition(i))
         }

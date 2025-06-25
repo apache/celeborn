@@ -110,10 +110,8 @@ class SkewHandlingWithoutMapRangeValidatorTest extends CelebornFunSuite {
     val metadata = new CommitMetadata()
 
     // This should throw IllegalArgumentException
-    try {
+    intercept[IllegalArgumentException] {
       validator.processSubPartition(partitionId, startMapIndex, endMapIndex, metadata, 20)
-    } catch {
-      case e: IllegalArgumentException => e.isInstanceOf[IllegalArgumentException] shouldBe true
     }
   }
 
@@ -127,10 +125,8 @@ class SkewHandlingWithoutMapRangeValidatorTest extends CelebornFunSuite {
     validator.processSubPartition(partitionId, 10, 0, metadata, 10)
 
     // Second call with different startMapIndex, which should fail
-    try {
+    intercept[IllegalStateException] {
       validator.processSubPartition(partitionId, 12, 1, metadata, 12)
-    } catch {
-      case e: IllegalStateException => e.isInstanceOf[IllegalStateException] shouldBe true
     }
   }
 
@@ -197,15 +193,13 @@ class SkewHandlingWithoutMapRangeValidatorTest extends CelebornFunSuite {
     // Try to process one more sub-partition, which should exceed the total count
     val extraMetadata = new CommitMetadata()
     // This should throw IllegalStateException
-    try {
+    intercept[IllegalArgumentException] {
       validator.processSubPartition(
         partitionId,
         startMapIndex,
         startMapIndex,
         extraMetadata,
         startMapIndex)
-    } catch {
-      case e: IllegalArgumentException => e.isInstanceOf[IllegalArgumentException] shouldBe true
     }
   }
 
@@ -230,7 +224,7 @@ class SkewHandlingWithoutMapRangeValidatorTest extends CelebornFunSuite {
     }
 
     // Process all sub-partitions for partition2
-    val expectedMetadata2 = new CommitMetadata();
+    val expectedMetadata2 = new CommitMetadata()
     for (i <- 0 until subPartitions2) {
       val metadata = new CommitMetadata(i + 1, 200 + i)
       validator.processSubPartition(partition2, subPartitions2, i, metadata, subPartitions2)
@@ -238,7 +232,7 @@ class SkewHandlingWithoutMapRangeValidatorTest extends CelebornFunSuite {
     }
 
     // Process only some sub-partitions for partition3
-    val expectedMetadata3 = new CommitMetadata();
+    val expectedMetadata3 = new CommitMetadata()
     for (i <- 0 until subPartitions3 - 1) { // Deliberately leave one out
       val metadata = new CommitMetadata(i + 2, 300 + i)
       validator.processSubPartition(partition3, subPartitions3, i, metadata, subPartitions3)
