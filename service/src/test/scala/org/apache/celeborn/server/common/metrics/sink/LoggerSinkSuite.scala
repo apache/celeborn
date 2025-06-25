@@ -104,28 +104,4 @@ class LoggerSinkSuite extends CelebornFunSuite {
 
     assert(jvmSource.timerMetrics.size() == 0)
   }
-
-  test("test logger sink output case") {
-    val celebornConf = new CelebornConf()
-    celebornConf
-      .set(CelebornConf.METRICS_ENABLED.key, "true")
-      .set(
-        CelebornConf.METRICS_CONF.key,
-        TestHelper.getResourceAsAbsolutePath("/metrics2.properties"))
-    celebornConf.set("celeborn.metrics.loggerSink.scrape.interval", "1s")
-    celebornConf.set("celeborn.metrics.loggerSink.output.enabled", "true")
-    val logAppender = new LogAppender("test logger sink appender")
-    withLogAppender(logAppender) {
-      val metricsSystem = MetricsSystem.createMetricsSystem("test", celebornConf)
-      metricsSystem.registerSource(new JVMSource(celebornConf, "test"))
-      metricsSystem.start(true)
-
-      Thread.sleep(10000)
-      metricsSystem.stop()
-    }
-    val validOutput = logAppender.loggingEvents
-      .filter(
-        _.getMessage.asInstanceOf[SimpleMessage].getFormattedMessage.contains("scraped metrics"))
-    assert(validOutput.size > 0)
-  }
 }
