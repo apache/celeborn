@@ -30,7 +30,7 @@ import org.apache.celeborn.common.protocol.PbDiskInfo;
 import org.apache.celeborn.common.protocol.PbWorkerInfo;
 import org.apache.celeborn.common.protocol.PbWorkerStatus;
 import org.apache.celeborn.common.protocol.StorageInfo;
-import org.apache.celeborn.common.protocol.WorkerAddress;
+import org.apache.celeborn.common.protocol.PbWorkerAddress;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.util.CollectionUtils;
 import org.apache.celeborn.common.util.Utils;
@@ -48,7 +48,7 @@ public class MetaUtil {
         address.getInternalPort());
   }
 
-  public static WorkerInfo addrToInfo(WorkerAddress address) {
+  public static WorkerInfo addrToInfo(PbWorkerAddress address) {
     return new WorkerInfo(
         address.getHost(),
         address.getRpcPort(),
