@@ -366,8 +366,6 @@ object Utils extends Logging {
     arr
   }
 
-  val isLinux: Boolean = SystemUtils.IS_OS_LINUX
-
   val isWindows: Boolean = SystemUtils.IS_OS_WINDOWS
 
   val isMac: Boolean = SystemUtils.IS_OS_MAC_OSX

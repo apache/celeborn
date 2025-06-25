@@ -18,7 +18,6 @@
 package org.apache.celeborn.service.deploy.worker.profiler
 
 import java.io.IOException
-import java.nio.file.{Path, Paths}
 
 import one.profiler.{AsyncProfiler, AsyncProfilerLoader}
 
@@ -48,12 +47,15 @@ class JVMProfiler(conf: CelebornConf) extends Logging {
   private val startcmd = s"start,$profilerOptions,file=$profilerLocalDir/profile.jfr"
   private val stopcmd = s"stop,$profilerOptions,file=$profilerLocalDir/profile.jfr"
 
+  private lazy val extractionDir = Utils.createTempDir(profilerLocalDir, "profiler").toPath
+
   val profiler: Option[AsyncProfiler] = {
     Option(
       if (enableProfiler && AsyncProfilerLoader.isSupported) {
+        logInfo(s"Profiler extraction directory: ${extractionDir.toString}.")
         AsyncProfilerLoader.setExtractionDirectory(extractionDir)
         AsyncProfilerLoader.load()
-      } else null)
+      } else { null })
   }
 
   def start(): Unit = {
@@ -81,33 +83,5 @@ class JVMProfiler(conf: CelebornConf) extends Logging {
         running = false
       })
     }
-  }
-
-  /** Returns the directory used for storing the extracted libraries, binaries and JARs. */
-  private def extractionDir: Path = {
-    val extractionDirectory = applicationsDir
-    if (extractionDirectory.toFile.exists()) {
-      extractionDirectory
-    } else {
-      Utils.createTempDir(conf.workerWorkingDir, "profiler").toPath
-    }
-  }
-
-  /**
-   * Returns directory where applications places their files. Specific to operating system.
-   * <p>Note: copied from {@code AsyncProfilerLoader#getApplicationsDir} of ap-loader.
-   *
-   * @return Directory where applications places their files.
-   */
-  private def applicationsDir: Path = {
-    if (Utils.isLinux) {
-      val xdgDataHome = System.getenv("XDG_DATA_HOME")
-      if (xdgDataHome != null && xdgDataHome.nonEmpty) { return Paths.get(xdgDataHome) }
-      return Paths.get(System.getProperty("user.home"), ".local", "share")
-    } else if (Utils.isMac) {
-      return Paths.get(System.getProperty("user.home"), "Library", "Application Support")
-    }
-    throw new UnsupportedOperationException(
-      s"Unsupported os ${System.getProperty("os.name").toLowerCase()}")
   }
 }
