@@ -103,6 +103,10 @@ license: |
     worker nodes, clients prior to 0.6.0 may inadvertently utilize memory storage for an application even when memory 
     storage is not enabled for that app.
 
+- Since 0.6.0, we have add a new sink `org.apache.celeborn.common.metrics.sink.LoggerSink` to make sure that Celeborn 
+    metrics will be scraped periodcally. It's recommend to enable this sink to make sure that worker's metrics data won't
+    be too large to cause worker OOM. Don't forget to update the metrics.properties file when updating Celeborn cluster.
+
 ## Upgrading from 0.5.0 to 0.5.1
 
 - Since 0.5.1, Celeborn master REST API `/exclude` request uses media type `application/x-www-form-urlencoded` instead of `text/plain`.

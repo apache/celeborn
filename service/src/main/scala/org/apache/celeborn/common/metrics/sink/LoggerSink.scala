@@ -24,8 +24,13 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.source.Source
 import org.apache.celeborn.common.util.ThreadUtils
 
+/**
+ * This sink is not follow the strandard sink interface. It has the duty to clean internal state.
+ * @param sources
+ * @param conf
+ */
 class LoggerSink(sources: Seq[Source], conf: CelebornConf) extends Sink with Logging {
-  private val metricsLoggerSinkScrapeOutputEnabled = conf.metricsLoggerSinkScrapeSaveEnabled
+  private val metricsLoggerSinkScrapeOutputEnabled = conf.metricsLoggerSinkScrapeOutputEnabled
   private val metricsLoggerSinkScrapeInterval = conf.metricsLoggerSinkScrapeInterval
   var metricScrapeThread: ScheduledExecutorService = null
   override def start(): Unit = {
@@ -36,6 +41,9 @@ class LoggerSink(sources: Seq[Source], conf: CelebornConf) extends Sink with Log
         override def run(): Unit = {
           if (metricsLoggerSinkScrapeOutputEnabled) {
             sources.foreach { source =>
+              // The method `source.getMetrics` will clear `timeMetric` queue.
+              // This is essential because the queue can be large enough
+              // to cause the worker run out of memory
               logInfo(s"Source ${source.sourceName} scraped metrics: ${source.getMetrics}")
             }
           }
