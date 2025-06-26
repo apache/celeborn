@@ -111,15 +111,15 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
         new WorkerInfo("host3", 3, 4, 5, 12).toUniqueId(),
         PbSlotInfo.newBuilder().putAllSlot(allocations).build());
 
-    org.apache.celeborn.common.protocol.RequestSlotsRequest requestSlots =
-        org.apache.celeborn.common.protocol.RequestSlotsRequest.newBuilder()
+    org.apache.celeborn.common.protocol.PbMetaRequestSlotsRequest requestSlots =
+        org.apache.celeborn.common.protocol.PbMetaRequestSlotsRequest.newBuilder()
             .setShuffleKey("appId-1-1")
             .setHostName("hostname")
             .putAllWorkerAllocations(workerAllocations)
             .build();
 
-    org.apache.celeborn.common.protocol.PbResourceRequest request =
-        org.apache.celeborn.common.protocol.PbResourceRequest.newBuilder()
+    org.apache.celeborn.common.protocol.PbMetaRequest request =
+        org.apache.celeborn.common.protocol.PbMetaRequest.newBuilder()
             .setRequestSlotsRequest(requestSlots)
             .setCmdType(org.apache.celeborn.common.protocol.PbMetaRequestType.RequestSlots)
             .setRequestId(UUID.randomUUID().toString())

@@ -54,7 +54,7 @@ import org.apache.ratis.util.MD5FileUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.celeborn.common.protocol.PbResourceRequest;
+import org.apache.celeborn.common.protocol.PbMetaRequest;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
@@ -225,7 +225,7 @@ public class StateMachine extends BaseStateMachine {
 
   @VisibleForTesting
   protected org.apache.celeborn.common.protocol.PbMetaRequestResponse runCommand(
-      PbResourceRequest request, long trxLogIndex) {
+      PbMetaRequest request, long trxLogIndex) {
     try {
       return metaHandler.handleWriteRequest(request);
     } catch (Throwable e) {

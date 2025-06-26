@@ -976,16 +976,16 @@ enum PbMetaRequestType {
   ReviseLostShuffles = 29;
 }
 
-message PbResourceRequest {
+message PbMetaRequest {
   PbMetaRequestType cmdType = 1; // Type of the command
 
   optional string requestId = 2;
 
-  optional RequestSlotsRequest requestSlotsRequest = 10;
+  optional PbMetaRequestSlotsRequest requestSlotsRequest = 10;
   // deprecated
   optional PbReleaseSlots releaseSlotsRequest = 11;
   optional PbUnregisterShuffle unregisterShuffleRequest = 12;
-  optional PbAppHeartbeatRequest appHeartbeatRequest = 13;
+  optional PbMetaAppHeartbeatRequest appHeartbeatRequest = 13;
   optional PbApplicationLost appLostRequest = 14;
   optional PbWorkerAddress workerLostRequest = 15;
   optional PbHeartbeatFromWorker workerHeartbeatRequest = 16;
@@ -993,7 +993,7 @@ message PbResourceRequest {
   optional PbReportWorkerUnavailable reportWorkerUnavailableRequest = 18;
   optional PbWorkerAddress workerRemoveRequest = 19;
   optional PbRemoveWorkersUnavailableInfo removeWorkersUnavailableInfoRequest = 20;
-  optional PbWorkerExcludeRequest workerExcludeRequest = 21;
+  optional PbMetaWorkerExcludeRequest workerExcludeRequest = 21;
   optional PbWorkerEventRequest workerEventRequest = 22;
   optional PbApplicationMeta applicationMetaRequest = 23;
   optional PbReportWorkerDecommission reportWorkerDecommissionRequest = 24;
@@ -1001,13 +1001,13 @@ message PbResourceRequest {
   optional PbReviseLostShuffles reviseLostShufflesRequest = 102;
 }
 
-message RequestSlotsRequest {
+message PbMetaRequestSlotsRequest {
   string shuffleKey = 1;
   string hostName = 2;
   map<string, PbSlotInfo> workerAllocations = 3;
 }
 
-message PbAppHeartbeatRequest {
+message PbMetaAppHeartbeatRequest {
   string appId = 1;
   int64 time = 2;
   int64 totalWritten = 3;
@@ -1019,7 +1019,7 @@ message PbAppHeartbeatRequest {
   map<string, int64> applicationFallbackCounts = 9;
 }
 
-message PbWorkerExcludeRequest {
+message PbMetaWorkerExcludeRequest {
   repeated PbWorkerAddress workersToAdd = 1;
   repeated PbWorkerAddress workersToRemove = 2;
 }
