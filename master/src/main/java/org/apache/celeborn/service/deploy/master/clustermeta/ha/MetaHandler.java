@@ -32,12 +32,7 @@ import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
-import org.apache.celeborn.common.protocol.PbDiskInfo;
-import org.apache.celeborn.common.protocol.PbMetaRequestStatus;
-import org.apache.celeborn.common.protocol.PbMetaRequestType;
-import org.apache.celeborn.common.protocol.PbResourceRequest;
-import org.apache.celeborn.common.protocol.PbWorkerAddress;
-import org.apache.celeborn.common.protocol.PbWorkerInfo;
+import org.apache.celeborn.common.protocol.*;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.util.CollectionUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
@@ -76,7 +71,7 @@ public class MetaHandler {
   }
 
   public static org.apache.celeborn.common.protocol.PbMetaRequestResponse.Builder
-      getMasterMetaResponseBuilder(PbResourceRequest request) {
+      getMasterMetaResponseBuilder(PbMetaRequest request) {
     return org.apache.celeborn.common.protocol.PbMetaRequestResponse.newBuilder()
         .setCmdType(request.getCmdType())
         .setStatus(PbMetaRequestStatus.OK)
@@ -344,7 +339,7 @@ public class MetaHandler {
   }
 
   public org.apache.celeborn.common.protocol.PbMetaRequestResponse handleWriteRequest(
-      PbResourceRequest request) {
+      PbMetaRequest request) {
     PbMetaRequestType cmdType = request.getCmdType();
     org.apache.celeborn.common.protocol.PbMetaRequestResponse.Builder responseBuilder =
         getMasterMetaResponseBuilder(request);
