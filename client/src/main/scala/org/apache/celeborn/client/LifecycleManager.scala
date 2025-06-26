@@ -444,7 +444,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           pushFailedBatch,
           numPartitions,
           crc32PerPartition,
-          bytesWrittenPerPartition) =>
+          bytesWrittenPerPartition,
+          serdeVersion) =>
       logTrace(s"Received MapperEnd TaskEnd request, " +
         s"${Utils.makeMapKey(shuffleId, mapId, attemptId)}")
       val partitionType = getPartitionType(shuffleId)
@@ -459,7 +460,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             pushFailedBatch,
             numPartitions,
             crc32PerPartition,
-            bytesWrittenPerPartition)
+            bytesWrittenPerPartition,
+            serdeVersion)
         case PartitionType.MAP =>
           handleMapPartitionEnd(
             context,
@@ -467,7 +469,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             mapId,
             attemptId,
             partitionId,
-            numMappers)
+            numMappers,
+            serdeVersion)
         case _ =>
           throw new UnsupportedOperationException(s"Not support $partitionType yet")
       }
@@ -935,7 +938,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       pushFailedBatches: util.Map[String, LocationPushFailedBatches],
       numPartitions: Int,
       crc32PerPartition: Array[Int],
-      bytesWrittenPerPartition: Array[Long]): Unit = {
+      bytesWrittenPerPartition: Array[Long],
+      serdeVersion: SerdeVersion): Unit = {
 
     val (mapperAttemptFinishedSuccess, allMapperFinished) =
       commitManager.finishMapperAttempt(
@@ -955,7 +959,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
 
     // reply success
-    context.reply(MapperEndResponse(StatusCode.SUCCESS))
+    context.reply(MapperEndResponse(StatusCode.SUCCESS, serdeVersion))
   }
 
   private def handleGetReducerFileGroup(
@@ -1224,7 +1228,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       mapId: Int,
       attemptId: Int,
       partitionId: Int,
-      numMappers: Int): Unit = {
+      numMappers: Int,
+      serdeVersion: SerdeVersion): Unit = {
     def reply(result: Boolean): Unit = {
       val message =
         s"to handle MapPartitionEnd for ${Utils.makeMapKey(shuffleId, mapId, attemptId)}, " +
@@ -1232,10 +1237,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       result match {
         case true => // if already committed by another try
           logDebug(s"Succeed $message")
-          context.reply(MapperEndResponse(StatusCode.SUCCESS))
+          context.reply(MapperEndResponse(StatusCode.SUCCESS, serdeVersion))
         case false =>
           logError(s"Failed $message, reply ${StatusCode.SHUFFLE_DATA_LOST}.")
-          context.reply(MapperEndResponse(StatusCode.SHUFFLE_DATA_LOST))
+          context.reply(MapperEndResponse(StatusCode.SHUFFLE_DATA_LOST, serdeVersion))
       }
     }
 

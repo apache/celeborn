@@ -28,6 +28,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.{MasterEndpointResolver, StaticMasterEndpointResolver}
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.DefaultIdentityProvider
+import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, MapperEnd}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -149,7 +150,7 @@ class UtilsSuite extends CelebornFunSuite {
 
   test("MapperEnd class convert with pb") {
     val mapperEnd =
-      MapperEnd(1, 1, 1, 2, 1, Collections.emptyMap(), 1, Array.emptyIntArray, Array.emptyLongArray)
+      MapperEnd(1, 1, 1, 2, 1, Collections.emptyMap(), 1, Array.emptyIntArray, Array.emptyLongArray, SerdeVersion.V1)
     val mapperEndTrans =
       Utils.fromTransportMessage(Utils.toTransportMessage(mapperEnd)).asInstanceOf[MapperEnd]
     assert(mapperEnd.shuffleId == mapperEndTrans.shuffleId)

@@ -263,7 +263,8 @@ object ControlMessages extends Logging {
       failedBatchSet: util.Map[String, LocationPushFailedBatches],
       numPartitions: Int,
       crc32PerPartition: Array[Int],
-      bytesWrittenPerPartition: Array[Long])
+      bytesWrittenPerPartition: Array[Long],
+      serdeVersion: SerdeVersion)
     extends MasterMessage
 
   case class ReadReducerPartitionEnd(
@@ -275,7 +276,7 @@ object ControlMessages extends Logging {
       bytesWritten: Long)
     extends MasterMessage
 
-  case class MapperEndResponse(status: StatusCode) extends MasterMessage
+  case class MapperEndResponse(status: StatusCode, serdeVersion: SerdeVersion) extends MasterMessage
 
   case class ReadReducerPartitionEndResponse(status: StatusCode) extends MasterMessage
 
@@ -758,7 +759,8 @@ object ControlMessages extends Logging {
           pushFailedBatch,
           numPartitions,
           crc32PerPartition,
-          bytesWrittenPerPartition) =>
+          bytesWrittenPerPartition,
+          serdeVersion) =>
       val pushFailedMap = pushFailedBatch.asScala.map { case (k, v) =>
         val resultValue = PbSerDeUtils.toPbLocationPushFailedBatches(v)
         (k, resultValue)
@@ -775,13 +777,13 @@ object ControlMessages extends Logging {
         .addAllBytesWrittenPerPartition(bytesWrittenPerPartition.map(
           java.lang.Long.valueOf).toSeq.asJava)
         .build().toByteArray
-      new TransportMessage(MessageType.MAPPER_END, payload)
+      new TransportMessage(MessageType.MAPPER_END, payload, serdeVersion)
 
-    case MapperEndResponse(status) =>
+    case MapperEndResponse(status, serdeVersion) =>
       val payload = PbMapperEndResponse.newBuilder()
         .setStatus(status.getValue)
         .build().toByteArray
-      new TransportMessage(MessageType.MAPPER_END_RESPONSE, payload)
+      new TransportMessage(MessageType.MAPPER_END_RESPONSE, payload, serdeVersion)
 
     // todo: ref this...
     case GetReducerFileGroup(shuffleId, isSegmentGranularityVisible, serdeVersion) =>
@@ -1230,7 +1232,8 @@ object ControlMessages extends Logging {
           }.toMap.asJava,
           pbMapperEnd.getNumPartitions,
           crc32Array,
-          bytesWrittenPerPartitionArray)
+          bytesWrittenPerPartitionArray,
+          message.getSerdeVersion)
 
       case READ_REDUCER_PARTITION_END_VALUE =>
         val pbReadReducerPartitionEnd = PbReadReducerPartitionEnd.parseFrom(message.getPayload)
@@ -1247,7 +1250,9 @@ object ControlMessages extends Logging {
 
       case MAPPER_END_RESPONSE_VALUE =>
         val pbMapperEndResponse = PbMapperEndResponse.parseFrom(message.getPayload)
-        MapperEndResponse(StatusCode.fromValue(pbMapperEndResponse.getStatus))
+        MapperEndResponse(
+          StatusCode.fromValue(pbMapperEndResponse.getStatus),
+          message.getSerdeVersion)
 
       case GET_REDUCER_FILE_GROUP_VALUE =>
         val pbGetReducerFileGroup = PbGetReducerFileGroup.parseFrom(message.getPayload)
