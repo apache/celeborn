@@ -39,11 +39,11 @@ class LoggerSink(sources: Seq[Source], conf: CelebornConf) extends Sink with Log
       new Runnable {
         override def run(): Unit = {
           sources.foreach { source =>
+            // The method `source.getMetrics` will clear `timeMetric` queue.
+            // This is essential because the queue can be large enough
+            // to cause the worker run out of memory
             val metricsData = source.getMetrics
             if (metricsLoggerSinkScrapeOutputEnabled) {
-              // The method `source.getMetrics` will clear `timeMetric` queue.
-              // This is essential because the queue can be large enough
-              // to cause the worker run out of memory
               logInfo(s"Source ${source.sourceName} scraped metrics: ${metricsData}")
             }
           }
