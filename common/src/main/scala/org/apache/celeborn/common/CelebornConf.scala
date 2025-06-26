@@ -5643,7 +5643,9 @@ object CelebornConf extends Logging {
     buildConf("celeborn.metrics.loggerSink.scrape.interval")
       .categories("metrics")
       .version("0.6.0")
-      .doc("The interval of logger sink to scrape its own metrics.")
+      .doc("The interval of logger sink to scrape its own metrics. " +
+        "This config will have effect if you enabled logger sink. " +
+        "If you will not scrape metrics periodically, do enable logger sink.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30min")
 
@@ -5651,7 +5653,9 @@ object CelebornConf extends Logging {
     buildConf("celeborn.metrics.loggerSink.output.enabled")
       .categories("metrics")
       .version("0.6.0")
-      .doc("Whether to output scraped metrics to the logger.")
+      .doc("Whether to output scraped metrics to the logger. " +
+        "This config will have effect if you enabled logger sink." +
+        "If you will not scrape metrics periodically, do enable logger sink.")
       .booleanConf
       .createWithDefault(false)
 
