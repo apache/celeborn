@@ -26,8 +26,8 @@ license: |
 | celeborn.metrics.extraLabels |  | false | If default metric labels are not enough, extra metric labels can be customized. Labels' pattern is: `<label1_key>=<label1_value>[,<label2_key>=<label2_value>]*`; e.g. `env=prod,version=1` | 0.3.0 |  | 
 | celeborn.metrics.json.path | /metrics/json | false | URI context path of json metrics HTTP server. | 0.4.0 |  | 
 | celeborn.metrics.json.pretty.enabled | true | false | When true, view metrics in json pretty format | 0.4.0 |  | 
-| celeborn.metrics.loggerSink.output.enabled | false | false | Whether to output scraped metrics to the logger. This config will have effect if you enabled logger sink.If you will not scrape metrics periodically, do enable logger sink. | 0.6.0 |  | 
-| celeborn.metrics.loggerSink.scrape.interval | 30min | false | The interval of logger sink to scrape its own metrics. This config will have effect if you enabled logger sink. If you will not scrape metrics periodically, do enable logger sink. | 0.6.0 |  | 
+| celeborn.metrics.loggerSink.output.enabled | false | false | Whether to output scraped metrics to the logger. This config will have effect if you enabled logger sink.If you will not scrape metrics periodically, do add `org.apache.celeborn.common.metrics.sink.LoggerSink` to metrics.properties. | 0.6.0 |  | 
+| celeborn.metrics.loggerSink.scrape.interval | 30min | false | The interval of logger sink to scrape its own metrics. This config will have effect if you enabled logger sink. If you will not scrape metrics periodically, do add `org.apache.celeborn.common.metrics.sink.LoggerSink` to metrics.properties. | 0.6.0 |  | 
 | celeborn.metrics.prometheus.path | /metrics/prometheus | false | URI context path of prometheus metrics HTTP server. | 0.4.0 |  | 
 | celeborn.metrics.sample.rate | 1.0 | false | It controls if Celeborn collect timer metrics for some operations. Its value should be in [0.0, 1.0]. | 0.2.0 |  | 
 | celeborn.metrics.timer.slidingWindow.size | 4096 | false | The sliding window size of timer metric. | 0.2.0 |  | 
