@@ -104,7 +104,7 @@ license: |
     storage is not enabled for that app.
 
 - Since 0.6.0, we have added a new sink `org.apache.celeborn.common.metrics.sink.LoggerSink` to make sure that Celeborn 
-    metrics will be scraped periodically. It's recommend to enable this sink to make sure that worker's metrics data won't
+    metrics will be scraped periodically. It's recommended to enable this sink to make sure that worker's metrics data won't
     be too large to cause worker OOM if you don't have a collector to scrape metrics periodically. Don't forget to update 
     the `metrics.conf`.
 
