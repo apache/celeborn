@@ -40,6 +40,7 @@ import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.protocol.PbSlotInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -88,6 +89,44 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
             .build();
 
     ResourceResponse response = stateMachine.runCommand(request, -1);
+    Assert.assertTrue(response.getSuccess());
+  }
+
+  @Test
+  public void testRunCommandByTransportMessage() {
+    StateMachine stateMachine = ratisServer.getMasterStateMachine();
+
+    Map<String, Integer> allocations = new HashMap<>();
+    allocations.put("disk1", 15);
+    allocations.put("disk2", 20);
+
+    Map<String, PbSlotInfo> workerAllocations = new HashMap<>();
+    workerAllocations.put(
+        new WorkerInfo("host1", 1, 2, 3, 10).toUniqueId(),
+        PbSlotInfo.newBuilder().putAllSlot(allocations).build());
+    workerAllocations.put(
+        new WorkerInfo("host2", 2, 3, 4, 11).toUniqueId(),
+        PbSlotInfo.newBuilder().putAllSlot(allocations).build());
+    workerAllocations.put(
+        new WorkerInfo("host3", 3, 4, 5, 12).toUniqueId(),
+        PbSlotInfo.newBuilder().putAllSlot(allocations).build());
+
+    org.apache.celeborn.common.protocol.PbMetaRequestSlotsRequest requestSlots =
+        org.apache.celeborn.common.protocol.PbMetaRequestSlotsRequest.newBuilder()
+            .setShuffleKey("appId-1-1")
+            .setHostName("hostname")
+            .putAllWorkerAllocations(workerAllocations)
+            .build();
+
+    org.apache.celeborn.common.protocol.PbMetaRequest request =
+        org.apache.celeborn.common.protocol.PbMetaRequest.newBuilder()
+            .setRequestSlotsRequest(requestSlots)
+            .setCmdType(org.apache.celeborn.common.protocol.PbMetaRequestType.RequestSlots)
+            .setRequestId(UUID.randomUUID().toString())
+            .build();
+
+    org.apache.celeborn.common.protocol.PbMetaRequestResponse response =
+        stateMachine.runCommand(request, -1);
     Assert.assertTrue(response.getSuccess());
   }
 

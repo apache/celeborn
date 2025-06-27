@@ -32,6 +32,7 @@ import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.protocol.*;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.util.CollectionUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
@@ -66,6 +67,14 @@ public class MetaHandler {
     return ResourceResponse.newBuilder()
         .setCmdType(request.getCmdType())
         .setStatus(ResourceProtos.Status.OK)
+        .setSuccess(true);
+  }
+
+  public static org.apache.celeborn.common.protocol.PbMetaRequestResponse.Builder
+      getMasterMetaResponseBuilder(PbMetaRequest request) {
+    return org.apache.celeborn.common.protocol.PbMetaRequestResponse.newBuilder()
+        .setCmdType(request.getCmdType())
+        .setStatus(PbMetaRequestStatus.OK)
         .setSuccess(true);
   }
 
@@ -322,6 +331,260 @@ public class MetaHandler {
       LOG.warn("Handle meta write request {} failed!", cmdType, e);
       responseBuilder.setSuccess(false);
       responseBuilder.setStatus(ResourceProtos.Status.INTERNAL_ERROR);
+      if (e.getMessage() != null) {
+        responseBuilder.setMessage(e.getMessage());
+      }
+    }
+    return responseBuilder.build();
+  }
+
+  public org.apache.celeborn.common.protocol.PbMetaRequestResponse handleWriteRequest(
+      PbMetaRequest request) {
+    PbMetaRequestType cmdType = request.getCmdType();
+    org.apache.celeborn.common.protocol.PbMetaRequestResponse.Builder responseBuilder =
+        getMasterMetaResponseBuilder(request);
+    try {
+      String shuffleKey;
+      String appId;
+      String host;
+      int rpcPort;
+      int pushPort;
+      int fetchPort;
+      int replicatePort;
+      Map<String, DiskInfo> diskInfos;
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption;
+      WorkerStatus workerStatus;
+      List<Integer> lostShuffles;
+      switch (cmdType) {
+        case ReviseLostShuffles:
+          appId = request.getReviseLostShufflesRequest().getAppId();
+          lostShuffles = request.getReviseLostShufflesRequest().getLostShufflesList();
+          LOG.info(
+              "Handle revise lost shuffles for {} {}", appId, StringUtils.join(lostShuffles, ","));
+          metaSystem.reviseLostShuffles(appId, lostShuffles);
+          break;
+
+        case RequestSlots:
+          shuffleKey = request.getRequestSlotsRequest().getShuffleKey();
+          LOG.debug("Handle request slots for {}", shuffleKey);
+          metaSystem.updateRequestSlotsMeta(
+              shuffleKey, request.getRequestSlotsRequest().getHostName(), new HashMap<>());
+          break;
+
+        case ReleaseSlots:
+          break;
+
+        case UnRegisterShuffle:
+          shuffleKey =
+              request.getUnregisterShuffleRequest().getAppId()
+                  + "-"
+                  + request.getUnregisterShuffleRequest().getShuffleId();
+          LOG.debug("Handle unregister shuffle for {}", shuffleKey);
+          metaSystem.updateUnregisterShuffleMeta(shuffleKey);
+          break;
+
+        case BatchUnRegisterShuffle:
+          List<Integer> shuffleIds = request.getBatchUnregisterShuffleRequest().getShuffleIdsList();
+          List<String> shuffleKeys =
+              shuffleIds.stream()
+                  .map(id -> id + "-" + request.getBatchUnregisterShuffleRequest().getAppId())
+                  .collect(Collectors.toList());
+          metaSystem.updateBatchUnregisterShuffleMeta(shuffleKeys);
+          LOG.debug("Handle batch unregister shuffle for {}", shuffleKeys);
+          break;
+
+        case AppHeartbeat:
+          appId = request.getAppHeartbeatRequest().getAppId();
+          long time = request.getAppHeartbeatRequest().getTime();
+          long totalWritten = request.getAppHeartbeatRequest().getTotalWritten();
+          long fileCount = request.getAppHeartbeatRequest().getFileCount();
+          long shuffleCount = request.getAppHeartbeatRequest().getShuffleCount();
+          long applicationCount = request.getAppHeartbeatRequest().getApplicationCount();
+          LOG.debug("Handle app heartbeat for {} with shuffle count {}", appId, shuffleCount);
+          Map<String, Long> shuffleFallbackCounts =
+              request.getAppHeartbeatRequest().getShuffleFallbackCountsMap();
+          if (CollectionUtils.isNotEmpty(shuffleFallbackCounts)) {
+            LOG.warn(
+                "{} shuffle fallbacks in app {}",
+                shuffleFallbackCounts.values().stream().mapToLong(v -> v).sum(),
+                appId);
+          }
+          Map<String, Long> applicationFallbackCounts =
+              request.getAppHeartbeatRequest().getApplicationFallbackCountsMap();
+          metaSystem.updateAppHeartbeatMeta(
+              appId,
+              time,
+              totalWritten,
+              fileCount,
+              shuffleCount,
+              applicationCount,
+              shuffleFallbackCounts,
+              applicationFallbackCounts);
+          break;
+
+        case AppLost:
+          appId = request.getAppLostRequest().getAppId();
+          LOG.debug("Handle app lost for {}", appId);
+          metaSystem.updateAppLostMeta(appId);
+          break;
+
+        case WorkerExclude:
+          List<PbWorkerAddress> addAddresses =
+              request.getWorkerExcludeRequest().getWorkersToAddList();
+          List<PbWorkerAddress> removeAddresses =
+              request.getWorkerExcludeRequest().getWorkersToRemoveList();
+          List<WorkerInfo> workersToAdd =
+              addAddresses.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
+          List<WorkerInfo> workersToRemove =
+              removeAddresses.stream().map(MetaUtil::addrToInfo).collect(Collectors.toList());
+          metaSystem.updateManuallyExcludedWorkersMeta(workersToAdd, workersToRemove);
+          break;
+
+        case WorkerLost:
+          host = request.getWorkerLostRequest().getHost();
+          rpcPort = request.getWorkerLostRequest().getRpcPort();
+          pushPort = request.getWorkerLostRequest().getPushPort();
+          fetchPort = request.getWorkerLostRequest().getFetchPort();
+          replicatePort = request.getWorkerLostRequest().getReplicatePort();
+          LOG.debug("Handle worker lost for {} {}", host, pushPort);
+          metaSystem.updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
+          break;
+
+        case WorkerRemove:
+          // TODO: Remove `WorkerRemove` in 0.7.x version to guarantee upgrade compatibility.
+          host = request.getWorkerRemoveRequest().getHost();
+          rpcPort = request.getWorkerRemoveRequest().getRpcPort();
+          pushPort = request.getWorkerRemoveRequest().getPushPort();
+          fetchPort = request.getWorkerRemoveRequest().getFetchPort();
+          replicatePort = request.getWorkerRemoveRequest().getReplicatePort();
+          LOG.debug("Handle worker remove for {} {}", host, pushPort);
+          metaSystem.updateWorkerRemoveMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
+          break;
+
+        case WorkerHeartbeat:
+          host = request.getWorkerHeartbeatRequest().getHost();
+          rpcPort = request.getWorkerHeartbeatRequest().getRpcPort();
+          pushPort = request.getWorkerHeartbeatRequest().getPushPort();
+          fetchPort = request.getWorkerHeartbeatRequest().getFetchPort();
+          Map<String, PbDiskInfo> pbDiskInfos =
+              request.getWorkerHeartbeatRequest().getDisksList().stream()
+                  .collect(
+                      Collectors.toMap(
+                          pbDiskInfo -> pbDiskInfo.getMountPoint(), pbDiskInfo -> pbDiskInfo));
+          diskInfos = MetaUtil.fromPbDiskInfoMap(pbDiskInfos);
+          replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
+          boolean highWorkload = request.getWorkerHeartbeatRequest().getHighWorkload();
+          if (request.getWorkerHeartbeatRequest().hasWorkerStatus()) {
+            workerStatus =
+                MetaUtil.fromPbWorkerStatus(request.getWorkerHeartbeatRequest().getWorkerStatus());
+          } else {
+            workerStatus = WorkerStatus.normalWorkerStatus();
+          }
+
+          LOG.debug(
+              "Handle worker heartbeat for {} {} {} {} {} {}",
+              host,
+              rpcPort,
+              pushPort,
+              fetchPort,
+              replicatePort,
+              diskInfos);
+          metaSystem.updateWorkerHeartbeatMeta(
+              host,
+              rpcPort,
+              pushPort,
+              fetchPort,
+              replicatePort,
+              diskInfos,
+              request.getWorkerHeartbeatRequest().getWorkerStatus().getStateStartTime(),
+              workerStatus,
+              highWorkload);
+          break;
+
+        case RegisterWorker:
+          host = request.getRegisterWorkerRequest().getHost();
+          rpcPort = request.getRegisterWorkerRequest().getRpcPort();
+          pushPort = request.getRegisterWorkerRequest().getPushPort();
+          fetchPort = request.getRegisterWorkerRequest().getFetchPort();
+          replicatePort = request.getRegisterWorkerRequest().getReplicatePort();
+          String networkLocation = request.getRegisterWorkerRequest().getNetworkLocation();
+          int internalPort = request.getRegisterWorkerRequest().getInternalPort();
+          Map<String, PbDiskInfo> pbDiskInfoMap =
+              request.getRegisterWorkerRequest().getDisksList().stream()
+                  .collect(
+                      Collectors.toMap(
+                          pbDiskInfo -> pbDiskInfo.getMountPoint(), pbDiskInfo -> pbDiskInfo));
+          diskInfos = MetaUtil.fromPbDiskInfoMap(pbDiskInfoMap);
+          LOG.debug(
+              "Handle worker register for {} {} {} {} {} {} {}",
+              host,
+              rpcPort,
+              pushPort,
+              fetchPort,
+              replicatePort,
+              internalPort,
+              diskInfos);
+          metaSystem.updateRegisterWorkerMeta(
+              host,
+              rpcPort,
+              pushPort,
+              fetchPort,
+              replicatePort,
+              internalPort,
+              networkLocation,
+              diskInfos);
+          break;
+
+        case ReportWorkerUnavailable:
+          List<PbWorkerInfo> failedAddress =
+              request.getReportWorkerUnavailableRequest().getUnavailableList();
+          List<WorkerInfo> failedWorkers =
+              failedAddress.stream().map(MetaUtil::pbInfoToInfo).collect(Collectors.toList());
+          metaSystem.updateMetaByReportWorkerUnavailable(failedWorkers);
+          break;
+
+        case UpdatePartitionSize:
+          metaSystem.updatePartitionSize();
+          break;
+
+        case RemoveWorkersUnavailableInfo:
+          List<PbWorkerInfo> unavailableList =
+              request.getRemoveWorkersUnavailableInfoRequest().getWorkerInfoList();
+          List<WorkerInfo> unavailableWorkers =
+              unavailableList.stream().map(MetaUtil::pbInfoToInfo).collect(Collectors.toList());
+          metaSystem.removeWorkersUnavailableInfoMeta(unavailableWorkers);
+          break;
+
+        case WorkerEvent:
+          List<PbWorkerInfo> workerAddresses = request.getWorkerEventRequest().getWorkersList();
+          List<WorkerInfo> workerInfoList =
+              workerAddresses.stream().map(MetaUtil::pbInfoToInfo).collect(Collectors.toList());
+          metaSystem.updateWorkerEventMeta(
+              request.getWorkerEventRequest().getWorkerEventType().getNumber(), workerInfoList);
+          break;
+
+        case ApplicationMeta:
+          appId = request.getApplicationMetaRequest().getAppId();
+          String secret = request.getApplicationMetaRequest().getSecret();
+          metaSystem.updateApplicationMeta(new ApplicationMeta(appId, secret));
+          break;
+
+        case ReportWorkerDecommission:
+          List<PbWorkerInfo> decommissionList =
+              request.getReportWorkerDecommissionRequest().getWorkersList();
+          List<WorkerInfo> decommissionWorkers =
+              decommissionList.stream().map(MetaUtil::pbInfoToInfo).collect(Collectors.toList());
+          metaSystem.updateMetaByReportWorkerDecommission(decommissionWorkers);
+          break;
+
+        default:
+          throw new IOException("Can not parse this command!" + request);
+      }
+      responseBuilder.setStatus(PbMetaRequestStatus.OK);
+    } catch (IOException e) {
+      LOG.warn("Handle meta write request {} failed!", cmdType, e);
+      responseBuilder.setSuccess(false);
+      responseBuilder.setStatus(PbMetaRequestStatus.INTERNAL_ERROR);
       if (e.getMessage() != null) {
         responseBuilder.setMessage(e.getMessage());
       }
