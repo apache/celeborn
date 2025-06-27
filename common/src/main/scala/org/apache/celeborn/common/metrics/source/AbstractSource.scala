@@ -627,6 +627,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     sum
   }
 
+  // Do use this method to get metrics, because it will clear the timeMetrics queue
+  // Do not use the LogReporter to report metrics
   override def getMetrics: String = {
     var leftMetricsNum = metricsCapacity
     val sb = new mutable.StringBuilder
