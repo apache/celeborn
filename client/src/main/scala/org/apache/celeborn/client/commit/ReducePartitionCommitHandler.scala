@@ -162,6 +162,7 @@ class ReducePartitionCommitHandler(
     inProcessStageEndShuffleSet.remove(shuffleId)
     shuffleMapperAttempts.remove(shuffleId)
     commitMetadataForReducer.remove(shuffleId)
+    skewPartitionCompletenessValidator.remove(shuffleId)
     super.removeExpiredShuffle(shuffleId)
   }
 
