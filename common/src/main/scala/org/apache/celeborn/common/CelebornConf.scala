@@ -900,6 +900,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(METRICS_WORKER_PAUSE_SPENT_TIME_FORCE_APPEND_THRESHOLD)
   def metricsJsonPrettyEnabled: Boolean = get(METRICS_JSON_PRETTY_ENABLED)
   def metricsWorkerAppLevelEnabled: Boolean = get(METRICS_WORKER_APP_LEVEL_ENABLED)
+  def metricsLoggerSinkScrapeInterval: Long = get(METRICS_LOGGERSINK_SCRAPE_INTERVAL)
+  def metricsLoggerSinkScrapeOutputEnabled: Boolean = get(METRICS_LOGGERSINK_SCRAPE_OUTPUT_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                      Quota                         //
@@ -5636,6 +5638,28 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .booleanConf
       .createWithDefault(true)
+
+  val METRICS_LOGGERSINK_SCRAPE_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.metrics.loggerSink.scrape.interval")
+      .categories("metrics")
+      .version("0.6.0")
+      .doc("The interval of logger sink to scrape its own metrics. " +
+        "This config will have effect if you enabled logger sink. " +
+        "If you will not scrape metrics periodically, " +
+        "do add `org.apache.celeborn.common.metrics.sink.LoggerSink` to metrics.properties.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30min")
+
+  val METRICS_LOGGERSINK_SCRAPE_OUTPUT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.metrics.loggerSink.output.enabled")
+      .categories("metrics")
+      .version("0.6.0")
+      .doc("Whether to output scraped metrics to the logger. " +
+        "This config will have effect if you enabled logger sink." +
+        "If you will not scrape metrics periodically," +
+        " do add `org.apache.celeborn.common.metrics.sink.LoggerSink` to metrics.properties.")
+      .booleanConf
+      .createWithDefault(false)
 
   val IDENTITY_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.identity.provider")

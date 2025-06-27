@@ -45,7 +45,12 @@ Each instance can report to zero or more _sinks_. Sinks are contained in the
 
 * `CSVSink`: Exports metrics data to CSV files at regular intervals.
 * `PrometheusServlet`: Adds a servlet within the existing Celeborn REST API to serve metrics data in Prometheus format.
+* `JsonServlet`: Adds a servlet within the existing Celeborn REST API to serve metrics data in JSON format.
 * `GraphiteSink`: Sends metrics to a Graphite node.
+* `LoggerSink`: Scrape metrics periodically and output them to the logger files if you have enabled
+  `celeborn.metrics.loggerSink.output.enabled`. This is used as safety valve to make sure the
+  metrics data won't exist in the memory for a long time. If you don't have a metrics collector to
+  collect metrics from celeborn periodically, it's important to enable this sink.
 
 The syntax of the metrics configuration file and the parameters available for each sink are defined
 in an example configuration file,
@@ -66,6 +71,8 @@ This example shows a list of Celeborn configuration parameters for a CSV sink:
 Default values of the Celeborn metrics configuration are as follows:
 ```
 *.sink.prometheusServlet.class=org.apache.celeborn.common.metrics.sink.PrometheusServlet
+*.sink.jsonServlet.class=org.apache.celeborn.common.metrics.sink.JsonServlet
+*.sink.loggerSink.class=org.apache.celeborn.common.metrics.sink.LoggerSink
 ```
 
 Additional sources can be configured using the metrics configuration file or the configuration
