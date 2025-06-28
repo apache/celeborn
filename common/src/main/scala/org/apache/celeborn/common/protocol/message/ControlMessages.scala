@@ -19,9 +19,11 @@ package org.apache.celeborn.common.protocol.message
 
 import java.util
 import java.util.{Collections, Map => JMap, UUID}
+import java.util.concurrent.atomic.AtomicIntegerArray
 
 import scala.collection.JavaConverters._
 
+import com.google.common.base.Preconditions.checkState
 import com.google.protobuf.ByteString
 import org.roaringbitmap.RoaringBitmap
 
@@ -274,10 +276,24 @@ object ControlMessages extends Logging {
       attemptId: Int,
       numMappers: Int,
       partitionId: Int,
-      failedBatchSet: util.Map[String, LocationPushFailedBatches])
+      failedBatchSet: util.Map[String, LocationPushFailedBatches],
+      numPartitions: Int,
+      crc32PerPartition: Array[Int],
+      bytesWrittenPerPartition: Array[Long])
+    extends MasterMessage
+
+  case class ReadReducerPartitionEnd(
+      shuffleId: Int,
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      crc32: Int,
+      bytesWritten: Long)
     extends MasterMessage
 
   case class MapperEndResponse(status: StatusCode) extends MasterMessage
+
+  case class ReadReducerPartitionEndResponse(status: StatusCode) extends MasterMessage
 
   case class GetReducerFileGroup(
       shuffleId: Int,
@@ -613,6 +629,12 @@ object ControlMessages extends Logging {
     case pb: PbReviseLostShufflesResponse =>
       new TransportMessage(MessageType.REVISE_LOST_SHUFFLES_RESPONSE, pb.toByteArray)
 
+    case pb: PbReadReducerPartitionEnd =>
+      new TransportMessage(MessageType.READ_REDUCER_PARTITION_END, pb.toByteArray)
+
+    case pb: PbReadReducerPartitionEndResponse =>
+      new TransportMessage(MessageType.READ_REDUCER_PARTITION_END_RESPONSE, pb.toByteArray)
+
     case pb: PbReportBarrierStageAttemptFailure =>
       new TransportMessage(MessageType.REPORT_BARRIER_STAGE_ATTEMPT_FAILURE, pb.toByteArray)
 
@@ -746,7 +768,16 @@ object ControlMessages extends Logging {
     case pb: PbChangeLocationResponse =>
       new TransportMessage(MessageType.CHANGE_LOCATION_RESPONSE, pb.toByteArray)
 
-    case MapperEnd(shuffleId, mapId, attemptId, numMappers, partitionId, pushFailedBatch) =>
+    case MapperEnd(
+          shuffleId,
+          mapId,
+          attemptId,
+          numMappers,
+          partitionId,
+          pushFailedBatch,
+          numPartitions,
+          crc32PerPartition,
+          bytesWrittenPerPartition) =>
       val pushFailedMap = pushFailedBatch.asScala.map { case (k, v) =>
         val resultValue = PbSerDeUtils.toPbLocationPushFailedBatches(v)
         (k, resultValue)
@@ -758,6 +789,10 @@ object ControlMessages extends Logging {
         .setNumMappers(numMappers)
         .setPartitionId(partitionId)
         .putAllPushFailureBatches(pushFailedMap)
+        .setNumPartitions(numPartitions)
+        .addAllCrc32PerPartition(crc32PerPartition.map(Integer.valueOf).toSeq.asJava)
+        .addAllBytesWrittenPerPartition(bytesWrittenPerPartition.map(
+          java.lang.Long.valueOf).toSeq.asJava)
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END, payload)
 
@@ -1196,6 +1231,15 @@ object ControlMessages extends Logging {
 
       case MAPPER_END_VALUE =>
         val pbMapperEnd = PbMapperEnd.parseFrom(message.getPayload)
+        val partitionCount = pbMapperEnd.getCrc32PerPartitionCount
+        checkState(partitionCount == pbMapperEnd.getBytesWrittenPerPartitionCount)
+        val crc32Array = new Array[Int](partitionCount)
+        val bytesWrittenPerPartitionArray =
+          new Array[Long](pbMapperEnd.getBytesWrittenPerPartitionCount)
+        for (i <- 0 until partitionCount) {
+          crc32Array(i) = pbMapperEnd.getCrc32PerPartition(i)
+          bytesWrittenPerPartitionArray(i) = pbMapperEnd.getBytesWrittenPerPartition(i)
+        }
         MapperEnd(
           pbMapperEnd.getShuffleId,
           pbMapperEnd.getMapId,
@@ -1205,7 +1249,23 @@ object ControlMessages extends Logging {
           pbMapperEnd.getPushFailureBatchesMap.asScala.map {
             case (partitionId, pushFailedBatchSet) =>
               (partitionId, PbSerDeUtils.fromPbLocationPushFailedBatches(pushFailedBatchSet))
-          }.toMap.asJava)
+          }.toMap.asJava,
+          pbMapperEnd.getNumPartitions,
+          crc32Array,
+          bytesWrittenPerPartitionArray)
+
+      case READ_REDUCER_PARTITION_END_VALUE =>
+        val pbReadReducerPartitionEnd = PbReadReducerPartitionEnd.parseFrom(message.getPayload)
+        ReadReducerPartitionEnd(
+          pbReadReducerPartitionEnd.getShuffleId,
+          pbReadReducerPartitionEnd.getPartitionId,
+          pbReadReducerPartitionEnd.getStartMaxIndex,
+          pbReadReducerPartitionEnd.getEndMapIndex,
+          pbReadReducerPartitionEnd.getCrc32,
+          pbReadReducerPartitionEnd.getBytesWritten)
+
+      case READ_REDUCER_PARTITION_END_RESPONSE_VALUE =>
+        PbReadReducerPartitionEndResponse.parseFrom(message.getPayload)
 
       case MAPPER_END_RESPONSE_VALUE =>
         val pbMapperEndResponse = PbMapperEndResponse.parseFrom(message.getPayload)

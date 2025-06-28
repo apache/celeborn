@@ -107,7 +107,7 @@ public class RemoteShuffleOutputGateSuiteJ {
 
     doNothing()
         .when(remoteShuffleOutputGate.flinkShuffleClient)
-        .mapperEnd(anyInt(), anyInt(), anyInt(), anyInt());
+        .mapperEnd(anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
     remoteShuffleOutputGate.finish();
 
     doNothing().when(remoteShuffleOutputGate.flinkShuffleClient).shutdown();

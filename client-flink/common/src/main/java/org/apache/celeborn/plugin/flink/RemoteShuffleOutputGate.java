@@ -197,7 +197,7 @@ public class RemoteShuffleOutputGate {
   /** Indicates the writing/spilling is finished. */
   public void finish() throws InterruptedException, IOException {
     flinkShuffleClient.mapPartitionMapperEnd(
-        shuffleId, mapId, attemptId, numMappers, partitionLocation.getId());
+        shuffleId, mapId, attemptId, numMappers, numSubs, partitionLocation.getId());
   }
 
   /** Close the transportation gate. */

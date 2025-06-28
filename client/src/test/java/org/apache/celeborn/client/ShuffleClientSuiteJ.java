@@ -18,8 +18,7 @@
 package org.apache.celeborn.client;
 
 import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -34,6 +33,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import scala.reflect.ClassTag;
+import scala.reflect.ClassTag$;
+
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.util.concurrent.Future;
@@ -41,6 +43,7 @@ import io.netty.util.concurrent.GenericFutureListener;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.common.CelebornConf;
@@ -51,6 +54,8 @@ import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.SerdeVersion;
 import org.apache.celeborn.common.protocol.CompressionCodec;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.PbReadReducerPartitionEnd;
+import org.apache.celeborn.common.protocol.PbReadReducerPartitionEndResponse;
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse$;
 import org.apache.celeborn.common.protocol.message.ControlMessages.RegisterShuffleResponse$;
 import org.apache.celeborn.common.protocol.message.StatusCode;
@@ -68,6 +73,7 @@ public class ShuffleClientSuiteJ {
   private static final int TEST_SHUFFLE_ID = 1;
   private static final int TEST_ATTEMPT_ID = 0;
   private static final int TEST_REDUCRE_ID = 0;
+  private static final int TEST_MAP_ID = 0;
 
   private static final int PRIMARY_RPC_PORT = 1234;
   private static final int PRIMARY_PUSH_PORT = 1235;
@@ -620,5 +626,87 @@ public class ShuffleClientSuiteJ {
 
     Exception exception = exceptionRef.get();
     Assert.assertTrue(exception.getCause() instanceof TimeoutException);
+  }
+
+  @Test
+  public void testSuccessfulReadReducePartitionEnd() throws IOException {
+    CelebornConf conf = new CelebornConf();
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    ClassTag<PbReadReducerPartitionEndResponse> classTag =
+        ClassTag$.MODULE$.apply(PbReadReducerPartitionEndResponse.class);
+    PbReadReducerPartitionEndResponse mockResponse =
+        PbReadReducerPartitionEndResponse.newBuilder()
+            .setStatus(StatusCode.SUCCESS.getValue())
+            .build();
+    when(endpointRef.askSync(any(PbReadReducerPartitionEnd.class), any(), eq(classTag)))
+        .thenReturn(mockResponse);
+
+    shuffleClient.readReducerPartitionEnd(1, 2, 3, 4, 12345, 10000L);
+  }
+
+  @Test
+  public void testFailedReadReducerPartitionEnd() throws IOException {
+    CelebornConf conf = new CelebornConf();
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+    ClassTag<PbReadReducerPartitionEndResponse> classTag =
+        ClassTag$.MODULE$.apply(PbReadReducerPartitionEndResponse.class);
+
+    String errorMsg = "Test error message";
+    PbReadReducerPartitionEndResponse mockResponse =
+        PbReadReducerPartitionEndResponse.newBuilder()
+            .setStatus(StatusCode.READ_REDUCER_PARTITION_END_FAILED.getValue())
+            .setErrorMsg(errorMsg)
+            .build();
+
+    when(endpointRef.askSync(any(PbReadReducerPartitionEnd.class), any(), eq(classTag)))
+        .thenReturn(mockResponse);
+
+    try {
+      shuffleClient.readReducerPartitionEnd(1, 2, 3, 4, 12345, 10000L);
+    } catch (CelebornIOException e) {
+      Assert.assertEquals(errorMsg, e.getMessage());
+    }
+  }
+
+  @Test
+  public void testCorrectParametersPassedInRequest() throws IOException {
+    CelebornConf conf = new CelebornConf();
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    int shuffleId = 123;
+    int partitionId = 456;
+    int startMapIndex = 0;
+    int endMapIndex = 10;
+    int crc32 = 98765;
+    long bytesWritten = 54321L;
+
+    PbReadReducerPartitionEndResponse mockResponse =
+        PbReadReducerPartitionEndResponse.newBuilder()
+            .setStatus(StatusCode.SUCCESS.getValue())
+            .build();
+    ArgumentCaptor<PbReadReducerPartitionEnd> requestCaptor =
+        ArgumentCaptor.forClass(PbReadReducerPartitionEnd.class);
+    ClassTag<PbReadReducerPartitionEndResponse> classTag =
+        ClassTag$.MODULE$.apply(PbReadReducerPartitionEndResponse.class);
+
+    when(endpointRef.askSync(requestCaptor.capture(), any(), eq(classTag)))
+        .thenReturn(mockResponse);
+
+    shuffleClient.readReducerPartitionEnd(
+        shuffleId, partitionId, startMapIndex, endMapIndex, crc32, bytesWritten);
+    PbReadReducerPartitionEnd capturedRequest = requestCaptor.getValue();
+    assertEquals(shuffleId, capturedRequest.getShuffleId());
+    assertEquals(partitionId, capturedRequest.getPartitionId());
+    assertEquals(startMapIndex, capturedRequest.getStartMaxIndex());
+    assertEquals(endMapIndex, capturedRequest.getEndMapIndex());
+    assertEquals(crc32, capturedRequest.getCrc32());
+    assertEquals(bytesWritten, capturedRequest.getBytesWritten());
   }
 }

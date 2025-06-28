@@ -31,7 +31,7 @@ import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.client.commit.{CommitFilesParam, CommitHandler, MapPartitionCommitHandler, ReducePartitionCommitHandler}
 import org.apache.celeborn.client.listener.{WorkersStatus, WorkerStatusListener}
-import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.network.protocol.SerdeVersion
@@ -178,7 +178,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
   def registerShuffle(
       shuffleId: Int,
       numMappers: Int,
-      isSegmentGranularityVisible: Boolean): Unit = {
+      isSegmentGranularityVisible: Boolean,
+      numPartitions: Int): Unit = {
     committedPartitionInfo.put(
       shuffleId,
       ShuffleCommittedInfo(
@@ -198,7 +199,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
     getCommitHandler(shuffleId).registerShuffle(
       shuffleId,
       numMappers,
-      isSegmentGranularityVisible);
+      isSegmentGranularityVisible,
+      numPartitions)
   }
 
   def isSegmentGranularityVisible(shuffleId: Int): Boolean = {
@@ -219,8 +221,10 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
       attemptId: Int,
       numMappers: Int,
       partitionId: Int = -1,
-      pushFailedBatches: util.Map[String, LocationPushFailedBatches] = Collections.emptyMap())
-      : (Boolean, Boolean) = {
+      pushFailedBatches: util.Map[String, LocationPushFailedBatches] = Collections.emptyMap(),
+      numPartitions: Int = -1,
+      crc32PerPartition: Array[Int] = new Array[Int](0),
+      bytesWrittenPerPartition: Array[Long] = new Array[Long](0)): (Boolean, Boolean) = {
     getCommitHandler(shuffleId).finishMapperAttempt(
       shuffleId,
       mapId,
@@ -228,7 +232,10 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
       numMappers,
       partitionId,
       pushFailedBatches,
-      r => lifecycleManager.workerStatusTracker.recordWorkerFailure(r))
+      r => lifecycleManager.workerStatusTracker.recordWorkerFailure(r),
+      numPartitions,
+      crc32PerPartition,
+      bytesWrittenPerPartition)
   }
 
   def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {
@@ -349,5 +356,19 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
         }
       }
     }
+  }
+
+  def finishPartition(
+      shuffleId: Int,
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      actualCommitMetadata: CommitMetadata): (Boolean, String) = {
+    getCommitHandler(shuffleId).finishPartition(
+      shuffleId,
+      partitionId,
+      startMapIndex,
+      endMapIndex,
+      actualCommitMetadata)
   }
 }
