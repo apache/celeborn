@@ -289,8 +289,11 @@ class WorkerInfo(
        |WorkerRef: $endpoint
        |WorkerStatus: $workerStatus
        |NetworkLocation: $networkLocation
+       |NextInterruptionNotice: ${if (hasInterruptionNotice) nextInterruptionNotice else "None"}
        |""".stripMargin
   }
+
+  def hasInterruptionNotice: Boolean = nextInterruptionNotice != Long.MaxValue
 
   override def equals(other: Any): Boolean = other match {
     case that: WorkerInfo =>
