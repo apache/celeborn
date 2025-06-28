@@ -381,7 +381,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     writeMetrics.incRecordsWritten(tmpRecordsWritten);
 
     long waitStartTime = System.nanoTime();
-    shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers);
+    shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers, numPartitions);
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
   }
 

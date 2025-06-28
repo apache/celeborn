@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.CommitMetadata;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.util.JavaUtils;
 
@@ -33,6 +34,9 @@ public class PushState {
   private final int pushBufferMaxSize;
   public AtomicReference<IOException> exception = new AtomicReference<>();
   private final InFlightRequestTracker inFlightRequestTracker;
+  // partition id -> CommitMetadata
+  private final ConcurrentHashMap<Integer, CommitMetadata> commitMetadataMap =
+      new ConcurrentHashMap<>();
 
   private final Map<String, LocationPushFailedBatches> failedBatchMap;
 
@@ -101,5 +105,35 @@ public class PushState {
 
   public Map<String, LocationPushFailedBatches> getFailedBatches() {
     return this.failedBatchMap;
+  }
+
+  public int[] getCRC32PerPartition(boolean shuffleIntegrityCheckEnabled, int numPartitions) {
+    if (!shuffleIntegrityCheckEnabled) {
+      return new int[0];
+    }
+
+    int[] crc32PerPartition = new int[numPartitions];
+    for (Map.Entry<Integer, CommitMetadata> entry : commitMetadataMap.entrySet()) {
+      crc32PerPartition[entry.getKey()] = entry.getValue().getChecksum();
+    }
+    return crc32PerPartition;
+  }
+
+  public long[] getBytesWrittenPerPartition(
+      boolean shuffleIntegrityCheckEnabled, int numPartitions) {
+    if (!shuffleIntegrityCheckEnabled) {
+      return new long[0];
+    }
+    long[] bytesWrittenPerPartition = new long[numPartitions];
+    for (Map.Entry<Integer, CommitMetadata> entry : commitMetadataMap.entrySet()) {
+      bytesWrittenPerPartition[entry.getKey()] = entry.getValue().getBytes();
+    }
+    return bytesWrittenPerPartition;
+  }
+
+  public void addDataWithOffsetAndLength(int partitionId, byte[] data, int offset, int length) {
+    CommitMetadata commitMetadata =
+        commitMetadataMap.computeIfAbsent(partitionId, id -> new CommitMetadata());
+    commitMetadata.addDataWithOffsetAndLength(data, offset, length);
   }
 }

@@ -203,13 +203,19 @@ public abstract class ShuffleClient {
 
   public abstract void pushMergedData(int shuffleId, int mapId, int attemptId) throws IOException;
 
-  // Report partition locations written by the completed map task of ReducePartition Shuffle Type
-  public abstract void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers)
+  // Report partition locations written by the completed map task of ReducePartition Shuffle Type.
+  public abstract void mapperEnd(
+      int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
       throws IOException;
 
-  // Report partition locations written by the completed map task of MapPartition Shuffle Type
+  public abstract void readReducerPartitionEnd(
+      int shuffleId, int partitionId, int startMapIndex, int endMapIndex, int crc32, long bytes)
+      throws IOException;
+
+  // Report partition locations written by the completed map task of MapPartition Shuffle Type.
   public abstract void mapPartitionMapperEnd(
-      int shuffleId, int mapId, int attemptId, int numMappers, int partitionId) throws IOException;
+      int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions, int partitionId)
+      throws IOException;
 
   // Cleanup states of the map task
   public abstract void cleanup(int shuffleId, int mapId, int attemptId);

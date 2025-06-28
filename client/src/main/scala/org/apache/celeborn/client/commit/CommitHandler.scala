@@ -31,7 +31,7 @@ import scala.concurrent.duration.Duration
 import org.apache.celeborn.client.{ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleFailedWorkers, ShuffleFileGroups, ShufflePushFailedBatches}
-import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.SerdeVersion
@@ -216,12 +216,16 @@ abstract class CommitHandler(
       numMappers: Int,
       partitionId: Int,
       pushFailedBatches: util.Map[String, LocationPushFailedBatches],
-      recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean)
+      recordWorkerFailure: ShuffleFailedWorkers => Unit,
+      numPartitions: Int,
+      crc32PerPartition: Array[Int],
+      bytesWrittenPerPartition: Array[Long]): (Boolean, Boolean)
 
   def registerShuffle(
       shuffleId: Int,
       numMappers: Int,
-      isSegmentGranularityVisible: Boolean): Unit = {
+      isSegmentGranularityVisible: Boolean,
+      numPartitions: Int): Unit = {
     // TODO: if isSegmentGranularityVisible is set to true, it is necessary to handle the pending
     //  get partition request of downstream reduce task here, in scenarios which support
     //  downstream task start early before the upstream task, e.g. flink hybrid shuffle.
@@ -421,6 +425,16 @@ abstract class CommitHandler(
       iter.remove()
     }
   }
+
+  /**
+   * Invoked when a reduce partition finishes reading data to perform end to end integrity check validation
+   */
+  def finishPartition(
+      shuffleId: Int,
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      actualCommitMetadata: CommitMetadata): (Boolean, String)
 
   def parallelCommitFiles(
       shuffleId: Int,

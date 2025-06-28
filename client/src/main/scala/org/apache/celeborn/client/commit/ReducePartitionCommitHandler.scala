@@ -25,13 +25,14 @@ import java.util.function
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
+import com.google.common.base.Preconditions.checkState
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.google.common.collect.Sets
 
 import org.apache.celeborn.client.{ClientUtils, LifecycleManager, ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
-import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.ShufflePartitionLocationInfo
 import org.apache.celeborn.common.network.protocol.SerdeVersion
@@ -81,6 +82,13 @@ class ReducePartitionCommitHandler(
   private val rpcCacheSize = conf.clientRpcCacheSize
   private val rpcCacheConcurrencyLevel = conf.clientRpcCacheConcurrencyLevel
   private val rpcCacheExpireTime = conf.clientRpcCacheExpireTime
+
+  private val shuffleIntegrityCheckEnabled = conf.clientShuffleIntegrityCheckEnabled
+  // partitionId-shuffleId -> number of mappers that have written to this reducer (partition + shuffle)
+  private val commitMetadataForReducer =
+    JavaUtils.newConcurrentHashMap[Integer, Array[CommitMetadata]]
+  private val skewPartitionCompletenessValidator =
+    JavaUtils.newConcurrentHashMap[Int, PartitionCompletenessValidator]()
 
   private val getReducerFileGroupResponseBroadcastEnabled = conf.getReducerFileGroupBroadcastEnabled
   private val getReducerFileGroupResponseBroadcastMiniSize =
@@ -153,6 +161,8 @@ class ReducePartitionCommitHandler(
     stageEndShuffleSet.remove(shuffleId)
     inProcessStageEndShuffleSet.remove(shuffleId)
     shuffleMapperAttempts.remove(shuffleId)
+    commitMetadataForReducer.remove(shuffleId)
+    skewPartitionCompletenessValidator.remove(shuffleId)
     super.removeExpiredShuffle(shuffleId)
   }
 
@@ -268,16 +278,20 @@ class ReducePartitionCommitHandler(
       numMappers: Int,
       partitionId: Int,
       pushFailedBatches: util.Map[String, LocationPushFailedBatches],
-      recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean) = {
-    shuffleMapperAttempts.synchronized {
+      recordWorkerFailure: ShuffleFailedWorkers => Unit,
+      numPartitions: Int,
+      crc32PerPartition: Array[Int],
+      bytesWrittenPerPartition: Array[Long]): (Boolean, Boolean) = {
+    val (mapperAttemptFinishedSuccess, allMapperFinished) = shuffleMapperAttempts.synchronized {
       if (getMapperAttempts(shuffleId) == null) {
         logDebug(s"[handleMapperEnd] $shuffleId not registered, create one.")
-        initMapperAttempts(shuffleId, numMappers)
+        initMapperAttempts(shuffleId, numMappers, numPartitions)
       }
 
       val attempts = shuffleMapperAttempts.get(shuffleId)
       if (attempts(mapId) < 0) {
         attempts(mapId) = attemptId
+
         if (null != pushFailedBatches && !pushFailedBatches.isEmpty) {
           val pushFailedBatchesMap = shufflePushFailedBatches.computeIfAbsent(
             shuffleId,
@@ -296,23 +310,92 @@ class ReducePartitionCommitHandler(
         (false, false)
       }
     }
+    if (shuffleIntegrityCheckEnabled && mapperAttemptFinishedSuccess) {
+      val commitMetadataArray = commitMetadataForReducer.get(shuffleId)
+      checkState(
+        commitMetadataArray != null,
+        "commitMetadataArray can only be null if shuffleId %s is not registered!",
+        shuffleId)
+      for (i <- 0 until numPartitions) {
+        if (bytesWrittenPerPartition(i) != 0) {
+          commitMetadataArray(i).addCommitData(
+            crc32PerPartition(i),
+            bytesWrittenPerPartition(i))
+        }
+      }
+    }
+    (mapperAttemptFinishedSuccess, allMapperFinished)
   }
 
   override def registerShuffle(
       shuffleId: Int,
       numMappers: Int,
-      isSegmentGranularityVisible: Boolean): Unit = {
-    super.registerShuffle(shuffleId, numMappers, isSegmentGranularityVisible)
+      isSegmentGranularityVisible: Boolean,
+      numPartitions: Int): Unit = {
+    super.registerShuffle(shuffleId, numMappers, isSegmentGranularityVisible, numPartitions)
     getReducerFileGroupRequest.put(shuffleId, new util.HashSet[MultiSerdeVersionRpcContext]())
-    initMapperAttempts(shuffleId, numMappers)
+    initMapperAttempts(shuffleId, numMappers, numPartitions)
   }
 
-  private def initMapperAttempts(shuffleId: Int, numMappers: Int): Unit = {
+  override def finishPartition(
+      shuffleId: Int,
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      actualCommitMetadata: CommitMetadata): (Boolean, String) = {
+    logDebug(s"finish Partition call: shuffleId: $shuffleId, " +
+      s"partitionId: $partitionId, " +
+      s"startMapIndex: $startMapIndex " +
+      s"endMapIndex: $endMapIndex, " +
+      s"actualCommitMetadata: $actualCommitMetadata")
+    val map = commitMetadataForReducer.get(shuffleId)
+    checkState(
+      map != null,
+      "CommitMetadata map cannot be null for a registered shuffleId: %d",
+      shuffleId)
+    val expectedCommitMetadata = map(partitionId)
+    if (endMapIndex == Integer.MAX_VALUE) {
+      // complete partition available
+      val bool = CommitMetadata.checkCommitMetadata(actualCommitMetadata, expectedCommitMetadata)
+      var message = ""
+      if (!bool) {
+        message =
+          s"CommitMetadata mismatch for shuffleId: $shuffleId partitionId: $partitionId expected: $expectedCommitMetadata actual: $actualCommitMetadata"
+      } else {
+        logInfo(
+          s"CommitMetadata matched for shuffleID : $shuffleId, partitionId: $partitionId expected: $expectedCommitMetadata actual: $actualCommitMetadata")
+      }
+      return (bool, message)
+    }
+
+    val splitSkewPartitionWithoutMapRange =
+      ClientUtils.readSkewPartitionWithoutMapRange(conf, startMapIndex, endMapIndex)
+
+    val validator = skewPartitionCompletenessValidator.computeIfAbsent(
+      shuffleId,
+      new java.util.function.Function[Int, PartitionCompletenessValidator] {
+        override def apply(key: Int): PartitionCompletenessValidator =
+          new PartitionCompletenessValidator()
+      })
+    validator.validateSubPartition(
+      partitionId,
+      startMapIndex,
+      endMapIndex,
+      actualCommitMetadata,
+      expectedCommitMetadata,
+      shuffleMapperAttempts.get(shuffleId).length,
+      splitSkewPartitionWithoutMapRange)
+  }
+
+  private def initMapperAttempts(shuffleId: Int, numMappers: Int, numPartitions: Int): Unit = {
     shuffleMapperAttempts.synchronized {
       if (!shuffleMapperAttempts.containsKey(shuffleId)) {
         val attempts = new Array[Int](numMappers)
         0 until numMappers foreach (idx => attempts(idx) = -1)
         shuffleMapperAttempts.put(shuffleId, attempts)
+      }
+      if (shuffleIntegrityCheckEnabled) {
+        commitMetadataForReducer.put(shuffleId, Array.fill(numPartitions)(new CommitMetadata()))
       }
     }
   }
