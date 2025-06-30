@@ -164,4 +164,8 @@ public class DiskFileInfo extends FileInfo {
   public boolean isDFS() {
     return Utils.isS3Path(filePath) || Utils.isOssPath(filePath) || Utils.isHdfsPath(filePath);
   }
+
+  public StorageInfo.Type getStorageType() {
+    return storageType;
+  }
 }
