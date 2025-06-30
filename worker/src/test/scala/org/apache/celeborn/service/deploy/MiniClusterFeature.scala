@@ -25,6 +25,8 @@ import java.util.concurrent.locks.ReentrantLock
 
 import scala.collection.mutable
 
+import org.apache.commons.lang3.StringUtils
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
@@ -151,7 +153,9 @@ trait MiniClusterFeature extends Logging {
   def createWorker(map: Map[String, String], storageDir: String): Worker = {
     logInfo("start create worker for mini cluster")
     val conf = new CelebornConf()
-    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, storageDir)
+    if (StringUtils.isNotEmpty(storageDir)) {
+      conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, storageDir)
+    }
     conf.set(CelebornConf.WORKER_DISK_MONITOR_ENABLED.key, "false")
     conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
     conf.set(CelebornConf.WORKER_HTTP_PORT.key, s"${selectRandomPort()}")
