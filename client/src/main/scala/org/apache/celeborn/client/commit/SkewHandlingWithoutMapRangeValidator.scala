@@ -68,8 +68,11 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
           return (
             false,
             s"Mismatch in metadata for the same chunk range on retry: $endMapIndex existing: $existingCommitMetadata new: $actualCommitMetadata")
+        } else {
+          return (true, "")
         }
       }
+      updateCommitMetadata(partitionId, actualCommitMetadata)
       subPartitionsProcessed.put(endMapIndex, actualCommitMetadata)
       val partitionProcessed = getTotalNumberOfSubPartitionsProcessed(partitionId)
       checkState(
@@ -78,7 +81,6 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
         partitionProcessed,
         startMapIndex)
     }
-    updateCommitMetadata(partitionId, actualCommitMetadata)
     (true, "")
   }
 
