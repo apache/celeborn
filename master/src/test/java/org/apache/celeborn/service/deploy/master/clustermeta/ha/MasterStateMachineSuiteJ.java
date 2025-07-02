@@ -56,7 +56,6 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
 
   private final AtomicLong callerId = new AtomicLong();
 
-
   @Test
   public void testRunCommandByTransportMessage() throws InvalidProtocolBufferException {
     StateMachine stateMachine = ratisServer.getMasterStateMachine();
