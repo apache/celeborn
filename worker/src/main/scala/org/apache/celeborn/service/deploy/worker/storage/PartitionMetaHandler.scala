@@ -105,8 +105,7 @@ class MapPartitionMetaHandler(
   var currentSubpartition = 0
   private var totalBytes = 0L
   private var regionStartingOffset = 0L
-  var indexChannel: FileChannel =
-    FileChannelUtils.createWritableFileChannel(diskFileInfo.getIndexPath)
+  var indexChannel: FileChannel = createIndexChannelIfLocalCluster
   @volatile private var isRegionFinished = true
 
   override def handleEvent(message: GeneratedMessageV3): Unit = {
@@ -182,6 +181,29 @@ class MapPartitionMetaHandler(
     regionStartingOffset = totalBytes
     util.Arrays.fill(numSubpartitionBytes, 0)
     isRegionFinished = true
+  }
+
+  private def createIndexChannelIfLocalCluster(): FileChannel = {
+    if (!diskFileInfo.isDFS) {
+      FileChannelUtils.createWritableFileChannel(diskFileInfo.getIndexPath)
+    } else {
+      try {
+        val hdfsPath = diskFileInfo.getDfsIndexPath
+        hadoopFs.create(hdfsPath, true).close()
+      } catch {
+        case e: IOException =>
+          try {
+            // If create file failed, wait 10 ms and retry
+            Thread.sleep(10)
+          } catch {
+            case ex: InterruptedException =>
+              throw new RuntimeException(ex)
+          }
+          val hdfsPath = diskFileInfo.getDfsIndexPath
+          hadoopFs.create(hdfsPath, true).close()
+      }
+      null
+    }
   }
 
   private def allocateIndexBuffer(numSubpartitions: Int): ByteBuffer = {
