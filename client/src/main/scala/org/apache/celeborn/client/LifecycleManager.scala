@@ -390,25 +390,17 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         partitionId,
         isSegmentGranularityVisible)
 
-    case pb: PbRevive =>
-      val shuffleId = pb.getShuffleId
-      val mapIds = pb.getMapIdList
-      val partitionInfos = pb.getPartitionInfoList
-
+    case Revive(shuffleId, mapIds, reviveRequests, serdeVersion) =>
       val partitionIds = new util.ArrayList[Integer]()
       val epochs = new util.ArrayList[Integer]()
       val oldPartitions = new util.ArrayList[PartitionLocation]()
       val causes = new util.ArrayList[StatusCode]()
-      (0 until partitionInfos.size()).foreach { idx =>
-        val info = partitionInfos.get(idx)
-        partitionIds.add(info.getPartitionId)
-        epochs.add(info.getEpoch)
-        if (info.hasPartition) {
-          oldPartitions.add(PbSerDeUtils.fromPbPartitionLocation(info.getPartition))
-        } else {
-          oldPartitions.add(null)
-        }
-        causes.add(StatusCode.fromValue(info.getStatus))
+      (0 until reviveRequests.size()).foreach { idx =>
+        val request = reviveRequests.get(idx)
+        partitionIds.add(request.partitionId)
+        epochs.add(request.epoch)
+        oldPartitions.add(request.loc)
+        causes.add(request.cause)
       }
       logDebug(s"Received Revive request, number of partitions ${partitionIds.size()}")
       handleRevive(
@@ -418,7 +410,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         partitionIds,
         epochs,
         oldPartitions,
-        causes)
+        causes,
+        serdeVersion)
 
     case pb: PbPartitionSplit =>
       val shuffleId = pb.getShuffleId
@@ -428,7 +421,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       logTrace(s"Received split request, " +
         s"$shuffleId, $partitionId, $epoch, $oldPartition")
       changePartitionManager.handleRequestPartitionLocation(
-        ChangeLocationsCallContext(context, 1),
+        // TODO: this message is not supported in cppClient yet.
+        ChangeLocationsCallContext(context, 1, SerdeVersion.V1),
         shuffleId,
         partitionId,
         epoch,
@@ -884,9 +878,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       partitionIds: util.List[Integer],
       oldEpochs: util.List[Integer],
       oldPartitions: util.List[PartitionLocation],
-      causes: util.List[StatusCode]): Unit = {
+      causes: util.List[StatusCode],
+      serdeVersion: SerdeVersion): Unit = {
     val contextWrapper =
-      ChangeLocationsCallContext(context, partitionIds.size())
+      ChangeLocationsCallContext(context, partitionIds.size(), serdeVersion)
     // If shuffle not registered, reply ShuffleNotRegistered and return
     if (!registeredShuffle.contains(shuffleId)) {
       logError(s"[handleRevive] shuffle $shuffleId not registered!")

@@ -897,7 +897,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     try {
       PbChangeLocationResponse response =
           lifecycleManagerRef.askSync(
-              Revive$.MODULE$.apply(shuffleId, mapIds, requests),
+              Revive$.MODULE$.apply(shuffleId, mapIds, requests, SerdeVersion.V1),
               conf.clientRpcRequestPartitionLocationAskTimeout(),
               ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
 

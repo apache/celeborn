@@ -37,11 +37,12 @@ trait RequestLocationCallContext {
 
 case class ChangeLocationsCallContext(
     context: RpcCallContext,
-    partitionCount: Int)
+    partitionCount: Int,
+    serdeVersion: SerdeVersion)
   extends RequestLocationCallContext with Logging {
-  val endedMapIds = new util.HashSet[Integer]()
+  val endedMapIds = new util.ArrayList[Integer]()
   val newLocs =
-    JavaUtils.newConcurrentHashMap[Integer, (StatusCode, Boolean, PartitionLocation)](
+    JavaUtils.newConcurrentHashMap[Integer, (StatusCode, java.lang.Boolean, PartitionLocation)](
       partitionCount)
 
   def markMapperEnd(mapId: Int): Unit = this.synchronized {
@@ -60,7 +61,7 @@ case class ChangeLocationsCallContext(
 
     if (newLocs.size() == partitionCount || StatusCode.SHUFFLE_UNREGISTERED == status
       || StatusCode.STAGE_ENDED == status) {
-      context.reply(ChangeLocationResponse(endedMapIds, newLocs))
+      context.reply(ChangeLocationResponse(endedMapIds, newLocs, serdeVersion))
     }
   }
 }
