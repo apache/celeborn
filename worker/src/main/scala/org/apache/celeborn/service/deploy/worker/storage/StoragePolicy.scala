@@ -185,8 +185,15 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
       if (evict) {
         0
       } else {
-        order.get.indexOf(
-          partitionDataWriterContext.getPartitionLocation.getStorageInfo.getType.name())
+        // keep the old behavior, always try to use memory if worker
+        // has configured to use memory storage, because slots allocator
+        // will not allocate slots on memory storage
+        if (order.contains(StorageInfo.Type.MEMORY.name())) {
+          order.get.indexOf(StorageInfo.Type.MEMORY.name())
+        } else {
+          order.get.indexOf(
+            partitionDataWriterContext.getPartitionLocation.getStorageInfo.getType.name())
+        }
       }
 
     val maxSize = order.get.length
