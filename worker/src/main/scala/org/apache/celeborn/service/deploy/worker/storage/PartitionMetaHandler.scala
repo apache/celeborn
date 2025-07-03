@@ -105,8 +105,7 @@ class MapPartitionMetaHandler(
   var currentSubpartition = 0
   private var totalBytes = 0L
   private var regionStartingOffset = 0L
-  var indexChannel: FileChannel =
-    FileChannelUtils.createWritableFileChannel(diskFileInfo.getIndexPath)
+  var indexChannel: FileChannel = createIndexFile
   @volatile private var isRegionFinished = true
 
   override def handleEvent(message: GeneratedMessageV3): Unit = {
@@ -184,6 +183,29 @@ class MapPartitionMetaHandler(
     isRegionFinished = true
   }
 
+  private def createIndexFile(): FileChannel = {
+    if (!diskFileInfo.isDFS) {
+      FileChannelUtils.createWritableFileChannel(diskFileInfo.getIndexPath)
+    } else {
+      try {
+        val hdfsPath = diskFileInfo.getDfsIndexPath
+        hadoopFs.create(hdfsPath, true).close()
+      } catch {
+        case e: IOException =>
+          try {
+            // If create file failed, wait 10 ms and retry
+            Thread.sleep(10)
+          } catch {
+            case ex: InterruptedException =>
+              throw new RuntimeException(ex)
+          }
+          val hdfsPath = diskFileInfo.getDfsIndexPath
+          hadoopFs.create(hdfsPath, true).close()
+      }
+      null
+    }
+  }
+
   private def allocateIndexBuffer(numSubpartitions: Int): ByteBuffer = {
     // the returned buffer size is no smaller than 4096 bytes to improve disk IO performance
     val minBufferSize = 4096
@@ -216,7 +238,9 @@ class MapPartitionMetaHandler(
           if (indexChannel != null) while (indexBuffer.hasRemaining) indexChannel.write(indexBuffer)
           else if (diskFileInfo.isDFS) {
             val dfsStream = hadoopFs.append(diskFileInfo.getDfsIndexPath)
-            dfsStream.write(indexBuffer.array)
+            val indexBytes = new Array[Byte](indexBuffer.remaining)
+            indexBuffer.get(indexBytes)
+            dfsStream.write(indexBytes)
             dfsStream.close()
           }
         }
