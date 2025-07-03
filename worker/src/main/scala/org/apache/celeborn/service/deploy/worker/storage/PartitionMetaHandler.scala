@@ -105,7 +105,7 @@ class MapPartitionMetaHandler(
   var currentSubpartition = 0
   private var totalBytes = 0L
   private var regionStartingOffset = 0L
-  var indexChannel: FileChannel = createIndexChannelIfLocalCluster
+  var indexChannel: FileChannel = createIndexFile
   @volatile private var isRegionFinished = true
 
   override def handleEvent(message: GeneratedMessageV3): Unit = {
