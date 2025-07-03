@@ -229,6 +229,9 @@ private[celeborn] class Master(
     estimatedPartitionSizeForEstimationUpdateInterval,
     TimeUnit.MILLISECONDS)
   private val slotsAssignPolicy = conf.masterSlotAssignPolicy
+  private val slotsAssignInterruptionAware = conf.masterSlotAssignInterruptionAware
+  private val slotsAssignInterruptionAwareThreshold =
+    conf.masterSlotsAssignInterruptionAwareThreshold
 
   private var hadoopFs: util.Map[StorageInfo.Type, FileSystem] = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
@@ -939,14 +942,18 @@ private[celeborn] class Master(
               slotsAssignLoadAwareDiskGroupGradient,
               loadAwareFlushTimeWeight,
               loadAwareFetchTimeWeight,
-              requestSlots.availableStorageTypes)
+              requestSlots.availableStorageTypes,
+              slotsAssignInterruptionAware,
+              slotsAssignInterruptionAwareThreshold)
           } else {
             SlotsAllocator.offerSlotsRoundRobin(
               selectedWorkers,
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware,
-              requestSlots.availableStorageTypes)
+              requestSlots.availableStorageTypes,
+              slotsAssignInterruptionAware,
+              slotsAssignInterruptionAwareThreshold)
           }
         }
       }

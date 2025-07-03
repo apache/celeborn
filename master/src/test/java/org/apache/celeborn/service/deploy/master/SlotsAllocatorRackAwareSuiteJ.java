@@ -81,7 +81,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         SlotsAllocator.offerSlotsRoundRobin(
-            workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+            workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK, false, 0);
 
     Consumer<PartitionLocation> assertCustomer =
         new Consumer<PartitionLocation>() {
@@ -121,7 +121,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         SlotsAllocator.offerSlotsRoundRobin(
-            workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+            workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK, false, 0);
 
     Consumer<PartitionLocation> assertConsumer =
         new Consumer<PartitionLocation>() {
@@ -208,7 +208,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
 
       Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
           SlotsAllocator.offerSlotsRoundRobin(
-              workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+              workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK, false, 0);
 
       Map<String, Long> numReplicaPerHost =
           slots.entrySet().stream()
@@ -246,7 +246,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
 
         Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
             SlotsAllocator.offerSlotsRoundRobin(
-                workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+                workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK, false, 0);
 
         Map<String, Long> numReplicaPerHost =
             slots.entrySet().stream()
