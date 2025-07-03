@@ -35,6 +35,7 @@ import org.apache.celeborn.common.quota.WorkerTrafficQuota;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.server.common.service.config.ConfigService;
+import org.apache.celeborn.server.common.service.config.SystemConfig;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
@@ -67,6 +68,8 @@ public class CongestionController {
   private final UserTrafficQuota defaultUserQuota;
 
   private volatile WorkerTrafficQuota workerTrafficQuota;
+
+  private final AtomicBoolean onlyCongestOnHighWatermark = new AtomicBoolean(false);
 
   protected CongestionController(
       WorkerSource workerSource,
@@ -116,11 +119,13 @@ public class CongestionController {
     this.workerSource.addGauge(
         WorkerSource.WORKER_CONSUME_SPEED(), consumedBufferStatusHub::avgBytesPerSec);
 
+    onlyCongestOnHighWatermark.set(conf.onlyCongestOnHighWatermark());
+
     this.configService = configService;
 
     if (configService != null) {
-      updateQuota();
-      configService.registerListenerOnConfigUpdate(this::updateQuota);
+      updateCongestionConfig();
+      configService.registerListenerOnConfigUpdate(this::updateCongestionConfig);
     }
   }
 
@@ -169,7 +174,8 @@ public class CongestionController {
       }
     }
 
-    if (userProduceSpeed > userTrafficQuota.userProduceSpeedHighWatermark()) {
+    if ((overHighWatermark.get() || !onlyCongestOnHighWatermark.get())
+        && userProduceSpeed > userTrafficQuota.userProduceSpeedHighWatermark()) {
       userCongestionControlContext.onCongestionControl();
       if (logger.isDebugEnabled()) {
         logger.debug(
@@ -347,8 +353,10 @@ public class CongestionController {
     return consumedBufferStatusHub;
   }
 
-  private void updateQuota() {
-    workerTrafficQuota = configService.getSystemConfigFromCache().getWorkerTrafficQuota();
+  private void updateCongestionConfig() {
+    SystemConfig systemConfig = configService.getSystemConfigFromCache();
+    onlyCongestOnHighWatermark.set(systemConfig.getOnlyCongestOnHighWatermark());
+    workerTrafficQuota = systemConfig.getWorkerTrafficQuota();
     for (Map.Entry<UserIdentifier, UserCongestionControlContext> entry :
         userCongestionContextMap.entrySet()) {
       UserIdentifier user = entry.getKey();
