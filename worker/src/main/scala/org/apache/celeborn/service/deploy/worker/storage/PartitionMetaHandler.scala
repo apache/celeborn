@@ -183,7 +183,7 @@ class MapPartitionMetaHandler(
     isRegionFinished = true
   }
 
-  private def createIndexChannelIfLocalCluster(): FileChannel = {
+  private def createIndexFile(): FileChannel = {
     if (!diskFileInfo.isDFS) {
       FileChannelUtils.createWritableFileChannel(diskFileInfo.getIndexPath)
     } else {
