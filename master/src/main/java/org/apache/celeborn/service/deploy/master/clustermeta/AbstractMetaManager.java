@@ -48,6 +48,7 @@ import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.protocol.PbSnapshotMetaInfo;
 import org.apache.celeborn.common.protocol.PbWorkerStatus;
+import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -287,23 +288,17 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     long unhealthyDiskNum =
         disks.values().stream().filter(s -> !s.status().equals(DiskStatus.HEALTHY)).count();
     boolean exceed = unhealthyDiskNum * 1.0 / disks.size() >= unhealthyDiskRatioThreshold;
+    Option<scala.collection.immutable.Set<Tuple2<StorageInfo.Type, String>>> remoteStorageDirs =
+        conf.remoteStorageDirs();
     if (!excludedWorkers.contains(worker)
-        && (((disks.isEmpty() || exceed)
-                && !conf.hasHDFSStorage()
-                && !conf.hasS3Storage()
-                && !conf.hasOssStorage())
-            || highWorkload)) {
+        && (((disks.isEmpty() || exceed) && remoteStorageDirs.isEmpty()) || highWorkload)) {
       LOG.warn(
           "Worker {} (unhealthy disks num: {}, high workload: {}) adds to excluded workers",
           worker,
           unhealthyDiskNum,
           highWorkload);
       excludedWorkers.add(worker);
-    } else if ((availableSlots.get() > 0
-            || conf.hasHDFSStorage()
-            || conf.hasS3Storage()
-            || conf.hasOssStorage())
-        && !highWorkload) {
+    } else if ((availableSlots.get() > 0 || remoteStorageDirs.isDefined()) && !highWorkload) {
       // only unblack if numSlots larger than 0
       excludedWorkers.remove(worker);
     }
