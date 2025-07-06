@@ -64,11 +64,13 @@ public class ReadClientHandler extends BaseMessageHandler {
       logger.debug("received streamId: {}, msg :{}", streamId, msg);
       handler.accept(msg);
     } else {
-      if (msg != null && msg instanceof ReadData) {
+      if (msg instanceof ReadData) {
         ((ReadData) msg).getFlinkBuffer().release();
       }
 
-      logger.warn("Unexpected streamId received: {}", streamId);
+      if (!(msg instanceof BufferStreamEnd)) {
+        logger.warn("Unexpected streamId received: {}, msg: {}", streamId, msg);
+      }
     }
   }
 
