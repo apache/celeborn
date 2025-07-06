@@ -426,7 +426,7 @@ private[deploy] class Controller(
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(
         CommitFilesResponse(
-          StatusCode.SHUFFLE_NOT_REGISTERED,
+          StatusCode.SHUFFLE_UNREGISTERED,
           List.empty.asJava,
           List.empty.asJava,
           primaryIds,
@@ -681,7 +681,7 @@ private[deploy] class Controller(
       logWarning(s"Shuffle $shuffleKey not registered!")
       context.reply(
         DestroyWorkerSlotsResponse(
-          StatusCode.SHUFFLE_NOT_REGISTERED,
+          StatusCode.SHUFFLE_UNREGISTERED,
           primaryLocations,
           replicaLocations))
       return

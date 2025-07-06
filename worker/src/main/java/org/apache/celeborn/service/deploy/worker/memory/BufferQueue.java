@@ -30,7 +30,7 @@ import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Assume that max-managed memory for a MapDataPartition is (2^31 * buffersize)
+// Assume that max-managed memory for a MapPartitionData is (2^31 * buffersize)
 public class BufferQueue {
   public static final Logger logger = LoggerFactory.getLogger(BufferQueue.class);
 

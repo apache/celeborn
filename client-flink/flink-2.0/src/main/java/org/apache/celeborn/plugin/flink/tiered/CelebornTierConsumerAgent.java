@@ -79,7 +79,7 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
 
   /**
    * partitionId -> subPartitionId -> reader, note that subPartitions may share the same reader, as
-   * a single reader can consume multiple subPartitions to improvement performance.
+   * a single reader can consume multiple subPartitions to improve performance.
    */
   private final Map<
           TieredStoragePartitionId, Map<TieredStorageSubpartitionId, CelebornChannelBufferReader>>
@@ -111,7 +111,7 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
 
   /**
    * The notify target is flink inputGate, used in notify input gate which subPartition contain
-   * shuffle data that can to be read.
+   * shuffle data that can be read.
    */
   private AvailabilityNotifier availabilityNotifier;
 

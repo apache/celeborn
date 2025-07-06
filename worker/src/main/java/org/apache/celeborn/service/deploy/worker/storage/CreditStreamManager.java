@@ -200,7 +200,7 @@ public class CreditStreamManager {
       logger.warn("Ignore AddCredit from stream {}, numCredit {}.", streamId, numCredit);
       return;
     }
-    MapPartitionData mapPartitionData = streams.get(streamId).getMapDataPartition();
+    MapPartitionData mapPartitionData = streams.get(streamId).getMapPartitionData();
     addCredit(mapPartitionData, numCredit, streamId);
   }
 
@@ -208,7 +208,7 @@ public class CreditStreamManager {
     StreamState streamState = streams.get(streamId);
     if (streamState != null) {
       notifyRequiredSegment(
-          streamState.getMapDataPartition(), requiredSegmentId, streamId, subPartitionId);
+          streamState.getMapPartitionData(), requiredSegmentId, streamId, subPartitionId);
     } else {
       // In flink hybrid shuffle integration strategy, the stream may release in worker before
       // client receive bufferStreamEnd,
@@ -279,7 +279,7 @@ public class CreditStreamManager {
   public void cleanResource(Long streamId) {
     logger.debug("received clean stream: {}", streamId);
     if (streams.containsKey(streamId)) {
-      MapPartitionData mapPartitionData = streams.get(streamId).getMapDataPartition();
+      MapPartitionData mapPartitionData = streams.get(streamId).getMapPartitionData();
       if (mapPartitionData != null) {
         if (mapPartitionData.releaseReader(streamId)) {
           streams.remove(streamId);
@@ -340,7 +340,7 @@ public class CreditStreamManager {
       return bufferSize;
     }
 
-    public MapPartitionData getMapDataPartition() {
+    public MapPartitionData getMapPartitionData() {
       return mapPartitionData;
     }
   }

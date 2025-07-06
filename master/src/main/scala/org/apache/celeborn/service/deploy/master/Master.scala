@@ -162,7 +162,7 @@ private[celeborn] class Master(
             logError(msg, ioe)
             System.exit(1)
           } else {
-            logError("Face unexpected IO exception during staring Ratis server", ioe)
+            logError("Face unexpected IO exception during starting Ratis server", ioe)
           }
       }
       sys
@@ -174,7 +174,7 @@ private[celeborn] class Master(
   // Threads
   private val forwardMessageThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-message-forwarder")
-  private var checkForWorkerTimeOutTask: ScheduledFuture[_] = _
+  private var checkForWorkerTimeoutTask: ScheduledFuture[_] = _
   private var checkForApplicationTimeOutTask: ScheduledFuture[_] = _
   private var checkForUnavailableWorkerTimeOutTask: ScheduledFuture[_] = _
   private var checkForDFSRemnantDirsTimeOutTask: ScheduledFuture[_] = _
@@ -336,7 +336,7 @@ private[celeborn] class Master(
         "send-application-meta")
     }
 
-    checkForWorkerTimeOutTask = scheduleCheckTask(workerHeartbeatTimeoutMs, pbCheckForWorkerTimeout)
+    checkForWorkerTimeoutTask = scheduleCheckTask(workerHeartbeatTimeoutMs, pbCheckForWorkerTimeout)
     checkForApplicationTimeOutTask =
       scheduleCheckTask(appHeartbeatTimeoutMs / 2, CheckForApplicationTimeOut)
 
@@ -370,7 +370,7 @@ private[celeborn] class Master(
       return
     }
     logInfo("Stopping Celeborn Master.")
-    Option(checkForWorkerTimeOutTask).foreach(_.cancel(true))
+    Option(checkForWorkerTimeoutTask).foreach(_.cancel(true))
     Option(checkForUnavailableWorkerTimeOutTask).foreach(_.cancel(true))
     Option(checkForApplicationTimeOutTask).foreach(_.cancel(true))
     Option(checkForDFSRemnantDirsTimeOutTask).foreach(_.cancel(true))

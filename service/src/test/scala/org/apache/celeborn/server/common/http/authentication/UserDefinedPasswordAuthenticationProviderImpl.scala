@@ -21,10 +21,10 @@ import java.security.Principal
 import javax.security.sasl.AuthenticationException
 
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.server.common.http.authentication.UserDefinePasswordAuthenticationProviderImpl.VALID_PASSWORD
+import org.apache.celeborn.server.common.http.authentication.UserDefinedPasswordAuthenticationProviderImpl.VALID_PASSWORD
 import org.apache.celeborn.spi.authentication.{BasicPrincipal, Credential, PasswdAuthenticationProvider, PasswordCredential}
 
-class UserDefinePasswordAuthenticationProviderImpl
+class UserDefinedPasswordAuthenticationProviderImpl
   extends PasswdAuthenticationProvider with Logging {
   override def authenticate(credential: PasswordCredential): Principal = {
     val clientIp = credential.extraInfo.get(Credential.CLIENT_IP_KEY)
@@ -37,6 +37,6 @@ class UserDefinePasswordAuthenticationProviderImpl
   }
 }
 
-object UserDefinePasswordAuthenticationProviderImpl {
+object UserDefinedPasswordAuthenticationProviderImpl {
   val VALID_PASSWORD = "password"
 }

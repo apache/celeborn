@@ -260,7 +260,7 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
 
   @Override
   public String toString() {
-    return "MapDataPartition{" + "fileInfo=" + diskFileInfo.getFilePath() + '}';
+    return "MapPartitionData{" + "fileInfo=" + diskFileInfo.getFilePath() + '}';
   }
 
   public ConcurrentHashMap<Long, MapPartitionDataReader> getReaders() {

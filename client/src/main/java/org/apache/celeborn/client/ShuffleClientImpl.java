@@ -932,7 +932,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         } else if (StatusCode.STAGE_ENDED.getValue() == statusCode) {
           stageEndShuffleSet.add(shuffleId);
           return results;
-        } else if (StatusCode.SHUFFLE_NOT_REGISTERED.getValue() == statusCode) {
+        } else if (StatusCode.SHUFFLE_UNREGISTERED.getValue() == statusCode) {
           logger.error("SHUFFLE_NOT_REGISTERED!");
           return null;
         }
@@ -1882,7 +1882,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   response.pushFailedBatches()),
               null,
               null);
-        case SHUFFLE_NOT_REGISTERED:
+        case SHUFFLE_UNREGISTERED:
           logger.warn(
               "Request {} return {} for {}.", getReducerFileGroup, response.status(), shuffleId);
           // return empty result
@@ -1894,7 +1894,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   response.pushFailedBatches()),
               null,
               null);
-        case STAGE_END_TIME_OUT:
+        case STAGE_END_TIMEOUT:
         case SHUFFLE_DATA_LOST:
           exceptionMsg =
               String.format(
