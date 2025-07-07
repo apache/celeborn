@@ -207,7 +207,7 @@ class CelebornConfSuite extends CelebornFunSuite {
     assert(!conf.workerBaseDirs.isEmpty)
 
     conf.set("celeborn.storage.availableTypes", "S3")
-    conf.set("celeborn.storage.s3.dir", "s3a:///xxx")
+    conf.set("celeborn.storage.s3.dir", "s3a://xxx")
     assert(conf.workerBaseDirs.isEmpty)
   }
 
