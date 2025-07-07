@@ -107,7 +107,7 @@
     <rocksdbjni.version>9.10.0</rocksdbjni.version>
     <jackson.version>2.15.3</jackson.version>
     <snappy.version>1.1.10.5</snappy.version>
-    <ap.loader.version>3.0-9</ap.loader.version>
+    <ap.loader.version>4.0-10</ap.loader.version>
     <picocli.version>4.7.6</picocli.version>
     <jmh.version>1.37</jmh.version>
 
