@@ -1,0 +1,8 @@
+schemaVersion: 0.0.1
+isProduction: true
+accountableOwners:
+  service: 45ec779c-f79c-4a60-95b1-fe3bb3e27091
+routing:
+  defaultAreaPath:
+    org: msasg
+    path: Bing_and_IPG\MT-Platform
