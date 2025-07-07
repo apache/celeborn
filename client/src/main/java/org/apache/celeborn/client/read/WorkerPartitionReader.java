@@ -75,6 +75,7 @@ public class WorkerPartitionReader implements PartitionReader {
   private int fetchChunkRetryCnt;
   private int fetchChunkMaxRetry;
   private final boolean testFetch;
+  private int readNonPartitionWaitTime;
 
   private Optional<PartitionReaderCheckpointMetadata> partitionReaderCheckpointMetadata;
 
@@ -97,6 +98,7 @@ public class WorkerPartitionReader implements PartitionReader {
     fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
     fetchTimeoutMs = conf.clientFetchTimeoutMs();
+    readNonPartitionWaitTime = conf.clientReadNonPartitionWaitTime();
     inflightRequestCount = 0;
     this.metricsCallback = metricsCallback;
     // only add the buffer to results queue if this reader is not closed.
@@ -192,7 +194,7 @@ public class WorkerPartitionReader implements PartitionReader {
       while (chunk == null) {
         checkException();
         Long startFetchWait = System.nanoTime();
-        chunk = results.poll(500, TimeUnit.MILLISECONDS);
+        chunk = results.poll(readNonPartitionWaitTime, TimeUnit.MILLISECONDS);
         metricsCallback.incReadTime(
             TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait));
       }
