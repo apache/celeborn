@@ -86,7 +86,7 @@ private[celeborn] class RpcMetricsTracker(
       if (slowRpcInterval < 0 || System.currentTimeMillis() - lastLogTime > slowRpcInterval &&
         lastSlowLogTime.compareAndSet(lastLogTime, System.currentTimeMillis())) {
         logWarning(
-          s"slow rpc detected: currentQueueSize = ${queueLengthFunc()}, queueTime=$queueTime(ns) processTime=$processTime(ns) message=$message")
+          s"slow rpc detected: currentQueueSize=${queueLengthFunc()}, queueTime=$queueTime(ns) processTime=$processTime(ns) message=$message")
       }
 
       val lastTime = lastDumpTime.get
@@ -110,32 +110,33 @@ private[celeborn] class RpcMetricsTracker(
     }
   }
 
-  def update(message: InboxMessage): Unit = {
-    def messageName(message: Any): String = {
-      message match {
-        case legacy: Message =>
-          legacy.getClass.toString
-        case pb: GeneratedMessageV3 =>
-          pb.getDescriptorForType.getFullName
-        case _: RpcEndpointVerifier.CheckExistence =>
-          "CheckExistence"
-        case _ =>
-          "unknown"
-      }
-    }
+  def messageName(message: Any): String = {
     message match {
-      case rpc @ RpcMessage(sender, content, context) =>
+      case legacy: Message =>
+        legacy.getClass.toString
+      case pb: GeneratedMessageV3 =>
+        pb.getDescriptorForType.getFullName
+      case _: RpcEndpointVerifier.CheckExistence =>
+        "CheckExistence"
+      case _ =>
+        "unknown"
+    }
+  }
+
+  def update(message: InboxMessage): Unit = {
+    message match {
+      case rpc @ RpcMessage(_, content, _) =>
         val queueTime = rpc.dequeueTime - rpc.enqueueTime
         val processTime = rpc.endProcessTime - rpc.dequeueTime
         val msgName = messageName(content)
         record(msgName, queueTime, processTime)
-        logSlowRpc(s"RpcMessage($sender, $msgName, $context)", queueTime, processTime)
-      case one @ OneWayMessage(sender, content) =>
+        logSlowRpc(msgName, queueTime, processTime)
+      case one @ OneWayMessage(_, content) =>
         val queueTime = one.dequeueTime - one.enqueueTime
         val processTime = one.endProcessTime - one.dequeueTime
         val msgName = messageName(content)
         record(msgName, queueTime, processTime)
-        logSlowRpc(s"OneWayMessage($sender, $msgName)", queueTime, processTime)
+        logSlowRpc(msgName, queueTime, processTime)
       case _ =>
     }
   }
