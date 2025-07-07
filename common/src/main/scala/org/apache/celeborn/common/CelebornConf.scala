@@ -4820,7 +4820,6 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(200)
 
-
   val CLIENT_FETCH_BUFFER_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.buffer.size")
       .categories("client")
