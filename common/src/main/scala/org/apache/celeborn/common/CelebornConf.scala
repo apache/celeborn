@@ -4812,7 +4812,7 @@ object CelebornConf extends Logging {
   val CLIENT_READ_NULL_PARTITION_WAIT_TIME: ConfigEntry[Int] =
     buildConf("celeborn.client.spark.non.partition.wait.time")
       .categories("client")
-      .version("0.7")
+      .version("0.7.0")
       .doc("The waiting time for Spark client to read the null shuffle partition on the work side." +
         "When there are many empty shuffle partitions in the shuffle partition of a small task," +
         "the current value can be set small to avoid long waiting times and the illusion of the" +
