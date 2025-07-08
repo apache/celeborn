@@ -55,6 +55,8 @@ import org.apache.celeborn.service.deploy.master.audit.ShuffleAuditLogger
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 import org.apache.celeborn.service.deploy.master.quota.QuotaManager
+import org.apache.celeborn.service.deploy.master.slotsalloc.SlotsAllocator
+import org.apache.celeborn.service.deploy.master.slotsalloc.SlotsAllocatorFactory
 import org.apache.celeborn.service.deploy.master.tags.TagsManager
 
 private[celeborn] class Master(
@@ -889,6 +891,11 @@ private[celeborn] class Master(
     }
   }
 
+  private val roundRobinSlotsAllocator =
+    SlotsAllocatorFactory.createSlotsAllocator(SlotsAssignPolicy.ROUNDROBIN, conf)
+  private val loadAwareSlotsAllocator =
+    SlotsAllocatorFactory.createSlotsAllocator(SlotsAssignPolicy.LOADAWARE, conf)
+
   def handleRequestSlots(context: RpcCallContext, requestSlots: RequestSlots): Unit = {
     val numReducers = requestSlots.partitionIdList.size()
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
@@ -929,25 +936,18 @@ private[celeborn] class Master(
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
         statusSystem.workersMap.synchronized {
-          if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE) {
-            SlotsAllocator.offerSlotsLoadAware(
-              selectedWorkers,
-              requestSlots.partitionIdList,
-              requestSlots.shouldReplicate,
-              requestSlots.shouldRackAware,
-              slotsAssignLoadAwareDiskGroupNum,
-              slotsAssignLoadAwareDiskGroupGradient,
-              loadAwareFlushTimeWeight,
-              loadAwareFetchTimeWeight,
-              requestSlots.availableStorageTypes)
-          } else {
-            SlotsAllocator.offerSlotsRoundRobin(
-              selectedWorkers,
-              requestSlots.partitionIdList,
-              requestSlots.shouldReplicate,
-              requestSlots.shouldRackAware,
-              requestSlots.availableStorageTypes)
+          val slotsAllocator = slotsAssignPolicy match {
+            case SlotsAssignPolicy.ROUNDROBIN => roundRobinSlotsAllocator
+            case SlotsAssignPolicy.LOADAWARE => loadAwareSlotsAllocator
+            case _ => throw new IllegalArgumentException(
+                s"Unsupported slots assign policy: ${slotsAssignPolicy}")
           }
+          slotsAllocator.offerSlots(
+            selectedWorkers,
+            requestSlots.partitionIdList,
+            requestSlots.shouldReplicate,
+            requestSlots.shouldRackAware,
+            requestSlots.availableStorageTypes)
         }
       }
 

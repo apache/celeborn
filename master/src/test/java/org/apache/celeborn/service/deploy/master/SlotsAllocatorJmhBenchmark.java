@@ -32,8 +32,11 @@ import java.util.stream.IntStream;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.protocol.SlotsAssignPolicy;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.service.deploy.master.slotsalloc.SlotsAllocatorFactory;
 
 public class SlotsAllocatorJmhBenchmark {
 
@@ -77,8 +80,13 @@ public class SlotsAllocatorJmhBenchmark {
   public void benchmarkSlotSelection(Blackhole blackhole, BenchmarkState state) {
 
     blackhole.consume(
-        SlotsAllocator.offerSlotsRoundRobin(
-            state.workers, state.partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK));
+        SlotsAllocatorFactory.createSlotsAllocator(SlotsAssignPolicy.ROUNDROBIN, new CelebornConf())
+            .offerSlots(
+                state.workers,
+                state.partitionIds,
+                true,
+                true,
+                StorageInfo.ALL_TYPES_AVAILABLE_MASK));
   }
 
   public static void main(String[] args) throws Exception {

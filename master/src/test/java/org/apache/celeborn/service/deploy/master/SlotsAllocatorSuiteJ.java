@@ -34,7 +34,10 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.SlotsAssignPolicy;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.service.deploy.master.slotsalloc.SlotsAllocator;
+import org.apache.celeborn.service.deploy.master.slotsalloc.SlotsAllocatorFactory;
 
 public class SlotsAllocatorSuiteJ {
   private List<WorkerInfo> prepareWorkers(boolean hasDisks) {
@@ -161,23 +164,12 @@ public class SlotsAllocatorSuiteJ {
     conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM().key(), "2");
     conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT().key(), "1");
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots;
-    if (roundrobin) {
-      slots =
-          SlotsAllocator.offerSlotsRoundRobin(
-              workers, partitionIds, shouldReplicate, false, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
-    } else {
-      slots =
-          SlotsAllocator.offerSlotsLoadAware(
-              workers,
-              partitionIds,
-              shouldReplicate,
-              false,
-              conf.masterSlotAssignLoadAwareDiskGroupNum(),
-              conf.masterSlotAssignLoadAwareDiskGroupGradient(),
-              conf.masterSlotAssignLoadAwareFlushTimeWeight(),
-              conf.masterSlotAssignLoadAwareFetchTimeWeight(),
-              StorageInfo.ALL_TYPES_AVAILABLE_MASK);
-    }
+    SlotsAllocator slotsAllocator =
+        SlotsAllocatorFactory.createSlotsAllocator(
+            roundrobin ? SlotsAssignPolicy.ROUNDROBIN : SlotsAssignPolicy.LOADAWARE, conf);
+    slots =
+        slotsAllocator.offerSlots(
+            workers, partitionIds, shouldReplicate, false, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
     if (expectSuccess) {
       if (shouldReplicate) {
         slots.forEach(
@@ -269,24 +261,25 @@ public class SlotsAllocatorSuiteJ {
       conf.set("celeborn.active.storage.levels", "HDFS");
       availableStorageTypes = StorageInfo.HDFS_MASK;
     }
+
+    conf.set("celeborn.slots.assign.loadAware.numDiskGroups", "3");
+    conf.set("celeborn.slots.assign.loadAware.diskGroupGradient", "0.1");
+    conf.set("celeborn.slots.assign.loadAware.flushTimeWeight", "0");
+    conf.set("celeborn.slots.assign.loadAware.fetchTimeWeight", "1");
+
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots;
-    if (roundRobin) {
-      slots =
-          SlotsAllocator.offerSlotsRoundRobin(
-              workers, partitionIds, shouldReplicate, false, availableStorageTypes);
-    } else {
-      slots =
-          SlotsAllocator.offerSlotsLoadAware(
-              workers,
-              partitionIds,
-              shouldReplicate,
-              false,
-              3,
-              0.1,
-              0,
-              1,
-              StorageInfo.LOCAL_DISK_MASK | availableStorageTypes);
-    }
+    SlotsAllocator slotsAllocator =
+        SlotsAllocatorFactory.createSlotsAllocator(
+            roundRobin ? SlotsAssignPolicy.ROUNDROBIN : SlotsAssignPolicy.LOADAWARE, conf);
+    slots =
+        slotsAllocator.offerSlots(
+            workers,
+            partitionIds,
+            shouldReplicate,
+            false,
+            roundRobin
+                ? availableStorageTypes
+                : StorageInfo.LOCAL_DISK_MASK | availableStorageTypes);
     int allocatedPartitionCount = 0;
     for (Map.Entry<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
         workerToPartitions : slots.entrySet()) {
