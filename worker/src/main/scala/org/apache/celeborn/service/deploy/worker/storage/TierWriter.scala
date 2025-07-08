@@ -643,13 +643,26 @@ class DfsTierWriter(
       hadoopFs.delete(hdfsFileInfo.getDfsPath, false)
       deleted = true
     } else {
-      hadoopFs.create(hdfsFileInfo.getDfsWriterSuccessPath).close()
-      val indexOutputStream = hadoopFs.create(hdfsFileInfo.getDfsIndexPath)
-      indexOutputStream.writeInt(hdfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
-      for (offset <- hdfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala) {
-        indexOutputStream.writeLong(offset)
+      var retryCount = 0
+      while (retryCount < conf.workerCreateIndexMaxAttempts && !hadoopFs.exists(hdfsFileInfo.getDfsWriterSuccessPath)) {
+        try {
+          if (hadoopFs.exists(hdfsFileInfo.getDfsIndexPath)) {
+            hadoopFs.delete(hdfsFileInfo.getDfsIndexPath, true)
+          }
+          val indexOutputStream = hadoopFs.create(hdfsFileInfo.getDfsIndexPath)
+          indexOutputStream.writeInt(hdfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
+          for (offset <- hdfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala) {
+            indexOutputStream.writeLong(offset)
+          }
+          indexOutputStream.close()
+          hadoopFs.create(hdfsFileInfo.getDfsWriterSuccessPath).close()
+        } catch {
+          case e: IOException =>
+            logWarn(s"Fail to create writer success file ${hdfsFileInfo.getDfsWriterSuccessPath}", e)
+            retryCount += 1
+            Thread.sleep(200)
+        }
       }
-      indexOutputStream.close()
     }
     if (s3MultipartUploadHandler != null) {
       s3MultipartUploadHandler.complete()
