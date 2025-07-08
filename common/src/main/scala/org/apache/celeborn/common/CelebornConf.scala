@@ -998,7 +998,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //               Shuffle Client Fetch                  //
   // //////////////////////////////////////////////////////
   def clientFetchTimeoutMs: Long = get(CLIENT_FETCH_TIMEOUT)
-  def clientReadNonPartitionWaitTime: Long = get(CLIENT_READ_NULL_PARTITION_WAIT_TIME)
+  def clientFetchPollChunkWaitTime: Long = get(CLIENT_FETCH_POLL_CHUNK_WAIT_TIME)
   def clientFetchBufferSize: Int = get(CLIENT_FETCH_BUFFER_SIZE).toInt
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
   def isPartitionReaderCheckpointEnabled: Boolean =
@@ -4809,12 +4809,12 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("600s")
 
-  val CLIENT_READ_NULL_PARTITION_WAIT_TIME: ConfigEntry[Long] =
-    buildConf("celeborn.client.spark.non.partition.wait.time")
+  val CLIENT_FETCH_POLL_CHUNK_WAIT_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.client.fetch.pollChunk.wait")
       .categories("client")
       .version("0.7.0")
-      .doc("The waiting time for shuffle client to read the null shuffle partition on the work side." +
-        "when there are many empty shuffle partitions in the shuffle partition of a small task," +
+      .doc("The waiting time for shuffle client to read the empty chunk on the work side." +
+        "when there are many empty chunk in the shuffle partition of a small task," +
         "the current value can be set small to avoid long waiting times and the illusion of the" +
         "task getting stuck")
       .timeConf(TimeUnit.MILLISECONDS)
