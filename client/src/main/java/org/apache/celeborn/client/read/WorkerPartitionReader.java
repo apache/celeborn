@@ -75,7 +75,7 @@ public class WorkerPartitionReader implements PartitionReader {
   private int fetchChunkRetryCnt;
   private int fetchChunkMaxRetry;
   private final boolean testFetch;
-  private int readNonPartitionWaitTime;
+  private Long readNonPartitionWaitTime;
 
   private Optional<PartitionReaderCheckpointMetadata> partitionReaderCheckpointMetadata;
 
