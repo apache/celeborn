@@ -4814,7 +4814,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.7.0")
       .doc("The waiting time for shuffle client to read the null shuffle partition on the work side." +
-        "When there are many empty shuffle partitions in the shuffle partition of a small task," +
+        "when there are many empty shuffle partitions in the shuffle partition of a small task," +
         "the current value can be set small to avoid long waiting times and the illusion of the" +
         "task getting stuck")
       .timeConf(TimeUnit.MILLISECONDS)
