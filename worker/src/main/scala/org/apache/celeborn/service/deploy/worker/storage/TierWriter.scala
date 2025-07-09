@@ -658,9 +658,9 @@ class DfsTierWriter(
           hadoopFs.create(hdfsFileInfo.getDfsWriterSuccessPath).close()
         } catch {
           case e: IOException =>
-            logWarn(s"Fail to create writer success file ${hdfsFileInfo.getDfsWriterSuccessPath}", e)
+            logWarning(s"Fail to create writer success file ${hdfsFileInfo.getDfsWriterSuccessPath}", e)
             retryCount += 1
-            Thread.sleep(200)
+            Thread.sleep(conf.workerCreateIndexBaseSleepDeltaMs * retryCount)
         }
       }
     }
