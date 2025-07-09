@@ -94,8 +94,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val mountPoints = new util.HashSet[String](diskInfos.keySet())
 
   val remoteDiskInfos: Option[Set[DiskInfo]] = remoteStorageDirs.flatMap { dirs =>
-    val diskInfoSet = dirs.flatMap { case (storageInfoType, _) =>
-      Option(new DiskInfo(storageInfoType.name, Long.MaxValue, 999999, 999999, 0, storageInfoType))
+    val diskInfoSet = dirs.map { case (storageInfoType, _) =>
+      new DiskInfo(storageInfoType.name, Long.MaxValue, 999999, 999999, 0, storageInfoType)
     }
     if (diskInfoSet.nonEmpty) Some(diskInfoSet) else None
   }

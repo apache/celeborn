@@ -1270,10 +1270,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       (StorageInfo.Type.S3, S3_DIR, Utils.isS3Path _),
       (StorageInfo.Type.OSS, OSS_DIR, Utils.isOssPath _))
 
-    val activeNames = get(ACTIVE_STORAGE_TYPES)
+    val activeStorageTypes =
+      get(ACTIVE_STORAGE_TYPES).split(",").map(StorageInfo.Type.valueOf).toList
 
     val validDirs = supported.flatMap { case (ty, e, checker) =>
-      if (!activeNames.contains(ty.name)) None
+      if (!activeStorageTypes.contains(ty)) None
       else {
         get(e).flatMap { dir =>
           if (checker(dir)) Some((ty, dir))
