@@ -1,0 +1,204 @@
+
+Apache Celeborn
+Copyright 2022-2024 The Apache Software Foundation.
+
+This product includes software developed at
+The Apache Software Foundation (https://www.apache.org/).
+
+=============================================================================
+= NOTICE file corresponding to section 4d of the Apache License Version 2.0 =
+=============================================================================
+
+Apache Spark
+Copyright 2014 and onwards The Apache Software Foundation
+
+Apache Kyuubi
+Copyright 2021-2023 The Apache Software Foundation
+
+Apache Iceberg
+Copyright 2017-2022 The Apache Software Foundation
+
+Apache Parquet MR
+Copyright 2014-2024 The Apache Software Foundation
+
+This project includes code from Kite, developed at Cloudera, Inc. with
+the following copyright notice:
+
+| Copyright 2013 Cloudera Inc.
+|
+| Licensed under the Apache License, Version 2.0 (the "License");
+| you may not use this file except in compliance with the License.
+| You may obtain a copy of the License at
+|
+|   http://www.apache.org/licenses/LICENSE-2.0
+|
+| Unless required by applicable law or agreed to in writing, software
+| distributed under the License is distributed on an "AS IS" BASIS,
+| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+| See the License for the specific language governing permissions and
+| limitations under the License.
+
+Remote Shuffle Service for Flink
+Copyright 2021 The Flink Remote Shuffle Project
+
+This product includes software developed at The Alibaba Group Holding Ltd
+(https://www.alibaba.com/).
+
+Apache Commons CLI
+Copyright 2002-2021 The Apache Software Foundation
+
+Apache Commons Crypto
+Copyright 2016-2024 The Apache Software Foundation
+
+Apache Commons IO
+Copyright 2002-2023 The Apache Software Foundation
+
+Apache Commons Lang
+Copyright 2001-2021 The Apache Software Foundation
+
+Apache Commons Logging
+Copyright 2003-2013 The Apache Software Foundation
+
+Apache Log4j 1.x Compatibility API
+Copyright 1999-2022 The Apache Software Foundation
+
+Apache Log4j API
+Copyright 1999-2022 The Apache Software Foundation
+
+Apache Log4j Core
+Copyright 1999-2012 Apache Software Foundation
+
+Apache Log4j SLF4J Binding
+Copyright 1999-2022 The Apache Software Foundation
+
+Apache Ratis Client
+Copyright 2017-2023 The Apache Software Foundation
+
+Apache Ratis Common
+Copyright 2017-2023 The Apache Software Foundation
+
+Apache Ratis gRPC Support
+Copyright 2017-2023 The Apache Software Foundation
+
+Apache Ratis Metrics
+Copyright 2017-2023 The Apache Software Foundation
+
+Apache Ratis Netty Support
+Copyright 2017-2023 The Apache Software Foundation
+
+Apache Ratis Protocols
+Copyright 2017-2023 The Apache Software Foundation
+
+Apache Ratis Server
+Copyright 2017-2023 The Apache Software Foundation
+
+Apache Ratis Server API
+Copyright 2017-2023 The Apache Software Foundation
+
+Apache Ratis Shell
+Copyright 2017-2020 The Apache Software Foundation
+
+Apache Ratis Thirdparty Miscellaneous
+Copyright 2017-2020 The Apache Software Foundation
+
+ResolverUtil.java
+Copyright 2005-2006 Tim Fennell
+
+Scala
+Copyright (c) 2002-2023 EPFL
+Copyright (c) 2011-2023 Lightbend, Inc.
+
+Scala includes software developed at
+LAMP/EPFL (https://lamp.epfl.ch/) and
+Lightbend, Inc. (https://www.lightbend.com/).
+
+Licensed under the Apache License, Version 2.0 (the "License").
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+This software includes projects with other licenses -- see `doc/LICENSE.md`.
+
+This product includes software developed by Google
+ Snappy: http://code.google.com/p/snappy/ (New BSD License)
+
+MyBatis
+Copyright 2010-2023
+
+This product includes software developed by
+The MyBatis Team (https://www.mybatis.org/).
+
+iBATIS
+Copyright 2010 The Apache Software Foundation
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+OGNL
+//--------------------------------------------------------------------------
+//  Copyright (c) 2004, Drew Davidson and Luke Blanshard
+//  All rights reserved.
+//
+//  Redistribution and use in source and binary forms, with or without
+//  modification, are permitted provided that the following conditions are
+//  met:
+//
+//  Redistributions of source code must retain the above copyright notice,
+//  this list of conditions and the following disclaimer.
+//  Redistributions in binary form must reproduce the above copyright
+//  notice, this list of conditions and the following disclaimer in the
+//  documentation and/or other materials provided with the distribution.
+//  Neither the name of the Drew Davidson nor the names of its contributors
+//  may be used to endorse or promote products derived from this software
+//  without specific prior written permission.
+//
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+//  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+//  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+//  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+//  OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+//  AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+//  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+//  THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+//  DAMAGE.
+//--------------------------------------------------------------------------
+
+Refactored SqlBuilder class (SQL, AbstractSQL)
+
+This product includes software developed by
+Adam Gent (https://gist.github.com/3650165)
+
+Copyright 2010 Adam Gent
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+classgraph
+The MIT License (MIT)
+Copyright (c) 2022 Luke Hutchison
+
+mimepool
+Copyright (c) 2018, 2022 Oracle and/or its affiliates.

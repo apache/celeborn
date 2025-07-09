@@ -1,0 +1,233 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto2";
+option java_package = "org.apache.celeborn.service.deploy.master.clustermeta";
+option java_outer_classname = "ResourceProtos";
+option java_generic_services = true;
+option java_generate_equals_and_hash = true;
+package deploy.master.meta;
+
+enum Type {
+  UnRegisterShuffle = 12;
+  RequestSlots = 13;
+
+  //deprecated
+  ReleaseSlots = 14;
+
+  AppHeartbeat = 15;
+  AppLost = 16;
+  WorkerLost = 17;
+  WorkerHeartbeat = 18;
+  RegisterWorker = 19;
+  ReportWorkerUnavailable = 20;
+  UpdatePartitionSize = 21;
+  WorkerRemove = 22;
+  RemoveWorkersUnavailableInfo = 23;
+  WorkerExclude = 24;
+  WorkerEvent = 25;
+  ApplicationMeta = 26;
+}
+
+enum WorkerEventType {
+  // refer to TransportMessages.proto.PbWorkerEvent.EventType
+  None = 0;
+  Immediately = 1; // Immediately exit
+  Decommission = 2; // from normal to decommission, then exit
+  DecommissionThenIdle = 3; // from normal to decommission and keep alive
+  Graceful = 4; // from normal to graceful, then exit
+  Recommission = 5; // -> from InDecommissionThenIdle/Idle state to Normal
+}
+
+message ResourceRequest {
+  required Type cmdType = 1; // Type of the command
+
+  optional string requestId = 2 [default=""];
+
+  optional RequestSlotsRequest requestSlotsRequest = 10;
+  // deprecated
+  optional ReleaseSlotsRequest releaseSlotsRequest = 11;
+  optional UnregisterShuffleRequest unregisterShuffleRequest = 12;
+  optional AppHeartbeatRequest appHeartbeatRequest = 13;
+  optional AppLostRequest appLostRequest = 14;
+  optional WorkerLostRequest workerLostRequest = 15;
+  optional WorkerHeartbeatRequest workerHeartbeatRequest = 16;
+  optional RegisterWorkerRequest registerWorkerRequest = 17;
+  optional ReportWorkerUnavailableRequest reportWorkerUnavailableRequest = 18;
+  optional WorkerRemoveRequest workerRemoveRequest = 19;
+  optional RemoveWorkersUnavailableInfoRequest removeWorkersUnavailableInfoRequest = 20;
+  optional WorkerExcludeRequest workerExcludeRequest = 21;
+  optional WorkerEventRequest workerEventRequest = 22;
+  optional ApplicationMetaRequest applicationMetaRequest = 23;
+}
+
+message DiskInfo {
+  required string mountPoint = 1;
+  required int64 usableSpace = 2;
+  required int64 avgFlushTime = 3;
+  required int64 usedSlots = 4;
+  required int32 status = 5;
+  required int64 avgFetchTime = 6;
+  required int32 storageType =7;
+  optional int64 totalSpace = 8;
+}
+
+message RequestSlotsRequest {
+  required string shuffleKey = 1;
+  required string hostName = 2;
+  map<string, SlotInfo> workerAllocations = 3;
+}
+
+message SlotInfo{
+  map<string, int32> slot = 1;
+}
+
+message ReleaseSlotsRequest {
+  required string shuffleKey = 1;
+  repeated string workerIds = 2;
+  repeated SlotInfo slots = 3;
+}
+
+message UnregisterShuffleRequest {
+  required string shuffleKey = 1;
+}
+
+message AppHeartbeatRequest {
+  required string appId = 1;
+  required int64 time = 2;
+  required int64 totalWritten = 3;
+  required int64 fileCount = 4;
+}
+
+message AppLostRequest {
+  required string appId = 1;
+}
+
+message WorkerExcludeRequest {
+  repeated WorkerAddress workersToAdd = 1;
+  repeated WorkerAddress workersToRemove = 2;
+}
+
+message WorkerLostRequest {
+  required string host = 1;
+  required int32 rpcPort = 2;
+  required int32 pushPort = 3;
+  required int32 fetchPort = 4 ;
+  required int32 replicatePort = 5;
+}
+
+message WorkerRemoveRequest {
+  required string host = 1;
+  required int32 rpcPort = 2;
+  required int32 pushPort = 3;
+  required int32 fetchPort = 4 ;
+  required int32 replicatePort = 5;
+}
+
+message WorkerHeartbeatRequest {
+  required string host = 1;
+  required int32 rpcPort = 2;
+  required int32 pushPort = 3;
+  required int32 fetchPort = 4;
+  required int32 replicatePort = 5;
+  map<string, DiskInfo> disks = 6;
+  required int64 time = 7;
+  map<string, ResourceConsumption> userResourceConsumption = 8;
+  map<string, int64> estimatedAppDiskUsage = 9;
+  required bool highWorkload = 10;
+  optional WorkerStatus workerStatus = 11;
+}
+
+message WorkerStatus {
+  enum State {
+    Normal = 0;
+    Idle = 1;
+    Exit = 2;
+    InDecommissionThenIdle = 3;   // -> Idle
+    InDecommission = 4;       // -> Exit
+    InGraceFul = 5;   // -> Exit
+    InExit = 6;
+  }
+
+  required State state = 1;
+  required int64 stateStartTime = 2;
+}
+
+message RegisterWorkerRequest {
+  required string host = 1;
+  required int32 rpcPort = 2;
+  required int32 pushPort = 3;
+  required int32 fetchPort = 4;
+  required int32 replicatePort = 5;
+  map<string, DiskInfo> disks = 6;
+  map<string, ResourceConsumption> userResourceConsumption = 7;
+  required int32 internalPort = 8;
+  optional string networkLocation = 9;
+}
+
+message ReportWorkerUnavailableRequest {
+  repeated WorkerAddress unavailable = 1;
+}
+
+message RemoveWorkersUnavailableInfoRequest {
+  repeated WorkerAddress unavailable = 1;
+}
+
+message WorkerEventRequest {
+  repeated WorkerAddress workerAddress = 1;
+  required WorkerEventType workerEventType = 2;
+}
+
+message WorkerAddress {
+  required string host = 1;
+  required int32 rpcPort = 2;
+  required int32 pushPort = 3;
+  required int32 fetchPort = 4;
+  required int32 replicatePort = 5;
+  required int32 internalPort = 6;
+}
+
+message UserIdentifier {
+  required string tenantId = 1;
+  required string name = 2;
+}
+
+message ResourceConsumption {
+  required int64 diskBytesWritten = 1;
+  required int64 diskFileCount = 2;
+  required int64 hdfsBytesWritten = 3;
+  required int64 hdfsFileCount = 4;
+  map<string, ResourceConsumption> subResourceConsumption = 5;
+}
+
+enum Status {
+  OK = 1;
+  INTERNAL_ERROR= 2;
+}
+
+message ResourceResponse {
+  required Type cmdType = 1; // Type of the command
+
+  optional bool success = 2 [default=true];
+
+  optional string message = 3;
+
+  required Status status = 4;
+}
+
+message ApplicationMetaRequest {
+  required string appId = 1;
+  optional string secret = 2;
+}

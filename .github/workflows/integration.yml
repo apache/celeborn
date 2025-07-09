@@ -1,0 +1,103 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: Integration Test
+
+on:
+  push:
+    branches:
+      - main
+      - branch-*
+  pull_request:
+    branches:
+      - main
+      - branch-*
+env:
+  MINIKUBE_VERSION: v1.33.1
+  KUBERNETES_VERSION: v1.30.0
+
+jobs:
+  celeborn_integration_test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        name: Setup JDK with Maven
+        with:
+          distribution: zulu
+          java-version: 8
+          cache: maven
+          check-latest: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          check-latest: true
+      - name: Setup Helm
+        uses: azure/setup-helm@v4.2.0
+        with:
+          version: v3.10.0
+      - name: Setup chart-testing
+        uses: helm/chart-testing-action@v2.6.1
+      - name: Run chart-testing (list-changed)
+        id: list-changed
+        run: |
+          changed=$(ct list-changed --target-branch ${{ github.event.repository.default_branch }})
+          if [[ -n "$changed" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run chart-testing (lint)
+        if: steps.list-changed.outputs.changed == 'true'
+        run: ct lint --target-branch ${{ github.event.repository.default_branch }} --check-version-increment=false --validate-maintainers=false
+      - name: Run unit tests
+        if: steps.list-changed.outputs.changed == 'true'
+        run: |
+          # The version of helm-unittest plugin should be synced with developer docs for helm charts
+          helm plugin install https://github.com/helm-unittest/helm-unittest.git --version=0.5.1
+          helm unittest charts/celeborn  --file "tests/**/*_test.yaml" --strict --debug
+      - name: Build Celeborn Binary
+        run:
+          ./build/make-distribution.sh -Pspark-3.3 -Pgoogle-mirror
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Build Celeborn Docker Image
+        uses: docker/build-push-action@v2
+        with:
+          context: ./dist
+          file: ./docker/Dockerfile
+          load: true
+          tags: apache/celeborn:latest
+      - name: Setup Minikube
+        run: |
+          # https://minikube.sigs.k8s.io/docs/start/
+          curl -LO https://github.com/kubernetes/minikube/releases/download/${MINIKUBE_VERSION}/minikube-linux-amd64
+          sudo install minikube-linux-amd64 /usr/local/bin/minikube
+          minikube start --cpus 2 --memory 4096 --kubernetes-version=${KUBERNETES_VERSION} --force
+      - name: Deploy Celeborn
+        run: |
+          # https://minikube.sigs.k8s.io/docs/handbook/pushing/#7-loading-directly-to-in-cluster-container-runtime
+          minikube image load apache/celeborn:latest
+          helm install celeborn charts/celeborn -f charts/celeborn/ci/values.yaml
+      - name: Wait Celeborn Ready
+        run: >-
+          ./build/mvn clean install 
+          -Pkubernetes-it 
+          -Pspark-3.3
+          -Dtest=none 
+          -DwildcardSuites=org.apache.celeborn.integration.DeploySuite

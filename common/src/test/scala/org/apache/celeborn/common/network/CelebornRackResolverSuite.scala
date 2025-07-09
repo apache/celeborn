@@ -1,0 +1,143 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.celeborn.common.network;
+
+import java.io.{File, FileWriter}
+import java.nio.charset.StandardCharsets
+import java.util.ArrayList
+import java.util.concurrent.TimeUnit
+
+import com.google.common.io.Files
+import com.google.common.util.concurrent.Uninterruptibles
+import org.apache.hadoop.fs.CommonConfigurationKeysPublic.{NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY, NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY}
+import org.apache.hadoop.net.{Node, TableMapping}
+import org.junit.Assert.assertEquals
+import org.scalatest.funsuite.AnyFunSuite
+
+import org.apache.celeborn.common.CelebornConf
+
+class CelebornRackResolverSuite extends AnyFunSuite {
+
+  test("Test TableMapping") {
+    val hostName1 = "1.2.3.4"
+    val hostName2 = "5.6.7.8"
+    val mapFile: File = File.createTempFile(getClass.getSimpleName + ".testResolve1", ".txt")
+    val mapFileWriter = new FileWriter(mapFile)
+    mapFileWriter.write(hostName1 + " /rack1\n" + hostName2 + "\t/rack2\n")
+    mapFileWriter.flush()
+    mapFileWriter.close()
+    mapFile.deleteOnExit()
+
+    val conf = new CelebornConf
+    conf.set(
+      "celeborn.hadoop." + NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY,
+      classOf[TableMapping].getName)
+    conf.set("celeborn.hadoop." + NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY, mapFile.getCanonicalPath)
+    val resolver = new CelebornRackResolver(conf)
+
+    val names = Seq(hostName1, hostName2)
+
+    val result: Seq[Node] = resolver.resolve(names)
+    assertEquals(names.size, result.size)
+    assertEquals("/rack1", result(0).getNetworkLocation)
+    assertEquals("/rack2", result(1).getNetworkLocation)
+
+    val resultMap: Map[String, Node] = resolver.resolveToMap(names)
+    assertEquals(names.size, resultMap.size)
+    assertEquals("/rack1", resultMap(hostName1).getNetworkLocation)
+    assertEquals("/rack2", resultMap(hostName2).getNetworkLocation)
+
+    val hostNamesList = new ArrayList[String]()
+    hostNamesList.add(hostName1)
+    hostNamesList.add(hostName2)
+    val resultMap2: Map[String, Node] = resolver.resolveToMap(hostNamesList)
+    assertEquals(hostNamesList.size, resultMap2.size)
+    assertEquals("/rack1", resultMap2(hostName1).getNetworkLocation)
+    assertEquals("/rack2", resultMap2(hostName2).getNetworkLocation)
+
+  }
+
+  test("CELEBORN-446: RackResolver support getDistance") {
+    val hostName1 = "1.2.3.4"
+    val hostName2 = "1.2.3.5"
+    val hostName3 = "1.2.3.6"
+    val hostName4 = "1.2.3.7"
+    val hostName5 = "1.2.3.8"
+    val hostName6 = "1.2.3.9"
+    val mapFile: File = File.createTempFile(getClass.getSimpleName + ".testResolve2", ".txt")
+    Files.asCharSink(mapFile, StandardCharsets.UTF_8).write(
+      s"""
+         |$hostName1 /default/rack1
+         |$hostName2 /default/rack1
+         |$hostName3 /default/rack2
+         |$hostName4 /default/rack3
+         |""".stripMargin)
+    val conf = new CelebornConf
+    conf.set(
+      "celeborn.hadoop." + NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY,
+      classOf[TableMapping].getName)
+    conf.set("celeborn.hadoop." + NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY, mapFile.getCanonicalPath)
+    val resolver = new CelebornRackResolver(conf)
+
+    assertEquals("/default/rack1", resolver.resolve(hostName1).getNetworkLocation)
+    assertEquals("/default/rack2", resolver.resolve(hostName3).getNetworkLocation)
+
+    assertEquals(true, resolver.isOnSameRack(hostName1, hostName2))
+    assertEquals(false, resolver.isOnSameRack(hostName1, hostName3))
+    assertEquals(false, resolver.isOnSameRack(hostName3, hostName4))
+
+    // check one side don't have rack info
+    assertEquals(false, resolver.isOnSameRack(hostName1, hostName5))
+
+    // check both side don't have rack info
+    assertEquals(true, resolver.isOnSameRack(hostName5, hostName6))
+  }
+
+  test("test TableMapping refresh") {
+    val hostName1 = "1.2.3.4"
+    val hostName2 = "1.2.3.5"
+    val hostName3 = "1.2.3.6"
+    val mapFile: File = File.createTempFile(getClass.getSimpleName + ".testResolve2", ".txt")
+    Files.asCharSink(mapFile, StandardCharsets.UTF_8).write(
+      s"""
+         |$hostName1 /default/rack1
+         |$hostName2 /default/rack1
+         |""".stripMargin)
+    val conf = new CelebornConf()
+    conf.set(
+      "celeborn.hadoop." + NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY,
+      classOf[TableMapping].getName)
+    conf.set("celeborn.hadoop." + NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY, mapFile.getCanonicalPath)
+    conf.set(CelebornConf.RACKRESOLVER_REFRESH_INTERVAL.key, "50")
+    val resolver = new CelebornRackResolver(conf)
+    assertEquals("/default/rack1", resolver.resolve(hostName1).getNetworkLocation)
+    assertEquals("/default/rack1", resolver.resolve(hostName2).getNetworkLocation)
+    assertEquals(true, resolver.isOnSameRack(hostName1, hostName2))
+
+    Files.asCharSink(mapFile, StandardCharsets.UTF_8).write(
+      s"""
+         |$hostName1 /default/rack1
+         |$hostName2 /default/rack2
+         |$hostName3 /default/rack1
+         |""".stripMargin)
+    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS)
+    assertEquals("/default/rack1", resolver.resolve(hostName3).getNetworkLocation)
+    assertEquals(false, resolver.isOnSameRack(hostName1, hostName2))
+    assertEquals(true, resolver.isOnSameRack(hostName1, hostName3))
+  }
+}

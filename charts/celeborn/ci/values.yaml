@@ -1,0 +1,136 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Default values for celeborn.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Specifies the Celeborn image to use
+image:
+  # -- Image repository
+  repository: apache/celeborn
+  # -- Image tag
+  tag: latest
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+
+# -- Specifies the number of Celeborn master replicas to deploy
+masterReplicas: 1
+# -- Specifies the number of Celeborn worker replicas to deploy
+workerReplicas: 1
+
+service:
+  # -- Specifies service type
+  type: ClusterIP
+  # -- Specifies service port
+  port: 9097
+
+cluster:
+  # -- Specifies Kubernetes cluster name
+  name: cluster
+
+# Specifies Celeborn volumes.
+# Currently supported volume types are `emptyDir` and `hostPath`.
+# Note that `hostPath` only works in hostPath type using to set `volumes hostPath path`.
+# Celeborn Master will pick first volumes for store raft log.
+# `diskType` only works in Celeborn Worker with hostPath type to manifest local disk type.
+volumes:
+  # -- Specifies volumes for Celeborn master pods
+  master:
+    - mountPath: /mnt/celeborn_ratis
+      type: emptyDir
+      size: 1Gi
+  # -- Specifies volumes for Celeborn worker pods
+  worker:
+    - mountPath: /mnt/disk1
+      type: emptyDir
+      size: 1Gi
+    - mountPath: /mnt/disk2
+      type: emptyDir
+      size: 1Gi
+
+# celeborn configurations
+celeborn:
+  celeborn.master.ha.enabled: false
+  celeborn.metrics.enabled: false
+  celeborn.master.http.port: 9098
+  celeborn.worker.http.port: 9096
+  celeborn.worker.monitor.disk.enabled: false
+  celeborn.shuffle.chunk.size: 8m
+  celeborn.rpc.io.serverThreads: 64
+  celeborn.rpc.io.numConnectionsPerPeer: 2
+  celeborn.rpc.io.clientThreads: 64
+  celeborn.rpc.dispatcher.numThreads: 4
+  celeborn.worker.flusher.buffer.size: 256K
+  celeborn.worker.fetch.io.threads: 32
+  celeborn.worker.push.io.threads: 32
+  celeborn.push.stageEnd.timeout: 120s
+  celeborn.application.heartbeat.timeout: 120s
+  celeborn.worker.heartbeat.timeout: 120s
+
+# -- Celeborn configurations
+environments:
+  CELEBORN_MASTER_MEMORY: 100m
+  CELEBORN_WORKER_MEMORY: 100m
+  CELEBORN_WORKER_OFFHEAP_MEMORY: 100m
+  CELEBORN_NO_DAEMONIZE: 1
+  TZ: "Asia/Shanghai"
+
+# -- Specifies the DNS policy for Celeborn pods to use
+dnsPolicy: ClusterFirstWithHostNet
+
+# -- Specifies whether to use the host's network namespace
+hostNetwork: true
+
+resources:
+  # -- Pod resources for Celeborn master pods
+  master:
+    limits:
+      cpu: 100m
+      memory: 800Mi
+    requests:
+      cpu: 100m
+      memory: 800Mi
+  # -- Pod resources for Celeborn worker pods
+  worker:
+    limits:
+      cpu: 100m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 1Gi
+
+# -- Container security context
+securityContext:
+  # Specifies the user ID to run the entrypoint of the container process
+  runAsUser: 10006
+  # Specifies the group ID to run the entrypoint of the container process
+  runAsGroup: 10006
+  # Specifies the group ID to use when modifying ownership and permissions of the mounted volumes
+  fsGroup: 10006
+
+podMonitor:
+  # -- Specifies whether to enable creating pod monitors for Celeborn pods
+  enable: false
+  # -- Specifies pod metrics endpoint
+  podMetricsEndpoint:
+    # Specifies scheme
+    scheme: http
+    # Specifies scrape interval
+    interval: 5s
+    # Specifies port name
+    portName: metrics
