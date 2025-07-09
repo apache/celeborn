@@ -71,6 +71,16 @@ abstract private[worker] class Flusher(
                   val flushBeginTime = System.nanoTime()
                   lastBeginFlushTime.set(index, flushBeginTime)
                   task.flush()
+                  task match {
+                    case _: LocalFlushTask =>
+                      workerSource.incCounter(WorkerSource.LOCAL_FLUSH_BYTES_COUNT)
+                    case _: HdfsFlushTask =>
+                      workerSource.incCounter(WorkerSource.HDFS_FLUSH_BYTES_COUNT)
+                    case _: OssFlushTask =>
+                      workerSource.incCounter(WorkerSource.OSS_FLUSH_BYTES_COUNT)
+                    case _: S3FlushTask =>
+                      workerSource.incCounter(WorkerSource.S3_FLUSH_BYTES_COUNT)
+                  }
                   if (flushTimeMetric != null) {
                     val delta = System.nanoTime() - flushBeginTime
                     flushTimeMetric.update(delta)
