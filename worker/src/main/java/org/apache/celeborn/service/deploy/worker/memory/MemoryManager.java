@@ -209,10 +209,10 @@ public class MemoryManager {
           () -> {
             try {
               if (creditStreamManager != null) {
-                int mapDataPartitionCount = creditStreamManager.getActiveMapPartitionCount();
-                if (mapDataPartitionCount > 0) {
+                int mapPartitionDataCount = creditStreamManager.getActiveMapPartitionCount();
+                if (mapPartitionDataCount > 0) {
                   long currentTarget =
-                      (long) Math.ceil(readBufferTarget * 1.0 / mapDataPartitionCount);
+                      (long) Math.ceil(readBufferTarget * 1.0 / mapPartitionDataCount);
                   if (Math.abs(lastNotifiedTarget - currentTarget)
                       > readBufferTargetNotifyThreshold) {
                     synchronized (readBufferTargetChangeListeners) {
@@ -220,7 +220,7 @@ public class MemoryManager {
                           "read buffer target changed {} -> {} active map partition count {}",
                           lastNotifiedTarget,
                           currentTarget,
-                          mapDataPartitionCount);
+                          mapPartitionDataCount);
                       for (ReadBufferTargetChangeListener changeListener :
                           readBufferTargetChangeListeners) {
                         changeListener.onChange(currentTarget);

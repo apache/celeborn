@@ -70,7 +70,7 @@ public class TransportConf {
   }
 
   /** Requested maximum length of the queue of incoming connections. Default 0 for no backlog. */
-  public int backLog() {
+  public int backlog() {
     return celebornConf.networkIoBacklog(module);
   }
 

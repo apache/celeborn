@@ -797,7 +797,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       logError(s"[handleRevive] shuffle $shuffleId not registered!")
       contextWrapper.reply(
         -1,
-        StatusCode.SHUFFLE_NOT_REGISTERED,
+        StatusCode.SHUFFLE_UNREGISTERED,
         None,
         false)
       return
@@ -871,7 +871,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     if (!registeredShuffle.contains(shuffleId) && !isSegmentGranularityVisible) {
       logWarning(s"[handleGetReducerFileGroup] shuffle $shuffleId not registered, maybe no shuffle data within this stage.")
       context.reply(GetReducerFileGroupResponse(
-        StatusCode.SHUFFLE_NOT_REGISTERED,
+        StatusCode.SHUFFLE_UNREGISTERED,
         JavaUtils.newConcurrentHashMap(),
         Array.empty,
         serdeVersion = serdeVersion))
