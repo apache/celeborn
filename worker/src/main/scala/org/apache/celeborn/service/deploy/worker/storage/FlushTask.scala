@@ -19,8 +19,10 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.ByteArrayInputStream
 import java.nio.channels.FileChannel
+
 import io.netty.buffer.{ByteBufUtil, CompositeByteBuf}
 import org.apache.hadoop.fs.Path
+
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler
@@ -64,11 +66,11 @@ private[worker] class LocalFlushTask(
 }
 
 private[worker] class HdfsFlushTask(
-                                     buffer: CompositeByteBuf,
-                                     val path: Path,
-                                     notifier: FlushNotifier,
-                                     keepBuffer: Boolean,
-                                     source: AbstractSource) extends FlushTask(buffer, notifier, keepBuffer, source) {
+    buffer: CompositeByteBuf,
+    val path: Path,
+    notifier: FlushNotifier,
+    keepBuffer: Boolean,
+    source: AbstractSource) extends FlushTask(buffer, notifier, keepBuffer, source) {
   override def flush(): Unit = {
     val readableBytes = buffer.readableBytes()
     val hadoopFs = StorageManager.hadoopFs.get(Type.HDFS)
@@ -81,13 +83,13 @@ private[worker] class HdfsFlushTask(
 }
 
 private[worker] class S3FlushTask(
-                                   buffer: CompositeByteBuf,
-                                   notifier: FlushNotifier,
-                                   keepBuffer: Boolean,
-                                   source: AbstractSource,
-                                   s3MultipartUploader: MultipartUploadHandler,
-                                   partNumber: Int,
-                                   finalFlush: Boolean = false)
+    buffer: CompositeByteBuf,
+    notifier: FlushNotifier,
+    keepBuffer: Boolean,
+    source: AbstractSource,
+    s3MultipartUploader: MultipartUploadHandler,
+    partNumber: Int,
+    finalFlush: Boolean = false)
   extends FlushTask(buffer, notifier, keepBuffer, source) {
 
   override def flush(): Unit = {
@@ -101,13 +103,13 @@ private[worker] class S3FlushTask(
 }
 
 private[worker] class OssFlushTask(
-                                    buffer: CompositeByteBuf,
-                                    notifier: FlushNotifier,
-                                    keepBuffer: Boolean,
-                                    source: AbstractSource,
-                                    ossMultipartUploader: MultipartUploadHandler,
-                                    partNumber: Int,
-                                    finalFlush: Boolean = false)
+    buffer: CompositeByteBuf,
+    notifier: FlushNotifier,
+    keepBuffer: Boolean,
+    source: AbstractSource,
+    ossMultipartUploader: MultipartUploadHandler,
+    partNumber: Int,
+    finalFlush: Boolean = false)
   extends FlushTask(buffer, notifier, keepBuffer, source) {
 
   override def flush(): Unit = {
