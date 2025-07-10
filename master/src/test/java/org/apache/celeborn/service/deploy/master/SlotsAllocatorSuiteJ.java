@@ -683,7 +683,6 @@ public class SlotsAllocatorSuiteJ {
         basePrepareWorkers(
             100, true, diskPartitionToSize, assumedPartitionSize, 20, false, new Random());
     List<Integer> partitionIds = IntStream.range(0, 600).boxed().collect(Collectors.toList());
-    ;
     check(workers, partitionIds, true, true, false, true, 50);
   }
 

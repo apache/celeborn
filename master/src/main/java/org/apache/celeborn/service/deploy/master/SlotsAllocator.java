@@ -481,6 +481,19 @@ public class SlotsAllocator {
     return Collections.unmodifiableList(result);
   }
 
+  /**
+   * @param slots the slots that have been assigned for each partitionId
+   * @param partitionIds the partitionIds that require slot selection still
+   * @param primaryWorkers list of worker candidates that can be used for primary workers.
+   * @param replicaWorkers list of worker candidates that can be used for replica workers.
+   * @param slotsRestrictions restrictions for each available slot based on worker characteristics
+   * @param shouldReplicate if replication is enabled within the cluster
+   * @param shouldRackAware if rack-aware replication is enabled within the cluster.
+   * @param availableStorageTypes available storage types coming from the offer slots request.
+   * @param replicaSameAsPrimary if the worker candidates list for primaries and replicas is the
+   *     same. This is to prevent index mismatch while assigning slots across both lists.
+   * @return
+   */
   private static List<Integer> roundRobin(
       Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots,
       List<Integer> partitionIds,
@@ -491,7 +504,7 @@ public class SlotsAllocator {
       boolean shouldRackAware,
       int availableStorageTypes,
       boolean replicaSameAsPrimary) {
-    if (primaryWorkers.isEmpty() || replicaWorkers.isEmpty()) {
+    if (primaryWorkers.isEmpty() || (shouldReplicate && replicaWorkers.isEmpty())) {
       return partitionIds;
     }
     // workerInfo -> (diskIndexForPrimaryAndReplica)
@@ -501,9 +514,16 @@ public class SlotsAllocator {
     final int primaryWorkersSize = primaryWorkers.size();
     final int replicaWorkersSize = replicaWorkers.size();
     final IntUnaryOperator primaryWorkersIncrementIndex = v -> (v + 1) % primaryWorkersSize;
-    final IntUnaryOperator replicaWorkersIncrementIndex = v -> (v + 1) % replicaWorkersSize;
     int primaryIndex = rand.nextInt(primaryWorkersSize);
-    int replicaIndex = rand.nextInt(replicaWorkersSize);
+    final IntUnaryOperator replicaWorkersIncrementIndex;
+    int replicaIndex;
+    if (shouldReplicate) {
+      replicaWorkersIncrementIndex = v -> (v + 1) % replicaWorkersSize;
+      replicaIndex = rand.nextInt(replicaWorkersSize);
+    } else {
+      replicaWorkersIncrementIndex = null;
+      replicaIndex = -1;
+    }
 
     ListIterator<Integer> iter = partitionIdList.listIterator(partitionIdList.size());
     // Iterate from the end to preserve O(1) removal of processed partitions.

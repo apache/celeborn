@@ -2939,10 +2939,9 @@ object CelebornConf extends Logging {
   val MASTER_SLOT_ASSIGN_INTERRUPTION_AWARE: ConfigEntry[Boolean] =
     buildConf("celeborn.master.slot.assign.interruptionAware")
       .categories("master")
-      .version("0.6.0")
+      .version("0.7.0")
       .doc("If this is set to true, Celeborn master will prioritize partition placement on workers that are not " +
         "in scope for maintenance soon.")
-      .version("0.6.0")
       .booleanConf
       .createWithDefault(false)
 
@@ -2951,7 +2950,7 @@ object CelebornConf extends Logging {
       .categories("master")
       .doc("This controls what percentage of hosts would be selected for slot selection in the first iteration " +
         "of creating partitions. Default is 50%.")
-      .version("0.6.0")
+      .version("0.7.0")
       .intConf
       .createWithDefault(50)
 
