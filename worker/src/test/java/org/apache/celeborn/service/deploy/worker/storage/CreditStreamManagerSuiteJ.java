@@ -102,9 +102,9 @@ public class CreditStreamManagerSuiteJ {
         streamIdConsumer, channel, shuffleKey, 0, 1, 1, diskFileInfo);
 
     MapPartitionData mapPartitionData1 =
-        creditStreamManager.getStreams().get(registerStream1).getMapDataPartition();
+        creditStreamManager.getStreams().get(registerStream1).getMapPartitionData();
     MapPartitionData mapPartitionData2 =
-        creditStreamManager.getStreams().get(registerStream2).getMapDataPartition();
+        creditStreamManager.getStreams().get(registerStream2).getMapPartitionData();
     Assert.assertEquals(mapPartitionData1, mapPartitionData2);
 
     mapPartitionData1.getStreamReader(registerStream1).recycle();

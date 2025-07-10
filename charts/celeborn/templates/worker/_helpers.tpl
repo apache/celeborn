@@ -16,7 +16,7 @@ limitations under the License.
 */}}
 
 {{/*
-Common labels for Celeborn master resources
+Common labels for Celeborn worker resources
 */}}
 {{- define "celeborn.worker.labels" -}}
 {{ include "celeborn.labels" . }}
@@ -24,7 +24,7 @@ app.kubernetes.io/role: worker
 {{- end }}
 
 {{/*
-Selector labels for Celeborn master pods
+Selector labels for Celeborn worker pods
 */}}
 {{- define "celeborn.worker.selectorLabels" -}}
 {{ include "celeborn.selectorLabels" . }}

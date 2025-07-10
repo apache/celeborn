@@ -26,7 +26,7 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.authentication.HttpAuthSchemes
-import org.apache.celeborn.server.common.http.authentication.{UserDefinePasswordAuthenticationProviderImpl, UserDefineTokenAuthenticationProviderImpl}
+import org.apache.celeborn.server.common.http.authentication.{UserDefinedPasswordAuthenticationProviderImpl, UserDefineTokenAuthenticationProviderImpl}
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.worker.Worker
@@ -38,11 +38,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     .set(CelebornConf.MASTER_HTTP_AUTH_SUPPORTED_SCHEMES, Seq("BASIC"))
     .set(
       CelebornConf.MASTER_HTTP_AUTH_BASIC_PROVIDER,
-      classOf[UserDefinePasswordAuthenticationProviderImpl].getName)
+      classOf[UserDefinedPasswordAuthenticationProviderImpl].getName)
     .set(CelebornConf.WORKER_HTTP_AUTH_SUPPORTED_SCHEMES, Seq("BASIC"))
     .set(
       CelebornConf.WORKER_HTTP_AUTH_BASIC_PROVIDER,
-      classOf[UserDefinePasswordAuthenticationProviderImpl].getName)
+      classOf[UserDefinedPasswordAuthenticationProviderImpl].getName)
     .set(CelebornConf.MASTER_HTTP_AUTH_ADMINISTERS, Seq(CELEBORN_ADMINISTER))
     .set(CelebornConf.WORKER_HTTP_AUTH_ADMINISTERS, Seq(CELEBORN_ADMINISTER))
     .set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "DB")
@@ -54,7 +54,7 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
 
   private val BASIC_AUTH_HEADER = HttpAuthSchemes.BASIC + " " + new String(
     Base64.getEncoder.encode(
-      s"$CELEBORN_ADMINISTER:${UserDefinePasswordAuthenticationProviderImpl.VALID_PASSWORD}".getBytes()),
+      s"$CELEBORN_ADMINISTER:${UserDefinedPasswordAuthenticationProviderImpl.VALID_PASSWORD}".getBytes()),
     StandardCharsets.UTF_8)
 
   protected var master: Master = _

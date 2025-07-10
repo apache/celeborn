@@ -57,7 +57,7 @@ case class ChangeLocationsCallContext(
     }
     newLocs.put(partitionId, (status, available, partitionLocationOpt.getOrElse(null)))
 
-    if (newLocs.size() == partitionCount || StatusCode.SHUFFLE_NOT_REGISTERED == status
+    if (newLocs.size() == partitionCount || StatusCode.SHUFFLE_UNREGISTERED == status
       || StatusCode.STAGE_ENDED == status) {
       context.reply(ChangeLocationResponse(endedMapIds, newLocs))
     }
