@@ -482,6 +482,9 @@ public class SlotsAllocator {
   }
 
   /**
+   * Assigns slots in a roundrobin fashion given lists of primary and replica worker candidates and
+   * other restrictions.
+   *
    * @param slots the slots that have been assigned for each partitionId
    * @param partitionIds the partitionIds that require slot selection still
    * @param primaryWorkers list of worker candidates that can be used for primary workers.
@@ -492,7 +495,8 @@ public class SlotsAllocator {
    * @param availableStorageTypes available storage types coming from the offer slots request.
    * @param replicaSameAsPrimary if the worker candidates list for primaries and replicas is the
    *     same. This is to prevent index mismatch while assigning slots across both lists.
-   * @return
+   * @return the partitionIds that were not able to be assigned slots in this iteration with the
+   *     current primary and replica worker candidates and slot restrictions..
    */
   private static List<Integer> roundRobin(
       Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots,
