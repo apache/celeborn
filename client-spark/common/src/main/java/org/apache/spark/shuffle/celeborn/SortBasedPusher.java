@@ -23,11 +23,11 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 
+import com.google.common.annotations.VisibleForTesting;
+import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
-import org.apache.spark.memory.MemoryConsumer;
-import org.apache.spark.memory.SparkOutOfMemoryError;
-import org.apache.spark.memory.TaskMemoryManager;
-import org.apache.spark.memory.TooLargePageException;
+import org.apache.spark.internal.config.package$;
+import org.apache.spark.memory.*;
 import org.apache.spark.unsafe.Platform;
 import org.apache.spark.unsafe.UnsafeAlignedOffset;
 import org.apache.spark.unsafe.array.LongArray;
@@ -49,9 +49,20 @@ public class SortBasedPusher extends MemoryConsumer {
     private final long maxMemoryThresholdInBytes;
     private final double smallPushTolerateFactor;
 
-    MemoryThresholdManager(double maxMemoryFactor, double smallPushTolerateFactor) {
-      this.maxMemoryThresholdInBytes = (long) (Runtime.getRuntime().maxMemory() * maxMemoryFactor);
+    MemoryThresholdManager(
+        double maxMemoryFactor, double smallPushTolerateFactor, Long maxTaskMemory) {
+      this.maxMemoryThresholdInBytes =
+          (long)
+              ((maxTaskMemory <= 0L ? Runtime.getRuntime().maxMemory() : maxTaskMemory)
+                  * maxMemoryFactor);
+
+      logger.info("setting max memory threshold to " + String.valueOf(maxMemoryThresholdInBytes));
       this.smallPushTolerateFactor = smallPushTolerateFactor;
+    }
+
+    @VisibleForTesting
+    protected long getMaxMemoryThresholdInBytes() {
+      return maxMemoryThresholdInBytes;
     }
 
     private boolean shouldGrow() {
@@ -197,7 +208,10 @@ public class SortBasedPusher extends MemoryConsumer {
     this.pushSortMemoryThreshold = pushSortMemoryThreshold;
 
     this.memoryThresholdManager =
-        new MemoryThresholdManager(maxMemoryFactor, conf.clientPushSortSmallPushTolerateFactor());
+        new MemoryThresholdManager(
+            maxMemoryFactor,
+            conf.clientPushSortSmallPushTolerateFactor(),
+            conf.clientPushSortMaxMemoryBytes());
 
     int initialSize = Math.min((int) pushSortMemoryThreshold / 8, 1024 * 1024);
     this.inMemSorter = new ShuffleInMemorySorter(this, initialSize);
@@ -517,5 +531,49 @@ public class SortBasedPusher extends MemoryConsumer {
   @Override
   public long getUsed() {
     return super.getUsed();
+  }
+
+  //
+
+  /**
+   * Calculates max memory conf based on SparkConf settings. Follows logic in Spark
+   * UnifiedMemoryManager.getMaxMemory:
+   * github.com/apache/spark/blob/branch-3.3/core/src/main/scala/org/apache/spark/memory/UnifiedMemoryManager.scala#L213
+   */
+  public static CelebornConf setMemoryConfs(
+      SparkConf sparkConf, CelebornConf celebornConf, int cores, MemoryMode memoryMode) {
+    try {
+      if (!celebornConf.clientPushSortCalculateMaxMemoryBytes()) {
+        return celebornConf;
+      }
+
+      // set max task memory conf based on Spark conf
+      if (celebornConf.clientPushSortMaxMemoryBytes() <= 0L) {
+        double memoryStorageFraction =
+            sparkConf.getDouble(package$.MODULE$.MEMORY_FRACTION().key(), 0.6);
+        if (memoryMode == MemoryMode.ON_HEAP
+            && sparkConf.contains(package$.MODULE$.EXECUTOR_MEMORY())) {
+          long maxExecutorMemory =
+              sparkConf.getSizeAsBytes(package$.MODULE$.EXECUTOR_MEMORY().key());
+          long reservedSystemMemory =
+              sparkConf.getBoolean("spark.testing", false) ? 0 : 300 * 1024 * 1024;
+          long totalAvailOnHeapMem =
+              Math.round(
+                  (maxExecutorMemory - reservedSystemMemory) * memoryStorageFraction / cores);
+          celebornConf.set(CelebornConf.CLIENT_PUSH_SORT_MAX_MEMORY_BYTES(), totalAvailOnHeapMem);
+        } else if (memoryMode == MemoryMode.OFF_HEAP
+            && sparkConf.contains(package$.MODULE$.MEMORY_OFFHEAP_SIZE())) {
+          long maxOffHeapMemory =
+              sparkConf.getSizeAsBytes(package$.MODULE$.MEMORY_OFFHEAP_SIZE().key());
+          long totalAvailOffHeapMem =
+              Math.round(maxOffHeapMemory * (memoryStorageFraction) / cores);
+          celebornConf.set(CelebornConf.CLIENT_PUSH_SORT_MAX_MEMORY_BYTES(), totalAvailOffHeapMem);
+        }
+      }
+    } catch (Exception e) {
+      logger.error(
+          "SortBasedPusher.setMemoryConfs failed to set memory confs, threw exception:", e);
+    }
+    return celebornConf;
   }
 }
