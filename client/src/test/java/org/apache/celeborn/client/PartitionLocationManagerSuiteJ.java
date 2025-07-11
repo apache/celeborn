@@ -68,7 +68,8 @@ public class PartitionLocationManagerSuiteJ {
 
     assertEquals(info.getLatestPartitionLocation(ep4), ep7);
     assertNotEquals(info.getLatestPartitionLocation(ep4), ep4);
-    assertTrue(Arrays.asList(ep12, ep13, ep10, ep11).contains(info.getLatestPartitionLocation(ep1)));
+    assertTrue(
+        Arrays.asList(ep12, ep13, ep10, ep11).contains(info.getLatestPartitionLocation(ep1)));
     assertTrue(Arrays.asList(ep8, ep9).contains(info.getRandomChild(ep1)));
     assertTrue(Arrays.asList(ep5, ep6).contains(info.getLatestPartitionLocation(ep3)));
     assertTrue(Arrays.asList(ep5, ep6, ep7).contains(info.getLatestPartitionLocation(ep2)));
