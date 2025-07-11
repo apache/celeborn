@@ -89,7 +89,8 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
           allocatedWorkers.put(workerInfo.toUniqueId, partitionLocationInfo)
-          lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
+          lifecycleManager
+          lifecycleManager.initLatestPartitionLocation(shuffleId, primaryLocations)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
     }
@@ -164,7 +165,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
           partitionLocationInfo.addPrimaryPartitions(primaryLocations)
           partitionLocationInfo.addReplicaPartitions(replicaLocations)
           allocatedWorkers.put(workerInfo.toUniqueId, partitionLocationInfo)
-          lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
+          lifecycleManager.initLatestPartitionLocation(shuffleId, primaryLocations)
       }
       lifecycleManager.shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
     }
