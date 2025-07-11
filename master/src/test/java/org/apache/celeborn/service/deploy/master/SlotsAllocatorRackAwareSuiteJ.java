@@ -45,12 +45,18 @@ import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.protocol.PartitionLocation;
+import org.apache.celeborn.common.protocol.SlotsAssignPolicy;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.service.deploy.master.slotsalloc.SlotsAllocator;
+import org.apache.celeborn.service.deploy.master.slotsalloc.SlotsAllocatorFactory;
 
 public class SlotsAllocatorRackAwareSuiteJ {
 
   private static final int NUM_ATTEMPTS =
       Integer.getInteger("SlotsAllocatorRackAwareSuiteJ.NUM_ATTEMPTS", 100);
+
+  private static final SlotsAllocator roundRobinSlotsAllocator =
+      SlotsAllocatorFactory.createSlotsAllocator(SlotsAssignPolicy.ROUNDROBIN, null);
 
   @Test
   public void offerSlotsRoundRobinWithRackAware() throws IOException {
@@ -80,7 +86,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
     List<WorkerInfo> workers = prepareWorkers(resolver);
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        SlotsAllocator.offerSlotsRoundRobin(
+        roundRobinSlotsAllocator.offerSlots(
             workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
 
     Consumer<PartitionLocation> assertCustomer =
@@ -120,7 +126,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
     List<WorkerInfo> workers = prepareWorkers(resolver);
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        SlotsAllocator.offerSlotsRoundRobin(
+        roundRobinSlotsAllocator.offerSlots(
             workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
 
     Consumer<PartitionLocation> assertConsumer =
@@ -207,7 +213,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
           IntStream.range(0, numPartitions).boxed().collect(Collectors.toList());
 
       Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-          SlotsAllocator.offerSlotsRoundRobin(
+          roundRobinSlotsAllocator.offerSlots(
               workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
 
       Map<String, Long> numReplicaPerHost =
@@ -245,7 +251,7 @@ public class SlotsAllocatorRackAwareSuiteJ {
         List<WorkerInfo> workers = test.generateWorkers();
 
         Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-            SlotsAllocator.offerSlotsRoundRobin(
+            roundRobinSlotsAllocator.offerSlots(
                 workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
 
         Map<String, Long> numReplicaPerHost =
