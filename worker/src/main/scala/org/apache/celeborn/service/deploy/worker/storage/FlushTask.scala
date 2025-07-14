@@ -24,6 +24,7 @@ import io.netty.buffer.{ByteBufUtil, CompositeByteBuf}
 import org.apache.hadoop.fs.Path
 
 import org.apache.celeborn.common.protocol.StorageInfo.Type
+import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler
 
 abstract private[worker] class FlushTask(
@@ -62,12 +63,27 @@ private[worker] class HdfsFlushTask(
     buffer: CompositeByteBuf,
     val path: Path,
     notifier: FlushNotifier,
-    keepBuffer: Boolean) extends FlushTask(buffer, notifier, keepBuffer) {
+    keepBuffer: Boolean,
+    finalFlush: Boolean) extends FlushTask(buffer, notifier, keepBuffer) {
   override def flush(): Unit = {
-    val hadoopFs = StorageManager.hadoopFs.get(Type.HDFS)
-    val hdfsStream = hadoopFs.append(path, 256 * 1024)
-    hdfsStream.write(ByteBufUtil.getBytes(buffer))
-    hdfsStream.close()
+    if (StorageManager.streamsManager != null) {
+      val aspEntry = StorageManager.streamsManager.getOrCreateStream(path)
+      if (aspEntry != null) {
+        val hdfsStream = aspEntry.getFSDataOutputStream
+        hdfsStream.write(ByteBufUtil.getBytes(buffer))
+      } else {
+        throw new CelebornIOException("Cannot find stream for " + path)
+      }
+      if (finalFlush) {
+        aspEntry.getFSDataOutputStream.flush()
+      }
+      aspEntry.releaseStream()
+    } else {
+      val hadoopFs = StorageManager.hadoopFs.get(Type.HDFS)
+      val hdfsStream = hadoopFs.append(path, 256 * 1024)
+      hdfsStream.write(ByteBufUtil.getBytes(buffer))
+      hdfsStream.close()
+    }
   }
 }
 

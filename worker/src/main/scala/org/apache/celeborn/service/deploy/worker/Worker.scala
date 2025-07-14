@@ -471,12 +471,16 @@ private[celeborn] class Worker(
     (
       memoryManager.currentServingState,
       Option(CongestionController.instance()),
-      conf.workerActiveConnectionMax) match {
-      case (_, Some(instance), _) if instance.isOverHighWatermark => true
-      case (ServingState.PUSH_AND_REPLICATE_PAUSED, _, _) => true
-      case (ServingState.PUSH_PAUSED, _, _) => true
-      case (_, _, Some(activeConnectionMax)) =>
+      conf.workerActiveConnectionMax,
+      conf.workerOpenHDFSOutputStreamMax) match {
+      case (_, Some(instance), _, _) if instance.isOverHighWatermark => true
+      case (ServingState.PUSH_AND_REPLICATE_PAUSED, _, _, _) => true
+      case (ServingState.PUSH_PAUSED, _, _, _) => true
+      case (_, _, Some(activeConnectionMax), _) =>
         workerSource.getCounterCount(WorkerSource.ACTIVE_CONNECTION_COUNT) >= activeConnectionMax
+      case (_, _, _, openHDFSOutputStreamMax) =>
+        val streamsSize = if (StorageManager.streamsManager != null) StorageManager.streamsManager.getSize else 0
+        streamsSize >= openHDFSOutputStreamMax
       case _ => false
     }
   }
@@ -802,6 +806,9 @@ private[celeborn] class Worker(
             WorkerSource.CLEAN_EXPIRED_SHUFFLE_KEYS_TIME,
             s"cleanExpiredShuffleKeys-${UUID.randomUUID()}") {
             storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+          }
+          if (hasHDFSStorage && StorageManager.streamsManager != null) {
+            StorageManager.streamsManager.cleanup(expiredShuffleKeys)
           }
         }
       })

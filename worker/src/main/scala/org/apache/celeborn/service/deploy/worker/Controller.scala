@@ -344,6 +344,10 @@ private[deploy] class Controller(
                       } else {
                         fileWriter.getMemoryFileInfo
                       }
+                    if (StorageManager.streamsManager != null && fileWriter.getDiskFileInfo != null
+                        && fileWriter.getDiskFileInfo.getDfsPath != null) {
+                      StorageManager.streamsManager.dropEntry(fileWriter.getDiskFileInfo.getDfsPath)
+                    }
                     committedStorageInfos.put(uniqueId, storageInfo)
                     if (fileWriter.getMapIdBitMap != null) {
                       committedMapIdBitMap.put(uniqueId, fileWriter.getMapIdBitMap)

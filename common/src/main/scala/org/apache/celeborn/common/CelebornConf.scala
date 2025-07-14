@@ -862,6 +862,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
   def workerPartitionSplitEnabled: Boolean = get(WORKER_PARTITION_SPLIT_ENABLED)
   def workerActiveConnectionMax: Option[Long] = get(WORKER_ACTIVE_CONNECTION_MAX)
+  def workerOpenHDFSOutputStreamMax: Int = get(WORKER_OPEN_HDFS_OUTPUT_STREAM_MAX)
+  def workerHDFSOutputStreamIdleMsMax: Long = get(WORKER_HDFS_OUTPUT_STREAM_IDLE_MS_MAX)
+  def workerGetStreamMaxAttempts: Int = get(WORKER_GET_STREAM_MAX_ATTEMPTS)
+  def workerReuseHDFSOutputStream: Boolean = get(WORKER_REUSE_HDFS_OUTPUTSTREAM)
   def workerJvmProfilerEnabled: Boolean = get(WORKER_JVM_PROFILER_ENABLED)
   def workerJvmProfilerOptions: String = get(WORKER_JVM_PROFILER_OPTIONS)
   def workerJvmProfilerLocalDir: String = get(WORKER_JVM_PROFILER_LOCAL_DIR)
@@ -4375,6 +4379,40 @@ object CelebornConf extends Logging {
       .version("0.3.1")
       .longConf
       .createOptional
+
+  val WORKER_OPEN_HDFS_OUTPUT_STREAM_MAX: ConfigEntry[Int] =
+    buildConf("celeborn.worker.openHdfsOutputStream.max")
+      .categories("worker")
+      .doc("If the number of opened hdfs output streams on a worker exceeds this configuration value, " +
+        "the worker will be marked as high-load in the heartbeat report, " +
+        "and the master will not include that node in the response of RequestSlots.")
+      .version("0.7.0")
+      .intConf
+      .createWithDefault(10000)
+
+  val WORKER_HDFS_OUTPUT_STREAM_IDLE_MS_MAX: ConfigEntry[Long] =
+    buildConf("celeborn.worker.hdfsOutputStream.idleMs.max")
+      .categories("client")
+      .version("0.7.0")
+      .doc(s"The initial sleep time if the current max in flight requests is 0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("180000ms")
+
+  val WORKER_GET_STREAM_MAX_ATTEMPTS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.get.stream.maxAttempts")
+      .categories("worker")
+      .version("0.7.0")
+      .doc("Retry count to create or append file after failure.")
+      .intConf
+      .createWithDefault(5)
+
+  val WORKER_REUSE_HDFS_OUTPUTSTREAM: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.reuse.hdfs.outputstream")
+      .categories("worker")
+      .version("0.7.0")
+      .doc("Whether to reuse hdfs output stream with HDFS storage")
+      .booleanConf
+      .createWithDefault(false)
 
   val WORKER_JVM_PROFILER_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.jvmProfiler.enabled")
