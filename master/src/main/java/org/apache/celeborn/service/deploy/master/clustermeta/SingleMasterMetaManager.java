@@ -47,6 +47,8 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
     this.unhealthyDiskRatioThreshold = conf.masterExcludeWorkerUnhealthyDiskRatioThreshold();
+    this.releaseHighWorkLoadEnabled = conf.masterReleaseHighWorkloadWorkerEnable();
+    this.releaseHighWorkLoadRatioThreshold = conf.masterReleaseHighWorkloadWorkerRatioThreshold();
     this.rackResolver = rackResolver;
   }
 

@@ -812,6 +812,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
   def masterExcludeWorkerUnhealthyDiskRatioThreshold: Double =
     get(MASTER_EXCLUDE_WORKER_UNHEALTHY_DISK_RATIO_THRESHOLD)
+  def masterReleaseHighWorkloadWorkerEnable: Boolean =
+    get(MASTER_RELEASE_HIGH_WORKLOAD_WORKER_ENABLE)
+  def masterReleaseHighWorkloadWorkerRatioThreshold: Double =
+    get(MASTER_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD)
 
   // //////////////////////////////////////////////////////
   //                      Worker                         //
@@ -6535,6 +6539,25 @@ object CelebornConf extends Logging {
       .doubleConf
       .checkValue(v => v > 0.0 && v <= 1.0, "Should be in (0.0, 1.0].")
       .createWithDefault(1)
+
+  val MASTER_RELEASE_HIGH_WORKLOAD_WORKER_ENABLE: ConfigEntry[Boolean] =
+    buildConf("celeborn.master.excludeWorker.releaseHighWorkLoadEnable")
+      .categories("master")
+      .version("0.7.0")
+      .doc("Whether to release workers with high workload in excluded worker list.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val MASTER_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD: ConfigEntry[Double] =
+    buildConf("celeborn.master.excludeWorker.releaseHighWorkLoadRatioThreshold")
+      .categories("master")
+      .version("0.7.0")
+      .doc("Whenever the number of worker with high workload exceeds this ratio, " +
+        "master will release worker with high workload in excluded worker list. " +
+        "If this value is set to 0, such workers will never be excluded. ")
+      .doubleConf
+      .checkValue(v => v >= 0.0 && v < 1.0, "Should be in [0.0, 1).")
+      .createWithDefault(0.3)
 
   val QUOTA_CLUSTER_DISK_BYTES_WRITTEN: ConfigEntry[Long] =
     buildConf("celeborn.quota.cluster.diskBytesWritten")
