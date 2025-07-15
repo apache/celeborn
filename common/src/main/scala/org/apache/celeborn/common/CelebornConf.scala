@@ -655,6 +655,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def masterSlotAssignPolicy: SlotsAssignPolicy =
     SlotsAssignPolicy.valueOf(get(MASTER_SLOT_ASSIGN_POLICY))
+
+  def masterSlotAssignInterruptionAware: Boolean = get(MASTER_SLOT_ASSIGN_INTERRUPTION_AWARE)
+  def masterSlotsAssignInterruptionAwareThreshold: Int =
+    get(MASTER_SLOT_INTERRUPTION_AWARE_THRESHOLD)
   def availableStorageTypes: Int = {
     val types = get(ACTIVE_STORAGE_TYPES).split(",").map(StorageInfo.Type.valueOf).toList
     StorageInfo.getAvailableTypes(types.asJava)
@@ -2935,6 +2939,25 @@ object CelebornConf extends Logging {
         SlotsAssignPolicy.ROUNDROBIN.name,
         SlotsAssignPolicy.LOADAWARE.name))
       .createWithDefault(SlotsAssignPolicy.ROUNDROBIN.name)
+
+  val MASTER_SLOT_ASSIGN_INTERRUPTION_AWARE: ConfigEntry[Boolean] =
+    buildConf("celeborn.master.slot.assign.interruptionAware")
+      .categories("master")
+      .version("0.7.0")
+      .doc("If this is set to true, Celeborn master will prioritize partition placement on workers that are not " +
+        "in scope for maintenance soon.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val MASTER_SLOT_INTERRUPTION_AWARE_THRESHOLD: ConfigEntry[Int] =
+    buildConf("celeborn.master.slot.assign.interruptionAware.threshold")
+      .categories("master")
+      .doc("This controls what percentage of hosts would be selected for slot selection in the first iteration " +
+        "of creating partitions. Default is 50%.")
+      .version("0.7.0")
+      .intConf
+      .checkValue(v => v >= 0 && v <= 100, "This value must be a percentage.")
+      .createWithDefault(50)
 
   val MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM: ConfigEntry[Int] =
     buildConf("celeborn.master.slot.assign.loadAware.numDiskGroups")
