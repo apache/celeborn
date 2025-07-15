@@ -112,6 +112,10 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       namedGauges.putIfAbsent(
         metricNameWithCustomizedLabels(name, labels),
         NamedGauge(name, gauge, labels ++ staticLabels))
+      val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
+      if (!metricRegistry.getGauges.containsKey(metricNameWithLabel)) {
+        metricRegistry.register(metricNameWithLabel, gauge)
+      }
     } else {
       logWarning(
         s"Add gauge $name failed, the value type ${gauge.getValue.getClass} is not a number")
