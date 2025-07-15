@@ -134,10 +134,7 @@ public class MetaHandler {
           break;
 
         case UnRegisterShuffle:
-          shuffleKey =
-              request.getUnregisterShuffleRequest().getAppId()
-                  + "-"
-                  + request.getUnregisterShuffleRequest().getShuffleId();
+          shuffleKey = request.getUnregisterShuffleRequest().getShuffleKey();
           LOG.debug("Handle unregister shuffle for {}", shuffleKey);
           metaSystem.updateUnregisterShuffleMeta(shuffleKey);
           break;

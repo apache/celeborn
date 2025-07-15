@@ -463,6 +463,10 @@ message PbUnregisterShuffle {
   string requestId = 3;
 }
 
+message PbMetaUnregisterShuffle {
+  string shuffleKey = 1;
+}
+
 message PbBatchUnregisterShuffles {
   string appId = 1;
   string requestId = 2;
@@ -1014,7 +1018,7 @@ message PbMetaRequest {
   optional PbMetaRequestSlotsRequest requestSlotsRequest = 10;
   // deprecated
   optional PbReleaseSlots releaseSlotsRequest = 11;
-  optional PbUnregisterShuffle unregisterShuffleRequest = 12;
+  optional PbMetaUnregisterShuffle unregisterShuffleRequest = 12;
   optional PbMetaAppHeartbeatRequest appHeartbeatRequest = 13;
   optional PbApplicationLost appLostRequest = 14;
   optional PbWorkerAddress workerLostRequest = 15;
