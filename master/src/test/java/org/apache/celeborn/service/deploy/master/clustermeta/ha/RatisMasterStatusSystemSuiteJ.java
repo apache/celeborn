@@ -1493,6 +1493,8 @@ public class RatisMasterStatusSystemSuiteJ {
         STATUSSYSTEM1.workerEventInfos.get(workerInfo2).getEventType());
 
     Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+    Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
   }
 
   @Test
