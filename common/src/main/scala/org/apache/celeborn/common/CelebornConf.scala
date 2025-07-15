@@ -2952,6 +2952,7 @@ object CelebornConf extends Logging {
         "of creating partitions. Default is 50%.")
       .version("0.7.0")
       .intConf
+      .checkValue(v => v >= 0 && v <= 100, "This value must be a percentage.")
       .createWithDefault(50)
 
   val MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM: ConfigEntry[Int] =

@@ -304,7 +304,7 @@ public class SlotsAllocator {
     if (shouldReplicate && shouldRackAware) {
       return Tuple3.apply(
           generateRackAwareWorkers(workersWithoutInterruptions),
-          generateRackAwareWorkers(workersWithLateInterruptions),
+          Collections.unmodifiableList(workersWithLateInterruptions),
           generateRackAwareWorkers(workersWithEarlyInterruptions));
     }
     return Tuple3.apply(
@@ -493,10 +493,10 @@ public class SlotsAllocator {
    * @param shouldReplicate if replication is enabled within the cluster
    * @param shouldRackAware if rack-aware replication is enabled within the cluster.
    * @param availableStorageTypes available storage types coming from the offer slots request.
-   * @param replicaSameAsPrimary if the worker candidates list for primaries and replicas is the
-   *     same. This is to prevent index mismatch while assigning slots across both lists.
+   * @param skipLocationsOnSameWorkerCheck if the worker candidates list for primaries and replicas
+   *     is the same. This is to prevent index mismatch while assigning slots across both lists.
    * @return the partitionIds that were not able to be assigned slots in this iteration with the
-   *     current primary and replica worker candidates and slot restrictions..
+   *     current primary and replica worker candidates and slot restrictions.
    */
   private static List<Integer> roundRobin(
       Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots,
@@ -507,7 +507,7 @@ public class SlotsAllocator {
       boolean shouldReplicate,
       boolean shouldRackAware,
       int availableStorageTypes,
-      boolean replicaSameAsPrimary) {
+      boolean skipLocationsOnSameWorkerCheck) {
     if (primaryWorkers.isEmpty() || (shouldReplicate && replicaWorkers.isEmpty())) {
       return partitionIds;
     }
@@ -573,7 +573,7 @@ public class SlotsAllocator {
       if (shouldReplicate) {
         int nextReplicaInd = replicaIndex;
         if (slotsRestrictions != null) {
-          while ((nextReplicaInd == nextPrimaryInd && replicaSameAsPrimary)
+          while ((nextReplicaInd == nextPrimaryInd && skipLocationsOnSameWorkerCheck)
               || !haveUsableSlots(slotsRestrictions, replicaWorkers, nextReplicaInd)
               || !satisfyRackAware(
                   shouldRackAware,
@@ -594,7 +594,7 @@ public class SlotsAllocator {
                   workerDiskIndex,
                   availableStorageTypes);
         } else if (shouldRackAware) {
-          while ((nextReplicaInd == nextPrimaryInd && replicaSameAsPrimary)
+          while ((nextReplicaInd == nextPrimaryInd && skipLocationsOnSameWorkerCheck)
               || !satisfyRackAware(
                   true, primaryWorkers, nextPrimaryInd, replicaWorkers, nextReplicaInd)) {
             nextReplicaInd = replicaWorkersIncrementIndex.applyAsInt(nextReplicaInd);
@@ -604,7 +604,7 @@ public class SlotsAllocator {
           }
         } else {
           if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
-            while ((nextReplicaInd == nextPrimaryInd && replicaSameAsPrimary)
+            while ((nextReplicaInd == nextPrimaryInd && skipLocationsOnSameWorkerCheck)
                 || !replicaWorkers.get(nextReplicaInd).haveDisk()) {
               nextReplicaInd = replicaWorkersIncrementIndex.applyAsInt(nextReplicaInd);
               if (nextReplicaInd == replicaIndex) {
