@@ -287,7 +287,6 @@ public class TransportClientFactory implements Closeable {
     }
 
     final AtomicReference<TransportClient> clientRef = new AtomicReference<>();
-    final AtomicReference<Channel> channelRef = new AtomicReference<>();
 
     bootstrap.handler(
         new ChannelInitializer<SocketChannel>() {
@@ -295,7 +294,6 @@ public class TransportClientFactory implements Closeable {
           public void initChannel(SocketChannel ch) {
             TransportChannelHandler clientHandler = context.initializePipeline(ch, decoder, true);
             clientRef.set(clientHandler.getClient());
-            channelRef.set(ch);
           }
         });
 
@@ -311,9 +309,11 @@ public class TransportClientFactory implements Closeable {
         throw new IOException(String.format("Failed to connect to %s", address), cf.cause());
       }
     } else if (!cf.await(connectTimeoutMs)) {
+      cf.channel().close();
       throw new CelebornIOException(
           String.format("Connecting to %s timed out (%s ms)", address, connectTimeoutMs));
     } else if (cf.cause() != null) {
+      cf.channel().close();
       throw new CelebornIOException(String.format("Failed to connect to %s", address), cf.cause());
     }
     if (context.sslEncryptionEnabled()) {
