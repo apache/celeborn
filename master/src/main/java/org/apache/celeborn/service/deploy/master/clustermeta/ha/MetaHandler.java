@@ -143,11 +143,8 @@ public class MetaHandler {
           break;
 
         case BatchUnRegisterShuffle:
-          List<Integer> shuffleIds = request.getBatchUnregisterShuffleRequest().getShuffleIdsList();
           List<String> shuffleKeys =
-              shuffleIds.stream()
-                  .map(id -> request.getBatchUnregisterShuffleRequest().getAppId() + "-" + id)
-                  .collect(Collectors.toList());
+              request.getBatchUnregisterShuffleRequest().getShuffleKeysList();
           metaSystem.updateBatchUnregisterShuffleMeta(shuffleKeys);
           LOG.debug("Handle batch unregister shuffle for {}", shuffleKeys);
           break;

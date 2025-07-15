@@ -469,6 +469,10 @@ message PbBatchUnregisterShuffles {
   repeated int32 shuffleIds = 3;
 }
 
+message PbMetaBatchUnregisterShuffles {
+  repeated string shuffleKeys = 1;
+}
+
 message PbUnregisterShuffleResponse {
   int32 status = 1;
 }
@@ -1023,7 +1027,7 @@ message PbMetaRequest {
   optional PbWorkerEventRequest workerEventRequest = 22;
   optional PbApplicationMeta applicationMetaRequest = 23;
   optional PbReportWorkerDecommission reportWorkerDecommissionRequest = 24;
-  optional PbBatchUnregisterShuffles batchUnregisterShuffleRequest = 25;
+  optional PbMetaBatchUnregisterShuffles batchUnregisterShuffleRequest = 25;
   optional PbReviseLostShuffles reviseLostShufflesRequest = 102;
 }
 
