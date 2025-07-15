@@ -225,12 +225,8 @@ public class MetaHandler {
           rpcPort = request.getWorkerHeartbeatRequest().getRpcPort();
           pushPort = request.getWorkerHeartbeatRequest().getPushPort();
           fetchPort = request.getWorkerHeartbeatRequest().getFetchPort();
-          Map<String, PbDiskInfo> pbDiskInfos =
-              request.getWorkerHeartbeatRequest().getDisksList().stream()
-                  .collect(
-                      Collectors.toMap(
-                          pbDiskInfo -> pbDiskInfo.getMountPoint(), pbDiskInfo -> pbDiskInfo));
-          diskInfos = MetaUtil.fromPbDiskInfoMap(pbDiskInfos);
+          Map<String, PbDiskInfo> pbDiskInfoMap = request.getRegisterWorkerRequest().getDisksMap();
+          diskInfos = MetaUtil.fromPbDiskInfoMap(pbDiskInfoMap);
           replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
           boolean highWorkload = request.getWorkerHeartbeatRequest().getHighWorkload();
           if (request.getWorkerHeartbeatRequest().hasWorkerStatus()) {
@@ -268,12 +264,8 @@ public class MetaHandler {
           replicatePort = request.getRegisterWorkerRequest().getReplicatePort();
           String networkLocation = request.getRegisterWorkerRequest().getNetworkLocation();
           int internalPort = request.getRegisterWorkerRequest().getInternalPort();
-          Map<String, PbDiskInfo> pbDiskInfoMap =
-              request.getRegisterWorkerRequest().getDisksList().stream()
-                  .collect(
-                      Collectors.toMap(
-                          pbDiskInfo -> pbDiskInfo.getMountPoint(), pbDiskInfo -> pbDiskInfo));
-          diskInfos = MetaUtil.fromPbDiskInfoMap(pbDiskInfoMap);
+          Map<String, PbDiskInfo> pbDiskInfo = request.getRegisterWorkerRequest().getDisksMap();
+          diskInfos = MetaUtil.fromPbDiskInfoMap(pbDiskInfo);
           LOG.debug(
               "Handle worker register for {} {} {} {} {} {} {}",
               host,

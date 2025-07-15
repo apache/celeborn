@@ -208,6 +208,18 @@ message PbRegisterWorker {
   string networkLocation = 11;
 }
 
+message PbMetaRegisterWorkerRequest {
+  string host = 1;
+  int32 rpcPort = 2;
+  int32 pushPort = 3;
+  int32 fetchPort = 4;
+  int32 replicatePort = 5;
+  map<string, PbDiskInfo> disks = 6;
+  map<string, PbResourceConsumption> userResourceConsumption = 7;
+  int32 internalPort = 8;
+  optional string networkLocation = 9;
+}
+
 message PbHeartbeatFromWorker {
   string host = 1;
   int32 rpcPort = 2;
@@ -221,6 +233,20 @@ message PbHeartbeatFromWorker {
   map<string, int64> estimatedAppDiskUsage = 10;
   bool highWorkload = 11;
   PbWorkerStatus workerStatus = 12;
+}
+
+message PbMetaWorkerHeartbeatRequest {
+  string host = 1;
+  int32 rpcPort = 2;
+  int32 pushPort = 3;
+  int32 fetchPort = 4;
+  int32 replicatePort = 5;
+  map<string, PbDiskInfo> disks = 6;
+  int64 time = 7;
+  map<string, PbResourceConsumption> userResourceConsumption = 8;
+  map<string, int64> estimatedAppDiskUsage = 9; // deprecated
+  bool highWorkload = 10;
+  PbWorkerStatus workerStatus = 11;
 }
 
 message PbWorkerStatus {
@@ -988,8 +1014,8 @@ message PbMetaRequest {
   optional PbMetaAppHeartbeatRequest appHeartbeatRequest = 13;
   optional PbApplicationLost appLostRequest = 14;
   optional PbWorkerAddress workerLostRequest = 15;
-  optional PbHeartbeatFromWorker workerHeartbeatRequest = 16;
-  optional PbRegisterWorker registerWorkerRequest = 17;
+  optional PbMetaWorkerHeartbeatRequest workerHeartbeatRequest = 16;
+  optional PbMetaRegisterWorkerRequest registerWorkerRequest = 17;
   optional PbReportWorkerUnavailable reportWorkerUnavailableRequest = 18;
   optional PbWorkerAddress workerRemoveRequest = 19;
   optional PbRemoveWorkersUnavailableInfo removeWorkersUnavailableInfoRequest = 20;
