@@ -19,7 +19,6 @@ package org.apache.celeborn.service.deploy.worker.shuffledb;
 
 import java.io.IOException;
 
-import com.google.common.base.Throwables;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
 
@@ -41,7 +40,7 @@ public class RocksDB implements DB {
     try {
       db.put(key, value);
     } catch (RocksDBException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 
@@ -54,7 +53,7 @@ public class RocksDB implements DB {
         db.put(key, value);
       }
     } catch (RocksDBException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 
@@ -63,7 +62,7 @@ public class RocksDB implements DB {
     try {
       return db.get(key);
     } catch (RocksDBException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 
@@ -72,7 +71,7 @@ public class RocksDB implements DB {
     try {
       db.delete(key);
     } catch (RocksDBException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 
