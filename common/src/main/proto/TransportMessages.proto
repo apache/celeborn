@@ -217,7 +217,7 @@ message PbMetaRegisterWorkerRequest {
   map<string, PbDiskInfo> disks = 6;
   map<string, PbResourceConsumption> userResourceConsumption = 7;
   int32 internalPort = 8;
-  optional string networkLocation = 9;
+  string networkLocation = 9;
 }
 
 message PbHeartbeatFromWorker {

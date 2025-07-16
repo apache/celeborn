@@ -219,7 +219,7 @@ public class MetaHandler {
           rpcPort = request.getWorkerHeartbeatRequest().getRpcPort();
           pushPort = request.getWorkerHeartbeatRequest().getPushPort();
           fetchPort = request.getWorkerHeartbeatRequest().getFetchPort();
-          Map<String, PbDiskInfo> pbDiskInfoMap = request.getRegisterWorkerRequest().getDisksMap();
+          Map<String, PbDiskInfo> pbDiskInfoMap = request.getWorkerHeartbeatRequest().getDisksMap();
           diskInfos = MetaUtil.fromPbDiskInfoMap(pbDiskInfoMap);
           replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
           boolean highWorkload = request.getWorkerHeartbeatRequest().getHighWorkload();
