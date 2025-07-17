@@ -309,11 +309,11 @@ public class TransportClientFactory implements Closeable {
         throw new IOException(String.format("Failed to connect to %s", address), cf.cause());
       }
     } else if (!cf.await(connectTimeoutMs)) {
-      cf.channel().close();
+      closeChannel(cf);
       throw new CelebornIOException(
           String.format("Connecting to %s timed out (%s ms)", address, connectTimeoutMs));
     } else if (cf.cause() != null) {
-      cf.channel().close();
+      closeChannel(cf);
       throw new CelebornIOException(String.format("Failed to connect to %s", address), cf.cause());
     }
     if (context.sslEncryptionEnabled()) {
@@ -333,12 +333,12 @@ public class TransportClientFactory implements Closeable {
                             "failed to complete TLS handshake to {}",
                             address,
                             handshakeFuture.cause());
-                        cf.channel().close();
+                        closeChannel(cf);
                       }
                     }
                   });
       if (!future.await(connectionTimeoutMs)) {
-        cf.channel().close();
+        closeChannel(cf);
         throw new IOException(
             String.format("Failed to connect to %s within connection timeout", address));
       }
@@ -396,5 +396,13 @@ public class TransportClientFactory implements Closeable {
 
   public TransportContext getContext() {
     return context;
+  }
+
+  private void closeChannel(ChannelFuture channelFuture) {
+    try {
+      channelFuture.channel().close();
+    } catch (Exception e) {
+      logger.warn("Failed to close channel", e);
+    }
   }
 }
