@@ -361,7 +361,8 @@ public class TransportClientFactory implements Closeable {
           Utils.nanoDurationToString(bootstrapTime),
           e);
       client.close();
-      throw Throwables.propagate(e);
+      Throwables.throwIfUnchecked(e);
+      throw new RuntimeException(e);
     }
     long postBootstrap = System.nanoTime();
     logger.debug(
