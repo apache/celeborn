@@ -94,18 +94,15 @@ object CelebornHadoopUtils extends Logging {
     val hadoopConf = newConfiguration(conf)
     initKerberos(conf, hadoopConf)
     val hadoopFs = new java.util.HashMap[StorageInfo.Type, FileSystem]()
-    if (conf.hasHDFSStorage) {
-      val hdfsDir = new Path(conf.hdfsDir)
-      hadoopFs.put(StorageInfo.Type.HDFS, hdfsDir.getFileSystem(hadoopConf))
-    }
-    if (conf.hasS3Storage) {
-      val s3Dir = new Path(conf.s3Dir)
-      hadoopFs.put(StorageInfo.Type.S3, s3Dir.getFileSystem(hadoopConf))
-    }
-    if (conf.hasOssStorage) {
-      val ossDir = new Path(conf.ossDir)
-      hadoopFs.put(StorageInfo.Type.OSS, ossDir.getFileSystem(hadoopConf))
-    }
+
+    conf.remoteStorageDirs.foreach(dirs =>
+      dirs.foreach {
+        case (storageType, dir) => {
+          val path = new Path(dir)
+          hadoopFs.put(storageType, path.getFileSystem(hadoopConf))
+        }
+      })
+
     hadoopFs
   }
 
