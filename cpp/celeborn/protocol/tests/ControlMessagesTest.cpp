@@ -62,6 +62,55 @@ void verifyUnpackedPartitionLocation(
 }
 } // namespace
 
+TEST(ControlMessagesTest, registerShuffle) {
+  auto registerShuffle = std::make_unique<RegisterShuffle>();
+  registerShuffle->shuffleId = 1000;
+  registerShuffle->numMappers = 1001;
+  registerShuffle->numPartitions = 1002;
+
+  auto transportMessage = registerShuffle->toTransportMessage();
+  EXPECT_EQ(transportMessage.type(), REGISTER_SHUFFLE);
+  auto payload = transportMessage.payload();
+  auto pbRegisterShuffle = utils::parseProto<PbRegisterShuffle>(
+      reinterpret_cast<const uint8_t*>(payload.c_str()), payload.size());
+  EXPECT_EQ(pbRegisterShuffle->shuffleid(), registerShuffle->shuffleId);
+  EXPECT_EQ(pbRegisterShuffle->nummappers(), registerShuffle->numMappers);
+  EXPECT_EQ(pbRegisterShuffle->numpartitions(), registerShuffle->numPartitions);
+}
+
+TEST(ControlMessagesTest, mapperEnd) {
+  auto mapperEnd = std::make_unique<MapperEnd>();
+  mapperEnd->shuffleId = 1000;
+  mapperEnd->mapId = 1001;
+  mapperEnd->attemptId = 1002;
+  mapperEnd->numMappers = 1003;
+  mapperEnd->partitionId = 1004;
+
+  auto transportMessage = mapperEnd->toTransportMessage();
+  EXPECT_EQ(transportMessage.type(), MAPPER_END);
+  auto payload = transportMessage.payload();
+  auto pbMapperEnd = utils::parseProto<PbMapperEnd>(
+      reinterpret_cast<const uint8_t*>(payload.c_str()), payload.size());
+  EXPECT_EQ(pbMapperEnd->shuffleid(), mapperEnd->shuffleId);
+  EXPECT_EQ(pbMapperEnd->mapid(), mapperEnd->mapId);
+  EXPECT_EQ(pbMapperEnd->attemptid(), mapperEnd->attemptId);
+  EXPECT_EQ(pbMapperEnd->nummappers(), mapperEnd->numMappers);
+  EXPECT_EQ(pbMapperEnd->partitionid(), mapperEnd->partitionId);
+}
+
+TEST(ControlMessagesTest, mapperEndResponse) {
+  PbMapperEndResponse pbMapperEndResponse;
+  pbMapperEndResponse.set_status(1);
+  TransportMessage transportMessage(
+      MAPPER_END_RESPONSE, pbMapperEndResponse.SerializeAsString());
+
+  auto mapperEndResponse =
+      MapperEndResponse::fromTransportMessage(transportMessage);
+  EXPECT_EQ(mapperEndResponse->status, 1);
+}
+
+// TEST MapperEnd/Response
+
 TEST(ControlMessagesTest, getReducerFileGroup) {
   auto getReducerFileGroup = std::make_unique<GetReducerFileGroup>();
   getReducerFileGroup->shuffleId = 1000;
