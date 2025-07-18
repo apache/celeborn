@@ -271,7 +271,7 @@ trait MiniClusterFeature extends Logging {
     workerInfos.keySet
   }
 
-  private def setUpMiniCluster(
+  def setUpMiniCluster(
       masterConf: Map[String, String] = null,
       workerConf: Map[String, String] = null,
       workerNum: Int = 3): (Master, collection.Set[Worker]) = {
