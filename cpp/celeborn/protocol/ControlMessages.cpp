@@ -20,6 +20,41 @@
 
 namespace celeborn {
 namespace protocol {
+TransportMessage RegisterShuffle::toTransportMessage() const {
+  MessageType type = REGISTER_SHUFFLE;
+  PbRegisterShuffle pb;
+  pb.set_shuffleid(shuffleId);
+  pb.set_nummappers(numMappers);
+  pb.set_numpartitions(numPartitions);
+  std::string payload = pb.SerializeAsString();
+  return TransportMessage(type, std::move(payload));
+}
+
+TransportMessage MapperEnd::toTransportMessage() const {
+  MessageType type = MAPPER_END;
+  PbMapperEnd pb;
+  pb.set_shuffleid(shuffleId);
+  pb.set_mapid(mapId);
+  pb.set_attemptid(attemptId);
+  pb.set_nummappers(numMappers);
+  pb.set_partitionid(partitionId);
+  std::string payload = pb.SerializeAsString();
+  return TransportMessage(type, std::move(payload));
+}
+
+std::unique_ptr<MapperEndResponse> MapperEndResponse::fromTransportMessage(
+    const TransportMessage& transportMessage) {
+  CELEBORN_CHECK(
+      transportMessage.type() == MAPPER_END_RESPONSE,
+      "transportMessageType mismatch");
+  auto payload = transportMessage.payload();
+  auto pbMapperEndResponse = utils::parseProto<PbMapperEndResponse>(
+      reinterpret_cast<const uint8_t*>(payload.c_str()), payload.size());
+  auto response = std::make_unique<MapperEndResponse>();
+  response->status = toStatusCode(pbMapperEndResponse->status());
+  return std::move(response);
+}
+
 TransportMessage GetReducerFileGroup::toTransportMessage() const {
   MessageType type = GET_REDUCER_FILE_GROUP;
   PbGetReducerFileGroup pb;
