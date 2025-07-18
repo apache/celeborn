@@ -29,8 +29,8 @@ import org.apache.hadoop.fs.FileSystem
 import org.roaringbitmap.RoaringBitmap
 import org.slf4j.{Logger, LoggerFactory}
 
-import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, MapFileMeta, MemoryFileInfo, ReduceFileMeta}
-import org.apache.celeborn.common.protocol.{PbPushDataHandShake, PbRegionFinish, PbRegionStart, PbSegmentStart}
+import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, MapFileMeta, ReduceFileMeta}
+import org.apache.celeborn.common.protocol.{PbPushDataHandShake, PbRegionFinish, PbRegionStart, PbSegmentStart, StorageInfo}
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.FileChannelUtils
 
@@ -94,7 +94,7 @@ trait PartitionMetaHandler {
 class MapPartitionMetaHandler(
     diskFileInfo: DiskFileInfo,
     notifier: FlushNotifier) extends PartitionMetaHandler {
-  lazy val hadoopFs: FileSystem = StorageManager.hadoopFs.get()
+  lazy val hadoopFs: FileSystem = StorageManager.hadoopFs.get(diskFileInfo.getStorageType)
   val logger: Logger = LoggerFactory.getLogger(classOf[MapPartitionMetaHandler])
   val fileMeta: MapFileMeta = diskFileInfo.getFileMeta.asInstanceOf[MapFileMeta]
   var numSubpartitions = 0
@@ -286,28 +286,7 @@ class MapPartitionMetaHandler(
   }
 
   override def afterClose(): Unit = {
-    // TODO: force flush the index file channel in scenarios which the upstream task writes and
-    // downstream task reads simultaneously, such as flink hybrid shuffle
-    if (indexBuffer != null) {
-      logger.debug(s"flushIndex start:${diskFileInfo.getIndexPath}")
-      val startTime = System.currentTimeMillis
-      indexBuffer.flip
-      notifier.checkException()
-      try {
-        if (indexBuffer.hasRemaining) {
-          // map partition synchronously writes file index
-          if (indexChannel != null) while (indexBuffer.hasRemaining) indexChannel.write(indexBuffer)
-          else if (diskFileInfo.isDFS) {
-            val dfsStream = hadoopFs.append(diskFileInfo.getDfsIndexPath)
-            dfsStream.write(indexBuffer.array)
-            dfsStream.close()
-          }
-        }
-        indexBuffer.clear
-      } finally logger.debug(
-        s"flushIndex end:${diskFileInfo.getIndexPath}, " +
-          s"cost:${System.currentTimeMillis - startTime}")
-    }
+    flushIndex()
   }
 
   override def beforeWrite(bytes: ByteBuf): Unit = {

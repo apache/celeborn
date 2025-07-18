@@ -18,6 +18,7 @@
 package org.apache.celeborn.tests.flink
 
 import java.io.File
+import java.nio.file.Files
 
 import scala.collection.JavaConverters._
 
@@ -26,13 +27,17 @@ import org.apache.flink.configuration.{Configuration, ExecutionOptions}
 import org.apache.flink.runtime.jobgraph.JobType
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode
+import org.apache.flink.util.OperatingSystem
+import org.apache.hadoop.fs.Path
+import org.apache.hadoop.hdfs.MiniDFSCluster
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.{AUTH_ENABLED, INTERNAL_PORT_ENABLED}
+import org.apache.celeborn.common.CelebornConf.{ACTIVE_STORAGE_TYPES, AUTH_ENABLED, HDFS_DIR, INTERNAL_PORT_ENABLED, WORKER_STORAGE_CREATE_FILE_POLICY}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.FallbackPolicy
+import org.apache.celeborn.rest.v1.model.PartitionLocationData.StorageEnum
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.worker.Worker
 
@@ -131,4 +136,42 @@ class WordCountTestWithAuthentication extends WordCountTestBase {
   override protected def getMasterConf: Map[String, String] = authConfig
   override protected def getWorkerConf: Map[String, String] = authConfig
   override protected def getClientConf: Map[String, String] = Map(AUTH_ENABLED.key -> "true")
+}
+
+class WordCountTestWithHDFS extends WordCountTestBase {
+
+  private var basePath: Path = _
+  private var hdfsCluster: MiniDFSCluster = _
+
+  override protected def getMasterConf: Map[String, String] = Map()
+  override protected def getWorkerConf: Map[String, String] = hdfsConfig
+  override protected def getClientConf: Map[String, String] = hdfsConfig
+
+  override def createWorker(map: Map[String, String]): Worker = {
+    super.createWorker(map, null)
+  }
+
+  override def beforeAll(): Unit = {
+    assume(!OperatingSystem.isWindows)
+    val hdConf = new org.apache.hadoop.conf.Configuration()
+    val tmpDir = Files.createTempDirectory("celeborn-")
+    tmpDir.toFile.deleteOnExit()
+    hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tmpDir.toString)
+    hdfsCluster = new MiniDFSCluster.Builder(hdConf).build
+    basePath = new Path(hdfsCluster.getFileSystem.getUri.toString + "/test")
+    super.beforeAll()
+  }
+
+  override def afterAll(): Unit = {
+    super.afterAll()
+    if (hdfsCluster != null) {
+      hdfsCluster.getFileSystem.delete(basePath, true)
+      hdfsCluster.shutdown()
+    }
+  }
+
+  private def hdfsConfig = Map(
+    ACTIVE_STORAGE_TYPES.key -> StorageEnum.HDFS.getValue,
+    WORKER_STORAGE_CREATE_FILE_POLICY.key -> StorageEnum.HDFS.getValue,
+    HDFS_DIR.key -> basePath.toString)
 }
