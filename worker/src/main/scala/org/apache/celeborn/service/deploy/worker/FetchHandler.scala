@@ -581,18 +581,19 @@ class FetchHandler(
         streamChunkSlice.offset,
         streamChunkSlice.len)
       chunkStreamManager.chunkBeingSent(streamChunkSlice.streamId)
+      val bufSize = buf.size()
       client.getChannel.writeAndFlush(new ChunkFetchSuccess(streamChunkSlice, buf))
         .addListener(new GenericFutureListener[Future[_ >: Void]] {
           override def operationComplete(future: Future[_ >: Void]): Unit = {
             if (future.isSuccess) {
               if (log.isDebugEnabled) {
                 logDebug(
-                  s"Sending ChunkFetchSuccess to $remoteAddr succeeded, chunk $streamChunkSlice")
+                  s"Sending ChunkFetchSuccess to $remoteAddr succeeded, chunk $streamChunkSlice, buf size: $bufSize")
               }
               workerSource.incCounter(WorkerSource.FETCH_CHUNK_SUCCESS_COUNT)
             } else {
               logWarning(
-                s"Sending ChunkFetchSuccess to $remoteAddr failed, chunk $streamChunkSlice",
+                s"Sending ChunkFetchSuccess to $remoteAddr failed, chunk $streamChunkSlice, buf size: $bufSize",
                 future.cause())
               workerSource.incCounter(WorkerSource.FETCH_CHUNK_FAIL_COUNT)
             }
