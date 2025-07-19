@@ -4388,10 +4388,10 @@ object CelebornConf extends Logging {
         "and the master will not include that node in the response of RequestSlots.")
       .version("0.7.0")
       .intConf
-      .createWithDefault(10000)
+      .createWithDefault(1000)
 
   val WORKER_HDFS_OUTPUT_STREAM_IDLE_MS_MAX: ConfigEntry[Long] =
-    buildConf("celeborn.worker.hdfsOutputStream.idleMs.max")
+    buildConf("celeborn.worker.hdfsOutputStream.maxIdleTime")
       .categories("client")
       .version("0.7.0")
       .doc(s"The initial sleep time if the current max in flight requests is 0")
