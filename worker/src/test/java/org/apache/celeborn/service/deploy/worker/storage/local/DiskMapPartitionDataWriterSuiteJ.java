@@ -137,6 +137,7 @@ public class DiskMapPartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, false, CONF, storagePolicy, context),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context,
