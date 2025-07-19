@@ -63,6 +63,8 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
 
   addCounter(COMMIT_FILES_FAIL_COUNT)
 
+  addCounter(REUSE_HDFS_OUTPUT_STREAM_TOTAL_COUNT)
+
   // add timers
   addTimer(COMMIT_FILES_TIME)
   addTimer(RESERVE_SLOTS_TIME)
@@ -241,6 +243,8 @@ object WorkerSource {
   // active shuffle
   val ACTIVE_SHUFFLE_SIZE = "ActiveShuffleSize"
   val ACTIVE_SHUFFLE_FILE_COUNT = "ActiveShuffleFileCount"
+
+  val REUSE_HDFS_OUTPUT_STREAM_TOTAL_COUNT = "ReuseHdfsOutputStreamTotalCount"
 
   // decommission
   val IS_DECOMMISSIONING_WORKER = "IsDecommissioningWorker"

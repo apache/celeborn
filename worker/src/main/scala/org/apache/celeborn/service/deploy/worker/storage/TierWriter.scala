@@ -529,7 +529,11 @@ class DfsTierWriter(
     }
 
   try {
-    hadoopFs.create(hdfsFileInfo.getDfsPath, true).close()
+    if (StorageManager.streamsManager != null) {
+      StorageManager.streamsManager.addStream(hdfsFileInfo.getDfsPath)
+    } else {
+      hadoopFs.create(hdfsFileInfo.getDfsPath, true).close()
+    }
     if (hdfsFileInfo.isS3) {
       val uri = hadoopFs.getUri
       val bucketName = uri.getHost
@@ -572,7 +576,11 @@ class DfsTierWriter(
         case ex: InterruptedException =>
           throw new RuntimeException(ex)
       }
-      hadoopFs.create(hdfsFileInfo.getDfsPath, true).close()
+      if (StorageManager.streamsManager != null) {
+        StorageManager.streamsManager.addStream(hdfsFileInfo.getDfsPath)
+      } else {
+        hadoopFs.create(hdfsFileInfo.getDfsPath, true).close()
+      }
   }
 
   storageManager.registerDiskFilePartitionWriter(
@@ -587,7 +595,7 @@ class DfsTierWriter(
   override def genFlushTask(finalFlush: Boolean, keepBuffer: Boolean): FlushTask = {
     notifier.numPendingFlushes.incrementAndGet()
     if (hdfsFileInfo.isHdfs) {
-      new HdfsFlushTask(flushBuffer, hdfsFileInfo.getDfsPath(), notifier, true)
+      new HdfsFlushTask(flushBuffer, hdfsFileInfo.getDfsPath(), notifier, true, finalFlush)
     } else if (hdfsFileInfo.isOSS) {
       val flushTask = new OssFlushTask(
         flushBuffer,

@@ -49,6 +49,7 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.service.deploy.worker.shuffledb.{DB, DBBackend, DBProvider}
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
+import org.apache.celeborn.service.deploy.worker.storage.hdfs.StreamsManager
 
 final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
@@ -174,6 +175,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       logInfo(s"Initialize HDFS support with path $hdfsDir")
       try {
         StorageManager.hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
+        if (conf.workerReuseHDFSOutputStream) {
+          StorageManager.streamsManager = new StreamsManager(conf, workerSource,
+            StorageManager.hadoopFs.get(StorageInfo.Type.HDFS))
+        }
       } catch {
         case e: Exception =>
           logError("Celeborn initialize HDFS failed.", e)
@@ -1224,4 +1229,5 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
 object StorageManager {
   var hadoopFs: util.Map[StorageInfo.Type, FileSystem] = _
+  var streamsManager: StreamsManager = _
 }
