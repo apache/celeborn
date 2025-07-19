@@ -32,9 +32,11 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.*;
+import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
 import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.UserCongestionControlContext;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
@@ -51,6 +53,7 @@ public class PartitionDataWriter implements DeviceObserver {
   private final long memoryFileStorageMaxFileSize;
   private final AtomicInteger numPendingWrites = new AtomicInteger(0);
   private final PartitionDataWriterContext writerContext;
+  protected final AbstractSource source; // metrics
   private final PartitionType partitionType;
   private final String writerString;
   private final StorageManager storageManager;
@@ -61,12 +64,14 @@ public class PartitionDataWriter implements DeviceObserver {
 
   public PartitionDataWriter(
       StorageManager storageManager,
+      AbstractSource workerSource,
       CelebornConf conf,
       DeviceMonitor deviceMonitor,
       PartitionDataWriterContext writerContext,
       PartitionType partitionType) {
     memoryFileStorageMaxFileSize = conf.workerMemoryFileStorageMaxFileSize();
     this.writerContext = writerContext;
+    this.source = workerSource;
 
     this.storageManager = storageManager;
     this.splitThreshold = writerContext.getSplitThreshold();
@@ -204,7 +209,9 @@ public class PartitionDataWriter implements DeviceObserver {
   }
 
   public synchronized long close() {
-    return currentTierWriter.close();
+    long length = currentTierWriter.close();
+    source.updateHistogram(WorkerSource.PARTITION_FILE_SIZE(), length);
+    return length;
   }
 
   public FileInfo getCurrentFileInfo() {

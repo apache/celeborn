@@ -302,6 +302,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, CONF, source, writerContext),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             writerContext,
@@ -356,6 +357,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, CONF, source, writerContext),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             writerContext,
@@ -419,6 +421,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 flushNotifier,
                 context1,
                 storagePolicy),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context1,
@@ -480,6 +483,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 flushNotifier,
                 context,
                 storagePolicy),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context,
@@ -568,6 +572,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 flushNotifier,
                 context,
                 storagePolicy),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context,
@@ -690,6 +695,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext1),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             writerContext1,
@@ -722,6 +728,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext2),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             writerContext2,
@@ -754,6 +761,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext3),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             writerContext3,
@@ -785,6 +793,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext4),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             writerContext4,
@@ -818,6 +827,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext5),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             writerContext5,
@@ -850,6 +860,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext6),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             writerContext6,
@@ -884,6 +895,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext7),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             writerContext7,
@@ -917,6 +929,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext8),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             writerContext8,
@@ -951,6 +964,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext9),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             writerContext9,

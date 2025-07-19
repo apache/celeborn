@@ -284,6 +284,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, CONF, storagePolicy, context),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context,
@@ -338,6 +339,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, CONF, storagePolicy, context),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context,
@@ -393,6 +395,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, CONF, storagePolicy, context),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context,
@@ -462,6 +465,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, CONF, storagePolicy, context),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context,
@@ -581,6 +585,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context1),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context1,
@@ -613,6 +618,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context2),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context2,
@@ -645,6 +651,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context3),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context3,
@@ -676,6 +683,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context4),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context4,
@@ -709,6 +717,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context5),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context5,
@@ -741,6 +750,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context6),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context6,
@@ -775,6 +785,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context7),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context7,
@@ -808,6 +819,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context8),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context8,
@@ -842,6 +854,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context9),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context9,

@@ -468,6 +468,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       try {
         new PartitionDataWriter(
           this,
+          workerSource,
           conf,
           deviceMonitor,
           partitionDataWriterContext,
