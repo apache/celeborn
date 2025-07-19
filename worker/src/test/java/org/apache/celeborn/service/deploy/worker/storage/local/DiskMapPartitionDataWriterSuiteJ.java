@@ -163,7 +163,8 @@ public class DiskMapPartitionDataWriterSuiteJ {
 
     assertEquals(length.get(), bytesWritten);
     assertEquals(new File(fileWriter.getFilePath()).length(), bytesWritten);
-    assert scala.collection.JavaConverters.seqAsJavaList(source.histograms().toSeq()).stream()
+    assert scala.collection.JavaConverters.asJavaCollectionConverter(source.histograms().toSeq())
+        .asJavaCollection().stream()
         .anyMatch(
             histogram ->
                 histogram.name().equals(WorkerSource.PARTITION_FILE_SIZE())
