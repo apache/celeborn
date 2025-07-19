@@ -30,6 +30,7 @@ import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
 import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.fs.permission.FsPermission
 import org.apache.ratis.proto.RaftProtos
 import org.apache.ratis.proto.RaftProtos.RaftPeerRole
 
@@ -892,6 +893,18 @@ private[celeborn] class Master(
     }
   }
 
+  def initDfs(): Unit = {
+    if (hadoopFs == null) {
+      try {
+        hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
+      } catch {
+        case e: Exception =>
+          logError("Celeborn initialize DFS failed.", e)
+          throw e
+      }
+    }
+  }
+
   def handleRequestSlots(context: RpcCallContext, requestSlots: RequestSlots): Unit = {
     val numReducers = requestSlots.partitionIdList.size()
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
@@ -910,6 +923,19 @@ private[celeborn] class Master(
       logError(s"Offer slots for $shuffleKey failed due to all workers are excluded!")
       context.reply(
         RequestSlotsResponse(StatusCode.WORKER_EXCLUDED, new WorkerResource(), requestSlots.packed))
+    }
+
+    if (StorageInfo.HDFSAvailable(requestSlots.availableStorageTypes)) {
+      initDfs()
+      val shuffleDir =
+        new Path(new Path(conf.hdfsDir, conf.workerWorkingDir), s"${requestSlots.applicationId}/${requestSlots.shuffleId}")
+      val hadpFs = hadoopFs.get(StorageInfo.Type.HDFS)
+      if (hadpFs != null && !hadpFs.exists(shuffleDir)) {
+        FileSystem.mkdirs(
+          hadpFs,
+          shuffleDir,
+          new FsPermission("755"))
+      }
     }
 
     val numWorkers = Math.min(
@@ -1117,15 +1143,7 @@ private[celeborn] class Master(
   }
 
   private def checkAndCleanExpiredAppDirsOnDFS(expiredDir: String = ""): Unit = {
-    if (hadoopFs == null) {
-      try {
-        hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
-      } catch {
-        case e: Exception =>
-          logError("Celeborn initialize DFS failed.", e)
-          throw e
-      }
-    }
+    initDfs()
     if (hasHDFSStorage) processDir(conf.hdfsDir, expiredDir)
     if (hasS3Storage) processDir(conf.s3Dir, expiredDir)
     if (hasOssStorage) processDir(conf.ossDir, expiredDir)

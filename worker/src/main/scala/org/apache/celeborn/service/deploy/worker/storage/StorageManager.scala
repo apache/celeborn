@@ -1093,10 +1093,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       if (dirs.isEmpty && location.getStorageInfo.HDFSAvailable()) {
         val shuffleDir =
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
-        FileSystem.mkdirs(
-          StorageManager.hadoopFs.get(StorageInfo.Type.HDFS),
-          shuffleDir,
-          hdfsPermission)
+        val hadpFs = StorageManager.hadoopFs.get(StorageInfo.Type.HDFS)
+        if (!hadpFs.exists(shuffleDir)) {
+          FileSystem.mkdirs(
+            hadpFs,
+            shuffleDir,
+            hdfsPermission)
+        }
         val hdfsFilePath = new Path(shuffleDir, fileName).toString
         val hdfsFileInfo = new DiskFileInfo(
           userIdentifier,
