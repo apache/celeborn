@@ -3218,7 +3218,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "builder",
-              "expr": "metrics_UnreleasedShuffleCount_Value",
+              "expr": "metrics_UnreleasedShuffleCount_Value{instance=~\"${instance}\"}",
               "instant": false,
               "range": true,
               "refId": "A"
@@ -5937,7 +5937,7 @@
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "metrics_FetchChunkTransferSize_Count",
+              "expr": "metrics_FetchChunkTransferSize_Count{instance=~\"${instance}\"}",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "instant": false,
@@ -6037,7 +6037,7 @@
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "metrics_FetchChunkTransferSize_Max",
+              "expr": "metrics_FetchChunkTransferSize_Max{instance=~\"${instance}\"}",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "instant": false,
@@ -6137,7 +6137,7 @@
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "metrics_FetchChunkTransferSize_Mean",
+              "expr": "metrics_FetchChunkTransferSize_Mean{instance=~\"${instance}\"}",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "instant": false,
@@ -6236,7 +6236,7 @@
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "metrics_FetchChunkTransferTime_Count",
+              "expr": "metrics_FetchChunkTransferTime_Count{instance=~\"${instance}\"}",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "instant": false,
@@ -6336,7 +6336,7 @@
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "metrics_FetchChunkTransferTime_Mean",
+              "expr": "metrics_FetchChunkTransferTime_Mean{instance=~\"${instance}\"}",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "instant": false,
@@ -6436,7 +6436,7 @@
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "metrics_FetchChunkTransferTime_Max",
+              "expr": "metrics_FetchChunkTransferTime_Max{instance=~\"${instance}\"}",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "instant": false,
@@ -12736,7 +12736,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_SegmentStartFailCount_Count",
+              "expr": "metrics_SegmentStartFailCount_Count{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -12828,7 +12828,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ReplicaSegmentStartTime_Mean",
+              "expr": "metrics_ReplicaSegmentStartTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -12920,7 +12920,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_ReplicaSegmentStartTime_Max",
+              "expr": "metrics_ReplicaSegmentStartTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -13012,7 +13012,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_PrimarySegmentStartTime_Mean",
+              "expr": "metrics_PrimarySegmentStartTime_Mean{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
@@ -13104,7 +13104,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "metrics_PrimarySegmentStartTime_Max",
+              "expr": "metrics_PrimarySegmentStartTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "range": true,
               "refId": "A"
