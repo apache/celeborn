@@ -163,6 +163,11 @@ public class DiskMapPartitionDataWriterSuiteJ {
 
     assertEquals(length.get(), bytesWritten);
     assertEquals(new File(fileWriter.getFilePath()).length(), bytesWritten);
+    assert scala.collection.JavaConverters.seqAsJavaList(source.histograms().toSeq()).stream()
+        .anyMatch(
+            histogram ->
+                histogram.name().equals(WorkerSource.PARTITION_FILE_SIZE())
+                    && histogram.histogram().getSnapshot().getMax() > 0);
   }
 
   private byte[] generateData(int partitionId) {
