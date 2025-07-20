@@ -1280,6 +1280,14 @@ object Utils extends Logging {
     s"$shuffleKey-$clientChannelId-$rpcRequestId"
   }
 
+  def makeOpenStreamListRequestId(
+      shuffleKey: String,
+      clientChannelId: String,
+      rpcRequestId: Long,
+      idx: Int): String = {
+    s"$shuffleKey-$clientChannelId-$rpcRequestId-$idx"
+  }
+
   def withRetryOnTimeoutOrIOException[T](numRetries: Int, retryWait: Long)(block: => T): T = {
     var retriesLeft = numRetries
 

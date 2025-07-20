@@ -146,17 +146,27 @@ class FetchHandler(
         val pbOpenStreamListResponse = PbOpenStreamListResponse.newBuilder()
         checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
         0 until files.size() foreach { idx =>
-          val pbStreamHandlerOpt = handleReduceOpenStreamInternal(
-            client,
+          val openStreamRequestId = Utils.makeOpenStreamListRequestId(
             shuffleKey,
-            files.get(idx),
-            startIndices.get(idx),
-            endIndices.get(idx),
-            readLocalFlags.get(idx))
-          if (pbStreamHandlerOpt.getStatus != StatusCode.SUCCESS.getValue) {
-            workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
+            client.getChannel.id().toString,
+            rpcRequest.requestId,
+            idx)
+          workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, openStreamRequestId)
+          try {
+            val pbStreamHandlerOpt = handleReduceOpenStreamInternal(
+              client,
+              shuffleKey,
+              files.get(idx),
+              startIndices.get(idx),
+              endIndices.get(idx),
+              readLocalFlags.get(idx))
+            if (pbStreamHandlerOpt.getStatus != StatusCode.SUCCESS.getValue) {
+              workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
+            }
+            pbOpenStreamListResponse.addStreamHandlerOpt(pbStreamHandlerOpt)
+          } finally {
+            workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, openStreamRequestId)
           }
-          pbOpenStreamListResponse.addStreamHandlerOpt(pbStreamHandlerOpt)
         }
 
         client.getChannel.writeAndFlush(new RpcResponse(
@@ -337,8 +347,6 @@ class FetchHandler(
             client.getChannel)}, Exception: ${e.getMessage}"
         PbStreamHandlerOpt.newBuilder().setStatus(StatusCode.OPEN_STREAM_FAILED.getValue)
           .setErrorMsg(msg).build()
-    } finally {
-      workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
     }
   }
 
@@ -580,7 +588,6 @@ class FetchHandler(
         streamChunkSlice.chunkIndex,
         streamChunkSlice.offset,
         streamChunkSlice.len)
-      val bufSize = buf.size()
       chunkStreamManager.chunkBeingSent(streamChunkSlice.streamId)
       client.getChannel.writeAndFlush(new ChunkFetchSuccess(streamChunkSlice, buf))
         .addListener(new GenericFutureListener[Future[_ >: Void]] {
@@ -588,14 +595,12 @@ class FetchHandler(
             if (future.isSuccess) {
               if (log.isDebugEnabled) {
                 logDebug(
-                  s"Sending ChunkFetchSuccess to $remoteAddr succeeded," +
-                    s" chunk $streamChunkSlice, buf size: $bufSize")
+                  s"Sending ChunkFetchSuccess to $remoteAddr succeeded, chunk $streamChunkSlice")
               }
               workerSource.incCounter(WorkerSource.FETCH_CHUNK_SUCCESS_COUNT)
             } else {
               logWarning(
-                s"Sending ChunkFetchSuccess to $remoteAddr failed," +
-                  s" chunk $streamChunkSlice, buf size: $bufSize",
+                s"Sending ChunkFetchSuccess to $remoteAddr failed, chunk $streamChunkSlice",
                 future.cause())
               workerSource.incCounter(WorkerSource.FETCH_CHUNK_FAIL_COUNT)
             }
