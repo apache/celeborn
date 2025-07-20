@@ -98,6 +98,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
 
   addHistogram(FETCH_CHUNK_TRANSFER_SIZE)
   addHistogram(PARTITION_FILE_SIZE)
+  addHistogram(FETCH_CHUNK_SIZE)
 
   def getCounterCount(metricsName: String): Long = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(metricsName, Map.empty)
@@ -159,6 +160,7 @@ object WorkerSource {
   // fetch data
   val OPEN_STREAM_TIME = "OpenStreamTime"
   val FETCH_CHUNK_TIME = "FetchChunkTime"
+  val FETCH_CHUNK_SIZE = "FetchChunkSize"
   val ACTIVE_CHUNK_STREAM_COUNT = "ActiveChunkStreamCount"
   val OPEN_STREAM_SUCCESS_COUNT = "OpenStreamSuccessCount"
   val OPEN_STREAM_FAIL_COUNT = "OpenStreamFailCount"
