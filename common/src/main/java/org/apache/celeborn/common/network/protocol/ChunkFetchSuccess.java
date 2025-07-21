@@ -95,7 +95,7 @@ public final class ChunkFetchSuccess extends ResponseMessage {
   public String toString() {
     return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
         .append("streamChunkId", streamChunkSlice)
-        .append("buffer", body())
+        .append("body", body())
         .toString();
   }
 }
