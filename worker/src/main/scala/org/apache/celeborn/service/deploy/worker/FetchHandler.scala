@@ -145,14 +145,13 @@ class FetchHandler(
         val readLocalFlags = openStreamList.getReadLocalShuffleList
         val pbOpenStreamListResponse = PbOpenStreamListResponse.newBuilder()
         checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
-        0 until files.size() foreach { idx =>
-          val openStreamRequestId = Utils.makeOpenStreamListRequestId(
-            shuffleKey,
-            client.getChannel.id().toString,
-            rpcRequest.requestId,
-            idx)
-          workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, openStreamRequestId)
-          try {
+        val openStreamRequestId = Utils.makeOpenStreamRequestId(
+          shuffleKey,
+          client.getChannel.id().toString,
+          rpcRequest.requestId)
+        workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, openStreamRequestId)
+        try {
+          0 until files.size() foreach { idx =>
             val pbStreamHandlerOpt = handleReduceOpenStreamInternal(
               client,
               shuffleKey,
@@ -164,9 +163,9 @@ class FetchHandler(
               workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
             }
             pbOpenStreamListResponse.addStreamHandlerOpt(pbStreamHandlerOpt)
-          } finally {
-            workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, openStreamRequestId)
           }
+        } finally {
+          workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, openStreamRequestId)
         }
 
         client.getChannel.writeAndFlush(new RpcResponse(
