@@ -407,7 +407,7 @@ class LocalTierWriter(
 
   override def genFlushTask(finalFlush: Boolean, keepBuffer: Boolean): FlushTask = {
     notifier.numPendingFlushes.incrementAndGet()
-    new LocalFlushTask(flushBuffer, channel, notifier, true, gatherApiEnabled)
+    new LocalFlushTask(flushBuffer, channel, notifier, true, source, gatherApiEnabled)
   }
 
   override def writeInternal(buf: ByteBuf): Unit = {
@@ -587,12 +587,13 @@ class DfsTierWriter(
   override def genFlushTask(finalFlush: Boolean, keepBuffer: Boolean): FlushTask = {
     notifier.numPendingFlushes.incrementAndGet()
     if (hdfsFileInfo.isHdfs) {
-      new HdfsFlushTask(flushBuffer, hdfsFileInfo.getDfsPath(), notifier, true)
+      new HdfsFlushTask(flushBuffer, hdfsFileInfo.getDfsPath(), notifier, true, source)
     } else if (hdfsFileInfo.isOSS) {
       val flushTask = new OssFlushTask(
         flushBuffer,
         notifier,
         true,
+        source,
         ossMultipartUploadHandler,
         partNumber,
         finalFlush)
@@ -603,6 +604,7 @@ class DfsTierWriter(
         flushBuffer,
         notifier,
         true,
+        source,
         s3MultipartUploadHandler,
         partNumber,
         finalFlush)
