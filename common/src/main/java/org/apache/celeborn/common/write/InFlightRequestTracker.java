@@ -45,19 +45,16 @@ public class InFlightRequestTracker {
   private final AtomicInteger batchId = new AtomicInteger();
   private final ConcurrentHashMap<String, Set<Integer>> inflightBatchesPerAddress =
       JavaUtils.newConcurrentHashMap();
-
-  private final ConcurrentHashMap<String, LongAdder> inflighBytesSizePerAddress =
+  private final ConcurrentHashMap<String, LongAdder> inflightBytesSizePerAddress =
       JavaUtils.newConcurrentHashMap();
   private final ConcurrentHashMap<Integer, Integer> inflightBatchBytesSize =
       JavaUtils.newConcurrentHashMap();
 
   private final int maxInFlightReqsTotal;
-
   private final boolean maxInFlightBytesSizeInFlightEnabled;
   private final long maxInFlightBytesSizeInFlightTotal;
   private final long maxInFlightBytesSizeInFlightPerWorker;
   private final LongAdder totalInflightReqs = new LongAdder();
-
   private final LongAdder totalInflightBytes = new LongAdder();
 
   private volatile boolean cleaned = false;
@@ -79,9 +76,8 @@ public class InFlightRequestTracker {
             hostAndPushPort, id -> ConcurrentHashMap.newKeySet());
     batchIdSetPerPair.add(batchId);
     LongAdder bytesSizePerPair =
-        inflighBytesSizePerAddress.computeIfAbsent(hostAndPushPort, id -> new LongAdder());
+        inflightBytesSizePerAddress.computeIfAbsent(hostAndPushPort, id -> new LongAdder());
     bytesSizePerPair.add(batchBytesSize);
-
     inflightBatchBytesSize.put(batchId, batchBytesSize);
     totalInflightReqs.increment();
     totalInflightBytes.add(batchBytesSize);
@@ -90,19 +86,16 @@ public class InFlightRequestTracker {
   public void removeBatch(int batchId, String hostAndPushPort) {
     Set<Integer> batchIdSet = inflightBatchesPerAddress.get(hostAndPushPort);
     long batchBytesSize = inflightBatchBytesSize.getOrDefault(batchId, 0);
-
     inflightBatchBytesSize.remove(batchId);
     if (batchIdSet != null) {
       batchIdSet.remove(batchId);
     } else {
       logger.info("Batches of {} in flight is null.", hostAndPushPort);
     }
-
-    LongAdder bytesSizePerPair = inflighBytesSizePerAddress.get(hostAndPushPort);
+    LongAdder bytesSizePerPair = inflightBytesSizePerAddress.get(hostAndPushPort);
     if (bytesSizePerPair != null) {
       bytesSizePerPair.add(-batchBytesSize);
     }
-
     totalInflightReqs.decrement();
     totalInflightBytes.add(-batchBytesSize);
   }
@@ -121,7 +114,7 @@ public class InFlightRequestTracker {
   }
 
   public long getBatchBytesSizeByAddressPair(String hostAndPort) {
-    return inflighBytesSizePerAddress
+    return inflightBytesSizePerAddress
         .computeIfAbsent(hostAndPort, pair -> new LongAdder())
         .longValue();
   }
@@ -135,7 +128,7 @@ public class InFlightRequestTracker {
     int currentMaxReqsInFlight = pushStrategy.getCurrentMaxReqsInFlight(hostAndPushPort);
 
     Set<Integer> batchIdSet = getBatchIdSetByAddressPair(hostAndPushPort);
-    long batchBytesSizeByAddressPair = getBatchBytesSizeByAddressPair(hostAndPushPort);
+    long batchBytesSize = getBatchBytesSizeByAddressPair(hostAndPushPort);
     long times = waitInflightTimeoutMs / delta;
     try {
       while (times > 0) {
@@ -147,9 +140,9 @@ public class InFlightRequestTracker {
               && batchIdSet.size() <= currentMaxReqsInFlight) {
             break;
           }
-          if (!maxInFlightBytesSizeInFlightEnabled
-              || (totalInflightBytes.sum() <= maxInFlightBytesSizeInFlightTotal
-                  && batchBytesSizeByAddressPair <= maxInFlightBytesSizeInFlightPerWorker)) {
+          if (maxInFlightBytesSizeInFlightEnabled
+              && (totalInflightBytes.sum() <= maxInFlightBytesSizeInFlightTotal
+                  && batchBytesSize <= maxInFlightBytesSizeInFlightPerWorker)) {
             break;
           }
           if (pushState.exception.get() != null) {
