@@ -581,6 +581,7 @@ class FetchHandler(
         streamChunkSlice.offset,
         streamChunkSlice.len)
       val bufSize = buf.size()
+      workerSource.updateHistogram(WorkerSource.FETCH_CHUNK_SIZE, bufSize)
       chunkStreamManager.chunkBeingSent(streamChunkSlice.streamId)
       client.getChannel.writeAndFlush(new ChunkFetchSuccess(streamChunkSlice, buf))
         .addListener(new GenericFutureListener[Future[_ >: Void]] {
