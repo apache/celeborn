@@ -3417,7 +3417,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "description": "size of partition files in bytes",
+          "description": "mean size of partition files in bytes",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3469,7 +3469,8 @@
                     "value": 80
                   }
                 ]
-              }
+              },
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -3567,7 +3568,8 @@
                     "value": 80
                   }
                 ]
-              }
+              },
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -3665,7 +3667,8 @@
                     "value": 80
                   }
                 ]
-              }
+              },
+              "unit": "decbytes"
             },
             "overrides": []
           },
