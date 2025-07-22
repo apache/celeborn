@@ -157,7 +157,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     (flushers, totalThread)
   }
 
-  // TODO
   val hdfsDir = conf.hdfsDir
   val s3Dir = conf.s3Dir
   val ossDir = conf.ossDir
