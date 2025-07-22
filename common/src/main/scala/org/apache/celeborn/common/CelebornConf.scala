@@ -4664,7 +4664,6 @@ object CelebornConf extends Logging {
 
   val CLIENT_PUSH_MAX_BYTES_SIZE_IN_FLIGHT_TOTAL: OptionalConfigEntry[Long] =
     buildConf("celeborn.client.push.maxBytesSizeInFlight.total")
-      .withAlternative("celeborn.push.maxBytesSizeInFlight")
       .categories("client")
       .version("0.6.1")
       .doc(

@@ -1048,26 +1048,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             }
             context.reply(pbGetShuffleIdResponse)
           case None =>
-            // If no valid finished map stage is found, check if there are any shuffles
-            shuffleIds.values.map(v => v._1).toSeq.reverse.headOption match {
-              case Some(celebornShuffleId) =>
-                val pbGetShuffleIdResponse = {
-                  logInfo(
-                    s"No finished map stage found, using latest shuffleId $celebornShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier isWriter $isWriter")
-                  PbGetShuffleIdResponse.newBuilder().setShuffleId(celebornShuffleId).setSuccess(
-                    true).build()
-                }
-                context.reply(pbGetShuffleIdResponse)
-              case None =>
-                val pbGetShuffleIdResponse = {
-                  logInfo(
-                    s"there is no finished map stage associated with appShuffleId $appShuffleId")
-                  PbGetShuffleIdResponse.newBuilder().setShuffleId(
-                    UNKNOWN_APP_SHUFFLE_ID).setSuccess(
-                    false).build()
-                }
-                context.reply(pbGetShuffleIdResponse)
+            val pbGetShuffleIdResponse = {
+              logInfo(
+                s"there is no finished map stage associated with appShuffleId $appShuffleId")
+              PbGetShuffleIdResponse.newBuilder().setShuffleId(UNKNOWN_APP_SHUFFLE_ID).setSuccess(
+                false).build()
             }
+            context.reply(pbGetShuffleIdResponse)
         }
       }
     }
