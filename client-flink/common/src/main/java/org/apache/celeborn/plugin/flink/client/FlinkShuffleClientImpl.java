@@ -340,7 +340,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     limitMaxInFlight(mapKey, pushState, location.hostAndPushPort());
 
     // add inFlight requests
-    pushState.addBatch(nextBatchId, location.hostAndPushPort());
+    pushState.addBatch(nextBatchId, totalLength, location.hostAndPushPort());
 
     // build PushData request
     NettyManagedBuffer buffer = new NettyManagedBuffer(data);
