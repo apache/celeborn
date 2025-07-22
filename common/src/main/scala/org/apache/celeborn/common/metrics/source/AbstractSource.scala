@@ -110,8 +110,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     // filter out non-number type gauges
     if (gauge.getValue.isInstanceOf[Number]) {
       val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
-      namedGauges.putIfAbsent(metricNameWithLabel,
-        NamedGauge(name, gauge, labels ++ staticLabels))
+      namedGauges.putIfAbsent(metricNameWithLabel, NamedGauge(name, gauge, labels ++ staticLabels))
       metricRegistry.synchronized({
         if (!metricRegistry.getMetrics.containsKey(metricNameWithLabel)) {
           metricRegistry.register(metricNameWithLabel, gauge)
