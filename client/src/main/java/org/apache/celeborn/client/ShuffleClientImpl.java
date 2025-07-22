@@ -1034,7 +1034,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       limitMaxInFlight(mapKey, pushState, loc.hostAndPushPort());
 
       // add inFlight requests
-      pushState.addBatch(nextBatchId, loc.hostAndPushPort());
+      pushState.addBatch(nextBatchId, body.length, loc.hostAndPushPort());
 
       // build PushData request
       NettyManagedBuffer buffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
@@ -1078,7 +1078,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
             @Override
             public void updateLatestPartition(PartitionLocation newloc) {
-              pushState.addBatch(nextBatchId, newloc.hostAndPushPort());
+              pushState.addBatch(nextBatchId, body.length, newloc.hostAndPushPort());
               pushState.removeBatch(nextBatchId, this.latest.hostAndPushPort());
               this.latest = newloc;
             }
@@ -1409,7 +1409,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     final int port = Integer.parseInt(hostPortArr[1]);
 
     int groupedBatchId = pushState.nextBatchId();
-    pushState.addBatch(groupedBatchId, hostPort);
+    int groupedBatchBytesSize = batches.stream().mapToInt(batch -> batch.body.length).sum();
+    pushState.addBatch(groupedBatchId, groupedBatchBytesSize, hostPort);
 
     final int numBatches = batches.size();
     final Integer[] partitionIds = new Integer[numBatches];
