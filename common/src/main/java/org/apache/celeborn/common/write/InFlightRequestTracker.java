@@ -213,8 +213,7 @@ public class InFlightRequestTracker {
           // MapEnd cleans up push state, which does not exceed the zero requests in flight limit.
           return false;
         } else {
-          if (totalInflightReqs.sum() == 0
-              && (!maxInFlightBytesSizeEnabled || totalInflightBytes.sum() == 0)) {
+          if (totalInflightReqs.sum() == 0) {
             break;
           }
           if (pushState.exception.get() != null) {
@@ -229,30 +228,16 @@ public class InFlightRequestTracker {
     }
 
     if (times <= 0) {
-      if (totalInflightReqs.sum() > 0) {
-        logger.error(
-            "After waiting for {} ms, "
-                + "there are still {} requests in flight: {}, "
-                + "which exceeds the current limit 0.",
-            waitInflightTimeoutMs,
-            totalInflightReqs.sum(),
-            inflightBatchesPerAddress.entrySet().stream()
-                .filter(c -> !c.getValue().isEmpty())
-                .map(c -> c.getValue().size() + " batches for hostAndPushPort " + c.getKey())
-                .collect(Collectors.joining(", ", "[", "]")));
-      }
-      if (maxInFlightBytesSizeEnabled && totalInflightBytes.sum() > 0) {
-        logger.error(
-            "After waiting for {} ms, "
-                + "there are still {} bytes in flight: {}, "
-                + "which exceeds the current limit 0.",
-            waitInflightTimeoutMs,
-            totalInflightBytes.sum(),
-            inflightBytesSizePerAddress.entrySet().stream()
-                .filter(c -> c.getValue().sum() != 0)
-                .map(c -> c.getValue().sum() + " bytes for hostAndPushPort " + c.getKey())
-                .collect(Collectors.joining(", ", "[", "]")));
-      }
+      logger.error(
+          "After waiting for {} ms, "
+              + "there are still {} requests in flight: {}, "
+              + "which exceeds the current limit 0.",
+          waitInflightTimeoutMs,
+          totalInflightReqs.sum(),
+          inflightBatchesPerAddress.entrySet().stream()
+              .filter(c -> !c.getValue().isEmpty())
+              .map(c -> c.getValue().size() + " batches for hostAndPushPort " + c.getKey())
+              .collect(Collectors.joining(", ", "[", "]")));
     }
 
     if (pushState.exception.get() != null) {
