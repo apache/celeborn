@@ -20,8 +20,6 @@ package org.apache.celeborn.common.network.protocol;
 import java.util.Objects;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.apache.commons.lang3.builder.ToStringStyle;
 
 @Deprecated
 public final class RegionFinish extends RequestMessage {
@@ -89,11 +87,14 @@ public final class RegionFinish extends RequestMessage {
 
   @Override
   public String toString() {
-    return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
-        .append("mode", mode)
-        .append("shuffleKey", shuffleKey)
-        .append("partitionUniqueId", partitionUniqueId)
-        .append("attemptId", attemptId)
-        .toString();
+    return "RegionFinish[mode="
+        + mode
+        + ",shuffleKey="
+        + shuffleKey
+        + ",partitionUniqueId="
+        + partitionUniqueId
+        + ",attemptId="
+        + attemptId
+        + "]";
   }
 }
