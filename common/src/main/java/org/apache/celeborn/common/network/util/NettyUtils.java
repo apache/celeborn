@@ -54,7 +54,7 @@ public class NettyUtils {
   private static final List<PooledByteBufAllocator> pooledByteBufAllocators = new ArrayList<>();
 
   private static final String NETTY_METRICS_PREFIX = "netty";
-  private static final String NETTY_POOL_NAME_LABEL = "pool";
+  private static final String NETTY_POOL_LABEL = "pool";
   private static final String NETTY_ALLOCATOR_INDEX_LABEL = "allocatorIndex";
 
   /** Creates a new ThreadFactory which prefixes each thread with the given name. */
@@ -168,7 +168,7 @@ public class NettyUtils {
       }
       if (source != null) {
         Map<String, String> labels = new HashMap<>();
-        labels.put(NETTY_POOL_NAME_LABEL, "shared-pool");
+        labels.put(NETTY_POOL_LABEL, "shared-pool");
         labels.put(NETTY_ALLOCATOR_INDEX_LABEL, String.valueOf(index));
         new NettyMemoryMetrics(
             _sharedByteBufAllocator[index],
@@ -216,9 +216,9 @@ public class NettyUtils {
       if (!moduleName.isEmpty()) {
         poolName = moduleName;
         int index = allocatorsIndex.compute(moduleName, (k, v) -> v == null ? 0 : v + 1);
-        labels.put("allocatorIndex", String.valueOf(index));
+        labels.put(NETTY_ALLOCATOR_INDEX_LABEL, String.valueOf(index));
       }
-      labels.put(NETTY_POOL_NAME_LABEL, poolName);
+      labels.put(NETTY_POOL_LABEL, poolName);
       new NettyMemoryMetrics(
           allocator,
           NETTY_METRICS_PREFIX,
