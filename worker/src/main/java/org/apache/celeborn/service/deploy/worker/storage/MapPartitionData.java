@@ -18,7 +18,6 @@
 package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.IOException;
-import java.nio.channels.FileChannel;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,16 +27,11 @@ import java.util.function.Consumer;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
-import org.apache.commons.io.IOUtils;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.MapFileMeta;
-import org.apache.celeborn.common.protocol.StorageInfo;
-import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
@@ -52,13 +46,6 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
   protected final ExecutorService readExecutor;
   protected final ConcurrentHashMap<Long, MapPartitionDataReader> readers =
       JavaUtils.newConcurrentHashMap();
-  private final boolean isDfs;
-  private FSDataInputStream dataInputStream;
-  private FSDataInputStream indexInputStream;
-  private FileChannel dataFileChanel;
-  private FileChannel indexChannel;
-  private final long dataSize;
-  private final long indexSize;
   private volatile boolean isReleased = false;
   private final BufferQueue bufferQueue = new BufferQueue();
   private AtomicBoolean bufferQueueInitialized = new AtomicBoolean(false);
@@ -102,24 +89,6 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
                     threadsPerMountPoint,
                     String.format("worker-map-partition-%s-reader", mapFileMeta.getMountPoint()),
                     false));
-    this.isDfs = diskFileInfo.isDFS();
-    if (isDfs) {
-      FileSystem fileSystem =
-          StorageManager.hadoopFs()
-              .get(
-                  diskFileInfo.isHdfs()
-                      ? StorageInfo.Type.HDFS
-                      : diskFileInfo.isS3() ? StorageInfo.Type.S3 : StorageInfo.Type.OSS);
-      this.dataInputStream = fileSystem.open(diskFileInfo.getDfsPath());
-      this.indexInputStream = fileSystem.open(diskFileInfo.getDfsIndexPath());
-      this.dataSize = fileSystem.getFileStatus(diskFileInfo.getDfsPath()).getLen();
-      this.indexSize = fileSystem.getFileStatus(diskFileInfo.getDfsIndexPath()).getLen();
-    } else {
-      this.dataFileChanel = FileChannelUtils.openReadableFileChannel(diskFileInfo.getFilePath());
-      this.indexChannel = FileChannelUtils.openReadableFileChannel(diskFileInfo.getIndexPath());
-      this.dataSize = dataFileChanel.size();
-      this.indexSize = indexChannel.size();
-    }
 
     MemoryManager.instance().addReadBufferTargetChangeListener(this);
   }
@@ -196,14 +165,7 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
   }
 
   protected void openReader(MapPartitionDataReader reader) throws IOException {
-    reader.open(
-        isDfs,
-        dataInputStream,
-        indexInputStream,
-        dataFileChanel,
-        indexChannel,
-        dataSize,
-        indexSize);
+    reader.open();
   }
 
   public synchronized void readBuffers() {
@@ -281,10 +243,8 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
     bufferQueue.release();
     isReleased = true;
 
-    IOUtils.closeQuietly(dataInputStream);
-    IOUtils.closeQuietly(indexInputStream);
-    IOUtils.closeQuietly(dataFileChanel);
-    IOUtils.closeQuietly(indexChannel);
+    readers.values().forEach(MapPartitionDataReader::close);
+    readers.clear();
 
     MemoryManager.instance().removeReadBufferTargetChangeListener(this);
   }
