@@ -26,8 +26,6 @@ import java.security.PrivilegedAction;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.commons.lang3.builder.ToStringBuilder;
-
 /** this class is copied from Apache Kyuubi, derived from iceberg-common */
 public class DynFields {
 
@@ -67,11 +65,13 @@ public class DynFields {
 
     @Override
     public String toString() {
-      return new ToStringBuilder(this)
-          .append("class", field.getDeclaringClass().toString())
-          .append("name", name)
-          .append("type", field.getType())
-          .toString();
+      return "DynFields[class="
+          + field.getDeclaringClass()
+          + ",name="
+          + name
+          + ",type="
+          + field.getType()
+          + "]";
     }
 
     /**
