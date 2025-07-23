@@ -7,7 +7,7 @@ resources:
     - repository: CustomPipelineTemplates
       type: git
       name: Engineering Fundamentals/WebXT.Pipeline.Templates
-      ref: refs/heads/v0.5.4
+      ref: refs/heads/main
 variables:
   - name: PUBLISH_DIR
     value: $(System.DefaultWorkingDirectory)\publish\celeborn
@@ -23,7 +23,7 @@ extends:
       spotBugs:
         enabled: false
       credscan:
-        enabled: false
+        enabled: true
         suppressionsFile: $(Build.SourcesDirectory)\build\.config\CredScanSuppressions.json
       sourceAnalysisPool:
         name: Azure-Pipelines-1ESPT-ExDShared
@@ -32,6 +32,10 @@ extends:
       git:
         submodules: false
         longpaths: true
+      codeql:
+        compiled:
+          enabled: true
+        runSourceLanguagesInSourceAnalysis: true
     customBuildTags:
       - ES365AIMigrationTooling
     stages:

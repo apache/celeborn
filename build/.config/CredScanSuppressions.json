@@ -1,0 +1,45 @@
+{
+  "tool": "Credential Scanner",
+  "suppressions": [
+    {
+      "file": "\\connector\\docker-integration-tests\\src\\test\\scala\\org\\apache\\spark\\sql\\jdbc\\OracleIntegrationSuite.scala",
+      "_justification": "Credscan suppression"
+    },
+    {
+      "file": "\\connector\\docker-integration-tests\\src\\test\\scala\\org\\apache\\spark\\sql\\jdbc\\v2\\OracleIntegrationSuite.scala",
+      "_justification": "Credscan suppression"
+    },
+    {
+      "file": "\\connector\\docker-integration-tests\\src\\test\\scala\\org\\apache\\spark\\sql\\jdbc\\v2\\OracleNamespaceSuite.scala",
+      "_justification": "Credscan suppression"
+    },
+    {
+      "file": "\\core\\src\\test\\resources\\spark.keystore",
+      "_justification": "Credscan suppression"
+    },
+    {
+      "file": "\\docs\\_config.yml",
+      "_justification": "Credscan suppression"
+    },
+    {
+      "file": "\\docs\\sql-data-sources-jdbc.md",
+      "_justification": "Credscan suppression"
+    },
+    {
+      "file": " \\docs\\streaming-kafka-0-10-integration.md",
+      "_justification": "Credscan suppression"
+    },
+    {
+      "file": "\\sql\\hive\\src\\test\\resources\\data\\files\\keystore.jks",
+      "_justification": "Credscan suppression"
+    },
+    {
+      "file": "\\sql\\hive\\src\\test\\resources\\data\\files\\truststore.jks",
+      "_justification": "Credscan suppression"
+    },
+    {
+      "file": "\\sql\\hive-thriftserver\\src\\test\\scala\\org\\apache\\spark\\sql\\hive\\thriftserver\\UISeleniumSuite.scala",
+      "_justification": "Credscan suppression"
+    }
+  ]
+}
