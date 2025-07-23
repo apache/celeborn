@@ -38,6 +38,7 @@ import org.apache.celeborn.common.meta.MemoryFileInfo;
 import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.util.NettyUtils;
+import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
@@ -61,7 +62,8 @@ public class MemoryPartitionFilesSorterSuiteJ {
 
     AbstractSource source = Mockito.mock(AbstractSource.class);
     ByteBufAllocator allocator =
-        NettyUtils.getSharedByteBufAllocator(new CelebornConf(), source, false);
+        NettyUtils.getSharedByteBufAllocator(
+            new TransportConf("default", new CelebornConf()), source, false);
     CompositeByteBuf buffer = allocator.compositeBuffer();
     fileInfo.setBuffer(buffer);
 

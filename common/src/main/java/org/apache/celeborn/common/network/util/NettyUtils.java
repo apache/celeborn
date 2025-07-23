@@ -19,7 +19,6 @@ package org.apache.celeborn.common.network.util;
 
 import java.nio.channels.spi.SelectorProvider;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +41,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.ThreadPerTaskExecutor;
 import io.netty.util.internal.PlatformDependent;
+import org.apache.commons.lang3.StringUtils;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
@@ -154,7 +154,8 @@ public class NettyUtils {
    * parameter value.
    */
   public static synchronized ByteBufAllocator getSharedByteBufAllocator(
-      CelebornConf conf, AbstractSource source, boolean allowCache) {
+      TransportConf transportConf, AbstractSource source, boolean allowCache) {
+    CelebornConf conf = transportConf.getCelebornConf();
     final int index = allowCache ? 0 : 1;
     if (_sharedByteBufAllocator[index] == null) {
       _sharedByteBufAllocator[index] =
@@ -164,12 +165,19 @@ public class NettyUtils {
         pooledByteBufAllocators.add((PooledByteBufAllocator) _sharedByteBufAllocator[index]);
       }
       if (source != null) {
+        String poolName = "shared-pool-" + index;
+        Map<String, String> labels = new HashMap<>();
+        String moduleName = transportConf.getModuleName();
+        if (StringUtils.isNotBlank(moduleName)) {
+          poolName = moduleName;
+          labels.put("allocatorIndex", String.valueOf(index));
+        }
         new NettyMemoryMetrics(
             _sharedByteBufAllocator[index],
-            "shared-pool-" + index,
+            poolName,
             conf.networkAllocatorVerboseMetric(),
             source,
-            Collections.emptyMap());
+            labels);
       }
     }
     return _sharedByteBufAllocator[index];
@@ -184,9 +192,7 @@ public class NettyUtils {
       TransportConf conf, AbstractSource source, boolean allowCache, int coreNum) {
     if (conf.getCelebornConf().networkShareMemoryAllocator()) {
       return getSharedByteBufAllocator(
-          conf.getCelebornConf(),
-          source,
-          allowCache && conf.getCelebornConf().networkMemoryAllocatorAllowCache());
+          conf, source, allowCache && conf.getCelebornConf().networkMemoryAllocatorAllowCache());
     }
     int arenas;
     if (coreNum != 0) {
