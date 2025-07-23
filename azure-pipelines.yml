@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-      - refs/heads/v0.5.4
+      - refs/heads/v0.5.4-mt
 resources:
   repositories:
     - repository: CustomPipelineTemplates
