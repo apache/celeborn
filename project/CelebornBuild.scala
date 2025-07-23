@@ -268,6 +268,8 @@ object Dependencies {
     ExclusionRule("org.apache.httpcomponents", "httpclient"),
     ExclusionRule("org.slf4j", "slf4j-log4j12")
   )
+  val hadoopAuth = "org.apache.hadoop" % "hadoop-auth" % hadoopVersion
+  val hadoopHdfs = "org.apache.hadoop" % "hadoop-hdfs" % hadoopVersion
 
   val picocli = "info.picocli" % "picocli" % picocliVersion
 
@@ -1284,7 +1286,11 @@ trait FlinkClientProjects {
           "org.apache.flink" % "flink-runtime" % flinkVersion % "test",
           flinkStreamingDependency,
           flinkClientsDependency,
-          flinkRuntimeWebDependency
+          flinkRuntimeWebDependency,
+          Dependencies.hadoopCommon % "test",
+          Dependencies.hadoopAuth % "test",
+          Dependencies.hadoopHdfs % "test->test;compile->compile",
+          Dependencies.jerseyServer % "test",
         ) ++ commonUnitTestDependencies,
         (Test / envVars) += ("FLINK_VERSION", flinkVersion)
       )

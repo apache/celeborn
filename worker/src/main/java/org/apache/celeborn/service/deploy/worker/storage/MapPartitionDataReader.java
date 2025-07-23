@@ -31,6 +31,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,12 +96,22 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
   @GuardedBy("lock")
   protected boolean errorNotified;
 
+  private boolean isDfs;
+
+  private FSDataInputStream dataInputStream;
+
+  private FSDataInputStream indexInputStream;
+
   private FileChannel dataFileChannel;
 
   // The size of the data file, it is initialized in the open method and remains unchanged
   // afterward.
-  private long dataFileChannelSize;
+  private long dataFileSize;
   private FileChannel indexFileChannel;
+
+  // The size of the index file, it is initialized in the open method and remains unchanged
+  // afterward.
+  private long indexFileSize;
 
   private Channel associatedChannel;
 
@@ -132,15 +143,26 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     this.readFinished = false;
   }
 
-  public void open(FileChannel dataFileChannel, FileChannel indexFileChannel, long indexSize)
+  public void open(
+      boolean isDfs,
+      FSDataInputStream dataInputStream,
+      FSDataInputStream indexInputStream,
+      FileChannel dataFileChannel,
+      FileChannel indexFileChannel,
+      long dataFileSize,
+      long indexFileSize)
       throws IOException {
     if (!isOpen) {
+      this.isDfs = isDfs;
+      this.dataInputStream = dataInputStream;
+      this.indexInputStream = indexInputStream;
       this.dataFileChannel = dataFileChannel;
-      this.dataFileChannelSize = dataFileChannel.size();
       this.indexFileChannel = indexFileChannel;
+      this.dataFileSize = dataFileSize;
+      this.indexFileSize = indexFileSize;
       // index is (offset,length)
       long indexRegionSize = mapFileMeta.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
-      this.numRegions = Utils.checkedDownCast(indexSize / indexRegionSize);
+      this.numRegions = Utils.checkedDownCast(indexFileSize / indexRegionSize);
 
       updateConsumingOffset();
       isOpen = true;
@@ -285,9 +307,10 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     return mapFileMeta.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
   }
 
-  protected void readHeaderOrIndexBuffer(FileChannel channel, ByteBuffer buffer, int length)
+  protected void readHeaderOrIndexBuffer(
+      FileChannel channel, ByteBuffer buffer, long fileSize, int length, String filePath)
       throws IOException {
-    Utils.checkFileIntegrity(channel, length);
+    Utils.checkFileIntegrity(fileSize - channel.position(), length, filePath);
     buffer.clear();
     buffer.limit(length);
     while (buffer.hasRemaining()) {
@@ -296,9 +319,22 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     buffer.flip();
   }
 
-  protected void readBufferIntoReadBuffer(FileChannel channel, ByteBuf buf, int length)
+  protected void readHeaderOrIndexBuffer(
+      FSDataInputStream inputStream, ByteBuffer buffer, long fileSize, int length, String filePath)
       throws IOException {
-    Utils.checkFileIntegrity(channel, length);
+    Utils.checkFileIntegrity(fileSize - inputStream.getPos(), length, filePath);
+    buffer.clear();
+    buffer.limit(length);
+    while (buffer.hasRemaining()) {
+      inputStream.read(buffer);
+    }
+    buffer.flip();
+  }
+
+  protected void readBufferIntoReadBuffer(
+      FileChannel channel, ByteBuf buf, long fileSize, int length, String filePath)
+      throws IOException {
+    Utils.checkFileIntegrity(fileSize - channel.position(), length, filePath);
     ByteBuffer tmpBuffer = ByteBuffer.allocate(length);
     while (tmpBuffer.hasRemaining()) {
       channel.read(tmpBuffer);
@@ -307,19 +343,55 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     buf.writeBytes(tmpBuffer);
   }
 
-  protected int readBuffer(
-      String filename, FileChannel channel, ByteBuffer header, ByteBuf buffer, int headerSize)
+  protected void readBufferIntoReadBuffer(
+      FSDataInputStream inputStream, ByteBuf buf, long fileSize, int length, String filePath)
       throws IOException {
-    readHeaderOrIndexBuffer(channel, header, headerSize);
+    Utils.checkFileIntegrity(fileSize - inputStream.getPos(), length, filePath);
+    ByteBuffer tmpBuffer = ByteBuffer.allocate(length);
+    while (tmpBuffer.hasRemaining()) {
+      inputStream.read(tmpBuffer);
+    }
+    tmpBuffer.flip();
+    buf.writeBytes(tmpBuffer);
+  }
+
+  protected int readBuffer(FSDataInputStream inputStream, ByteBuf buffer) throws IOException {
+    inputStream.seek(dataConsumingOffset);
+    int headerSize = headerBuffer.capacity();
+    readHeaderOrIndexBuffer(
+        inputStream, headerBuffer, dataFileSize, headerSize, fileInfo.getFilePath());
     // header is combined of mapId(4),attemptId(4),nextBatchId(4) and total Compressed Length(4)
     // we need size here,so we read length directly
-    int bufferLength = header.getInt(12);
+    int bufferLength = headerBuffer.getInt(12);
     if (bufferLength <= 0 || bufferLength > buffer.capacity()) {
       logger.error("Incorrect buffer header, buffer length: {}.", bufferLength);
-      throw new FileCorruptedException("File " + filename + " is corrupted");
+      throw new FileCorruptedException(
+          String.format("File %s is corrupted", fileInfo.getFilePath()));
     }
-    buffer.writeBytes(header);
-    readBufferIntoReadBuffer(channel, buffer, bufferLength);
+    buffer.writeBytes(headerBuffer);
+    readBufferIntoReadBuffer(
+        inputStream, buffer, dataFileSize, bufferLength, fileInfo.getFilePath());
+    dataConsumingOffset = inputStream.getPos();
+    return bufferLength + headerSize;
+  }
+
+  protected int readBuffer(FileChannel fileChannel, ByteBuf buffer) throws IOException {
+    fileChannel.position(dataConsumingOffset);
+    int headerSize = headerBuffer.capacity();
+    readHeaderOrIndexBuffer(
+        fileChannel, headerBuffer, dataFileSize, headerSize, fileInfo.getFilePath());
+    // header is combined of mapId(4),attemptId(4),nextBatchId(4) and total Compressed Length(4)
+    // we need size here,so we read length directly
+    int bufferLength = headerBuffer.getInt(12);
+    if (bufferLength <= 0 || bufferLength > buffer.capacity()) {
+      logger.error("Incorrect buffer header, buffer length: {}.", bufferLength);
+      throw new FileCorruptedException(
+          String.format("File %s is corrupted", fileInfo.getFilePath()));
+    }
+    buffer.writeBytes(headerBuffer);
+    readBufferIntoReadBuffer(
+        fileChannel, buffer, dataFileSize, bufferLength, fileInfo.getFilePath());
+    dataConsumingOffset = fileChannel.position();
     return bufferLength + headerSize;
   }
 
@@ -331,10 +403,26 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
         numRemainingPartitions = endPartitionIndex - startPartitionIndex + 1;
 
         // read the target index entry to the target index buffer
-        indexFileChannel.position(
+        long targetPosition =
             currentDataRegion * getIndexRegionSize()
-                + (long) startPartitionIndex * INDEX_ENTRY_SIZE);
-        readHeaderOrIndexBuffer(indexFileChannel, indexBuffer, indexBuffer.capacity());
+                + (long) startPartitionIndex * INDEX_ENTRY_SIZE;
+        if (isDfs) {
+          indexInputStream.seek(targetPosition);
+          readHeaderOrIndexBuffer(
+              indexInputStream,
+              indexBuffer,
+              indexFileSize,
+              indexBuffer.capacity(),
+              fileInfo.getIndexPath());
+        } else {
+          indexFileChannel.position(targetPosition);
+          readHeaderOrIndexBuffer(
+              indexFileChannel,
+              indexBuffer,
+              indexFileSize,
+              indexBuffer.capacity(),
+              fileInfo.getIndexPath());
+        }
       }
 
       // get the data file offset and the data size
@@ -345,13 +433,13 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
       logger.debug(
           "readBuffer updateConsumingOffset, {},  {}, {}, {}",
           streamId,
-          dataFileChannelSize,
+          dataFileSize,
           dataConsumingOffset,
           currentPartitionRemainingBytes);
 
       // if these checks fail, the partition file must be corrupted
       if (dataConsumingOffset < 0
-          || dataConsumingOffset + currentPartitionRemainingBytes > dataFileChannelSize
+          || dataConsumingOffset + currentPartitionRemainingBytes > dataFileSize
           || currentPartitionRemainingBytes < 0) {
         throw new FileCorruptedException("File " + fileInfo.getFilePath() + " is corrupted");
       }
@@ -360,17 +448,9 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
 
   private synchronized boolean readBuffer(ByteBuf buffer) throws IOException {
     try {
-      dataFileChannel.position(dataConsumingOffset);
-
       int readSize =
-          readBuffer(
-              fileInfo.getFilePath(),
-              dataFileChannel,
-              headerBuffer,
-              buffer,
-              headerBuffer.capacity());
+          isDfs ? readBuffer(dataInputStream, buffer) : readBuffer(dataFileChannel, buffer);
       currentPartitionRemainingBytes -= readSize;
-      dataConsumingOffset = dataFileChannel.position();
 
       logger.debug(
           "readBuffer data: {}, {}, {}, {}, {}, {}",
@@ -388,7 +468,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
         logger.debug(
             "readBuffer end, {},  {}, {}, {}",
             streamId,
-            dataFileChannelSize,
+            dataFileSize,
             dataConsumingOffset,
             currentPartitionRemainingBytes);
         int prevDataRegion = currentDataRegion;
@@ -399,7 +479,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
       logger.debug(
           "readBuffer run: {}, {}, {}, {}",
           streamId,
-          dataFileChannelSize,
+          dataFileSize,
           dataConsumingOffset,
           currentPartitionRemainingBytes);
       return true;
