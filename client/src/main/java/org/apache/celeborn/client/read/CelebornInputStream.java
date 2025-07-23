@@ -805,7 +805,7 @@ public abstract class CelebornInputStream extends InputStream {
         if (firstChunk && currentReader != null) {
           init();
           currentChunk = getNextChunk();
-          while (currentChunk == null && moveToNextChunk()) ;
+          while (currentChunk == null && moveToNextChunk());
           firstChunk = false;
         }
         if (currentChunk == null) {
