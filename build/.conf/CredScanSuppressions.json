@@ -1,0 +1,9 @@
+{
+  "tool": "Credential Scanner",
+  "suppressions": [
+    {
+      "file": "\\docs\\_config.yml",
+      "_justification": "Credscan suppression"
+    }
+  ]
+}
