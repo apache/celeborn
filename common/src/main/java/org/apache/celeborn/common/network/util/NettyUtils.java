@@ -19,7 +19,6 @@ package org.apache.celeborn.common.network.util;
 
 import java.nio.channels.spi.SelectorProvider;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +52,10 @@ public class NettyUtils {
   private static final ConcurrentHashMap<String, Integer> allocatorsIndex =
       JavaUtils.newConcurrentHashMap();
   private static final List<PooledByteBufAllocator> pooledByteBufAllocators = new ArrayList<>();
+
+  private static final String NETTY_METRICS_PREFIX = "netty";
+  private static final String NETTY_POOL_NAME_LABEL = "pool";
+  private static final String NETTY_ALLOCATOR_INDEX_LABEL = "allocatorIndex";
 
   /** Creates a new ThreadFactory which prefixes each thread with the given name. */
   public static ThreadFactory createThreadFactory(String threadPoolPrefix) {
@@ -164,12 +167,15 @@ public class NettyUtils {
         pooledByteBufAllocators.add((PooledByteBufAllocator) _sharedByteBufAllocator[index]);
       }
       if (source != null) {
+        Map<String, String> labels = new HashMap<>();
+        labels.put(NETTY_POOL_NAME_LABEL, "shared-pool");
+        labels.put(NETTY_ALLOCATOR_INDEX_LABEL, String.valueOf(index));
         new NettyMemoryMetrics(
             _sharedByteBufAllocator[index],
-            "shared-pool-" + index,
+            NETTY_METRICS_PREFIX,
             conf.networkAllocatorVerboseMetric(),
             source,
-            Collections.emptyMap());
+            labels);
       }
     }
     return _sharedByteBufAllocator[index];
@@ -204,17 +210,18 @@ public class NettyUtils {
       pooledByteBufAllocators.add((PooledByteBufAllocator) allocator);
     }
     if (source != null) {
-      String poolName = "default-netty-pool";
       Map<String, String> labels = new HashMap<>();
+      String poolName = "default-netty-pool";
       String moduleName = conf.getModuleName();
       if (!moduleName.isEmpty()) {
         poolName = moduleName;
         int index = allocatorsIndex.compute(moduleName, (k, v) -> v == null ? 0 : v + 1);
         labels.put("allocatorIndex", String.valueOf(index));
       }
+      labels.put(NETTY_POOL_NAME_LABEL, poolName);
       new NettyMemoryMetrics(
           allocator,
-          poolName,
+          NETTY_METRICS_PREFIX,
           conf.getCelebornConf().networkAllocatorVerboseMetric(),
           source,
           labels);
