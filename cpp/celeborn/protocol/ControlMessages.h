@@ -26,14 +26,6 @@
 
 namespace celeborn {
 namespace protocol {
-struct RegisterShuffle {
-  long shuffleId;
-  int numMappers;
-  int numPartitions;
-
-  TransportMessage toTransportMessage() const;
-};
-
 struct MapperEnd {
   long shuffleId;
   int mapId;

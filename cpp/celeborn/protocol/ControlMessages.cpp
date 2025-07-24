@@ -20,16 +20,6 @@
 
 namespace celeborn {
 namespace protocol {
-TransportMessage RegisterShuffle::toTransportMessage() const {
-  MessageType type = REGISTER_SHUFFLE;
-  PbRegisterShuffle pb;
-  pb.set_shuffleid(shuffleId);
-  pb.set_nummappers(numMappers);
-  pb.set_numpartitions(numPartitions);
-  std::string payload = pb.SerializeAsString();
-  return TransportMessage(type, std::move(payload));
-}
-
 TransportMessage MapperEnd::toTransportMessage() const {
   MessageType type = MAPPER_END;
   PbMapperEnd pb;

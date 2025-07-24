@@ -62,22 +62,6 @@ void verifyUnpackedPartitionLocation(
 }
 } // namespace
 
-TEST(ControlMessagesTest, registerShuffle) {
-  auto registerShuffle = std::make_unique<RegisterShuffle>();
-  registerShuffle->shuffleId = 1000;
-  registerShuffle->numMappers = 1001;
-  registerShuffle->numPartitions = 1002;
-
-  auto transportMessage = registerShuffle->toTransportMessage();
-  EXPECT_EQ(transportMessage.type(), REGISTER_SHUFFLE);
-  auto payload = transportMessage.payload();
-  auto pbRegisterShuffle = utils::parseProto<PbRegisterShuffle>(
-      reinterpret_cast<const uint8_t*>(payload.c_str()), payload.size());
-  EXPECT_EQ(pbRegisterShuffle->shuffleid(), registerShuffle->shuffleId);
-  EXPECT_EQ(pbRegisterShuffle->nummappers(), registerShuffle->numMappers);
-  EXPECT_EQ(pbRegisterShuffle->numpartitions(), registerShuffle->numPartitions);
-}
-
 TEST(ControlMessagesTest, mapperEnd) {
   auto mapperEnd = std::make_unique<MapperEnd>();
   mapperEnd->shuffleId = 1000;
