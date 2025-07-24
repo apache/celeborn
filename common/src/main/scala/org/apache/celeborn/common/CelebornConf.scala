@@ -4818,7 +4818,7 @@ object CelebornConf extends Logging {
         "the current value can be set small to avoid long waiting times and the illusion of the" +
         "task getting stuck")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefault(200)
+      .createWithDefault(500)
 
   val CLIENT_FETCH_BUFFER_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.buffer.size")
