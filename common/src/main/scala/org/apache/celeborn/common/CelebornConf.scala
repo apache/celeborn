@@ -4812,7 +4812,7 @@ object CelebornConf extends Logging {
   val CLIENT_FETCH_POLL_CHUNK_WAIT_TIME: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.pollChunk.wait")
       .categories("client")
-      .version("0.7.0")
+      .version("0.6.1")
       .doc("The waiting time for shuffle client to read the empty chunk on the work side." +
         "when there are many empty chunk in the shuffle partition of a small task," +
         "the current value can be set small to avoid long waiting times and the illusion of the" +
