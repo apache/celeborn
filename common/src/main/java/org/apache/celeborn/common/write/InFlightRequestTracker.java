@@ -147,8 +147,8 @@ public class InFlightRequestTracker {
           if ((totalInflightReqs.sum() <= maxInFlightReqsTotal
                   && batchIdSet.size() <= currentMaxReqsInFlight)
               || (maxInFlightBytesSizeEnabled
-                  && totalInflightBytes.sum() <= maxInFlightBytesSizeTotal
-                  && batchBytesSize.sum() <= maxInFlightBytesSizePerWorker)) {
+                  && (totalInflightBytes.sum() <= maxInFlightBytesSizeTotal
+                      || batchBytesSize.sum() <= maxInFlightBytesSizePerWorker))) {
             break;
           }
           if (pushState.exception.get() != null) {
