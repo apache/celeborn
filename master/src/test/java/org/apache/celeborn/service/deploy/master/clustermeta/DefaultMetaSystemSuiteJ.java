@@ -757,6 +757,182 @@ public class DefaultMetaSystemSuiteJ {
   }
 
   @Test
+  public void testReleaseHighWorkLoadWorkers() {
+    conf.set(CelebornConf.MASTER_RELEASE_HIGH_WORKLOAD_WORKER_ENABLE(), true);
+    conf.set(CelebornConf.MASTER_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD(), 0.8);
+    statusSystem = new SingleMasterMetaManager(mockRpcEnv, conf);
+
+    statusSystem.handleRegisterWorker(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        INTERNALPORT1,
+        NETWORK_LOCATION1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        INTERNALPORT2,
+        NETWORK_LOCATION2,
+        disks2,
+        userResourceConsumption2,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        INTERNALPORT3,
+        NETWORK_LOCATION3,
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
+
+    // worker2 and work3 are unhealthy
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        new HashMap<>(),
+        userResourceConsumption2,
+        1,
+        false,
+        workerStatus,
+        getNewReqeustId());
+    assertEquals(statusSystem.excludedWorkers.size(), 1);
+    assertEquals(statusSystem.availableWorkers.size(), 2);
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        new HashMap<>(),
+        userResourceConsumption3,
+        1,
+        false,
+        workerStatus,
+        getNewReqeustId());
+    assertEquals(statusSystem.excludedWorkers.size(), 2);
+    assertEquals(statusSystem.availableWorkers.size(), 1);
+
+    // worker2 and work3 have high workload
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceConsumption2,
+        1,
+        false,
+        workerStatus,
+        getNewReqeustId());
+    assertEquals(statusSystem.excludedWorkers.size(), 1);
+    assertEquals(statusSystem.availableWorkers.size(), 2);
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceConsumption3,
+        1,
+        false,
+        workerStatus,
+        getNewReqeustId());
+    assertEquals(statusSystem.excludedWorkers.size(), 0);
+    assertEquals(statusSystem.availableWorkers.size(), 3);
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceConsumption2,
+        1,
+        true,
+        workerStatus,
+        getNewReqeustId());
+    assertEquals(statusSystem.excludedWorkers.size(), 1);
+    assertEquals(statusSystem.availableWorkers.size(), 2);
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceConsumption3,
+        1,
+        true,
+        workerStatus,
+        getNewReqeustId());
+    // release 2 workers with high workload
+    assertEquals(statusSystem.excludedWorkers.size(), 0);
+    assertEquals(statusSystem.availableWorkers.size(), 3);
+
+    // work2 has high workload and work3 is unhealthy
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceConsumption2,
+        1,
+        true,
+        workerStatus,
+        getNewReqeustId());
+    assertEquals(statusSystem.excludedWorkers.size(), 1);
+    assertEquals(statusSystem.availableWorkers.size(), 2);
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        new HashMap<>(),
+        userResourceConsumption3,
+        1,
+        false,
+        workerStatus,
+        getNewReqeustId());
+    // release worker2
+    assertEquals(statusSystem.excludedWorkers.size(), 1);
+    assertEquals(statusSystem.availableWorkers.size(), 2);
+
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        new HashMap<>(),
+        userResourceConsumption2,
+        1,
+        true,
+        workerStatus,
+        getNewReqeustId());
+    assertEquals(statusSystem.excludedWorkers.size(), 2);
+    assertEquals(statusSystem.availableWorkers.size(), 1);
+  }
+
+  @Test
   public void testHandleReportWorkerFailure() {
     statusSystem.handleRegisterWorker(
         HOSTNAME1,
