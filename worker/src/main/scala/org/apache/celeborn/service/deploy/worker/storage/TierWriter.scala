@@ -658,6 +658,8 @@ class DfsTierWriter(
               logWarning(s"Failed to $operationName, retryCount $retryCount", e)
               if (retryCount < maxAttempts) {
                 Thread.sleep(conf.workerCreateIndexOrSuccessBaseSleepDeltaMs * retryCount)
+              } else {
+                throw e
               }
           }
         }
