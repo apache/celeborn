@@ -64,6 +64,39 @@ def check_ids(file_path):
     else:
         print("No duplicate id found.")
 
+def traverse_units(obj, missing_units):
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            if key == "fieldConfig" and "defaults" in value:
+                defaults = value["defaults"]
+                if "unit" not in defaults:
+                    # Look for the 'expr' field in the 'targets' section
+                    targets = obj.get("targets", [])
+                    for target in targets:
+                        if "expr" in target:
+                            missing_units.append(target["expr"])
+                        else:
+                            missing_units.append("unknown")
+            traverse_units(value, missing_units)
+    elif isinstance(obj, list):
+        for item in obj:
+            traverse_units(item, missing_units)
+
+def check_units(file_path):
+    with open(file_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    missing_units = []
+    traverse_units(data, missing_units)
+
+    # Check for missing units in metrics.
+    if missing_units:
+        print("Found metrics without 'unit':")
+        for expr in missing_units:
+            print(f"  Metric expr: {expr}")
+        sys.exit(1)
+    else:
+        print("All metrics have 'unit'.")
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: python3 lint_grafana.py <path/to/dashboard.json>")
@@ -71,3 +104,4 @@ if __name__ == "__main__":
     file_path = sys.argv[1]
     print(f"Linting: {file_path}")
     check_ids(file_path)
+    check_units(file_path)
