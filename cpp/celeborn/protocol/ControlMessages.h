@@ -26,6 +26,23 @@
 
 namespace celeborn {
 namespace protocol {
+struct MapperEnd {
+  long shuffleId;
+  int mapId;
+  int attemptId;
+  int numMappers;
+  int partitionId;
+
+  TransportMessage toTransportMessage() const;
+};
+
+struct MapperEndResponse {
+  StatusCode status;
+
+  static std::unique_ptr<MapperEndResponse> fromTransportMessage(
+      const TransportMessage& transportMessage);
+};
+
 struct GetReducerFileGroup {
   int shuffleId;
 
