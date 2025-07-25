@@ -22,30 +22,35 @@ import java.util.concurrent.atomic.AtomicLong;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.EventExecutorChooserFactory;
 
-public final class ConflictAvoidEventExecutorChooserFactory implements EventExecutorChooserFactory {
-  public static final ConflictAvoidEventExecutorChooserFactory INSTANCE =
-      new ConflictAvoidEventExecutorChooserFactory();
+public final class NonEventLoopEventExecutorChooserFactory implements EventExecutorChooserFactory {
+  public static final NonEventLoopEventExecutorChooserFactory INSTANCE =
+      new NonEventLoopEventExecutorChooserFactory();
 
-  private ConflictAvoidEventExecutorChooserFactory() {}
+  private NonEventLoopEventExecutorChooserFactory() {}
 
   @Override
   public EventExecutorChooser newChooser(EventExecutor[] executors) {
-    return new ConflictAvoidEventExecutorChooser(executors);
+    return new NonEventLoopEventExecutorChooser(executors);
   }
 
-  private static final class ConflictAvoidEventExecutorChooser implements EventExecutorChooser {
+  private static final class NonEventLoopEventExecutorChooser implements EventExecutorChooser {
     private final AtomicLong idx = new AtomicLong();
     private final EventExecutor[] executors;
 
-    ConflictAvoidEventExecutorChooser(EventExecutor[] executors) {
+    NonEventLoopEventExecutorChooser(EventExecutor[] executors) {
       this.executors = executors;
     }
 
     @Override
     public EventExecutor next() {
-      EventExecutor executor = executors[(int) Math.abs(idx.getAndIncrement() % executors.length)];
+      int index = (int) (idx.getAndIncrement() % executors.length);
+      EventExecutor executor = executors[index];
       if (executor.inEventLoop()) {
-        executor = executors[(int) Math.abs(idx.getAndIncrement() % executors.length)];
+        int nextIndex = (index + 1) % executors.length;
+        if (nextIndex == index) {
+          throw new IllegalStateException("All executors are in the current event loop thread!");
+        }
+        executor = executors[nextIndex];
       }
       return executor;
     }

@@ -84,9 +84,9 @@ public class TransportConf {
     return celebornConf.networkIoClientThreads(module);
   }
 
-  /** * Whether to use conflict avoid EventExecutorChooser while creating transport client */
-  public boolean conflictAvoidChooserEnable() {
-    return celebornConf.networkIoConflictAvoidChooserEnable(module);
+  /** * Whether to use non-EventLoop EventExecutorChooser while creating transport client */
+  public boolean nonEventLoopChooserEnabled() {
+    return celebornConf.networkIoNonEventLoopChooserEnabled(module);
   }
 
   /**
