@@ -200,7 +200,7 @@ public class NettyUtils {
       String poolName;
       Map<String, String> labels = new HashMap<>();
       if (conf.getCelebornConf().networkMemoryAllocatorAllowCache()) {
-        poolName = allowCache ? "netty-shared-cache-pool" : "netty-shared-non-cache-pool";
+        poolName = allowCache ? "celeborn-netty-shared-cache-pool" : "celeborn-netty-shared-pool";
       } else {
         poolName = conf.getModuleName();
         int index = allocatorsIndex.compute(poolName, (k, v) -> v == null ? 0 : v + 1);
