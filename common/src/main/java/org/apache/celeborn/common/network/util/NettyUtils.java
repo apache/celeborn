@@ -192,9 +192,9 @@ public class NettyUtils {
               conf.preferDirectBufs(),
               allowCache,
               arenas);
-    }
-    if (conf.getCelebornConf().networkMemoryAllocatorPooled()) {
-      pooledByteBufAllocators.add((PooledByteBufAllocator) allocator);
+      if (conf.getCelebornConf().networkMemoryAllocatorPooled()) {
+        pooledByteBufAllocators.add((PooledByteBufAllocator) allocator);
+      }
     }
     if (source != null) {
       String poolName;
