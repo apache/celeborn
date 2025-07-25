@@ -25,6 +25,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.matching.Regex
 
 import com.codahale.metrics.{Metric, MetricFilter, MetricRegistry}
+import com.google.common.annotations.VisibleForTesting
 import org.eclipse.jetty.servlet.ServletContextHandler
 
 import org.apache.celeborn.common.CelebornConf
@@ -39,7 +40,8 @@ class MetricsSystem(
     conf: CelebornConf) extends Logging {
   private[this] val metricsConfig = new MetricsConfig(conf)
 
-  private val sinks = new ArrayBuffer[Sink]
+  @VisibleForTesting
+  val sinks = new ArrayBuffer[Sink]
   private val sources = new CopyOnWriteArrayList[Source]
   private val registry = new MetricRegistry()
   private val prometheusServletPath = conf.get(METRICS_PROMETHEUS_PATH)
@@ -156,6 +158,11 @@ class MetricsSystem(
               sources.asScala.toSeq,
               jsonServletPath,
               conf.metricsJsonPrettyEnabled.asInstanceOf[Object]).asInstanceOf[JsonServlet])
+          } else if (kv._1 == "loggerSink") {
+            val sink = Utils.classForName(classPath)
+              .getConstructor(classOf[Seq[Source]], classOf[CelebornConf])
+              .newInstance(sources.asScala.toSeq, conf)
+            sinks += sink.asInstanceOf[Sink]
           } else {
             val sink = Utils.classForName(classPath)
               .getConstructor(classOf[Properties], classOf[MetricRegistry])

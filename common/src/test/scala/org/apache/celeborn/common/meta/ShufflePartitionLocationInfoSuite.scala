@@ -46,7 +46,8 @@ class ShufflePartitionLocationInfoSuite extends CelebornFunSuite {
     replicaLocations.add(partitionLocationReplica00)
     replicaLocations.add(partitionLocationReplica10)
 
-    val shufflePartitionLocationInfo = new ShufflePartitionLocationInfo
+    val workerInfo = new WorkerInfo("localhost", 1, 2, 3, 4)
+    val shufflePartitionLocationInfo = new ShufflePartitionLocationInfo(workerInfo)
     shufflePartitionLocationInfo.addPrimaryPartitions(primaryLocations)
     shufflePartitionLocationInfo.addReplicaPartitions(replicaLocations)
 
@@ -59,9 +60,9 @@ class ShufflePartitionLocationInfoSuite extends CelebornFunSuite {
     assertEquals(shufflePartitionLocationInfo.getReplicaPartitions(Some(0)).size(), 1)
     assertEquals(shufflePartitionLocationInfo.getReplicaPartitions(Some(1)).size(), 1)
 
-    // test get min epoch
-    val locations = shufflePartitionLocationInfo.getAllPrimaryLocationsWithMinEpoch()
-    assertTrue(locations.contains(partitionLocation00) && locations.contains(partitionLocation11))
+    // test get max epoch
+    val locations = shufflePartitionLocationInfo.getAllPrimaryLocationsWithMaxEpoch()
+    assertTrue(locations.contains(partitionLocation02) && locations.contains(partitionLocation12))
 
     // test remove
     assertEquals(shufflePartitionLocationInfo.removePrimaryPartitions(0).size(), 3)

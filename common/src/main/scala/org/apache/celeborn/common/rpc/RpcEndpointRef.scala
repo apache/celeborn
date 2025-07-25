@@ -22,6 +22,7 @@ import scala.reflect.ClassTag
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.util.Utils
 
 /**
  * A reference for a remote [[RpcEndpoint]]. [[RpcEndpointRef]] is thread-safe.
@@ -30,6 +31,7 @@ abstract class RpcEndpointRef(conf: CelebornConf)
   extends Serializable with Logging {
 
   private[this] val defaultAskTimeout = conf.rpcAskTimeout
+  private[this] val defaultRetryWait = conf.rpcRetryWait
 
   /**
    * return the address for the [[RpcEndpointRef]]
@@ -87,5 +89,46 @@ abstract class RpcEndpointRef(conf: CelebornConf)
   def askSync[T: ClassTag](message: Any, timeout: RpcTimeout): T = {
     val future = ask[T](message, timeout)
     timeout.awaitResult(future, address)
+  }
+
+  /**
+   * Send a message to the corresponding [[RpcEndpoint.receiveAndReply]] and get its result within a
+   * default timeout, retry if timeout, throw an exception if this still fails.
+   *
+   * Note: this is a blocking action which may cost a lot of time,  so don't call it in a message
+   * loop of [[RpcEndpoint]].
+   *
+   * @param message the message to send
+   * @param retryCount the number of retries for the timeout
+   * @param retryWait the waiting time for a retry
+   * @tparam T type of the reply message
+   * @return the reply message from the corresponding [[RpcEndpoint]]
+   */
+  def askSync[T: ClassTag](message: Any, retryCount: Int, retryWait: Long = defaultRetryWait): T =
+    askSync(message, defaultAskTimeout, retryCount, retryWait)
+
+  /**
+   * Send a message to the corresponding [[RpcEndpoint.receiveAndReply]] and get its result within a
+   * specified timeout, retry if timeout or IOException, throw an exception if this still fails.
+   *
+   * Note: this is a blocking action which may cost a lot of time, so don't call it in a message
+   * loop of [[RpcEndpoint]].
+   *
+   * @param message the message to send
+   * @param timeout the timeout duration
+   * @param retryCount the number of retries for the timeout
+   * @param retryWait the waiting time for a retry
+   * @tparam T type of the reply message
+   * @return the reply message from the corresponding [[RpcEndpoint]]
+   */
+  def askSync[T: ClassTag](
+      message: Any,
+      timeout: RpcTimeout,
+      retryCount: Int,
+      retryWait: Long): T = {
+    Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
+      val future = ask[T](message, timeout)
+      return timeout.awaitResult(future, address)
+    }
   }
 }

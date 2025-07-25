@@ -55,6 +55,9 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.metrics.groups.ShuffleIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.ShuffleMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.function.SupplierWithException;
 import org.junit.After;
 import org.junit.Before;
@@ -63,14 +66,14 @@ import org.junit.Test;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.buffer.DataBuffer;
-import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
+import org.apache.celeborn.plugin.flink.client.FlinkShuffleClientImpl;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 
 public class RemoteShuffleResultPartitionSuiteJ {
   private final int networkBufferSize = 32 * 1024;
-  private BufferCompressor bufferCompressor = new BufferCompressor(networkBufferSize, "lz4");
-  private RemoteShuffleOutputGate remoteShuffleOutputGate = mock(RemoteShuffleOutputGate.class);
-  private final String compressCodec = "LZ4";
+  private final BufferCompressor bufferCompressor = new BufferCompressor(networkBufferSize, "lz4");
+  private final RemoteShuffleOutputGate remoteShuffleOutputGate =
+      mock(RemoteShuffleOutputGate.class);
   private final CelebornConf conf = new CelebornConf();
   BufferDecompressor bufferDecompressor = new BufferDecompressor(networkBufferSize, "LZ4");
 
@@ -80,7 +83,7 @@ public class RemoteShuffleResultPartitionSuiteJ {
 
   private NetworkBufferPool globalBufferPool;
 
-  private BufferPool dataBufferPool;
+  private BufferPool sortBufferPool;
 
   private BufferPool nettyBufferPool;
 
@@ -99,8 +102,8 @@ public class RemoteShuffleResultPartitionSuiteJ {
       outputGate.release();
     }
 
-    if (dataBufferPool != null) {
-      dataBufferPool.lazyDestroy();
+    if (sortBufferPool != null) {
+      sortBufferPool.lazyDestroy();
     }
     if (nettyBufferPool != null) {
       nettyBufferPool.lazyDestroy();
@@ -173,7 +176,9 @@ public class RemoteShuffleResultPartitionSuiteJ {
     random.nextBytes(dataWritten);
     ByteBuffer recordWritten = ByteBuffer.wrap(dataWritten);
     partitionWriter.emitRecord(recordWritten, 0);
-    assertEquals(0, dataBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(0, sortBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(1, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(1, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.finish();
     partitionWriter.close();
@@ -206,7 +211,9 @@ public class RemoteShuffleResultPartitionSuiteJ {
     random.nextBytes(dataWritten);
     ByteBuffer recordWritten = ByteBuffer.wrap(dataWritten);
     partitionWriter.broadcastRecord(recordWritten);
-    assertEquals(0, dataBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(0, sortBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(1, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(1, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.finish();
     partitionWriter.close();
@@ -245,20 +252,26 @@ public class RemoteShuffleResultPartitionSuiteJ {
 
     partitionWriter.emitRecord(ByteBuffer.allocate(bufferSize), 0);
     partitionWriter.emitRecord(ByteBuffer.allocate(bufferSize), 1);
-    assertEquals(3, dataBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(3, sortBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(2, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(2, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.broadcastRecord(ByteBuffer.allocate(bufferSize));
-    assertEquals(2, dataBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(2, sortBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(3, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(3, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.flush(0);
-    assertEquals(0, dataBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(0, sortBufferPool.bestEffortGetNumOfUsedBuffers());
 
     partitionWriter.emitRecord(ByteBuffer.allocate(bufferSize), 2);
     partitionWriter.emitRecord(ByteBuffer.allocate(bufferSize), 3);
-    assertEquals(3, dataBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(3, sortBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(5, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(5, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.flushAll();
-    assertEquals(0, dataBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(0, sortBufferPool.bestEffortGetNumOfUsedBuffers());
 
     partitionWriter.finish();
     partitionWriter.close();
@@ -307,6 +320,8 @@ public class RemoteShuffleResultPartitionSuiteJ {
             record, Buffer.DataType.DATA_BUFFER, subpartition, dataWritten, numBytesWritten);
       }
     }
+    assertEquals(numRecords, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(numRecords, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.finish();
     assertTrue(outputGate.isFinished());
@@ -357,14 +372,14 @@ public class RemoteShuffleResultPartitionSuiteJ {
 
   private void initResultPartitionWriter(
       int numSubpartitions,
-      int dataBufferPoolSize,
+      int sortBufferPoolSize,
       int nettyBufferPoolSize,
       boolean compressionEnabled,
       CelebornConf conf,
       int numMappers)
       throws Exception {
 
-    dataBufferPool = globalBufferPool.createBufferPool(dataBufferPoolSize, dataBufferPoolSize);
+    sortBufferPool = globalBufferPool.createBufferPool(sortBufferPoolSize, sortBufferPoolSize);
     nettyBufferPool = globalBufferPool.createBufferPool(nettyBufferPoolSize, nettyBufferPoolSize);
 
     outputGate =
@@ -384,7 +399,7 @@ public class RemoteShuffleResultPartitionSuiteJ {
               bufferSize,
               new ResultPartitionManager(),
               bufferCompressor,
-              () -> dataBufferPool,
+              () -> sortBufferPool,
               outputGate);
     } else {
       partitionWriter =
@@ -398,7 +413,7 @@ public class RemoteShuffleResultPartitionSuiteJ {
               bufferSize,
               new ResultPartitionManager(),
               null,
-              () -> dataBufferPool,
+              () -> sortBufferPool,
               outputGate);
     }
   }
@@ -439,7 +454,12 @@ public class RemoteShuffleResultPartitionSuiteJ {
           bufferSize,
           bufferPoolFactory,
           celebornConf,
-          numMappers);
+          numMappers,
+          new ShuffleIOMetricGroup(
+              new ShuffleMetricGroup(
+                  UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
+                  1,
+                  CelebornConf.CLIENT_METRICS_SCOPE_NAMING_SHUFFLE().defaultValueString())));
       isSetup = false;
       isFinished = false;
       isClosed = false;
@@ -551,7 +571,7 @@ public class RemoteShuffleResultPartitionSuiteJ {
     }
   }
 
-  private RemoteShuffleDescriptor getShuffleDescriptor() throws Exception {
+  private RemoteShuffleDescriptor getShuffleDescriptor() {
     Random random = new Random();
     byte[] bytes = new byte[16];
     random.nextBytes(bytes);

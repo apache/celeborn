@@ -22,8 +22,8 @@ import picocli.CommandLine.Command
 import org.apache.celeborn.rest.v1.model._
 import org.apache.celeborn.rest.v1.model.WorkerExitRequest.TypeEnum
 
-@Command(name = "worker", mixinStandardHelpOptions = true)
-class WorkerSubcommandImpl extends Runnable with WorkerSubcommand {
+@Command(name = "worker")
+class WorkerSubcommandImpl extends WorkerSubcommand {
 
   override def run(): Unit = {
     if (workerOptions.showWorkerInfo) log(runShowWorkerInfo)
@@ -38,20 +38,25 @@ class WorkerSubcommandImpl extends Runnable with WorkerSubcommand {
     if (workerOptions.showConf) log(runShowConf)
     if (workerOptions.showContainerInfo) log(runShowContainerInfo)
     if (workerOptions.showDynamicConf) log(runShowDynamicConf)
+    if (workerOptions.upsertDynamicConf) log(runUpsertDynamicConf)
+    if (workerOptions.deleteDynamicConf) log(runDeleteDynamicConf)
     if (workerOptions.showThreadDump) log(runShowThreadDump)
   }
 
-  private[worker] def runShowWorkerInfo: WorkerInfoResponse = workerApi.getWorkerInfo
+  private[worker] def runShowWorkerInfo: WorkerInfoResponse =
+    workerApi.getWorkerInfo(commonOptions.getAuthHeader)
 
-  private[worker] def runShowAppsOnWorker: ApplicationsResponse = applicationApi.getApplicationList
+  private[worker] def runShowAppsOnWorker: ApplicationsResponse =
+    applicationApi.getApplicationList(commonOptions.getAuthHeader)
 
-  private[worker] def runShowShufflesOnWorker: ShufflesResponse = shuffleApi.getShuffles
+  private[worker] def runShowShufflesOnWorker: ShufflesResponse =
+    shuffleApi.getShuffles(commonOptions.getAuthHeader)
 
   private[worker] def runShowPartitionLocationInfo: ShufflePartitionsResponse =
-    shuffleApi.getShufflePartitions
+    shuffleApi.getShufflePartitions(commonOptions.getAuthHeader)
 
   private[worker] def runShowUnavailablePeers: UnAvailablePeersResponse =
-    workerApi.unavailablePeers()
+    workerApi.unavailablePeers(commonOptions.getAuthHeader)
 
   private[worker] def runIsShutdown: Boolean = runShowWorkerInfo.getIsShutdown
 
@@ -63,18 +68,29 @@ class WorkerSubcommandImpl extends Runnable with WorkerSubcommand {
     val workerExitType: TypeEnum = TypeEnum.valueOf(workerOptions.exitType)
     val workerExitRequest: WorkerExitRequest = new WorkerExitRequest().`type`(workerExitType)
     logInfo(s"Sending worker exit type: ${workerExitType.getValue}")
-    workerApi.workerExit(workerExitRequest)
+    workerApi.workerExit(workerExitRequest, commonOptions.getAuthHeader)
   }
 
-  private[worker] def runShowConf: ConfResponse = confApi.getConf
+  private[worker] def runShowConf: ConfResponse = confApi.getConf(commonOptions.getAuthHeader)
 
   private[worker] def runShowDynamicConf: DynamicConfigResponse =
     confApi.getDynamicConf(
       commonOptions.configLevel,
       commonOptions.configTenant,
-      commonOptions.configName)
+      commonOptions.configName,
+      commonOptions.getAuthHeader)
 
-  private[worker] def runShowThreadDump: ThreadStackResponse = defaultApi.getThreadDump
+  private[worker] def runUpsertDynamicConf: HandleResponse = {
+    upsertDynamicConf(commonOptions, spec, confApi.upsertDynamicConf)
+  }
 
-  private[worker] def runShowContainerInfo: ContainerInfo = defaultApi.getContainerInfo
+  private[worker] def runDeleteDynamicConf: HandleResponse = {
+    deleteDynamicConf(commonOptions, spec, confApi.deleteDynamicConf)
+  }
+
+  private[worker] def runShowThreadDump: ThreadStackResponse =
+    defaultApi.getThreadDump(commonOptions.getAuthHeader)
+
+  private[worker] def runShowContainerInfo: ContainerInfo =
+    defaultApi.getContainerInfo(commonOptions.getAuthHeader)
 }

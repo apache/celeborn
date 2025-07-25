@@ -22,7 +22,7 @@ import javax.servlet.http.HttpServletResponse
 import javax.ws.rs.client.Entity
 import javax.ws.rs.core.MediaType
 
-import org.apache.celeborn.rest.v1.model.{ApplicationsResponse, ExcludeWorkerRequest, HandleResponse, HostnamesResponse, RemoveWorkersUnavailableInfoRequest, SendWorkerEventRequest, ShufflesResponse, WorkerEventsResponse, WorkerId, WorkersResponse}
+import org.apache.celeborn.rest.v1.model.{ApplicationsResponse, ExcludeWorkerRequest, HandleResponse, HostnamesResponse, RemoveWorkersUnavailableInfoRequest, SendWorkerEventRequest, ShufflesResponse, TopologyResponse, WorkerEventsResponse, WorkerId, WorkersResponse}
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.api.v1.ApiV1BaseResourceSuite
 import org.apache.celeborn.service.deploy.master.{Master, MasterClusterFeature}
@@ -118,5 +118,10 @@ class ApiV1MasterResourceSuite extends ApiV1BaseResourceSuite with MasterCluster
       Entity.entity(sendWorkerEventRequest, MediaType.APPLICATION_JSON))
     assert(HttpServletResponse.SC_BAD_REQUEST == response.getStatus)
     assert(response.readEntity(classOf[String]).contains("None of the workers are known"))
+
+    response = webTarget.path("workers/topology").request(MediaType.APPLICATION_JSON).get()
+    assert(HttpServletResponse.SC_OK == response.getStatus)
+    val topologyResponse = response.readEntity(classOf[TopologyResponse])
+    assert(topologyResponse.getTopologies.isEmpty)
   }
 }

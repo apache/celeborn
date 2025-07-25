@@ -65,7 +65,7 @@ responds to `LifecycleManager` with the allocated `PartitionLocation`s.
 In normal cases, the process of pushing data is as follows:
 
 - `ShuffleClient` compresses data, currently supports `zstd` and `lz4`
-- `ShuffleClient` adds Header for the data: `mapId`, `attemptId`, `batchId` and `size`. The `bastchId` is a unique
+- `ShuffleClient` adds Header for the data: `mapId`, `attemptId`, `batchId` and `size`. The `batchId` is a unique
   id for the data batch inside the (`mapId`, `attemptId`), for the purpose of de-duplication
 - `ShuffleClient` sends `PushData` to the `Worker` on which the current `PartitionLocation` is allocated, and holds push
   state for this pushing

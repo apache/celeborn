@@ -172,13 +172,9 @@ case "$MODULE" in
     MVN_MODULES="client-spark/spark-3"
     SBT_PROJECT="celeborn-client-spark-3"
     ;;
-  "flink-1.14")
-    MVN_MODULES="client-flink/flink-1.14"
-    SBT_PROJECT="celeborn-client-flink-1_14"
-    ;;
-  "flink-1.15")
-    MVN_MODULES="client-flink/flink-1.15"
-    SBT_PROJECT="celeborn-client-flink-1_15"
+  "spark-4"*)  # Match all versions starting with "spark-4"
+    MVN_MODULES="client-spark/spark-3"
+    SBT_PROJECT="celeborn-client-spark-4"
     ;;
   "flink-1.16")
     MVN_MODULES="client-flink/flink-1.16"
@@ -200,9 +196,17 @@ case "$MODULE" in
     MVN_MODULES="client-flink/flink-1.20"
     SBT_PROJECT="celeborn-client-flink-1_20"
     ;;
+  "flink-2.0")
+    MVN_MODULES="client-flink/flink-2.0"
+    SBT_PROJECT="celeborn-client-flink-2_0"
+    ;;
   "mr")
     MVN_MODULES="client-mr/mr"
     SBT_PROJECT="celeborn-client-mr"
+    ;;
+  "tez")
+    MVN_MODULES="client-tez/tez"
+    SBT_PROJECT="celeborn-client-tez"
     ;;
   *)
     MODULE="server"

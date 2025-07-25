@@ -48,8 +48,6 @@ jobs:
           - 'spark-3.3'
           - 'spark-3.4'
           - 'spark-3.5'
-          - 'flink-1.14'
-          - 'flink-1.15'
           - 'flink-1.16'
           - 'flink-1.17'
           - 'flink-1.18'
@@ -68,7 +66,7 @@ jobs:
       run: |
         ./dev/dependencies.sh --sbt --module ${{ matrix.module }} --check
 
-  maven:
+  maven-jdk8:
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -82,14 +80,13 @@ jobs:
           - 'spark-3.3'
           - 'spark-3.4'
           - 'spark-3.5'
-          - 'flink-1.14'
-          - 'flink-1.15'
           - 'flink-1.16'
           - 'flink-1.17'
           - 'flink-1.18'
           - 'flink-1.19'
           - 'flink-1.20'
           - 'mr'
+          - 'tez'
     steps:
     - uses: actions/checkout@v4
     - name: Setup JDK 8
@@ -102,3 +99,43 @@ jobs:
     - name: Maven Check dependency list
       run: |
         ./dev/dependencies.sh --module ${{ matrix.module }} --check
+
+  maven-jdk11:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - 'flink-2.0'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 11
+          cache: maven
+          check-latest: false
+      - name: Maven Check dependency list
+        run: |
+          ./dev/dependencies.sh --module ${{ matrix.module }} --check
+
+  maven-jdk17:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - 'spark-4.0'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 17
+          cache: maven
+          check-latest: false
+      - name: Maven Check dependency list
+        run: |
+          ./dev/dependencies.sh --module ${{ matrix.module }} --check

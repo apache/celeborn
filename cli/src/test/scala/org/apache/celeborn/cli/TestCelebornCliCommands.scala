@@ -18,25 +18,54 @@
 package org.apache.celeborn.cli
 
 import java.io.{ByteArrayOutputStream, File, PrintStream}
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
+import java.util.Base64
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.authentication.HttpAuthSchemes
+import org.apache.celeborn.server.common.http.authentication.{UserDefinedPasswordAuthenticationProviderImpl, UserDefineTokenAuthenticationProviderImpl}
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.worker.Worker
 
 class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
 
+  private val CELEBORN_ADMINISTER = "celeborn"
   private val celebornConf = new CelebornConf()
+    .set(CelebornConf.MASTER_HTTP_AUTH_SUPPORTED_SCHEMES, Seq("BASIC"))
+    .set(
+      CelebornConf.MASTER_HTTP_AUTH_BASIC_PROVIDER,
+      classOf[UserDefinedPasswordAuthenticationProviderImpl].getName)
+    .set(CelebornConf.WORKER_HTTP_AUTH_SUPPORTED_SCHEMES, Seq("BASIC"))
+    .set(
+      CelebornConf.WORKER_HTTP_AUTH_BASIC_PROVIDER,
+      classOf[UserDefinedPasswordAuthenticationProviderImpl].getName)
+    .set(CelebornConf.MASTER_HTTP_AUTH_ADMINISTERS, Seq(CELEBORN_ADMINISTER))
+    .set(CelebornConf.WORKER_HTTP_AUTH_ADMINISTERS, Seq(CELEBORN_ADMINISTER))
+    .set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "DB")
+    .set(
+      CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_JDBC_URL,
+      "jdbc:h2:mem:test;MODE=MYSQL;INIT=RUNSCRIPT FROM 'classpath:celeborn-0.6.0-h2.sql';DB_CLOSE_DELAY=-1;")
+    .set(CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_DRIVER_CLASS_NAME, "org.h2.Driver")
+    .set(CelebornConf.DYNAMIC_CONFIG_STORE_DB_HIKARI_MAXIMUM_POOL_SIZE, 1)
+
+  private val BASIC_AUTH_HEADER = HttpAuthSchemes.BASIC + " " + new String(
+    Base64.getEncoder.encode(
+      s"$CELEBORN_ADMINISTER:${UserDefinedPasswordAuthenticationProviderImpl.VALID_PASSWORD}".getBytes()),
+    StandardCharsets.UTF_8)
+
   protected var master: Master = _
   protected var worker: Worker = _
 
   override def beforeAll(): Unit = {
     logInfo("test initialized, setup celeborn mini cluster")
-    val (m, w) =
-      setupMiniClusterWithRandomPorts(workerConf = celebornConf.getAll.toMap, workerNum = 1)
+    val (m, w) = setupMiniClusterWithRandomPorts(
+      masterConf = celebornConf.getAll.toMap,
+      workerConf = celebornConf.getAll.toMap,
+      workerNum = 1)
     master = m
     worker = w.head
     super.beforeAll()
@@ -120,9 +149,28 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   }
 
   test("worker --show-dynamic-conf") {
-    cancel("This test is temporarily disabled since dynamic conf is not enabled in unit tests.")
     val args = prepareWorkerArgs() :+ "--show-dynamic-conf"
-    captureOutputAndValidateResponse(args, "")
+    captureOutputAndValidateResponse(args, "DynamicConfigResponse")
+  }
+
+  test("worker --upsert-dynamic-conf") {
+    val args = prepareWorkerArgs() ++ Array(
+      "--upsert-dynamic-conf",
+      "--config-level",
+      "SYSTEM",
+      "--upsert-configs",
+      "key1:val1,key2:val2")
+    captureOutputAndValidateResponse(args, "success: true")
+  }
+
+  test("worker --delete-dynamic-conf") {
+    val args = prepareWorkerArgs() ++ Array(
+      "--delete-dynamic-conf",
+      "--config-level",
+      "SYSTEM",
+      "--delete-configs",
+      "conf1,conf2")
+    captureOutputAndValidateResponse(args, "success: true")
   }
 
   test("worker --show-thread-dump") {
@@ -186,6 +234,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "WorkersResponse")
   }
 
+  test("master --show-workers-topology") {
+    val args = prepareMasterArgs() :+ "--show-workers-topology"
+    captureOutputAndValidateResponse(args, "TopologyResponse")
+  }
+
   test("master --show-conf") {
     val args = prepareMasterArgs() :+ "--show-conf"
     captureOutputAndValidateResponse(args, "ConfResponse")
@@ -197,9 +250,28 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   }
 
   test("master --show-dynamic-conf") {
-    cancel("This test is temporarily disabled since dynamic conf is not enabled in unit tests.")
     val args = prepareMasterArgs() :+ "--show-dynamic-conf"
-    captureOutputAndValidateResponse(args, "")
+    captureOutputAndValidateResponse(args, "DynamicConfigResponse")
+  }
+
+  test("master --upsert-dynamic-conf") {
+    val args = prepareMasterArgs() ++ Array(
+      "--upsert-dynamic-conf",
+      "--config-level",
+      "SYSTEM",
+      "--upsert-configs",
+      "key1:val1,key2:val2")
+    captureOutputAndValidateResponse(args, "success: true")
+  }
+
+  test("master --delete-dynamic-conf") {
+    val args = prepareMasterArgs() ++ Array(
+      "--delete-dynamic-conf",
+      "--config-level",
+      "SYSTEM",
+      "--delete-configs",
+      "conf1,conf2")
+    captureOutputAndValidateResponse(args, "success: true")
   }
 
   test("master --show-thread-dump") {
@@ -263,18 +335,43 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "success: true")
   }
 
+  test("master --update-interruption-notices legal input") {
+    val args = prepareMasterArgs() ++ Array(
+      "--update-interruption-notices",
+      s"${getWorkerId()}=${Long.MaxValue}")
+    captureOutputAndValidateResponse(args, "success: true")
+  }
+
+  test("master --update-interruption-notices illegal input") {
+    val args = prepareMasterArgs() ++ Array(
+      "--update-interruption-notices",
+      s"${getWorkerId()}=illegalInput")
+    captureErrorAndValidateResponse(args, "Invalid timestamp for worker")
+  }
+
+  test("--version") {
+    val versionInfo = "Could not resolve version of Celeborn since no RELEASE file was found"
+    captureOutputAndValidateResponse(Array("--version"), versionInfo)
+    captureOutputAndValidateResponse(Array("master", "--version"), versionInfo)
+    captureOutputAndValidateResponse(Array("worker", "--version"), versionInfo)
+  }
+
   private def prepareMasterArgs(): Array[String] = {
     Array(
       "master",
       "--cluster",
-      "unit-test")
+      "unit-test",
+      "--auth-header",
+      BASIC_AUTH_HEADER)
   }
 
   private def prepareWorkerArgs(): Array[String] = {
     Array(
       "worker",
       "--hostport",
-      worker.connectionUrl)
+      worker.connectionUrl,
+      "--auth-header",
+      BASIC_AUTH_HEADER)
   }
 
   private def captureOutputAndValidateResponse(
@@ -287,6 +384,19 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     }
     val stdout = stdoutStream.toString
     assert(stdout.nonEmpty && stdout.contains(stdoutValidationString))
+  }
+
+  private def captureErrorAndValidateResponse(
+      args: Array[String],
+      stderrValidationString: String): Unit = {
+    val stderrStream = new ByteArrayOutputStream()
+    val stderrPrintStream = new PrintStream(stderrStream)
+    System.setErr(new PrintStream(stderrStream))
+    Console.withErr(stderrPrintStream) {
+      CelebornCli.main(args)
+    }
+    val stderr = stderrStream.toString
+    assert(stderr.nonEmpty && stderr.contains(stderrValidationString))
   }
 
   private def getWorkerId(): String = {

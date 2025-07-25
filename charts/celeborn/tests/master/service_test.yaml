@@ -22,6 +22,7 @@ templates:
 
 release:
   name: celeborn
+  namespace: celeborn
 
 tests:
   - it: Should create master service
@@ -30,6 +31,7 @@ tests:
           apiVersion: v1
           kind: Service
           name: celeborn-master-svc
+          namespace: celeborn
 
   - it: Should have label selectors for master
     asserts:
@@ -52,9 +54,11 @@ tests:
       - equal:
           path: spec.ports[0].targetPort
           value: 9097
+
   - it: Should create NodePort service for each master replica
     set:
-      masterReplicas: 3
+      master:
+        replicas: 3
       additionalNodePortServicePerReplica:
         enabled: true
         port: 9097

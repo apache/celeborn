@@ -98,7 +98,7 @@ trait ReadWriteTestBase extends AnyFunSuite
     shuffleClient.pushMergedData(1, 0, 0)
     Thread.sleep(1000)
 
-    shuffleClient.mapperEnd(1, 0, 0, 1)
+    shuffleClient.mapperEnd(1, 0, 0, 1, 1)
 
     val metricsCallback = new MetricsCallback {
       override def incBytesRead(bytesWritten: Long): Unit = {}
@@ -110,12 +110,16 @@ trait ReadWriteTestBase extends AnyFunSuite
       0,
       0,
       0,
+      0,
       Integer.MAX_VALUE,
       null,
       null,
       null,
       null,
-      metricsCallback)
+      null,
+      null,
+      metricsCallback,
+      true)
     val outputStream = new ByteArrayOutputStream()
 
     var b = inputStream.read()

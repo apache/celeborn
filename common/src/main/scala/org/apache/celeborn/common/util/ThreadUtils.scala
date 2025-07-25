@@ -67,7 +67,7 @@ object ThreadUtils {
       }
     }
 
-    override def isTerminated: Boolean = synchronized {
+    override def isTerminated: Boolean = {
       lock.lock()
       try {
         serviceIsShutdown && runningTasks == 0
@@ -122,8 +122,15 @@ object ThreadUtils {
    * Create a thread factory that names threads with a prefix and also sets the threads to daemon.
    */
   def namedThreadFactory(threadNamePrefix: String): ThreadFactory = {
+    namedThreadFactory(threadNamePrefix, daemon = true)
+  }
+
+  /**
+   * Create a thread factory that generates threads with a specified name prefix and daemon setting.
+   */
+  def namedThreadFactory(threadNamePrefix: String, daemon: Boolean): ThreadFactory = {
     new ThreadFactoryBuilder()
-      .setDaemon(true)
+      .setDaemon(daemon)
       .setNameFormat(s"$threadNamePrefix-%d")
       .setUncaughtExceptionHandler(new ThreadExceptionHandler(threadNamePrefix))
       .build()
@@ -176,7 +183,15 @@ object ThreadUtils {
    * unique, sequentially assigned integer.
    */
   def newDaemonFixedThreadPool(nThreads: Int, prefix: String): ThreadPoolExecutor = {
-    val threadPool = Executors.newFixedThreadPool(nThreads, namedThreadFactory(prefix))
+    newFixedThreadPool(nThreads, prefix, daemon = true)
+  }
+
+  /**
+   * Wrapper over newFixedThreadPool with daemon setting. Thread names are formatted as prefix-ID, where ID is a
+   * unique, sequentially assigned integer.
+   */
+  def newFixedThreadPool(nThreads: Int, prefix: String, daemon: Boolean): ThreadPoolExecutor = {
+    val threadPool = Executors.newFixedThreadPool(nThreads, namedThreadFactory(prefix, daemon))
       .asInstanceOf[ThreadPoolExecutor]
     ThreadPoolSource.registerSource(prefix, threadPool)
     threadPool

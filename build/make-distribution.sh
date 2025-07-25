@@ -73,6 +73,14 @@ while (( "$#" )); do
   shift
 done
 
+if [ "$RELEASE" == "true" ]; then
+  JAVA8_HOME=${JAVA8_HOME:?"JAVA8_HOME is required"}
+  JAVA11_HOME=${JAVA11_HOME:?"JAVA11_HOME is required"}
+  JAVA17_HOME=${JAVA17_HOME:?"JAVA17_HOME is required"}
+  # Set JAVA_HOME to JDK 8 by default for release
+  export JAVA_HOME=$JAVA8_HOME
+fi
+
 if [ -z "$JAVA_HOME" ]; then
   # Fall back on JAVA_HOME from rpm, if found
   if [ $(command -v rpm) ]; then
@@ -243,9 +251,27 @@ function build_mr_client {
 
     "${BUILD_COMMAND[@]}"
 
-    ## flink spark client jars
+    ## build mr client jars
     mkdir -p "$DIST_DIR/mr"
     cp "$PROJECT_DIR"/client-mr/mr-shaded/target/celeborn-client-mr-shaded_${SCALA_VERSION}-$VERSION.jar "$DIST_DIR/mr/"
+}
+
+function build_tez_client {
+  VERSION=$("$MVN" help:evaluate -Dexpression=project.version $@ 2>/dev/null \
+        | grep -v "INFO" \
+        | grep -v "WARNING" \
+        | tail -n 1)
+  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl :celeborn-client-tez-shaded_${SCALA_VERSION} -am $@)
+
+    # Actually build the jar
+    echo -e "\nBuilding with..."
+    echo -e "\$ ${BUILD_COMMAND[@]}\n"
+
+    "${BUILD_COMMAND[@]}"
+
+    ## build tez client jars
+    mkdir -p "$DIST_DIR/tez"
+    cp "$PROJECT_DIR"/client-tez/tez-shaded/target/celeborn-client-tez-shaded_${SCALA_VERSION}-$VERSION.jar "$DIST_DIR/tez/"
 }
 
 
@@ -266,6 +292,9 @@ function sbt_build_service {
 
   if [[ $@ == *"aws"* ]]; then
      export SBT_MAVEN_PROFILES="aws"
+  fi
+  if [[ $@ == *"aliyun"* ]]; then
+     export SBT_MAVEN_PROFILES="aliyun"
   fi
   BUILD_COMMAND=("$SBT" clean package)
 
@@ -321,21 +350,27 @@ function sbt_build_client {
 if [ "$SBT_ENABLED" == "true" ]; then
   sbt_build_service "$@"
   if [ "$RELEASE" == "true" ]; then
+    export JAVA_HOME=$JAVA8_HOME
     sbt_build_client -Pspark-2.4
     sbt_build_client -Pspark-3.4
     sbt_build_client -Pspark-3.5
-    sbt_build_client -Pflink-1.14
-    sbt_build_client -Pflink-1.15
+    export JAVA_HOME=$JAVA17_HOME
+    sbt_build_client -Pspark-4.0
+    export JAVA_HOME=$JAVA8_HOME
     sbt_build_client -Pflink-1.16
     sbt_build_client -Pflink-1.17
     sbt_build_client -Pflink-1.18
     sbt_build_client -Pflink-1.19
     sbt_build_client -Pflink-1.20
+    export JAVA_HOME=$JAVA11_HOME
+    sbt_build_client -Pflink-2.0
+    export JAVA_HOME=$JAVA8_HOME
     sbt_build_client -Pmr
+#    sbt_build_client -Ptez
   else
     echo "build client with $@"
     ENGINE_COUNT=0
-    ENGINES=("spark" "flink" "mr")
+    ENGINES=("spark" "flink" "mr" "tez")
     for single_engine in ${ENGINES[@]}
     do
       echo $single_engine
@@ -356,23 +391,29 @@ if [ "$SBT_ENABLED" == "true" ]; then
 else
   if [ "$RELEASE" == "true" ]; then
     build_service
+    export JAVA_HOME=$JAVA8_HOME
     build_spark_client -Pspark-2.4
     build_spark_client -Pspark-3.4
     build_spark_client -Pspark-3.5
-    build_flink_client -Pflink-1.14
-    build_flink_client -Pflink-1.15
+    export JAVA_HOME=$JAVA17_HOME
+    build_spark_client -Pspark-4.0
+    export JAVA_HOME=$JAVA8_HOME
     build_flink_client -Pflink-1.16
     build_flink_client -Pflink-1.17
     build_flink_client -Pflink-1.18
     build_flink_client -Pflink-1.19
     build_flink_client -Pflink-1.20
+    export JAVA_HOME=$JAVA11_HOME
+    build_flink_client -Pflink-2.0
+    export JAVA_HOME=$JAVA8_HOME
     build_mr_client -Pmr
+    build_tez_client -Ptez
   else
     ## build release package on demand
     build_service $@
     echo "build client with $@"
     ENGINE_COUNT=0
-    ENGINES=("spark" "flink" "mr")
+    ENGINES=("spark" "flink" "mr" "tez")
     for single_engine in ${ENGINES[@]}
     do
       echo $single_engine
@@ -395,6 +436,9 @@ else
     elif [[  $@ == *"mr"* ]]; then
       echo "build mr clients"
       build_mr_client $@
+    elif [[  $@ == *"tez"* ]]; then
+      echo "build tez clients"
+      build_tez_client $@
     fi
   fi
 fi

@@ -67,7 +67,7 @@ public class UserCongestionControlContext {
     long timeNow = System.currentTimeMillis();
     BufferStatusHub.BufferStatusNode node = new BufferStatusHub.BufferStatusNode(numBytes);
     userBufferInfo.updateInfo(timeNow, node);
-    workerBufferStatusHub.add(timeNow, node);
+    workerBufferStatusHub.add(timeNow, (BufferStatusHub.BufferStatusNode) node.clone());
   }
 
   public UserBufferInfo getUserBufferInfo() {

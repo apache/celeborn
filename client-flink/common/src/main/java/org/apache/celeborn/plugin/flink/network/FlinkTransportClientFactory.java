@@ -45,7 +45,7 @@ public class FlinkTransportClientFactory extends TransportClientFactory {
       TransportContext context, List<TransportClientBootstrap> bootstraps, int bufferSizeBytes) {
     super(context, bootstraps);
     bufferSuppliers = JavaUtils.newConcurrentHashMap();
-    this.pooledAllocator = new UnpooledByteBufAllocator(true);
+    this.allocator = new UnpooledByteBufAllocator(true);
     this.bufferSizeBytes = bufferSizeBytes;
   }
 

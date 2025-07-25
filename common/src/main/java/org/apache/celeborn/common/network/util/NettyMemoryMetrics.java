@@ -23,19 +23,17 @@ import java.util.*;
 
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.annotations.VisibleForTesting;
-import io.netty.buffer.PoolArenaMetric;
-import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.buffer.PooledByteBufAllocatorMetric;
+import io.netty.buffer.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 
-/** A Netty memory metrics class to collect metrics from Netty PooledByteBufAllocator. */
+/** A Netty memory metrics class to collect metrics from Netty ByteBufAllocator. */
 public class NettyMemoryMetrics {
   private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-  private final PooledByteBufAllocator pooledAllocator;
+  private final ByteBufAllocator allocator;
 
   private final boolean verboseMetricsEnabled;
 
@@ -69,71 +67,87 @@ public class NettyMemoryMetrics {
   }
 
   public NettyMemoryMetrics(
-      PooledByteBufAllocator pooledAllocator,
+      ByteBufAllocator allocator,
       String metricPrefix,
       boolean verboseMetricsEnabled,
       AbstractSource source,
       Map<String, String> labels) {
-    this.pooledAllocator = pooledAllocator;
+    this.allocator = allocator;
     this.metricPrefix = metricPrefix;
     this.verboseMetricsEnabled = verboseMetricsEnabled;
     this.source = source;
     this.labels = labels;
 
-    registerMetrics(this.pooledAllocator);
+    registerMetrics();
   }
 
-  private void registerMetrics(PooledByteBufAllocator allocator) {
-    PooledByteBufAllocatorMetric pooledAllocatorMetric = allocator.metric();
-
+  private void registerMetrics() {
     // Register general metrics.
     if (source != null) {
-      logger.debug("setup netty metrics");
-      source.addGauge(
-          MetricRegistry.name(metricPrefix, "usedHeapMemory"),
-          labels,
-          pooledAllocatorMetric::usedHeapMemory);
-      source.addGauge(
-          MetricRegistry.name(metricPrefix, "usedDirectMemory"),
-          labels,
-          pooledAllocatorMetric::usedDirectMemory);
-      source.addGauge(
-          MetricRegistry.name(metricPrefix, "numHeapArenas"),
-          labels,
-          pooledAllocatorMetric::numHeapArenas);
-      source.addGauge(
-          MetricRegistry.name(metricPrefix, "numDirectArenas"),
-          labels,
-          pooledAllocatorMetric::numDirectArenas);
-      source.addGauge(
-          MetricRegistry.name(metricPrefix, "tinyCacheSize"),
-          labels,
-          pooledAllocatorMetric::tinyCacheSize);
-      source.addGauge(
-          MetricRegistry.name(metricPrefix, "smallCacheSize"),
-          labels,
-          pooledAllocatorMetric::smallCacheSize);
-      source.addGauge(
-          MetricRegistry.name(metricPrefix, "normalCacheSize"),
-          labels,
-          pooledAllocatorMetric::normalCacheSize);
-      source.addGauge(
-          MetricRegistry.name(metricPrefix, "numThreadLocalCaches"),
-          labels,
-          pooledAllocatorMetric::numThreadLocalCaches);
-      source.addGauge(
-          MetricRegistry.name(metricPrefix, "chunkSize"), labels, pooledAllocatorMetric::chunkSize);
-      if (verboseMetricsEnabled) {
-        int directArenaIndex = 0;
-        for (PoolArenaMetric metric : pooledAllocatorMetric.directArenas()) {
-          registerArenaMetric(metric, "directArena" + directArenaIndex);
-          directArenaIndex++;
-        }
+      if (allocator instanceof UnpooledByteBufAllocator) {
+        logger.debug("Setup netty metrics for UnpooledByteBufAllocator");
+        ByteBufAllocatorMetric unpooledMetric = ((UnpooledByteBufAllocator) allocator).metric();
+        source.addGauge(
+            MetricRegistry.name(metricPrefix, "usedHeapMemory"),
+            labels,
+            unpooledMetric::usedHeapMemory);
+        source.addGauge(
+            MetricRegistry.name(metricPrefix, "usedDirectMemory"),
+            labels,
+            unpooledMetric::usedDirectMemory);
+      } else if (allocator instanceof PooledByteBufAllocator) {
+        logger.debug("Setup netty metrics for PooledByteBufAllocator");
+        PooledByteBufAllocatorMetric pooledAllocatorMetric =
+            ((PooledByteBufAllocator) allocator).metric();
+        source.addGauge(
+            MetricRegistry.name(metricPrefix, "usedHeapMemory"),
+            labels,
+            pooledAllocatorMetric::usedHeapMemory);
+        source.addGauge(
+            MetricRegistry.name(metricPrefix, "usedDirectMemory"),
+            labels,
+            pooledAllocatorMetric::usedDirectMemory);
 
-        int heapArenaIndex = 0;
-        for (PoolArenaMetric metric : pooledAllocatorMetric.heapArenas()) {
-          registerArenaMetric(metric, "heapArena" + heapArenaIndex);
-          heapArenaIndex++;
+        source.addGauge(
+            MetricRegistry.name(metricPrefix, "numHeapArenas"),
+            labels,
+            pooledAllocatorMetric::numHeapArenas);
+        source.addGauge(
+            MetricRegistry.name(metricPrefix, "numDirectArenas"),
+            labels,
+            pooledAllocatorMetric::numDirectArenas);
+        source.addGauge(
+            MetricRegistry.name(metricPrefix, "tinyCacheSize"),
+            labels,
+            pooledAllocatorMetric::tinyCacheSize);
+        source.addGauge(
+            MetricRegistry.name(metricPrefix, "smallCacheSize"),
+            labels,
+            pooledAllocatorMetric::smallCacheSize);
+        source.addGauge(
+            MetricRegistry.name(metricPrefix, "normalCacheSize"),
+            labels,
+            pooledAllocatorMetric::normalCacheSize);
+        source.addGauge(
+            MetricRegistry.name(metricPrefix, "numThreadLocalCaches"),
+            labels,
+            pooledAllocatorMetric::numThreadLocalCaches);
+        source.addGauge(
+            MetricRegistry.name(metricPrefix, "chunkSize"),
+            labels,
+            pooledAllocatorMetric::chunkSize);
+        if (verboseMetricsEnabled) {
+          int directArenaIndex = 0;
+          for (PoolArenaMetric metric : pooledAllocatorMetric.directArenas()) {
+            registerArenaMetric(metric, "directArena" + directArenaIndex);
+            directArenaIndex++;
+          }
+
+          int heapArenaIndex = 0;
+          for (PoolArenaMetric metric : pooledAllocatorMetric.heapArenas()) {
+            registerArenaMetric(metric, "heapArena" + heapArenaIndex);
+            heapArenaIndex++;
+          }
         }
       }
     }

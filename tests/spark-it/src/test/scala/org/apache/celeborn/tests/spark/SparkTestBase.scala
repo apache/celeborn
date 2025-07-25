@@ -19,8 +19,7 @@ package org.apache.celeborn.tests.spark
 
 import scala.util.Random
 
-import org.apache.spark.SPARK_VERSION
-import org.apache.spark.SparkConf
+import org.apache.spark.{SPARK_VERSION, SparkConf}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -30,6 +29,7 @@ import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.service.deploy.MiniClusterFeature
+import org.apache.celeborn.service.deploy.worker.Worker
 
 trait SparkTestBase extends AnyFunSuite
   with Logging with MiniClusterFeature with BeforeAndAfterAll with BeforeAndAfterEach {
@@ -52,6 +52,16 @@ trait SparkTestBase extends AnyFunSuite
     shutdownMiniCluster()
   }
 
+  var workerDirs: Seq[String] = Seq.empty
+
+  override def createWorker(map: Map[String, String]): Worker = {
+    val storageDir = createTmpDir()
+    this.synchronized {
+      workerDirs = workerDirs :+ storageDir
+    }
+    super.createWorker(map, storageDir)
+  }
+
   def updateSparkConf(sparkConf: SparkConf, mode: ShuffleMode): SparkConf = {
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     sparkConf.set(
@@ -64,6 +74,7 @@ trait SparkTestBase extends AnyFunSuite
     sparkConf.set("spark.sql.adaptive.localShuffleReader.enabled", "false")
     sparkConf.set(s"spark.${MASTER_ENDPOINTS.key}", masterInfo._1.rpcEnv.address.toString)
     sparkConf.set(s"spark.${SPARK_SHUFFLE_WRITER_MODE.key}", mode.toString)
+    sparkConf.set("spark.ui.enabled", "false")
     sparkConf
   }
 

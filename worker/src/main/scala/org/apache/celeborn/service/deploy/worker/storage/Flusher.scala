@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicLongArray}
 
 import scala.util.Random
 
-import io.netty.buffer.{CompositeByteBuf, PooledByteBufAllocator}
+import io.netty.buffer.{ByteBufAllocator, CompositeByteBuf, PooledByteBufAllocator}
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, TimeWindow}
@@ -38,7 +38,7 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 abstract private[worker] class Flusher(
     val workerSource: AbstractSource,
     val threadCount: Int,
-    val allocator: PooledByteBufAllocator,
+    val allocator: ByteBufAllocator,
     val maxComponents: Int,
     flushTimeMetric: TimeWindow,
     mountPoint: String) extends Logging {
@@ -137,7 +137,7 @@ private[worker] class LocalFlusher(
     workerSource: AbstractSource,
     val deviceMonitor: DeviceMonitor,
     threadCount: Int,
-    allocator: PooledByteBufAllocator,
+    allocator: ByteBufAllocator,
     maxComponents: Int,
     val mountPoint: String,
     val diskType: StorageInfo.Type,
@@ -176,7 +176,7 @@ private[worker] class LocalFlusher(
 final private[worker] class HdfsFlusher(
     workerSource: AbstractSource,
     hdfsFlusherThreads: Int,
-    allocator: PooledByteBufAllocator,
+    allocator: ByteBufAllocator,
     maxComponents: Int) extends Flusher(
     workerSource,
     hdfsFlusherThreads,
@@ -195,7 +195,7 @@ final private[worker] class HdfsFlusher(
 final private[worker] class S3Flusher(
     workerSource: AbstractSource,
     s3FlusherThreads: Int,
-    allocator: PooledByteBufAllocator,
+    allocator: ByteBufAllocator,
     maxComponents: Int) extends Flusher(
     workerSource,
     s3FlusherThreads,
@@ -209,4 +209,23 @@ final private[worker] class S3Flusher(
   }
 
   override def toString: String = s"s3Flusher@$flusherId"
+}
+
+final private[worker] class OssFlusher(
+    workerSource: AbstractSource,
+    ossFlusherThreads: Int,
+    allocator: ByteBufAllocator,
+    maxComponents: Int) extends Flusher(
+    workerSource,
+    ossFlusherThreads,
+    allocator,
+    maxComponents,
+    null,
+    "OSS") with Logging {
+
+  override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
+    logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
+  }
+
+  override def toString: String = s"ossFlusher@$flusherId"
 }

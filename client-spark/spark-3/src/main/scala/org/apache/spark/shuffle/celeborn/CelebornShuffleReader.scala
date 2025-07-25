@@ -18,12 +18,15 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
-import java.util
-import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, Set => JSet}
+import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
+import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
 
+import com.google.common.annotations.VisibleForTesting
+import org.apache.commons.lang3.tuple.Pair
 import org.apache.spark.{Aggregator, InterruptibleIterator, ShuffleDependency, TaskContext}
 import org.apache.spark.celeborn.ExceptionMakerHelper
 import org.apache.spark.internal.Logging
@@ -33,15 +36,16 @@ import org.apache.spark.shuffle.celeborn.CelebornShuffleReader.streamCreatorPool
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
 
-import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.client.{ClientUtils, ShuffleClient}
 import org.apache.celeborn.client.ShuffleClientImpl.ReduceFileGroups
 import org.apache.celeborn.client.read.{CelebornInputStream, MetricsCallback}
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.exception.{CelebornIOException, PartitionUnRetryAbleException}
+import org.apache.celeborn.common.exception.{CelebornBroadcastException, CelebornIOException, CelebornRuntimeException, PartitionUnRetryAbleException}
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol.TransportMessage
-import org.apache.celeborn.common.protocol.{MessageType, PartitionLocation, PbOpenStreamList, PbOpenStreamListResponse, PbStreamHandler}
-import org.apache.celeborn.common.protocol.message.StatusCode
+import org.apache.celeborn.common.protocol._
+import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
+import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
 
 class CelebornShuffleReader[K, C](
@@ -53,11 +57,35 @@ class CelebornShuffleReader[K, C](
     context: TaskContext,
     conf: CelebornConf,
     metrics: ShuffleReadMetricsReporter,
-    shuffleIdTracker: ExecutorShuffleIdTracker)
+    shuffleIdTracker: ExecutorShuffleIdTracker,
+    needDecompress: Boolean)
   extends ShuffleReader[K, C] with Logging {
 
+  def this(
+      handle: CelebornShuffleHandle[K, _, C],
+      startPartition: Int,
+      endPartition: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      context: TaskContext,
+      conf: CelebornConf,
+      metrics: ShuffleReadMetricsReporter,
+      shuffleIdTracker: ExecutorShuffleIdTracker) = this(
+    handle,
+    startPartition,
+    endPartition,
+    startMapIndex,
+    endMapIndex,
+    context,
+    conf,
+    metrics,
+    shuffleIdTracker,
+    true)
+
   private val dep = handle.dependency
-  private val shuffleClient = ShuffleClient.get(
+
+  @VisibleForTesting
+  val shuffleClient = ShuffleClient.get(
     handle.appUniqueId,
     handle.lifecycleManagerHost,
     handle.lifecycleManagerPort,
@@ -66,14 +94,32 @@ class CelebornShuffleReader[K, C](
     handle.extension)
 
   private val exceptionRef = new AtomicReference[IOException]
-  private val throwsFetchFailure = handle.throwsFetchFailure
+  private val stageRerunEnabled = handle.stageRerunEnabled
   private val encodedAttemptId = SparkCommonUtils.getEncodedAttemptNumber(context)
 
   override def read(): Iterator[Product2[K, C]] = {
 
+    val startTime = System.currentTimeMillis()
     val serializerInstance = newSerializerInstance(dep)
-
-    val shuffleId = SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
+    val shuffleId =
+      try {
+        SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
+      } catch {
+        case e: CelebornRuntimeException =>
+          logError(s"Failed to get shuffleId for appShuffleId ${handle.shuffleId}", e)
+          if (stageRerunEnabled) {
+            throw new FetchFailedException(
+              null,
+              handle.shuffleId,
+              -1,
+              -1,
+              startPartition,
+              SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + handle.shuffleId,
+              e)
+          } else {
+            throw e
+          }
+      }
     shuffleIdTracker.track(handle.shuffleId, shuffleId)
     logDebug(
       s"get shuffleId $shuffleId for appShuffleId ${handle.shuffleId} attemptNum ${context.stageAttemptNumber()}")
@@ -100,63 +146,118 @@ class CelebornShuffleReader[K, C](
       }
     }
 
-    val startTime = System.currentTimeMillis()
     val fetchTimeoutMs = conf.clientFetchTimeoutMs
     val localFetchEnabled = conf.enableReadLocalShuffleFile
     val localHostAddress = Utils.localHostName(conf)
     val shuffleKey = Utils.makeShuffleKey(handle.appUniqueId, shuffleId)
     var fileGroups: ReduceFileGroups = null
-    try {
-      // startPartition is irrelevant
-      fileGroups = shuffleClient.updateFileGroup(shuffleId, startPartition)
-    } catch {
-      case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
-        handleFetchExceptions(shuffleId, 0, ce)
-      case e: Throwable => throw e
-    }
+    var isShuffleStageEnd: Boolean = false
+    var updateFileGroupsRetryTimes = 0
+    do {
+      isShuffleStageEnd =
+        try {
+          shuffleClient.isShuffleStageEnd(shuffleId)
+        } catch {
+          case e: Exception =>
+            logInfo(s"Failed to check shuffle stage end for $shuffleId, assume ended", e)
+            true
+        }
+      try {
+        // startPartition is irrelevant
+        fileGroups = shuffleClient.updateFileGroup(shuffleId, startPartition)
+      } catch {
+        case ce: CelebornIOException
+            if ce.getCause != null && ce.getCause.isInstanceOf[
+              TimeoutException] && !isShuffleStageEnd =>
+          updateFileGroupsRetryTimes += 1
+          logInfo(
+            s"UpdateFileGroup for $shuffleKey timeout due to shuffle stage not ended," +
+              s" retry again, retry times $updateFileGroupsRetryTimes",
+            ce)
+        case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
+          // if a task is interrupted, should not report fetch failure
+          // if a task update file group timeout, should not report fetch failure
+          // if a task GetReducerFileGroupResponse failed via broadcast, should not report fetch failure
+          checkAndReportFetchFailureForUpdateFileGroupFailure(shuffleId, ce)
+      }
+    } while (fileGroups == null)
 
+    val batchOpenStreamStartTime = System.currentTimeMillis()
     // host-port -> (TransportClient, PartitionLocation Array, PbOpenStreamList)
-    val workerRequestMap = new util.HashMap[
+    val workerRequestMap = new JHashMap[
       String,
-      (TransportClient, util.ArrayList[PartitionLocation], PbOpenStreamList.Builder)]()
+      (TransportClient, JArrayList[PartitionLocation], PbOpenStreamList.Builder)]()
+    // partitionId -> (partition uniqueId -> chunkRange pair)
+    val partitionId2ChunkRange = new JHashMap[Int, JMap[String, Pair[Integer, Integer]]]()
+
+    val partitionId2PartitionLocations = new JHashMap[Int, JSet[PartitionLocation]]()
 
     var partCnt = 0
 
-    (startPartition until endPartition).foreach { partitionId =>
-      if (fileGroups.partitionGroups.containsKey(partitionId)) {
-        fileGroups.partitionGroups.get(partitionId).asScala.foreach { location =>
-          partCnt += 1
-          val hostPort = location.hostAndFetchPort
-          if (!workerRequestMap.containsKey(hostPort)) {
-            try {
-              val client = shuffleClient.getDataClientFactory().createClient(
-                location.getHost,
-                location.getFetchPort)
-              val pbOpenStreamList = PbOpenStreamList.newBuilder()
-              pbOpenStreamList.setShuffleKey(shuffleKey)
-              workerRequestMap.put(
-                hostPort,
-                (client, new util.ArrayList[PartitionLocation], pbOpenStreamList))
-            } catch {
-              case ex: Exception =>
-                shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort, ex)
-                logWarning(
-                  s"Failed to create client for $shuffleKey-$partitionId from host: ${location.hostAndFetchPort}. " +
-                    s"Shuffle reader will try its replica if exists.")
-            }
-          }
-          workerRequestMap.get(hostPort) match {
-            case (_, locArr, pbOpenStreamListBuilder) =>
-              locArr.add(location)
-              pbOpenStreamListBuilder.addFileName(location.getFileName)
-                .addStartIndex(startMapIndex)
-                .addEndIndex(endMapIndex)
-              pbOpenStreamListBuilder.addReadLocalShuffle(
-                localFetchEnabled && location.getHost.equals(localHostAddress))
-            case _ =>
-              logDebug(s"Empty client for host ${hostPort}")
+    // if startMapIndex > endMapIndex, means partition is skew partition and read by Celeborn implementation.
+    // locations will split to sub-partitions with startMapIndex size.
+    val splitSkewPartitionWithoutMapRange =
+      ClientUtils.readSkewPartitionWithoutMapRange(conf, startMapIndex, endMapIndex)
+
+    // filter empty partition
+    val partitionIdList = List.range(startPartition, endPartition).filter(p =>
+      fileGroups.partitionGroups.containsKey(p))
+
+    def makeOpenStreamList(locations: JSet[PartitionLocation]): Unit = {
+      locations.asScala.foreach { location =>
+        partCnt += 1
+        val hostPort = location.hostAndFetchPort
+        if (!workerRequestMap.containsKey(hostPort)) {
+          try {
+            val client = shuffleClient.getDataClientFactory().createClient(
+              location.getHost,
+              location.getFetchPort)
+            val pbOpenStreamList = PbOpenStreamList.newBuilder()
+            pbOpenStreamList.setShuffleKey(shuffleKey)
+            workerRequestMap.put(
+              hostPort,
+              (client, new JArrayList[PartitionLocation], pbOpenStreamList))
+          } catch {
+            case ex: Exception =>
+              shuffleClient.excludeFailedFetchLocation(hostPort, ex)
+              logWarning(
+                s"Failed to create client for $shuffleKey-${location.getId} from host: ${hostPort}. " +
+                  s"Shuffle reader will try its replica if exists.")
           }
         }
+        workerRequestMap.get(hostPort) match {
+          case (_, locArr, pbOpenStreamListBuilder) =>
+            locArr.add(location)
+            pbOpenStreamListBuilder.addFileName(location.getFileName)
+              .addStartIndex(startMapIndex)
+              .addEndIndex(endMapIndex)
+            pbOpenStreamListBuilder.addReadLocalShuffle(
+              localFetchEnabled && location.getHost.equals(localHostAddress))
+          case _ =>
+            logDebug(s"Empty client for host ${hostPort}")
+        }
+      }
+    }
+
+    partitionIdList.foreach { partitionId =>
+      if (fileGroups.partitionGroups.containsKey(partitionId)) {
+        var locations = fileGroups.partitionGroups.get(partitionId)
+        if (splitSkewPartitionWithoutMapRange) {
+          val partitionLocation2ChunkRange = CelebornPartitionUtil.splitSkewedPartitionLocations(
+            new JArrayList(locations),
+            startMapIndex,
+            endMapIndex)
+          partitionId2ChunkRange.put(partitionId, partitionLocation2ChunkRange)
+          // filter locations avoid OPEN_STREAM when split skew partition without map range
+          val filterLocations = locations.asScala
+            .filter { location =>
+              null != partitionLocation2ChunkRange &&
+              partitionLocation2ChunkRange.containsKey(location.getUniqueId)
+            }
+          locations = filterLocations.asJava
+          partitionId2PartitionLocations.put(partitionId, locations)
+        }
+        makeOpenStreamList(locations)
       }
     }
 
@@ -191,19 +292,30 @@ class CelebornShuffleReader[K, C](
     // wait for all futures to complete
     futures.foreach(f => f.get())
     val end = System.currentTimeMillis()
-    logInfo(s"BatchOpenStream for $partCnt cost ${end - startTime}ms")
+    // readTime should include batchOpenStreamTime, getShuffleId Rpc time and updateFileGroup Rpc time
+    metricsCallback.incReadTime(end - startTime)
+    logInfo(s"BatchOpenStream for $partCnt cost ${end - batchOpenStreamStartTime}ms")
 
     val streams = JavaUtils.newConcurrentHashMap[Integer, CelebornInputStream]()
 
     def createInputStream(partitionId: Int): Unit = {
       val locations =
-        if (fileGroups.partitionGroups.containsKey(partitionId)) {
-          new util.ArrayList(fileGroups.partitionGroups.get(partitionId))
-        } else new util.ArrayList[PartitionLocation]()
+        if (splitSkewPartitionWithoutMapRange) {
+          partitionId2PartitionLocations.get(partitionId)
+        } else {
+          fileGroups.partitionGroups.get(partitionId)
+        }
+
+      val locationList =
+        if (null == locations) {
+          new JArrayList[PartitionLocation]()
+        } else {
+          new JArrayList[PartitionLocation](locations)
+        }
       val streamHandlers =
         if (locations != null) {
-          val streamHandlerArr = new util.ArrayList[PbStreamHandler](locations.size())
-          locations.asScala.foreach { loc =>
+          val streamHandlerArr = new JArrayList[PbStreamHandler](locationList.size)
+          locationList.asScala.foreach { loc =>
             streamHandlerArr.add(locationStreamHandlerMap.get(loc))
           }
           streamHandlerArr
@@ -215,14 +327,18 @@ class CelebornShuffleReader[K, C](
             handle.shuffleId,
             partitionId,
             encodedAttemptId,
+            context.taskAttemptId(),
             startMapIndex,
             endMapIndex,
-            if (throwsFetchFailure) ExceptionMakerHelper.SHUFFLE_FETCH_FAILURE_EXCEPTION_MAKER
+            if (stageRerunEnabled) ExceptionMakerHelper.SHUFFLE_FETCH_FAILURE_EXCEPTION_MAKER
             else null,
-            locations,
+            locationList,
             streamHandlers,
+            fileGroups.pushFailedBatches,
+            partitionId2ChunkRange.get(partitionId),
             fileGroups.mapAttempts,
-            metricsCallback)
+            metricsCallback,
+            needDecompress)
           streams.put(partitionId, inputStream)
         } catch {
           case e: IOException =>
@@ -236,31 +352,38 @@ class CelebornShuffleReader[K, C](
     }
 
     val inputStreamCreationWindow = conf.clientInputStreamCreationWindow
-    (startPartition until Math.min(
-      startPartition + inputStreamCreationWindow,
-      endPartition)).foreach(partitionId => {
+    (0 until Math.min(inputStreamCreationWindow, partitionIdList.size)).foreach(listIndex => {
       streamCreatorPool.submit(new Runnable {
         override def run(): Unit = {
-          createInputStream(partitionId)
+          createInputStream(partitionIdList(listIndex))
         }
       })
     })
 
-    val recordIter = (startPartition until endPartition).iterator.map(partitionId => {
+    var curIndex = 0
+    val recordIter = partitionIdList.iterator.map(partitionId => {
       if (handle.numMappers > 0) {
         val startFetchWait = System.nanoTime()
         var inputStream: CelebornInputStream = streams.get(partitionId)
+        var sleepCnt = 0L
         while (inputStream == null) {
           if (exceptionRef.get() != null) {
             exceptionRef.get() match {
               case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
-                handleFetchExceptions(handle.shuffleId, partitionId, ce)
+                handleFetchExceptions(handle.shuffleId, shuffleId, partitionId, ce)
               case e => throw e
             }
           }
-          logInfo("inputStream is null, sleeping...")
-          Thread.sleep(50)
+          if (sleepCnt == 0) {
+            logInfo(s"inputStream for partition: $partitionId is null, sleeping 5ms")
+          }
+          sleepCnt += 1
+          Thread.sleep(5)
           inputStream = streams.get(partitionId)
+        }
+        if (sleepCnt > 0) {
+          logInfo(
+            s"inputStream for partition: $partitionId is not null, sleep $sleepCnt times for ${5 * sleepCnt} ms")
         }
         metricsCallback.incReadTime(
           TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
@@ -268,16 +391,18 @@ class CelebornShuffleReader[K, C](
         context.addTaskCompletionListener[Unit](_ => inputStream.close())
 
         // Advance the input creation window
-        if (partitionId + inputStreamCreationWindow < endPartition) {
+        if (curIndex + inputStreamCreationWindow < partitionIdList.size) {
+          val nextPartitionId = partitionIdList(curIndex + inputStreamCreationWindow)
           streamCreatorPool.submit(new Runnable {
             override def run(): Unit = {
-              createInputStream(partitionId + inputStreamCreationWindow)
+              createInputStream(nextPartitionId)
             }
           })
         }
-
+        curIndex = curIndex + 1
         (partitionId, inputStream)
       } else {
+        curIndex = curIndex + 1
         (partitionId, CelebornInputStream.empty())
       }
     }).filter {
@@ -289,7 +414,7 @@ class CelebornShuffleReader[K, C](
         iter
       } catch {
         case e @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
-          handleFetchExceptions(handle.shuffleId, partitionId, e)
+          handleFetchExceptions(handle.shuffleId, shuffleId, partitionId, e)
       }
     }
 
@@ -369,17 +494,38 @@ class CelebornShuffleReader[K, C](
     }
   }
 
-  private def handleFetchExceptions(shuffleId: Int, partitionId: Int, ce: Throwable) = {
-    if (throwsFetchFailure &&
-      shuffleClient.reportShuffleFetchFailure(handle.shuffleId, shuffleId)) {
+  @VisibleForTesting
+  def checkAndReportFetchFailureForUpdateFileGroupFailure(
+      celebornShuffleId: Int,
+      ce: Throwable): Unit = {
+    if (ce.getCause != null &&
+      (ce.getCause.isInstanceOf[InterruptedException] || ce.getCause.isInstanceOf[
+        TimeoutException] || ce.getCause.isInstanceOf[CelebornBroadcastException])) {
+      logWarning(
+        s"fetch shuffle ${celebornShuffleId} timeout or interrupt or GetReducerFileGroupResponse failed via broadcast",
+        ce)
+      throw ce
+    } else {
+      handleFetchExceptions(handle.shuffleId, celebornShuffleId, 0, ce)
+    }
+  }
+
+  @VisibleForTesting
+  def handleFetchExceptions(
+      appShuffleId: Int,
+      shuffleId: Int,
+      partitionId: Int,
+      ce: Throwable) = {
+    if (stageRerunEnabled &&
+      shuffleClient.reportShuffleFetchFailure(appShuffleId, shuffleId, context.taskAttemptId())) {
       logWarning(s"Handle fetch exceptions for ${shuffleId}-${partitionId}", ce)
       throw new FetchFailedException(
         null,
-        handle.shuffleId,
+        appShuffleId,
         -1,
         -1,
         partitionId,
-        SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + shuffleId,
+        SparkUtils.FETCH_FAILURE_ERROR_MSG + appShuffleId + "/" + shuffleId,
         ce)
     } else
       throw ce
@@ -388,9 +534,17 @@ class CelebornShuffleReader[K, C](
   def newSerializerInstance(dep: ShuffleDependency[K, _, C]): SerializerInstance = {
     dep.serializer.newInstance()
   }
-
 }
 
 object CelebornShuffleReader {
   var streamCreatorPool: ThreadPoolExecutor = null
+  // Register the deserializer for GetReducerFileGroupResponse broadcast
+  ShuffleClient.registerDeserializeReducerFileGroupResponseFunction(new BiFunction[
+    Integer,
+    Array[Byte],
+    GetReducerFileGroupResponse] {
+    override def apply(shuffleId: Integer, broadcast: Array[Byte]): GetReducerFileGroupResponse = {
+      SparkUtils.deserializeGetReducerFileGroupResponse(shuffleId, broadcast)
+    }
+  })
 }

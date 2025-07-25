@@ -20,9 +20,14 @@ package org.apache.celeborn.client;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.function.BiFunction;
 
+import scala.Tuple2;
+
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,9 +41,11 @@ import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.util.CelebornHadoopUtils;
 import org.apache.celeborn.common.util.ExceptionMaker;
+import org.apache.celeborn.common.write.LocationPushFailedBatches;
 import org.apache.celeborn.common.write.PushState;
 
 /**
@@ -52,6 +59,10 @@ public abstract class ShuffleClient {
   private static volatile Map<StorageInfo.Type, FileSystem> hadoopFs;
   private static LongAdder totalReadCounter = new LongAdder();
   private static LongAdder localShuffleReadCounter = new LongAdder();
+
+  private static volatile Optional<
+          BiFunction<Integer, byte[], ControlMessages.GetReducerFileGroupResponse>>
+      deserializeReducerFileGroupResponseFunction = Optional.empty();
 
   // for testing
   public static void reset() {
@@ -192,19 +203,27 @@ public abstract class ShuffleClient {
 
   public abstract void pushMergedData(int shuffleId, int mapId, int attemptId) throws IOException;
 
-  // Report partition locations written by the completed map task of ReducePartition Shuffle Type
-  public abstract void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers)
+  // Report partition locations written by the completed map task of ReducePartition Shuffle Type.
+  public abstract void mapperEnd(
+      int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
       throws IOException;
 
-  // Report partition locations written by the completed map task of MapPartition Shuffle Type
+  public abstract void readReducerPartitionEnd(
+      int shuffleId, int partitionId, int startMapIndex, int endMapIndex, int crc32, long bytes)
+      throws IOException;
+
+  // Report partition locations written by the completed map task of MapPartition Shuffle Type.
   public abstract void mapPartitionMapperEnd(
-      int shuffleId, int mapId, int attemptId, int numMappers, int partitionId) throws IOException;
+      int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions, int partitionId)
+      throws IOException;
 
   // Cleanup states of the map task
   public abstract void cleanup(int shuffleId, int mapId, int attemptId);
 
   public abstract ShuffleClientImpl.ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
       throws CelebornIOException;
+
+  public abstract boolean isShuffleStageEnd(int shuffleId) throws Exception;
 
   // Reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId
   // is a self-incrementing variable hidden in the implementation when sending data.
@@ -224,6 +243,7 @@ public abstract class ShuffleClient {
       int shuffleId,
       int partitionId,
       int attemptNumber,
+      long taskId,
       int startMapIndex,
       int endMapIndex,
       MetricsCallback metricsCallback)
@@ -233,13 +253,17 @@ public abstract class ShuffleClient {
         shuffleId,
         partitionId,
         attemptNumber,
+        taskId,
         startMapIndex,
         endMapIndex,
         null,
         null,
         null,
         null,
-        metricsCallback);
+        null,
+        null,
+        metricsCallback,
+        true);
   }
 
   public abstract CelebornInputStream readPartition(
@@ -247,13 +271,17 @@ public abstract class ShuffleClient {
       int appShuffleId,
       int partitionId,
       int attemptNumber,
+      long taskId,
       int startMapIndex,
       int endMapIndex,
       ExceptionMaker exceptionMaker,
       ArrayList<PartitionLocation> locations,
       ArrayList<PbStreamHandler> streamHandlers,
+      Map<String, LocationPushFailedBatches> failedBatchSetMap,
+      Map<String, Pair<Integer, Integer>> chunksRange,
       int[] mapAttempts,
-      MetricsCallback metricsCallback)
+      MetricsCallback metricsCallback,
+      boolean needDecompress)
       throws IOException;
 
   public abstract boolean cleanupShuffle(int shuffleId);
@@ -268,7 +296,7 @@ public abstract class ShuffleClient {
 
   public abstract PushState getPushState(String mapKey);
 
-  public abstract int getShuffleId(
+  public abstract Tuple2<Integer, Boolean> getShuffleId(
       int appShuffleId, String appShuffleIdentifier, boolean isWriter, boolean isBarrierStage);
 
   /**
@@ -276,7 +304,7 @@ public abstract class ShuffleClient {
    * cleanup for spark app. It must be a sync call and make sure the cleanup is done, otherwise,
    * incorrect shuffle data can be fetched in re-run tasks
    */
-  public abstract boolean reportShuffleFetchFailure(int appShuffleId, int shuffleId);
+  public abstract boolean reportShuffleFetchFailure(int appShuffleId, int shuffleId, long taskId);
 
   /**
    * Report barrier task failure. When any barrier task fails, all (shuffle) output for that stage
@@ -287,4 +315,21 @@ public abstract class ShuffleClient {
   public abstract TransportClientFactory getDataClientFactory();
 
   public abstract void excludeFailedFetchLocation(String hostAndFetchPort, Exception e);
+
+  public static void registerDeserializeReducerFileGroupResponseFunction(
+      BiFunction<Integer, byte[], ControlMessages.GetReducerFileGroupResponse> function) {
+    if (!deserializeReducerFileGroupResponseFunction.isPresent()) {
+      deserializeReducerFileGroupResponseFunction = Optional.ofNullable(function);
+    }
+  }
+
+  public static ControlMessages.GetReducerFileGroupResponse deserializeReducerFileGroupResponse(
+      int shuffleId, byte[] bytes) {
+    if (!deserializeReducerFileGroupResponseFunction.isPresent()) {
+      // Should never happen
+      logger.warn("DeserializeReducerFileGroupResponseFunction is not registered.");
+      return null;
+    }
+    return deserializeReducerFileGroupResponseFunction.get().apply(shuffleId, bytes);
+  }
 }

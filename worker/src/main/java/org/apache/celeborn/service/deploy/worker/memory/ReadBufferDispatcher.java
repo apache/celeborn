@@ -27,11 +27,13 @@ import java.util.concurrent.atomic.LongAdder;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.util.ThreadUtils;
@@ -40,18 +42,19 @@ public class ReadBufferDispatcher {
   private final Logger logger = LoggerFactory.getLogger(ReadBufferDispatcher.class);
   private final LinkedBlockingQueue<ReadBufferRequest> requests = new LinkedBlockingQueue<>();
   private final MemoryManager memoryManager;
-  private final PooledByteBufAllocator readBufferAllocator;
+  private final ByteBufAllocator readBufferAllocator;
   private final LongAdder allocatedReadBuffers = new LongAdder();
   private final long readBufferAllocationWait;
   @VisibleForTesting public volatile boolean stopFlag = false;
   @VisibleForTesting public final AtomicReference<Thread> dispatcherThread;
 
-  public ReadBufferDispatcher(MemoryManager memoryManager, CelebornConf conf) {
+  public ReadBufferDispatcher(
+      MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
     readBufferAllocationWait = conf.readBufferAllocationWait();
     long checkThreadInterval = conf.readBufferDispatcherCheckThreadInterval();
     // readBuffer is not a module name, it's a placeholder.
     readBufferAllocator =
-        NettyUtils.getPooledByteBufAllocator(new TransportConf("readBuffer", conf), null, true);
+        NettyUtils.getByteBufAllocator(new TransportConf("readBuffer", conf), source, true);
     this.memoryManager = memoryManager;
     dispatcherThread =
         new AtomicReference<>(
@@ -118,8 +121,10 @@ public class ReadBufferDispatcher {
             if (request != null) {
               processBufferRequest(request, buffers);
             } else {
-              // Free buffer pool memory to main direct memory when dispatcher is idle.
-              readBufferAllocator.trimCurrentThreadCache();
+              if (readBufferAllocator instanceof PooledByteBufAllocator) {
+                // Free buffer pool memory to main direct memory when dispatcher is idle.
+                ((PooledByteBufAllocator) readBufferAllocator).trimCurrentThreadCache();
+              }
             }
           } catch (Throwable e) {
             logger.error(e.getMessage(), e);

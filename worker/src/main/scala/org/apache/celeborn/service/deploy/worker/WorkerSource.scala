@@ -34,6 +34,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
 
   val appActiveConnections: ConcurrentHashMap[String, util.Set[String]] =
     JavaUtils.newConcurrentHashMap[String, util.Set[String]]
+  private val metricsAppLevelEnabled = conf.metricsWorkerAppLevelEnabled
 
   import WorkerSource._
   // add counters
@@ -58,6 +59,18 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   addCounter(SEGMENT_START_FAIL_COUNT)
 
   addCounter(SLOTS_ALLOCATED)
+  addCounter(REGISTER_WITH_MASTER_FAIL_COUNT)
+
+  addCounter(COMMIT_FILES_FAIL_COUNT)
+
+  addCounter(LOCAL_FLUSH_COUNT)
+  addCounter(LOCAL_FLUSH_SIZE)
+  addCounter(HDFS_FLUSH_COUNT)
+  addCounter(HDFS_FLUSH_SIZE)
+  addCounter(OSS_FLUSH_COUNT)
+  addCounter(OSS_FLUSH_SIZE)
+  addCounter(S3_FLUSH_COUNT)
+  addCounter(S3_FLUSH_SIZE)
 
   // add timers
   addTimer(COMMIT_FILES_TIME)
@@ -84,6 +97,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   addTimer(CLEAN_EXPIRED_SHUFFLE_KEYS_TIME)
 
   addHistogram(FETCH_CHUNK_TRANSFER_SIZE)
+  addHistogram(PARTITION_FILE_SIZE)
 
   def getCounterCount(metricsName: String): Long = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(metricsName, Map.empty)
@@ -91,36 +105,44 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   }
 
   def connectionActive(client: TransportClient): Unit = {
-    appActiveConnections.putIfAbsent(
-      client.getChannel.id().asLongText(),
-      Sets.newConcurrentHashSet[String]())
+    if (metricsAppLevelEnabled) {
+      appActiveConnections.putIfAbsent(
+        client.getChannel.id().asLongText(),
+        Sets.newConcurrentHashSet[String]())
+    }
     incCounter(ACTIVE_CONNECTION_COUNT, 1)
   }
 
   def connectionInactive(client: TransportClient): Unit = {
-    val applicationIds = appActiveConnections.remove(client.getChannel.id().asLongText())
     incCounter(ACTIVE_CONNECTION_COUNT, -1)
-    if (null != applicationIds) {
-      applicationIds.asScala.foreach(applicationId =>
-        incCounter(ACTIVE_CONNECTION_COUNT, -1, Map(applicationLabel -> applicationId)))
+    if (metricsAppLevelEnabled) {
+      val applicationIds = appActiveConnections.remove(client.getChannel.id().asLongText())
+      if (null != applicationIds) {
+        applicationIds.asScala.foreach(applicationId =>
+          incCounter(ACTIVE_CONNECTION_COUNT, -1, Map(applicationLabel -> applicationId)))
+      }
     }
   }
 
   def recordAppActiveConnection(client: TransportClient, shuffleKey: String): Unit = {
-    val applicationIds = appActiveConnections.get(client.getChannel.id().asLongText())
-    val applicationId = Utils.splitShuffleKey(shuffleKey)._1
-    if (applicationIds != null && !applicationIds.contains(applicationId)) {
-      addCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId))
-      incCounter(ACTIVE_CONNECTION_COUNT, 1, Map(applicationLabel -> applicationId))
-      applicationIds.add(applicationId)
+    if (metricsAppLevelEnabled) {
+      val applicationIds = appActiveConnections.get(client.getChannel.id().asLongText())
+      val applicationId = Utils.splitShuffleKey(shuffleKey)._1
+      if (applicationIds != null && !applicationIds.contains(applicationId)) {
+        addCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId))
+        incCounter(ACTIVE_CONNECTION_COUNT, 1, Map(applicationLabel -> applicationId))
+        applicationIds.add(applicationId)
+      }
     }
   }
 
   def removeAppActiveConnection(applicationIds: util.Set[String]): Unit = {
-    applicationIds.asScala.foreach(applicationId =>
-      removeCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId)))
-    appActiveConnections.values().asScala.foreach(connectionAppIds =>
-      applicationIds.asScala.foreach(applicationId => connectionAppIds.remove(applicationId)))
+    if (metricsAppLevelEnabled) {
+      applicationIds.asScala.foreach(applicationId =>
+        removeCounter(ACTIVE_CONNECTION_COUNT, Map(applicationLabel -> applicationId)))
+      appActiveConnections.values().asScala.foreach(connectionAppIds =>
+        applicationIds.asScala.foreach(applicationId => connectionAppIds.remove(applicationId)))
+    }
   }
 
   // start cleaner thread
@@ -131,6 +153,8 @@ object WorkerSource {
   val REGISTERED_SHUFFLE_COUNT = "RegisteredShuffleCount"
 
   val RUNNING_APPLICATION_COUNT = "RunningApplicationCount"
+
+  val REGISTER_WITH_MASTER_FAIL_COUNT = "RegisterWithMasterFailCount"
 
   // fetch data
   val OPEN_STREAM_TIME = "OpenStreamTime"
@@ -178,7 +202,16 @@ object WorkerSource {
   val TAKE_BUFFER_TIME = "TakeBufferTime"
   val FLUSH_DATA_TIME = "FlushDataTime"
   val COMMIT_FILES_TIME = "CommitFilesTime"
+  val COMMIT_FILES_FAIL_COUNT = "CommitFilesFailCount"
   val FLUSH_WORKING_QUEUE_SIZE = "FlushWorkingQueueSize"
+  val LOCAL_FLUSH_COUNT = "LocalFlushCount"
+  val LOCAL_FLUSH_SIZE = "LocalFlushSize"
+  val HDFS_FLUSH_COUNT = "HdfsFlushCount"
+  val HDFS_FLUSH_SIZE = "HdfsFlushSize"
+  val OSS_FLUSH_COUNT = "OssFlushCount"
+  val OSS_FLUSH_SIZE = "OssFlushSize"
+  val S3_FLUSH_COUNT = "S3FlushCount"
+  val S3_FLUSH_SIZE = "S3FlushSize"
 
   // slots
   val SLOTS_ALLOCATED = "SlotsAllocated"
@@ -193,6 +226,7 @@ object WorkerSource {
   val SORT_TIME = "SortTime"
   val SORT_MEMORY = "SortMemory"
   val SORTING_FILES = "SortingFiles"
+  val PENDING_SORT_TASKS = "PendingSortTasks"
   val SORTED_FILES = "SortedFiles"
   val SORTED_FILE_SIZE = "SortedFileSize"
   val DISK_BUFFER = "DiskBuffer"
@@ -214,6 +248,7 @@ object WorkerSource {
   val DEVICE_OS_TOTAL_CAPACITY = "DeviceOSTotalBytes"
   val DEVICE_CELEBORN_FREE_CAPACITY = "DeviceCelebornFreeBytes"
   val DEVICE_CELEBORN_TOTAL_CAPACITY = "DeviceCelebornTotalBytes"
+  val PARTITION_FILE_SIZE = "PartitionFileSizeBytes"
 
   // congestion control
   val POTENTIAL_CONSUME_SPEED = "PotentialConsumeSpeed"
@@ -227,6 +262,9 @@ object WorkerSource {
   // decommission
   val IS_DECOMMISSIONING_WORKER = "IsDecommissioningWorker"
   val UNRELEASED_SHUFFLE_COUNT = "UnreleasedShuffleCount"
+
+  // graceful
+  val UNRELEASED_PARTITION_LOCATION_COUNT = "UnreleasedPartitionLocationCount"
 
   // clean
   val CLEAN_TASK_QUEUE_SIZE = "CleanTaskQueueSize"

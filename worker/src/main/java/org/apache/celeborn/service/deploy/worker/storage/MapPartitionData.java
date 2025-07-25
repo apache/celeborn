@@ -23,12 +23,9 @@ import java.util.List;
 import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import org.apache.commons.io.IOUtils;
@@ -39,6 +36,7 @@ import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.MapFileMeta;
 import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
 import org.apache.celeborn.service.deploy.worker.memory.BufferRecycler;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
@@ -93,15 +91,10 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
         storageFetcherPool.computeIfAbsent(
             mapFileMeta.getMountPoint(),
             k ->
-                Executors.newFixedThreadPool(
+                ThreadUtils.newFixedThreadPool(
                     threadsPerMountPoint,
-                    new ThreadFactoryBuilder()
-                        .setNameFormat(mapFileMeta.getMountPoint() + "-reader-thread-%d")
-                        .setUncaughtExceptionHandler(
-                            (t1, t2) -> {
-                              logger.warn("StorageFetcherPool thread:{}:{}", t1, t2);
-                            })
-                        .build()));
+                    String.format("worker-map-partition-%s-reader", mapFileMeta.getMountPoint()),
+                    false));
     this.dataFileChanel = FileChannelUtils.openReadableFileChannel(diskFileInfo.getFilePath());
     this.indexChannel = FileChannelUtils.openReadableFileChannel(diskFileInfo.getIndexPath());
     this.indexSize = indexChannel.size();
@@ -192,13 +185,17 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
     }
 
     try {
-      PriorityQueue<MapPartitionDataReader> sortedReaders =
-          new PriorityQueue<>(
-              readers.values().stream()
-                  .filter(MapPartitionDataReader::shouldReadData)
-                  .collect(Collectors.toList()));
-      for (MapPartitionDataReader reader : sortedReaders) {
+      // Find all readers that can read data.
+      // Avoid using Java Stream's collect() operation in this case, as the internal array used
+      // by Stream.collect() may be resized and copied multiple times if the exact size of the
+      // final result is not known in advance
+      PriorityQueue<MapPartitionDataReader> sortedReaders = new PriorityQueue<>();
+      for (MapPartitionDataReader reader : readers.values()) {
+        if (!reader.shouldReadData()) {
+          continue;
+        }
         openReader(reader);
+        sortedReaders.add(reader);
       }
       while (bufferQueue.bufferAvailable() && !sortedReaders.isEmpty()) {
         BufferRecycler bufferRecycler = new BufferRecycler(MapPartitionData.this::recycle);
@@ -263,7 +260,7 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
 
   @Override
   public String toString() {
-    return "MapDataPartition{" + "fileInfo=" + diskFileInfo.getFilePath() + '}';
+    return "MapPartitionData{" + "fileInfo=" + diskFileInfo.getFilePath() + '}';
   }
 
   public ConcurrentHashMap<Long, MapPartitionDataReader> getReaders() {

@@ -21,8 +21,6 @@ import java.util.Arrays;
 import java.util.Objects;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.apache.commons.lang3.builder.ToStringStyle;
 
 import org.apache.celeborn.common.network.buffer.ManagedBuffer;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
@@ -120,13 +118,18 @@ public final class PushMergedData extends RequestMessage {
 
   @Override
   public String toString() {
-    return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
-        .append("requestId", requestId)
-        .append("mode", mode)
-        .append("shuffleKey", shuffleKey)
-        .append("partitionIds", Arrays.toString(partitionUniqueIds))
-        .append("batchOffsets", Arrays.toString(batchOffsets))
-        .append("body size", body().size())
-        .toString();
+    return "PushMergedData[requestId="
+        + requestId
+        + ",mode="
+        + mode
+        + ",shuffleKey="
+        + shuffleKey
+        + ",partitionIds="
+        + Arrays.toString(partitionUniqueIds)
+        + ",batchOffsets="
+        + Arrays.toString(batchOffsets)
+        + ",body size="
+        + body().size()
+        + "]";
   }
 }

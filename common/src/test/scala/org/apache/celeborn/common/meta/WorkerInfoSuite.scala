@@ -31,6 +31,7 @@ import org.junit.Assert.{assertEquals, assertNotEquals, assertNotNull}
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.metrics.source.Role
 import org.apache.celeborn.common.protocol.TransportModuleConstants
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpointAddress, RpcEnv}
@@ -234,7 +235,8 @@ class WorkerInfoSuite extends CelebornFunSuite {
     val worker1 = new WorkerInfo("h1", 10001, 10002, 10003, 1000, 10004)
     val worker2 =
       new WorkerInfo("h2", 20001, 20002, 20003, 2000, 20004, null, null)
-    worker2.networkLocation_$eq("/1")
+    worker2.networkLocation = "/1"
+    worker2.nextInterruptionNotice = 1000L
 
     val worker3 = new WorkerInfo(
       "h3",
@@ -283,6 +285,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
         12345,
         conf,
         64,
+        Role.WORKER,
         None,
         None)
       val worker4 = new WorkerInfo(
@@ -310,6 +313,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |UserResourceConsumption: empty
            |WorkerRef: null
            |NetworkLocation: /default-rack
+           |NextInterruptionNotice: None
            |""".stripMargin
 
       val exp2 =
@@ -326,6 +330,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
           |UserResourceConsumption: empty
           |WorkerRef: null
           |NetworkLocation: /1
+          |NextInterruptionNotice: 1000
           |""".stripMargin
       val exp3 =
         s"""
@@ -341,6 +346,7 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |UserResourceConsumption: empty
            |WorkerRef: null
            |NetworkLocation: /default-rack
+           |NextInterruptionNotice: None
            |""".stripMargin
       val exp4 =
         s"""
@@ -353,13 +359,14 @@ class WorkerInfoSuite extends CelebornFunSuite {
            |SlotsUsed: 60
            |LastHeartbeat: 0
            |Disks: $placeholder
-           |  DiskInfo0: DiskInfo(maxSlots: 0, committed shuffles 0, running applications 0, shuffleAllocations: Map(), mountPoint: disk3, usableSpace: 2048.0 MiB, totalSpace: 2048.0 MiB, avgFlushTime: 3 ns, avgFetchTime: 3 ns, activeSlots: 30, storageType: SSD) status: HEALTHY dirs $placeholder
-           |  DiskInfo1: DiskInfo(maxSlots: 0, committed shuffles 0, running applications 0, shuffleAllocations: Map(), mountPoint: disk1, usableSpace: 2048.0 MiB, totalSpace: 2048.0 MiB, avgFlushTime: 1 ns, avgFetchTime: 1 ns, activeSlots: 10, storageType: SSD) status: HEALTHY dirs $placeholder
-           |  DiskInfo2: DiskInfo(maxSlots: 0, committed shuffles 0, running applications 0, shuffleAllocations: Map(), mountPoint: disk2, usableSpace: 2048.0 MiB, totalSpace: 2048.0 MiB, avgFlushTime: 2 ns, avgFetchTime: 2 ns, activeSlots: 20, storageType: SSD) status: HEALTHY dirs $placeholder
+           |  DiskInfo0: DiskInfo(maxSlots: 0, availableSlots: 0, committed shuffles 0, running applications 0, shuffleAllocations: Map(), mountPoint: disk3, usableSpace: 2048.0 MiB, totalSpace: 2048.0 MiB, avgFlushTime: 3 ns, avgFetchTime: 3 ns, activeSlots: 30, storageType: SSD) status: HEALTHY dirs $placeholder
+           |  DiskInfo1: DiskInfo(maxSlots: 0, availableSlots: 0, committed shuffles 0, running applications 0, shuffleAllocations: Map(), mountPoint: disk1, usableSpace: 2048.0 MiB, totalSpace: 2048.0 MiB, avgFlushTime: 1 ns, avgFetchTime: 1 ns, activeSlots: 10, storageType: SSD) status: HEALTHY dirs $placeholder
+           |  DiskInfo2: DiskInfo(maxSlots: 0, availableSlots: 0, committed shuffles 0, running applications 0, shuffleAllocations: Map(), mountPoint: disk2, usableSpace: 2048.0 MiB, totalSpace: 2048.0 MiB, avgFlushTime: 2 ns, avgFetchTime: 2 ns, activeSlots: 20, storageType: SSD) status: HEALTHY dirs $placeholder
            |UserResourceConsumption: $placeholder
            |  UserIdentifier: `tenant1`.`name1`, ResourceConsumption: ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1, subResourceConsumptions: (application_1697697127390_2171854 -> ResourceConsumption(diskBytesWritten: 20.0 MiB, diskFileCount: 1, hdfsBytesWritten: 50.0 MiB, hdfsFileCount: 1, subResourceConsumptions: empty)))
            |WorkerRef: null
            |NetworkLocation: /default-rack
+           |NextInterruptionNotice: None
            |""".stripMargin
 
       assertEquals(

@@ -346,6 +346,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {
     logger.debug("Push giant record, size {}.", Utils.bytesToString(numBytes));
+    long start = System.nanoTime();
     int bytesWritten =
         shuffleClient.pushData(
             shuffleId,
@@ -357,8 +358,10 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             numBytes,
             numMappers,
             numPartitions);
+    long delta = System.nanoTime() - start;
     mapStatusLengths[partitionId].add(bytesWritten);
     writeMetrics.incBytesWritten(bytesWritten);
+    writeMetrics.incWriteTime(delta);
   }
 
   private void cleanupPusher() throws IOException {
@@ -378,7 +381,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     writeMetrics.incRecordsWritten(tmpRecordsWritten);
 
     long waitStartTime = System.nanoTime();
-    shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers);
+    shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers, numPartitions);
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
   }
 

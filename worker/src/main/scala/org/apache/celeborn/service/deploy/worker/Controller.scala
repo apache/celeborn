@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray, AtomicRef
 import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import org.roaringbitmap.RoaringBitmap
@@ -31,14 +32,14 @@ import org.roaringbitmap.RoaringBitmap
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{WorkerInfo, WorkerPartitionLocationInfo}
+import org.apache.celeborn.common.meta.{ReduceFileMeta, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
-import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionDataWriter, PartitionDataWriter, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionMetaHandler, PartitionDataWriter, SegmentMapPartitionMetaHandler, StorageManager}
 
 private[deploy] class Controller(
     override val rpcEnv: RpcEnv,
@@ -51,17 +52,24 @@ private[deploy] class Controller(
   var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
   // shuffleKey -> (epoch -> CommitInfo)
   var shuffleCommitInfos: ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]] = _
+  // shuffleKey -> (epoch -> (commitWaitTimestamp, RpcContext))
+  var shuffleCommitTime
+      : ConcurrentHashMap[String, ConcurrentHashMap[Long, (Long, RpcCallContext)]] =
+    _
   var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
   var shufflePushDataTimeout: ConcurrentHashMap[String, Long] = _
   var workerInfo: WorkerInfo = _
   var partitionLocationInfo: WorkerPartitionLocationInfo = _
   var timer: HashedWheelTimer = _
   var commitThreadPool: ThreadPoolExecutor = _
-  var waitThreadPool: ThreadPoolExecutor = _
+  var commitFinishedChecker: ScheduledExecutorService = _
   var asyncReplyPool: ScheduledExecutorService = _
   val minPartitionSizeToEstimate = conf.minPartitionSizeToEstimate
   var shutdown: AtomicBoolean = _
   val defaultPushdataTimeout = conf.pushDataTimeoutMs
+  val mockCommitFilesFailure = conf.testMockCommitFilesFailure
+  val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
+  val workerCommitFilesCheckInterval = conf.workerCommitFilesCheckInterval
 
   def init(worker: Worker): Unit = {
     storageManager = worker.storageManager
@@ -69,13 +77,24 @@ private[deploy] class Controller(
     shufflePushDataTimeout = worker.shufflePushDataTimeout
     shuffleMapperAttempts = worker.shuffleMapperAttempts
     shuffleCommitInfos = worker.shuffleCommitInfos
+    shuffleCommitTime = worker.shuffleCommitTime
     workerInfo = worker.workerInfo
     partitionLocationInfo = worker.partitionLocationInfo
     timer = worker.timer
     commitThreadPool = worker.commitThreadPool
-    waitThreadPool = worker.waitThreadPool
     asyncReplyPool = worker.asyncReplyPool
     shutdown = worker.shutdown
+
+    commitFinishedChecker = worker.commitFinishedChecker
+    commitFinishedChecker.scheduleWithFixedDelay(
+      new Runnable {
+        override def run(): Unit = {
+          checkCommitTimeout(shuffleCommitTime)
+        }
+      },
+      0,
+      workerCommitFilesCheckInterval,
+      TimeUnit.MILLISECONDS)
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
@@ -167,7 +186,7 @@ private[deploy] class Controller(
       return
     }
 
-    if (storageManager.healthyWorkingDirs().size <= 0 && !conf.hasHDFSStorage && !conf.hasS3Storage) {
+    if (storageManager.healthyWorkingDirs().size <= 0 && !conf.hasHDFSStorage && !conf.hasS3Storage && !conf.hasOssStorage) {
       val msg = "Local storage has no available dirs!"
       logError(s"[handleReserveSlots] $msg")
       context.reply(ReserveSlotsResponse(StatusCode.NO_AVAILABLE_WORKING_DIR, msg))
@@ -288,9 +307,9 @@ private[deploy] class Controller(
       committedStorageInfos: ConcurrentHashMap[String, StorageInfo],
       committedMapIdBitMap: ConcurrentHashMap[String, RoaringBitmap],
       partitionSizeList: LinkedBlockingQueue[Long],
-      isPrimary: Boolean = true): CompletableFuture[Void] = {
-    var future: CompletableFuture[Void] = null
-
+      isPrimary: Boolean = true)
+      : (CompletableFuture[Void], ArrayBuffer[CompletableFuture[Void]]) = {
+    val tasks = ArrayBuffer[CompletableFuture[Void]]()
     if (uniqueIds != null) {
       uniqueIds.asScala.foreach { uniqueId =>
         val task = CompletableFuture.runAsync(
@@ -311,14 +330,21 @@ private[deploy] class Controller(
                 }
 
                 val fileWriter = location.asInstanceOf[WorkingPartition].getFileWriter
-                waitMapPartitionRegionFinished(fileWriter, conf.workerShuffleCommitTimeout)
+                waitMapPartitionRegionFinished(fileWriter, shuffleCommitTimeout)
                 val bytes = fileWriter.close()
                 if (bytes > 0L) {
                   if (fileWriter.getStorageInfo == null) {
                     // Only HDFS can be null, means that this partition location is deleted.
                     logDebug(s"Location $uniqueId is deleted.")
                   } else {
-                    committedStorageInfos.put(uniqueId, fileWriter.getStorageInfo)
+                    val storageInfo = fileWriter.getStorageInfo
+                    val fileInfo =
+                      if (null != fileWriter.getDiskFileInfo) {
+                        fileWriter.getDiskFileInfo
+                      } else {
+                        fileWriter.getMemoryFileInfo
+                      }
+                    committedStorageInfos.put(uniqueId, storageInfo)
                     if (fileWriter.getMapIdBitMap != null) {
                       committedMapIdBitMap.put(uniqueId, fileWriter.getMapIdBitMap)
                     }
@@ -330,6 +356,9 @@ private[deploy] class Controller(
                 } else {
                   emptyFileIds.add(uniqueId)
                 }
+                if (mockCommitFilesFailure) {
+                  Thread.sleep(10)
+                }
               } catch {
                 case e: IOException =>
                   logError(s"Commit file for $shuffleKey $uniqueId failed.", e)
@@ -338,29 +367,25 @@ private[deploy] class Controller(
             }
           },
           commitThreadPool)
-
-        if (future == null) {
-          future = task
-        } else {
-          future = CompletableFuture.allOf(future, task)
-        }
+        tasks.append(task)
       }
     }
-
-    future
+    val future: CompletableFuture[Void] =
+      if (tasks.isEmpty) null else CompletableFuture.allOf(tasks.toSeq: _*)
+    (future, tasks)
   }
 
   private def waitMapPartitionRegionFinished(
       fileWriter: PartitionDataWriter,
       waitTimeout: Long): Unit = {
-    fileWriter match {
-      case writer: MapPartitionDataWriter =>
-        if (writer.checkPartitionRegionFinished(
-            waitTimeout)) {
-          logDebug(s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+    fileWriter.getMetaHandler match {
+      case metaHandler: MapPartitionMetaHandler =>
+        if (metaHandler.checkPartitionRegionFinished(waitTimeout)) {
+          logDebug(
+            s"CommitFile succeed to waitMapPartitionRegionFinished ${fileWriter.getFilePath}")
         } else {
           logWarning(
-            s"CommitFile failed to waitMapPartitionRegionFinished ${fileWriter.getFile.getAbsolutePath}")
+            s"CommitFile failed to waitMapPartitionRegionFinished ${fileWriter.getFilePath}")
         }
       case _ =>
     }
@@ -401,7 +426,7 @@ private[deploy] class Controller(
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(
         CommitFilesResponse(
-          StatusCode.SHUFFLE_NOT_REGISTERED,
+          StatusCode.SHUFFLE_UNREGISTERED,
           List.empty.asJava,
           List.empty.asJava,
           primaryIds,
@@ -409,27 +434,20 @@ private[deploy] class Controller(
       return
     }
 
-    val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
-
-    shuffleCommitInfos.putIfAbsent(shuffleKey, JavaUtils.newConcurrentHashMap[Long, CommitInfo]())
+    shuffleCommitInfos.putIfAbsent(
+      shuffleKey,
+      JavaUtils.newConcurrentHashMap[Long, CommitInfo]())
     val epochCommitMap = shuffleCommitInfos.get(shuffleKey)
-    epochCommitMap.putIfAbsent(epoch, new CommitInfo(null, CommitInfo.COMMIT_NOTSTARTED))
-    val commitInfo = epochCommitMap.get(epoch)
 
-    def waitForCommitFinish(): Unit = {
-      val delta = 100
-      var times = 0
-      while (delta * times < shuffleCommitTimeout) {
-        commitInfo.synchronized {
-          if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
-            context.reply(commitInfo.response)
-            return
-          }
-        }
-        Thread.sleep(delta)
-        times += 1
-      }
-    }
+    // to store the primaryIds and replicaIds
+    val response = CommitFilesResponse(
+      null,
+      List.empty.asJava,
+      List.empty.asJava,
+      primaryIds,
+      replicaIds)
+    epochCommitMap.putIfAbsent(epoch, new CommitInfo(response, CommitInfo.COMMIT_NOTSTARTED))
+    val commitInfo = epochCommitMap.get(epoch)
 
     commitInfo.synchronized {
       if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
@@ -438,12 +456,14 @@ private[deploy] class Controller(
         return
       } else if (commitInfo.status == CommitInfo.COMMIT_INPROCESS) {
         logInfo(s"$shuffleKey CommitFiles inprogress, wait for finish")
-        // should not use commitThreadPool in case of block by commit files.
-        waitThreadPool.submit(new Runnable {
-          override def run(): Unit = {
-            waitForCommitFinish()
-          }
-        })
+        // Replace the ThreadPool to avoid blocking
+        // Read and write security of epoch in epochWaitTimeMap is guaranteed by commitInfo's lock
+        shuffleCommitTime.putIfAbsent(
+          shuffleKey,
+          JavaUtils.newConcurrentHashMap[Long, (Long, RpcCallContext)]())
+        val epochWaitTimeMap = shuffleCommitTime.get(shuffleKey)
+        val commitStartWaitTime = System.currentTimeMillis()
+        epochWaitTimeMap.put(epoch, (commitStartWaitTime, context))
         return
       } else {
         logInfo(s"Start commitFiles for $shuffleKey")
@@ -454,16 +474,7 @@ private[deploy] class Controller(
 
     // Update shuffleMapperAttempts
     shuffleMapperAttempts.putIfAbsent(shuffleKey, new AtomicIntegerArray(mapAttempts))
-    val attempts = shuffleMapperAttempts.get(shuffleKey)
-    if (mapAttempts.exists(_ != -1)) {
-      attempts.synchronized {
-        0 until attempts.length() foreach (idx => {
-          if (mapAttempts(idx) != -1 && attempts.get(idx) == -1) {
-            attempts.set(idx, mapAttempts(idx))
-          }
-        })
-      }
-    }
+    updateShuffleMapperAttempts(mapAttempts, shuffleMapperAttempts.get(shuffleKey))
 
     // Use ConcurrentSet to avoid excessive lock contention.
     val committedPrimaryIds = ConcurrentHashMap.newKeySet[String]()
@@ -477,7 +488,7 @@ private[deploy] class Controller(
     val committedMapIdBitMap = JavaUtils.newConcurrentHashMap[String, RoaringBitmap]()
     val partitionSizeList = new LinkedBlockingQueue[Long]()
 
-    val primaryFuture =
+    val (primaryFuture, primaryTasks) =
       commitFiles(
         shuffleKey,
         primaryIds,
@@ -487,7 +498,7 @@ private[deploy] class Controller(
         committedPrimaryStorageInfos,
         committedMapIdBitMap,
         partitionSizeList)
-    val replicaFuture = commitFiles(
+    val (replicaFuture, replicaTasks) = commitFiles(
       shuffleKey,
       replicaIds,
       committedReplicaIds,
@@ -508,6 +519,8 @@ private[deploy] class Controller(
       } else {
         null
       }
+
+    val tasks = primaryTasks ++ replicaTasks
 
     def reply(): Unit = {
       // release slots before reply.
@@ -592,7 +605,10 @@ private[deploy] class Controller(
         new TimerTask {
           override def run(timeout: Timeout): Unit = {
             if (result.get() != null) {
-              result.get().cancel(true)
+              future.cancel(true)
+              tasks.foreach { task =>
+                task.cancel(true)
+              }
               logWarning(s"After waiting $shuffleCommitTimeout ms, cancel all commit file jobs.")
             }
           }
@@ -604,19 +620,20 @@ private[deploy] class Controller(
         new BiFunction[Void, Throwable, Unit] {
           override def apply(v: Void, t: Throwable): Unit = {
             if (null != t) {
+              val errMsg = s"Exception while handling commitFiles for shuffleId: $shuffleKey"
               t match {
                 case _: CancellationException =>
-                  logWarning("While handling commitFiles, canceled.")
+                  logWarning(s"$errMsg, operation was cancelled.")
                 case ee: ExecutionException =>
-                  logError("While handling commitFiles, ExecutionException raised.", ee)
+                  logError(s"$errMsg, ExecutionException was raised.", ee)
                 case ie: InterruptedException =>
-                  logWarning("While handling commitFiles, interrupted.")
+                  logWarning(s"$errMsg, operation was interrupted.")
                   Thread.currentThread().interrupt()
                   throw ie
                 case _: TimeoutException =>
-                  logWarning(s"While handling commitFiles, timeout after $shuffleCommitTimeout ms.")
+                  logWarning(s"$errMsg, operation timed out after $shuffleCommitTimeout ms.")
                 case throwable: Throwable =>
-                  logError("While handling commitFiles, exception occurs.", throwable)
+                  logError(s"$errMsg, an unexpected exception occurred.", throwable)
               }
               commitInfo.synchronized {
                 commitInfo.response = CommitFilesResponse(
@@ -628,6 +645,8 @@ private[deploy] class Controller(
 
                 commitInfo.status = CommitInfo.COMMIT_FINISHED
               }
+
+              workerSource.incCounter(WorkerSource.COMMIT_FILES_FAIL_COUNT)
             } else {
               // finish, cancel timeout job first.
               timeout.cancel()
@@ -662,7 +681,7 @@ private[deploy] class Controller(
       logWarning(s"Shuffle $shuffleKey not registered!")
       context.reply(
         DestroyWorkerSlotsResponse(
-          StatusCode.SHUFFLE_NOT_REGISTERED,
+          StatusCode.SHUFFLE_UNREGISTERED,
           primaryLocations,
           replicaLocations))
       return
@@ -730,6 +749,82 @@ private[deploy] class Controller(
           StatusCode.PARTIAL_SUCCESS,
           failedPrimaries,
           failedReplicas))
+    }
+  }
+
+  def checkCommitTimeout(shuffleCommitTime: ConcurrentHashMap[
+    String,
+    ConcurrentHashMap[Long, (Long, RpcCallContext)]]): Unit = {
+
+    val currentTime = System.currentTimeMillis()
+    val commitTimeIterator = shuffleCommitTime.entrySet().iterator()
+    while (commitTimeIterator.hasNext) {
+      val timeMapEntry = commitTimeIterator.next()
+      val shuffleKey = timeMapEntry.getKey
+      val epochWaitTimeMap = timeMapEntry.getValue
+      val epochIterator = epochWaitTimeMap.entrySet().iterator()
+
+      while (epochIterator.hasNext && shuffleCommitInfos.containsKey(shuffleKey)) {
+        val epochWaitTimeEntry = epochIterator.next()
+        val epoch = epochWaitTimeEntry.getKey
+        val (commitStartWaitTime, context) = epochWaitTimeEntry.getValue
+        try {
+          val commitInfo = shuffleCommitInfos.get(shuffleKey).get(epoch)
+          commitInfo.synchronized {
+            if (commitInfo.status == CommitInfo.COMMIT_FINISHED) {
+              context.reply(commitInfo.response)
+              epochIterator.remove()
+            } else {
+              if (currentTime - commitStartWaitTime >= shuffleCommitTimeout) {
+                val replyResponse = CommitFilesResponse(
+                  StatusCode.COMMIT_FILE_EXCEPTION,
+                  List.empty.asJava,
+                  List.empty.asJava,
+                  commitInfo.response.failedPrimaryIds,
+                  commitInfo.response.failedReplicaIds)
+                commitInfo.status = CommitInfo.COMMIT_FINISHED
+                commitInfo.response = replyResponse
+                context.reply(replyResponse)
+                epochIterator.remove()
+
+                workerSource.incCounter(WorkerSource.COMMIT_FILES_FAIL_COUNT)
+              }
+            }
+          }
+        } catch {
+          case error: Exception =>
+            epochIterator.remove()
+            logWarning(
+              s"Exception occurs when checkCommitTimeout for shuffleKey-epoch:$shuffleKey-$epoch, error: $error")
+        }
+      }
+      if (!shuffleCommitInfos.containsKey(shuffleKey)) {
+        logWarning(s"Shuffle $shuffleKey commit expired when checkCommitTimeout.")
+        commitTimeIterator.remove()
+      }
+    }
+  }
+
+  private def updateShuffleMapperAttempts(
+      mapAttempts: Array[Int],
+      shuffleMapperAttempts: AtomicIntegerArray): Unit = {
+    var mapIdx = 0
+    val mapAttemptsLen = mapAttempts.length
+    while (mapIdx < mapAttemptsLen) {
+      if (mapAttempts(mapIdx) != -1) {
+        shuffleMapperAttempts.synchronized {
+          var idx = mapIdx
+          val len = shuffleMapperAttempts.length()
+          while (idx < len) {
+            if (mapAttempts(idx) != -1 && shuffleMapperAttempts.get(idx) == -1) {
+              shuffleMapperAttempts.set(idx, mapAttempts(idx))
+            }
+            idx += 1
+          }
+        }
+        return
+      }
+      mapIdx += 1
     }
   }
 }

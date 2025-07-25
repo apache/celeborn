@@ -17,16 +17,21 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import java.util.Collections;
+import java.util.Map;
+
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
-import org.apache.spark.scheduler.DAGScheduler;
+import org.apache.spark.memory.SparkOutOfMemoryError;
+
+import org.apache.celeborn.reflect.DynConstructors;
+import org.apache.celeborn.reflect.DynMethods;
 
 public class SparkCommonUtils {
   public static void validateAttemptConfig(SparkConf conf) throws IllegalArgumentException {
+    int DEFAULT_MAX_CONSECUTIVE_STAGE_ATTEMPTS = 4;
     int maxStageAttempts =
-        conf.getInt(
-            "spark.stage.maxConsecutiveAttempts",
-            DAGScheduler.DEFAULT_MAX_CONSECUTIVE_STAGE_ATTEMPTS());
+        conf.getInt("spark.stage.maxConsecutiveAttempts", DEFAULT_MAX_CONSECUTIVE_STAGE_ATTEMPTS);
     // In Spark 2, the parameter is referred to as MAX_TASK_FAILURES, while in Spark 3, it has been
     // changed to TASK_MAX_FAILURES. The default value for both is consistently set to 4.
     int maxTaskAttempts = conf.getInt("spark.task.maxFailures", 4);
@@ -47,7 +52,48 @@ public class SparkCommonUtils {
     }
   }
 
+  public static String encodeAppShuffleIdentifier(int appShuffleId, TaskContext context) {
+    return appShuffleId + "-" + context.stageId() + "-" + context.stageAttemptNumber();
+  }
+
+  public static String[] decodeAppShuffleIdentifier(String appShuffleIdentifier) {
+    return appShuffleIdentifier.split("-");
+  }
+
   public static int getEncodedAttemptNumber(TaskContext context) {
     return (context.stageAttemptNumber() << 16) | context.attemptNumber();
+  }
+
+  public static void throwSparkOutOfMemoryError() {
+    try { // for Spark 3.5 and earlier
+      throw DynConstructors.builder()
+          .impl(SparkOutOfMemoryError.class, String.class)
+          .<SparkOutOfMemoryError>build()
+          .newInstance("Not enough memory to grow pointer array");
+    } catch (RuntimeException e) {
+      // SPARK-44838 (4.0.0)
+      DynMethods.StaticMethod isValidErrorClassMethod =
+          DynMethods.builder("isValidErrorClass")
+              .impl("org.apache.spark.SparkThrowableHelper", String.class)
+              .buildStatic();
+      // SPARK-49946 (4.0.0) removes single String constructor and introduces
+      // _LEGACY_ERROR_TEMP_3301 error condition, SPARK-51386 (4.1.0) renames
+      // the error condition to POINTER_ARRAY_OUT_OF_MEMORY.
+      if (isValidErrorClassMethod.invoke("POINTER_ARRAY_OUT_OF_MEMORY")) { // for Spark 4.1 onwards
+        throw DynConstructors.builder()
+            .impl(SparkOutOfMemoryError.class, String.class, Map.class)
+            .<SparkOutOfMemoryError>build()
+            .newInstance("POINTER_ARRAY_OUT_OF_MEMORY", Collections.EMPTY_MAP);
+      } else if (isValidErrorClassMethod.invoke("_LEGACY_ERROR_TEMP_3301")) { // for Spark 4.0
+        throw DynConstructors.builder()
+            .impl(SparkOutOfMemoryError.class, String.class, Map.class)
+            .<SparkOutOfMemoryError>build()
+            .newInstance("_LEGACY_ERROR_TEMP_3301", Collections.EMPTY_MAP);
+      } else {
+        throw new OutOfMemoryError(
+            "Unable to construct a SparkOutOfMemoryError, please report this bug to the "
+                + "corresponding communities or vendors, and provide the full stack trace.");
+      }
+    }
   }
 }

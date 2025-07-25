@@ -67,166 +67,46 @@ app.kubernetes.io/name: {{ include "celeborn.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
-{{/*
-Create the name of the service account to use
-*/}}
-{{- define "celeborn.serviceAccountName" -}}
+{{/* Create the name of the service account to use. */}}
+{{- define "celeborn.serviceAccount.name" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "celeborn.fullname" .) .Values.serviceAccount.name }}
+{{- .Values.serviceAccount.name | default (include "celeborn.fullname" .) }}
 {{- else }}
-{{- default "default" .Values.serviceAccount.name }}
+{{- .Values.serviceAccount.name | default "default" }}
+{{- end }}
+{{- end }}
+
+{{/* Create the name of the role to use. */}}
+{{- define "celeborn.role.name" -}}
+{{- if .Values.rbac.create }}
+{{- .Values.rbac.roleName | default (include "celeborn.fullname" .) }}
+{{- else }}
+{{- .Values.rbac.roleName | default "default" }}
 {{- end }}
 {{- end }}
 
 {{/*
-Create the name of configmap to use
+Create the name of the roleBinding to use
 */}}
-{{- define "celeborn.configMapName" -}}
+{{- define "celeborn.roleBinding.name" -}}
+{{- if .Values.rbac.create }}
+{{- .Values.rbac.roleBindingName | default (include "celeborn.fullname" .) }}
+{{- else }}
+{{- .Values.rbac.roleBindingName | default "default" }}
+{{- end }}
+{{- end }}
+
+{{/* Create the name of configmap to use. */}}
+{{- define "celeborn.configMap.name" -}}
 {{ include "celeborn.fullname" . }}-conf
 {{- end -}}
-
-{{/*
-Create the name of the master service to use
-*/}}
-{{- define "celeborn.masterServiceName" -}}
-{{ include "celeborn.fullname" . }}-master-svc
-{{- end }}
-
-{{/*
-Create the name of the worker service to use
-*/}}
-{{- define "celeborn.workerServiceName" -}}
-{{ include "celeborn.fullname" . }}-worker-svc
-{{- end }}
-
-{{/*
-Create the name of the master priority class to use
-*/}}
-{{- define "celeborn.masterPriorityClassName" -}}
-{{- if .Values.priorityClass.master.name -}}
-{{ .Values.priorityClass.master.name }}
-{{- else -}}
-{{ include "celeborn.fullname" . }}-master-priority-class
-{{- end }}
-{{- end }}
-
-{{/*
-Create the name of the worker priority class to use
-*/}}
-{{- define "celeborn.workerPriorityClassName" -}}
-{{- if .Values.priorityClass.worker.name -}}
-{{ .Values.priorityClass.worker.name }}
-{{- else -}}
-{{ include "celeborn.fullname" . }}-worker-priority-class
-{{- end }}
-{{- end }}
 
 {{/*
 Create the name of the celeborn image to use
 */}}
 {{- define "celeborn.image" -}}
-{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
-{{- end }}
-
-{{/*
-Create the name of the master statefulset to use
-*/}}
-{{- define "celeborn.masterStatefulSetName" -}}
-{{ include "celeborn.fullname" . }}-master
-{{- end }}
-
-{{/*
-Create the name of the worker statefulset to use
-*/}}
-{{- define "celeborn.workerStatefulSetName" -}}
-{{ include "celeborn.fullname" . }}-worker
-{{- end }}
-
-{{/*
-Create the name of the master podmonitor to use
-*/}}
-{{- define "celeborn.masterPodMonitorName" -}}
-{{ include "celeborn.fullname" . }}-master-podmonitor
-{{- end }}
-
-{{/*
-Create the name of the worker podmonitor to use
-*/}}
-{{- define "celeborn.workerPodMonitorName" -}}
-{{ include "celeborn.fullname" . }}-worker-podmonitor
-{{- end }}
-
-{{/*
-Create master annotations if metrics enables
-*/}}
-{{- define "celeborn.masterMetricsAnnotation" -}}
-{{- $metricsEnabled := true -}}
-{{- $metricsPath := "/metrics/prometheus" -}}
-{{- $masterPort := 9098 -}}
-{{- range $key, $val := .Values.celeborn }}
-{{- if eq $key "celeborn.metrics.enabled" }}
-{{- $metricsEnabled = $val -}}
-{{- end }}
-{{- if eq $key "celeborn.metrics.prometheus.path" }}
-{{- $metricsPath = $val -}}
-{{- end }}
-{{- if eq $key "celeborn.master.http.port" }}
-{{- $masterPort = $val -}}
-{{- end }}
-{{- end }}
-{{- if eq (toString $metricsEnabled) "true" -}}
-prometheus.io/path: {{ $metricsPath }}
-prometheus.io/port: '{{ $masterPort }}'
-prometheus.io/scheme: 'http'
-prometheus.io/scrape: 'true'
-{{- end }}
-{{- end }}
-
-{{/*
-Create worker annotations if metrics enables
-*/}}
-{{- define "celeborn.workerMetricsAnnotation" -}}
-{{- $metricsEnabled := true -}}
-{{- $metricsPath := "/metrics/prometheus" -}}
-{{- $workerPort := 9096 -}}
-{{- range $key, $val := .Values.celeborn }}
-{{- if eq $key "celeborn.metrics.enabled" }}
-{{- $metricsEnabled = $val -}}
-{{- end }}
-{{- if eq $key "celeborn.metrics.prometheus.path" }}
-{{- $metricsPath = $val -}}
-{{- end }}
-{{- if eq $key "celeborn.worker.http.port" }}
-{{- $workerPort = $val -}}
-{{- end }}
-{{- end }}
-{{- if eq (toString $metricsEnabled) "true" -}}
-prometheus.io/path: {{ $metricsPath }}
-prometheus.io/port: '{{ $workerPort }}'
-prometheus.io/scheme: 'http'
-prometheus.io/scrape: 'true'
-{{- end }}
-{{- end }}
-
-{{/*
-Create worker Service http port params if metrics enables
-*/}}
-{{- define "celeborn.workerServicePort" -}}
-{{- $metricsEnabled := true -}}
-{{- $workerPort := 9096 -}}
-{{- range $key, $val := .Values.celeborn }}
-{{- if eq $key "celeborn.metrics.enabled" }}
-{{- $metricsEnabled = $val -}}
-{{- end }}
-{{- if eq $key "celeborn.worker.http.port" }}
-{{- $workerPort = $val -}}
-{{- end }}
-{{- end }}
-{{- if eq (toString $metricsEnabled) "true" -}}
-ports:
-  - port: {{ $workerPort }}
-    targetPort: {{ $workerPort }}
-    protocol: TCP
-    name: celeborn-worker-http
-{{- end }}
+{{- $imageRegistry := .Values.image.registry | default "docker.io" }}
+{{- $imageRepository := .Values.image.repository | default "apache/celeborn" }}
+{{- $imageTag := .Values.image.tag | default .Chart.AppVersion }}
+{{- printf "%s/%s:%s" $imageRegistry $imageRepository $imageTag }}
 {{- end }}

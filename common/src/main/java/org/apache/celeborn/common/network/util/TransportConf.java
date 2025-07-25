@@ -70,7 +70,7 @@ public class TransportConf {
   }
 
   /** Requested maximum length of the queue of incoming connections. Default 0 for no backlog. */
-  public int backLog() {
+  public int backlog() {
     return celebornConf.networkIoBacklog(module);
   }
 
@@ -82,6 +82,11 @@ public class TransportConf {
   /** Number of threads used in the client thread pool. Default to 0, which is 2x#cores. */
   public int clientThreads() {
     return celebornConf.networkIoClientThreads(module);
+  }
+
+  /** * Whether to use conflict avoid EventExecutorChooser while creating transport client */
+  public boolean conflictAvoidChooserEnable() {
+    return celebornConf.networkIoConflictAvoidChooserEnable(module);
   }
 
   /**
@@ -131,14 +136,6 @@ public class TransportConf {
     return celebornConf.networkIoLazyFileDescriptor(module);
   }
 
-  /**
-   * Whether to track Netty memory detailed metrics. If true, the detailed metrics of Netty
-   * PoolByteBufAllocator will be gotten, otherwise only general memory usage will be tracked.
-   */
-  public boolean verboseMetrics() {
-    return celebornConf.networkIoVerboseMetrics(module);
-  }
-
   public CelebornConf getCelebornConf() {
     return celebornConf;
   }
@@ -159,8 +156,8 @@ public class TransportConf {
     return celebornConf.fetchDataTimeoutCheckInterval(module);
   }
 
-  public long clientHeartbeatInterval() {
-    return celebornConf.clientHeartbeatInterval(module);
+  public long channelHeartbeatInterval() {
+    return celebornConf.channelHeartbeatInterval(module);
   }
 
   /** Timeout for a single round trip of sasl message exchange, in milliseconds. */
@@ -224,6 +221,11 @@ public class TransportConf {
   /** Internal config: the max size when chunking the stream with SSL */
   public int maxSslEncryptedBlockSize() {
     return celebornConf.maxSslEncryptedBlockSize(module);
+  }
+
+  /** The timeout in milliseconds for the SSL handshake */
+  public int sslHandshakeTimeoutMs() {
+    return celebornConf.sslHandshakeTimeoutMs(module);
   }
 
   // suppressing to ensure clarity of code.

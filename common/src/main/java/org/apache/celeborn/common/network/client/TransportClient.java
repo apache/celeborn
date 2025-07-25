@@ -33,8 +33,6 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
-import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.apache.commons.lang3.builder.ToStringStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -368,11 +366,13 @@ public class TransportClient implements Closeable {
 
   @Override
   public String toString() {
-    return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
-        .append("remoteAddress", channel.remoteAddress())
-        .append("clientId", clientId)
-        .append("isActive", isActive())
-        .toString();
+    return "TransportClient[remoteAddress="
+        + channel.remoteAddress()
+        + "clientId="
+        + clientId
+        + ",isActive="
+        + isActive()
+        + "]";
   }
 
   private static final AtomicLong counter = new AtomicLong();

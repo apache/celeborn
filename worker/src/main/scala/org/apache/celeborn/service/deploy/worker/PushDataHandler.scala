@@ -45,8 +45,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
-import org.apache.celeborn.service.deploy.worker.storage.{HdfsFlusher, LocalFlusher, MapPartitionDataWriter, PartitionDataWriter, S3Flusher, StorageManager}
-import org.apache.celeborn.service.deploy.worker.storage.segment.SegmentMapPartitionFileWriter
+import org.apache.celeborn.service.deploy.worker.storage.{LocalFlusher, PartitionDataWriter, StorageManager}
 
 class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler with Logging {
 
@@ -273,26 +272,27 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     val writePromise = Promise[Array[StatusCode]]()
     // for primary, send data to replica
     if (doReplicate) {
+      val peer = location.getPeer
+      val peerWorker = new WorkerInfo(
+        peer.getHost,
+        peer.getRpcPort,
+        peer.getPushPort,
+        peer.getFetchPort,
+        peer.getReplicatePort)
+      if (unavailablePeers.containsKey(peerWorker)) {
+        fileWriter.decrementPendingWrites()
+        handlePushDataConnectionFail(callbackWithTimer, location)
+        return
+      }
+
       pushData.body().retain()
       replicateThreadPool.submit(new Runnable {
         override def run(): Unit = {
-          val peer = location.getPeer
-          val peerWorker = new WorkerInfo(
-            peer.getHost,
-            peer.getRpcPort,
-            peer.getPushPort,
-            peer.getFetchPort,
-            peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushData.body().release()
-            workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
-            logError(
-              s"PushData replication failed caused by unavailable peer for partitionLocation: $location")
-            callbackWithTimer.onFailure(
-              new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
+            handlePushDataConnectionFail(callbackWithTimer, location)
             return
           }
-
           // Handle the response from replica
           val wrappedCallback = new RpcResponseCallback() {
             override def onSuccess(response: ByteBuffer): Unit = {
@@ -424,6 +424,26 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     }
   }
 
+  def handlePushDataConnectionFail(
+      callbackWithTimer: RpcResponseCallback,
+      location: PartitionLocation): Unit = {
+    workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
+    logError(
+      s"PushData replication failed caused by unavailable peer for partitionLocation: $location")
+    callbackWithTimer.onFailure(
+      new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
+  }
+
+  def handlePushMergedDataConnectionFail(
+      pushMergedDataCallback: PushMergedDataCallback,
+      location: PartitionLocation): Unit = {
+    workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
+    logError(
+      s"PushMergedData replication failed caused by unavailable peer for partitionLocation: $location")
+    pushMergedDataCallback.onFailure(
+      new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
+  }
+
   def handlePushMergedData(
       pushMergedData: PushMergedData,
       callback: RpcResponseCallback): Unit = {
@@ -449,7 +469,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           key,
           callback)
       }
-    val pushMergedDataCallback = new PushMergedDataCallback(callbackWithTimer)
+    val pushMergedDataCallback = new PushMergedDataCallback(callbackWithTimer, shuffleKey)
 
     // For test
     if (isPrimary && testPushPrimaryDataTimeout &&
@@ -470,8 +490,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       }
 
     // Fetch real batchId from body will add more cost and no meaning for replicate.
-    val doReplicate =
-      partitionIdToLocations.head._2 != null && partitionIdToLocations.head._2.hasPeer && isPrimary
+    val doReplicate = isPrimary && partitionIdToLocations.exists(p => p._2 != null && p._2.hasPeer)
 
     // find FileWriters responsible for the data
     var index = 0
@@ -582,62 +601,35 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     val writePromise = Promise[Array[StatusCode]]()
     // for primary, send data to replica
     if (doReplicate) {
+      val location = partitionIdToLocations.find(p => p._2 != null && p._2.hasPeer).get._2
+      val peer = location.getPeer
+      val peerWorker = new WorkerInfo(
+        peer.getHost,
+        peer.getRpcPort,
+        peer.getPushPort,
+        peer.getFetchPort,
+        peer.getReplicatePort)
+      if (unavailablePeers.containsKey(peerWorker)) {
+        for (fileWriterIndex <- 0 until totalFileWriters) {
+          val fileWriter = fileWriters(fileWriterIndex)
+          if (fileWriter != null && !pushMergedDataCallback.isHardSplitPartition(fileWriterIndex)) {
+            fileWriter.decrementPendingWrites()
+          }
+        }
+        handlePushMergedDataConnectionFail(pushMergedDataCallback, location)
+        return
+      }
       pushMergedData.body().retain()
       replicateThreadPool.submit(new Runnable {
         override def run(): Unit = {
-          val location = partitionIdToLocations.head._2
-          val peer = location.getPeer
-          val peerWorker = new WorkerInfo(
-            peer.getHost,
-            peer.getRpcPort,
-            peer.getPushPort,
-            peer.getFetchPort,
-            peer.getReplicatePort)
           if (unavailablePeers.containsKey(peerWorker)) {
             pushMergedData.body().release()
-            workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
-            logError(
-              s"PushMergedData replication failed caused by unavailable peer for partitionLocation: $location")
-            pushMergedDataCallback.onFailure(
-              new CelebornIOException(StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA))
+            handlePushMergedDataConnectionFail(pushMergedDataCallback, location)
             return
           }
-
           // Handle the response from replica
           val wrappedCallback = new RpcResponseCallback() {
             override def onSuccess(response: ByteBuffer): Unit = {
-              val replicaReason = response.get()
-              if (replicaReason == StatusCode.HARD_SPLIT.getValue) {
-                if (response.remaining() > 0) {
-                  try {
-                    val pushMergedDataResponse: PbPushMergedDataSplitPartitionInfo =
-                      TransportMessage.fromByteBuffer(
-                        response).getParsedPayload[PbPushMergedDataSplitPartitionInfo]()
-                    pushMergedDataCallback.unionReplicaSplitPartitions(
-                      pushMergedDataResponse.getSplitPartitionIndexesList,
-                      pushMergedDataResponse.getStatusCodesList)
-                  } catch {
-                    case e: CelebornIOException =>
-                      pushMergedDataCallback.onFailure(e)
-                      return
-                    case e: IllegalArgumentException =>
-                      pushMergedDataCallback.onFailure(new CelebornIOException(e))
-                      return
-                  }
-                } else {
-                  // During the rolling upgrade of the worker cluster, it is possible for the primary worker
-                  // to be upgraded to a new version that includes the changes from [CELEBORN-1721], while
-                  // the replica worker is still running on an older version that does not have these changes.
-                  // In this scenario, the replica may return a response with a status of HARD_SPLIT, but
-                  // will not provide a PbPushMergedDataSplitPartitionInfo.
-                  logWarning(
-                    s"The response status from the replica (shuffle $shuffleKey map $mapId attempt $attemptId) is HARD_SPLIT, but no PbPushMergedDataSplitPartitionInfo is present.")
-                  partitionIdToLocations.indices.foreach(index =>
-                    pushMergedDataCallback.addSplitPartition(index, StatusCode.HARD_SPLIT))
-                  pushMergedDataCallback.onSuccess(StatusCode.HARD_SPLIT)
-                  return
-                }
-              }
               Try(Await.result(writePromise.future, Duration.Inf)) match {
                 case Success(result) =>
                   var index = 0
@@ -647,11 +639,59 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                     }
                     index += 1
                   }
+                  // During the rolling upgrade of the worker cluster, it is possible for
+                  // the primary worker to be upgraded to a new version that includes
+                  // the changes from [CELEBORN-1721], while the replica worker is still running
+                  // on an older version that does not have these changes.
+                  // In this scenario, the replica may return a response without any context
+                  // when status of SUCCESS.
+                  val replicaReason =
+                    if (response.remaining() > 0) {
+                      response.get()
+                    } else {
+                      StatusCode.SUCCESS
+                    }
+                  if (replicaReason == StatusCode.HARD_SPLIT.getValue || replicaReason == StatusCode.SOFT_SPLIT.getValue) {
+                    if (response.remaining() > 0) {
+                      try {
+                        val pushMergedDataResponse: PbPushMergedDataSplitPartitionInfo =
+                          TransportMessage.fromByteBuffer(
+                            response).getParsedPayload[PbPushMergedDataSplitPartitionInfo]()
+                        pushMergedDataCallback.unionReplicaSplitPartitions(
+                          pushMergedDataResponse.getSplitPartitionIndexesList,
+                          pushMergedDataResponse.getStatusCodesList)
+                      } catch {
+                        case e: CelebornIOException =>
+                          pushMergedDataCallback.onFailure(e)
+                          return
+                        case e: IllegalArgumentException =>
+                          pushMergedDataCallback.onFailure(new CelebornIOException(e))
+                          return
+                      }
+                    } else {
+                      // During the rolling upgrade of the worker cluster, it is possible for the primary worker
+                      // to be upgraded to a new version that includes the changes from [CELEBORN-1721], while
+                      // the replica worker is still running on an older version that does not have these changes.
+                      // In this scenario, the replica may return a response with a status of HARD_SPLIT, but
+                      // will not provide a PbPushMergedDataSplitPartitionInfo.
+                      logWarning(
+                        s"The response status from the replica (shuffle $shuffleKey map $mapId attempt $attemptId) is HARD_SPLIT, but no PbPushMergedDataSplitPartitionInfo is present.")
+                      partitionIdToLocations.indices.foreach(index =>
+                        pushMergedDataCallback.addSplitPartition(index, StatusCode.HARD_SPLIT))
+                    }
+                    pushMergedDataCallback.onSuccess(StatusCode.HARD_SPLIT)
+                    return
+                  }
+
                   // Only primary data enable replication will push data to replica
                   Option(CongestionController.instance()) match {
-                    case Some(congestionController) if fileWriters.nonEmpty =>
-                      if (congestionController.isUserCongested(
-                          fileWriters.head.getUserCongestionControlContext)) {
+                    case Some(congestionController) =>
+                      val userCongested =
+                        fileWriters
+                          .find(_ != null)
+                          .map(_.getUserCongestionControlContext)
+                          .exists(congestionController.isUserCongested)
+                      if (userCongested) {
                         // Check whether primary congest the data though the replicas doesn't congest
                         // it(the response is empty)
                         pushMergedDataCallback.onSuccess(
@@ -664,7 +704,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                           pushMergedDataCallback.onSuccess(StatusCode.SUCCESS)
                         }
                       }
-                    case None =>
+                    case _ =>
                       if (replicaReason == StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED.getValue) {
                         pushMergedDataCallback.onSuccess(
                           StatusCode.PUSH_DATA_SUCCESS_REPLICA_CONGESTED)
@@ -754,9 +794,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             index += 1
           }
           Option(CongestionController.instance()) match {
-            case Some(congestionController) if fileWriters.nonEmpty =>
-              if (congestionController.isUserCongested(
-                  fileWriters.head.getUserCongestionControlContext)) {
+            case Some(congestionController) =>
+              val userCongested =
+                fileWriters
+                  .find(_ != null)
+                  .map(_.getUserCongestionControlContext)
+                  .exists(congestionController.isUserCongested)
+              if (userCongested) {
                 if (isPrimary) {
                   pushMergedDataCallback.onSuccess(StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED)
                 } else {
@@ -765,7 +809,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               } else {
                 pushMergedDataCallback.onSuccess(StatusCode.SUCCESS)
               }
-            case None =>
+            case _ =>
               pushMergedDataCallback.onSuccess(StatusCode.SUCCESS)
           }
         case Failure(e) => pushMergedDataCallback.onFailure(e)
@@ -845,7 +889,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     }
   }
 
-  class PushMergedDataCallback(callback: RpcResponseCallback) {
+  class PushMergedDataCallback(callback: RpcResponseCallback, val shuffleKey: String) {
     private val splitPartitionStatuses = new mutable.HashMap[Int, Byte]()
 
     def addSplitPartition(index: Int, statusCode: StatusCode): Unit = {
@@ -886,10 +930,16 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     def onSuccess(status: StatusCode): Unit = {
       val splitPartitionIndexes = new util.ArrayList[Integer]()
       val statusCodes = new util.ArrayList[Integer]()
+      var hasHardSplit = false
+
       splitPartitionStatuses.foreach {
         case (partitionIndex, statusCode) =>
           splitPartitionIndexes.add(partitionIndex)
           statusCodes.add(statusCode)
+          // check if there is any hard split partition
+          if (statusCode == StatusCode.HARD_SPLIT.getValue) {
+            hasHardSplit = true
+          }
       }
       if (splitPartitionStatuses.isEmpty || status == StatusCode.MAP_ENDED) {
         callback.onSuccess(
@@ -903,7 +953,15 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           .asInstanceOf[TransportMessage]
           .toByteBuffer
         val response = ByteBuffer.allocate(1 + pushMergedDataInfoByteBuffer.remaining())
-        response.put(StatusCode.HARD_SPLIT.getValue)
+
+        if (!hasHardSplit) {
+          logDebug(s"PushMergedData has no hard split for shuffle $shuffleKey, " +
+            s"splitPartitionIndex $splitPartitionIndexes")
+          response.put(StatusCode.SOFT_SPLIT.getValue)
+        } else {
+          response.put(StatusCode.HARD_SPLIT.getValue)
+        }
+
         response.put(pushMergedDataInfoByteBuffer)
         response.flip()
         callback.onSuccess(response)
@@ -1217,41 +1275,30 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     try {
       messageType match {
         case Type.PUSH_DATA_HAND_SHAKE =>
-          val (numPartitions, bufferSize) =
+          val pbPushDataHandShake: PbPushDataHandShake =
             if (isLegacy)
-              (
-                msg.asInstanceOf[PushDataHandShake].numPartitions,
-                msg.asInstanceOf[PushDataHandShake].bufferSize)
+              PbPushDataHandShake.newBuilder()
+                .setNumPartitions(msg.asInstanceOf[PushDataHandShake].numPartitions)
+                .setBufferSize(msg.asInstanceOf[PushDataHandShake].bufferSize)
+                .build()
             else
-              (
-                pbMsg.asInstanceOf[PbPushDataHandShake].getNumPartitions,
-                pbMsg.asInstanceOf[PbPushDataHandShake].getBufferSize)
-          fileWriter.asInstanceOf[MapPartitionDataWriter].pushDataHandShake(
-            numPartitions,
-            bufferSize)
+              pbMsg.asInstanceOf[PbPushDataHandShake]
+          fileWriter.handleEvents(pbPushDataHandShake)
         case Type.REGION_START =>
-          val (currentRegionIndex, isBroadcast: Boolean) =
-            if (isLegacy)
-              (
-                msg.asInstanceOf[RegionStart].currentRegionIndex,
-                msg.asInstanceOf[RegionStart].isBroadcast)
-            else
-              (
-                pbMsg.asInstanceOf[PbRegionStart].getCurrentRegionIndex,
-                pbMsg.asInstanceOf[PbRegionStart].getIsBroadcast)
-          fileWriter.asInstanceOf[MapPartitionDataWriter].regionStart(
-            currentRegionIndex,
-            isBroadcast)
+          val pbRegionStart: PbRegionStart =
+            if (isLegacy) {
+              PbRegionStart.newBuilder()
+                .setCurrentRegionIndex(msg.asInstanceOf[RegionStart].currentRegionIndex)
+                .setIsBroadcast(msg.asInstanceOf[RegionStart].isBroadcast)
+                .build()
+            } else
+              pbMsg.asInstanceOf[PbRegionStart]
+          fileWriter.handleEvents(pbRegionStart)
         case Type.REGION_FINISH =>
-          fileWriter.asInstanceOf[MapPartitionDataWriter].regionFinish()
+          val pbRegionFinish: PbRegionFinish = PbRegionFinish.newBuilder().build()
+          fileWriter.handleEvents(pbRegionFinish)
         case Type.SEGMENT_START =>
-          val (subPartitionId, segmentId) =
-            (
-              pbMsg.asInstanceOf[PbSegmentStart].getSubPartitionId,
-              pbMsg.asInstanceOf[PbSegmentStart].getSegmentId)
-          fileWriter.asInstanceOf[SegmentMapPartitionFileWriter].segmentStart(
-            subPartitionId,
-            segmentId)
+          fileWriter.handleEvents(pbMsg)
         case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
       // for primary , send data to replica
@@ -1393,15 +1440,14 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   }
 
   private def checkDiskFull(fileWriter: PartitionDataWriter): Boolean = {
-    if (fileWriter.flusher == null || fileWriter.flusher.isInstanceOf[
-        HdfsFlusher] || fileWriter.flusher.isInstanceOf[S3Flusher]) {
-      return false
-    }
-    val mountPoint = fileWriter.flusher.asInstanceOf[LocalFlusher].mountPoint
-    val diskInfo = workerInfo.diskInfos.get(mountPoint)
-    val diskFull =
+    val flusher = fileWriter.getFlusher;
+    if (flusher.isInstanceOf[LocalFlusher]) {
+      val mountPoint = flusher.asInstanceOf[LocalFlusher].mountPoint
+      val diskInfo = workerInfo.diskInfos.get(mountPoint)
       diskInfo.status.equals(DiskStatus.HIGH_DISK_USAGE) || diskInfo.actualUsableSpace <= 0
-    diskFull
+    } else {
+      false
+    }
   }
 
   private def checkDiskFullAndSplit(

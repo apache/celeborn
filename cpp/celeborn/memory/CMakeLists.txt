@@ -14,6 +14,7 @@
 # limitations under the License.
 add_library(
         memory
+        STATIC
         ByteBuffer.cpp)
 
 

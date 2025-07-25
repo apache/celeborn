@@ -89,7 +89,7 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
     }
 
     val workerTagsPredicate = new Predicate[WorkerInfo] {
-      override def test(w: WorkerInfo): Boolean = workersForTags.get.contains(w.toUniqueId())
+      override def test(w: WorkerInfo): Boolean = workersForTags.get.contains(w.toUniqueId)
     }
     workers.stream().filter(workerTagsPredicate).collect(Collectors.toList())
   }
@@ -112,7 +112,7 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
   }
 
   def getTagsForWorker(worker: WorkerInfo): Set[String] = {
-    defaultTagStore.asScala.filter(_._2.contains(worker.toUniqueId())).keySet.toSet
+    defaultTagStore.asScala.filter(_._2.contains(worker.toUniqueId)).keySet.toSet
   }
 
   def removeTagFromCluster(tag: String): Unit = {

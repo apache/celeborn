@@ -18,9 +18,13 @@
 package org.apache.celeborn.tests.client
 
 import java.io.IOException
+import java.util
+
+import scala.collection.JavaConverters._
 
 import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl, WithShuffleClientSuite}
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature {
@@ -60,6 +64,20 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
     }
 
     lifecycleManager.stop()
+  }
+
+  test("is shuffle stage end") {
+    prepareService()
+    val shuffleId = 0
+    val counts = 10
+    val ids =
+      new util.ArrayList[Integer]((0 until counts).toList.map(x => Integer.valueOf(x)).asJava)
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+    assert(res.status == StatusCode.SUCCESS)
+    lifecycleManager.registeredShuffle.add(shuffleId)
+    assert(!shuffleClient.isShuffleStageEnd(shuffleId))
+    lifecycleManager.commitManager.setStageEnd(shuffleId)
+    assert(shuffleClient.isShuffleStageEnd(shuffleId))
   }
 
   override def afterAll(): Unit = {

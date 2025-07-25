@@ -18,6 +18,7 @@
 package org.apache.celeborn.client
 
 import java.util
+import java.util.Collections
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
 
@@ -30,9 +31,10 @@ import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.client.commit.{CommitFilesParam, CommitHandler, MapPartitionCommitHandler, ReducePartitionCommitHandler}
 import org.apache.celeborn.client.listener.{WorkersStatus, WorkerStatusListener}
-import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
+import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, StorageInfo}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
@@ -40,6 +42,7 @@ import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.common.util.ThreadUtils
+import org.apache.celeborn.common.write.LocationPushFailedBatches
 
 case class ShuffleCommittedInfo(
     // partition id -> unique partition ids
@@ -121,10 +124,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
                             val workerInfo =
                               lifecycleManager.shuffleAllocatedWorkers
                                 .get(shuffleId)
-                                .asScala
-                                .find(_._1.equals(worker))
-                                .get
-                                ._1
+                                .get(worker.toUniqueId)
+                                .workerInfo
                             val primaryIds =
                               requests
                                 .filter(_.getMode == PartitionLocation.Mode.PRIMARY)
@@ -177,7 +178,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
   def registerShuffle(
       shuffleId: Int,
       numMappers: Int,
-      isSegmentGranularityVisible: Boolean): Unit = {
+      isSegmentGranularityVisible: Boolean,
+      numPartitions: Int): Unit = {
     committedPartitionInfo.put(
       shuffleId,
       ShuffleCommittedInfo(
@@ -197,7 +199,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
     getCommitHandler(shuffleId).registerShuffle(
       shuffleId,
       numMappers,
-      isSegmentGranularityVisible);
+      isSegmentGranularityVisible,
+      numPartitions)
   }
 
   def isSegmentGranularityVisible(shuffleId: Int): Boolean = {
@@ -217,14 +220,22 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
       mapId: Int,
       attemptId: Int,
       numMappers: Int,
-      partitionId: Int = -1): (Boolean, Boolean) = {
+      partitionId: Int = -1,
+      pushFailedBatches: util.Map[String, LocationPushFailedBatches] = Collections.emptyMap(),
+      numPartitions: Int = -1,
+      crc32PerPartition: Array[Int] = new Array[Int](0),
+      bytesWrittenPerPartition: Array[Long] = new Array[Long](0)): (Boolean, Boolean) = {
     getCommitHandler(shuffleId).finishMapperAttempt(
       shuffleId,
       mapId,
       attemptId,
       numMappers,
       partitionId,
-      r => lifecycleManager.workerStatusTracker.recordWorkerFailure(r))
+      pushFailedBatches,
+      r => lifecycleManager.workerStatusTracker.recordWorkerFailure(r),
+      numPartitions,
+      crc32PerPartition,
+      bytesWrittenPerPartition)
   }
 
   def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {
@@ -272,8 +283,15 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
     getCommitHandler(shuffleId).waitStageEnd(shuffleId)
   }
 
-  def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
-    getCommitHandler(shuffleId).handleGetReducerFileGroup(context, shuffleId)
+  def handleGetReducerFileGroup(
+      context: RpcCallContext,
+      shuffleId: Int,
+      serdeVersion: SerdeVersion): Unit = {
+    getCommitHandler(shuffleId).handleGetReducerFileGroup(context, shuffleId, serdeVersion)
+  }
+
+  def handleGetStageEnd(context: RpcCallContext, shuffleId: Int): Unit = {
+    getCommitHandler(shuffleId).handleGetStageEnd(context, shuffleId)
   }
 
   // exposed for test
@@ -289,7 +307,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
               lifecycleManager.shuffleAllocatedWorkers,
               committedPartitionInfo,
               lifecycleManager.workerStatusTracker,
-              lifecycleManager.rpcSharedThreadPool)
+              lifecycleManager.rpcSharedThreadPool,
+              lifecycleManager)
           case PartitionType.MAP => new MapPartitionCommitHandler(
               appUniqueId,
               conf,
@@ -314,15 +333,16 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
     override def notifyChangedWorkersStatus(workersStatus: WorkersStatus): Unit = {
       if (workersStatus.shutdownWorkers != null) {
         lifecycleManager.shuffleAllocatedWorkers.asScala.foreach {
-          case (shuffleId, workerToPartitionLocationInfos) =>
+          case (shuffleId, workerIdToPartitionLocationInfos) =>
             if (!isStageEndOrInProcess(shuffleId)) {
               val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
               val needCommitPartitionLocations = new util.HashSet[PartitionLocation]()
 
               workersStatus.shutdownWorkers.asScala.foreach { worker =>
-                val partitionLocationInfos = workerToPartitionLocationInfos.get(worker)
+                val partitionLocationInfos =
+                  workerIdToPartitionLocationInfos.get(worker.toUniqueId)
                 if (partitionLocationInfos != null) {
-                  logWarning(s"Worker ${worker.toUniqueId()} shutdown, " +
+                  logWarning(s"Worker ${worker.toUniqueId} shutdown, " +
                     s"commit all it's partition locations for shuffle $shuffleId.")
                   needCommitPartitionLocations.addAll(partitionLocationInfos.getPrimaryPartitions())
                   needCommitPartitionLocations.addAll(partitionLocationInfos.getReplicaPartitions())
@@ -336,5 +356,19 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
         }
       }
     }
+  }
+
+  def finishPartition(
+      shuffleId: Int,
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      actualCommitMetadata: CommitMetadata): (Boolean, String) = {
+    getCommitHandler(shuffleId).finishPartition(
+      shuffleId,
+      partitionId,
+      startMapIndex,
+      endMapIndex,
+      actualCommitMetadata)
   }
 }

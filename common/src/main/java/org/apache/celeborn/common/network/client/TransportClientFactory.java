@@ -31,7 +31,6 @@ import java.util.function.Supplier;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.*;
@@ -87,13 +86,14 @@ public class TransportClientFactory implements Closeable {
 
   private final int connectTimeoutMs;
   private final int connectionTimeoutMs;
+  private final int sslHandshakeTimeoutMs;
 
   private final int receiveBuf;
 
   private final int sendBuf;
   private final Class<? extends Channel> socketChannelClass;
   private EventLoopGroup workerGroup;
-  protected ByteBufAllocator pooledAllocator;
+  protected ByteBufAllocator allocator;
   private final int maxClientConnectRetries;
   private final int maxClientConnectRetryWaitTimeMs;
 
@@ -106,6 +106,7 @@ public class TransportClientFactory implements Closeable {
     this.numConnectionsPerPeer = conf.numConnectionsPerPeer();
     this.connectTimeoutMs = conf.connectTimeoutMs();
     this.connectionTimeoutMs = conf.connectionTimeoutMs();
+    this.sslHandshakeTimeoutMs = conf.sslHandshakeTimeoutMs();
     this.receiveBuf = conf.receiveBuf();
     this.sendBuf = conf.sendBuf();
     this.rand = new Random();
@@ -114,10 +115,17 @@ public class TransportClientFactory implements Closeable {
     this.socketChannelClass = NettyUtils.getClientChannelClass(ioMode);
     logger.info("Module {} mode {} threads {}", conf.getModuleName(), ioMode, conf.clientThreads());
     this.workerGroup =
-        NettyUtils.createEventLoop(ioMode, conf.clientThreads(), conf.getModuleName() + "-client");
-    this.pooledAllocator =
-        NettyUtils.getPooledByteBufAllocator(
-            conf, context.getSource(), false, conf.clientThreads());
+        NettyUtils.createEventLoop(
+            ioMode,
+            conf.clientThreads(),
+            conf.conflictAvoidChooserEnable(),
+            conf.getModuleName() + "-client");
+    // Always disable thread-local cache when creating pooled ByteBuf allocator for TransportClients
+    // because the ByteBufs are allocated by the event loop thread, but released by the executor
+    // thread rather than the event loop thread. Those thread-local caches actually delay the
+    // recycling of buffers, leading to larger memory usage.
+    this.allocator =
+        NettyUtils.getByteBufAllocator(conf, context.getSource(), false, conf.clientThreads());
     this.maxClientConnectRetries = conf.maxIORetries();
     this.maxClientConnectRetryWaitTimeMs = conf.ioRetryWaitTimeMs();
   }
@@ -150,6 +158,10 @@ public class TransportClientFactory implements Closeable {
       try {
         return createClient(remoteHost, remotePort, partitionId, supplier.get());
       } catch (Exception e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+          throw e;
+        }
         numTries++;
         logger.warn(
             "Retry create client, times {}/{} with error: {}",
@@ -157,15 +169,11 @@ public class TransportClientFactory implements Closeable {
             maxClientConnectRetries,
             e.getMessage(),
             e);
-        if (e instanceof InterruptedException) {
-          Thread.currentThread().interrupt();
-        }
         if (numTries == maxClientConnectRetries) {
           throw e;
         }
 
-        Uninterruptibles.sleepUninterruptibly(
-            maxClientConnectRetryWaitTimeMs, TimeUnit.MILLISECONDS);
+        Thread.sleep(maxClientConnectRetryWaitTimeMs);
       }
     }
 
@@ -268,7 +276,7 @@ public class TransportClientFactory implements Closeable {
         .option(ChannelOption.TCP_NODELAY, true)
         .option(ChannelOption.SO_KEEPALIVE, true)
         .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeoutMs)
-        .option(ChannelOption.ALLOCATOR, pooledAllocator);
+        .option(ChannelOption.ALLOCATOR, allocator);
 
     if (receiveBuf > 0) {
       bootstrap.option(ChannelOption.SO_RCVBUF, receiveBuf);
@@ -279,7 +287,6 @@ public class TransportClientFactory implements Closeable {
     }
 
     final AtomicReference<TransportClient> clientRef = new AtomicReference<>();
-    final AtomicReference<Channel> channelRef = new AtomicReference<>();
 
     bootstrap.handler(
         new ChannelInitializer<SocketChannel>() {
@@ -287,7 +294,6 @@ public class TransportClientFactory implements Closeable {
           public void initChannel(SocketChannel ch) {
             TransportChannelHandler clientHandler = context.initializePipeline(ch, decoder, true);
             clientRef.set(clientHandler.getClient());
-            channelRef.set(ch);
           }
         });
 
@@ -303,13 +309,16 @@ public class TransportClientFactory implements Closeable {
         throw new IOException(String.format("Failed to connect to %s", address), cf.cause());
       }
     } else if (!cf.await(connectTimeoutMs)) {
+      closeChannel(cf);
       throw new CelebornIOException(
           String.format("Connecting to %s timed out (%s ms)", address, connectTimeoutMs));
     } else if (cf.cause() != null) {
+      closeChannel(cf);
       throw new CelebornIOException(String.format("Failed to connect to %s", address), cf.cause());
     }
     if (context.sslEncryptionEnabled()) {
       final SslHandler sslHandler = cf.channel().pipeline().get(SslHandler.class);
+      sslHandler.setHandshakeTimeoutMillis(sslHandshakeTimeoutMs);
       Future<Channel> future =
           sslHandler
               .handshakeFuture()
@@ -324,12 +333,12 @@ public class TransportClientFactory implements Closeable {
                             "failed to complete TLS handshake to {}",
                             address,
                             handshakeFuture.cause());
-                        cf.channel().close();
+                        closeChannel(cf);
                       }
                     }
                   });
       if (!future.await(connectionTimeoutMs)) {
-        cf.channel().close();
+        closeChannel(cf);
         throw new IOException(
             String.format("Failed to connect to %s within connection timeout", address));
       }
@@ -352,7 +361,8 @@ public class TransportClientFactory implements Closeable {
           Utils.nanoDurationToString(bootstrapTime),
           e);
       client.close();
-      throw Throwables.propagate(e);
+      Throwables.throwIfUnchecked(e);
+      throw new RuntimeException(e);
     }
     long postBootstrap = System.nanoTime();
     logger.debug(
@@ -387,5 +397,13 @@ public class TransportClientFactory implements Closeable {
 
   public TransportContext getContext() {
     return context;
+  }
+
+  private void closeChannel(ChannelFuture channelFuture) {
+    try {
+      channelFuture.channel().close();
+    } catch (Exception e) {
+      logger.warn("Failed to close channel", e);
+    }
   }
 }

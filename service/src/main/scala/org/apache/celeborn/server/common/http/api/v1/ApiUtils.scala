@@ -57,6 +57,8 @@ object ApiUtils {
       .workerRef(Option(workerInfo.endpoint).map(_.toString).orNull)
       .workerState(workerInfo.workerStatus.getState.toString)
       .workerStateStartTime(workerInfo.workerStatus.getStateStartTime)
+      .networkLocation(workerInfo.networkLocation)
+      .nextInterruptionNotice(workerInfo.nextInterruptionNotice)
   }
 
   private def workerResourceConsumptions(workerInfo: WorkerInfo)
@@ -84,7 +86,7 @@ object ApiUtils {
             .diskFileCount(resourceConsumption.diskFileCount)
             .hdfsBytesWritten(resourceConsumption.hdfsBytesWritten)
             .hdfsFileCount(resourceConsumption.hdfsFileCount)
-            .subResourceConsumption(subConsumptions)
+            .subResourceConsumptions(subConsumptions)
 
           workerResourceConsumptions.put(userIdentifier.toString, workerConsumption)
       }
@@ -119,6 +121,8 @@ object ApiUtils {
         isShutdown && (
           currentStatus.getState == State.InDecommission ||
             currentStatus.getState == State.InDecommissionThenIdle))
+      .networkLocation(workerInfo.networkLocation)
+      .nextInterruptionNotice(workerInfo.nextInterruptionNotice)
   }
 
   def toWorkerInfo(workerId: WorkerId): WorkerInfo = {

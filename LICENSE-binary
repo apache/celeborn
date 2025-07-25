@@ -216,6 +216,7 @@ com.fasterxml.jackson.module:jackson-module-scala
 com.google.code.findbugs:jsr305
 com.google.guava:failureaccess
 com.google.guava:guava
+com.lmax:disruptor
 com.thoughtworks.paranamer:paranamer
 commons-cli:commons-cli
 commons-io:commons-io
@@ -266,6 +267,9 @@ org.apache.commons:commons-lang3
 org.apache.hadoop:hadoop-aws
 org.apache.hadoop:hadoop-client-api
 org.apache.hadoop:hadoop-client-runtime
+org.apache.httpcomponents.client5:httpclient5
+org.apache.httpcomponents.core5:httpcore5
+org.apache.httpcomponents.core5:httpcore5-h2
 org.apache.ibatis:mybatis
 org.apache.logging.log4j:log4j-1.2-api
 org.apache.logging.log4j:log4j-api
@@ -358,3 +362,7 @@ EDL 1.0
 --------------------------------
 See licenses-binary/LICENSE-mimepull.txt for detail.
 org.jvnet.mimepull:mimepull
+
+CDDL License 1.1
+----------------
+javax.servlet-api

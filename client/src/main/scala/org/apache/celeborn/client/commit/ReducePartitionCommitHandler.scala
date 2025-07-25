@@ -20,24 +20,29 @@ package org.apache.celeborn.client.commit
 import java.nio.ByteBuffer
 import java.util
 import java.util.concurrent.{Callable, ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
+import java.util.function
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
+import com.google.common.base.Preconditions.checkState
 import com.google.common.cache.{Cache, CacheBuilder}
+import com.google.common.collect.Sets
 
-import org.apache.celeborn.client.{ClientUtils, ShuffleCommittedInfo, WorkerStatusTracker}
+import org.apache.celeborn.client.{ClientUtils, LifecycleManager, ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
-import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
+import org.apache.celeborn.common.meta.ShufflePartitionLocationInfo
+import org.apache.celeborn.common.network.protocol.SerdeVersion
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, PbGetStageEndResponse}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 import org.apache.celeborn.common.util.JavaUtils
+import org.apache.celeborn.common.write.LocationPushFailedBatches
 
 /**
  * This commit handler is for ReducePartition ShuffleType, which means that a Reduce Partition contains all data
@@ -52,7 +57,8 @@ class ReducePartitionCommitHandler(
     shuffleAllocatedWorkers: ShuffleAllocatedWorkers,
     committedPartitionInfo: CommittedPartitionInfo,
     workerStatusTracker: WorkerStatusTracker,
-    sharedRpcPool: ThreadPoolExecutor)
+    sharedRpcPool: ThreadPoolExecutor,
+    lifecycleManager: LifecycleManager)
   extends CommitHandler(
     appUniqueId,
     conf,
@@ -61,9 +67,11 @@ class ReducePartitionCommitHandler(
     sharedRpcPool)
   with Logging {
 
+  class MultiSerdeVersionRpcContext(val ctx: RpcCallContext, val serdeVersion: SerdeVersion) {}
+
   private val getReducerFileGroupRequest =
-    JavaUtils.newConcurrentHashMap[Int, util.Set[RpcCallContext]]()
-  private val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
+    JavaUtils.newConcurrentHashMap[Int, util.Set[MultiSerdeVersionRpcContext]]()
+  private[celeborn] val dataLostShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = JavaUtils.newConcurrentHashMap[Int, Array[Int]]()
@@ -75,12 +83,39 @@ class ReducePartitionCommitHandler(
   private val rpcCacheConcurrencyLevel = conf.clientRpcCacheConcurrencyLevel
   private val rpcCacheExpireTime = conf.clientRpcCacheExpireTime
 
+  private val shuffleIntegrityCheckEnabled = conf.clientShuffleIntegrityCheckEnabled
+  // partitionId-shuffleId -> number of mappers that have written to this reducer (partition + shuffle)
+  private val commitMetadataForReducer =
+    JavaUtils.newConcurrentHashMap[Integer, Array[CommitMetadata]]
+  private val skewPartitionCompletenessValidator =
+    JavaUtils.newConcurrentHashMap[Int, PartitionCompletenessValidator]()
+
+  private val getReducerFileGroupResponseBroadcastEnabled = conf.getReducerFileGroupBroadcastEnabled
+  private val getReducerFileGroupResponseBroadcastMiniSize =
+    conf.getReducerFileGroupBroadcastMiniSize
+
   // noinspection UnstableApiUsage
   private val getReducerFileGroupRpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()
     .concurrencyLevel(rpcCacheConcurrencyLevel)
     .expireAfterWrite(rpcCacheExpireTime, TimeUnit.MILLISECONDS)
     .maximumSize(rpcCacheSize)
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
+
+  private val newShuffleId2PushFailedBatchMapFunc
+      : function.Function[Int, util.HashMap[String, LocationPushFailedBatches]] =
+    new util.function.Function[Int, util.HashMap[String, LocationPushFailedBatches]]() {
+      override def apply(s: Int): util.HashMap[String, LocationPushFailedBatches] = {
+        new util.HashMap[String, LocationPushFailedBatches]()
+      }
+    }
+
+  private val uniqueId2PushFailedBatchMapFunc
+      : function.Function[String, LocationPushFailedBatches] =
+    new util.function.Function[String, LocationPushFailedBatches]() {
+      override def apply(s: String): LocationPushFailedBatches = {
+        new LocationPushFailedBatches()
+      }
+    }
 
   override def getPartitionType(): PartitionType = {
     PartitionType.REDUCE
@@ -126,6 +161,8 @@ class ReducePartitionCommitHandler(
     stageEndShuffleSet.remove(shuffleId)
     inProcessStageEndShuffleSet.remove(shuffleId)
     shuffleMapperAttempts.remove(shuffleId)
+    commitMetadataForReducer.remove(shuffleId)
+    skewPartitionCompletenessValidator.remove(shuffleId)
     super.removeExpiredShuffle(shuffleId)
   }
 
@@ -167,7 +204,7 @@ class ReducePartitionCommitHandler(
 
   private def handleFinalCommitFiles(
       shuffleId: Int,
-      allocatedWorkers: util.Map[WorkerInfo, ShufflePartitionLocationInfo])
+      allocatedWorkers: util.Map[String, ShufflePartitionLocationInfo])
       : (Boolean, ShuffleFailedWorkers) = {
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
 
@@ -240,16 +277,32 @@ class ReducePartitionCommitHandler(
       attemptId: Int,
       numMappers: Int,
       partitionId: Int,
-      recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean) = {
-    shuffleMapperAttempts.synchronized {
+      pushFailedBatches: util.Map[String, LocationPushFailedBatches],
+      recordWorkerFailure: ShuffleFailedWorkers => Unit,
+      numPartitions: Int,
+      crc32PerPartition: Array[Int],
+      bytesWrittenPerPartition: Array[Long]): (Boolean, Boolean) = {
+    val (mapperAttemptFinishedSuccess, allMapperFinished) = shuffleMapperAttempts.synchronized {
       if (getMapperAttempts(shuffleId) == null) {
         logDebug(s"[handleMapperEnd] $shuffleId not registered, create one.")
-        initMapperAttempts(shuffleId, numMappers)
+        initMapperAttempts(shuffleId, numMappers, numPartitions)
       }
 
       val attempts = shuffleMapperAttempts.get(shuffleId)
       if (attempts(mapId) < 0) {
         attempts(mapId) = attemptId
+
+        if (null != pushFailedBatches && !pushFailedBatches.isEmpty) {
+          val pushFailedBatchesMap = shufflePushFailedBatches.computeIfAbsent(
+            shuffleId,
+            newShuffleId2PushFailedBatchMapFunc)
+          for ((partitionUniqId, locationPushFailedBatches) <- pushFailedBatches.asScala) {
+            val partitionPushFailedBatches = pushFailedBatchesMap.computeIfAbsent(
+              partitionUniqId,
+              uniqueId2PushFailedBatchMapFunc)
+            partitionPushFailedBatches.merge(locationPushFailedBatches)
+          }
+        }
         // Mapper with this attemptId finished, also check all other mapper finished or not.
         (true, ClientUtils.areAllMapperAttemptsFinished(attempts))
       } else {
@@ -257,28 +310,106 @@ class ReducePartitionCommitHandler(
         (false, false)
       }
     }
+    if (shuffleIntegrityCheckEnabled && mapperAttemptFinishedSuccess) {
+      val commitMetadataArray = commitMetadataForReducer.get(shuffleId)
+      checkState(
+        commitMetadataArray != null,
+        "commitMetadataArray can only be null if shuffleId %s is not registered!",
+        shuffleId)
+      for (i <- 0 until numPartitions) {
+        if (bytesWrittenPerPartition(i) != 0) {
+          commitMetadataArray(i).addCommitData(
+            crc32PerPartition(i),
+            bytesWrittenPerPartition(i))
+        }
+      }
+    }
+    (mapperAttemptFinishedSuccess, allMapperFinished)
   }
 
   override def registerShuffle(
       shuffleId: Int,
       numMappers: Int,
-      isSegmentGranularityVisible: Boolean): Unit = {
-    super.registerShuffle(shuffleId, numMappers, isSegmentGranularityVisible)
-    getReducerFileGroupRequest.put(shuffleId, new util.HashSet[RpcCallContext]())
-    initMapperAttempts(shuffleId, numMappers)
+      isSegmentGranularityVisible: Boolean,
+      numPartitions: Int): Unit = {
+    super.registerShuffle(shuffleId, numMappers, isSegmentGranularityVisible, numPartitions)
+    getReducerFileGroupRequest.put(shuffleId, new util.HashSet[MultiSerdeVersionRpcContext]())
+    initMapperAttempts(shuffleId, numMappers, numPartitions)
   }
 
-  private def initMapperAttempts(shuffleId: Int, numMappers: Int): Unit = {
+  override def finishPartition(
+      shuffleId: Int,
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      actualCommitMetadata: CommitMetadata): (Boolean, String) = {
+    logDebug(s"finish Partition call: shuffleId: $shuffleId, " +
+      s"partitionId: $partitionId, " +
+      s"startMapIndex: $startMapIndex " +
+      s"endMapIndex: $endMapIndex, " +
+      s"actualCommitMetadata: $actualCommitMetadata")
+    val map = commitMetadataForReducer.get(shuffleId)
+    checkState(
+      map != null,
+      "CommitMetadata map cannot be null for a registered shuffleId: %d",
+      shuffleId)
+    val expectedCommitMetadata = map(partitionId)
+    if (endMapIndex == Integer.MAX_VALUE) {
+      // complete partition available
+      val bool = CommitMetadata.checkCommitMetadata(actualCommitMetadata, expectedCommitMetadata)
+      var message = ""
+      if (!bool) {
+        message =
+          s"CommitMetadata mismatch for shuffleId: $shuffleId partitionId: $partitionId expected: $expectedCommitMetadata actual: $actualCommitMetadata"
+      } else {
+        logInfo(
+          s"CommitMetadata matched for shuffleID : $shuffleId, partitionId: $partitionId expected: $expectedCommitMetadata actual: $actualCommitMetadata")
+      }
+      return (bool, message)
+    }
+
+    val splitSkewPartitionWithoutMapRange =
+      ClientUtils.readSkewPartitionWithoutMapRange(conf, startMapIndex, endMapIndex)
+
+    val validator = skewPartitionCompletenessValidator.computeIfAbsent(
+      shuffleId,
+      new java.util.function.Function[Int, PartitionCompletenessValidator] {
+        override def apply(key: Int): PartitionCompletenessValidator =
+          new PartitionCompletenessValidator()
+      })
+    validator.validateSubPartition(
+      partitionId,
+      startMapIndex,
+      endMapIndex,
+      actualCommitMetadata,
+      expectedCommitMetadata,
+      shuffleMapperAttempts.get(shuffleId).length,
+      splitSkewPartitionWithoutMapRange)
+  }
+
+  private def initMapperAttempts(shuffleId: Int, numMappers: Int, numPartitions: Int): Unit = {
     shuffleMapperAttempts.synchronized {
       if (!shuffleMapperAttempts.containsKey(shuffleId)) {
         val attempts = new Array[Int](numMappers)
         0 until numMappers foreach (idx => attempts(idx) = -1)
         shuffleMapperAttempts.put(shuffleId, attempts)
       }
+      if (shuffleIntegrityCheckEnabled) {
+        commitMetadataForReducer.put(shuffleId, Array.fill(numPartitions)(new CommitMetadata()))
+      }
     }
   }
 
-  private def replyGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+  private def replyGetReducerFileGroup(
+      context: MultiSerdeVersionRpcContext,
+      shuffleId: Int): Unit = {
+    replyGetReducerFileGroup(context.ctx, shuffleId, context.serdeVersion)
+  }
+
+  private def replyGetReducerFileGroup(
+      context: RpcCallContext,
+      shuffleId: Int,
+      serdeVersion: SerdeVersion): Unit = {
     if (isStageDataLost(shuffleId)) {
       context.reply(
         GetReducerFileGroupResponse(
@@ -289,10 +420,18 @@ class ReducePartitionCommitHandler(
     } else {
       // LocalNettyRpcCallContext is for the UTs
       if (context.isInstanceOf[LocalNettyRpcCallContext]) {
-        context.reply(GetReducerFileGroupResponse(
+        var response = GetReducerFileGroupResponse(
           StatusCode.SUCCESS,
           reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
-          getMapperAttempts(shuffleId)))
+          getMapperAttempts(shuffleId),
+          serdeVersion = serdeVersion)
+
+        // only check whether broadcast enabled for the UTs
+        if (getReducerFileGroupResponseBroadcastEnabled) {
+          response = broadcastGetReducerFileGroup(shuffleId, response)
+        }
+
+        context.reply(response)
       } else {
         val cachedMsg = getReducerFileGroupRpcCache.get(
           shuffleId,
@@ -301,8 +440,35 @@ class ReducePartitionCommitHandler(
               val returnedMsg = GetReducerFileGroupResponse(
                 StatusCode.SUCCESS,
                 reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
-                getMapperAttempts(shuffleId))
-              context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
+                getMapperAttempts(shuffleId),
+                pushFailedBatches =
+                  shufflePushFailedBatches.getOrDefault(
+                    shuffleId,
+                    new util.HashMap[String, LocationPushFailedBatches]()),
+                serdeVersion = serdeVersion)
+
+              val serializedMsg =
+                context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
+              logInfo(
+                s"Shuffle $shuffleId GetReducerFileGroupResponse size " + serializedMsg.capacity())
+
+              if (getReducerFileGroupResponseBroadcastEnabled &&
+                serializedMsg.capacity() >= getReducerFileGroupResponseBroadcastMiniSize) {
+                val broadcastMsg = broadcastGetReducerFileGroup(shuffleId, returnedMsg)
+                if (broadcastMsg != returnedMsg) {
+                  val serializedBroadcastMsg =
+                    context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(broadcastMsg)
+                  logInfo(s"Shuffle $shuffleId GetReducerFileGroupResponse size" +
+                    s" ${serializedMsg.capacity()} reached the broadcast threshold" +
+                    s" $getReducerFileGroupResponseBroadcastMiniSize," +
+                    s" the broadcast response size is ${serializedBroadcastMsg.capacity()}.")
+                  serializedBroadcastMsg
+                } else {
+                  serializedMsg
+                }
+              } else {
+                serializedMsg
+              }
             }
           })
         context.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(cachedMsg)
@@ -310,20 +476,42 @@ class ReducePartitionCommitHandler(
     }
   }
 
-  override def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+  private def broadcastGetReducerFileGroup(
+      shuffleId: Int,
+      response: GetReducerFileGroupResponse): GetReducerFileGroupResponse = {
+    lifecycleManager.broadcastGetReducerFileGroupResponse(shuffleId, response) match {
+      case Some(broadcastBytes) if broadcastBytes.nonEmpty =>
+        GetReducerFileGroupResponse(
+          response.status,
+          broadcast = broadcastBytes,
+          serdeVersion = response.serdeVersion)
+      case _ => response
+    }
+  }
+
+  override def handleGetReducerFileGroup(
+      context: RpcCallContext,
+      shuffleId: Int,
+      serdeVersion: SerdeVersion): Unit = {
     // Quick return for ended stage, avoid occupy sync lock.
     if (isStageEnd(shuffleId)) {
-      replyGetReducerFileGroup(context, shuffleId)
+      replyGetReducerFileGroup(context, shuffleId, serdeVersion)
     } else {
       getReducerFileGroupRequest.synchronized {
         // If setStageEnd() called after isStageEnd and before got lock, should reply here.
         if (isStageEnd(shuffleId)) {
-          replyGetReducerFileGroup(context, shuffleId)
+          replyGetReducerFileGroup(context, shuffleId, serdeVersion)
         } else {
-          getReducerFileGroupRequest.get(shuffleId).add(context)
+          getReducerFileGroupRequest.get(shuffleId).add(new MultiSerdeVersionRpcContext(
+            context,
+            serdeVersion))
         }
       }
     }
+  }
+
+  override def handleGetStageEnd(context: RpcCallContext, shuffleId: Int): Unit = {
+    context.reply(PbGetStageEndResponse.newBuilder().setStageEnd(isStageEnd(shuffleId)).build())
   }
 
   override def waitStageEnd(shuffleId: Int): (Boolean, Long) = {

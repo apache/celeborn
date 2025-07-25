@@ -77,8 +77,8 @@ class WorkerStatusTracker(
 
     def excludeWorker(partition: PartitionLocation, statusCode: StatusCode): Unit = {
       val tmpWorker = partition.getWorker
-      val worker =
-        lifecycleManager.workerSnapshots(shuffleId).keySet().asScala.find(_.equals(tmpWorker))
+      val worker = lifecycleManager.workerSnapshots(shuffleId).asScala.get(
+        tmpWorker.toUniqueId).map(_.workerInfo)
       if (worker.isDefined) {
         failedWorker.put(worker.get, (statusCode, System.currentTimeMillis()))
       }
@@ -158,6 +158,8 @@ class WorkerStatusTracker(
         case (workerInfo: WorkerInfo, (statusCode, registerTime)) =>
           statusCode match {
             case StatusCode.WORKER_UNKNOWN |
+                StatusCode.WORKER_UNRESPONSIVE |
+                StatusCode.COMMIT_FILE_EXCEPTION |
                 StatusCode.NO_AVAILABLE_WORKING_DIR |
                 StatusCode.RESERVE_SLOTS_FAILED |
                 StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY |

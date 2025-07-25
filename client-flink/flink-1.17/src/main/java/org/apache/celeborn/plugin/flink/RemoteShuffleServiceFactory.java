@@ -17,30 +17,18 @@
 
 package org.apache.celeborn.plugin.flink;
 
-import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
+import java.time.Duration;
+
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
-import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
-import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
-import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
 
 import org.apache.celeborn.plugin.flink.netty.NettyShuffleEnvironmentWrapper;
 
-public class RemoteShuffleServiceFactory extends AbstractRemoteShuffleServiceFactory
-    implements ShuffleServiceFactory<ShuffleDescriptor, ResultPartitionWriter, IndexedInputGate> {
-
-  private final NettyShuffleServiceFactory nettyShuffleServiceFactory =
-      new NettyShuffleServiceFactory();
-
-  @Override
-  public ShuffleMaster<ShuffleDescriptor> createShuffleMaster(
-      ShuffleMasterContext shuffleMasterContext) {
-    return new RemoteShuffleMaster(
-        shuffleMasterContext, new SimpleResultPartitionAdapter(), nettyShuffleServiceFactory);
-  }
+public class RemoteShuffleServiceFactory extends AbstractRemoteShuffleServiceFactory {
 
   @Override
   public ShuffleEnvironment<ResultPartitionWriter, IndexedInputGate> createShuffleEnvironment(
@@ -64,5 +52,12 @@ public class RemoteShuffleServiceFactory extends AbstractRemoteShuffleServiceFac
         inputGateFactory,
         parameters.celebornConf,
         new NettyShuffleEnvironmentWrapper(nettyShuffleServiceFactory, shuffleEnvironmentContext));
+  }
+
+  @Override
+  public Duration getRequestSegmentsTimeout(Configuration configuration) {
+    return Duration.ofMillis(
+        configuration.get(
+            NettyShuffleEnvironmentOptions.NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS));
   }
 }

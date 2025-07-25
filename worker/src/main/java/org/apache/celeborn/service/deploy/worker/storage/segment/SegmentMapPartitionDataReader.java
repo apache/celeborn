@@ -211,7 +211,7 @@ public class SegmentMapPartitionDataReader extends MapPartitionDataReader {
 
   @Override
   public String toString() {
-    final StringBuilder sb = new StringBuilder("SegmentMapDataPartitionReader{");
+    final StringBuilder sb = new StringBuilder("SegmentMapPartitionDataReader{");
     sb.append("startPartitionIndex=").append(startPartitionIndex);
     sb.append(", endPartitionIndex=").append(endPartitionIndex);
     sb.append(", streamId=").append(streamId);

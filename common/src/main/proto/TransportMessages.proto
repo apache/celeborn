@@ -112,6 +112,10 @@ enum MessageType {
   REVISE_LOST_SHUFFLES = 89;
   REVISE_LOST_SHUFFLES_RESPONSE = 90;
   PUSH_MERGED_DATA_SPLIT_PARTITION_INFO = 91;
+  GET_STAGE_END = 92;
+  GET_STAGE_END_RESPONSE = 93;
+  READ_REDUCER_PARTITION_END = 94;
+  READ_REDUCER_PARTITION_END_RESPONSE = 95;
 }
 
 enum StreamType {
@@ -134,6 +138,8 @@ message PbStorageInfo {
   bool finalResult = 3;
   string filePath = 4;
   int32 availableStorageTypes = 5;
+  int64 fileSize = 6;
+  repeated int64 chunkOffsets = 7;
 }
 
 message PbPartitionLocation {
@@ -181,6 +187,7 @@ message PbWorkerInfo {
   map<string, PbResourceConsumption> userResourceConsumption = 7;
   int32 internalPort = 8;
   string networkLocation = 9;
+  int64 nextInterruptionNotice = 10; // Unix timestamp when disruption is expected to be initiated
 }
 
 message PbFileGroup {
@@ -354,6 +361,18 @@ message PbMapperEnd {
   int32 attemptId = 3;
   int32 numMappers = 4;
   int32 partitionId = 5;
+  map<string, PbLocationPushFailedBatches> pushFailureBatches= 6;
+  int32 numPartitions = 7;
+  repeated int32 crc32PerPartition = 8;
+  repeated int64 bytesWrittenPerPartition = 9;
+}
+
+message PbLocationPushFailedBatches {
+  map<string, PbFailedBatches> failedBatches = 1;
+}
+
+message PbFailedBatches{
+  repeated int32 failedBatches = 1;
 }
 
 message PbMapperEndResponse {
@@ -375,6 +394,10 @@ message PbGetReducerFileGroupResponse {
 
   // only map partition mode has succeed partitionIds
   repeated int32 partitionIds = 4;
+
+  map<string, PbLocationPushFailedBatches> pushFailedBatches = 5;
+
+  bytes broadcast = 6;
 }
 
 message PbGetShuffleId {
@@ -386,11 +409,13 @@ message PbGetShuffleId {
 
 message PbGetShuffleIdResponse {
   int32 shuffleId = 1;
+  bool success = 2;
 }
 
 message PbReportShuffleFetchFailure {
   int32 appShuffleId = 1;
   int32 shuffleId = 2;
+  int64 taskId = 3;
 }
 
 message PbReportShuffleFetchFailureResponse {
@@ -445,6 +470,8 @@ message PbHeartbeatFromApplication {
   bool shouldResponse = 6;
   int64 shuffleCount = 7;
   map<string, int64> shuffleFallbackCounts = 8;
+  int64 applicationCount = 9;
+  map<string, int64> applicationFallbackCounts = 10;
 }
 
 message PbHeartbeatFromApplicationResponse {
@@ -681,6 +708,8 @@ message PbSnapshotMetaInfo {
   repeated PbWorkerInfo decommissionWorkers = 17;
   int64 shuffleTotalCount = 18;
   map<string, int64> shuffleFallbackCounts = 19;
+  int64 applicationTotalCount = 20;
+  map<string, int64> applicationFallbackCounts = 21;
 }
 
 message PbOpenStream {
@@ -849,6 +878,8 @@ message PbPackedPartitionLocations {
   repeated string filePaths = 10;
   repeated int32 availableStorageTypes = 11;
   repeated int32 modes = 12;
+  repeated int64 fileSizes = 13;
+  repeated PbChunkOffsets chunksOffsets = 14;
 }
 
 message PbPackedPartitionLocationsPair {
@@ -881,4 +912,30 @@ message PbReviseLostShufflesResponse{
 message PbPushMergedDataSplitPartitionInfo {
   repeated int32 splitPartitionIndexes = 1;
   repeated int32 statusCodes = 2;
+}
+
+message PbGetStageEnd {
+  int32 shuffleId = 1;
+}
+
+message PbGetStageEndResponse {
+  bool stageEnd = 1;
+}
+
+message PbChunkOffsets {
+  repeated int64 chunkOffset = 1;
+}
+
+message PbReadReducerPartitionEnd {
+  int32 shuffleId = 1;
+  int32 partitionId = 2;
+  int32 startMaxIndex = 3;
+  int32 endMapIndex = 4;
+  int32 crc32 = 5;
+  int64 bytesWritten = 6;
+}
+
+message PbReadReducerPartitionEndResponse {
+  int32 status = 1;
+  string errorMsg = 2;
 }

@@ -22,6 +22,7 @@ templates:
 
 release:
   name: celeborn
+  namespace: celeborn
 
 tests:
   - it: Should not create master priority as default
@@ -29,21 +30,22 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: Should create master priority class if `priorityClass.master.create` is true
+  - it: Should create master priority class if `master.priorityClass.create` is true
     set:
-      priorityClass:
-        master:
+      master:
+        priorityClass:
           create: true
     asserts:
       - containsDocument:
           apiVersion: scheduling.k8s.io/v1
           kind: PriorityClass
           name: celeborn-master-priority-class
+          namespace: celeborn
 
   - it: Should use the specified priority class value
     set:
-      priorityClass:
-        master:
+      master:
+        priorityClass:
           create: true
           value: 1000
     asserts:

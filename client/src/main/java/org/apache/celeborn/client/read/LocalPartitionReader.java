@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -34,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -57,7 +59,6 @@ public class LocalPartitionReader implements PartitionReader {
   private final int fetchMaxReqsInFlight;
   private final PartitionLocation location;
   private volatile boolean closed = false;
-  private final int numChunks;
   private int returnedChunks = 0;
   private int chunkIndex = 0;
   private String fullPath;
@@ -68,16 +69,21 @@ public class LocalPartitionReader implements PartitionReader {
   private PbStreamHandler streamHandler;
   private TransportClient client;
   private MetricsCallback metricsCallback;
+  private int startChunkIndex;
+  private int endChunkIndex;
 
   @SuppressWarnings("StaticAssignmentInConstructor")
   public LocalPartitionReader(
       CelebornConf conf,
       String shuffleKey,
       PartitionLocation location,
+      PbStreamHandler pbStreamHandler,
       TransportClientFactory clientFactory,
       int startMapIndex,
       int endMapIndex,
-      MetricsCallback metricsCallback)
+      MetricsCallback metricsCallback,
+      int startChunkIndex,
+      int endChunkIndex)
       throws IOException {
     if (readLocalShufflePool == null) {
       synchronized (LocalPartitionReader.class) {
@@ -95,19 +101,29 @@ public class LocalPartitionReader implements PartitionReader {
     long fetchTimeoutMs = conf.clientFetchTimeoutMs();
     try {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort(), 0);
-      TransportMessage openStreamMsg =
-          new TransportMessage(
-              MessageType.OPEN_STREAM,
-              PbOpenStream.newBuilder()
-                  .setShuffleKey(shuffleKey)
-                  .setFileName(location.getFileName())
-                  .setStartIndex(startMapIndex)
-                  .setEndIndex(endMapIndex)
-                  .setReadLocalShuffle(true)
-                  .build()
-                  .toByteArray());
-      ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
-      streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
+      if (pbStreamHandler == null) {
+        TransportMessage openStreamMsg =
+            new TransportMessage(
+                MessageType.OPEN_STREAM,
+                PbOpenStream.newBuilder()
+                    .setShuffleKey(shuffleKey)
+                    .setFileName(location.getFileName())
+                    .setStartIndex(startMapIndex)
+                    .setEndIndex(endMapIndex)
+                    .setReadLocalShuffle(true)
+                    .build()
+                    .toByteArray());
+        ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
+        streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
+      } else {
+        this.streamHandler = pbStreamHandler;
+      }
+      this.startChunkIndex = startChunkIndex == -1 ? 0 : startChunkIndex;
+      this.endChunkIndex =
+          endChunkIndex == -1
+              ? streamHandler.getNumChunks() - 1
+              : Math.min(streamHandler.getNumChunks() - 1, endChunkIndex);
+      this.chunkIndex = this.startChunkIndex;
     } catch (IOException | InterruptedException e) {
       throw new IOException(
           "Read shuffle file from local file failed, partition location: "
@@ -118,7 +134,6 @@ public class LocalPartitionReader implements PartitionReader {
     }
 
     chunkOffsets = new ArrayList<>(streamHandler.getChunkOffsetsList());
-    numChunks = streamHandler.getNumChunks();
     fullPath = streamHandler.getFullPath();
     mapRangeRead = endMapIndex != Integer.MAX_VALUE;
 
@@ -135,7 +150,7 @@ public class LocalPartitionReader implements PartitionReader {
       if (shuffleChannel == null) {
         shuffleChannel = FileChannelUtils.openReadableFileChannel(fullPath);
         if (mapRangeRead) {
-          shuffleChannel.position(chunkOffsets.get(0));
+          shuffleChannel.position(chunkOffsets.get(chunkIndex));
         }
       }
       for (int i = 0; i < toFetch; i++) {
@@ -174,9 +189,9 @@ public class LocalPartitionReader implements PartitionReader {
   }
 
   private void fetchChunks() {
-    int inFlight = chunkIndex - returnedChunks;
+    int inFlight = chunkIndex - startChunkIndex - returnedChunks;
     if (inFlight < fetchMaxReqsInFlight) {
-      int toFetch = Math.min(fetchMaxReqsInFlight - inFlight + 1, numChunks - chunkIndex);
+      int toFetch = Math.min(fetchMaxReqsInFlight - inFlight + 1, endChunkIndex - chunkIndex + 1);
       if (pendingFetchTask.compareAndSet(false, true)) {
         logger.debug(
             "Trigger local reader fetch chunk with {} and fetch {} chunks", chunkIndex, toFetch);
@@ -189,14 +204,17 @@ public class LocalPartitionReader implements PartitionReader {
 
   @Override
   public boolean hasNext() {
-    logger.debug("Check has next current index: {} chunks {}", returnedChunks, numChunks);
-    return returnedChunks < numChunks;
+    logger.debug(
+        "Check has next current index: {} chunks {}",
+        returnedChunks,
+        endChunkIndex - startChunkIndex + 1);
+    return returnedChunks < endChunkIndex - startChunkIndex + 1;
   }
 
   @Override
   public ByteBuf next() throws IOException, InterruptedException {
     checkException();
-    if (chunkIndex < numChunks) {
+    if (chunkIndex <= endChunkIndex) {
       fetchChunks();
     }
     ByteBuf chunk = null;
@@ -260,5 +278,11 @@ public class LocalPartitionReader implements PartitionReader {
   @Override
   public PartitionLocation getLocation() {
     return location;
+  }
+
+  @Override
+  public Optional<PartitionReaderCheckpointMetadata> getPartitionReaderCheckpointMetadata() {
+    // TODO implement similar to {@link WorkerPartitionReader}
+    return Optional.empty();
   }
 }

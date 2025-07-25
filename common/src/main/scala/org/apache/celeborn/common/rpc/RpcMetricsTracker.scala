@@ -53,19 +53,17 @@ private[celeborn] class RpcMetricsTracker(
     } else {
       false
     }
-  final private val QUEUE_LENGTH_METRIC = s"${name}_${RpcSource.QUEUE_LENGTH}"
-  final private val QUEUE_TIME_METRIC = s"${name}_${RpcSource.QUEUE_TIME}"
-  final private val PROCESS_TIME_METRIC = s"${name}_${RpcSource.PROCESS_TIME}"
+  final private val NAME_LABEL = Map("name" -> name)
 
   private var queueLengthFunc: () => Long = _
 
   def init(lengthFunc: () => Long): Unit = {
     queueLengthFunc = lengthFunc
     if (name != null) {
-      rpcSource.addGauge(QUEUE_LENGTH_METRIC)(queueLengthFunc)
+      rpcSource.addGauge(RpcSource.QUEUE_LENGTH, NAME_LABEL)(queueLengthFunc)
 
-      rpcSource.addTimer(QUEUE_TIME_METRIC)
-      rpcSource.addTimer(PROCESS_TIME_METRIC)
+      rpcSource.addTimer(RpcSource.QUEUE_TIME, NAME_LABEL)
+      rpcSource.addTimer(RpcSource.PROCESS_TIME, NAME_LABEL)
     }
   }
 
@@ -88,7 +86,7 @@ private[celeborn] class RpcMetricsTracker(
       if (slowRpcInterval < 0 || System.currentTimeMillis() - lastLogTime > slowRpcInterval &&
         lastSlowLogTime.compareAndSet(lastLogTime, System.currentTimeMillis())) {
         logWarning(
-          s"slow rpc detected: currentQueueSize = ${queueLengthFunc()}, queueTime=$queueTime processTime=$processTime message=$message")
+          s"slow rpc detected: currentQueueSize = ${queueLengthFunc()}, queueTime=$queueTime(ns) processTime=$processTime(ns) message=$message")
       }
 
       val lastTime = lastDumpTime.get
@@ -115,12 +113,12 @@ private[celeborn] class RpcMetricsTracker(
     val msgName = messageName(message)
 
     if (useHistogram) {
-      updateHistogram(QUEUE_TIME_METRIC, queueTime)
-      updateHistogram(PROCESS_TIME_METRIC, processTime)
+      updateHistogram(RpcSource.QUEUE_TIME, queueTime)
+      updateHistogram(RpcSource.PROCESS_TIME, processTime)
       updateHistogram(msgName, processTime)
     } else {
-      rpcSource.updateTimer(QUEUE_TIME_METRIC, queueTime)
-      rpcSource.updateTimer(PROCESS_TIME_METRIC, processTime)
+      rpcSource.updateTimer(RpcSource.QUEUE_TIME, queueTime, NAME_LABEL)
+      rpcSource.updateTimer(RpcSource.PROCESS_TIME, processTime, NAME_LABEL)
       rpcSource.updateTimer(msgName, processTime)
     }
   }
@@ -146,7 +144,7 @@ private[celeborn] class RpcMetricsTracker(
       return
 
     val builder = new StringBuilder();
-    builder.append(s"RPC statistics for $name").append("\n")
+    builder.append(s"RPC statistics for $name (time unit: ns)").append("\n")
     builder.append(s"current queue size = ${queueLengthFunc()}").append("\n")
     builder.append(s"max queue length = ${maxQueueLength.get()}").append("\n")
     histogramMap.entrySet.asScala.foreach(entry => {

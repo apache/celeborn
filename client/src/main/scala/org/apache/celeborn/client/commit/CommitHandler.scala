@@ -30,10 +30,11 @@ import scala.concurrent.duration.Duration
 
 import org.apache.celeborn.client.{ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
-import org.apache.celeborn.client.LifecycleManager.{ShuffleFailedWorkers, ShuffleFileGroups}
-import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.client.LifecycleManager.{ShuffleFailedWorkers, ShuffleFileGroups, ShufflePushFailedBatches}
+import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles, CommitFilesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -42,6 +43,7 @@ import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils.awaitResult
+import org.apache.celeborn.common.write.LocationPushFailedBatches
 
 case class CommitFilesParam(
     worker: WorkerInfo,
@@ -74,6 +76,7 @@ abstract class CommitHandler(
   private val totalWritten = new LongAdder
   private val fileCount = new LongAdder
   protected val reducerFileGroupsMap = new ShuffleFileGroups
+  protected val shufflePushFailedBatches = new ShufflePushFailedBatches
 
   val ec = ExecutionContext.fromExecutor(sharedRpcPool)
 
@@ -81,6 +84,8 @@ abstract class CommitHandler(
   val mockCommitFilesFailure = conf.testMockCommitFilesFailure
 
   def getPartitionType(): PartitionType
+
+  def getShuffleFailedBatches(): ShufflePushFailedBatches = this.shufflePushFailedBatches
 
   def isStageEnd(shuffleId: Int): Boolean = false
 
@@ -174,10 +179,23 @@ abstract class CommitHandler(
    * partitions are complete by the time the method is called, as downstream tasks may start early before all tasks
    * are completed.So map partition may need refresh reducer file group if needed.
    */
-  def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit
+  def handleGetReducerFileGroup(
+      context: RpcCallContext,
+      shuffleId: Int,
+      serdeVersion: SerdeVersion): Unit
+
+  /**
+   * Only Reduce partition mode supports get stage end.
+   */
+  def handleGetStageEnd(context: RpcCallContext, shuffleId: Int): Unit = {
+    throw new UnsupportedOperationException(
+      "Failed when do handleGetStageEnd Operation, MapPartition shuffleType don't " +
+        "support stage end")
+  }
 
   def removeExpiredShuffle(shuffleId: Int): Unit = {
     reducerFileGroupsMap.remove(shuffleId)
+    shufflePushFailedBatches.remove(shuffleId)
   }
 
   /**
@@ -197,12 +215,17 @@ abstract class CommitHandler(
       attemptId: Int,
       numMappers: Int,
       partitionId: Int,
-      recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean)
+      pushFailedBatches: util.Map[String, LocationPushFailedBatches],
+      recordWorkerFailure: ShuffleFailedWorkers => Unit,
+      numPartitions: Int,
+      crc32PerPartition: Array[Int],
+      bytesWrittenPerPartition: Array[Long]): (Boolean, Boolean)
 
   def registerShuffle(
       shuffleId: Int,
       numMappers: Int,
-      isSegmentGranularityVisible: Boolean): Unit = {
+      isSegmentGranularityVisible: Boolean,
+      numPartitions: Int): Unit = {
     // TODO: if isSegmentGranularityVisible is set to true, it is necessary to handle the pending
     //  get partition request of downstream reduce task here, in scenarios which support
     //  downstream task start early before the upstream task, e.g. flink hybrid shuffle.
@@ -302,7 +325,7 @@ abstract class CommitHandler(
     val futureSeq = Future.sequence(outFutures)(cbf, ec)
     awaitResult(futureSeq, Duration.Inf)
 
-    val timeout = conf.rpcAskTimeout.duration.toMillis
+    val timeout = clientRpcCommitFilesAskTimeout.duration.toMillis
     var remainingTime = timeout * maxRetries
     val delta = 50
     while (remainingTime >= 0 && !futures.isEmpty) {
@@ -311,17 +334,18 @@ abstract class CommitHandler(
       while (iter.hasNext) {
         val status = iter.next()
         val worker = status.workerInfo
+        val shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId)
         if (status.future.isCompleted) {
           status.future.value.get match {
             case scala.util.Success(res) =>
               res.status match {
-                case StatusCode.SUCCESS | StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_NOT_REGISTERED | StatusCode.REQUEST_FAILED | StatusCode.WORKER_EXCLUDED | StatusCode.COMMIT_FILE_EXCEPTION =>
+                case StatusCode.SUCCESS | StatusCode.PARTIAL_SUCCESS | StatusCode.SHUFFLE_UNREGISTERED | StatusCode.REQUEST_FAILED | StatusCode.WORKER_EXCLUDED | StatusCode.COMMIT_FILE_EXCEPTION =>
                   if (res.status == StatusCode.SUCCESS) {
                     logDebug(s"Request commitFiles return ${res.status} for " +
-                      s"${Utils.makeShuffleKey(appUniqueId, shuffleId)} from worker ${worker.readableAddress()}")
+                      s"$shuffleKey from worker ${worker.readableAddress()}")
                   } else {
                     logWarning(s"Request commitFiles return ${res.status} for " +
-                      s"${Utils.makeShuffleKey(appUniqueId, shuffleId)} from worker ${worker.readableAddress()}")
+                      s"$shuffleKey from worker ${worker.readableAddress()}")
                     if (res.status != StatusCode.WORKER_EXCLUDED) {
                       commitFilesFailedWorkers.put(worker, (res.status, System.currentTimeMillis()))
                     }
@@ -331,12 +355,15 @@ abstract class CommitHandler(
                 case StatusCode.COMMIT_FILES_MOCK_FAILURE =>
                   if (status.retriedTimes < maxRetries) {
                     logError(s"Request commitFiles return ${res.status} for " +
-                      s"${Utils.makeShuffleKey(appUniqueId, shuffleId)} for ${status.retriedTimes}/$maxRetries, will retry")
+                      s"$shuffleKey for ${status.retriedTimes}/$maxRetries, will retry")
                     retryCommitFiles(status, currentTime)
                   } else {
                     logError(
                       s"Request commitFiles return ${StatusCode.COMMIT_FILES_MOCK_FAILURE} for " +
-                        s"${Utils.makeShuffleKey(appUniqueId, shuffleId)} for ${status.retriedTimes}/$maxRetries, will not retry")
+                        s"$shuffleKey for ${status.retriedTimes}/$maxRetries, will not retry")
+                    commitFilesFailedWorkers.put(
+                      worker,
+                      (StatusCode.COMMIT_FILES_MOCK_FAILURE, System.currentTimeMillis()))
                     val res = createFailResponse(status)
                     processResponse(res, worker)
                     iter.remove()
@@ -348,15 +375,18 @@ abstract class CommitHandler(
             case scala.util.Failure(e) =>
               if (status.retriedTimes < maxRetries) {
                 logError(
-                  s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleId failed" +
+                  s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleKey failed" +
                     s" (attempt ${status.retriedTimes}/$maxRetries), will retry.",
                   e)
                 retryCommitFiles(status, currentTime)
               } else {
                 logError(
-                  s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleId failed" +
+                  s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleKey failed" +
                     s" (attempt ${status.retriedTimes}/$maxRetries), will not retry.",
                   e)
+                commitFilesFailedWorkers.put(
+                  worker,
+                  (StatusCode.WORKER_UNRESPONSIVE, System.currentTimeMillis()))
                 val res = createFailResponse(status)
                 processResponse(res, status.workerInfo)
                 iter.remove()
@@ -365,13 +395,16 @@ abstract class CommitHandler(
         } else if (currentTime - status.startTime > timeout) {
           if (status.retriedTimes < maxRetries) {
             logError(
-              s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleId failed because of Timeout" +
+              s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleKey failed because of Timeout" +
                 s" (attempt ${status.retriedTimes}/$maxRetries), will retry.")
             retryCommitFiles(status, currentTime)
           } else {
             logError(
-              s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleId failed because of Timeout" +
+              s"Ask worker(${worker.readableAddress()}) CommitFiles for $shuffleKey failed because of Timeout" +
                 s" (attempt ${status.retriedTimes}/$maxRetries), will not retry.")
+            commitFilesFailedWorkers.put(
+              worker,
+              (StatusCode.WORKER_UNRESPONSIVE, System.currentTimeMillis()))
           }
         }
       }
@@ -393,9 +426,19 @@ abstract class CommitHandler(
     }
   }
 
+  /**
+   * Invoked when a reduce partition finishes reading data to perform end to end integrity check validation
+   */
+  def finishPartition(
+      shuffleId: Int,
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      actualCommitMetadata: CommitMetadata): (Boolean, String)
+
   def parallelCommitFiles(
       shuffleId: Int,
-      allocatedWorkers: util.Map[WorkerInfo, ShufflePartitionLocationInfo],
+      allocatedWorkers: util.Map[String, ShufflePartitionLocationInfo],
       partitionIdOpt: Option[Int] = None): CommitResult = {
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
     val primaryPartMap = JavaUtils.newConcurrentHashMap[String, PartitionLocation]
@@ -410,7 +453,8 @@ abstract class CommitHandler(
     val workerPartitionLocations = allocatedWorkers.asScala.filter(!_._2.isEmpty)
 
     val params = new ArrayBuffer[CommitFilesParam](workerPartitionLocations.size)
-    workerPartitionLocations.foreach { case (worker, partitionLocationInfo) =>
+    workerPartitionLocations.foreach { case (_, partitionLocationInfo) =>
+      val worker = partitionLocationInfo.workerInfo
       val primaryParts =
         partitionLocationInfo.getPrimaryPartitions(partitionIdOpt)
       val replicaParts = partitionLocationInfo.getReplicaPartitions(partitionIdOpt)
@@ -508,7 +552,7 @@ abstract class CommitHandler(
     committedPartitions.values().asScala.foreach { partition =>
       val partitionLocations = reducerFileGroupsMap.get(shuffleId).computeIfAbsent(
         partition.getId,
-        (k: Integer) => new util.HashSet[PartitionLocation]())
+        (k: Integer) => ConcurrentHashMap.newKeySet[PartitionLocation]())
       partitionLocations.add(partition)
     }
   }

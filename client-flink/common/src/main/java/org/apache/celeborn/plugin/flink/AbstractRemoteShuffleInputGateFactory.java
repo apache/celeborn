@@ -19,12 +19,15 @@
 package org.apache.celeborn.plugin.flink;
 
 import java.io.IOException;
+import java.util.Map;
 
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.metrics.groups.ShuffleIOMetricGroup;
+import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.util.function.SupplierWithException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +35,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
-/** Factory class to create RemoteShuffleInputGate. */
+/** Factory class to create {@link AbstractRemoteShuffleInputGate}. */
 public abstract class AbstractRemoteShuffleInputGateFactory {
 
   public static final int MIN_BUFFERS_PER_GATE = 16;
@@ -80,7 +83,10 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
 
   /** Create RemoteShuffleInputGate from {@link InputGateDeploymentDescriptor}. */
   public IndexedInputGate create(
-      String owningTaskName, int gateIndex, InputGateDeploymentDescriptor igdd) {
+      ShuffleIOOwnerContext ownerContext,
+      int gateIndex,
+      InputGateDeploymentDescriptor igdd,
+      Map<Integer, ShuffleIOMetricGroup> shuffleIOMetricGroups) {
     LOG.info(
         "Create input gate -- number of buffers per input gate={}, "
             + "number of concurrent readings={}.",
@@ -91,19 +97,21 @@ public abstract class AbstractRemoteShuffleInputGateFactory {
         createBufferPoolFactory(networkBufferPool, numBuffersPerGate, supportFloatingBuffers);
 
     return createInputGate(
-        owningTaskName,
+        ownerContext,
         gateIndex,
         igdd,
         bufferPoolFactory,
-        celebornConf.shuffleCompressionCodec().name());
+        celebornConf.shuffleCompressionCodec().name(),
+        shuffleIOMetricGroups);
   }
 
   protected abstract IndexedInputGate createInputGate(
-      String owningTaskName,
+      ShuffleIOOwnerContext ownerContext,
       int gateIndex,
       InputGateDeploymentDescriptor igdd,
       SupplierWithException<BufferPool, IOException> bufferPoolFactory,
-      String compressionCodec);
+      String compressionCodec,
+      Map<Integer, ShuffleIOMetricGroup> shuffleIOMetricGroupMap);
 
   private SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
       BufferPoolFactory bufferPoolFactory, int numBuffers, boolean supportFloatingBuffers) {

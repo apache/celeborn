@@ -55,6 +55,9 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.metrics.groups.ShuffleIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.ShuffleMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.function.SupplierWithException;
 import org.junit.After;
 import org.junit.Before;
@@ -63,7 +66,7 @@ import org.junit.Test;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.plugin.flink.buffer.BufferPacker;
 import org.apache.celeborn.plugin.flink.buffer.DataBuffer;
-import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
+import org.apache.celeborn.plugin.flink.client.FlinkShuffleClientImpl;
 import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 
 public class RemoteShuffleResultPartitionSuiteJ {
@@ -174,6 +177,8 @@ public class RemoteShuffleResultPartitionSuiteJ {
     ByteBuffer recordWritten = ByteBuffer.wrap(dataWritten);
     partitionWriter.emitRecord(recordWritten, 0);
     assertEquals(0, sortBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(1, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(1, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.finish();
     partitionWriter.close();
@@ -207,6 +212,8 @@ public class RemoteShuffleResultPartitionSuiteJ {
     ByteBuffer recordWritten = ByteBuffer.wrap(dataWritten);
     partitionWriter.broadcastRecord(recordWritten);
     assertEquals(0, sortBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(1, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(1, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.finish();
     partitionWriter.close();
@@ -246,9 +253,13 @@ public class RemoteShuffleResultPartitionSuiteJ {
     partitionWriter.emitRecord(ByteBuffer.allocate(bufferSize), 0);
     partitionWriter.emitRecord(ByteBuffer.allocate(bufferSize), 1);
     assertEquals(3, sortBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(2, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(2, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.broadcastRecord(ByteBuffer.allocate(bufferSize));
     assertEquals(2, sortBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(3, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(3, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.flush(0);
     assertEquals(0, sortBufferPool.bestEffortGetNumOfUsedBuffers());
@@ -256,6 +267,8 @@ public class RemoteShuffleResultPartitionSuiteJ {
     partitionWriter.emitRecord(ByteBuffer.allocate(bufferSize), 2);
     partitionWriter.emitRecord(ByteBuffer.allocate(bufferSize), 3);
     assertEquals(3, sortBufferPool.bestEffortGetNumOfUsedBuffers());
+    assertEquals(5, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(5, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.flushAll();
     assertEquals(0, sortBufferPool.bestEffortGetNumOfUsedBuffers());
@@ -307,6 +320,8 @@ public class RemoteShuffleResultPartitionSuiteJ {
             record, Buffer.DataType.DATA_BUFFER, subpartition, dataWritten, numBytesWritten);
       }
     }
+    assertEquals(numRecords, outputGate.shuffleIOMetricGroup.getNumRecordsOut().getCount());
+    assertEquals(numRecords, outputGate.shuffleIOMetricGroup.getNumRecordsOutRate().getCount());
 
     partitionWriter.finish();
     assertTrue(outputGate.isFinished());
@@ -441,7 +456,12 @@ public class RemoteShuffleResultPartitionSuiteJ {
           bufferSize,
           bufferPoolFactory,
           celebornConf,
-          numMappers);
+          numMappers,
+          new ShuffleIOMetricGroup(
+              new ShuffleMetricGroup(
+                  UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
+                  1,
+                  CelebornConf.CLIENT_METRICS_SCOPE_NAMING_SHUFFLE().defaultValueString())));
       isSetup = false;
       isFinished = false;
       isClosed = false;

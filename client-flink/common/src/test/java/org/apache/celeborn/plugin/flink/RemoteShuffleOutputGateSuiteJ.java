@@ -22,39 +22,58 @@ import static org.mockito.Mockito.*;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.Random;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.metrics.groups.ShuffleIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.ShuffleMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.PartitionLocation;
-import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl;
+import org.apache.celeborn.plugin.flink.client.FlinkShuffleClientImpl;
 
 public class RemoteShuffleOutputGateSuiteJ {
-  private final RemoteShuffleOutputGate remoteShuffleOutputGate =
-      mock(RemoteShuffleOutputGate.class);
-  private final FlinkShuffleClientImpl shuffleClient = mock(FlinkShuffleClientImpl.class);
   private static final int BUFFER_SIZE = 20;
   private BufferPool bufferPool;
+  private RemoteShuffleOutputGate remoteShuffleOutputGate;
 
   @Before
   public void setup() throws IOException {
-    remoteShuffleOutputGate.flinkShuffleClient = shuffleClient;
+    remoteShuffleOutputGate =
+        new RemoteShuffleOutputGate(
+            shuffleDescriptor(),
+            2,
+            BUFFER_SIZE,
+            () -> bufferPool,
+            new CelebornConf(),
+            10,
+            new ShuffleIOMetricGroup(
+                new ShuffleMetricGroup(
+                    UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
+                    1,
+                    CelebornConf.CLIENT_METRICS_SCOPE_NAMING_SHUFFLE().defaultValueString())),
+            mock(FlinkShuffleClientImpl.class));
     NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, BUFFER_SIZE);
     bufferPool = networkBufferPool.createBufferPool(10, 10);
   }
 
   @Test
-  public void TestSimpleWriteData() throws IOException, InterruptedException {
+  public void testSimpleWriteData() throws IOException, InterruptedException {
 
     PartitionLocation partitionLocation =
         new PartitionLocation(
             1, 0, "localhost", 123, 245, 789, 238, PartitionLocation.Mode.PRIMARY);
-    when(shuffleClient.registerMapPartitionTask(anyInt(), anyInt(), anyInt(), anyInt(), anyInt()))
+    when(remoteShuffleOutputGate.flinkShuffleClient.registerMapPartitionTask(
+            anyInt(), anyInt(), anyInt(), anyInt(), anyInt()))
         .thenAnswer(t -> partitionLocation);
     when(remoteShuffleOutputGate.flinkShuffleClient.pushDataHandShake(
             anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any()))
@@ -67,7 +86,19 @@ public class RemoteShuffleOutputGateSuiteJ {
         .thenAnswer(t -> Optional.empty());
     remoteShuffleOutputGate.regionStart(false);
 
-    remoteShuffleOutputGate.write(bufferPool.requestBuffer(), 0);
+    Buffer buffer = bufferPool.requestBuffer();
+    buffer.asByteBuf().writeByte(10);
+    remoteShuffleOutputGate.write(buffer, 0);
+
+    when(remoteShuffleOutputGate.flinkShuffleClient.pushDataToLocation(
+            anyInt(), anyInt(), anyInt(), anyInt(), any(), any(), any()))
+        .thenReturn(buffer.getSize());
+    remoteShuffleOutputGate.write(buffer, 1);
+    Assert.assertEquals(
+        buffer.getSize(), remoteShuffleOutputGate.shuffleIOMetricGroup.getNumBytesOut().getCount());
+    Assert.assertEquals(
+        buffer.getSize(),
+        remoteShuffleOutputGate.shuffleIOMetricGroup.getNumBytesOutRate().getCount());
 
     doNothing()
         .when(remoteShuffleOutputGate.flinkShuffleClient)
@@ -76,7 +107,7 @@ public class RemoteShuffleOutputGateSuiteJ {
 
     doNothing()
         .when(remoteShuffleOutputGate.flinkShuffleClient)
-        .mapperEnd(anyInt(), anyInt(), anyInt(), anyInt());
+        .mapperEnd(anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
     remoteShuffleOutputGate.finish();
 
     doNothing().when(remoteShuffleOutputGate.flinkShuffleClient).shutdown();
@@ -96,5 +127,17 @@ public class RemoteShuffleOutputGateSuiteJ {
     byteBuf.release();
     Assert.assertEquals(0, byteBuf.refCnt());
     Assert.assertEquals(0, celebornByteBuf.refCnt());
+  }
+
+  private RemoteShuffleDescriptor shuffleDescriptor() {
+    byte[] bytes = new byte[16];
+    new Random().nextBytes(bytes);
+    return new RemoteShuffleDescriptor(
+        new JobID(bytes).toString(),
+        new JobID(bytes),
+        new JobID(bytes).toString(),
+        new ResultPartitionID(),
+        new RemoteShuffleResource(
+            "1", 1, System.currentTimeMillis(), new ShuffleResourceDescriptor(1, 1, 1, 0)));
   }
 }

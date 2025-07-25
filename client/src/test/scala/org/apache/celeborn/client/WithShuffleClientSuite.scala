@@ -40,8 +40,8 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
   private val mapId = 1
   private val attemptId = 0
 
-  private var lifecycleManager: LifecycleManager = _
-  private var shuffleClient: ShuffleClientImpl = _
+  protected var lifecycleManager: LifecycleManager = _
+  protected var shuffleClient: ShuffleClientImpl = _
 
   var _shuffleId = 0
   def nextShuffleId: Int = {
@@ -158,12 +158,16 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
       1,
       1,
       0,
+      0,
       Integer.MAX_VALUE,
       null,
       null,
       null,
       null,
-      metricsCallback)
+      null,
+      null,
+      metricsCallback,
+      true)
     Assert.assertEquals(stream.read(), -1)
 
     // reduce normal null partition for CelebornInputStream
@@ -173,37 +177,49 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
       3,
       1,
       0,
+      0,
       Integer.MAX_VALUE,
       null,
       null,
       null,
       null,
-      metricsCallback)
+      null,
+      null,
+      metricsCallback,
+      true)
     Assert.assertEquals(stream.read(), -1)
   }
 
-  private def prepareService(): Unit = {
+  protected def prepareService(): Unit = {
     lifecycleManager = new LifecycleManager(APP, celebornConf)
     shuffleClient = new ShuffleClientImpl(APP, celebornConf, userIdentifier)
     shuffleClient.setupLifecycleManagerRef(lifecycleManager.self)
   }
 
   private def registerAndFinishPartition(shuffleId: Int): Unit = {
+    val numPartitions = 9
     shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId, attemptId, 1)
     shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId + 1, attemptId, 2)
     shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId + 2, attemptId, 3)
 
     // task number incr to numMappers + 1
     shuffleClient.registerMapPartitionTask(shuffleId, numMappers, mapId, attemptId + 1, 9)
-    shuffleClient.mapPartitionMapperEnd(shuffleId, mapId, attemptId, numMappers, 1)
+    shuffleClient.mapPartitionMapperEnd(shuffleId, mapId, attemptId, numMappers, numPartitions, 1)
     // another attempt
     shuffleClient.mapPartitionMapperEnd(
       shuffleId,
       mapId,
       attemptId + 1,
       numMappers,
+      numPartitions,
       9)
     // another mapper
-    shuffleClient.mapPartitionMapperEnd(shuffleId, mapId + 1, attemptId, numMappers, mapId + 1)
+    shuffleClient.mapPartitionMapperEnd(
+      shuffleId,
+      mapId + 1,
+      attemptId,
+      numMappers,
+      numPartitions,
+      mapId + 1)
   }
 }

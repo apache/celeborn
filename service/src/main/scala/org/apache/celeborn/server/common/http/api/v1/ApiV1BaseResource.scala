@@ -22,6 +22,7 @@ import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
 
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 
@@ -35,14 +36,17 @@ class ApiV1BaseResource extends ApiRequestContext {
   @Path("conf")
   def conf: Class[ConfResource] = classOf[ConfResource]
 
+  @Path("loggers")
+  def logger: Class[LoggerResource] = classOf[LoggerResource]
+
   @Path("/thread_dump")
+  @Operation(description = "List the current thread dump.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(
-        implementation = classOf[ThreadStackResponse]))),
-    description = "List the current thread dump.")
+        implementation = classOf[ThreadStackResponse]))))
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   def threadDump(): ThreadStackResponse = {
@@ -67,13 +71,13 @@ class ApiV1BaseResource extends ApiRequestContext {
   }
 
   @Path("/container_info")
+  @Operation(description = "List the container info.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(
-        implementation = classOf[ContainerInfo]))),
-    description = "List the container info.")
+        implementation = classOf[ContainerInfo]))))
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   def containerInfo(): ContainerInfo =

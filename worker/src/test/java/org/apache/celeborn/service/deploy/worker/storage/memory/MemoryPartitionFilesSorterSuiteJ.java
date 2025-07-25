@@ -25,8 +25,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -58,8 +58,7 @@ public class MemoryPartitionFilesSorterSuiteJ {
     byte[] batchHeader = new byte[16];
     fileInfo = new MemoryFileInfo(userIdentifier, true, new ReduceFileMeta(8 * 1024 * 1024));
 
-    PooledByteBufAllocator allocator =
-        NettyUtils.getSharedPooledByteBufAllocator(new CelebornConf(), false);
+    ByteBufAllocator allocator = NettyUtils.getSharedByteBufAllocator(new CelebornConf(), false);
     CompositeByteBuf buffer = allocator.compositeBuffer();
     fileInfo.setBuffer(buffer);
 
@@ -112,8 +111,9 @@ public class MemoryPartitionFilesSorterSuiteJ {
     conf.set(CelebornConf.WORKER_READBUFFER_ALLOCATIONWAIT().key(), "10ms");
 
     StorageManager storageManager = Mockito.mock(StorageManager.class);
-    Mockito.when(storageManager.storageBufferAllocator()).thenAnswer(a -> allocator);
-    MemoryManager.initialize(conf, storageManager);
+    Mockito.when(storageManager.storageBufferAllocator()).thenReturn(allocator);
+    MemoryManager.reset();
+    MemoryManager.initialize(conf, storageManager, null);
     partitionDataWriter = Mockito.mock(PartitionDataWriter.class);
     when(partitionDataWriter.getMemoryFileInfo()).thenAnswer(i -> fileInfo);
 

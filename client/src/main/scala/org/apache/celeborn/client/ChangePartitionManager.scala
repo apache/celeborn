@@ -154,13 +154,6 @@ class ChangePartitionManager(
     }
   }
 
-  private val updateWorkerSnapshotsFunc =
-    new util.function.Function[WorkerInfo, ShufflePartitionLocationInfo] {
-      override def apply(w: WorkerInfo): ShufflePartitionLocationInfo = {
-        new ShufflePartitionLocationInfo()
-      }
-    }
-
   def handleRequestPartitionLocation(
       context: RequestLocationCallContext,
       shuffleId: Int,
@@ -297,9 +290,11 @@ class ChangePartitionManager(
     val snapshotCandidates =
       lifecycleManager
         .workerSnapshots(shuffleId)
-        .keySet()
         .asScala
+        .values
+        .map(_.workerInfo)
         .filter(lifecycleManager.workerStatusTracker.workerAvailable)
+        .toSet
         .asJava
     candidates.addAll(snapshotCandidates)
 
@@ -386,8 +381,12 @@ class ChangePartitionManager(
       case (workInfo, (primaryLocations, replicaLocations)) =>
         // Add all re-allocated slots to worker snapshots.
         val partitionLocationInfo = lifecycleManager.workerSnapshots(shuffleId).computeIfAbsent(
-          workInfo,
-          updateWorkerSnapshotsFunc)
+          workInfo.toUniqueId,
+          new util.function.Function[String, ShufflePartitionLocationInfo] {
+            override def apply(workerId: String): ShufflePartitionLocationInfo = {
+              new ShufflePartitionLocationInfo(workInfo)
+            }
+          })
         partitionLocationInfo.addPrimaryPartitions(primaryLocations)
         partitionLocationInfo.addReplicaPartitions(replicaLocations)
         lifecycleManager.updateLatestPartitionLocations(shuffleId, primaryLocations)
@@ -395,18 +394,18 @@ class ChangePartitionManager(
         // partition location can be null when call reserveSlotsWithRetry().
         val locations = (primaryLocations.asScala ++ replicaLocations.asScala.map(_.getPeer))
           .distinct.filter(_ != null)
-        if (locations.nonEmpty) {
-          val changes = locations.map { partition =>
-            s"(partition ${partition.getId} epoch from ${partition.getEpoch - 1} to ${partition.getEpoch})"
-          }.mkString("[", ", ", "]")
-          logInfo(s"[Update partition] success for " +
-            s"shuffle $shuffleId, succeed partitions: " +
-            s"$changes.")
-        }
-
         // TODO: should record the new partition locations and acknowledge the new partitionLocations to downstream task,
         //  in scenario the downstream task start early before the upstream task.
         locations
+    }
+
+    if (newPrimaryLocations.nonEmpty) {
+      val changes = newPrimaryLocations.map { partition =>
+        s"(partition ${partition.getId} epoch from ${partition.getEpoch - 1} to ${partition.getEpoch})"
+      }.mkString("[", ", ", "]")
+      logInfo(s"[Update partition] success for " +
+        s"shuffle $shuffleId, succeed partitions: " +
+        s"$changes.")
     }
     replySuccess(newPrimaryLocations.toArray)
   }

@@ -34,7 +34,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.TransportContext
 import org.apache.celeborn.common.network.client._
-import org.apache.celeborn.common.network.protocol.{RequestMessage => NRequestMessage, RpcRequest}
+import org.apache.celeborn.common.network.protocol.{RequestMessage => NRequestMessage, RpcRequest, SerdeVersion, TransportMessage}
 import org.apache.celeborn.common.network.sasl.{SaslClientBootstrap, SaslServerBootstrap}
 import org.apache.celeborn.common.network.sasl.registration.{RegistrationClientBootstrap, RegistrationServerBootstrap}
 import org.apache.celeborn.common.network.server._
@@ -55,9 +55,9 @@ class NettyRpcEnv(
     config.transportModule,
     celebornConf.rpcIoThreads.getOrElse(config.numUsableCores))
 
-  private val source: RpcSource = new RpcSource(celebornConf)
+  private val _rpcSource: RpcSource = new RpcSource(celebornConf, config.role)
 
-  private val dispatcher: Dispatcher = new Dispatcher(this, source)
+  private val dispatcher: Dispatcher = new Dispatcher(this, _rpcSource)
 
   private var worker: RpcEndpoint = null
 
@@ -253,7 +253,7 @@ class NettyRpcEnv(
       case RpcFailure(e) => onFailure(e)
       case rpcReply =>
         if (!promise.trySuccess(rpcReply)) {
-          logWarning(s"Ignored message: $reply")
+          logWarning(s"Ignored message: ${reply.getClass.getCanonicalName}")
         }
     }
 
@@ -364,7 +364,7 @@ class NettyRpcEnv(
     }
   }
 
-  override def rpcSource(): RpcSource = source
+  override def rpcSource(): RpcSource = _rpcSource
 }
 
 private[celeborn] object NettyRpcEnv extends Logging {
@@ -504,6 +504,20 @@ private[celeborn] class RequestMessage(
       writeRpcAddress(out, senderAddress)
       writeRpcAddress(out, receiver.address)
       out.writeUTF(receiver.name)
+      val msg = Utils.toTransportMessage(content)
+      msg match {
+        case transMsg: TransportMessage =>
+          // Check if the msg is a TransportMessage with language-agnostic V2 serdeVersion.
+          // If so, write the marker and the body explicitly.
+          if (transMsg.getSerdeVersion == SerdeVersion.V2) {
+            val out = new DataOutputStream(bos)
+            out.writeByte(SerdeVersion.V2.getMarker)
+            out.write(transMsg.toByteBuffer.array)
+            out.close()
+            return bos.toByteBuffer
+          }
+        case _ =>
+      }
       val s = nettyEnv.serializeStream(out)
       try {
         s.writeObject(Utils.toTransportMessage(content))
@@ -562,6 +576,7 @@ private[celeborn] object RequestMessage {
 /**
  * A response that indicates some failure happens in the receiver side.
  */
+@SerialVersionUID(2793139166962436434L)
 private[celeborn] case class RpcFailure(e: Throwable)
 
 /**

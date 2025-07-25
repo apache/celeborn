@@ -20,17 +20,20 @@ package org.apache.celeborn.client.commit
 import java.util
 import java.util.Collections
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor}
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicInteger, AtomicIntegerArray}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
+import org.roaringbitmap.RoaringBitmap
+
 import org.apache.celeborn.client.{ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
-import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -39,6 +42,7 @@ import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.common.write.LocationPushFailedBatches
 
 /**
  * This commit handler is for MapPartition ShuffleType, which means that a Map Partition contains all data produced
@@ -122,7 +126,7 @@ class MapPartitionCommitHandler(
 
   private def handleFinalPartitionCommitFiles(
       shuffleId: Int,
-      allocatedWorkers: util.Map[WorkerInfo, ShufflePartitionLocationInfo],
+      allocatedWorkers: util.Map[String, ShufflePartitionLocationInfo],
       partitionId: Int): (Boolean, ShuffleFailedWorkers) = {
     val shuffleCommittedInfo = committedPartitionInfo.get(shuffleId)
     // commit files
@@ -184,7 +188,11 @@ class MapPartitionCommitHandler(
       attemptId: Int,
       numMappers: Int,
       partitionId: Int,
-      recordWorkerFailure: ShuffleFailedWorkers => Unit): (Boolean, Boolean) = {
+      pushFailedBatches: util.Map[String, LocationPushFailedBatches],
+      recordWorkerFailure: ShuffleFailedWorkers => Unit,
+      numPartitions: Int,
+      crc32PerPartition: Array[Int],
+      bytesWrittenPerPartition: Array[Long]): (Boolean, Boolean) = {
     val inProcessingPartitionIds =
       inProcessMapPartitionEndIds.computeIfAbsent(
         shuffleId,
@@ -219,8 +227,9 @@ class MapPartitionCommitHandler(
   override def registerShuffle(
       shuffleId: Int,
       numMappers: Int,
-      isSegmentGranularityVisible: Boolean): Unit = {
-    super.registerShuffle(shuffleId, numMappers, isSegmentGranularityVisible)
+      isSegmentGranularityVisible: Boolean,
+      numPartitions: Int): Unit = {
+    super.registerShuffle(shuffleId, numMappers, isSegmentGranularityVisible, numPartitions)
     shuffleIsSegmentGranularityVisible.put(shuffleId, isSegmentGranularityVisible)
   }
 
@@ -228,7 +237,19 @@ class MapPartitionCommitHandler(
     shuffleIsSegmentGranularityVisible.get(shuffleId)
   }
 
-  override def handleGetReducerFileGroup(context: RpcCallContext, shuffleId: Int): Unit = {
+  override def finishPartition(
+      shuffleId: Int,
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      actualCommitMetadata: CommitMetadata): (Boolean, String) = {
+    throw new UnsupportedOperationException()
+  }
+
+  override def handleGetReducerFileGroup(
+      context: RpcCallContext,
+      shuffleId: Int,
+      serdeVersion: SerdeVersion): Unit = {
     // TODO: if support the downstream map task start early before the upstream reduce task, it should
     //  waiting the upstream task register shuffle, then reply these GetReducerFileGroup.
     //  Note that flink hybrid shuffle should support it in the future.
@@ -242,7 +263,8 @@ class MapPartitionCommitHandler(
       StatusCode.SUCCESS,
       reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
       getMapperAttempts(shuffleId),
-      succeedPartitionIds))
+      succeedPartitionIds,
+      serdeVersion = serdeVersion))
   }
 
   override def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {

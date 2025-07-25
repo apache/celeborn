@@ -32,6 +32,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{CollectionUtils => localCollectionUtils}
+import org.apache.celeborn.common.write.LocationPushFailedBatches
 
 object PbSerDeUtils {
 
@@ -275,7 +276,13 @@ object PbSerDeUtils {
       disks,
       userResourceConsumption)
     if (masterPersistWorkerNetworkLocation) {
-      workerInfo.networkLocation_$eq(pbWorkerInfo.getNetworkLocation)
+      workerInfo.networkLocation = pbWorkerInfo.getNetworkLocation
+    }
+    // If the next interruption notice is not specified in the message, set to max.
+    if (pbWorkerInfo.getNextInterruptionNotice == 0) {
+      workerInfo.nextInterruptionNotice = Long.MaxValue
+    } else {
+      workerInfo.nextInterruptionNotice = pbWorkerInfo.getNextInterruptionNotice
     }
     workerInfo
   }
@@ -294,6 +301,7 @@ object PbSerDeUtils {
     if (masterPersistWorkerNetworkLocation) {
       builder.setNetworkLocation(workerInfo.networkLocation)
     }
+    builder.setNextInterruptionNotice(workerInfo.nextInterruptionNotice)
 
     if (!eliminateUserResourceConsumption) {
       builder.putAllUserResourceConsumption(
@@ -411,7 +419,7 @@ object PbSerDeUtils {
         .addAllReplicaPartitions(replicaPartitions)
         .setNetworkLocation(workerInfo.networkLocation)
         .build()
-      workerInfo.toUniqueId() -> pbWorkerResource
+      workerInfo.toUniqueId -> pbWorkerResource
     }.asJava
   }
 
@@ -427,7 +435,9 @@ object PbSerDeUtils {
       partitionTotalWritten: java.lang.Long,
       partitionTotalFileCount: java.lang.Long,
       shuffleTotalCount: java.lang.Long,
+      applicationTotalCount: java.lang.Long,
       shuffleFallbackCounts: java.util.Map[String, java.lang.Long],
+      applicationFallbackCounts: java.util.Map[String, java.lang.Long],
       lostWorkers: ConcurrentHashMap[WorkerInfo, java.lang.Long],
       shutdownWorkers: java.util.Set[WorkerInfo],
       workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo],
@@ -448,14 +458,16 @@ object PbSerDeUtils {
       .setPartitionTotalWritten(partitionTotalWritten)
       .setPartitionTotalFileCount(partitionTotalFileCount)
       .setShuffleTotalCount(shuffleTotalCount)
+      .setApplicationTotalCount(applicationTotalCount)
       .putAllShuffleFallbackCounts(shuffleFallbackCounts)
+      .putAllApplicationFallbackCounts(applicationFallbackCounts)
       .putAllLostWorkers(lostWorkers.asScala.map {
-        case (worker: WorkerInfo, time: java.lang.Long) => (worker.toUniqueId(), time)
+        case (worker: WorkerInfo, time: java.lang.Long) => (worker.toUniqueId, time)
       }.asJava)
       .addAllShutdownWorkers(shutdownWorkers.asScala.map(toPbWorkerInfo(_, true, false)).asJava)
       .putAllWorkerEventInfos(workerEventInfos.asScala.map {
         case (worker, workerEventInfo) =>
-          (worker.toUniqueId(), PbSerDeUtils.toPbWorkerEventInfo(workerEventInfo))
+          (worker.toUniqueId, PbSerDeUtils.toPbWorkerEventInfo(workerEventInfo))
       }.asJava)
       .addAllDecommissionWorkers(decommissionWorkers.asScala.map(
         toPbWorkerInfo(_, true, false)).asJava)
@@ -476,7 +488,7 @@ object PbSerDeUtils {
   }
 
   def fromPbApplicationMeta(pbApplicationMeta: PbApplicationMeta): ApplicationMeta = {
-    new ApplicationMeta(pbApplicationMeta.getAppId, pbApplicationMeta.getSecret)
+    ApplicationMeta(pbApplicationMeta.getAppId, pbApplicationMeta.getSecret)
   }
 
   def toPbWorkerStatus(workerStatus: WorkerStatus): PbWorkerStatus = {
@@ -500,7 +512,7 @@ object PbSerDeUtils {
   def fromPbWorkerEventInfo(pbWorkerEventInfo: PbWorkerEventInfo): WorkerEventInfo = {
     new WorkerEventInfo(
       pbWorkerEventInfo.getWorkerEventType.getNumber,
-      pbWorkerEventInfo.getEventStartTime())
+      pbWorkerEventInfo.getEventStartTime)
   }
 
   private def toPackedPartitionLocation(
@@ -510,7 +522,7 @@ object PbSerDeUtils {
       location: PartitionLocation): PbPackedPartitionLocations.Builder = {
     pbPackedLocationsBuilder.addIds(location.getId)
     pbPackedLocationsBuilder.addEpoches(location.getEpoch)
-    pbPackedLocationsBuilder.addWorkerIds(workerIdIndex(location.getWorker.toUniqueId()))
+    pbPackedLocationsBuilder.addWorkerIds(workerIdIndex(location.getWorker.toUniqueId))
     pbPackedLocationsBuilder.addMapIdBitMap(
       Utils.roaringBitmapToByteString(location.getMapIdBitMap))
     pbPackedLocationsBuilder.addTypes(location.getStorageInfo.getType.getValue)
@@ -524,6 +536,14 @@ object PbSerDeUtils {
       pbPackedLocationsBuilder.addFilePaths("")
     }
     pbPackedLocationsBuilder.addAvailableStorageTypes(location.getStorageInfo.availableStorageTypes)
+    pbPackedLocationsBuilder.addFileSizes(location.getStorageInfo.getFileSize)
+    val chunkOffsets = PbChunkOffsets.newBuilder()
+    if (null != location.getStorageInfo.chunkOffsets && !location.getStorageInfo.chunkOffsets.isEmpty) {
+      chunkOffsets.addAllChunkOffset(location.getStorageInfo.chunkOffsets).build()
+      pbPackedLocationsBuilder.addChunksOffsets(chunkOffsets)
+    } else {
+      pbPackedLocationsBuilder.addChunksOffsets(chunkOffsets.build())
+    }
     pbPackedLocationsBuilder.addModes(location.getMode.mode())
   }
 
@@ -536,7 +556,7 @@ object PbSerDeUtils {
 
     val allLocations = (inputLocations ++ implicateLocations)
     val workerIdList = new util.ArrayList[String](
-      allLocations.map(_.getWorker.toUniqueId()).toSet.asJava)
+      allLocations.map(_.getWorker.toUniqueId).toSet.asJava)
     val workerIdIndex = workerIdList.asScala.zipWithIndex.toMap
     val mountPointsList = new util.ArrayList[String](
       allLocations.map(
@@ -624,6 +644,28 @@ object PbSerDeUtils {
         Mode.REPLICA
       }
 
+    val storageInfo =
+      if (pbPackedPartitionLocations.getFileSizesList.isEmpty ||
+        pbPackedPartitionLocations.getChunksOffsetsList.isEmpty) {
+        new StorageInfo(
+          StorageInfo.typesMap.get(pbPackedPartitionLocations.getTypes(index)),
+          pbPackedPartitionLocations.getMountPointsSet(
+            pbPackedPartitionLocations.getMountPoints(index)),
+          pbPackedPartitionLocations.getFinalResult(index),
+          filePath,
+          pbPackedPartitionLocations.getAvailableStorageTypes(index))
+      } else {
+        new StorageInfo(
+          StorageInfo.typesMap.get(pbPackedPartitionLocations.getTypes(index)),
+          pbPackedPartitionLocations.getMountPointsSet(
+            pbPackedPartitionLocations.getMountPoints(index)),
+          pbPackedPartitionLocations.getFinalResult(index),
+          filePath,
+          pbPackedPartitionLocations.getAvailableStorageTypes(index),
+          pbPackedPartitionLocations.getFileSizes(index),
+          pbPackedPartitionLocations.getChunksOffsets(index).getChunkOffsetList)
+      }
+
     new PartitionLocation(
       pbPackedPartitionLocations.getIds(index),
       pbPackedPartitionLocations.getEpoches(index),
@@ -634,13 +676,7 @@ object PbSerDeUtils {
       workerIdParts(4).toInt,
       mode,
       null,
-      new StorageInfo(
-        StorageInfo.typesMap.get(pbPackedPartitionLocations.getTypes(index)),
-        pbPackedPartitionLocations.getMountPointsSet(
-          pbPackedPartitionLocations.getMountPoints(index)),
-        pbPackedPartitionLocations.getFinalResult(index),
-        filePath,
-        pbPackedPartitionLocations.getAvailableStorageTypes(index)),
+      storageInfo,
       Utils.byteStringToRoaringBitmap(pbPackedPartitionLocations.getMapIdBitMap(index)))
   }
 
@@ -666,8 +702,40 @@ object PbSerDeUtils {
           primaryLocations.asScala.toList ++ replicaLocations.asScala.toList))
         .setNetworkLocation(workerInfo.networkLocation)
         .build()
-      workerInfo.toUniqueId() -> pbWorkerResource
+      workerInfo.toUniqueId -> pbWorkerResource
     }.asJava
   }
 
+  def toPbFailedBatches(failedBatches: util.Set[Int]): PbFailedBatches = {
+    PbFailedBatches.newBuilder()
+      .addAllFailedBatches(failedBatches.asScala.map(new Integer(_)).asJava)
+      .build()
+  }
+
+  def fromPbFailedBatches(failedBatches: PbFailedBatches): util.Set[Int] = {
+    failedBatches.getFailedBatchesList.asScala.map(_.intValue()).toSet.asJava
+  }
+
+  def toPbLocationPushFailedBatches(locationPushFailedBatches: LocationPushFailedBatches)
+      : PbLocationPushFailedBatches = {
+    val builder = PbLocationPushFailedBatches.newBuilder()
+    builder.putAllFailedBatches(
+      locationPushFailedBatches
+        .getFailedBatches
+        .asScala
+        .map(item =>
+          (item._1, toPbFailedBatches(item._2.asScala.map(_.intValue()).toSet.asJava))).asJava)
+    builder.build()
+  }
+
+  def fromPbLocationPushFailedBatches(pbLocationPushFailedBatches: PbLocationPushFailedBatches)
+      : LocationPushFailedBatches = {
+    val batches = new LocationPushFailedBatches()
+    pbLocationPushFailedBatches.getFailedBatchesMap.asScala.foreach { case (key, value) =>
+      batches.getFailedBatches.put(
+        key,
+        fromPbFailedBatches(value).asScala.map(new Integer(_)).asJava)
+    }
+    batches
+  }
 }

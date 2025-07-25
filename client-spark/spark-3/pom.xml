@@ -26,7 +26,7 @@
 
   <artifactId>celeborn-client-spark-3_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Client for Spark 3</name>
+  <name>Celeborn Client for Spark 3 and 4</name>
 
   <dependencies>
     <dependency>
@@ -87,8 +87,23 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>javax.servlet-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.servlet</groupId>
+      <artifactId>jakarta.servlet-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-inline</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

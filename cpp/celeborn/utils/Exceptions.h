@@ -34,6 +34,7 @@
 // #include "celeborn/utils/FmtStdFormatters.h"
 
 namespace celeborn {
+namespace utils {
 namespace detail {
 
 struct CelebornCheckFailArgs {
@@ -117,7 +118,7 @@ struct CelebornCheckFailStringType<std::string> {
 // and simply insert a function call for the linker to fix up, rather
 // than emitting a definition of these templates into every
 // translation unit they are used in.
-#define CELEBORN_DECLARE_CHECK_FAIL_TEMPLATES(exception_type)                          \
+#define CELEBORN_DECLARE_CHECK_FAIL_TEMPLATES(exception_type)                 \
   namespace detail {                                                          \
   extern template void                                                        \
   celebornCheckFail<exception_type, CompileTimeEmptyString>(                  \
@@ -133,7 +134,7 @@ struct CelebornCheckFailStringType<std::string> {
 
 // Definitions corresponding to CELEBORN_DECLARE_CHECK_FAIL_TEMPLATES. Should
 // only be used in Exceptions.cpp.
-#define CELEBORN_DEFINE_CHECK_FAIL_TEMPLATES(exception_type)                        \
+#define CELEBORN_DEFINE_CHECK_FAIL_TEMPLATES(exception_type)               \
   template void celebornCheckFail<exception_type, CompileTimeEmptyString>( \
       const CelebornCheckFailArgs& args, CompileTimeEmptyString);          \
   template void celebornCheckFail<exception_type, const char*>(            \
@@ -163,24 +164,24 @@ std::string errorMessage(fmt::string_view fmt, const Args&... args) {
 
 } // namespace detail
 
-#define _CELEBORN_THROW_IMPL(                                          \
-    exception, exprStr, errorSource, errorCode, isRetriable, ...)      \
-  {                                                                    \
-    /* GCC 9.2.1 doesn't accept this code with constexpr. */           \
-    static const ::celeborn::detail::CelebornCheckFailArgs             \
-        celebornCheckFailArgs = {                                      \
-            __FILE__,                                                  \
-            __LINE__,                                                  \
-            __FUNCTION__,                                              \
-            exprStr,                                                   \
-            errorSource,                                               \
-            errorCode,                                                 \
-            isRetriable};                                              \
-    auto message = ::celeborn::detail::errorMessage(__VA_ARGS__);      \
-    ::celeborn::detail::celebornCheckFail<                             \
-        exception,                                                     \
-        typename ::celeborn::detail::CelebornCheckFailStringType<      \
-            decltype(message)>::type>(celebornCheckFailArgs, message); \
+#define _CELEBORN_THROW_IMPL(                                            \
+    exception, exprStr, errorSource, errorCode, isRetriable, ...)        \
+  {                                                                      \
+    /* GCC 9.2.1 doesn't accept this code with constexpr. */             \
+    static const ::celeborn::utils::detail::CelebornCheckFailArgs        \
+        celebornCheckFailArgs = {                                        \
+            __FILE__,                                                    \
+            __LINE__,                                                    \
+            __FUNCTION__,                                                \
+            exprStr,                                                     \
+            errorSource,                                                 \
+            errorCode,                                                   \
+            isRetriable};                                                \
+    auto message = ::celeborn::utils::detail::errorMessage(__VA_ARGS__); \
+    ::celeborn::utils::detail::celebornCheckFail<                        \
+        exception,                                                       \
+        typename ::celeborn::utils::detail::CelebornCheckFailStringType< \
+            decltype(message)>::type>(celebornCheckFailArgs, message);   \
   }
 
 #define _CELEBORN_CHECK_AND_THROW_IMPL(                                        \
@@ -193,16 +194,16 @@ std::string errorMessage(fmt::string_view fmt, const Args&... args) {
 #define _CELEBORN_THROW(exception, ...) \
   _CELEBORN_THROW_IMPL(exception, "", ##__VA_ARGS__)
 
-CELEBORN_DECLARE_CHECK_FAIL_TEMPLATES(::celeborn::CelebornRuntimeError);
+CELEBORN_DECLARE_CHECK_FAIL_TEMPLATES(::celeborn::utils::CelebornRuntimeError);
 
-#define _CELEBORN_CHECK_IMPL(expr, exprStr, ...)             \
-  _CELEBORN_CHECK_AND_THROW_IMPL(                            \
-      expr,                                                  \
-      exprStr,                                               \
-      ::celeborn::CelebornRuntimeError,                      \
-      ::celeborn::error_source::kErrorSourceRuntime.c_str(), \
-      ::celeborn::error_code::kInvalidState.c_str(),         \
-      /* isRetriable */ false,                               \
+#define _CELEBORN_CHECK_IMPL(expr, exprStr, ...)                    \
+  _CELEBORN_CHECK_AND_THROW_IMPL(                                   \
+      expr,                                                         \
+      exprStr,                                                      \
+      ::celeborn::utils::CelebornRuntimeError,                      \
+      ::celeborn::utils::error_source::kErrorSourceRuntime.c_str(), \
+      ::celeborn::utils::error_code::kInvalidState.c_str(),         \
+      /* isRetriable */ false,                                      \
       ##__VA_ARGS__)
 
 // If the caller passes a custom message (4 *or more* arguments), we
@@ -238,14 +239,14 @@ CELEBORN_DECLARE_CHECK_FAIL_TEMPLATES(::celeborn::CelebornRuntimeError);
   _CELEBORN_CHECK_OP_HELPER(                      \
       _CELEBORN_CHECK_IMPL, expr1, expr2, op, ##__VA_ARGS__)
 
-#define _CELEBORN_USER_CHECK_IMPL(expr, exprStr, ...)     \
-  _CELEBORN_CHECK_AND_THROW_IMPL(                         \
-      expr,                                               \
-      exprStr,                                            \
-      ::celeborn::CelebornUserError,                      \
-      ::celeborn::error_source::kErrorSourceUser.c_str(), \
-      ::celeborn::error_code::kInvalidArgument.c_str(),   \
-      /* isRetriable */ false,                            \
+#define _CELEBORN_USER_CHECK_IMPL(expr, exprStr, ...)            \
+  _CELEBORN_CHECK_AND_THROW_IMPL(                                \
+      expr,                                                      \
+      exprStr,                                                   \
+      ::celeborn::utils::CelebornUserError,                      \
+      ::celeborn::utils::error_source::kErrorSourceUser.c_str(), \
+      ::celeborn::utils::error_code::kInvalidArgument.c_str(),   \
+      /* isRetriable */ false,                                   \
       ##__VA_ARGS__)
 
 #define _CELEBORN_USER_CHECK_OP(expr1, expr2, op, ...) \
@@ -274,48 +275,48 @@ CELEBORN_DECLARE_CHECK_FAIL_TEMPLATES(::celeborn::CelebornRuntimeError);
 
 #define CELEBORN_CHECK_OK(expr)                          \
   do {                                                   \
-    ::celeborn::Status _s = (expr);                      \
+    ::celeborn::utils::Status _s = (expr);               \
     _CELEBORN_CHECK_IMPL(_s.ok(), #expr, _s.toString()); \
   } while (false)
 
-#define CELEBORN_UNSUPPORTED(...)                         \
-  _CELEBORN_THROW(                                        \
-      ::celeborn::CelebornUserError,                      \
-      ::celeborn::error_source::kErrorSourceUser.c_str(), \
-      ::celeborn::error_code::kUnsupported.c_str(),       \
-      /* isRetriable */ false,                            \
+#define CELEBORN_UNSUPPORTED(...)                                \
+  _CELEBORN_THROW(                                               \
+      ::celeborn::utils::CelebornUserError,                      \
+      ::celeborn::utils::error_source::kErrorSourceUser.c_str(), \
+      ::celeborn::utils::error_code::kUnsupported.c_str(),       \
+      /* isRetriable */ false,                                   \
       ##__VA_ARGS__)
 
-#define CELEBORN_ARITHMETIC_ERROR(...)                    \
-  _CELEBORN_THROW(                                        \
-      ::celeborn::CelebornUserError,                      \
-      ::celeborn::error_source::kErrorSourceUser.c_str(), \
-      ::celeborn::error_code::kArithmeticError.c_str(),   \
-      /* isRetriable */ false,                            \
+#define CELEBORN_ARITHMETIC_ERROR(...)                           \
+  _CELEBORN_THROW(                                               \
+      ::celeborn::utils::CelebornUserError,                      \
+      ::celeborn::utils::error_source::kErrorSourceUser.c_str(), \
+      ::celeborn::utils::error_code::kArithmeticError.c_str(),   \
+      /* isRetriable */ false,                                   \
       ##__VA_ARGS__)
 
-#define CELEBORN_SCHEMA_MISMATCH_ERROR(...)               \
-  _CELEBORN_THROW(                                        \
-      ::celeborn::CelebornUserError,                      \
-      ::celeborn::error_source::kErrorSourceUser.c_str(), \
-      ::celeborn::error_code::kSchemaMismatch.c_str(),    \
-      /* isRetriable */ false,                            \
+#define CELEBORN_SCHEMA_MISMATCH_ERROR(...)                      \
+  _CELEBORN_THROW(                                               \
+      ::celeborn::utils::CelebornUserError,                      \
+      ::celeborn::utils::error_source::kErrorSourceUser.c_str(), \
+      ::celeborn::utils::error_code::kSchemaMismatch.c_str(),    \
+      /* isRetriable */ false,                                   \
       ##__VA_ARGS__)
 
-#define CELEBORN_FILE_NOT_FOUND_ERROR(...)                   \
-  _CELEBORN_THROW(                                           \
-      ::celeborn::CelebornRuntimeError,                      \
-      ::celeborn::error_source::kErrorSourceRuntime.c_str(), \
-      ::celeborn::error_code::kFileNotFound.c_str(),         \
-      /* isRetriable */ false,                               \
+#define CELEBORN_FILE_NOT_FOUND_ERROR(...)                          \
+  _CELEBORN_THROW(                                                  \
+      ::celeborn::utils::CelebornRuntimeError,                      \
+      ::celeborn::utils::error_source::kErrorSourceRuntime.c_str(), \
+      ::celeborn::utils::error_code::kFileNotFound.c_str(),         \
+      /* isRetriable */ false,                                      \
       ##__VA_ARGS__)
 
-#define CELEBORN_UNREACHABLE(...)                            \
-  _CELEBORN_THROW(                                           \
-      ::celeborn::CelebornRuntimeError,                      \
-      ::celeborn::error_source::kErrorSourceRuntime.c_str(), \
-      ::celeborn::error_code::kUnreachableCode.c_str(),      \
-      /* isRetriable */ false,                               \
+#define CELEBORN_UNREACHABLE(...)                                   \
+  _CELEBORN_THROW(                                                  \
+      ::celeborn::utils::CelebornRuntimeError,                      \
+      ::celeborn::utils::error_source::kErrorSourceRuntime.c_str(), \
+      ::celeborn::utils::error_code::kUnreachableCode.c_str(),      \
+      /* isRetriable */ false,                                      \
       ##__VA_ARGS__)
 
 #ifndef NDEBUG
@@ -341,15 +342,15 @@ CELEBORN_DECLARE_CHECK_FAIL_TEMPLATES(::celeborn::CelebornRuntimeError);
 #define CELEBORN_DCHECK_NOT_NULL(e, ...) CELEBORN_CHECK(true)
 #endif
 
-#define CELEBORN_FAIL(...)                                   \
-  _CELEBORN_THROW(                                           \
-      ::celeborn::CelebornRuntimeError,                      \
-      ::celeborn::error_source::kErrorSourceRuntime.c_str(), \
-      ::celeborn::error_code::kInvalidState.c_str(),         \
-      /* isRetriable */ false,                               \
+#define CELEBORN_FAIL(...)                                          \
+  _CELEBORN_THROW(                                                  \
+      ::celeborn::utils::CelebornRuntimeError,                      \
+      ::celeborn::utils::error_source::kErrorSourceRuntime.c_str(), \
+      ::celeborn::utils::error_code::kInvalidState.c_str(),         \
+      /* isRetriable */ false,                                      \
       ##__VA_ARGS__)
 
-CELEBORN_DECLARE_CHECK_FAIL_TEMPLATES(::celeborn::CelebornUserError);
+CELEBORN_DECLARE_CHECK_FAIL_TEMPLATES(::celeborn::utils::CelebornUserError);
 
 // For all below macros, an additional message can be passed using a
 // format string and arguments, as with `fmt::format`.
@@ -402,20 +403,21 @@ CELEBORN_DECLARE_CHECK_FAIL_TEMPLATES(::celeborn::CelebornUserError);
 #define CELEBORN_USER_DCHECK_NOT_NULL(e, ...) CELEBORN_USER_CHECK(true)
 #endif
 
-#define CELEBORN_USER_FAIL(...)                           \
-  _CELEBORN_THROW(                                        \
-      ::celeborn::CelebornUserError,                      \
-      ::celeborn::error_source::kErrorSourceUser.c_str(), \
-      ::celeborn::error_code::kInvalidArgument.c_str(),   \
-      /* isRetriable */ false,                            \
+#define CELEBORN_USER_FAIL(...)                                  \
+  _CELEBORN_THROW(                                               \
+      ::celeborn::utils::CelebornUserError,                      \
+      ::celeborn::utils::error_source::kErrorSourceUser.c_str(), \
+      ::celeborn::utils::error_code::kInvalidArgument.c_str(),   \
+      /* isRetriable */ false,                                   \
       ##__VA_ARGS__)
 
-#define CELEBORN_NYI(...)                                    \
-  _CELEBORN_THROW(                                           \
-      ::celeborn::CelebornRuntimeError,                      \
-      ::celeborn::error_source::kErrorSourceRuntime.c_str(), \
-      ::celeborn::error_code::kNotImplemented.c_str(),       \
-      /* isRetriable */ false,                               \
+#define CELEBORN_NYI(...)                                           \
+  _CELEBORN_THROW(                                                  \
+      ::celeborn::utils::CelebornRuntimeError,                      \
+      ::celeborn::utils::error_source::kErrorSourceRuntime.c_str(), \
+      ::celeborn::utils::error_code::kNotImplemented.c_str(),       \
+      /* isRetriable */ false,                                      \
       ##__VA_ARGS__)
 
+} // namespace utils
 } // namespace celeborn

@@ -32,7 +32,7 @@ import org.apache.celeborn.common.CelebornConf.MAX_CHUNKS_BEING_TRANSFERRED
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, MapFileMeta, MemoryFileInfo, ReduceFileMeta}
-import org.apache.celeborn.common.network.buffer.{FileChunkBuffers, MemoryChunkBuffers, NioManagedBuffer}
+import org.apache.celeborn.common.network.buffer.{FileChunkBuffers, MemoryChunkBuffers, NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.server.BaseMessageHandler
@@ -103,7 +103,7 @@ class FetchHandler(
       case r: BufferStreamEnd =>
         handleEndStreamFromClient(client, r.getStreamId)
       case r: ReadAddCredit =>
-        handleReadAddCredit(client, r.getCredit, r.getStreamId)
+        handleReadAddCredit(client, r.getCredit, r.getStreamId, -1)
       case r: ChunkFetchRequest =>
         handleChunkFetchRequest(client, r.streamChunkSlice, r)
       case unknown: RequestMessage =>
@@ -145,18 +145,27 @@ class FetchHandler(
         val readLocalFlags = openStreamList.getReadLocalShuffleList
         val pbOpenStreamListResponse = PbOpenStreamListResponse.newBuilder()
         checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
-        0 until files.size() foreach { idx =>
-          val pbStreamHandlerOpt = handleReduceOpenStreamInternal(
-            client,
-            shuffleKey,
-            files.get(idx),
-            startIndices.get(idx),
-            endIndices.get(idx),
-            readLocalFlags.get(idx))
-          if (pbStreamHandlerOpt.getStatus != StatusCode.SUCCESS.getValue) {
-            workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
+        val openStreamRequestId = Utils.makeOpenStreamRequestId(
+          shuffleKey,
+          client.getChannel.id().toString,
+          rpcRequest.requestId)
+        workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, openStreamRequestId)
+        try {
+          0 until files.size() foreach { idx =>
+            val pbStreamHandlerOpt = handleReduceOpenStreamInternal(
+              client,
+              shuffleKey,
+              files.get(idx),
+              startIndices.get(idx),
+              endIndices.get(idx),
+              readLocalFlags.get(idx))
+            if (pbStreamHandlerOpt.getStatus != StatusCode.SUCCESS.getValue) {
+              workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
+            }
+            pbOpenStreamListResponse.addStreamHandlerOpt(pbStreamHandlerOpt)
           }
-          pbOpenStreamListResponse.addStreamHandlerOpt(pbStreamHandlerOpt)
+        } finally {
+          workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, openStreamRequestId)
         }
 
         client.getChannel.writeAndFlush(new RpcResponse(
@@ -170,13 +179,18 @@ class FetchHandler(
           bufferStreamEnd.getStreamId,
           bufferStreamEnd.getStreamType)
       case readAddCredit: PbReadAddCredit =>
-        handleReadAddCredit(client, readAddCredit.getCredit, readAddCredit.getStreamId)
+        handleReadAddCredit(
+          client,
+          readAddCredit.getCredit,
+          readAddCredit.getStreamId,
+          rpcRequest.requestId)
       case notifyRequiredSegment: PbNotifyRequiredSegment =>
         handleNotifyRequiredSegment(
           client,
           notifyRequiredSegment.getRequiredSegmentId,
           notifyRequiredSegment.getStreamId,
-          notifyRequiredSegment.getSubPartitionId)
+          notifyRequiredSegment.getSubPartitionId,
+          rpcRequest.requestId)
       case chunkFetchRequest: PbChunkFetchRequest =>
         handleChunkFetchRequest(
           client,
@@ -249,8 +263,8 @@ class FetchHandler(
       // 1. when the current request is a non-range openStream, but the original unsorted file
       //    has been deleted by another range's openStream request.
       // 2. when the current request is a range openStream request.
-      if ((endIndex != Int.MaxValue) || (endIndex == Int.MaxValue
-          && !fileInfo.addStream(streamId))) {
+      if ((endIndex != Int.MaxValue && endIndex != -1 && endIndex >= startIndex) || (endIndex == Int.MaxValue && !fileInfo.addStream(
+          streamId))) {
         fileInfo = partitionsSorter.getSortedFileInfo(
           shuffleKey,
           fileName,
@@ -278,6 +292,12 @@ class FetchHandler(
               fileName)
             makeStreamHandler(streamId, numChunks = 0)
           case info: DiskFileInfo if info.isS3 =>
+            chunkStreamManager.registerStream(
+              streamId,
+              shuffleKey,
+              fileName)
+            makeStreamHandler(streamId, numChunks = 0)
+          case info: DiskFileInfo if info.isOSS =>
             chunkStreamManager.registerStream(
               streamId,
               shuffleKey,
@@ -326,8 +346,6 @@ class FetchHandler(
             client.getChannel)}, Exception: ${e.getMessage}"
         PbStreamHandlerOpt.newBuilder().setStatus(StatusCode.OPEN_STREAM_FAILED.getValue)
           .setErrorMsg(msg).build()
-    } finally {
-      workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
     }
   }
 
@@ -344,7 +362,11 @@ class FetchHandler(
       callback: RpcResponseCallback): Unit = {
     checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
     workerSource.recordAppActiveConnection(client, shuffleKey)
-    workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
+    val requestId = Utils.makeOpenStreamRequestId(
+      shuffleKey,
+      client.getChannel.id().toString,
+      rpcRequestId)
+    workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, requestId)
     try {
       val fileInfo = getRawFileInfo(shuffleKey, fileName)
       fileInfo.getFileMeta match {
@@ -389,7 +411,7 @@ class FetchHandler(
         workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
         handleRpcIOException(client, rpcRequestId, shuffleKey, fileName, e, callback)
     } finally {
-      workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
+      workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, requestId)
     }
   }
 
@@ -463,10 +485,12 @@ class FetchHandler(
       streamType: StreamType): Unit = {
     streamType match {
       case StreamType.ChunkStream =>
-        val streamState = chunkStreamManager.getStreamState(streamId)
-        val (shuffleKey, fileName) = (streamState.shuffleKey, streamState.fileName)
-        workerSource.recordAppActiveConnection(client, shuffleKey)
-        getRawFileInfo(shuffleKey, fileName).closeStream(streamId)
+        val streamState = chunkStreamManager.removeStreamState(streamId)
+        if (streamState != null) {
+          val (shuffleKey, fileName) = (streamState.shuffleKey, streamState.fileName)
+          workerSource.recordAppActiveConnection(client, shuffleKey)
+          getRawFileInfo(shuffleKey, fileName).closeStream(streamId)
+        }
       case StreamType.CreditStream =>
         val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)
         if (shuffleKey != null) {
@@ -480,13 +504,22 @@ class FetchHandler(
     }
   }
 
-  def handleReadAddCredit(client: TransportClient, credit: Int, streamId: Long): Unit = {
+  def handleReadAddCredit(
+      client: TransportClient,
+      credit: Int,
+      streamId: Long,
+      requestId: Long): Unit = {
     val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)
     if (shuffleKey != null) {
       workerSource.recordAppActiveConnection(
         client,
         shuffleKey)
       creditStreamManager.addCredit(credit, streamId)
+      if (requestId != -1) {
+        client.getChannel.writeAndFlush(new RpcResponse(
+          requestId,
+          NettyManagedBuffer.EmptyBuffer))
+      }
     }
   }
 
@@ -494,7 +527,8 @@ class FetchHandler(
       client: TransportClient,
       requiredSegmentId: Int,
       streamId: Long,
-      subPartitionId: Int): Unit = {
+      subPartitionId: Int,
+      requestId: Long): Unit = {
     // process NotifyRequiredSegment request here, the MapPartitionDataReader will send data if the segment buffer is available.
     logDebug(
       s"Handle NotifyRequiredSegment with streamId: $streamId, requiredSegmentId: $requiredSegmentId")
@@ -504,6 +538,9 @@ class FetchHandler(
         client,
         shuffleKey)
       creditStreamManager.notifyRequiredSegment(requiredSegmentId, streamId, subPartitionId)
+      client.getChannel.writeAndFlush(new RpcResponse(
+        requestId,
+        NettyManagedBuffer.EmptyBuffer))
     }
   }
 
@@ -511,12 +548,19 @@ class FetchHandler(
       client: TransportClient,
       streamChunkSlice: StreamChunkSlice,
       req: RequestMessage): Unit = {
-    logDebug(s"Received req from ${NettyUtils.getRemoteAddress(client.getChannel)}" +
+    lazy val remoteAddr = NettyUtils.getRemoteAddress(client.getChannel)
+    logDebug(s"Received req from ${remoteAddr}" +
       s" to fetch block $streamChunkSlice")
 
-    workerSource.recordAppActiveConnection(
-      client,
-      chunkStreamManager.getShuffleKeyAndFileName(streamChunkSlice.streamId)._1)
+    val streamState = chunkStreamManager.getStreamState(streamChunkSlice.streamId)
+    if (streamState == null) {
+      val message = s"Stream ${streamChunkSlice.streamId} is not registered with worker. " +
+        "This can happen if the worker was restart recently."
+      logError(message)
+      workerSource.incCounter(WorkerSource.FETCH_CHUNK_FAIL_COUNT)
+      client.getChannel.writeAndFlush(new ChunkFetchFailure(streamChunkSlice, message))
+      return
+    }
 
     maxChunkBeingTransferred.foreach { threshold =>
       val chunksBeingTransferred = chunkStreamManager.chunksBeingTransferred // take high cpu usage
@@ -530,6 +574,8 @@ class FetchHandler(
         return
       }
     }
+
+    workerSource.recordAppActiveConnection(client, streamState.shuffleKey)
 
     val reqStr = req.toString
     workerSource.startTimer(WorkerSource.FETCH_CHUNK_TIME, reqStr)
@@ -548,14 +594,15 @@ class FetchHandler(
             if (future.isSuccess) {
               if (log.isDebugEnabled) {
                 logDebug(
-                  s"Sending ChunkFetchSuccess operation succeeded, chunk $streamChunkSlice")
+                  s"Sending ChunkFetchSuccess to $remoteAddr succeeded, chunk $streamChunkSlice")
               }
+              workerSource.incCounter(WorkerSource.FETCH_CHUNK_SUCCESS_COUNT)
             } else {
               logWarning(
-                s"Sending ChunkFetchSuccess operation failed, chunk $streamChunkSlice",
+                s"Sending ChunkFetchSuccess to $remoteAddr failed, chunk $streamChunkSlice",
                 future.cause())
+              workerSource.incCounter(WorkerSource.FETCH_CHUNK_FAIL_COUNT)
             }
-            workerSource.incCounter(WorkerSource.FETCH_CHUNK_SUCCESS_COUNT)
             chunkStreamManager.chunkSent(streamChunkSlice.streamId)
             if (fetchTimeMetric != null) {
               fetchTimeMetric.update(System.nanoTime() - fetchBeginTime)

@@ -22,7 +22,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.plugin.flink.readclient.FlinkShuffleClientImpl
+import org.apache.celeborn.plugin.flink.client.FlinkShuffleClientImpl
 import org.apache.celeborn.service.deploy.{HeartbeatFeature, MiniClusterFeature}
 
 class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature with HeartbeatFeature
@@ -61,7 +61,7 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
   }
 
   test("celeborn flink heartbeat test - client <- worker timeout") {
-    val (_, clientConf) = getTestHeartbeatFromWorker2ClientWithCloseChannelConf
+    val (_, clientConf) = getTestHeartbeatFromWorker2ClientWithWorkerTimeoutConf
     val flinkShuffleClientImpl =
       new FlinkShuffleClientImpl(
         "",
@@ -73,6 +73,6 @@ class HeartbeatTest extends AnyFunSuite with Logging with MiniClusterFeature wit
         -1) {
         override def setupLifecycleManagerRef(host: String, port: Int): Unit = {}
       }
-    testHeartbeatFromWorker2ClientWithCloseChannel(flinkShuffleClientImpl.getDataClientFactory)
+    testHeartbeatFromWorker2ClientWithWorkerTimeout(flinkShuffleClientImpl.getDataClientFactory)
   }
 }

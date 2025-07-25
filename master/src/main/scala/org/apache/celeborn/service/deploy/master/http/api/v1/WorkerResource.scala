@@ -17,11 +17,12 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import javax.ws.rs.{BadRequestException, Consumes, GET, Path, POST, Produces}
+import javax.ws.rs.{BadRequestException, Consumes, GET, Path, POST, Produces, PUT}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
 
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -41,13 +42,13 @@ class WorkerResource extends ApiRequestContext {
   private def master: Master = httpService.asInstanceOf[Master]
   private def statusSystem = master.statusSystem
 
+  @Operation(description =
+    "List worker information of the service. It will list all registered workers' information.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[WorkersResponse]))),
-    description =
-      "List worker information of the service. It will list all registered workers' information.")
+      schema = new Schema(implementation = classOf[WorkersResponse]))))
   @GET
   def workers: WorkersResponse = {
     new WorkersResponse()
@@ -66,13 +67,13 @@ class WorkerResource extends ApiRequestContext {
         ApiUtils.workerData).toSeq.asJava)
   }
 
+  @Operation(description =
+    "Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description =
-      "Excluded workers of the master add or remove the worker manually given worker id. The parameter add or remove specifies the excluded workers to add or remove.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   @Path("/exclude")
   def excludeWorker(request: ExcludeWorkerRequest): HandleResponse = ensureMasterIsLeader(master) {
@@ -82,12 +83,12 @@ class WorkerResource extends ApiRequestContext {
     new HandleResponse().success(success).message(msg)
   }
 
+  @Operation(description = "Remove the workers unavailable info from the master.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Remove the workers unavailable info from the master.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   @Path("/remove_unavailable")
   def removeWorkersUnavailableInfo(request: RemoveWorkersUnavailableInfoRequest): HandleResponse =
@@ -97,13 +98,13 @@ class WorkerResource extends ApiRequestContext {
       new HandleResponse().success(success).message(msg)
     }
 
+  @Operation(description = "List all worker event infos of the master.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
       schema = new Schema(
-        implementation = classOf[WorkerEventsResponse]))),
-    description = "List all worker event infos of the master.")
+        implementation = classOf[WorkerEventsResponse]))))
   @GET
   @Path("/events")
   def workerEvents(): WorkerEventsResponse = {
@@ -118,13 +119,13 @@ class WorkerResource extends ApiRequestContext {
       }.toSeq.asJava)
   }
 
+  @Operation(description =
+    "For Master(Leader) can send worker event to manager workers. Legal types are 'NONE', 'IMMEDIATELY', 'DECOMMISSION', 'DECOMMISSIONTHENIDLE', 'GRACEFUL', 'RECOMMISSION'.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description =
-      "For Master(Leader) can send worker event to manager workers. Legal types are 'None', 'Immediately', 'Decommission', 'DecommissionThenIdle', 'Graceful', 'Recommission'.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   @Path("/events")
   def sendWorkerEvents(request: SendWorkerEventRequest): HandleResponse =
@@ -135,7 +136,7 @@ class WorkerResource extends ApiRequestContext {
       }
       val workers = request.getWorkers.asScala.map(ApiUtils.toWorkerInfo).toSeq
       val (filteredWorkers, unknownWorkers) =
-        workers.partition(w => statusSystem.workersMap.containsKey(w.toUniqueId()))
+        workers.partition(w => statusSystem.workersMap.containsKey(w.toUniqueId))
       if (filteredWorkers.isEmpty) {
         throw new BadRequestException(
           s"None of the workers are known: ${unknownWorkers.map(_.readableAddress).mkString(", ")}")
@@ -151,8 +152,44 @@ class WorkerResource extends ApiRequestContext {
       new HandleResponse().success(success).message(finalMsg)
     }
 
-  private def toWorkerEventType(enum: EventTypeEnum): WorkerEventType = {
-    enum match {
+  @PUT
+  @Path("/updateInterruptionNotice")
+  def updateInterruptionNotice(request: UpdateInterruptionNoticeRequest): HandleResponse = {
+    ensureMasterIsLeader(master) {
+      if (request.getWorkers.isEmpty) {
+        logWarning("Workers interruption notice list is empty.")
+      }
+      val interruptionNotices: Map[String, Long] =
+        request.getWorkers.asScala.map(worker =>
+          (
+            ApiUtils.toWorkerInfo(worker.getWorkerId).toUniqueId,
+            worker.getInterruptionTimestamp.toLong)).toMap
+      val (success, msg) = httpService.updateInterruptionNotice(interruptionNotices)
+      new HandleResponse().success(success).message(msg)
+    }
+  }
+
+  @Operation(description = "List all worker topology info of the master.")
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(implementation = classOf[TopologyResponse]))))
+  @GET
+  @Path("/topology")
+  def getWorkersTopology(): TopologyResponse = {
+    new TopologyResponse()
+      .topologies(
+        statusSystem.workersMap.values().asScala.groupBy(_.networkLocation).map {
+          case (networkLocation, workers) =>
+            new TopologyInfo()
+              .networkLocation(networkLocation)
+              .workers(workers.map(_.toUniqueId).toSeq.asJava)
+        }.toSeq.asJava)
+  }
+
+  private def toWorkerEventType(eunmObj: EventTypeEnum): WorkerEventType = {
+    eunmObj match {
       case EventTypeEnum.NONE => WorkerEventType.None
       case EventTypeEnum.IMMEDIATELY => WorkerEventType.Immediately
       case EventTypeEnum.DECOMMISSION => WorkerEventType.Decommission

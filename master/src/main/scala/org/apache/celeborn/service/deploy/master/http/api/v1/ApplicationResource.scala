@@ -22,6 +22,7 @@ import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
 
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -36,12 +37,12 @@ import org.apache.celeborn.service.deploy.master.Master
 class ApplicationResource extends ApiRequestContext {
   private def statusSystem = httpService.asInstanceOf[Master].statusSystem
 
+  @Operation(description = "List all running application's ids of the cluster.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[ApplicationsHeartbeatResponse]))),
-    description = "List all running application's ids of the cluster.")
+      schema = new Schema(implementation = classOf[ApplicationsHeartbeatResponse]))))
   @GET
   def applications(): ApplicationsHeartbeatResponse = {
     new ApplicationsHeartbeatResponse()
@@ -53,39 +54,40 @@ class ApplicationResource extends ApiRequestContext {
         }.toSeq.asJava)
   }
 
+  @Operation(description = "Delete resource of apps.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Delete resource of apps.")
-  @DELETE
+      schema = new Schema(implementation = classOf[HandleResponse]))))
+  @POST
+  @Path("/delete_apps")
   def deleteApps(request: DeleteAppsRequest): HandleResponse = {
     val apps = request.getApps.asScala
     apps.foreach(app => statusSystem.deleteApp(app))
     new HandleResponse().success(true).message(s"deleted shuffles of app ${apps}")
   }
 
+  @Operation(description =
+    "List all running application's LifecycleManager's hostnames of the cluster.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HostnamesResponse]))),
-    description =
-      "List all running application's LifecycleManager's hostnames of the cluster.")
+      schema = new Schema(implementation = classOf[HostnamesResponse]))))
   @GET
   @Path("/hostnames")
   def hostnames(): HostnamesResponse = {
     new HostnamesResponse().hostnames(statusSystem.hostnameSet.asScala.toSeq.asJava)
   }
 
+  @Operation(description = "Revise lost shuffles or deleted shuffles of an application.")
   @Path("/revise_lost_shuffles")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_JSON,
-      schema = new Schema(implementation = classOf[HandleResponse]))),
-    description = "Revise lost shuffles or deleted shuffles of an application.")
+      schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   def reviseLostShuffles(request: ReviseLostShufflesRequest): HandleResponse = {
     val appId = request.getAppId

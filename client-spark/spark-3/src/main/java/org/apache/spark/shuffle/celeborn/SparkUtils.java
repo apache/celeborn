@@ -17,22 +17,42 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import java.io.ByteArrayInputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.stream.Collectors;
 
 import scala.Option;
 import scala.Some;
 import scala.Tuple2;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.spark.BarrierTaskContext;
 import org.apache.spark.MapOutputTrackerMaster;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.SparkContext$;
+import org.apache.spark.SparkEnv;
+import org.apache.spark.SparkEnv$;
 import org.apache.spark.TaskContext;
+import org.apache.spark.broadcast.Broadcast;
+import org.apache.spark.io.CompressionCodec;
+import org.apache.spark.io.CompressionCodec$;
 import org.apache.spark.scheduler.DAGScheduler;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.scheduler.MapStatus$;
 import org.apache.spark.scheduler.ShuffleMapStage;
+import org.apache.spark.scheduler.SparkListener;
+import org.apache.spark.scheduler.TaskInfo;
+import org.apache.spark.scheduler.TaskSchedulerImpl;
+import org.apache.spark.scheduler.TaskSetManager;
 import org.apache.spark.shuffle.ShuffleHandle;
 import org.apache.spark.shuffle.ShuffleReadMetricsReporter;
 import org.apache.spark.shuffle.ShuffleReader;
@@ -46,6 +66,12 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornRuntimeException;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
+import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse;
+import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.common.util.KeyLock;
+import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.reflect.DynConstructors;
 import org.apache.celeborn.reflect.DynFields;
 import org.apache.celeborn.reflect.DynMethods;
@@ -102,22 +128,25 @@ public class SparkUtils {
         .getOrElse(context::applicationId);
   }
 
-  public static String getAppShuffleIdentifier(int appShuffleId, TaskContext context) {
-    return appShuffleId + "-" + context.stageId() + "-" + context.stageAttemptNumber();
-  }
-
   public static int celebornShuffleId(
       ShuffleClient client,
       CelebornShuffleHandle<?, ?, ?> handle,
       TaskContext context,
       Boolean isWriter) {
-    if (handle.throwsFetchFailure()) {
-      String appShuffleIdentifier = getAppShuffleIdentifier(handle.shuffleId(), context);
-      return client.getShuffleId(
-          handle.shuffleId(),
-          appShuffleIdentifier,
-          isWriter,
-          context instanceof BarrierTaskContext);
+    if (handle.stageRerunEnabled()) {
+      String appShuffleIdentifier =
+          SparkCommonUtils.encodeAppShuffleIdentifier(handle.shuffleId(), context);
+      Tuple2<Integer, Boolean> res =
+          client.getShuffleId(
+              handle.shuffleId(),
+              appShuffleIdentifier,
+              isWriter,
+              context instanceof BarrierTaskContext);
+      if (!res._2) {
+        throw new CelebornRuntimeException(String.format("Get invalid shuffle id %s", res._1));
+      } else {
+        return res._1;
+      }
     } else {
       return handle.shuffleId();
     }
@@ -295,7 +324,8 @@ public class SparkUtils {
 
     if (!(taskContext instanceof BarrierTaskContext)) return;
     int appShuffleId = handle.shuffleId();
-    String appShuffleIdentifier = SparkUtils.getAppShuffleIdentifier(appShuffleId, taskContext);
+    String appShuffleIdentifier =
+        SparkCommonUtils.encodeAppShuffleIdentifier(appShuffleId, taskContext);
 
     BarrierTaskContext barrierContext = (BarrierTaskContext) taskContext;
     barrierContext.addTaskFailureListener(
@@ -318,5 +348,313 @@ public class SparkUtils {
     } else {
       LOG.error("Can not get active SparkContext, skip cancelShuffle.");
     }
+  }
+
+  private static final DynFields.UnboundField<ConcurrentHashMap<Long, TaskSetManager>>
+      TASK_ID_TO_TASK_SET_MANAGER_FIELD =
+          DynFields.builder()
+              .hiddenImpl(TaskSchedulerImpl.class, "taskIdToTaskSetManager")
+              .defaultAlwaysNull()
+              .build();
+  private static final DynFields.UnboundField<scala.collection.mutable.HashMap<Long, TaskInfo>>
+      TASK_INFOS_FIELD =
+          DynFields.builder()
+              .hiddenImpl(TaskSetManager.class, "taskInfos")
+              .defaultAlwaysNull()
+              .build();
+
+  /**
+   * TaskSetManager - it is not designed to be used outside the spark scheduler. Please be careful.
+   */
+  @VisibleForTesting
+  protected static TaskSetManager getTaskSetManager(TaskSchedulerImpl taskScheduler, long taskId) {
+    synchronized (taskScheduler) {
+      ConcurrentHashMap<Long, TaskSetManager> taskIdToTaskSetManager =
+          TASK_ID_TO_TASK_SET_MANAGER_FIELD.bind(taskScheduler).get();
+      return taskIdToTaskSetManager.get(taskId);
+    }
+  }
+
+  @VisibleForTesting
+  protected static Tuple2<TaskInfo, List<TaskInfo>> getTaskAttempts(
+      TaskSetManager taskSetManager, long taskId) {
+    if (taskSetManager != null) {
+      scala.Option<TaskInfo> taskInfoOption =
+          TASK_INFOS_FIELD.bind(taskSetManager).get().get(taskId);
+      if (taskInfoOption.isDefined()) {
+        TaskInfo taskInfo = taskInfoOption.get();
+        List<TaskInfo> taskAttempts =
+            scala.collection.JavaConverters.asJavaCollectionConverter(
+                    taskSetManager.taskAttempts()[taskInfo.index()])
+                .asJavaCollection().stream()
+                .collect(Collectors.toList());
+        return Tuple2.apply(taskInfo, taskAttempts);
+      } else {
+        LOG.error("Can not get TaskInfo for taskId: {}", taskId);
+        return null;
+      }
+    } else {
+      LOG.error("Can not get TaskSetManager for taskId: {}", taskId);
+      return null;
+    }
+  }
+
+  protected static Map<String, Set<Long>> reportedStageShuffleFetchFailureTaskIds =
+      JavaUtils.newConcurrentHashMap();
+
+  protected static void removeStageReportedShuffleFetchFailureTaskIds(
+      int stageId, int stageAttemptId) {
+    reportedStageShuffleFetchFailureTaskIds.remove(stageId + "-" + stageAttemptId);
+  }
+
+  // For testing only.
+  protected static volatile Long lastReportedShuffleFetchFailureTaskId = null;
+
+  /**
+   * Determines whether a shuffle fetch failure should be reported for the given task.
+   *
+   * <p>Returns false (should NOT report) in the following scenarios: - Other successful attempts
+   * for the same task - Other running attempts and the current failure count hasn't reached the
+   * maximum retry limit - Other attempts already reported shuffle fetch failures for the same task
+   * - TaskSetManager cannot be found (task completed/cleaned up, executor marked as failed, or
+   * stage cancelled/completed)
+   *
+   * <p>Returns true (should report) in all other cases, typically when: - No other attempts exist
+   * or all other attempts have failed - Current failure count has reached the maximum retry limit
+   *
+   * @param taskId the task ID to check
+   * @return true if the shuffle fetch failure should be reported, false otherwise
+   */
+  public static boolean shouldReportShuffleFetchFailure(long taskId) {
+    SparkContext sparkContext = SparkContext$.MODULE$.getActive().getOrElse(null);
+    if (sparkContext == null) {
+      LOG.error("Can not get active SparkContext.");
+      return true;
+    }
+    TaskSchedulerImpl taskScheduler = (TaskSchedulerImpl) sparkContext.taskScheduler();
+    synchronized (taskScheduler) {
+      TaskSetManager taskSetManager = getTaskSetManager(taskScheduler, taskId);
+      if (taskSetManager != null) {
+        int stageId = taskSetManager.stageId();
+        int stageAttemptId = taskSetManager.taskSet().stageAttemptId();
+        int maxTaskFails = taskSetManager.maxTaskFailures();
+        String stageUniqId = stageId + "-" + stageAttemptId;
+        Set<Long> reportedStageTaskIds =
+            reportedStageShuffleFetchFailureTaskIds.computeIfAbsent(
+                stageUniqId, k -> new HashSet<>());
+        reportedStageTaskIds.add(taskId);
+        lastReportedShuffleFetchFailureTaskId = taskId;
+
+        Tuple2<TaskInfo, List<TaskInfo>> taskAttempts = getTaskAttempts(taskSetManager, taskId);
+
+        if (taskAttempts == null) return true;
+
+        TaskInfo taskInfo = taskAttempts._1();
+        for (TaskInfo ti : taskAttempts._2()) {
+          if (ti.taskId() != taskId) {
+            if (reportedStageTaskIds.contains(ti.taskId())) {
+              LOG.info(
+                  "StageId={} index={} taskId={} attempt={} another attempt {} has reported shuffle fetch failure, ignore it.",
+                  stageId,
+                  taskInfo.index(),
+                  taskId,
+                  taskInfo.attemptNumber(),
+                  ti.attemptNumber());
+            } else if (ti.successful()) {
+              LOG.info(
+                  "StageId={} index={} taskId={} attempt={} another attempt {} is successful.",
+                  stageId,
+                  taskInfo.index(),
+                  taskId,
+                  taskInfo.attemptNumber(),
+                  ti.attemptNumber());
+              return false;
+            } else if (ti.running()) {
+              LOG.info(
+                  "StageId={} index={} taskId={} attempt={} another attempt {} is running.",
+                  stageId,
+                  taskInfo.index(),
+                  taskId,
+                  taskInfo.attemptNumber(),
+                  ti.attemptNumber());
+              return false;
+            }
+          } else {
+            if (ti.attemptNumber() >= maxTaskFails - 1) {
+              LOG.warn(
+                  "StageId={} index={} taskId={} attemptNumber {} reach maxTaskFails {}.",
+                  stageId,
+                  taskInfo.index(),
+                  taskId,
+                  ti.attemptNumber(),
+                  maxTaskFails);
+              return true;
+            }
+          }
+        }
+        return true;
+      } else {
+        LOG.error(
+            "Can not get TaskSetManager for taskId: {}, ignore it. (This typically occurs when: "
+                + " task completed/cleaned up, executor marked as failed, or stage cancelled/completed)",
+            taskId);
+        return false;
+      }
+    }
+  }
+
+  public static void addSparkListener(SparkListener listener) {
+    SparkContext sparkContext = SparkContext$.MODULE$.getActive().getOrElse(null);
+    if (sparkContext != null) {
+      sparkContext.addSparkListener(listener);
+    }
+  }
+
+  private static final DynMethods.UnboundMethod isCelebornSkewShuffle_METHOD =
+      DynMethods.builder("isCelebornSkewedShuffle")
+          .hiddenImpl("org.apache.spark.celeborn.CelebornShuffleState", Integer.TYPE)
+          .orNoop()
+          .build();
+
+  public static boolean isCelebornSkewShuffleOrChildShuffle(int appShuffleId) {
+    if (!isCelebornSkewShuffle_METHOD.isNoop()) {
+      return isCelebornSkewShuffle_METHOD.asStatic().invoke(appShuffleId);
+    } else {
+      return false;
+    }
+  }
+
+  /**
+   * A [[KeyLock]] whose key is a shuffle id to ensure there is only one thread accessing the
+   * broadcast belonging to the shuffle id at a time.
+   */
+  private static final KeyLock<Integer> shuffleBroadcastLock = new KeyLock<>();
+
+  @VisibleForTesting
+  public static AtomicInteger getReducerFileGroupResponseBroadcastNum = new AtomicInteger();
+
+  @VisibleForTesting
+  public static Map<Integer, Tuple2<Broadcast<TransportMessage>, byte[]>>
+      getReducerFileGroupResponseBroadcasts = JavaUtils.newConcurrentHashMap();
+
+  public static byte[] serializeGetReducerFileGroupResponse(
+      Integer shuffleId, GetReducerFileGroupResponse response) {
+    SparkContext sparkContext = SparkContext$.MODULE$.getActive().getOrElse(null);
+    if (sparkContext == null) {
+      LOG.error("Can not get active SparkContext.");
+      return null;
+    }
+
+    return shuffleBroadcastLock.withLock(
+        shuffleId,
+        () -> {
+          Tuple2<Broadcast<TransportMessage>, byte[]> cachedSerializeGetReducerFileGroupResponse =
+              getReducerFileGroupResponseBroadcasts.get(shuffleId);
+          if (cachedSerializeGetReducerFileGroupResponse != null) {
+            return cachedSerializeGetReducerFileGroupResponse._2;
+          }
+
+          try {
+            LOG.info("Broadcasting GetReducerFileGroupResponse for shuffle: {}", shuffleId);
+            TransportMessage transportMessage =
+                (TransportMessage) Utils.toTransportMessage(response);
+            Broadcast<TransportMessage> broadcast =
+                sparkContext.broadcast(
+                    transportMessage,
+                    scala.reflect.ClassManifestFactory.fromClass(TransportMessage.class));
+
+            CompressionCodec codec = CompressionCodec$.MODULE$.createCodec(sparkContext.conf());
+            // Using `org.apache.commons.io.output.ByteArrayOutputStream` instead of the standard
+            // one
+            // This implementation doesn't reallocate the whole memory block but allocates
+            // additional buffers. This way no buffers need to be garbage collected and
+            // the contents don't have to be copied to the new buffer.
+            org.apache.commons.io.output.ByteArrayOutputStream out =
+                new org.apache.commons.io.output.ByteArrayOutputStream();
+            try (ObjectOutputStream oos =
+                new ObjectOutputStream(codec.compressedOutputStream(out))) {
+              oos.writeObject(broadcast);
+            }
+            byte[] _serializeResult = out.toByteArray();
+            getReducerFileGroupResponseBroadcasts.put(
+                shuffleId, Tuple2.apply(broadcast, _serializeResult));
+            getReducerFileGroupResponseBroadcastNum.incrementAndGet();
+            return _serializeResult;
+          } catch (Throwable e) {
+            LOG.error(
+                "Failed to serialize GetReducerFileGroupResponse for shuffle: {}", shuffleId, e);
+            return null;
+          }
+        });
+  }
+
+  public static GetReducerFileGroupResponse deserializeGetReducerFileGroupResponse(
+      Integer shuffleId, byte[] bytes) {
+    SparkEnv sparkEnv = SparkEnv$.MODULE$.get();
+    if (sparkEnv == null) {
+      LOG.error("Can not get SparkEnv.");
+      return null;
+    }
+
+    return shuffleBroadcastLock.withLock(
+        shuffleId,
+        () -> {
+          GetReducerFileGroupResponse response = null;
+          LOG.info(
+              "Deserializing GetReducerFileGroupResponse broadcast for shuffle: {}", shuffleId);
+
+          try {
+            CompressionCodec codec = CompressionCodec$.MODULE$.createCodec(sparkEnv.conf());
+            try (ObjectInputStream objIn =
+                new ObjectInputStream(
+                    codec.compressedInputStream(new ByteArrayInputStream(bytes)))) {
+              Broadcast<TransportMessage> broadcast =
+                  (Broadcast<TransportMessage>) objIn.readObject();
+              response =
+                  (GetReducerFileGroupResponse) Utils.fromTransportMessage(broadcast.value());
+            }
+          } catch (Throwable e) {
+            LOG.error(
+                "Failed to deserialize GetReducerFileGroupResponse for shuffle: " + shuffleId, e);
+          }
+          return response;
+        });
+  }
+
+  public static void invalidateSerializedGetReducerFileGroupResponse(Integer shuffleId) {
+    shuffleBroadcastLock.withLock(
+        shuffleId,
+        () -> {
+          try {
+            Tuple2<Broadcast<TransportMessage>, byte[]> cachedSerializeGetReducerFileGroupResponse =
+                getReducerFileGroupResponseBroadcasts.remove(shuffleId);
+            if (cachedSerializeGetReducerFileGroupResponse != null) {
+              cachedSerializeGetReducerFileGroupResponse._1().destroy();
+            }
+          } catch (Throwable e) {
+            LOG.error(
+                "Failed to invalidate serialized GetReducerFileGroupResponse for shuffle: "
+                    + shuffleId,
+                e);
+          }
+          return null;
+        });
+  }
+
+  public static void addWriterShuffleIdsToBeCleaned(
+      SparkShuffleManager sparkShuffleManager, String appShuffleIdentifier) {
+    sparkShuffleManager.getFailedShuffleCleaner().addShuffleIdToBeCleaned(appShuffleIdentifier);
+  }
+
+  public static void removeCleanedShuffleId(
+      SparkShuffleManager sparkShuffleManager, int celebornShuffleId) {
+    sparkShuffleManager.getFailedShuffleCleaner().removeCleanedShuffleId(celebornShuffleId);
+  }
+
+  // Replica of Spark's `org.apache.spark.util.Utils.isLocalMaster`,
+  // due to SPARK-50515(4.0.0) changes the method signature.
+  public static boolean isLocalMaster(SparkConf conf) {
+    String master = conf.get("spark.master", "");
+    return master.equals("local") || master.startsWith("local[");
   }
 }

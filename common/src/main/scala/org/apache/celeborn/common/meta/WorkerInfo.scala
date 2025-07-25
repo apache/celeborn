@@ -19,6 +19,7 @@ package org.apache.celeborn.common.meta
 
 import java.util
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.JavaConverters._
 
@@ -43,11 +44,14 @@ class WorkerInfo(
     _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption]) extends Serializable
   with Logging {
   var networkLocation = NetworkTopology.DEFAULT_RACK
+  var nextInterruptionNotice = Long.MaxValue
   var lastHeartbeat: Long = 0
   var workerStatus = WorkerStatus.normalWorkerStatus()
-  val diskInfos =
+  val diskInfos = {
     if (_diskInfos != null) JavaUtils.newConcurrentHashMap[String, DiskInfo](_diskInfos)
     else null
+  }
+  val workerHasDisk: AtomicBoolean = new AtomicBoolean(computeWorkerHaveDisk)
   val userResourceConsumption =
     if (_userResourceConsumption != null)
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](_userResourceConsumption)
@@ -160,12 +164,10 @@ class WorkerInfo(
       (if (internalPort > 0) s":InternalPort:$internalPort" else "")
   }
 
-  def toUniqueId(): String = {
-    s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort"
-  }
+  lazy val toUniqueId = s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort"
 
   def slotAvailable(): Boolean = this.synchronized {
-    diskInfos.asScala.exists { case (_, disk) => (disk.maxSlots - disk.activeSlots) > 0 }
+    diskInfos.asScala.exists { case (_, disk) => (disk.availableSlots) > 0 }
   }
 
   def getTotalSlots(): Long = this.synchronized {
@@ -180,14 +182,15 @@ class WorkerInfo(
     this.workerStatus = workerStatus;
   }
 
-  def updateDiskMaxSlots(estimatedPartitionSize: Long): Unit = this.synchronized {
+  def updateDiskSlots(estimatedPartitionSize: Long): Unit = this.synchronized {
     diskInfos.asScala.foreach { case (_, disk) =>
-      disk.maxSlots_$eq(disk.actualUsableSpace / estimatedPartitionSize)
+      disk.maxSlots = disk.totalSpace / estimatedPartitionSize
+      disk.availableSlots = disk.actualUsableSpace / estimatedPartitionSize
     }
   }
 
   def totalAvailableSlots(): Long = this.synchronized {
-    diskInfos.asScala.map(_._2.availableSlots()).sum
+    diskInfos.asScala.map(_._2.getAvailableSlots()).sum
   }
 
   def totalSpace(): Long = this.synchronized {
@@ -213,13 +216,17 @@ class WorkerInfo(
           curDisk.activeSlots = newDisk.activeSlots
           curDisk.avgFlushTime = newDisk.avgFlushTime
           curDisk.avgFetchTime = newDisk.avgFetchTime
-          if (estimatedPartitionSize.nonEmpty && curDisk.storageType != StorageInfo.Type.HDFS && curDisk.storageType != StorageInfo.Type.S3) {
-            curDisk.maxSlots = curDisk.actualUsableSpace / estimatedPartitionSize.get
+          if (estimatedPartitionSize.nonEmpty && curDisk.storageType != StorageInfo.Type.HDFS
+            && curDisk.storageType != StorageInfo.Type.S3 && curDisk.storageType != StorageInfo.Type.OSS) {
+            curDisk.maxSlots = curDisk.totalSpace / estimatedPartitionSize.get
+            curDisk.availableSlots = curDisk.actualUsableSpace / estimatedPartitionSize.get
           }
           curDisk.setStatus(newDisk.status)
         } else {
-          if (estimatedPartitionSize.nonEmpty && newDisk.storageType != StorageInfo.Type.HDFS && newDisk.storageType != StorageInfo.Type.S3) {
-            newDisk.maxSlots = newDisk.actualUsableSpace / estimatedPartitionSize.get
+          if (estimatedPartitionSize.nonEmpty && newDisk.storageType != StorageInfo.Type.HDFS
+            && newDisk.storageType != StorageInfo.Type.S3 && newDisk.storageType != StorageInfo.Type.OSS) {
+            newDisk.maxSlots = newDisk.totalSpace / estimatedPartitionSize.get
+            newDisk.availableSlots = newDisk.actualUsableSpace / estimatedPartitionSize.get
           }
           diskInfos.put(mountPoint, newDisk)
         }
@@ -233,6 +240,7 @@ class WorkerInfo(
           diskInfos.remove(nonExistsMountPoint)
         }
       }
+      workerHasDisk.set(computeWorkerHaveDisk)
       JavaUtils.newConcurrentHashMap[String, DiskInfo](diskInfos)
     }
 
@@ -281,8 +289,11 @@ class WorkerInfo(
        |WorkerRef: $endpoint
        |WorkerStatus: $workerStatus
        |NetworkLocation: $networkLocation
+       |NextInterruptionNotice: ${if (hasInterruptionNotice) nextInterruptionNotice else "None"}
        |""".stripMargin
   }
+
+  def hasInterruptionNotice: Boolean = nextInterruptionNotice != Long.MaxValue
 
   override def equals(other: Any): Boolean = other match {
     case that: WorkerInfo =>
@@ -303,9 +314,17 @@ class WorkerInfo(
     result
   }
 
+  private def computeWorkerHaveDisk = {
+    if (diskInfos != null) {
+      diskInfos.values().asScala.exists(p =>
+        p.storageType == StorageInfo.Type.SSD || p.storageType == StorageInfo.Type.HDD)
+    } else {
+      false
+    }
+  }
+
   def haveDisk(): Boolean = {
-    diskInfos.values().asScala.exists(p =>
-      p.storageType == StorageInfo.Type.SSD || p.storageType == StorageInfo.Type.HDD)
+    workerHasDisk.get()
   }
 }
 

@@ -51,6 +51,7 @@ CELEBORN_JAVA_OPTS="$CELEBORN_JAVA_OPTS --add-opens=java.base/sun.nio.ch=ALL-UNN
 CELEBORN_JAVA_OPTS="$CELEBORN_JAVA_OPTS --add-opens=java.base/sun.nio.cs=ALL-UNNAMED"
 CELEBORN_JAVA_OPTS="$CELEBORN_JAVA_OPTS --add-opens=java.base/sun.security.action=ALL-UNNAMED"
 CELEBORN_JAVA_OPTS="$CELEBORN_JAVA_OPTS --add-opens=java.base/sun.util.calendar=ALL-UNNAMED"
+CELEBORN_JAVA_OPTS="$CELEBORN_JAVA_OPTS --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED"
 export CELEBORN_JAVA_OPTS="$CELEBORN_JAVA_OPTS"
 
 if [ "$WORKER_INSTANCE" = "" ]; then

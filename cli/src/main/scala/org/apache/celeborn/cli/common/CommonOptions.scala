@@ -17,6 +17,9 @@
 
 package org.apache.celeborn.cli.common
 
+import java.util.{Collections, Map => JMap}
+
+import org.apache.commons.lang3.StringUtils
 import picocli.CommandLine.{Command, Option, Spec}
 import picocli.CommandLine.Model.CommandSpec
 
@@ -73,9 +76,35 @@ class CommonOptions {
   private[cli] var configName: String = _
 
   @Option(
+    names = Array("--upsert-configs"),
+    paramLabel = "k1:v1,k2:v2,k3:v3...",
+    description = Array("The dynamic configs to upsert in the format of `[key]:[value]`."))
+  private[cli] var upsertConfigs: String = _
+
+  @Option(
+    names = Array("--delete-configs"),
+    paramLabel = "c1,c2,c3...",
+    description = Array("The comma separated dynamic configs to delete."))
+  private[cli] var deleteConfigs: String = _
+
+  @Option(
     names = Array("--apps"),
     paramLabel = "appId",
-    description = Array("The application Id list seperated by comma."))
+    description = Array("The application Id list separated by comma."))
   private[cli] var apps: String = _
 
+  @Option(
+    names = Array("--auth-header"),
+    paramLabel = "authHeader",
+    description = Array("The http `Authorization` header for authentication. " +
+      "It should be in the format of `Bearer <token>` or `Basic <base64-encoded-credentials>`."))
+  private[cli] var authHeader: String = _
+
+  private[cli] def getAuthHeader: JMap[String, String] = {
+    if (StringUtils.isNotBlank(authHeader)) {
+      Collections.singletonMap("Authorization", authHeader)
+    } else {
+      Collections.emptyMap()
+    }
+  }
 }

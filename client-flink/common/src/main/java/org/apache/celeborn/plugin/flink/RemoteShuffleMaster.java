@@ -19,6 +19,7 @@ package org.apache.celeborn.plugin.flink;
 
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,6 +55,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
+import org.apache.celeborn.plugin.flink.fallback.ShuffleFallbackPolicy;
 import org.apache.celeborn.plugin.flink.fallback.ShuffleFallbackPolicyRunner;
 import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 
@@ -63,8 +65,8 @@ public class RemoteShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
   private final ShuffleMasterContext shuffleMasterContext;
   // Flink JobId -> Celeborn register shuffleIds
   private final Map<JobID, Set<Integer>> jobShuffleIds = JavaUtils.newConcurrentHashMap();
-  private final ConcurrentHashMap.KeySetView<JobID, Boolean> nettyJobIds =
-      ConcurrentHashMap.newKeySet();
+  private final ConcurrentHashMap<JobID, String> jobFallbackPolicies =
+      JavaUtils.newConcurrentHashMap();
   private String celebornAppId;
   private volatile LifecycleManager lifecycleManager;
   private final ShuffleTaskInfo shuffleTaskInfo = new ShuffleTaskInfo();
@@ -72,20 +74,17 @@ public class RemoteShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
   private final ScheduledExecutorService executor =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor(
           "celeborn-client-remote-shuffle-master-executor");
-  private final ResultPartitionAdapter resultPartitionDelegation;
   private final long lifecycleManagerTimestamp;
   private final NettyShuffleServiceFactory nettyShuffleServiceFactory;
   private volatile NettyShuffleMaster nettyShuffleMaster;
 
   public RemoteShuffleMaster(
       ShuffleMasterContext shuffleMasterContext,
-      ResultPartitionAdapter resultPartitionDelegation,
       @Nullable NettyShuffleServiceFactory nettyShuffleServiceFactory) {
     Configuration configuration = shuffleMasterContext.getConfiguration();
     checkShuffleConfig(configuration);
     this.conf = FlinkUtils.toCelebornConf(configuration);
     this.shuffleMasterContext = shuffleMasterContext;
-    this.resultPartitionDelegation = resultPartitionDelegation;
     this.lifecycleManagerTimestamp = System.currentTimeMillis();
     this.nettyShuffleServiceFactory = nettyShuffleServiceFactory;
   }
@@ -105,19 +104,26 @@ public class RemoteShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
       }
     }
 
+    lifecycleManager.applicationCount().increment();
     try {
-      if (nettyShuffleServiceFactory != null
-          && ShuffleFallbackPolicyRunner.applyFallbackPolicies(context, conf, lifecycleManager)) {
-        LOG.warn("Fallback to vanilla Flink NettyShuffleMaster for job: {}.", jobID);
-        nettyJobIds.add(jobID);
-        nettyShuffleMaster().registerJob(context);
-      } else {
-        Set<Integer> previousShuffleIds = jobShuffleIds.putIfAbsent(jobID, new HashSet<>());
-        if (previousShuffleIds != null) {
-          throw new RuntimeException("Duplicated registration job: " + jobID);
+      if (nettyShuffleServiceFactory != null) {
+        Optional<ShuffleFallbackPolicy> shuffleFallbackPolicy =
+            ShuffleFallbackPolicyRunner.getActivatedFallbackPolicy(context, conf, lifecycleManager);
+        if (shuffleFallbackPolicy.isPresent()) {
+          LOG.warn("Fallback to vanilla Flink NettyShuffleMaster for job: {}.", jobID);
+          String jobFallbackPolicy = shuffleFallbackPolicy.get().getClass().getName();
+          jobFallbackPolicies.put(jobID, jobFallbackPolicy);
+          lifecycleManager.computeFallbackCounts(
+              lifecycleManager.applicationFallbackCounts(), jobFallbackPolicy);
+          nettyShuffleMaster().registerJob(context);
+          return;
         }
-        shuffleResourceTracker.registerJob(context);
       }
+      Set<Integer> previousShuffleIds = jobShuffleIds.putIfAbsent(jobID, new HashSet<>());
+      if (previousShuffleIds != null) {
+        throw new RuntimeException("Duplicated registration job: " + jobID);
+      }
+      shuffleResourceTracker.registerJob(context);
     } catch (CelebornIOException e) {
       throw new RuntimeException(e);
     }
@@ -126,7 +132,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
   @Override
   public void unregisterJob(JobID jobID) {
     LOG.info("Unregister job: {}.", jobID);
-    if (nettyJobIds.remove(jobID)) {
+    if (jobFallbackPolicies.remove(jobID) != null) {
       nettyShuffleMaster().unregisterJob(jobID);
       return;
     }
@@ -152,8 +158,12 @@ public class RemoteShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
       JobID jobID, PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor) {
     return CompletableFuture.supplyAsync(
         () -> {
-          if (nettyJobIds.contains(jobID)) {
+          lifecycleManager.shuffleCount().increment();
+          String jobFallbackPolicy = jobFallbackPolicies.get(jobID);
+          if (jobFallbackPolicy != null) {
             try {
+              lifecycleManager.computeFallbackCounts(
+                  lifecycleManager.shuffleFallbackCounts(), jobFallbackPolicy);
               return nettyShuffleMaster()
                   .registerPartitionWithProducer(jobID, partitionDescriptor, producerDescriptor)
                   .get();
@@ -243,8 +253,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
       TaskInputsOutputsDescriptor taskInputsOutputsDescriptor) {
     for (ResultPartitionType partitionType :
         taskInputsOutputsDescriptor.getPartitionTypes().values()) {
-      boolean isBlockingShuffle =
-          resultPartitionDelegation.isBlockingResultPartition(partitionType);
+      boolean isBlockingShuffle = partitionType.isBlockingOrBlockingPersistentResultPartition();
       if (!isBlockingShuffle) {
         throw new RuntimeException(
             "Blocking result partition type expected but found " + partitionType);
@@ -270,7 +279,7 @@ public class RemoteShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
   @Override
   public void close() throws Exception {
     try {
-      nettyJobIds.clear();
+      jobFallbackPolicies.clear();
       jobShuffleIds.clear();
       LifecycleManager manager = lifecycleManager;
       if (null != manager) {
@@ -318,7 +327,12 @@ public class RemoteShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
   }
 
   @VisibleForTesting
-  public ConcurrentHashMap.KeySetView<JobID, Boolean> nettyJobIds() {
-    return nettyJobIds;
+  public LifecycleManager lifecycleManager() {
+    return lifecycleManager;
+  }
+
+  @VisibleForTesting
+  public ConcurrentHashMap<JobID, String> jobFallbackPolicies() {
+    return jobFallbackPolicies;
   }
 }

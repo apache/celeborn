@@ -45,7 +45,12 @@ Each instance can report to zero or more _sinks_. Sinks are contained in the
 
 * `CSVSink`: Exports metrics data to CSV files at regular intervals.
 * `PrometheusServlet`: Adds a servlet within the existing Celeborn REST API to serve metrics data in Prometheus format.
+* `JsonServlet`: Adds a servlet within the existing Celeborn REST API to serve metrics data in JSON format.
 * `GraphiteSink`: Sends metrics to a Graphite node.
+* `LoggerSink`: Scrape metrics periodically and output them to the logger files if you have enabled
+  `celeborn.metrics.loggerSink.output.enabled`. This is used as safety valve to make sure the
+  metrics data won't exist in the memory for a long time. If you don't have a metrics collector to
+  collect metrics from celeborn periodically, it's important to enable this sink.
 
 The syntax of the metrics configuration file and the parameters available for each sink are defined
 in an example configuration file,
@@ -66,6 +71,8 @@ This example shows a list of Celeborn configuration parameters for a CSV sink:
 Default values of the Celeborn metrics configuration are as follows:
 ```
 *.sink.prometheusServlet.class=org.apache.celeborn.common.metrics.sink.PrometheusServlet
+*.sink.jsonServlet.class=org.apache.celeborn.common.metrics.sink.JsonServlet
+*.sink.loggerSink.class=org.apache.celeborn.common.metrics.sink.LoggerSink
 ```
 
 Additional sources can be configured using the metrics configuration file or the configuration
@@ -92,25 +99,29 @@ These metrics are exposed by Celeborn master.
 
   - namespace=master
     
-    | Metric Name              | Description                                                                       |
-    |--------------------------|-----------------------------------------------------------------------------------|
-    | RegisteredShuffleCount   | The count of registered shuffle.                                                  |
-    | DeviceCelebornFreeBytes  | The actual usable space of Celeborn available workers for device.                 |
-    | DeviceCelebornTotalBytes | The total space of Celeborn for device.                                           |
-    | RunningApplicationCount  | The count of running applications.                                                |
-    | ActiveShuffleSize        | The active shuffle size of workers.                                               |
-    | ActiveShuffleFileCount   | The active shuffle file count of workers.                                         |
-    | ShuffleTotalCount        | The total count of shuffle including celeborn shuffle and spark built-in shuffle. |
-    | ShuffleFallbackCount     | The count of shuffle fallbacks.                                                   |
-    | WorkerCount              | The count of active workers.                                                      |
-    | LostWorkerCount          | The count of workers in lost list.                                                |
-    | ExcludedWorkerCount      | The count of workers in excluded list.                                            |
-    | AvailableWorkerCount     | The count of workers in available list.                                           |
-    | ShutdownWorkerCount      | The count of workers in shutdown list.                                            |
-    | DecommissionWorkerCount  | The count of workers in decommission list.                                        |
-    | IsActiveMaster           | Whether the current master is active.                                             |
-    | PartitionSize            | The size of estimated shuffle partition.                                          |
-    | OfferSlotsTime           | The time for masters to handle `RequestSlots` request when registering shuffle.   |
+    | Metric Name                  | Description                                                                               |
+    |------------------------------|-------------------------------------------------------------------------------------------|
+    | RegisteredShuffleCount       | The count of registered shuffle.                                                          |
+    | DeviceCelebornFreeBytes      | The actual usable space of Celeborn available workers for device.                         |
+    | DeviceCelebornTotalBytes     | The total space of Celeborn for device.                                                   |
+    | RunningApplicationCount      | The count of running applications.                                                        |
+    | ActiveShuffleSize            | The active shuffle size of workers.                                                       |
+    | ActiveShuffleFileCount       | The active shuffle file count of workers.                                                 |
+    | ShuffleTotalCount            | The total count of shuffle including celeborn shuffle and engine built-in shuffle.        |
+    | ShuffleFallbackCount         | The count of shuffle fallbacks.                                                           |
+    | ApplicationTotalCount        | The total count of application running with celeborn shuffle and engine built-in shuffle. |
+    | ApplicationFallbackCount     | The count of application fallbacks.                                                       |
+    | WorkerCount                  | The count of active workers.                                                              |
+    | LostWorkerCount              | The count of workers in lost list.                                                        |
+    | ExcludedWorkerCount          | The count of workers in excluded list.                                                    |
+    | AvailableWorkerCount         | The count of workers in available list.                                                   |
+    | ShutdownWorkerCount          | The count of workers in shutdown list.                                                    |
+    | DecommissionWorkerCount      | The count of workers in decommission list.                                                |
+    | IsActiveMaster               | Whether the current master is active.                                                     |
+    | RatisApplyCompletedIndex     | The ApplyCompletedIndex of the current master node in HA mode.                            |
+    | RatisApplyCompletedIndexDiff | The difference value of ApplyCompletedIndex of the master nodes in HA mode.               |
+    | PartitionSize                | The size of estimated shuffle partition.                                                  |
+    | OfferSlotsTime               | The time for masters to handle `RequestSlots` request when registering shuffle.           |
 
   - namespace=CPU
 
@@ -206,9 +217,11 @@ These metrics are exposed by Celeborn worker.
     | PausePushDataAndReplicateTime          | The time for a worker to stop receiving pushData from clients and other workers because of back pressure.       |
     | PausePushData                          | The count for a worker to stop receiving pushData from clients because of back pressure.                        |
     | PausePushDataAndReplicate              | The count for a worker to stop receiving pushData from clients and other workers because of back pressure.      |
+    | PartitionFileSizeBytes                 | The size of partition files committed in current worker.                                                        |
     | TakeBufferTime                         | The time for a worker to take out a buffer from a disk flusher.                                                 |
     | FlushDataTime                          | The time for a worker to write a buffer which is 256KB by default to storage.                                   |
     | CommitFilesTime                        | The time for a worker to flush buffers and close files related to specified shuffle.                            |
+    | CommitFilesFailCount                   | The count of commit files request failed in current worker.                                                     |
     | SlotsAllocated                         | Slots allocated in last hour.                                                                                   |
     | ActiveSlotsCount                       | The number of slots currently being used in a worker.                                                           |
     | ReserveSlotsTime                       | ReserveSlots means acquire a disk buffer and record partition location.                                         |
@@ -217,6 +230,7 @@ These metrics are exposed by Celeborn worker.
     | SortTime                               | The time for a worker to sort a shuffle file.                                                                   |
     | SortMemory                             | The memory used by sorting shuffle files.                                                                       |
     | SortingFiles                           | The count of sorting shuffle files.                                                                             |
+    | PendingSortTaks                        | The count of sort tasks waiting to be submitted to FileSorterExecutors.                                         |
     | SortedFiles                            | The count of sorted shuffle files.                                                                              |
     | SortedFileSize                         | The count of sorted shuffle files 's total size.                                                                |
     | DiskBuffer                             | The memory occupied by pushData and pushMergedData which should be written to disk.                             |
@@ -236,10 +250,12 @@ These metrics are exposed by Celeborn worker.
     | WorkerConsumeSpeed                     | The speed of worker consumption for congestion control.                                                         |
     | IsDecommissioningWorker                | 1 means worker decommissioning, 0 means not decommissioning.                                                    |
     | UnreleasedShuffleCount                 | Unreleased shuffle count when worker is decommissioning.                                                        |
+    | UnreleasedPartitionLocationCount       | Unreleased partition location count when worker is shutting down.                                               |
     | MemoryStorageFileCount                 | The count of files in Memory Storage of a worker.                                                               |
     | MemoryFileStorageSize                  | The total amount of memory used by Memory Storage.                                                              |
     | EvictedFileCount                       | The count of files evicted from Memory Storage to Disk                                                          |
     | DirectMemoryUsageRatio                 | Ratio of direct memory used and max direct memory.                                                              |
+    | RegisterWithMasterFailCount            | The count of failures in register with master request.                                                          |
     | push_usedHeapMemory                    |                                                                                                                 |
     | push_usedDirectMemory                  |                                                                                                                 |
     | push_numHeapArenas                     |                                                                                                                 |

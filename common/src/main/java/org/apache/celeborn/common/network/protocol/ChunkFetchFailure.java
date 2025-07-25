@@ -20,8 +20,6 @@ package org.apache.celeborn.common.network.protocol;
 import java.util.Objects;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.apache.commons.lang3.builder.ToStringStyle;
 
 import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
 
@@ -73,9 +71,10 @@ public final class ChunkFetchFailure extends ResponseMessage {
 
   @Override
   public String toString() {
-    return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
-        .append("streamChunkId", streamChunkSlice)
-        .append("errorString", errorString)
-        .toString();
+    return "ChunkFetchFailure[streamChunkId="
+        + streamChunkSlice
+        + ",errorString="
+        + errorString
+        + "]";
   }
 }

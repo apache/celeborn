@@ -20,6 +20,7 @@ package org.apache.spark.shuffle.celeborn
 import java.io.IOException
 import java.util.concurrent.{ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
+import java.util.function.BiFunction
 
 import org.apache.spark.{Aggregator, InterruptibleIterator, TaskContext}
 import org.apache.spark.internal.Logging
@@ -32,7 +33,8 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.client.read.CelebornInputStream
 import org.apache.celeborn.client.read.MetricsCallback
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.exception.{CelebornIOException, PartitionUnRetryAbleException}
+import org.apache.celeborn.common.exception.{CelebornBroadcastException, CelebornIOException, CelebornRuntimeException, PartitionUnRetryAbleException}
+import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 
 class CelebornShuffleReader[K, C](
@@ -61,8 +63,24 @@ class CelebornShuffleReader[K, C](
   override def read(): Iterator[Product2[K, C]] = {
 
     val serializerInstance = dep.serializer.newInstance()
-
-    val shuffleId = SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
+    val shuffleId =
+      try {
+        SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
+      } catch {
+        case e: CelebornRuntimeException =>
+          logError(s"Failed to get shuffleId for appShuffleId ${handle.shuffleId}", e)
+          if (handle.stageRerunEnabled) {
+            throw new FetchFailedException(
+              null,
+              handle.shuffleId,
+              -1,
+              startPartition,
+              SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId,
+              e)
+          } else {
+            throw e
+          }
+      }
     shuffleIdTracker.track(handle.shuffleId, shuffleId)
     logDebug(
       s"get shuffleId $shuffleId for appShuffleId ${handle.shuffleId} attemptNum ${context.stageAttemptNumber()}")
@@ -98,11 +116,16 @@ class CelebornShuffleReader[K, C](
                 shuffleId,
                 partitionId,
                 encodedAttemptId,
+                context.taskAttemptId(),
                 startMapIndex,
                 endMapIndex,
                 metricsCallback)
               streams.put(partitionId, inputStream)
             } catch {
+              case e: CelebornIOException
+                  if (e.getCause != null && e.getCause.isInstanceOf[CelebornBroadcastException]) =>
+                logError(s"Exception caught when readPartition $partitionId via broadcast!", e)
+                exceptionRef.compareAndSet(null, new IOException(e.getCause))
               case e: IOException =>
                 logError(s"Exception caught when readPartition $partitionId!", e)
                 exceptionRef.compareAndSet(null, e)
@@ -123,8 +146,11 @@ class CelebornShuffleReader[K, C](
           if (exceptionRef.get() != null) {
             exceptionRef.get() match {
               case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
-                if (handle.throwsFetchFailure &&
-                  shuffleClient.reportShuffleFetchFailure(handle.shuffleId, shuffleId)) {
+                if (handle.stageRerunEnabled &&
+                  shuffleClient.reportShuffleFetchFailure(
+                    handle.shuffleId,
+                    shuffleId,
+                    context.taskAttemptId())) {
                   throw new FetchFailedException(
                     null,
                     handle.shuffleId,
@@ -157,8 +183,11 @@ class CelebornShuffleReader[K, C](
         iter
       } catch {
         case e @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
-          if (handle.throwsFetchFailure &&
-            shuffleClient.reportShuffleFetchFailure(handle.shuffleId, shuffleId)) {
+          if (handle.stageRerunEnabled &&
+            shuffleClient.reportShuffleFetchFailure(
+              handle.shuffleId,
+              shuffleId,
+              context.taskAttemptId())) {
             throw new FetchFailedException(
               null,
               handle.shuffleId,
@@ -247,4 +276,13 @@ class CelebornShuffleReader[K, C](
 
 object CelebornShuffleReader {
   var streamCreatorPool: ThreadPoolExecutor = null
+  // Register the deserializer for GetReducerFileGroupResponse broadcast
+  ShuffleClient.registerDeserializeReducerFileGroupResponseFunction(new BiFunction[
+    Integer,
+    Array[Byte],
+    GetReducerFileGroupResponse] {
+    override def apply(shuffleId: Integer, broadcast: Array[Byte]): GetReducerFileGroupResponse = {
+      SparkUtils.deserializeGetReducerFileGroupResponse(shuffleId, broadcast)
+    }
+  })
 }

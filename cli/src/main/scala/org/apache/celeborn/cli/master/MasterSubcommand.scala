@@ -23,13 +23,13 @@ import picocli.CommandLine.{ArgGroup, Mixin, ParameterException, ParentCommand, 
 import picocli.CommandLine.Model.CommandSpec
 
 import org.apache.celeborn.cli.CelebornCli
-import org.apache.celeborn.cli.common.{CliLogging, CommonOptions}
+import org.apache.celeborn.cli.common.{BaseCommand, CliLogging, CommonOptions}
 import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.rest.v1.master.{ApplicationApi, ConfApi, DefaultApi, MasterApi, ShuffleApi, WorkerApi}
 import org.apache.celeborn.rest.v1.master.invoker.ApiClient
 import org.apache.celeborn.rest.v1.model._
 
-trait MasterSubcommand extends CliLogging {
+trait MasterSubcommand extends BaseCommand {
 
   @ParentCommand
   private var celebornCli: CelebornCli = _
@@ -109,10 +109,16 @@ trait MasterSubcommand extends CliLogging {
 
   private[master] def runShowDynamicConf: DynamicConfigResponse
 
+  private[master] def runUpsertDynamicConf: HandleResponse
+
+  private[master] def runDeleteDynamicConf: HandleResponse
+
   private[master] def runShowThreadDump: ThreadStackResponse
 
   private[master] def reviseLostShuffles: HandleResponse
 
   private[master] def deleteApps: HandleResponse
+
+  private[master] def updateInterruptionNotices: HandleResponse
 
 }

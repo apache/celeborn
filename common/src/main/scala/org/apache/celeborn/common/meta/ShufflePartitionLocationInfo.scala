@@ -25,7 +25,7 @@ import scala.collection.mutable.ArrayBuffer
 
 import org.apache.celeborn.common.protocol.PartitionLocation
 
-class ShufflePartitionLocationInfo {
+class ShufflePartitionLocationInfo(val workerInfo: WorkerInfo) {
   type PartitionInfo = ConcurrentHashMap[Int, util.Set[PartitionLocation]]
 
   private val primaryPartitionLocations = new PartitionInfo
@@ -89,22 +89,22 @@ class ShufflePartitionLocationInfo {
     }
   }
 
-  def getAllPrimaryLocationsWithMinEpoch(): ArrayBuffer[PartitionLocation] = {
+  def getAllPrimaryLocationsWithMaxEpoch(): ArrayBuffer[PartitionLocation] = {
     val set = new ArrayBuffer[PartitionLocation](primaryPartitionLocations.size())
     val locationsIterator = primaryPartitionLocations.values().iterator()
     while (locationsIterator.hasNext) {
       val locationIterator = locationsIterator.next().iterator()
-      var min: PartitionLocation = null
+      var max: PartitionLocation = null
       if (locationIterator.hasNext) {
-        min = locationIterator.next();
+        max = locationIterator.next();
       }
       while (locationIterator.hasNext) {
         val next = locationIterator.next()
-        if (min.getEpoch > next.getEpoch) {
-          min = next;
+        if (max.getEpoch < next.getEpoch) {
+          max = next;
         }
       }
-      set += min;
+      set += max;
     }
     set
   }

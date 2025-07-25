@@ -41,12 +41,12 @@ Celeborn Worker's slot count is decided by `total usable disk size / average shu
 Celeborn worker's slot count decreases when a partition is allocated and increments when a partition is freed.
 
 ## Build
-1. Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3/3.4/3.5, Flink 1.14/1.15/1.16/1.17/1.18/1.19/1.20 and Hadoop MapReduce 2/3.
+1. Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3/3.4/3.5/4.0, Flink 1.16/1.17/1.18/1.19/1.20 and Hadoop MapReduce 2/3.
 2. Celeborn tested under Scala 2.11/2.12/2.13 and Java 8/11/17 environment.
 
 Build Celeborn via `make-distribution.sh`:
 ```shell
-./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pspark-3.4/-Pspark-3.5/-Pflink-1.14/-Pflink-1.15/-Pflink-1.16/-Pflink-1.17/-Pflink-1.18/-Pflink-1.19/-Pflink-1.20/-Pmr
+./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pspark-3.4/-Pspark-3.5/-Pspark-4.0/-Pflink-1.16/-Pflink-1.17/-Pflink-1.18/-Pflink-1.19/-Pflink-1.20/-Pflink-2.0/-Pmr
 ```
 
 Package `apache-celeborn-${project.version}-bin.tgz` will be generated.
@@ -62,13 +62,13 @@ Package `apache-celeborn-${project.version}-bin.tgz` will be generated.
 | Spark 3.3  | &#x274C;          | &#10004;          | &#10004;           | &#10004;           | &#10004;          | &#10004;           | &#10004;           |
 | Spark 3.4  | &#x274C;          | &#10004;          | &#10004;           | &#10004;           | &#10004;          | &#10004;           | &#10004;           |
 | Spark 3.5  | &#x274C;          | &#10004;          | &#10004;           | &#10004;           | &#10004;          | &#10004;           | &#10004;           |
-| Flink 1.14 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
-| Flink 1.15 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
+| Spark 4.0  | &#x274C;          | &#x274C;          | &#x274C;           | &#x274C;           | &#x274C;          | &#x274C;           | &#10004;           |
 | Flink 1.16 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.17 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.18 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.19 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.20 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
+| Flink 2.0  | &#x274C;          | &#x274C;          | &#10004;           | &#10004;           | &#x274C;          | &#10004;           | &#10004;           |
 
 To compile the client for Spark 2.4 with Scala 2.12, please use the following command:
 
@@ -89,7 +89,25 @@ To compile for Spark 3.5 with Java21,  please use the following command
 ./build/make-distribution.sh --sbt-enabled -Pspark-3.5 -Pjdk-21
 ```
 
+To compile for Spark 4.0 with Java21,  please use the following command
+```shell
+./build/make-distribution.sh -Pspark-4.0 -Pjdk-21
+```
+```shell
+./build/make-distribution.sh --sbt-enabled -Pspark-4.0 -Pjdk-21
+```
+
 > **_NOTE:_** Celeborn supports automatic builds on linux aarch64 platform via `aarch64` profile. `aarch64` profile requires glibc version 3.4.21. There is potential problematic frame `C  [libc.so.6+0x8412a]` for other glibc version like 2.x etc.
+
+To build Celeborn with AWS S3 support MPU, please use the following command
+```shell
+./build/make-distribution.sh --sbt-enabled -Pspark-3.4 -Pjdk-8 -Paws
+```
+
+To build Celeborn with Aliyun OSS support MPU, please use the following command
+```shell
+./build/make-distribution.sh --sbt-enabled -Pspark-3.4 -Pjdk-8 -Paliyun
+```
 
 ### Package Details
 Build procedure will create a compressed package.
@@ -114,7 +132,7 @@ Celeborn server is compatible with all clients inside various engines.
 However, Celeborn clients must be consistent with the version of the specified engine.
 For example, if you are running Spark 2.4, you must compile Celeborn client with -Pspark-2.4;
 if you are running Spark 3.2, you must compile Celeborn client with -Pspark-3.2; 
-if you are running flink 1.14, you must compile Celeborn client with -Pflink-1.14.
+if you are running flink 1.16, you must compile Celeborn client with -Pflink-1.16.
 
 ## Usage
 Celeborn cluster composes of Master and Worker nodes, the Master supports both single and HA mode(Raft-based) deployments.
@@ -257,6 +275,16 @@ Disks: {/mnt/disk1=DiskInfo(maxSlots: 6679, committed shuffles 0, running applic
 WorkerRef: null
 ```
 
+Shuffle OSS storage related configurations:
+```properties
+# If you are using Celeborn for shuffle OSS storage, these settings will be needed.
+celeborn.storage.availableTypes OSS
+celeborn.storage.oss.dir oss://<bucket_name>/
+celeborn.storage.oss.access.key <oss_access_key>
+celeborn.storage.oss.secret.key <oss_secret_key>
+celeborn.storage.oss.endpoint oss-cn-<region>[-internal].aliyuncs.com
+```
+
 #### Deploy Celeborn on K8S
 Please refer to our [website](https://celeborn.apache.org/docs/latest/deploy_on_k8s/)
 
@@ -311,6 +339,16 @@ spark.dynamicAllocation.shuffleTracking.enabled false
 spark.executor.userClassPathFirst false
 ```
 
+Shuffle OSS storage related configurations:
+```properties
+# If you are using Celeborn for shuffle OSS storage, these settings will be needed.
+spark.celeborn.storage.availableTypes OSS
+spark.celeborn.storage.oss.dir oss://<bucket_name>/
+spark.celeborn.storage.oss.access.key <oss_access_key>
+spark.celeborn.storage.oss.secret.key <oss_secret_key>
+spark.celeborn.storage.oss.endpoint oss-cn-<region>[-internal].aliyuncs.com
+```
+
 ### Deploy Flink client
 
 **Important: Only Flink batch jobs are supported for now. Due to the Shuffle Service in Flink is cluster-granularity, if you want to use Celeborn in a session cluster, it will not be able to submit both streaming and batch job to the same cluster. We plan to get rid of this restriction for Hybrid Shuffle mode in a future release.**
@@ -318,7 +356,7 @@ spark.executor.userClassPathFirst false
 Copy `$CELEBORN_HOME/flink/*.jar` to `$FLINK_HOME/lib/`.
 
 #### Flink Configuration
-Celeborn supports two Flink integration strategies: remote shuffle service (since Flink 1.14) and [hybrid shuffle](https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/batch/batch_shuffle/#hybrid-shuffle) (since Flink 1.20).
+Celeborn supports two Flink integration strategies: remote shuffle service (since Flink 1.16) and [hybrid shuffle](https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/batch/batch_shuffle/#hybrid-shuffle) (since Flink 1.20).
 
 To use Celeborn, you can choose one of them and add the following Flink configurations.
 
@@ -377,6 +415,25 @@ Meanwhile, configure the following settings in YARN and MapReduce config.
 ```
 **Note**: `MRAppMasterWithCeleborn` supports setting `mapreduce.celeborn.master.endpoints` via environment variable `CELEBORN_MASTER_ENDPOINTS`.
 Meanwhile, `MRAppMasterWithCeleborn` disables `yarn.app.mapreduce.am.job.recovery.enable` and sets `mapreduce.job.reduce.slowstart.completedmaps` to 1 by default.
+
+
+### Deploy Tez client(Experimental)
+Copy `$CELEBORN_HOME/tez/*.jar` into `mapreduce.application.classpath` and `yarn.application.classpath`.
+Meanwhile, configure the following settings in hive-site config and append `org.apache.tez.dag.app.CelebornDagAppMaster` to your `tez.am.launch.cmd-opts` in the `tez-site.xml`  
+```properties
+tez.celeborn.master.endpoints <master-1-1>:9097
+```
+**Note**: `CelebornDagAppMaster` supports setting `tez.celeborn.master.endpoints` via environment variable `CELEBORN_MASTER_ENDPOINTS`.
+Meanwhile, `CelebornDagAppMaster` will override following configs in tez-site.xml.
+
+| config item                                              | override value |
+|----------------------------------------------------------|----------------|
+| tez.shuffle-vertex-manager.min-src-fraction              | 1.0f           |
+| tez.shuffle-vertex-manager.max-src-fraction              | 1.0f           |
+| tez.runtime.transfer.data-via-events.enabled             | false          |
+| tez.runtime.transfer.data-via-events.support.in-mem.file | false          |
+| tez.runtime.pipelined-shuffle.enabled                    | false          |
+| tez.am.node-unhealthy-reschedule-tasks                   | false          |
 
 ### Best Practice
 If you want to set up a production-ready Celeborn cluster, your cluster should have at least 3 masters and at least 4 workers.

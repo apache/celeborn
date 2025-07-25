@@ -29,6 +29,8 @@ import org.apache.celeborn.rest.v1.model.ExcludeWorkerRequest;
 import org.apache.celeborn.rest.v1.model.HandleResponse;
 import org.apache.celeborn.rest.v1.model.RemoveWorkersUnavailableInfoRequest;
 import org.apache.celeborn.rest.v1.model.SendWorkerEventRequest;
+import org.apache.celeborn.rest.v1.model.TopologyResponse;
+import org.apache.celeborn.rest.v1.model.UpdateInterruptionNoticeRequest;
 import org.apache.celeborn.rest.v1.model.WorkerEventsResponse;
 import org.apache.celeborn.rest.v1.model.WorkersResponse;
 
@@ -256,6 +258,73 @@ public class WorkerApi extends BaseApi {
 
   /**
    * 
+   * List all worker topology info of the master.
+   * @return TopologyResponse
+   * @throws ApiException if fails to make API call
+   */
+  public TopologyResponse getWorkersTopology() throws ApiException {
+    return this.getWorkersTopology(Collections.emptyMap());
+  }
+
+
+  /**
+   * 
+   * List all worker topology info of the master.
+   * @param additionalHeaders additionalHeaders for this call
+   * @return TopologyResponse
+   * @throws ApiException if fails to make API call
+   */
+  public TopologyResponse getWorkersTopology(Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = null;
+    
+    // create path and map variables
+    String localVarPath = "/api/v1/workers/topology";
+
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    List<Pair> localVarQueryParams = new ArrayList<Pair>();
+    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+    Map<String, String> localVarCookieParams = new HashMap<String, String>();
+    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+    
+    localVarHeaderParams.putAll(additionalHeaders);
+
+    
+    
+    final String[] localVarAccepts = {
+      "application/json"
+    };
+    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+
+    final String[] localVarContentTypes = {
+      
+    };
+    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+
+    String[] localVarAuthNames = new String[] { "basic" };
+
+    TypeReference<TopologyResponse> localVarReturnType = new TypeReference<TopologyResponse>() {};
+    return apiClient.invokeAPI(
+        localVarPath,
+        "GET",
+        localVarQueryParams,
+        localVarCollectionQueryParams,
+        localVarQueryStringJoiner.toString(),
+        localVarPostBody,
+        localVarHeaderParams,
+        localVarCookieParams,
+        localVarFormParams,
+        localVarAccept,
+        localVarContentType,
+        localVarAuthNames,
+        localVarReturnType
+    );
+  }
+
+  /**
+   * 
    * Remove the workers unavailable info from the master.
    * @param removeWorkersUnavailableInfoRequest  (optional)
    * @return HandleResponse
@@ -325,7 +394,7 @@ public class WorkerApi extends BaseApi {
 
   /**
    * 
-   * For Master(Leader) can send worker event to manager workers. Legal types are &#39;None&#39;, &#39;Immediately&#39;, &#39;Decommission&#39;, &#39;DecommissionThenIdle&#39;, &#39;Graceful&#39;, &#39;Recommission&#39;. 
+   * For Master(Leader) can send worker event to manager workers. Legal types are &#39;NONE&#39;, &#39;IMMEDIATELY&#39;, &#39;DECOMMISSION&#39;, &#39;DECOMMISSIONTHENIDLE&#39;, &#39;GRACEFUL&#39;, &#39;RECOMMISSION&#39;. 
    * @param sendWorkerEventRequest  (optional)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
@@ -337,7 +406,7 @@ public class WorkerApi extends BaseApi {
 
   /**
    * 
-   * For Master(Leader) can send worker event to manager workers. Legal types are &#39;None&#39;, &#39;Immediately&#39;, &#39;Decommission&#39;, &#39;DecommissionThenIdle&#39;, &#39;Graceful&#39;, &#39;Recommission&#39;. 
+   * For Master(Leader) can send worker event to manager workers. Legal types are &#39;NONE&#39;, &#39;IMMEDIATELY&#39;, &#39;DECOMMISSION&#39;, &#39;DECOMMISSIONTHENIDLE&#39;, &#39;GRACEFUL&#39;, &#39;RECOMMISSION&#39;. 
    * @param sendWorkerEventRequest  (optional)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
@@ -378,6 +447,75 @@ public class WorkerApi extends BaseApi {
     return apiClient.invokeAPI(
         localVarPath,
         "POST",
+        localVarQueryParams,
+        localVarCollectionQueryParams,
+        localVarQueryStringJoiner.toString(),
+        localVarPostBody,
+        localVarHeaderParams,
+        localVarCookieParams,
+        localVarFormParams,
+        localVarAccept,
+        localVarContentType,
+        localVarAuthNames,
+        localVarReturnType
+    );
+  }
+
+  /**
+   * 
+   * Update the master with worker disruption info to be used during slot allocation.
+   * @param updateInterruptionNoticeRequest  (optional)
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse updateInterruptionNotice(UpdateInterruptionNoticeRequest updateInterruptionNoticeRequest) throws ApiException {
+    return this.updateInterruptionNotice(updateInterruptionNoticeRequest, Collections.emptyMap());
+  }
+
+
+  /**
+   * 
+   * Update the master with worker disruption info to be used during slot allocation.
+   * @param updateInterruptionNoticeRequest  (optional)
+   * @param additionalHeaders additionalHeaders for this call
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse updateInterruptionNotice(UpdateInterruptionNoticeRequest updateInterruptionNoticeRequest, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = updateInterruptionNoticeRequest;
+    
+    // create path and map variables
+    String localVarPath = "/api/v1/workers/updateInterruptionNotice";
+
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    List<Pair> localVarQueryParams = new ArrayList<Pair>();
+    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+    Map<String, String> localVarCookieParams = new HashMap<String, String>();
+    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+    
+    localVarHeaderParams.putAll(additionalHeaders);
+
+    
+    
+    final String[] localVarAccepts = {
+      "application/json"
+    };
+    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+
+    final String[] localVarContentTypes = {
+      "application/json"
+    };
+    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+
+    String[] localVarAuthNames = new String[] { "basic" };
+
+    TypeReference<HandleResponse> localVarReturnType = new TypeReference<HandleResponse>() {};
+    return apiClient.invokeAPI(
+        localVarPath,
+        "PUT",
         localVarQueryParams,
         localVarCollectionQueryParams,
         localVarQueryStringJoiner.toString(),

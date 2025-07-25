@@ -93,6 +93,58 @@ paths:
         "503":
           description: Dynamic configuration is disabled.
 
+  /api/v1/conf/dynamic/upsert:
+    post:
+      tags:
+        - Conf
+      operationId: upsertDynamicConf
+      description: |
+        Upsert the dynamic configs.
+        The parameter level specifies the config level of dynamic configs. 
+        The parameter tenant specifies the tenant id of TENANT or TENANT_USER level.
+        The parameter name specifies the user name of TENANT_USER level.
+        Meanwhile, either none or all of the parameter tenant and name are specified for TENANT_USER level.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: './master_rest_v1.yaml#/components/schemas/UpsertDynamicConfigRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+        "503":
+          description: Dynamic configuration is disabled.
+
+  /api/v1/conf/dynamic/delete:
+    post:
+      tags:
+        - Conf
+      operationId: deleteDynamicConf
+      description: |
+        Delete the dynamic configs.
+        The parameter level specifies the config level of dynamic configs. 
+        The parameter tenant specifies the tenant id of TENANT or TENANT_USER level.
+        The parameter name specifies the user name of TENANT_USER level.
+        Meanwhile, either none or all of the parameter tenant and name are specified for TENANT_USER level.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: './master_rest_v1.yaml#/components/schemas/DeleteDynamicConfigRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+        "503":
+          description: Dynamic configuration is disabled.
+
   /api/v1/thread_dump:
     get:
       operationId: getThreadDump
@@ -172,7 +224,7 @@ paths:
       operationId: workerExit
       description: |
         Trigger this worker to exit.
-        Legal exit types are 'Decommission', 'Graceful' and 'Immediately'.
+        Legal exit types are 'DECOMMISSION', 'GRACEFUL' and 'IMMEDIATELY'.
       requestBody:
         content:
           application/json:
@@ -201,6 +253,51 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApplicationsResponse'
+
+  /api/v1/loggers:
+    get:
+      tags:
+        - Logger
+      operationId: getLogger
+      description: Get the logger level, return all loggers if no name specified.
+      parameters:
+        - name: name
+          in: query
+          description: The logger name.
+          required: false
+          schema:
+            type: string
+        - name: all
+          in: query
+          description: Return all logger instances if true, otherwise return all configured loggers.
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoggerInfos'
+    post:
+      tags:
+        - Logger
+      operationId: setLogger
+      description: Set the logger level.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoggerInfo'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
 
 components:
   schemas:
@@ -408,6 +505,13 @@ components:
         isDecommissioning:
           type: boolean
           description: The decommission status of the worker.
+        nextInterruptionNotice:
+          type: integer
+          format: int64
+          description: The next interruption notice of the worker.
+        networkLocation:
+          type: string
+          description: The network location of the worker.
       required:
         - host
         - rpcPort
@@ -507,6 +611,13 @@ components:
           type: integer
           format: int64
           description: The start time of the worker state.
+        nextInterruptionNotice:
+          type: integer
+          format: int64
+          description: The next interruption notice of the worker.
+        networkLocation:
+          type: string
+          description: The network location of the worker.
       required:
         - host
         - rpcPort
@@ -529,7 +640,7 @@ components:
         hdfsFileCount:
           type: integer
           format: int64
-        subResourceConsumption:
+        subResourceConsumptions:
           type: object
           additionalProperties:
             $ref: '#/components/schemas/WorkerResourceConsumption'
@@ -604,10 +715,8 @@ components:
       properties:
         primaryPartitions:
           $ref: '#/components/schemas/ShufflePartitionLocations'
-          default: { }
         replicaPartitions:
           $ref: '#/components/schemas/ShufflePartitionLocations'
-          default: { }
 
     WorkerId:
       type: object
@@ -650,6 +759,28 @@ components:
             - GRACEFUL
             - IMMEDIATELY
             - NONE
+
+    LoggerInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The logger name.
+        level:
+          type: string
+          description: The logger level.
+      required:
+        - name
+        - level
+
+    LoggerInfos:
+      type: object
+      properties:
+        loggers:
+          type: array
+          description: The logger infos.
+          items:
+            $ref: '#/components/schemas/LoggerInfo'
 
     HandleResponse:
       type: object

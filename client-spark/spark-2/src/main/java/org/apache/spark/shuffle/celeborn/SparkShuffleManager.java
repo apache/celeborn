@@ -97,12 +97,27 @@ public class SparkShuffleManager implements ShuffleManager {
         if (lifecycleManager == null) {
           appUniqueId = celebornConf.appUniqueIdWithUUIDSuffix(appId);
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
+          lifecycleManager.applicationCount().increment();
           lifecycleManager.registerCancelShuffleCallback(SparkUtils::cancelShuffle);
           if (celebornConf.clientStageRerunEnabled()) {
             MapOutputTrackerMaster mapOutputTracker =
                 (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();
+
+            lifecycleManager.registerReportTaskShuffleFetchFailurePreCheck(
+                taskId -> SparkUtils.shouldReportShuffleFetchFailure(taskId));
+            SparkUtils.addSparkListener(new ShuffleFetchFailureReportTaskCleanListener());
+
             lifecycleManager.registerShuffleTrackerCallback(
                 shuffleId -> mapOutputTracker.unregisterAllMapOutput(shuffleId));
+          }
+
+          if (celebornConf.getReducerFileGroupBroadcastEnabled()) {
+            lifecycleManager.registerBroadcastGetReducerFileGroupResponseCallback(
+                (shuffleId, getReducerFileGroupResponse) ->
+                    SparkUtils.serializeGetReducerFileGroupResponse(
+                        shuffleId, getReducerFileGroupResponse));
+            lifecycleManager.registerInvalidatedBroadcastCallback(
+                shuffleId -> SparkUtils.invalidateSerializedGetReducerFileGroupResponse(shuffleId));
           }
         }
       }
@@ -194,7 +209,7 @@ public class SparkShuffleManager implements ShuffleManager {
                 celebornConf,
                 h.userIdentifier(),
                 h.extension());
-        if (h.throwsFetchFailure()) {
+        if (h.stageRerunEnabled()) {
           SparkUtils.addFailureListenerIfBarrierTask(client, context, h);
         }
         int shuffleId = SparkUtils.celebornShuffleId(client, h, context, true);

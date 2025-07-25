@@ -38,6 +38,7 @@ import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLoc
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, Role, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.{CelebornRackResolver, TransportContext}
+import org.apache.celeborn.common.network.protocol.TransportMessagesHelper
 import org.apache.celeborn.common.network.sasl.SaslServerBootstrap
 import org.apache.celeborn.common.network.server.TransportServerBootstrap
 import org.apache.celeborn.common.network.util.TransportConf
@@ -51,7 +52,6 @@ import org.apache.celeborn.common.util.{CelebornExitKind, CollectionUtils, JavaU
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.server.common.{HttpService, Service}
-import org.apache.celeborn.service.deploy.worker.WorkerSource.ACTIVE_CONNECTION_COUNT
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingState
@@ -81,7 +81,9 @@ private[celeborn] class Worker(
   metricsSystem.registerSource(new JVMCPUSource(conf, Role.WORKER))
   metricsSystem.registerSource(new SystemMiscSource(conf, Role.WORKER))
 
-  private val topResourceConsumptionCount = conf.metricsWorkerAppTopResourceConsumptionCount
+  private val topAppResourceConsumptionCount = conf.metricsWorkerAppTopResourceConsumptionCount
+  private val topAppResourceConsumptionBytesWrittenThreshold =
+    conf.metricsWorkerAppTopResourceConsumptionBytesWrittenThreshold
   private val topApplicationUserIdentifiers =
     JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
 
@@ -104,6 +106,7 @@ private[celeborn] class Worker(
         workerArgs.port,
         conf,
         Math.min(64, Math.max(4, Runtime.getRuntime.availableProcessors())),
+        Role.WORKER,
         None,
         Some(workerSource))
     } else {
@@ -121,6 +124,7 @@ private[celeborn] class Worker(
         workerArgs.port,
         conf,
         Math.max(64, Runtime.getRuntime.availableProcessors()),
+        Role.WORKER,
         Some(externalSecurityContext),
         Some(workerSource))
     }
@@ -137,6 +141,7 @@ private[celeborn] class Worker(
         workerArgs.internalPort,
         conf,
         Math.min(64, Math.max(4, Runtime.getRuntime.availableProcessors())),
+        Role.WORKER,
         None,
         Some(workerSource))
     }
@@ -177,13 +182,12 @@ private[celeborn] class Worker(
 
   val storageManager = new StorageManager(conf, workerSource)
 
-  val memoryManager: MemoryManager = MemoryManager.initialize(conf, storageManager)
+  val memoryManager: MemoryManager = MemoryManager.initialize(conf, storageManager, workerSource)
   memoryManager.registerMemoryListener(storageManager)
 
   val partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource)
 
   if (conf.workerCongestionControlEnabled) {
-
     CongestionController.initialize(
       workerSource,
       conf.workerCongestionControlSampleTimeWindowSeconds.toInt,
@@ -191,8 +195,7 @@ private[celeborn] class Worker(
       configService)
   }
 
-  var controller = new Controller(rpcEnv, conf, metricsSystem, workerSource)
-  rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
+  val controller = new Controller(rpcEnv, conf, metricsSystem, workerSource)
 
   // Visible for testing
   private[worker] var internalRpcEndpoint: RpcEndpoint = _
@@ -308,6 +311,10 @@ private[celeborn] class Worker(
   val shuffleCommitInfos: ConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]] =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, CommitInfo]]()
 
+  val shuffleCommitTime
+      : ConcurrentHashMap[String, ConcurrentHashMap[Long, (Long, RpcCallContext)]] =
+    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[Long, (Long, RpcCallContext)]]()
+
   private val masterClient = new MasterClient(internalRpcEnvInUse, conf, true)
   secretRegistry.initialize(masterClient)
 
@@ -328,8 +335,8 @@ private[celeborn] class Worker(
     ThreadUtils.newDaemonCachedThreadPool("worker-data-replicator", conf.workerReplicateThreads)
   val commitThreadPool: ThreadPoolExecutor =
     ThreadUtils.newDaemonCachedThreadPool("worker-files-committer", conf.workerCommitThreads)
-  val waitThreadPool: ThreadPoolExecutor =
-    ThreadUtils.newDaemonCachedThreadPool("worker-commit-waiter", conf.workerCommitFilesWaitThreads)
+  val commitFinishedChecker: ScheduledExecutorService =
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-commit-checker")
   val cleanThreadPool: ThreadPoolExecutor =
     ThreadUtils.newDaemonCachedThreadPool(
       "worker-expired-shuffle-cleaner",
@@ -354,9 +361,11 @@ private[celeborn] class Worker(
 
   private var jvmQuake: JVMQuake = _
   if (conf.workerJvmQuakeEnabled) {
-    jvmQuake = JVMQuake.create(conf, workerInfo.toUniqueId().replace(":", "-"))
+    jvmQuake = JVMQuake.create(conf, workerInfo.toUniqueId.replace(":", "-"))
     jvmQuake.start()
   }
+
+  private val messagesHelper: TransportMessagesHelper = new TransportMessagesHelper()
 
   workerSource.addGauge(WorkerSource.REGISTERED_SHUFFLE_COUNT) { () =>
     workerInfo.getShuffleKeySet.size
@@ -366,6 +375,9 @@ private[celeborn] class Worker(
   }
   workerSource.addGauge(WorkerSource.SORT_MEMORY) { () =>
     memoryManager.getSortMemoryCounter.get()
+  }
+  workerSource.addGauge(WorkerSource.PENDING_SORT_TASKS) { () =>
+    partitionsSorter.getPendingSortTaskCount
   }
   workerSource.addGauge(WorkerSource.SORTING_FILES) { () =>
     partitionsSorter.getSortingCount
@@ -442,6 +454,15 @@ private[celeborn] class Worker(
       0
     }
   }
+  // Unreleased partition location count when worker is restarting
+  workerSource.addGauge(WorkerSource.UNRELEASED_PARTITION_LOCATION_COUNT) { () =>
+    if (shutdown.get()) {
+      partitionLocationInfo.primaryPartitionLocations.size() +
+        partitionLocationInfo.replicaPartitionLocations.size()
+    } else {
+      0
+    }
+  }
   workerSource.addGauge(WorkerSource.CLEAN_TASK_QUEUE_SIZE) { () =>
     cleanTaskQueue.size()
   }
@@ -455,7 +476,7 @@ private[celeborn] class Worker(
       case (ServingState.PUSH_AND_REPLICATE_PAUSED, _, _) => true
       case (ServingState.PUSH_PAUSED, _, _) => true
       case (_, _, Some(activeConnectionMax)) =>
-        workerSource.getCounterCount(ACTIVE_CONNECTION_COUNT) >= activeConnectionMax
+        workerSource.getCounterCount(WorkerSource.ACTIVE_CONNECTION_COUNT) >= activeConnectionMax
       case _ => false
     }
   }
@@ -468,7 +489,7 @@ private[celeborn] class Worker(
     val diskInfos =
       workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
         disk.mountPoint -> disk
-      }.toMap.asJava).values().asScala.toSeq ++ storageManager.hdfsDiskInfo ++ storageManager.s3DiskInfo
+      }.toMap.asJava).values().asScala.toSeq ++ storageManager.hdfsDiskInfo ++ storageManager.s3DiskInfo ++ storageManager.ossDiskInfo
     workerStatusManager.checkIfNeedTransitionStatus()
     val response = masterClient.askSync[HeartbeatFromWorkerResponse](
       HeartbeatFromWorker(
@@ -547,8 +568,10 @@ private[celeborn] class Worker(
     pushDataHandler.init(this)
     replicateHandler.init(this)
     fetchHandler.init(this)
-    controller.init(this)
     workerStatusManager.init(this)
+
+    controller.init(this)
+    rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
 
     logInfo("Worker started.")
     rpcEnv.awaitTermination()
@@ -587,13 +610,13 @@ private[celeborn] class Worker(
         forwardMessageScheduler.shutdown()
         replicateThreadPool.shutdown()
         commitThreadPool.shutdown()
-        waitThreadPool.shutdown();
+        commitFinishedChecker.shutdown();
         asyncReplyPool.shutdown()
       } else {
         forwardMessageScheduler.shutdownNow()
         replicateThreadPool.shutdownNow()
         commitThreadPool.shutdownNow()
-        waitThreadPool.shutdownNow();
+        commitFinishedChecker.shutdownNow();
         asyncReplyPool.shutdownNow()
       }
       workerSource.appActiveConnections.clear()
@@ -613,6 +636,7 @@ private[celeborn] class Worker(
       if (conf.internalPortEnabled) {
         internalRpcEnvInUse.stop(internalRpcEndpointRef)
       }
+      messagesHelper.close()
       super.stop(exitKind)
 
       logInfo("Worker is stopped.")
@@ -647,6 +671,7 @@ private[celeborn] class Worker(
             logWarning(
               s"Register worker to master failed, will retry after ${Utils.msDurationToString(interval)}",
               throwable)
+            workerSource.incCounter(WorkerSource.REGISTER_WITH_MASTER_FAIL_COUNT)
             exception = throwable
             null
         }
@@ -670,11 +695,13 @@ private[celeborn] class Worker(
     resourceConsumptionSnapshot.asScala.foreach { case (userIdentifier, _) =>
       gaugeResourceConsumption(userIdentifier)
     }
-    handleTopResourceConsumption(resourceConsumptionSnapshot)
+    if (topAppResourceConsumptionCount > 0) {
+      handleTopAppResourceConsumption(resourceConsumptionSnapshot)
+    }
     resourceConsumptionSnapshot
   }
 
-  def handleTopResourceConsumption(userResourceConsumptions: util.Map[
+  def handleTopAppResourceConsumption(userResourceConsumptions: util.Map[
     UserIdentifier,
     ResourceConsumption]): Unit = {
     // Remove application top resource consumption gauges to refresh top resource consumption metrics.
@@ -691,10 +718,15 @@ private[celeborn] class Worker(
         appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten
       }
       .reverse
-      .take(topResourceConsumptionCount).foreach {
+      .take(topAppResourceConsumptionCount).foreach {
         case (appId, userIdentifier, appConsumption) =>
-          topApplicationUserIdentifiers.put(appId, userIdentifier)
-          gaugeResourceConsumption(userIdentifier, appId, appConsumption)
+          if (appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten >=
+              topAppResourceConsumptionBytesWrittenThreshold) {
+            topApplicationUserIdentifiers.put(appId, userIdentifier)
+            gaugeResourceConsumption(userIdentifier, appId, appConsumption)
+          } else {
+            return
+          }
       }
   }
 
@@ -751,6 +783,7 @@ private[celeborn] class Worker(
         shufflePushDataTimeout.remove(shuffleKey)
         shuffleMapperAttempts.remove(shuffleKey)
         shuffleCommitInfos.remove(shuffleKey)
+        shuffleCommitTime.remove(shuffleKey)
         workerInfo.releaseSlots(shuffleKey)
         val applicationId = Utils.splitShuffleKey(shuffleKey)._1
         if (!workerInfo.getApplicationIdSet.contains(applicationId)) {
@@ -867,7 +900,7 @@ private[celeborn] class Worker(
     val sb = new StringBuilder
     sb.append("==================== Unavailable Peers of Worker =====================\n")
     unavailablePeers.asScala.foreach { case (peer, time) =>
-      sb.append(s"${peer.toUniqueId().padTo(50, " ").mkString}${Utils.formatTimestamp(time)}\n")
+      sb.append(s"${peer.toUniqueId.padTo(50, " ").mkString}${Utils.formatTimestamp(time)}\n")
     }
     sb.toString()
   }

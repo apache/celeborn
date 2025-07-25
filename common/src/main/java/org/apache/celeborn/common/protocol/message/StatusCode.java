@@ -21,6 +21,8 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.google.common.base.Preconditions;
+
 public enum StatusCode {
   // 1/0 Status
   SUCCESS(0),
@@ -29,7 +31,7 @@ public enum StatusCode {
 
   // Specific Status
   SHUFFLE_ALREADY_REGISTERED(3),
-  SHUFFLE_NOT_REGISTERED(4),
+  SHUFFLE_UNREGISTERED(4),
   RESERVE_SLOTS_FAILED(5),
   SLOT_NOT_AVAILABLE(6),
   WORKER_NOT_FOUND(7),
@@ -52,7 +54,7 @@ public enum StatusCode {
   HARD_SPLIT(21),
   SOFT_SPLIT(22),
 
-  STAGE_END_TIME_OUT(23),
+  STAGE_END_TIMEOUT(23),
   SHUFFLE_DATA_LOST(24),
   WORKER_SHUTDOWN(25),
   NO_AVAILABLE_WORKING_DIR(26),
@@ -89,7 +91,9 @@ public enum StatusCode {
   OPEN_STREAM_FAILED(51),
   SEGMENT_START_FAIL_REPLICA(52),
   SEGMENT_START_FAIL_PRIMARY(53),
-  NO_SPLIT(54);
+  NO_SPLIT(54),
+  WORKER_UNRESPONSIVE(55),
+  READ_REDUCER_PARTITION_END_FAILED(56);
 
   private final byte value;
 
@@ -111,5 +115,11 @@ public enum StatusCode {
       return code;
     }
     throw new IllegalArgumentException("Unknown status code: " + value);
+  }
+
+  public static StatusCode fromValue(int value) {
+    Preconditions.checkArgument(
+        value >= 0 && value < 256, "Value:" + value + " is out of range [0,256).");
+    return fromValue((byte) value);
   }
 }
