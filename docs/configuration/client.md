@@ -35,6 +35,7 @@ license: |
 | celeborn.client.fetch.excludedWorker.expireTimeout | &lt;value of celeborn.client.excludedWorker.expireTimeout&gt; | false | ShuffleClient is a static object, it will be used in the whole lifecycle of Executor, We give a expire time for excluded workers to avoid a transient worker issues. | 0.3.0 |  | 
 | celeborn.client.fetch.maxReqsInFlight | 3 | false | Amount of in-flight chunk fetch request. | 0.3.0 | celeborn.fetch.maxReqsInFlight | 
 | celeborn.client.fetch.maxRetriesForEachReplica | 3 | false | Max retry times of fetch chunk on each replica | 0.3.0 | celeborn.fetch.maxRetriesForEachReplica,celeborn.fetch.maxRetries | 
+| celeborn.client.fetch.pollChunk.wait | 500ms | false | The waiting time for shuffle client to read the empty chunk on the work side.when there are many empty chunk in the shuffle partition of a small task,the current value can be set small to avoid long waiting times and the illusion of thetask getting stuck | 0.6.1 |  | 
 | celeborn.client.fetch.timeout | 600s | false | Timeout for a task to open stream and fetch chunk. | 0.3.0 | celeborn.fetch.timeout | 
 | celeborn.client.flink.compression.enabled | true | false | Whether to compress data in Flink plugin. | 0.3.0 | remote-shuffle.job.enable-data-compression | 
 | celeborn.client.flink.inputGate.concurrentReadings | 2147483647 | false | Max concurrent reading channels for a input gate. | 0.3.0 | remote-shuffle.job.concurrent-readings-per-gate | 
