@@ -53,6 +53,9 @@ public class NettyUtils {
       JavaUtils.newConcurrentHashMap();
   private static final List<PooledByteBufAllocator> pooledByteBufAllocators = new ArrayList<>();
 
+  private static final String NETTY_POOL_LABEL = "pool";
+  private static final String NETTY_ALLOCATOR_INDEX_LABEL = "allocatorIndex";
+
   /** Creates a new ThreadFactory which prefixes each thread with the given name. */
   public static ThreadFactory createThreadFactory(String threadPoolPrefix) {
     return new DefaultThreadFactory(threadPoolPrefix, true);
@@ -197,18 +200,18 @@ public class NettyUtils {
       }
     }
     if (source != null) {
-      String poolName;
       Map<String, String> labels = new HashMap<>();
       if (conf.getCelebornConf().networkMemoryAllocatorAllowCache()) {
-        poolName = allowCache ? "celeborn-netty-shared-cache-pool" : "celeborn-netty-shared-pool";
+        String poolName =
+            allowCache ? "celeborn-netty-shared-cache-pool" : "celeborn-netty-shared-pool";
+        labels.put(NETTY_POOL_LABEL, poolName);
       } else {
-        poolName = conf.getModuleName();
-        int index = allocatorsIndex.compute(poolName, (k, v) -> v == null ? 0 : v + 1);
-        labels.put("allocatorIndex", String.valueOf(index));
+        int index = allocatorsIndex.compute(conf.getModuleName(), (k, v) -> v == null ? 0 : v + 1);
+        labels.put(NETTY_ALLOCATOR_INDEX_LABEL, String.valueOf(index));
       }
       new NettyMemoryMetrics(
           allocator,
-          poolName,
+          conf.getModuleName(),
           conf.getCelebornConf().networkAllocatorVerboseMetric(),
           source,
           labels);
