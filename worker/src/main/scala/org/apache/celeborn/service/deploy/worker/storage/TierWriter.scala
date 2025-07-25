@@ -645,13 +645,43 @@ class DfsTierWriter(
       hadoopFs.delete(hdfsFileInfo.getDfsPath, false)
       deleted = true
     } else {
-      hadoopFs.create(hdfsFileInfo.getDfsWriterSuccessPath).close()
-      val indexOutputStream = hadoopFs.create(hdfsFileInfo.getDfsIndexPath)
-      indexOutputStream.writeInt(hdfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
-      for (offset <- hdfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala) {
-        indexOutputStream.writeLong(offset)
+      def retry(operationName: String)(action: => Unit): Unit = {
+        var retryCount = 0
+        val maxAttempts = conf.workerCreateIndexOrSuccessMaxAttempts
+        var success = false
+
+        while (retryCount < maxAttempts && !success) {
+          try {
+            action
+            success = true
+          } catch {
+            case e: IOException =>
+              retryCount += 1
+              logWarning(s"Failed to $operationName, retryCount $retryCount", e)
+              if (retryCount < maxAttempts) {
+                Thread.sleep(conf.workerCreateIndexOrSuccessBaseSleepDeltaMs * retryCount)
+              } else {
+                throw e
+              }
+          }
+        }
       }
-      indexOutputStream.close()
+
+      retry("create and write index file") {
+        if (hadoopFs.exists(hdfsFileInfo.getDfsIndexPath)) {
+          hadoopFs.delete(hdfsFileInfo.getDfsIndexPath, true)
+        }
+        val indexOutputStream = hadoopFs.create(hdfsFileInfo.getDfsIndexPath)
+        indexOutputStream.writeInt(hdfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
+        for (offset <- hdfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala) {
+          indexOutputStream.writeLong(offset)
+        }
+        indexOutputStream.close()
+      }
+
+      retry("create success file") {
+        hadoopFs.create(hdfsFileInfo.getDfsWriterSuccessPath).close()
+      }
     }
     if (s3MultipartUploadHandler != null) {
       s3MultipartUploadHandler.complete()
