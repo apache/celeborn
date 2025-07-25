@@ -294,7 +294,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 && !conf.hasOssStorage())
             || highWorkload)) {
       LOG.warn(
-          "Worker {} (unhealthy disks num: {}) adds to excluded workers", worker, unhealthyDiskNum);
+          "Worker {} (unhealthy disks num: {}, high workload: {}) adds to excluded workers",
+          worker,
+          unhealthyDiskNum,
+          highWorkload);
       excludedWorkers.add(worker);
     } else if ((availableSlots.get() > 0
             || conf.hasHDFSStorage()
