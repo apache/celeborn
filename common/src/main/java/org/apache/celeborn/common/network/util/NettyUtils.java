@@ -177,11 +177,15 @@ public class NettyUtils {
   public static ByteBufAllocator getByteBufAllocator(
       TransportConf conf, AbstractSource source, boolean allowCache, int coreNum) {
     ByteBufAllocator allocator;
+    Map<String, String> metricsLabels = new HashMap<>();
     if (conf.getCelebornConf().networkShareMemoryAllocator()) {
       allocator =
           getSharedByteBufAllocator(
               conf.getCelebornConf(),
               allowCache && conf.getCelebornConf().networkMemoryAllocatorAllowCache());
+      metricsLabels.put(
+          NETTY_POOL_LABEL,
+          allowCache ? "celeborn-netty-shared-cache-pool" : "celeborn-netty-shared-pool");
     } else {
       int arenas;
       if (coreNum != 0) {
@@ -195,26 +199,20 @@ public class NettyUtils {
               conf.preferDirectBufs(),
               allowCache,
               arenas);
+      metricsLabels.put(NETTY_POOL_LABEL, "celeborn-netty-default-pool");
+      int index = allocatorsIndex.compute(conf.getModuleName(), (k, v) -> v == null ? 0 : v + 1);
+      metricsLabels.put(NETTY_ALLOCATOR_INDEX_LABEL, String.valueOf(index));
       if (conf.getCelebornConf().networkMemoryAllocatorPooled()) {
         pooledByteBufAllocators.add((PooledByteBufAllocator) allocator);
       }
     }
     if (source != null) {
-      Map<String, String> labels = new HashMap<>();
-      if (conf.getCelebornConf().networkMemoryAllocatorAllowCache()) {
-        String poolName =
-            allowCache ? "celeborn-netty-shared-cache-pool" : "celeborn-netty-shared-pool";
-        labels.put(NETTY_POOL_LABEL, poolName);
-      } else {
-        int index = allocatorsIndex.compute(conf.getModuleName(), (k, v) -> v == null ? 0 : v + 1);
-        labels.put(NETTY_ALLOCATOR_INDEX_LABEL, String.valueOf(index));
-      }
       new NettyMemoryMetrics(
           allocator,
           conf.getModuleName(),
           conf.getCelebornConf().networkAllocatorVerboseMetric(),
           source,
-          labels);
+          metricsLabels);
     }
     return allocator;
   }
