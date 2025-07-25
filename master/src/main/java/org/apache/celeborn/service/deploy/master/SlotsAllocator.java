@@ -67,15 +67,28 @@ public class SlotsAllocator {
     for (WorkerInfo worker : workers) {
       List<UsableDiskInfo> usableDisks =
           slotsRestrictions.computeIfAbsent(worker, v -> new ArrayList<>());
+
+      boolean hasAvailableSSD =
+          worker.diskInfos().values().stream()
+              .anyMatch(
+                  disk ->
+                      disk.status().equals(DiskStatus.HEALTHY)
+                          && (disk.storageType() == StorageInfo.Type.SSD)
+                          && disk.getAvailableSlots() > 0);
+
       for (Map.Entry<String, DiskInfo> diskInfoEntry : worker.diskInfos().entrySet()) {
         if (diskInfoEntry.getValue().status().equals(DiskStatus.HEALTHY)) {
-          if (StorageInfo.localDiskAvailable(availableStorageTypes)
-              && diskInfoEntry.getValue().storageType() != StorageInfo.Type.HDFS
-              && diskInfoEntry.getValue().storageType() != StorageInfo.Type.S3
-              && diskInfoEntry.getValue().storageType() != StorageInfo.Type.OSS) {
-            usableDisks.add(
-                new UsableDiskInfo(
-                    diskInfoEntry.getValue(), diskInfoEntry.getValue().getAvailableSlots()));
+          if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
+            if (diskInfoEntry.getValue().storageType() == StorageInfo.Type.SSD) {
+              usableDisks.add(
+                  new UsableDiskInfo(
+                      diskInfoEntry.getValue(), diskInfoEntry.getValue().getAvailableSlots()));
+            } else if (diskInfoEntry.getValue().storageType() == StorageInfo.Type.HDD
+                && !hasAvailableSSD) {
+              usableDisks.add(
+                  new UsableDiskInfo(
+                      diskInfoEntry.getValue(), diskInfoEntry.getValue().getAvailableSlots()));
+            }
           } else if (StorageInfo.HDFSAvailable(availableStorageTypes)
               && diskInfoEntry.getValue().storageType() == StorageInfo.Type.HDFS) {
             usableDisks.add(
