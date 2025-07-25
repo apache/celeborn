@@ -64,31 +64,42 @@ def check_ids(file_path):
     else:
         print("No duplicate id found.")
 
-def traverse_units(obj, missing_units):
+def traverse_units(obj, missing_units, with_units):
     if isinstance(obj, dict):
         for key, value in obj.items():
             if key == "fieldConfig" and "defaults" in value:
                 defaults = value["defaults"]
-                if "unit" not in defaults:
-                    # Look for the 'expr' field in the 'targets' section
-                    targets = obj.get("targets", [])
+                targets = obj.get("targets", [])
+                if "unit" in defaults:
+                    for target in targets:
+                        if "expr" in target:
+                            with_units.append((target["expr"], defaults["unit"]))
+                else:
                     for target in targets:
                         if "expr" in target:
                             missing_units.append(target["expr"])
                         else:
                             missing_units.append("unknown")
-            traverse_units(value, missing_units)
+            traverse_units(value, missing_units, with_units)
     elif isinstance(obj, list):
         for item in obj:
-            traverse_units(item, missing_units)
+            traverse_units(item, missing_units, with_units)
 
 def check_units(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
     missing_units = []
-    traverse_units(data, missing_units)
+    with_units = []
+    traverse_units(data, missing_units, with_units)
 
-    # Check for missing units in metrics.
+    # Print metrics with and without 'unit'.
+    if with_units:
+        print("Found metrics with 'unit':")
+        for expr, unit in with_units:
+            print(f"  Metric expr: {expr}, Unit: {unit}")
+    else:
+        print("No metrics with 'unit' found.")
+
     if missing_units:
         print("Found metrics without 'unit':")
         for expr in missing_units:
