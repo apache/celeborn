@@ -405,7 +405,7 @@ public abstract class CelebornInputStream extends InputStream {
       }
       currentReader = createReaderWithRetry(currentLocation._1, currentLocation._2);
       fileIndex++;
-      while (!currentReader.hasNext()) {
+      while (!currentReader.hasNext() || (fetchChunk && (currentChunk = getNextChunk()) == null)) {
         currentReader.close();
         currentReader = null;
         currentLocation = nextReadableLocation();
@@ -414,9 +414,6 @@ public abstract class CelebornInputStream extends InputStream {
         }
         currentReader = createReaderWithRetry(currentLocation._1, currentLocation._2);
         fileIndex++;
-      }
-      if (fetchChunk) {
-        currentChunk = getNextChunk();
       }
     }
 
@@ -525,6 +522,9 @@ public abstract class CelebornInputStream extends InputStream {
           if (isExcluded(currentReader.getLocation())) {
             throw new CelebornIOException(
                 "Fetch data from excluded worker! " + currentReader.getLocation());
+          }
+          if (!currentReader.hasNext()) {
+            return null;
           }
           return currentReader.next();
         } catch (Exception e) {
@@ -775,8 +775,7 @@ public abstract class CelebornInputStream extends InputStream {
         currentChunk.release();
       }
       currentChunk = null;
-      if (currentReader.hasNext()) {
-        currentChunk = getNextChunk();
+      if (currentReader.hasNext() && (currentChunk = getNextChunk()) != null) {
         return true;
       } else if (fileIndex < locations.size()) {
         moveToNextReader(true);
@@ -806,6 +805,7 @@ public abstract class CelebornInputStream extends InputStream {
         if (firstChunk && currentReader != null) {
           init();
           currentChunk = getNextChunk();
+          while (currentChunk == null && moveToNextChunk()) ;
           firstChunk = false;
         }
         if (currentChunk == null) {
