@@ -108,4 +108,8 @@ public abstract class FileInfo {
   }
 
   public abstract String getFilePath();
+
+  public boolean isReduceFileMeta() {
+    return isReduceFileMeta;
+  }
 }

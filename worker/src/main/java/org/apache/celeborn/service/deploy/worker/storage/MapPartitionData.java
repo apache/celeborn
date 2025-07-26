@@ -18,7 +18,6 @@
 package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.IOException;
-import java.nio.channels.FileChannel;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,13 +27,11 @@ import java.util.function.Consumer;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
-import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.MapFileMeta;
-import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.worker.memory.BufferQueue;
@@ -49,9 +46,6 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
   protected final ExecutorService readExecutor;
   protected final ConcurrentHashMap<Long, MapPartitionDataReader> readers =
       JavaUtils.newConcurrentHashMap();
-  private FileChannel dataFileChanel;
-  private FileChannel indexChannel;
-  private long indexSize;
   private volatile boolean isReleased = false;
   private final BufferQueue bufferQueue = new BufferQueue();
   private AtomicBoolean bufferQueueInitialized = new AtomicBoolean(false);
@@ -95,9 +89,6 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
                     threadsPerMountPoint,
                     String.format("worker-map-partition-%s-reader", mapFileMeta.getMountPoint()),
                     false));
-    this.dataFileChanel = FileChannelUtils.openReadableFileChannel(diskFileInfo.getFilePath());
-    this.indexChannel = FileChannelUtils.openReadableFileChannel(diskFileInfo.getIndexPath());
-    this.indexSize = indexChannel.size();
 
     MemoryManager.instance().addReadBufferTargetChangeListener(this);
   }
@@ -174,7 +165,7 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
   }
 
   protected void openReader(MapPartitionDataReader reader) throws IOException {
-    reader.open(dataFileChanel, indexChannel, indexSize);
+    reader.open();
   }
 
   public synchronized void readBuffers() {
@@ -252,8 +243,8 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
     bufferQueue.release();
     isReleased = true;
 
-    IOUtils.closeQuietly(dataFileChanel);
-    IOUtils.closeQuietly(indexChannel);
+    readers.values().forEach(MapPartitionDataReader::close);
+    readers.clear();
 
     MemoryManager.instance().removeReadBufferTargetChangeListener(this);
   }

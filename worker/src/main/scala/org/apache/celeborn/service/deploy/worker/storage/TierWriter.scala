@@ -494,7 +494,7 @@ class DfsTierWriter(
     notifier: FlushNotifier,
     flusher: Flusher,
     source: AbstractSource,
-    hdfsFileInfo: DiskFileInfo,
+    dfsFileInfo: DiskFileInfo,
     storageType: StorageInfo.Type,
     partitionDataWriterContext: PartitionDataWriterContext,
     storageManager: StorageManager)
@@ -503,7 +503,7 @@ class DfsTierWriter(
     metaHandler,
     numPendingWrites,
     notifier,
-    hdfsFileInfo,
+    dfsFileInfo,
     source,
     storageType,
     partitionDataWriterContext.getPartitionLocation.getFileName,
@@ -520,21 +520,21 @@ class DfsTierWriter(
   var partNumber: Int = 1
 
   this.flusherBufferSize =
-    if (hdfsFileInfo.isS3()) {
+    if (dfsFileInfo.isS3()) {
       conf.workerS3FlusherBufferSize
-    } else if (hdfsFileInfo.isOSS()) {
+    } else if (dfsFileInfo.isOSS()) {
       conf.workerOssFlusherBufferSize
     } else {
       conf.workerHdfsFlusherBufferSize
     }
 
   try {
-    hadoopFs.create(hdfsFileInfo.getDfsPath, true).close()
-    if (hdfsFileInfo.isS3) {
+    hadoopFs.create(dfsFileInfo.getDfsPath, true).close()
+    if (dfsFileInfo.isS3) {
       val uri = hadoopFs.getUri
       val bucketName = uri.getHost
-      val index = hdfsFileInfo.getFilePath.indexOf(bucketName)
-      val key = hdfsFileInfo.getFilePath.substring(index + bucketName.length + 1)
+      val index = dfsFileInfo.getFilePath.indexOf(bucketName)
+      val key = dfsFileInfo.getFilePath.substring(index + bucketName.length + 1)
 
       this.s3MultipartUploadHandler = TierWriterHelper.getS3MultipartUploadHandler(
         hadoopFs,
@@ -544,7 +544,7 @@ class DfsTierWriter(
         conf.s3MultiplePartUploadBaseDelay,
         conf.s3MultiplePartUploadMaxBackoff)
       s3MultipartUploadHandler.startUpload()
-    } else if (hdfsFileInfo.isOSS) {
+    } else if (dfsFileInfo.isOSS) {
       val configuration = hadoopFs.getConf
       val ossEndpoint = configuration.get("fs.oss.endpoint")
       val ossAccessKey = configuration.get("fs.oss.accessKeyId")
@@ -552,8 +552,8 @@ class DfsTierWriter(
 
       val uri = hadoopFs.getUri
       val bucketName = uri.getHost
-      val index = hdfsFileInfo.getFilePath.indexOf(bucketName)
-      val key = hdfsFileInfo.getFilePath.substring(index + bucketName.length + 1)
+      val index = dfsFileInfo.getFilePath.indexOf(bucketName)
+      val key = dfsFileInfo.getFilePath.substring(index + bucketName.length + 1)
 
       this.ossMultipartUploadHandler = TierWriterHelper.getOssMultipartUploadHandler(
         ossEndpoint,
@@ -572,7 +572,7 @@ class DfsTierWriter(
         case ex: InterruptedException =>
           throw new RuntimeException(ex)
       }
-      hadoopFs.create(hdfsFileInfo.getDfsPath, true).close()
+      hadoopFs.create(dfsFileInfo.getDfsPath, true).close()
   }
 
   storageManager.registerDiskFilePartitionWriter(
@@ -586,9 +586,9 @@ class DfsTierWriter(
 
   override def genFlushTask(finalFlush: Boolean, keepBuffer: Boolean): FlushTask = {
     notifier.numPendingFlushes.incrementAndGet()
-    if (hdfsFileInfo.isHdfs) {
-      new HdfsFlushTask(flushBuffer, hdfsFileInfo.getDfsPath(), notifier, true, source)
-    } else if (hdfsFileInfo.isOSS) {
+    if (dfsFileInfo.isHdfs) {
+      new HdfsFlushTask(flushBuffer, dfsFileInfo.getDfsPath(), notifier, true, source)
+    } else if (dfsFileInfo.isOSS) {
       val flushTask = new OssFlushTask(
         flushBuffer,
         notifier,
@@ -641,17 +641,19 @@ class DfsTierWriter(
   }
 
   override def closeStreams(): Unit = {
-    if (hadoopFs.exists(hdfsFileInfo.getDfsPeerWriterSuccessPath)) {
-      hadoopFs.delete(hdfsFileInfo.getDfsPath, false)
+    if (hadoopFs.exists(dfsFileInfo.getDfsPeerWriterSuccessPath)) {
+      hadoopFs.delete(dfsFileInfo.getDfsPath, false)
       deleted = true
     } else {
-      hadoopFs.create(hdfsFileInfo.getDfsWriterSuccessPath).close()
-      val indexOutputStream = hadoopFs.create(hdfsFileInfo.getDfsIndexPath)
-      indexOutputStream.writeInt(hdfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
-      for (offset <- hdfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala) {
-        indexOutputStream.writeLong(offset)
+      hadoopFs.create(dfsFileInfo.getDfsWriterSuccessPath).close()
+      if (dfsFileInfo.isReduceFileMeta) {
+        val indexOutputStream = hadoopFs.create(dfsFileInfo.getDfsIndexPath)
+        indexOutputStream.writeInt(dfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
+        for (offset <- dfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala) {
+          indexOutputStream.writeLong(offset)
+        }
+        indexOutputStream.close()
       }
-      indexOutputStream.close()
     }
     if (s3MultipartUploadHandler != null) {
       s3MultipartUploadHandler.complete()
@@ -664,12 +666,12 @@ class DfsTierWriter(
   }
 
   override def notifyFileCommitted(): Unit =
-    storageManager.notifyFileInfoCommitted(shuffleKey, filename, hdfsFileInfo)
+    storageManager.notifyFileInfoCommitted(shuffleKey, filename, dfsFileInfo)
 
   override def closeResource(): Unit = {}
 
   override def cleanLocalOrDfsFiles(): Unit = {
-    hdfsFileInfo.deleteAllFiles(hadoopFs)
+    dfsFileInfo.deleteAllFiles(hadoopFs)
   }
 
   override def takeBufferInternal(): CompositeByteBuf = {
