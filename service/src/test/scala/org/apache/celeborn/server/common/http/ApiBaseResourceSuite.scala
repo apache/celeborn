@@ -22,6 +22,7 @@ import javax.ws.rs.core.MediaType
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.network.TestHelper
+import org.apache.celeborn.server.common.Service
 
 abstract class ApiBaseResourceSuite extends HttpTestHelper {
   celebornConf.set(CelebornConf.METRICS_ENABLED.key, "true")
@@ -94,6 +95,15 @@ abstract class ApiBaseResourceSuite extends HttpTestHelper {
       "metrics_RpcProcessTime_Max").foreach { metric =>
       assert(metricLines.exists(l =>
         l.contains(metric) && l.contains(s"""instance="${httpService.connectionUrl}"""")))
+    }
+
+    if (httpService.serviceName == Service.WORKER) {
+      Seq(
+        "metrics_fetch_chunkSize_Value",
+        "metrics_push_chunkSize_Value",
+        "metrics_replicate_chunkSize_Value").foreach { metric =>
+        assert(metricLines.exists(l => l.contains(metric)))
+      }
     }
 
     response = webTarget.path("metrics/json").request(MediaType.APPLICATION_JSON).get()
