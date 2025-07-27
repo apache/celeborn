@@ -1195,7 +1195,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         (dir, maxCapacity, flushThread, diskType)
       }
     }.getOrElse {
-      if (!hasHDFSStorage && !hasS3Storage && !hasOssStorage) {
+      if (remoteStorageDirs.isEmpty) {
         val prefix = workerStorageBaseDirPrefix
         val number = workerStorageBaseDirNumber
         val diskType = Type.valueOf(workerStorageBaseDirDiskType)
@@ -1262,6 +1262,31 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
           hdfsDir
         }
     }.getOrElse("")
+  }
+
+  def remoteStorageDirs: Option[Set[(StorageInfo.Type, String)]] = {
+    val supported = Seq(
+      (StorageInfo.Type.HDFS, HDFS_DIR, Utils.isHdfsPath _),
+      (StorageInfo.Type.S3, S3_DIR, Utils.isS3Path _),
+      (StorageInfo.Type.OSS, OSS_DIR, Utils.isOssPath _))
+
+    val activeStorageTypes =
+      get(ACTIVE_STORAGE_TYPES).split(",").map(StorageInfo.Type.valueOf).toList
+
+    val validDirs = supported.flatMap { case (ty, e, checker) =>
+      if (!activeStorageTypes.contains(ty)) None
+      else {
+        get(e).flatMap { dir =>
+          if (checker(dir)) Some((ty, dir))
+          else {
+            log.error(s"${e.key} configuration is invalid: $dir. Disabling $ty support.")
+            None
+          }
+        }
+      }
+    }.toSet
+
+    if (validDirs.nonEmpty) Some(validDirs) else None
   }
 
   def workerStorageBaseDirPrefix: String = get(WORKER_STORAGE_BASE_DIR_PREFIX)

@@ -70,6 +70,7 @@ private[deploy] class Controller(
   val mockCommitFilesFailure = conf.testMockCommitFilesFailure
   val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
   val workerCommitFilesCheckInterval = conf.workerCommitFilesCheckInterval
+  val remoteStorageDirs = conf.remoteStorageDirs
 
   def init(worker: Worker): Unit = {
     storageManager = worker.storageManager
@@ -186,7 +187,7 @@ private[deploy] class Controller(
       return
     }
 
-    if (storageManager.healthyWorkingDirs().size <= 0 && !conf.hasHDFSStorage && !conf.hasS3Storage && !conf.hasOssStorage) {
+    if (storageManager.healthyWorkingDirs().size <= 0 && remoteStorageDirs.isEmpty) {
       val msg = "Local storage has no available dirs!"
       logError(s"[handleReserveSlots] $msg")
       context.reply(ReserveSlotsResponse(StatusCode.NO_AVAILABLE_WORKING_DIR, msg))
