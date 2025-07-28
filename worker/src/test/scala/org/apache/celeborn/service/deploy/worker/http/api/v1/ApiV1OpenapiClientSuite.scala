@@ -75,6 +75,7 @@ class ApiV1OpenapiClientSuite extends ApiV1WorkerOpenapiClientSuite {
     assert(workersResponse.getManualExcludedWorkers.isEmpty)
     assert(workersResponse.getShutdownWorkers.isEmpty)
     assert(workersResponse.getDecommissioningWorkers.isEmpty)
+    assert(workersResponse.getTaggedWorkers.isEmpty)
 
     val workerData = workersResponse.getWorkers.get(0)
     val workerId = new WorkerId()

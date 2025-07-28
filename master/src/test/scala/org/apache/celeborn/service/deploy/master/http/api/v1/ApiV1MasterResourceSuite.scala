@@ -73,6 +73,7 @@ class ApiV1MasterResourceSuite extends ApiV1BaseResourceSuite with MasterCluster
     assert(workersResponse.getExcludedWorkers.isEmpty)
     assert(workersResponse.getShutdownWorkers.isEmpty)
     assert(workersResponse.getDecommissioningWorkers.isEmpty)
+    assert(workersResponse.getTaggedWorkers.isEmpty)
 
     val worker = new WorkerId()
       .host("unknown.celeborn")

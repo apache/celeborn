@@ -224,6 +224,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "No decommissioning workers found.")
   }
 
+  test("master --show-tagged-workers") {
+    val args = prepareMasterArgs() :+ "--show-tagged-workers"
+    captureOutputAndValidateResponse(args, "No tagged workers found.")
+  }
+
   test("master --show-lifecycle-managers") {
     val args = prepareMasterArgs() :+ "--show-lifecycle-managers"
     captureOutputAndValidateResponse(args, "HostnamesResponse")

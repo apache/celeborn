@@ -21,7 +21,7 @@ import java.io.IOException
 import java.net.BindException
 import java.util
 import java.util.Collections
-import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
 
@@ -1499,6 +1499,10 @@ private[celeborn] class Master(
     } else {
       0
     }
+  }
+
+  def getTaggedWorkers: ConcurrentHashMap[String, util.Set[String]] = {
+    tagsManager.getTagStore
   }
 
   override def getWorkerEventInfo(): String = {

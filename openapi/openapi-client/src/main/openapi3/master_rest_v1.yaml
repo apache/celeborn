@@ -196,7 +196,7 @@ paths:
       operationId: getWorkers
       description: |
         List worker information of the service. It will list all registered workers,
-        lost workers, excluded workers, shutdown workers and decommission workers information.
+        lost workers, excluded workers, shutdown workers, decommission workers and tagged workers information.
       responses:
         "200":
           description: The request was successful.
@@ -1026,6 +1026,18 @@ components:
         - worker
         - timestamp
 
+    TaggedWorkerData:
+      type: object
+      properties:
+        tag:
+          type: string
+          description: The tag of the workers.
+        workers:
+          type: array
+          description: The workers of the tag.
+          items:
+            $ref: '#/components/schemas/WorkerData'
+
     WorkersResponse:
       type: object
       properties:
@@ -1059,6 +1071,11 @@ components:
           description: The decommissioning workers.
           items:
             $ref: '#/components/schemas/WorkerData'
+        taggedWorkers:
+          type: array
+          description: The tagged workers.
+          items:
+            $ref: '#/components/schemas/TaggedWorkerData'
       required:
         - workers
 

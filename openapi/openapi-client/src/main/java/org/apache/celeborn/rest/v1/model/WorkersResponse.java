@@ -28,6 +28,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.celeborn.rest.v1.model.TaggedWorkerData;
 import org.apache.celeborn.rest.v1.model.WorkerData;
 import org.apache.celeborn.rest.v1.model.WorkerTimestampData;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
@@ -42,7 +43,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
   WorkersResponse.JSON_PROPERTY_EXCLUDED_WORKERS,
   WorkersResponse.JSON_PROPERTY_MANUAL_EXCLUDED_WORKERS,
   WorkersResponse.JSON_PROPERTY_SHUTDOWN_WORKERS,
-  WorkersResponse.JSON_PROPERTY_DECOMMISSIONING_WORKERS
+  WorkersResponse.JSON_PROPERTY_DECOMMISSIONING_WORKERS,
+  WorkersResponse.JSON_PROPERTY_TAGGED_WORKERS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class WorkersResponse {
@@ -63,6 +65,9 @@ public class WorkersResponse {
 
   public static final String JSON_PROPERTY_DECOMMISSIONING_WORKERS = "decommissioningWorkers";
   private List<WorkerData> decommissioningWorkers = new ArrayList<>();
+
+  public static final String JSON_PROPERTY_TAGGED_WORKERS = "taggedWorkers";
+  private List<TaggedWorkerData> taggedWorkers = new ArrayList<>();
 
   public WorkersResponse() {
   }
@@ -265,6 +270,39 @@ public class WorkersResponse {
     this.decommissioningWorkers = decommissioningWorkers;
   }
 
+  public WorkersResponse taggedWorkers(List<TaggedWorkerData> taggedWorkers) {
+    
+    this.taggedWorkers = taggedWorkers;
+    return this;
+  }
+
+  public WorkersResponse addTaggedWorkersItem(TaggedWorkerData taggedWorkersItem) {
+    if (this.taggedWorkers == null) {
+      this.taggedWorkers = new ArrayList<>();
+    }
+    this.taggedWorkers.add(taggedWorkersItem);
+    return this;
+  }
+
+  /**
+   * The tagged workers.
+   * @return taggedWorkers
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_TAGGED_WORKERS)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public List<TaggedWorkerData> getTaggedWorkers() {
+    return taggedWorkers;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_TAGGED_WORKERS)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setTaggedWorkers(List<TaggedWorkerData> taggedWorkers) {
+    this.taggedWorkers = taggedWorkers;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -279,12 +317,13 @@ public class WorkersResponse {
         Objects.equals(this.excludedWorkers, workersResponse.excludedWorkers) &&
         Objects.equals(this.manualExcludedWorkers, workersResponse.manualExcludedWorkers) &&
         Objects.equals(this.shutdownWorkers, workersResponse.shutdownWorkers) &&
-        Objects.equals(this.decommissioningWorkers, workersResponse.decommissioningWorkers);
+        Objects.equals(this.decommissioningWorkers, workersResponse.decommissioningWorkers) &&
+        Objects.equals(this.taggedWorkers, workersResponse.taggedWorkers);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(workers, lostWorkers, excludedWorkers, manualExcludedWorkers, shutdownWorkers, decommissioningWorkers);
+    return Objects.hash(workers, lostWorkers, excludedWorkers, manualExcludedWorkers, shutdownWorkers, decommissioningWorkers, taggedWorkers);
   }
 
   @Override
@@ -297,6 +336,7 @@ public class WorkersResponse {
     sb.append("    manualExcludedWorkers: ").append(toIndentedString(manualExcludedWorkers)).append("\n");
     sb.append("    shutdownWorkers: ").append(toIndentedString(shutdownWorkers)).append("\n");
     sb.append("    decommissioningWorkers: ").append(toIndentedString(decommissioningWorkers)).append("\n");
+    sb.append("    taggedWorkers: ").append(toIndentedString(taggedWorkers)).append("\n");
     sb.append("}");
     return sb.toString();
   }
