@@ -32,14 +32,14 @@ import org.roaringbitmap.RoaringBitmap
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{ReduceFileMeta, WorkerInfo, WorkerPartitionLocationInfo}
+import org.apache.celeborn.common.meta.{WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
-import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionMetaHandler, PartitionDataWriter, SegmentMapPartitionMetaHandler, StorageManager}
+import org.apache.celeborn.service.deploy.worker.storage.{MapPartitionMetaHandler, PartitionDataWriter, StorageManager}
 
 private[deploy] class Controller(
     override val rpcEnv: RpcEnv,
@@ -70,6 +70,7 @@ private[deploy] class Controller(
   val mockCommitFilesFailure = conf.testMockCommitFilesFailure
   val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
   val workerCommitFilesCheckInterval = conf.workerCommitFilesCheckInterval
+  var writerHelper: WriterHelper = _
 
   def init(worker: Worker): Unit = {
     storageManager = worker.storageManager
@@ -84,6 +85,7 @@ private[deploy] class Controller(
     commitThreadPool = worker.commitThreadPool
     asyncReplyPool = worker.asyncReplyPool
     shutdown = worker.shutdown
+    writerHelper = new WriterHelper(storageManager, partitionLocationInfo)
 
     commitFinishedChecker = worker.commitFinishedChecker
     commitFinishedChecker.scheduleWithFixedDelay(
@@ -192,88 +194,45 @@ private[deploy] class Controller(
       context.reply(ReserveSlotsResponse(StatusCode.NO_AVAILABLE_WORKING_DIR, msg))
       return
     }
-    val primaryLocs = new jArrayList[PartitionLocation]()
-    try {
-      for (ind <- 0 until requestPrimaryLocs.size()) {
-        var location = partitionLocationInfo.getPrimaryLocation(
-          shuffleKey,
-          requestPrimaryLocs.get(ind).getUniqueId)
-        if (location == null) {
-          location = requestPrimaryLocs.get(ind)
-          val writer = storageManager.createPartitionDataWriter(
-            applicationId,
-            shuffleId,
-            location,
-            splitThreshold,
-            splitMode,
-            partitionType,
-            rangeReadFilter,
-            userIdentifier,
-            partitionSplitEnabled,
-            isSegmentGranularityVisible)
-          primaryLocs.add(new WorkingPartition(location, writer))
-        } else {
-          primaryLocs.add(location)
-        }
-      }
-    } catch {
-      case e: Exception =>
-        logError(s"CreateWriter for $shuffleKey failed.", e)
-    }
+    val primaryLocs = writerHelper.createWriters(
+      shuffleKey,
+      applicationId,
+      shuffleId,
+      requestPrimaryLocs,
+      splitThreshold,
+      splitMode,
+      partitionType,
+      rangeReadFilter,
+      userIdentifier,
+      partitionSplitEnabled,
+      isSegmentGranularityVisible,
+      true)
     if (primaryLocs.size() < requestPrimaryLocs.size()) {
       val msg = s"Not all primary partition satisfied for $shuffleKey"
       logWarning(s"[handleReserveSlots] $msg, will destroy writers.")
-      primaryLocs.asScala.foreach { partitionLocation =>
-        val fileWriter = partitionLocation.asInstanceOf[WorkingPartition].getFileWriter
-        fileWriter.destroy(new IOException(s"Destroy FileWriter $fileWriter caused by " +
-          s"reserving slots failed for $shuffleKey."))
-      }
+      writerHelper.destroyWriters(primaryLocs, shuffleKey)
       context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }
 
-    val replicaLocs = new jArrayList[PartitionLocation]()
-    try {
-      for (ind <- 0 until requestReplicaLocs.size()) {
-        var location =
-          partitionLocationInfo.getReplicaLocation(
-            shuffleKey,
-            requestReplicaLocs.get(ind).getUniqueId)
-        if (location == null) {
-          location = requestReplicaLocs.get(ind)
-          val writer = storageManager.createPartitionDataWriter(
-            applicationId,
-            shuffleId,
-            location,
-            splitThreshold,
-            splitMode,
-            partitionType,
-            rangeReadFilter,
-            userIdentifier,
-            partitionSplitEnabled,
-            isSegmentGranularityVisible)
-          replicaLocs.add(new WorkingPartition(location, writer))
-        } else {
-          replicaLocs.add(location)
-        }
-      }
-    } catch {
-      case e: Exception =>
-        logError(s"CreateWriter for $shuffleKey failed.", e)
-    }
+    val replicaLocs = writerHelper.createWriters(
+      shuffleKey,
+      applicationId,
+      shuffleId,
+      requestReplicaLocs,
+      splitThreshold,
+      splitMode,
+      partitionType,
+      rangeReadFilter,
+      userIdentifier,
+      partitionSplitEnabled,
+      isSegmentGranularityVisible,
+      false)
     if (replicaLocs.size() < requestReplicaLocs.size()) {
       val msg = s"Not all replica partition satisfied for $shuffleKey"
       logWarning(s"[handleReserveSlots] $msg, destroy writers.")
-      primaryLocs.asScala.foreach { partitionLocation =>
-        val fileWriter = partitionLocation.asInstanceOf[WorkingPartition].getFileWriter
-        fileWriter.destroy(new IOException(s"Destroy FileWriter $fileWriter caused by " +
-          s"reserving slots failed for $shuffleKey."))
-      }
-      replicaLocs.asScala.foreach { partitionLocation =>
-        val fileWriter = partitionLocation.asInstanceOf[WorkingPartition].getFileWriter
-        fileWriter.destroy(new IOException(s"Destroy FileWriter $fileWriter caused by " +
-          s"reserving slots failed for $shuffleKey."))
-      }
+      writerHelper.destroyWriters(primaryLocs, shuffleKey)
+      writerHelper.destroyWriters(replicaLocs, shuffleKey)
       context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }

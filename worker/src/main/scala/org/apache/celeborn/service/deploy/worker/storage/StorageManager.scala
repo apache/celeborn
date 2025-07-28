@@ -50,7 +50,7 @@ import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPres
 import org.apache.celeborn.service.deploy.worker.shuffledb.{DB, DBBackend, DBProvider}
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager.hadoopFs
 
-final private[worker] class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
+final class StorageManager(conf: CelebornConf, workerSource: AbstractSource)
   extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryPressureListener {
   // fileInfos and partitionDataWriters are one to one mapping
   // mount point -> file writer
