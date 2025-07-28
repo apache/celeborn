@@ -687,6 +687,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def masterResourceConsumptionInterval: Long = get(MASTER_RESOURCE_CONSUMPTION_INTERVAL)
   def masterResourceConsumptionMetricsEnabled: Boolean =
     get(MASTER_RESOURCE_CONSUMPTION_METRICS_ENABLED)
+  def workerFlushReuseCopyBufferEnabled: Boolean =
+    get(WORKER_FLUSH_REUSE_COPY_BUFFER_ENABLED)
   def clusterName: String = get(CLUSTER_NAME)
 
   // //////////////////////////////////////////////////////
@@ -6613,4 +6615,16 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .booleanConf
       .createWithDefaultString("false")
+
+  val WORKER_FLUSH_REUSE_COPY_BUFFER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("worker.flush.reuse.copy.buffer.enabled")
+      .categories("worker")
+      .doc("Whether to enable reuse copy buffer for flush. Note that this copy buffer must not" +
+        " be referenced again after flushing. This means that, for example, the Hdfs(Oss or S3) client" +
+        " will not asynchronously access this buffer after the flush method returns, otherwise data" +
+        " modification problems will occur.")
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefaultString("true")
+
 }

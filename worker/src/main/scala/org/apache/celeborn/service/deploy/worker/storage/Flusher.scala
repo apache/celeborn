@@ -41,7 +41,9 @@ abstract private[worker] class Flusher(
     val allocator: ByteBufAllocator,
     val maxComponents: Int,
     flushTimeMetric: TimeWindow,
-    mountPoint: String) extends Logging {
+    mountPoint: String,
+    val reuseCopyBuffer: Boolean,
+    val maxTaskSize: Long) extends Logging {
   protected lazy val flusherId: Int = System.identityHashCode(this)
   protected val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
   protected val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf]()
@@ -62,6 +64,10 @@ abstract private[worker] class Flusher(
       workers(index) = ThreadUtils.newDaemonSingleThreadExecutor(s"$this-$index")
       workers(index).submit(new Runnable {
         override def run(): Unit = {
+          var copyBytes: Array[Byte] = null
+          if (reuseCopyBuffer) {
+            copyBytes = new Array[Byte](maxTaskSize.toInt)
+          }
           while (!stopFlag.get()) {
             val task = workingQueues(index).take()
             val key = s"Flusher-$this-${Random.nextInt()}"
@@ -70,7 +76,7 @@ abstract private[worker] class Flusher(
                 try {
                   val flushBeginTime = System.nanoTime()
                   lastBeginFlushTime.set(index, flushBeginTime)
-                  task.flush()
+                  task.flush(copyBytes)
                   if (flushTimeMetric != null) {
                     val delta = System.nanoTime() - flushBeginTime
                     flushTimeMetric.update(delta)
@@ -141,13 +147,17 @@ private[worker] class LocalFlusher(
     maxComponents: Int,
     val mountPoint: String,
     val diskType: StorageInfo.Type,
-    timeWindow: TimeWindow) extends Flusher(
+    timeWindow: TimeWindow,
+    reuseCopyBuffer: Boolean,
+    maxTaskSize: Long) extends Flusher(
     workerSource,
     threadCount,
     allocator,
     maxComponents,
     timeWindow,
-    mountPoint)
+    mountPoint,
+    reuseCopyBuffer,
+    maxTaskSize)
   with DeviceObserver with Logging {
 
   deviceMonitor.registerFlusher(this)
@@ -177,13 +187,17 @@ final private[worker] class HdfsFlusher(
     workerSource: AbstractSource,
     hdfsFlusherThreads: Int,
     allocator: ByteBufAllocator,
-    maxComponents: Int) extends Flusher(
+    maxComponents: Int,
+    reuseCopyBuffer: Boolean,
+    maxTaskSize: Long) extends Flusher(
     workerSource,
     hdfsFlusherThreads,
     allocator,
     maxComponents,
     null,
-    "HDFS") with Logging {
+    "HDFS",
+    reuseCopyBuffer,
+    maxTaskSize) with Logging {
 
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
@@ -196,13 +210,17 @@ final private[worker] class S3Flusher(
     workerSource: AbstractSource,
     s3FlusherThreads: Int,
     allocator: ByteBufAllocator,
-    maxComponents: Int) extends Flusher(
+    maxComponents: Int,
+    reuseCopyBuffer: Boolean,
+    maxTaskSize: Long) extends Flusher(
     workerSource,
     s3FlusherThreads,
     allocator,
     maxComponents,
     null,
-    "S3") with Logging {
+    "S3",
+    reuseCopyBuffer,
+    maxTaskSize) with Logging {
 
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
@@ -215,13 +233,17 @@ final private[worker] class OssFlusher(
     workerSource: AbstractSource,
     ossFlusherThreads: Int,
     allocator: ByteBufAllocator,
-    maxComponents: Int) extends Flusher(
+    maxComponents: Int,
+    reuseCopyBuffer: Boolean,
+    maxTaskSize: Long) extends Flusher(
     workerSource,
     ossFlusherThreads,
     allocator,
     maxComponents,
     null,
-    "OSS") with Logging {
+    "OSS",
+    reuseCopyBuffer,
+    maxTaskSize) with Logging {
 
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
