@@ -43,7 +43,7 @@ _instances_ corresponding to Celeborn components.  The following instances are c
 Each instance can report to zero or more _sinks_. Sinks are contained in the
 `org.apache.celeborn.common.metrics.sink` package:
 
-* `CSVSink`: Exports metrics data to CSV files at regular intervals.
+* `CsvSink`: Exports metrics data to CSV files at regular intervals.
 * `PrometheusServlet`: Adds a servlet within the existing Celeborn REST API to serve metrics data in Prometheus format.
 * `JsonServlet`: Adds a servlet within the existing Celeborn REST API to serve metrics data in JSON format.
 * `GraphiteSink`: Sends metrics to a Graphite node.
@@ -185,11 +185,13 @@ These metrics are exposed by Celeborn worker.
     | ActiveShuffleFileCount                 | The active shuffle file count of a worker including master replica and slave replica.                           |
     | OpenStreamTime                         | The time for a worker to process openStream RPC and return StreamHandle.                                        |
     | FetchChunkTime                         | The time for a worker to fetch a chunk which is 8MB by default from a reduced partition.                        |
+    | FetchChunkTransferTime                 | The time for a worker to transfer for fetching a chunk from a reduced partition.                                |
     | ActiveChunkStreamCount                 | Active stream count for reduce partition reading streams.                                                       |
     | OpenStreamSuccessCount                 | The count of opening stream succeed in current worker.                                                          |
     | OpenStreamFailCount                    | The count of opening stream failed in current worker.                                                           |
     | FetchChunkSuccessCount                 | The count of fetching chunk succeed in current worker.                                                          |
     | FetchChunkFailCount                    | The count of fetching chunk failed in current worker.                                                           |
+    | FetchChunkTransferSize                 | The size of transfer for fetching chunk in current worker.                                                      |
     | PrimaryPushDataTime                    | The time for a worker to handle a pushData RPC sent from a celeborn client.                                     |
     | ReplicaPushDataTime                    | The time for a worker to handle a pushData RPC sent from a celeborn worker by replicating.                      |
     | PrimarySegmentStartTime                | The time for a worker to handle a segmentStart RPC sent from a celeborn client.                                 |
@@ -230,7 +232,7 @@ These metrics are exposed by Celeborn worker.
     | SortTime                               | The time for a worker to sort a shuffle file.                                                                   |
     | SortMemory                             | The memory used by sorting shuffle files.                                                                       |
     | SortingFiles                           | The count of sorting shuffle files.                                                                             |
-    | PendingSortTaks                        | The count of sort tasks waiting to be submitted to FileSorterExecutors.                                         |
+    | PendingSortTasks                       | The count of sort tasks waiting to be submitted to FileSorterExecutors.                                         |
     | SortedFiles                            | The count of sorted shuffle files.                                                                              |
     | SortedFileSize                         | The count of sorted shuffle files 's total size.                                                                |
     | DiskBuffer                             | The memory occupied by pushData and pushMergedData which should be written to disk.                             |
@@ -256,6 +258,15 @@ These metrics are exposed by Celeborn worker.
     | EvictedFileCount                       | The count of files evicted from Memory Storage to Disk                                                          |
     | DirectMemoryUsageRatio                 | Ratio of direct memory used and max direct memory.                                                              |
     | RegisterWithMasterFailCount            | The count of failures in register with master request.                                                          |
+    | FlushWorkingQueueSize                  | The size of flush working queue for mount point.                                                                |
+    | LocalFlushCount                        | The amount of data flushed to local.                                                                            |
+    | LocalFlushSize                         | The size of data flushed to local.                                                                              |
+    | HdfsFlushCount                         | The amount of data flushed to HDFS.                                                                             |
+    | HdfsFlushSize                          | The size of data flushed to HDFS.                                                                               |
+    | OssFlushCount                          | The amount of data flushed to OSS.                                                                              |
+    | OssFlushSize                           | The size of data flushed to OSS.                                                                                |
+    | S3FlushCount                           | The amount of data flushed to S3.                                                                               |
+    | S3FlushSize                            | The size of data flushed to S3.                                                                                 |
     | push_usedHeapMemory                    |                                                                                                                 |
     | push_usedDirectMemory                  |                                                                                                                 |
     | push_numHeapArenas                     |                                                                                                                 |
