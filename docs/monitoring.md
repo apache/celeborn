@@ -185,6 +185,7 @@ These metrics are exposed by Celeborn worker.
     | ActiveShuffleFileCount                 | The active shuffle file count of a worker including master replica and slave replica.                           |
     | OpenStreamTime                         | The time for a worker to process openStream RPC and return StreamHandle.                                        |
     | FetchChunkTime                         | The time for a worker to fetch a chunk which is 8MB by default from a reduced partition.                        |
+    | FetchChunkSize                         | The chunk size fetch from current worker.                                                                       |
     | ActiveChunkStreamCount                 | Active stream count for reduce partition reading streams.                                                       |
     | OpenStreamSuccessCount                 | The count of opening stream succeed in current worker.                                                          |
     | OpenStreamFailCount                    | The count of opening stream failed in current worker.                                                           |
