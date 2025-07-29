@@ -1,0 +1,42 @@
+.md-typeset__table {
+    width: 100%;
+    overflow-x: visible;  /* Allow horizontal overflow content to be visible instead of clipped or scrollable */
+}
+
+.md-typeset__table table {
+    table-layout: fixed;
+    width: 100%;
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+.md-typeset__table td,
+.md-typeset__table th {
+    word-break: break-word;
+    white-space: normal;
+}
+
+/* CSS does not respect max-width on tables or table parts (like cells, columns, etc.),
+   so we have to pick a fixed width for each column.
+   See: https://stackoverflow.com/a/8465980
+ */
+.md-typeset__table th:nth-child(1),
+.md-typeset__table td:nth-child(1) {
+    width: 20%;
+}
+
+.md-typeset__table th:nth-child(2),
+.md-typeset__table td:nth-child(2),
+.md-typeset__table th:nth-child(3),
+.md-typeset__table td:nth-child(3),
+.md-typeset__table th:nth-child(5),
+.md-typeset__table td:nth-child(5),
+.md-typeset__table th:nth-child(6),
+.md-typeset__table td:nth-child(6) {
+    width: 90px;
+}
+
+.md-typeset__table th:nth-child(4),
+.md-typeset__table td:nth-child(4) {
+    width: 30%;
+}
