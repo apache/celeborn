@@ -30,13 +30,17 @@
 
 .md-typeset__table td,
 .md-typeset__table th {
-    max-width: 35%;
     word-break: break-word;
     white-space: normal;
 }
 
 .md-typeset__table tr {
     background-color: white;
+}
+
+.md-typeset__table th:nth-child(1),
+.md-typeset__table td:nth-child(1) {
+    width: 30%;
 }
 
 /* Set a different background color for even rows so that the row
