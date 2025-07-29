@@ -23,6 +23,7 @@ import java.nio.channels.FileChannel
 import io.netty.buffer.{ByteBufUtil, CompositeByteBuf}
 import org.apache.hadoop.fs.Path
 
+import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler
@@ -69,7 +70,7 @@ abstract private[worker] class DfsFlushTask(
     buffer: CompositeByteBuf,
     notifier: FlushNotifier,
     keepBuffer: Boolean,
-    source: AbstractSource) extends FlushTask(buffer, notifier, keepBuffer, source) {
+    source: AbstractSource) extends FlushTask(buffer, notifier, keepBuffer, source) with Logging {
   def flush(stream: Closeable)(block: => Unit): Unit = {
     try {
       block
@@ -77,7 +78,7 @@ abstract private[worker] class DfsFlushTask(
       try {
         stream.close()
       } catch {
-        case _: IOException =>
+        case e: IOException => logWarning("Close flush dfs stream failed.", e)
       }
     }
   }
