@@ -17,7 +17,8 @@
 
 .md-typeset__table {
     width: 100%;
-    overflow-x: visible;  /* Allow horizontal overflow content to be visible instead of clipped or scrollable */
+    /* Allow horizontal overflow content to be visible instead of clipped or scrollable */
+    overflow-x: visible;
 }
 
 .md-typeset__table table {
@@ -29,6 +30,18 @@
 
 .md-typeset__table td,
 .md-typeset__table th {
+    max-width: 35%;
     word-break: break-word;
     white-space: normal;
+}
+
+.md-typeset__table tr {
+    background-color: white;
+}
+
+/* Set a different background color for even rows so that the row
+   color alternates.
+ */
+.md-typeset__table tr:nth-child(2n) {
+    background-color: #F1F4F5;
 }
