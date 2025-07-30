@@ -988,10 +988,8 @@ enum PbMetaRequestType {
 
   UnRegisterShuffle = 12;
   RequestSlots = 13;
-
   //deprecated
   ReleaseSlots = 14;
-
   AppHeartbeat = 15;
   AppLost = 16;
   WorkerLost = 17;
@@ -1006,13 +1004,11 @@ enum PbMetaRequestType {
   ApplicationMeta = 26;
   ReportWorkerDecommission = 27;
   BatchUnRegisterShuffle = 28;
-
   ReviseLostShuffles = 29;
 }
 
 message PbMetaRequest {
   PbMetaRequestType cmdType = 1; // Type of the command
-
   string requestId = 2;
 
   PbMetaRequestSlotsRequest requestSlotsRequest = 10;
@@ -1075,11 +1071,8 @@ enum PbMetaRequestStatus {
 
 message PbMetaRequestResponse {
   PbMetaRequestType cmdType = 1; // Type of the command
-
   bool success = 2;
-
   string message = 3;
-
   PbMetaRequestStatus status = 4;
 }
 
