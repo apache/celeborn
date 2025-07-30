@@ -37,8 +37,7 @@ private[celeborn] class FailedShuffleCleaner(lifecycleManager: LifecycleManager)
   private lazy val cleanInterval =
     lifecycleManager.conf.clientFetchCleanFailedShuffleIntervalMS
 
-  // for test
-  def reset(): Unit = {
+  def stop(): Unit = {
     shufflesToBeCleaned.clear()
     cleanedShuffleIds.clear()
     if (cleanerThreadPool != null) {
