@@ -73,7 +73,7 @@ public class MetaHandler {
   public static org.apache.celeborn.common.protocol.PbMetaRequestResponse.Builder
       getMasterMetaResponseBuilder(PbMetaRequest request) {
     return org.apache.celeborn.common.protocol.PbMetaRequestResponse.newBuilder()
-            .setMetaRequestType(request.getMetaRequestType())
+        .setMetaRequestType(request.getMetaRequestType())
         .setStatus(PbMetaRequestStatus.OK)
         .setSuccess(true);
   }

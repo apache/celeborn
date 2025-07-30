@@ -193,7 +193,7 @@ public class StateMachine extends BaseStateMachine {
             if (!response.getSuccess()) {
               LOG.warn(
                   "Failed to apply log {} for this raft group {}!",
-                      request.getMetaRequestType(),
+                  request.getMetaRequestType(),
                   this.raftGroupId);
             }
 
