@@ -1008,7 +1008,7 @@ enum PbMetaRequestType {
 }
 
 message PbMetaRequest {
-  PbMetaRequestType cmdType = 1; // Type of the command
+  PbMetaRequestType metaRequestType = 1;
   string requestId = 2;
 
   PbMetaRequestSlotsRequest requestSlotsRequest = 10;
@@ -1070,7 +1070,7 @@ enum PbMetaRequestStatus {
 }
 
 message PbMetaRequestResponse {
-  PbMetaRequestType cmdType = 1; // Type of the command
+  PbMetaRequestType metaRequestType = 1;
   bool success = 2;
   string message = 3;
   PbMetaRequestStatus status = 4;

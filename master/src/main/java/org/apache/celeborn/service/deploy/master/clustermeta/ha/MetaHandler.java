@@ -73,7 +73,7 @@ public class MetaHandler {
   public static org.apache.celeborn.common.protocol.PbMetaRequestResponse.Builder
       getMasterMetaResponseBuilder(PbMetaRequest request) {
     return org.apache.celeborn.common.protocol.PbMetaRequestResponse.newBuilder()
-        .setCmdType(request.getCmdType())
+            .setMetaRequestType(request.getMetaRequestType())
         .setStatus(PbMetaRequestStatus.OK)
         .setSuccess(true);
   }
@@ -99,7 +99,7 @@ public class MetaHandler {
 
   public org.apache.celeborn.common.protocol.PbMetaRequestResponse handleWriteRequest(
       PbMetaRequest request) {
-    PbMetaRequestType cmdType = request.getCmdType();
+    PbMetaRequestType metaRequestType = request.getMetaRequestType();
     org.apache.celeborn.common.protocol.PbMetaRequestResponse.Builder responseBuilder =
         getMasterMetaResponseBuilder(request);
     try {
@@ -114,7 +114,7 @@ public class MetaHandler {
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption;
       WorkerStatus workerStatus;
       List<Integer> lostShuffles;
-      switch (cmdType) {
+      switch (metaRequestType) {
         case ReviseLostShuffles:
           appId = request.getReviseLostShufflesRequest().getAppId();
           lostShuffles = request.getReviseLostShufflesRequest().getLostShufflesList();
@@ -327,7 +327,7 @@ public class MetaHandler {
       }
       responseBuilder.setStatus(PbMetaRequestStatus.OK);
     } catch (IOException e) {
-      LOG.warn("Handle meta write request {} failed!", cmdType, e);
+      LOG.warn("Handle meta write request {} failed!", metaRequestType, e);
       responseBuilder.setSuccess(false);
       responseBuilder.setStatus(PbMetaRequestStatus.INTERNAL_ERROR);
       if (e.getMessage() != null) {

@@ -85,7 +85,7 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     PbMetaRequest request =
         PbMetaRequest.newBuilder()
             .setRequestSlotsRequest(requestSlots)
-            .setCmdType(org.apache.celeborn.common.protocol.PbMetaRequestType.RequestSlots)
+                .setMetaRequestType(org.apache.celeborn.common.protocol.PbMetaRequestType.RequestSlots)
             .setRequestId(UUID.randomUUID().toString())
             .build();
 
