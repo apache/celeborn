@@ -34,27 +34,10 @@ private[celeborn] class FailedShuffleCleaner(lifecycleManager: LifecycleManager)
   private val shufflesToBeCleaned = new LinkedBlockingQueue[Int]()
   private val cleanedShuffleIds = new mutable.HashSet[Int]
 
-  private lazy val cleanInterval =
-    lifecycleManager.conf.clientFetchCleanFailedShuffleIntervalMS
+  private val cleanInterval = lifecycleManager.conf.clientFetchCleanFailedShuffleIntervalMS
+  private var cleanerThreadPool: ScheduledExecutorService = _
 
-  def stop(): Unit = {
-    shufflesToBeCleaned.clear()
-    cleanedShuffleIds.clear()
-    if (cleanerThreadPool != null) {
-      cleanerThreadPool.shutdownNow()
-      cleanerThreadPool = null
-    }
-  }
-
-  def addShuffleIdToBeCleaned(appShuffleIdentifier: String): Unit = {
-    val Array(appShuffleId, _, _) = SparkCommonUtils.decodeAppShuffleIdentifier(
-      appShuffleIdentifier)
-    lifecycleManager.getShuffleIdMapping.get(appShuffleId.toInt).foreach {
-      case (_, (celebornShuffleId, _)) => shufflesToBeCleaned.put(celebornShuffleId)
-    }
-  }
-
-  def init(): Unit = {
+  private def init(): Unit = {
     cleanerThreadPool = ThreadUtils.newDaemonSingleThreadScheduledExecutor(
       "failedShuffleCleanerThreadPool")
     cleanerThreadPool.scheduleWithFixedDelay(
@@ -84,9 +67,24 @@ private[celeborn] class FailedShuffleCleaner(lifecycleManager: LifecycleManager)
 
   init()
 
+  def addShuffleIdToBeCleaned(appShuffleIdentifier: String): Unit = {
+    val Array(appShuffleId, _, _) = SparkCommonUtils.decodeAppShuffleIdentifier(
+      appShuffleIdentifier)
+    lifecycleManager.getShuffleIdMapping.get(appShuffleId.toInt).foreach {
+      case (_, (celebornShuffleId, _)) => shufflesToBeCleaned.put(celebornShuffleId)
+    }
+  }
+
   def removeCleanedShuffleId(celebornShuffleId: Int): Unit = {
     cleanedShuffleIds.remove(celebornShuffleId)
   }
 
-  private var cleanerThreadPool: ScheduledExecutorService = _
+  def stop(): Unit = {
+    shufflesToBeCleaned.clear()
+    cleanedShuffleIds.clear()
+    if (cleanerThreadPool != null) {
+      cleanerThreadPool.shutdownNow()
+      cleanerThreadPool = null
+    }
+  }
 }
