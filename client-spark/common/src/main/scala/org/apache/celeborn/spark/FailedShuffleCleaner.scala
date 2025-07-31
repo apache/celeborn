@@ -83,7 +83,7 @@ private[celeborn] class FailedShuffleCleaner(lifecycleManager: LifecycleManager)
     shufflesToBeCleaned.clear()
     cleanedShuffleIds.clear()
     if (cleanerThreadPool != null) {
-      cleanerThreadPool.shutdownNow()
+      ThreadUtils.shutdown(cleanerThreadPool)
       cleanerThreadPool = null
     }
   }
