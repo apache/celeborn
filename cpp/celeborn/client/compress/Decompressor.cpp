@@ -15,13 +15,28 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.cluster
+#include <stdexcept>
 
-import org.apache.celeborn.common.protocol.CompressionCodec
+#include "celeborn/client/compress/Lz4Decompressor.h"
+#include "celeborn/utils/Exceptions.h"
 
-object JavaReadCppWriteTestWithNONE extends JavaReadCppWriteTestBase {
+namespace celeborn {
+namespace client {
+namespace compress {
 
-  def main(args: Array[String]) = {
-    testJavaReadCppWrite(CompressionCodec.NONE)
+std::unique_ptr<Decompressor> Decompressor::getDecompressor(
+    protocol::CompressionCodec codec) {
+  switch (codec) {
+    case protocol::CompressionCodec::LZ4:
+      return std::make_unique<Lz4Decompressor>();
+    case protocol::CompressionCodec::ZSTD:
+      // TODO: impl zstd
+      CELEBORN_FAIL("Compression codec ZSTD is not supported.");
+    default:
+      CELEBORN_FAIL("Unknown compression codec.");
   }
 }
+
+} // namespace compress
+} // namespace client
+} // namespace celeborn

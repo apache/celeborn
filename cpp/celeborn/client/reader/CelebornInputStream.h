@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "celeborn/client/compress/Decompressor.h"
 #include "celeborn/client/reader/WorkerPartitionReader.h"
 #include "celeborn/conf/CelebornConf.h"
 
@@ -33,7 +34,8 @@ class CelebornInputStream {
       const std::vector<int>& attempts,
       int attemptNumber,
       int startMapIndex,
-      int endMapIndex);
+      int endMapIndex,
+      bool needCompression);
 
   int read(uint8_t* buffer, size_t offset, size_t len);
 
@@ -68,6 +70,10 @@ class CelebornInputStream {
   int attemptNumber_;
   int startMapIndex_;
   int endMapIndex_;
+  bool shouldDecompress_;
+  std::unique_ptr<compress::Decompressor> decompressor_;
+  std::vector<char> rawDataBuf_;
+  std::vector<char> compressedBuf_;
 
   int currLocationIndex_;
   std::unique_ptr<memory::ReadOnlyByteBuffer> currChunk_;
