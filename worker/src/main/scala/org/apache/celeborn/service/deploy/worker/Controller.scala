@@ -363,6 +363,7 @@ private[deploy] class Controller(
               } catch {
                 case e: IOException =>
                   logError(s"Commit file for $shuffleKey $uniqueId failed.", e)
+                  workerSource.incCounter(WorkerSource.COMMIT_FILES_FAIL_COUNT)
                   failedIds.add(uniqueId)
               }
             }
