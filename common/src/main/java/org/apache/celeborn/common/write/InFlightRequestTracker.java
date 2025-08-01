@@ -58,6 +58,8 @@ public class InFlightRequestTracker {
 
   private volatile boolean cleaned = false;
 
+  private final Object lock = new Object();
+
   public InFlightRequestTracker(CelebornConf conf, PushState pushState) {
     this.waitInflightTimeoutMs = conf.clientPushLimitInFlightTimeoutMs();
     this.delta = conf.clientPushLimitInFlightSleepDeltaMs();
@@ -75,36 +77,42 @@ public class InFlightRequestTracker {
   }
 
   public void addBatch(int batchId, int batchBytesSize, String hostAndPushPort) {
-    Set<Integer> batchIdSetPerPair =
-        inflightBatchesPerAddress.computeIfAbsent(
-            hostAndPushPort, id -> ConcurrentHashMap.newKeySet());
-    batchIdSetPerPair.add(batchId);
-    totalInflightReqs.increment();
-    if (maxInFlightBytesSizeEnabled) {
-      LongAdder bytesSizePerPair =
-          inflightBytesSizePerAddress.computeIfAbsent(hostAndPushPort, id -> new LongAdder());
-      bytesSizePerPair.add(batchBytesSize);
-      inflightBatchBytesSizes.put(batchId, batchBytesSize);
-      totalInflightBytes.add(batchBytesSize);
+    synchronized (lock) {
+      Set<Integer> batchIdSetPerPair =
+          inflightBatchesPerAddress.computeIfAbsent(
+              hostAndPushPort, id -> ConcurrentHashMap.newKeySet());
+      batchIdSetPerPair.add(batchId);
+      totalInflightReqs.increment();
+      if (maxInFlightBytesSizeEnabled) {
+        LongAdder bytesSizePerPair =
+            inflightBytesSizePerAddress.computeIfAbsent(hostAndPushPort, id -> new LongAdder());
+        bytesSizePerPair.add(batchBytesSize);
+        inflightBatchBytesSizes.put(batchId, batchBytesSize);
+        totalInflightBytes.add(batchBytesSize);
+      }
+      lock.notifyAll();
     }
   }
 
   public void removeBatch(int batchId, String hostAndPushPort) {
-    Set<Integer> batchIdSet = inflightBatchesPerAddress.get(hostAndPushPort);
-    if (batchIdSet != null) {
-      batchIdSet.remove(batchId);
-    } else {
-      logger.info("Batches of {} in flight is null.", hostAndPushPort);
-    }
-    totalInflightReqs.decrement();
-    if (maxInFlightBytesSizeEnabled) {
-      int inflightBatchBytesSize =
-          -Optional.ofNullable(inflightBatchBytesSizes.remove(batchId)).orElse(0);
-      LongAdder inflightBytesSize = inflightBytesSizePerAddress.get(hostAndPushPort);
-      if (inflightBytesSize != null) {
-        inflightBytesSize.add(inflightBatchBytesSize);
+    synchronized (lock) {
+      Set<Integer> batchIdSet = inflightBatchesPerAddress.get(hostAndPushPort);
+      if (batchIdSet != null) {
+        batchIdSet.remove(batchId);
+      } else {
+        logger.info("Batches of {} in flight is null.", hostAndPushPort);
       }
-      totalInflightBytes.add(inflightBatchBytesSize);
+      totalInflightReqs.decrement();
+      if (maxInFlightBytesSizeEnabled) {
+        int inflightBatchBytesSize =
+            -Optional.ofNullable(inflightBatchBytesSizes.remove(batchId)).orElse(0);
+        LongAdder inflightBytesSize = inflightBytesSizePerAddress.get(hostAndPushPort);
+        if (inflightBytesSize != null) {
+          inflightBytesSize.add(inflightBatchBytesSize);
+        }
+        totalInflightBytes.add(inflightBatchBytesSize);
+      }
+      lock.notifyAll();
     }
   }
 
@@ -139,23 +147,25 @@ public class InFlightRequestTracker {
     LongAdder batchBytesSize = getBatchBytesSizeByAddressPair(hostAndPushPort);
     long times = waitInflightTimeoutMs / delta;
     try {
-      while (times > 0) {
-        if (cleaned) {
-          // MapEnd cleans up push state, which does not exceed the max requests in flight limit.
-          return false;
-        } else {
-          if ((totalInflightReqs.sum() <= maxInFlightReqsTotal
-                  && batchIdSet.size() <= currentMaxReqsInFlight)
-              || (maxInFlightBytesSizeEnabled
-                  && totalInflightBytes.sum() <= maxInFlightBytesSizeTotal
-                  && batchBytesSize.sum() <= maxInFlightBytesSizePerWorker)) {
-            break;
+      synchronized (lock) {
+        while (times > 0) {
+          if (cleaned) {
+            // MapEnd cleans up push state, which does not exceed the max requests in flight limit.
+            return false;
+          } else {
+            if ((totalInflightReqs.sum() <= maxInFlightReqsTotal
+                    && batchIdSet.size() <= currentMaxReqsInFlight)
+                || (maxInFlightBytesSizeEnabled
+                    && totalInflightBytes.sum() <= maxInFlightBytesSizeTotal
+                    && batchBytesSize.sum() <= maxInFlightBytesSizePerWorker)) {
+              break;
+            }
+            if (pushState.exception.get() != null) {
+              throw pushState.exception.get();
+            }
+            lock.wait(delta);
+            times--;
           }
-          if (pushState.exception.get() != null) {
-            throw pushState.exception.get();
-          }
-          Thread.sleep(delta);
-          times--;
         }
       }
     } catch (InterruptedException e) {
@@ -208,19 +218,21 @@ public class InFlightRequestTracker {
     long times = waitInflightTimeoutMs / delta;
 
     try {
-      while (times > 0) {
-        if (cleaned) {
-          // MapEnd cleans up push state, which does not exceed the zero requests in flight limit.
-          return false;
-        } else {
-          if (totalInflightReqs.sum() == 0) {
-            break;
+      synchronized (lock) {
+        while (times > 0) {
+          if (cleaned) {
+            // MapEnd cleans up push state, which does not exceed the zero requests in flight limit.
+            return false;
+          } else {
+            if (totalInflightReqs.sum() == 0) {
+              break;
+            }
+            if (pushState.exception.get() != null) {
+              throw pushState.exception.get();
+            }
+            lock.wait(delta);
+            times--;
           }
-          if (pushState.exception.get() != null) {
-            throw pushState.exception.get();
-          }
-          Thread.sleep(delta);
-          times--;
         }
       }
     } catch (InterruptedException e) {
@@ -262,12 +274,15 @@ public class InFlightRequestTracker {
         totalInflightReqs.sum(),
         inflightBatchesPerAddress.values().stream().mapToInt(Set::size).sum());
     cleaned = true;
-    inflightBatchesPerAddress.clear();
     pushStrategy.clear();
-    if (maxInFlightBytesSizeEnabled) {
-      logger.info("Cleanup {} bytes in flight.", totalInflightBytes.sum());
-      inflightBytesSizePerAddress.clear();
-      inflightBatchBytesSizes.clear();
+    synchronized (lock) {
+      inflightBatchesPerAddress.clear();
+      if (maxInFlightBytesSizeEnabled) {
+        logger.info("Cleanup {} bytes in flight.", totalInflightBytes.sum());
+        inflightBytesSizePerAddress.clear();
+        inflightBatchBytesSizes.clear();
+      }
+      lock.notifyAll();
     }
   }
 }
