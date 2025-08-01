@@ -148,7 +148,6 @@ private[worker] class LocalFlusher(
     val mountPoint: String,
     val diskType: StorageInfo.Type,
     timeWindow: TimeWindow,
-    reuseCopyBuffer: Boolean,
     maxTaskSize: Long) extends Flusher(
     workerSource,
     threadCount,
@@ -156,7 +155,7 @@ private[worker] class LocalFlusher(
     maxComponents,
     timeWindow,
     mountPoint,
-    reuseCopyBuffer,
+    false,
     maxTaskSize)
   with DeviceObserver with Logging {
 
