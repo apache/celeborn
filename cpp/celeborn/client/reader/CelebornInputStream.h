@@ -72,11 +72,11 @@ class CelebornInputStream {
   int endMapIndex_;
   bool shouldDecompress_;
   std::unique_ptr<compress::Decompressor> decompressor_;
-  std::vector<char> rawDataBuf_;
-  std::vector<char> compressedBuf_;
+  std::vector<uint8_t> compressedBuf_;
 
   int currLocationIndex_;
   std::unique_ptr<memory::ReadOnlyByteBuffer> currChunk_;
+  std::unique_ptr<memory::ReadOnlyByteBuffer> decompressedChunk_;
   size_t currBatchPos_;
   size_t currBatchSize_;
   std::shared_ptr<PartitionReader> currReader_;

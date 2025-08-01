@@ -30,8 +30,8 @@ class Lz4Decompressor final : public Decompressor, Lz4Trait {
   Lz4Decompressor();
   ~Lz4Decompressor() override;
 
-  int getOriginalLen(const char* src) override;
-  int decompress(const char* src, char* dst, int dstOff) override;
+  int getOriginalLen(const uint8_t* src) override;
+  int decompress(const uint8_t* src, uint8_t* dst, int dstOff) override;
 
   Lz4Decompressor(const Lz4Decompressor&) = delete;
   Lz4Decompressor& operator=(const Lz4Decompressor&) = delete;

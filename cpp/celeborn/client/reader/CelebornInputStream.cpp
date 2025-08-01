@@ -47,7 +47,7 @@ CelebornInputStream::CelebornInputStream(
               protocol::CompressionCodec::NONE &&
           needCompression) {
   if (shouldDecompress_) {
-    decompressor_ = compress::Decompressor::getDecompressor(
+    decompressor_ = compress::Decompressor::createDecompressor(
         conf_->shuffleCompressionCodec());
   }
   moveToNextReader();
@@ -68,7 +68,9 @@ int CelebornInputStream::read(uint8_t* buffer, size_t offset, size_t len) {
     }
     size_t batchRemainingSize = currBatchSize_ - currBatchPos_;
     size_t toReadBytes = std::min(len - readBytes, batchRemainingSize);
-    memcpy(buf + readBytes, rawDataBuf_.data() + currBatchPos_, toReadBytes);
+    CELEBORN_CHECK_GE(decompressedChunk_->remainingSize(), toReadBytes);
+    auto size = decompressedChunk_->readToBuffer(&buf[readBytes], toReadBytes);
+    CELEBORN_CHECK_EQ(toReadBytes, size);
     readBytes += toReadBytes;
     currBatchPos_ += toReadBytes;
   }
@@ -97,11 +99,6 @@ bool CelebornInputStream::fillBuffer() {
         compressedBuf_.resize(size);
       }
       currChunk_->readToBuffer(compressedBuf_.data(), size);
-    } else {
-      if (size > rawDataBuf_.size()) {
-        rawDataBuf_.resize(size);
-      }
-      currChunk_->readToBuffer(rawDataBuf_.data(), size);
     }
 
     if (attemptId == attempts_[mapId]) {
@@ -111,13 +108,16 @@ bool CelebornInputStream::fillBuffer() {
         if (shouldDecompress_) {
           const auto originalLength =
               decompressor_->getOriginalLen(compressedBuf_.data());
-          if (rawDataBuf_.size() < originalLength) {
-            rawDataBuf_.resize(originalLength);
-          }
+          std::unique_ptr<folly::IOBuf> decompressedBuf_ =
+              folly::IOBuf::createCombined(originalLength);
+          decompressedBuf_->append(originalLength);
           currBatchSize_ = decompressor_->decompress(
-              compressedBuf_.data(), rawDataBuf_.data(), 0);
+              compressedBuf_.data(), decompressedBuf_->writableData(), 0);
+          decompressedChunk_ = memory::ByteBuffer::createReadOnly(
+              std::move(decompressedBuf_), false);
         } else {
           currBatchSize_ = size;
+          decompressedChunk_ = currChunk_->readToReadOnlyBuffer(size);
         }
         currBatchPos_ = 0;
         hasData = true;

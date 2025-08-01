@@ -29,7 +29,7 @@ Lz4Decompressor::Lz4Decompressor() {
   if (!xxhash_state_) {
     CELEBORN_FAIL("Failed to create XXH32 state.")
   }
-  XXH32_reset(xxhash_state_, DEFAULT_SEED);
+  XXH32_reset(xxhash_state_, kDefaultSeed);
 }
 
 Lz4Decompressor::~Lz4Decompressor() {
@@ -38,26 +38,32 @@ Lz4Decompressor::~Lz4Decompressor() {
   }
 }
 
-int Lz4Decompressor::getOriginalLen(const char* src) {
-  return readIntLE(src, MAGIC_LENGTH + 5);
+int Lz4Decompressor::getOriginalLen(const uint8_t* src) {
+  return readIntLE(src, kMagicLength + 5);
 }
 
-int Lz4Decompressor::decompress(const char* src, char* dst, int dstOff) {
-  const int compressionMethod = static_cast<unsigned char>(src[MAGIC_LENGTH]);
-  const int compressedLen = readIntLE(src, MAGIC_LENGTH + 1);
-  const int originalLen = readIntLE(src, MAGIC_LENGTH + 5);
-  const int expectedCheck = readIntLE(src, MAGIC_LENGTH + 9);
+int Lz4Decompressor::decompress(
+    const uint8_t* src,
+    uint8_t* dst,
+    const int dstOff) {
+  const int compressionMethod = static_cast<unsigned char>(src[kMagicLength]);
+  const int compressedLen = readIntLE(src, kMagicLength + 1);
+  const int originalLen = readIntLE(src, kMagicLength + 5);
+  const int expectedCheck = readIntLE(src, kMagicLength + 9);
 
-  const char* compressedDataPtr = src + HEADER_LENGTH;
-  char* dstPtr = dst + dstOff;
+  const uint8_t* compressedDataPtr = src + kHeaderLength;
+  uint8_t* dstPtr = dst + dstOff;
 
   switch (compressionMethod) {
-    case COMPRESSION_METHOD_RAW:
+    case kCompressionMethodRaw:
       std::memcpy(dstPtr, compressedDataPtr, originalLen);
       break;
-    case COMPRESSION_METHOD_LZ4: {
+    case kCompressionMethodLZ4: {
       const int decompressedBytes = LZ4_decompress_safe(
-          compressedDataPtr, dstPtr, compressedLen, originalLen);
+          reinterpret_cast<const char*>(compressedDataPtr),
+          reinterpret_cast<char*>(dstPtr),
+          compressedLen,
+          originalLen);
 
       if (decompressedBytes != originalLen) {
         CELEBORN_FAIL(
@@ -73,7 +79,7 @@ int Lz4Decompressor::decompress(const char* src, char* dst, int dstOff) {
           std::to_string(compressionMethod));
   }
 
-  XXH32_reset(xxhash_state_, DEFAULT_SEED);
+  XXH32_reset(xxhash_state_, kDefaultSeed);
   XXH32_update(xxhash_state_, dstPtr, originalLen);
   const uint32_t actualCheck = XXH32_digest(xxhash_state_) & 0xFFFFFFFL;
 

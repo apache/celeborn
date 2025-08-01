@@ -17,9 +17,6 @@ add_library(
         reader/WorkerPartitionReader.cpp
         reader/CelebornInputStream.cpp
         ShuffleClient.cpp
-        compress/Decompressor.h
-        compress/Lz4Trait.h
-        compress/Lz4Decompressor.h
         compress/Decompressor.cpp
         compress/Lz4Decompressor.cpp)
 

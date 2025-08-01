@@ -29,16 +29,16 @@ class Decompressor {
  public:
   virtual ~Decompressor() = default;
 
-  virtual int decompress(const char* src, char* dst, int dst_off) = 0;
+  virtual int decompress(const uint8_t* src, uint8_t* dst, int dst_off) = 0;
 
-  virtual int getOriginalLen(const char* src) = 0;
+  virtual int getOriginalLen(const uint8_t* src) = 0;
 
-  static std::unique_ptr<Decompressor> getDecompressor(
+  static std::unique_ptr<Decompressor> createDecompressor(
       protocol::CompressionCodec codec);
 
  protected:
-  static int32_t readIntLE(const char* buf, int i) {
-    const auto p = reinterpret_cast<const unsigned char*>(buf);
+  static int32_t readIntLE(const uint8_t* buf, const int i) {
+    const auto p = buf;
     return (p[i]) | (p[i + 1] << 8) | (p[i + 2] << 16) | (p[i + 3] << 24);
   }
 };

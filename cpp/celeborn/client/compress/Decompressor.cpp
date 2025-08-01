@@ -24,7 +24,7 @@ namespace celeborn {
 namespace client {
 namespace compress {
 
-std::unique_ptr<Decompressor> Decompressor::getDecompressor(
+std::unique_ptr<Decompressor> Decompressor::createDecompressor(
     protocol::CompressionCodec codec) {
   switch (codec) {
     case protocol::CompressionCodec::LZ4:

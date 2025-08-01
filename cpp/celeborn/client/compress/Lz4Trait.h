@@ -22,16 +22,15 @@ namespace client {
 namespace compress {
 
 struct Lz4Trait {
-  static constexpr int MAGIC_LENGTH = 8;
-  static constexpr char MAGIC[MAGIC_LENGTH] =
-      {'L', 'Z', '4', 'B', 'l', 'o', 'c', 'k'};
+  static constexpr char kMagic[] = {'L', 'Z', '4', 'B', 'l', 'o', 'c', 'k'};
+  static constexpr int kMagicLength = sizeof(kMagic);
 
-  static constexpr int HEADER_LENGTH = MAGIC_LENGTH + 1 + 4 + 4 + 4;
+  static constexpr int kHeaderLength = kMagicLength + 1 + 4 + 4 + 4;
 
-  static constexpr int COMPRESSION_METHOD_RAW = 0x10;
-  static constexpr int COMPRESSION_METHOD_LZ4 = 0x20;
+  static constexpr int kCompressionMethodRaw = 0x10;
+  static constexpr int kCompressionMethodLZ4 = 0x20;
 
-  static constexpr int DEFAULT_SEED = 0x9747b28c;
+  static constexpr int kDefaultSeed = 0x9747b28c;
 };
 
 } // namespace compress
