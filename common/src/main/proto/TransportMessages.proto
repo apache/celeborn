@@ -158,6 +158,8 @@ message PbPartitionLocation {
   PbPartitionLocation peer = 9;
   PbStorageInfo storageInfo = 10;
   bytes mapIdBitmap = 11;
+  int32 splitStart = 12;
+  int32 splitEnd = 13;
 }
 
 message PbWorkerResource {
@@ -880,6 +882,8 @@ message PbPackedPartitionLocations {
   repeated int32 modes = 12;
   repeated int64 fileSizes = 13;
   repeated PbChunkOffsets chunksOffsets = 14;
+  repeated int32 splitStarts = 15;
+  repeated int32 splitEnds = 16;
 }
 
 message PbPackedPartitionLocationsPair {
