@@ -250,6 +250,7 @@ These metrics are exposed by Celeborn worker.
     | PotentialConsumeSpeed                  | The speed of potential consumption for congestion control.                                                      |
     | UserProduceSpeed                       | The speed of user production for congestion control.                                                            |
     | WorkerConsumeSpeed                     | The speed of worker consumption for congestion control.                                                         |
+    | WorkerProduceSpeed                     | The speed of worker production for congestion control.                                                          |
     | IsDecommissioningWorker                | 1 means worker decommissioning, 0 means not decommissioning.                                                    |
     | UnreleasedShuffleCount                 | Unreleased shuffle count when worker is decommissioning.                                                        |
     | UnreleasedPartitionLocationCount       | Unreleased partition location count when worker is shutting down.                                               |
