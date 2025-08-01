@@ -1136,7 +1136,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           logDebug(s"Succeed $message")
           context.reply(MapperEndResponse(StatusCode.SUCCESS))
         case false =>
-          logError(s"Failed $message")
+          logError(s"Failed $message, reply ${StatusCode.SHUFFLE_DATA_LOST}.")
           context.reply(MapperEndResponse(StatusCode.SHUFFLE_DATA_LOST))
       }
     }
