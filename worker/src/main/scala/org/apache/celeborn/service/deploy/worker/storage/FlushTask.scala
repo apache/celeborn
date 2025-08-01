@@ -40,7 +40,7 @@ abstract private[worker] class FlushTask(
       buffer: CompositeByteBuf,
       copyBytes: Array[Byte],
       length: Int): Array[Byte] = {
-    if (copyBytes != null) {
+    if (copyBytes != null && copyBytes.length >= length) {
       buffer.readBytes(copyBytes, 0, length)
       copyBytes
     } else {
