@@ -6617,13 +6617,13 @@ object CelebornConf extends Logging {
       .createWithDefaultString("false")
 
   val WORKER_FLUSH_REUSE_COPY_BUFFER_ENABLED: ConfigEntry[Boolean] =
-    buildConf("worker.flush.reuse.copy.buffer.enabled")
+    buildConf("worker.flush.reuseCopyBuffer.enabled")
       .categories("worker")
       .doc("Whether to enable reuse copy buffer for flush. Note that this copy buffer must not" +
         " be referenced again after flushing. This means that, for example, the Hdfs(Oss or S3) client" +
         " will not asynchronously access this buffer after the flush method returns, otherwise data" +
         " modification problems will occur.")
-      .version("0.6.0")
+      .version("0.6.1")
       .booleanConf
       .createWithDefaultString("true")
 
