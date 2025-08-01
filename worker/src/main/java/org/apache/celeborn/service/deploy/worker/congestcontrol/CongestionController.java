@@ -116,6 +116,9 @@ public class CongestionController {
     this.workerSource.addGauge(
         WorkerSource.WORKER_CONSUME_SPEED(), consumedBufferStatusHub::avgBytesPerSec);
 
+    this.workerSource.addGauge(
+        WorkerSource.WORKER_PRODUCE_SPEED(), producedBufferStatusHub::avgBytesPerSec);
+
     this.configService = configService;
 
     if (configService != null) {
