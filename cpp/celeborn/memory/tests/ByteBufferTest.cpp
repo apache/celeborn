@@ -144,6 +144,75 @@ void testReadData(ReadOnlyByteBuffer* readBuffer, size_t size) {
   EXPECT_THROW(readBuffer->readLE<int64_t>(), std::exception);
 }
 
+void testReadOnlyBufferReadData(ReadOnlyByteBuffer* readBuffer, size_t size) {
+  EXPECT_EQ(size, testSize);
+  size_t remainingSize = size;
+  EXPECT_EQ(readBuffer->size(), size);
+  EXPECT_EQ(readBuffer->remainingSize(), remainingSize);
+
+  // Test read string.
+  auto strRead =
+      readBuffer->readToReadOnlyBuffer(strPayload.size())->readToString();
+  EXPECT_EQ(strRead, strPayload);
+  remainingSize -= strPayload.size();
+  EXPECT_EQ(readBuffer->remainingSize(), remainingSize);
+
+  // Test read BigEndian.
+  EXPECT_EQ(
+      readBuffer->readToReadOnlyBuffer(sizeof(int16_t))->readBE<int16_t>(),
+      int16Payload);
+  remainingSize -= sizeof(int16_t);
+  EXPECT_EQ(readBuffer->remainingSize(), remainingSize);
+  EXPECT_EQ(
+      readBuffer->readToReadOnlyBuffer(sizeof(int32_t))->readBE<int32_t>(),
+      int32Payload);
+  remainingSize -= sizeof(int32_t);
+  EXPECT_EQ(readBuffer->remainingSize(), remainingSize);
+  EXPECT_EQ(
+      readBuffer->readToReadOnlyBuffer(sizeof(int64_t))->readBE<int64_t>(),
+      int64Payload);
+  remainingSize -= sizeof(int64_t);
+  EXPECT_EQ(readBuffer->remainingSize(), remainingSize);
+
+  // Test read LittleEndian.
+  EXPECT_EQ(
+      readBuffer->readToReadOnlyBuffer(sizeof(int16_t))->readLE<int16_t>(),
+      int16Payload);
+  remainingSize -= sizeof(int16_t);
+  EXPECT_EQ(readBuffer->remainingSize(), remainingSize);
+  EXPECT_EQ(
+      readBuffer->readToReadOnlyBuffer(sizeof(int32_t))->readLE<int32_t>(),
+      int32Payload);
+  remainingSize -= sizeof(int32_t);
+  EXPECT_EQ(readBuffer->remainingSize(), remainingSize);
+  EXPECT_EQ(
+      readBuffer->readToReadOnlyBuffer(sizeof(int64_t))->readLE<int64_t>(),
+      int64Payload);
+  remainingSize -= sizeof(int64_t);
+  EXPECT_EQ(readBuffer->remainingSize(), remainingSize);
+
+  // Test retreat and skip.
+  const auto retreatSize = sizeof(int32_t) + sizeof(int64_t);
+  remainingSize += retreatSize;
+  readBuffer->retreat(retreatSize);
+  EXPECT_EQ(readBuffer->remainingSize(), remainingSize);
+  EXPECT_EQ(
+      readBuffer->readToReadOnlyBuffer(sizeof(int32_t))->readLE<int32_t>(),
+      int32Payload);
+  remainingSize -= sizeof(int32_t);
+  EXPECT_EQ(readBuffer->remainingSize(), remainingSize);
+  readBuffer->skip(sizeof(int64_t));
+  remainingSize -= sizeof(int64_t);
+  EXPECT_EQ(readBuffer->remainingSize(), remainingSize);
+
+  // Test read end.
+  EXPECT_EQ(readBuffer->size(), size);
+  EXPECT_EQ(readBuffer->remainingSize(), 0);
+  EXPECT_THROW(
+      readBuffer->readToReadOnlyBuffer(sizeof(int64_t))->readLE<int64_t>(),
+      std::exception);
+}
+
 TEST(ByteBufferTest, continuousBufferRead) {
   size_t size = 0;
   auto data = createRawData(size);
@@ -187,6 +256,13 @@ TEST(ByteBufferTest, writeBufferAndRead) {
   auto writeBuffer = createWriteOnlyBuffer(size);
   auto readBuffer = WriteOnlyByteBuffer::toReadOnly(std::move(writeBuffer));
   testReadData(readBuffer.get(), size);
+}
+
+TEST(ByteBufferTest, readOnlyBufferRead) {
+  size_t size = 0;
+  auto writeBuffer = createWriteOnlyBuffer(size);
+  auto readBuffer = WriteOnlyByteBuffer::toReadOnly(std::move(writeBuffer));
+  testReadOnlyBufferReadData(readBuffer.get(), size);
 }
 
 TEST(ByteBufferTest, concatReadBuffer) {

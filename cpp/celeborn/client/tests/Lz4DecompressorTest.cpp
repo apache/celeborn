@@ -25,42 +25,46 @@ using namespace celeborn::protocol;
 TEST(Lz4DecompressorTest, DecompressWithLz4) {
   compress::Lz4Decompressor decompressor;
 
-  std::vector<char> compressed_data = {
+  std::vector<uint8_t> compressedData = {
       76,  90, 52, 66,  108, 111, 99,  107, 32,  29,  0,   0,   0,
-      31,  0,  0,  0,   116, 18,  -79, 8,   83,  72,  101, 108, 108,
-      111, 1,  0,  -16, 4,   32,  67,  101, 108, 101, 98,  111, 114,
+      31,  0,  0,  0,   116, 18,  177, 8,   83,  72,  101, 108, 108,
+      111, 1,  0,  240, 4,   32,  67,  101, 108, 101, 98,  111, 114,
       110, 33, 33, 33,  33,  33,  33,  33,  33,  33,  33};
 
-  const int original_len = decompressor.getOriginalLen(compressed_data.data());
+  const int originalLen = decompressor.getOriginalLen(compressedData.data());
 
-  const auto decompressedData = new char[original_len + 1];
-  decompressedData[original_len] = '\0';
+  const auto decompressedData = new uint8_t[originalLen + 1];
+  decompressedData[originalLen] = '\0';
 
   const bool success =
-      decompressor.decompress(compressed_data.data(), decompressedData, 0);
+      decompressor.decompress(compressedData.data(), decompressedData, 0);
 
   EXPECT_TRUE(success);
 
-  EXPECT_EQ(decompressedData, std::string("Helloooooooo Celeborn!!!!!!!!!!"));
+  EXPECT_EQ(
+      reinterpret_cast<char*>(decompressedData),
+      std::string("Helloooooooo Celeborn!!!!!!!!!!"));
 }
 
 TEST(Lz4DecompressorTest, DecompressWithRaw) {
   compress::Lz4Decompressor decompressor;
 
-  std::vector<char> compressed_data = {
+  std::vector<uint8_t> compressedData = {
       76, 90, 52,  66,  108, 111, 99,  107, 16,  15,  0,   0,   0,
-      15, 0,  0,   0,   -68, 66,  58,  13,  72,  101, 108, 108, 111,
+      15, 0,  0,   0,   188, 66,  58,  13,  72,  101, 108, 108, 111,
       32, 67, 101, 108, 101, 98,  111, 114, 110, 33,  110, 33};
 
-  const int original_len = decompressor.getOriginalLen(compressed_data.data());
+  const int originalLen = decompressor.getOriginalLen(compressedData.data());
 
-  const auto decompressedData = new char[original_len + 1];
-  decompressedData[original_len] = '\0';
+  const auto decompressedData = new uint8_t[originalLen + 1];
+  decompressedData[originalLen] = '\0';
 
   const bool success =
-      decompressor.decompress(compressed_data.data(), decompressedData, 0);
+      decompressor.decompress(compressedData.data(), decompressedData, 0);
 
   EXPECT_TRUE(success);
 
-  EXPECT_EQ(decompressedData, std::string("Hello Celeborn!"));
+  EXPECT_EQ(
+      reinterpret_cast<char*>(decompressedData),
+      std::string("Hello Celeborn!"));
 }
