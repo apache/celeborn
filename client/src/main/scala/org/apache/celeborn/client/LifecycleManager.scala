@@ -1223,9 +1223,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         // wait stage end
         val (isTimeOut, cost) = commitManager.waitStageEnd(shuffleId)
         if (isTimeOut) {
-          logError(s"[handleUnregisterShuffle] trigger StageEnd Timeout! $shuffleId.")
+          logError(
+            s"[handleUnregisterShuffle] trigger ${StatusCode.STAGE_END_TIMEOUT} for $shuffleId!")
         } else {
-          logInfo(s"[handleUnregisterShuffle] Wait for handleStageEnd complete costs ${cost}ms")
+          logInfo(s"[handleUnregisterShuffle] Wait for handleStageEnd complete costs ${cost}ms for $shuffleId")
         }
       }
     }

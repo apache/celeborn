@@ -193,7 +193,7 @@ class ReducePartitionCommitHandler(
       // record in stageEndShuffleSet
       setStageEnd(shuffleId)
     } else {
-      logError(s"Failed to handle stageEnd for $shuffleId, lost file!")
+      logError(s"Failed to handle stageEnd for $shuffleId, ${StatusCode.SHUFFLE_DATA_LOST}!")
       dataLostShuffleSet.add(shuffleId)
       // record in stageEndShuffleSet
       setStageEnd(shuffleId)
