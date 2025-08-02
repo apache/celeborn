@@ -46,7 +46,7 @@ Celeborn worker's slot count decreases when a partition is allocated and increme
 
 Build Celeborn via `make-distribution.sh`:
 ```shell
-./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pspark-3.4/-Pspark-3.5/-Pspark-4.0/-Pflink-1.16/-Pflink-1.17/-Pflink-1.18/-Pflink-1.19/-Pflink-1.20/-Pflink-2.0/-Pmr
+./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pspark-3.4/-Pspark-3.5/-Pspark-4.0/-Pflink-1.16/-Pflink-1.17/-Pflink-1.18/-Pflink-1.19/-Pflink-1.20/-Pflink-2.0/-Pflink-2.1/-Pmr
 ```
 
 Package `apache-celeborn-${project.version}-bin.tgz` will be generated.
@@ -69,6 +69,7 @@ Package `apache-celeborn-${project.version}-bin.tgz` will be generated.
 | Flink 1.19 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.20 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 2.0  | &#x274C;          | &#x274C;          | &#10004;           | &#10004;           | &#x274C;          | &#10004;           | &#10004;           |
+| Flink 2.1  | &#x274C;          | &#x274C;          | &#10004;           | &#10004;           | &#x274C;          | &#10004;           | &#10004;           |
 
 To compile the client for Spark 2.4 with Scala 2.12, please use the following command:
 

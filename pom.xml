@@ -1832,6 +1832,25 @@
     </profile>
 
     <profile>
+      <id>flink-2.1</id>
+      <modules>
+        <module>client-flink/common</module>
+        <module>client-flink/flink-2.1</module>
+        <module>client-flink/flink-2.1-shaded</module>
+        <module>tests/flink-it</module>
+      </modules>
+      <properties>
+        <flink.version>2.1.0</flink.version>
+        <flink.binary.version>2.1</flink.binary.version>
+        <scala.binary.version>2.12</scala.binary.version>
+        <celeborn.flink.plugin.artifact>celeborn-client-flink-2.1_${scala.binary.version}</celeborn.flink.plugin.artifact>
+        <flink.streaming.artifact>flink-streaming-java</flink.streaming.artifact>
+        <flink.clients.artifact>flink-clients</flink.clients.artifact>
+        <flink.runtime.web.artifact>flink-runtime-web</flink.runtime.web.artifact>
+      </properties>
+    </profile>
+
+    <profile>
       <id>mr</id>
       <modules>
         <module>client-mr/mr</module>
