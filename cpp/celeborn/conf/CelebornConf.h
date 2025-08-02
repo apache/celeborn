@@ -18,6 +18,7 @@
 #pragma once
 
 #include "celeborn/conf/BaseConf.h"
+#include "celeborn/protocol/CompressionCodec.h"
 #include "celeborn/utils/CelebornUtils.h"
 
 namespace celeborn {
@@ -60,6 +61,9 @@ class CelebornConf : public BaseConf {
   static constexpr std::string_view kClientFetchMaxReqsInFlight{
       "celeborn.client.fetch.maxReqsInFlight"};
 
+  static constexpr std::string_view kShuffleCompressionCodec{
+      "celeborn.client.shuffle.compression.codec"};
+
   CelebornConf();
 
   CelebornConf(const std::string& filename);
@@ -83,6 +87,8 @@ class CelebornConf : public BaseConf {
   int networkIoClientThreads() const;
 
   int clientFetchMaxReqsInFlight() const;
+
+  protocol::CompressionCodec shuffleCompressionCodec() const;
 };
 } // namespace conf
 } // namespace celeborn

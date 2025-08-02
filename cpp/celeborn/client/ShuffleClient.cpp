@@ -48,6 +48,17 @@ std::unique_ptr<CelebornInputStream> ShuffleClientImpl::readPartition(
     int attemptNumber,
     int startMapIndex,
     int endMapIndex) {
+  return ShuffleClientImpl::readPartition(
+      shuffleId, partitionId, attemptNumber, startMapIndex, endMapIndex, true);
+}
+
+std::unique_ptr<CelebornInputStream> ShuffleClientImpl::readPartition(
+    int shuffleId,
+    int partitionId,
+    int attemptNumber,
+    int startMapIndex,
+    int endMapIndex,
+    bool needCompression) {
   const auto& reducerFileGroupInfo = getReducerFileGroupInfo(shuffleId);
   std::string shuffleKey = utils::makeShuffleKey(appUniqueId_, shuffleId);
   std::vector<std::shared_ptr<const protocol::PartitionLocation>> locations;
@@ -64,7 +75,8 @@ std::unique_ptr<CelebornInputStream> ShuffleClientImpl::readPartition(
       reducerFileGroupInfo.attempts,
       attemptNumber,
       startMapIndex,
-      endMapIndex);
+      endMapIndex,
+      needCompression);
 }
 
 void ShuffleClientImpl::updateReducerFileGroup(int shuffleId) {

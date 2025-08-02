@@ -274,6 +274,9 @@ Meta Velox
 ./cpp/celeborn/conf/BaseConf.h
 ./cpp/celeborn/conf/BaseConf.cpp
 
+Meta Folly
+./cpp/cmake/FindLz4.cmake
+
 ------------------------------------------------------------------------------------
 This product bundles various third-party components under the CC0 license.
 This section summarizes those components.

@@ -20,6 +20,7 @@ add_library(
 
 target_link_libraries(
         conf
+        protocol
         utils
         memory
         ${FOLLY_WITH_DEPENDENCIES}

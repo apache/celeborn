@@ -23,7 +23,7 @@
 
 int main(int argc, char** argv) {
   // Read the configs.
-  assert(argc == 8);
+  assert(argc == 9);
   std::string lifecycleManagerHost = argv[1];
   int lifecycleManagerPort = std::atoi(argv[2]);
   std::string appUniqueId = argv[3];
@@ -31,15 +31,19 @@ int main(int argc, char** argv) {
   int attemptId = std::atoi(argv[5]);
   int numPartitions = std::atoi(argv[6]);
   std::string resultFile = argv[7];
+  std::string compressCodec = argv[8];
   std::cout << "lifecycleManagerHost = " << lifecycleManagerHost
             << ", lifecycleManagerPort = " << lifecycleManagerPort
             << ", appUniqueId = " << appUniqueId
             << ", shuffleId = " << shuffleId << ", attemptId = " << attemptId
             << ", numPartitions = " << numPartitions
-            << ", resultFile = " << resultFile << std::endl;
+            << ", resultFile = " << resultFile << std::endl
+            << ", compressCodec = " << compressCodec << std::endl;
 
   // Create shuffleClient and setup.
   auto conf = std::make_shared<celeborn::conf::CelebornConf>();
+  conf->registerProperty(
+      celeborn::conf::CelebornConf::kShuffleCompressionCodec, compressCodec);
   auto clientFactory =
       std::make_shared<celeborn::network::TransportClientFactory>(conf);
   auto shuffleClient = std::make_unique<celeborn::client::ShuffleClientImpl>(
@@ -61,6 +65,9 @@ int main(int argc, char** argv) {
         result[partitionId] += data;
         data = 0;
         dataCnt++;
+        continue;
+      }
+      if (c == '+') {
         continue;
       }
       assert(c >= '0' && c <= '9');

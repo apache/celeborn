@@ -38,6 +38,14 @@ class ShuffleClient {
       int startMapIndex,
       int endMapIndex) = 0;
 
+  virtual std::unique_ptr<CelebornInputStream> readPartition(
+      int shuffleId,
+      int partitionId,
+      int attemptNumber,
+      int startMapIndex,
+      int endMapIndex,
+      bool needCompression) = 0;
+
   virtual bool cleanupShuffle(int shuffleId) = 0;
 
   virtual void shutdown() = 0;
@@ -61,6 +69,14 @@ class ShuffleClientImpl : public ShuffleClient {
       int attemptNumber,
       int startMapIndex,
       int endMapIndex) override;
+
+  std::unique_ptr<CelebornInputStream> readPartition(
+      int shuffleId,
+      int partitionId,
+      int attemptNumber,
+      int startMapIndex,
+      int endMapIndex,
+      bool needCompression) override;
 
   void updateReducerFileGroup(int shuffleId) override;
 

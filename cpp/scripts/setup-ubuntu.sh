@@ -126,6 +126,8 @@ function install_celeborn_cpp_deps_from_apt {
     libgmock-dev \
     libevent-dev \
     libsodium-dev \
+    libxxhash-dev \
+    liblz4-dev \
     libzstd-dev \
     libre2-dev
 }
