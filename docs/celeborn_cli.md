@@ -94,11 +94,12 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
                            --show-manual-excluded-workers |
                            --show-shutdown-workers |
                            --show-decommissioning-workers |
-                           --show-lifecycle-managers | --show-workers |
-                           --show-workers-topology | --show-conf |
-                           --show-dynamic-conf | --upsert-dynamic-conf |
-                           --delete-dynamic-conf | --show-thread-dump |
-                           --show-container-info | --add-cluster-alias=alias |
+                           --show-tagged-workers | --show-lifecycle-managers |
+                           --show-workers | --show-workers-topology |
+                           --show-conf | --show-dynamic-conf |
+                           --upsert-dynamic-conf | --delete-dynamic-conf |
+                           --show-thread-dump | --show-container-info |
+                           --add-cluster-alias=alias |
                            --remove-cluster-alias=alias |
                            --remove-workers-unavailable-info |
                            --revise-lost-shuffles | --delete-apps |
@@ -160,6 +161,7 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
       --show-masters-info    Show master group info
       --show-shutdown-workers
                              Show shutdown workers
+      --show-tagged-workers  Show tagged workers
       --show-thread-dump     Show master thread dump
       --show-worker-event-info
                              Show worker event information

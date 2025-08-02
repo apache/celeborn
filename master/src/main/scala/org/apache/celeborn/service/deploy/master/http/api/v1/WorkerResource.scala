@@ -43,7 +43,7 @@ class WorkerResource extends ApiRequestContext {
   private def statusSystem = master.statusSystem
 
   @Operation(description =
-    "List worker information of the service. It will list all registered workers' information.")
+    "List worker information of the service. It will list all registered workers, lost workers, excluded workers, shutdown workers, decommission workers and tagged workers information")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
@@ -51,7 +51,7 @@ class WorkerResource extends ApiRequestContext {
       schema = new Schema(implementation = classOf[WorkersResponse]))))
   @GET
   def workers: WorkersResponse = {
-    new WorkersResponse()
+    val workersResponse = new WorkersResponse()
       .workers(statusSystem.workersMap.values().asScala.map(ApiUtils.workerData).toSeq.asJava)
       .lostWorkers(statusSystem.lostWorkers.asScala.toSeq.sortBy(_._2)
         .map(kv =>
@@ -65,6 +65,18 @@ class WorkerResource extends ApiRequestContext {
         ApiUtils.workerData).toSeq.asJava)
       .decommissioningWorkers(statusSystem.decommissionWorkers.asScala.map(
         ApiUtils.workerData).toSeq.asJava)
+    if (master.conf.tagsEnabled) {
+      workersResponse.taggedWorkers(master.getTaggedWorkers.asScala
+        .map(workers =>
+          new TaggedWorkerData()
+            .tag(workers._1)
+            .workers(statusSystem.workersMap.values().asScala
+              .filter(workerInfo => workers._2.contains(workerInfo.toUniqueId))
+              .map(ApiUtils.workerData)
+              .toSeq.asJava))
+        .toSeq.asJava)
+    }
+    workersResponse
   }
 
   @Operation(description =
