@@ -40,6 +40,7 @@ import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
 import org.apache.commons.lang3.time.FastDateFormat
+import org.apache.hadoop.fs.FSDataInputStream
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
@@ -1175,12 +1176,11 @@ object Utils extends Logging {
   }
 
   @throws[IOException]
-  def checkFileIntegrity(fileChannel: FileChannel, length: Int): Unit = {
-    val remainingBytes = fileChannel.size - fileChannel.position
+  def checkFileIntegrity(remainingBytes: Long, length: Int, filePath: String): Unit = {
     if (remainingBytes < length) {
       logError(
-        s"File remaining bytes not not enough, remaining: ${remainingBytes}, wanted: ${length}.")
-      throw new RuntimeException(s"File is corrupted ${fileChannel}")
+        s"File remaining bytes not not enough, remaining: $remainingBytes, wanted: $length.")
+      throw new RuntimeException(s"File is corrupted $filePath")
     }
   }
 

@@ -57,7 +57,7 @@ public class SegmentMapPartitionData extends MapPartitionData {
   @Override
   public void setupDataPartitionReader(
       int startSubIndex, int endSubIndex, long streamId, Channel channel) {
-    SegmentMapPartitionDataReader mapDataPartitionReader =
+    SegmentMapPartitionDataReader mapPartitionDataReader =
         new SegmentMapPartitionDataReader(
             startSubIndex,
             endSubIndex,
@@ -70,7 +70,7 @@ public class SegmentMapPartitionData extends MapPartitionData {
         startSubIndex,
         endSubIndex,
         streamId);
-    readers.put(streamId, mapDataPartitionReader);
+    readers.put(streamId, mapPartitionDataReader);
   }
 
   @Override
@@ -85,7 +85,7 @@ public class SegmentMapPartitionData extends MapPartitionData {
 
   @Override
   public String toString() {
-    return String.format("SegmentMapDataPartition{filePath=%s}", diskFileInfo.getFilePath());
+    return String.format("SegmentMapPartitionData{filePath=%s}", diskFileInfo.getFilePath());
   }
 
   public void notifyRequiredSegmentId(int segmentId, long streamId, int subPartitionId) {

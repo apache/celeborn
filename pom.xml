@@ -107,7 +107,7 @@
     <rocksdbjni.version>9.10.0</rocksdbjni.version>
     <jackson.version>2.15.3</jackson.version>
     <snappy.version>1.1.10.5</snappy.version>
-    <ap.loader.version>3.0-9</ap.loader.version>
+    <ap.loader.version>4.0-10</ap.loader.version>
     <picocli.version>4.7.6</picocli.version>
     <jmh.version>1.37</jmh.version>
 
@@ -1783,7 +1783,7 @@
         <module>tests/flink-it</module>
       </modules>
       <properties>
-        <flink.version>1.19.2</flink.version>
+        <flink.version>1.19.3</flink.version>
         <flink.binary.version>1.19</flink.binary.version>
         <scala.binary.version>2.12</scala.binary.version>
         <celeborn.flink.plugin.artifact>celeborn-client-flink-1.19_${scala.binary.version}</celeborn.flink.plugin.artifact>
@@ -1802,7 +1802,7 @@
         <module>tests/flink-it</module>
       </modules>
       <properties>
-        <flink.version>1.20.1</flink.version>
+        <flink.version>1.20.2</flink.version>
         <flink.binary.version>1.20</flink.binary.version>
         <scala.binary.version>2.12</scala.binary.version>
         <celeborn.flink.plugin.artifact>celeborn-client-flink-1.20_${scala.binary.version}</celeborn.flink.plugin.artifact>

@@ -193,7 +193,7 @@ public class CelebornBufferStream {
     }
   }
 
-  private void cleanStream(long streamId) {
+  private void cleanupStream(long streamId) {
     if (isOpenSuccess) {
       mapShuffleClient.getReadClientHandler().removeHandler(streamId);
       clientFactory.unregisterSupplier(streamId);
@@ -204,7 +204,7 @@ public class CelebornBufferStream {
 
   public void close() {
     synchronized (lock) {
-      cleanStream(streamId);
+      cleanupStream(streamId);
       isClosed = true;
     }
   }
@@ -222,7 +222,7 @@ public class CelebornBufferStream {
         locations.length);
     if (currentLocationIndex.get() > 0) {
       logger.debug("Get end streamId {}", endedStreamId);
-      cleanStream(endedStreamId);
+      cleanupStream(endedStreamId);
     }
 
     if (currentLocationIndex.get() < locations.length) {

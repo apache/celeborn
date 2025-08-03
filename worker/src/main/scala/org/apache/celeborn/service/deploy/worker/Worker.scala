@@ -467,20 +467,34 @@ private[celeborn] class Worker(
     cleanTaskQueue.size()
   }
 
+  if (hasHDFSStorage) {
+    workerSource.addGauge(WorkerSource.OPEN_HDFS_OUTPUT_STREAM_COUNT) { () =>
+      if (StorageManager.streamsManager != null) {
+        StorageManager.streamsManager.getSize
+      } else {
+        0
+      }
+    }
+
+    workerSource.addGauge(WorkerSource.REUSE_HDFS_OUTPUT_STREAM_TOTAL_COUNT) { () =>
+      if (StorageManager.streamsManager != null) {
+        StorageManager.streamsManager.getReuseOutputStreamCount
+      } else {
+        0
+      }
+    }
+  }
+
   private def highWorkload: Boolean = {
     (
       memoryManager.currentServingState,
       Option(CongestionController.instance()),
-      conf.workerActiveConnectionMax,
-      conf.workerOpenHDFSOutputStreamMax) match {
-      case (_, Some(instance), _, _) if instance.isOverHighWatermark => true
-      case (ServingState.PUSH_AND_REPLICATE_PAUSED, _, _, _) => true
-      case (ServingState.PUSH_PAUSED, _, _, _) => true
-      case (_, _, Some(activeConnectionMax), _) =>
+      conf.workerActiveConnectionMax) match {
+      case (_, Some(instance), _) if instance.isOverHighWatermark => true
+      case (ServingState.PUSH_AND_REPLICATE_PAUSED, _, _) => true
+      case (ServingState.PUSH_PAUSED, _, _) => true
+      case (_, _, Some(activeConnectionMax)) =>
         workerSource.getCounterCount(WorkerSource.ACTIVE_CONNECTION_COUNT) >= activeConnectionMax
-      case (_, _, _, openHDFSOutputStreamMax) =>
-        val streamsSize = if (StorageManager.streamsManager != null) StorageManager.streamsManager.getSize else 0
-        streamsSize >= openHDFSOutputStreamMax
       case _ => false
     }
   }
@@ -493,7 +507,7 @@ private[celeborn] class Worker(
     val diskInfos =
       workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
         disk.mountPoint -> disk
-      }.toMap.asJava).values().asScala.toSeq ++ storageManager.hdfsDiskInfo ++ storageManager.s3DiskInfo ++ storageManager.ossDiskInfo
+      }.toMap.asJava).values().asScala.toSeq ++ storageManager.remoteDiskInfos.getOrElse(Set.empty)
     workerStatusManager.checkIfNeedTransitionStatus()
     val response = masterClient.askSync[HeartbeatFromWorkerResponse](
       HeartbeatFromWorker(
@@ -806,9 +820,6 @@ private[celeborn] class Worker(
             WorkerSource.CLEAN_EXPIRED_SHUFFLE_KEYS_TIME,
             s"cleanExpiredShuffleKeys-${UUID.randomUUID()}") {
             storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
-          }
-          if (hasHDFSStorage && StorageManager.streamsManager != null) {
-            StorageManager.streamsManager.cleanup(expiredShuffleKeys)
           }
         }
       })

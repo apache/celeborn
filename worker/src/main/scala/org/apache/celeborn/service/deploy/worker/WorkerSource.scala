@@ -63,7 +63,14 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
 
   addCounter(COMMIT_FILES_FAIL_COUNT)
 
-  addCounter(REUSE_HDFS_OUTPUT_STREAM_TOTAL_COUNT)
+  addCounter(LOCAL_FLUSH_COUNT)
+  addCounter(LOCAL_FLUSH_SIZE)
+  addCounter(HDFS_FLUSH_COUNT)
+  addCounter(HDFS_FLUSH_SIZE)
+  addCounter(OSS_FLUSH_COUNT)
+  addCounter(OSS_FLUSH_SIZE)
+  addCounter(S3_FLUSH_COUNT)
+  addCounter(S3_FLUSH_SIZE)
 
   // add timers
   addTimer(COMMIT_FILES_TIME)
@@ -197,6 +204,14 @@ object WorkerSource {
   val COMMIT_FILES_TIME = "CommitFilesTime"
   val COMMIT_FILES_FAIL_COUNT = "CommitFilesFailCount"
   val FLUSH_WORKING_QUEUE_SIZE = "FlushWorkingQueueSize"
+  val LOCAL_FLUSH_COUNT = "LocalFlushCount"
+  val LOCAL_FLUSH_SIZE = "LocalFlushSize"
+  val HDFS_FLUSH_COUNT = "HdfsFlushCount"
+  val HDFS_FLUSH_SIZE = "HdfsFlushSize"
+  val OSS_FLUSH_COUNT = "OssFlushCount"
+  val OSS_FLUSH_SIZE = "OssFlushSize"
+  val S3_FLUSH_COUNT = "S3FlushCount"
+  val S3_FLUSH_SIZE = "S3FlushSize"
 
   // slots
   val SLOTS_ALLOCATED = "SlotsAllocated"
@@ -245,6 +260,7 @@ object WorkerSource {
   val ACTIVE_SHUFFLE_FILE_COUNT = "ActiveShuffleFileCount"
 
   val REUSE_HDFS_OUTPUT_STREAM_TOTAL_COUNT = "ReuseHdfsOutputStreamTotalCount"
+  val OPEN_HDFS_OUTPUT_STREAM_COUNT = "OpenHdfsOutputStreamCount"
 
   // decommission
   val IS_DECOMMISSIONING_WORKER = "IsDecommissioningWorker"

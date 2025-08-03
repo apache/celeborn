@@ -655,6 +655,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def masterSlotAssignPolicy: SlotsAssignPolicy =
     SlotsAssignPolicy.valueOf(get(MASTER_SLOT_ASSIGN_POLICY))
+
+  def masterSlotAssignInterruptionAware: Boolean = get(MASTER_SLOT_ASSIGN_INTERRUPTION_AWARE)
+  def masterSlotsAssignInterruptionAwareThreshold: Int =
+    get(MASTER_SLOT_INTERRUPTION_AWARE_THRESHOLD)
   def availableStorageTypes: Int = {
     val types = get(ACTIVE_STORAGE_TYPES).split(",").map(StorageInfo.Type.valueOf).toList
     StorageInfo.getAvailableTypes(types.asJava)
@@ -866,6 +870,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerHDFSOutputStreamIdleMsMax: Long = get(WORKER_HDFS_OUTPUT_STREAM_IDLE_MS_MAX)
   def workerGetStreamMaxAttempts: Int = get(WORKER_GET_STREAM_MAX_ATTEMPTS)
   def workerReuseHDFSOutputStream: Boolean = get(WORKER_REUSE_HDFS_OUTPUTSTREAM)
+  def workerHDFSOutputStreamConcurrentLevel: Int = get(WORKER_HDFS_OUTPUT_STREAM_CONCURRENT_LEVEL)
   def workerJvmProfilerEnabled: Boolean = get(WORKER_JVM_PROFILER_ENABLED)
   def workerJvmProfilerOptions: String = get(WORKER_JVM_PROFILER_OPTIONS)
   def workerJvmProfilerLocalDir: String = get(WORKER_JVM_PROFILER_LOCAL_DIR)
@@ -1002,6 +1007,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //               Shuffle Client Fetch                  //
   // //////////////////////////////////////////////////////
   def clientFetchTimeoutMs: Long = get(CLIENT_FETCH_TIMEOUT)
+  def clientFetchPollChunkWaitTime: Long = get(CLIENT_FETCH_POLL_CHUNK_WAIT_TIME)
   def clientFetchBufferSize: Int = get(CLIENT_FETCH_BUFFER_SIZE).toInt
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
   def isPartitionReaderCheckpointEnabled: Boolean =
@@ -1028,6 +1034,24 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_PUSH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
   def clientPushMaxReqsInFlightPerWorker: Int = get(CLIENT_PUSH_MAX_REQS_IN_FLIGHT_PERWORKER)
   def clientPushMaxReqsInFlightTotal: Int = get(CLIENT_PUSH_MAX_REQS_IN_FLIGHT_TOTAL)
+  def clientPushMaxBytesSizeInFlightEnabled: Boolean =
+    get(CLIENT_PUSH_MAX_BYTES_SIZE_IN_FLIGHT_ENABLED)
+  def clientPushMaxBytesSizeInFlightTotal: Long = {
+    val maxBytesSizeInFlight = get(CLIENT_PUSH_MAX_BYTES_SIZE_IN_FLIGHT_TOTAL).getOrElse(0L)
+    if (clientPushMaxBytesSizeInFlightEnabled && maxBytesSizeInFlight > 0L) {
+      maxBytesSizeInFlight
+    } else {
+      clientPushMaxReqsInFlightTotal * clientPushBufferMaxSize
+    }
+  }
+  def clientPushMaxBytesSizeInFlightPerWorker: Long = {
+    val maxBytesSizeInFlight = get(CLIENT_PUSH_MAX_BYTES_SIZE_IN_FLIGHT_PERWORKER).getOrElse(0L)
+    if (clientPushMaxBytesSizeInFlightEnabled && maxBytesSizeInFlight > 0L) {
+      maxBytesSizeInFlight
+    } else {
+      clientPushMaxReqsInFlightPerWorker * clientPushBufferMaxSize
+    }
+  }
   def clientPushMaxReviveTimes: Int = get(CLIENT_PUSH_MAX_REVIVE_TIMES)
   def clientPushReviveInterval: Long = get(CLIENT_PUSH_REVIVE_INTERVAL)
   def clientPushReviveBatchSize: Int = get(CLIENT_PUSH_REVIVE_BATCHSIZE)
@@ -1176,7 +1200,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         (dir, maxCapacity, flushThread, diskType)
       }
     }.getOrElse {
-      if (!hasHDFSStorage && !hasS3Storage && !hasOssStorage) {
+      if (remoteStorageDirs.isEmpty) {
         val prefix = workerStorageBaseDirPrefix
         val number = workerStorageBaseDirNumber
         val diskType = Type.valueOf(workerStorageBaseDirDiskType)
@@ -1243,6 +1267,31 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
           hdfsDir
         }
     }.getOrElse("")
+  }
+
+  def remoteStorageDirs: Option[Set[(StorageInfo.Type, String)]] = {
+    val supported = Seq(
+      (StorageInfo.Type.HDFS, HDFS_DIR, Utils.isHdfsPath _),
+      (StorageInfo.Type.S3, S3_DIR, Utils.isS3Path _),
+      (StorageInfo.Type.OSS, OSS_DIR, Utils.isOssPath _))
+
+    val activeStorageTypes =
+      get(ACTIVE_STORAGE_TYPES).split(",").map(StorageInfo.Type.valueOf).toList
+
+    val validDirs = supported.flatMap { case (ty, e, checker) =>
+      if (!activeStorageTypes.contains(ty)) None
+      else {
+        get(e).flatMap { dir =>
+          if (checker(dir)) Some((ty, dir))
+          else {
+            log.error(s"${e.key} configuration is invalid: $dir. Disabling $ty support.")
+            None
+          }
+        }
+      }
+    }.toSet
+
+    if (validDirs.nonEmpty) Some(validDirs) else None
   }
 
   def workerStorageBaseDirPrefix: String = get(WORKER_STORAGE_BASE_DIR_PREFIX)
@@ -2940,6 +2989,25 @@ object CelebornConf extends Logging {
         SlotsAssignPolicy.LOADAWARE.name))
       .createWithDefault(SlotsAssignPolicy.ROUNDROBIN.name)
 
+  val MASTER_SLOT_ASSIGN_INTERRUPTION_AWARE: ConfigEntry[Boolean] =
+    buildConf("celeborn.master.slot.assign.interruptionAware")
+      .categories("master")
+      .version("0.7.0")
+      .doc("If this is set to true, Celeborn master will prioritize partition placement on workers that are not " +
+        "in scope for maintenance soon.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val MASTER_SLOT_INTERRUPTION_AWARE_THRESHOLD: ConfigEntry[Int] =
+    buildConf("celeborn.master.slot.assign.interruptionAware.threshold")
+      .categories("master")
+      .doc("This controls what percentage of hosts would be selected for slot selection in the first iteration " +
+        "of creating partitions. Default is 50%.")
+      .version("0.7.0")
+      .intConf
+      .checkValue(v => v >= 0 && v <= 100, "This value must be a percentage.")
+      .createWithDefault(50)
+
   val MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM: ConfigEntry[Int] =
     buildConf("celeborn.master.slot.assign.loadAware.numDiskGroups")
       .withAlternative("celeborn.slots.assign.loadAware.numDiskGroups")
@@ -4414,6 +4482,14 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
+  val WORKER_HDFS_OUTPUT_STREAM_CONCURRENT_LEVEL: ConfigEntry[Int] =
+    buildConf("celeborn.worker.hdfs.outputstream.concurrent.level")
+      .categories("worker")
+      .doc("If the number of guava concurrent level.")
+      .version("0.7.0")
+      .intConf
+      .createWithDefault(16)
+
   val WORKER_JVM_PROFILER_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.jvmProfiler.enabled")
       .categories("worker")
@@ -4639,6 +4715,15 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(512)
 
+  val CLIENT_PUSH_MAX_BYTES_SIZE_IN_FLIGHT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.push.maxBytesSizeInFlight.enabled")
+      .withAlternative("celeborn.push.maxBytesSizeInFlight.enabled")
+      .categories("client")
+      .version("0.6.1")
+      .doc("Whether `celeborn.client.push.maxBytesSizeInFlight.perWorker/total` is enabled")
+      .booleanConf
+      .createWithDefault(false)
+
   val CLIENT_PUSH_MAX_REQS_IN_FLIGHT_TOTAL: ConfigEntry[Int] =
     buildConf("celeborn.client.push.maxReqsInFlight.total")
       .withAlternative("celeborn.push.maxReqsInFlight")
@@ -4649,6 +4734,19 @@ object CelebornConf extends Logging {
         "* compression ratio(1 in worst case): 64KiB * 256 = 16MiB")
       .intConf
       .createWithDefault(256)
+
+  val CLIENT_PUSH_MAX_BYTES_SIZE_IN_FLIGHT_TOTAL: OptionalConfigEntry[Long] =
+    buildConf("celeborn.client.push.maxBytesSizeInFlight.total")
+      .categories("client")
+      .version("0.6.1")
+      .doc(
+        "Bytes size of total Netty in-flight requests. The maximum memory is " +
+          "`celeborn.client.push.maxReqsInFlight.total` * `celeborn.client.push.buffer.max.size` " +
+          "* compression ratio(1 in worst case): 64KiB * 256 = 16MiB. " +
+          "This is an addition to `celeborn.client.push.maxReqsInFlight.total` " +
+          "in cases where records are huge and exceed the maximum memory.")
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
 
   val CLIENT_PUSH_MAX_REQS_IN_FLIGHT_PERWORKER: ConfigEntry[Int] =
     buildConf("celeborn.client.push.maxReqsInFlight.perWorker")
@@ -4661,6 +4759,19 @@ object CelebornConf extends Logging {
           "not exceed `celeborn.client.push.maxReqsInFlight.total`.")
       .intConf
       .createWithDefault(32)
+
+  val CLIENT_PUSH_MAX_BYTES_SIZE_IN_FLIGHT_PERWORKER: OptionalConfigEntry[Long] =
+    buildConf("celeborn.client.push.maxBytesSizeInFlight.perWorker")
+      .categories("client")
+      .version("0.6.1")
+      .doc(
+        "Bytes size of Netty in-flight requests per worker. Default max memory of in flight requests " +
+          " per worker is `celeborn.client.push.maxReqsInFlight.perWorker` * `celeborn.client.push.buffer.max.size` " +
+          "* compression ratio(1 in worst case): 64KiB * 32 = 2MiB. " +
+          "This is an alternative to `celeborn.client.push.maxReqsInFlight.perWorker` " +
+          "in cases where records are huge and exceed the maximum memory.")
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
 
   val CLIENT_PUSH_MAX_REVIVE_TIMES: ConfigEntry[Int] =
     buildConf("celeborn.client.push.revive.maxRetries")
@@ -4845,6 +4956,17 @@ object CelebornConf extends Logging {
       .doc("Timeout for a task to open stream and fetch chunk.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("600s")
+
+  val CLIENT_FETCH_POLL_CHUNK_WAIT_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.client.fetch.pollChunk.wait")
+      .categories("client")
+      .version("0.6.1")
+      .doc("The waiting time for shuffle client to read the empty chunk on the work side." +
+        "when there are many empty chunk in the shuffle partition of a small task," +
+        "the current value can be set small to avoid long waiting times and the illusion of the" +
+        "task getting stuck")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefault(500)
 
   val CLIENT_FETCH_BUFFER_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.buffer.size")

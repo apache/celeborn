@@ -932,7 +932,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         } else if (StatusCode.STAGE_ENDED.getValue() == statusCode) {
           stageEndShuffleSet.add(shuffleId);
           return results;
-        } else if (StatusCode.SHUFFLE_NOT_REGISTERED.getValue() == statusCode) {
+        } else if (StatusCode.SHUFFLE_UNREGISTERED.getValue() == statusCode) {
           logger.error("SHUFFLE_NOT_REGISTERED!");
           return null;
         }
@@ -1069,7 +1069,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       limitMaxInFlight(mapKey, pushState, loc.hostAndPushPort());
 
       // add inFlight requests
-      pushState.addBatch(nextBatchId, loc.hostAndPushPort());
+      pushState.addBatch(nextBatchId, body.length, loc.hostAndPushPort());
 
       // build PushData request
       NettyManagedBuffer buffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
@@ -1113,7 +1113,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
             @Override
             public void updateLatestPartition(PartitionLocation newloc) {
-              pushState.addBatch(nextBatchId, newloc.hostAndPushPort());
+              pushState.addBatch(nextBatchId, body.length, newloc.hostAndPushPort());
               pushState.removeBatch(nextBatchId, this.latest.hostAndPushPort());
               this.latest = newloc;
             }
@@ -1444,7 +1444,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     final int port = Integer.parseInt(hostPortArr[1]);
 
     int groupedBatchId = pushState.nextBatchId();
-    pushState.addBatch(groupedBatchId, hostPort);
+    int groupedBatchBytesSize = batches.stream().mapToInt(batch -> batch.body.length).sum();
+    pushState.addBatch(groupedBatchId, groupedBatchBytesSize, hostPort);
 
     final int numBatches = batches.size();
     final Integer[] partitionIds = new Integer[numBatches];
@@ -1882,7 +1883,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   response.pushFailedBatches()),
               null,
               null);
-        case SHUFFLE_NOT_REGISTERED:
+        case SHUFFLE_UNREGISTERED:
           logger.warn(
               "Request {} return {} for {}.", getReducerFileGroup, response.status(), shuffleId);
           // return empty result
@@ -1894,7 +1895,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   response.pushFailedBatches()),
               null,
               null);
-        case STAGE_END_TIME_OUT:
+        case STAGE_END_TIMEOUT:
         case SHUFFLE_DATA_LOST:
           exceptionMsg =
               String.format(
