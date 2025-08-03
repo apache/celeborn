@@ -87,7 +87,7 @@ class WorkerPartitionReader
 
   static constexpr auto kDefaultConsumeIter = std::chrono::milliseconds(500);
 
-  // TODO: add other params, such as fetchChunkRetryCnt, fetchChunkMaxRetry
+  // TODO: add other params, such as fetchChunkRetryCnt, fetchChunkMaxRetries
 };
 } // namespace client
 } // namespace celeborn

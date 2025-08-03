@@ -46,9 +46,7 @@ import org.apache.celeborn.plugin.flink.client.CelebornBufferStream;
 import org.apache.celeborn.plugin.flink.client.FlinkShuffleClientImpl;
 import org.apache.celeborn.plugin.flink.protocol.SubPartitionReadData;
 
-/**
- * Wrap the {@link CelebornBufferStream}, utilize in flink hybrid shuffle integration strategy now.
- */
+/** Wrap the {@link CelebornBufferStream}, used in flink hybrid shuffle integration strategy now. */
 public class CelebornChannelBufferReader {
   private static final Logger LOG = LoggerFactory.getLogger(CelebornChannelBufferReader.class);
 

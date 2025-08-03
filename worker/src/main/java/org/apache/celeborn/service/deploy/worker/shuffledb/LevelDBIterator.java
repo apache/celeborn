@@ -21,8 +21,6 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-import com.google.common.base.Throwables;
-
 /** Note: code copied from Apache Spark. */
 public class LevelDBIterator implements DBIterator {
 
@@ -48,7 +46,7 @@ public class LevelDBIterator implements DBIterator {
       try {
         close();
       } catch (IOException ioe) {
-        throw Throwables.propagate(ioe);
+        throw new RuntimeException(ioe);
       }
     }
     return next != null;

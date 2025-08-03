@@ -56,7 +56,7 @@ public class CelebornTierFactory implements TierFactory {
    * The max bytes size of a single segment, it will determine how many buffer can save in a single
    * segment.
    */
-  private static int NUM_BYTES_PER_SEGMENT = 8 * 1024 * 1024;
+  private static int MAX_BYTES_PER_SEGMENT = 8 * 1024 * 1024;
 
   private static final String CELEBORN_TIER_NAME = CelebornTierFactory.class.getSimpleName();
 
@@ -106,7 +106,7 @@ public class CelebornTierFactory implements TierFactory {
         partitionId,
         numPartitions,
         numSubpartitions,
-        NUM_BYTES_PER_SEGMENT,
+        MAX_BYTES_PER_SEGMENT,
         bufferSizeBytes,
         storageMemoryManager,
         resourceRegistry,

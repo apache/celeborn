@@ -43,7 +43,7 @@ import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSour
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.quota.ResourceConsumption
-import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, DiskUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, CollectionUtils, DiskUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
@@ -68,10 +68,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, MemoryFileInfo]]()
 
   val hasHDFSStorage = conf.hasHDFSStorage
-
   val hasS3Storage = conf.hasS3Storage
-
   val hasOssStorage = conf.hasOssStorage
+  val remoteStorageDirs = conf.remoteStorageDirs
 
   val storageExpireDirTimeout = conf.workerStorageExpireDirTimeout
   val storagePolicy = new StoragePolicy(conf, this, workerSource)
@@ -86,27 +85,20 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         (new File(workdir, conf.workerWorkingDir), maxSpace, flusherThread, storageType)
       }
 
-    if (workingDirInfos.size <= 0 && !hasHDFSStorage && !hasS3Storage && !hasOssStorage) {
+    if (workingDirInfos.size <= 0 && remoteStorageDirs.isEmpty) {
       throw new IOException("Empty working directory configuration!")
     }
 
     DeviceInfo.getDeviceAndDiskInfos(workingDirInfos, conf)
   }
   val mountPoints = new util.HashSet[String](diskInfos.keySet())
-  val hdfsDiskInfo =
-    if (conf.hasHDFSStorage)
-      Option(new DiskInfo("HDFS", Long.MaxValue, 999999, 999999, 0, StorageInfo.Type.HDFS))
-    else None
 
-  val s3DiskInfo =
-    if (conf.hasS3Storage)
-      Option(new DiskInfo("S3", Long.MaxValue, 999999, 999999, 0, StorageInfo.Type.S3))
-    else None
-
-  val ossDiskInfo =
-    if (conf.hasOssStorage)
-      Option(new DiskInfo("OSS", Long.MaxValue, 999999, 999999, 0, StorageInfo.Type.OSS))
-    else None
+  val remoteDiskInfos: Option[Set[DiskInfo]] = remoteStorageDirs.flatMap { dirs =>
+    val diskInfoSet = dirs.map { case (storageInfoType, _) =>
+      new DiskInfo(storageInfoType.name, Long.MaxValue, 999999, 999999, 0, storageInfoType)
+    }
+    if (diskInfoSet.nonEmpty) Some(diskInfoSet) else None
+  }
 
   def disksSnapshot(): List[DiskInfo] = {
     diskInfos.synchronized {
@@ -449,7 +441,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       userIdentifier: UserIdentifier,
       partitionSplitEnabled: Boolean,
       isSegmentGranularityVisible: Boolean): PartitionDataWriter = {
-    if (healthyWorkingDirs().size <= 0 && !hasHDFSStorage && !hasS3Storage && !hasOssStorage) {
+    if (healthyWorkingDirs().isEmpty && remoteStorageDirs.isEmpty) {
       throw new IOException("No available working dirs!")
     }
     val partitionDataWriterContext = new PartitionDataWriterContext(
@@ -468,6 +460,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       try {
         new PartitionDataWriter(
           this,
+          workerSource,
           conf,
           deviceMonitor,
           partitionDataWriterContext,
@@ -818,7 +811,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         }
       }
     }
-    if (null != diskOperators) {
+    if (CollectionUtils.isNotEmpty(diskOperators)) {
       if (exitKind != CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
         cleanupExpiredShuffleKey(shuffleKeySet(), false)
       }

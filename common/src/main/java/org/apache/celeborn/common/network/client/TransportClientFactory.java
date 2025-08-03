@@ -287,7 +287,6 @@ public class TransportClientFactory implements Closeable {
     }
 
     final AtomicReference<TransportClient> clientRef = new AtomicReference<>();
-    final AtomicReference<Channel> channelRef = new AtomicReference<>();
 
     bootstrap.handler(
         new ChannelInitializer<SocketChannel>() {
@@ -295,7 +294,6 @@ public class TransportClientFactory implements Closeable {
           public void initChannel(SocketChannel ch) {
             TransportChannelHandler clientHandler = context.initializePipeline(ch, decoder, true);
             clientRef.set(clientHandler.getClient());
-            channelRef.set(ch);
           }
         });
 
@@ -311,9 +309,11 @@ public class TransportClientFactory implements Closeable {
         throw new IOException(String.format("Failed to connect to %s", address), cf.cause());
       }
     } else if (!cf.await(connectTimeoutMs)) {
+      closeChannel(cf);
       throw new CelebornIOException(
           String.format("Connecting to %s timed out (%s ms)", address, connectTimeoutMs));
     } else if (cf.cause() != null) {
+      closeChannel(cf);
       throw new CelebornIOException(String.format("Failed to connect to %s", address), cf.cause());
     }
     if (context.sslEncryptionEnabled()) {
@@ -333,12 +333,12 @@ public class TransportClientFactory implements Closeable {
                             "failed to complete TLS handshake to {}",
                             address,
                             handshakeFuture.cause());
-                        cf.channel().close();
+                        closeChannel(cf);
                       }
                     }
                   });
       if (!future.await(connectionTimeoutMs)) {
-        cf.channel().close();
+        closeChannel(cf);
         throw new IOException(
             String.format("Failed to connect to %s within connection timeout", address));
       }
@@ -361,7 +361,8 @@ public class TransportClientFactory implements Closeable {
           Utils.nanoDurationToString(bootstrapTime),
           e);
       client.close();
-      throw Throwables.propagate(e);
+      Throwables.throwIfUnchecked(e);
+      throw new RuntimeException(e);
     }
     long postBootstrap = System.nanoTime();
     logger.debug(
@@ -396,5 +397,13 @@ public class TransportClientFactory implements Closeable {
 
   public TransportContext getContext() {
     return context;
+  }
+
+  private void closeChannel(ChannelFuture channelFuture) {
+    try {
+      channelFuture.channel().close();
+    } catch (Exception e) {
+      logger.warn("Failed to close channel", e);
+    }
   }
 }

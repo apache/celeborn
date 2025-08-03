@@ -104,8 +104,8 @@ public class TransportServer implements Closeable {
             .childOption(ChannelOption.SO_KEEPALIVE, true)
             .childOption(ChannelOption.ALLOCATOR, allocator);
 
-    if (conf.backLog() > 0) {
-      bootstrap.option(ChannelOption.SO_BACKLOG, conf.backLog());
+    if (conf.backlog() > 0) {
+      bootstrap.option(ChannelOption.SO_BACKLOG, conf.backlog());
     }
 
     if (conf.receiveBuf() > 0) {

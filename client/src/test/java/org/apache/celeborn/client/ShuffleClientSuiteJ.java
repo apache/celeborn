@@ -489,7 +489,7 @@ public class ShuffleClientSuiteJ {
         .thenAnswer(
             t -> {
               return GetReducerFileGroupResponse$.MODULE$.apply(
-                  StatusCode.SHUFFLE_NOT_REGISTERED,
+                  StatusCode.SHUFFLE_UNREGISTERED,
                   locations,
                   new int[0],
                   Collections.emptySet(),
@@ -502,7 +502,7 @@ public class ShuffleClientSuiteJ {
         .thenAnswer(
             t -> {
               return GetReducerFileGroupResponse$.MODULE$.apply(
-                  StatusCode.SHUFFLE_NOT_REGISTERED,
+                  StatusCode.SHUFFLE_UNREGISTERED,
                   locations,
                   new int[0],
                   Collections.emptySet(),
@@ -525,7 +525,7 @@ public class ShuffleClientSuiteJ {
         .thenAnswer(
             t -> {
               return GetReducerFileGroupResponse$.MODULE$.apply(
-                  StatusCode.STAGE_END_TIME_OUT,
+                  StatusCode.STAGE_END_TIMEOUT,
                   locations,
                   new int[0],
                   Collections.emptySet(),
@@ -538,7 +538,7 @@ public class ShuffleClientSuiteJ {
         .thenAnswer(
             t -> {
               return GetReducerFileGroupResponse$.MODULE$.apply(
-                  StatusCode.STAGE_END_TIME_OUT,
+                  StatusCode.STAGE_END_TIMEOUT,
                   locations,
                   new int[0],
                   Collections.emptySet(),

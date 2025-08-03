@@ -137,6 +137,7 @@ public class DiskMapPartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, false, CONF, storagePolicy, context),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
             context,
@@ -162,6 +163,12 @@ public class DiskMapPartitionDataWriterSuiteJ {
 
     assertEquals(length.get(), bytesWritten);
     assertEquals(new File(fileWriter.getFilePath()).length(), bytesWritten);
+    assert scala.collection.JavaConverters.asJavaCollectionConverter(source.histograms().toSeq())
+        .asJavaCollection().stream()
+        .anyMatch(
+            histogram ->
+                histogram.name().equals(WorkerSource.PARTITION_FILE_SIZE())
+                    && histogram.histogram().getSnapshot().getMax() > 0);
   }
 
   private byte[] generateData(int partitionId) {
