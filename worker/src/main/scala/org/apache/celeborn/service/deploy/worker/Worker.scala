@@ -86,6 +86,8 @@ private[celeborn] class Worker(
   private val authEnabled = conf.authEnabled
   private val secretRegistry = new WorkerSecretRegistryImpl(conf.workerApplicationRegistryCacheSize)
 
+  private var heartBeatCount = 0L;
+
   if (conf.logCelebornConfEnabled) {
     logInfo(getConf)
   }
@@ -463,6 +465,15 @@ private[celeborn] class Worker(
       workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
         disk.mountPoint -> disk
       }.toMap.asJava).values().asScala.toSeq ++ storageManager.hdfsDiskInfo
+
+    if (heartBeatCount % 10 == 0) {
+      logInfo(s"HDFS storage ${storageManager.hdfsDiskInfo}")
+      logInfo(s"Sent heartbeat $host:$pushPort:$fetchPort:$replicatePort" +
+        s" with disk size ${diskInfos.length} $diskInfos slots.")
+
+      heartBeatCount += 1
+    }
+
     workerStatusManager.checkIfNeedTransitionStatus()
     val response = masterClient.askSync[HeartbeatFromWorkerResponse](
       HeartbeatFromWorker(

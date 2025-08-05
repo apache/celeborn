@@ -229,7 +229,14 @@ object DeviceInfo {
     val deviceNameToDeviceInfo = new util.HashMap[String, DeviceInfo]()
     val mountPointToDeviceInfo = new util.HashMap[String, DeviceInfo]()
 
-    val dfResult = runCommand("df -ah").trim
+    //val dfResult = runCommand("df -ah").trim
+    val dfResult =
+      """
+      |Filesystem      Size  Used Avail  Use% Mounted on
+      |D:\        1.8T   91G  1.7T    6% D:
+      |/data/yarnnm/local       1.8T   91G  1.7T    6% /data/yarnnm/local
+      |""".stripMargin
+
     logger.info(s"df result\n$dfResult")
     // (/dev/vdb, /mnt/disk1)
     val fsMounts = dfResult
@@ -241,7 +248,8 @@ object DeviceInfo {
       })
 
     // (vda, vdb)
-    val lsBlockResult = runCommand("ls /sys/block/").trim
+    // val lsBlockResult = runCommand("ls /sys/block/").trim
+    val lsBlockResult =  "D:\\ /data/yarnnm/local"
     logger.info(s"ls block\n$lsBlockResult")
     val blocks = lsBlockResult.split("[ \n\r\t]+")
 
@@ -322,11 +330,13 @@ object DeviceInfo {
     var curMax = -1
     var curMount = ""
     mountPoints.asScala.foreach(mount => {
+      logger.debug(s"getMountPoint for " + s"$absPath \n $mount")
       if (absPath.startsWith(mount) && mount.length > curMax) {
         if (absPath.length == mount.length) {
           return mount
         } else if (absPath.length > mount.length &&
-          (mount == "/" || absPath.substring(mount.length, mount.length + 1) == "/")) {
+          (mount == "/" || absPath.substring(mount.length, mount.length + 1)
+            == "/" || absPath.substring(mount.length, mount.length + 1) == "\\")) {
           curMax = mount.length
           curMount = mount
         }

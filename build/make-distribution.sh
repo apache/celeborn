@@ -378,9 +378,9 @@ else
   fi
 fi
 
-# Copy configuration templates
+# Copy all configuration files
 mkdir "$DIST_DIR/conf"
-cp "$PROJECT_DIR"/conf/*.template "$DIST_DIR/conf"
+cp "$PROJECT_DIR"/conf/* "$DIST_DIR/conf"
 
 # Copy shell scripts
 cp -r "$PROJECT_DIR/bin" "$DIST_DIR"

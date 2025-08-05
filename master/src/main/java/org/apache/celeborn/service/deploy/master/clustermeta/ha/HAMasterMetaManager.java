@@ -258,6 +258,10 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       WorkerStatus workerStatus,
       String requestId) {
     try {
+      for(String mountPoint : disks.keySet()) {
+        LOG.debug("Heartbeat from {}, disk info are {}:{}", host,
+            mountPoint, disks.get(mountPoint));
+      }
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
               .setCmdType(Type.WorkerHeartbeat)

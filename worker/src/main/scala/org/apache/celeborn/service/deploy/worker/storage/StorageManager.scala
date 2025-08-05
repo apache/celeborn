@@ -76,6 +76,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val (deviceInfos, diskInfos) = {
     val workingDirInfos =
       conf.workerBaseDirs.map { case (workdir, maxSpace, flusherThread, storageType) =>
+        logInfo(s"workingDirInfos $workdir $storageType ${conf
+          .workerWorkingDir} ${new File(workdir, conf.workerWorkingDir).getCanonicalPath}")
         (new File(workdir, conf.workerWorkingDir), maxSpace, flusherThread, storageType)
       }
 

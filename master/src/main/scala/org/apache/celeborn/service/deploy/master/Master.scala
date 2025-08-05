@@ -863,7 +863,8 @@ private[celeborn] class Master(
 
     // reply false if offer slots failed
     if (slots == null || slots.isEmpty) {
-      logError(s"Offer slots for $numReducers reducers of $shuffleKey failed!")
+      logError(s"Offer slots for $numReducers reducers of $shuffleKey " +
+        s"with ${requestSlots.availableStorageTypes} failed!")
       context.reply(RequestSlotsResponse(
         StatusCode.SLOT_NOT_AVAILABLE,
         new WorkerResource(),

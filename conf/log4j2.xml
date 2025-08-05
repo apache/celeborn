@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one or more
+  ~ contributor license agreements.  See the NOTICE file distributed with
+  ~ this work for additional information regarding copyright ownership.
+  ~ The ASF licenses this file to You under the Apache License, Version 2.0
+  ~ (the "License"); you may not use this file except in compliance with
+  ~ the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<!--
+  ~ Extra logging related to initialization of Log4j.
+  ~ Set to debug or trace if log4j initialization is failing.
+  -->
+<Configuration status="INFO">
+
+    <Properties>
+      <Property name="celeborn.log.maxfilesize">100MB</Property>
+      <Property name="celeborn.log.maxbackupindex">200</Property>
+    </Properties>
+
+
+
+    <Appenders>
+        <Console name="stdout" target="SYSTEM_OUT">
+            <!--
+              ~ In the pattern layout configuration below, we specify an explicit `%ex` conversion
+              ~ pattern for logging Throwables. If this was omitted, then (by default) Log4J would
+              ~ implicitly add an `%xEx` conversion pattern which logs stacktraces with additional
+              ~ class packaging information. That extra information can sometimes add a substantial
+              ~ performance overhead, so we disable it in our default logging config.
+              -->
+            <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
+        </Console>
+
+        <Async name="RFA" bufferSize="4096">
+          <AppenderRef ref="RFA_SYNC"/>
+        </Async>
+
+
+        <RollingFile name="RFA_SYNC" fileName="${env:CELEBORN_LOG_DIR}/celeborn.log" filePattern="${env:CELEBORN_LOG_DIR}/celeborn.log.%i" createOnDemand="true">
+          <PatternLayout>
+            <Pattern>%d{ISO8601} %p [%t] %c: %m%n</Pattern>
+          </PatternLayout>
+            <Policies>
+              <SizeBasedTriggeringPolicy size="${celeborn.log.maxfilesize}"/>
+            </Policies>
+            <DefaultRolloverStrategy max="${celeborn.log.maxbackupindex}" fileIndex="max" />
+        </RollingFile>
+    </Appenders>
+
+    <Loggers>
+        <Root level="INFO">
+            <AppenderRef ref="RFA"/>
+        </Root>
+        <Logger name="org.apache.hadoop.hdfs" level="WARN" additivity="false">
+             <Appender-ref ref="RFA" level="WARN"/>
+        </Logger>
+        <Logger name="org.apache.ratis.server.RaftServerConfigKeys" level="WARN" additivity="false">
+             <Appender-ref ref="RFA" level="WARN"/>
+        </Logger>
+    </Loggers>
+</Configuration>

@@ -38,6 +38,8 @@ if not defined CELEBORN_ENV_LOADED (
     )
 )
 
+if not defined CELEBORN_LOG_DIR set CELEBORN_LOG_DIR=D:\data\Logs\local\celeborn
+
 :: Find the java binary
 if defined JAVA_HOME (
     set "JAVA=%JAVA_HOME%\bin\java.exe"

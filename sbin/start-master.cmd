@@ -49,9 +49,10 @@ set "CELEBORN_JAVA_OPTS=%CELEBORN_JAVA_OPTS% --add-opens=java.base/sun.nio.cs=AL
 set "CELEBORN_JAVA_OPTS=%CELEBORN_JAVA_OPTS% --add-opens=java.base/sun.security.action=ALL-UNNAMED"
 set "CELEBORN_JAVA_OPTS=%CELEBORN_JAVA_OPTS% --add-opens=java.base/sun.util.calendar=ALL-UNNAMED"
 set "CELEBORN_JAVA_OPTS=%CELEBORN_JAVA_OPTS% -Dorg.apache.logging.log4j.level=INFO"
+set CELEBORN_NO_DAEMONIZE=1
 echo "Start to start Celeborn master"
 
 call "%CELEBORN_HOME%\sbin\celeborn-daemon.cmd" start org.apache.celeborn.service.deploy.master.Master 1 %*
 
-echo "Failed to start Celeborn master"
+echo Failed to start Celeborn master
 exit /b 1

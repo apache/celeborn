@@ -2,9 +2,11 @@ package com.microsoft.nao.infra;
 
 import com.codahale.metrics.*;
 
+import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Map;
@@ -19,13 +21,15 @@ public class MdmReporter extends ScheduledReporter {
 
   private static final Logger logger = LoggerFactory.getLogger(MdmReporter.class);
   private static final String[] dimensions = {"CelebornCluster", "Role",
-      "MachineName"};
+      "MachineName", "Environment", "Cluster"};
+  private static String UNKNOWN = "UNKNOWN";
 
   private final Mdm mdm;
   private String celebornCluster;
   private String role = "Server";
   private String machineName;
-
+  private String environmentName;
+  private String cluster;
   /**
    * Returns a new {@link Builder} for {@link MdmReporter}.
    *
@@ -145,28 +149,51 @@ public class MdmReporter extends ScheduledReporter {
   }
 
   private String getCelebornCluster() {
-    if (celebornCluster == null || celebornCluster.equals("UNKNOWN")) {
+    if (celebornCluster == null || celebornCluster.equals(UNKNOWN)) {
         Properties props = new Properties();
-        try (FileInputStream fis = new FileInputStream("config.properties")) {
+        try (FileInputStream fis = new FileInputStream(System.getenv(
+            "CELEBORN_CONF_DIR") + File.separator  + "metrics.properties")) {
           props.load(fis);
           // Read values
-          celebornCluster = props.getProperty("CelebornCluster");
-        } catch (IOException e) {
+          celebornCluster = props.getProperty("CelebornCluster", UNKNOWN);
+        } catch (Throwable e) {
           logger.warn("Failed to celeborn cluster name. Set to UNKNOWN", e);
-          celebornCluster = "UNKNOWN";
+          celebornCluster = UNKNOWN;
         }
 
     }
     return celebornCluster;
   }
 
+  private String getEnvironment() {
+    if (environmentName == null || environmentName.equals(UNKNOWN)) {
+      if (!Strings.isNullOrEmpty(System.getenv("Environment"))) {
+        environmentName = System.getenv("Environment");
+      } else {
+        environmentName = UNKNOWN;
+      }
+    }
+    return environmentName;
+  }
+
+  private String getCluster() {
+    if (cluster == null || cluster.equals(UNKNOWN)) {
+      if (!Strings.isNullOrEmpty(System.getenv("Cluster"))) {
+        cluster = System.getenv("Cluster");
+      } else {
+        cluster = UNKNOWN;
+      }
+    }
+    return cluster;
+  }
+
   private String getMachineName() {
-    if (machineName == null || machineName.equals("UNKNOWN")) {
+    if (machineName == null || machineName.equals(UNKNOWN)) {
       try {
         this.machineName = InetAddress.getLocalHost().getHostName();
       } catch (Exception e) {
         logger.warn("Failed to get machine name. Set to UNKNOWN", e);
-        machineName = "UNKNOWN";
+        machineName = UNKNOWN;
       }
     }
 
@@ -190,8 +217,9 @@ public class MdmReporter extends ScheduledReporter {
 
   private void printMetric(String key, long value){
     String metricName = MetricRegistry.name("", key);
-    String[] dimensionsValue = {getCelebornCluster(), role, getMachineName()};
-    this.mdm.ReportMetric3D(metricName, dimensions, dimensionsValue, value);
+    String[] dimensionsValue = {getCelebornCluster(), role, getMachineName(),
+        getEnvironment(), getCluster() };
+    this.mdm.ReportMetric5D(metricName, dimensions, dimensionsValue, value);
   }
 
   // MDM only accepts long, multiple 100 for percentage value.

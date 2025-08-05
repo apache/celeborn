@@ -84,9 +84,9 @@ set DIR_ARGS=%DIR_ARGS% %HADOOP_HOME%\share\hadoop\hdfs\hadoop-hdfs-*.jar
 echo|set /p="Class-Path:" > manifest.txt
 for /f "delims=" %%i in ('dir %DIR_ARGS% /b/s') do (call :subroutine %%i)
 echo[ >> manifest.txt
-jar cmf manifest.txt classpath.jar
+%JAVA_HOME%\bin\jar cmf manifest.txt classpath.jar
 
-set "CELEBORN_CLASSPATH=%CELEBORN_CONF_DIR%;%HADOOP_CONF_DIR%;%CELEBORN_JARS_DIR%\*;%JAVA_TOOLS_JAR%;%cd%\classpath.jar;"
+set "CELEBORN_CLASSPATH=%CELEBORN_CONF_DIR%;%HADOOP_CONF_DIR%;%HADOOP_BIN_PATH%;%CELEBORN_JARS_DIR%\*;%JAVA_TOOLS_JAR%;%cd%\classpath.jar;"
 
 rem Construct Java command
 set "CMD=%JAVA% -XX:+IgnoreUnrecognizedVMOptions %CELEBORN_JAVA_OPTS% -cp "%CELEBORN_CLASSPATH%" %LAUNCH_CLASS%"

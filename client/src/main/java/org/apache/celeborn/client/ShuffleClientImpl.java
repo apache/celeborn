@@ -216,7 +216,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     reviveManager = new ReviveManager(this, conf);
 
-    logger.info("Created ShuffleClientImpl, appUniqueId: {}", appUniqueId);
+    logger.info("Created ShuffleClientImpl, appUniqueId: {}, pushTimeout {}",
+        appUniqueId, pushDataTimeout);
   }
 
   protected List<TransportClientBootstrap> createBootstraps() {
@@ -383,6 +384,9 @@ public class ShuffleClientImpl extends ShuffleClient {
           new ReviveRequest(shuffleId, mapId, attemptId, loc.getId(), loc.getEpoch(), loc, cause);
       reviveManager.addRequest(reviveRequest);
       reviveRequests[i] = reviveRequest;
+
+      logger.info("Add revive request for shuffle {} map {} attempt {} batchId " +
+          "{} oldLocation {}", shuffleId, mapId, attemptId, batch.batchId, loc);
     }
     return reviveRequests;
   }
@@ -398,6 +402,17 @@ public class ShuffleClientImpl extends ShuffleClient {
       ReviveRequest[] reviveRequests,
       int remainReviveTimes,
       long reviveResponseDueTime) {
+    logger.info(
+        "submitRetryPushMergedData for shuffle {} map {} attempt {} " +
+            "oldGroupedBatchId {} remainReviveTimes {}.",
+        shuffleId,
+        mapId,
+        attemptId,
+        oldGroupedBatchId, remainReviveTimes);
+    for (DataBatches.DataBatch batch : batches) {
+      logger.info("batch id {}, loc {}.", batch.batchId, batch.loc);
+    }
+
     HashMap<Pair<String, String>, DataBatches> newDataBatchesMap = new HashMap<>();
     ArrayList<DataBatches.DataBatch> reviveFailedBatchesMap = new ArrayList<>();
 
@@ -462,10 +477,11 @@ public class ShuffleClientImpl extends ShuffleClient {
       if (remainReviveTimes > 0) {
         reviveFailedBatchesMap.add(batch);
       } else {
-        String errorMsg =
-            String.format(
-                "Revive failed while pushing merged for shuffle %d map %d attempt %d partition %d batch %d location %s.",
-                shuffleId, mapId, attemptId, request.partitionId, oldGroupedBatchId, batch.loc);
+        String errorMsg = String.format(
+            "Revive failed while pushing merged for shuffle %d map %d "
+                + "attempt %d partition %d oldGroupedBatch %d batchId %d " + "location %s.",
+            shuffleId, mapId, attemptId, request.partitionId, oldGroupedBatchId,
+            batch.batchId, batch.loc);
         pushState.exception.compareAndSet(
             null,
             new CelebornIOException(

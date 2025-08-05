@@ -88,11 +88,19 @@ extends:
                   targetType: 'inline'
                   script: |
                     mkdir $(PUBLISH_DIR)
-                    Copy-Item -Path $(System.DefaultWorkingDirectory)\dist -Destination $(PUBLISH_DIR)\Celeborn -Recurse
+                    Copy-Item -Path $(System.DefaultWorkingDirectory)\dist -Destination $(PUBLISH_DIR)\Celeborn_Master -Recurse
+                    Copy-Item -Path $(System.DefaultWorkingDirectory)\dist -Destination $(PUBLISH_DIR)\Celeborn_Worker -Recurse
+                    $files = @('celeborn.ini', 'GenerateCelebornConfig.ps1')
+                    foreach ($file in $files) { Copy-Item $(System.DefaultWorkingDirectory)\$file $(PUBLISH_DIR)\Celeborn_Master\ }
+                    Copy-Item $(System.DefaultWorkingDirectory)\ServiceConfig_master.ini $(PUBLISH_DIR)\Celeborn_Master\ServiceConfig.ini
+                    Copy-Item $(System.DefaultWorkingDirectory)\start_master.bat $(PUBLISH_DIR)\Celeborn_Master\start.bat
+                    foreach ($file in $files) { Copy-Item $(System.DefaultWorkingDirectory)\$file $(PUBLISH_DIR)\Celeborn_Worker\ }
+                    Copy-Item $(System.DefaultWorkingDirectory)\ServiceConfig_master.ini $(PUBLISH_DIR)\Celeborn_Worker\ServiceConfig.ini
+                    Copy-Item $(System.DefaultWorkingDirectory)\start_worker.bat $(PUBLISH_DIR)\Celeborn_Worker\start.bat
 
 
               - script: |
-                  cd $(PUBLISH_DIR)\Celeborn
+                  cd $(PUBLISH_DIR)
                   dir /B /S
                 displayName: '[TEMP] Print Artifact Structure'
             templateContext:
@@ -102,7 +110,7 @@ extends:
                   targetPath: dist
                   artifactName: Celeborn
                 - output: artifactsDrop
-                  displayName: '[PUBLISH] Spark to Artifact Services Drop'
+                  displayName: '[PUBLISH] Celeborn to Artifact Services Drop'
                   dropServiceURI: 'https://msasg.artifacts.visualstudio.com/DefaultCollection'
                   buildNumber: 'mtp/$(Build.Repository.Name)/$(Build.SourceBranchName)/$(Build.BuildNumber)'
                   sourcePath: $(PUBLISH_DIR)

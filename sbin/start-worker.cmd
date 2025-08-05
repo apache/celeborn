@@ -54,6 +54,7 @@ set "CELEBORN_JAVA_OPTS=%CELEBORN_JAVA_OPTS% --add-opens=java.base/sun.nio.cs=AL
 set "CELEBORN_JAVA_OPTS=%CELEBORN_JAVA_OPTS% --add-opens=java.base/sun.security.action=ALL-UNNAMED"
 set "CELEBORN_JAVA_OPTS=%CELEBORN_JAVA_OPTS% --add-opens=java.base/sun.util.calendar=ALL-UNNAMED"
 set "CELEBORN_JAVA_OPTS=%CELEBORN_JAVA_OPTS% -Dorg.apache.logging.log4j.level=INFO"
+set CELEBORN_NO_DAEMONIZE=1
 
 if not defined WORKER_INSTANCE (
     set WORKER_INSTANCE=1
