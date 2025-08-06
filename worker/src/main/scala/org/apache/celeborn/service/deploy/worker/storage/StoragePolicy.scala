@@ -188,7 +188,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
         // keep the old behavior, always try to use memory if worker
         // has configured to use memory storage, because slots allocator
         // will not allocate slots on memory storage
-        if (order.contains(StorageInfo.Type.MEMORY.name())) {
+        if (order.exists(_.contains(StorageInfo.Type.MEMORY.name()))) {
           order.get.indexOf(StorageInfo.Type.MEMORY.name())
         } else {
           order.get.indexOf(
