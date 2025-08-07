@@ -21,6 +21,10 @@ license: |
 
 # Migration Guide
 
+# Upgrading from 0.6.0 to 0.6.1
+
+- Since 0.6.1, Celeborn changed the default value of `celeborn.client.push.slowStart.initialSleepTime` from `500ms` to `0`.
+
 # Upgrading from 0.5 to 0.6
 
 - Since 0.6.0, Celeborn deprecate `celeborn.client.spark.fetch.throwsFetchFailure`. Please use `celeborn.client.spark.stageRerun.enabled` instead.
