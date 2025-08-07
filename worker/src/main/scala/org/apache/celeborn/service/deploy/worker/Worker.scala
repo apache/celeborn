@@ -343,6 +343,8 @@ private[celeborn] class Worker(
       conf.workerCleanThreads)
   val asyncReplyPool: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-rpc-async-replier")
+  val createWriterThreads = conf.workerCreateWriterThreads
+  var createWriterThreadPool: ThreadPoolExecutor = _
   val timer = new HashedWheelTimer(ThreadUtils.namedSingleThreadFactory("worker-timer"))
 
   // Configs
@@ -565,6 +567,11 @@ private[celeborn] class Worker(
       }
     })
 
+    if (createWriterThreads.isDefined) {
+      createWriterThreadPool =
+        ThreadUtils.newDaemonFixedThreadPool(createWriterThreads.get, "worker-writer-creator")
+    }
+
     pushDataHandler.init(this)
     replicateHandler.init(this)
     fetchHandler.init(this)
@@ -612,12 +619,18 @@ private[celeborn] class Worker(
         commitThreadPool.shutdown()
         commitFinishedChecker.shutdown();
         asyncReplyPool.shutdown()
+        if (createWriterThreadPool != null) {
+          createWriterThreadPool.shutdown()
+        }
       } else {
         forwardMessageScheduler.shutdownNow()
         replicateThreadPool.shutdownNow()
         commitThreadPool.shutdownNow()
         commitFinishedChecker.shutdownNow();
         asyncReplyPool.shutdownNow()
+        if (createWriterThreadPool != null) {
+          createWriterThreadPool.shutdownNow()
+        }
       }
       workerSource.appActiveConnections.clear()
       partitionsSorter.close(exitKind)
