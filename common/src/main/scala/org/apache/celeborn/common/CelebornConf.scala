@@ -4777,7 +4777,7 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc(s"The initial sleep time if the current max in flight requests is 0")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("500ms")
+      .createWithDefaultString("0")
 
   val CLIENT_PUSH_SLOW_START_MAX_SLEEP_TIME: ConfigEntry[Long] =
     buildConf("celeborn.client.push.slowStart.maxSleepTime")
