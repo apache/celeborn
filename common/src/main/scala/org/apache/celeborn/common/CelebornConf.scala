@@ -1357,6 +1357,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerS3FlusherThreads: Int = get(WORKER_FLUSHER_S3_THREADS)
   def workerOssFlusherThreads: Int = get(WORKER_FLUSHER_OSS_THREADS)
   def workerCreateWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
+  def workerCreateWriterThreads: Option[Int] = get(WORKER_WRITER_CREATE_THREADS)
   def workerFlusherLocalGatherAPIEnabled: Boolean = get(WORKER_FLUSHER_LOCAL_GATHER_API_ENABLED)
 
   // //////////////////////////////////////////////////////
@@ -4060,6 +4061,15 @@ object CelebornConf extends Logging {
       .doc("Retry count for a file writer to create if its creation was failed.")
       .intConf
       .createWithDefault(3)
+
+  val WORKER_WRITER_CREATE_THREADS: OptionalConfigEntry[Int] =
+    buildConf("celeborn.worker.writer.create.threads")
+      .categories("worker")
+      .version("0.6.1")
+      .doc("Thread number of worker to parallelize the creation of partition writer. " +
+        "If not set, file writer will be created serially.")
+      .intConf
+      .createOptional
 
   val WORKER_FLUSHER_LOCAL_GATHER_API_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.flusher.local.gatherAPI.enabled")
