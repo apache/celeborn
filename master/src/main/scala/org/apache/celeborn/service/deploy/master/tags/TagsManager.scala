@@ -40,7 +40,7 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
         ConcurrentHashMap.newKeySet[String]()
     }
 
-  private def getTagStore: ConcurrentHashMap[String, JSet[String]] = {
+  def getTagStore: ConcurrentHashMap[String, JSet[String]] = {
     configService match {
       case Some(cs) =>
         // TODO: Make configStore.getTags return ConcurrentMap

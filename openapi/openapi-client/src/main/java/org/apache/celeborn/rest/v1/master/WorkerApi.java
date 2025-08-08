@@ -191,7 +191,7 @@ public class WorkerApi extends BaseApi {
 
   /**
    * 
-   * List worker information of the service. It will list all registered workers, lost workers, excluded workers, shutdown workers and decommission workers information. 
+   * List worker information of the service. It will list all registered workers, lost workers, excluded workers, shutdown workers, decommission workers and tagged workers information. 
    * @return WorkersResponse
    * @throws ApiException if fails to make API call
    */
@@ -202,7 +202,7 @@ public class WorkerApi extends BaseApi {
 
   /**
    * 
-   * List worker information of the service. It will list all registered workers, lost workers, excluded workers, shutdown workers and decommission workers information. 
+   * List worker information of the service. It will list all registered workers, lost workers, excluded workers, shutdown workers, decommission workers and tagged workers information. 
    * @param additionalHeaders additionalHeaders for this call
    * @return WorkersResponse
    * @throws ApiException if fails to make API call
