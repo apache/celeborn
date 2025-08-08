@@ -16,6 +16,8 @@
  */
 
 #include "celeborn/client/reader/CelebornInputStream.h"
+#include <lz4.h>
+#include "celeborn/client/compress/Decompressor.h"
 
 namespace celeborn {
 namespace client {
@@ -27,7 +29,8 @@ CelebornInputStream::CelebornInputStream(
     const std::vector<int>& attempts,
     int attemptNumber,
     int startMapIndex,
-    int endMapIndex)
+    int endMapIndex,
+    bool needCompression)
     : shuffleKey_(shuffleKey),
       conf_(conf),
       clientFactory_(clientFactory),
@@ -38,7 +41,15 @@ CelebornInputStream::CelebornInputStream(
       endMapIndex_(endMapIndex),
       currLocationIndex_(0),
       currBatchPos_(0),
-      currBatchSize_(0) {
+      currBatchSize_(0),
+      shouldDecompress_(
+          conf_->shuffleCompressionCodec() !=
+              protocol::CompressionCodec::NONE &&
+          needCompression) {
+  if (shouldDecompress_) {
+    decompressor_ = compress::Decompressor::createDecompressor(
+        conf_->shuffleCompressionCodec());
+  }
   moveToNextReader();
 }
 
@@ -57,8 +68,8 @@ int CelebornInputStream::read(uint8_t* buffer, size_t offset, size_t len) {
     }
     size_t batchRemainingSize = currBatchSize_ - currBatchPos_;
     size_t toReadBytes = std::min(len - readBytes, batchRemainingSize);
-    CELEBORN_CHECK_GE(currChunk_->remainingSize(), toReadBytes);
-    auto size = currChunk_->readToBuffer(&buf[readBytes], toReadBytes);
+    CELEBORN_CHECK_GE(decompressedChunk_->remainingSize(), toReadBytes);
+    auto size = decompressedChunk_->readToBuffer(&buf[readBytes], toReadBytes);
     CELEBORN_CHECK_EQ(toReadBytes, size);
     readBytes += toReadBytes;
     currBatchPos_ += toReadBytes;
@@ -83,13 +94,31 @@ bool CelebornInputStream::fillBuffer() {
     CELEBORN_CHECK_GE(currChunk_->remainingSize(), size);
     CELEBORN_CHECK_LT(mapId, attempts_.size());
 
-    // TODO: compression is not supported yet!
+    if (shouldDecompress_) {
+      if (size > compressedBuf_.size()) {
+        compressedBuf_.resize(size);
+      }
+      currChunk_->readToBuffer(compressedBuf_.data(), size);
+    }
 
     if (attemptId == attempts_[mapId]) {
       auto& batchRecord = getBatchRecord(mapId);
       if (batchRecord.count(batchId) <= 0) {
         batchRecord.insert(batchId);
-        currBatchSize_ = size;
+        if (shouldDecompress_) {
+          const auto originalLength =
+              decompressor_->getOriginalLen(compressedBuf_.data());
+          std::unique_ptr<folly::IOBuf> decompressedBuf_ =
+              folly::IOBuf::createCombined(originalLength);
+          decompressedBuf_->append(originalLength);
+          currBatchSize_ = decompressor_->decompress(
+              compressedBuf_.data(), decompressedBuf_->writableData(), 0);
+          decompressedChunk_ = memory::ByteBuffer::createReadOnly(
+              std::move(decompressedBuf_), false);
+        } else {
+          currBatchSize_ = size;
+          decompressedChunk_ = currChunk_->readToReadOnlyBuffer(size);
+        }
         currBatchPos_ = 0;
         hasData = true;
         break;

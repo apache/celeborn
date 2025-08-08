@@ -15,13 +15,31 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.cluster
+#pragma once
 
-import org.apache.celeborn.common.protocol.CompressionCodec
+#include <xxhash.h>
+#include "celeborn/client/compress/Decompressor.h"
+#include "celeborn/client/compress/Lz4Trait.h"
 
-object JavaReadCppWriteTestWithNONE extends JavaReadCppWriteTestBase {
+namespace celeborn {
+namespace client {
+namespace compress {
 
-  def main(args: Array[String]) = {
-    testJavaReadCppWrite(CompressionCodec.NONE)
-  }
-}
+class Lz4Decompressor final : public Decompressor, Lz4Trait {
+ public:
+  Lz4Decompressor();
+  ~Lz4Decompressor() override;
+
+  int getOriginalLen(const uint8_t* src) override;
+  int decompress(const uint8_t* src, uint8_t* dst, int dstOff) override;
+
+  Lz4Decompressor(const Lz4Decompressor&) = delete;
+  Lz4Decompressor& operator=(const Lz4Decompressor&) = delete;
+
+ private:
+  XXH32_state_t* xxhash_state_;
+};
+
+} // namespace compress
+} // namespace client
+} // namespace celeborn
