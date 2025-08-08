@@ -35,7 +35,7 @@ import org.apache.celeborn.common.protocol.CompressionCodec
 import org.apache.celeborn.common.util.Utils.runCommand
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
-trait JavaReadCppWriteTestBase extends AnyFunSuite
+trait JavaWriteCppReadTestBase extends AnyFunSuite
   with Logging with MiniClusterFeature with BeforeAndAfterAll {
 
   var masterPort = 0
@@ -51,16 +51,16 @@ trait JavaReadCppWriteTestBase extends AnyFunSuite
     shutdownMiniCluster()
   }
 
-  def testJavaReadCppWrite(codec: CompressionCodec): Unit = {
+  def testJavaWriteCppRead(codec: CompressionCodec): Unit = {
     beforeAll()
     try {
-      runJavaReadCppWrite(codec)
+      runJavaWriteCppRead(codec)
     } finally {
       afterAll()
     }
   }
 
-  def runJavaReadCppWrite(codec: CompressionCodec): Unit = {
+  def runJavaWriteCppRead(codec: CompressionCodec): Unit = {
     val appUniqueId = "test-app"
     val shuffleId = 0
     val attemptId = 0
@@ -87,13 +87,19 @@ trait JavaReadCppWriteTestBase extends AnyFunSuite
     val numData = 1000
     var sums = new util.ArrayList[Long](numPartitions)
     val rand = new Random()
+    var prefix = "-"
+    if (codec != CompressionCodec.NONE) {
+      // Add duplicate strings to make the compressed length shorter than the original length.
+      // Will be dropped in cpp test client.
+      prefix = prefix ++ "++++++++++"
+    }
     for (mapId <- 0 until numMappers) {
       for (partitionId <- 0 until numPartitions) {
         sums.add(0)
         for (i <- 0 until numData) {
           val data = rand.nextInt(maxData)
           sums.set(partitionId, sums.get(partitionId) + data)
-          val dataStr = "-" + data.toString
+          val dataStr = prefix + data.toString
           shuffleClient.pushOrMergeData(
             shuffleId,
             mapId,
@@ -105,7 +111,7 @@ trait JavaReadCppWriteTestBase extends AnyFunSuite
             numMappers,
             numPartitions,
             false,
-            true)
+            false)
         }
       }
       shuffleClient.pushMergedData(shuffleId, mapId, attemptId)
@@ -120,9 +126,10 @@ trait JavaReadCppWriteTestBase extends AnyFunSuite
     val cppBinRelativeDirectory = "cpp/build/celeborn/tests/"
     val cppBinFileName = "cppDataSumWithReaderClient"
     val cppBinFilePath = s"$projectDirectory/$cppBinRelativeDirectory/$cppBinFileName"
-    // Execution command: $exec lifecycleManagerHost lifecycleManagerPort appUniqueId shuffleId attemptId numPartitions cppResultFile
+    val cppCodec = codec.name()
+    // Execution command: $exec lifecycleManagerHost lifecycleManagerPort appUniqueId shuffleId attemptId numPartitions cppResultFile cppCodec
     val command = {
-      s"$cppBinFilePath $lifecycleManagerHost $lifecycleManagerPort $appUniqueId $shuffleId $attemptId $numPartitions $cppResultFile"
+      s"$cppBinFilePath $lifecycleManagerHost $lifecycleManagerPort $appUniqueId $shuffleId $attemptId $numPartitions $cppResultFile $cppCodec"
     }
     println(s"run command: $command")
     val commandOutput = runCommand(command)
