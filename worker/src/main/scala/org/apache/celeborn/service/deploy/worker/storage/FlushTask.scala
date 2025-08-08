@@ -34,7 +34,19 @@ abstract private[worker] class FlushTask(
     val notifier: FlushNotifier,
     val keepBuffer: Boolean,
     val source: AbstractSource) {
-  def flush(): Unit
+  def flush(copyBytes: Array[Byte]): Unit
+
+  def convertBufferToBytes(
+      buffer: CompositeByteBuf,
+      copyBytes: Array[Byte],
+      length: Int): Array[Byte] = {
+    if (copyBytes != null && copyBytes.length >= length) {
+      buffer.readBytes(copyBytes, 0, length)
+      copyBytes
+    } else {
+      ByteBufUtil.getBytes(buffer)
+    }
+  }
 }
 
 private[worker] class LocalFlushTask(
@@ -44,7 +56,7 @@ private[worker] class LocalFlushTask(
     keepBuffer: Boolean,
     source: AbstractSource,
     gatherApiEnabled: Boolean) extends FlushTask(buffer, notifier, keepBuffer, source) {
-  override def flush(): Unit = {
+  override def flush(copyBytes: Array[Byte]): Unit = {
     val readableBytes = buffer.readableBytes()
     val buffers = buffer.nioBuffers()
     if (gatherApiEnabled) {
@@ -90,12 +102,12 @@ private[worker] class HdfsFlushTask(
     notifier: FlushNotifier,
     keepBuffer: Boolean,
     source: AbstractSource) extends DfsFlushTask(buffer, notifier, keepBuffer, source) {
-  override def flush(): Unit = {
+  override def flush(copyBytes: Array[Byte]): Unit = {
     val readableBytes = buffer.readableBytes()
     val hadoopFs = StorageManager.hadoopFs.get(Type.HDFS)
     val hdfsStream = hadoopFs.append(path, 256 * 1024)
     flush(hdfsStream) {
-      hdfsStream.write(ByteBufUtil.getBytes(buffer))
+      hdfsStream.write(convertBufferToBytes(buffer, copyBytes, readableBytes))
       source.incCounter(WorkerSource.HDFS_FLUSH_COUNT)
       source.incCounter(WorkerSource.HDFS_FLUSH_SIZE, readableBytes)
     }
@@ -112,9 +124,9 @@ private[worker] class S3FlushTask(
     finalFlush: Boolean = false)
   extends DfsFlushTask(buffer, notifier, keepBuffer, source) {
 
-  override def flush(): Unit = {
+  override def flush(copyBytes: Array[Byte]): Unit = {
     val readableBytes = buffer.readableBytes()
-    val bytes = ByteBufUtil.getBytes(buffer)
+    val bytes = convertBufferToBytes(buffer, copyBytes, readableBytes)
     val inputStream = new ByteArrayInputStream(bytes)
     flush(inputStream) {
       s3MultipartUploader.putPart(inputStream, partNumber, finalFlush)
@@ -134,9 +146,9 @@ private[worker] class OssFlushTask(
     finalFlush: Boolean = false)
   extends DfsFlushTask(buffer, notifier, keepBuffer, source) {
 
-  override def flush(): Unit = {
+  override def flush(copyBytes: Array[Byte]): Unit = {
     val readableBytes = buffer.readableBytes()
-    val bytes = ByteBufUtil.getBytes(buffer)
+    val bytes = convertBufferToBytes(buffer, copyBytes, readableBytes)
     val inputStream = new ByteArrayInputStream(bytes)
     flush(inputStream) {
       ossMultipartUploader.putPart(inputStream, partNumber, finalFlush)
