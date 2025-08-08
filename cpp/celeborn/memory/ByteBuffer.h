@@ -48,12 +48,11 @@ class ByteBuffer {
     assert(data_);
   }
 
-  std::unique_ptr<folly::IOBuf> data_;
-  bool isBigEndian_;
-
- private:
   static std::unique_ptr<folly::IOBuf> trimBuffer(
       const ReadOnlyByteBuffer& buffer);
+
+  std::unique_ptr<folly::IOBuf> data_;
+  bool isBigEndian_;
 };
 
 class ReadOnlyByteBuffer : public ByteBuffer {
@@ -126,6 +125,8 @@ class ReadOnlyByteBuffer : public ByteBuffer {
     return cursor_->pullAtMost(buf, len);
   }
 
+  std::unique_ptr<ReadOnlyByteBuffer> readToReadOnlyBuffer(size_t len) const;
+
   std::unique_ptr<folly::IOBuf> getData() const {
     return data_->clone();
   }
@@ -169,6 +170,10 @@ class WriteOnlyByteBuffer : public ByteBuffer {
   void writeFromString(const std::string& data) const {
     auto ptr = data.c_str();
     appender_->push(reinterpret_cast<const uint8_t*>(ptr), data.size());
+  }
+
+  void writeFromBuffer(const void* data, const size_t len) const {
+    appender_->push(static_cast<const uint8_t*>(data), len);
   }
 
   size_t size() const {
