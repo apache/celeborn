@@ -119,7 +119,8 @@ public class DiskReducePartitionDataWriterSuiteJ {
             256,
             "disk1",
             StorageInfo.Type.HDD,
-            null);
+            null,
+            CONF.workerFlusherBufferSize());
 
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(), "0.8");
@@ -442,7 +443,8 @@ public class DiskReducePartitionDataWriterSuiteJ {
             256,
             "disk2",
             StorageInfo.Type.HDD,
-            null);
+            null,
+            CONF.workerFlusherBufferSize());
   }
 
   @Test
