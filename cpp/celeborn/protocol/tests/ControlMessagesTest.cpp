@@ -62,6 +62,55 @@ void verifyUnpackedPartitionLocation(
 }
 } // namespace
 
+TEST(ControlMessagesTest, registerShuffle) {
+  auto registerShuffle = std::make_unique<RegisterShuffle>();
+  registerShuffle->shuffleId = 1000;
+  registerShuffle->numMappers = 1001;
+  registerShuffle->numPartitions = 1002;
+
+  auto transportMessage = registerShuffle->toTransportMessage();
+  EXPECT_EQ(transportMessage.type(), REGISTER_SHUFFLE);
+  auto payload = transportMessage.payload();
+  auto pbRegisterShuffle = utils::parseProto<PbRegisterShuffle>(
+      reinterpret_cast<const uint8_t*>(payload.c_str()), payload.size());
+  EXPECT_EQ(pbRegisterShuffle->shuffleid(), registerShuffle->shuffleId);
+  EXPECT_EQ(pbRegisterShuffle->nummappers(), registerShuffle->numMappers);
+  EXPECT_EQ(pbRegisterShuffle->numpartitions(), registerShuffle->numPartitions);
+}
+
+TEST(ControlMessagesTest, registerShuffleResponse) {
+  const int statusCodeId = 1;
+  PbRegisterShuffleResponse pbRegisterShuffleResponse;
+  pbRegisterShuffleResponse.set_status(statusCodeId);
+  auto pbPackedPartitionLocationsPair =
+      pbRegisterShuffleResponse.mutable_packedpartitionlocationspair();
+  auto pbPackedPartitionLocations =
+      pbPackedPartitionLocationsPair->mutable_locations();
+  // Has one inputLocation, with offset 0.
+  pbPackedPartitionLocationsPair->set_inputlocationsize(1);
+  // The peerIndex 1 is replica.
+  pbPackedPartitionLocationsPair->add_peerindexes(1);
+  // Add the two partitionLocations, one is primary and the other is replica.
+  generatePackedPartitionLocationPb(
+      *pbPackedPartitionLocations, 0, PartitionLocation::Mode::PRIMARY);
+  generatePackedPartitionLocationPb(
+      *pbPackedPartitionLocations, 1, PartitionLocation::Mode::REPLICA);
+
+  TransportMessage transportMessage(
+      REGISTER_SHUFFLE_RESPONSE, pbRegisterShuffleResponse.SerializeAsString());
+  auto registerShuffleResponse =
+      RegisterShuffleResponse::fromTransportMessage(transportMessage);
+  EXPECT_EQ(registerShuffleResponse->status, statusCodeId);
+  const auto& partitionLocations = registerShuffleResponse->partitionLocations;
+  EXPECT_EQ(partitionLocations.size(), 1);
+  auto primaryPartitionLocation = partitionLocations.begin()->get();
+  verifyUnpackedPartitionLocation(primaryPartitionLocation);
+  EXPECT_EQ(primaryPartitionLocation->mode, PartitionLocation::Mode::PRIMARY);
+  auto replicaPartitionLocation = primaryPartitionLocation->replicaPeer.get();
+  verifyUnpackedPartitionLocation(replicaPartitionLocation);
+  EXPECT_EQ(replicaPartitionLocation->mode, PartitionLocation::Mode::REPLICA);
+}
+
 TEST(ControlMessagesTest, mapperEnd) {
   auto mapperEnd = std::make_unique<MapperEnd>();
   mapperEnd->shuffleId = 1000;
@@ -92,8 +141,6 @@ TEST(ControlMessagesTest, mapperEndResponse) {
       MapperEndResponse::fromTransportMessage(transportMessage);
   EXPECT_EQ(mapperEndResponse->status, 1);
 }
-
-// TEST MapperEnd/Response
 
 TEST(ControlMessagesTest, getReducerFileGroup) {
   auto getReducerFileGroup = std::make_unique<GetReducerFileGroup>();

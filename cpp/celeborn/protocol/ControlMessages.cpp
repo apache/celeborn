@@ -20,6 +20,84 @@
 
 namespace celeborn {
 namespace protocol {
+
+namespace {
+std::vector<std::unique_ptr<const PartitionLocation>>
+fromPbPackedPartitionLocationsPair(
+    const PbPackedPartitionLocationsPair& pbPackedPartitionLocationsPair) {
+  std::vector<std::unique_ptr<const PartitionLocation>> finalLocations;
+  std::vector<std::unique_ptr<PartitionLocation>> partialLocations;
+  int inputLocationSize = pbPackedPartitionLocationsPair.inputlocationsize();
+  auto& pbPackedPartitionLocations = pbPackedPartitionLocationsPair.locations();
+  auto& pbIds = pbPackedPartitionLocations.ids();
+  for (int idx = 0; idx < pbIds.size(); idx++) {
+    partialLocations.push_back(
+        PartitionLocation::fromPackedPb(pbPackedPartitionLocations, idx));
+  }
+  for (int idx = 0; idx < inputLocationSize; idx++) {
+    auto replicaIdx = pbPackedPartitionLocationsPair.peerindexes(idx);
+    // Has peer.
+    if (replicaIdx != INT_MAX) {
+      CELEBORN_CHECK_GE(replicaIdx, inputLocationSize);
+      CELEBORN_CHECK_LT(replicaIdx, partialLocations.size());
+      auto location = std::move(partialLocations[idx]);
+      auto peerLocation = std::move(partialLocations[replicaIdx]);
+      // Make sure the location is primary and peer location is replica.
+      if (location->mode == PartitionLocation::Mode::REPLICA) {
+        std::swap(location, peerLocation);
+      }
+      CELEBORN_CHECK(location->mode == PartitionLocation::Mode::PRIMARY);
+      CELEBORN_CHECK(peerLocation->mode == PartitionLocation::Mode::REPLICA);
+      location->replicaPeer = std::move(peerLocation);
+      finalLocations.push_back(std::move(location));
+    }
+    // Has no peer.
+    else {
+      finalLocations.push_back(std::move(partialLocations[idx]));
+    }
+  }
+  return finalLocations;
+}
+
+} // namespace
+
+TransportMessage RegisterShuffle::toTransportMessage() const {
+  MessageType type = REGISTER_SHUFFLE;
+  PbRegisterShuffle pb;
+  pb.set_shuffleid(shuffleId);
+  pb.set_nummappers(numMappers);
+  pb.set_numpartitions(numPartitions);
+  std::string payload = pb.SerializeAsString();
+  return TransportMessage(type, std::move(payload));
+}
+
+std::unique_ptr<RegisterShuffleResponse>
+RegisterShuffleResponse::fromTransportMessage(
+    const TransportMessage& transportMessage) {
+  CELEBORN_CHECK(
+      transportMessage.type() == REGISTER_SHUFFLE_RESPONSE,
+      "transportMessageType mismatch");
+  auto payload = transportMessage.payload();
+  auto pbRegisterShuffleResponse = utils::parseProto<PbRegisterShuffleResponse>(
+      reinterpret_cast<const uint8_t*>(payload.c_str()), payload.size());
+  auto response = std::make_unique<RegisterShuffleResponse>();
+  response->status = toStatusCode(pbRegisterShuffleResponse->status());
+
+  // Legacy mode is deprecated.
+  auto& pbPartitionLocations = pbRegisterShuffleResponse->partitionlocations();
+  CELEBORN_CHECK_EQ(
+      pbPartitionLocations.size(),
+      0,
+      "legacy PartitionLocation pb is deprecated");
+
+  // Packed mode: must use packedPartitionLocations.
+  const auto& pbPackedPartitionLocationsPair =
+      pbRegisterShuffleResponse->packedpartitionlocationspair();
+  response->partitionLocations = std::move(
+      fromPbPackedPartitionLocationsPair(pbPackedPartitionLocationsPair));
+  return std::move(response);
+}
+
 TransportMessage MapperEnd::toTransportMessage() const {
   MessageType type = MAPPER_END;
   PbMapperEnd pb;
@@ -74,37 +152,12 @@ GetReducerFileGroupResponse::fromTransportMessage(
         0,
         "legecy PartitionLocation pb is deprecated");
     // Packed mode: must use packedPartitionLocations.
-    auto& pbPackedPartitionLocationsPair = kv.second.partitionlocationspair();
-    int inputLocationSize = pbPackedPartitionLocationsPair.inputlocationsize();
-    auto& pbPackedPartitionLocations =
-        pbPackedPartitionLocationsPair.locations();
-    std::vector<std::unique_ptr<PartitionLocation>> partialLocations;
-    auto& pbIds = pbPackedPartitionLocations.ids();
-    for (int idx = 0; idx < pbIds.size(); idx++) {
-      partialLocations.push_back(
-          PartitionLocation::fromPackedPb(pbPackedPartitionLocations, idx));
-    }
-    for (int idx = 0; idx < inputLocationSize; idx++) {
-      auto replicaIdx = pbPackedPartitionLocationsPair.peerindexes(idx);
-      // has peer
-      if (replicaIdx != INT_MAX) {
-        CELEBORN_CHECK_GE(replicaIdx, inputLocationSize);
-        CELEBORN_CHECK_LT(replicaIdx, partialLocations.size());
-        auto location = std::move(partialLocations[idx]);
-        auto peerLocation = std::move(partialLocations[replicaIdx]);
-        // make sure the location is primary and peer location is replica
-        if (location->mode == PartitionLocation::Mode::REPLICA) {
-          std::swap(location, peerLocation);
-        }
-        CELEBORN_CHECK(location->mode == PartitionLocation::Mode::PRIMARY);
-        CELEBORN_CHECK(peerLocation->mode == PartitionLocation::Mode::REPLICA);
-        location->replicaPeer = std::move(peerLocation);
-        fileGroup.insert(std::move(location));
-      }
-      // has no peer
-      else {
-        fileGroup.insert(std::move(partialLocations[idx]));
-      }
+    const auto& pbPackedPartitionLocationsPair =
+        kv.second.partitionlocationspair();
+    auto locations =
+        fromPbPackedPartitionLocationsPair(pbPackedPartitionLocationsPair);
+    for (auto& location : locations) {
+      fileGroup.insert(std::move(location));
     }
   }
   auto attempts = pbGetReducerFileGroupResponse->attempts();
