@@ -17,27 +17,37 @@
 
 #pragma once
 
-#include <xxhash.h>
-#include "celeborn/client/compress/Decompressor.h"
-#include "celeborn/client/compress/Lz4Trait.h"
+#include <memory>
+
+#include "celeborn/conf/CelebornConf.h"
 
 namespace celeborn {
 namespace client {
 namespace compress {
 
-class Lz4Decompressor final : public Decompressor, Lz4Trait {
+class Compressor {
  public:
-  Lz4Decompressor();
-  ~Lz4Decompressor() override;
+  virtual ~Compressor() = default;
 
-  int getOriginalLen(const uint8_t* src) override;
-  int decompress(const uint8_t* src, uint8_t* dst, int dstOff) override;
+  virtual size_t compress(
+      const uint8_t* src,
+      int srcOffset,
+      int srcLength,
+      uint8_t* dst,
+      int dstOffset) = 0;
 
-  Lz4Decompressor(const Lz4Decompressor&) = delete;
-  Lz4Decompressor& operator=(const Lz4Decompressor&) = delete;
+  virtual size_t getDstCapacity(int length) = 0;
 
- private:
-  XXH32_state_t* xxhashState_;
+  static std::unique_ptr<Compressor> createCompressor(
+      const conf::CelebornConf& conf);
+
+ protected:
+  static void writeIntLE(const int i, uint8_t* buf, int off) {
+    buf[off++] = static_cast<uint8_t>(i);
+    buf[off++] = static_cast<uint8_t>(i >> 8);
+    buf[off++] = static_cast<uint8_t>(i >> 16);
+    buf[off] = static_cast<uint8_t>(i >> 24);
+  }
 };
 
 } // namespace compress
