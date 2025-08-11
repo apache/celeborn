@@ -28,7 +28,7 @@ namespace celeborn {
 namespace protocol {
 
 struct RegisterShuffle {
-  long shuffleId;
+  int shuffleId;
   int numMappers;
   int numPartitions;
 
@@ -44,7 +44,7 @@ struct RegisterShuffleResponse {
 };
 
 struct MapperEnd {
-  long shuffleId;
+  int shuffleId;
   int mapId;
   int attemptId;
   int numMappers;
