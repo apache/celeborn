@@ -15,27 +15,22 @@
  * limitations under the License.
  */
 
-#include <stdexcept>
-
-#include "celeborn/client/compress/Lz4Decompressor.h"
-#include "celeborn/client/compress/ZstdDecompressor.h"
-#include "celeborn/utils/Exceptions.h"
+#pragma once
 
 namespace celeborn {
 namespace client {
 namespace compress {
 
-std::unique_ptr<Decompressor> Decompressor::createDecompressor(
-    protocol::CompressionCodec codec) {
-  switch (codec) {
-    case protocol::CompressionCodec::LZ4:
-      return std::make_unique<Lz4Decompressor>();
-    case protocol::CompressionCodec::ZSTD:
-      return std::make_unique<ZstdDecompressor>();
-    default:
-      CELEBORN_FAIL("Unknown compression codec.");
-  }
-}
+struct ZstdTrait {
+  static constexpr char kMagic[] =
+      {'Z', 'S', 'T', 'D', 'B', 'l', 'o', 'c', 'k'};
+  static constexpr int kMagicLength = sizeof(kMagic);
+
+  static constexpr int kHeaderLength = kMagicLength + 1 + 4 + 4 + 4;
+
+  static constexpr int kCompressionMethodRaw = 0x10;
+  static constexpr int kCompressionMethodZstd = 0x30;
+};
 
 } // namespace compress
 } // namespace client

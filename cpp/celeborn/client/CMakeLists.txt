@@ -18,7 +18,8 @@ add_library(
         reader/CelebornInputStream.cpp
         ShuffleClient.cpp
         compress/Decompressor.cpp
-        compress/Lz4Decompressor.cpp)
+        compress/Lz4Decompressor.cpp
+        compress/ZstdDecompressor.cpp)
 
 target_include_directories(client PUBLIC ${CMAKE_BINARY_DIR})
 

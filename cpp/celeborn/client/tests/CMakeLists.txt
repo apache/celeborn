@@ -16,7 +16,8 @@
 add_executable(
         celeborn_client_test
         WorkerPartitionReaderTest.cpp
-        Lz4DecompressorTest.cpp)
+        Lz4DecompressorTest.cpp
+        ZstdDecompressorTest.cpp)
 
 add_test(NAME celeborn_client_test COMMAND celeborn_client_test)
 
