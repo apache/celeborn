@@ -45,6 +45,7 @@ class MasterSubcommandImpl extends MasterSubcommand {
     if (masterOptions.showManualExcludedWorkers) log(runShowManualExcludedWorkers)
     if (masterOptions.showShutdownWorkers) log(runShowShutdownWorkers)
     if (masterOptions.showDecommissioningWorkers) log(runShowDecommissioningWorkers)
+    if (masterOptions.showTaggedWorkers) log(runShowTaggedWorkers)
     if (masterOptions.showLifecycleManagers) log(runShowLifecycleManagers)
     if (masterOptions.showWorkers) log(runShowWorkers)
     if (masterOptions.showWorkersTopology) log(runShowWorkersTopology)
@@ -167,6 +168,19 @@ class MasterSubcommandImpl extends MasterSubcommand {
       Seq.empty[WorkerData]
     } else {
       decommissioningWorkers.sortBy(_.getHost)
+    }
+  }
+
+  private[master] def runShowTaggedWorkers: Seq[TaggedWorkerData] = {
+    val taggedWorkers = runShowWorkers.getTaggedWorkers.asScala.toSeq
+    if (taggedWorkers.isEmpty) {
+      log("No tagged workers found.")
+      Seq.empty[TaggedWorkerData]
+    } else {
+      taggedWorkers.map(taggedWorkerData => {
+        taggedWorkerData.setWorkers(taggedWorkerData.getWorkers.asScala.sortBy(_.getHost).asJava)
+        taggedWorkerData
+      })
     }
   }
 
