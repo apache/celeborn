@@ -597,11 +597,13 @@ public class MemoryManager {
             getNettyPinnedDirectMemory());
         resumeReplicate();
         resumePush();
+        break;
       case PUSH_PAUSED:
         logger.info(
             "Serving State is PUSH_PAUSED, but resume by lower pinned memory {}",
             getNettyPinnedDirectMemory());
         resumePush();
+        break;
     }
   }
 

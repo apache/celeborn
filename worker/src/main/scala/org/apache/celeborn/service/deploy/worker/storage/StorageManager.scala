@@ -150,7 +150,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           conf.workerPushMaxComponents,
           diskInfo.mountPoint,
           diskInfo.storageType,
-          diskInfo.flushTimeMetrics)
+          diskInfo.flushTimeMetrics,
+          conf.workerFlusherBufferSize)
         flushers.put(diskInfo.mountPoint, flusher)
         totalThread = totalThread + diskInfo.threadCount
       }
@@ -181,7 +182,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           workerSource,
           conf.workerHdfsFlusherThreads,
           storageBufferAllocator,
-          conf.workerPushMaxComponents)),
+          conf.workerPushMaxComponents,
+          conf.workerFlushReuseCopyBufferEnabled,
+          conf.workerHdfsFlusherBufferSize)),
         conf.workerHdfsFlusherThreads)
     } else {
       (None, 0)
@@ -202,7 +205,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           workerSource,
           conf.workerS3FlusherThreads,
           storageBufferAllocator,
-          conf.workerPushMaxComponents)),
+          conf.workerPushMaxComponents,
+          conf.workerFlushReuseCopyBufferEnabled,
+          conf.workerS3FlusherBufferSize)),
         conf.workerS3FlusherThreads)
     } else {
       (None, 0)
@@ -223,7 +228,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           workerSource,
           conf.workerOssFlusherThreads,
           storageBufferAllocator,
-          conf.workerPushMaxComponents)),
+          conf.workerPushMaxComponents,
+          conf.workerFlushReuseCopyBufferEnabled,
+          conf.workerOssFlusherBufferSize)),
         conf.workerOssFlusherThreads)
     } else {
       (None, 0)

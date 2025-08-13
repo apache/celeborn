@@ -26,6 +26,10 @@ import org.apache.celeborn.common.identity.UserIdentifier$;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.protocol.PbDiskInfo;
+import org.apache.celeborn.common.protocol.PbWorkerAddress;
+import org.apache.celeborn.common.protocol.PbWorkerInfo;
+import org.apache.celeborn.common.protocol.PbWorkerStatus;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.util.CollectionUtils;
@@ -44,6 +48,26 @@ public class MetaUtil {
         address.getInternalPort());
   }
 
+  public static WorkerInfo addrToInfo(PbWorkerAddress address) {
+    return new WorkerInfo(
+        address.getHost(),
+        address.getRpcPort(),
+        address.getPushPort(),
+        address.getFetchPort(),
+        address.getReplicatePort(),
+        address.getInternalPort());
+  }
+
+  public static WorkerInfo pbInfoToInfo(PbWorkerInfo pbWorkerInfo) {
+    return new WorkerInfo(
+        pbWorkerInfo.getHost(),
+        pbWorkerInfo.getRpcPort(),
+        pbWorkerInfo.getPushPort(),
+        pbWorkerInfo.getFetchPort(),
+        pbWorkerInfo.getReplicatePort(),
+        pbWorkerInfo.getInternalPort());
+  }
+
   public static ResourceProtos.WorkerAddress infoToAddr(WorkerInfo info) {
     return ResourceProtos.WorkerAddress.newBuilder()
         .setHost(info.host())
@@ -60,6 +84,26 @@ public class MetaUtil {
     Map<String, DiskInfo> map = new HashMap<>();
 
     diskInfos.forEach(
+        (k, v) -> {
+          DiskInfo diskInfo =
+              new DiskInfo(
+                      v.getMountPoint(),
+                      v.getUsableSpace(),
+                      v.getAvgFlushTime(),
+                      v.getAvgFetchTime(),
+                      v.getUsedSlots(),
+                      StorageInfo.typesMap.get(v.getStorageType()))
+                  .setStatus(Utils.toDiskStatus(v.getStatus()))
+                  .setTotalSpace(v.getTotalSpace());
+          map.put(k, diskInfo);
+        });
+    return map;
+  }
+
+  public static Map<String, DiskInfo> fromPbDiskInfoMap(Map<String, PbDiskInfo> pbDiskInfoMap) {
+    Map<String, DiskInfo> map = new HashMap<>();
+
+    pbDiskInfoMap.forEach(
         (k, v) -> {
           DiskInfo diskInfo =
               new DiskInfo(
@@ -166,5 +210,10 @@ public class MetaUtil {
 
   public static WorkerStatus fromPbWorkerStatus(ResourceProtos.WorkerStatus workerStatus) {
     return new WorkerStatus(workerStatus.getState().getNumber(), workerStatus.getStateStartTime());
+  }
+
+  public static WorkerStatus fromPbWorkerStatus(PbWorkerStatus pbWorkerStatus) {
+    return new WorkerStatus(
+        pbWorkerStatus.getState().getNumber(), pbWorkerStatus.getStateStartTime());
   }
 }

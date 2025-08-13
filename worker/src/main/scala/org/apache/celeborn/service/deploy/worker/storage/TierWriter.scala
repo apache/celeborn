@@ -155,7 +155,7 @@ abstract class TierWriterBase(
       waitTime -= WAIT_INTERVAL_MS
     }
     if (counter.get > 0 && failWhenTimeout) {
-      val ioe = new IOException("Wait pending actions timeout.")
+      val ioe = new IOException(s"Wait pending actions timeout after $writerCloseTimeoutMs ms.")
       notifier.setException(ioe)
       throw ioe
     }

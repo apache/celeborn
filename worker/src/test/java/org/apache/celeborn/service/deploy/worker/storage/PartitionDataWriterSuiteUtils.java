@@ -195,7 +195,8 @@ public class PartitionDataWriterSuiteUtils {
             256,
             "disk1",
             StorageInfo.Type.HDD,
-            null);
+            null,
+            celebornConf.workerFlusherBufferSize());
     Mockito.doAnswer(
             invocation -> {
               if (callCounter.getAndIncrement() == 0) {

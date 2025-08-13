@@ -65,7 +65,7 @@ public final class StreamsManager {
                 }
             }
         };
-        CacheLoader<Path, FSDataOutputStream> cacheLoader = new CacheLoader<>() {
+        CacheLoader<Path, FSDataOutputStream> cacheLoader = new CacheLoader<Path, FSDataOutputStream>() {
             @SuppressWarnings("NullableProblems")
             @Override
             public FSDataOutputStream load(Path path) throws Exception {
