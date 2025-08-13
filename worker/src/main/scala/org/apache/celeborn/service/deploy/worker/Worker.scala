@@ -467,6 +467,24 @@ private[celeborn] class Worker(
     cleanTaskQueue.size()
   }
 
+  if (hasHDFSStorage) {
+    workerSource.addGauge(WorkerSource.OPEN_HDFS_OUTPUT_STREAM_COUNT) { () =>
+      if (StorageManager.streamsManager != null) {
+        StorageManager.streamsManager.getSize
+      } else {
+        0
+      }
+    }
+
+    workerSource.addGauge(WorkerSource.REUSE_HDFS_OUTPUT_STREAM_TOTAL_COUNT) { () =>
+      if (StorageManager.streamsManager != null) {
+        StorageManager.streamsManager.getReuseOutputStreamCount
+      } else {
+        0
+      }
+    }
+  }
+
   private def highWorkload: Boolean = {
     (
       memoryManager.currentServingState,
