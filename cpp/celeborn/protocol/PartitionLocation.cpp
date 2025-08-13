@@ -144,8 +144,7 @@ std::unique_ptr<PbPartitionLocation> PartitionLocation::toPbWithoutPeer()
   pbPartitionLocation->set_fetchport(fetchPort);
   pbPartitionLocation->set_replicateport(replicatePort);
   pbPartitionLocation->set_mode(static_cast<PbPartitionLocation_Mode>(mode));
-  pbPartitionLocation->set_allocated_storageinfo(
-      storageInfo->toPb().release());
+  pbPartitionLocation->set_allocated_storageinfo(storageInfo->toPb().release());
   return pbPartitionLocation;
 }
 
