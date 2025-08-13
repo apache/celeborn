@@ -142,6 +142,53 @@ TEST(ControlMessagesTest, mapperEndResponse) {
   EXPECT_EQ(mapperEndResponse->status, 1);
 }
 
+TEST(ControlMessagesTest, revive) {
+  auto revive = std::make_unique<Revive>();
+  revive->shuffleId = 1000;
+  revive->mapIds.insert(1001);
+  auto reviveRequest = std::make_shared<ReviveRequest>(
+      1000, 1001, 1002, 1003, 1004, nullptr, StatusCode::SLOT_NOT_AVAILABLE);
+  revive->reviveRequests.insert(reviveRequest);
+
+  auto transportMessage = revive->toTransportMessage();
+  EXPECT_EQ(transportMessage.type(), CHANGE_LOCATION);
+  auto payload = transportMessage.payload();
+  auto pbRevive = utils::parseProto<PbRevive>(
+      reinterpret_cast<const uint8_t*>(payload.c_str()), payload.size());
+  EXPECT_EQ(pbRevive->shuffleid(), 1000);
+  EXPECT_EQ(pbRevive->mapid_size(), 1);
+  EXPECT_EQ(pbRevive->mapid(0), 1001);
+  EXPECT_EQ(pbRevive->partitioninfo_size(), 1);
+  auto& pbPartitionInfo = pbRevive->partitioninfo(0);
+  EXPECT_EQ(pbPartitionInfo.partitionid(), reviveRequest->partitionId);
+  EXPECT_EQ(pbPartitionInfo.epoch(), reviveRequest->epoch);
+  EXPECT_EQ(pbPartitionInfo.status(), reviveRequest->cause);
+}
+
+TEST(ControlMessagesTest, changeLocationResponse) {
+  PbChangeLocationResponse pbChangeLocationResponse;
+  pbChangeLocationResponse.add_endedmapid(1001);
+  auto pbPartitionInfo = pbChangeLocationResponse.add_partitioninfo();
+  pbPartitionInfo->set_partitionid(1002);
+  pbPartitionInfo->set_status(1);
+  pbPartitionInfo->set_oldavailable(true);
+  auto pbPartition = pbPartitionInfo->mutable_partition();
+  pbPartition->set_epoch(1003);
+
+  TransportMessage transportMessage(
+      CHANGE_LOCATION_RESPONSE, pbChangeLocationResponse.SerializeAsString());
+  auto changeLocationResponse =
+      ChangeLocationResponse::fromTransportMessage(transportMessage);
+  EXPECT_EQ(changeLocationResponse->endedMapIds.size(), 1);
+  EXPECT_EQ(changeLocationResponse->endedMapIds[0], 1001);
+  EXPECT_EQ(changeLocationResponse->partitionInfos.size(), 1);
+  auto partitionInfo = &changeLocationResponse->partitionInfos[0];
+  EXPECT_EQ(partitionInfo->partitionId, 1002);
+  EXPECT_EQ(partitionInfo->status, 1);
+  EXPECT_EQ(partitionInfo->oldAvailable, true);
+  EXPECT_EQ(partitionInfo->partition->epoch, 1003);
+}
+
 TEST(ControlMessagesTest, getReducerFileGroup) {
   auto getReducerFileGroup = std::make_unique<GetReducerFileGroup>();
   getReducerFileGroup->shuffleId = 1000;

@@ -60,6 +60,49 @@ struct MapperEndResponse {
       const TransportMessage& transportMessage);
 };
 
+struct ReviveRequest {
+  int shuffleId;
+  int mapId;
+  int attemptId;
+  int partitionId;
+  int epoch;
+  std::shared_ptr<const PartitionLocation> loc;
+  StatusCode cause;
+  std::atomic<int> reviveStatus{StatusCode::REVIVE_INITIALIZED};
+
+  ReviveRequest(
+      int _shuffleId,
+      int _mapId,
+      int _attemptId,
+      int _partitionId,
+      int _epoch,
+      std::shared_ptr<const PartitionLocation> _loc,
+      StatusCode _cause);
+};
+
+struct Revive {
+  int shuffleId;
+  std::unordered_set<int> mapIds;
+  std::unordered_set<std::shared_ptr<ReviveRequest>> reviveRequests;
+
+  TransportMessage toTransportMessage() const;
+};
+
+struct ChangeLocationPartitionInfo {
+  int partitionId;
+  StatusCode status;
+  std::shared_ptr<const PartitionLocation> partition;
+  bool oldAvailable;
+};
+
+struct ChangeLocationResponse {
+  std::vector<int> endedMapIds;
+  std::vector<ChangeLocationPartitionInfo> partitionInfos;
+
+  static std::unique_ptr<ChangeLocationResponse> fromTransportMessage(
+      const TransportMessage& transportMessage);
+};
+
 struct GetReducerFileGroup {
   int shuffleId;
 

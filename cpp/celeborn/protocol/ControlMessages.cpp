@@ -123,6 +123,71 @@ std::unique_ptr<MapperEndResponse> MapperEndResponse::fromTransportMessage(
   return std::move(response);
 }
 
+ReviveRequest::ReviveRequest(
+    int _shuffleId,
+    int _mapId,
+    int _attemptId,
+    int _partitionId,
+    int _epoch,
+    std::shared_ptr<const PartitionLocation> _loc,
+    StatusCode _cause)
+    : shuffleId(_shuffleId),
+      mapId(_mapId),
+      attemptId(_attemptId),
+      partitionId(_partitionId),
+      epoch(_epoch),
+      loc(std::move(_loc)),
+      cause(_cause) {}
+
+TransportMessage Revive::toTransportMessage() const {
+  MessageType type = CHANGE_LOCATION;
+  PbRevive pb;
+  pb.set_shuffleid(shuffleId);
+  for (auto mapId : mapIds) {
+    pb.add_mapid(mapId);
+  }
+  for (auto& reviveRequest : reviveRequests) {
+    auto pbRevivePartitionInfo = pb.add_partitioninfo();
+    pbRevivePartitionInfo->set_partitionid(reviveRequest->partitionId);
+    pbRevivePartitionInfo->set_epoch(reviveRequest->epoch);
+    pbRevivePartitionInfo->set_status(reviveRequest->cause);
+    if (reviveRequest->loc) {
+      pbRevivePartitionInfo->set_allocated_partition(
+          reviveRequest->loc->toPb().release());
+    }
+  }
+  std::string payload = pb.SerializeAsString();
+  return TransportMessage(type, std::move(payload));
+}
+
+std::unique_ptr<ChangeLocationResponse>
+ChangeLocationResponse::fromTransportMessage(
+    const TransportMessage& transportMessage) {
+  CELEBORN_CHECK(
+      transportMessage.type() == CHANGE_LOCATION_RESPONSE,
+      "transportMessageType mismatch");
+  auto payload = transportMessage.payload();
+  auto pbChangeLocationResponse = utils::parseProto<PbChangeLocationResponse>(
+      reinterpret_cast<const uint8_t*>(payload.c_str()), payload.size());
+  auto response = std::make_unique<ChangeLocationResponse>();
+  response->endedMapIds.reserve(pbChangeLocationResponse->endedmapid_size());
+  for (auto endedMapId : pbChangeLocationResponse->endedmapid()) {
+    response->endedMapIds.push_back(endedMapId);
+  }
+  int numPartitionInfo = pbChangeLocationResponse->partitioninfo_size();
+  response->partitionInfos.resize(numPartitionInfo);
+  for (int i = 0; i < numPartitionInfo; i++) {
+    auto& partitionInfo = response->partitionInfos[i];
+    auto& pbPartitionInfo = pbChangeLocationResponse->partitioninfo(i);
+    partitionInfo.partitionId = pbPartitionInfo.partitionid();
+    partitionInfo.status = toStatusCode(pbPartitionInfo.status());
+    partitionInfo.partition =
+        PartitionLocation::fromPb(pbPartitionInfo.partition());
+    partitionInfo.oldAvailable = pbPartitionInfo.oldavailable();
+  }
+  return std::move(response);
+}
+
 TransportMessage GetReducerFileGroup::toTransportMessage() const {
   MessageType type = GET_REDUCER_FILE_GROUP;
   PbGetReducerFileGroup pb;
