@@ -1118,6 +1118,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     FallbackPolicy.valueOf(get(FLINK_SHUFFLE_FALLBACK_POLICY))
 
   def shuffleFallbackPartitionThreshold: Long = get(SPARK_SHUFFLE_FALLBACK_PARTITION_THRESHOLD)
+  def shuffleFallbackMapPartitionThreshold: Long =
+    get(SPARK_SHUFFLE_FALLBACK_MAP_PARTITION_THRESHOLD)
   def shuffleExpiredCheckIntervalMs: Long = get(SHUFFLE_EXPIRED_CHECK_INTERVAL)
   def shuffleManagerPort: Int = get(CLIENT_SHUFFLE_MANAGER_PORT)
   def shuffleChunkSize: Long = get(SHUFFLE_CHUNK_SIZE)
@@ -5553,6 +5555,16 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.5.0")
       .doc("Celeborn will only accept shuffle of partition number lower than this configuration value. " +
+        s"This configuration only takes effect when `${CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY.key}` " +
+        s"is `${FallbackPolicy.AUTO.name}`.")
+      .longConf
+      .createWithDefault(Int.MaxValue)
+
+  val SPARK_SHUFFLE_FALLBACK_MAP_PARTITION_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.client.spark.shuffle.fallback.numMapPartitionsThreshold")
+      .categories("client")
+      .version("0.6.1")
+      .doc("Celeborn will only accept shuffle of map partition number lower than this configuration value. " +
         s"This configuration only takes effect when `${CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY.key}` " +
         s"is `${FallbackPolicy.AUTO.name}`.")
       .longConf

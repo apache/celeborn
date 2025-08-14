@@ -30,12 +30,14 @@ public class ShuffleFallbackPolicyFactory {
     // to reduce unnecessary RPC for check whether to fallback.
     shuffleFallbackPolicies.add(ForceFallbackPolicy.INSTANCE);
     shuffleFallbackPolicies.add(ShufflePartitionsFallbackPolicy.INSTANCE);
+    shuffleFallbackPolicies.add(ShuffleMapPartitionsFallbackPolicy.INSTANCE);
     shuffleFallbackPolicies.add(QuotaFallbackPolicy.INSTANCE);
     shuffleFallbackPolicies.add(WorkersAvailableFallbackPolicy.INSTANCE);
     for (ShuffleFallbackPolicy shuffleFallbackPolicy :
         ServiceLoader.load(ShuffleFallbackPolicy.class)) {
       if (!(shuffleFallbackPolicy instanceof ForceFallbackPolicy
           || shuffleFallbackPolicy instanceof ShufflePartitionsFallbackPolicy
+          || shuffleFallbackPolicy instanceof ShuffleMapPartitionsFallbackPolicy
           || shuffleFallbackPolicy instanceof QuotaFallbackPolicy
           || shuffleFallbackPolicy instanceof WorkersAvailableFallbackPolicy)) {
         shuffleFallbackPolicies.add(shuffleFallbackPolicy);
