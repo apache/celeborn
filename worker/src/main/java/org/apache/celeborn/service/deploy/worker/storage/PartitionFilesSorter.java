@@ -145,7 +145,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                 (key, cache) ->
                     ((Map<Integer, List<ShuffleBlockInfo>>) cache)
                         .values().stream().mapToInt(List::size).sum())
+            .recordStats()
             .build();
+    source.addGauge(WorkerSource.SORTER_CACHE_HIT_RATE(), () -> indexCache.stats().hitRate());
 
     fileSorterSchedulerThread =
         ThreadUtils.newDaemonSingleThreadExecutor("worker-file-sorter-scheduler");
