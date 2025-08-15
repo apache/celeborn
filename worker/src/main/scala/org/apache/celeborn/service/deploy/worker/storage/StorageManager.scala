@@ -1147,6 +1147,15 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       } else if (dirs.nonEmpty && location.getStorageInfo.localDiskAvailable()) {
         val dir = dirs(getNextIndex % dirs.size)
         val mountPoint = DeviceInfo.getMountPoint(dir.getAbsolutePath, mountPoints)
+        val flusher = localFlushers.get(mountPoint)
+        val diskFull = checkDiskFull(flusher)
+        // When the disk space is full, there is no need to create DiskFileInfo.
+        if (diskFull) {
+          return (
+            null,
+            null,
+            null)
+        }
         val shuffleDir = new File(dir, s"$appId/$shuffleId")
         shuffleDir.mkdirs()
         val file = new File(shuffleDir, fileName)
@@ -1218,6 +1227,16 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         mapFileMeta
       case PartitionType.MAPGROUP =>
         throw new NotImplementedError("Map group is not implemented")
+    }
+  }
+
+  private def checkDiskFull(flusher: Flusher): Boolean = {
+    if (flusher.isInstanceOf[LocalFlusher]) {
+      val mountPoint = flusher.asInstanceOf[LocalFlusher].mountPoint
+      val diskInfo = diskInfos.get(mountPoint)
+      diskInfo.status.equals(DiskStatus.HIGH_DISK_USAGE) || diskInfo.actualUsableSpace <= 0
+    } else {
+      false
     }
   }
 }

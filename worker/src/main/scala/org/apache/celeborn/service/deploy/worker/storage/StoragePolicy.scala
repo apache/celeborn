@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo}
+import org.apache.celeborn.common.meta.{DiskFileInfo, DiskStatus, FileInfo}
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.{PartitionType, StorageInfo}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
@@ -140,7 +140,8 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                 partitionDataWriterContext.isPartitionSplitEnabled)
               partitionDataWriterContext.setWorkingDir(workingDir)
               val metaHandler = getPartitionMetaHandler(diskFileInfo)
-              if ((storageInfoType == StorageInfo.Type.HDD || storageInfoType == StorageInfo.Type.SSD) && location.getStorageInfo.localDiskAvailable()) {
+              val isLocalDiskFull = flusher == null && diskFileInfo == null && workingDir == null
+              if ((storageInfoType == StorageInfo.Type.HDD || storageInfoType == StorageInfo.Type.SSD) && location.getStorageInfo.localDiskAvailable() && !isLocalDiskFull) {
                 new LocalTierWriter(
                   conf,
                   metaHandler,
@@ -212,4 +213,5 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
     throw new CelebornIOException(
       s"Create file failed for context ${partitionDataWriterContext.toString}")
   }
+
 }
