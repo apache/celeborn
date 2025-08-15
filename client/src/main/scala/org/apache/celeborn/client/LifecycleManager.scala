@@ -248,12 +248,17 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   private val messagesHelper: TransportMessagesHelper = new TransportMessagesHelper()
 
+  private def registerApplicationInfo(): Unit = {
+    masterClient.send(RegisterApplicationInfo(appUniqueId, userIdentifier))
+  }
+
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
   // `masterClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
   // a reference to `masterClient`, there may be cases where `masterClient` is null when
   // `masterClient` is called. Therefore, it's necessary to uniformly execute the initialization
   // method at the end of the construction of the class to perform the initialization operations.
   private def initialize(): Unit = {
+    registerApplicationInfo()
     // noinspection ConvertExpressionToSAM
     commitManager.start()
     heartbeater.start()

@@ -68,6 +68,30 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
+  public void handleRegisterApplicationInfo(
+      String appId, UserIdentifier userIdentifier, String requestId) {
+    try {
+      ratisServer.submitRequest(
+          ResourceRequest.newBuilder()
+              .setCmdType(Type.RegisterApplicationInfo)
+              .setRequestId(requestId)
+              .setRegisterApplicationInfoRequest(
+                  ResourceProtos.RegisterApplicationInfoRequest.newBuilder()
+                      .setAppId(appId)
+                      .setUserIdentifier(
+                          ResourceProtos.UserIdentifier.newBuilder()
+                              .setTenantId(userIdentifier.tenantId())
+                              .setName(userIdentifier.name())
+                              .build())
+                      .build())
+              .build());
+    } catch (CelebornRuntimeException e) {
+      LOG.error("Handle app lost for {} failed!", appId, e);
+      throw e;
+    }
+  }
+
+  @Override
   public void handleRequestSlots(
       String shuffleKey,
       String hostName,

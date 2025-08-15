@@ -146,6 +146,16 @@ public class MetaHandler {
           LOG.debug("Handle batch unregister shuffle for {}", shuffleKeys);
           break;
 
+        case RegisterApplicationInfo:
+          appId = request.getRegisterApplicationInfoRequest().getAppId();
+          UserIdentifier userIdentifier =
+              new UserIdentifier(
+                  request.getRegisterApplicationInfoRequest().getUserIdentifier().getTenantId(),
+                  request.getRegisterApplicationInfoRequest().getUserIdentifier().getName());
+          metaSystem.updateApplicationInfo(appId, userIdentifier);
+          LOG.debug("Handle register application info for {}/{}", appId, userIdentifier);
+          break;
+
         case AppHeartbeat:
           appId = request.getAppHeartbeatRequest().getAppId();
           long time = request.getAppHeartbeatRequest().getTime();

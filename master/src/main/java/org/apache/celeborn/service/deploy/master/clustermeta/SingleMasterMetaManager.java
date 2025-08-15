@@ -51,6 +51,12 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   }
 
   @Override
+  public void handleRegisterApplicationInfo(
+      String appId, UserIdentifier userIdentifier, String requestId) {
+    updateApplicationInfo(appId, userIdentifier);
+  }
+
+  @Override
   public void handleRequestSlots(
       String shuffleKey,
       String hostName,

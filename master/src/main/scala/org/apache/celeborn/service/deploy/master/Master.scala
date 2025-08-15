@@ -422,6 +422,12 @@ private[celeborn] class Master(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
+    case RegisterApplicationInfo(appId, userIdentifier, requestId) =>
+      logDebug(s"Received RegisterApplicationInfo request for app $appId/$userIdentifier.")
+      checkAuth(context, appId)
+      executeWithLeaderChecker(
+        context,
+        handleRegisterApplicationInfo(context, appId, userIdentifier, requestId))
     case HeartbeatFromApplication(
           appId,
           totalWritten,
@@ -1157,6 +1163,15 @@ private[celeborn] class Master(
         Option(statusSystem.shuffleFallbackCounts.get(fallbackPolicy)).getOrElse(0L)
       }
     }
+  }
+
+  private def handleRegisterApplicationInfo(
+      context: RpcCallContext,
+      appId: String,
+      userIdentifier: UserIdentifier,
+      requestId: String): Unit = {
+    statusSystem.handleRegisterApplicationInfo(appId, userIdentifier, requestId)
+    context.reply(OneWayMessageResponse)
   }
 
   private def handleHeartbeatFromApplication(
