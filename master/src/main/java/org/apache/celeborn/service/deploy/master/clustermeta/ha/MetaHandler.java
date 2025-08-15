@@ -43,9 +43,11 @@ public class MetaHandler {
   private static final Logger LOG = LoggerFactory.getLogger(MetaHandler.class);
 
   private final HAMasterMetaManager metaSystem;
+  private final MetaSource metaSource;
 
-  public MetaHandler(HAMasterMetaManager metaSystem) {
+  public MetaHandler(HAMasterMetaManager metaSystem, MetaSource metaSource) {
     this.metaSystem = metaSystem;
+    this.metaSource = metaSource;
   }
 
   public void setUpMasterRatisServer(CelebornConf conf, MasterClusterInfo masterClusterInfo)
@@ -102,6 +104,7 @@ public class MetaHandler {
     PbMetaRequestType metaRequestType = request.getMetaRequestType();
     org.apache.celeborn.common.protocol.PbMetaRequestResponse.Builder responseBuilder =
         getMasterMetaResponseBuilder(request);
+    long startTs = 0;
     try {
       String shuffleKey;
       String appId;
@@ -114,6 +117,7 @@ public class MetaHandler {
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption;
       WorkerStatus workerStatus;
       List<Integer> lostShuffles;
+      startTs = System.nanoTime();
       switch (metaRequestType) {
         case ReviseLostShuffles:
           appId = request.getReviseLostShufflesRequest().getAppId();
@@ -333,6 +337,10 @@ public class MetaHandler {
       if (e.getMessage() != null) {
         responseBuilder.setMessage(e.getMessage());
       }
+    } finally {
+      long processTime = System.nanoTime() - startTs;
+      metaSource.updateTimer(MetaSource.PROCESS_TIME(), processTime);
+      metaSource.updateTimer(metaRequestType.getDescriptorForType().getName(), processTime);
     }
     return responseBuilder.build();
   }

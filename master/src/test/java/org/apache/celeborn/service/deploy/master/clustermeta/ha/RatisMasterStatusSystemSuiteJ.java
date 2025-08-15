@@ -112,9 +112,13 @@ public class RatisMasterStatusSystemSuiteJ {
         STATUSSYSTEM2 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
         STATUSSYSTEM3 = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
 
-        MetaHandler handler1 = new MetaHandler(STATUSSYSTEM1);
-        MetaHandler handler2 = new MetaHandler(STATUSSYSTEM2);
-        MetaHandler handler3 = new MetaHandler(STATUSSYSTEM3);
+        MetaSource source1 = new MetaSource(new CelebornConf());
+        MetaSource source2 = new MetaSource(new CelebornConf());
+        MetaSource source3 = new MetaSource(new CelebornConf());
+
+        MetaHandler handler1 = new MetaHandler(STATUSSYSTEM1, source1);
+        MetaHandler handler2 = new MetaHandler(STATUSSYSTEM2, source2);
+        MetaHandler handler3 = new MetaHandler(STATUSSYSTEM3, source3);
 
         String id1 = UUID.randomUUID().toString();
         String id2 = UUID.randomUUID().toString();

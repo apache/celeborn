@@ -53,7 +53,7 @@ import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeU
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.audit.ShuffleAuditLogger
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
-import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
+import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler, MetaSource}
 import org.apache.celeborn.service.deploy.master.quota.QuotaManager
 import org.apache.celeborn.service.deploy.master.tags.TagsManager
 
@@ -147,10 +147,11 @@ private[celeborn] class Master(
     }
 
   private val rackResolver = new CelebornRackResolver(conf)
-  private[celeborn] val statusSystem =
+  private[celeborn] val (statusSystem, haMetaSource) =
     if (haEnabled) {
+      val metaSource = new MetaSource(conf)
       val sys = new HAMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
-      val handler = new MetaHandler(sys)
+      val handler = new MetaHandler(sys, metaSource)
       try {
         handler.setUpMasterRatisServer(conf, masterArgs.masterClusterInfo.get)
       } catch {
@@ -165,10 +166,13 @@ private[celeborn] class Master(
             logError("Face unexpected IO exception during starting Ratis server", ioe)
           }
       }
-      sys
+      (sys, metaSource)
     } else {
-      new SingleMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
+      (new SingleMasterMetaManager(internalRpcEnvInUse, conf, rackResolver), null)
     }
+  if (haMetaSource != null) {
+    metricsSystem.registerSource(haMetaSource)
+  }
   secretRegistry.setMetadataHandler(statusSystem)
 
   // Threads

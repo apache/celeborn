@@ -312,9 +312,14 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     HAMasterMetaManager masterStatusSystem1 = new HAMasterMetaManager(mockRpcEnv, conf1);
     HAMasterMetaManager masterStatusSystem2 = new HAMasterMetaManager(mockRpcEnv, conf2);
     HAMasterMetaManager masterStatusSystem3 = new HAMasterMetaManager(mockRpcEnv, conf3);
-    MetaHandler handler1 = new MetaHandler(masterStatusSystem1);
-    MetaHandler handler2 = new MetaHandler(masterStatusSystem2);
-    MetaHandler handler3 = new MetaHandler(masterStatusSystem3);
+
+    MetaSource source1 = new MetaSource(new CelebornConf());
+    MetaSource source2 = new MetaSource(new CelebornConf());
+    MetaSource source3 = new MetaSource(new CelebornConf());
+
+    MetaHandler handler1 = new MetaHandler(masterStatusSystem1, source1);
+    MetaHandler handler2 = new MetaHandler(masterStatusSystem2, source2);
+    MetaHandler handler3 = new MetaHandler(masterStatusSystem3, source3);
     MasterNode masterNode1 =
         new MasterNode.Builder()
             .setHost(Utils.localHostName(conf1))
