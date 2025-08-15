@@ -282,7 +282,7 @@ object DeviceInfo {
     val retDiskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
 
     workingDirs.groupBy { case (dir, _, _, _) =>
-      getMountPoint(dir.getCanonicalPath, mountPointToDeviceInfo.keySet())
+      getMountPoint(getCanonicalPath(dir), mountPointToDeviceInfo.keySet())
     }.foreach {
       case (mountPoint, dirs) =>
         if (mountPoint.nonEmpty) {
@@ -290,7 +290,7 @@ object DeviceInfo {
           val diskInfo = new DiskInfo(
             mountPoint,
             dirs.map { workingDir =>
-              new File(workingDir._1.getCanonicalPath)
+              new File(getCanonicalPath(workingDir._1))
             }.toList,
             deviceInfo,
             conf)
@@ -303,7 +303,7 @@ object DeviceInfo {
           retDiskInfos.put(mountPoint, diskInfo)
         } else {
           logger.warn(
-            s"Can't find mount point for ${dirs.map(_._1.getCanonicalPath).mkString(",")}")
+            s"Can't find mount point for ${dirs.map(d => getCanonicalPath(d._1)).mkString(",")}")
         }
     }
     deviceNameToDeviceInfo.asScala.foreach {
@@ -338,5 +338,15 @@ object DeviceInfo {
 
   def getMountPoint(absPath: String, diskInfos: util.Map[String, DiskInfo]): String = {
     getMountPoint(absPath, diskInfos.keySet())
+  }
+
+  private def getCanonicalPath(file: File): String = {
+    try {
+      file.getCanonicalPath
+    } catch {
+      case e: Exception =>
+        logger.warn(s"Failed to get canonical path for file ${file.getAbsolutePath}", e)
+        file.getAbsolutePath
+    }
   }
 }
