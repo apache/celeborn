@@ -638,6 +638,7 @@ private[celeborn] class Worker(
       }
       messagesHelper.close()
       super.stop(exitKind)
+      workerSource.destroy()
 
       logInfo("Worker is stopped.")
       stopped = true
