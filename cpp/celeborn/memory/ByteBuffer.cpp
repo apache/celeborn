@@ -84,7 +84,7 @@ std::unique_ptr<ReadOnlyByteBuffer> ReadOnlyByteBuffer::readToReadOnlyBuffer(
       break;
     }
     std::unique_ptr<folly::IOBuf> newBlock =
-        std::move(this->cursor_->currentBuffer()->clone());
+        std::move(this->cursor_->currentBuffer()->cloneOne());
     newBlock->pop();
     newBlock->trimStart(this->cursor_->getPositionInCurrentBuffer());
     if (newBlock->length() > len - cnt) {
