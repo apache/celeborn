@@ -412,6 +412,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   @VisibleForTesting
   val evictedFileCount = new AtomicLong
+  val evictedLocalFileCount = new AtomicLong
+  val evictedDfsFileCount = new AtomicLong
 
   @throws[IOException]
   def createPartitionDataWriter(
