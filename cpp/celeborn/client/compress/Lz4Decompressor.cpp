@@ -25,16 +25,16 @@ namespace celeborn {
 namespace client {
 namespace compress {
 Lz4Decompressor::Lz4Decompressor() {
-  xxhash_state_ = XXH32_createState();
-  if (!xxhash_state_) {
+  xxhashState_ = XXH32_createState();
+  if (!xxhashState_) {
     CELEBORN_FAIL("Failed to create XXH32 state.")
   }
-  XXH32_reset(xxhash_state_, kDefaultSeed);
+  XXH32_reset(xxhashState_, kDefaultSeed);
 }
 
 Lz4Decompressor::~Lz4Decompressor() {
-  if (xxhash_state_) {
-    XXH32_freeState(xxhash_state_);
+  if (xxhashState_) {
+    XXH32_freeState(xxhashState_);
   }
 }
 
@@ -79,9 +79,9 @@ int Lz4Decompressor::decompress(
           std::to_string(compressionMethod));
   }
 
-  XXH32_reset(xxhash_state_, kDefaultSeed);
-  XXH32_update(xxhash_state_, dstPtr, originalLen);
-  const uint32_t actualCheck = XXH32_digest(xxhash_state_) & 0xFFFFFFFL;
+  XXH32_reset(xxhashState_, kDefaultSeed);
+  XXH32_update(xxhashState_, dstPtr, originalLen);
+  const uint32_t actualCheck = XXH32_digest(xxhashState_) & 0xFFFFFFFL;
 
   if (static_cast<uint32_t>(expectedCheck) != actualCheck) {
     CELEBORN_FAIL(

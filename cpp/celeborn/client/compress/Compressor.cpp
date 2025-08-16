@@ -15,30 +15,28 @@
  * limitations under the License.
  */
 
-#pragma once
+#include <stdexcept>
 
-#include <xxhash.h>
-#include "celeborn/client/compress/Decompressor.h"
-#include "celeborn/client/compress/Lz4Trait.h"
+#include "celeborn/client/compress/Lz4Compressor.h"
+#include "celeborn/utils/Exceptions.h"
 
 namespace celeborn {
 namespace client {
 namespace compress {
 
-class Lz4Decompressor final : public Decompressor, Lz4Trait {
- public:
-  Lz4Decompressor();
-  ~Lz4Decompressor() override;
-
-  int getOriginalLen(const uint8_t* src) override;
-  int decompress(const uint8_t* src, uint8_t* dst, int dstOff) override;
-
-  Lz4Decompressor(const Lz4Decompressor&) = delete;
-  Lz4Decompressor& operator=(const Lz4Decompressor&) = delete;
-
- private:
-  XXH32_state_t* xxhashState_;
-};
+std::unique_ptr<Compressor> Compressor::createCompressor(
+    const conf::CelebornConf& conf) {
+  const auto codec = conf.shuffleCompressionCodec();
+  switch (codec) {
+    case protocol::CompressionCodec::LZ4:
+      return std::make_unique<Lz4Compressor>();
+    case protocol::CompressionCodec::ZSTD:
+      // TODO: impl zstd
+      CELEBORN_FAIL("Compression codec ZSTD is not supported.");
+    default:
+      CELEBORN_FAIL("Unknown compression codec.");
+  }
+}
 
 } // namespace compress
 } // namespace client
