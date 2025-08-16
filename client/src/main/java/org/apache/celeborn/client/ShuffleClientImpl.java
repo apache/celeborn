@@ -126,6 +126,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       JavaUtils.newConcurrentHashMap();
   private boolean pushReplicateEnabled;
   private boolean fetchExcludeWorkerOnFailureEnabled;
+  private final int loadReducerFileGroupMaxRetries;
+  private final long loadReducerFileGroupRetryWaitMs;
 
   private final ExecutorService pushDataRetryPool;
 
@@ -202,6 +204,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     shuffleCompressionEnabled = !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
     pushReplicateEnabled = conf.clientPushReplicateEnabled();
     fetchExcludeWorkerOnFailureEnabled = conf.clientFetchExcludeWorkerOnFailureEnabled();
+    loadReducerFileGroupMaxRetries = conf.clientLoadReducerFileGroupMaxRetries();
+    loadReducerFileGroupRetryWaitMs = conf.clientLoadReducerFileGroupRetryWaitMs();
     shuffleIntegrityCheckEnabled = conf.clientShuffleIntegrityCheckEnabled();
     if (conf.clientPushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
@@ -1849,70 +1853,87 @@ public class ShuffleClientImpl extends ShuffleClient {
       logger.warn(exceptionMsg);
       return Tuple3.apply(null, exceptionMsg, exception);
     }
-    try {
-      GetReducerFileGroup getReducerFileGroup =
-          new GetReducerFileGroup(shuffleId, isSegmentGranularityVisible, SerdeVersion.V1);
+    int numRetries = loadReducerFileGroupMaxRetries;
+    while (numRetries > 0) {
+      try {
+        GetReducerFileGroup getReducerFileGroup =
+            new GetReducerFileGroup(shuffleId, isSegmentGranularityVisible, SerdeVersion.V1);
 
-      GetReducerFileGroupResponse response =
-          lifecycleManagerRef.askSync(
-              getReducerFileGroup,
-              conf.clientRpcGetReducerFileGroupAskTimeout(),
-              rpcMaxRetries,
-              rpcRetryWait,
-              ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
-      switch (response.status()) {
-        case SUCCESS:
-          if (response.broadcast() != null && response.broadcast().length > 0) {
-            response =
-                ShuffleClient.deserializeReducerFileGroupResponse(shuffleId, response.broadcast());
-            if (response == null) {
-              throw new CelebornBroadcastException(
-                  "Failed to get GetReducerFileGroupResponse broadcast for shuffle: " + shuffleId);
+        GetReducerFileGroupResponse response =
+            lifecycleManagerRef.askSync(
+                getReducerFileGroup,
+                conf.clientRpcGetReducerFileGroupAskTimeout(),
+                rpcMaxRetries,
+                rpcRetryWait,
+                ClassTag$.MODULE$.apply(GetReducerFileGroupResponse.class));
+        switch (response.status()) {
+          case SUCCESS:
+            if (response.broadcast() != null && response.broadcast().length > 0) {
+              response =
+                  ShuffleClient.deserializeReducerFileGroupResponse(
+                      shuffleId, response.broadcast());
+              if (response == null) {
+                throw new CelebornBroadcastException(
+                    "Failed to get GetReducerFileGroupResponse broadcast for shuffle: "
+                        + shuffleId);
+              }
             }
-          }
-          logger.info(
-              "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
-              shuffleId,
-              TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - getReducerFileGroupStartTime),
-              response.fileGroup().size());
-          return Tuple3.apply(
-              new ReduceFileGroups(
-                  response.fileGroup(),
-                  response.attempts(),
-                  response.partitionIds(),
-                  response.pushFailedBatches()),
-              null,
-              null);
-        case SHUFFLE_UNREGISTERED:
-          logger.warn(
-              "Request {} return {} for {}.", getReducerFileGroup, response.status(), shuffleId);
-          // return empty result
-          return Tuple3.apply(
-              new ReduceFileGroups(
-                  response.fileGroup(),
-                  response.attempts(),
-                  response.partitionIds(),
-                  response.pushFailedBatches()),
-              null,
-              null);
-        case STAGE_END_TIMEOUT:
-        case SHUFFLE_DATA_LOST:
-          exceptionMsg =
-              String.format(
-                  "Request %s return %s for %s.",
-                  getReducerFileGroup, response.status(), shuffleId);
-          logger.warn(exceptionMsg);
-          break;
-        default: // fall out
+            logger.info(
+                "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
+                shuffleId,
+                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - getReducerFileGroupStartTime),
+                response.fileGroup().size());
+            return Tuple3.apply(
+                new ReduceFileGroups(
+                    response.fileGroup(),
+                    response.attempts(),
+                    response.partitionIds(),
+                    response.pushFailedBatches()),
+                null,
+                null);
+          case SHUFFLE_UNREGISTERED:
+            logger.warn(
+                "Request {} return {} for {}.", getReducerFileGroup, response.status(), shuffleId);
+            // return empty result
+            return Tuple3.apply(
+                new ReduceFileGroups(
+                    response.fileGroup(),
+                    response.attempts(),
+                    response.partitionIds(),
+                    response.pushFailedBatches()),
+                null,
+                null);
+          case STAGE_END_TIMEOUT:
+          case SHUFFLE_DATA_LOST:
+            exceptionMsg =
+                String.format(
+                    "Request %s return %s for %s.",
+                    getReducerFileGroup, response.status(), shuffleId);
+            logger.warn(exceptionMsg);
+            break;
+          default: // fall out
+        }
+      } catch (Exception e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
+        logger.error(
+            "Exception raised while call GetReducerFileGroup for {}. remain retry times {}.",
+            shuffleId,
+            numRetries - 1,
+            e);
+        exceptionMsg = e.getMessage();
+        exception = e;
       }
-    } catch (Exception e) {
-      if (e instanceof InterruptedException) {
-        Thread.currentThread().interrupt();
+
+      try {
+        TimeUnit.MILLISECONDS.sleep(loadReducerFileGroupRetryWaitMs);
+      } catch (InterruptedException e) {
+        break;
       }
-      logger.error("Exception raised while call GetReducerFileGroup for {}.", shuffleId, e);
-      exceptionMsg = e.getMessage();
-      exception = e;
+      numRetries--;
     }
+
     return Tuple3.apply(null, exceptionMsg, exception);
   }
 
