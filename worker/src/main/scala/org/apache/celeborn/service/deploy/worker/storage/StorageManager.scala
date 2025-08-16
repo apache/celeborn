@@ -470,8 +470,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           workerSource,
           conf,
           deviceMonitor,
-          partitionDataWriterContext,
-          partitionType)
+          partitionDataWriterContext)
       } catch {
         case e: Exception =>
           logError("Create partition data writer failed", e)

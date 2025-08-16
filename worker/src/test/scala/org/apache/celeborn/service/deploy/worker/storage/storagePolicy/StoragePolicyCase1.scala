@@ -99,6 +99,7 @@ class StoragePolicyCase1 extends CelebornFunSuite {
 
   test("test create file order case1") {
     when(mockedPartitionWriterContext.getPartitionLocation).thenAnswer(memoryHintPartitionLocation)
+    when(mockedPartitionWriterContext.getPartitionType).thenAnswer(PartitionType.REDUCE)
     val conf = new CelebornConf()
     val flushLock = new AnyRef
     conf.set("celeborn.worker.storage.storagePolicy.createFilePolicy", "MEMORY,SSD,HDD,HDFS,OSS,S3")
@@ -107,7 +108,6 @@ class StoragePolicyCase1 extends CelebornFunSuite {
     val notifier = new FlushNotifier
     val file = storagePolicy.createFileWriter(
       mockedPartitionWriterContext,
-      PartitionType.REDUCE,
       pendingWriters,
       notifier)
     assert(file.isInstanceOf[MemoryTierWriter])
