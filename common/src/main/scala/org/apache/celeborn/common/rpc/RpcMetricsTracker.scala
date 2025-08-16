@@ -67,6 +67,13 @@ private[celeborn] class RpcMetricsTracker(
     }
   }
 
+  def close(): Unit = {
+    histogramMap.clear()
+    rpcSource.removeGauge(RpcSource.QUEUE_LENGTH)
+    rpcSource.removeTimer(RpcSource.QUEUE_TIME)
+    rpcSource.removeTimer(RpcSource.PROCESS_TIME)
+  }
+
   def updateHistogram(name: String, value: Long): Unit = {
     histogramMap.putIfAbsent(name, new Histogram(new UniformReservoir()))
     val histogram = histogramMap.get(name)
@@ -143,7 +150,7 @@ private[celeborn] class RpcMetricsTracker(
     if (!useHistogram)
       return
 
-    val builder = new StringBuilder();
+    val builder = new StringBuilder()
     builder.append(s"RPC statistics for $name (time unit: ns)").append("\n")
     builder.append(s"current queue size = ${queueLengthFunc()}").append("\n")
     builder.append(s"max queue length = ${maxQueueLength.get()}").append("\n")
