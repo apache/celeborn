@@ -536,7 +536,9 @@ object ControlMessages extends Logging {
       userIdentifier: UserIdentifier,
       pushDataTimeout: Long,
       partitionSplitEnabled: Boolean = false,
-      isSegmentGranularityVisible: Boolean = false)
+      isSegmentGranularityVisible: Boolean = false,
+      createFileOrder: String = "",
+      evictFileOrder: String = "")
     extends WorkerMessage
 
   case class ReserveSlotsResponse(
@@ -981,7 +983,9 @@ object ControlMessages extends Logging {
           userIdentifier,
           pushDataTimeout,
           partitionSplitEnabled,
-          isSegmentGranularityVisible) =>
+          isSegmentGranularityVisible,
+          createFileOrder,
+          evictFileOrder) =>
       val payload = PbReserveSlots.newBuilder()
         .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
@@ -991,6 +995,8 @@ object ControlMessages extends Logging {
         .setSplitMode(splitMode.getValue)
         .setPartitionType(partType.getValue)
         .setRangeReadFilter(rangeReadFilter)
+        .setCreateFileOrder(createFileOrder)
+        .setEvictFileOrder(evictFileOrder)
         .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
         .setPushDataTimeout(pushDataTimeout)
         .setPartitionSplitEnabled(partitionSplitEnabled)
@@ -1421,7 +1427,9 @@ object ControlMessages extends Logging {
           userIdentifier,
           pbReserveSlots.getPushDataTimeout,
           pbReserveSlots.getPartitionSplitEnabled,
-          pbReserveSlots.getIsSegmentGranularityVisible)
+          pbReserveSlots.getIsSegmentGranularityVisible,
+          pbReserveSlots.getCreateFileOrder,
+          pbReserveSlots.getEvictFileOrder)
 
       case RESERVE_SLOTS_RESPONSE_VALUE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)

@@ -42,6 +42,10 @@ public class PartitionDataWriterContext {
   private PartitionDataWriter partitionDataWriter;
   private DeviceMonitor deviceMonitor;
 
+  private String createFileOrder = "";
+
+  private String evictFileOrder = "";
+
   public PartitionDataWriterContext(
       long splitThreshold,
       PartitionSplitMode partitionSplitMode,
@@ -53,6 +57,34 @@ public class PartitionDataWriterContext {
       PartitionType partitionType,
       boolean partitionSplitEnabled,
       boolean isSegmentGranularityVisible) {
+    this(
+        splitThreshold,
+        partitionSplitMode,
+        rangeReadFilter,
+        partitionLocation,
+        appId,
+        shuffleId,
+        userIdentifier,
+        partitionType,
+        partitionSplitEnabled,
+        isSegmentGranularityVisible,
+        "",
+        "");
+  }
+
+  public PartitionDataWriterContext(
+      long splitThreshold,
+      PartitionSplitMode partitionSplitMode,
+      boolean rangeReadFilter,
+      PartitionLocation partitionLocation,
+      String appId,
+      int shuffleId,
+      UserIdentifier userIdentifier,
+      PartitionType partitionType,
+      boolean partitionSplitEnabled,
+      boolean isSegmentGranularityVisible,
+      String createFileOrder,
+      String evictFileOrder) {
     this.splitThreshold = splitThreshold;
     this.partitionSplitMode = partitionSplitMode;
     this.rangeReadFilter = rangeReadFilter;
@@ -64,6 +96,8 @@ public class PartitionDataWriterContext {
     this.partitionType = partitionType;
     this.shuffleKey = Utils.makeShuffleKey(appId, shuffleId);
     this.isSegmentGranularityVisible = isSegmentGranularityVisible;
+    this.createFileOrder = createFileOrder;
+    this.evictFileOrder = evictFileOrder;
   }
 
   public long getSplitThreshold() {
@@ -132,6 +166,22 @@ public class PartitionDataWriterContext {
 
   public void setDeviceMonitor(DeviceMonitor deviceMonitor) {
     this.deviceMonitor = deviceMonitor;
+  }
+
+  public String getCreateFileOrder() {
+    return createFileOrder;
+  }
+
+  public void setCreateFileOrder(String createFileOrder) {
+    this.createFileOrder = createFileOrder;
+  }
+
+  public String getEvictFileOrder() {
+    return evictFileOrder;
+  }
+
+  public void setEvictFileOrder(String evictFileOrder) {
+    this.evictFileOrder = evictFileOrder;
   }
 
   @Override

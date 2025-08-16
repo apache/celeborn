@@ -1124,6 +1124,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def dfsReadChunkSize: Long = get(CLIENT_FETCH_DFS_READ_CHUNK_SIZE)
   def shufflePartitionSplitMode: PartitionSplitMode =
     PartitionSplitMode.valueOf(get(SHUFFLE_PARTITION_SPLIT_MODE))
+
+  def clientStoragePolicyCreateFilePolicy: String =
+    get(CLIENT_STORAGE_CREATE_FILE_POLICY).getOrElse("")
+
+  def clientStoragePolicyEvictFilePolicy: String =
+    get(CLIENT_STORAGE_EVICT_FILE_POLICY).getOrElse("")
+
   def shufflePartitionSplitThreshold: Long = get(SHUFFLE_PARTITION_SPLIT_THRESHOLD)
   def batchHandleChangePartitionEnabled: Boolean = get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED)
   def batchHandleChangePartitionBuckets: Int =
@@ -5236,6 +5243,36 @@ object CelebornConf extends Logging {
       .doc("Max retry times for client to register shuffle.")
       .intConf
       .createWithDefault(3)
+
+  val CLIENT_STORAGE_CREATE_FILE_POLICY: OptionalConfigEntry[String] =
+    buildConf("celeborn.client.storage.storagePolicy.createFilePolicy")
+      .categories("client")
+      .doc("This defined the order for creating files across available storages." +
+        " Available storages options are: MEMORY,SSD,HDD,HDFS,OSS")
+      .version("0.5.1")
+      .stringConf
+      .checkValue(
+        _.split(",").map(str => StorageInfo.typeNames.contains(str.trim.toUpperCase)).forall(p =>
+          p),
+        "Will use default create file order. Default order: MEMORY,SSD,HDD,HDFS,OSS")
+      .createOptional
+
+  val CLIENT_STORAGE_EVICT_FILE_POLICY: OptionalConfigEntry[String] =
+    buildConf("celeborn.client.storage.storagePolicy.evictFilePolicy")
+      .categories("client")
+      .doc("This define the order of evict files if the storages are available." +
+        " Available storages: MEMORY,SSD,HDD,HDFS. " +
+        "Definition: StorageTypes|StorageTypes|StorageTypes. " +
+        "Example: MEMORY,SSD|SSD,HDFS." +
+        " The example means that a MEMORY shuffle file can be evicted to SSD " +
+        "and a SSD shuffle file can be evicted to HDFS.")
+      .version("0.5.1")
+      .stringConf
+      .checkValue(
+        _.replace("|", ",").split(",").map(str =>
+          StorageInfo.typeNames.contains(str.trim.toUpperCase)).forall(p => p),
+        "Will use default evict order. Default order: MEMORY,SSD,HDD,HDFS,OSS")
+      .createOptional
 
   val CLIENT_REGISTER_SHUFFLE_RETRY_WAIT: ConfigEntry[Long] =
     buildConf("celeborn.client.registerShuffle.retryWait")

@@ -86,6 +86,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val pushRackAwareEnabled = conf.clientReserveSlotsRackAwareEnabled
   private val partitionSplitThreshold = conf.shufflePartitionSplitThreshold
   private val partitionSplitMode = conf.shufflePartitionSplitMode
+  private val createFileOrder = conf.clientStoragePolicyCreateFilePolicy
+  private val evictFileOrder = conf.clientStoragePolicyEvictFilePolicy
   // shuffle id -> partition type
   private val shufflePartitionType = JavaUtils.newConcurrentHashMap[Int, PartitionType]()
   private val rangeReadFilter = conf.shuffleRangeReadFilterEnabled
@@ -1291,7 +1293,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             userIdentifier,
             conf.pushDataTimeoutMs,
             partitionSplitEnabled = true,
-            isSegmentGranularityVisible = isSegmentGranularityVisible))
+            isSegmentGranularityVisible = isSegmentGranularityVisible,
+            createFileOrder,
+            evictFileOrder))
         futures.add((future, workerInfo))
       }(ec)
     }

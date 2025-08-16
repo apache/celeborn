@@ -567,6 +567,8 @@ message PbReserveSlots {
   int32 availableStorageTypes = 12;
   PbPackedPartitionLocationsPair partitionLocationsPair = 13;
   bool isSegmentGranularityVisible = 14;
+  string createFileOrder = 15;
+  string evictFileOrder = 16;
 }
 
 message PbReserveSlotsResponse {
