@@ -679,6 +679,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def masterSlotAssignExtraSlots: Int = get(MASTER_SLOT_ASSIGN_EXTRA_SLOTS)
   def masterSlotAssignMaxWorkers: Int = get(MASTER_SLOT_ASSIGN_MAX_WORKERS)
   def masterSlotAssignMinWorkers: Int = get(MASTER_SLOT_ASSIGN_MIN_WORKERS)
+  def masterSlotAssignMaxPartitions: Int = get(MASTER_SLOT_ASSIGN_MAX_PARTITIONS)
+  def masterSlotAssignWarningPartitions: Int = get(MASTER_SLOT_ASSIGN_WARNING_PARTITIONS)
   def initialEstimatedPartitionSize: Long = get(ESTIMATED_PARTITION_SIZE_INITIAL_SIZE)
   def estimatedPartitionSizeUpdaterInitialDelay: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY)
@@ -3053,6 +3055,24 @@ object CelebornConf extends Logging {
       .doc("Extra slots number when master assign slots. Provided enough workers are available.")
       .intConf
       .createWithDefault(2)
+
+  val MASTER_SLOT_ASSIGN_MAX_PARTITIONS: ConfigEntry[Int] =
+    buildConf("celeborn.master.slot.assign.maxPartitions")
+      .withAlternative("celeborn.slots.assign.maxPartitions")
+      .categories("master")
+      .version("0.6.0")
+      .doc("Max partition numbers that one shuffle can be allocated, reject if exceeds")
+      .intConf
+      .createWithDefault(50000)
+
+  val MASTER_SLOT_ASSIGN_WARNING_PARTITIONS: ConfigEntry[Int] =
+    buildConf("celeborn.master.slot.assign.warningPartitions")
+      .withAlternative("celeborn.slots.assign.warningPartitions")
+      .categories("master")
+      .version("0.6.0")
+      .doc("print a warning message if one shuffle allocates partition numbers bigger than this")
+      .intConf
+      .createWithDefault(5000)
 
   val MASTER_SLOT_ASSIGN_MAX_WORKERS: ConfigEntry[Int] =
     buildConf("celeborn.master.slot.assign.maxWorkers")

@@ -201,6 +201,8 @@ private[celeborn] class Master(
   private val slotsAssignMaxWorkers = conf.masterSlotAssignMaxWorkers
   private val slotsAssignMinWorkers = conf.masterSlotAssignMinWorkers
   private val slotsAssignExtraSlots = conf.masterSlotAssignExtraSlots
+  private val slotAssignMaxPartitions = conf.masterSlotAssignMaxPartitions
+  private val slotAssignWarningPartitions = conf.masterSlotAssignWarningPartitions
   private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
   private val slotsAssignLoadAwareDiskGroupGradient =
     conf.masterSlotAssignLoadAwareDiskGroupGradient
@@ -893,6 +895,14 @@ private[celeborn] class Master(
   def handleRequestSlots(context: RpcCallContext, requestSlots: RequestSlots): Unit = {
     val numReducers = requestSlots.partitionIdList.size()
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
+
+    if (numReducers > slotAssignMaxPartitions) {
+      logError(s"reject $shuffleKey to request $numReducers partitions, which exceeds $slotAssignMaxPartitions")
+      context.reply(RequestSlotsResponse(StatusCode.REQUEST_FAILED, new WorkerResource()))
+      return
+    } else if (numReducers > slotAssignWarningPartitions) {
+      logWarning(s"too much partitions, $shuffleKey requests $numReducers exceeds $slotAssignWarningPartitions")
+    }
 
     var availableWorkers = workersAvailable(requestSlots.excludedWorkerSet)
     if (conf.tagsEnabled) {
