@@ -75,7 +75,10 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   // add timers
   addTimer(COMMIT_FILES_TIME)
   addTimer(RESERVE_SLOTS_TIME)
-  addTimer(FLUSH_DATA_TIME)
+  addTimer(FLUSH_LOCAL_DATA_TIME)
+  addTimer(FLUSH_HDFS_DATA_TIME)
+  addTimer(FLUSH_OSS_DATA_TIME)
+  addTimer(FLUSH_S3_DATA_TIME)
   addTimer(PRIMARY_PUSH_DATA_TIME)
   addTimer(REPLICA_PUSH_DATA_TIME)
 
@@ -202,7 +205,10 @@ object WorkerSource {
 
   // flush
   val TAKE_BUFFER_TIME = "TakeBufferTime"
-  val FLUSH_DATA_TIME = "FlushDataTime"
+  val FLUSH_LOCAL_DATA_TIME = "FlushLocalDataTime"
+  val FLUSH_HDFS_DATA_TIME = "FlushHdfsDataTime"
+  val FLUSH_OSS_DATA_TIME = "FlushOssDataTime"
+  val FLUSH_S3_DATA_TIME = "FlushS3DataTime"
   val COMMIT_FILES_TIME = "CommitFilesTime"
   val COMMIT_FILES_FAIL_COUNT = "CommitFilesFailCount"
   val FLUSH_WORKING_QUEUE_SIZE = "FlushWorkingQueueSize"
