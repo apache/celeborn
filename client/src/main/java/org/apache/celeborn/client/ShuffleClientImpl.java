@@ -123,6 +123,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       JavaUtils.newConcurrentHashMap();
   private boolean pushReplicateEnabled;
   private boolean fetchExcludeWorkerOnFailureEnabled;
+  private long fetchExcludedWorkerExpireTimeout;
 
   private final ExecutorService pushDataRetryPool;
 
@@ -189,6 +190,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     shuffleCompressionEnabled = !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE);
     pushReplicateEnabled = conf.clientPushReplicateEnabled();
     fetchExcludeWorkerOnFailureEnabled = conf.clientFetchExcludeWorkerOnFailureEnabled();
+    fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
     if (conf.clientPushReplicateEnabled()) {
       pushDataTimeout = conf.pushDataTimeoutMs() * 2;
     } else {
@@ -216,8 +218,11 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     reviveManager = new ReviveManager(this, conf);
 
-    logger.info("Created ShuffleClientImpl, appUniqueId: {}, pushTimeout {}",
-        appUniqueId, pushDataTimeout);
+    logger.info("Created ShuffleClientImpl, appUniqueId: {}, pushTimeout {}," +
+            "fetchExcludeWorkerOnFailureEnabled {}, " +
+            "pushExcludeWorkerOnFailureEnabled {}.",
+        appUniqueId, pushDataTimeout, fetchExcludeWorkerOnFailureEnabled,
+        pushExcludeWorkerOnFailureEnabled);
   }
 
   protected List<TransportClientBootstrap> createBootstraps() {
@@ -1919,11 +1924,50 @@ public class ShuffleClientImpl extends ShuffleClient {
     return dataClientFactory;
   }
 
+  @Override
   public void excludeFailedFetchLocation(String hostAndFetchPort, Exception e) {
     if (pushReplicateEnabled
         && fetchExcludeWorkerOnFailureEnabled
         && Utils.isCriticalCauseForFetch(e)) {
+      logger.info("Exclude worker {} since critical error {}. Current all " +
+              "excluded nodes are {}.",
+          hostAndFetchPort, e, fetchExcludedWorkers);
       fetchExcludedWorkers.put(hostAndFetchPort, System.currentTimeMillis());
+    }
+  }
+
+  @Override
+  public boolean isFetchTargetWorkerExcluded(
+      PartitionLocation location) {
+    // If fetchExcludeWorkerOnFailureEnabled = false, fetchExcludedWorkers should be empty.
+    logger.debug("Excluded host {}, searching {}",
+        fetchExcludedWorkers, location.hostAndFetchPort());
+    Long timestamp = fetchExcludedWorkers.get(location.hostAndFetchPort());
+    if (timestamp == null) {
+      return false;
+    } else if (System.currentTimeMillis() - timestamp > fetchExcludedWorkerExpireTimeout) {
+      fetchExcludedWorkers.remove(location.hostAndFetchPort());
+      logger.debug("Exclusion expired, will not exclude {}.", location);
+      return false;
+    } else if (location.getPeer() != null) {
+      Long peerTimestamp =
+          fetchExcludedWorkers.get(location.getPeer().hostAndFetchPort());
+      // To avoid both replicate locations is excluded, if peer add to excluded list earlier,
+      // change to try peer.
+      if (peerTimestamp == null || peerTimestamp < timestamp) {
+        logger.debug("Excluded {} has peer, peer location is excluded at {}," +
+                " before {}, will exclude this node.", location, peerTimestamp,
+            timestamp);
+        return true;
+      } else {
+        logger.debug("Excluded {} has peer, peer location is excluded at {}," +
+                " after {}, still exclude this node.", location, peerTimestamp,
+            timestamp);
+        return true;
+      }
+    } else {
+      logger.debug("Location {} is excluded.", location);
+      return true;
     }
   }
 }

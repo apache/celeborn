@@ -298,22 +298,32 @@ public abstract class CelebornInputStream extends InputStream {
     }
 
     private boolean isExcluded(PartitionLocation location) {
+      logger.debug("Excluded host {}, searching {}",
+            fetchExcludedWorkers, location.hostAndFetchPort());
       Long timestamp = fetchExcludedWorkers.get(location.hostAndFetchPort());
       if (timestamp == null) {
         return false;
       } else if (System.currentTimeMillis() - timestamp > fetchExcludedWorkerExpireTimeout) {
         fetchExcludedWorkers.remove(location.hostAndFetchPort());
+        logger.info("Exclusion expired, will not exclude {}.", location);
         return false;
       } else if (location.getPeer() != null) {
         Long peerTimestamp = fetchExcludedWorkers.get(location.getPeer().hostAndFetchPort());
         // To avoid both replicate locations is excluded, if peer add to excluded list earlier,
         // change to try peer.
         if (peerTimestamp == null || peerTimestamp < timestamp) {
+          logger.debug("Excluded {} has peer, peer location is excluded at {}," +
+              " before {}, will exclude this node.", location, peerTimestamp,
+              timestamp);
           return true;
         } else {
-          return false;
+          logger.debug("Excluded {} has peer, peer location is excluded at {}," + 
+              " after {}, still exclude this node.", location, peerTimestamp,
+              timestamp);
+          return true;
         }
       } else {
+        logger.debug("Location {} is excluded.", location);
         return true;
       }
     }
@@ -344,7 +354,21 @@ public abstract class CelebornInputStream extends InputStream {
           if (isExcluded(location)) {
             throw new CelebornIOException("Fetch data from excluded worker! " + location);
           }
-          return createReader(location, pbStreamHandler, fetchChunkRetryCnt, fetchChunkMaxRetry);
+          PartitionReader reader =  createReader(location, pbStreamHandler,
+              fetchChunkRetryCnt, fetchChunkMaxRetry);
+          if (fetchChunkRetryCnt > 0) {
+            logger.info(
+                "CreatePartitionReader successfully {}/{} times for location " +
+                    "{} for application {} shuffle " +
+                    "{}, partition {}",
+                fetchChunkRetryCnt,
+                fetchChunkMaxRetry,
+                location,
+                appShuffleId,
+                partitionId,
+                shuffleId);
+          }
+          return reader;
         } catch (Exception e) {
           lastException = e;
           shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort(), e);
@@ -356,12 +380,18 @@ public abstract class CelebornInputStream extends InputStream {
               Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
             }
             logger.warn(
-                "CreatePartitionReader failed {}/{} times for location {}, change to peer",
+                "CreatePartitionReader failed {}/{} times for location {}, " +
+                    "change to peer {} for application {} shuffle " +
+                    "{}, partition {}",
                 fetchChunkRetryCnt,
                 fetchChunkMaxRetry,
                 location,
+                location.getPeer(),
+                appShuffleId,
+                partitionId,
+                shuffleId,
                 e);
-            if (pbStreamHandler != null) {
+            if (pbStreamHandler != null && !isExcluded(location)) {
               try {
                 TransportClient client =
                     clientFactory.createClient(location.getHost(), location.getFetchPort());
@@ -383,6 +413,7 @@ public abstract class CelebornInputStream extends InputStream {
               }
               pbStreamHandler = null;
             }
+            pbStreamHandler = null;
             location = location.getPeer();
           } else {
             logger.warn(

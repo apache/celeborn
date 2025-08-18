@@ -285,4 +285,6 @@ public abstract class ShuffleClient {
   public abstract TransportClientFactory getDataClientFactory();
 
   public abstract void excludeFailedFetchLocation(String hostAndFetchPort, Exception e);
+
+  public abstract boolean isFetchTargetWorkerExcluded(PartitionLocation location);
 }

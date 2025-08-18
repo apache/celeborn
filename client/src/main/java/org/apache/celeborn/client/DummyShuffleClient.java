@@ -199,6 +199,12 @@ public class DummyShuffleClient extends ShuffleClient {
   @Override
   public void excludeFailedFetchLocation(String hostAndFetchPort, Exception e) {}
 
+
+  @Override
+  public boolean isFetchTargetWorkerExcluded(PartitionLocation location) {
+    return false;
+  }
+
   public void initReducePartitionMap(int shuffleId, int numPartitions, int workerNum) {
     ConcurrentHashMap<Integer, PartitionLocation> map = JavaUtils.newConcurrentHashMap();
     String host = "host";

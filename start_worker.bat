@@ -1,10 +1,4 @@
 SET HADOOP_USER_NAME=mtpkrbrs
-@if "%MT_TOKEN%"=="" call SetMTToken.bat
-@if "%MT_TOKEN%"=="" (
-  echo MTToken cannot be set by provider, restart to try again...
-  exit 17
-)
-
 if not defined JAVA_HOME (
   echo JAVA_HOME is not defined use D:\data\java.latest
   set JAVA_HOME=D:\data\java.latest

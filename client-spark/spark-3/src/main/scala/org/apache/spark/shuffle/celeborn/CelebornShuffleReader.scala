@@ -135,6 +135,10 @@ class CelebornShuffleReader[K, C](
           val hostPort = location.hostAndFetchPort
           if (!workerRequestMap.containsKey(hostPort)) {
             try {
+              if (shuffleClient.isFetchTargetWorkerExcluded(location)) {
+                throw new CelebornIOException("openStream from excluded worker! "
+                  + location)
+              }
               val client = shuffleClient.getDataClientFactory().createClient(
                 location.getHost,
                 location.getFetchPort)
@@ -148,7 +152,7 @@ class CelebornShuffleReader[K, C](
                 shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort, ex)
                 logWarning(
                   s"Failed to create client for $shuffleKey-$partitionId from host: ${location.hostAndFetchPort}. " +
-                    s"Shuffle reader will try its replica if exists.")
+                    s"Shuffle reader will try its replica if exists.", ex)
             }
           }
           workerRequestMap.get(hostPort) match {
@@ -252,10 +256,12 @@ class CelebornShuffleReader[K, C](
       })
     })
 
+    logInfo(s"recodIter start from $startPartition to $endPartition")
     val recordIter = (startPartition until endPartition).iterator.map(partitionId => {
       if (handle.numMappers > 0) {
         val startFetchWait = System.nanoTime()
         var inputStream: CelebornInputStream = streams.get(partitionId)
+        var sleepCnt = 0L
         while (inputStream == null) {
           if (exceptionRef.get() != null) {
             exceptionRef.get() match {
@@ -264,10 +270,18 @@ class CelebornShuffleReader[K, C](
               case e => throw e
             }
           }
-          logInfo("inputStream is null, sleeping...")
+          if (sleepCnt % 100 == 0) {
+            logInfo(s"inputStream for partition: $partitionId is null, sleeping...")
+          }
+          sleepCnt += 1
           Thread.sleep(50)
           inputStream = streams.get(partitionId)
         }
+
+        if (sleepCnt > 20) {
+          logInfo(s"inputStream for partition: $partitionId is not null, sleep count: $sleepCnt")
+        }
+
         metricsCallback.incReadTime(
           TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
         // ensure inputStream is closed when task completes
