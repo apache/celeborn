@@ -54,7 +54,7 @@ jobs:
         with:
           version: v3.10.0
       - name: Setup chart-testing
-        uses: helm/chart-testing-action@b43128a8b25298e1e7b043b78ea6613844e079b1
+        uses: ./.github/actions/chart-testing-action
       - name: Run chart-testing (list-changed)
         id: list-changed
         run: |
