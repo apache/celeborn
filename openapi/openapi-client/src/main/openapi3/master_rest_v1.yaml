@@ -817,6 +817,10 @@ components:
         userIdentifier:
           type: string
           description: The user identifier of the application.
+        registrationTime:
+          type: integer
+          format: int64
+          description: The registration time of the application.
       required:
         - appId
         - userIdentifier

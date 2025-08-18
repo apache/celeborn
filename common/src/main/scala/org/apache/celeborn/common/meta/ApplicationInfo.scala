@@ -22,4 +22,4 @@ import org.apache.celeborn.common.identity.UserIdentifier
 /**
  * Application info
  */
-case class ApplicationInfo(appId: String, userIdentifier: UserIdentifier)
+case class ApplicationInfo(appId: String, userIdentifier: UserIdentifier, registrationTime: Long)

@@ -33,7 +33,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
  */
 @JsonPropertyOrder({
   ApplicationInfo.JSON_PROPERTY_APP_ID,
-  ApplicationInfo.JSON_PROPERTY_USER_IDENTIFIER
+  ApplicationInfo.JSON_PROPERTY_USER_IDENTIFIER,
+  ApplicationInfo.JSON_PROPERTY_REGISTRATION_TIME
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class ApplicationInfo {
@@ -42,6 +43,9 @@ public class ApplicationInfo {
 
   public static final String JSON_PROPERTY_USER_IDENTIFIER = "userIdentifier";
   private String userIdentifier;
+
+  public static final String JSON_PROPERTY_REGISTRATION_TIME = "registrationTime";
+  private Long registrationTime;
 
   public ApplicationInfo() {
   }
@@ -96,6 +100,31 @@ public class ApplicationInfo {
     this.userIdentifier = userIdentifier;
   }
 
+  public ApplicationInfo registrationTime(Long registrationTime) {
+    
+    this.registrationTime = registrationTime;
+    return this;
+  }
+
+  /**
+   * The registration time of the application.
+   * @return registrationTime
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_REGISTRATION_TIME)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public Long getRegistrationTime() {
+    return registrationTime;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_REGISTRATION_TIME)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setRegistrationTime(Long registrationTime) {
+    this.registrationTime = registrationTime;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -106,12 +135,13 @@ public class ApplicationInfo {
     }
     ApplicationInfo applicationInfo = (ApplicationInfo) o;
     return Objects.equals(this.appId, applicationInfo.appId) &&
-        Objects.equals(this.userIdentifier, applicationInfo.userIdentifier);
+        Objects.equals(this.userIdentifier, applicationInfo.userIdentifier) &&
+        Objects.equals(this.registrationTime, applicationInfo.registrationTime);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(appId, userIdentifier);
+    return Objects.hash(appId, userIdentifier, registrationTime);
   }
 
   @Override
@@ -120,6 +150,7 @@ public class ApplicationInfo {
     sb.append("class ApplicationInfo {\n");
     sb.append("    appId: ").append(toIndentedString(appId)).append("\n");
     sb.append("    userIdentifier: ").append(toIndentedString(userIdentifier)).append("\n");
+    sb.append("    registrationTime: ").append(toIndentedString(registrationTime)).append("\n");
     sb.append("}");
     return sb.toString();
   }

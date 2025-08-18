@@ -1714,4 +1714,17 @@ public class RatisMasterStatusSystemSuiteJ {
     assertEquals(statusSystem.applicationFallbackCounts.get(POLICY1).longValue(), 2);
     assertEquals(statusSystem.applicationFallbackCounts.get(POLICY2).longValue(), 1);
   }
+
+  @Test
+  public void testRegisterApplicationInfo() {
+    AbstractMetaManager statusSystem = pickLeaderStatusSystem();
+    Assert.assertNotNull(statusSystem);
+    statusSystem.applicationInfos.clear();
+    UserIdentifier userIdentifier = new UserIdentifier("tenant", "celeborn");
+
+    String appId = "app1";
+    statusSystem.handleRegisterApplicationInfo(appId, userIdentifier, getNewReqeustId());
+
+    assertEquals(statusSystem.applicationInfos.get(appId).userIdentifier(), userIdentifier);
+  }
 }

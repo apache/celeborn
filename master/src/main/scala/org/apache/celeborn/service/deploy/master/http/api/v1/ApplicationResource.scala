@@ -69,6 +69,7 @@ class ApplicationResource extends ApiRequestContext {
           new ApplicationInfo()
             .appId(appId)
             .userIdentifier(appInfo.userIdentifier.toString)
+            .registrationTime(appInfo.registrationTime)
         }.toSeq.asJava)
   }
 
