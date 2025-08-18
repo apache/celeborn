@@ -69,7 +69,10 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleRegisterApplicationInfo(
-      String appId, UserIdentifier userIdentifier, String requestId) {
+      String appId,
+      UserIdentifier userIdentifier,
+      Map<String, String> extraInfo,
+      String requestId) {
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
@@ -83,6 +86,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                               .setTenantId(userIdentifier.tenantId())
                               .setName(userIdentifier.name())
                               .build())
+                      .putAllExtraInfo(extraInfo)
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {

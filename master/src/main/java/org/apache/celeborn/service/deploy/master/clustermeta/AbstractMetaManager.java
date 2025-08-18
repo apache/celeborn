@@ -101,9 +101,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
       JavaUtils.newConcurrentHashMap();
 
-  public void updateApplicationInfo(String appId, UserIdentifier userIdentifier) {
+  public void updateApplicationInfo(
+      String appId, UserIdentifier userIdentifier, Map<String, String> extraInfo) {
     applicationInfos.putIfAbsent(
-        appId, new ApplicationInfo(appId, userIdentifier, System.currentTimeMillis()));
+        appId, new ApplicationInfo(appId, userIdentifier, extraInfo, System.currentTimeMillis()));
   }
 
   public void updateRequestSlotsMeta(

@@ -17,9 +17,15 @@
 
 package org.apache.celeborn.common.meta
 
+import java.util.{Map => JMap}
+
 import org.apache.celeborn.common.identity.UserIdentifier
 
 /**
  * Application info
  */
-case class ApplicationInfo(appId: String, userIdentifier: UserIdentifier, registrationTime: Long)
+case class ApplicationInfo(
+    appId: String,
+    userIdentifier: UserIdentifier,
+    extraInfo: JMap[String, String],
+    registrationTime: Long)

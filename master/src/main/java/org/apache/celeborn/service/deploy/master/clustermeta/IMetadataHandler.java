@@ -28,7 +28,8 @@ import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 
 public interface IMetadataHandler {
-  void handleRegisterApplicationInfo(String appId, UserIdentifier userIdentifier, String requestId);
+  void handleRegisterApplicationInfo(
+      String appId, UserIdentifier userIdentifier, Map<String, String> extraInfo, String requestId);
 
   void handleRequestSlots(
       String shuffleKey,

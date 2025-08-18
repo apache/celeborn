@@ -897,7 +897,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsCollectCriticalEnabled: Boolean = get(METRICS_COLLECT_CRITICAL_ENABLED)
   def metricsCapacity: Int = get(METRICS_CAPACITY)
   def metricsExtraLabels: Map[String, String] =
-    get(METRICS_EXTRA_LABELS).map(Utils.parseMetricLabels).toMap
+    get(METRICS_EXTRA_LABELS).map(Utils.parseKeyValuePair).toMap
   def metricsWorkerAppTopResourceConsumptionCount: Int =
     get(METRICS_WORKER_APP_TOP_RESOURCE_CONSUMPTION_COUNT)
   def metricsWorkerAppTopResourceConsumptionBytesWrittenThreshold: Long =
@@ -950,6 +950,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED)
   def clientMrMaxPushData: Long = get(CLIENT_MR_PUSH_DATA_MAX)
   def clientApplicationUUIDSuffixEnabled: Boolean = get(CLIENT_APPLICATION_UUID_SUFFIX_ENABLED)
+  def clientApplicationExtraInfo: Map[String, String] =
+    get(CLIENT_APPLICATION_EXTRA_INFO).map(Utils.parseKeyValuePair).toMap
   def clientShuffleIntegrityCheckEnabled: Boolean =
     get(CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED)
 
@@ -5627,6 +5629,18 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
+  val CLIENT_APPLICATION_EXTRA_INFO: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.client.application.extraInfo")
+      .categories("client")
+      .version("0.6.1")
+      .doc("")
+      .stringConf
+      .toSequence
+      .checkValue(
+        pairs => pairs.map(_ => Try(Utils.parseKeyValuePair(_))).forall(_.isSuccess),
+        "Allowed pattern is: `<key1>=<value1>[,<key2>=<value2>]*`")
+      .createWithDefault(Seq.empty)
+
   val TEST_ALTERNATIVE: OptionalConfigEntry[String] =
     buildConf("celeborn.test.alternative.key")
       .withAlternative("celeborn.test.alternative.deprecatedKey")
@@ -5694,8 +5708,8 @@ object CelebornConf extends Logging {
       .stringConf
       .toSequence
       .checkValue(
-        labels => labels.map(_ => Try(Utils.parseMetricLabels(_))).forall(_.isSuccess),
-        "Allowed pattern is: `<label1_key>:<label1_value>[,<label2_key>:<label2_value>]*`")
+        labels => labels.map(_ => Try(Utils.parseKeyValuePair(_))).forall(_.isSuccess),
+        "Allowed pattern is: `<label1_key>=<label1_value>[,<label2_key>=<label2_value>]*`")
       .createWithDefault(Seq.empty)
 
   val METRICS_WORKER_APP_TOP_RESOURCE_CONSUMPTION_COUNT: ConfigEntry[Int] =

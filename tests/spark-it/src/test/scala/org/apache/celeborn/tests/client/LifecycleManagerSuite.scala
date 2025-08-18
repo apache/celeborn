@@ -19,8 +19,6 @@ package org.apache.celeborn.tests.client
 
 import java.util
 
-import scala.collection.JavaConverters._
-
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
@@ -39,6 +37,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
     .set(CelebornConf.USER_SPECIFIC_TENANT.key, userIdentifier.tenantId)
     .set(CelebornConf.USER_SPECIFIC_USERNAME.key, userIdentifier.name)
+    .set(CelebornConf.CLIENT_APPLICATION_EXTRA_INFO.key, "k1=v1")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -109,7 +108,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     lifecycleManager.stop()
   }
 
-  test("CELEBORN-1258: Support to register application info with user identifier") {
+  test("CELEBORN-1258: Support to register application info with user identifier and extra info") {
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
 
     val arrayList = new util.ArrayList[Integer]()
@@ -122,6 +121,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     eventually(timeout(3.seconds), interval(0.milliseconds)) {
       val appInfo = masterInfo._1.statusSystem.applicationInfos.get(APP)
       assert(appInfo.userIdentifier == userIdentifier)
+      assert(appInfo.extraInfo.get("k1") == "v1")
       assert(appInfo.registrationTime > 0 && appInfo.registrationTime < System.currentTimeMillis())
     }
   }

@@ -1082,5 +1082,6 @@ message PbMetaRequestResponse {
 message PbRegisterApplicationInfo {
   string appId = 1;
   PbUserIdentifier userIdentifier = 2;
-  string requestId = 3;
+  map<string, string> extraInfo = 3;
+  string requestId = 4;
 }

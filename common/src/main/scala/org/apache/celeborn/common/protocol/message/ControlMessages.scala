@@ -18,8 +18,7 @@
 package org.apache.celeborn.common.protocol.message
 
 import java.util
-import java.util.{Collections, UUID}
-import java.util.concurrent.atomic.AtomicIntegerArray
+import java.util.{Collections, Map => JMap, UUID}
 
 import scala.collection.JavaConverters._
 
@@ -436,6 +435,7 @@ object ControlMessages extends Logging {
   case class RegisterApplicationInfo(
       applicationId: String,
       userIdentifier: UserIdentifier,
+      extraInfo: JMap[String, String],
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
@@ -887,10 +887,12 @@ object ControlMessages extends Logging {
     case RegisterApplicationInfo(
           applicationId,
           userIdentifier,
+          extraInfo,
           requestId) =>
       val payload = PbRegisterApplicationInfo.newBuilder()
         .setAppId(applicationId)
         .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
+        .putAllExtraInfo(extraInfo)
         .setRequestId(requestId)
         .build().toByteArray
       new TransportMessage(MessageType.REGISTER_APPLICATION_INFO, payload)
@@ -1559,7 +1561,8 @@ object ControlMessages extends Logging {
         val pbRegisterApplicationInfo = PbRegisterApplicationInfo.parseFrom(message.getPayload)
         RegisterApplicationInfo(
           pbRegisterApplicationInfo.getAppId,
-          PbSerDeUtils.fromPbUserIdentifier(pbRegisterApplicationInfo.getUserIdentifier))
+          PbSerDeUtils.fromPbUserIdentifier(pbRegisterApplicationInfo.getUserIdentifier),
+          pbRegisterApplicationInfo.getExtraInfoMap)
     }
   }
 }

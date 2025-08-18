@@ -102,6 +102,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   val latestPartitionLocation =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
+  private val applicationExtraInfo: Map[String, String] = conf.clientApplicationExtraInfo
   private val availableStorageTypes = conf.availableStorageTypes
   private val storageTypes =
     conf.get(ACTIVE_STORAGE_TYPES).split(",").map(StorageInfo.Type.valueOf).toList
@@ -249,7 +250,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val messagesHelper: TransportMessagesHelper = new TransportMessagesHelper()
 
   private def registerApplicationInfo(): Unit = {
-    masterClient.send(RegisterApplicationInfo(appUniqueId, userIdentifier))
+    masterClient.send(RegisterApplicationInfo(
+      appUniqueId,
+      userIdentifier,
+      applicationExtraInfo.asJava))
   }
 
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and

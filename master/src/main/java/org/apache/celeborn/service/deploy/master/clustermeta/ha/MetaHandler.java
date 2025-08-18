@@ -152,7 +152,9 @@ public class MetaHandler {
               new UserIdentifier(
                   request.getRegisterApplicationInfoRequest().getUserIdentifier().getTenantId(),
                   request.getRegisterApplicationInfoRequest().getUserIdentifier().getName());
-          metaSystem.updateApplicationInfo(appId, userIdentifier);
+          Map<String, String> extraInfo =
+              request.getRegisterApplicationInfoRequest().getExtraInfoMap();
+          metaSystem.updateApplicationInfo(appId, userIdentifier, extraInfo);
           LOG.debug("Handle register application info for {}/{}", appId, userIdentifier);
           break;
 

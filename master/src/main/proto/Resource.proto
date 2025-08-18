@@ -273,4 +273,5 @@ message ReviseLostShufflesRequest {
 message RegisterApplicationInfoRequest {
   string appId = 1;
   UserIdentifier userIdentifier = 2;
+  map<string, string> extraInfo = 3;
 }

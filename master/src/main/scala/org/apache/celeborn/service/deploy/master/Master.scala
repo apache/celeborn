@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
+import java.util.{Map => JMap}
 import java.util.Collections
 import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
@@ -422,12 +423,13 @@ private[celeborn] class Master(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case RegisterApplicationInfo(appId, userIdentifier, requestId) =>
-      logDebug(s"Received RegisterApplicationInfo request for app $appId/$userIdentifier.")
+    case RegisterApplicationInfo(appId, userIdentifier, extraInfo, requestId) =>
+      logDebug(
+        s"Received RegisterApplicationInfo request for app $appId/$userIdentifier/$extraInfo.")
       checkAuth(context, appId)
       executeWithLeaderChecker(
         context,
-        handleRegisterApplicationInfo(context, appId, userIdentifier, requestId))
+        handleRegisterApplicationInfo(context, appId, userIdentifier, extraInfo, requestId))
     case HeartbeatFromApplication(
           appId,
           totalWritten,
@@ -1169,8 +1171,9 @@ private[celeborn] class Master(
       context: RpcCallContext,
       appId: String,
       userIdentifier: UserIdentifier,
+      extraInfo: JMap[String, String],
       requestId: String): Unit = {
-    statusSystem.handleRegisterApplicationInfo(appId, userIdentifier, requestId)
+    statusSystem.handleRegisterApplicationInfo(appId, userIdentifier, extraInfo, requestId)
     context.reply(OneWayMessageResponse)
   }
 
