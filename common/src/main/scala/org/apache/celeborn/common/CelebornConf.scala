@@ -5633,7 +5633,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.application.extraInfo")
       .categories("client")
       .version("0.6.1")
-      .doc("")
+      .doc("Extra information for application registration, pattern is" +
+        " `<key1>=<value1>[,<key2>=<value2>]*`, e.g. `cluster=celeborn`.")
       .stringConf
       .toSequence
       .checkValue(
