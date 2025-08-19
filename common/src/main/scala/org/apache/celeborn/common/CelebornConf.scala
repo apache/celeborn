@@ -812,10 +812,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
   def masterExcludeWorkerUnhealthyDiskRatioThreshold: Double =
     get(MASTER_EXCLUDE_WORKER_UNHEALTHY_DISK_RATIO_THRESHOLD)
-  def masterReleaseHighWorkloadWorkerEnable: Boolean =
-    get(MASTER_RELEASE_HIGH_WORKLOAD_WORKER_ENABLE)
-  def masterReleaseHighWorkloadWorkerRatioThreshold: Double =
-    get(MASTER_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD)
+  def masterAutoReleaseHighWorkloadWorkerEnable: Boolean =
+    get(MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLE)
+  def masterAutoReleaseHighWorkloadWorkerRatioThreshold: Double =
+    get(MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD)
 
   // //////////////////////////////////////////////////////
   //                      Worker                         //
@@ -6540,16 +6540,16 @@ object CelebornConf extends Logging {
       .checkValue(v => v > 0.0 && v <= 1.0, "Should be in (0.0, 1.0].")
       .createWithDefault(1)
 
-  val MASTER_RELEASE_HIGH_WORKLOAD_WORKER_ENABLE: ConfigEntry[Boolean] =
-    buildConf("celeborn.master.excludeWorker.releaseHighWorkLoadEnable")
+  val MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLE: ConfigEntry[Boolean] =
+    buildConf("celeborn.master.excludeWorker.autoReleaseHighWorkLoadEnable")
       .categories("master")
       .version("0.7.0")
       .doc("Whether to release workers with high workload in excluded worker list.")
       .booleanConf
       .createWithDefault(false)
 
-  val MASTER_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD: ConfigEntry[Double] =
-    buildConf("celeborn.master.excludeWorker.releaseHighWorkLoadRatioThreshold")
+  val MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD: ConfigEntry[Double] =
+    buildConf("celeborn.master.excludeWorker.autoReleaseHighWorkLoadRatioThreshold")
       .categories("master")
       .version("0.7.0")
       .doc("Whenever the number of worker with high workload exceeds this ratio, " +

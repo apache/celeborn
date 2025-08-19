@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.master.clustermeta;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.celeborn.common.protocol.StorageInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +33,9 @@ import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
+import scala.Option;
+import scala.Tuple2;
+import scala.collection.immutable.Set;
 
 public class SingleMasterMetaManager extends AbstractMetaManager {
   private static final Logger LOG = LoggerFactory.getLogger(SingleMasterMetaManager.class);
@@ -47,8 +51,9 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
     this.unhealthyDiskRatioThreshold = conf.masterExcludeWorkerUnhealthyDiskRatioThreshold();
-    this.releaseHighWorkLoadEnabled = conf.masterReleaseHighWorkloadWorkerEnable();
-    this.releaseHighWorkLoadRatioThreshold = conf.masterReleaseHighWorkloadWorkerRatioThreshold();
+    this.autoReleaseHighWorkLoadEnabled = conf.masterAutoReleaseHighWorkloadWorkerEnable();
+    this.autoReleaseHighWorkLoadRatioThreshold = conf.masterAutoReleaseHighWorkloadWorkerRatioThreshold();
+    this.hasRemoteStorage  = conf.remoteStorageDirs().isDefined();
     this.rackResolver = rackResolver;
   }
 

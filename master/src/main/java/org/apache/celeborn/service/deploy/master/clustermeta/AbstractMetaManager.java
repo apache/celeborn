@@ -91,8 +91,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public long initialEstimatedPartitionSize;
   public long estimatedPartitionSize;
   public double unhealthyDiskRatioThreshold;
-  public boolean releaseHighWorkLoadEnabled;
-  public double releaseHighWorkLoadRatioThreshold;
+  public boolean autoReleaseHighWorkLoadEnabled;
+  public double autoReleaseHighWorkLoadRatioThreshold;
+  protected boolean hasRemoteStorage;
   public final LongAdder partitionTotalWritten = new LongAdder();
   public final LongAdder partitionTotalFileCount = new LongAdder();
   public final LongAdder shuffleTotalCount = new LongAdder();
@@ -253,6 +254,39 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
   }
 
+  private boolean hasAvailableStorage(WorkerInfo workerInfo) {
+    Map<String, DiskInfo> disks = workerInfo.diskInfos();
+    Pair<Boolean, Long> exceedCheckResult = isExceedingUnhealthyThreshold(disks);
+
+    boolean hasDisk = !disks.isEmpty();
+    boolean isExceeding = exceedCheckResult.getLeft();
+    long unhealthyCount = exceedCheckResult.getRight();
+
+    if (hasDisk) {
+      if (!isExceeding) {
+        return true;
+      } else {
+        LOG.info(
+            "Worker {} doesn't have enough healthy local disk (unhealthy count: {})",
+            workerInfo,
+            unhealthyCount);
+      }
+    }
+
+    if (hasRemoteStorage) {
+      LOG.info(
+          "Worker {} has remote storage",
+          workerInfo
+      );
+      return true;
+    } else {
+      LOG.warn(
+          "Worker {} has no available storage",
+          workerInfo);
+      return false;
+    }
+  }
+
   public void updateWorkerHeartbeatMeta(
       String host,
       int rpcPort,
@@ -289,43 +323,29 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
 
     // If using HDFSONLY mode, workers with empty disks should not be put into excluded worker list.
-    Pair<Boolean, Long> exceedCheckResult = isExceedingUnhealthyThreshold(disks);
-    boolean remoteStorageDirsDefined = conf.remoteStorageDirs().isDefined();
-    if (!excludedWorkers.contains(worker)
-        && (((disks.isEmpty() || exceedCheckResult.getLeft()) && !remoteStorageDirsDefined) || highWorkload)) {
+    if (!excludedWorkers.contains(worker) && (!hasAvailableStorage(worker) || highWorkload)) {
       LOG.warn(
-          "Worker {} (unhealthy disks num: {}) adds to excluded workers",
+          "Worker {} adds to excluded workers, high workload: {}",
           worker,
-          exceedCheckResult.getRight());
+          highWorkload);
       excludedWorkers.add(worker);
-    } else if ((availableSlots.get() > 0 || remoteStorageDirsDefined) && !highWorkload) {
+    } else if ((availableSlots.get() > 0 || hasRemoteStorage) && !highWorkload) {
       // only unblack if numSlots larger than 0
       excludedWorkers.remove(worker);
     }
 
     // release high work load workers when too many excluded workers
-    if (releaseHighWorkLoadEnabled
+    if (autoReleaseHighWorkLoadEnabled
         && excludedWorkers.size()
-            >= Math.floor(workersMap.size() * releaseHighWorkLoadRatioThreshold)) {
+        >= Math.floor(workersMap.size() * autoReleaseHighWorkLoadRatioThreshold)) {
       synchronized (workersMap) {
         List<WorkerInfo> toRemoved =
             excludedWorkers.stream()
                 .filter(
                     w -> {
-                      Optional<WorkerInfo> infoOpt =
-                          Optional.ofNullable(workersMap.get(w.toUniqueId()));
-                      if (infoOpt.isPresent()) {
-                        WorkerInfo info = infoOpt.get();
-                        Map<String, DiskInfo> diskInfos = info.diskInfos();
-                        if (info.isHighWorkLoad()
-                            && (hasRemoteStorage()
-                                || !diskInfos.isEmpty()
-                                    && !isExceedingUnhealthyThreshold(diskInfos).getLeft())
-                            && info.totalAvailableSlots() > 0) {
-                          return true;
-                        }
-                      }
-                      return false;
+                      WorkerInfo info = workersMap.get(w.toUniqueId());
+                      return info != null && info.isHighWorkLoad() && hasAvailableStorage(w) &&
+                          info.totalAvailableSlots() > 0;
                     })
                 .collect(Collectors.toList());
         updateExcludedWorkersMeta(new ArrayList<>(), toRemoved);
@@ -620,7 +640,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   private boolean isWorkerAvailable(WorkerInfo workerInfo) {
     return (workerInfo.getWorkerStatus().getState() == PbWorkerStatus.State.Normal
-            && !workerEventInfos.containsKey(workerInfo))
+        && !workerEventInfos.containsKey(workerInfo))
         && !excludedWorkers.contains(workerInfo)
         && !shutdownWorkers.contains(workerInfo)
         && !manuallyExcludedWorkers.contains(workerInfo);
@@ -669,10 +689,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       Optional<WorkerInfo> workerInfo = Optional.ofNullable(workersMap.get(worker.toUniqueId()));
       workerInfo.ifPresent(info -> info.updateThenGetUserResourceConsumption(resourceConsumptions));
     }
-  }
-
-  private boolean hasRemoteStorage() {
-    return conf.hasHDFSStorage() || conf.hasS3Storage() || conf.hasOssStorage();
   }
 
   private Pair<Boolean, Long> isExceedingUnhealthyThreshold(Map<String, DiskInfo> diskMap) {
