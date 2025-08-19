@@ -1210,9 +1210,11 @@ public class RatisMasterStatusSystemSuiteJ {
           workerStatus,
           getNewReqeustId());
       Thread.sleep(3000L);
+      Assert.assertEquals(1, statusSystem.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(2, statusSystem.availableWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
@@ -1230,9 +1232,11 @@ public class RatisMasterStatusSystemSuiteJ {
           workerStatus,
           getNewReqeustId());
       Thread.sleep(3000L);
+      Assert.assertEquals(2, statusSystem.excludedWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM1.excludedWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM2.excludedWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(1, statusSystem.availableWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM1.availableWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM2.availableWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM3.availableWorkers.size());
@@ -1251,9 +1255,11 @@ public class RatisMasterStatusSystemSuiteJ {
           workerStatus,
           getNewReqeustId());
       Thread.sleep(3000L);
+      Assert.assertEquals(1, statusSystem.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(2, statusSystem.availableWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
@@ -1271,9 +1277,11 @@ public class RatisMasterStatusSystemSuiteJ {
           workerStatus,
           getNewReqeustId());
       Thread.sleep(3000L);
+      Assert.assertEquals(0, statusSystem.excludedWorkers.size());
       Assert.assertEquals(0, STATUSSYSTEM1.excludedWorkers.size());
       Assert.assertEquals(0, STATUSSYSTEM2.excludedWorkers.size());
       Assert.assertEquals(0, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(3, statusSystem.availableWorkers.size());
       Assert.assertEquals(3, STATUSSYSTEM1.availableWorkers.size());
       Assert.assertEquals(3, STATUSSYSTEM2.availableWorkers.size());
       Assert.assertEquals(3, STATUSSYSTEM3.availableWorkers.size());
@@ -1291,9 +1299,11 @@ public class RatisMasterStatusSystemSuiteJ {
           workerStatus,
           getNewReqeustId());
       Thread.sleep(3000L);
+      Assert.assertEquals(1, statusSystem.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(2, statusSystem.availableWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
@@ -1312,9 +1322,11 @@ public class RatisMasterStatusSystemSuiteJ {
           getNewReqeustId());
       Thread.sleep(3000L);
       // release 2 workers with high workload
+      Assert.assertEquals(0, statusSystem.excludedWorkers.size());
       Assert.assertEquals(0, STATUSSYSTEM1.excludedWorkers.size());
       Assert.assertEquals(0, STATUSSYSTEM2.excludedWorkers.size());
       Assert.assertEquals(0, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(3, statusSystem.availableWorkers.size());
       Assert.assertEquals(3, STATUSSYSTEM1.availableWorkers.size());
       Assert.assertEquals(3, STATUSSYSTEM2.availableWorkers.size());
       Assert.assertEquals(3, STATUSSYSTEM3.availableWorkers.size());
@@ -1333,9 +1345,11 @@ public class RatisMasterStatusSystemSuiteJ {
           workerStatus,
           getNewReqeustId());
       Thread.sleep(3000L);
+      Assert.assertEquals(1, statusSystem.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(2, statusSystem.availableWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
@@ -1354,9 +1368,11 @@ public class RatisMasterStatusSystemSuiteJ {
           getNewReqeustId());
       Thread.sleep(3000L);
       // release worker2
+      Assert.assertEquals(1, statusSystem.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(2, statusSystem.availableWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
@@ -1374,9 +1390,11 @@ public class RatisMasterStatusSystemSuiteJ {
           workerStatus,
           getNewReqeustId());
       Thread.sleep(3000L);
+      Assert.assertEquals(2, statusSystem.excludedWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM1.excludedWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM2.excludedWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(1, statusSystem.availableWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM1.availableWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM2.availableWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM3.availableWorkers.size());
