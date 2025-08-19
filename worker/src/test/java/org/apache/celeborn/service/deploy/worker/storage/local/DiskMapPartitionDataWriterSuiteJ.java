@@ -141,8 +141,7 @@ public class DiskMapPartitionDataWriterSuiteJ {
             source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context,
-            PartitionType.MAP);
+            context);
     fileWriter.handleEvents(
         PbPushDataHandShake.newBuilder().setNumPartitions(2).setBufferSize(32).build());
     fileWriter.handleEvents(

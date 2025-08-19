@@ -100,6 +100,7 @@ class StoragePolicyCase4 extends CelebornFunSuite {
   test("test create file fallback case1") {
     when(mockedPartitionWriterContext.getPartitionLocation).thenAnswer(
       memoryDisabledHintPartitionLocation)
+    when(mockedPartitionWriterContext.getPartitionType).thenAnswer(PartitionType.REDUCE)
     when(mockedStorageManager.localOrDfsStorageAvailable).thenAnswer(true)
     val conf = new CelebornConf()
     conf.set("celeborn.worker.storage.storagePolicy.createFilePolicy", "MEMORY,SSD,HDD,HDFS,OSS,S3")
@@ -108,7 +109,6 @@ class StoragePolicyCase4 extends CelebornFunSuite {
     val notifier = new FlushNotifier
     val file = storagePolicy.createFileWriter(
       mockedPartitionWriterContext,
-      PartitionType.REDUCE,
       pendingWriters,
       notifier)
     assert(file.isInstanceOf[LocalTierWriter])
