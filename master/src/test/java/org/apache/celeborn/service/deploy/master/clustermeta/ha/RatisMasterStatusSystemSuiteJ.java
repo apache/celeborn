@@ -1387,8 +1387,7 @@ public class RatisMasterStatusSystemSuiteJ {
           configureServerConf(new CelebornConf(), 1),
           configureServerConf(new CelebornConf(), 2),
           configureServerConf(new CelebornConf(), 3),
-          false
-      );
+          false);
     }
   }
 

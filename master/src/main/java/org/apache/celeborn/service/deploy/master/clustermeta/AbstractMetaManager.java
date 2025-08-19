@@ -274,15 +274,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
 
     if (hasRemoteStorage) {
-      LOG.info(
-          "Worker {} has remote storage",
-          workerInfo
-      );
+      LOG.info("Worker {} has remote storage", workerInfo);
       return true;
     } else {
-      LOG.warn(
-          "Worker {} has no available storage",
-          workerInfo);
+      LOG.warn("Worker {} has no available storage", workerInfo);
       return false;
     }
   }
@@ -324,10 +319,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
     // If using HDFSONLY mode, workers with empty disks should not be put into excluded worker list.
     if (!excludedWorkers.contains(worker) && (!hasAvailableStorage(worker) || highWorkload)) {
-      LOG.warn(
-          "Worker {} adds to excluded workers, high workload: {}",
-          worker,
-          highWorkload);
+      LOG.warn("Worker {} adds to excluded workers, high workload: {}", worker, highWorkload);
       excludedWorkers.add(worker);
     } else if ((availableSlots.get() > 0 || hasRemoteStorage) && !highWorkload) {
       // only unblack if numSlots larger than 0
@@ -337,15 +329,17 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     // release high work load workers when too many excluded workers
     if (autoReleaseHighWorkLoadEnabled
         && excludedWorkers.size()
-        >= Math.floor(workersMap.size() * autoReleaseHighWorkLoadRatioThreshold)) {
+            >= Math.floor(workersMap.size() * autoReleaseHighWorkLoadRatioThreshold)) {
       synchronized (workersMap) {
         List<WorkerInfo> toRemoved =
             excludedWorkers.stream()
                 .filter(
                     w -> {
                       WorkerInfo info = workersMap.get(w.toUniqueId());
-                      return info != null && info.isHighWorkLoad() && hasAvailableStorage(w) &&
-                          info.totalAvailableSlots() > 0;
+                      return info != null
+                          && info.isHighWorkLoad()
+                          && hasAvailableStorage(w)
+                          && info.totalAvailableSlots() > 0;
                     })
                 .collect(Collectors.toList());
         updateExcludedWorkersMeta(new ArrayList<>(), toRemoved);
@@ -640,7 +634,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   private boolean isWorkerAvailable(WorkerInfo workerInfo) {
     return (workerInfo.getWorkerStatus().getState() == PbWorkerStatus.State.Normal
-        && !workerEventInfos.containsKey(workerInfo))
+            && !workerEventInfos.containsKey(workerInfo))
         && !excludedWorkers.contains(workerInfo)
         && !shutdownWorkers.contains(workerInfo)
         && !manuallyExcludedWorkers.contains(workerInfo);
