@@ -1138,6 +1138,260 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(1, STATUSSYSTEM3.availableWorkers.size());
   }
 
+  @Test
+  public void testAutoReleaseHighWorkLoadWorkers() throws InterruptedException, IOException {
+    CelebornConf conf1 = new CelebornConf();
+    conf1.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLE(), true);
+    conf1.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD(), 0.8);
+    CelebornConf conf2 = new CelebornConf();
+    conf2.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLE(), true);
+    conf2.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD(), 0.8);
+    CelebornConf conf3 = new CelebornConf();
+    conf3.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLE(), true);
+    conf3.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD(), 0.8);
+
+    try {
+      resetRaftServer(
+          configureServerConf(conf1, 1),
+          configureServerConf(conf2, 2),
+          configureServerConf(conf3, 3),
+          false);
+
+      AbstractMetaManager statusSystem = pickLeaderStatusSystem();
+      Assert.assertNotNull(statusSystem);
+
+      statusSystem.handleRegisterWorker(
+          HOSTNAME1,
+          RPCPORT1,
+          PUSHPORT1,
+          FETCHPORT1,
+          REPLICATEPORT1,
+          INTERNALPORT1,
+          NETWORK_LOCATION1,
+          disks1,
+          userResourceConsumption1,
+          getNewReqeustId());
+      statusSystem.handleRegisterWorker(
+          HOSTNAME2,
+          RPCPORT2,
+          PUSHPORT2,
+          FETCHPORT2,
+          REPLICATEPORT2,
+          INTERNALPORT2,
+          NETWORK_LOCATION2,
+          disks2,
+          userResourceConsumption2,
+          getNewReqeustId());
+      statusSystem.handleRegisterWorker(
+          HOSTNAME3,
+          RPCPORT3,
+          PUSHPORT3,
+          FETCHPORT3,
+          REPLICATEPORT3,
+          INTERNALPORT3,
+          NETWORK_LOCATION3,
+          disks3,
+          userResourceConsumption3,
+          getNewReqeustId());
+
+      Thread.sleep(3000L);
+
+      // worker2 and work3 are unhealthy
+      statusSystem.handleWorkerHeartbeat(
+          HOSTNAME2,
+          RPCPORT2,
+          PUSHPORT2,
+          FETCHPORT2,
+          REPLICATEPORT2,
+          new HashMap<>(),
+          userResourceConsumption2,
+          1,
+          false,
+          workerStatus,
+          getNewReqeustId());
+      Thread.sleep(3000L);
+      Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
+      Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
+      Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
+
+      statusSystem.handleWorkerHeartbeat(
+          HOSTNAME3,
+          RPCPORT3,
+          PUSHPORT3,
+          FETCHPORT3,
+          REPLICATEPORT3,
+          new HashMap<>(),
+          userResourceConsumption3,
+          1,
+          false,
+          workerStatus,
+          getNewReqeustId());
+      Thread.sleep(3000L);
+      Assert.assertEquals(2, STATUSSYSTEM1.excludedWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM2.excludedWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(1, STATUSSYSTEM1.availableWorkers.size());
+      Assert.assertEquals(1, STATUSSYSTEM2.availableWorkers.size());
+      Assert.assertEquals(1, STATUSSYSTEM3.availableWorkers.size());
+
+      // worker2 and work3 have high workload
+      statusSystem.handleWorkerHeartbeat(
+          HOSTNAME2,
+          RPCPORT2,
+          PUSHPORT2,
+          FETCHPORT2,
+          REPLICATEPORT2,
+          disks2,
+          userResourceConsumption2,
+          1,
+          false,
+          workerStatus,
+          getNewReqeustId());
+      Thread.sleep(3000L);
+      Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
+      Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
+      Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
+
+      statusSystem.handleWorkerHeartbeat(
+          HOSTNAME3,
+          RPCPORT3,
+          PUSHPORT3,
+          FETCHPORT3,
+          REPLICATEPORT3,
+          disks3,
+          userResourceConsumption3,
+          1,
+          false,
+          workerStatus,
+          getNewReqeustId());
+      Thread.sleep(3000L);
+      Assert.assertEquals(0, STATUSSYSTEM1.excludedWorkers.size());
+      Assert.assertEquals(0, STATUSSYSTEM2.excludedWorkers.size());
+      Assert.assertEquals(0, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(3, STATUSSYSTEM1.availableWorkers.size());
+      Assert.assertEquals(3, STATUSSYSTEM2.availableWorkers.size());
+      Assert.assertEquals(3, STATUSSYSTEM3.availableWorkers.size());
+
+      statusSystem.handleWorkerHeartbeat(
+          HOSTNAME2,
+          RPCPORT2,
+          PUSHPORT2,
+          FETCHPORT2,
+          REPLICATEPORT2,
+          disks2,
+          userResourceConsumption2,
+          1,
+          true,
+          workerStatus,
+          getNewReqeustId());
+      Thread.sleep(3000L);
+      Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
+      Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
+      Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
+
+      statusSystem.handleWorkerHeartbeat(
+          HOSTNAME3,
+          RPCPORT3,
+          PUSHPORT3,
+          FETCHPORT3,
+          REPLICATEPORT3,
+          disks3,
+          userResourceConsumption3,
+          1,
+          true,
+          workerStatus,
+          getNewReqeustId());
+      Thread.sleep(3000L);
+      // release 2 workers with high workload
+      Assert.assertEquals(0, STATUSSYSTEM1.excludedWorkers.size());
+      Assert.assertEquals(0, STATUSSYSTEM2.excludedWorkers.size());
+      Assert.assertEquals(0, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(3, STATUSSYSTEM1.availableWorkers.size());
+      Assert.assertEquals(3, STATUSSYSTEM2.availableWorkers.size());
+      Assert.assertEquals(3, STATUSSYSTEM3.availableWorkers.size());
+
+      // work2 has high workload and work3 is unhealthy
+      statusSystem.handleWorkerHeartbeat(
+          HOSTNAME2,
+          RPCPORT2,
+          PUSHPORT2,
+          FETCHPORT2,
+          REPLICATEPORT2,
+          disks2,
+          userResourceConsumption2,
+          1,
+          true,
+          workerStatus,
+          getNewReqeustId());
+      Thread.sleep(3000L);
+      Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
+      Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
+      Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
+
+      statusSystem.handleWorkerHeartbeat(
+          HOSTNAME3,
+          RPCPORT3,
+          PUSHPORT3,
+          FETCHPORT3,
+          REPLICATEPORT3,
+          new HashMap<>(),
+          userResourceConsumption3,
+          1,
+          false,
+          workerStatus,
+          getNewReqeustId());
+      Thread.sleep(3000L);
+      // release worker2
+      Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
+      Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
+      Assert.assertEquals(1, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
+
+      statusSystem.handleWorkerHeartbeat(
+          HOSTNAME2,
+          RPCPORT2,
+          PUSHPORT2,
+          FETCHPORT2,
+          REPLICATEPORT2,
+          new HashMap<>(),
+          userResourceConsumption2,
+          1,
+          true,
+          workerStatus,
+          getNewReqeustId());
+      Thread.sleep(3000L);
+      Assert.assertEquals(2, STATUSSYSTEM1.excludedWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM2.excludedWorkers.size());
+      Assert.assertEquals(2, STATUSSYSTEM3.excludedWorkers.size());
+      Assert.assertEquals(1, STATUSSYSTEM1.availableWorkers.size());
+      Assert.assertEquals(1, STATUSSYSTEM2.availableWorkers.size());
+      Assert.assertEquals(1, STATUSSYSTEM3.availableWorkers.size());
+    } catch (Exception e) {
+      Assert.fail(e.getMessage());
+    } finally {
+      resetRaftServer(
+          configureServerConf(new CelebornConf(), 1),
+          configureServerConf(new CelebornConf(), 2),
+          configureServerConf(new CelebornConf(), 3),
+          false
+      );
+    }
+  }
+
   @Before
   public void resetStatus() {
     STATUSSYSTEM1.registeredAppAndShuffles.clear();
