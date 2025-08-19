@@ -666,7 +666,14 @@ class DfsTierWriter(
   override def notifyFileCommitted(): Unit =
     storageManager.notifyFileInfoCommitted(shuffleKey, filename, hdfsFileInfo)
 
-  override def closeResource(): Unit = {}
+  override def closeResource(): Unit = {
+    if (s3MultipartUploadHandler != null) {
+      s3MultipartUploadHandler.close()
+    }
+    if (ossMultipartUploadHandler != null) {
+      ossMultipartUploadHandler.close()
+    }
+  }
 
   override def cleanLocalOrDfsFiles(): Unit = {
     hdfsFileInfo.deleteAllFiles(hadoopFs)
