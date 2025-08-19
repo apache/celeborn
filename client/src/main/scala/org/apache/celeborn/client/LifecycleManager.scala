@@ -21,7 +21,7 @@ import java.lang.{Byte => JByte}
 import java.nio.ByteBuffer
 import java.security.SecureRandom
 import java.util
-import java.util.{function, Collections, List => JList}
+import java.util.{function, List => JList}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
 import java.util.function.{BiConsumer, BiFunction, Consumer}
@@ -42,7 +42,7 @@ import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, Shu
 import org.apache.celeborn.client.listener.WorkerStatusListener
 import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.CelebornConf.ACTIVE_STORAGE_TYPES
-import org.apache.celeborn.common.client.MasterClient
+import org.apache.celeborn.common.client.{ApplicationInfoProvider, MasterClient}
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ApplicationMeta, ShufflePartitionLocationInfo, WorkerInfo}
@@ -102,7 +102,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   val latestPartitionLocation =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, PartitionLocation]]()
   private val userIdentifier: UserIdentifier = IdentityProvider.instantiate(conf).provide()
-  private val applicationExtraInfo: Map[String, String] = conf.clientApplicationExtraInfo
   private val availableStorageTypes = conf.availableStorageTypes
   private val storageTypes =
     conf.get(ACTIVE_STORAGE_TYPES).split(",").map(StorageInfo.Type.valueOf).toList
@@ -250,10 +249,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val messagesHelper: TransportMessagesHelper = new TransportMessagesHelper()
 
   private def registerApplicationInfo(): Unit = {
-    masterClient.send(RegisterApplicationInfo(
-      appUniqueId,
-      userIdentifier,
-      applicationExtraInfo.asJava))
+    Utils.tryLogNonFatalError(
+      masterClient.send(RegisterApplicationInfo(
+        appUniqueId,
+        userIdentifier,
+        ApplicationInfoProvider.instantiate(conf).provide().asJava)))
   }
 
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and

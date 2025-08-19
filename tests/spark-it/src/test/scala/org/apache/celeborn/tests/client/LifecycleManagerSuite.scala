@@ -37,7 +37,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
     .set(CelebornConf.USER_SPECIFIC_TENANT.key, userIdentifier.tenantId)
     .set(CelebornConf.USER_SPECIFIC_USERNAME.key, userIdentifier.name)
-    .set(CelebornConf.CLIENT_APPLICATION_EXTRA_INFO.key, "k1=v1")
+    .set(CelebornConf.USER_SPECIFIC_APPLICATION_INFO.key, "k1=v1")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
