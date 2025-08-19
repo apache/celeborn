@@ -25,6 +25,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
+import java.util.HashMap;
+import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -34,6 +36,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonPropertyOrder({
   ApplicationInfo.JSON_PROPERTY_APP_ID,
   ApplicationInfo.JSON_PROPERTY_USER_IDENTIFIER,
+  ApplicationInfo.JSON_PROPERTY_EXTRA_INFO,
   ApplicationInfo.JSON_PROPERTY_REGISTRATION_TIME
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
@@ -43,6 +46,9 @@ public class ApplicationInfo {
 
   public static final String JSON_PROPERTY_USER_IDENTIFIER = "userIdentifier";
   private String userIdentifier;
+
+  public static final String JSON_PROPERTY_EXTRA_INFO = "extraInfo";
+  private Map<String, String> extraInfo = new HashMap<>();
 
   public static final String JSON_PROPERTY_REGISTRATION_TIME = "registrationTime";
   private Long registrationTime;
@@ -100,6 +106,39 @@ public class ApplicationInfo {
     this.userIdentifier = userIdentifier;
   }
 
+  public ApplicationInfo extraInfo(Map<String, String> extraInfo) {
+    
+    this.extraInfo = extraInfo;
+    return this;
+  }
+
+  public ApplicationInfo putExtraInfoItem(String key, String extraInfoItem) {
+    if (this.extraInfo == null) {
+      this.extraInfo = new HashMap<>();
+    }
+    this.extraInfo.put(key, extraInfoItem);
+    return this;
+  }
+
+  /**
+   * Extra information of the application.
+   * @return extraInfo
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_EXTRA_INFO)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public Map<String, String> getExtraInfo() {
+    return extraInfo;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_EXTRA_INFO)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setExtraInfo(Map<String, String> extraInfo) {
+    this.extraInfo = extraInfo;
+  }
+
   public ApplicationInfo registrationTime(Long registrationTime) {
     
     this.registrationTime = registrationTime;
@@ -136,12 +175,13 @@ public class ApplicationInfo {
     ApplicationInfo applicationInfo = (ApplicationInfo) o;
     return Objects.equals(this.appId, applicationInfo.appId) &&
         Objects.equals(this.userIdentifier, applicationInfo.userIdentifier) &&
+        Objects.equals(this.extraInfo, applicationInfo.extraInfo) &&
         Objects.equals(this.registrationTime, applicationInfo.registrationTime);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(appId, userIdentifier, registrationTime);
+    return Objects.hash(appId, userIdentifier, extraInfo, registrationTime);
   }
 
   @Override
@@ -150,6 +190,7 @@ public class ApplicationInfo {
     sb.append("class ApplicationInfo {\n");
     sb.append("    appId: ").append(toIndentedString(appId)).append("\n");
     sb.append("    userIdentifier: ").append(toIndentedString(userIdentifier)).append("\n");
+    sb.append("    extraInfo: ").append(toIndentedString(extraInfo)).append("\n");
     sb.append("    registrationTime: ").append(toIndentedString(registrationTime)).append("\n");
     sb.append("}");
     return sb.toString();

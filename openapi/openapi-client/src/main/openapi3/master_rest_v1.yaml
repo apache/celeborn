@@ -817,6 +817,11 @@ components:
         userIdentifier:
           type: string
           description: The user identifier of the application.
+        extraInfo:
+          type: object
+          description: Extra information of the application.
+          additionalProperties:
+            type: string
         registrationTime:
           type: integer
           format: int64
