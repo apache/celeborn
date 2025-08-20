@@ -238,7 +238,7 @@ class ChunkFetchFailure : public Message {
 };
 
 class PushData : public Message {
-public:
+ public:
   PushData(
       long requestId,
       uint8_t mode,
@@ -252,7 +252,7 @@ public:
     return requestId_;
   }
 
-private:
+ private:
   int internalEncodedLength() const override;
 
   void internalEncodeTo(memory::WriteOnlyByteBuffer& buffer) const override;
