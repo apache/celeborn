@@ -3095,10 +3095,11 @@ object CelebornConf extends Logging {
   val CLEINT_PATITION_MAX_WRITE_PARALLELISM: ConfigEntry[Int] =
     buildConf("celeborn.client.max.write.parallelism")
       .categories("worker")
-      .version("0.4.1")
-      .doc("Maximum write concurrency per partition: -1 equals map tasks count.")
+      .version("0.6.0")
+      .doc("Maximum write concurrency per partition. Default value is zero, which means max write parallelism is the total number of map tasks.")
       .intConf
-      .createWithDefault(-1)
+      .checkValue(v => v >= 0, "Value must be no less than 0.")
+      .createWithDefault(0)
 
   val WORKER_PARTITION_SPLIT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.shuffle.partitionSplit.enabled")

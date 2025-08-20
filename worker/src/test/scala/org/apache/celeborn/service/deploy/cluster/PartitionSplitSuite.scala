@@ -70,7 +70,7 @@ class PartitionSplitSuite extends AnyFunSuite
       shuffleClient: ShuffleClientImpl,
       lifecycleManager: LifecycleManager,
       maxWriteParallelism: Int): Unit = {
-    val splitEnd = (if (maxWriteParallelism != -1) maxWriteParallelism else MAP_NUM) - 1
+    val splitEnd = (if (maxWriteParallelism != 0) maxWriteParallelism else MAP_NUM) - 1
     val partitionLocationMap =
       shuffleClient.getPartitionLocation(SHUFFLE_ID, MAP_NUM, PARTITION_NUM)
     var locStr = ""
@@ -207,7 +207,7 @@ class PartitionSplitSuite extends AnyFunSuite
       lifecycleManager: LifecycleManager,
       maxWriteParallelism: Int): Unit = {
     for (i <- 0 until PARTITION_NUM) {
-      val queue = new util.LinkedList[PartitionLocation]()
+      val queue = new util.ArrayDeque[PartitionLocation]()
       queue.add(initLocs.get(i))
       val leafLocations = new util.ArrayList[PartitionLocation]()
       while (!queue.isEmpty) {
@@ -221,6 +221,8 @@ class PartitionSplitSuite extends AnyFunSuite
           children.sort(Comparator.comparingInt(toIntFunction(_.getSplitStart)))
           var lastEndpoint = children.get(0).getSplitEnd
           queue.addLast(children.get(0))
+          assertEquals(curr.getSplitStart, children.get(0).getSplitStart)
+          assertEquals(curr.getSplitEnd, children.get(children.size() - 1).getSplitEnd)
           for (j <- 1 until children.size()) {
             val location = children.get(j)
             assertEquals(location.getSplitStart, lastEndpoint + 1)
@@ -249,52 +251,52 @@ class PartitionSplitSuite extends AnyFunSuite
     val (dataList, mergeData) = generateData()
     throwable = null
     val params = Array(
-      (true, true, -1, 2),
+      (true, true, 0, 2),
       (true, true, 1, 2),
       (true, true, 3, 2),
-      (true, true, -1, 1),
+      (true, true, 0, 1),
       (true, true, 1, 1),
       (true, true, 3, 1),
-      (true, true, -1, 3),
+      (true, true, 0, 3),
       (true, true, 1, 3),
       (true, true, 3, 3),
-      (true, true, -1, MAP_NUM),
+      (true, true, 0, MAP_NUM),
       (true, true, 1, MAP_NUM),
       (true, true, 3, MAP_NUM),
-      (true, false, -1, 2),
+      (true, false, 0, 2),
       (true, false, 1, 2),
       (true, false, 3, 2),
-      (true, false, -1, 1),
+      (true, false, 0, 1),
       (true, false, 1, 1),
       (true, false, 3, 1),
-      (true, false, -1, 3),
+      (true, false, 0, 3),
       (true, false, 1, 3),
       (true, false, 3, 3),
-      (true, false, -1, MAP_NUM),
+      (true, false, 0, MAP_NUM),
       (true, false, 1, MAP_NUM),
       (true, false, 3, MAP_NUM),
-      (false, true, -1, 2),
+      (false, true, 0, 2),
       (false, true, 1, 2),
       (false, true, 3, 2),
-      (false, true, -1, 1),
+      (false, true, 0, 1),
       (false, true, 1, 1),
       (false, true, 3, 1),
-      (false, true, -1, 3),
+      (false, true, 0, 3),
       (false, true, 1, 3),
       (false, true, 3, 3),
-      (false, true, -1, MAP_NUM),
+      (false, true, 0, MAP_NUM),
       (false, true, 1, MAP_NUM),
       (false, true, 3, MAP_NUM),
-      (false, false, -1, 2),
+      (false, false, 0, 2),
       (false, false, 1, 2),
       (false, false, 3, 2),
-      (false, false, -1, 1),
+      (false, false, 0, 1),
       (false, false, 1, 1),
       (false, false, 3, 1),
-      (false, false, -1, 3),
+      (false, false, 0, 3),
       (false, false, 1, 3),
       (false, false, 3, 3),
-      (false, false, -1, MAP_NUM),
+      (false, false, 0, MAP_NUM),
       (false, false, 1, MAP_NUM),
       (false, false, 3, MAP_NUM))
     for (pi <- params.indices) {
@@ -305,7 +307,7 @@ class PartitionSplitSuite extends AnyFunSuite
         splitNum: Int) = params(pi)
       logInfo(s"start test mockReserveFailure=$mockReserveFailure, enableReplicate=$enableReplicate, maxWriteParallelism=$maxWriteParallelism, splitNum=$splitNum")
       var maxSplitEnd = maxWriteParallelism
-      if (maxWriteParallelism == -1) {
+      if (maxWriteParallelism == 0) {
         maxSplitEnd = MAP_NUM
       }
       val APP = s"app-${System.currentTimeMillis()}"

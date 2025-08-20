@@ -828,9 +828,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     // Third, for each slot, LifecycleManager should ask Worker to reserve the slot
     // and prepare the pushing data env.
     var maxWriteParallelism = conf.clientMaxWriteParallelism
-    if (maxWriteParallelism == -1) {
+    if (maxWriteParallelism == 0) {
       maxWriteParallelism = numMappers
     }
+    maxWriteParallelism = Math.min(maxWriteParallelism, numMappers)
     slots.asScala.foreach { case (workerInfo, (primaryLocations, replicaLocations)) =>
       if (primaryLocations != null) {
         primaryLocations.forEach { loc: PartitionLocation =>

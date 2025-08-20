@@ -55,7 +55,7 @@ public class PartitionLocationManager {
       if (initLoc == null) {
         return new ArrayList<>(locationTree.keySet());
       }
-      LinkedList<PartitionLocation> queue = new LinkedList<>();
+      Deque<PartitionLocation> queue = new ArrayDeque<>();
       queue.add(initLoc);
       List<PartitionLocation> leafLocations = new ArrayList<>();
       while (!queue.isEmpty()) {
