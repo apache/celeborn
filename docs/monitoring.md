@@ -239,6 +239,7 @@ These metrics are exposed by Celeborn worker.
     | ReadBufferAllocatedCount               | Allocated read buffer count.                                                                                    |
     | ActiveCreditStreamCount                | Active stream count for map partition reading streams.                                                          |
     | ActiveMapPartitionCount                | The count of active map partition reading streams.                                                              |
+    | SorterCacheHitRate                     | The cache hit rate for worker partition sorter index.                                                           |
     | CleanTaskQueueSize                     | The count of task for cleaning up expired shuffle keys.                                                         |
     | CleanExpiredShuffleKeysTime            | The time for a worker to clean up shuffle data of expired shuffle keys.                                         |
     | DeviceOSFreeBytes                      | The actual usable space of OS for device monitor.                                                               |
