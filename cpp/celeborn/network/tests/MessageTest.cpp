@@ -153,3 +153,34 @@ TEST(MessageTest, decodeChunkFetchFailure) {
   EXPECT_EQ(streamChunkSlice.len, len);
   EXPECT_EQ(chunkFetchFailure->errorMsg(), failureMsg);
 }
+
+TEST(MessageTest, encodePushData) {
+  const std::string body = "test-body";
+  auto bodyBuffer = memory::ByteBuffer::createWriteOnly(body.size());
+  bodyBuffer->writeFromString(body);
+  const long requestId = 1000;
+  const uint8_t mode = 2;
+  const std::string shuffleKey = "test-shuffle-key";
+  const std::string partitionUniqueId = "test-partition-id";
+  auto pushData = std::make_unique<PushData>(
+      requestId,
+      mode,
+      shuffleKey,
+      partitionUniqueId,
+      memory::ByteBuffer::toReadOnly(std::move(bodyBuffer)));
+
+  auto encodedBuffer = pushData->encode();
+  EXPECT_EQ(
+      encodedBuffer->read<int32_t>(),
+      sizeof(long) + sizeof(uint8_t) + sizeof(int) + shuffleKey.size() +
+          sizeof(int) + partitionUniqueId.size());
+  EXPECT_EQ(encodedBuffer->read<uint8_t>(), Message::Type::PUSH_DATA);
+  EXPECT_EQ(encodedBuffer->read<int32_t>(), body.size());
+  EXPECT_EQ(encodedBuffer->read<long>(), requestId);
+  EXPECT_EQ(encodedBuffer->read<uint8_t>(), mode);
+  EXPECT_EQ(encodedBuffer->read<int32_t>(), shuffleKey.size());
+  EXPECT_EQ(encodedBuffer->readToString(shuffleKey.size()), shuffleKey);
+  EXPECT_EQ(encodedBuffer->read<int32_t>(), partitionUniqueId.size());
+  EXPECT_EQ(
+      encodedBuffer->readToString(partitionUniqueId.size()), partitionUniqueId);
+}

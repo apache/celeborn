@@ -236,5 +236,32 @@ class ChunkFetchFailure : public Message {
   protocol::StreamChunkSlice streamChunkSlice_;
   std::string errorString_;
 };
+
+class PushData : public Message {
+public:
+  PushData(
+      long requestId,
+      uint8_t mode,
+      const std::string& shuffleKey,
+      const std::string& partitionUniqueId,
+      std::unique_ptr<memory::ReadOnlyByteBuffer> body);
+
+  PushData(const PushData& other);
+
+  long requestId() const {
+    return requestId_;
+  }
+
+private:
+  int internalEncodedLength() const override;
+
+  void internalEncodeTo(memory::WriteOnlyByteBuffer& buffer) const override;
+
+  long requestId_;
+  // 0 for primary, 1 for replica. Ref to PartitionLocation::Mode.
+  uint8_t mode_;
+  std::string shuffleKey_;
+  std::string partitionUniqueId_;
+};
 } // namespace network
 } // namespace celeborn
