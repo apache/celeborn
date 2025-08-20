@@ -229,6 +229,7 @@ object WorkerSource {
   val PENDING_SORT_TASKS = "PendingSortTasks"
   val SORTED_FILES = "SortedFiles"
   val SORTED_FILE_SIZE = "SortedFileSize"
+  val SORTER_CACHE_HIT_RATE = "SorterCacheHitRate"
   val DISK_BUFFER = "DiskBuffer"
   val BUFFER_STREAM_READ_BUFFER = "BufferStreamReadBuffer"
   val READ_BUFFER_DISPATCHER_REQUESTS_LENGTH = "ReadBufferDispatcherRequestsLength"
