@@ -213,8 +213,10 @@ These metrics are exposed by Celeborn worker.
     | ReplicaRegionStartTime                 | ReplicaRegionStart means handle RegionStart of replica partition location.                                      |
     | PrimaryRegionFinishTime                | PrimaryRegionFinish means handle RegionFinish of primary partition location.                                    |
     | ReplicaRegionFinishTime                | ReplicaRegionFinish means handle RegionFinish of replica partition location.                                    |
+    | PausePushDataStatus                    | The status for a worker to stop receiving pushData from clients because of back pressure.                       |
     | PausePushDataTime                      | The time for a worker to stop receiving pushData from clients because of back pressure.                         |
     | PausePushDataAndReplicateTime          | The time for a worker to stop receiving pushData from clients and other workers because of back pressure.       |
+    | PausePushDataAndReplicateStatus        | The status for a worker to stop receiving pushData from clients because of back pressure.                       |
     | PausePushData                          | The count for a worker to stop receiving pushData from clients because of back pressure.                        |
     | PausePushDataAndReplicate              | The count for a worker to stop receiving pushData from clients and other workers because of back pressure.      |
     | PartitionFileSizeBytes                 | The size of partition files committed in current worker.                                                        |
