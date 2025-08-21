@@ -194,9 +194,11 @@ object WorkerSource {
 
   // pause push data
   val PAUSE_PUSH_DATA_TIME = "PausePushDataTime"
-  val PAUSE_PUSH_DATA_AND_REPLICATE_TIME = "PausePushDataAndReplicateTime"
   val PAUSE_PUSH_DATA_COUNT = "PausePushData"
+  val PAUSE_PUSH_DATA_STATUS = "PausePushDataStatus"
+  val PAUSE_PUSH_DATA_AND_REPLICATE_TIME = "PausePushDataAndReplicateTime"
   val PAUSE_PUSH_DATA_AND_REPLICATE_COUNT = "PausePushDataAndReplicate"
+  val PAUSE_PUSH_DATA_AND_REPLICATE_STATUS = "PausePushDataAndReplicateStatus"
 
   // flush
   val TAKE_BUFFER_TIME = "TakeBufferTime"
