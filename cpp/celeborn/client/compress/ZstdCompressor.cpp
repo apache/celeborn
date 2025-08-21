@@ -26,11 +26,15 @@ namespace celeborn {
 namespace client {
 namespace compress {
 
-ZstdCompressor::ZstdCompressor() {
-  compressionLevel_ = ZSTD_CLEVEL_DEFAULT;
+ZstdCompressor::ZstdCompressor()
+{
+    compressionLevel_ = ZSTD_CLEVEL_DEFAULT;
 }
 
-ZstdCompressor::ZstdCompressor(int compressionLevel) : compressionLevel_(compressionLevel) {}
+ZstdCompressor::ZstdCompressor(int compressionLevel)
+    : compressionLevel_(compressionLevel)
+{
+}
 
 ZstdCompressor::~ZstdCompressor() = default;
 
@@ -39,42 +43,45 @@ size_t ZstdCompressor::compress(
     int srcOffset,
     int srcLength,
     uint8_t* dst,
-    int dstOffset) {
-  const auto srcPtr = src + srcOffset;
-  const auto dstPtr = dst + dstOffset;
-  const auto dstDataPtr = dstPtr + kHeaderLength;
+    int dstOffset)
+{
+    const auto srcPtr = src + srcOffset;
+    const auto dstPtr = dst + dstOffset;
+    const auto dstDataPtr = dstPtr + kHeaderLength;
 
-  uLong check = crc32(0L, Z_NULL, 0);
-  check = crc32(check, srcPtr, srcLength);
+    uLong check = crc32(0L, Z_NULL, 0);
+    check = crc32(check, srcPtr, srcLength);
 
-  std::copy_n(kMagic, kMagicLength, dstPtr);
+    std::copy_n(kMagic, kMagicLength, dstPtr);
 
-  size_t compressedLength = ZSTD_compress(
-      dstDataPtr,
-      ZSTD_compressBound(srcLength),
-      srcPtr,
-      srcLength,
-      compressionLevel_);
+    size_t compressedLength = ZSTD_compress(
+        dstDataPtr,
+        ZSTD_compressBound(srcLength),
+        srcPtr,
+        srcLength,
+        compressionLevel_);
 
-  int compressionMethod;
-  if (ZSTD_isError(compressedLength) || compressedLength >= static_cast<size_t>(srcLength)) {
-    compressionMethod = kCompressionMethodRaw;
-    compressedLength = srcLength;
-    std::copy_n(srcPtr, srcLength, dstDataPtr);
-  } else {
-    compressionMethod = kCompressionMethodZstd;
-  }
+    int compressionMethod;
+    if (ZSTD_isError(compressedLength) ||
+        compressedLength >= static_cast<size_t>(srcLength)) {
+        compressionMethod = kCompressionMethodRaw;
+        compressedLength = srcLength;
+        std::copy_n(srcPtr, srcLength, dstDataPtr);
+    } else {
+        compressionMethod = kCompressionMethodZstd;
+    }
 
-  dstPtr[kMagicLength] = static_cast<uint8_t>(compressionMethod);
-  writeIntLE(static_cast<int>(compressedLength), dstPtr, kMagicLength + 1);
-  writeIntLE(srcLength, dstPtr, kMagicLength + 5);
-  writeIntLE(static_cast<int>(check), dstPtr, kMagicLength + 9);
+    dstPtr[kMagicLength] = static_cast<uint8_t>(compressionMethod);
+    writeIntLE(static_cast<int>(compressedLength), dstPtr, kMagicLength + 1);
+    writeIntLE(srcLength, dstPtr, kMagicLength + 5);
+    writeIntLE(static_cast<int>(check), dstPtr, kMagicLength + 9);
 
-  return kHeaderLength + compressedLength;
+    return kHeaderLength + compressedLength;
 }
 
-size_t ZstdCompressor::getDstCapacity(int length) {
-  return ZSTD_compressBound(length) + kHeaderLength;
+size_t ZstdCompressor::getDstCapacity(int length)
+{
+    return ZSTD_compressBound(length) + kHeaderLength;
 }
 
 } // namespace compress

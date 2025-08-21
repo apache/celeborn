@@ -31,7 +31,8 @@ std::unique_ptr<Compressor> Compressor::createCompressor(
     case protocol::CompressionCodec::LZ4:
       return std::make_unique<Lz4Compressor>();
     case protocol::CompressionCodec::ZSTD:
-      return std::make_unique<ZstdCompressor>(conf.shuffleCompressionZstdCompressLevel());
+       return std::make_unique<ZstdCompressor>(
+           conf.shuffleCompressionZstdCompressLevel());
     default:
       CELEBORN_FAIL("Unknown compression codec.");
   }

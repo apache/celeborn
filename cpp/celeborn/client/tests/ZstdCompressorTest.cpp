@@ -24,65 +24,10 @@ using namespace celeborn;
 using namespace celeborn::client;
 using namespace celeborn::protocol;
 
-TEST(ZstdCompressorTest, CompressWithZstd) {
-  compress::ZstdCompressor compressor;
-  const std::string toCompressData = "Helloooooooooooo Celeborn!!!!!!!!!!!!!!";
-
-  const auto maxLength = compressor.getDstCapacity(toCompressData.size());
-  std::vector<uint8_t> compressedData(maxLength);
-  compressor.compress(
-      reinterpret_cast<const uint8_t*>(toCompressData.data()),
-      0,
-      toCompressData.size(),
-      compressedData.data(),
-      0);
-
-  compress::ZstdDecompressor decompressor;
-
-  const int originalLen = decompressor.getOriginalLen(compressedData.data());
-
-  std::vector<uint8_t> decompressedData(originalLen + 1);
-  decompressedData[originalLen] = '\0';
-
-  const int decompressedLen = decompressor.decompress(
-      compressedData.data(), decompressedData.data(), 0);
-
-  EXPECT_GT(decompressedLen, 0);
-  EXPECT_EQ(reinterpret_cast<char*>(decompressedData.data()), toCompressData);
-}
-
-TEST(ZstdCompressorTest, CompressWithRaw) {
-  compress::ZstdCompressor compressor(-5); // Very low compression level may result in raw data
-  const std::string toCompressData = "Hello Celeborn!";
-
-  const auto maxLength = compressor.getDstCapacity(toCompressData.size());
-  std::vector<uint8_t> compressedData(maxLength);
-  compressor.compress(
-      reinterpret_cast<const uint8_t*>(toCompressData.data()),
-      0,
-      toCompressData.size(),
-      compressedData.data(),
-      0);
-
-  compress::ZstdDecompressor decompressor;
-
-  const int originalLen = decompressor.getOriginalLen(compressedData.data());
-
-  std::vector<uint8_t> decompressedData(originalLen + 1);
-  decompressedData[originalLen] = '\0';
-
-  const int decompressedLen = decompressor.decompress(
-      compressedData.data(), decompressedData.data(), 0);
-
-  EXPECT_GT(decompressedLen, 0);
-  EXPECT_EQ(reinterpret_cast<char*>(decompressedData.data()), toCompressData);
-}
-
-TEST(ZstdCompressorTest, CompressWithDifferentLevels) {
-  const std::string toCompressData = "This is a test string for checking different compression levels in ZSTD.";
-
-  for (int level = -5; level <= 5; level += 5) {
-    compress::ZstdCompressor compressor(level);
+TEST(ZstdCompressorTest, CompressWithZstd)
+{
+    compress::ZstdCompressor compressor;
+    const std::string toCompressData = "Helloooooooooooo Celeborn!!!!!!!!!!!!!!";
 
     const auto maxLength = compressor.getDstCapacity(toCompressData.size());
     std::vector<uint8_t> compressedData(maxLength);
@@ -101,9 +46,80 @@ TEST(ZstdCompressorTest, CompressWithDifferentLevels) {
     decompressedData[originalLen] = '\0';
 
     const int decompressedLen = decompressor.decompress(
-        compressedData.data(), decompressedData.data(), 0);
+        compressedData.data(),
+        decompressedData.data(),
+        0);
 
     EXPECT_GT(decompressedLen, 0);
-    EXPECT_EQ(reinterpret_cast<char*>(decompressedData.data()), toCompressData);
-  }
+    EXPECT_EQ(
+        reinterpret_cast<char*>(decompressedData.data()),
+        toCompressData);
+}
+
+TEST(ZstdCompressorTest, CompressWithRaw)
+{
+    compress::ZstdCompressor compressor(-5); // Very low compression level may result in raw data
+    const std::string toCompressData = "Hello Celeborn!";
+
+    const auto maxLength = compressor.getDstCapacity(toCompressData.size());
+    std::vector<uint8_t> compressedData(maxLength);
+    compressor.compress(
+        reinterpret_cast<const uint8_t*>(toCompressData.data()),
+        0,
+        toCompressData.size(),
+        compressedData.data(),
+        0);
+
+    compress::ZstdDecompressor decompressor;
+
+    const int originalLen = decompressor.getOriginalLen(compressedData.data());
+
+    std::vector<uint8_t> decompressedData(originalLen + 1);
+    decompressedData[originalLen] = '\0';
+
+    const int decompressedLen = decompressor.decompress(
+        compressedData.data(),
+        decompressedData.data(),
+        0);
+
+    EXPECT_GT(decompressedLen, 0);
+    EXPECT_EQ(
+        reinterpret_cast<char*>(decompressedData.data()),
+        toCompressData);
+}
+
+TEST(ZstdCompressorTest, CompressWithDifferentLevels)
+{
+    const std::string toCompressData =
+        "This is a test string for checking different compression levels in ZSTD.";
+
+    for (int level = -5; level <= 5; level += 5) {
+        compress::ZstdCompressor compressor(level);
+
+        const auto maxLength = compressor.getDstCapacity(toCompressData.size());
+        std::vector<uint8_t> compressedData(maxLength);
+        compressor.compress(
+            reinterpret_cast<const uint8_t*>(toCompressData.data()),
+            0,
+            toCompressData.size(),
+            compressedData.data(),
+            0);
+
+        compress::ZstdDecompressor decompressor;
+
+        const int originalLen = decompressor.getOriginalLen(compressedData.data());
+
+        std::vector<uint8_t> decompressedData(originalLen + 1);
+        decompressedData[originalLen] = '\0';
+
+        const int decompressedLen = decompressor.decompress(
+            compressedData.data(),
+            decompressedData.data(),
+            0);
+
+        EXPECT_GT(decompressedLen, 0);
+        EXPECT_EQ(
+            reinterpret_cast<char*>(decompressedData.data()),
+            toCompressData);
+    }
 }
