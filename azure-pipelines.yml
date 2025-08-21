@@ -88,14 +88,16 @@ extends:
                   targetType: 'inline'
                   script: |
                     mkdir $(PUBLISH_DIR)
-                    Copy-Item -Path $(System.DefaultWorkingDirectory)\dist -Destination $(PUBLISH_DIR)\Celeborn_Master -Recurse
-                    Copy-Item -Path $(System.DefaultWorkingDirectory)\dist -Destination $(PUBLISH_DIR)\Celeborn_Worker -Recurse
-                    $files = @('celeborn.ini', 'GenerateCelebornConfig.ps1')
-                    foreach ($file in $files) { Copy-Item $(System.DefaultWorkingDirectory)\$file $(PUBLISH_DIR)\Celeborn_Master\ }
+                    mkdir $(PUBLISH_DIR)\Celeborn_Master
+                    mkdir $(PUBLISH_DIR)\Celeborn_Worker
+                    Copy-Item -Path $(System.DefaultWorkingDirectory)\dist -Destination $(PUBLISH_DIR)\Celeborn -Recurse
+                    $files = @('celeborn.ini', 'GenerateCelebornConfig.ps1', 'startCommon.cmd')
+                    foreach ($file in $files) { Copy-Item $(System.DefaultWorkingDirectory)\$file $(PUBLISH_DIR)\Celeborn\ }
+                    Copy-Item $(System.DefaultWorkingDirectory)\ServiceConfig_celeborn.ini $(PUBLISH_DIR)\Celeborn\ServiceConfig.ini
+                    Copy-Item $(System.DefaultWorkingDirectory)\start_celeborn.bat $(PUBLISH_DIR)\Celeborn\start.bat
                     Copy-Item $(System.DefaultWorkingDirectory)\ServiceConfig_master.ini $(PUBLISH_DIR)\Celeborn_Master\ServiceConfig.ini
                     Copy-Item $(System.DefaultWorkingDirectory)\start_master.bat $(PUBLISH_DIR)\Celeborn_Master\start.bat
-                    foreach ($file in $files) { Copy-Item $(System.DefaultWorkingDirectory)\$file $(PUBLISH_DIR)\Celeborn_Worker\ }
-                    Copy-Item $(System.DefaultWorkingDirectory)\ServiceConfig_master.ini $(PUBLISH_DIR)\Celeborn_Worker\ServiceConfig.ini
+                    Copy-Item $(System.DefaultWorkingDirectory)\ServiceConfig_worker.ini $(PUBLISH_DIR)\Celeborn_Worker\ServiceConfig.ini
                     Copy-Item $(System.DefaultWorkingDirectory)\start_worker.bat $(PUBLISH_DIR)\Celeborn_Worker\start.bat
 
 

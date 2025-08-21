@@ -17,6 +17,7 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import java.io.File;
 import java.util.concurrent.atomic.LongAdder;
 
 import scala.Tuple2;
@@ -41,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.reflect.DynConstructors;
 import org.apache.celeborn.reflect.DynFields;
 import org.apache.celeborn.reflect.DynMethods;
@@ -82,6 +84,16 @@ public class SparkUtils {
   /** make celeborn conf from spark conf */
   public static CelebornConf fromSparkConf(SparkConf conf) {
     CelebornConf tmpCelebornConf = new CelebornConf();
+
+    // If celeborn-defaults.conf exists, load configs from this file
+    File configFile = new File("celeborn-defaults.conf");
+    if (configFile.exists() && configFile.isFile()) {
+      Utils.loadDefaultCelebornProperties(tmpCelebornConf,
+          "celeborn-defaults.conf");
+    } else {
+      Utils.loadDefaultCelebornProperties(tmpCelebornConf, null);
+    }
+
     for (Tuple2<String, String> kv : conf.getAll()) {
       if (kv._1.startsWith("spark.celeborn.")) {
         tmpCelebornConf.set(kv._1.substring("spark.".length()), kv._2);
