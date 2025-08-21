@@ -1141,13 +1141,13 @@ public class RatisMasterStatusSystemSuiteJ {
   @Test
   public void testAutoReleaseHighWorkLoadWorkers() throws InterruptedException, IOException {
     CelebornConf conf1 = new CelebornConf();
-    conf1.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLE(), true);
+    conf1.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLED(), true);
     conf1.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD(), 0.8);
     CelebornConf conf2 = new CelebornConf();
-    conf2.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLE(), true);
+    conf2.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLED(), true);
     conf2.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD(), 0.8);
     CelebornConf conf3 = new CelebornConf();
-    conf3.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLE(), true);
+    conf3.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLED(), true);
     conf3.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD(), 0.8);
 
     try {

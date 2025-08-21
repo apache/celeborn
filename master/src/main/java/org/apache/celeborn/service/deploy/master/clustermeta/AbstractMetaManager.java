@@ -91,8 +91,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public long initialEstimatedPartitionSize;
   public long estimatedPartitionSize;
   public double unhealthyDiskRatioThreshold;
-  public boolean autoReleaseHighWorkLoadEnabled;
-  public double autoReleaseHighWorkLoadRatioThreshold;
+  protected boolean autoReleaseHighWorkLoadEnabled;
+  protected double autoReleaseHighWorkLoadRatioThreshold;
   protected boolean hasRemoteStorage;
   public final LongAdder partitionTotalWritten = new LongAdder();
   public final LongAdder partitionTotalFileCount = new LongAdder();
@@ -266,15 +266,15 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       if (!isExceeding) {
         return true;
       } else {
-        LOG.info(
-            "Worker {} doesn't have enough healthy local disk (unhealthy count: {})",
+        LOG.warn(
+            "Worker {} doesn't have enough healthy local disk (unhealthy count: {}). Has remote storage: {}",
             workerInfo,
-            unhealthyCount);
+            unhealthyCount,
+            hasRemoteStorage);
       }
     }
 
     if (hasRemoteStorage) {
-      LOG.info("Worker {} has remote storage", workerInfo);
       return true;
     } else {
       LOG.warn("Worker {} has no available storage", workerInfo);

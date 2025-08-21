@@ -758,7 +758,7 @@ public class DefaultMetaSystemSuiteJ {
 
   @Test
   public void testAutoReleaseHighWorkLoadWorkers() {
-    conf.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLE(), true);
+    conf.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLED(), true);
     conf.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD(), 0.8);
     statusSystem = new SingleMasterMetaManager(mockRpcEnv, conf);
 
