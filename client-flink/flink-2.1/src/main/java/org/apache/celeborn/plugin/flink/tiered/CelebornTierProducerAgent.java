@@ -234,12 +234,7 @@ public class CelebornTierProducerAgent implements TierProducerAgent {
     try {
       if (hasRegisteredShuffle && partitionLocation != null) {
         flinkShuffleClient.mapPartitionMapperEnd(
-            shuffleId,
-            mapId,
-            attemptId,
-            numPartitions,
-            numSubPartitions,
-            partitionLocation.getId());
+            shuffleId, mapId, attemptId, numPartitions, partitionLocation.getId());
       }
     } catch (Exception e) {
       Utils.rethrowAsRuntimeException(e);
