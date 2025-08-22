@@ -47,6 +47,7 @@ class WorkerInfo(
   var nextInterruptionNotice = Long.MaxValue
   var lastHeartbeat: Long = 0
   var workerStatus = WorkerStatus.normalWorkerStatus()
+  var isHighWorkLoad: Boolean = false;
   val diskInfos = {
     if (_diskInfos != null) JavaUtils.newConcurrentHashMap[String, DiskInfo](_diskInfos)
     else null
@@ -180,6 +181,10 @@ class WorkerInfo(
 
   def setWorkerStatus(workerStatus: WorkerStatus): Unit = {
     this.workerStatus = workerStatus;
+  }
+
+  def setWorkLoad(isHighWorkLoad: Boolean): Unit = {
+    this.isHighWorkLoad = isHighWorkLoad;
   }
 
   def updateDiskSlots(estimatedPartitionSize: Long): Unit = this.synchronized {
