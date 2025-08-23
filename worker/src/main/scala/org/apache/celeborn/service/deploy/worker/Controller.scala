@@ -335,17 +335,13 @@ private[deploy] class Controller(
                 waitMapPartitionRegionFinished(fileWriter, shuffleCommitTimeout)
                 val bytes = fileWriter.close()
                 if (bytes > 0L) {
+                  logDebug(
+                    s"Commit file $shuffleKey $uniqueId ${fileWriter.getFilePath} success fileSize: $bytes")
                   if (fileWriter.getStorageInfo == null) {
                     // Only HDFS can be null, means that this partition location is deleted.
                     logDebug(s"Location $uniqueId is deleted.")
                   } else {
                     val storageInfo = fileWriter.getStorageInfo
-                    val fileInfo =
-                      if (null != fileWriter.getDiskFileInfo) {
-                        fileWriter.getDiskFileInfo
-                      } else {
-                        fileWriter.getMemoryFileInfo
-                      }
                     committedStorageInfos.put(uniqueId, storageInfo)
                     if (fileWriter.getMapIdBitMap != null) {
                       committedMapIdBitMap.put(uniqueId, fileWriter.getMapIdBitMap)

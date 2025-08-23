@@ -101,7 +101,11 @@ public class PartitionDataWriter implements DeviceObserver {
   }
 
   public String getFilePath() {
-    return getDiskFileInfo().getFilePath();
+    DiskFileInfo diskFileInfo = getDiskFileInfo();
+    if (diskFileInfo != null) {
+      return diskFileInfo.getFilePath();
+    }
+    return "";
   }
 
   public void incrementPendingWrites() {
