@@ -754,6 +754,7 @@ message PbSnapshotMetaInfo {
   map<string, int64> shuffleFallbackCounts = 19;
   int64 applicationTotalCount = 20;
   map<string, int64> applicationFallbackCounts = 21;
+  map<string, PbApplicationInfo> applicationInfos = 22;
 }
 
 message PbOpenStream {
@@ -903,6 +904,13 @@ message PbRegisterApplicationResponse {
 message PbApplicationMeta {
   string appId = 1;
   string secret = 2;
+}
+
+message PbApplicationInfo {
+  string appId = 1;
+  PbUserIdentifier userIdentifier = 2;
+  map<string, string> extraInfo = 3;
+  int64 registrationTime = 4;
 }
 
 message PbApplicationMetaRequest {

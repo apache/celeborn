@@ -97,7 +97,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final Map<String, Long> shuffleFallbackCounts = JavaUtils.newConcurrentHashMap();
   public final Map<String, Long> applicationFallbackCounts = JavaUtils.newConcurrentHashMap();
 
-  public final Map<String, ApplicationInfo> applicationInfos = JavaUtils.newConcurrentHashMap();
+  public final ConcurrentHashMap<String, ApplicationInfo> applicationInfos =
+      JavaUtils.newConcurrentHashMap();
   public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
       JavaUtils.newConcurrentHashMap();
 
@@ -382,6 +383,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 shutdownWorkers,
                 workerEventInfos,
                 applicationMetas,
+                applicationInfos,
                 decommissionWorkers)
             .toByteArray();
     Files.write(file.toPath(), snapshotBytes);
@@ -487,6 +489,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           .forEach(
               (key, value) -> applicationMetas.put(key, PbSerDeUtils.fromPbApplicationMeta(value)));
 
+      snapshotMetaInfo
+          .getApplicationInfosMap()
+          .forEach(
+              (key, value) -> applicationInfos.put(key, PbSerDeUtils.fromPbApplicationInfo(value)));
+
       availableWorkers.addAll(
           workersMap.values().stream()
               .filter(worker -> isWorkerAvailable(worker))
@@ -526,6 +533,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     applicationFallbackCounts.clear();
     workerEventInfos.clear();
     applicationMetas.clear();
+    applicationInfos.clear();
   }
 
   public void updateMetaByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {
