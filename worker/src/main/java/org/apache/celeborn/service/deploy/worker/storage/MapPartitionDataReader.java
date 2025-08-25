@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.worker.storage;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
+import java.nio.channels.FileChannel;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,6 +31,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -126,12 +128,19 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
     this.readFinished = false;
   }
 
-  public void open() throws IOException {
+  public void open(
+      FileChannel dataFileChannel,
+      FileChannel indexFileChannel,
+      FSDataInputStream dataInputStream,
+      FSDataInputStream indexInputStream)
+      throws IOException {
     if (!isOpen) {
       this.partitionDataReader =
           fileInfo.isDFS()
-              ? new DfsPartitionDataReader(fileInfo, headerBuffer, indexBuffer)
-              : new LocalPartitionDataReader(fileInfo, headerBuffer, indexBuffer);
+              ? new DfsPartitionDataReader(
+                  fileInfo, dataInputStream, indexInputStream, headerBuffer, indexBuffer)
+              : new LocalPartitionDataReader(
+                  fileInfo, dataFileChannel, indexFileChannel, headerBuffer, indexBuffer);
       // index is (offset,length)
       long indexRegionSize = mapFileMeta.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
       this.numRegions =
