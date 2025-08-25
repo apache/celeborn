@@ -38,7 +38,17 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
       partitionDataWriterContext: PartitionDataWriterContext,
       numPendingWrites: AtomicInteger,
       notifier: FlushNotifier): TierWriterBase = {
-    evictFileOrder.foreach { order =>
+    val evictOrder =
+      if (!partitionDataWriterContext.getEvictFileOrder.isEmpty) {
+        Some(partitionDataWriterContext.getEvictFileOrder.split("\\|").map(group => {
+          val groupArr = group.split(",")
+          Map(groupArr.head -> groupArr.slice(1, groupArr.length).toList)
+        }).reduce(_ ++ _))
+      } else {
+        evictFileOrder
+      }
+
+    evictOrder.foreach { order =>
       val orderList = order.get(celebornFile.storageType.name())
       if (orderList != null) {
         return createFileWriter(
@@ -57,11 +67,19 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
       partitionDataWriterContext: PartitionDataWriterContext,
       numPendingWrites: AtomicInteger,
       notifier: FlushNotifier): TierWriterBase = {
+
+    val fileOrder =
+      if (!partitionDataWriterContext.getCreateFileOrder.isEmpty) {
+        Some(partitionDataWriterContext.getCreateFileOrder.split(",").map(_.trim).toList)
+      } else {
+        createFileOrder
+      }
+
     createFileWriter(
       partitionDataWriterContext: PartitionDataWriterContext,
       numPendingWrites: AtomicInteger,
       notifier: FlushNotifier,
-      createFileOrder)
+      fileOrder)
   }
 
   def createFileWriter(

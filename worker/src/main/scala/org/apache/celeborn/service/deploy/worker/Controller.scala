@@ -111,7 +111,9 @@ private[deploy] class Controller(
           userIdentifier,
           pushDataTimeout,
           partitionSplitEnabled,
-          isSegmentGranularityVisible) =>
+          isSegmentGranularityVisible,
+          createFileOrder,
+          evictFileOrder) =>
       checkAuth(context, applicationId)
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.RESERVE_SLOTS_TIME, shuffleKey) {
@@ -131,7 +133,9 @@ private[deploy] class Controller(
           userIdentifier,
           pushDataTimeout,
           partitionSplitEnabled,
-          isSegmentGranularityVisible)
+          isSegmentGranularityVisible,
+          createFileOrder,
+          evictFileOrder)
         logDebug(s"ReserveSlots for $shuffleKey finished.")
       }
 
@@ -178,7 +182,9 @@ private[deploy] class Controller(
       userIdentifier: UserIdentifier,
       pushDataTimeout: Long,
       partitionSplitEnabled: Boolean,
-      isSegmentGranularityVisible: Boolean): Unit = {
+      isSegmentGranularityVisible: Boolean,
+      createFileOrder: String,
+      evictFileOrder: String): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (shutdown.get()) {
       val msg = "Current worker is shutting down!"
@@ -211,7 +217,9 @@ private[deploy] class Controller(
             rangeReadFilter,
             userIdentifier,
             partitionSplitEnabled,
-            isSegmentGranularityVisible)
+            isSegmentGranularityVisible,
+            createFileOrder,
+            evictFileOrder)
           primaryLocs.add(new WorkingPartition(location, writer))
         } else {
           primaryLocs.add(location)
@@ -252,7 +260,9 @@ private[deploy] class Controller(
             rangeReadFilter,
             userIdentifier,
             partitionSplitEnabled,
-            isSegmentGranularityVisible)
+            isSegmentGranularityVisible,
+            createFileOrder,
+            evictFileOrder)
           replicaLocs.add(new WorkingPartition(location, writer))
         } else {
           replicaLocs.add(location)
