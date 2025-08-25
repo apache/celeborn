@@ -73,12 +73,16 @@ private[celeborn] class Master(
     new ResourceConsumptionSource(conf, Role.MASTER)
   private val threadPoolSource = ThreadPoolSource(conf, Role.MASTER)
   private val masterSource = new MasterSource(conf)
+  private val jvmSource = new JVMSource(conf, Role.MASTER)
+  private val jvmCpuSource = new JVMCPUSource(conf, Role.MASTER)
+  private val systemMiscSource = new SystemMiscSource(conf, Role.MASTER)
+
   metricsSystem.registerSource(resourceConsumptionSource)
   metricsSystem.registerSource(masterSource)
   metricsSystem.registerSource(threadPoolSource)
-  metricsSystem.registerSource(new JVMSource(conf, Role.MASTER))
-  metricsSystem.registerSource(new JVMCPUSource(conf, Role.MASTER))
-  metricsSystem.registerSource(new SystemMiscSource(conf, Role.MASTER))
+  metricsSystem.registerSource(jvmSource)
+  metricsSystem.registerSource(jvmCpuSource)
+  metricsSystem.registerSource(systemMiscSource)
 
   private val bindPreferIP: Boolean = conf.bindPreferIP
   private val authEnabled = conf.authEnabled
@@ -381,6 +385,9 @@ private[celeborn] class Master(
       sendApplicationMetaExecutor.shutdownNow()
     }
     messagesHelper.close()
+
+    metricsSystem.stop()
+
     logInfo("Celeborn Master is stopped.")
   }
 

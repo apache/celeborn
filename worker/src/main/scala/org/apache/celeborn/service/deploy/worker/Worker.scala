@@ -74,12 +74,15 @@ private[celeborn] class Worker(
   val resourceConsumptionSource =
     new ResourceConsumptionSource(conf, Role.WORKER)
   private val threadPoolSource = ThreadPoolSource(conf, Role.WORKER)
+  private val jvmSource = new JVMSource(conf, Role.WORKER)
+  private val jvmCpuSource = new JVMCPUSource(conf, Role.WORKER)
+  private val systemMiscSource = new SystemMiscSource(conf, Role.WORKER)
   metricsSystem.registerSource(workerSource)
   metricsSystem.registerSource(threadPoolSource)
   metricsSystem.registerSource(resourceConsumptionSource)
-  metricsSystem.registerSource(new JVMSource(conf, Role.WORKER))
-  metricsSystem.registerSource(new JVMCPUSource(conf, Role.WORKER))
-  metricsSystem.registerSource(new SystemMiscSource(conf, Role.WORKER))
+  metricsSystem.registerSource(jvmSource)
+  metricsSystem.registerSource(jvmCpuSource)
+  metricsSystem.registerSource(systemMiscSource)
 
   private val topAppResourceConsumptionCount = conf.metricsWorkerAppTopResourceConsumptionCount
   private val topAppResourceConsumptionBytesWrittenThreshold =
