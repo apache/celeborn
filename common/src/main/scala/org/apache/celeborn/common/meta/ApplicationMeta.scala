@@ -22,7 +22,6 @@ import java.util.{Map => JMap}
 import scala.collection.JavaConverters._
 
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.ApplicationMeta.UNKNOWN_USER_IDENTIFIER
 
 /**
  * Application meta
@@ -30,14 +29,14 @@ import org.apache.celeborn.common.meta.ApplicationMeta.UNKNOWN_USER_IDENTIFIER
 case class ApplicationMeta(
     appId: String,
     secret: String,
-    var userIdentifier: UserIdentifier = UNKNOWN_USER_IDENTIFIER,
+    var userIdentifier: UserIdentifier = UserIdentifier.UNKNOWN,
     var extraInfo: JMap[String, String] = Map.empty[String, String].asJava,
     registrationTime: Long = System.currentTimeMillis()) {
   def this(appId: String, secret: String) = {
     this(
       appId,
       secret,
-      UNKNOWN_USER_IDENTIFIER,
+      UserIdentifier.UNKNOWN,
       Map.empty[String, String].asJava,
       System.currentTimeMillis())
   }
@@ -45,8 +44,4 @@ case class ApplicationMeta(
   def this(appId: String, userIdentifier: UserIdentifier, extraInfo: JMap[String, String]) = {
     this(appId, null, userIdentifier, extraInfo, System.currentTimeMillis())
   }
-}
-
-object ApplicationMeta {
-  val UNKNOWN_USER_IDENTIFIER = UserIdentifier("unknown", "unknown")
 }
