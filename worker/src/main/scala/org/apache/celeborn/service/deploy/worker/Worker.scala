@@ -996,7 +996,7 @@ private[celeborn] class Worker(
 
     def waitTime: Long = waitTimes * interval
 
-    while (!storageManager.shuffleKeySet().isEmpty && waitTime < timeout) {
+    while (!storageManager.shuffleKeySet().isEmpty || waitTime < timeout) {
       Thread.sleep(interval)
       waitTimes += 1
     }
