@@ -65,12 +65,12 @@ class ApplicationResource extends ApiRequestContext {
   def applicationsInfo(): ApplicationInfoResponse = {
     new ApplicationInfoResponse()
       .applications(
-        statusSystem.applicationInfos.asScala.map { case (appId, appInfo) =>
+        statusSystem.applicationMetas.asScala.map { case (appId, appMeta) =>
           new ApplicationInfo()
             .appId(appId)
-            .userIdentifier(appInfo.userIdentifier.toString)
-            .extraInfo(appInfo.extraInfo)
-            .registrationTime(appInfo.registrationTime)
+            .userIdentifier(appMeta.userIdentifier.toString)
+            .extraInfo(appMeta.extraInfo)
+            .registrationTime(appMeta.registrationTime)
         }.toSeq.asJava)
   }
 

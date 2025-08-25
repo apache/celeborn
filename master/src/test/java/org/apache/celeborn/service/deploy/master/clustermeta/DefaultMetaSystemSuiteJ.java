@@ -961,14 +961,14 @@ public class DefaultMetaSystemSuiteJ {
 
   @Test
   public void testRegisterApplicationInfo() {
-    statusSystem.applicationInfos.clear();
+    statusSystem.applicationMetas.clear();
     UserIdentifier userIdentifier = new UserIdentifier("tenant", "celeborn");
 
     String appId = "app1";
     Map<String, String> extraInfo = Collections.singletonMap("k1", "v1");
     statusSystem.handleRegisterApplicationInfo(appId, userIdentifier, extraInfo, getNewReqeustId());
 
-    assertEquals(statusSystem.applicationInfos.get(appId).userIdentifier(), userIdentifier);
-    assertEquals(statusSystem.applicationInfos.get(appId).extraInfo(), extraInfo);
+    assertEquals(statusSystem.applicationMetas.get(appId).userIdentifier(), userIdentifier);
+    assertEquals(statusSystem.applicationMetas.get(appId).extraInfo(), extraInfo);
   }
 }
