@@ -25,7 +25,6 @@ import io.netty.buffer.ByteBuf;
 import org.apache.commons.io.IOUtils;
 
 import org.apache.celeborn.common.meta.DiskFileInfo;
-import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.common.util.Utils;
 
 public class LocalPartitionDataReader extends PartitionDataReader {
@@ -34,10 +33,15 @@ public class LocalPartitionDataReader extends PartitionDataReader {
   private final FileChannel indexFileChannel;
 
   public LocalPartitionDataReader(
-      DiskFileInfo fileInfo, ByteBuffer headerBuffer, ByteBuffer indexBuffer) throws IOException {
+      DiskFileInfo fileInfo,
+      FileChannel dataFileChannel,
+      FileChannel indexFileChannel,
+      ByteBuffer headerBuffer,
+      ByteBuffer indexBuffer)
+      throws IOException {
     super(fileInfo, headerBuffer, indexBuffer);
-    this.dataFileChanel = FileChannelUtils.openReadableFileChannel(fileInfo.getFilePath());
-    this.indexFileChannel = FileChannelUtils.openReadableFileChannel(fileInfo.getIndexPath());
+    this.dataFileChanel = dataFileChannel;
+    this.indexFileChannel = indexFileChannel;
     this.dataFileSize = dataFileChanel.size();
     this.indexFileSize = indexFileChannel.size();
   }
