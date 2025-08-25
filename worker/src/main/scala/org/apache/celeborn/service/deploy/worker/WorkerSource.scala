@@ -242,6 +242,8 @@ object WorkerSource {
 
   val MEMORY_STORAGE_FILE_COUNT = "MemoryStorageFileCount"
 
+  val IS_HIGH_WORKLOAD = "IsHighWorkload"
+
   // credit
   val ACTIVE_CREDIT_STREAM_COUNT = "ActiveCreditStreamCount"
   val ACTIVE_MAP_PARTITION_COUNT = "ActiveMapPartitionCount"
