@@ -1184,12 +1184,12 @@ object Utils extends Logging {
     }
   }
 
-  def parseMetricLabels(label: String): (String, String) = {
-    val labelPart = label.split("=")
-    if (labelPart.size != 2) {
-      throw new IllegalArgumentException(s"Illegal metric extra labels: $label")
+  def parseKeyValuePair(pair: String): (String, String) = {
+    val parts = pair.split("=")
+    if (parts.size != 2) {
+      throw new IllegalArgumentException(s"Illegal kay=value pair: $pair")
     }
-    labelPart(0).trim -> labelPart(1).trim
+    parts(0).trim -> parts(1).trim
   }
 
   def getProcessId: String = ManagementFactory.getRuntimeMXBean.getName.split("@")(0)

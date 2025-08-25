@@ -17,7 +17,31 @@
 
 package org.apache.celeborn.common.meta
 
+import java.util.{Map => JMap}
+
+import scala.collection.JavaConverters._
+
+import org.apache.celeborn.common.identity.UserIdentifier
+
 /**
  * Application meta
  */
-case class ApplicationMeta(appId: String, secret: String)
+case class ApplicationMeta(
+    appId: String,
+    secret: String,
+    var userIdentifier: UserIdentifier = UserIdentifier.UNKNOWN,
+    var extraInfo: JMap[String, String] = Map.empty[String, String].asJava,
+    registrationTime: Long = System.currentTimeMillis()) {
+  def this(appId: String, secret: String) = {
+    this(
+      appId,
+      secret,
+      UserIdentifier.UNKNOWN,
+      Map.empty[String, String].asJava,
+      System.currentTimeMillis())
+  }
+
+  def this(appId: String, userIdentifier: UserIdentifier, extraInfo: JMap[String, String]) = {
+    this(appId, null, userIdentifier, extraInfo, System.currentTimeMillis())
+  }
+}

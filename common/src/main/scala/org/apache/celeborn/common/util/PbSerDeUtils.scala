@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
 
 import com.google.protobuf.InvalidProtocolBufferException
+import org.apache.commons.lang3.StringUtils
 
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{ApplicationMeta, DeviceInfo, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
@@ -198,8 +199,13 @@ object PbSerDeUtils {
     PbFileInfoMap.newBuilder.putAllValues(pbFileInfoMap).build.toByteArray
   }
 
-  def fromPbUserIdentifier(pbUserIdentifier: PbUserIdentifier): UserIdentifier =
-    UserIdentifier(pbUserIdentifier.getTenantId, pbUserIdentifier.getName)
+  def fromPbUserIdentifier(pbUserIdentifier: PbUserIdentifier): UserIdentifier = {
+    if (StringUtils.isAllEmpty(pbUserIdentifier.getTenantId, pbUserIdentifier.getName)) {
+      UserIdentifier.UNKNOWN
+    } else {
+      UserIdentifier(pbUserIdentifier.getTenantId, pbUserIdentifier.getName)
+    }
+  }
 
   def toPbUserIdentifier(userIdentifier: UserIdentifier): PbUserIdentifier =
     PbUserIdentifier.newBuilder
@@ -484,11 +490,20 @@ object PbSerDeUtils {
   def toPbApplicationMeta(meta: ApplicationMeta): PbApplicationMeta = {
     PbApplicationMeta.newBuilder()
       .setAppId(meta.appId)
-      .setSecret(meta.secret).build()
+      .setSecret(meta.secret)
+      .setUserIdentifier(toPbUserIdentifier(meta.userIdentifier))
+      .putAllExtraInfo(meta.extraInfo)
+      .setRegistrationTime(meta.registrationTime)
+      .build()
   }
 
   def fromPbApplicationMeta(pbApplicationMeta: PbApplicationMeta): ApplicationMeta = {
-    ApplicationMeta(pbApplicationMeta.getAppId, pbApplicationMeta.getSecret)
+    ApplicationMeta(
+      pbApplicationMeta.getAppId,
+      pbApplicationMeta.getSecret,
+      fromPbUserIdentifier(pbApplicationMeta.getUserIdentifier),
+      pbApplicationMeta.getExtraInfoMap,
+      pbApplicationMeta.getRegistrationTime)
   }
 
   def toPbWorkerStatus(workerStatus: WorkerStatus): PbWorkerStatus = {

@@ -104,6 +104,17 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
       JavaUtils.newConcurrentHashMap();
 
+  public void updateApplicationInfo(
+      String appId, UserIdentifier userIdentifier, Map<String, String> extraInfo) {
+    ApplicationMeta applicationMeta = applicationMetas.get(appId);
+    if (applicationMeta == null) {
+      applicationMetas.put(appId, new ApplicationMeta(appId, userIdentifier, extraInfo));
+    } else {
+      applicationMeta.userIdentifier_$eq(userIdentifier);
+      applicationMeta.extraInfo_$eq(extraInfo);
+    }
+  }
+
   public void updateRequestSlotsMeta(
       String shuffleKey, String hostName, Map<String, Map<String, Integer>> workerWithAllocations) {
     Tuple2<String, Object> appIdShuffleId = Utils.splitShuffleKey(shuffleKey);

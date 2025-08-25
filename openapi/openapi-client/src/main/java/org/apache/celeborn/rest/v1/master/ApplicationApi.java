@@ -25,6 +25,7 @@ import org.apache.celeborn.rest.v1.master.invoker.BaseApi;
 import org.apache.celeborn.rest.v1.master.invoker.Configuration;
 import org.apache.celeborn.rest.v1.master.invoker.Pair;
 
+import org.apache.celeborn.rest.v1.model.ApplicationInfoResponse;
 import org.apache.celeborn.rest.v1.model.ApplicationsHeartbeatResponse;
 import org.apache.celeborn.rest.v1.model.DeleteAppsRequest;
 import org.apache.celeborn.rest.v1.model.HandleResponse;
@@ -236,6 +237,73 @@ public class ApplicationApi extends BaseApi {
     String[] localVarAuthNames = new String[] { "basic" };
 
     TypeReference<ApplicationsHeartbeatResponse> localVarReturnType = new TypeReference<ApplicationsHeartbeatResponse>() {};
+    return apiClient.invokeAPI(
+        localVarPath,
+        "GET",
+        localVarQueryParams,
+        localVarCollectionQueryParams,
+        localVarQueryStringJoiner.toString(),
+        localVarPostBody,
+        localVarHeaderParams,
+        localVarCookieParams,
+        localVarFormParams,
+        localVarAccept,
+        localVarContentType,
+        localVarAuthNames,
+        localVarReturnType
+    );
+  }
+
+  /**
+   * 
+   * List all running application&#39;s info of the cluster.
+   * @return ApplicationInfoResponse
+   * @throws ApiException if fails to make API call
+   */
+  public ApplicationInfoResponse getApplicationsInfo() throws ApiException {
+    return this.getApplicationsInfo(Collections.emptyMap());
+  }
+
+
+  /**
+   * 
+   * List all running application&#39;s info of the cluster.
+   * @param additionalHeaders additionalHeaders for this call
+   * @return ApplicationInfoResponse
+   * @throws ApiException if fails to make API call
+   */
+  public ApplicationInfoResponse getApplicationsInfo(Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = null;
+    
+    // create path and map variables
+    String localVarPath = "/api/v1/applications/info";
+
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    List<Pair> localVarQueryParams = new ArrayList<Pair>();
+    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+    Map<String, String> localVarCookieParams = new HashMap<String, String>();
+    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+    
+    localVarHeaderParams.putAll(additionalHeaders);
+
+    
+    
+    final String[] localVarAccepts = {
+      "application/json"
+    };
+    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+
+    final String[] localVarContentTypes = {
+      
+    };
+    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+
+    String[] localVarAuthNames = new String[] { "basic" };
+
+    TypeReference<ApplicationInfoResponse> localVarReturnType = new TypeReference<ApplicationInfoResponse>() {};
     return apiClient.invokeAPI(
         localVarPath,
         "GET",

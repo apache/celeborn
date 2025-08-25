@@ -373,7 +373,12 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
   }
 
   test("fromAndToPbApplicationMeta") {
-    val applicationMeta = new ApplicationMeta("app1", "secret1")
+    val applicationMeta = new ApplicationMeta(
+      "app1",
+      "secret1",
+      UserIdentifier("tenant", "user"),
+      Map("key" -> "value").asJava,
+      System.currentTimeMillis())
     val pbApplicationMeta = PbSerDeUtils.toPbApplicationMeta(applicationMeta)
     val restoredApplicationMeta = PbSerDeUtils.fromPbApplicationMeta(pbApplicationMeta)
 
