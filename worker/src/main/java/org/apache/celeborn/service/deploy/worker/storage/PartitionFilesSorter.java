@@ -271,9 +271,15 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             try {
               Thread.sleep(50);
               if (System.currentTimeMillis() - sortStartTime > sortTimeout) {
-                logger.error("Sorting file {} timeout after {}ms", fileId, sortTimeout);
-                throw new IOException(
-                    "Sort file " + diskFileInfo.getFilePath() + " timeout after " + sortTimeout);
+                String msg =
+                    String.format(
+                        "Sorting file %s path %s length %s timeout after %dms",
+                        fileId,
+                        diskFileInfo.getFilePath(),
+                        diskFileInfo.getFileLength(),
+                        sortTimeout);
+                logger.error(msg);
+                throw new IOException(msg);
               }
             } catch (InterruptedException e) {
               logger.error(
