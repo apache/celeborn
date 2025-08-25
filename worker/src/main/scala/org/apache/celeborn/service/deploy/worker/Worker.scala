@@ -440,6 +440,13 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_AND_REPLICATE_COUNT) { () =>
     memoryManager.getPausePushDataAndReplicateCounter
   }
+  workerSource.addGauge(WorkerSource.IS_HIGH_WORKLOAD) { () =>
+    if (highWorkload) {
+      1
+    } else {
+      0
+    }
+  }
   workerSource.addGauge(WorkerSource.ACTIVE_SLOTS_COUNT) { () =>
     workerInfo.usedSlots()
   }
