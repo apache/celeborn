@@ -27,6 +27,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import scala.Tuple2;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.apache.commons.lang3.tuple.Pair;
@@ -103,15 +105,17 @@ public class DfsPartitionReader implements PartitionReader {
     this.metricsCallback = metricsCallback;
     this.partitionReaderWaitLogThreshold = conf.clientPartitionReaderWaitLogThreshold();
     this.location = location;
+    List<Tuple2<String, FileSystem>> list = null;
     if (location.getStorageInfo() != null
         && location.getStorageInfo().getType() == StorageInfo.Type.S3) {
-      this.hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.S3);
+      list = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.S3);
     } else if (location.getStorageInfo() != null
         && location.getStorageInfo().getType() == StorageInfo.Type.OSS) {
-      this.hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.OSS);
+      list = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.OSS);
     } else {
-      this.hadoopFs = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.HDFS);
+      list = ShuffleClient.getHadoopFs(conf).get(StorageInfo.Type.HDFS);
     }
+    this.hadoopFs = list.get(Math.floorMod(location.getUniqueId().hashCode(), list.size()))._2;
 
     long fetchTimeoutMs = conf.clientFetchTimeoutMs();
     try {

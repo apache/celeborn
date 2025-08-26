@@ -21,7 +21,7 @@ import java.io.{ByteArrayInputStream, Closeable, IOException}
 import java.nio.channels.FileChannel
 
 import io.netty.buffer.{ByteBufUtil, CompositeByteBuf}
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.source.AbstractSource
@@ -101,10 +101,10 @@ private[worker] class HdfsFlushTask(
     val path: Path,
     notifier: FlushNotifier,
     keepBuffer: Boolean,
-    source: AbstractSource) extends DfsFlushTask(buffer, notifier, keepBuffer, source) {
+    source: AbstractSource,
+    hadoopFs: FileSystem) extends DfsFlushTask(buffer, notifier, keepBuffer, source) {
   override def flush(copyBytes: Array[Byte]): Unit = {
     val readableBytes = buffer.readableBytes()
-    val hadoopFs = StorageManager.hadoopFs.get(Type.HDFS)
     val hdfsStream = hadoopFs.append(path, 256 * 1024)
     flush(hdfsStream) {
       hdfsStream.write(convertBufferToBytes(buffer, copyBytes, readableBytes))

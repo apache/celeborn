@@ -29,6 +29,7 @@ import scala.util.matching.Regex
 
 import io.netty.channel.epoll.Epoll
 import io.netty.channel.kqueue.KQueue
+import org.apache.commons.lang3.StringUtils
 
 import org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl
 import org.apache.celeborn.common.client.{ApplicationInfoProvider, DefaultApplicationInfoProvider}
@@ -1258,6 +1259,25 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     }.getOrElse("")
   }
 
+  def s3DirList: Option[Seq[String]] = {
+    get(S3_MULTI_DIR).map {
+      s3MultiDir =>
+        StringUtils.split(s3MultiDir, ",")
+        val dirList: Seq[String] = StringUtils.split(s3MultiDir, ",").toSeq
+        val validated = dirList.forall(s3Dir =>
+          if (!Utils.isS3Path(s3Dir)) {
+            log.error(s"${S3_MULTI_DIR.key} configuration is wrong $s3Dir. Disable S3 support.")
+            false
+          } else {
+            true
+          })
+        (validated, dirList)
+    } match {
+      case Some((true, dirList)) => Some(dirList)
+      case _ => None
+    }
+  }
+
   def ossDir: String = {
     get(OSS_DIR).map {
       ossDir =>
@@ -1269,28 +1289,55 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         }
     }.getOrElse("")
   }
+
+  def ossDirList: Option[Seq[String]] = {
+    get(OSS_MULTI_DIR).map {
+      ossMultiDir =>
+        val dirList: Seq[String] = StringUtils.split(ossMultiDir, ",").toSeq
+        val validated = dirList.forall(ossDir =>
+          if (!Utils.isS3Path(s3Dir)) {
+            log.error(s"${OSS_MULTI_DIR.key} configuration is wrong $ossDir. Disable S3 support.")
+            false
+          } else {
+            true
+          })
+        (validated, dirList)
+    } match {
+      case Some((true, dirList)) => Some(dirList)
+      case _ => None
+    }
+  }
+
   def ossEndpoint: String = get(OSS_ENDPOINT).getOrElse("")
   def ossAccessKey: String = get(OSS_ACCESS_KEY).getOrElse("")
   def ossSecretKey: String = get(OSS_SECRET_KEY).getOrElse("")
   def ossIgnoreCredentials: Boolean = get(OSS_IGNORE_CREDENTIALS)
 
-  def hdfsDir: String = {
-    get(HDFS_DIR).map {
-      hdfsDir =>
-        if (!Utils.isHdfsPath(hdfsDir)) {
-          log.error(s"${HDFS_DIR.key} configuration is wrong $hdfsDir. Disable HDFS support.")
-          ""
-        } else {
-          hdfsDir
-        }
-    }.getOrElse("")
+  def hdfsDirList: Option[Seq[String]] = {
+    get(HDFS_MULTI_DIR).map {
+      hdfsMultiDir =>
+        StringUtils.split(hdfsMultiDir, ",")
+        val dirList: Seq[String] = StringUtils.split(hdfsMultiDir, ",").toSeq
+        val validated = dirList.forall(hdfsDir =>
+          if (!Utils.isHdfsPath(hdfsDir)) {
+            log.error(
+              s"${HDFS_MULTI_DIR.key} configuration is wrong $hdfsDir. Disable HDFS support.")
+            false
+          } else {
+            true
+          })
+        (validated, dirList)
+    } match {
+      case Some((true, dirList)) => Some(dirList)
+      case _ => None
+    }
   }
 
-  def remoteStorageDirs: Option[Set[(StorageInfo.Type, String)]] = {
+  def remoteStorageDirs: Option[Set[(StorageInfo.Type, Set[String])]] = {
     val supported = Seq(
-      (StorageInfo.Type.HDFS, HDFS_DIR, Utils.isHdfsPath _),
-      (StorageInfo.Type.S3, S3_DIR, Utils.isS3Path _),
-      (StorageInfo.Type.OSS, OSS_DIR, Utils.isOssPath _))
+      (StorageInfo.Type.HDFS, HDFS_MULTI_DIR, Utils.isHdfsPath _),
+      (StorageInfo.Type.S3, S3_MULTI_DIR, Utils.isS3Path _),
+      (StorageInfo.Type.OSS, OSS_MULTI_DIR, Utils.isOssPath _))
 
     val activeStorageTypes =
       get(ACTIVE_STORAGE_TYPES).split(",").map(StorageInfo.Type.valueOf).toList
@@ -1299,8 +1346,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       if (!activeStorageTypes.contains(ty)) None
       else {
         get(e).flatMap { dir =>
-          if (checker(dir)) Some((ty, dir))
-          else {
+          val dirs = StringUtils.split(dir, ",").toSeq
+          if (dirs.nonEmpty) {
+            Some(ty, dirs.filter(checker(_)).toSet)
+          } else {
             log.error(s"${e.key} configuration is invalid: $dir. Disabling $ty support.")
             None
           }
@@ -3282,11 +3331,29 @@ object CelebornConf extends Logging {
       .stringConf
       .createOptional
 
+  val HDFS_MULTI_DIR: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.hdfs.multi.dir")
+      .withAlternative("celeborn.storage.hdfs.multi.dir")
+      .categories("worker", "master", "client")
+      .version("0.6.0")
+      .doc("HDFS base directory for Celeborn to store shuffle data, supporting multi dir with comma delimiter")
+      .stringConf
+      .createOptional
+
   val S3_DIR: OptionalConfigEntry[String] =
     buildConf("celeborn.storage.s3.dir")
       .categories("worker", "master", "client")
       .version("0.6.0")
       .doc("S3 base directory for Celeborn to store shuffle data.")
+      .stringConf
+      .createOptional
+
+  val S3_MULTI_DIR: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.s3.multi.dir")
+      .withAlternative("celeborn.storage.hdfs.multi.dir")
+      .categories("worker", "master", "client")
+      .version("0.6.0")
+      .doc("S3 base directory for Celeborn to store shuffle data, supporting multi dir with comma delimiter")
       .stringConf
       .createOptional
 
@@ -3335,6 +3402,15 @@ object CelebornConf extends Logging {
       .categories("worker", "master", "client")
       .version("0.6.0")
       .doc("OSS base directory for Celeborn to store shuffle data.")
+      .stringConf
+      .createOptional
+
+  val OSS_MULTI_DIR: OptionalConfigEntry[String] =
+    buildConf("celeborn.storage.oss.multi.dir")
+      .withAlternative("celeborn.storage.hdfs.multi.dir")
+      .categories("worker", "master", "client")
+      .version("0.6.0")
+      .doc("OSS base directory for Celeborn to store shuffle data, supporting multi dir with comma delimiter")
       .stringConf
       .createOptional
 
