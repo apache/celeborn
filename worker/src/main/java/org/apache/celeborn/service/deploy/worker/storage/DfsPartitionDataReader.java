@@ -23,10 +23,8 @@ import java.nio.ByteBuffer;
 import io.netty.buffer.ByteBuf;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
 
 import org.apache.celeborn.common.meta.DiskFileInfo;
-import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.util.Utils;
 
 public class DfsPartitionDataReader extends PartitionDataReader {
@@ -39,19 +37,14 @@ public class DfsPartitionDataReader extends PartitionDataReader {
       FSDataInputStream dataInputStream,
       FSDataInputStream indexInputStream,
       ByteBuffer headerBuffer,
-      ByteBuffer indexBuffer)
-      throws IOException {
+      ByteBuffer indexBuffer,
+      long dataFileSize,
+      long indexFileSize) {
     super(fileInfo, headerBuffer, indexBuffer);
-    FileSystem fileSystem =
-        StorageManager.hadoopFs()
-            .get(
-                fileInfo.isHdfs()
-                    ? StorageInfo.Type.HDFS
-                    : fileInfo.isS3() ? StorageInfo.Type.S3 : StorageInfo.Type.OSS);
     this.dataInputStream = dataInputStream;
     this.indexInputStream = indexInputStream;
-    this.dataFileSize = fileSystem.getFileStatus(fileInfo.getDfsPath()).getLen();
-    this.indexFileSize = fileSystem.getFileStatus(fileInfo.getDfsIndexPath()).getLen();
+    this.dataFileSize = dataFileSize;
+    this.indexFileSize = indexFileSize;
   }
 
   @Override

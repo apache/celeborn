@@ -37,8 +37,8 @@ object CelebornHadoopUtils extends Logging {
   private[celeborn] def newConfiguration(conf: CelebornConf): Configuration = {
     val hadoopConf = new Configuration()
     hadoopConf.set("fs.automatic.close", "false")
-    if (conf.hdfsDir.nonEmpty) {
-      val path = new Path(conf.hdfsDir)
+    if (conf.hdfsDirList.nonEmpty) {
+      val path = new Path(conf.hdfsDirList.get.head)
       val scheme = path.toUri.getScheme
       val disableCacheName = String.format("fs.%s.impl.disable.cache", scheme)
       hadoopConf.set("dfs.replication", "2")
@@ -52,7 +52,7 @@ object CelebornHadoopUtils extends Logging {
       }
     }
 
-    if (conf.s3Dir.nonEmpty) {
+    if (conf.s3DirList.nonEmpty) {
       if (conf.s3EndpointRegion.isEmpty) {
         throw new CelebornException("S3 storage is enabled but s3EndpointRegion is not set")
       }
@@ -66,7 +66,7 @@ object CelebornHadoopUtils extends Logging {
           "org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider")
 
       hadoopConf.set("fs.s3a.endpoint.region", conf.s3EndpointRegion)
-    } else if (conf.ossDir.nonEmpty) {
+    } else if (conf.ossDirList.nonEmpty) {
       if (conf.ossAccessKey.isEmpty || conf.ossSecretKey.isEmpty || conf.ossEndpoint.isEmpty) {
         throw new CelebornException(
           "OSS storage is enabled but ossAccessKey, ossSecretKey, or ossEndpoint is not set")
@@ -90,16 +90,40 @@ object CelebornHadoopUtils extends Logging {
     }
   }
 
-  def getHadoopFS(conf: CelebornConf): java.util.Map[StorageInfo.Type, FileSystem] = {
+  def getHadoopConf(conf: CelebornConf): Configuration = {
+    newConfiguration(conf)
+  }
+
+  def getHadoopFs(path: String, hadoopConf: Configuration): FileSystem = {
+    new Path(path).getFileSystem(hadoopConf)
+  }
+
+  def getHadoopFs(path: Path, hadoopConf: Configuration): FileSystem = {
+    path.getFileSystem(hadoopConf)
+  }
+
+  def getHadoopFS(conf: CelebornConf)
+      : java.util.Map[StorageInfo.Type, util.List[Tuple2[String, FileSystem]]] = {
     val hadoopConf = newConfiguration(conf)
     initKerberos(conf, hadoopConf)
-    val hadoopFs = new java.util.HashMap[StorageInfo.Type, FileSystem]()
+    val hadoopFs = new java.util.HashMap[StorageInfo.Type, util.List[Tuple2[String, FileSystem]]]()
 
     conf.remoteStorageDirs.foreach(dirs =>
       dirs.foreach {
-        case (storageType, dir) => {
-          val path = new Path(dir)
-          hadoopFs.put(storageType, path.getFileSystem(hadoopConf))
+        case (storageType, dirs) => {
+          dirs.foreach { dir =>
+            val list = hadoopFs.get(storageType)
+            if (list != null && !list.stream().anyMatch((tuple: Tuple2[String, FileSystem]) =>
+                tuple._1.equals(dir))) {
+              val path = new Path(dir)
+              list.add((dir, path.getFileSystem(hadoopConf)))
+            } else {
+              val path = new Path(dir)
+              val list = new util.ArrayList[(String, FileSystem)]
+              list.add((dir, path.getFileSystem(hadoopConf)))
+              hadoopFs.put(storageType, list)
+            }
+          }
         }
       })
 

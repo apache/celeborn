@@ -520,7 +520,9 @@ class DfsTierWriter(
     storageType == StorageInfo.Type.HDFS || storageType == StorageInfo.Type.OSS || storageType == StorageInfo.Type.S3)
   flusherBufferSize = conf.workerHdfsFlusherBufferSize
   private val flushWorkerIndex: Int = flusher.getWorkerIndex
-  val hadoopFs: FileSystem = StorageManager.hadoopFs.get(storageType)
+  val hadoopFs: FileSystem = StorageManager.dfsTupleForPartition(
+    storageType,
+    partitionDataWriterContext.getPartitionLocation.getUniqueId)._2
   var deleted = false
   private var s3MultipartUploadHandler: MultipartUploadHandler = _
   private var ossMultipartUploadHandler: MultipartUploadHandler = _
@@ -595,7 +597,7 @@ class DfsTierWriter(
   override def genFlushTask(finalFlush: Boolean, keepBuffer: Boolean): FlushTask = {
     notifier.numPendingFlushes.incrementAndGet()
     if (dfsFileInfo.isHdfs) {
-      new HdfsFlushTask(flushBuffer, dfsFileInfo.getDfsPath(), notifier, true, source)
+      new HdfsFlushTask(flushBuffer, dfsFileInfo.getDfsPath(), notifier, true, source, hadoopFs)
     } else if (dfsFileInfo.isOSS) {
       val flushTask = new OssFlushTask(
         flushBuffer,

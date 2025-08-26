@@ -28,13 +28,17 @@ import java.util.function.Consumer;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.MapFileMeta;
+import org.apache.celeborn.common.util.CelebornHadoopUtils;
 import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
@@ -54,6 +58,8 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
   private FileChannel indexChannel;
   private FSDataInputStream hdfsDataInputStream;
   private FSDataInputStream hdfsIndexInputStream;
+  protected long dataFileSize;
+  protected long indexFileSize;
   private volatile boolean isReleased = false;
   private final BufferQueue bufferQueue = new BufferQueue();
   private AtomicBoolean bufferQueueInitialized = new AtomicBoolean(false);
@@ -63,6 +69,7 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
   private int maxReadBuffers;
   private int minBuffersToTriggerRead;
   private AtomicBoolean hasReadingTask = new AtomicBoolean(false);
+  private static volatile Configuration hadoopConf;
 
   public MapPartitionData(
       int minReadBuffers,
@@ -99,15 +106,13 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
                     false));
 
     if (diskFileInfo.isDFS()) {
-      this.hdfsDataInputStream =
-          StorageManager.hadoopFs()
-              .get(diskFileInfo.getStorageType())
-              .open(new Path(diskFileInfo.getFilePath()));
-      this.hdfsIndexInputStream =
-          StorageManager.hadoopFs()
-              .get(diskFileInfo.getStorageType())
-              .open(new Path(diskFileInfo.getIndexPath()));
-
+      FileSystem fileSystem =
+          CelebornHadoopUtils.getHadoopFs(
+              diskFileInfo.getDfsPath(), getHadoopConf(memoryManager.getConf()));
+      this.hdfsDataInputStream = fileSystem.open(diskFileInfo.getDfsPath());
+      this.hdfsIndexInputStream = fileSystem.open(new Path(diskFileInfo.getIndexPath()));
+      this.dataFileSize = fileSystem.getFileStatus(diskFileInfo.getDfsPath()).getLen();
+      this.indexFileSize = fileSystem.getFileStatus(diskFileInfo.getDfsIndexPath()).getLen();
     } else {
       this.dataFileChanel = FileChannelUtils.openReadableFileChannel(diskFileInfo.getFilePath());
       this.indexChannel = FileChannelUtils.openReadableFileChannel(diskFileInfo.getIndexPath());
@@ -187,7 +192,13 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
   }
 
   protected void openReader(MapPartitionDataReader reader) throws IOException {
-    reader.open(dataFileChanel, indexChannel, hdfsDataInputStream, hdfsIndexInputStream);
+    reader.open(
+        dataFileChanel,
+        indexChannel,
+        hdfsDataInputStream,
+        hdfsIndexInputStream,
+        dataFileSize,
+        indexFileSize);
   }
 
   public synchronized void readBuffers() {
@@ -288,5 +299,16 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
   public void onChange(long newMemoryTarget) {
     updateBuffersTarget((int) Math.ceil(newMemoryTarget * 1.0 / mapFileMeta.getBufferSize()));
     bufferQueue.trim();
+  }
+
+  public static Configuration getHadoopConf(CelebornConf conf) {
+    if (null == hadoopConf) {
+      synchronized (MapPartitionData.class) {
+        if (null == hadoopConf) {
+          hadoopConf = CelebornHadoopUtils.getHadoopConf(conf);
+        }
+      }
+    }
+    return hadoopConf;
   }
 }
