@@ -93,8 +93,10 @@ trait PartitionMetaHandler {
 
 class MapPartitionMetaHandler(
     diskFileInfo: DiskFileInfo,
-    notifier: FlushNotifier) extends PartitionMetaHandler {
-  lazy val hadoopFs: FileSystem = StorageManager.hadoopFs.get(diskFileInfo.getStorageType)
+    notifier: FlushNotifier,
+    partitionUniqueId: Option[String] = None) extends PartitionMetaHandler {
+  lazy val hadoopFs: FileSystem =
+    StorageManager.dfsTupleForPartition(diskFileInfo.getStorageType, partitionUniqueId.get)._2
   val logger: Logger = LoggerFactory.getLogger(classOf[MapPartitionMetaHandler])
   val fileMeta: MapFileMeta = diskFileInfo.getFileMeta.asInstanceOf[MapFileMeta]
   var numSubpartitions = 0
