@@ -92,6 +92,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   protected final boolean prefetchEnabled;
   protected final long reservedMemoryPerPartition;
   private final long partitionSorterShutdownAwaitTime;
+  private final long sortTimeLogThreshold;
   private DB sortedFilesDb;
 
   protected final AbstractSource source;
@@ -108,6 +109,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     this.reservedMemoryPerPartition = conf.workerPartitionSorterReservedMemoryPerPartition();
     this.partitionSorterShutdownAwaitTime =
         conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
+    this.sortTimeLogThreshold = conf.workerPartitionSorterSortTimeLogThreshold();
     long indexCacheMaxWeight = conf.workerPartitionSorterIndexCacheMaxWeight();
     this.source = source;
     this.cleaner = new PartitionFilesCleaner(this);
@@ -672,6 +674,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private final boolean isDfs;
     private final boolean isPrefetch;
     private final FileInfo originFileInfo;
+    private final long sortTimeLogThreshold;
 
     private FSDataInputStream dfsOriginInput = null;
     private FSDataOutputStream dfsSortedOutput = null;
@@ -692,6 +695,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       this.fileId = fileId;
       this.shuffleKey = shuffleKey;
       this.indexFilePath = Utils.getIndexFilePath(originFilePath);
+      this.sortTimeLogThreshold = PartitionFilesSorter.this.sortTimeLogThreshold;
       if (!isDfs) {
         File sortedFile = new File(this.sortedFilePath);
         if (sortedFile.exists()) {
@@ -720,6 +724,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     public void sort() {
       source.startTimer(WorkerSource.SORT_TIME(), fileId);
+      long sortStartTime = System.nanoTime();
 
       try {
         initializeFiles();
@@ -798,6 +803,16 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         synchronized (sorting) {
           sorting.remove(fileId);
         }
+      }
+      long sortDuration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sortStartTime);
+      if (sortTimeLogThreshold > 0 && sortDuration > sortTimeLogThreshold) {
+        logger.info(
+            "File sorting took {}ms for fileId: {}, shuffleKey: {}, originFilePath: {}, originFileLen: {}",
+            sortDuration,
+            fileId,
+            shuffleKey,
+            originFilePath,
+            originFileLen);
       }
       source.stopTimer(WorkerSource.SORT_TIME(), fileId);
     }
