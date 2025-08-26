@@ -179,6 +179,8 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
         PbRegisterApplicationRequest registerApplicationRequest = pbMsg.getParsedPayload();
         checkRequestAllowed(RegistrationState.AUTHENTICATED);
         LOG.trace("Application registration started {}", registerApplicationRequest.getId());
+        // throws exception if not allowed - like not leader in HA mode
+        secretRegistry.ensureRegistrationAllowed();
         processRegisterApplicationRequest(registerApplicationRequest, callback);
         registrationState = RegistrationState.REGISTERED;
         client.setClientId(registerApplicationRequest.getId());

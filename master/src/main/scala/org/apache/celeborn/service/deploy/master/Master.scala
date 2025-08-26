@@ -83,7 +83,7 @@ private[celeborn] class Master(
   private val bindPreferIP: Boolean = conf.bindPreferIP
   private val authEnabled = conf.authEnabled
   private val haEnabled = conf.haEnabled
-  private val secretRegistry = new MasterSecretRegistryImpl()
+  private val secretRegistry = new MasterSecretRegistryImpl(bindPreferIP)
   private val sendApplicationMetaThreads = conf.masterSendApplicationMetaThreads
   // Send ApplicationMeta to workers
   private var sendApplicationMetaExecutor: ExecutorService = _
@@ -395,7 +395,11 @@ private[celeborn] class Master(
         f
       } catch {
         case e: Exception =>
-          HAHelper.sendFailure(context, HAHelper.getRatisServer(statusSystem), e, bindPreferIP)
+          HAHelper.sendFailure(
+            if (null != context) context.sendFailure _ else null,
+            HAHelper.getRatisServer(statusSystem),
+            e,
+            bindPreferIP)
       }
     }
 

@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.service.deploy.master;
 
+import java.io.IOException;
+import org.apache.celeborn.service.deploy.master.clustermeta.ha.HAHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +34,13 @@ import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager
 public class MasterSecretRegistryImpl implements SecretRegistry {
 
   private static final Logger LOG = LoggerFactory.getLogger(MasterSecretRegistryImpl.class);
+  private final boolean bindPreferIP;
   private AbstractMetaManager statusSystem;
+
+
+  public MasterSecretRegistryImpl(boolean bindPreferIP) {
+    this.bindPreferIP = bindPreferIP;
+  }
 
   @Override
   public void register(String appId, String secret) {
@@ -61,6 +69,21 @@ public class MasterSecretRegistryImpl implements SecretRegistry {
   public boolean isRegistered(String appId) {
     LOG.info("Fetching registration status from metadata manager for appId: {}", appId);
     return statusSystem.applicationMetas.containsKey(appId);
+  }
+
+  @Override
+  public void ensureRegistrationAllowed() throws IOException {
+    ensureRegistrationAllowedImpl(statusSystem, bindPreferIP);
+  }
+
+  public static void ensureRegistrationAllowedImpl(
+      AbstractMetaManager statusSystem, boolean bindPreferIP) throws IOException {
+    HAHelper.checkShouldProcess(
+        ex -> {
+          throw ex;
+        },
+        statusSystem,
+        bindPreferIP);
   }
 
   void setMetadataHandler(AbstractMetaManager statusSystem) {

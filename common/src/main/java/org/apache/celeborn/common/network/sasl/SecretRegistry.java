@@ -17,6 +17,9 @@
 
 package org.apache.celeborn.common.network.sasl;
 
+import java.io.IOException;
+
+
 /** Interface for getting a secret key associated with some application. */
 public interface SecretRegistry {
 
@@ -28,4 +31,12 @@ public interface SecretRegistry {
   void register(String appId, String secret);
 
   void unregister(String appId);
+
+  /**
+   * Checks if the SecretRegistry can register the application. If it cant register (for example,
+   * not the current leader when running in HA), then throws an exception
+   */
+  default void ensureRegistrationAllowed() throws IOException {
+    // by default, can register
+  }
 }

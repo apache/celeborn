@@ -19,6 +19,7 @@ package org.apache.celeborn.common.network.sasl.registration;
 
 import static org.apache.celeborn.common.network.sasl.SaslUtils.*;
 
+import com.google.common.base.Throwables;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -31,6 +32,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.apache.celeborn.common.client.MasterNotLeaderException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +56,8 @@ import org.apache.celeborn.common.protocol.PbRegisterApplicationResponse;
 import org.apache.celeborn.common.protocol.PbSaslMechanism;
 import org.apache.celeborn.common.protocol.PbSaslRequest;
 import org.apache.celeborn.common.util.JavaUtils;
+import scala.Tuple2;
+
 
 /**
  * Bootstraps a {@link TransportClient} by registering application (if the application is not
@@ -114,7 +120,9 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
       registrationInfo.setRegistrationState(RegistrationInfo.RegistrationState.REGISTERED);
       client.setClientId(appId);
     } catch (IOException | CelebornException e) {
-      throw new RuntimeException(e);
+      // If RPC failure indicates MasterNotLeaderException was the cause, try to reverse engineer it
+      // from the exception thrown
+      throw new RuntimeException(processMasterNotLeaderException(e));
     } finally {
       if (registrationInfo.getRegistrationState()
           != RegistrationInfo.RegistrationState.REGISTERED) {
@@ -258,5 +266,35 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
       }
     }
     return supportedMechs;
+  }
+
+  @SuppressWarnings("NonInclusiveLanguage")
+  private static final Pattern MASTER_NOT_LEADER_EXCEPTION_PATTERN =
+      Pattern.compile(
+          "^.*MasterNotLeaderException: Master:([^ ]*) is not the leader. Suggested leader is "
+              + "Master:\\(([^,]*),[^)]*\\) \\(\\(([^,]*),[^)]*\\)\\).*$",
+          Pattern.MULTILINE | Pattern.DOTALL);
+
+  @SuppressWarnings("NonInclusiveLanguage")
+  static Exception processMasterNotLeaderException(Exception ex) {
+    String stringified = Throwables.getStackTraceAsString(ex);
+
+    Matcher matcher = MASTER_NOT_LEADER_EXCEPTION_PATTERN.matcher(stringified);
+    if (matcher.matches()) {
+      // MasterNotLeaderException was raised, pull the 'parts' and reconstruct the exception
+      String currentPeer = matcher.group(1);
+      String suggestedLeaderPeer = matcher.group(2);
+      String suggestedInternalLeaderPeer = matcher.group(3);
+
+      return new MasterNotLeaderException(
+          currentPeer,
+          Tuple2.apply(suggestedLeaderPeer, suggestedLeaderPeer),
+          Tuple2.apply(suggestedInternalLeaderPeer, suggestedInternalLeaderPeer),
+          // does not matter - both values are same
+          true,
+          null);
+    } else {
+      return ex;
+    }
   }
 }
