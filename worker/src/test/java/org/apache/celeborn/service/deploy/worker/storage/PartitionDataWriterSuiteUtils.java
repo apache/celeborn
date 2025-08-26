@@ -24,6 +24,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import scala.Function0;
+import scala.Option;
 import scala.Tuple4;
 
 import org.mockito.Mockito;
@@ -65,7 +66,9 @@ public class PartitionDataWriterSuiteUtils {
     PartitionMetaHandler metaHandler = null;
     if (!reduceMeta) {
       fileInfo.replaceFileMeta(new MapFileMeta(32 * 1024, 10));
-      metaHandler = new MapPartitionMetaHandler(fileInfo, flushNotifier);
+      String partitionUniqueId = context.getPartitionLocation().getUniqueId();
+      metaHandler =
+          new MapPartitionMetaHandler(fileInfo, flushNotifier, Option.apply(partitionUniqueId));
     } else {
       metaHandler = new ReducePartitionMetaHandler(conf.shuffleRangeReadFilterEnabled(), fileInfo);
     }

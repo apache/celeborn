@@ -100,6 +100,7 @@ public class MemoryManager {
   private long pinnedMemoryLastCheckTime = 0;
   private boolean resumingByPinnedMemory = false;
   private long workerPinnedMemoryResumeKeepTime;
+  private CelebornConf conf;
 
   @VisibleForTesting
   public static MemoryManager initialize(CelebornConf conf) {
@@ -142,6 +143,7 @@ public class MemoryManager {
     long readBufferTargetNotifyThreshold = conf.readBufferTargetNotifyThreshold();
     boolean aggressiveEvictModeEnabled = conf.workerMemoryFileStorageEictAggressiveModeEnabled();
     double evictRatio = conf.workerMemoryFileStorageEvictRatio();
+    this.conf = conf;
     forceAppendPauseSpentTimeThreshold = conf.metricsWorkerForceAppendPauseSpentTimeThreshold();
     maxDirectMemory =
         DynMethods.builder("maxDirectMemory")
@@ -594,6 +596,10 @@ public class MemoryManager {
 
   public ByteBufAllocator getStorageByteBufAllocator() {
     return storageManager.storageBufferAllocator();
+  }
+
+  public CelebornConf getConf() {
+    return conf;
   }
 
   @VisibleForTesting
