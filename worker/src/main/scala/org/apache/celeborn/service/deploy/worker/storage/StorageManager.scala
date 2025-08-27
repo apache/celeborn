@@ -1162,12 +1162,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           }
           val filePath = file.getAbsolutePath
           val fileMeta = getFileMeta(partitionType, mountPoint, conf.shuffleChunkSize)
+          val storageType = diskInfos.get(mountPoint).storageType
           val diskFileInfo = new DiskFileInfo(
             userIdentifier,
             partitionSplitEnabled,
             fileMeta,
             filePath,
-            StorageInfo.Type.HDD)
+            storageType)
           logInfo(s"created file at $filePath")
           diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
             fileName,
