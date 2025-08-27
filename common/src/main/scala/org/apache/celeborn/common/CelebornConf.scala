@@ -1473,6 +1473,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFlinkDataCompressionEnabled: Boolean = get(CLIENT_DATA_COMPRESSION_ENABLED)
   def clientFlinkMetricsScopeNamingShuffle: String =
     get(CLIENT_METRICS_SCOPE_NAMING_SHUFFLE)
+  def clientFlinkOpenStreamThreads: Int =
+    get(CLIENT_OPEN_STREAM_THREADS).getOrElse(Runtime.getRuntime.availableProcessors())
   def clientChunkPrefetchEnabled = get(CLIENT_CHUNK_PREFETCH_ENABLED)
   def clientInputStreamCreationWindow = get(CLIENT_INPUTSTREAM_CREATION_WINDOW)
 
@@ -6030,6 +6032,14 @@ object CelebornConf extends Logging {
       .stringConf
       .createWithDefault(
         "<host>.taskmanager.<tm_id>.<job_name>.<task_name>.<subtask_index>.<shuffle_id>")
+
+  val CLIENT_OPEN_STREAM_THREADS: OptionalConfigEntry[Int] =
+    buildConf("celeborn.client.flink.open.stream.threads")
+      .categories("client")
+      .doc("Thread number of flink shuffle client to open buffer stream. Default value is Runtime.getRuntime.availableProcessors.")
+      .version("0.6.1")
+      .intConf
+      .createOptional
 
   val CLIENT_MR_PUSH_DATA_MAX: ConfigEntry[Long] =
     buildConf("celeborn.client.mr.pushData.max")
