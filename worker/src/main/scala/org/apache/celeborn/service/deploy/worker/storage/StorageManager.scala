@@ -808,6 +808,19 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def close(exitKind: Int): Unit = {
+    if (hadoopFs != null) {
+      hadoopFs.asScala.foreach {
+        case (storageType, fs) =>
+          if (fs != null) {
+            try {
+              fs.close()
+            } catch {
+              case t: Throwable =>
+                logError(s"Close $storageType FileSystem ${fs.getUri} failed.", t)
+            }
+          }
+      }
+    }
     if (db != null) {
       if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
         try {
