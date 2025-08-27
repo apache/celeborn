@@ -1069,7 +1069,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           true
         } catch {
           case t: Throwable =>
-            logError(t.toString)
+            logError("Failed to invoke appShuffleTrackerCallback.", t)
             false
         }
       case None =>
