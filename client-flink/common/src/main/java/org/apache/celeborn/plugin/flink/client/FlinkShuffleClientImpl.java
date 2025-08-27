@@ -165,7 +165,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       readClientHandler.close();
     }
     if (openStreamThreadPool != null) {
-      openStreamThreadPool.shutdownNow();
+      ThreadUtils.shutdown(openStreamThreadPool);
     }
   }
 
