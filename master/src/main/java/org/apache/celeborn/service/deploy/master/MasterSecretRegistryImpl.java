@@ -18,13 +18,14 @@
 package org.apache.celeborn.service.deploy.master;
 
 import java.io.IOException;
-import org.apache.celeborn.service.deploy.master.clustermeta.ha.HAHelper;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.network.sasl.SecretRegistry;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
+import org.apache.celeborn.service.deploy.master.clustermeta.ha.HAHelper;
 
 /**
  * A simple implementation of {@link SecretRegistry} that stores secrets in Ratis. This persists an
@@ -36,7 +37,6 @@ public class MasterSecretRegistryImpl implements SecretRegistry {
   private static final Logger LOG = LoggerFactory.getLogger(MasterSecretRegistryImpl.class);
   private final boolean bindPreferIP;
   private AbstractMetaManager statusSystem;
-
 
   public MasterSecretRegistryImpl(boolean bindPreferIP) {
     this.bindPreferIP = bindPreferIP;

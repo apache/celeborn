@@ -19,7 +19,6 @@ package org.apache.celeborn.common.network.sasl.registration;
 
 import static org.apache.celeborn.common.network.sasl.SaslUtils.*;
 
-import com.google.common.base.Throwables;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -27,17 +26,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import scala.Tuple2;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import org.apache.celeborn.common.client.MasterNotLeaderException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.client.MasterNotLeaderException;
 import org.apache.celeborn.common.exception.CelebornException;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientBootstrap;
@@ -56,8 +58,6 @@ import org.apache.celeborn.common.protocol.PbRegisterApplicationResponse;
 import org.apache.celeborn.common.protocol.PbSaslMechanism;
 import org.apache.celeborn.common.protocol.PbSaslRequest;
 import org.apache.celeborn.common.util.JavaUtils;
-import scala.Tuple2;
-
 
 /**
  * Bootstraps a {@link TransportClient} by registering application (if the application is not

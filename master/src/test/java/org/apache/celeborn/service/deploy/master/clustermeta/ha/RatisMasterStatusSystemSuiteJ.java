@@ -27,16 +27,6 @@ import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.celeborn.common.client.MasterNotLeaderException;
-import org.apache.celeborn.common.network.sasl.SaslCredentials;
-import org.apache.celeborn.common.network.sasl.SaslTestBase;
-import org.apache.celeborn.common.network.sasl.SecretRegistry;
-import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBootstrap;
-import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo;
-import org.apache.celeborn.common.network.sasl.registration.RegistrationServerBootstrap;
-import org.apache.celeborn.common.network.util.TransportConf;
-import org.apache.celeborn.common.rpc.RpcAddress;
-import org.apache.celeborn.service.deploy.master.MasterSecretRegistryImpl;
 import scala.Tuple2;
 
 import com.google.common.collect.Lists;
@@ -45,19 +35,29 @@ import org.mockito.Mockito;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
+import org.apache.celeborn.common.client.MasterNotLeaderException;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.network.sasl.SaslCredentials;
+import org.apache.celeborn.common.network.sasl.SaslTestBase;
+import org.apache.celeborn.common.network.sasl.SecretRegistry;
+import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBootstrap;
+import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo;
+import org.apache.celeborn.common.network.sasl.registration.RegistrationServerBootstrap;
+import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.WorkerEventType;
 import org.apache.celeborn.common.quota.ResourceConsumption;
+import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.util.Utils$;
+import org.apache.celeborn.service.deploy.master.MasterSecretRegistryImpl;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 
