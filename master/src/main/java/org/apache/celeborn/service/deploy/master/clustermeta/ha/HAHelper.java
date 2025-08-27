@@ -29,6 +29,7 @@ import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
 
 import org.apache.celeborn.common.client.MasterNotLeaderException;
 import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.protocol.PbMetaRequest;
 import org.apache.celeborn.common.rpc.RpcCallContext;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
@@ -123,10 +124,15 @@ public class HAHelper {
     return ByteString.copyFrom(requestBytes);
   }
 
-  public static ResourceProtos.ResourceRequest convertByteStringToRequest(ByteString byteString)
+  public static ByteString convertRequestToByteString(PbMetaRequest request) {
+    byte[] requestBytes = request.toByteArray();
+    return ByteString.copyFrom(requestBytes);
+  }
+
+  public static PbMetaRequest convertByteStringToRequest(ByteString byteString)
       throws InvalidProtocolBufferException {
     byte[] bytes = byteString.toByteArray();
-    return ResourceProtos.ResourceRequest.parseFrom(bytes);
+    return PbMetaRequest.parseFrom(bytes);
   }
 
   public static Message convertResponseToMessage(ResourceProtos.ResourceResponse response) {
