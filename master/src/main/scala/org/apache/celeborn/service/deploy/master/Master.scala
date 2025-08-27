@@ -398,9 +398,13 @@ private[celeborn] class Master(
         case e: Exception =>
           val sendFailureFn: FailableConsumer[IOException, IOException] =
             if (context != null) {
-              (io: IOException) => context.sendFailure(io)
+              new FailableConsumer[IOException, IOException] {
+                override def accept(io: IOException): Unit = context.sendFailure(io)
+              }
             } else {
-              (io: IOException) => ()
+              new FailableConsumer[IOException, IOException] {
+                override def accept(io: IOException): Unit = ()
+              }
             }
           HAHelper.sendFailure(
             sendFailureFn,
