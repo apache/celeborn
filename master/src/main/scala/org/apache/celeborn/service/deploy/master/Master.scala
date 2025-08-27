@@ -29,6 +29,7 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
+import org.apache.commons.lang3.function.FailableConsumer
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.ratis.proto.RaftProtos
 import org.apache.ratis.proto.RaftProtos.RaftPeerRole
@@ -389,19 +390,26 @@ private[celeborn] class Master(
     logDebug(s"Client $address got disassociated.")
   }
 
-  def executeWithLeaderChecker[T](context: RpcCallContext, f: => T): Unit =
+  def executeWithLeaderChecker[T](context: RpcCallContext, f: => T): Unit = {
     if (HAHelper.checkShouldProcess(context, statusSystem, bindPreferIP)) {
       try {
         f
       } catch {
         case e: Exception =>
+          val sendFailureFn: FailableConsumer[IOException, IOException] =
+            if (context != null) {
+              (io: IOException) => context.sendFailure(io)
+            } else {
+              (io: IOException) => ()
+            }
           HAHelper.sendFailure(
-            if (null != context) context.sendFailure _ else null,
+            sendFailureFn,
             HAHelper.getRatisServer(statusSystem),
             e,
             bindPreferIP)
       }
     }
+  }
 
   override def receive: PartialFunction[Any, Unit] = {
     case _: PbCheckForWorkerTimeout =>
