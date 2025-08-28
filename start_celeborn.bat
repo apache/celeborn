@@ -67,5 +67,10 @@ if not exist "%CELEBORN_HOME%\installed.flag" (
 )
 
 echo [%date% %time%] Succeeded setting up Celeborn
+
+:loop
+echo Sleeping
 sleep 86400
+goto loop
+
 exit /b 0
