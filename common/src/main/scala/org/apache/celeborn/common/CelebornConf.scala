@@ -3743,9 +3743,9 @@ object CelebornConf extends Logging {
       .categories("worker")
       .doc("When sort time exceeds this threshold, log the file id and sort duration. " +
         "Set to 0 to disable logging.")
-      .version("0.7.0")
+      .version("0.6.1")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("220s")
+      .createWithDefaultString("30s")
 
   val WORKER_PARTITION_SORTER_THREADS: OptionalConfigEntry[Int] =
     buildConf("celeborn.worker.sortPartition.threads")
