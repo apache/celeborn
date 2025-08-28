@@ -119,10 +119,10 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     lifecycleManager.requestMasterRequestSlotsWithRetry(0, arrayList)
 
     eventually(timeout(3.seconds), interval(0.milliseconds)) {
-      val appMeta = masterInfo._1.statusSystem.applicationMetas.get(APP)
-      assert(appMeta.userIdentifier == userIdentifier)
-      assert(appMeta.extraInfo.get("k1") == "v1")
-      assert(appMeta.registrationTime > 0 && appMeta.registrationTime < System.currentTimeMillis())
+      val appInfo = masterInfo._1.statusSystem.applicationInfos.get(APP)
+      assert(appInfo.userIdentifier == userIdentifier)
+      assert(appInfo.extraInfo.get("k1") == "v1")
+      assert(appInfo.registrationTime > 0 && appInfo.registrationTime < System.currentTimeMillis())
     }
   }
 

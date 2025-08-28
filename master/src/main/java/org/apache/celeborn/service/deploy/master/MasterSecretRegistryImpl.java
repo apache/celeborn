@@ -60,8 +60,7 @@ public class MasterSecretRegistryImpl implements SecretRegistry {
   @Override
   public boolean isRegistered(String appId) {
     LOG.info("Fetching registration status from metadata manager for appId: {}", appId);
-    ApplicationMeta applicationMeta = statusSystem.applicationMetas.get(appId);
-    return applicationMeta != null && applicationMeta.secret() != null;
+    return statusSystem.applicationMetas.containsKey(appId);
   }
 
   void setMetadataHandler(AbstractMetaManager statusSystem) {
