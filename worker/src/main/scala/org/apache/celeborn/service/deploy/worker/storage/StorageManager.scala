@@ -448,6 +448,35 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       userIdentifier: UserIdentifier,
       partitionSplitEnabled: Boolean,
       isSegmentGranularityVisible: Boolean): PartitionDataWriter = {
+    createPartitionDataWriter(
+      appId,
+      shuffleId,
+      location,
+      splitThreshold,
+      splitMode,
+      partitionType,
+      rangeReadFilter,
+      userIdentifier,
+      partitionSplitEnabled,
+      isSegmentGranularityVisible,
+      "",
+      "")
+  }
+
+  @throws[IOException]
+  def createPartitionDataWriter(
+      appId: String,
+      shuffleId: Int,
+      location: PartitionLocation,
+      splitThreshold: Long,
+      splitMode: PartitionSplitMode,
+      partitionType: PartitionType,
+      rangeReadFilter: Boolean,
+      userIdentifier: UserIdentifier,
+      partitionSplitEnabled: Boolean,
+      isSegmentGranularityVisible: Boolean,
+      createFileOrder: String,
+      evictFileOrder: String): PartitionDataWriter = {
     if (healthyWorkingDirs().isEmpty && remoteStorageDirs.isEmpty) {
       throw new IOException("No available working dirs!")
     }
@@ -461,7 +490,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       userIdentifier,
       partitionType,
       partitionSplitEnabled,
-      isSegmentGranularityVisible)
+      isSegmentGranularityVisible,
+      createFileOrder,
+      evictFileOrder)
 
     val writer =
       try {
