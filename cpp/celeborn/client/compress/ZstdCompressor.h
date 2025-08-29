@@ -15,29 +15,35 @@
  * limitations under the License.
  */
 
-#include <stdexcept>
+#pragma once
 
-#include "celeborn/client/compress/Lz4Compressor.h"
-#include "celeborn/client/compress/ZstdCompressor.h"
-#include "celeborn/utils/Exceptions.h"
+#include "celeborn/client/compress/Compressor.h"
+#include "celeborn/client/compress/ZstdTrait.h"
 
 namespace celeborn {
 namespace client {
 namespace compress {
 
-std::unique_ptr<Compressor> Compressor::createCompressor(
-    const conf::CelebornConf& conf) {
-  const auto codec = conf.shuffleCompressionCodec();
-  switch (codec) {
-    case protocol::CompressionCodec::LZ4:
-      return std::make_unique<Lz4Compressor>();
-    case protocol::CompressionCodec::ZSTD:
-      return std::make_unique<ZstdCompressor>(
-          conf.shuffleCompressionZstdCompressLevel());
-    default:
-      CELEBORN_FAIL("Unknown compression codec.");
-  }
-}
+class ZstdCompressor final : public Compressor, ZstdTrait {
+ public:
+  explicit ZstdCompressor(int compressionLevel);
+  ~ZstdCompressor() override = default;
+
+  size_t compress(
+      const uint8_t* src,
+      int srcOffset,
+      int srcLength,
+      uint8_t* dst,
+      int dstOffset) override;
+
+  size_t getDstCapacity(int length) override;
+
+  ZstdCompressor(const ZstdCompressor&) = delete;
+  ZstdCompressor& operator=(const ZstdCompressor&) = delete;
+
+ private:
+  const int compressionLevel_;
+};
 
 } // namespace compress
 } // namespace client
