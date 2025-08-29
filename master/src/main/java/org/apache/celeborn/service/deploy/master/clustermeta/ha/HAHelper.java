@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.Optional;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.commons.lang3.function.FailableConsumer;
 import org.apache.ratis.protocol.Message;
 import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
@@ -36,26 +37,42 @@ import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 public class HAHelper {
 
   public static boolean checkShouldProcess(
-      RpcCallContext context, AbstractMetaManager masterStatusSystem, boolean bindPreferIp) {
+      RpcCallContext context, AbstractMetaManager masterStatusSystem, boolean bindPreferIp)
+      throws IOException {
+    return checkShouldProcess(
+        null != context ? context::sendFailure : null, masterStatusSystem, bindPreferIp);
+  }
+
+  public static boolean checkShouldProcess(
+      FailableConsumer<IOException, IOException> failureHandler,
+      AbstractMetaManager masterStatusSystem,
+      boolean bindPreferIp)
+      throws IOException {
+
     HARaftServer ratisServer = getRatisServer(masterStatusSystem);
     if (ratisServer != null) {
       if (ratisServer.isLeader()) {
         return true;
       }
-      sendFailure(context, ratisServer, null, bindPreferIp);
+      sendFailure(failureHandler, ratisServer, null, bindPreferIp);
       return false;
     }
     return true;
   }
 
   public static void sendFailure(
-      RpcCallContext context, HARaftServer ratisServer, Throwable cause, boolean bindPreferIp) {
-    if (context != null) {
+      FailableConsumer<IOException, IOException> failureHandler,
+      HARaftServer ratisServer,
+      Throwable cause,
+      boolean bindPreferIp)
+      throws IOException {
+
+    if (failureHandler != null) {
       if (ratisServer != null) {
         Optional<HARaftServer.LeaderPeerEndpoints> leaderPeer =
             ratisServer.getCachedLeaderPeerRpcEndpoint();
         if (leaderPeer.isPresent()) {
-          context.sendFailure(
+          failureHandler.accept(
               new MasterNotLeaderException(
                   ratisServer.getRpcEndpoint(),
                   leaderPeer.get().rpcEndpoints,
@@ -63,14 +80,14 @@ public class HAHelper {
                   bindPreferIp,
                   cause));
         } else {
-          context.sendFailure(
+          failureHandler.accept(
               new MasterNotLeaderException(
                   ratisServer.getRpcEndpoint(),
                   MasterNotLeaderException.LEADER_NOT_PRESENTED,
                   cause));
         }
       } else {
-        context.sendFailure(new CelebornIOException(cause.getMessage(), cause));
+        failureHandler.accept(new CelebornIOException(cause.getMessage(), cause));
       }
     }
   }
