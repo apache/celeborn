@@ -233,7 +233,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   def totalFlusherThread: Int =
     _totalLocalFlusherThread + _totalHdfsFlusherThread + _totalS3FlusherThread + _totalOssFlusherThread
-
+  val flushOnTrimHdfsThreshold: Long = conf.workerFlushOnTrimHdfsThreshold
+  val flushOnTrimOssThreshold: Long = conf.workerFlushOnTrimOssThreshold
+  val flushOnTrimS3Threshold: Long = conf.workerFlushOnTrimS3Threshold
   val activeTypes = conf.availableStorageTypes
 
   lazy val localOrDfsStorageAvailable: Boolean = {
@@ -854,21 +856,25 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       override def accept(
           t: File,
           writers: ConcurrentHashMap[String, PartitionDataWriter]): Unit = {
-        flushOnMemoryPressure(writers)
+        flushOnMemoryPressure(writers, 0L)
       }
     })
-    flushOnMemoryPressure(hdfsWriters)
-    flushOnMemoryPressure(s3Writers)
-    flushOnMemoryPressure(ossWriters)
+    flushOnMemoryPressure(hdfsWriters, flushOnTrimHdfsThreshold)
+    flushOnMemoryPressure(s3Writers, flushOnTrimS3Threshold)
+    flushOnMemoryPressure(ossWriters, flushOnTrimOssThreshold)
+
   }
 
-  private def flushOnMemoryPressure(writers: ConcurrentHashMap[String, PartitionDataWriter])
-      : Unit = {
+  private def flushOnMemoryPressure(
+      writers: ConcurrentHashMap[String, PartitionDataWriter],
+      flushThreshold: Long): Unit = {
     writers.forEach(new BiConsumer[String, PartitionDataWriter] {
       override def accept(file: String, writer: PartitionDataWriter): Unit = {
         if (writer.getException == null) {
           try {
-            writer.flushOnMemoryPressure()
+            if (writer.getFlushableBytes >= flushThreshold) {
+              writer.flushOnMemoryPressure()
+            }
           } catch {
             case t: Throwable =>
               logError(

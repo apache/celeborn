@@ -17,6 +17,9 @@
 
 package org.apache.celeborn.service.deploy.worker.storage
 
+import java.io.File
+import java.util.concurrent.ConcurrentHashMap
+
 import org.mockito.{Mockito, MockitoSugar}
 import org.mockito.ArgumentMatchersSugar.any
 import org.mockito.stubbing.Stubber
@@ -25,7 +28,7 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.{WORKER_DISK_RESERVE_SIZE, WORKER_GRACEFUL_SHUTDOWN_ENABLED, WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH}
 import org.apache.celeborn.common.meta.DiskInfo
-import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.common.util.{JavaUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 
 trait MockitoHelper extends MockitoSugar {
@@ -107,5 +110,52 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
     diskInfo.setUsableSpace(-1L)
     spyStorageManager.updateDiskInfos()
     assert(diskInfo.actualUsableSpace == 0L)
+  }
+
+  test("flush hdfs file writer on trim only if size exceeds threshold") {
+    val storageManager = mock[StorageManager]
+    doReturn(JavaUtils.newConcurrentHashMap[File, ConcurrentHashMap[String, PartitionDataWriter]]())
+      .when(storageManager)
+      .workingDirWriters
+    doReturn(JavaUtils.newConcurrentHashMap[String, PartitionDataWriter]())
+      .when(storageManager)
+      .hdfsWriters
+    doReturn(1048576L)
+      .when(storageManager)
+      .flushOnTrimHdfsThreshold
+
+    val dir = new File("/tmp")
+    val localMap = JavaUtils.newConcurrentHashMap[String, PartitionDataWriter]()
+    val localFileWriter = mock[PartitionDataWriter]
+    Mockito.doNothing().when(localFileWriter).flushOnMemoryPressure()
+    doReturn(null).when(localFileWriter).getException
+    doReturn(100).when(localFileWriter).getFlushableBytes()
+    localMap.put("1", localFileWriter)
+    storageManager.workingDirWriters.put(dir, localMap)
+
+    val hdfsFileWriter1 = mock[PartitionDataWriter]
+    Mockito.doNothing().when(hdfsFileWriter1).flushOnMemoryPressure()
+    doReturn(null).when(hdfsFileWriter1).getException
+    doReturn(100).when(hdfsFileWriter1).getFlushableBytes()
+    val hdfsFileWriter2 = mock[PartitionDataWriter]
+    Mockito.doNothing().when(hdfsFileWriter2).flushOnMemoryPressure()
+    doReturn(null).when(hdfsFileWriter2).getException
+    doReturn(1048576).when(hdfsFileWriter2).getFlushableBytes()
+    val hdfsFileWriter3 = mock[PartitionDataWriter]
+    Mockito.doNothing().when(hdfsFileWriter3).flushOnMemoryPressure()
+    doReturn(null).when(hdfsFileWriter3).getException
+    doReturn(2048576).when(hdfsFileWriter3).getFlushableBytes()
+    storageManager.hdfsWriters.put("1", hdfsFileWriter1)
+    storageManager.hdfsWriters.put("2", hdfsFileWriter2)
+    storageManager.hdfsWriters.put("3", hdfsFileWriter3)
+
+    val method = storageManager.getClass.getDeclaredMethod("flushFileWriters")
+    method.setAccessible(true)
+
+    method.invoke(storageManager)
+    verify(localFileWriter, times(1)).flushOnMemoryPressure()
+    verify(hdfsFileWriter1, times(0)).flushOnMemoryPressure()
+    verify(hdfsFileWriter2, times(1)).flushOnMemoryPressure()
+    verify(hdfsFileWriter3, times(1)).flushOnMemoryPressure()
   }
 }
