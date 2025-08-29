@@ -415,6 +415,12 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.EVICTED_FILE_COUNT) { () =>
     storageManager.evictedFileCount.get()
   }
+  workerSource.addGauge(WorkerSource.EVICTED_LOCAL_FILE_COUNT) { () =>
+    storageManager.evictedLocalFileCount.get()
+  }
+  workerSource.addGauge(WorkerSource.EVICTED_DFS_FILE_COUNT) { () =>
+    storageManager.evictedDfsFileCount.get()
+  }
   workerSource.addGauge(WorkerSource.MEMORY_STORAGE_FILE_COUNT) { () =>
     storageManager.memoryWriters.size()
   }
