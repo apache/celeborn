@@ -29,6 +29,7 @@ import scala.util.matching.Regex
 
 import io.netty.channel.epoll.Epoll
 
+import org.apache.celeborn.common.CelebornConf.WORKER_FLUSH_ON_TRIM_HDFS_THRESHOLD
 import org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, HadoopBasedIdentityProvider, IdentityProvider}
 import org.apache.celeborn.common.internal.Logging
@@ -880,7 +881,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerJvmQuakeRuntimeWeight: Double = get(WORKER_JVM_QUAKE_RUNTIME_WEIGHT)
   def workerJvmQuakeDumpEnabled: Boolean = get(WORKER_JVM_QUAKE_DUMP_ENABLED)
   def workerJvmQuakeDumpPath: String = get(WORKER_JVM_QUAKE_DUMP_PATH)
-
+  def workerFlushOnTrimHdfsThreshold: Long = get(WORKER_FLUSH_ON_TRIM_HDFS_THRESHOLD)
+  def workerFlushOnTrimOssThreshold: Long = get(WORKER_FLUSH_ON_TRIM_OSS_THRESHOLD)
+  def workerFlushOnTrimS3Threshold: Long = get(WORKER_FLUSH_ON_TRIM_S3_THRESHOLD)
   def workerJvmQuakeDumpThreshold: Duration =
     getTimeAsMs(
       WORKER_JVM_QUAKE_DUMP_THRESHOLD.key,
@@ -3164,6 +3167,30 @@ object CelebornConf extends Logging {
       .doc("enable the partition split on worker side")
       .booleanConf
       .createWithDefault(true)
+
+  val WORKER_FLUSH_ON_TRIM_HDFS_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.worker.flush.on.trim.hdfs.threshold")
+      .categories("worker")
+      .version("0.7.0")
+      .doc("when StorageManager flush file writers on trim, flushes hdfs writer only if flushable bytes >= threshold")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1m")
+
+  val WORKER_FLUSH_ON_TRIM_OSS_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.worker.flush.on.trim.oss.threshold")
+      .categories("worker")
+      .version("0.7.0")
+      .doc("when StorageManager flush file writers on trim, flushes oss writer only if flushable bytes >= threshold")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1m")
+
+  val WORKER_FLUSH_ON_TRIM_S3_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.worker.flush.on.trim.s3.threshold")
+      .categories("worker")
+      .version("0.7.0")
+      .doc("when StorageManager flush file writers on trim, flushes s3 writer only if flushable bytes >= threshold")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1m")
 
   val WORKER_PARTITION_SPLIT_MIN_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.shuffle.partitionSplit.min")
