@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import javax.ws.rs.{Consumes, DELETE, GET, Path, POST, Produces}
+import javax.ws.rs.{Consumes, GET, Path, POST, Produces}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
@@ -27,7 +27,7 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 
-import org.apache.celeborn.rest.v1.model.{ApplicationHeartbeatData, ApplicationsHeartbeatResponse, DeleteAppsRequest, HandleResponse, HostnamesResponse, ReviseLostShufflesRequest}
+import org.apache.celeborn.rest.v1.model.{ApplicationHeartbeatData, ApplicationInfo, ApplicationInfoResponse, ApplicationsHeartbeatResponse, DeleteAppsRequest, HandleResponse, HostnamesResponse, ReviseLostShufflesRequest}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.service.deploy.master.Master
 
@@ -51,6 +51,26 @@ class ApplicationResource extends ApiRequestContext {
           new ApplicationHeartbeatData()
             .appId(appId)
             .lastHeartbeatTimestamp(heartbeat)
+        }.toSeq.asJava)
+  }
+
+  @Operation(description = "List all running application's info of the cluster.")
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(implementation = classOf[ApplicationInfoResponse]))))
+  @GET
+  @Path("/info")
+  def applicationsInfo(): ApplicationInfoResponse = {
+    new ApplicationInfoResponse()
+      .applications(
+        statusSystem.applicationInfos.asScala.map { case (appId, appInfo) =>
+          new ApplicationInfo()
+            .appId(appId)
+            .userIdentifier(appInfo.userIdentifier.toString)
+            .extraInfo(appInfo.extraInfo)
+            .registrationTime(appInfo.registrationTime)
         }.toSeq.asJava)
   }
 

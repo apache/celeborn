@@ -19,16 +19,25 @@ package org.apache.celeborn.tests.client
 
 import java.util
 
+import org.scalatest.concurrent.Eventually.eventually
+import org.scalatest.concurrent.Futures.{interval, timeout}
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+
 import org.apache.celeborn.client.{LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeature {
+  override protected val userIdentifier = UserIdentifier("test", "celeborn")
 
   celebornConf
     .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "true")
     .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
+    .set(CelebornConf.USER_SPECIFIC_TENANT.key, userIdentifier.tenantId)
+    .set(CelebornConf.USER_SPECIFIC_USERNAME.key, userIdentifier.name)
+    .set(CelebornConf.USER_SPECIFIC_APPLICATION_INFO.key, "k1=v1")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -97,6 +106,24 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     assert(res.size() == workerInfos.size)
     assert(res.contains(workerInfos.keySet.head.workerInfo))
     lifecycleManager.stop()
+  }
+
+  test("CELEBORN-1258: Support to register application info with user identifier and extra info") {
+    val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
+
+    val arrayList = new util.ArrayList[Integer]()
+    (0 to 10).foreach(i => {
+      arrayList.add(i)
+    })
+
+    lifecycleManager.requestMasterRequestSlotsWithRetry(0, arrayList)
+
+    eventually(timeout(3.seconds), interval(0.milliseconds)) {
+      val appInfo = masterInfo._1.statusSystem.applicationInfos.get(APP)
+      assert(appInfo.userIdentifier == userIdentifier)
+      assert(appInfo.extraInfo.get("k1") == "v1")
+      assert(appInfo.registrationTime > 0 && appInfo.registrationTime < System.currentTimeMillis())
+    }
   }
 
   override def afterAll(): Unit = {

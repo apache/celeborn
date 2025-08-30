@@ -116,6 +116,7 @@ enum MessageType {
   GET_STAGE_END_RESPONSE = 93;
   READ_REDUCER_PARTITION_END = 94;
   READ_REDUCER_PARTITION_END_RESPONSE = 95;
+  REGISTER_APPLICATION_INFO = 96;
 }
 
 enum StreamType {
@@ -753,6 +754,7 @@ message PbSnapshotMetaInfo {
   map<string, int64> shuffleFallbackCounts = 19;
   int64 applicationTotalCount = 20;
   map<string, int64> applicationFallbackCounts = 21;
+  map<string, PbApplicationInfo> applicationInfos = 22;
 }
 
 message PbOpenStream {
@@ -904,6 +906,13 @@ message PbApplicationMeta {
   string secret = 2;
 }
 
+message PbApplicationInfo {
+  string appId = 1;
+  PbUserIdentifier userIdentifier = 2;
+  map<string, string> extraInfo = 3;
+  int64 registrationTime = 4;
+}
+
 message PbApplicationMetaRequest {
   string appId = 1;
 }
@@ -1005,6 +1014,7 @@ enum PbMetaRequestType {
   ReportWorkerDecommission = 27;
   BatchUnRegisterShuffle = 28;
   ReviseLostShuffles = 29;
+  RegisterApplicationInfo = 30;
 }
 
 message PbMetaRequest {
@@ -1028,6 +1038,7 @@ message PbMetaRequest {
   PbApplicationMeta applicationMetaRequest = 23;
   PbReportWorkerDecommission reportWorkerDecommissionRequest = 24;
   PbMetaBatchUnregisterShuffles batchUnregisterShuffleRequest = 25;
+  PbRegisterApplicationInfo registerApplicationInfoRequest = 26;
   PbReviseLostShuffles reviseLostShufflesRequest = 102;
 }
 
@@ -1074,4 +1085,11 @@ message PbMetaRequestResponse {
   bool success = 2;
   string message = 3;
   PbMetaRequestStatus status = 4;
+}
+
+message PbRegisterApplicationInfo {
+  string appId = 1;
+  PbUserIdentifier userIdentifier = 2;
+  map<string, string> extraInfo = 3;
+  string requestId = 4;
 }

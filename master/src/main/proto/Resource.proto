@@ -44,6 +44,8 @@ enum Type {
   BatchUnRegisterShuffle = 28;
 
   ReviseLostShuffles = 29;
+
+  RegisterApplicationInfo = 30;
 }
 
 enum WorkerEventType {
@@ -78,6 +80,7 @@ message ResourceRequest {
   optional ApplicationMetaRequest applicationMetaRequest = 23;
   optional ReportWorkerDecommissionRequest reportWorkerDecommissionRequest = 24;
   optional BatchUnregisterShuffleRequest batchUnregisterShuffleRequest = 25;
+  optional RegisterApplicationInfoRequest registerApplicationInfoRequest = 26;
   optional ReviseLostShufflesRequest reviseLostShufflesRequest = 102;
 }
 
@@ -265,4 +268,10 @@ message ApplicationMetaRequest {
 message ReviseLostShufflesRequest {
   string appId = 1 ;
   repeated int32 lostShuffles = 2 ;
+}
+
+message RegisterApplicationInfoRequest {
+  string appId = 1;
+  UserIdentifier userIdentifier = 2;
+  map<string, string> extraInfo = 3;
 }
