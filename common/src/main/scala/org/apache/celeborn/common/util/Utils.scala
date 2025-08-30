@@ -1085,7 +1085,6 @@ object Utils extends Logging {
     value match {
       case 0 => PartitionType.REDUCE
       case 1 => PartitionType.MAP
-      case 2 => PartitionType.MAPGROUP
       case _ =>
         logWarning(s"invalid partitionType $value, fallback to ReducePartition")
         PartitionType.REDUCE

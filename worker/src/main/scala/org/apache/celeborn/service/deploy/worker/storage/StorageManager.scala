@@ -1053,8 +1053,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         new ReduceFileMeta(conf.shuffleChunkSize)
       case PartitionType.MAP =>
         new MapFileMeta()
-      case PartitionType.MAPGROUP =>
-        throw new NotImplementedError("Map group is not implemented")
     }
     val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
     val memoryFileInfo =
@@ -1229,8 +1227,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           mapFileMeta.setMountPoint(mountPoint)
         }
         mapFileMeta
-      case PartitionType.MAPGROUP =>
-        throw new NotImplementedError("Map group is not implemented")
     }
   }
 }

@@ -90,8 +90,6 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
               fileInfo.asInstanceOf[DiskFileInfo],
               notifier)
           }
-        case PartitionType.MAPGROUP =>
-          null
       }
     }
 
