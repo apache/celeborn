@@ -213,7 +213,8 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
       256,
       "disk1",
       StorageInfo.Type.HDD,
-      null)
+      null,
+      celebornConf.workerFlusherBufferSize)
     val storageManager: StorageManager = Mockito.mock(classOf[StorageManager])
 
     MemoryManager.initialize(celebornConf, storageManager, null)

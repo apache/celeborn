@@ -687,6 +687,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def masterResourceConsumptionInterval: Long = get(MASTER_RESOURCE_CONSUMPTION_INTERVAL)
   def masterResourceConsumptionMetricsEnabled: Boolean =
     get(MASTER_RESOURCE_CONSUMPTION_METRICS_ENABLED)
+  def workerFlushReuseCopyBufferEnabled: Boolean =
+    get(WORKER_FLUSH_REUSE_COPY_BUFFER_ENABLED)
   def clusterName: String = get(CLUSTER_NAME)
 
   // //////////////////////////////////////////////////////
@@ -810,6 +812,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
   def masterExcludeWorkerUnhealthyDiskRatioThreshold: Double =
     get(MASTER_EXCLUDE_WORKER_UNHEALTHY_DISK_RATIO_THRESHOLD)
+  def masterAutoReleaseHighWorkloadWorkerEnabled: Boolean =
+    get(MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLED)
+  def masterAutoReleaseHighWorkloadWorkerRatioThreshold: Double =
+    get(MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD)
 
   // //////////////////////////////////////////////////////
   //                      Worker                         //
@@ -1469,6 +1475,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFlinkDataCompressionEnabled: Boolean = get(CLIENT_DATA_COMPRESSION_ENABLED)
   def clientFlinkMetricsScopeNamingShuffle: String =
     get(CLIENT_METRICS_SCOPE_NAMING_SHUFFLE)
+  def clientFlinkOpenStreamThreads: Int =
+    get(CLIENT_OPEN_STREAM_THREADS).getOrElse(Runtime.getRuntime.availableProcessors())
   def clientChunkPrefetchEnabled = get(CLIENT_CHUNK_PREFETCH_ENABLED)
   def clientInputStreamCreationWindow = get(CLIENT_INPUTSTREAM_CREATION_WINDOW)
 
@@ -6044,6 +6052,14 @@ object CelebornConf extends Logging {
       .createWithDefault(
         "<host>.taskmanager.<tm_id>.<job_name>.<task_name>.<subtask_index>.<shuffle_id>")
 
+  val CLIENT_OPEN_STREAM_THREADS: OptionalConfigEntry[Int] =
+    buildConf("celeborn.client.flink.open.stream.threads")
+      .categories("client")
+      .doc("Thread number of flink shuffle client to open buffer stream. Default value is Runtime.getRuntime.availableProcessors.")
+      .version("0.6.1")
+      .intConf
+      .createOptional
+
   val CLIENT_MR_PUSH_DATA_MAX: ConfigEntry[Long] =
     buildConf("celeborn.client.mr.pushData.max")
       .categories("client")
@@ -6553,6 +6569,25 @@ object CelebornConf extends Logging {
       .checkValue(v => v > 0.0 && v <= 1.0, "Should be in (0.0, 1.0].")
       .createWithDefault(1)
 
+  val MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.master.excludeWorker.autoReleaseHighWorkLoadEnabled")
+      .categories("master")
+      .version("0.7.0")
+      .doc("Whether to release workers with high workload in excluded worker list.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD: ConfigEntry[Double] =
+    buildConf("celeborn.master.excludeWorker.autoReleaseHighWorkLoadRatioThreshold")
+      .categories("master")
+      .version("0.7.0")
+      .doc("Whenever the number of worker with high workload exceeds this ratio, " +
+        "master will release worker with high workload in excluded worker list. " +
+        "If this value is set to 0, such workers will never be excluded. ")
+      .doubleConf
+      .checkValue(v => v >= 0.0 && v < 1.0, "Should be in [0.0, 1).")
+      .createWithDefault(0.3)
+
   val QUOTA_CLUSTER_DISK_BYTES_WRITTEN: ConfigEntry[Long] =
     buildConf("celeborn.quota.cluster.diskBytesWritten")
       .categories("quota")
@@ -6632,4 +6667,16 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .booleanConf
       .createWithDefaultString("false")
+
+  val WORKER_FLUSH_REUSE_COPY_BUFFER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("worker.flush.reuseCopyBuffer.enabled")
+      .categories("worker")
+      .doc("Whether to enable reuse copy buffer for flush. Note that this copy buffer must not" +
+        " be referenced again after flushing. This means that, for example, the Hdfs(Oss or S3) client" +
+        " will not asynchronously access this buffer after the flush method returns, otherwise data" +
+        " modification problems will occur.")
+      .version("0.6.1")
+      .booleanConf
+      .createWithDefaultString("true")
+
 }

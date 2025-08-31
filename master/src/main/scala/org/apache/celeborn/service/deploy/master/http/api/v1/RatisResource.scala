@@ -127,11 +127,19 @@ class RatisResource extends ApiRequestContext with Logging {
           throw new IllegalArgumentException(
             s"Peer $peer with same id or address already exists in group $groupInfo.")
         }
-        RaftPeer.newBuilder()
+        val builder = RaftPeer.newBuilder()
           .setId(peer.getId)
           .setAddress(peer.getAddress)
           .setPriority(0)
-          .build()
+
+        if (peer.getClientAddress.nonEmpty) {
+          builder.setClientAddress(peer.getClientAddress)
+        }
+        if (peer.getAdminAddress.nonEmpty) {
+          builder.setAdminAddress(peer.getAdminAddress)
+        }
+
+        builder.build()
       }
 
       val peers = (remaining ++ adding).distinct

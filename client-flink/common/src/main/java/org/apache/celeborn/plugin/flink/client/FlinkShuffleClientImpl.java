@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -64,6 +65,7 @@ import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.util.CollectionUtils;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.PbSerDeUtils;
+import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.PushState;
 import org.apache.celeborn.plugin.flink.network.FlinkTransportClientFactory;
@@ -84,6 +86,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
 
   /** The buffer size bytes in flink, default value is 32KB. */
   private final int bufferSizeBytes;
+
+  private final ExecutorService openStreamThreadPool;
 
   public static FlinkShuffleClientImpl get(
       String appUniqueId,
@@ -160,6 +164,9 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     if (readClientHandler != null) {
       readClientHandler.close();
     }
+    if (openStreamThreadPool != null) {
+      ThreadUtils.shutdown(openStreamThreadPool);
+    }
   }
 
   public FlinkShuffleClientImpl(
@@ -180,6 +187,9 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
             dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());
     this.setupLifecycleManagerRef(driverHost, port);
     this.driverTimestamp = driverTimestamp;
+    this.openStreamThreadPool =
+        ThreadUtils.newDaemonCachedThreadPool(
+            "client-buffer-stream-opener", conf.clientFlinkOpenStreamThreads(), 60);
   }
 
   private void initializeTransportClientFactory() {
@@ -238,7 +248,8 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
           partitionLocations,
           subPartitionIndexStart,
           subPartitionIndexEnd,
-          pushDataTimeout);
+          pushDataTimeout,
+          openStreamThreadPool);
     }
   }
 

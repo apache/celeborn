@@ -518,6 +518,14 @@ public class MemoryManager {
     return pausePushDataTime;
   }
 
+  public int getPushPausedStatus() {
+    return currentServingState() == ServingState.PUSH_PAUSED ? 1 : 0;
+  }
+
+  public int getPushAndReplicatePausedStatus() {
+    return currentServingState() == ServingState.PUSH_AND_REPLICATE_PAUSED ? 1 : 0;
+  }
+
   public long getPausePushDataAndReplicateTime() {
     return pausePushDataAndReplicateTime;
   }
@@ -597,11 +605,13 @@ public class MemoryManager {
             getNettyPinnedDirectMemory());
         resumeReplicate();
         resumePush();
+        break;
       case PUSH_PAUSED:
         logger.info(
             "Serving State is PUSH_PAUSED, but resume by lower pinned memory {}",
             getNettyPinnedDirectMemory());
         resumePush();
+        break;
     }
   }
 

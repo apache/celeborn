@@ -1232,6 +1232,12 @@ components:
         address:
           type: string
           description: The address of the peer.
+        clientAddress:
+          type: string
+          description: The address of the peer for client RPC communication.
+        adminAddress:
+          type: string
+          description: The address of the peer for internal RPC communication.
       required:
         - id
         - address

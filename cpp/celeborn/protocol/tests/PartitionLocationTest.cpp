@@ -40,6 +40,24 @@ void verifyStorageInfo(const StorageInfo* storageInfo) {
   EXPECT_EQ(storageInfo->availableStorageTypes, 1);
 }
 
+std::unique_ptr<StorageInfo> generateStorageInfo() {
+  auto storageInfo = std::make_unique<StorageInfo>();
+  storageInfo->type = static_cast<StorageInfo::Type>(1);
+  storageInfo->mountPoint = "test_mountpoint";
+  storageInfo->finalResult = true;
+  storageInfo->filePath = "test_filepath";
+  storageInfo->availableStorageTypes = 1;
+  return std::move(storageInfo);
+}
+
+void verifyStorageInfoPb(const PbStorageInfo* pbStorageInfo) {
+  EXPECT_EQ(pbStorageInfo->type(), 1);
+  EXPECT_EQ(pbStorageInfo->mountpoint(), "test_mountpoint");
+  EXPECT_EQ(pbStorageInfo->finalresult(), true);
+  EXPECT_EQ(pbStorageInfo->filepath(), "test_filepath");
+  EXPECT_EQ(pbStorageInfo->availablestoragetypes(), 1);
+}
+
 std::unique_ptr<PbPartitionLocation> generateBasicPartitionLocationPb() {
   auto pbPartitionLocation = std::make_unique<PbPartitionLocation>();
   pbPartitionLocation->set_id(1);
@@ -62,10 +80,39 @@ void verifyBasicPartitionLocation(const PartitionLocation* partitionLocation) {
   EXPECT_EQ(partitionLocation->replicatePort, 1004);
 }
 
+std::unique_ptr<PartitionLocation> generateBasicPartitionLocation() {
+  auto partitionLocation = std::make_unique<PartitionLocation>();
+  partitionLocation->id = 1;
+  partitionLocation->epoch = 101;
+  partitionLocation->host = "test_host";
+  partitionLocation->rpcPort = 1001;
+  partitionLocation->pushPort = 1002;
+  partitionLocation->fetchPort = 1003;
+  partitionLocation->replicatePort = 1004;
+  return std::move(partitionLocation);
+}
+
+void verifyBasicPartitionLocationPb(
+    const PbPartitionLocation* pbPartitionLocation) {
+  EXPECT_EQ(pbPartitionLocation->id(), 1);
+  EXPECT_EQ(pbPartitionLocation->epoch(), 101);
+  EXPECT_EQ(pbPartitionLocation->host(), "test_host");
+  EXPECT_EQ(pbPartitionLocation->rpcport(), 1001);
+  EXPECT_EQ(pbPartitionLocation->pushport(), 1002);
+  EXPECT_EQ(pbPartitionLocation->fetchport(), 1003);
+  EXPECT_EQ(pbPartitionLocation->replicateport(), 1004);
+}
+
 TEST(PartitionLocationTest, storageInfoFromPb) {
   auto pbStorageInfo = generateStorageInfoPb();
   auto storageInfo = StorageInfo::fromPb(*pbStorageInfo);
   verifyStorageInfo(storageInfo.get());
+}
+
+TEST(PartitionLocationTest, storageInfoToProto) {
+  auto storageInfo = generateStorageInfo();
+  auto pbStorageInfo = storageInfo->toPb();
+  verifyStorageInfoPb(pbStorageInfo.get());
 }
 
 TEST(PartitionLocationTest, fromPbWithoutPeer) {
@@ -108,4 +155,41 @@ TEST(PartitionLocationTest, fromPbWithPeer) {
   verifyBasicPartitionLocation(partitionLocationReplica);
   EXPECT_EQ(partitionLocationReplica->mode, PartitionLocation::Mode::REPLICA);
   verifyStorageInfo(partitionLocationReplica->storageInfo.get());
+}
+
+TEST(PartitionLocationTest, toProtoWithoutPeer) {
+  auto partitionLocation = generateBasicPartitionLocation();
+  partitionLocation->mode = PartitionLocation::PRIMARY;
+  partitionLocation->storageInfo = generateStorageInfo();
+
+  auto pbPartitionLocation = partitionLocation->toPb();
+
+  verifyBasicPartitionLocationPb(pbPartitionLocation.get());
+  EXPECT_EQ(pbPartitionLocation->mode(), PbPartitionLocation_Mode_Primary);
+  verifyStorageInfoPb(&pbPartitionLocation->storageinfo());
+}
+
+TEST(PartitionLocationTest, toProtoWithPeer) {
+  auto partitionLocationPrimary = generateBasicPartitionLocation();
+  partitionLocationPrimary->mode = PartitionLocation::PRIMARY;
+  partitionLocationPrimary->storageInfo = generateStorageInfo();
+
+  auto partitionLocationReplica = generateBasicPartitionLocation();
+  partitionLocationReplica->mode = PartitionLocation::REPLICA;
+  partitionLocationReplica->storageInfo = generateStorageInfo();
+
+  partitionLocationPrimary->replicaPeer = std::move(partitionLocationReplica);
+
+  auto pbPartitionLocationPrimary = partitionLocationPrimary->toPb();
+
+  verifyBasicPartitionLocationPb(pbPartitionLocationPrimary.get());
+  EXPECT_EQ(
+      pbPartitionLocationPrimary->mode(), PbPartitionLocation_Mode_Primary);
+  verifyStorageInfoPb(&pbPartitionLocationPrimary->storageinfo());
+
+  auto pbPartitionLocationReplica = &pbPartitionLocationPrimary->peer();
+  verifyBasicPartitionLocationPb(pbPartitionLocationReplica);
+  EXPECT_EQ(
+      pbPartitionLocationReplica->mode(), PbPartitionLocation_Mode_Replica);
+  verifyStorageInfoPb(&pbPartitionLocationReplica->storageinfo());
 }

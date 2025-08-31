@@ -103,7 +103,7 @@ public class PartitionDataWriterSuiteUtils {
                     context,
                     storageManager))
         .when(storagePolicy)
-        .createFileWriter(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        .createFileWriter(Mockito.any(), Mockito.any(), Mockito.any());
 
     return storageManager;
   }
@@ -148,7 +148,7 @@ public class PartitionDataWriterSuiteUtils {
                     writerContext,
                     storageManager))
         .when(storagePolicy)
-        .createFileWriter(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        .createFileWriter(Mockito.any(), Mockito.any(), Mockito.any());
 
     return storageManager;
   }
@@ -195,7 +195,8 @@ public class PartitionDataWriterSuiteUtils {
             256,
             "disk1",
             StorageInfo.Type.HDD,
-            null);
+            null,
+            celebornConf.workerFlusherBufferSize());
     Mockito.doAnswer(
             invocation -> {
               if (callCounter.getAndIncrement() == 0) {
@@ -222,7 +223,7 @@ public class PartitionDataWriterSuiteUtils {
                     writerContext,
                     storageManager))
         .when(storagePolicy)
-        .createFileWriter(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        .createFileWriter(Mockito.any(), Mockito.any(), Mockito.any());
 
     Mockito.doAnswer(
             invocation ->
@@ -239,8 +240,7 @@ public class PartitionDataWriterSuiteUtils {
                     writerContext,
                     storageManager))
         .when(storagePolicy)
-        .getEvictedFileWriter(
-            Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        .getEvictedFileWriter(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
 
     return storageManager;
   }

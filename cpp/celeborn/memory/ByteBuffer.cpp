@@ -74,5 +74,27 @@ std::unique_ptr<folly::IOBuf> ByteBuffer::trimBuffer(
   }
   return std::move(data);
 }
+
+std::unique_ptr<ReadOnlyByteBuffer> ReadOnlyByteBuffer::readToReadOnlyBuffer(
+    const size_t len) const {
+  std::unique_ptr<folly::IOBuf> leftData = folly::IOBuf::create(0);
+  auto cnt = 0;
+  while (cnt < len) {
+    if (this->remainingSize() == 0) {
+      break;
+    }
+    std::unique_ptr<folly::IOBuf> newBlock =
+        std::move(this->cursor_->currentBuffer()->cloneOne());
+    newBlock->pop();
+    newBlock->trimStart(this->cursor_->getPositionInCurrentBuffer());
+    if (newBlock->length() > len - cnt) {
+      newBlock->trimEnd(newBlock->length() - (len - cnt));
+    }
+    this->cursor_->skip(newBlock->length());
+    cnt += newBlock->length();
+    leftData->appendToChain(std::move(newBlock));
+  }
+  return createReadOnly(std::move(leftData), isBigEndian_);
+}
 } // namespace memory
 } // namespace celeborn

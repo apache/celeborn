@@ -155,7 +155,7 @@ abstract class TierWriterBase(
       waitTime -= WAIT_INTERVAL_MS
     }
     if (counter.get > 0 && failWhenTimeout) {
-      val ioe = new IOException("Wait pending actions timeout.")
+      val ioe = new IOException(s"Wait pending actions timeout after $writerCloseTimeoutMs ms.")
       notifier.setException(ioe)
       throw ioe
     }
@@ -696,7 +696,14 @@ class DfsTierWriter(
   override def notifyFileCommitted(): Unit =
     storageManager.notifyFileInfoCommitted(shuffleKey, filename, dfsFileInfo)
 
-  override def closeResource(): Unit = {}
+  override def closeResource(): Unit = {
+    if (s3MultipartUploadHandler != null) {
+      s3MultipartUploadHandler.close()
+    }
+    if (ossMultipartUploadHandler != null) {
+      ossMultipartUploadHandler.close()
+    }
+  }
 
   override def cleanLocalOrDfsFiles(): Unit = {
     dfsFileInfo.deleteAllFiles(hadoopFs)

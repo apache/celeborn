@@ -15,13 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.cluster
+#pragma once
 
-import org.apache.celeborn.common.protocol.CompressionCodec
+namespace celeborn {
+namespace client {
+namespace compress {
 
-object JavaReadCppWriteTestWithNONE extends JavaReadCppWriteTestBase {
+struct ZstdTrait {
+  static constexpr char kMagic[] =
+      {'Z', 'S', 'T', 'D', 'B', 'l', 'o', 'c', 'k'};
+  static constexpr int kMagicLength = sizeof(kMagic);
 
-  def main(args: Array[String]) = {
-    testJavaReadCppWrite(CompressionCodec.NONE)
-  }
-}
+  static constexpr int kHeaderLength = kMagicLength + 1 + 4 + 4 + 4;
+
+  static constexpr int kCompressionMethodRaw = 0x10;
+  static constexpr int kCompressionMethodZstd = 0x30;
+};
+
+} // namespace compress
+} // namespace client
+} // namespace celeborn

@@ -30,7 +30,7 @@ on:
 jobs:
   celeborn_cpp_check_lint:
     runs-on: ubuntu-22.04
-    container: holylow/celeborn-cpp-dev:0.3
+    container: jraaaay/celeborn-cpp-dev:0.4
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,7 +43,7 @@ jobs:
             xargs clang-format-15 -style=file:./.clang-format -n --Werror
   celeborn_cpp_unit_test:
     runs-on: ubuntu-22.04
-    container: holylow/celeborn-cpp-dev:0.3
+    container: jraaaay/celeborn-cpp-dev:0.4
     steps:
       - uses: actions/checkout@v4
         with:
@@ -59,7 +59,7 @@ jobs:
         run: ctest
   celeborn_cpp_integration_test:
     runs-on: ubuntu-22.04
-    container: holylow/celeborn-cpp-dev:0.3
+    container: jraaaay/celeborn-cpp-dev:0.4
     steps:
       - uses: actions/checkout@v4
         with:
@@ -90,5 +90,19 @@ jobs:
           build/mvn -pl worker \
             test-compile exec:java \
             -Dexec.classpathScope="test" \
-            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.JavaReadCppWriteTestWithNONE" \
+            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.JavaWriteCppReadTestWithNONE" \
+            -Dexec.args="-XX:MaxDirectMemorySize=2G"
+      - name: Run Java-Cpp Hybrid Integration Test (LZ4 Decompression)
+        run: |
+          build/mvn -pl worker \
+            test-compile exec:java \
+            -Dexec.classpathScope="test" \
+            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.JavaWriteCppReadTestWithLZ4" \
+            -Dexec.args="-XX:MaxDirectMemorySize=2G"
+      - name: Run Java-Cpp Hybrid Integration Test (ZSTD Decompression)
+        run: |
+          build/mvn -pl worker \
+            test-compile exec:java \
+            -Dexec.classpathScope="test" \
+            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.JavaWriteCppReadTestWithZSTD" \
             -Dexec.args="-XX:MaxDirectMemorySize=2G"
