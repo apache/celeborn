@@ -36,6 +36,7 @@ import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.FileChannelUtils
+import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 import org.apache.celeborn.service.deploy.worker.congestcontrol.{CongestionController, UserCongestionControlContext}
@@ -645,29 +646,9 @@ class DfsTierWriter(
       hadoopFs.delete(dfsFileInfo.getDfsPath, false)
       deleted = true
     } else {
-      def retry(operationName: String)(action: => Unit): Unit = {
-        var retryCount = 0
-        val maxAttempts = conf.workerCreateIndexOrSuccessMaxAttempts
-        var success = false
-
-        while (retryCount < maxAttempts && !success) {
-          try {
-            action
-            success = true
-          } catch {
-            case e: IOException =>
-              retryCount += 1
-              logWarning(s"Failed to $operationName, retryCount $retryCount", e)
-              if (retryCount < maxAttempts) {
-                Thread.sleep(conf.workerCreateIndexOrSuccessBaseSleepDeltaMs * retryCount)
-              } else {
-                throw e
-              }
-          }
-        }
-      }
-
-      retry("create and write index file") {
+      val retryCount = conf.workerCreateIndexOrSuccessMaxAttempts
+      val retryWait = conf.workerCreateIndexOrSuccessWaitMs
+      Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
         if (hadoopFs.exists(hdfsFileInfo.getDfsIndexPath)) {
           hadoopFs.delete(hdfsFileInfo.getDfsIndexPath, true)
         }
@@ -679,7 +660,7 @@ class DfsTierWriter(
         indexOutputStream.close()
       }
 
-      retry("create success file") {
+      Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
         hadoopFs.create(hdfsFileInfo.getDfsWriterSuccessPath).close()
       }
     }

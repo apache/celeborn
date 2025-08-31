@@ -1364,7 +1364,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerOssFlusherThreads: Int = get(WORKER_FLUSHER_OSS_THREADS)
   def workerCreateWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
   def workerCreateIndexOrSuccessMaxAttempts: Int = get(WORKER_WRITER_CREATE_INDEX_OR_SUCCESS_MAX_ATTEMPTS)
-  def workerCreateIndexOrSuccessBaseSleepDeltaMs: Long = get(WORKER_WRITER_CREATE_INDEX_OR_SUCCESS_BASE_SLEEP_INTERVAL)
+  def workerCreateIndexOrSuccessWaitMs: Long = get(WORKER_WRITER_CREATE_INDEX_OR_SUCCESS_WAIT_INTERVAL)
   def workerFlusherLocalGatherAPIEnabled: Boolean = get(WORKER_FLUSHER_LOCAL_GATHER_API_ENABLED)
 
   // //////////////////////////////////////////////////////
@@ -4079,12 +4079,11 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(5)
 
-  val WORKER_WRITER_CREATE_INDEX_OR_SUCCESS_BASE_SLEEP_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.writer.create.indexOrSuccess.base.sleep.interval")
+  val WORKER_WRITER_CREATE_INDEX_OR_SUCCESS_WAIT_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.writer.create.indexOrSuccess.wait.interval")
       .categories("worker")
-      .version("0.6.1")
-      .doc("Base sleep interval after attempt to create index file and then retry it, and " +
-        "the sleep time will be increased according to the retry count.")
+      .version("0.7.0")
+      .doc("Wait interval after attempt to create index file or success file and then retry it.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("100ms")
 
