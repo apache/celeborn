@@ -19,11 +19,13 @@ package org.apache.celeborn.service.deploy.worker.storage.hdfs;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
+import com.google.common.cache.CacheStats;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
+
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.metrics.source.AbstractSource;
+
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -41,9 +43,6 @@ public final class StreamsManager {
     private final FileSystem fileSystem;
     private final int maxCapacity;
     private final long maxStreamIdleMs;
-    private long totalGetkeyCount = 0;
-    private long totalLoaderCount = 0;
-    private final long maxCount = 1000000000000L;
 
     private final int concurrentLevel;
     public StreamsManager(CelebornConf conf, FileSystem fileSystem) {
@@ -58,8 +57,7 @@ public final class StreamsManager {
                 if (notification.getValue() != null) {
                     try {
                         notification.getValue().close();
-                        Thread.sleep(20);
-                    } catch (IOException | InterruptedException e) {
+                    } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
                 }
@@ -69,7 +67,6 @@ public final class StreamsManager {
             @SuppressWarnings("NullableProblems")
             @Override
             public FSDataOutputStream load(Path path) throws Exception {
-                totalLoaderCount++;
                 try {
                     return fileSystem.append(path);
                 } catch (IOException e){
@@ -89,29 +86,11 @@ public final class StreamsManager {
         return cache.size();
     }
 
-    public synchronized void dropEntry(Path path) {
-        FSDataOutputStream outputStream = cache.getIfPresent(path);
-        if (outputStream != null) {
-            try {
-                outputStream.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            cache.invalidate(path);
-        }
+    public CacheStats getCacheStats() {
+        return cache.stats();
     }
 
-    public long getReuseOutputStreamCount() {
-        long res = totalGetkeyCount - totalLoaderCount;
-        if (totalGetkeyCount > maxCount || totalLoaderCount > maxCount) {
-            totalGetkeyCount = 0;
-            totalLoaderCount = 0;
-        }
-        return res;
-    }
-
-    public synchronized FSDataOutputStream getOrCreateStream(Path path) {
-        totalGetkeyCount++;
+    public FSDataOutputStream getOrCreateStream(Path path) {
         try {
             return cache.get(path);
         } catch (ExecutionException e) {

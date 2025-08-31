@@ -264,8 +264,11 @@ object WorkerSource {
   val ACTIVE_SHUFFLE_SIZE = "ActiveShuffleSize"
   val ACTIVE_SHUFFLE_FILE_COUNT = "ActiveShuffleFileCount"
 
-  val REUSE_HDFS_OUTPUT_STREAM_TOTAL_COUNT = "ReuseHdfsOutputStreamTotalCount"
-  val OPEN_HDFS_OUTPUT_STREAM_COUNT = "OpenHdfsOutputStreamCount"
+  val REUSE_DFS_OUTPUT_STREAM_HIT_COUNT = "ReuseDfsOutputStreamHitCount"
+  val REUSE_DFS_OUTPUT_STREAM_HIT_RATE = "ReuseDfsOutputStreamHitRate"
+  val REUSE_DFS_OUTPUT_STREAM_MISS_COUNT = "ReuseDfsOutputStreamMissCount"
+  val REUSE_DFS_OUTPUT_STREAM_MISS_RATE = "ReuseDfsOutputStreamMissRate"
+  val OPEN_DFS_OUTPUT_STREAM_COUNT = "OpenDfsOutputStreamCount"
 
   // decommission
   val IS_DECOMMISSIONING_WORKER = "IsDecommissioningWorker"

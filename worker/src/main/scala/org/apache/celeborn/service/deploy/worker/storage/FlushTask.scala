@@ -21,8 +21,7 @@ import java.io.{ByteArrayInputStream, Closeable, IOException}
 import java.nio.channels.FileChannel
 
 import io.netty.buffer.{ByteBufUtil, CompositeByteBuf}
-import org.apache.hadoop.fs.Path
-
+import org.apache.hadoop.fs.{FSDataOutputStream, Path}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.StorageInfo.Type
@@ -107,8 +106,9 @@ private[worker] class HdfsFlushTask(
   override def flush(copyBytes: Array[Byte]): Unit = {
     val readableBytes = buffer.readableBytes()
     val hadoopFs = StorageManager.hadoopFs.get(Type.HDFS)
+    var hdfsStream: FSDataOutputStream = null
     if (StorageManager.streamsManager != null) {
-      val hdfsStream = StorageManager.streamsManager.getOrCreateStream(path)
+      hdfsStream = StorageManager.streamsManager.getOrCreateStream(path)
       if (hdfsStream != null) {
         hdfsStream.synchronized {
           hdfsStream.write(convertBufferToBytes(buffer, copyBytes, readableBytes))
@@ -116,19 +116,17 @@ private[worker] class HdfsFlushTask(
             hdfsStream.flush()
           }
         }
-        source.incCounter(WorkerSource.HDFS_FLUSH_COUNT)
-        source.incCounter(WorkerSource.HDFS_FLUSH_SIZE, readableBytes)
       } else {
         throw new CelebornIOException("Cannot find stream for " + path)
       }
     } else {
-      val hdfsStream = hadoopFs.append(path, 256 * 1024)
+      hdfsStream = hadoopFs.append(path, 256 * 1024)
       flush(hdfsStream) {
         hdfsStream.write(convertBufferToBytes(buffer, copyBytes, readableBytes))
-        source.incCounter(WorkerSource.HDFS_FLUSH_COUNT)
-        source.incCounter(WorkerSource.HDFS_FLUSH_SIZE, readableBytes)
       }
     }
+    source.incCounter(WorkerSource.HDFS_FLUSH_COUNT)
+    source.incCounter(WorkerSource.HDFS_FLUSH_SIZE, readableBytes)
   }
 }
 
