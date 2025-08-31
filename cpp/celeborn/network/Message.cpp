@@ -16,6 +16,7 @@
  */
 
 #include "celeborn/network/Message.h"
+#include "celeborn/protocol/Encoders.h"
 
 namespace celeborn {
 namespace network {
@@ -148,6 +149,37 @@ std::unique_ptr<ChunkFetchFailure> ChunkFetchFailure::decodeFrom(
   std::string errorString = data->readToString(strLen);
   return std::make_unique<ChunkFetchFailure>(
       streamChunkSlice, std::move(errorString));
+}
+
+PushData::PushData(
+    long requestId,
+    uint8_t mode,
+    const std::string& shuffleKey,
+    const std::string& partitionUniqueId,
+    std::unique_ptr<memory::ReadOnlyByteBuffer> body)
+    : Message(PUSH_DATA, std::move(body)),
+      requestId_(requestId),
+      mode_(mode),
+      shuffleKey_(shuffleKey),
+      partitionUniqueId_(partitionUniqueId) {}
+
+PushData::PushData(const PushData& other)
+    : Message(PUSH_DATA, other.body()),
+      requestId_(other.requestId_),
+      mode_(other.mode_),
+      shuffleKey_(other.shuffleKey_),
+      partitionUniqueId_(other.partitionUniqueId_) {}
+
+int PushData::internalEncodedLength() const {
+  return sizeof(long) + sizeof(uint8_t) + protocol::encodedLength(shuffleKey_) +
+      protocol::encodedLength(partitionUniqueId_);
+}
+
+void PushData::internalEncodeTo(memory::WriteOnlyByteBuffer& buffer) const {
+  buffer.write<long>(requestId_);
+  buffer.write<uint8_t>(mode_);
+  protocol::encode(buffer, shuffleKey_);
+  protocol::encode(buffer, partitionUniqueId_);
 }
 } // namespace network
 } // namespace celeborn

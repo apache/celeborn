@@ -18,6 +18,7 @@ add_library(
         PartitionLocation.cpp
         TransportMessage.cpp
         ControlMessages.cpp
+        Encoders.cpp
         CompressionCodec.cpp)
 
 target_include_directories(protocol PUBLIC ${CMAKE_BINARY_DIR})

@@ -215,8 +215,10 @@ These metrics are exposed by Celeborn worker.
     | ReplicaRegionStartTime                 | ReplicaRegionStart means handle RegionStart of replica partition location.                                      |
     | PrimaryRegionFinishTime                | PrimaryRegionFinish means handle RegionFinish of primary partition location.                                    |
     | ReplicaRegionFinishTime                | ReplicaRegionFinish means handle RegionFinish of replica partition location.                                    |
+    | PausePushDataStatus                    | The status for a worker to stop receiving pushData from clients because of back pressure.                       |
     | PausePushDataTime                      | The time for a worker to stop receiving pushData from clients because of back pressure.                         |
     | PausePushDataAndReplicateTime          | The time for a worker to stop receiving pushData from clients and other workers because of back pressure.       |
+    | PausePushDataAndReplicateStatus        | The status for a worker to stop receiving pushData from clients because of back pressure.                       |
     | PausePushData                          | The count for a worker to stop receiving pushData from clients because of back pressure.                        |
     | PausePushDataAndReplicate              | The count for a worker to stop receiving pushData from clients and other workers because of back pressure.      |
     | PartitionFileSizeBytes                 | The size of partition files committed in current worker.                                                        |
@@ -241,6 +243,7 @@ These metrics are exposed by Celeborn worker.
     | ReadBufferAllocatedCount               | Allocated read buffer count.                                                                                    |
     | ActiveCreditStreamCount                | Active stream count for map partition reading streams.                                                          |
     | ActiveMapPartitionCount                | The count of active map partition reading streams.                                                              |
+    | SorterCacheHitRate                     | The cache hit rate for worker partition sorter index.                                                           |
     | CleanTaskQueueSize                     | The count of task for cleaning up expired shuffle keys.                                                         |
     | CleanExpiredShuffleKeysTime            | The time for a worker to clean up shuffle data of expired shuffle keys.                                         |
     | DeviceOSFreeBytes                      | The actual usable space of OS for device monitor.                                                               |
@@ -251,6 +254,7 @@ These metrics are exposed by Celeborn worker.
     | UserProduceSpeed                       | The speed of user production for congestion control.                                                            |
     | WorkerConsumeSpeed                     | The speed of worker consumption for congestion control.                                                         |
     | IsDecommissioningWorker                | 1 means worker decommissioning, 0 means not decommissioning.                                                    |
+    | IsHighWorkload                         | 1 means worker high workload, 0 means not high workload.                                                    | 
     | UnreleasedShuffleCount                 | Unreleased shuffle count when worker is decommissioning.                                                        |
     | UnreleasedPartitionLocationCount       | Unreleased partition location count when worker is shutting down.                                               |
     | MemoryStorageFileCount                 | The count of files in Memory Storage of a worker.                                                               |

@@ -82,7 +82,7 @@ Upon receiving `CommitFiles`, `Worker` will flush all buffered data for `Partiti
 the RPC and close files, then responds the succeeded and failed `PartitionLocation` lists.
 
 ## Trigger Split
-Upon receiving `PushData` (note: currently receiving `PushMergedData` does not trigger Split, it's future work),
+Upon receiving `PushData` or `PushMergedData`,
 `Worker` will check whether disk usage exceeds disk reservation (defaults to 5GiB). If so, `Worker` will respond
 Split to `ShuffleClient`.
 

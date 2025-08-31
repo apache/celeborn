@@ -17,27 +17,32 @@
 
 #pragma once
 
-#include <xxhash.h>
-#include "celeborn/client/compress/Decompressor.h"
-#include "celeborn/client/compress/Lz4Trait.h"
+#include "celeborn/client/compress/Compressor.h"
+#include "celeborn/client/compress/ZstdTrait.h"
 
 namespace celeborn {
 namespace client {
 namespace compress {
 
-class Lz4Decompressor final : public Decompressor, Lz4Trait {
+class ZstdCompressor final : public Compressor, ZstdTrait {
  public:
-  Lz4Decompressor();
-  ~Lz4Decompressor() override;
+  explicit ZstdCompressor(int compressionLevel);
+  ~ZstdCompressor() override = default;
 
-  int getOriginalLen(const uint8_t* src) override;
-  int decompress(const uint8_t* src, uint8_t* dst, int dstOff) override;
+  size_t compress(
+      const uint8_t* src,
+      int srcOffset,
+      int srcLength,
+      uint8_t* dst,
+      int dstOffset) override;
 
-  Lz4Decompressor(const Lz4Decompressor&) = delete;
-  Lz4Decompressor& operator=(const Lz4Decompressor&) = delete;
+  size_t getDstCapacity(int length) override;
+
+  ZstdCompressor(const ZstdCompressor&) = delete;
+  ZstdCompressor& operator=(const ZstdCompressor&) = delete;
 
  private:
-  XXH32_state_t* xxhashState_;
+  const int compressionLevel_;
 };
 
 } // namespace compress

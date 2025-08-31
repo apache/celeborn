@@ -99,6 +99,7 @@ class StoragePolicyCase3 extends CelebornFunSuite {
 
   test("test getEvicted file case1") {
     when(mockedPartitionWriterContext.getPartitionLocation).thenAnswer(localHintPartitionLocatioin)
+    when(mockedPartitionWriterContext.getPartitionType).thenAnswer(PartitionType.REDUCE)
     when(mockedStorageManager.localOrDfsStorageAvailable).thenAnswer(true)
     val mockedMemoryFile = mock[LocalTierWriter]
     val conf = new CelebornConf()
@@ -110,7 +111,6 @@ class StoragePolicyCase3 extends CelebornFunSuite {
     val nFile = storagePolicy.getEvictedFileWriter(
       mockedMemoryFile,
       mockedPartitionWriterContext,
-      PartitionType.REDUCE,
       pendingWriters,
       notifier)
     assert(nFile.isInstanceOf[LocalTierWriter])
@@ -118,6 +118,7 @@ class StoragePolicyCase3 extends CelebornFunSuite {
 
   test("test evict file case2") {
     when(mockedPartitionWriterContext.getPartitionLocation).thenAnswer(memoryHintPartitionLocation)
+    when(mockedPartitionWriterContext.getPartitionType).thenAnswer(PartitionType.REDUCE)
     when(mockedStorageManager.localOrDfsStorageAvailable).thenAnswer(true)
     val mockedMemoryFile = mock[LocalTierWriter]
     val conf = new CelebornConf()
@@ -129,7 +130,6 @@ class StoragePolicyCase3 extends CelebornFunSuite {
     val nFile = storagePolicy.getEvictedFileWriter(
       mockedMemoryFile,
       mockedPartitionWriterContext,
-      PartitionType.REDUCE,
       pendingWriters,
       notifier)
     assert(nFile.isInstanceOf[LocalTierWriter])

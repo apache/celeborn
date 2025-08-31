@@ -33,7 +33,9 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
  */
 @JsonPropertyOrder({
   RatisPeer.JSON_PROPERTY_ID,
-  RatisPeer.JSON_PROPERTY_ADDRESS
+  RatisPeer.JSON_PROPERTY_ADDRESS,
+  RatisPeer.JSON_PROPERTY_CLIENT_ADDRESS,
+  RatisPeer.JSON_PROPERTY_ADMIN_ADDRESS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class RatisPeer {
@@ -42,6 +44,12 @@ public class RatisPeer {
 
   public static final String JSON_PROPERTY_ADDRESS = "address";
   private String address;
+
+  public static final String JSON_PROPERTY_CLIENT_ADDRESS = "clientAddress";
+  private String clientAddress;
+
+  public static final String JSON_PROPERTY_ADMIN_ADDRESS = "adminAddress";
+  private String adminAddress;
 
   public RatisPeer() {
   }
@@ -96,6 +104,56 @@ public class RatisPeer {
     this.address = address;
   }
 
+  public RatisPeer clientAddress(String clientAddress) {
+    
+    this.clientAddress = clientAddress;
+    return this;
+  }
+
+  /**
+   * The address of the peer for client RPC communication.
+   * @return clientAddress
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_CLIENT_ADDRESS)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public String getClientAddress() {
+    return clientAddress;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_CLIENT_ADDRESS)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setClientAddress(String clientAddress) {
+    this.clientAddress = clientAddress;
+  }
+
+  public RatisPeer adminAddress(String adminAddress) {
+    
+    this.adminAddress = adminAddress;
+    return this;
+  }
+
+  /**
+   * The address of the peer for internal RPC communication.
+   * @return adminAddress
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_ADMIN_ADDRESS)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public String getAdminAddress() {
+    return adminAddress;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_ADMIN_ADDRESS)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setAdminAddress(String adminAddress) {
+    this.adminAddress = adminAddress;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -106,12 +164,14 @@ public class RatisPeer {
     }
     RatisPeer ratisPeer = (RatisPeer) o;
     return Objects.equals(this.id, ratisPeer.id) &&
-        Objects.equals(this.address, ratisPeer.address);
+        Objects.equals(this.address, ratisPeer.address) &&
+        Objects.equals(this.clientAddress, ratisPeer.clientAddress) &&
+        Objects.equals(this.adminAddress, ratisPeer.adminAddress);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, address);
+    return Objects.hash(id, address, clientAddress, adminAddress);
   }
 
   @Override
@@ -120,6 +180,8 @@ public class RatisPeer {
     sb.append("class RatisPeer {\n");
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    address: ").append(toIndentedString(address)).append("\n");
+    sb.append("    clientAddress: ").append(toIndentedString(clientAddress)).append("\n");
+    sb.append("    adminAddress: ").append(toIndentedString(adminAddress)).append("\n");
     sb.append("}");
     return sb.toString();
   }

@@ -36,7 +36,6 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
   def getEvictedFileWriter(
       celebornFile: TierWriterBase,
       partitionDataWriterContext: PartitionDataWriterContext,
-      partitionType: PartitionType,
       numPendingWrites: AtomicInteger,
       notifier: FlushNotifier): TierWriterBase = {
     evictFileOrder.foreach { order =>
@@ -44,7 +43,6 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
       if (orderList != null) {
         return createFileWriter(
           partitionDataWriterContext,
-          partitionType,
           numPendingWrites,
           notifier,
           orderList,
@@ -57,12 +55,10 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
 
   def createFileWriter(
       partitionDataWriterContext: PartitionDataWriterContext,
-      partitionType: PartitionType,
       numPendingWrites: AtomicInteger,
       notifier: FlushNotifier): TierWriterBase = {
     createFileWriter(
       partitionDataWriterContext: PartitionDataWriterContext,
-      partitionType: PartitionType,
       numPendingWrites: AtomicInteger,
       notifier: FlushNotifier,
       createFileOrder)
@@ -70,7 +66,6 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
 
   def createFileWriter(
       partitionDataWriterContext: PartitionDataWriterContext,
-      partitionType: PartitionType,
       numPendingWrites: AtomicInteger,
       notifier: FlushNotifier,
       order: Option[List[String]] = createFileOrder,
@@ -84,7 +79,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
     }
 
     def getPartitionMetaHandler(fileInfo: FileInfo) = {
-      partitionType match {
+      partitionDataWriterContext.getPartitionType match {
         case PartitionType.REDUCE =>
           new ReducePartitionMetaHandler(partitionDataWriterContext.isRangeReadFilter, fileInfo)
         case PartitionType.MAP =>

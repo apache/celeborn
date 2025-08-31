@@ -105,6 +105,6 @@ nav:
       - Integrating Celeborn: developers/integrate.md
       - SBT Build: developers/sbt.md
       - Native Engine Integration:
-        - Blaze: developers/blazesupport.md
+        - Auron: developers/auronsupport.md
         - Gluten: developers/glutensupport.md
       - Helm Charts: developers/helm-charts.md

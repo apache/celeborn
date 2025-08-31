@@ -16,20 +16,20 @@ license: |
   limitations under the License.
 ---
 
-# Blaze Support
+# Auron Support
 
-## Build Blaze
+## Build Auron
 
-[Blaze](https://github.com/kwai/blaze) supports Celeborn as remote shuffle service. Below introduction is used to enable this feature.
+[Auron](https://github.com/apache/auron) supports Celeborn as remote shuffle service. Below introduction is used to enable this feature.
 
-First refer to [Build From Source](https://github.com/kwai/blaze/blob/master/README.md#build-from-source) or [Build With Docker](https://github.com/kwai/blaze/blob/master/README.md#build-with-docker) to build Blaze.
+First refer to [Build From Source](https://github.com/apache/auron/blob/master/README.md#build-from-source) or [Build With Docker](https://github.com/apache/auron/blob/master/README.md#build-with-docker) to build Auron.
 
-## Blaze Configuration
+## Auron Configuration
 
-Currently, to use Blaze following configurations are required in `spark-defaults.conf`.
+Currently, to use Auron following configurations are required in `spark-defaults.conf`.
 
 ```
-spark.shuffle.manager org.apache.spark.sql.execution.blaze.shuffle.celeborn.BlazeCelebornShuffleManager
+spark.shuffle.manager org.apache.spark.sql.execution.auron.shuffle.celeborn.AuronCelebornShuffleManager
 
 # celeborn master
 spark.celeborn.master.endpoints clb-master:9097
@@ -41,7 +41,7 @@ spark.sql.adaptive.localShuffleReader.enabled false
 
 ## Availability
 
-| Celeborn Version | Available in Blaze? | 
+| Celeborn Version | Available in Auron? | 
 |:----------------:|:-------------------:|
 |     < 0.5.0      |         No          |    
 |    \>= 0.5.0     |         Yes         |

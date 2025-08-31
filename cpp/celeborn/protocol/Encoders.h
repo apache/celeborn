@@ -17,29 +17,16 @@
 
 #pragma once
 
-#include <xxhash.h>
-#include "celeborn/client/compress/Decompressor.h"
-#include "celeborn/client/compress/Lz4Trait.h"
+#include "celeborn/memory/ByteBuffer.h"
 
 namespace celeborn {
-namespace client {
-namespace compress {
+namespace protocol {
 
-class Lz4Decompressor final : public Decompressor, Lz4Trait {
- public:
-  Lz4Decompressor();
-  ~Lz4Decompressor() override;
+int encodedLength(const std::string& msg);
 
-  int getOriginalLen(const uint8_t* src) override;
-  int decompress(const uint8_t* src, uint8_t* dst, int dstOff) override;
+void encode(memory::WriteOnlyByteBuffer& buffer, const std::string& msg);
 
-  Lz4Decompressor(const Lz4Decompressor&) = delete;
-  Lz4Decompressor& operator=(const Lz4Decompressor&) = delete;
+std::string decode(memory::ReadOnlyByteBuffer& buffer);
 
- private:
-  XXH32_state_t* xxhashState_;
-};
-
-} // namespace compress
-} // namespace client
+} // namespace protocol
 } // namespace celeborn

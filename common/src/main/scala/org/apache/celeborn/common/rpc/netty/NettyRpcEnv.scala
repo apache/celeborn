@@ -356,6 +356,9 @@ class NettyRpcEnv(
     if (clientConnectionExecutor != null) {
       clientConnectionExecutor.shutdownNow()
     }
+    if (_rpcSource != null) {
+      _rpcSource.destroy()
+    }
   }
 
   override def deserialize[T](deserializationAction: () => T): T = {

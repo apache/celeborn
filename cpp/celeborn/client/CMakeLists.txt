@@ -19,7 +19,10 @@ add_library(
         ShuffleClient.cpp
         compress/Decompressor.cpp
         compress/Lz4Decompressor.cpp
-        compress/ZstdDecompressor.cpp)
+        compress/ZstdDecompressor.cpp
+        compress/Compressor.cpp
+        compress/Lz4Compressor.cpp
+        compress/ZstdCompressor.cpp)
 
 target_include_directories(client PUBLIC ${CMAKE_BINARY_DIR})
 
