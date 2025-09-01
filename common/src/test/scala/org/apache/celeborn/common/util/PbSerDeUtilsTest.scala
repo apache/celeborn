@@ -19,6 +19,7 @@ package org.apache.celeborn.common.util
 
 import java.io.File
 import java.util
+import java.util.Collections
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -377,6 +378,18 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     val restoredApplicationMeta = PbSerDeUtils.fromPbApplicationMeta(pbApplicationMeta)
 
     assert(restoredApplicationMeta.equals(applicationMeta))
+  }
+
+  test("fromAndToPbApplicationInfo") {
+    val applicationInfo = new ApplicationInfo(
+      "app1",
+      UserIdentifier("tenant", "user"),
+      Collections.singletonMap("key", "value"),
+      System.currentTimeMillis())
+    val pbApplicationInfo = PbSerDeUtils.toPbApplicationInfo(applicationInfo)
+    val restoredApplicationInfo = PbSerDeUtils.fromPbApplicationInfo(pbApplicationInfo)
+
+    assert(restoredApplicationInfo.equals(applicationInfo))
   }
 
   test("testPackedPartitionLocationPairCase1") {

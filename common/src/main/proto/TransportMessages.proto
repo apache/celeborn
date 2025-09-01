@@ -114,6 +114,7 @@ enum MessageType {
   PUSH_MERGED_DATA_SPLIT_PARTITION_INFO = 91;
   GET_STAGE_END = 92;
   GET_STAGE_END_RESPONSE = 93;
+  REGISTER_APPLICATION_INFO = 96;
 }
 
 enum StreamType {
@@ -704,6 +705,7 @@ message PbSnapshotMetaInfo {
   map<string, int64> shuffleFallbackCounts = 19;
   int64 applicationTotalCount = 20;
   map<string, int64> applicationFallbackCounts = 21;
+  map<string, PbApplicationInfo> applicationInfos = 22;
 }
 
 message PbOpenStream {
@@ -855,6 +857,13 @@ message PbApplicationMeta {
   string secret = 2;
 }
 
+message PbApplicationInfo {
+  string appId = 1;
+  PbUserIdentifier userIdentifier = 2;
+  map<string, string> extraInfo = 3;
+  int64 registrationTime = 4;
+}
+
 message PbApplicationMetaRequest {
   string appId = 1;
 }
@@ -918,4 +927,12 @@ message PbGetStageEndResponse {
 
 message PbChunkOffsets {
   repeated int64 chunkOffset = 1;
+}
+
+
+message PbRegisterApplicationInfo {
+  string appId = 1;
+  PbUserIdentifier userIdentifier = 2;
+  map<string, string> extraInfo = 3;
+  string requestId = 4;
 }

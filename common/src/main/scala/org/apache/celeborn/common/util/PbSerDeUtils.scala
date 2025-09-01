@@ -25,7 +25,7 @@ import scala.collection.JavaConverters._
 import com.google.protobuf.InvalidProtocolBufferException
 
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{ApplicationMeta, DeviceInfo, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.meta.{ApplicationInfo, ApplicationMeta, DeviceInfo, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.meta.MapFileMeta.SegmentIndex
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
@@ -435,6 +435,7 @@ object PbSerDeUtils {
       shutdownWorkers: java.util.Set[WorkerInfo],
       workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo],
       applicationMetas: ConcurrentHashMap[String, ApplicationMeta],
+      applicationInfos: ConcurrentHashMap[String, ApplicationInfo],
       decommissionWorkers: java.util.Set[WorkerInfo]): PbSnapshotMetaInfo = {
     val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
@@ -471,6 +472,14 @@ object PbSerDeUtils {
     if (localCollectionUtils.isNotEmpty(pbApplicationMetas)) {
       builder.putAllApplicationMetas(pbApplicationMetas)
     }
+
+    val pbApplicationInfos = applicationInfos.asScala.map {
+      case (appId, applicationInfo) => (appId, toPbApplicationInfo(applicationInfo))
+    }.asJava
+    if (localCollectionUtils.isNotEmpty(pbApplicationInfos)) {
+      builder.putAllApplicationInfos(pbApplicationInfos)
+    }
+
     builder.build()
   }
 
@@ -482,6 +491,23 @@ object PbSerDeUtils {
 
   def fromPbApplicationMeta(pbApplicationMeta: PbApplicationMeta): ApplicationMeta = {
     ApplicationMeta(pbApplicationMeta.getAppId, pbApplicationMeta.getSecret)
+  }
+
+  def toPbApplicationInfo(applicationInfo: ApplicationInfo): PbApplicationInfo = {
+    PbApplicationInfo.newBuilder()
+      .setAppId(applicationInfo.appId)
+      .setUserIdentifier(toPbUserIdentifier(applicationInfo.userIdentifier))
+      .putAllExtraInfo(applicationInfo.extraInfo)
+      .setRegistrationTime(applicationInfo.registrationTime)
+      .build()
+  }
+
+  def fromPbApplicationInfo(pbApplicationInfo: PbApplicationInfo): ApplicationInfo = {
+    ApplicationInfo(
+      pbApplicationInfo.getAppId,
+      fromPbUserIdentifier(pbApplicationInfo.getUserIdentifier),
+      pbApplicationInfo.getExtraInfoMap,
+      pbApplicationInfo.getRegistrationTime)
   }
 
   def toPbWorkerStatus(workerStatus: WorkerStatus): PbWorkerStatus = {
