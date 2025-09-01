@@ -166,8 +166,8 @@ folly::Future<std::unique_ptr<Message>> MessageDispatcher::operator()(
   return f;
 }
 
-folly::Future<std::unique_ptr<Message>>
-MessageDispatcher::sendPushDataRequest(std::unique_ptr<Message> toSendMsg) {
+folly::Future<std::unique_ptr<Message>> MessageDispatcher::sendPushDataRequest(
+    std::unique_ptr<Message> toSendMsg) {
   return (*this)(std::move(toSendMsg));
 }
 
