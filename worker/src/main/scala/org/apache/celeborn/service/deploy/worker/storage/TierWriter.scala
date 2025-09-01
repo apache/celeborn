@@ -36,6 +36,7 @@ import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.FileChannelUtils
+import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 import org.apache.celeborn.service.deploy.worker.congestcontrol.{CongestionController, UserCongestionControlContext}
@@ -645,14 +646,22 @@ class DfsTierWriter(
       hadoopFs.delete(dfsFileInfo.getDfsPath, false)
       deleted = true
     } else {
-      hadoopFs.create(dfsFileInfo.getDfsWriterSuccessPath).close()
-      if (dfsFileInfo.isReduceFileMeta) {
-        val indexOutputStream = hadoopFs.create(dfsFileInfo.getDfsIndexPath)
-        indexOutputStream.writeInt(dfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
-        for (offset <- dfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala) {
+      val retryCount = conf.workerCreateIndexOrSuccessMaxAttempts
+      val retryWait = conf.workerCreateIndexOrSuccessWaitMs
+      Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
+        if (hadoopFs.exists(hdfsFileInfo.getDfsIndexPath)) {
+          hadoopFs.delete(hdfsFileInfo.getDfsIndexPath, true)
+        }
+        val indexOutputStream = hadoopFs.create(hdfsFileInfo.getDfsIndexPath)
+        indexOutputStream.writeInt(hdfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
+        for (offset <- hdfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala) {
           indexOutputStream.writeLong(offset)
         }
         indexOutputStream.close()
+      }
+
+      Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
+        hadoopFs.create(hdfsFileInfo.getDfsWriterSuccessPath).close()
       }
     }
     if (s3MultipartUploadHandler != null) {
