@@ -95,9 +95,8 @@ void TransportClient::pushDataAsync(
                     reinterpret_cast<RpcResponse*>(responseMsg.get());
                 _callback->onSuccess(rpcResponse->body());
               } else {
-                _callback->onFailure(
-                    std::make_unique<std::runtime_error>(
-                        "pushData return value type is not rpcResponse"));
+                _callback->onFailure(std::make_unique<std::runtime_error>(
+                    "pushData return value type is not rpcResponse"));
               }
             })
         .thenError([_callback = callback](const folly::exception_wrapper& e) {
