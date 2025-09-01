@@ -18,8 +18,7 @@
 package org.apache.celeborn.common.protocol.message
 
 import java.util
-import java.util.{Collections, UUID}
-import java.util.concurrent.atomic.AtomicIntegerArray
+import java.util.{Collections, Map => JMap, UUID}
 
 import scala.collection.JavaConverters._
 
@@ -432,6 +431,13 @@ object ControlMessages extends Logging {
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
   case class ApplicationLostResponse(status: StatusCode) extends MasterMessage
+
+  case class RegisterApplicationInfo(
+      applicationId: String,
+      userIdentifier: UserIdentifier,
+      extraInfo: JMap[String, String],
+      override var requestId: String = ZERO_UUID)
+    extends MasterRequestMessage
 
   case class HeartbeatFromApplication(
       appId: String,
@@ -877,6 +883,19 @@ object ControlMessages extends Logging {
       val payload = PbApplicationLostResponse.newBuilder()
         .setStatus(status.getValue).build().toByteArray
       new TransportMessage(MessageType.APPLICATION_LOST_RESPONSE, payload)
+
+    case RegisterApplicationInfo(
+          applicationId,
+          userIdentifier,
+          extraInfo,
+          requestId) =>
+      val payload = PbRegisterApplicationInfo.newBuilder()
+        .setAppId(applicationId)
+        .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
+        .putAllExtraInfo(extraInfo)
+        .setRequestId(requestId)
+        .build().toByteArray
+      new TransportMessage(MessageType.REGISTER_APPLICATION_INFO, payload)
 
     case HeartbeatFromApplication(
           appId,
@@ -1537,6 +1556,13 @@ object ControlMessages extends Logging {
 
       case GET_STAGE_END_RESPONSE_VALUE =>
         PbGetStageEndResponse.parseFrom(message.getPayload)
+
+      case REGISTER_APPLICATION_INFO_VALUE =>
+        val pbRegisterApplicationInfo = PbRegisterApplicationInfo.parseFrom(message.getPayload)
+        RegisterApplicationInfo(
+          pbRegisterApplicationInfo.getAppId,
+          PbSerDeUtils.fromPbUserIdentifier(pbRegisterApplicationInfo.getUserIdentifier),
+          pbRegisterApplicationInfo.getExtraInfoMap)
     }
   }
 }
