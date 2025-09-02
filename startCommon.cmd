@@ -11,7 +11,8 @@ if not defined HADOOP_CONF_DIR (
   set HADOOP_CONF_DIR=D:\data\hadoop.config\latest
 )
 
-if not defined HADOOP_HOME @(
+if not defined HADOOP_HOME (
+  echo HADOOP_HOME is not defined use D:\data\hadoop.latest
   set HADOOP_HOME=D:\data\hadoop.latest
 )
 set CELEBORN_HOME=D:\data\celeborn.latest
