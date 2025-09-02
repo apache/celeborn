@@ -110,13 +110,13 @@ public class LocalPartitionReader implements PartitionReader {
                     .setFileName(location.getFileName())
                     .setStartIndex(startMapIndex)
                     .setEndIndex(endMapIndex)
-                    .setReadLocalShuffle(true)
+                    .setReadLocalShuffle(conf.enableReadLocalShuffleFile())
                     .build()
                     .toByteArray());
         ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
         streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
       } else {
-        this.streamHandler = pbStreamHandler;
+        streamHandler = pbStreamHandler;
       }
       this.startChunkIndex = startChunkIndex == -1 ? 0 : startChunkIndex;
       this.endChunkIndex =
