@@ -1115,6 +1115,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def batchHandleReleasePartitionRequestInterval: Long =
     get(CLIENT_BATCH_HANDLED_RELEASE_PARTITION_INTERVAL)
   def enableReadLocalShuffleFile: Boolean = get(READ_LOCAL_SHUFFLE_FILE)
+  def cloudDiskMounted: Boolean = get(CLOUD_DISK_MOUNTED)
   def readLocalShuffleThreads: Int = get(READ_LOCAL_SHUFFLE_THREADS)
   def readStreamCreatorPoolThreads: Int = get(READ_STREAM_CREATOR_POOL_THREADS)
 
@@ -5914,6 +5915,17 @@ object CelebornConf extends Logging {
       .doc("Threads count for read local shuffle file.")
       .intConf
       .createWithDefault(4)
+
+  val CLOUD_DISK_MOUNTED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.readLocalShuffleFile.cloudDiskMounted")
+      .categories("client")
+      .version("0.6.1")
+      .doc("Enable cloud disk mounted mode for local shuffle file reading. When enabled, all " +
+        "workers' data can be accessed locally via mounted cloud disk, eliminating the need for " +
+        "host address comparison. This should be used together with " +
+        "celeborn.client.readLocalShuffleFile.enabled.")
+      .booleanConf
+      .createWithDefault(false)
 
   val READ_STREAM_CREATOR_POOL_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.client.eagerlyCreateInputStream.threads")

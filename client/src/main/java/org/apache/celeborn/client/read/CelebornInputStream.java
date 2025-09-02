@@ -203,6 +203,7 @@ public abstract class CelebornInputStream extends InputStream {
     private LongAdder skipCount = new LongAdder();
     private final boolean rangeReadFilter;
     private final boolean enabledReadLocalShuffle;
+    private final boolean cloudDiskMounted;
     private final String localHostAddress;
 
     private boolean shouldDecompress;
@@ -302,6 +303,7 @@ public abstract class CelebornInputStream extends InputStream {
       this.partitionLocationToChunkRange = partitionLocationToChunkRange;
       this.rangeReadFilter = conf.shuffleRangeReadFilterEnabled();
       this.enabledReadLocalShuffle = conf.enableReadLocalShuffleFile();
+      this.cloudDiskMounted = conf.cloudDiskMounted();
       this.localHostAddress = Utils.localHostName(conf);
       this.shouldDecompress =
           !conf.shuffleCompressionCodec().equals(CompressionCodec.NONE) && needDecompress;
@@ -583,9 +585,12 @@ public abstract class CelebornInputStream extends InputStream {
         case SSD:
         case MEMORY:
           if (enabledReadLocalShuffle
-              && location.getHost().equals(localHostAddress)
-              && storageInfo.getType() != StorageInfo.Type.MEMORY) {
-            logger.debug("Read local shuffle file {}", localHostAddress);
+              && storageInfo.getType() != StorageInfo.Type.MEMORY
+              && (cloudDiskMounted || location.getHost().equals(localHostAddress))) {
+            logger.debug(
+                "Read local shuffle file {}, cloudDiskMounted={}",
+                localHostAddress,
+                cloudDiskMounted);
             containLocalRead = true;
             return new LocalPartitionReader(
                 conf,
