@@ -53,18 +53,26 @@ Function global:GenerateMaterMachineHost()
     $masterMachines | ForEach-Object { $_.MachineName }
 
     $Masters = ""
-    #Add each machine to INI content
+    #Add each machine to conf content
     for ($i = 0; $i -lt $masterMachines.Count; $i++)
     {
-        $HostId = $i + 1
-        Add-Content -Path ".\celeborn.ini.flattened.ini" -Value "celeborn.master.ha.node.$HostId.host=$($masterMachines[$i].MachineName)"
-        Add-Content -Path ".\celeborn.ini.flattened.ini" -Value "celeborn.master.ha.node.$HostId.port=29097"
-        Add-Content -Path ".\celeborn.ini.flattened.ini" -Value "celeborn.master.ha.node.$HostId.ratis.port=9872"
-        $masters += $masterMachines[$i].MachineName + ":29097,"
+        Try
+        {
+            $HostId = $i + 1
+            Add-Content -Path ".\conf\celeborn-defaults-before-expand.conf" -Value "celeborn.master.ha.node.$HostId.host $($masterMachines[$i].MachineName)"
+            Add-Content -Path ".\conf\celeborn-defaults-before-expand.conf" -Value "celeborn.master.ha.node.$HostId.port 29097"
+            Add-Content -Path ".\conf\celeborn-defaults-before-expand.conf" -Value "celeborn.master.ha.node.$HostId.ratis.port 9872"
+            $masters += $masterMachines[$i].MachineName + ":29097,"
+        }
+        Catch
+        {
+            Write-Host 'Error: ' $_
+            Exit 1
+        }
     }
     $Masters = $Masters.TrimEnd(",")
 
-    Add-Content -Path ".\celeborn.ini.flattened.ini" -Value "celeborn.master.endpoints=$Masters"
+    Add-Content -Path ".\conf\celeborn-defaults-before-expand.conf" -Value "celeborn.master.endpoints $Masters"
 }
 
 # General ini file parse logic
@@ -93,8 +101,6 @@ Function global:ParseIniFile($File)
   return $Ini
 }
 
-# firstly generate host machines
-GenerateMaterMachineHost
 $configGenerator = "D:\Data\hadoop.latest\YarnppConfigurationGenerator.exe"
 try {
     # Wait until the config generator becomes available
@@ -134,4 +140,8 @@ Catch
 {
     Write-Host "Error creating celeborn configuration:" $_
 }
+
+# generate host machines
+GenerateMaterMachineHost
+
 Remove-Item -Recurse -Force $celebornConfigTmpFolder
