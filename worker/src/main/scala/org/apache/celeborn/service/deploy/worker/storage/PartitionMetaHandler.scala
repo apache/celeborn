@@ -333,7 +333,7 @@ class MapPartitionMetaHandler(
 
 class ReducePartitionMetaHandler(val rangeReadFilter: Boolean, val fileInfo: FileInfo)
   extends PartitionMetaHandler {
-  val logger: Logger = LoggerFactory.getLogger(classOf[MapPartitionMetaHandler])
+  val logger: Logger = LoggerFactory.getLogger(classOf[ReducePartitionMetaHandler])
   lazy val mapIdBitMap: Option[RoaringBitmap] =
     if (rangeReadFilter) Some(new RoaringBitmap()) else Option.empty
 
