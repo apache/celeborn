@@ -606,10 +606,7 @@ public abstract class CelebornInputStream extends InputStream {
           if (enabledReadLocalShuffle
               && storageInfo.getType() != StorageInfo.Type.MEMORY
               && (sharedDisk || location.getHost().equals(localHostAddress))) {
-            logger.debug(
-                "Read local shuffle file {}, sharedDisk={}",
-                localHostAddress,
-                sharedDisk);
+            logger.debug("Read local shuffle file {}, sharedDisk={}", localHostAddress, sharedDisk);
             containLocalRead = true;
             return new LocalPartitionReader(
                 conf,

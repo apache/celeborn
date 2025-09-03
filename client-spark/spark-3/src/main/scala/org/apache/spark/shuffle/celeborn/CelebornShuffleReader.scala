@@ -235,7 +235,8 @@ class CelebornShuffleReader[K, C](
             val isLocalRead =
               localFetchEnabled && (sharedDisk || location.getHost.equals(localHostAddress))
             pbOpenStreamListBuilder.addReadLocalShuffle(isLocalRead)
-            logDebug(s"Partition ${location.getId}: isLocalRead=${isLocalRead}, sharedDisk=${sharedDisk}")
+            logDebug(
+              s"Partition ${location.getId}: isLocalRead=${isLocalRead}, sharedDisk=${sharedDisk}")
           case _ =>
             logDebug(s"Empty client for host ${hostPort}")
         }
