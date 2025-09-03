@@ -30,6 +30,7 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 
 import com.google.common.annotations.VisibleForTesting
+import org.apache.commons.lang3.function.FailableConsumer
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.ratis.proto.RaftProtos
 import org.apache.ratis.proto.RaftProtos.RaftPeerRole
@@ -88,7 +89,7 @@ private[celeborn] class Master(
   private val bindPreferIP: Boolean = conf.bindPreferIP
   private val authEnabled = conf.authEnabled
   private val haEnabled = conf.haEnabled
-  private val secretRegistry = new MasterSecretRegistryImpl()
+  private val secretRegistry = new MasterSecretRegistryImpl(bindPreferIP)
   private val sendApplicationMetaThreads = conf.masterSendApplicationMetaThreads
   // Send ApplicationMeta to workers
   private var sendApplicationMetaExecutor: ExecutorService = _
@@ -397,15 +398,30 @@ private[celeborn] class Master(
     logDebug(s"Client $address got disassociated.")
   }
 
-  def executeWithLeaderChecker[T](context: RpcCallContext, f: => T): Unit =
+  def executeWithLeaderChecker[T](context: RpcCallContext, f: => T): Unit = {
     if (HAHelper.checkShouldProcess(context, statusSystem, bindPreferIP)) {
       try {
         f
       } catch {
         case e: Exception =>
-          HAHelper.sendFailure(context, HAHelper.getRatisServer(statusSystem), e, bindPreferIP)
+          val sendFailureFn: FailableConsumer[IOException, IOException] =
+            if (context != null) {
+              new FailableConsumer[IOException, IOException] {
+                override def accept(io: IOException): Unit = context.sendFailure(io)
+              }
+            } else {
+              new FailableConsumer[IOException, IOException] {
+                override def accept(io: IOException): Unit = ()
+              }
+            }
+          HAHelper.sendFailure(
+            sendFailureFn,
+            HAHelper.getRatisServer(statusSystem),
+            e,
+            bindPreferIP)
       }
     }
+  }
 
   override def receive: PartialFunction[Any, Unit] = {
     case _: PbCheckForWorkerTimeout =>
