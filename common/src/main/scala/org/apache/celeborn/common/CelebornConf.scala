@@ -5043,8 +5043,7 @@ object CelebornConf extends Logging {
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set(
         PartitionType.REDUCE.name,
-        PartitionType.MAP.name,
-        PartitionType.MAPGROUP.name))
+        PartitionType.MAP.name))
       .createWithDefault(PartitionType.REDUCE.name)
 
   val SHUFFLE_PARTITION_SPLIT_THRESHOLD: ConfigEntry[Long] =
