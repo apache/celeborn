@@ -157,8 +157,12 @@ public class MemoryReducePartitionDataWriterSuiteJ {
     storagePolicy = Mockito.mock(StoragePolicy.class);
 
     AtomicLong evictCount = new AtomicLong();
+    AtomicLong evictLocalCount = new AtomicLong();
+    AtomicLong evictDfsCount = new AtomicLong();
     Mockito.when(storageManager.storagePolicy()).thenAnswer(a -> storagePolicy);
     Mockito.when(storageManager.evictedFileCount()).thenAnswer(a -> evictCount);
+    Mockito.when(storageManager.evictedLocalFileCount()).thenAnswer(a -> evictLocalCount);
+    Mockito.when(storageManager.evictedDfsFileCount()).thenAnswer(a -> evictDfsCount);
     Mockito.when(storageManager.localOrDfsStorageAvailable()).thenAnswer(a -> true);
     Mockito.when(storageManager.storageBufferAllocator()).thenAnswer(a -> allocator);
     MemoryManager.initialize(conf, storageManager, null);
@@ -621,6 +625,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
     closeChunkServer();
 
     assert storageManager.evictedFileCount().get() > 0;
+    assert storageManager.evictedLocalFileCount().get() > 0;
     assert MemoryManager.instance().getMemoryFileStorageCounter() == memoryFileStorageBefore;
   }
 
