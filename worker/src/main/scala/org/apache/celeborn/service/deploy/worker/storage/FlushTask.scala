@@ -21,11 +21,11 @@ import java.io.{ByteArrayInputStream, Closeable, IOException}
 import java.nio.channels.FileChannel
 
 import io.netty.buffer.{ByteBufUtil, CompositeByteBuf}
-import org.apache.hadoop.fs.Path
-
+import org.apache.hadoop.fs.{FSDataOutputStream, Path}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.StorageInfo.Type
+import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 
@@ -101,16 +101,32 @@ private[worker] class HdfsFlushTask(
     val path: Path,
     notifier: FlushNotifier,
     keepBuffer: Boolean,
-    source: AbstractSource) extends DfsFlushTask(buffer, notifier, keepBuffer, source) {
+    source: AbstractSource,
+    finalFlush: Boolean) extends DfsFlushTask(buffer, notifier, keepBuffer, source) {
   override def flush(copyBytes: Array[Byte]): Unit = {
     val readableBytes = buffer.readableBytes()
     val hadoopFs = StorageManager.hadoopFs.get(Type.HDFS)
-    val hdfsStream = hadoopFs.append(path, 256 * 1024)
-    flush(hdfsStream) {
-      hdfsStream.write(convertBufferToBytes(buffer, copyBytes, readableBytes))
-      source.incCounter(WorkerSource.HDFS_FLUSH_COUNT)
-      source.incCounter(WorkerSource.HDFS_FLUSH_SIZE, readableBytes)
+    var hdfsStream: FSDataOutputStream = null
+    if (StorageManager.streamsManager != null) {
+      hdfsStream = StorageManager.streamsManager.getOrCreateStream(path)
+      if (hdfsStream != null) {
+        hdfsStream.synchronized {
+          hdfsStream.write(convertBufferToBytes(buffer, copyBytes, readableBytes))
+          if (finalFlush) {
+            hdfsStream.flush()
+          }
+        }
+      } else {
+        throw new CelebornIOException("Cannot find stream for " + path)
+      }
+    } else {
+      hdfsStream = hadoopFs.append(path, 256 * 1024)
+      flush(hdfsStream) {
+        hdfsStream.write(convertBufferToBytes(buffer, copyBytes, readableBytes))
+      }
     }
+    source.incCounter(WorkerSource.HDFS_FLUSH_COUNT)
+    source.incCounter(WorkerSource.HDFS_FLUSH_SIZE, readableBytes)
   }
 }
 
