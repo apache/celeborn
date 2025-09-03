@@ -149,7 +149,7 @@ class CelebornShuffleReader[K, C](
     val fetchTimeoutMs = conf.clientFetchTimeoutMs
     val localFetchEnabled = conf.enableReadLocalShuffleFile
     val localHostAddress = Utils.localHostName(conf)
-    val cloudDiskMounted = conf.cloudDiskMounted
+    val sharedDisk = conf.sharedDisk
     val shuffleKey = Utils.makeShuffleKey(handle.appUniqueId, shuffleId)
     var fileGroups: ReduceFileGroups = null
     var isShuffleStageEnd: Boolean = false
@@ -233,9 +233,9 @@ class CelebornShuffleReader[K, C](
               .addStartIndex(startMapIndex)
               .addEndIndex(endMapIndex)
             val isLocalRead =
-              localFetchEnabled && (cloudDiskMounted || location.getHost.equals(localHostAddress))
+              localFetchEnabled && (sharedDisk || location.getHost.equals(localHostAddress))
             pbOpenStreamListBuilder.addReadLocalShuffle(isLocalRead)
-            logDebug(s"Partition ${location.getId}: isLocalRead=${isLocalRead}, cloudDiskMounted=${cloudDiskMounted}")
+            logDebug(s"Partition ${location.getId}: isLocalRead=${isLocalRead}, sharedDisk=${sharedDisk}")
           case _ =>
             logDebug(s"Empty client for host ${hostPort}")
         }
