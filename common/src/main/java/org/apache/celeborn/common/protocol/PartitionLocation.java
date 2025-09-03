@@ -63,8 +63,12 @@ public class PartitionLocation implements Serializable {
   private PartitionLocation peer;
   private StorageInfo storageInfo;
   private RoaringBitmap mapIdBitMap;
+  private int splitStart;
+  private int splitEnd;
   private transient String _hostPushPort;
   private transient String _hostFetchPort;
+  private transient String _splitRange;
+  private transient PartitionLocation parent;
 
   public PartitionLocation(PartitionLocation loc) {
     this.id = loc.id;
@@ -78,6 +82,9 @@ public class PartitionLocation implements Serializable {
     this.peer = loc.peer;
     this.storageInfo = loc.storageInfo;
     this.mapIdBitMap = loc.mapIdBitMap;
+    this.splitStart = loc.splitStart;
+    this.splitEnd = loc.splitEnd;
+    this._splitRange = id + "_" + splitStart + "_" + splitEnd;
   }
 
   public PartitionLocation(
@@ -139,6 +146,36 @@ public class PartitionLocation implements Serializable {
       PartitionLocation peer,
       StorageInfo hint,
       RoaringBitmap mapIdBitMap) {
+    this(
+        id,
+        epoch,
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        mode,
+        peer,
+        hint,
+        mapIdBitMap,
+        -1,
+        -1);
+  }
+
+  public PartitionLocation(
+      int id,
+      int epoch,
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      Mode mode,
+      PartitionLocation peer,
+      StorageInfo hint,
+      RoaringBitmap mapIdBitMap,
+      int splitStart,
+      int splitEnd) {
     this.id = id;
     this.epoch = epoch;
     this.host = host;
@@ -150,6 +187,9 @@ public class PartitionLocation implements Serializable {
     this.peer = peer;
     this.storageInfo = hint;
     this.mapIdBitMap = mapIdBitMap;
+    this.splitStart = splitStart;
+    this.splitEnd = splitEnd;
+    this._splitRange = id + "_" + splitStart + "_" + splitEnd;
   }
 
   public int getId() {
@@ -190,6 +230,39 @@ public class PartitionLocation implements Serializable {
 
   public void setFetchPort(int fetchPort) {
     this.fetchPort = fetchPort;
+  }
+
+  public int getSplitStart() {
+    return splitStart;
+  }
+
+  public int getSplitEnd() {
+    return splitEnd;
+  }
+
+  public void doSetSplitRange(int splitStart, int splitEnd) {
+    this.splitStart = splitStart;
+    this.splitEnd = splitEnd;
+    this._splitRange = id + "_" + splitStart + "_" + splitEnd;
+  }
+
+  public void setSplitRange(int splitStart, int splitEnd) {
+    doSetSplitRange(splitStart, splitEnd);
+    if (peer != null) {
+      peer.doSetSplitRange(splitStart, splitEnd);
+    }
+  }
+
+  public String getSplitRange() {
+    return _splitRange;
+  }
+
+  public PartitionLocation getParent() {
+    return parent;
+  }
+
+  public void setParent(PartitionLocation parent) {
+    this.parent = parent;
   }
 
   public String hostAndPorts() {
