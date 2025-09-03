@@ -60,6 +60,9 @@ class MessageDispatcher : public wangle::ClientDispatcherBase<
     return operator()(std::move(toSendMsg));
   }
 
+  virtual folly::Future<std::unique_ptr<Message>> sendPushDataRequest(
+      std::unique_ptr<Message> toSendMsg);
+
   virtual folly::Future<std::unique_ptr<Message>> sendFetchChunkRequest(
       const protocol::StreamChunkSlice& streamChunkSlice,
       std::unique_ptr<Message> toSendMsg);

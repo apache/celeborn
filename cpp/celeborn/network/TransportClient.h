@@ -54,6 +54,17 @@ using FetchChunkSuccessCallback = std::function<void(
 using FetchChunkFailureCallback = std::function<
     void(protocol::StreamChunkSlice, std::unique_ptr<std::exception>)>;
 
+class RpcResponseCallback {
+ public:
+  RpcResponseCallback() = default;
+
+  virtual ~RpcResponseCallback() = default;
+
+  virtual void onSuccess(std::unique_ptr<memory::ReadOnlyByteBuffer>) = 0;
+
+  virtual void onFailure(std::unique_ptr<std::exception> exception) = 0;
+};
+
 /**
  * TransportClient sends the messages to the network layer, and handles
  * the message callback, timeout, error handling, etc.
@@ -75,6 +86,11 @@ class TransportClient {
 
   // Ignore the response, return immediately.
   virtual void sendRpcRequestWithoutResponse(const RpcRequest& request);
+
+  virtual void pushDataAsync(
+      const PushData& pushData,
+      Timeout timeout,
+      std::shared_ptr<RpcResponseCallback> callback);
 
   virtual void fetchChunkAsync(
       const protocol::StreamChunkSlice& streamChunkSlice,

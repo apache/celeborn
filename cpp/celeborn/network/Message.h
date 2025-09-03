@@ -252,6 +252,18 @@ class PushData : public Message {
     return requestId_;
   }
 
+  uint8_t mode() const {
+    return mode_;
+  }
+
+  std::string shuffleKey() const {
+    return shuffleKey_;
+  }
+
+  std::string partitionUniqueId() const {
+    return partitionUniqueId_;
+  }
+
  private:
   int internalEncodedLength() const override;
 

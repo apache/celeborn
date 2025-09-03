@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <folly/init/Init.h>
 #include <gtest/gtest.h>
 
 #include "celeborn/network/TransportClient.h"
@@ -36,6 +37,13 @@ class MockDispatcher : public MessageDispatcher {
   void sendRpcRequestWithoutResponse(
       std::unique_ptr<Message> toSendMsg) override {
     sentMsg_ = std::move(toSendMsg);
+  }
+
+  folly::Future<std::unique_ptr<Message>> sendPushDataRequest(
+      std::unique_ptr<Message> toSendMsg) override {
+    sentMsg_ = std::move(toSendMsg);
+    msgPromise_ = MsgPromise();
+    return msgPromise_.getFuture();
   }
 
   folly::Future<std::unique_ptr<Message>> sendFetchChunkRequest(
@@ -66,9 +74,61 @@ std::unique_ptr<memory::ReadOnlyByteBuffer> toReadOnlyByteBuffer(
   buffer->writeFromString(content);
   return memory::ByteBuffer::toReadOnly(std::move(buffer));
 }
+
+class MockRpcResponseCallback : public RpcResponseCallback {
+ public:
+  MockRpcResponseCallback() = default;
+
+  ~MockRpcResponseCallback() override = default;
+
+  void onSuccess(std::unique_ptr<memory::ReadOnlyByteBuffer> data) override {
+    onSuccessBuffer_ = std::move(data);
+  }
+
+  void onFailure(std::unique_ptr<std::exception> exception) override {
+    onFailureException_ = std::move(exception);
+  }
+
+  std::unique_ptr<memory::ReadOnlyByteBuffer> getOnSuccessBuffer() {
+    return std::move(onSuccessBuffer_);
+  }
+
+  std::unique_ptr<std::exception> getOnFailureException() {
+    return std::move(onFailureException_);
+  }
+
+ private:
+  std::unique_ptr<memory::ReadOnlyByteBuffer> onSuccessBuffer_;
+  std::unique_ptr<std::exception> onFailureException_;
+};
 } // namespace
 
-TEST(TransportClientTest, sendRpcRequestSync) {
+class TransportClientTest : public testing::Test {
+ protected:
+  TransportClientTest() {
+    if (!follyInit_) {
+      std::lock_guard<std::mutex> lock(initMutex_);
+      if (!follyInit_) {
+        int argc = 0;
+        char* arg = "test-arg";
+        char** argv = &arg;
+        follyInit_ = std::make_unique<folly::Init>(&argc, &argv, false);
+      }
+    }
+  }
+
+  ~TransportClientTest() override = default;
+
+ private:
+  // Must be only inited once per process.
+  static std::unique_ptr<folly::Init> follyInit_;
+  static std::mutex initMutex_;
+};
+
+std::unique_ptr<folly::Init> TransportClientTest::follyInit_ = {};
+std::mutex TransportClientTest::initMutex_ = {};
+
+TEST_F(TransportClientTest, sendRpcRequestSync) {
   auto mockDispatcher = std::make_unique<MockDispatcher>();
   auto rawMockDispatcher = mockDispatcher.get();
   const auto timeoutInterval = MS(10000);
@@ -109,7 +169,7 @@ TEST(TransportClientTest, sendRpcRequestSync) {
       responseBody);
 }
 
-TEST(TransportClientTest, sendRpcRequestSyncTimeout) {
+TEST_F(TransportClientTest, sendRpcRequestSyncTimeout) {
   auto mockDispatcher = std::make_unique<MockDispatcher>();
   auto rawMockDispatcher = mockDispatcher.get();
   const auto timeoutInterval = MS(200);
@@ -149,7 +209,7 @@ TEST(TransportClientTest, sendRpcRequestSyncTimeout) {
   EXPECT_TRUE(timeoutHappened);
 }
 
-TEST(TransportClientTest, sendRpcRequestWithoutResponse) {
+TEST_F(TransportClientTest, sendRpcRequestWithoutResponse) {
   auto mockDispatcher = std::make_unique<MockDispatcher>();
   auto rawMockDispatcher = mockDispatcher.get();
   const auto timeoutInterval = MS(10000);
@@ -169,7 +229,149 @@ TEST(TransportClientTest, sendRpcRequestWithoutResponse) {
       sentRpcRequest->body()->readToString(requestBody.size()), requestBody);
 }
 
-TEST(TransportClientTest, fetchChunkAsyncSuccess) {
+TEST_F(TransportClientTest, pushDataAsyncSuccess) {
+  // Construct mock utils.
+  auto mockDispatcher = std::make_unique<MockDispatcher>();
+  auto rawMockDispatcher = mockDispatcher.get();
+  TransportClient client(nullptr, std::move(mockDispatcher), MS(10000));
+  auto mockRpcResponseCallback = std::make_shared<MockRpcResponseCallback>();
+
+  // Construct toSend PushData.
+  const long requestId = 1001;
+  const uint8_t mode = 2;
+  const std::string shuffleKey = "test-shuffle-key";
+  const std::string partitionUniqueId = "test-partition-id";
+  const std::string requestBody = "test-request-body";
+  auto pushData = std::make_unique<PushData>(
+      requestId,
+      mode,
+      shuffleKey,
+      partitionUniqueId,
+      toReadOnlyByteBuffer(requestBody));
+
+  // Send pushData via client, check that the sentPushData is identical to
+  // original pushData.
+  client.pushDataAsync(*pushData, MS(10000), mockRpcResponseCallback);
+  auto sentMsg = rawMockDispatcher->getSentMsg();
+  EXPECT_EQ(sentMsg->type(), Message::PUSH_DATA);
+  auto sentPushData = dynamic_cast<PushData*>(sentMsg.get());
+  EXPECT_EQ(sentPushData->requestId(), requestId);
+  EXPECT_EQ(sentPushData->mode(), mode);
+  EXPECT_EQ(sentPushData->shuffleKey(), shuffleKey);
+  EXPECT_EQ(sentPushData->partitionUniqueId(), partitionUniqueId);
+  EXPECT_EQ(sentPushData->body()->remainingSize(), requestBody.size());
+  EXPECT_EQ(
+      sentPushData->body()->readToString(requestBody.size()), requestBody);
+  EXPECT_FALSE(mockRpcResponseCallback->getOnSuccessBuffer());
+
+  // Construct response and make dispatcher receive it.
+  const std::string responseBody = "test-response-body";
+  auto rpcResponse = std::make_unique<RpcResponse>(
+      requestId, toReadOnlyByteBuffer(responseBody));
+  rawMockDispatcher->receiveMsg(std::move(rpcResponse));
+
+  // Check the received message.
+  auto onSuccessBuffer = mockRpcResponseCallback->getOnSuccessBuffer();
+  auto onFailureException = mockRpcResponseCallback->getOnFailureException();
+  EXPECT_TRUE(onSuccessBuffer);
+  EXPECT_FALSE(onFailureException);
+  EXPECT_EQ(onSuccessBuffer->remainingSize(), responseBody.size());
+  EXPECT_EQ(onSuccessBuffer->readToString(responseBody.size()), responseBody);
+}
+
+TEST_F(TransportClientTest, pushDataAsyncFailure) {
+  // Construct mock utils.
+  auto mockDispatcher = std::make_unique<MockDispatcher>();
+  auto rawMockDispatcher = mockDispatcher.get();
+  TransportClient client(nullptr, std::move(mockDispatcher), MS(10000));
+  auto mockRpcResponseCallback = std::make_shared<MockRpcResponseCallback>();
+
+  // Construct toSend PushData.
+  const long requestId = 1001;
+  const uint8_t mode = 2;
+  const std::string shuffleKey = "test-shuffle-key";
+  const std::string partitionUniqueId = "test-partition-id";
+  const std::string requestBody = "test-request-body";
+  auto pushData = std::make_unique<PushData>(
+      requestId,
+      mode,
+      shuffleKey,
+      partitionUniqueId,
+      toReadOnlyByteBuffer(requestBody));
+
+  // Send pushData via client, check that the sentPushData is identical to
+  // original pushData.
+  client.pushDataAsync(*pushData, MS(10000), mockRpcResponseCallback);
+  auto sentMsg = rawMockDispatcher->getSentMsg();
+  EXPECT_EQ(sentMsg->type(), Message::PUSH_DATA);
+  auto sentPushData = dynamic_cast<PushData*>(sentMsg.get());
+  EXPECT_EQ(sentPushData->requestId(), requestId);
+  EXPECT_EQ(sentPushData->mode(), mode);
+  EXPECT_EQ(sentPushData->shuffleKey(), shuffleKey);
+  EXPECT_EQ(sentPushData->partitionUniqueId(), partitionUniqueId);
+  EXPECT_EQ(sentPushData->body()->remainingSize(), requestBody.size());
+  EXPECT_EQ(
+      sentPushData->body()->readToString(requestBody.size()), requestBody);
+  EXPECT_FALSE(mockRpcResponseCallback->getOnSuccessBuffer());
+
+  // Construct failure and make dispatcher receive it.
+  auto rpcFailure = std::make_unique<RpcFailure>(requestId, "failure-msg-body");
+  rawMockDispatcher->receiveMsg(std::move(rpcFailure));
+
+  // Check the received message.
+  auto onSuccessBuffer = mockRpcResponseCallback->getOnSuccessBuffer();
+  auto onFailureException = mockRpcResponseCallback->getOnFailureException();
+  EXPECT_FALSE(onSuccessBuffer);
+  EXPECT_TRUE(onFailureException);
+}
+
+TEST_F(TransportClientTest, pushDataAsyncTimeout) {
+  // Construct mock utils.
+  auto mockDispatcher = std::make_unique<MockDispatcher>();
+  auto rawMockDispatcher = mockDispatcher.get();
+  TransportClient client(nullptr, std::move(mockDispatcher), MS(10000));
+  auto mockRpcResponseCallback = std::make_shared<MockRpcResponseCallback>();
+
+  // Construct toSend PushData.
+  const long requestId = 1001;
+  const uint8_t mode = 2;
+  const std::string shuffleKey = "test-shuffle-key";
+  const std::string partitionUniqueId = "test-partition-id";
+  const std::string requestBody = "test-request-body";
+  auto pushData = std::make_unique<PushData>(
+      requestId,
+      mode,
+      shuffleKey,
+      partitionUniqueId,
+      toReadOnlyByteBuffer(requestBody));
+
+  // Send pushData via client, check that the sentPushData is identical to
+  // original pushData.
+  auto timeoutInterval = MS(100);
+  client.pushDataAsync(*pushData, timeoutInterval, mockRpcResponseCallback);
+  auto sentMsg = rawMockDispatcher->getSentMsg();
+  EXPECT_EQ(sentMsg->type(), Message::PUSH_DATA);
+  auto sentPushData = dynamic_cast<PushData*>(sentMsg.get());
+  EXPECT_EQ(sentPushData->requestId(), requestId);
+  EXPECT_EQ(sentPushData->mode(), mode);
+  EXPECT_EQ(sentPushData->shuffleKey(), shuffleKey);
+  EXPECT_EQ(sentPushData->partitionUniqueId(), partitionUniqueId);
+  EXPECT_EQ(sentPushData->body()->remainingSize(), requestBody.size());
+  EXPECT_EQ(
+      sentPushData->body()->readToString(requestBody.size()), requestBody);
+  EXPECT_FALSE(mockRpcResponseCallback->getOnSuccessBuffer());
+
+  // Wait for timeout.
+  std::this_thread::sleep_for(timeoutInterval * 3);
+
+  // Check the received message.
+  auto onSuccessBuffer = mockRpcResponseCallback->getOnSuccessBuffer();
+  auto onFailureException = mockRpcResponseCallback->getOnFailureException();
+  EXPECT_FALSE(onSuccessBuffer);
+  EXPECT_TRUE(onFailureException);
+}
+
+TEST_F(TransportClientTest, fetchChunkAsyncSuccess) {
   auto mockDispatcher = std::make_unique<MockDispatcher>();
   auto rawMockDispatcher = mockDispatcher.get();
   TransportClient client(nullptr, std::move(mockDispatcher), MS(10000));
@@ -218,7 +420,7 @@ TEST(TransportClientTest, fetchChunkAsyncSuccess) {
   EXPECT_EQ(onSuccessBuffer->readToString(responseBody.size()), responseBody);
 }
 
-TEST(TransportClientTest, fetchChunkAsyncFailure) {
+TEST_F(TransportClientTest, fetchChunkAsyncFailure) {
   auto mockDispatcher = std::make_unique<MockDispatcher>();
   auto rawMockDispatcher = mockDispatcher.get();
   TransportClient client(nullptr, std::move(mockDispatcher), MS(10000));
