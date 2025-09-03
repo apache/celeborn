@@ -1136,7 +1136,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           fileName,
           s3FileInfo)
         return (s3Flusher.get, s3FileInfo, null)
-      } else if (hasOssStorage && location.getStorageInfo.OSSAvailable()) {
+      } else if (dirs.isEmpty && location.getStorageInfo.OSSAvailable()) {
         val shuffleDir =
           new Path(new Path(ossDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(
