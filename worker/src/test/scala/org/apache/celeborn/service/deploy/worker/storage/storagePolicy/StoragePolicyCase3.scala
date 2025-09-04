@@ -56,7 +56,7 @@ class StoragePolicyCase3 extends CelebornFunSuite {
   when(mockedStorageManager.storageBufferAllocator).thenAnswer(UnpooledByteBufAllocator.DEFAULT)
 
   val mockedDiskFile = mock[DiskFileInfo]
-  val mockedFlusher = mock[Flusher]
+  val mockedFlusher = mock[LocalFlusher]
   val mockedFile = mock[File]
   when(
     mockedStorageManager.createDiskFile(
@@ -101,6 +101,7 @@ class StoragePolicyCase3 extends CelebornFunSuite {
     when(mockedPartitionWriterContext.getPartitionLocation).thenAnswer(localHintPartitionLocatioin)
     when(mockedPartitionWriterContext.getPartitionType).thenAnswer(PartitionType.REDUCE)
     when(mockedStorageManager.localOrDfsStorageAvailable).thenAnswer(true)
+    when(mockedDiskFile.getStorageType).thenAnswer(StorageInfo.Type.SSD)
     val mockedMemoryFile = mock[LocalTierWriter]
     val conf = new CelebornConf()
     val flushLock = new AnyRef
@@ -120,6 +121,7 @@ class StoragePolicyCase3 extends CelebornFunSuite {
     when(mockedPartitionWriterContext.getPartitionLocation).thenAnswer(memoryHintPartitionLocation)
     when(mockedPartitionWriterContext.getPartitionType).thenAnswer(PartitionType.REDUCE)
     when(mockedStorageManager.localOrDfsStorageAvailable).thenAnswer(true)
+    when(mockedDiskFile.getStorageType).thenAnswer(StorageInfo.Type.HDD)
     val mockedMemoryFile = mock[LocalTierWriter]
     val conf = new CelebornConf()
     val flushLock = new AnyRef
