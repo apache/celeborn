@@ -1077,7 +1077,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       fileName: String,
       userIdentifier: UserIdentifier,
       partitionType: PartitionType,
-      partitionSplitEnabled: Boolean): (Flusher, DiskFileInfo, File) = {
+      partitionSplitEnabled: Boolean,
+      storageType: Option[StorageInfo.Type] = None): (Flusher, DiskFileInfo, File) = {
     val suggestedMountPoint = location.getStorageInfo.getMountPoint
     var retryCount = 0
     var exception: IOException = null
@@ -1100,7 +1101,14 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
       }
 
-      if (dirs.isEmpty && location.getStorageInfo.HDFSAvailable()) {
+      val useHdfs =
+        hasHDFSStorage && storageType.nonEmpty && storageType.get.equals(StorageInfo.Type.HDFS)
+      val useS3 =
+        hasS3Storage && storageType.nonEmpty && storageType.get.equals(StorageInfo.Type.S3)
+      val useOSS =
+        hasOssStorage && storageType.nonEmpty && storageType.get.equals(StorageInfo.Type.OSS)
+
+      if ((dirs.isEmpty && location.getStorageInfo.HDFSAvailable()) || useHdfs) {
         val shuffleDir =
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(
@@ -1118,7 +1126,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           fileName,
           hdfsFileInfo)
         return (hdfsFlusher.get, hdfsFileInfo, null)
-      } else if (dirs.isEmpty && location.getStorageInfo.S3Available()) {
+      } else if ((dirs.isEmpty && location.getStorageInfo.S3Available()) || useS3) {
         val shuffleDir =
           new Path(new Path(s3Dir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(
@@ -1136,7 +1144,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           fileName,
           s3FileInfo)
         return (s3Flusher.get, s3FileInfo, null)
-      } else if (dirs.isEmpty && location.getStorageInfo.OSSAvailable()) {
+      } else if ((dirs.isEmpty && location.getStorageInfo.OSSAvailable()) || useOSS) {
         val shuffleDir =
           new Path(new Path(ossDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(
