@@ -83,7 +83,7 @@ class StoragePolicyCase4 extends CelebornFunSuite {
       null,
       new StorageInfo("mountpoint", StorageInfo.Type.MEMORY, StorageInfo.LOCAL_DISK_MASK),
       null)
-  val localHintPartitionLocatioin =
+  val localHintPartitionLocation =
     new PartitionLocation(
       1,
       1,
