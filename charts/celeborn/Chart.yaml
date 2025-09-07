@@ -22,7 +22,7 @@ description: >
   Intermediate data typically include shuffle and spilled data.
 type: application
 version: 0.1.0
-appVersion: 0.6.1
+appVersion: 0.6.2
 keywords:
   - Apache Celeborn
   - Big Data
