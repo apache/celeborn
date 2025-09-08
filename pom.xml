@@ -1550,7 +1550,7 @@
         <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.13.16</scala.version>
         <scala.binary.version>2.13</scala.binary.version>
-        <spark.version>4.0.0</spark.version>
+        <spark.version>4.0.1</spark.version>
         <zstd-jni.version>1.5.6-9</zstd-jni.version>
       </properties>
     </profile>
