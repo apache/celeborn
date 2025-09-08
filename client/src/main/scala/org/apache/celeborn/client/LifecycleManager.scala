@@ -248,12 +248,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   private val messagesHelper: TransportMessagesHelper = new TransportMessagesHelper()
 
+  private val extraInfo = ApplicationInfoProvider.instantiate(conf)
+    .provide() + (CelebornConf.QUOTA_INTERRUPT_SHUFFLE_ENABLED.key -> conf.quotaInterruptShuffleEnabled.toString)
+
   private def registerApplicationInfo(): Unit = {
     Utils.tryLogNonFatalError(
       masterClient.send(RegisterApplicationInfo(
         appUniqueId,
         userIdentifier,
-        ApplicationInfoProvider.instantiate(conf).provide().asJava)))
+        extraInfo.asJava)))
   }
 
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
