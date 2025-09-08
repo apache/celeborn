@@ -50,6 +50,8 @@ class QuotaManager(
   @volatile
   var clusterQuotaStatus: QuotaStatus = new QuotaStatus()
   val appQuotaStatus: JMap[String, QuotaStatus] = JavaUtils.newConcurrentHashMap()
+  private val appQuotaConfig: JMap[String, JMap[String, String]] = JavaUtils.newConcurrentHashMap()
+  private val defaultQuotaConfig: CelebornConf = new CelebornConf()
   private val quotaChecker =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-quota-checker")
   quotaChecker.scheduleWithFixedDelay(
@@ -68,6 +70,7 @@ class QuotaManager(
 
   def handleAppLost(appId: String): Unit = {
     appQuotaStatus.remove(appId)
+    appQuotaConfig.remove(appId)
   }
 
   def checkUserQuotaStatus(user: UserIdentifier): CheckQuotaResponse = {
@@ -331,6 +334,12 @@ class QuotaManager(
       CLUSTER_EXHAUSTED)
   }
 
+  def registerApplicationQuotaConfig(appId: String, extraInfo: JMap[String, String]): Unit = {
+    appQuotaConfig.put(
+      appId,
+      extraInfo)
+  }
+
   private def expireApplication(
       used: ResourceConsumption,
       threshold: StorageQuota,
@@ -339,12 +348,19 @@ class QuotaManager(
     var nonExpired = used
     if (checkConsumptionExceeded(used, threshold)) {
       val sortedConsumption =
-        appMap.sortBy(_._2)(Ordering.by((r: ResourceConsumption) =>
-          (
-            r.diskBytesWritten,
-            r.diskFileCount,
-            r.hdfsBytesWritten,
-            r.hdfsFileCount)).reverse)
+        appMap.filter(app =>
+          appQuotaConfig.containsKey(app._1)
+            && appQuotaConfig.get(app._1)
+              .getOrDefault(
+                CelebornConf.QUOTA_INTERRUPT_SHUFFLE_ENABLED.key,
+                CelebornConf.QUOTA_INTERRUPT_SHUFFLE_ENABLED.defaultValueString)
+              .toBoolean)
+          .sortBy(_._2)(Ordering.by((r: ResourceConsumption) =>
+            (
+              r.diskBytesWritten,
+              r.diskFileCount,
+              r.hdfsBytesWritten,
+              r.hdfsFileCount)).reverse)
       for ((appId, consumption) <- sortedConsumption
         if checkConsumptionExceeded(nonExpired, threshold)) {
         val reason = s"$expireReason Used: ${consumption.simpleString}, Threshold: $threshold"

@@ -1177,6 +1177,7 @@ private[celeborn] class Master(
       extraInfo: JMap[String, String],
       requestId: String): Unit = {
     statusSystem.handleRegisterApplicationInfo(appId, userIdentifier, extraInfo, requestId)
+    quotaManager.registerApplicationQuotaConfig(appId, extraInfo)
     context.reply(OneWayMessageResponse)
   }
 
