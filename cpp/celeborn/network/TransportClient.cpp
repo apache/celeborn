@@ -105,7 +105,12 @@ void TransportClient::pushDataAsync(
         });
 
   } catch (std::exception& e) {
-    auto errorMsg = fmt::format("pushData failed: {}", e.what());
+    auto errorMsg = fmt::format(
+        "PushData failed. shuffleKey: {}, partitionUniqueId: {}, mode: {}, error message: {}",
+        pushData.shuffleKey(),
+        pushData.partitionUniqueId(),
+        pushData.mode(),
+        e.what());
     LOG(ERROR) << errorMsg;
     callback->onFailure(std::make_unique<std::runtime_error>(errorMsg));
   }
