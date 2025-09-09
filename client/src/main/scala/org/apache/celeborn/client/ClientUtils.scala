@@ -18,8 +18,9 @@
 package org.apache.celeborn.client
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.internal.Logging
 
-object ClientUtils {
+object ClientUtils extends Logging {
 
   /**
    * Check if all the mapper attempts are finished. If any of the attempts is not finished, return false.
@@ -29,13 +30,11 @@ object ClientUtils {
    * @param attempts The mapper finished attemptId array. An attempt ID of -1 indicates that the mapper is not finished.
    * @return True if all mapper attempts are finished, false otherwise.
    */
-  def areAllMapperAttemptsFinished(attempts: Array[Int]): Boolean = {
-    var i = attempts.length - 1
-    while (i >= 0) {
-      if (attempts(i) < 0) {
-        return false
-      }
-      i -= 1
+  def areAllMapperAttemptsFinished(attempts: Array[Int], shuffleId: Int): Boolean = {
+    val length = attempts.length - 1
+    if (length >= 0 && attempts.exists(_ < 0)) {
+      val unfinishedTasks = attempts.filter(_ < 0).mkString(", ")
+      logDebug(s"For shuffle $shuffleId, exists unfinished map task $unfinishedTasks")
     }
     true
   }
