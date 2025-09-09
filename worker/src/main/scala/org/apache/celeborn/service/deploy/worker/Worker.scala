@@ -483,6 +483,48 @@ private[celeborn] class Worker(
     cleanTaskQueue.size()
   }
 
+  if (hasHDFSStorage) {
+    workerSource.addGauge(WorkerSource.OPEN_DFS_OUTPUT_STREAM_COUNT) { () =>
+      if (StorageManager.streamsManager != null) {
+        StorageManager.streamsManager.getSize
+      } else {
+        0
+      }
+    }
+
+    workerSource.addGauge(WorkerSource.REUSE_DFS_OUTPUT_STREAM_HIT_COUNT) { () =>
+      if (StorageManager.streamsManager != null) {
+        StorageManager.streamsManager.getCacheStats.hitCount()
+      } else {
+        0
+      }
+    }
+
+    workerSource.addGauge(WorkerSource.REUSE_DFS_OUTPUT_STREAM_HIT_RATE) { () =>
+      if (StorageManager.streamsManager != null) {
+        StorageManager.streamsManager.getCacheStats.hitRate()
+      } else {
+        0
+      }
+    }
+
+    workerSource.addGauge(WorkerSource.REUSE_DFS_OUTPUT_STREAM_MISS_COUNT) { () =>
+      if (StorageManager.streamsManager != null) {
+        StorageManager.streamsManager.getCacheStats.missCount()
+      } else {
+        0
+      }
+    }
+
+    workerSource.addGauge(WorkerSource.REUSE_DFS_OUTPUT_STREAM_MISS_RATE) { () =>
+      if (StorageManager.streamsManager != null) {
+        StorageManager.streamsManager.getCacheStats.missRate()
+      } else {
+        0
+      }
+    }
+  }
+
   private def highWorkload: Boolean = {
     (
       memoryManager.currentServingState,
