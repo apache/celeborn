@@ -482,6 +482,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.CLEAN_TASK_QUEUE_SIZE) { () =>
     cleanTaskQueue.size()
   }
+  workerSource.addGauge(WorkerSource.COMMIT_WORKING_QUEUE_SIZE) { () =>
+    commitThreadPool.getQueue.size()
+  }
 
   private def highWorkload: Boolean = {
     (
