@@ -931,7 +931,7 @@ object Spark40 extends SparkClientProjects {
   val lz4JavaVersion = "1.8.0"
   val sparkProjectScalaVersion = "2.13.16"
 
-  val sparkVersion = "4.0.0"
+  val sparkVersion = "4.0.1"
   val zstdJniVersion = "1.5.6-9"
   val scalaBinaryVersion = "2.13"
 

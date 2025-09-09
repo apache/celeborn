@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker.storage
 
-import java.io.IOException
+import java.io.{ByteArrayOutputStream, DataOutputStream, IOException}
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.util.concurrent.TimeUnit
@@ -649,19 +649,27 @@ class DfsTierWriter(
       val retryCount = conf.workerCreateIndexOrSuccessMaxAttempts
       val retryWait = conf.workerCreateIndexOrSuccessWaitMs
       Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
-        if (hadoopFs.exists(hdfsFileInfo.getDfsIndexPath)) {
-          hadoopFs.delete(hdfsFileInfo.getDfsIndexPath, true)
-        }
-        val indexOutputStream = hadoopFs.create(hdfsFileInfo.getDfsIndexPath)
-        indexOutputStream.writeInt(hdfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
-        for (offset <- hdfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala) {
-          indexOutputStream.writeLong(offset)
-        }
-        indexOutputStream.close()
+        hadoopFs.create(dfsFileInfo.getDfsWriterSuccessPath).close()
       }
-
-      Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
-        hadoopFs.create(hdfsFileInfo.getDfsWriterSuccessPath).close()
+      if (dfsFileInfo.isReduceFileMeta) {
+        Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
+          if (hadoopFs.exists(dfsFileInfo.getDfsIndexPath)) {
+            hadoopFs.delete(dfsFileInfo.getDfsIndexPath, true)
+          }
+          val indexOutputStream = hadoopFs.create(dfsFileInfo.getDfsIndexPath)
+          val byteStream: ByteArrayOutputStream = new ByteArrayOutputStream()
+          val dataStream = new DataOutputStream(byteStream)
+          try {
+            dataStream.writeInt(dfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
+            for (offset <- dfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala) {
+              dataStream.writeLong(offset)
+            }
+            indexOutputStream.write(byteStream.toByteArray)
+          } finally if (dataStream != null) {
+            dataStream.close()
+          }
+          indexOutputStream.close()
+        }
       }
     }
     if (s3MultipartUploadHandler != null) {

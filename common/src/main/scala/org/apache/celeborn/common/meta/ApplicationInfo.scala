@@ -15,19 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.protocol;
+package org.apache.celeborn.common.meta
 
-public enum PartitionType {
-  REDUCE(0),
-  MAP(1);
+import java.util.{Map => JMap}
 
-  private final int value;
+import org.apache.celeborn.common.identity.UserIdentifier
 
-  PartitionType(int value) {
-    this.value = value;
-  }
-
-  public int getValue() {
-    return value;
-  }
-}
+/**
+ * Application info
+ */
+case class ApplicationInfo(
+    appId: String,
+    userIdentifier: UserIdentifier,
+    extraInfo: JMap[String, String],
+    registrationTime: Long)

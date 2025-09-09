@@ -15,19 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.common.protocol;
+package org.apache.celeborn.common.client
 
-public enum PartitionType {
-  REDUCE(0),
-  MAP(1);
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.util.Utils
+abstract class ApplicationInfoProvider(conf: CelebornConf) {
+  def provide(): Map[String, String]
+}
 
-  private final int value;
-
-  PartitionType(int value) {
-    this.value = value;
-  }
-
-  public int getValue() {
-    return value;
+object ApplicationInfoProvider {
+  def instantiate(conf: CelebornConf): ApplicationInfoProvider = {
+    val className = conf.clientApplicationInfoProvider
+    Utils.instantiateClassWithCelebornConf[ApplicationInfoProvider](className, conf)
   }
 }
