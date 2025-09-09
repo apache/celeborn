@@ -41,7 +41,7 @@ class MetaSource(conf: CelebornConf) extends AbstractSource(conf, MetaSource.ROL
 }
 
 object MetaSource {
-  val ROLE_META = "META"
+  val ROLE_META = "master"
 
   val PROCESS_TIME = "ProcessTime"
 }
