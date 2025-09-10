@@ -674,7 +674,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private final boolean isDfs;
     private final boolean isPrefetch;
     private final FileInfo originFileInfo;
-    private final long sortTimeLogThreshold;
 
     private FSDataInputStream dfsOriginInput = null;
     private FSDataOutputStream dfsSortedOutput = null;
@@ -695,7 +694,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       this.fileId = fileId;
       this.shuffleKey = shuffleKey;
       this.indexFilePath = Utils.getIndexFilePath(originFilePath);
-      this.sortTimeLogThreshold = PartitionFilesSorter.this.sortTimeLogThreshold;
       if (!isDfs) {
         File sortedFile = new File(this.sortedFilePath);
         if (sortedFile.exists()) {
