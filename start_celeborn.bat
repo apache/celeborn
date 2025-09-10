@@ -11,6 +11,9 @@ IF EXIST "%targetdir%" (
 rem Generate configs at first
 powershell -NoProfile ./GenerateCelebornConfig.ps1
 
+:: Expand environment variables
+call %~dp0expand-copy.bat .\conf\celeborn-defaults-before-expand.conf .\conf\celeborn-defaults.conf
+
 rem Add a flag file to indicate the installation is done
 set "CELEBORN_INSTALLED=%~dp0installed.flag"
 
