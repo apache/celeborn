@@ -722,7 +722,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     public void sort() {
       source.startTimer(WorkerSource.SORT_TIME(), fileId);
-      long sortStartTime = System.nanoTime();
+      long sortStartTime = -1;
+      if (sortTimeLogThreshold > 0) {
+        sortStartTime = System.nanoTime();
+      }
 
       try {
         initializeFiles();
@@ -802,15 +805,17 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           sorting.remove(fileId);
         }
       }
-      long sortDuration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sortStartTime);
-      if (sortTimeLogThreshold > 0 && sortDuration > sortTimeLogThreshold) {
-        logger.info(
-            "File sorting took {}ms for fileId: {}, shuffleKey: {}, originFilePath: {}, originFileLen: {}",
-            sortDuration,
-            fileId,
-            shuffleKey,
-            originFilePath,
-            originFileLen);
+      if (sortTimeLogThreshold > 0) {
+        long sortDuration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sortStartTime);
+        if (sortDuration > sortTimeLogThreshold) {
+          logger.info(
+              "File sorting took {}ms for fileId: {}, shuffleKey: {}, originFilePath: {}, originFileLen: {}",
+              sortDuration,
+              fileId,
+              shuffleKey,
+              originFilePath,
+              originFileLen);
+        }
       }
       source.stopTimer(WorkerSource.SORT_TIME(), fileId);
     }
