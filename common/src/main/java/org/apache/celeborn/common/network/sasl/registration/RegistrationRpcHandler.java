@@ -191,7 +191,6 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
             "Application registered: appId {} rpcId {}",
             registerApplicationRequest.getId(),
             message.requestId);
-
         break;
       default:
         throw new SecurityException(
