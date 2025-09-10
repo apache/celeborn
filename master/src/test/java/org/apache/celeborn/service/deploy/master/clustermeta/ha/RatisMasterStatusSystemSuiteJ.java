@@ -1976,9 +1976,9 @@ public class RatisMasterStatusSystemSuiteJ {
 
           public void unregister(String appId) {}
 
-          public void ensureRegistrationAllowed() throws IOException {
+          public boolean ensureRegistrationAllowed() throws IOException {
             // what MasterSecretRegistryImpl does - except we purposefully pick a follower
-            MasterSecretRegistryImpl.ensureRegistrationAllowedImpl(followerStatusSystem, false);
+            return MasterSecretRegistryImpl.ensureRegistrationAllowedImpl(followerStatusSystem, false);
           }
         };
 

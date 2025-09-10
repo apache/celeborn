@@ -72,13 +72,13 @@ public class MasterSecretRegistryImpl implements SecretRegistry {
   }
 
   @Override
-  public void ensureRegistrationAllowed() throws IOException {
-    ensureRegistrationAllowedImpl(statusSystem, bindPreferIP);
+  public boolean ensureRegistrationAllowed() throws IOException {
+    return ensureRegistrationAllowedImpl(statusSystem, bindPreferIP);
   }
 
-  public static void ensureRegistrationAllowedImpl(
+  public static boolean ensureRegistrationAllowedImpl(
       AbstractMetaManager statusSystem, boolean bindPreferIP) throws IOException {
-    HAHelper.checkShouldProcess(
+    return HAHelper.checkShouldProcess(
         ex -> {
           throw ex;
         },

@@ -32,10 +32,9 @@ public interface SecretRegistry {
   void unregister(String appId);
 
   /**
-   * Checks if the SecretRegistry can register the application. If it cant register (for example,
-   * not the current leader when running in HA), then throws an exception
+   * Checks if the SecretRegistry can register the application.
    */
-  default void ensureRegistrationAllowed() throws IOException {
-    // by default, can register
+  default boolean ensureRegistrationAllowed() throws IOException {
+    return true;
   }
 }

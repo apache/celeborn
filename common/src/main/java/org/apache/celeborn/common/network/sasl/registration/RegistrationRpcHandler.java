@@ -176,18 +176,19 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
         }
         break;
       case REGISTER_APPLICATION_REQUEST_VALUE:
-        PbRegisterApplicationRequest registerApplicationRequest = pbMsg.getParsedPayload();
+        PbRegisterApplicationRequest req = pbMsg.getParsedPayload();
         checkRequestAllowed(RegistrationState.AUTHENTICATED);
-        LOG.trace("Application registration started {}", registerApplicationRequest.getId());
-        // throws exception if not allowed - like not leader in HA mode
-        secretRegistry.ensureRegistrationAllowed();
-        processRegisterApplicationRequest(registerApplicationRequest, callback);
+        LOG.info("Application registration started: {}", req.getId());
+
+        if (!secretRegistry.ensureRegistrationAllowed()) {
+          throw new IOException("Application " + req.getId() + " failed to register.");
+        }
+
+        processRegisterApplicationRequest(req, callback);
+        client.setClientId(req.getId());
         registrationState = RegistrationState.REGISTERED;
-        client.setClientId(registerApplicationRequest.getId());
-        LOG.info(
-            "Application registered: appId {} rpcId {}",
-            registerApplicationRequest.getId(),
-            message.requestId);
+
+        LOG.info("Application registered: appId {} rpcId {}", req.getId(), message.requestId);
         break;
       default:
         throw new SecurityException(
