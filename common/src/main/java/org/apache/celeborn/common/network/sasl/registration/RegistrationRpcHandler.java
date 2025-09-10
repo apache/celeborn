@@ -187,7 +187,10 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
         processRegisterApplicationRequest(registerApplicationRequest, callback);
         registrationState = RegistrationState.REGISTERED;
         client.setClientId(registerApplicationRequest.getId());
-        LOG.info("Application registered: appId {} rpcId {}", registerApplicationRequest.getId(), message.requestId);
+        LOG.info(
+            "Application registered: appId {} rpcId {}",
+            registerApplicationRequest.getId(),
+            message.requestId);
 
         break;
       default:
