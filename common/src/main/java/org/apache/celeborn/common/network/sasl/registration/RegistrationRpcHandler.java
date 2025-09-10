@@ -181,7 +181,8 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
         LOG.trace("Application registration started {}", registerApplicationRequest.getId());
 
         if (!secretRegistry.ensureRegistrationAllowed()) {
-          throw new IOException("Application " + registerApplicationRequest.getId() + " failed to register.");
+          throw new IOException(
+              "Application " + registerApplicationRequest.getId() + " failed to register.");
         }
 
         processRegisterApplicationRequest(registerApplicationRequest, callback);
