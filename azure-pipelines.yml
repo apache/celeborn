@@ -91,7 +91,7 @@ extends:
                     mkdir $(PUBLISH_DIR)\Celeborn_Master
                     mkdir $(PUBLISH_DIR)\Celeborn_Worker
                     Copy-Item -Path $(System.DefaultWorkingDirectory)\dist -Destination $(PUBLISH_DIR)\Celeborn -Recurse
-                    $files = @('celeborn.ini', 'GenerateCelebornConfig.ps1', 'startCommon.cmd', 'expand-copy.bat')
+                    $files = @('celeborn.ini', 'GenerateCelebornConfig.ps1', 'startCommon.cmd', 'expand-copy.bat', 'metrics.ini')
                     foreach ($file in $files) { Copy-Item $(System.DefaultWorkingDirectory)\$file $(PUBLISH_DIR)\Celeborn\ }
                     Copy-Item $(System.DefaultWorkingDirectory)\ServiceConfig_celeborn.ini $(PUBLISH_DIR)\Celeborn\ServiceConfig.ini
                     Copy-Item $(System.DefaultWorkingDirectory)\start_celeborn.bat $(PUBLISH_DIR)\Celeborn\start.bat

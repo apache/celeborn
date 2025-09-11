@@ -101,6 +101,31 @@ Function global:ParseIniFile($File)
   return $Ini
 }
 
+# Get the string value for a name in a section from an ini if any
+Function global:ConvertIniToPropertiesFile($iniPath, $propsPath)
+{
+    # Clear output file if it exists
+    If (Test-Path $propsPath) 
+    { 
+        Remove-Item $propsPath
+    }
+    Get-Content $iniPath | ForEach-Object {
+        $line = $_.Trim()
+        # Skip empty lines and comments and section
+        If (($line -match '^\s*$') -or ($line -match '^[;#]') -or ($line -match '^\[(.+)\]$')) 
+        { 
+            return
+        }
+        # Handle key=value pairs
+        ElseIf ($line -match '^(.+?)=(.*)$') {
+            $key = $matches[1].Trim()
+            $value = $matches[2].Trim()
+            "$key=$value" | Out-File -Append $propsPath -Encoding UTF8
+        }
+    }
+}
+
+
 $configGenerator = "D:\Data\hadoop.latest\YarnppConfigurationGenerator.exe"
 try {
     # Wait until the config generator becomes available
@@ -139,6 +164,17 @@ Try
 Catch
 {
     Write-Host "Error creating celeborn configuration:" $_
+}
+
+# Create the celeborn-defaults-before-expand.conf
+Try
+{
+    $celebornMetricsFileOut = $celebornConfigDir + "\metrics.properties"
+    ConvertIniToPropertiesFile '.\metrics.ini.flattened.ini' $celebornMetricsFileOut
+}
+Catch
+{
+    Write-Host "Error creating celeborn metric configuration:" $_
 }
 
 # generate host machines
