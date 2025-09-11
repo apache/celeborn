@@ -92,6 +92,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   protected final boolean prefetchEnabled;
   protected final long reservedMemoryPerPartition;
   private final long partitionSorterShutdownAwaitTime;
+  private final long sortTimeLogThreshold;
   private DB sortedFilesDb;
 
   protected final AbstractSource source;
@@ -108,6 +109,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     this.reservedMemoryPerPartition = conf.workerPartitionSorterReservedMemoryPerPartition();
     this.partitionSorterShutdownAwaitTime =
         conf.workerGracefulShutdownPartitionSorterCloseAwaitTimeMs();
+    this.sortTimeLogThreshold = conf.workerPartitionSorterSortTimeLogThreshold();
     long indexCacheMaxWeight = conf.workerPartitionSorterIndexCacheMaxWeight();
     this.source = source;
     this.cleaner = new PartitionFilesCleaner(this);
@@ -726,6 +728,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     public void sort() {
       source.startTimer(WorkerSource.SORT_TIME(), fileId);
+      long sortStartTime = -1;
+      if (sortTimeLogThreshold > 0) {
+        sortStartTime = System.nanoTime();
+      }
 
       try {
         initializeFiles();
@@ -803,6 +809,18 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         Set<String> sorting = sortingShuffleFiles.get(shuffleKey);
         synchronized (sorting) {
           sorting.remove(fileId);
+        }
+      }
+      if (sortTimeLogThreshold > 0) {
+        long sortDuration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sortStartTime);
+        if (sortDuration > sortTimeLogThreshold) {
+          logger.info(
+              "File sorting took {}ms for fileId: {}, shuffleKey: {}, originFilePath: {}, originFileLen: {}",
+              sortDuration,
+              fileId,
+              shuffleKey,
+              originFilePath,
+              originFileLen);
         }
       }
       source.stopTimer(WorkerSource.SORT_TIME(), fileId);
