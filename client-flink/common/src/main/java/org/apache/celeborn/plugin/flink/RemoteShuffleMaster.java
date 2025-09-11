@@ -264,9 +264,12 @@ public class RemoteShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
     long numBytesPerPartition = conf.clientFlinkMemoryPerResultPartition();
     long numBytesForOutput = numBytesPerPartition * numResultPartitions;
 
-    int numInputGates = taskInputsOutputsDescriptor.getInputChannelNums().size();
-    long numBytesPerGate = conf.clientFlinkMemoryPerInputGate();
-    long numBytesForInput = numBytesPerGate * numInputGates;
+    int numInputChannels =
+        taskInputsOutputsDescriptor.getInputChannelNums().values().stream()
+            .mapToInt(Integer::intValue)
+            .sum();
+    long numBytesPerChannel = conf.clientFlinkMemoryPerInputChannel();
+    long numBytesForInput = numBytesPerChannel * numInputChannels;
 
     LOG.debug(
         "Announcing number of bytes {} for output and {} for input.",
