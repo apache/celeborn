@@ -257,8 +257,10 @@ public class RemoteShuffleMasterSuiteJ {
 
     CelebornConf celebornConf = FlinkUtils.toCelebornConf(configuration);
 
-    long numBytesPerGate = celebornConf.clientFlinkMemoryPerInputGate();
-    long expectedInput = 2 * numBytesPerGate;
+    long numBytesPerChannel = celebornConf.clientFlinkMemoryPerInputChannel();
+    long expectedInput =
+        numberOfInputGateChannels.values().stream().mapToInt(Integer::intValue).sum()
+            * numBytesPerChannel;
 
     long numBytesPerResultPartition = celebornConf.clientFlinkMemoryPerResultPartition();
     long expectedOutput = 3 * numBytesPerResultPartition;

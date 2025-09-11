@@ -40,6 +40,7 @@ license: |
 | celeborn.client.fetch.pollChunk.wait | 500ms | false | The waiting time for shuffle client to read the empty chunk on the work side.when there are many empty chunk in the shuffle partition of a small task,the current value can be set small to avoid long waiting times and the illusion of thetask getting stuck | 0.6.1 |  | 
 | celeborn.client.fetch.timeout | 600s | false | Timeout for a task to open stream and fetch chunk. | 0.3.0 | celeborn.fetch.timeout | 
 | celeborn.client.flink.compression.enabled | true | false | Whether to compress data in Flink plugin. | 0.3.0 | remote-shuffle.job.enable-data-compression | 
+| celeborn.client.flink.inputChannel.memory | 5m | false | Memory reserved for a input channel. | 0.7.0 |  | 
 | celeborn.client.flink.inputGate.concurrentReadings | 2147483647 | false | Max concurrent reading channels for a input gate. | 0.3.0 | remote-shuffle.job.concurrent-readings-per-gate | 
 | celeborn.client.flink.inputGate.memory | 32m | false | Memory reserved for a input gate. | 0.3.0 | remote-shuffle.job.memory-per-gate | 
 | celeborn.client.flink.inputGate.supportFloatingBuffer | true | false | Whether to support floating buffer in Flink input gates. | 0.3.0 | remote-shuffle.job.support-floating-buffer-per-input-gate | 

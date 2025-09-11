@@ -1469,6 +1469,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
   def clientFlinkMemoryPerResultPartition: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION)
   def clientFlinkMemoryPerInputGate: Long = get(CLIENT_MEMORY_PER_INPUT_GATE)
+  def clientFlinkMemoryPerInputChannel: Long = get(CLIENT_MEMORY_PER_INPUT_CHANNEL)
   def clientFlinkNumConcurrentReading: Int = get(CLIENT_NUM_CONCURRENT_READINGS)
   def clientFlinkInputGateSupportFloatingBuffer: Boolean =
     get(CLIENT_INPUT_GATE_SUPPORT_FLOATING_BUFFER)
@@ -6023,6 +6024,14 @@ object CelebornConf extends Logging {
       .doc("Memory reserved for a input gate.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("32m")
+
+  val CLIENT_MEMORY_PER_INPUT_CHANNEL: ConfigEntry[Long] =
+    buildConf("celeborn.client.flink.inputChannel.memory")
+      .categories("client")
+      .version("0.7.0")
+      .doc("Memory reserved for a input channel.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("5m")
 
   val CLIENT_INPUT_GATE_SUPPORT_FLOATING_BUFFER: ConfigEntry[Boolean] =
     buildConf("celeborn.client.flink.inputGate.supportFloatingBuffer")
