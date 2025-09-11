@@ -129,14 +129,30 @@ void MessageDispatcher::read(Context*, std::unique_ptr<Message> toRecvMsg) {
 folly::Future<std::unique_ptr<Message>> MessageDispatcher::operator()(
     std::unique_ptr<Message> toSendMsg) {
   CELEBORN_CHECK(!closed_);
-  CELEBORN_CHECK(toSendMsg->type() == Message::RPC_REQUEST);
-  RpcRequest* request = reinterpret_cast<RpcRequest*>(toSendMsg.get());
+  auto currTime = std::chrono::system_clock::now();
+  long requestId;
+  switch (toSendMsg->type()) {
+    case Message::RPC_REQUEST: {
+      RpcRequest* request = reinterpret_cast<RpcRequest*>(toSendMsg.get());
+      requestId = request->requestId();
+      break;
+    }
+    case Message::PUSH_DATA: {
+      PushData* pushData = reinterpret_cast<PushData*>(toSendMsg.get());
+      requestId = pushData->requestId();
+      break;
+    }
+    default: {
+      CELEBORN_FAIL("unsupported type");
+    }
+  }
+
   auto f = requestIdRegistry_.withLock(
       [&](auto& registry) -> folly::Future<std::unique_ptr<Message>> {
-        auto& holder = registry[request->requestId()];
-        holder.requestTime = std::chrono::system_clock::now();
+        auto& holder = registry[requestId];
+        holder.requestTime = currTime;
         auto& p = holder.msgPromise;
-        p.setInterruptHandler([requestId = request->requestId(),
+        p.setInterruptHandler([requestId,
                                this](const folly::exception_wrapper&) {
           this->requestIdRegistry_.lock()->erase(requestId);
           LOG(WARNING) << "rpc request interrupted, requestId: " << requestId;
@@ -148,6 +164,11 @@ folly::Future<std::unique_ptr<Message>> MessageDispatcher::operator()(
 
   CELEBORN_CHECK(!closed_);
   return f;
+}
+
+folly::Future<std::unique_ptr<Message>> MessageDispatcher::sendPushDataRequest(
+    std::unique_ptr<Message> toSendMsg) {
+  return (*this)(std::move(toSendMsg));
 }
 
 folly::Future<std::unique_ptr<Message>>
