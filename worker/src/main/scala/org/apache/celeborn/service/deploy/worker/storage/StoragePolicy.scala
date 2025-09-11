@@ -130,7 +130,8 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                 location.getFileName,
                 partitionDataWriterContext.getUserIdentifier,
                 partitionDataWriterContext.getPartitionType,
-                partitionDataWriterContext.isPartitionSplitEnabled)
+                partitionDataWriterContext.isPartitionSplitEnabled,
+                Option.apply(storageInfoType))
               partitionDataWriterContext.setWorkingDir(workingDir)
               val metaHandler = getPartitionMetaHandler(diskFileInfo)
               if ((storageInfoType == StorageInfo.Type.HDD || storageInfoType == StorageInfo.Type.SSD) && location.getStorageInfo.localDiskAvailable()) {
