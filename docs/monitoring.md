@@ -259,7 +259,9 @@ These metrics are exposed by Celeborn worker.
     | UnreleasedPartitionLocationCount       | Unreleased partition location count when worker is shutting down.                                               |
     | MemoryStorageFileCount                 | The count of files in Memory Storage of a worker.                                                               |
     | MemoryFileStorageSize                  | The total amount of memory used by Memory Storage.                                                              |
-    | EvictedFileCount                       | The count of files evicted from Memory Storage to Disk                                                          |
+    | EvictedFileCount                       | The count of files evicted from Memory Storage to Disk.                                                         |
+    | EvictedLocalFileCount                  | The count of files evicted from Memory Storage to LocalDisk.                                                    |
+    | EvictedDfsFileCount                  | The count of files evicted from Memory Storage to Dfs.                                                            |
     | DirectMemoryUsageRatio                 | Ratio of direct memory used and max direct memory.                                                              |
     | RegisterWithMasterFailCount            | The count of failures in register with master request.                                                          |
     | FlushWorkingQueueSize                  | The size of flush working queue for mount point.                                                                |
