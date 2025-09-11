@@ -1006,7 +1006,6 @@ enum PbMetaRequestType {
   RegisterWorker = 19;
   ReportWorkerUnavailable = 20;
   UpdatePartitionSize = 21;
-  WorkerRemove = 22;
   RemoveWorkersUnavailableInfo = 23;
   WorkerExclude = 24;
   WorkerEvent = 25;
@@ -1031,7 +1030,6 @@ message PbMetaRequest {
   PbMetaWorkerHeartbeatRequest workerHeartbeatRequest = 16;
   PbMetaRegisterWorkerRequest registerWorkerRequest = 17;
   PbReportWorkerUnavailable reportWorkerUnavailableRequest = 18;
-  PbWorkerAddress workerRemoveRequest = 19;
   PbRemoveWorkersUnavailableInfo removeWorkersUnavailableInfoRequest = 20;
   PbMetaWorkerExcludeRequest workerExcludeRequest = 21;
   PbWorkerEventRequest workerEventRequest = 22;

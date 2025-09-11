@@ -215,17 +215,6 @@ public class MetaHandler {
           metaSystem.updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
           break;
 
-        case WorkerRemove:
-          // TODO: Remove `WorkerRemove` in 0.7.x version to guarantee upgrade compatibility.
-          host = request.getWorkerRemoveRequest().getHost();
-          rpcPort = request.getWorkerRemoveRequest().getRpcPort();
-          pushPort = request.getWorkerRemoveRequest().getPushPort();
-          fetchPort = request.getWorkerRemoveRequest().getFetchPort();
-          replicatePort = request.getWorkerRemoveRequest().getReplicatePort();
-          LOG.debug("Handle worker remove for {} {}", host, pushPort);
-          metaSystem.updateWorkerRemoveMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
-          break;
-
         case WorkerHeartbeat:
           host = request.getWorkerHeartbeatRequest().getHost();
           rpcPort = request.getWorkerHeartbeatRequest().getRpcPort();
