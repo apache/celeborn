@@ -180,7 +180,7 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
         checkRequestAllowed(RegistrationState.AUTHENTICATED);
         LOG.trace("Application registration started {}", registerApplicationRequest.getId());
 
-        if (!secretRegistry.ensureRegistrationAllowed()) {
+        if (!secretRegistry.registrationEnabled()) {
           throw new IOException(
               "Application " + registerApplicationRequest.getId() + " failed to register.");
         }

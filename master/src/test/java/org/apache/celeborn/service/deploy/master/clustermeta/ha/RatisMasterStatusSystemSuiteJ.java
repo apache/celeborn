@@ -1978,8 +1978,7 @@ public class RatisMasterStatusSystemSuiteJ {
 
           public boolean ensureRegistrationAllowed() throws IOException {
             // what MasterSecretRegistryImpl does - except we purposefully pick a follower
-            return MasterSecretRegistryImpl.ensureRegistrationAllowedImpl(
-                followerStatusSystem, false);
+            return MasterSecretRegistryImpl.registrationEnabledImpl(followerStatusSystem, false);
           }
         };
 

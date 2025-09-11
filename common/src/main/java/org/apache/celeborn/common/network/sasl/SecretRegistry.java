@@ -32,7 +32,7 @@ public interface SecretRegistry {
   void unregister(String appId);
 
   /** Checks if the SecretRegistry can register the application. */
-  default boolean ensureRegistrationAllowed() throws IOException {
+  default boolean registrationEnabled() throws IOException {
     return true;
   }
 }
