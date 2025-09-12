@@ -72,18 +72,22 @@ public class MasterSecretRegistryImpl implements SecretRegistry {
   }
 
   @Override
-  public boolean registrationEnabled() throws IOException {
+  public boolean registrationEnabled() {
     return registrationEnabledImpl(statusSystem, bindPreferIP);
   }
 
   public static boolean registrationEnabledImpl(
-      AbstractMetaManager statusSystem, boolean bindPreferIP) throws IOException {
-    return HAHelper.checkShouldProcess(
-        ex -> {
-          throw ex;
-        },
-        statusSystem,
-        bindPreferIP);
+      AbstractMetaManager statusSystem, boolean bindPreferIP) {
+    try {
+      return HAHelper.checkShouldProcess(
+          ex -> {
+            throw ex;
+          },
+          statusSystem,
+          bindPreferIP);
+    } catch (IOException e) {
+      return false;
+    }
   }
 
   void setMetadataHandler(AbstractMetaManager statusSystem) {
