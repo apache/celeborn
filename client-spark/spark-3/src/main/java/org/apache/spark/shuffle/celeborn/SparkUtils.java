@@ -18,6 +18,12 @@
 package org.apache.spark.shuffle.celeborn;
 
 import java.io.File;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.atomic.LongAdder;
 
 import scala.Tuple2;
@@ -91,7 +97,25 @@ public class SparkUtils {
       Utils.loadDefaultCelebornProperties(tmpCelebornConf,
           "celeborn-defaults.conf");
     } else {
-      Utils.loadDefaultCelebornProperties(tmpCelebornConf, null);
+      try {
+        URL resourceUrl = SparkUtils.class.getClassLoader()
+            .getResource("celeborn-defaults.conf");
+        if (resourceUrl != null) {
+          Utils.loadDefaultCelebornProperties(tmpCelebornConf,
+              new File(resourceUrl.getFile()).getAbsolutePath());
+        } else {
+          String filePath =
+              System.getenv("LOCAL_DIRS") + File.separator + System.getenv(
+                  "CONTAINER_ID") + File.separator +
+                  "__spark_conf__/__celeborn_conf__/celeborn-defaults.conf";
+          LOG.warn(
+              "Can't find celeborn-defaults.conf under classpath ,load from " +
+                  "{}.", filePath);
+          Utils.loadDefaultCelebornProperties(tmpCelebornConf, filePath);
+        }
+      } catch (Exception e) {
+        LOG.error("Failed to load Celeborn client conf.", e);
+      }
     }
 
     for (Tuple2<String, String> kv : conf.getAll()) {
