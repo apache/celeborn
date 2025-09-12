@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.common.network.sasl;
 
-import java.io.IOException;
-
 /** Interface for getting a secret key associated with some application. */
 public interface SecretRegistry {
 

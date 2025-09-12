@@ -86,7 +86,7 @@ public class MasterSecretRegistryImpl implements SecretRegistry {
           statusSystem,
           bindPreferIP);
     } catch (IOException e) {
-      return false;
+      throw new RuntimeException(e);
     }
   }
 
