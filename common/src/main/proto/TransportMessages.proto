@@ -329,21 +329,6 @@ message PbSlotInfo {
   map<string, int32> slot = 1;
 }
 
-// keep it for compatible reason
-message PbReleaseSlots {
-  string applicationId = 1;
-  int32 shuffleId = 2;
-  repeated string workerIds = 3;
-  repeated PbSlotInfo slots = 4;
-  string requestId = 6;
-}
-
-// keep it for compatible reason
-message PbReleaseSlotsResponse {
-  int32 status = 1;
-}
-
-
 message PbRequestSlotsResponse {
   int32 status = 1;
   map<string, PbWorkerResource> workerResource = 2;
@@ -997,8 +982,6 @@ enum PbMetaRequestType {
 
   UnRegisterShuffle = 12;
   RequestSlots = 13;
-  //deprecated
-  ReleaseSlots = 14;
   AppHeartbeat = 15;
   AppLost = 16;
   WorkerLost = 17;
@@ -1021,8 +1004,6 @@ message PbMetaRequest {
   string requestId = 2;
 
   PbMetaRequestSlotsRequest requestSlotsRequest = 10;
-  // deprecated
-  PbReleaseSlots releaseSlotsRequest = 11;
   PbMetaUnregisterShuffle unregisterShuffleRequest = 12;
   PbMetaAppHeartbeatRequest appHeartbeatRequest = 13;
   PbApplicationLost appLostRequest = 14;
