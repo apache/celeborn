@@ -25,9 +25,6 @@ enum Type {
   UnRegisterShuffle = 12;
   RequestSlots = 13;
 
-  //deprecated
-  ReleaseSlots = 14;
-
   AppHeartbeat = 15;
   AppLost = 16;
   WorkerLost = 17;
@@ -63,8 +60,6 @@ message ResourceRequest {
   optional string requestId = 2;
 
   optional RequestSlotsRequest requestSlotsRequest = 10;
-  // deprecated
-  optional ReleaseSlotsRequest releaseSlotsRequest = 11;
   optional UnregisterShuffleRequest unregisterShuffleRequest = 12;
   optional AppHeartbeatRequest appHeartbeatRequest = 13;
   optional AppLostRequest appLostRequest = 14;
@@ -101,12 +96,6 @@ message RequestSlotsRequest {
 
 message SlotInfo{
   map<string, int32> slot = 1;
-}
-
-message ReleaseSlotsRequest {
-  string shuffleKey = 1;
-  repeated string workerIds = 2;
-  repeated SlotInfo slots = 3;
 }
 
 message UnregisterShuffleRequest {

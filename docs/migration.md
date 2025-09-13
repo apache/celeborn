@@ -23,6 +23,7 @@ license: |
 
 # Upgrading from 0.6 to 0.7
 
+- Since 0.7.0, Celeborn removed `ReleaseSlots`.
 - Since 0.7.0, Celeborn removed `WorkerRemove`.
 
 # Upgrading from 0.5 to 0.6
