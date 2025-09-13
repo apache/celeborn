@@ -774,13 +774,17 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           }
         }
 
-      val dfsCleaned = hadoopFs match {
-        case dfs: FileSystem =>
-          val dfsDir = if (hasHDFSStorage) hdfsDir else if (hasOssStorage) ossDir else s3Dir
+      val dfsCleaned = hadoopFs == null || hadoopFs.asScala.forall {
+        case (storageType, fs) =>
+          val dfsDir =
+            if (storageType == StorageInfo.Type.HDFS)
+              hdfsDir
+            else if (storageType == StorageInfo.Type.OSS) ossDir
+            else s3Dir
           val dfsWorkPath = new Path(dfsDir, conf.workerWorkingDir)
           // DFS path not exist when first time initialize
-          if (dfs.exists(dfsWorkPath)) {
-            !dfs.listFiles(dfsWorkPath, false).hasNext
+          if (fs.exists(dfsWorkPath)) {
+            !fs.listFiles(dfsWorkPath, false).hasNext
           } else {
             true
           }
