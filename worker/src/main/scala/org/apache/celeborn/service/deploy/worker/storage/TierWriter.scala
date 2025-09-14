@@ -661,9 +661,7 @@ class DfsTierWriter(
           val dataStream = new DataOutputStream(byteStream)
           try {
             dataStream.writeInt(dfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
-            for (offset <- dfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala) {
-              dataStream.writeLong(offset)
-            }
+            dfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala.foreach(dataStream.writeLong(_))
             indexOutputStream.write(byteStream.toByteArray)
           } finally if (dataStream != null) {
             dataStream.close()

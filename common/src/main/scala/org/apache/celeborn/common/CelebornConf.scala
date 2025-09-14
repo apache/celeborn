@@ -1367,8 +1367,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerS3FlusherThreads: Int = get(WORKER_FLUSHER_S3_THREADS)
   def workerOssFlusherThreads: Int = get(WORKER_FLUSHER_OSS_THREADS)
   def workerCreateWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
-  def workerCreateIndexOrSuccessMaxAttempts: Int = get(WORKER_WRITER_CREATE_INDEX_OR_SUCCESS_MAX_ATTEMPTS)
-  def workerCreateIndexOrSuccessWaitMs: Long = get(WORKER_WRITER_CREATE_INDEX_OR_SUCCESS_WAIT_INTERVAL)
+  def workerCreateIndexOrSuccessMaxAttempts: Int = get(WORKER_WRITER_CREATE_FILE_MAX_ATTEMPTS)
+  def workerCreateIndexOrSuccessWaitMs: Long = get(WORKER_WRITER_CREATE_FILE_WAIT_INTERVAL)
   def workerFlusherLocalGatherAPIEnabled: Boolean = get(WORKER_FLUSHER_LOCAL_GATHER_API_ENABLED)
 
   // //////////////////////////////////////////////////////
@@ -4075,21 +4075,21 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(3)
 
-  val WORKER_WRITER_CREATE_INDEX_OR_SUCCESS_MAX_ATTEMPTS: ConfigEntry[Int] =
-    buildConf("celeborn.worker.writer.create.indexOrSuccess.maxAttempts")
+  val WORKER_WRITER_CREATE_FILE_MAX_ATTEMPTS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.writer.create.file.maxAttempts")
       .categories("worker")
       .version("0.7.0")
       .doc("Retry count for a index file writer to create if its creation was failed.")
       .intConf
       .createWithDefault(5)
 
-  val WORKER_WRITER_CREATE_INDEX_OR_SUCCESS_WAIT_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.writer.create.indexOrSuccess.wait.interval")
+  val WORKER_WRITER_CREATE_FILE_WAIT_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.writer.create.file.wait.interval")
       .categories("worker")
       .version("0.7.0")
       .doc("Wait interval after attempt to create index file or success file and then retry it.")
       .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefaultString("100ms")
+      .createWithDefaultString("200ms")
 
   val WORKER_FLUSHER_LOCAL_GATHER_API_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.flusher.local.gatherAPI.enabled")
