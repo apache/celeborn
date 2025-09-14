@@ -240,6 +240,8 @@ object WorkerSource {
   val MEMORY_FILE_STORAGE_SIZE = "MemoryFileStorageSize"
   val DIRECT_MEMORY_USAGE_RATIO = "DirectMemoryUsageRatio"
   val EVICTED_FILE_COUNT = "EvictedFileCount"
+  val EVICTED_LOCAL_FILE_COUNT = "EvictedLocalFileCount"
+  val EVICTED_DFS_FILE_COUNT = "EvictedDfsFileCount"
 
   val MEMORY_STORAGE_FILE_COUNT = "MemoryStorageFileCount"
 

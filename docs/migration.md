@@ -21,6 +21,10 @@ license: |
 
 # Migration Guide
 
+# Upgrading from 0.6 to 0.7
+
+- Since 0.7.0, Celeborn removed `WorkerRemove`.
+
 # Upgrading from 0.5 to 0.6
 
 - Since 0.6.0, Celeborn deprecate `celeborn.client.spark.fetch.throwsFetchFailure`. Please use `celeborn.client.spark.stageRerun.enabled` instead.
