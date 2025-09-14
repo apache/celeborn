@@ -226,6 +226,7 @@ These metrics are exposed by Celeborn worker.
     | FlushDataTime                          | The time for a worker to write a buffer which is 256KB by default to storage.                                   |
     | CommitFilesTime                        | The time for a worker to flush buffers and close files related to specified shuffle.                            |
     | CommitFilesFailCount                   | The count of commit files request failed in current worker.                                                     |
+    | CommitWorkingQueueSize                 | The size of commit working queue in current worker.                                                             |
     | SlotsAllocated                         | Slots allocated in last hour.                                                                                   |
     | ActiveSlotsCount                       | The number of slots currently being used in a worker.                                                           |
     | ReserveSlotsTime                       | ReserveSlots means acquire a disk buffer and record partition location.                                         |
