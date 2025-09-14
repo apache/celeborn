@@ -309,6 +309,12 @@ class MemoryTierWriter(
       MemoryManager.instance.incrementDiskBuffer(numBytes)
       storageManager.unregisterMemoryPartitionWriterAndFileInfo(fileInfo, shuffleKey, filename)
       storageManager.evictedFileCount.incrementAndGet
+      if (file.isInstanceOf[LocalTierWriter]) {
+        storageManager.evictedLocalFileCount.incrementAndGet()
+      }
+      if (file.isInstanceOf[DfsTierWriter]) {
+        storageManager.evictedDfsFileCount.incrementAndGet()
+      }
     }
   }
 

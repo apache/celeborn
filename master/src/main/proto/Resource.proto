@@ -35,7 +35,6 @@ enum Type {
   RegisterWorker = 19;
   ReportWorkerUnavailable = 20;
   UpdatePartitionSize = 21;
-  WorkerRemove = 22;
   RemoveWorkersUnavailableInfo = 23;
   WorkerExclude = 24;
   WorkerEvent = 25;
@@ -73,7 +72,6 @@ message ResourceRequest {
   optional WorkerHeartbeatRequest workerHeartbeatRequest = 16;
   optional RegisterWorkerRequest registerWorkerRequest = 17;
   optional ReportWorkerUnavailableRequest reportWorkerUnavailableRequest = 18;
-  optional WorkerRemoveRequest workerRemoveRequest = 19;
   optional RemoveWorkersUnavailableInfoRequest removeWorkersUnavailableInfoRequest = 20;
   optional WorkerExcludeRequest workerExcludeRequest = 21;
   optional WorkerEventRequest workerEventRequest = 22;
@@ -149,14 +147,6 @@ message WorkerExcludeRequest {
 }
 
 message WorkerLostRequest {
-  string host = 1;
-  int32 rpcPort = 2;
-  int32 pushPort = 3;
-  int32 fetchPort = 4 ;
-  int32 replicatePort = 5;
-}
-
-message WorkerRemoveRequest {
   string host = 1;
   int32 rpcPort = 2;
   int32 pushPort = 3;

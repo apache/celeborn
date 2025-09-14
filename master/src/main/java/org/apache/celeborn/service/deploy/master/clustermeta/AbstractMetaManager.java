@@ -238,18 +238,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workerLostEvents.remove(worker);
   }
 
-  public void updateWorkerRemoveMeta(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort) {
-    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
-    // remove worker from workers
-    synchronized (workersMap) {
-      workersMap.remove(worker.toUniqueId());
-      lostWorkers.put(worker, System.currentTimeMillis());
-      availableWorkers.remove(worker);
-    }
-    excludedWorkers.remove(worker);
-  }
-
   public void removeWorkersUnavailableInfoMeta(List<WorkerInfo> unavailableWorkers) {
     synchronized (workersMap) {
       for (WorkerInfo workerInfo : unavailableWorkers) {
