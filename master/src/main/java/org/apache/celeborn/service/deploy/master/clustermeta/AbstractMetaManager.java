@@ -32,6 +32,8 @@ import scala.Option;
 import scala.Tuple2;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.net.NetworkTopology;
 import org.apache.hadoop.net.Node;
 import org.slf4j.Logger;
@@ -39,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.meta.ApplicationInfo;
 import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.DiskStatus;
@@ -89,6 +92,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public long initialEstimatedPartitionSize;
   public long estimatedPartitionSize;
   public double unhealthyDiskRatioThreshold;
+  protected boolean autoReleaseHighWorkLoadEnabled;
+  protected double autoReleaseHighWorkLoadRatioThreshold;
+  protected boolean hasRemoteStorage;
   public final LongAdder partitionTotalWritten = new LongAdder();
   public final LongAdder partitionTotalFileCount = new LongAdder();
   public final LongAdder shuffleTotalCount = new LongAdder();
@@ -96,8 +102,16 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final Map<String, Long> shuffleFallbackCounts = JavaUtils.newConcurrentHashMap();
   public final Map<String, Long> applicationFallbackCounts = JavaUtils.newConcurrentHashMap();
 
+  public final ConcurrentHashMap<String, ApplicationInfo> applicationInfos =
+      JavaUtils.newConcurrentHashMap();
   public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
       JavaUtils.newConcurrentHashMap();
+
+  public void updateApplicationInfo(
+      String appId, UserIdentifier userIdentifier, Map<String, String> extraInfo) {
+    applicationInfos.putIfAbsent(
+        appId, new ApplicationInfo(appId, userIdentifier, extraInfo, System.currentTimeMillis()));
+  }
 
   public void updateRequestSlotsMeta(
       String shuffleKey, String hostName, Map<String, Map<String, Integer>> workerWithAllocations) {
@@ -170,6 +184,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     registeredAppAndShuffles.remove(appId);
     appHeartbeatTime.remove(appId);
     applicationMetas.remove(appId);
+    applicationInfos.remove(appId);
   }
 
   @VisibleForTesting
@@ -223,18 +238,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workerLostEvents.remove(worker);
   }
 
-  public void updateWorkerRemoveMeta(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort) {
-    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
-    // remove worker from workers
-    synchronized (workersMap) {
-      workersMap.remove(worker.toUniqueId());
-      lostWorkers.put(worker, System.currentTimeMillis());
-      availableWorkers.remove(worker);
-    }
-    excludedWorkers.remove(worker);
-  }
-
   public void removeWorkersUnavailableInfoMeta(List<WorkerInfo> unavailableWorkers) {
     synchronized (workersMap) {
       for (WorkerInfo workerInfo : unavailableWorkers) {
@@ -246,6 +249,34 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           updateAvailableWorkers(workerInfo);
         }
       }
+    }
+  }
+
+  private boolean hasAvailableStorage(WorkerInfo workerInfo) {
+    Map<String, DiskInfo> disks = workerInfo.diskInfos();
+    Pair<Boolean, Long> exceedCheckResult = isExceedingUnhealthyThreshold(disks);
+
+    boolean hasDisk = !disks.isEmpty();
+    boolean isExceeding = exceedCheckResult.getLeft();
+    long unhealthyCount = exceedCheckResult.getRight();
+
+    if (hasDisk) {
+      if (!isExceeding) {
+        return true;
+      } else {
+        LOG.warn(
+            "Worker {} doesn't have enough healthy local disk (unhealthy count: {}). Has remote storage: {}",
+            workerInfo,
+            unhealthyCount,
+            hasRemoteStorage);
+      }
+    }
+
+    if (hasRemoteStorage) {
+      return true;
+    } else {
+      LOG.warn("Worker {} has no available storage", workerInfo);
+      return false;
     }
   }
 
@@ -271,6 +302,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             availableSlots.set(info.totalAvailableSlots());
             info.lastHeartbeat_$eq(time);
             info.setWorkerStatus(workerStatus);
+            info.setWorkLoad(highWorkload);
           });
     }
 
@@ -284,25 +316,32 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
 
     // If using HDFSONLY mode, workers with empty disks should not be put into excluded worker list.
-    long unhealthyDiskNum =
-        disks.values().stream().filter(s -> !s.status().equals(DiskStatus.HEALTHY)).count();
-    boolean exceed = unhealthyDiskNum * 1.0 / disks.size() >= unhealthyDiskRatioThreshold;
-    if (!excludedWorkers.contains(worker)
-        && (((disks.isEmpty() || exceed)
-                && !conf.hasHDFSStorage()
-                && !conf.hasS3Storage()
-                && !conf.hasOssStorage())
-            || highWorkload)) {
-      LOG.warn(
-          "Worker {} (unhealthy disks num: {}) adds to excluded workers", worker, unhealthyDiskNum);
+    if (!excludedWorkers.contains(worker) && (!hasAvailableStorage(worker) || highWorkload)) {
+      LOG.warn("Worker {} adds to excluded workers, high workload: {}", worker, highWorkload);
       excludedWorkers.add(worker);
-    } else if ((availableSlots.get() > 0
-            || conf.hasHDFSStorage()
-            || conf.hasS3Storage()
-            || conf.hasOssStorage())
-        && !highWorkload) {
+    } else if ((availableSlots.get() > 0 || hasRemoteStorage) && !highWorkload) {
       // only unblack if numSlots larger than 0
       excludedWorkers.remove(worker);
+    }
+
+    // release high work load workers when too many excluded workers
+    if (autoReleaseHighWorkLoadEnabled
+        && excludedWorkers.size()
+            >= Math.floor(workersMap.size() * autoReleaseHighWorkLoadRatioThreshold)) {
+      synchronized (workersMap) {
+        List<WorkerInfo> toRemoved =
+            excludedWorkers.stream()
+                .filter(
+                    w -> {
+                      WorkerInfo info = workersMap.get(w.toUniqueId());
+                      return info != null
+                          && info.isHighWorkLoad()
+                          && hasAvailableStorage(w)
+                          && info.totalAvailableSlots() > 0;
+                    })
+                .collect(Collectors.toList());
+        updateExcludedWorkersMeta(new ArrayList<>(), toRemoved);
+      }
     }
 
     // try to update the available workers if the worker status is Normal
@@ -377,6 +416,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 shutdownWorkers,
                 workerEventInfos,
                 applicationMetas,
+                applicationInfos,
                 decommissionWorkers)
             .toByteArray();
     Files.write(file.toPath(), snapshotBytes);
@@ -482,6 +522,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           .forEach(
               (key, value) -> applicationMetas.put(key, PbSerDeUtils.fromPbApplicationMeta(value)));
 
+      snapshotMetaInfo
+          .getApplicationInfosMap()
+          .forEach(
+              (key, value) -> applicationInfos.put(key, PbSerDeUtils.fromPbApplicationInfo(value)));
+
       availableWorkers.addAll(
           workersMap.values().stream()
               .filter(worker -> isWorkerAvailable(worker))
@@ -521,6 +566,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     applicationFallbackCounts.clear();
     workerEventInfos.clear();
     applicationMetas.clear();
+    applicationInfos.clear();
   }
 
   public void updateMetaByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {
@@ -642,5 +688,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       Optional<WorkerInfo> workerInfo = Optional.ofNullable(workersMap.get(worker.toUniqueId()));
       workerInfo.ifPresent(info -> info.updateThenGetUserResourceConsumption(resourceConsumptions));
     }
+  }
+
+  private Pair<Boolean, Long> isExceedingUnhealthyThreshold(Map<String, DiskInfo> diskMap) {
+    long unhealthyCount =
+        diskMap.values().stream().filter(disk -> !disk.status().equals(DiskStatus.HEALTHY)).count();
+    return new ImmutablePair<>(
+        unhealthyCount * 1.0 / diskMap.size() >= unhealthyDiskRatioThreshold, unhealthyCount);
   }
 }

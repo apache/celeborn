@@ -52,6 +52,9 @@ extra:
   social:
     - icon: fontawesome/brands/github
 
+extra_css:
+  - assets/css/custom.css
+
 copyright: >
   <br>
   Copyright © 2022-2024 The Apache Software Foundation, Licensed under the Apache License, Version 2.0.
@@ -102,6 +105,6 @@ nav:
       - Integrating Celeborn: developers/integrate.md
       - SBT Build: developers/sbt.md
       - Native Engine Integration:
-        - Blaze: developers/blazesupport.md
+        - Auron: developers/auronsupport.md
         - Gluten: developers/glutensupport.md
       - Helm Charts: developers/helm-charts.md

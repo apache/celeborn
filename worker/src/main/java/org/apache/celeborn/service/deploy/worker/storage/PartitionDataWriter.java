@@ -32,9 +32,10 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.*;
+import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
-import org.apache.celeborn.common.protocol.PartitionType;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController;
 import org.apache.celeborn.service.deploy.worker.congestcontrol.UserCongestionControlContext;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
@@ -51,7 +52,7 @@ public class PartitionDataWriter implements DeviceObserver {
   private final long memoryFileStorageMaxFileSize;
   private final AtomicInteger numPendingWrites = new AtomicInteger(0);
   private final PartitionDataWriterContext writerContext;
-  private final PartitionType partitionType;
+  protected final AbstractSource source; // metrics
   private final String writerString;
   private final StorageManager storageManager;
   private final FlushNotifier notifier = new FlushNotifier();
@@ -61,12 +62,13 @@ public class PartitionDataWriter implements DeviceObserver {
 
   public PartitionDataWriter(
       StorageManager storageManager,
+      AbstractSource workerSource,
       CelebornConf conf,
       DeviceMonitor deviceMonitor,
-      PartitionDataWriterContext writerContext,
-      PartitionType partitionType) {
+      PartitionDataWriterContext writerContext) {
     memoryFileStorageMaxFileSize = conf.workerMemoryFileStorageMaxFileSize();
     this.writerContext = writerContext;
+    this.source = workerSource;
 
     this.storageManager = storageManager;
     this.splitThreshold = writerContext.getSplitThreshold();
@@ -85,11 +87,8 @@ public class PartitionDataWriter implements DeviceObserver {
 
     writerContext.setPartitionDataWriter(this);
     writerContext.setDeviceMonitor(deviceMonitor);
-    this.partitionType = partitionType;
     currentTierWriter =
-        storageManager
-            .storagePolicy()
-            .createFileWriter(writerContext, partitionType, numPendingWrites, notifier);
+        storageManager.storagePolicy().createFileWriter(writerContext, numPendingWrites, notifier);
   }
 
   public DiskFileInfo getDiskFileInfo() {
@@ -102,7 +101,11 @@ public class PartitionDataWriter implements DeviceObserver {
   }
 
   public String getFilePath() {
-    return getDiskFileInfo().getFilePath();
+    DiskFileInfo diskFileInfo = getDiskFileInfo();
+    if (diskFileInfo != null) {
+      return diskFileInfo.getFilePath();
+    }
+    return "";
   }
 
   public void incrementPendingWrites() {
@@ -193,8 +196,7 @@ public class PartitionDataWriter implements DeviceObserver {
     TierWriterBase newTierWriter =
         storageManager
             .storagePolicy()
-            .getEvictedFileWriter(
-                currentTierWriter, writerContext, partitionType, numPendingWrites, notifier);
+            .getEvictedFileWriter(currentTierWriter, writerContext, numPendingWrites, notifier);
     currentTierWriter.evict(newTierWriter);
     currentTierWriter = newTierWriter;
   }
@@ -204,7 +206,9 @@ public class PartitionDataWriter implements DeviceObserver {
   }
 
   public synchronized long close() {
-    return currentTierWriter.close();
+    long length = currentTierWriter.close();
+    source.updateHistogram(WorkerSource.PARTITION_FILE_SIZE(), length);
+    return length;
   }
 
   public FileInfo getCurrentFileInfo() {

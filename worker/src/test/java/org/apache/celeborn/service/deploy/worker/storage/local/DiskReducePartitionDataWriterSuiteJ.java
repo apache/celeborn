@@ -119,7 +119,8 @@ public class DiskReducePartitionDataWriterSuiteJ {
             256,
             "disk1",
             StorageInfo.Type.HDD,
-            null);
+            null,
+            CONF.workerFlusherBufferSize());
 
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(), "0.8");
@@ -284,10 +285,10 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, CONF, storagePolicy, context),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context,
-            PartitionType.REDUCE);
+            context);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-1");
@@ -338,10 +339,10 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, CONF, storagePolicy, context),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context,
-            PartitionType.REDUCE);
+            context);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-1");
@@ -393,10 +394,10 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, CONF, storagePolicy, context),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context,
-            PartitionType.REDUCE);
+            context);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");
@@ -439,7 +440,8 @@ public class DiskReducePartitionDataWriterSuiteJ {
             256,
             "disk2",
             StorageInfo.Type.HDD,
-            null);
+            null,
+            CONF.workerFlusherBufferSize());
   }
 
   @Test
@@ -462,10 +464,10 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, CONF, storagePolicy, context),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context,
-            PartitionType.REDUCE);
+            context);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");
@@ -581,10 +583,10 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context1),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context1,
-            PartitionType.REDUCE);
+            context1);
     partitionDataWriter.write(generateData(8 * 1024 * 1024));
     partitionDataWriter.close();
     ReduceFileMeta reduceFileMeta =
@@ -613,10 +615,10 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context2),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context2,
-            PartitionType.REDUCE);
+            context2);
     for (int i = 0; i < 8; i++) {
       partitionDataWriter.write(generateData(128));
     }
@@ -645,10 +647,10 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context3),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context3,
-            PartitionType.REDUCE);
+            context3);
     partitionDataWriter.write(generateData(1020));
     partitionDataWriter.write(generateData(3));
     partitionDataWriter.close();
@@ -676,10 +678,10 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context4),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context4,
-            PartitionType.REDUCE);
+            context4);
     for (int i = 0; i < 8; i++) {
       partitionDataWriter.write(generateData(128));
     }
@@ -709,10 +711,10 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context5),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context5,
-            PartitionType.REDUCE);
+            context5);
     for (int i = 0; i < 16; i++) {
       partitionDataWriter.write(generateData(128));
     }
@@ -741,10 +743,10 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context6),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context6,
-            PartitionType.REDUCE);
+            context6);
     for (int i = 0; i < 16; i++) {
       partitionDataWriter.write(generateData(128));
     }
@@ -775,10 +777,10 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context7),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context7,
-            PartitionType.REDUCE);
+            context7);
     for (int i = 0; i < 16; i++) {
       partitionDataWriter.write(generateData(128));
     }
@@ -808,10 +810,10 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context8),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context8,
-            PartitionType.REDUCE);
+            context8);
     partitionDataWriter.write(generateData(1024));
     for (int i = 0; i < 9; i++) {
       partitionDataWriter.write(generateData(128));
@@ -842,10 +844,10 @@ public class DiskReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, true, conf, storagePolicy, context9),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context9,
-            PartitionType.REDUCE);
+            context9);
     partitionDataWriter.write(generateData(1024));
     for (int i = 0; i < 9; i++) {
       partitionDataWriter.write(generateData(128));

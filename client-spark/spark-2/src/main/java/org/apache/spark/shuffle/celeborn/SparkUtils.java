@@ -118,7 +118,7 @@ public class SparkUtils {
       field.setAccessible(true);
       return (SQLMetric) field.get(serializer);
     } catch (NoSuchFieldException | IllegalAccessException e) {
-      logger.warn("Failed to get dataSize metric, aqe won`t work properly.");
+      logger.warn("Failed to get dataSize metric, aqe won't work properly.");
     }
     return null;
   }

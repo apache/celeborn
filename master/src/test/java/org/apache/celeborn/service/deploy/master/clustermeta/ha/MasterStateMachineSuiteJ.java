@@ -29,6 +29,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.ratis.server.RaftServer;
 import org.apache.ratis.statemachine.SnapshotInfo;
 import org.junit.Assert;
@@ -40,55 +42,62 @@ import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.protocol.PbMetaRequest;
+import org.apache.celeborn.common.protocol.PbMetaRequestResponse;
+import org.apache.celeborn.common.protocol.PbMetaRequestSlotsRequest;
+import org.apache.celeborn.common.protocol.PbSlotInfo;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
-import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.RequestSlotsRequest;
-import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceRequest;
-import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
-import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.Type;
 
 public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
 
   private final AtomicLong callerId = new AtomicLong();
 
   @Test
-  public void testRunCommand() {
+  public void testRunCommandByTransportMessage() throws InvalidProtocolBufferException {
     StateMachine stateMachine = ratisServer.getMasterStateMachine();
 
     Map<String, Integer> allocations = new HashMap<>();
     allocations.put("disk1", 15);
     allocations.put("disk2", 20);
 
-    Map<String, ResourceProtos.SlotInfo> workerAllocations = new HashMap<>();
+    Map<String, PbSlotInfo> workerAllocations = new HashMap<>();
     workerAllocations.put(
         new WorkerInfo("host1", 1, 2, 3, 10).toUniqueId(),
-        ResourceProtos.SlotInfo.newBuilder().putAllSlot(allocations).build());
+        PbSlotInfo.newBuilder().putAllSlot(allocations).build());
     workerAllocations.put(
         new WorkerInfo("host2", 2, 3, 4, 11).toUniqueId(),
-        ResourceProtos.SlotInfo.newBuilder().putAllSlot(allocations).build());
+        PbSlotInfo.newBuilder().putAllSlot(allocations).build());
     workerAllocations.put(
         new WorkerInfo("host3", 3, 4, 5, 12).toUniqueId(),
-        ResourceProtos.SlotInfo.newBuilder().putAllSlot(allocations).build());
+        PbSlotInfo.newBuilder().putAllSlot(allocations).build());
 
-    RequestSlotsRequest requestSlots =
-        RequestSlotsRequest.newBuilder()
+    PbMetaRequestSlotsRequest requestSlots =
+        PbMetaRequestSlotsRequest.newBuilder()
             .setShuffleKey("appId-1-1")
             .setHostName("hostname")
             .putAllWorkerAllocations(workerAllocations)
             .build();
 
-    ResourceRequest request =
-        ResourceRequest.newBuilder()
+    PbMetaRequest request =
+        PbMetaRequest.newBuilder()
             .setRequestSlotsRequest(requestSlots)
-            .setCmdType(Type.RequestSlots)
+            .setMetaRequestType(org.apache.celeborn.common.protocol.PbMetaRequestType.RequestSlots)
             .setRequestId(UUID.randomUUID().toString())
             .build();
 
-    ResourceResponse response = stateMachine.runCommand(request, -1);
+    PbMetaRequestResponse response = stateMachine.runCommand(request, -1);
     Assert.assertTrue(response.getSuccess());
+
+    ByteString byteString = request.toByteString();
+    ResourceProtos.ResourceRequest resourceRequest =
+        ResourceProtos.ResourceRequest.parseFrom(byteString);
+    Assert.assertEquals("appId-1-1", resourceRequest.getRequestSlotsRequest().getShuffleKey());
+    Assert.assertEquals("hostname", resourceRequest.getRequestSlotsRequest().getHostName());
+    Assert.assertEquals(3, resourceRequest.getRequestSlotsRequest().getWorkerAllocations().size());
   }
 
   @Test

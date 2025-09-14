@@ -36,7 +36,7 @@ public class PushState {
   private final InFlightRequestTracker inFlightRequestTracker;
   // partition id -> CommitMetadata
   private final ConcurrentHashMap<Integer, CommitMetadata> commitMetadataMap =
-      new ConcurrentHashMap<>();
+      JavaUtils.newConcurrentHashMap();
 
   private final Map<String, LocationPushFailedBatches> failedBatchMap;
 
@@ -69,8 +69,8 @@ public class PushState {
     return inFlightRequestTracker.nextBatchId();
   }
 
-  public void addBatch(int batchId, String hostAndPushPort) {
-    inFlightRequestTracker.addBatch(batchId, hostAndPushPort);
+  public void addBatch(int batchId, int batchBytesSize, String hostAndPushPort) {
+    inFlightRequestTracker.addBatch(batchId, batchBytesSize, hostAndPushPort);
   }
 
   public void removeBatch(int batchId, String hostAndPushPort) {

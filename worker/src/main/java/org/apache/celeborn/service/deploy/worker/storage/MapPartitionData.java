@@ -28,7 +28,8 @@ import java.util.function.Consumer;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
-import org.apache.commons.io.IOUtils;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +52,8 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
       JavaUtils.newConcurrentHashMap();
   private FileChannel dataFileChanel;
   private FileChannel indexChannel;
-  private long indexSize;
+  private FSDataInputStream hdfsDataInputStream;
+  private FSDataInputStream hdfsIndexInputStream;
   private volatile boolean isReleased = false;
   private final BufferQueue bufferQueue = new BufferQueue();
   private AtomicBoolean bufferQueueInitialized = new AtomicBoolean(false);
@@ -95,10 +97,21 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
                     threadsPerMountPoint,
                     String.format("worker-map-partition-%s-reader", mapFileMeta.getMountPoint()),
                     false));
-    this.dataFileChanel = FileChannelUtils.openReadableFileChannel(diskFileInfo.getFilePath());
-    this.indexChannel = FileChannelUtils.openReadableFileChannel(diskFileInfo.getIndexPath());
-    this.indexSize = indexChannel.size();
 
+    if (diskFileInfo.isDFS()) {
+      this.hdfsDataInputStream =
+          StorageManager.hadoopFs()
+              .get(diskFileInfo.getStorageType())
+              .open(new Path(diskFileInfo.getFilePath()));
+      this.hdfsIndexInputStream =
+          StorageManager.hadoopFs()
+              .get(diskFileInfo.getStorageType())
+              .open(new Path(diskFileInfo.getIndexPath()));
+
+    } else {
+      this.dataFileChanel = FileChannelUtils.openReadableFileChannel(diskFileInfo.getFilePath());
+      this.indexChannel = FileChannelUtils.openReadableFileChannel(diskFileInfo.getIndexPath());
+    }
     MemoryManager.instance().addReadBufferTargetChangeListener(this);
   }
 
@@ -174,7 +187,7 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
   }
 
   protected void openReader(MapPartitionDataReader reader) throws IOException {
-    reader.open(dataFileChanel, indexChannel, indexSize);
+    reader.open(dataFileChanel, indexChannel, hdfsDataInputStream, hdfsIndexInputStream);
   }
 
   public synchronized void readBuffers() {
@@ -252,15 +265,15 @@ public class MapPartitionData implements MemoryManager.ReadBufferTargetChangeLis
     bufferQueue.release();
     isReleased = true;
 
-    IOUtils.closeQuietly(dataFileChanel);
-    IOUtils.closeQuietly(indexChannel);
+    readers.values().forEach(MapPartitionDataReader::close);
+    readers.clear();
 
     MemoryManager.instance().removeReadBufferTargetChangeListener(this);
   }
 
   @Override
   public String toString() {
-    return "MapDataPartition{" + "fileInfo=" + diskFileInfo.getFilePath() + '}';
+    return "MapPartitionData{" + "fileInfo=" + diskFileInfo.getFilePath() + '}';
   }
 
   public ConcurrentHashMap<Long, MapPartitionDataReader> getReaders() {

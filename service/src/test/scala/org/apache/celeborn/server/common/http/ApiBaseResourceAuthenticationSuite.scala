@@ -26,7 +26,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.authentication.HttpAuthSchemes
 import org.apache.celeborn.common.network.TestHelper
 import org.apache.celeborn.server.common.http.HttpAuthUtils.AUTHORIZATION_HEADER
-import org.apache.celeborn.server.common.http.authentication.{UserDefinePasswordAuthenticationProviderImpl, UserDefineTokenAuthenticationProviderImpl}
+import org.apache.celeborn.server.common.http.authentication.{UserDefinedPasswordAuthenticationProviderImpl, UserDefineTokenAuthenticationProviderImpl}
 
 abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
   val administers = Seq("celeborn", "celeborn2")
@@ -38,14 +38,14 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
     .set(CelebornConf.MASTER_HTTP_AUTH_SUPPORTED_SCHEMES, Seq("BASIC", "BEARER"))
     .set(
       CelebornConf.MASTER_HTTP_AUTH_BASIC_PROVIDER,
-      classOf[UserDefinePasswordAuthenticationProviderImpl].getName)
+      classOf[UserDefinedPasswordAuthenticationProviderImpl].getName)
     .set(
       CelebornConf.MASTER_HTTP_AUTH_BEARER_PROVIDER,
       classOf[UserDefineTokenAuthenticationProviderImpl].getName)
     .set(CelebornConf.WORKER_HTTP_AUTH_SUPPORTED_SCHEMES, Seq("BASIC", "BEARER"))
     .set(
       CelebornConf.WORKER_HTTP_AUTH_BASIC_PROVIDER,
-      classOf[UserDefinePasswordAuthenticationProviderImpl].getName)
+      classOf[UserDefinedPasswordAuthenticationProviderImpl].getName)
     .set(
       CelebornConf.WORKER_HTTP_AUTH_BEARER_PROVIDER,
       classOf[UserDefineTokenAuthenticationProviderImpl].getName)
@@ -67,7 +67,7 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
           AUTHORIZATION_HEADER,
           basicAuthorizationHeader(
             "user",
-            UserDefinePasswordAuthenticationProviderImpl.VALID_PASSWORD))
+            UserDefinedPasswordAuthenticationProviderImpl.VALID_PASSWORD))
         .get()
       assert(HttpServletResponse.SC_OK == response.getStatus)
 
@@ -126,7 +126,7 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
           AUTHORIZATION_HEADER,
           basicAuthorizationHeader(
             "no_admin",
-            UserDefinePasswordAuthenticationProviderImpl.VALID_PASSWORD))
+            UserDefinedPasswordAuthenticationProviderImpl.VALID_PASSWORD))
         .post(null)
       assert(HttpServletResponse.SC_FORBIDDEN == response.getStatus)
 
@@ -137,7 +137,7 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
             AUTHORIZATION_HEADER,
             basicAuthorizationHeader(
               admin,
-              UserDefinePasswordAuthenticationProviderImpl.VALID_PASSWORD))
+              UserDefinedPasswordAuthenticationProviderImpl.VALID_PASSWORD))
           .post(null)
         // pass the admin privilege check, but the api is not found
         assert(HttpServletResponse.SC_NOT_FOUND == response.getStatus)

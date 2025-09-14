@@ -77,9 +77,13 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
     val transConf = new TransportConf("shuffle", new CelebornConf)
     val allocator = NettyUtils.getByteBufAllocator(transConf, source, false)
     val evictedFileCount = new AtomicLong()
+    val evictedLocalFileCount = new AtomicLong()
+    val evictedDfsFileCount = new AtomicLong()
     when(storageManager.storageBufferAllocator).thenReturn(allocator)
     when(storageManager.localOrDfsStorageAvailable).thenReturn(true)
     when(storageManager.evictedFileCount).thenReturn(evictedFileCount)
+    when(storageManager.evictedLocalFileCount).thenReturn(evictedLocalFileCount)
+    when(storageManager.evictedDfsFileCount).thenReturn(evictedDfsFileCount)
 
     MemoryManager.initialize(celebornConf, storageManager, null)
 
@@ -213,7 +217,8 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
       256,
       "disk1",
       StorageInfo.Type.HDD,
-      null)
+      null,
+      celebornConf.workerFlusherBufferSize)
     val storageManager: StorageManager = Mockito.mock(classOf[StorageManager])
 
     MemoryManager.initialize(celebornConf, storageManager, null)

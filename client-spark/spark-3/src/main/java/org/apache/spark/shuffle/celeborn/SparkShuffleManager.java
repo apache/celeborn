@@ -268,8 +268,9 @@ public class SparkShuffleManager implements ShuffleManager {
       _sortShuffleManager.stop();
       _sortShuffleManager = null;
     }
-    if (celebornConf.clientFetchCleanFailedShuffle()) {
-      failedShuffleCleaner.reset();
+    if (failedShuffleCleaner != null) {
+      failedShuffleCleaner.stop();
+      failedShuffleCleaner = null;
     }
   }
 

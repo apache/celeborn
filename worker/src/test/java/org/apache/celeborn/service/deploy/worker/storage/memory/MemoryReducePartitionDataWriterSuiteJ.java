@@ -123,12 +123,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                     storageManager))
         .when(storagePolicy)
         .createFileWriter(
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.any(),
-            Mockito.anyBoolean());
+            Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyBoolean());
 
     return storageManager;
   }
@@ -162,8 +157,12 @@ public class MemoryReducePartitionDataWriterSuiteJ {
     storagePolicy = Mockito.mock(StoragePolicy.class);
 
     AtomicLong evictCount = new AtomicLong();
+    AtomicLong evictLocalCount = new AtomicLong();
+    AtomicLong evictDfsCount = new AtomicLong();
     Mockito.when(storageManager.storagePolicy()).thenAnswer(a -> storagePolicy);
     Mockito.when(storageManager.evictedFileCount()).thenAnswer(a -> evictCount);
+    Mockito.when(storageManager.evictedLocalFileCount()).thenAnswer(a -> evictLocalCount);
+    Mockito.when(storageManager.evictedDfsFileCount()).thenAnswer(a -> evictDfsCount);
     Mockito.when(storageManager.localOrDfsStorageAvailable()).thenAnswer(a -> true);
     Mockito.when(storageManager.storageBufferAllocator()).thenAnswer(a -> allocator);
     MemoryManager.initialize(conf, storageManager, null);
@@ -302,10 +301,10 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, CONF, source, writerContext),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            writerContext,
-            PartitionType.REDUCE);
+            writerContext);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-1");
@@ -356,10 +355,10 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, CONF, source, writerContext),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            writerContext,
-            PartitionType.REDUCE);
+            writerContext);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-1");
@@ -419,10 +418,10 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 flushNotifier,
                 context1,
                 storagePolicy),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context1,
-            PartitionType.REDUCE);
+            context1);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");
@@ -480,10 +479,10 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 flushNotifier,
                 context,
                 storagePolicy),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context,
-            PartitionType.REDUCE);
+            context);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");
@@ -568,10 +567,10 @@ public class MemoryReducePartitionDataWriterSuiteJ {
                 flushNotifier,
                 context,
                 storagePolicy),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context,
-            PartitionType.REDUCE);
+            context);
 
     List<Future<?>> futures = new ArrayList<>();
     ExecutorService es = ThreadUtils.newDaemonFixedThreadPool(threadsNum, "FileWriter-UT-2");
@@ -626,6 +625,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
     closeChunkServer();
 
     assert storageManager.evictedFileCount().get() > 0;
+    assert storageManager.evictedLocalFileCount().get() > 0;
     assert MemoryManager.instance().getMemoryFileStorageCounter() == memoryFileStorageBefore;
   }
 
@@ -690,10 +690,10 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext1),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            writerContext1,
-            PartitionType.REDUCE);
+            writerContext1);
     partitionDataWriter.write(generateDataWithHeader(8 * 1024 * 1024));
     partitionDataWriter.close();
     ReduceFileMeta reduceFileMeta =
@@ -722,10 +722,10 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext2),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            writerContext2,
-            PartitionType.REDUCE);
+            writerContext2);
     for (int i = 0; i < 8; i++) {
       partitionDataWriter.write(generateDataWithHeader(128));
     }
@@ -754,10 +754,10 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext3),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            writerContext3,
-            PartitionType.REDUCE);
+            writerContext3);
     partitionDataWriter.write(generateDataWithHeader(1020));
     partitionDataWriter.write(generateDataWithHeader(3));
     partitionDataWriter.close();
@@ -785,10 +785,10 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext4),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            writerContext4,
-            PartitionType.REDUCE);
+            writerContext4);
     for (int i = 0; i < 8; i++) {
       partitionDataWriter.write(generateDataWithHeader(128));
     }
@@ -818,10 +818,10 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext5),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            writerContext5,
-            PartitionType.REDUCE);
+            writerContext5);
     for (int i = 0; i < 16; i++) {
       partitionDataWriter.write(generateDataWithHeader(128));
     }
@@ -850,10 +850,10 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext6),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            writerContext6,
-            PartitionType.REDUCE);
+            writerContext6);
     for (int i = 0; i < 16; i++) {
       partitionDataWriter.write(generateDataWithHeader(128));
     }
@@ -884,10 +884,10 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext7),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            writerContext7,
-            PartitionType.REDUCE);
+            writerContext7);
     for (int i = 0; i < 16; i++) {
       partitionDataWriter.write(generateDataWithHeader(128));
     }
@@ -917,10 +917,10 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext8),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            writerContext8,
-            PartitionType.REDUCE);
+            writerContext8);
     partitionDataWriter.write(generateDataWithHeader(1024));
     for (int i = 0; i < 9; i++) {
       partitionDataWriter.write(generateDataWithHeader(128));
@@ -951,10 +951,10 @@ public class MemoryReducePartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
                 userIdentifier, true, storageManager, storagePolicy, conf, source, writerContext9),
+            source,
             conf,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            writerContext9,
-            PartitionType.REDUCE);
+            writerContext9);
     partitionDataWriter.write(generateDataWithHeader(1024));
     for (int i = 0; i < 9; i++) {
       partitionDataWriter.write(generateDataWithHeader(128));

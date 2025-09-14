@@ -145,18 +145,27 @@ class FetchHandler(
         val readLocalFlags = openStreamList.getReadLocalShuffleList
         val pbOpenStreamListResponse = PbOpenStreamListResponse.newBuilder()
         checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
-        0 until files.size() foreach { idx =>
-          val pbStreamHandlerOpt = handleReduceOpenStreamInternal(
-            client,
-            shuffleKey,
-            files.get(idx),
-            startIndices.get(idx),
-            endIndices.get(idx),
-            readLocalFlags.get(idx))
-          if (pbStreamHandlerOpt.getStatus != StatusCode.SUCCESS.getValue) {
-            workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
+        val openStreamRequestId = Utils.makeOpenStreamRequestId(
+          shuffleKey,
+          client.getChannel.id().toString,
+          rpcRequest.requestId)
+        workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, openStreamRequestId)
+        try {
+          0 until files.size() foreach { idx =>
+            val pbStreamHandlerOpt = handleReduceOpenStreamInternal(
+              client,
+              shuffleKey,
+              files.get(idx),
+              startIndices.get(idx),
+              endIndices.get(idx),
+              readLocalFlags.get(idx))
+            if (pbStreamHandlerOpt.getStatus != StatusCode.SUCCESS.getValue) {
+              workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
+            }
+            pbOpenStreamListResponse.addStreamHandlerOpt(pbStreamHandlerOpt)
           }
-          pbOpenStreamListResponse.addStreamHandlerOpt(pbStreamHandlerOpt)
+        } finally {
+          workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, openStreamRequestId)
         }
 
         client.getChannel.writeAndFlush(new RpcResponse(
@@ -337,8 +346,6 @@ class FetchHandler(
             client.getChannel)}, Exception: ${e.getMessage}"
         PbStreamHandlerOpt.newBuilder().setStatus(StatusCode.OPEN_STREAM_FAILED.getValue)
           .setErrorMsg(msg).build()
-    } finally {
-      workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, shuffleKey)
     }
   }
 

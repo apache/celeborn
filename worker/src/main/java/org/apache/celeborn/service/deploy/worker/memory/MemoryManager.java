@@ -209,10 +209,10 @@ public class MemoryManager {
           () -> {
             try {
               if (creditStreamManager != null) {
-                int mapDataPartitionCount = creditStreamManager.getActiveMapPartitionCount();
-                if (mapDataPartitionCount > 0) {
+                int mapPartitionDataCount = creditStreamManager.getActiveMapPartitionCount();
+                if (mapPartitionDataCount > 0) {
                   long currentTarget =
-                      (long) Math.ceil(readBufferTarget * 1.0 / mapDataPartitionCount);
+                      (long) Math.ceil(readBufferTarget * 1.0 / mapPartitionDataCount);
                   if (Math.abs(lastNotifiedTarget - currentTarget)
                       > readBufferTargetNotifyThreshold) {
                     synchronized (readBufferTargetChangeListeners) {
@@ -220,7 +220,7 @@ public class MemoryManager {
                           "read buffer target changed {} -> {} active map partition count {}",
                           lastNotifiedTarget,
                           currentTarget,
-                          mapDataPartitionCount);
+                          mapPartitionDataCount);
                       for (ReadBufferTargetChangeListener changeListener :
                           readBufferTargetChangeListeners) {
                         changeListener.onChange(currentTarget);
@@ -518,6 +518,14 @@ public class MemoryManager {
     return pausePushDataTime;
   }
 
+  public int getPushPausedStatus() {
+    return currentServingState() == ServingState.PUSH_PAUSED ? 1 : 0;
+  }
+
+  public int getPushAndReplicatePausedStatus() {
+    return currentServingState() == ServingState.PUSH_AND_REPLICATE_PAUSED ? 1 : 0;
+  }
+
   public long getPausePushDataAndReplicateTime() {
     return pausePushDataAndReplicateTime;
   }
@@ -597,11 +605,13 @@ public class MemoryManager {
             getNettyPinnedDirectMemory());
         resumeReplicate();
         resumePush();
+        break;
       case PUSH_PAUSED:
         logger.info(
             "Serving State is PUSH_PAUSED, but resume by lower pinned memory {}",
             getNettyPinnedDirectMemory());
         resumePush();
+        break;
     }
   }
 

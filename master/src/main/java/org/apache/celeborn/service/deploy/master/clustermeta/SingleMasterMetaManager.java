@@ -47,7 +47,20 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
     this.unhealthyDiskRatioThreshold = conf.masterExcludeWorkerUnhealthyDiskRatioThreshold();
+    this.autoReleaseHighWorkLoadEnabled = conf.masterAutoReleaseHighWorkloadWorkerEnabled();
+    this.autoReleaseHighWorkLoadRatioThreshold =
+        conf.masterAutoReleaseHighWorkloadWorkerRatioThreshold();
+    this.hasRemoteStorage = conf.remoteStorageDirs().isDefined();
     this.rackResolver = rackResolver;
+  }
+
+  @Override
+  public void handleRegisterApplicationInfo(
+      String appId,
+      UserIdentifier userIdentifier,
+      Map<String, String> extraInfo,
+      String requestId) {
+    updateApplicationInfo(appId, userIdentifier, extraInfo);
   }
 
   @Override

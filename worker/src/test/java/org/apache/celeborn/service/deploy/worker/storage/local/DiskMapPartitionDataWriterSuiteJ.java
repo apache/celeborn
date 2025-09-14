@@ -91,7 +91,8 @@ public class DiskMapPartitionDataWriterSuiteJ {
             256,
             "disk1",
             StorageInfo.Type.HDD,
-            null);
+            null,
+            CONF.workerFlusherBufferSize());
 
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(), "0.8");
@@ -137,10 +138,10 @@ public class DiskMapPartitionDataWriterSuiteJ {
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
                 tempDir, userIdentifier, localFlusher, false, CONF, storagePolicy, context),
+            source,
             CONF,
             DeviceMonitor$.MODULE$.EmptyMonitor(),
-            context,
-            PartitionType.MAP);
+            context);
     fileWriter.handleEvents(
         PbPushDataHandShake.newBuilder().setNumPartitions(2).setBufferSize(32).build());
     fileWriter.handleEvents(
@@ -162,6 +163,12 @@ public class DiskMapPartitionDataWriterSuiteJ {
 
     assertEquals(length.get(), bytesWritten);
     assertEquals(new File(fileWriter.getFilePath()).length(), bytesWritten);
+    assert scala.collection.JavaConverters.asJavaCollectionConverter(source.histograms().toSeq())
+        .asJavaCollection().stream()
+        .anyMatch(
+            histogram ->
+                histogram.name().equals(WorkerSource.PARTITION_FILE_SIZE())
+                    && histogram.histogram().getSnapshot().getMax() > 0);
   }
 
   private byte[] generateData(int partitionId) {

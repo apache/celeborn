@@ -63,6 +63,15 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
 
   addCounter(COMMIT_FILES_FAIL_COUNT)
 
+  addCounter(LOCAL_FLUSH_COUNT)
+  addCounter(LOCAL_FLUSH_SIZE)
+  addCounter(HDFS_FLUSH_COUNT)
+  addCounter(HDFS_FLUSH_SIZE)
+  addCounter(OSS_FLUSH_COUNT)
+  addCounter(OSS_FLUSH_SIZE)
+  addCounter(S3_FLUSH_COUNT)
+  addCounter(S3_FLUSH_SIZE)
+
   // add timers
   addTimer(COMMIT_FILES_TIME)
   addTimer(RESERVE_SLOTS_TIME)
@@ -185,9 +194,11 @@ object WorkerSource {
 
   // pause push data
   val PAUSE_PUSH_DATA_TIME = "PausePushDataTime"
-  val PAUSE_PUSH_DATA_AND_REPLICATE_TIME = "PausePushDataAndReplicateTime"
   val PAUSE_PUSH_DATA_COUNT = "PausePushData"
+  val PAUSE_PUSH_DATA_STATUS = "PausePushDataStatus"
+  val PAUSE_PUSH_DATA_AND_REPLICATE_TIME = "PausePushDataAndReplicateTime"
   val PAUSE_PUSH_DATA_AND_REPLICATE_COUNT = "PausePushDataAndReplicate"
+  val PAUSE_PUSH_DATA_AND_REPLICATE_STATUS = "PausePushDataAndReplicateStatus"
 
   // flush
   val TAKE_BUFFER_TIME = "TakeBufferTime"
@@ -195,6 +206,14 @@ object WorkerSource {
   val COMMIT_FILES_TIME = "CommitFilesTime"
   val COMMIT_FILES_FAIL_COUNT = "CommitFilesFailCount"
   val FLUSH_WORKING_QUEUE_SIZE = "FlushWorkingQueueSize"
+  val LOCAL_FLUSH_COUNT = "LocalFlushCount"
+  val LOCAL_FLUSH_SIZE = "LocalFlushSize"
+  val HDFS_FLUSH_COUNT = "HdfsFlushCount"
+  val HDFS_FLUSH_SIZE = "HdfsFlushSize"
+  val OSS_FLUSH_COUNT = "OssFlushCount"
+  val OSS_FLUSH_SIZE = "OssFlushSize"
+  val S3_FLUSH_COUNT = "S3FlushCount"
+  val S3_FLUSH_SIZE = "S3FlushSize"
 
   // slots
   val SLOTS_ALLOCATED = "SlotsAllocated"
@@ -212,6 +231,7 @@ object WorkerSource {
   val PENDING_SORT_TASKS = "PendingSortTasks"
   val SORTED_FILES = "SortedFiles"
   val SORTED_FILE_SIZE = "SortedFileSize"
+  val SORTER_CACHE_HIT_RATE = "SorterCacheHitRate"
   val DISK_BUFFER = "DiskBuffer"
   val BUFFER_STREAM_READ_BUFFER = "BufferStreamReadBuffer"
   val READ_BUFFER_DISPATCHER_REQUESTS_LENGTH = "ReadBufferDispatcherRequestsLength"
@@ -219,8 +239,12 @@ object WorkerSource {
   val MEMORY_FILE_STORAGE_SIZE = "MemoryFileStorageSize"
   val DIRECT_MEMORY_USAGE_RATIO = "DirectMemoryUsageRatio"
   val EVICTED_FILE_COUNT = "EvictedFileCount"
+  val EVICTED_LOCAL_FILE_COUNT = "EvictedLocalFileCount"
+  val EVICTED_DFS_FILE_COUNT = "EvictedDfsFileCount"
 
   val MEMORY_STORAGE_FILE_COUNT = "MemoryStorageFileCount"
+
+  val IS_HIGH_WORKLOAD = "IsHighWorkload"
 
   // credit
   val ACTIVE_CREDIT_STREAM_COUNT = "ActiveCreditStreamCount"

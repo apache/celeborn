@@ -56,6 +56,9 @@ public class HAMasterMetaManager extends AbstractMetaManager {
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
     this.estimatedPartitionSize = initialEstimatedPartitionSize;
     this.unhealthyDiskRatioThreshold = conf.masterExcludeWorkerUnhealthyDiskRatioThreshold();
+    this.autoReleaseHighWorkLoadEnabled = conf.masterAutoReleaseHighWorkloadWorkerEnabled();
+    this.autoReleaseHighWorkLoadRatioThreshold =
+        conf.masterAutoReleaseHighWorkloadWorkerRatioThreshold();
     this.rackResolver = rackResolver;
   }
 
@@ -65,6 +68,34 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   public void setRatisServer(HARaftServer ratisServer) {
     this.ratisServer = ratisServer;
+  }
+
+  @Override
+  public void handleRegisterApplicationInfo(
+      String appId,
+      UserIdentifier userIdentifier,
+      Map<String, String> extraInfo,
+      String requestId) {
+    try {
+      ratisServer.submitRequest(
+          ResourceRequest.newBuilder()
+              .setCmdType(Type.RegisterApplicationInfo)
+              .setRequestId(requestId)
+              .setRegisterApplicationInfoRequest(
+                  ResourceProtos.RegisterApplicationInfoRequest.newBuilder()
+                      .setAppId(appId)
+                      .setUserIdentifier(
+                          ResourceProtos.UserIdentifier.newBuilder()
+                              .setTenantId(userIdentifier.tenantId())
+                              .setName(userIdentifier.name())
+                              .build())
+                      .putAllExtraInfo(extraInfo)
+                      .build())
+              .build());
+    } catch (CelebornRuntimeException e) {
+      LOG.error("Handle app lost for {} failed!", appId, e);
+      throw e;
+    }
   }
 
   @Override

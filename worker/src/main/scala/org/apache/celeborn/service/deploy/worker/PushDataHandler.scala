@@ -265,7 +265,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       logWarning(
         s"[handlePushData] FileWriter is already closed! File path ${fileInfo.getFilePath} " +
           s"length ${fileInfo.getFileLength}")
-      callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
+      callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
       fileWriter.decrementPendingWrites()
       return
     }
@@ -337,7 +337,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             }
 
             override def onFailure(e: Throwable): Unit = {
-              logError(s"PushData replication failed for partitionLocation: $location", e)
+              logError(
+                s"PushData replication failed for shuffle: $shuffleKey, partitionLocation: $location",
+                e)
               // 1. Throw PUSH_DATA_WRITE_FAIL_REPLICA by replica peer worker
               // 2. Throw PUSH_DATA_TIMEOUT_REPLICA by TransportResponseHandler
               // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_REPLICA
@@ -717,7 +719,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             }
 
             override def onFailure(e: Throwable): Unit = {
-              logError(s"PushMergedData replicate failed for partitionLocation: $location", e)
+              logError(
+                s"PushMergedData replicate failed for shuffle: $shuffleKey, partitionLocation: $location",
+                e)
               // 1. Throw PUSH_DATA_WRITE_FAIL_REPLICA by replica peer worker
               // 2. Throw PUSH_DATA_TIMEOUT_REPLICA by TransportResponseHandler
               // 3. Throw IOException by channel, convert to PUSH_DATA_CONNECTION_EXCEPTION_REPLICA

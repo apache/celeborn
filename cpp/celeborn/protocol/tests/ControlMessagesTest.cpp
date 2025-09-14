@@ -62,6 +62,133 @@ void verifyUnpackedPartitionLocation(
 }
 } // namespace
 
+TEST(ControlMessagesTest, registerShuffle) {
+  auto registerShuffle = std::make_unique<RegisterShuffle>();
+  registerShuffle->shuffleId = 1000;
+  registerShuffle->numMappers = 1001;
+  registerShuffle->numPartitions = 1002;
+
+  auto transportMessage = registerShuffle->toTransportMessage();
+  EXPECT_EQ(transportMessage.type(), REGISTER_SHUFFLE);
+  auto payload = transportMessage.payload();
+  auto pbRegisterShuffle = utils::parseProto<PbRegisterShuffle>(
+      reinterpret_cast<const uint8_t*>(payload.c_str()), payload.size());
+  EXPECT_EQ(pbRegisterShuffle->shuffleid(), registerShuffle->shuffleId);
+  EXPECT_EQ(pbRegisterShuffle->nummappers(), registerShuffle->numMappers);
+  EXPECT_EQ(pbRegisterShuffle->numpartitions(), registerShuffle->numPartitions);
+}
+
+TEST(ControlMessagesTest, registerShuffleResponse) {
+  const int statusCodeId = 1;
+  PbRegisterShuffleResponse pbRegisterShuffleResponse;
+  pbRegisterShuffleResponse.set_status(statusCodeId);
+  auto pbPackedPartitionLocationsPair =
+      pbRegisterShuffleResponse.mutable_packedpartitionlocationspair();
+  auto pbPackedPartitionLocations =
+      pbPackedPartitionLocationsPair->mutable_locations();
+  // Has one inputLocation, with offset 0.
+  pbPackedPartitionLocationsPair->set_inputlocationsize(1);
+  // The peerIndex 1 is replica.
+  pbPackedPartitionLocationsPair->add_peerindexes(1);
+  // Add the two partitionLocations, one is primary and the other is replica.
+  generatePackedPartitionLocationPb(
+      *pbPackedPartitionLocations, 0, PartitionLocation::Mode::PRIMARY);
+  generatePackedPartitionLocationPb(
+      *pbPackedPartitionLocations, 1, PartitionLocation::Mode::REPLICA);
+
+  TransportMessage transportMessage(
+      REGISTER_SHUFFLE_RESPONSE, pbRegisterShuffleResponse.SerializeAsString());
+  auto registerShuffleResponse =
+      RegisterShuffleResponse::fromTransportMessage(transportMessage);
+  EXPECT_EQ(registerShuffleResponse->status, statusCodeId);
+  const auto& partitionLocations = registerShuffleResponse->partitionLocations;
+  EXPECT_EQ(partitionLocations.size(), 1);
+  auto primaryPartitionLocation = partitionLocations.begin()->get();
+  verifyUnpackedPartitionLocation(primaryPartitionLocation);
+  EXPECT_EQ(primaryPartitionLocation->mode, PartitionLocation::Mode::PRIMARY);
+  auto replicaPartitionLocation = primaryPartitionLocation->replicaPeer.get();
+  verifyUnpackedPartitionLocation(replicaPartitionLocation);
+  EXPECT_EQ(replicaPartitionLocation->mode, PartitionLocation::Mode::REPLICA);
+}
+
+TEST(ControlMessagesTest, mapperEnd) {
+  auto mapperEnd = std::make_unique<MapperEnd>();
+  mapperEnd->shuffleId = 1000;
+  mapperEnd->mapId = 1001;
+  mapperEnd->attemptId = 1002;
+  mapperEnd->numMappers = 1003;
+  mapperEnd->partitionId = 1004;
+
+  auto transportMessage = mapperEnd->toTransportMessage();
+  EXPECT_EQ(transportMessage.type(), MAPPER_END);
+  auto payload = transportMessage.payload();
+  auto pbMapperEnd = utils::parseProto<PbMapperEnd>(
+      reinterpret_cast<const uint8_t*>(payload.c_str()), payload.size());
+  EXPECT_EQ(pbMapperEnd->shuffleid(), mapperEnd->shuffleId);
+  EXPECT_EQ(pbMapperEnd->mapid(), mapperEnd->mapId);
+  EXPECT_EQ(pbMapperEnd->attemptid(), mapperEnd->attemptId);
+  EXPECT_EQ(pbMapperEnd->nummappers(), mapperEnd->numMappers);
+  EXPECT_EQ(pbMapperEnd->partitionid(), mapperEnd->partitionId);
+}
+
+TEST(ControlMessagesTest, mapperEndResponse) {
+  PbMapperEndResponse pbMapperEndResponse;
+  pbMapperEndResponse.set_status(1);
+  TransportMessage transportMessage(
+      MAPPER_END_RESPONSE, pbMapperEndResponse.SerializeAsString());
+
+  auto mapperEndResponse =
+      MapperEndResponse::fromTransportMessage(transportMessage);
+  EXPECT_EQ(mapperEndResponse->status, 1);
+}
+
+TEST(ControlMessagesTest, revive) {
+  auto revive = std::make_unique<Revive>();
+  revive->shuffleId = 1000;
+  revive->mapIds.insert(1001);
+  auto reviveRequest = std::make_shared<ReviveRequest>(
+      1000, 1001, 1002, 1003, 1004, nullptr, StatusCode::SLOT_NOT_AVAILABLE);
+  revive->reviveRequests.insert(reviveRequest);
+
+  auto transportMessage = revive->toTransportMessage();
+  EXPECT_EQ(transportMessage.type(), CHANGE_LOCATION);
+  auto payload = transportMessage.payload();
+  auto pbRevive = utils::parseProto<PbRevive>(
+      reinterpret_cast<const uint8_t*>(payload.c_str()), payload.size());
+  EXPECT_EQ(pbRevive->shuffleid(), 1000);
+  EXPECT_EQ(pbRevive->mapid_size(), 1);
+  EXPECT_EQ(pbRevive->mapid(0), 1001);
+  EXPECT_EQ(pbRevive->partitioninfo_size(), 1);
+  auto& pbPartitionInfo = pbRevive->partitioninfo(0);
+  EXPECT_EQ(pbPartitionInfo.partitionid(), reviveRequest->partitionId);
+  EXPECT_EQ(pbPartitionInfo.epoch(), reviveRequest->epoch);
+  EXPECT_EQ(pbPartitionInfo.status(), reviveRequest->cause);
+}
+
+TEST(ControlMessagesTest, changeLocationResponse) {
+  PbChangeLocationResponse pbChangeLocationResponse;
+  pbChangeLocationResponse.add_endedmapid(1001);
+  auto pbPartitionInfo = pbChangeLocationResponse.add_partitioninfo();
+  pbPartitionInfo->set_partitionid(1002);
+  pbPartitionInfo->set_status(1);
+  pbPartitionInfo->set_oldavailable(true);
+  auto pbPartition = pbPartitionInfo->mutable_partition();
+  pbPartition->set_epoch(1003);
+
+  TransportMessage transportMessage(
+      CHANGE_LOCATION_RESPONSE, pbChangeLocationResponse.SerializeAsString());
+  auto changeLocationResponse =
+      ChangeLocationResponse::fromTransportMessage(transportMessage);
+  EXPECT_EQ(changeLocationResponse->endedMapIds.size(), 1);
+  EXPECT_EQ(changeLocationResponse->endedMapIds[0], 1001);
+  EXPECT_EQ(changeLocationResponse->partitionInfos.size(), 1);
+  auto partitionInfo = &changeLocationResponse->partitionInfos[0];
+  EXPECT_EQ(partitionInfo->partitionId, 1002);
+  EXPECT_EQ(partitionInfo->status, 1);
+  EXPECT_EQ(partitionInfo->oldAvailable, true);
+  EXPECT_EQ(partitionInfo->partition->epoch, 1003);
+}
+
 TEST(ControlMessagesTest, getReducerFileGroup) {
   auto getReducerFileGroup = std::make_unique<GetReducerFileGroup>();
   getReducerFileGroup->shuffleId = 1000;

@@ -129,6 +129,12 @@ find_package(Sodium REQUIRED)
 find_library(FIZZ fizz REQUIRED)
 find_library(WANGLE wangle REQUIRED)
 
+find_package(LZ4 REQUIRED)
+set(LZ4_WITH_DEPENDENCIES
+        ${LZ4_LIBRARY}
+        xxhash
+)
+
 find_library(RE2 re2)
 
 find_package(fizz CONFIG REQUIRED)

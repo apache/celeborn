@@ -54,6 +54,8 @@ import org.apache.ratis.util.MD5FileUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.protocol.PbMetaRequest;
+import org.apache.celeborn.common.protocol.PbMetaRequestResponse;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
@@ -174,7 +176,7 @@ public class StateMachine extends BaseStateMachine {
   @Override
   public CompletableFuture<Message> applyTransaction(TransactionContext trx) {
     try {
-      ResourceProtos.ResourceRequest request =
+      PbMetaRequest request =
           HAHelper.convertByteStringToRequest(trx.getStateMachineLogEntry().getLogData());
       long trxLogIndex = trx.getLogEntry().getIndex();
       // In the current approach we have one single global thread executor.
@@ -184,14 +186,14 @@ public class StateMachine extends BaseStateMachine {
       // chance that Master replica can be out of sync.
       // Ref: from Ozone project (OzoneManagerStateMachine)
       CompletableFuture<Message> ratisFuture = new CompletableFuture<>();
-      CompletableFuture<ResourceResponse> future =
+      CompletableFuture<PbMetaRequestResponse> future =
           CompletableFuture.supplyAsync(() -> runCommand(request, trxLogIndex), executorService);
       future.thenApply(
           response -> {
             if (!response.getSuccess()) {
               LOG.warn(
                   "Failed to apply log {} for this raft group {}!",
-                  request.getCmdType(),
+                  request.getMetaRequestType(),
                   this.raftGroupId);
             }
 
@@ -212,7 +214,7 @@ public class StateMachine extends BaseStateMachine {
    * @return response from meta system
    */
   @VisibleForTesting
-  protected ResourceResponse runCommand(ResourceProtos.ResourceRequest request, long trxLogIndex) {
+  protected PbMetaRequestResponse runCommand(PbMetaRequest request, long trxLogIndex) {
     try {
       return metaHandler.handleWriteRequest(request);
     } catch (Throwable e) {

@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
+import java.util.{Map => JMap}
 import java.util.Collections
 import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
@@ -74,12 +75,16 @@ private[celeborn] class Master(
     new ResourceConsumptionSource(conf, Role.MASTER)
   private val threadPoolSource = ThreadPoolSource(conf, Role.MASTER)
   private val masterSource = new MasterSource(conf)
+  private val jvmSource = new JVMSource(conf, Role.MASTER)
+  private val jvmCpuSource = new JVMCPUSource(conf, Role.MASTER)
+  private val systemMiscSource = new SystemMiscSource(conf, Role.MASTER)
+
   metricsSystem.registerSource(resourceConsumptionSource)
   metricsSystem.registerSource(masterSource)
   metricsSystem.registerSource(threadPoolSource)
-  metricsSystem.registerSource(new JVMSource(conf, Role.MASTER))
-  metricsSystem.registerSource(new JVMCPUSource(conf, Role.MASTER))
-  metricsSystem.registerSource(new SystemMiscSource(conf, Role.MASTER))
+  metricsSystem.registerSource(jvmSource)
+  metricsSystem.registerSource(jvmCpuSource)
+  metricsSystem.registerSource(systemMiscSource)
 
   private val bindPreferIP: Boolean = conf.bindPreferIP
   private val authEnabled = conf.authEnabled
@@ -163,7 +168,7 @@ private[celeborn] class Master(
             logError(msg, ioe)
             System.exit(1)
           } else {
-            logError("Face unexpected IO exception during staring Ratis server", ioe)
+            logError("Face unexpected IO exception during starting Ratis server", ioe)
           }
       }
       sys
@@ -175,7 +180,7 @@ private[celeborn] class Master(
   // Threads
   private val forwardMessageThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-message-forwarder")
-  private var checkForWorkerTimeOutTask: ScheduledFuture[_] = _
+  private var checkForWorkerTimeoutTask: ScheduledFuture[_] = _
   private var checkForApplicationTimeOutTask: ScheduledFuture[_] = _
   private var checkForUnavailableWorkerTimeOutTask: ScheduledFuture[_] = _
   private var checkForDFSRemnantDirsTimeOutTask: ScheduledFuture[_] = _
@@ -189,9 +194,7 @@ private[celeborn] class Master(
   private val denyWorkerHostPattern = conf.denyWorkerHostPattern
 
   private val dfsExpireDirsTimeoutMS = conf.dfsExpireDirsTimeoutMS
-  private val hasHDFSStorage = conf.hasHDFSStorage
-  private val hasS3Storage = conf.hasS3Storage
-  private val hasOssStorage = conf.hasOssStorage
+  private val remoteStorageDirs = conf.remoteStorageDirs
 
   private val quotaManager = new QuotaManager(
     statusSystem,
@@ -230,6 +233,9 @@ private[celeborn] class Master(
     estimatedPartitionSizeForEstimationUpdateInterval,
     TimeUnit.MILLISECONDS)
   private val slotsAssignPolicy = conf.masterSlotAssignPolicy
+  private val slotsAssignInterruptionAware = conf.masterSlotAssignInterruptionAware
+  private val slotsAssignInterruptionAwareThreshold =
+    conf.masterSlotsAssignInterruptionAwareThreshold
 
   private var hadoopFs: util.Map[StorageInfo.Type, FileSystem] = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
@@ -337,7 +343,7 @@ private[celeborn] class Master(
         "send-application-meta")
     }
 
-    checkForWorkerTimeOutTask = scheduleCheckTask(workerHeartbeatTimeoutMs, pbCheckForWorkerTimeout)
+    checkForWorkerTimeoutTask = scheduleCheckTask(workerHeartbeatTimeoutMs, pbCheckForWorkerTimeout)
     checkForApplicationTimeOutTask =
       scheduleCheckTask(appHeartbeatTimeoutMs / 2, CheckForApplicationTimeOut)
 
@@ -347,7 +353,7 @@ private[celeborn] class Master(
         CheckForWorkerUnavailableInfoTimeout)
     }
 
-    if (hasHDFSStorage || hasS3Storage || hasOssStorage) {
+    if (remoteStorageDirs.isDefined) {
       checkForDFSRemnantDirsTimeOutTask =
         scheduleCheckTask(dfsExpireDirsTimeoutMS, CheckForDFSExpiredDirsTimeout)
     }
@@ -371,7 +377,7 @@ private[celeborn] class Master(
       return
     }
     logInfo("Stopping Celeborn Master.")
-    Option(checkForWorkerTimeOutTask).foreach(_.cancel(true))
+    Option(checkForWorkerTimeoutTask).foreach(_.cancel(true))
     Option(checkForUnavailableWorkerTimeOutTask).foreach(_.cancel(true))
     Option(checkForApplicationTimeOutTask).foreach(_.cancel(true))
     Option(checkForDFSRemnantDirsTimeOutTask).foreach(_.cancel(true))
@@ -381,6 +387,9 @@ private[celeborn] class Master(
       sendApplicationMetaExecutor.shutdownNow()
     }
     messagesHelper.close()
+
+    metricsSystem.stop()
+
     logInfo("Celeborn Master is stopped.")
   }
 
@@ -422,6 +431,13 @@ private[celeborn] class Master(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
+    case RegisterApplicationInfo(appId, userIdentifier, extraInfo, requestId) =>
+      logDebug(
+        s"Received RegisterApplicationInfo request for app $appId/$userIdentifier/$extraInfo.")
+      checkAuth(context, appId)
+      executeWithLeaderChecker(
+        context,
+        handleRegisterApplicationInfo(context, appId, userIdentifier, extraInfo, requestId))
     case HeartbeatFromApplication(
           appId,
           totalWritten,
@@ -965,14 +981,18 @@ private[celeborn] class Master(
               slotsAssignLoadAwareDiskGroupGradient,
               loadAwareFlushTimeWeight,
               loadAwareFetchTimeWeight,
-              requestSlots.availableStorageTypes)
+              requestSlots.availableStorageTypes,
+              slotsAssignInterruptionAware,
+              slotsAssignInterruptionAwareThreshold)
           } else {
             SlotsAllocator.offerSlotsRoundRobin(
               selectedWorkers,
               requestSlots.partitionIdList,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware,
-              requestSlots.availableStorageTypes)
+              requestSlots.availableStorageTypes,
+              slotsAssignInterruptionAware,
+              slotsAssignInterruptionAwareThreshold)
           }
         }
       }
@@ -1125,7 +1145,7 @@ private[celeborn] class Master(
         statusSystem.handleAppLost(appId, requestId)
         quotaManager.handleAppLost(appId)
         logInfo(s"Removed application $appId")
-        if (hasHDFSStorage || hasS3Storage || hasOssStorage) {
+        if (remoteStorageDirs.isDefined) {
           checkAndCleanExpiredAppDirsOnDFS(appId)
         }
         if (context != null) {
@@ -1137,9 +1157,9 @@ private[celeborn] class Master(
 
   private def checkAndCleanExpiredAppDirsOnDFS(expiredDir: String = ""): Unit = {
     initDfs()
-    if (hasHDFSStorage) processDir(conf.hdfsDir, expiredDir)
-    if (hasS3Storage) processDir(conf.s3Dir, expiredDir)
-    if (hasOssStorage) processDir(conf.ossDir, expiredDir)
+    remoteStorageDirs.foreach(_.foreach {
+      case (_, dir) => processDir(dir, expiredDir)
+    })
   }
 
   private def processDir(dfsDir: String, expiredDir: String): Unit = {
@@ -1170,6 +1190,16 @@ private[celeborn] class Master(
         Option(statusSystem.shuffleFallbackCounts.get(fallbackPolicy)).getOrElse(0L)
       }
     }
+  }
+
+  private def handleRegisterApplicationInfo(
+      context: RpcCallContext,
+      appId: String,
+      userIdentifier: UserIdentifier,
+      extraInfo: JMap[String, String],
+      requestId: String): Unit = {
+    statusSystem.handleRegisterApplicationInfo(appId, userIdentifier, extraInfo, requestId)
+    context.reply(OneWayMessageResponse)
   }
 
   private def handleHeartbeatFromApplication(

@@ -40,6 +40,7 @@ import com.google.protobuf.{ByteString, GeneratedMessageV3}
 import io.netty.channel.unix.Errors.NativeIoException
 import org.apache.commons.lang3.SystemUtils
 import org.apache.commons.lang3.time.FastDateFormat
+import org.apache.hadoop.fs.FSDataInputStream
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
@@ -1084,7 +1085,6 @@ object Utils extends Logging {
     value match {
       case 0 => PartitionType.REDUCE
       case 1 => PartitionType.MAP
-      case 2 => PartitionType.MAPGROUP
       case _ =>
         logWarning(s"invalid partitionType $value, fallback to ReducePartition")
         PartitionType.REDUCE
@@ -1175,21 +1175,20 @@ object Utils extends Logging {
   }
 
   @throws[IOException]
-  def checkFileIntegrity(fileChannel: FileChannel, length: Int): Unit = {
-    val remainingBytes = fileChannel.size - fileChannel.position
+  def checkFileIntegrity(remainingBytes: Long, length: Int, filePath: String): Unit = {
     if (remainingBytes < length) {
       logError(
-        s"File remaining bytes not not enough, remaining: ${remainingBytes}, wanted: ${length}.")
-      throw new RuntimeException(s"File is corrupted ${fileChannel}")
+        s"File remaining bytes not not enough, remaining: $remainingBytes, wanted: $length.")
+      throw new RuntimeException(s"File is corrupted $filePath")
     }
   }
 
-  def parseMetricLabels(label: String): (String, String) = {
-    val labelPart = label.split("=")
-    if (labelPart.size != 2) {
-      throw new IllegalArgumentException(s"Illegal metric extra labels: $label")
+  def parseKeyValuePair(pair: String): (String, String) = {
+    val parts = pair.split("=")
+    if (parts.size != 2) {
+      throw new IllegalArgumentException(s"Illegal kay=value pair: $pair")
     }
-    labelPart(0).trim -> labelPart(1).trim
+    parts(0).trim -> parts(1).trim
   }
 
   def getProcessId: String = ManagementFactory.getRuntimeMXBean.getName.split("@")(0)

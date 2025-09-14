@@ -63,6 +63,7 @@ public class SlotsAllocatorJmhBenchmark {
               diskPartitionToSize,
               PARTITION_SIZE,
               NUM_NETWORK_LOCATIONS,
+              false,
               new Random());
     }
   }
@@ -78,7 +79,13 @@ public class SlotsAllocatorJmhBenchmark {
 
     blackhole.consume(
         SlotsAllocator.offerSlotsRoundRobin(
-            state.workers, state.partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK));
+            state.workers,
+            state.partitionIds,
+            true,
+            true,
+            StorageInfo.ALL_TYPES_AVAILABLE_MASK,
+            false,
+            0));
   }
 
   public static void main(String[] args) throws Exception {

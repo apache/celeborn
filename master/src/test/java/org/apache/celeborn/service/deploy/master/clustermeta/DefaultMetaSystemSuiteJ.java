@@ -704,8 +704,8 @@ public class DefaultMetaSystemSuiteJ {
         workerStatus,
         getNewReqeustId());
 
-    assertEquals(statusSystem.excludedWorkers.size(), 1);
-    assertEquals(statusSystem.availableWorkers.size(), 2);
+    assertEquals(1, statusSystem.excludedWorkers.size());
+    assertEquals(2, statusSystem.availableWorkers.size());
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME2,
@@ -720,8 +720,8 @@ public class DefaultMetaSystemSuiteJ {
         workerStatus,
         getNewReqeustId());
 
-    assertEquals(statusSystem.excludedWorkers.size(), 2);
-    assertEquals(statusSystem.availableWorkers.size(), 1);
+    assertEquals(2, statusSystem.excludedWorkers.size());
+    assertEquals(1, statusSystem.availableWorkers.size());
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME3,
@@ -736,8 +736,8 @@ public class DefaultMetaSystemSuiteJ {
         workerStatus,
         getNewReqeustId());
 
-    assertEquals(statusSystem.excludedWorkers.size(), 2);
-    assertEquals(statusSystem.availableWorkers.size(), 1);
+    assertEquals(2, statusSystem.excludedWorkers.size());
+    assertEquals(1, statusSystem.availableWorkers.size());
 
     statusSystem.handleWorkerHeartbeat(
         HOSTNAME3,
@@ -752,8 +752,184 @@ public class DefaultMetaSystemSuiteJ {
         workerStatus,
         getNewReqeustId());
 
-    assertEquals(statusSystem.excludedWorkers.size(), 3);
-    assertEquals(statusSystem.availableWorkers.size(), 0);
+    assertEquals(3, statusSystem.excludedWorkers.size());
+    assertEquals(0, statusSystem.availableWorkers.size());
+  }
+
+  @Test
+  public void testAutoReleaseHighWorkLoadWorkers() {
+    conf.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLED(), true);
+    conf.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD(), 0.8);
+    statusSystem = new SingleMasterMetaManager(mockRpcEnv, conf);
+
+    statusSystem.handleRegisterWorker(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        INTERNALPORT1,
+        NETWORK_LOCATION1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        INTERNALPORT2,
+        NETWORK_LOCATION2,
+        disks2,
+        userResourceConsumption2,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        INTERNALPORT3,
+        NETWORK_LOCATION3,
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
+
+    // worker2 and work3 are unhealthy
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        new HashMap<>(),
+        userResourceConsumption2,
+        1,
+        false,
+        workerStatus,
+        getNewReqeustId());
+    assertEquals(1, statusSystem.excludedWorkers.size());
+    assertEquals(2, statusSystem.availableWorkers.size());
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        new HashMap<>(),
+        userResourceConsumption3,
+        1,
+        false,
+        workerStatus,
+        getNewReqeustId());
+    assertEquals(2, statusSystem.excludedWorkers.size());
+    assertEquals(1, statusSystem.availableWorkers.size());
+
+    // worker2 and work3 have high workload
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceConsumption2,
+        1,
+        false,
+        workerStatus,
+        getNewReqeustId());
+    assertEquals(1, statusSystem.excludedWorkers.size());
+    assertEquals(2, statusSystem.availableWorkers.size());
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceConsumption3,
+        1,
+        false,
+        workerStatus,
+        getNewReqeustId());
+    assertEquals(0, statusSystem.excludedWorkers.size());
+    assertEquals(3, statusSystem.availableWorkers.size());
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceConsumption2,
+        1,
+        true,
+        workerStatus,
+        getNewReqeustId());
+    assertEquals(1, statusSystem.excludedWorkers.size());
+    assertEquals(2, statusSystem.availableWorkers.size());
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceConsumption3,
+        1,
+        true,
+        workerStatus,
+        getNewReqeustId());
+    // release 2 workers with high workload
+    assertEquals(0, statusSystem.excludedWorkers.size());
+    assertEquals(3, statusSystem.availableWorkers.size());
+
+    // work2 has high workload and work3 is unhealthy
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        disks2,
+        userResourceConsumption2,
+        1,
+        true,
+        workerStatus,
+        getNewReqeustId());
+    assertEquals(1, statusSystem.excludedWorkers.size());
+    assertEquals(2, statusSystem.availableWorkers.size());
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        new HashMap<>(),
+        userResourceConsumption3,
+        1,
+        false,
+        workerStatus,
+        getNewReqeustId());
+    // release worker2
+    assertEquals(1, statusSystem.excludedWorkers.size());
+    assertEquals(2, statusSystem.availableWorkers.size());
+
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        new HashMap<>(),
+        userResourceConsumption2,
+        1,
+        true,
+        workerStatus,
+        getNewReqeustId());
+    assertEquals(2, statusSystem.excludedWorkers.size());
+    assertEquals(1, statusSystem.availableWorkers.size());
   }
 
   @Test
@@ -837,7 +1013,7 @@ public class DefaultMetaSystemSuiteJ {
 
     // Size between minEstimateSize -> maxEstimateSize
     statusSystem.handleUpdatePartitionSize();
-    Assert.assertEquals(statusSystem.estimatedPartitionSize, 500000000);
+    Assert.assertEquals(500000000, statusSystem.estimatedPartitionSize);
 
     statusSystem.handleAppHeartbeat(
         APPID1, 1000l, 1, 1, 1, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
@@ -951,11 +1127,24 @@ public class DefaultMetaSystemSuiteJ {
         dummy,
         getNewReqeustId());
 
-    assertEquals(statusSystem.shuffleTotalCount.longValue(), 5);
-    assertEquals(statusSystem.applicationTotalCount.longValue(), 3);
-    assertEquals(statusSystem.shuffleFallbackCounts.get(POLICY1).longValue(), 3);
-    assertEquals(statusSystem.shuffleFallbackCounts.get(POLICY2).longValue(), 2);
-    assertEquals(statusSystem.applicationFallbackCounts.get(POLICY1).longValue(), 2);
-    assertEquals(statusSystem.applicationFallbackCounts.get(POLICY2).longValue(), 1);
+    assertEquals(5, statusSystem.shuffleTotalCount.longValue());
+    assertEquals(3, statusSystem.applicationTotalCount.longValue());
+    assertEquals(3, statusSystem.shuffleFallbackCounts.get(POLICY1).longValue());
+    assertEquals(2, statusSystem.shuffleFallbackCounts.get(POLICY2).longValue());
+    assertEquals(2, statusSystem.applicationFallbackCounts.get(POLICY1).longValue());
+    assertEquals(1, statusSystem.applicationFallbackCounts.get(POLICY2).longValue());
+  }
+
+  @Test
+  public void testRegisterApplicationInfo() {
+    statusSystem.applicationInfos.clear();
+    UserIdentifier userIdentifier = new UserIdentifier("tenant", "celeborn");
+
+    String appId = "app1";
+    Map<String, String> extraInfo = Collections.singletonMap("k1", "v1");
+    statusSystem.handleRegisterApplicationInfo(appId, userIdentifier, extraInfo, getNewReqeustId());
+
+    assertEquals(statusSystem.applicationInfos.get(appId).userIdentifier(), userIdentifier);
+    assertEquals(statusSystem.applicationInfos.get(appId).extraInfo(), extraInfo);
   }
 }

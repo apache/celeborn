@@ -70,6 +70,7 @@ private[deploy] class Controller(
   val mockCommitFilesFailure = conf.testMockCommitFilesFailure
   val shuffleCommitTimeout = conf.workerShuffleCommitTimeout
   val workerCommitFilesCheckInterval = conf.workerCommitFilesCheckInterval
+  val remoteStorageDirs = conf.remoteStorageDirs
 
   def init(worker: Worker): Unit = {
     storageManager = worker.storageManager
@@ -186,7 +187,7 @@ private[deploy] class Controller(
       return
     }
 
-    if (storageManager.healthyWorkingDirs().size <= 0 && !conf.hasHDFSStorage && !conf.hasS3Storage && !conf.hasOssStorage) {
+    if (storageManager.healthyWorkingDirs().size <= 0 && remoteStorageDirs.isEmpty) {
       val msg = "Local storage has no available dirs!"
       logError(s"[handleReserveSlots] $msg")
       context.reply(ReserveSlotsResponse(StatusCode.NO_AVAILABLE_WORKING_DIR, msg))
@@ -290,8 +291,9 @@ private[deploy] class Controller(
       Utils.getSlotsPerDisk(requestPrimaryLocs, requestReplicaLocs))
     workerSource.incCounter(WorkerSource.SLOTS_ALLOCATED, primaryLocs.size() + replicaLocs.size())
 
-    logInfo(s"Reserved ${primaryLocs.size()} primary location" +
-      s" and ${replicaLocs.size()} replica location for $shuffleKey ")
+    logInfo(s"Reserved ${primaryLocs.size()} primary location " +
+      s"${primaryLocs.asScala.map(_.getUniqueId).mkString(",")} and ${replicaLocs.size()} replica location " +
+      s"${replicaLocs.asScala.map(_.getUniqueId).mkString(",")} for $shuffleKey ")
     if (log.isDebugEnabled()) {
       logDebug(s"primary: $primaryLocs\nreplica: $replicaLocs.")
     }
@@ -333,17 +335,13 @@ private[deploy] class Controller(
                 waitMapPartitionRegionFinished(fileWriter, shuffleCommitTimeout)
                 val bytes = fileWriter.close()
                 if (bytes > 0L) {
+                  logDebug(
+                    s"Commit file $shuffleKey $uniqueId ${fileWriter.getFilePath} success fileSize: $bytes")
                   if (fileWriter.getStorageInfo == null) {
                     // Only HDFS can be null, means that this partition location is deleted.
                     logDebug(s"Location $uniqueId is deleted.")
                   } else {
                     val storageInfo = fileWriter.getStorageInfo
-                    val fileInfo =
-                      if (null != fileWriter.getDiskFileInfo) {
-                        fileWriter.getDiskFileInfo
-                      } else {
-                        fileWriter.getMemoryFileInfo
-                      }
                     committedStorageInfos.put(uniqueId, storageInfo)
                     if (fileWriter.getMapIdBitMap != null) {
                       committedMapIdBitMap.put(uniqueId, fileWriter.getMapIdBitMap)
@@ -362,6 +360,7 @@ private[deploy] class Controller(
               } catch {
                 case e: IOException =>
                   logError(s"Commit file for $shuffleKey $uniqueId failed.", e)
+                  workerSource.incCounter(WorkerSource.COMMIT_FILES_FAIL_COUNT)
                   failedIds.add(uniqueId)
               }
             }
@@ -426,7 +425,7 @@ private[deploy] class Controller(
       logError(s"Shuffle $shuffleKey doesn't exist!")
       context.reply(
         CommitFilesResponse(
-          StatusCode.SHUFFLE_NOT_REGISTERED,
+          StatusCode.SHUFFLE_UNREGISTERED,
           List.empty.asJava,
           List.empty.asJava,
           primaryIds,
@@ -466,7 +465,9 @@ private[deploy] class Controller(
         epochWaitTimeMap.put(epoch, (commitStartWaitTime, context))
         return
       } else {
-        logInfo(s"Start commitFiles for $shuffleKey")
+        logInfo(
+          s"Start commitFiles for ${shuffleKey}, primaryIds : ${primaryIds.asScala.mkString(",")}, "
+            + s"replicaIds : ${replicaIds.asScala.mkString(",")}")
         commitInfo.status = CommitInfo.COMMIT_INPROCESS
         workerSource.startTimer(WorkerSource.COMMIT_FILES_TIME, shuffleKey)
       }
@@ -551,12 +552,12 @@ private[deploy] class Controller(
         if (failedPrimaryIds.isEmpty && failedReplicaIds.isEmpty) {
           logInfo(
             s"CommitFiles for $shuffleKey success with " +
-              s"${committedPrimaryIds.size()} committed primary partitions, " +
+              s"${committedPrimaryIds.size()} committed primary partitions ${committedPrimaryIds.asScala.mkString(",")}, " +
               s"${emptyFilePrimaryIds.size()} empty primary partitions ${emptyFilePrimaryIds.asScala.mkString(",")}, " +
-              s"${failedPrimaryIds.size()} failed primary partitions, " +
-              s"${committedReplicaIds.size()} committed replica partitions, " +
+              s"${failedPrimaryIds.size()} failed primary partitions ${failedPrimaryIds.asScala.mkString(",")}, " +
+              s"${committedReplicaIds.size()} committed replica partitions ${committedReplicaIds.asScala.mkString(",")}, " +
               s"${emptyFileReplicaIds.size()} empty replica partitions ${emptyFileReplicaIds.asScala.mkString(",")}, " +
-              s"${failedReplicaIds.size()} failed replica partitions.")
+              s"${failedReplicaIds.size()} failed replica partitions ${failedReplicaIds.asScala.mkString(",")}.")
           CommitFilesResponse(
             StatusCode.SUCCESS,
             committedPrimaryIdList,
@@ -571,12 +572,12 @@ private[deploy] class Controller(
         } else {
           logWarning(
             s"CommitFiles for $shuffleKey failed with " +
-              s"${committedPrimaryIds.size()} committed primary partitions, " +
-              s"${emptyFilePrimaryIds.size()} empty primary partitions, " +
-              s"${failedPrimaryIds.size()} failed primary partitions, " +
-              s"${committedReplicaIds.size()} committed replica partitions, " +
-              s"${emptyFileReplicaIds.size()} empty replica partitions, " +
-              s"${failedReplicaIds.size()} failed replica partitions.")
+              s"${committedPrimaryIds.size()} committed primary partitions ${committedPrimaryIds.asScala.mkString(",")}, " +
+              s"${emptyFilePrimaryIds.size()} empty primary partitions ${emptyFilePrimaryIds.asScala.mkString(",")}, " +
+              s"${failedPrimaryIds.size()} failed primary partitions, ${failedPrimaryIds.asScala.mkString(",")}, " +
+              s"${committedReplicaIds.size()} committed replica partitions ${committedReplicaIds.asScala.mkString(",")}, " +
+              s"${emptyFileReplicaIds.size()} empty replica partitions ${emptyFileReplicaIds.asScala.mkString(",")}, " +
+              s"${failedReplicaIds.size()} failed replica partitions ${failedReplicaIds.asScala.mkString(",")}.")
           CommitFilesResponse(
             StatusCode.PARTIAL_SUCCESS,
             committedPrimaryIdList,
@@ -681,7 +682,7 @@ private[deploy] class Controller(
       logWarning(s"Shuffle $shuffleKey not registered!")
       context.reply(
         DestroyWorkerSlotsResponse(
-          StatusCode.SHUFFLE_NOT_REGISTERED,
+          StatusCode.SHUFFLE_UNREGISTERED,
           primaryLocations,
           replicaLocations))
       return

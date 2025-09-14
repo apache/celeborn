@@ -21,7 +21,7 @@ import java.lang.{Byte => JByte}
 import java.nio.ByteBuffer
 import java.security.SecureRandom
 import java.util
-import java.util.{function, Collections, List => JList}
+import java.util.{function, List => JList}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
 import java.util.function.{BiConsumer, BiFunction, Consumer}
@@ -42,7 +42,7 @@ import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, Shu
 import org.apache.celeborn.client.listener.WorkerStatusListener
 import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.CelebornConf.ACTIVE_STORAGE_TYPES
-import org.apache.celeborn.common.client.MasterClient
+import org.apache.celeborn.common.client.{ApplicationInfoProvider, MasterClient}
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ApplicationMeta, ShufflePartitionLocationInfo, WorkerInfo}
@@ -248,12 +248,21 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   private val messagesHelper: TransportMessagesHelper = new TransportMessagesHelper()
 
+  private def registerApplicationInfo(): Unit = {
+    Utils.tryLogNonFatalError(
+      masterClient.send(RegisterApplicationInfo(
+        appUniqueId,
+        userIdentifier,
+        ApplicationInfoProvider.instantiate(conf).provide().asJava)))
+  }
+
   // Since method `onStart` is executed when `rpcEnv.setupEndpoint` is executed, and
   // `masterClient` is initialized after `rpcEnv` is initialized, if method `onStart` contains
   // a reference to `masterClient`, there may be cases where `masterClient` is null when
   // `masterClient` is called. Therefore, it's necessary to uniformly execute the initialization
   // method at the end of the construction of the class to perform the initialization operations.
   private def initialize(): Unit = {
+    registerApplicationInfo()
     // noinspection ConvertExpressionToSAM
     commitManager.start()
     heartbeater.start()
@@ -858,7 +867,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       logError(s"[handleRevive] shuffle $shuffleId not registered!")
       contextWrapper.reply(
         -1,
-        StatusCode.SHUFFLE_NOT_REGISTERED,
+        StatusCode.SHUFFLE_UNREGISTERED,
         None,
         false)
       return
@@ -938,7 +947,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     if (!registeredShuffle.contains(shuffleId) && !isSegmentGranularityVisible) {
       logWarning(s"[handleGetReducerFileGroup] shuffle $shuffleId not registered, maybe no shuffle data within this stage.")
       context.reply(GetReducerFileGroupResponse(
-        StatusCode.SHUFFLE_NOT_REGISTERED,
+        StatusCode.SHUFFLE_UNREGISTERED,
         JavaUtils.newConcurrentHashMap(),
         Array.empty,
         serdeVersion = serdeVersion))
@@ -1136,7 +1145,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           true
         } catch {
           case t: Throwable =>
-            logError(t.toString)
+            logError("Failed to invoke appShuffleTrackerCallback.", t)
             false
         }
       case None =>
@@ -1203,7 +1212,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           logDebug(s"Succeed $message")
           context.reply(MapperEndResponse(StatusCode.SUCCESS))
         case false =>
-          logError(s"Failed $message")
+          logError(s"Failed $message, reply ${StatusCode.SHUFFLE_DATA_LOST}.")
           context.reply(MapperEndResponse(StatusCode.SHUFFLE_DATA_LOST))
       }
     }

@@ -17,20 +17,36 @@
 
 package org.apache.celeborn.service.deploy.worker.storage
 
-import java.io.ByteArrayInputStream
+import java.io.{ByteArrayInputStream, Closeable, IOException}
 import java.nio.channels.FileChannel
 
 import io.netty.buffer.{ByteBufUtil, CompositeByteBuf}
 import org.apache.hadoop.fs.Path
 
+import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler
+import org.apache.celeborn.service.deploy.worker.WorkerSource
 
 abstract private[worker] class FlushTask(
     val buffer: CompositeByteBuf,
     val notifier: FlushNotifier,
-    val keepBuffer: Boolean) {
-  def flush(): Unit
+    val keepBuffer: Boolean,
+    val source: AbstractSource) {
+  def flush(copyBytes: Array[Byte]): Unit
+
+  def convertBufferToBytes(
+      buffer: CompositeByteBuf,
+      copyBytes: Array[Byte],
+      length: Int): Array[Byte] = {
+    if (copyBytes != null && copyBytes.length >= length) {
+      buffer.readBytes(copyBytes, 0, length)
+      copyBytes
+    } else {
+      ByteBufUtil.getBytes(buffer)
+    }
+  }
 }
 
 private[worker] class LocalFlushTask(
@@ -38,8 +54,10 @@ private[worker] class LocalFlushTask(
     fileChannel: FileChannel,
     notifier: FlushNotifier,
     keepBuffer: Boolean,
-    gatherApiEnabled: Boolean) extends FlushTask(buffer, notifier, keepBuffer) {
-  override def flush(): Unit = {
+    source: AbstractSource,
+    gatherApiEnabled: Boolean) extends FlushTask(buffer, notifier, keepBuffer, source) {
+  override def flush(copyBytes: Array[Byte]): Unit = {
+    val readableBytes = buffer.readableBytes()
     val buffers = buffer.nioBuffers()
     if (gatherApiEnabled) {
       val readableBytes = buffer.readableBytes()
@@ -54,7 +72,27 @@ private[worker] class LocalFlushTask(
         }
       }
     }
+    source.incCounter(WorkerSource.LOCAL_FLUSH_COUNT)
+    source.incCounter(WorkerSource.LOCAL_FLUSH_SIZE, readableBytes)
     // TODO: force flush file channel in scenarios where the upstream task writes and the downstream task reads simultaneously, such as flink hybrid shuffle.
+  }
+}
+
+abstract private[worker] class DfsFlushTask(
+    buffer: CompositeByteBuf,
+    notifier: FlushNotifier,
+    keepBuffer: Boolean,
+    source: AbstractSource) extends FlushTask(buffer, notifier, keepBuffer, source) with Logging {
+  def flush(stream: Closeable)(block: => Unit): Unit = {
+    try {
+      block
+    } finally {
+      try {
+        stream.close()
+      } catch {
+        case e: IOException => logWarning("Close flush dfs stream failed.", e)
+      }
+    }
   }
 }
 
@@ -62,12 +100,17 @@ private[worker] class HdfsFlushTask(
     buffer: CompositeByteBuf,
     val path: Path,
     notifier: FlushNotifier,
-    keepBuffer: Boolean) extends FlushTask(buffer, notifier, keepBuffer) {
-  override def flush(): Unit = {
+    keepBuffer: Boolean,
+    source: AbstractSource) extends DfsFlushTask(buffer, notifier, keepBuffer, source) {
+  override def flush(copyBytes: Array[Byte]): Unit = {
+    val readableBytes = buffer.readableBytes()
     val hadoopFs = StorageManager.hadoopFs.get(Type.HDFS)
     val hdfsStream = hadoopFs.append(path, 256 * 1024)
-    hdfsStream.write(ByteBufUtil.getBytes(buffer))
-    hdfsStream.close()
+    flush(hdfsStream) {
+      hdfsStream.write(convertBufferToBytes(buffer, copyBytes, readableBytes))
+      source.incCounter(WorkerSource.HDFS_FLUSH_COUNT)
+      source.incCounter(WorkerSource.HDFS_FLUSH_SIZE, readableBytes)
+    }
   }
 }
 
@@ -75,15 +118,21 @@ private[worker] class S3FlushTask(
     buffer: CompositeByteBuf,
     notifier: FlushNotifier,
     keepBuffer: Boolean,
+    source: AbstractSource,
     s3MultipartUploader: MultipartUploadHandler,
     partNumber: Int,
     finalFlush: Boolean = false)
-  extends FlushTask(buffer, notifier, keepBuffer) {
+  extends DfsFlushTask(buffer, notifier, keepBuffer, source) {
 
-  override def flush(): Unit = {
-    val bytes = ByteBufUtil.getBytes(buffer)
+  override def flush(copyBytes: Array[Byte]): Unit = {
+    val readableBytes = buffer.readableBytes()
+    val bytes = convertBufferToBytes(buffer, copyBytes, readableBytes)
     val inputStream = new ByteArrayInputStream(bytes)
-    s3MultipartUploader.putPart(inputStream, partNumber, finalFlush)
+    flush(inputStream) {
+      s3MultipartUploader.putPart(inputStream, partNumber, finalFlush)
+      source.incCounter(WorkerSource.S3_FLUSH_COUNT)
+      source.incCounter(WorkerSource.S3_FLUSH_SIZE, readableBytes)
+    }
   }
 }
 
@@ -91,14 +140,20 @@ private[worker] class OssFlushTask(
     buffer: CompositeByteBuf,
     notifier: FlushNotifier,
     keepBuffer: Boolean,
+    source: AbstractSource,
     ossMultipartUploader: MultipartUploadHandler,
     partNumber: Int,
     finalFlush: Boolean = false)
-  extends FlushTask(buffer, notifier, keepBuffer) {
+  extends DfsFlushTask(buffer, notifier, keepBuffer, source) {
 
-  override def flush(): Unit = {
-    val bytes = ByteBufUtil.getBytes(buffer)
+  override def flush(copyBytes: Array[Byte]): Unit = {
+    val readableBytes = buffer.readableBytes()
+    val bytes = convertBufferToBytes(buffer, copyBytes, readableBytes)
     val inputStream = new ByteArrayInputStream(bytes)
-    ossMultipartUploader.putPart(inputStream, partNumber, finalFlush)
+    flush(inputStream) {
+      ossMultipartUploader.putPart(inputStream, partNumber, finalFlush)
+      source.incCounter(WorkerSource.OSS_FLUSH_COUNT)
+      source.incCounter(WorkerSource.OSS_FLUSH_SIZE, readableBytes)
+    }
   }
 }

@@ -47,6 +47,7 @@ class WorkerInfo(
   var nextInterruptionNotice = Long.MaxValue
   var lastHeartbeat: Long = 0
   var workerStatus = WorkerStatus.normalWorkerStatus()
+  var isHighWorkLoad: Boolean = false;
   val diskInfos = {
     if (_diskInfos != null) JavaUtils.newConcurrentHashMap[String, DiskInfo](_diskInfos)
     else null
@@ -182,6 +183,10 @@ class WorkerInfo(
     this.workerStatus = workerStatus;
   }
 
+  def setWorkLoad(isHighWorkLoad: Boolean): Unit = {
+    this.isHighWorkLoad = isHighWorkLoad;
+  }
+
   def updateDiskSlots(estimatedPartitionSize: Long): Unit = this.synchronized {
     diskInfos.asScala.foreach { case (_, disk) =>
       disk.maxSlots = disk.totalSpace / estimatedPartitionSize
@@ -289,8 +294,11 @@ class WorkerInfo(
        |WorkerRef: $endpoint
        |WorkerStatus: $workerStatus
        |NetworkLocation: $networkLocation
+       |NextInterruptionNotice: ${if (hasInterruptionNotice) nextInterruptionNotice else "None"}
        |""".stripMargin
   }
+
+  def hasInterruptionNotice: Boolean = nextInterruptionNotice != Long.MaxValue
 
   override def equals(other: Any): Boolean = other match {
     case that: WorkerInfo =>

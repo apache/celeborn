@@ -74,12 +74,15 @@ private[celeborn] class Worker(
   val resourceConsumptionSource =
     new ResourceConsumptionSource(conf, Role.WORKER)
   private val threadPoolSource = ThreadPoolSource(conf, Role.WORKER)
+  private val jvmSource = new JVMSource(conf, Role.WORKER)
+  private val jvmCpuSource = new JVMCPUSource(conf, Role.WORKER)
+  private val systemMiscSource = new SystemMiscSource(conf, Role.WORKER)
   metricsSystem.registerSource(workerSource)
   metricsSystem.registerSource(threadPoolSource)
   metricsSystem.registerSource(resourceConsumptionSource)
-  metricsSystem.registerSource(new JVMSource(conf, Role.WORKER))
-  metricsSystem.registerSource(new JVMCPUSource(conf, Role.WORKER))
-  metricsSystem.registerSource(new SystemMiscSource(conf, Role.WORKER))
+  metricsSystem.registerSource(jvmSource)
+  metricsSystem.registerSource(jvmCpuSource)
+  metricsSystem.registerSource(systemMiscSource)
 
   private val topAppResourceConsumptionCount = conf.metricsWorkerAppTopResourceConsumptionCount
   private val topAppResourceConsumptionBytesWrittenThreshold =
@@ -412,6 +415,12 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.EVICTED_FILE_COUNT) { () =>
     storageManager.evictedFileCount.get()
   }
+  workerSource.addGauge(WorkerSource.EVICTED_LOCAL_FILE_COUNT) { () =>
+    storageManager.evictedLocalFileCount.get()
+  }
+  workerSource.addGauge(WorkerSource.EVICTED_DFS_FILE_COUNT) { () =>
+    storageManager.evictedDfsFileCount.get()
+  }
   workerSource.addGauge(WorkerSource.MEMORY_STORAGE_FILE_COUNT) { () =>
     storageManager.memoryWriters.size()
   }
@@ -428,11 +437,24 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_AND_REPLICATE_TIME) { () =>
     memoryManager.getPausePushDataAndReplicateTime
   }
+  workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_STATUS) { () =>
+    memoryManager.getPushPausedStatus
+  }
+  workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_AND_REPLICATE_STATUS) { () =>
+    memoryManager.getPushAndReplicatePausedStatus
+  }
   workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_COUNT) { () =>
     memoryManager.getPausePushDataCounter
   }
   workerSource.addGauge(WorkerSource.PAUSE_PUSH_DATA_AND_REPLICATE_COUNT) { () =>
     memoryManager.getPausePushDataAndReplicateCounter
+  }
+  workerSource.addGauge(WorkerSource.IS_HIGH_WORKLOAD) { () =>
+    if (highWorkload) {
+      1
+    } else {
+      0
+    }
   }
   workerSource.addGauge(WorkerSource.ACTIVE_SLOTS_COUNT) { () =>
     workerInfo.usedSlots()
@@ -489,7 +511,7 @@ private[celeborn] class Worker(
     val diskInfos =
       workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
         disk.mountPoint -> disk
-      }.toMap.asJava).values().asScala.toSeq ++ storageManager.hdfsDiskInfo ++ storageManager.s3DiskInfo ++ storageManager.ossDiskInfo
+      }.toMap.asJava).values().asScala.toSeq ++ storageManager.remoteDiskInfos.getOrElse(Set.empty)
     workerStatusManager.checkIfNeedTransitionStatus()
     val response = masterClient.askSync[HeartbeatFromWorkerResponse](
       HeartbeatFromWorker(
