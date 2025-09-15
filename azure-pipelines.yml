@@ -78,7 +78,7 @@ extends:
                 inputs:
                   targetType: 'filePath'
                   filePath: build/make-distribution.sh
-                  arguments: -DskipTests -Pspark-3.2 -Dscala.version=2.12.10 -Dscala.binary.version=2.12 -Dmaven.plugin.scala.version=3.2.2 -Dmaven.plugin.silencer.version=1.6.0 -Pjdk-8
+                  arguments: -DskipTests -Pspark-3.2 -Dscala.version=2.12.15 -Dscala.binary.version=2.12 -Dmaven.plugin.scala.version=3.2.2 -Pjdk-8
                 env:
                   MAVEN_OPTS: $(MAVEN_OPTS)
 
