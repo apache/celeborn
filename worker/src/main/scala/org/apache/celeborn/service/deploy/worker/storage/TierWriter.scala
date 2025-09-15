@@ -652,8 +652,8 @@ class DfsTierWriter(
       hadoopFs.delete(dfsFileInfo.getDfsPath, false)
       deleted = true
     } else {
-      val retryCount = conf.workerCreateIndexOrSuccessMaxAttempts
-      val retryWait = conf.workerCreateIndexOrSuccessWaitMs
+      val retryCount = conf.workerWriterHDFSCreateFileMaxRetries
+      val retryWait = conf.workerWriterHDFSCreateFileRetryWait
       Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
         hadoopFs.create(dfsFileInfo.getDfsWriterSuccessPath).close()
       }
@@ -669,10 +669,14 @@ class DfsTierWriter(
             dataStream.writeInt(dfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
             dfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala.foreach(dataStream.writeLong(_))
             indexOutputStream.write(byteStream.toByteArray)
-          } finally if (dataStream != null) {
-            dataStream.close()
+          } finally {
+            if (dataStream != null) {
+              dataStream.close()
+            }
+            if (indexOutputStream != null) {
+              indexOutputStream.close()
+            }
           }
-          indexOutputStream.close()
         }
       }
     }
