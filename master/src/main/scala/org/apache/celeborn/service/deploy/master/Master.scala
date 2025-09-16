@@ -497,10 +497,6 @@ private[celeborn] class Master(
           userResourceConsumption,
           requestId))
 
-    case ReleaseSlots(_, _, _, _, _) =>
-      // keep it for compatible reason
-      context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
-
     case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       checkAuth(context, applicationId)
