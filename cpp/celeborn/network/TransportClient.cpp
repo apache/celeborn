@@ -79,6 +79,43 @@ void TransportClient::sendRpcRequestWithoutResponse(const RpcRequest& request) {
   }
 }
 
+void TransportClient::pushDataAsync(
+    const PushData& pushData,
+    Timeout timeout,
+    std::shared_ptr<RpcResponseCallback> callback) {
+  try {
+    auto requestMsg = std::make_unique<PushData>(pushData);
+    auto future = dispatcher_->sendPushDataRequest(std::move(requestMsg));
+    std::move(future)
+        .within(timeout)
+        .thenValue(
+            [_callback = callback](std::unique_ptr<Message> responseMsg) {
+              if (responseMsg->type() == Message::RPC_RESPONSE) {
+                auto rpcResponse =
+                    reinterpret_cast<RpcResponse*>(responseMsg.get());
+                _callback->onSuccess(rpcResponse->body());
+              } else {
+                _callback->onFailure(std::make_unique<std::runtime_error>(
+                    "pushData return value type is not rpcResponse"));
+              }
+            })
+        .thenError([_callback = callback](const folly::exception_wrapper& e) {
+          _callback->onFailure(
+              std::make_unique<std::runtime_error>(e.what().toStdString()));
+        });
+
+  } catch (std::exception& e) {
+    auto errorMsg = fmt::format(
+        "PushData failed. shuffleKey: {}, partitionUniqueId: {}, mode: {}, error message: {}",
+        pushData.shuffleKey(),
+        pushData.partitionUniqueId(),
+        pushData.mode(),
+        e.what());
+    LOG(ERROR) << errorMsg;
+    callback->onFailure(std::make_unique<std::runtime_error>(errorMsg));
+  }
+}
+
 void TransportClient::fetchChunkAsync(
     const protocol::StreamChunkSlice& streamChunkSlice,
     const RpcRequest& request,
