@@ -130,9 +130,6 @@ public class MetaHandler {
               shuffleKey, request.getRequestSlotsRequest().getHostName(), new HashMap<>());
           break;
 
-        case ReleaseSlots:
-          break;
-
         case UnRegisterShuffle:
           shuffleKey = request.getUnregisterShuffleRequest().getShuffleKey();
           LOG.debug("Handle unregister shuffle for {}", shuffleKey);
