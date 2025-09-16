@@ -652,8 +652,8 @@ class DfsTierWriter(
       hadoopFs.delete(dfsFileInfo.getDfsPath, false)
       deleted = true
     } else {
-      val retryCount = conf.workerWriterHDFSCreateFileMaxRetries
-      val retryWait = conf.workerWriterHDFSCreateFileRetryWait
+      val retryCount = conf.workerWriterHdfsCreateFileMaxRetries
+      val retryWait = conf.workerWriterHdfsCreateFileRetryWait
       Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
         hadoopFs.create(dfsFileInfo.getDfsWriterSuccessPath).close()
       }

@@ -1367,8 +1367,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerS3FlusherThreads: Int = get(WORKER_FLUSHER_S3_THREADS)
   def workerOssFlusherThreads: Int = get(WORKER_FLUSHER_OSS_THREADS)
   def workerCreateWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
-  def workerWriterHDFSCreateFileMaxRetries: Int = get(WORKER_WRITER_HDFS_CREATE_FILE_MAX_RETRIES)
-  def workerWriterHDFSCreateFileRetryWait: Long = get(WORKER_WRITER_HDFS_CREATE_FILE_RETRY_WAIT)
+  def workerWriterHdfsCreateFileMaxRetries: Int = get(WORKER_WRITER_HDFS_CREATE_FILE_MAX_RETRIES)
+  def workerWriterHdfsCreateFileRetryWait: Long = get(WORKER_WRITER_HDFS_CREATE_FILE_RETRY_WAIT)
   def workerFlusherLocalGatherAPIEnabled: Boolean = get(WORKER_FLUSHER_LOCAL_GATHER_API_ENABLED)
 
   // //////////////////////////////////////////////////////
