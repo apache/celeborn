@@ -1004,7 +1004,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
       }
 
-      if (dirs.isEmpty && location.getStorageInfo.HDFSAvailable()) {
+      if ((dirs.isEmpty && location.getStorageInfo.HDFSAvailable()) ||
+        (location.getStorageInfo.HDFSOnly() && hdfsFlusher.isDefined)) {
         val shuffleDir =
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(StorageManager.hadoopFs, shuffleDir, hdfsPermission)
