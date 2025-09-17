@@ -168,7 +168,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       logInfo(s"Initialize HDFS support with path $hdfsDir")
       try {
         StorageManager.hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
-        if (conf.workerReuseHDFSOutputStream) {
+        if (conf.workerReuseHdfsOutputStream) {
           StorageManager.streamsManager = new StreamsManager(conf,
             StorageManager.hadoopFs.get(StorageInfo.Type.HDFS))
         }

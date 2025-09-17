@@ -22,10 +22,12 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.CacheStats;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalListeners;
 import com.google.common.cache.RemovalNotification;
 
 import org.apache.celeborn.common.CelebornConf;
 
+import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -33,25 +35,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public final class StreamsManager {
     public static final Logger log = LoggerFactory.getLogger(StreamsManager.class);
 
-    LoadingCache<Path, FSDataOutputStream> cache;
-    private final CelebornConf conf;
-    private final FileSystem fileSystem;
+    private final LoadingCache<Path, FSDataOutputStream> cache;
     private final int maxCapacity;
     private final long maxStreamIdleMs;
 
     private final int concurrentLevel;
     public StreamsManager(CelebornConf conf, FileSystem fileSystem) {
-        this.conf = conf;
-        this.fileSystem = fileSystem;
-        this.maxCapacity = conf.workerOpenHDFSOutputStreamMax();
-        this.maxStreamIdleMs = conf.workerHDFSOutputStreamIdleMsMax();
-        this.concurrentLevel = conf.workerHDFSOutputStreamConcurrentLevel();
-        RemovalListener<Path, FSDataOutputStream> listener = new RemovalListener<Path, FSDataOutputStream>() {
+        this.maxCapacity = conf.workerOpenDfsOutputStreamMax();
+        this.maxStreamIdleMs = conf.workerDfsOutputStreamIdleMsMax();
+        this.concurrentLevel = conf.workerDfsOutputStreamConcurrentLevel();
+        ThreadPoolExecutor closeStreamThreadPool =
+                ThreadUtils.newDaemonCachedThreadPool(
+                        "worker-dfs-outputstream-close",
+                        conf.workerCloseDfsStreamThreads(),60);
+        RemovalListener<Path, FSDataOutputStream> removalListener =
+                new RemovalListener<Path, FSDataOutputStream>() {
             @Override
             public void onRemoval(RemovalNotification<Path, FSDataOutputStream> notification) {
                 if (notification.getValue() != null) {
@@ -63,6 +67,7 @@ public final class StreamsManager {
                 }
             }
         };
+        RemovalListener asynRemovalListener = RemovalListeners.asynchronous(removalListener, closeStreamThreadPool);
         CacheLoader<Path, FSDataOutputStream> cacheLoader = new CacheLoader<Path, FSDataOutputStream>() {
             @SuppressWarnings("NullableProblems")
             @Override
@@ -78,7 +83,7 @@ public final class StreamsManager {
                 .maximumSize(this.maxCapacity)
                 .concurrencyLevel(this.concurrentLevel)
                 .expireAfterAccess(this.maxStreamIdleMs, TimeUnit.MILLISECONDS)
-                .removalListener(listener)
+                .removalListener(asynRemovalListener)
                 .build(cacheLoader);
     }
 
