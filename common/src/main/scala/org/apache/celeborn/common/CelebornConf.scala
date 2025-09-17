@@ -1416,6 +1416,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_MEMORY_FILE_STORAGE_EVICT_AGGRESSIVE_MODE_ENABLED)
   def workerMemoryFileStorageEvictRatio: Double =
     get(WORKER_MEMORY_FILE_STORAGE_EVICT_RATIO)
+  def workerPushDataMergeBufferEnabled: Boolean = get(WORKER_PUSH_DATA_MERGE_BUFFER_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                  Rate Limit controller              //
@@ -4172,6 +4173,14 @@ object CelebornConf extends Logging {
       .version("0.5.1")
       .doubleConf
       .createWithDefault(0.5)
+
+  val WORKER_PUSH_DATA_MERGE_BUFFER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.pushdata.mergeBuffer.enabled")
+      .categories("worker")
+      .version("0.5.1")
+      .doc("enable merge low utilization push data's body buffer before write")
+      .booleanConf
+      .createWithDefault(true)
 
   val WORKER_CONGESTION_CONTROL_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.congestionControl.enabled")
