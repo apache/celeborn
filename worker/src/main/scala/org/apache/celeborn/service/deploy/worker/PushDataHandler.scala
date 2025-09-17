@@ -64,6 +64,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   private var storageManager: StorageManager = _
   private var workerPartitionSplitEnabled: Boolean = _
   private var workerReplicateRandomConnectionEnabled: Boolean = _
+  private var workerPushDataMergeBufferEnabled: Boolean = _
 
   private var testPushPrimaryDataTimeout: Boolean = _
   private var testPushReplicaDataTimeout: Boolean = _
@@ -83,7 +84,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     shutdown = worker.shutdown
     workerPartitionSplitEnabled = worker.conf.workerPartitionSplitEnabled
     workerReplicateRandomConnectionEnabled = worker.conf.workerReplicateRandomConnectionEnabled
-
+    workerPushDataMergeBufferEnabled = worker.conf.workerPushDataMergeBufferEnabled
     testPushPrimaryDataTimeout = worker.conf.testPushPrimaryDataTimeout
     testPushReplicaDataTimeout = worker.conf.testPushReplicaDataTimeout
     registered = Some(worker.registered)
@@ -1492,6 +1493,25 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       hardSplitIndexes: Array[Int] = Array.empty[Int]): Unit = {
     val length = fileWriters.length
     val result = new Array[StatusCode](length)
+
+    var finalBody: ByteBuf = body
+    var copyBody: ByteBuf = null
+    if (workerPushDataMergeBufferEnabled) {
+      val numBytes = body.readableBytes()
+      try {
+        copyBody = body.alloc.directBuffer(numBytes)
+        // this method do not increase the readerIndex of source buffer, when oom
+        // happens, we can fall back to the original buffer
+        copyBody.writeBytes(body, body.readerIndex, numBytes)
+        finalBody = copyBody
+      } catch {
+        case e: OutOfMemoryError =>
+          logError(s"caught oom when consolidate data failed, size: $numBytes", e)
+        case e: Throwable =>
+          logError(s"consolidate data failed, size: $numBytes", e)
+      }
+    }
+
     def writeData(
         fileWriter: PartitionDataWriter,
         body: ByteBuf,
@@ -1539,14 +1559,14 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           } else {
             fileWriter = fileWriters(index)
             if (!writePromise.isCompleted) {
-              val offset = body.readerIndex() + batchOffsets(index)
+              val offset = finalBody.readerIndex() + batchOffsets(index)
               val length =
                 if (index == fileWriters.length - 1) {
-                  body.readableBytes() - batchOffsets(index)
+                  finalBody.readableBytes() - batchOffsets(index)
                 } else {
                   batchOffsets(index + 1) - batchOffsets(index)
                 }
-              val batchBody = body.slice(offset, length)
+              val batchBody = finalBody.slice(offset, length)
               writeData(fileWriter, batchBody, shuffleKey, index)
             } else {
               fileWriter.decrementPendingWrites()
@@ -1555,11 +1575,15 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           index += 1
         }
       case _ =>
-        writeData(fileWriters.head, body, shuffleKey, 0)
+        writeData(fileWriters.head, finalBody, shuffleKey, 0)
     }
     if (!writePromise.isCompleted) {
       workerSource.incCounter(WorkerSource.WRITE_DATA_SUCCESS_COUNT)
       writePromise.success(result)
+    }
+    // manually release copyBody to avoid memory leak
+    if (copyBody != null) {
+      copyBody.release()
     }
   }
 

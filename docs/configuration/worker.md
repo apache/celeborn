@@ -163,6 +163,7 @@ license: |
 | celeborn.worker.push.heartbeat.enabled | false | false | enable the heartbeat from worker to client when pushing data | 0.3.0 |  | 
 | celeborn.worker.push.io.threads | &lt;undefined&gt; | false | Netty IO thread number of worker to handle client push data. The default threads number is the number of flush thread. | 0.2.0 |  | 
 | celeborn.worker.push.port | 0 | false | Server port for Worker to receive push data request from ShuffleClient. | 0.2.0 |  | 
+| celeborn.worker.pushdata.mergeBuffer.enabled | true | false | enable merge low utilization push data's body buffer before write | 0.5.1 |  | 
 | celeborn.worker.readBuffer.allocationWait | 50ms | false | The time to wait when buffer dispatcher can not allocate a buffer. | 0.3.0 |  | 
 | celeborn.worker.readBuffer.processTimeout | 600s | false | Timeout for buffer dispatcher to process a read buffer request. | 0.6.2 |  | 
 | celeborn.worker.readBuffer.target.changeThreshold | 1mb | false | The target ratio for pre read memory usage. | 0.3.0 |  | 
