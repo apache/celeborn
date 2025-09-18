@@ -158,13 +158,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     (flushers, totalThread)
   }
 
-  val hdfsDir = conf.hdfsDir
-  val s3Dir = conf.s3Dir
-  val ossDir = conf.ossDir
+  val hdfsDirList = conf.hdfsDirList.get
+  val s3DirList = conf.s3DirList.get
+  val ossDirList = conf.ossDirList.get
   val hdfsPermission = new FsPermission("755")
   val (hdfsFlusher, _totalHdfsFlusherThread) =
     if (hasHDFSStorage) {
-      logInfo(s"Initialize HDFS support with path $hdfsDir")
+      logInfo(s"Initialize HDFS support with path ${hdfsDirList}")
       try {
         StorageManager.hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
       } catch {
@@ -187,7 +187,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   val (s3Flusher, _totalS3FlusherThread) =
     if (hasS3Storage) {
-      logInfo(s"Initialize S3 support with path $s3Dir")
+      logInfo(s"Initialize S3 support with path $s3DirList")
       try {
         StorageManager.hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
       } catch {
@@ -210,7 +210,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   val (ossFlusher, _totalOssFlusherThread) =
     if (hasOssStorage) {
-      logInfo(s"Initialize OSS support with path $ossDir")
+      logInfo(s"Initialize OSS support with path $ossDirList")
       try {
         StorageManager.hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
       } catch {
@@ -239,7 +239,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   lazy val localOrDfsStorageAvailable: Boolean = {
     StorageInfo.OSSAvailable(activeTypes) || StorageInfo.S3Available(activeTypes) ||
     StorageInfo.HDFSAvailable(activeTypes) || StorageInfo.localDiskAvailable(activeTypes) ||
-    hdfsDir.nonEmpty || !diskInfos.isEmpty || s3Dir.nonEmpty || ossDir.nonEmpty
+    hdfsDirList.nonEmpty || !diskInfos.isEmpty || s3DirList.nonEmpty || ossDirList.nonEmpty
   }
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
@@ -662,17 +662,22 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         }
         if (isDfsExpired) {
           try {
-            val dir =
-              if (hasHDFSStorage && isHdfs) hdfsDir
-              else if (hasOssStorage && isOss) ossDir
-              else s3Dir
+            val dirList =
+              if (hasHDFSStorage && isHdfs) hdfsDirList
+              else if (hasOssStorage && isOss) ossDirList
+              else s3DirList
             val storageInfo =
               if (hasHDFSStorage && isHdfs) StorageInfo.Type.HDFS
               else if (hasOssStorage && isOss) StorageInfo.Type.OSS
               else StorageInfo.Type.S3
-            StorageManager.hadoopFs.get(storageInfo).delete(
-              new Path(new Path(dir, conf.workerWorkingDir), s"$appId/$shuffleId"),
-              true)
+            StorageManager.hadoopFs.get(storageInfo).forEach(tuple => {
+              val fs = tuple._2
+              dirList.foreach(dir => {
+                fs.delete(
+                  new Path(new Path(dir, conf.workerWorkingDir), s"$appId/$shuffleId"),
+                  true)
+              })
+            })
           } catch {
             case e: Exception => logWarning("Clean expired DFS shuffle failed.", e)
           }
@@ -774,15 +779,17 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           }
         }
 
-      val dfsCleaned = hadoopFs match {
-        case dfs: FileSystem =>
-          val dfsDir = if (hasHDFSStorage) hdfsDir else if (hasOssStorage) ossDir else s3Dir
-          val dfsWorkPath = new Path(dfsDir, conf.workerWorkingDir)
-          // DFS path not exist when first time initialize
-          if (dfs.exists(dfsWorkPath)) {
-            !dfs.listFiles(dfsWorkPath, false).hasNext
-          } else {
-            true
+      val dfsCleaned = hadoopFs == null || hadoopFs.asScala.forall {
+        case (_, list) =>
+          list.asScala.forall {
+            case (dir, fs) =>
+              val dfsWorkPath = new Path(dir, conf.workerWorkingDir)
+              // DFS path not exist when first time initialize
+              if (fs.exists(dfsWorkPath)) {
+                !fs.listFiles(dfsWorkPath, false).hasNext
+              } else {
+                true
+              }
           }
         case _ =>
           true
@@ -804,13 +811,15 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def close(exitKind: Int): Unit = {
     if (hadoopFs != null) {
       hadoopFs.asScala.foreach {
-        case (storageType, fs) =>
-          if (fs != null) {
-            try {
-              fs.close()
-            } catch {
-              case t: Throwable =>
-                logError(s"Close $storageType FileSystem ${fs.getUri} failed.", t)
+        case (storageType, list) =>
+          if (list != null && !list.isEmpty) {
+            list.asScala.foreach { tuple =>
+              try {
+                tuple._2.close()
+              } catch {
+                case t: Throwable =>
+                  logError(s"Close $storageType FileSystem ${tuple._2.getUri} failed.", t)
+              }
             }
           }
       }
@@ -1103,10 +1112,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       }
 
       if (dirs.isEmpty && location.getStorageInfo.HDFSAvailable()) {
+        val (hdfsDir, fs) =
+          StorageManager.dfsTupleForPartition(StorageInfo.Type.HDFS, location.getUniqueId)
         val shuffleDir =
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(
-          StorageManager.hadoopFs.get(StorageInfo.Type.HDFS),
+          fs,
           shuffleDir,
           hdfsPermission)
         val hdfsFilePath = new Path(shuffleDir, fileName).toString
@@ -1121,10 +1132,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           hdfsFileInfo)
         return (hdfsFlusher.get, hdfsFileInfo, null)
       } else if (dirs.isEmpty && location.getStorageInfo.S3Available()) {
+        val (s3Dir, fs) =
+          StorageManager.dfsTupleForPartition(StorageInfo.Type.S3, location.getUniqueId)
         val shuffleDir =
           new Path(new Path(s3Dir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(
-          StorageManager.hadoopFs.get(StorageInfo.Type.S3),
+          fs,
           shuffleDir,
           hdfsPermission)
         val s3FilePath = new Path(shuffleDir, fileName).toString
@@ -1139,10 +1152,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           s3FileInfo)
         return (s3Flusher.get, s3FileInfo, null)
       } else if (dirs.isEmpty && location.getStorageInfo.OSSAvailable()) {
+        val (ossDir, fs) =
+          StorageManager.dfsTupleForPartition(StorageInfo.Type.OSS, location.getUniqueId)
         val shuffleDir =
           new Path(new Path(ossDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(
-          StorageManager.hadoopFs.get(StorageInfo.Type.OSS),
+          fs,
           shuffleDir,
           hdfsPermission)
         val ossFilePath = new Path(shuffleDir, fileName).toString
@@ -1234,5 +1249,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 }
 
 object StorageManager {
-  var hadoopFs: util.Map[StorageInfo.Type, FileSystem] = _
+  // StorageInfo -> (mountPoint -> FileSystem)
+  var hadoopFs: util.Map[StorageInfo.Type, util.List[Tuple2[String, FileSystem]]] = _
+
+  def dfsTupleForPartition(
+      storageType: StorageInfo.Type,
+      partitionUniqueId: String): (String, FileSystem) = {
+    val hadoopFsSeq = hadoopFs.get(storageType)
+    hadoopFsSeq.get(Math.floorMod(partitionUniqueId.hashCode, hadoopFsSeq.size()))
+  }
 }

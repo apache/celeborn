@@ -236,7 +236,7 @@ private[celeborn] class Master(
   private val slotsAssignInterruptionAwareThreshold =
     conf.masterSlotsAssignInterruptionAwareThreshold
 
-  private var hadoopFs: util.Map[StorageInfo.Type, FileSystem] = _
+  private var hadoopFs: util.Map[StorageInfo.Type, util.List[Tuple2[String, FileSystem]]] = _
   masterSource.addGauge(MasterSource.REGISTERED_SHUFFLE_COUNT) { () =>
     statusSystem.registeredShuffleCount
   }
@@ -1136,28 +1136,32 @@ private[celeborn] class Master(
       }
     }
     remoteStorageDirs.foreach(_.foreach {
-      case (_, dir) => processDir(dir, expiredDir)
+      case (_, dirs) => processDir(dirs, expiredDir)
     })
   }
 
-  private def processDir(dfsDir: String, expiredDir: String): Unit = {
-    val dfsWorkPath = new Path(dfsDir, conf.workerWorkingDir)
-    hadoopFs.asScala.map(_._2).filter(_.exists(dfsWorkPath)).foreach { fs =>
-      if (expiredDir.nonEmpty) {
-        val dirToDelete = new Path(dfsWorkPath, expiredDir)
-        // delete specific app dir on application lost
-        CelebornHadoopUtils.deleteDFSPathOrLogError(fs, dirToDelete, true)
-      } else {
-        val iter = fs.listStatusIterator(dfsWorkPath)
-        while (iter.hasNext && isMasterActive == 1) {
-          val fileStatus = iter.next()
-          if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
-            CelebornHadoopUtils.deleteDFSPathOrLogError(fs, fileStatus.getPath, true)
+  private def processDir(dfsDirs: Set[String], expiredDir: String): Unit = {
+    dfsDirs.foreach(dfsDir => {
+      val dfsWorkPath = new Path(dfsDir, conf.workerWorkingDir)
+      hadoopFs.values().asScala.flatMap(_.asScala).foreach { tuple =>
+        val fs = tuple._2
+        if (expiredDir.nonEmpty) {
+          val dirToDelete = new Path(dfsWorkPath, expiredDir)
+          // delete specific app dir on application lost
+          CelebornHadoopUtils.deleteDFSPathOrLogError(fs, dirToDelete, true)
+        } else {
+          val iter = fs.listStatusIterator(dfsWorkPath)
+          while (iter.hasNext && isMasterActive == 1) {
+            val fileStatus = iter.next()
+            if (!statusSystem.appHeartbeatTime.containsKey(fileStatus.getPath.getName)) {
+              CelebornHadoopUtils.deleteDFSPathOrLogError(fs, fileStatus.getPath, true)
+            }
           }
-        }
 
+        }
       }
-    }
+    })
+
   }
 
   private def gaugeShuffleFallbackCounts(): Unit = {
