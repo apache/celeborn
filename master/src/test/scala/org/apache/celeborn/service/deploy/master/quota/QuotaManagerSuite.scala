@@ -194,8 +194,8 @@ class QuotaManagerSuite extends CelebornFunSuite
           Utils.byteStringAsBytes("5G"),
           20)).asJava)
 
-    quotaManager.registerApplicationQuotaConfig("app1", extraInfo)
-    quotaManager.registerApplicationQuotaConfig("app2", extraInfo)
+    statusSystem.updateApplicationInfo("app1", user, extraInfo)
+    statusSystem.updateApplicationInfo("app2", user, extraInfo)
     addUserConsumption(user, rc)
     conf.set("celeborn.quota.cluster.diskBytesWritten", "60gb")
     configService.refreshCache()
@@ -286,8 +286,8 @@ class QuotaManagerSuite extends CelebornFunSuite
           Utils.byteStringAsBytes("2G"),
           20)).asJava)
 
-    quotaManager.registerApplicationQuotaConfig("app1", extraInfo)
-    quotaManager.registerApplicationQuotaConfig("app2", extraInfo)
+    statusSystem.updateApplicationInfo("app1", user, extraInfo)
+    statusSystem.updateApplicationInfo("app2", user, extraInfo)
     addUserConsumption(user, rc)
     conf.set("celeborn.quota.cluster.diskBytesWritten", "20gb")
     configService.refreshCache()
@@ -338,7 +338,7 @@ class QuotaManagerSuite extends CelebornFunSuite
             MIN + Math.abs(random.nextLong()) % (MAX - MIN),
             MIN + Math.abs(random.nextLong()) % (MAX - MIN),
             MIN + Math.abs(random.nextLong()) % (MAX - MIN))
-          quotaManager.registerApplicationQuotaConfig(appId, extraInfo)
+          statusSystem.updateApplicationInfo(appId, user, extraInfo)
           (appId, consumption)
       }.toMap
       val userConsumption = subResourceConsumption.values.foldRight(
@@ -390,7 +390,7 @@ class QuotaManagerSuite extends CelebornFunSuite
                 MIN + Math.abs(random.nextLong()) % (MAX - MIN),
                 MIN + Math.abs(random.nextLong()) % (MAX - MIN),
                 MIN + Math.abs(random.nextLong()) % (MAX - MIN))
-              quotaManager.registerApplicationQuotaConfig(appId, extraInfo)
+              statusSystem.updateApplicationInfo(appId, user, extraInfo)
               (appId, consumption)
           }.toMap
         } else {
@@ -398,7 +398,7 @@ class QuotaManagerSuite extends CelebornFunSuite
             index =>
               val appId = s"$user$i case2_app$index"
               val consumption = ResourceConsumption(0, 0, 0, 0)
-              quotaManager.registerApplicationQuotaConfig(appId, extraInfo)
+              statusSystem.updateApplicationInfo(appId, user, extraInfo)
               (appId, consumption)
           }.toMap
         }
@@ -495,9 +495,9 @@ class QuotaManagerSuite extends CelebornFunSuite
           0,
           0)).asJava)
 
-    quotaManager1.registerApplicationQuotaConfig("app1", extraInfo)
-    quotaManager1.registerApplicationQuotaConfig("app2", extraInfo)
-    quotaManager1.registerApplicationQuotaConfig("app3", extraInfo)
+    statusSystem1.updateApplicationInfo("app1", user, extraInfo)
+    statusSystem1.updateApplicationInfo("app2", user, extraInfo)
+    statusSystem1.updateApplicationInfo("app3", user, extraInfo)
     addUserConsumption(user, rc)
     addUserConsumption(user1, rc1)
 
@@ -613,9 +613,9 @@ class QuotaManagerSuite extends CelebornFunSuite
           0,
           0)).asJava)
 
-    quotaManager1.registerApplicationQuotaConfig("app1", extraInfo)
-    quotaManager1.registerApplicationQuotaConfig("app2", extraInfo)
-    quotaManager1.registerApplicationQuotaConfig("app3", extraInfo)
+    statusSystem1.updateApplicationInfo("app1", user1, extraInfo)
+    statusSystem1.updateApplicationInfo("app2", user1, extraInfo)
+    statusSystem1.updateApplicationInfo("app3", user2, extraInfo)
     addUserConsumption(user1, rc1)
     addUserConsumption(user2, rc2)
 
