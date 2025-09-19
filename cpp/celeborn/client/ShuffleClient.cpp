@@ -32,7 +32,13 @@ void ShuffleClientImpl::setupLifecycleManagerRef(std::string& host, int port) {
   {
     std::lock_guard<std::mutex> lock(mutex_);
     lifecycleManagerRef_ = std::make_shared<network::NettyRpcEndpointRef>(
-        "LifecycleManagerEndpoint", "dummy", 0, host, port, managerClient);
+        "LifecycleManagerEndpoint",
+        "dummy",
+        0,
+        host,
+        port,
+        managerClient,
+        *conf_);
   }
 }
 
@@ -83,7 +89,9 @@ void ShuffleClientImpl::updateReducerFileGroup(int shuffleId) {
   CELEBORN_CHECK(
       lifecycleManagerRef_, "lifecycleManagerRef_ is not initialized");
   // Send the query request to lifecycleManager.
-  auto reducerFileGroupInfo = lifecycleManagerRef_->askSync(
+  auto reducerFileGroupInfo = lifecycleManagerRef_->askSync<
+      protocol::GetReducerFileGroup,
+      protocol::GetReducerFileGroupResponse>(
       protocol::GetReducerFileGroup{shuffleId},
       conf_->clientRpcGetReducerFileGroupRpcAskTimeout());
 

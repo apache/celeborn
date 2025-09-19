@@ -40,6 +40,8 @@ class CelebornConf : public BaseConf {
   static const std::unordered_map<std::string, folly::Optional<std::string>>
       kDefaultProperties;
 
+  static constexpr std::string_view kRpcAskTimeout{"celeborn.rpc.askTimeout"};
+
   static constexpr std::string_view kRpcLookupTimeout{
       "celeborn.rpc.lookupTimeout"};
 
@@ -76,6 +78,8 @@ class CelebornConf : public BaseConf {
   CelebornConf(CelebornConf&& other) = delete;
 
   void registerProperty(const std::string_view& key, const std::string& value);
+
+  Timeout rpcAskTimeout() const;
 
   Timeout rpcLookupTimeout() const;
 
