@@ -1100,6 +1100,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_PUSH_SENDBUFFERPOOL_CHECKEXPIREINTERVAL)
   def clientAdaptiveOptimizeSkewedPartitionReadEnabled: Boolean =
     get(CLIENT_ADAPTIVE_OPTIMIZE_SKEWED_PARTITION_READ_ENABLED)
+  def clientDfsFetchExecutorThreads: Int =
+    get(CLIENT_DFS_FETCH_EXECUTOR_THREADS)
 
   // //////////////////////////////////////////////////////
   //                   Client Shuffle                    //
@@ -6389,6 +6391,14 @@ object CelebornConf extends Logging {
         "range. Please note that this feature requires the `Celeborn-Optimize-Skew-Partitions-spark3_3.patch`. ")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_DFS_FETCH_EXECUTOR_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.client.dfs.fetch.executorThreads")
+      .categories("client")
+      .version("0.7.0")
+      .doc("Number of threads in the fetch executor thread pool for DFS partition reader.")
+      .intConf
+      .createWithDefault(3)
 
   //  SSL Configs
 
