@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -58,11 +59,11 @@ public class DfsPartitionReader implements PartitionReader {
   private CelebornConf conf;
   PartitionLocation location;
   private final long shuffleChunkSize;
-  private final int fetchMaxReqsInFlight;
   private final LinkedBlockingQueue<Pair<Integer, ByteBuf>> results;
   private final AtomicReference<Exception> exception = new AtomicReference<>();
   private volatile boolean closed = false;
-  private ExecutorService fetchThread;
+  private ExecutorService fetchExecutor;
+  private int minFetchInFlight = 0;
   private boolean fetchThreadStarted;
   private FSDataInputStream dfsInputStream;
   private int numChunks = 0;
@@ -96,7 +97,6 @@ public class DfsPartitionReader implements PartitionReader {
       throws IOException {
     this.conf = conf;
     shuffleChunkSize = conf.dfsReadChunkSize();
-    fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
     results = new LinkedBlockingQueue<>();
 
     this.metricsCallback = metricsCallback;
@@ -172,10 +172,13 @@ public class DfsPartitionReader implements PartitionReader {
         this.startChunkIndex,
         this.endChunkIndex,
         chunkOffsets);
+
     if (this.numChunks > 0) {
-      fetchThread =
-          ThreadUtils.newDaemonSingleThreadExecutor(
-              "celeborn-client-dfs-partition-fetcher" + location.getStorageInfo().getFilePath());
+      this.minFetchInFlight = Math.min(conf.clientFetchMaxReqsInFlight(), numChunks);
+      this.fetchExecutor =
+          ThreadUtils.newDaemonFixedThreadPool(
+              minFetchInFlight,
+              "celeborn-client-dfs-partition-fetcher-" + location.getStorageInfo().getFilePath());
       logger.debug("Start dfs read on location {}", location);
       ShuffleClient.incrementTotalReadCounter();
     }
@@ -239,56 +242,12 @@ public class DfsPartitionReader implements PartitionReader {
   public ByteBuf next() throws Exception {
     Pair<Integer, ByteBuf> chunk = null;
     checkpoint();
+
     if (!fetchThreadStarted) {
       fetchThreadStarted = true;
-      fetchThread.submit(
-          () -> {
-            try {
-              while (!closed && currentChunkIndex <= endChunkIndex) {
-                if (partitionReaderCheckpointMetadata.isPresent()
-                    && partitionReaderCheckpointMetadata.get().isCheckpointed(currentChunkIndex)) {
-                  logger.info(
-                      "Skipping chunk {} as it has already been returned,"
-                          + " likely by a previous reader for the same partition.",
-                      currentChunkIndex);
-                  currentChunkIndex++;
-                  continue;
-                }
-                while (results.size() >= fetchMaxReqsInFlight) {
-                  Thread.sleep(50);
-                }
-                long offset = chunkOffsets.get(currentChunkIndex);
-                long length = chunkOffsets.get(currentChunkIndex + 1) - offset;
-                logger.debug("read {} offset {} length {}", currentChunkIndex, offset, length);
-                byte[] buffer = new byte[(int) length];
-                try {
-                  dfsInputStream.readFully(offset, buffer);
-                } catch (IOException e) {
-                  logger.warn("read DFS {} failed will retry, error detail {}", dataFilePath, e);
-                  try {
-                    dfsInputStream.close();
-                    dfsInputStream = hadoopFs.open(dataFilePath);
-                    dfsInputStream.readFully(offset, buffer);
-                  } catch (IOException ex) {
-                    logger.warn(
-                        "retry read DFS {} failed, error detail {} ",
-                        location.getStorageInfo().getFilePath(),
-                        e);
-                    exception.set(ex);
-                    break;
-                  }
-                }
-                results.put(Pair.of(currentChunkIndex, Unpooled.wrappedBuffer(buffer)));
-                logger.debug("add index {} to results", currentChunkIndex++);
-              }
-            } catch (Exception e) {
-              logger.warn("Fetch thread is cancelled.", e);
-              exception.set(e);
-              // cancel a task for speculative, ignore this exception
-            }
-            logger.debug("fetch {} is done.", location.getStorageInfo().getFilePath());
-          });
+      startAsyncFetch();
     }
+
     try {
       while (chunk == null) {
         checkException();
@@ -298,13 +257,100 @@ public class DfsPartitionReader implements PartitionReader {
             TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait));
         logger.debug("poll result with result size: {}", results.size());
       }
-    } catch (Exception e) {
+    } catch (InterruptedException e) {
       logger.error("PartitionReader thread interrupted while fetching data.");
       throw e;
     }
     returnedChunks++;
     lastReturnedChunkId = chunk.getLeft();
     return chunk.getRight();
+  }
+
+  private void startAsyncFetch() {
+    CompletableFuture.runAsync(this::fetchChunks, fetchExecutor)
+        .exceptionally(
+            throwable -> {
+              logger.warn("Async fetch failed", throwable);
+              exception.set(new IOException(throwable));
+              return null;
+            });
+  }
+
+  private void fetchChunks() {
+    try {
+      while (!closed && currentChunkIndex <= endChunkIndex) {
+        if (partitionReaderCheckpointMetadata.isPresent()
+            && partitionReaderCheckpointMetadata.get().isCheckpointed(currentChunkIndex)) {
+          logger.info(
+              "Skipping chunk {} as it has already been returned,"
+                  + " likely by a previous reader for the same partition.",
+              currentChunkIndex);
+          currentChunkIndex++;
+          continue;
+        }
+
+        while (results.size() >= minFetchInFlight) {
+          Thread.sleep(50);
+        }
+
+        final int chunkIndex = currentChunkIndex++;
+
+        CompletableFuture.runAsync(
+            () -> {
+              try {
+                long offset = chunkOffsets.get(chunkIndex);
+                long length = chunkOffsets.get(chunkIndex + 1) - offset;
+                logger.debug(
+                    "Reading chunk {} at offset {} with length {}", chunkIndex, offset, length);
+
+                byte[] buffer = new byte[(int) length];
+                readChunkFromHdfs(offset, buffer);
+
+                results.put(Pair.of(chunkIndex, Unpooled.wrappedBuffer(buffer)));
+                logger.debug("Added chunk {} to results", chunkIndex);
+              } catch (Exception e) {
+                logger.error("Error reading chunk {}", chunkIndex, e);
+                exception.set(new IOException(e));
+              }
+            },
+            fetchExecutor);
+      }
+    } catch (InterruptedException e) {
+      logger.warn("Fetch thread interrupted", e);
+      Thread.currentThread().interrupt();
+    } catch (Exception e) {
+      logger.error("Error in fetchChunks", e);
+      exception.set(new IOException(e));
+    }
+
+    logger.debug("Fetch {} is done.", location.getStorageInfo().getFilePath());
+  }
+
+  private void readChunkFromHdfs(long offset, byte[] buffer) throws IOException {
+    try {
+      dfsInputStream.readFully(offset, buffer);
+    } catch (IOException e) {
+      logger.warn(
+          "Failed to read DFS {} at offset {}, will retry. Error: {}",
+          dataFilePath,
+          offset,
+          e.getMessage());
+      try {
+        dfsInputStream.close();
+        dfsInputStream = hadoopFs.open(dataFilePath);
+        dfsInputStream.readFully(offset, buffer);
+      } catch (IOException reopenException) {
+        logger.error(
+            "Retry failed for reading DFS {} at offset {}",
+            location.getStorageInfo().getFilePath(),
+            offset,
+            reopenException);
+        throw reopenException;
+      }
+    } catch (Exception e) {
+      logger.error("PartitionReader thread interrupted while fetching data.");
+      throw e;
+    }
   }
 
   private void checkException() throws Exception {
@@ -317,8 +363,8 @@ public class DfsPartitionReader implements PartitionReader {
   @Override
   public void close() {
     closed = true;
-    if (fetchThread != null) {
-      fetchThread.shutdownNow();
+    if (fetchExecutor != null) {
+      fetchExecutor.shutdownNow();
     }
     try {
       dfsInputStream.close();
