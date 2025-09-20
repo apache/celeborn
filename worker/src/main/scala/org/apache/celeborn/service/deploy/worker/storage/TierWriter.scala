@@ -594,7 +594,7 @@ class DfsTierWriter(
   override def genFlushTask(finalFlush: Boolean, keepBuffer: Boolean): FlushTask = {
     notifier.numPendingFlushes.incrementAndGet()
     if (dfsFileInfo.isHdfs) {
-      new HdfsFlushTask(flushBuffer, dfsFileInfo.getDfsPath(), notifier, true, source)
+      new HdfsFlushTask(flushBuffer, dfsFileInfo.getDfsPath(), notifier, true, source, finalFlush)
     } else if (dfsFileInfo.isOSS) {
       val flushTask = new OssFlushTask(
         flushBuffer,

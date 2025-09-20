@@ -876,6 +876,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerFetchHeartbeatEnabled: Boolean = get(WORKER_FETCH_HEARTBEAT_ENABLED)
   def workerPartitionSplitEnabled: Boolean = get(WORKER_PARTITION_SPLIT_ENABLED)
   def workerActiveConnectionMax: Option[Long] = get(WORKER_ACTIVE_CONNECTION_MAX)
+  def workerOpenDfsOutputStreamMax: Int = get(WORKER_OPEN_DFS_OUTPUT_STREAM_MAX)
+  def workerDfsOutputStreamIdleMsMax: Long = get(WORKER_DFS_OUTPUT_STREAM_IDLE_MS_MAX)
+  def workerGetStreamMaxAttempts: Int = get(WORKER_GET_STREAM_MAX_ATTEMPTS)
+  def workerReuseHdfsOutputStream: Boolean = get(WORKER_REUSE_HDFS_OUTPUTSTREAM)
+  def workerDfsOutputStreamConcurrentLevel: Int = get(WORKER_DFS_OUTPUT_STREAM_CONCURRENT_LEVEL)
+  def workerCloseDfsStreamThreads: Int =
+    get(WORKER_CLOSE_DFS_STREAM_THREADS).getOrElse(Runtime.getRuntime.availableProcessors)
   def workerJvmProfilerEnabled: Boolean = get(WORKER_JVM_PROFILER_ENABLED)
   def workerJvmProfilerOptions: String = get(WORKER_JVM_PROFILER_OPTIONS)
   def workerJvmProfilerLocalDir: String = get(WORKER_JVM_PROFILER_LOCAL_DIR)
@@ -4456,6 +4463,56 @@ object CelebornConf extends Logging {
         "and the master will not include that node in the response of RequestSlots.")
       .version("0.3.1")
       .longConf
+      .createOptional
+
+  val WORKER_OPEN_DFS_OUTPUT_STREAM_MAX: ConfigEntry[Int] =
+    buildConf("celeborn.worker.openHdfsOutputStream.max")
+      .categories("worker")
+      .doc("If the number of opened hdfs output streams on a worker exceeds this configuration value, " +
+        "the worker will be marked as high-load in the heartbeat report, " +
+        "and the master will not include that node in the response of RequestSlots.")
+      .version("0.7.0")
+      .intConf
+      .createWithDefault(1000)
+
+  val WORKER_DFS_OUTPUT_STREAM_IDLE_MS_MAX: ConfigEntry[Long] =
+    buildConf("celeborn.worker.hdfsOutputStream.maxIdleTime")
+      .categories("client")
+      .version("0.7.0")
+      .doc(s"The initial sleep time if the current max in flight requests is 0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("180000ms")
+
+  val WORKER_GET_STREAM_MAX_ATTEMPTS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.get.stream.maxAttempts")
+      .categories("worker")
+      .version("0.7.0")
+      .doc("Retry count to create or append file after failure.")
+      .intConf
+      .createWithDefault(5)
+
+  val WORKER_REUSE_HDFS_OUTPUTSTREAM: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.reuse.hdfs.outputstream")
+      .categories("worker")
+      .version("0.7.0")
+      .doc("Whether to reuse hdfs output stream with HDFS storage")
+      .booleanConf
+      .createWithDefault(false)
+
+  val WORKER_DFS_OUTPUT_STREAM_CONCURRENT_LEVEL: ConfigEntry[Int] =
+    buildConf("celeborn.worker.hdfs.outputstream.concurrent.level")
+      .categories("worker")
+      .doc("If the number of guava concurrent level.")
+      .version("0.7.0")
+      .intConf
+      .createWithDefault(16)
+
+  val WORKER_CLOSE_DFS_STREAM_THREADS: OptionalConfigEntry[Int] =
+    buildConf("celeborn.worker.close.dfs.stream.threads")
+      .categories("worker")
+      .version("0.6.1")
+      .doc("Thread number of worker to close dfs stream.")
+      .intConf
       .createOptional
 
   val WORKER_JVM_PROFILER_ENABLED: ConfigEntry[Boolean] =
