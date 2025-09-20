@@ -206,6 +206,7 @@ object WorkerSource {
   val COMMIT_FILES_TIME = "CommitFilesTime"
   val COMMIT_FILES_FAIL_COUNT = "CommitFilesFailCount"
   val FLUSH_WORKING_QUEUE_SIZE = "FlushWorkingQueueSize"
+  val COMMIT_WORKING_QUEUE_SIZE = "CommitWorkingQueueSize"
   val LOCAL_FLUSH_COUNT = "LocalFlushCount"
   val LOCAL_FLUSH_SIZE = "LocalFlushSize"
   val HDFS_FLUSH_COUNT = "HdfsFlushCount"
