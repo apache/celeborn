@@ -67,6 +67,8 @@ class QuotaManagerSuite extends CelebornFunSuite
 
   val metricsInstanceLabel = s"""instance="${Utils.localHostName(conf)}:${conf.masterHttpPort}""""
 
+  private val extraInfo = Map(CelebornConf.QUOTA_INTERRUPT_SHUFFLE_ENABLED.key -> "true").asJava
+
   override def beforeAll(): Unit = {
     conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "FS")
     conf.set(
@@ -192,13 +194,15 @@ class QuotaManagerSuite extends CelebornFunSuite
           Utils.byteStringAsBytes("5G"),
           20)).asJava)
 
+    statusSystem.updateApplicationInfo("app1", user, extraInfo)
+    statusSystem.updateApplicationInfo("app2", user, extraInfo)
     addUserConsumption(user, rc)
     conf.set("celeborn.quota.cluster.diskBytesWritten", "60gb")
     configService.refreshCache()
     quotaManager.updateResourceConsumption()
     var res1 = checkUserQuota(user)
-    var res2 = checkApplicationQuota(user, "app1")
-    var res3 = checkApplicationQuota(user, "app2")
+    var res2 = checkApplicationQuota("app1")
+    var res3 = checkApplicationQuota("app2")
 
     val succeed = CheckQuotaResponse(true, "")
     val failed = CheckQuotaResponse(
@@ -230,8 +234,8 @@ class QuotaManagerSuite extends CelebornFunSuite
     configService.refreshCache()
     quotaManager.updateResourceConsumption()
     res1 = checkUserQuota(user)
-    res2 = checkApplicationQuota(user, "app1")
-    res3 = checkApplicationQuota(user, "app2")
+    res2 = checkApplicationQuota("app1")
+    res3 = checkApplicationQuota("app2")
 
     assert(res1 == failed)
     assert(res2 == CheckQuotaResponse(
@@ -282,14 +286,16 @@ class QuotaManagerSuite extends CelebornFunSuite
           Utils.byteStringAsBytes("2G"),
           20)).asJava)
 
+    statusSystem.updateApplicationInfo("app1", user, extraInfo)
+    statusSystem.updateApplicationInfo("app2", user, extraInfo)
     addUserConsumption(user, rc)
     conf.set("celeborn.quota.cluster.diskBytesWritten", "20gb")
     configService.refreshCache()
     quotaManager.updateResourceConsumption()
 
     res1 = checkUserQuota(user)
-    res2 = checkApplicationQuota(user, "app1")
-    res3 = checkApplicationQuota(user, "app2")
+    res2 = checkApplicationQuota("app1")
+    res3 = checkApplicationQuota("app2")
 
     assert(res1 == CheckQuotaResponse(
       false,
@@ -315,7 +321,7 @@ class QuotaManagerSuite extends CelebornFunSuite
   }
 
   test("test handleResourceConsumption time - case1") {
-    // 1000 users 100wapplications, all exceeded
+    // 1000 users 100w applications, all exceeded
     conf.set("celeborn.quota.tenant.diskBytesWritten", "1mb")
     conf.set("celeborn.quota.cluster.diskBytesWritten", "1mb")
     configService.refreshCache()
@@ -332,6 +338,7 @@ class QuotaManagerSuite extends CelebornFunSuite
             MIN + Math.abs(random.nextLong()) % (MAX - MIN),
             MIN + Math.abs(random.nextLong()) % (MAX - MIN),
             MIN + Math.abs(random.nextLong()) % (MAX - MIN))
+          statusSystem.updateApplicationInfo(appId, user, extraInfo)
           (appId, consumption)
       }.toMap
       val userConsumption = subResourceConsumption.values.foldRight(
@@ -340,10 +347,7 @@ class QuotaManagerSuite extends CelebornFunSuite
       addUserConsumption(user, userConsumption)
     }
 
-    val start = System.currentTimeMillis()
     quotaManager.updateResourceConsumption()
-    val duration = System.currentTimeMillis() - start
-    print(s"duration=$duration")
 
     val res = resourceConsumptionSource.getMetrics
     for (i <- 0 until 1000) {
@@ -386,6 +390,7 @@ class QuotaManagerSuite extends CelebornFunSuite
                 MIN + Math.abs(random.nextLong()) % (MAX - MIN),
                 MIN + Math.abs(random.nextLong()) % (MAX - MIN),
                 MIN + Math.abs(random.nextLong()) % (MAX - MIN))
+              statusSystem.updateApplicationInfo(appId, user, extraInfo)
               (appId, consumption)
           }.toMap
         } else {
@@ -393,6 +398,7 @@ class QuotaManagerSuite extends CelebornFunSuite
             index =>
               val appId = s"$user$i case2_app$index"
               val consumption = ResourceConsumption(0, 0, 0, 0)
+              statusSystem.updateApplicationInfo(appId, user, extraInfo)
               (appId, consumption)
           }.toMap
         }
@@ -402,10 +408,7 @@ class QuotaManagerSuite extends CelebornFunSuite
       addUserConsumption(user, userConsumption)
     }
 
-    val start = System.currentTimeMillis()
     quotaManager.updateResourceConsumption()
-    val duration = System.currentTimeMillis() - start
-    print(s"duration=$duration")
 
     val res = resourceConsumptionSource.getMetrics
     for (i <- 0 until 1000) {
@@ -492,6 +495,9 @@ class QuotaManagerSuite extends CelebornFunSuite
           0,
           0)).asJava)
 
+    statusSystem1.updateApplicationInfo("app1", user, extraInfo)
+    statusSystem1.updateApplicationInfo("app2", user, extraInfo)
+    statusSystem1.updateApplicationInfo("app3", user, extraInfo)
     addUserConsumption(user, rc)
     addUserConsumption(user1, rc1)
 
@@ -607,6 +613,9 @@ class QuotaManagerSuite extends CelebornFunSuite
           0,
           0)).asJava)
 
+    statusSystem1.updateApplicationInfo("app1", user1, extraInfo)
+    statusSystem1.updateApplicationInfo("app2", user1, extraInfo)
+    statusSystem1.updateApplicationInfo("app3", user2, extraInfo)
     addUserConsumption(user1, rc1)
     addUserConsumption(user2, rc2)
 
@@ -677,7 +686,6 @@ class QuotaManagerSuite extends CelebornFunSuite
   }
 
   def checkApplicationQuota(
-      userIdentifier: UserIdentifier,
       applicationId: String): CheckQuotaResponse = {
     quotaManager.checkApplicationQuotaStatus(applicationId)
   }
