@@ -26,6 +26,7 @@ import scala.Option;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.GeneratedMessageV3;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.CompositeByteBuf;
 import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -295,5 +296,14 @@ public class PartitionDataWriter implements DeviceObserver {
 
   public Flusher getFlusher() {
     return currentTierWriter.getFlusher();
+  }
+
+  public int getFlushableBytes() {
+    CompositeByteBuf flushBuffer = currentTierWriter.flushBuffer();
+    if (flushBuffer == null) {
+      return 0;
+    } else {
+      return flushBuffer.readableBytes();
+    }
   }
 }
