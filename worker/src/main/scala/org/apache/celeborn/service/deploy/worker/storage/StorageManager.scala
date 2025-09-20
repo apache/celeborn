@@ -394,12 +394,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   private def getNextIndex = counter.getAndUpdate(counterOperator)
 
-  private val newMapFunc =
-    new java.util.function.Function[String, ConcurrentHashMap[String, DiskFileInfo]]() {
-      override def apply(key: String): ConcurrentHashMap[String, DiskFileInfo] =
-        JavaUtils.newConcurrentHashMap()
-    }
-
   private val diskFileInfoMapFunc =
     new java.util.function.Function[String, ConcurrentHashMap[String, DiskFileInfo]]() {
       override def apply(key: String): ConcurrentHashMap[String, DiskFileInfo] =
@@ -1000,7 +994,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       shuffleKey: String,
       fileName: String,
       fileInfo: DiskFileInfo): Unit = {
-    committedFileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
+    committedFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(fileName, fileInfo)
   }
 
   def getActiveShuffleSize: Long = {
