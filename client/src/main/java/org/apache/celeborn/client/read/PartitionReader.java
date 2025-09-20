@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.client.read;
 
-import java.io.IOException;
 import java.util.Optional;
 
 import io.netty.buffer.ByteBuf;
@@ -28,7 +27,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 public interface PartitionReader {
   boolean hasNext();
 
-  ByteBuf next() throws IOException, InterruptedException;
+  ByteBuf next() throws Exception;
 
   void close();
 
