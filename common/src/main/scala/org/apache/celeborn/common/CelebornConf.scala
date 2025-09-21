@@ -4510,7 +4510,7 @@ object CelebornConf extends Logging {
   val WORKER_CLOSE_DFS_STREAM_THREADS: OptionalConfigEntry[Int] =
     buildConf("celeborn.worker.close.dfs.stream.threads")
       .categories("worker")
-      .version("0.6.1")
+      .version("0.7.0")
       .doc("Thread number of worker to close dfs stream.")
       .intConf
       .createOptional

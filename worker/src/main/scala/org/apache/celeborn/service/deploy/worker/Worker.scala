@@ -96,6 +96,8 @@ private[celeborn] class Worker(
 
   private val hasHDFSStorage = conf.hasHDFSStorage
 
+  private val reuseHDFSOutputStream = conf.workerReuseHdfsOutputStream
+
   if (conf.logCelebornConfEnabled) {
     logInfo(getConf)
   }
@@ -489,7 +491,7 @@ private[celeborn] class Worker(
     cleanTaskQueue.size()
   }
 
-  if (hasHDFSStorage) {
+  if (reuseHDFSOutputStream) {
     workerSource.addGauge(WorkerSource.OPEN_DFS_OUTPUT_STREAM_COUNT) { () =>
       if (StorageManager.streamsManager != null) {
         StorageManager.streamsManager.getSize

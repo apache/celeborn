@@ -110,12 +110,11 @@ private[worker] class HdfsFlushTask(
     if (StorageManager.streamsManager != null) {
       hdfsStream = StorageManager.streamsManager.getOrCreateStream(path)
       if (hdfsStream != null) {
-        hdfsStream.synchronized {
-          hdfsStream.write(convertBufferToBytes(buffer, copyBytes, readableBytes))
-          if (finalFlush) {
-            hdfsStream.flush()
-          }
+        hdfsStream.write(convertBufferToBytes(buffer, copyBytes, readableBytes))
+        if (finalFlush) {
+          hdfsStream.flush()
         }
+        StorageManager.streamsManager.releaseStream(path);
       } else {
         throw new CelebornIOException("Cannot find stream for " + path)
       }

@@ -27,6 +27,7 @@ import com.google.common.cache.RemovalNotification;
 
 import org.apache.celeborn.common.CelebornConf;
 
+import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -34,14 +35,19 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class StreamsManager {
     public static final Logger log = LoggerFactory.getLogger(StreamsManager.class);
 
     private final LoadingCache<Path, FSDataOutputStream> cache;
+    private final ConcurrentHashMap<Path, AtomicBoolean> isInUse = JavaUtils.newConcurrentHashMap();
     private final int maxCapacity;
     private final long maxStreamIdleMs;
 
@@ -58,6 +64,14 @@ public final class StreamsManager {
                 new RemovalListener<Path, FSDataOutputStream>() {
             @Override
             public void onRemoval(RemovalNotification<Path, FSDataOutputStream> notification) {
+                Path key = notification.getKey();
+                while (isInUse.containsKey(key) && isInUse.get(key).get()) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
                 if (notification.getValue() != null) {
                     try {
                         notification.getValue().close();
@@ -65,6 +79,7 @@ public final class StreamsManager {
                         throw new RuntimeException(e);
                     }
                 }
+                isInUse.remove(key);
             }
         };
         RemovalListener asynRemovalListener = RemovalListeners.asynchronous(removalListener, closeStreamThreadPool);
@@ -73,6 +88,7 @@ public final class StreamsManager {
             @Override
             public FSDataOutputStream load(Path path) throws Exception {
                 try {
+                    isInUse.computeIfAbsent(path, inUse -> new AtomicBoolean()).set(true);
                     return fileSystem.append(path);
                 } catch (IOException e){
                     throw new IOException("File must be exist: " + path + "\n" + e);
@@ -96,10 +112,24 @@ public final class StreamsManager {
     }
 
     public FSDataOutputStream getOrCreateStream(Path path) {
+        while (isInUse.containsKey(path) && isInUse.get(path).get()) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
         try {
+            if (isInUse.containsKey(path)) {
+                isInUse.get(path).compareAndSet(false, true);
+            }
             return cache.get(path);
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public void releaseStream(Path path) {
+        isInUse.get(path).compareAndSet(false, true);
     }
 }
