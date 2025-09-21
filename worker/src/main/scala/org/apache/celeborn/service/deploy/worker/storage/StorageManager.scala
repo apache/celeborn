@@ -169,8 +169,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       try {
         StorageManager.hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
         if (conf.workerReuseHdfsOutputStream) {
-          StorageManager.streamsManager = new StreamsManager(conf,
-            StorageManager.hadoopFs.get(StorageInfo.Type.HDFS))
+          StorageManager.streamsManager =
+            new StreamsManager(conf, StorageManager.hadoopFs.get(StorageInfo.Type.HDFS))
         }
       } catch {
         case e: Exception =>

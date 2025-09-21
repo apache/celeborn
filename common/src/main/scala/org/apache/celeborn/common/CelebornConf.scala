@@ -4468,9 +4468,10 @@ object CelebornConf extends Logging {
   val WORKER_OPEN_DFS_OUTPUT_STREAM_MAX: ConfigEntry[Int] =
     buildConf("celeborn.worker.openHdfsOutputStream.max")
       .categories("worker")
-      .doc("If the number of opened hdfs output streams on a worker exceeds this configuration value, " +
-        "the worker will be marked as high-load in the heartbeat report, " +
-        "and the master will not include that node in the response of RequestSlots.")
+      .doc(
+        "If the number of opened hdfs output streams on a worker exceeds this configuration value, " +
+          "the worker will be marked as high-load in the heartbeat report, " +
+          "and the master will not include that node in the response of RequestSlots.")
       .version("0.7.0")
       .intConf
       .createWithDefault(1000)
