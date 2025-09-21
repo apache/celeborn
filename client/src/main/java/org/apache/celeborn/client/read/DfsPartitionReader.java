@@ -60,7 +60,7 @@ public class DfsPartitionReader implements PartitionReader {
   private final long shuffleChunkSize;
   private final int fetchMaxReqsInFlight;
   private final LinkedBlockingQueue<Pair<Integer, ByteBuf>> results;
-  private final AtomicReference<IOException> exception = new AtomicReference<>();
+  private final AtomicReference<Exception> exception = new AtomicReference<>();
   private volatile boolean closed = false;
   private ExecutorService fetchThread;
   private boolean fetchThreadStarted;
@@ -236,7 +236,7 @@ public class DfsPartitionReader implements PartitionReader {
   }
 
   @Override
-  public ByteBuf next() throws IOException, InterruptedException {
+  public ByteBuf next() throws Exception {
     Pair<Integer, ByteBuf> chunk = null;
     checkpoint();
     if (!fetchThreadStarted) {
@@ -283,6 +283,7 @@ public class DfsPartitionReader implements PartitionReader {
               }
             } catch (Exception e) {
               logger.warn("Fetch thread is cancelled.", e);
+              exception.set(e);
               // cancel a task for speculative, ignore this exception
             }
             logger.debug("fetch {} is done.", location.getStorageInfo().getFilePath());
@@ -297,7 +298,7 @@ public class DfsPartitionReader implements PartitionReader {
             TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait));
         logger.debug("poll result with result size: {}", results.size());
       }
-    } catch (InterruptedException e) {
+    } catch (Exception e) {
       logger.error("PartitionReader thread interrupted while fetching data.");
       throw e;
     }
@@ -306,8 +307,8 @@ public class DfsPartitionReader implements PartitionReader {
     return chunk.getRight();
   }
 
-  private void checkException() throws IOException {
-    IOException e = exception.get();
+  private void checkException() throws Exception {
+    Exception e = exception.get();
     if (e != null) {
       throw e;
     }

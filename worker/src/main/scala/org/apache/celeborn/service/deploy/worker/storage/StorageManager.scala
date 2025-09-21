@@ -386,12 +386,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   private def getNextIndex = counter.getAndUpdate(counterOperator)
 
-  private val newMapFunc =
-    new java.util.function.Function[String, ConcurrentHashMap[String, DiskFileInfo]]() {
-      override def apply(key: String): ConcurrentHashMap[String, DiskFileInfo] =
-        JavaUtils.newConcurrentHashMap()
-    }
-
   private val diskFileInfoMapFunc =
     new java.util.function.Function[String, ConcurrentHashMap[String, DiskFileInfo]]() {
       override def apply(key: String): ConcurrentHashMap[String, DiskFileInfo] =
@@ -773,21 +767,26 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               false
           }
         }
-
-      val dfsCleaned = hadoopFs match {
-        case dfs: FileSystem =>
-          val dfsDir = if (hasHDFSStorage) hdfsDir else if (hasOssStorage) ossDir else s3Dir
-          val dfsWorkPath = new Path(dfsDir, conf.workerWorkingDir)
-          // DFS path not exist when first time initialize
-          if (dfs.exists(dfsWorkPath)) {
-            !dfs.listFiles(dfsWorkPath, false).hasNext
-          } else {
-            true
+      val dfsCleaned = hadoopFs == null || hadoopFs.asScala.forall {
+        case (storageType, fs) =>
+          val dfsDir =
+            if (storageType == StorageInfo.Type.HDFS)
+              hdfsDir
+            else if (storageType == StorageInfo.Type.OSS) ossDir
+            else s3Dir
+          try {
+            val dfsWorkPath = new Path(dfsDir, conf.workerWorkingDir)
+            // DFS path not exist when first time initialize
+            !fs.exists(dfsWorkPath) || !fs.listFiles(dfsWorkPath, false).hasNext
+          } catch {
+            case t: Throwable =>
+              // When DFS is not accessible, assume it's cleaned
+              logError("checkIfWorkingDirCleaned failed.", t)
+              true
           }
         case _ =>
           true
       }
-
       if (localCleaned && dfsCleaned) {
         return true
       }
@@ -994,7 +993,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       shuffleKey: String,
       fileName: String,
       fileInfo: DiskFileInfo): Unit = {
-    committedFileInfos.computeIfAbsent(shuffleKey, newMapFunc).put(fileName, fileInfo)
+    committedFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(fileName, fileInfo)
   }
 
   def getActiveShuffleSize: Long = {

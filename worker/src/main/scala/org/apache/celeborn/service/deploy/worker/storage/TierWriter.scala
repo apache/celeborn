@@ -537,6 +537,7 @@ class DfsTierWriter(
 
   try {
     hadoopFs.create(dfsFileInfo.getDfsPath, true).close()
+    hadoopFs.setReplication(dfsFileInfo.getDfsPath, conf.workerDfsReplicationFactor.toShort);
     if (dfsFileInfo.isS3) {
       val uri = hadoopFs.getUri
       val bucketName = uri.getHost
@@ -663,6 +664,9 @@ class DfsTierWriter(
             hadoopFs.delete(dfsFileInfo.getDfsIndexPath, true)
           }
           val indexOutputStream = hadoopFs.create(dfsFileInfo.getDfsIndexPath)
+          hadoopFs.setReplication(
+            dfsFileInfo.getDfsIndexPath,
+            conf.workerDfsReplicationFactor.toShort)
           val byteStream: ByteArrayOutputStream = new ByteArrayOutputStream()
           val dataStream = new DataOutputStream(byteStream)
           try {

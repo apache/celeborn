@@ -696,4 +696,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     return new ImmutablePair<>(
         unhealthyCount * 1.0 / diskMap.size() >= unhealthyDiskRatioThreshold, unhealthyCount);
   }
+
+  public boolean isAppInterruptShuffleEnabled(String appId) {
+    return Boolean.parseBoolean(
+        Optional.ofNullable(applicationInfos.get(appId))
+            .map(ApplicationInfo::extraInfo)
+            .map(extraInfo -> extraInfo.get(CelebornConf.QUOTA_INTERRUPT_SHUFFLE_ENABLED().key()))
+            .orElse(CelebornConf.QUOTA_INTERRUPT_SHUFFLE_ENABLED().defaultValueString()));
+  }
 }

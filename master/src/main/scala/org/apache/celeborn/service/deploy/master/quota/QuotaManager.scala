@@ -339,12 +339,13 @@ class QuotaManager(
     var nonExpired = used
     if (checkConsumptionExceeded(used, threshold)) {
       val sortedConsumption =
-        appMap.sortBy(_._2)(Ordering.by((r: ResourceConsumption) =>
-          (
-            r.diskBytesWritten,
-            r.diskFileCount,
-            r.hdfsBytesWritten,
-            r.hdfsFileCount)).reverse)
+        appMap.filter(app => statusSystem.isAppInterruptShuffleEnabled(app._1))
+          .sortBy(_._2)(Ordering.by((r: ResourceConsumption) =>
+            (
+              r.diskBytesWritten,
+              r.diskFileCount,
+              r.hdfsBytesWritten,
+              r.hdfsFileCount)).reverse)
       for ((appId, consumption) <- sortedConsumption
         if checkConsumptionExceeded(nonExpired, threshold)) {
         val reason = s"$expireReason Used: ${consumption.simpleString}, Threshold: $threshold"

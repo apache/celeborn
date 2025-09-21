@@ -690,6 +690,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(MASTER_RESOURCE_CONSUMPTION_METRICS_ENABLED)
   def workerFlushReuseCopyBufferEnabled: Boolean =
     get(WORKER_FLUSH_REUSE_COPY_BUFFER_ENABLED)
+  def workerDfsReplicationFactor: Int =
+    get(WORKER_DFS_REPLICATION_FACTOR)
+
   def clusterName: String = get(CLUSTER_NAME)
 
   // //////////////////////////////////////////////////////
@@ -6704,5 +6707,13 @@ object CelebornConf extends Logging {
       .version("0.6.1")
       .booleanConf
       .createWithDefaultString("true")
+
+  val WORKER_DFS_REPLICATION_FACTOR: ConfigEntry[Int] =
+    buildConf("celeborn.worker.hdfs.replication.factor")
+      .categories("worker")
+      .version("0.7.0")
+      .doc("HDFS replication factor for shuffle files.")
+      .intConf
+      .createWithDefault(2)
 
 }
