@@ -632,16 +632,20 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
       if (diskFileInfos.containsKey(shuffleKey)) {
         val removedFileInfos = diskFileInfos.remove(shuffleKey)
-        var isDfsExpired = false
-        var isHdfs = false
-        var isOss = false
+        val hdfsFilesExpired = new util.ArrayList[DiskFileInfo]()
+        val s3FilesExpired = new util.ArrayList[DiskFileInfo]()
+        val ossFilesExpired = new util.ArrayList[DiskFileInfo]()
         if (removedFileInfos != null) {
           removedFileInfos.asScala.foreach {
             case (_, fileInfo) =>
               if (cleanFileInternal(shuffleKey, fileInfo)) {
-                isDfsExpired = true
-                isHdfs = fileInfo.isHdfs
-                isOss = fileInfo.isOSS
+                if (fileInfo.isHdfs) {
+                  hdfsFilesExpired.add(fileInfo)
+                } else if (fileInfo.isS3) {
+                  s3FilesExpired.add(fileInfo)
+                } else if (fileInfo.isOSS) {
+                  ossFilesExpired.add(fileInfo)
+                }
               }
           }
         }
@@ -654,21 +658,37 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             deleteDirectory(file, diskOperators.get(diskInfo.mountPoint))
           }
         }
-        if (isDfsExpired) {
+        // Clean up HDFS files
+        if (!hdfsFilesExpired.isEmpty) {
           try {
-            val dir =
-              if (hasHDFSStorage && isHdfs) hdfsDir
-              else if (hasOssStorage && isOss) ossDir
-              else s3Dir
-            val storageInfo =
-              if (hasHDFSStorage && isHdfs) StorageInfo.Type.HDFS
-              else if (hasOssStorage && isOss) StorageInfo.Type.OSS
-              else StorageInfo.Type.S3
+            val storageInfo = StorageInfo.Type.HDFS
             StorageManager.hadoopFs.get(storageInfo).delete(
-              new Path(new Path(dir, conf.workerWorkingDir), s"$appId/$shuffleId"),
+              new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId"),
               true)
           } catch {
-            case e: Exception => logWarning("Clean expired DFS shuffle failed.", e)
+            case e: Exception => logWarning("Clean expired HDFS shuffle failed.", e)
+          }
+        }
+        // Clean up OSS files
+        if (!ossFilesExpired.isEmpty) {
+          try {
+            val storageInfo = StorageInfo.Type.OSS
+            StorageManager.hadoopFs.get(storageInfo).delete(
+              new Path(new Path(ossDir, conf.workerWorkingDir), s"$appId/$shuffleId"),
+              true)
+          } catch {
+            case e: Exception => logWarning("Clean expired OSS shuffle failed.", e)
+          }
+        }
+        // Clean up S3 files
+        if (!s3FilesExpired.isEmpty) {
+          try {
+            val storageInfo = StorageInfo.Type.S3
+            StorageManager.hadoopFs.get(storageInfo).delete(
+              new Path(new Path(s3Dir, conf.workerWorkingDir), s"$appId/$shuffleId"),
+              true)
+          } catch {
+            case e: Exception => logWarning("Clean expired S3 shuffle failed.", e)
           }
         }
         if (workerGracefulShutdown) {
