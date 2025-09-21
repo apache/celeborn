@@ -117,6 +117,11 @@ class MapPartitionCommitHandler(
     Array.empty
   }
 
+  override def areAllMapperAttemptsFinished(shuffleId: Int): Boolean = {
+    // see getMapperAttempts. !getMapperAttempts.exists(_ < -1) is always true
+    true
+  }
+
   override def removeExpiredShuffle(shuffleId: Int): Unit = {
     inProcessMapPartitionEndIds.remove(shuffleId)
     shuffleSucceedPartitionIds.remove(shuffleId)
