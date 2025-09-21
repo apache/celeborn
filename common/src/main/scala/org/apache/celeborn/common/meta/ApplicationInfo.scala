@@ -15,23 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.client.read;
+package org.apache.celeborn.common.meta
 
-import java.util.Optional;
+import java.util.{Map => JMap}
 
-import io.netty.buffer.ByteBuf;
+import org.apache.celeborn.common.identity.UserIdentifier
 
-import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
-import org.apache.celeborn.common.protocol.PartitionLocation;
-
-public interface PartitionReader {
-  boolean hasNext();
-
-  ByteBuf next() throws Exception;
-
-  void close();
-
-  PartitionLocation getLocation();
-
-  Optional<PartitionReaderCheckpointMetadata> getPartitionReaderCheckpointMetadata();
-}
+/**
+ * Application info
+ */
+case class ApplicationInfo(
+    appId: String,
+    userIdentifier: UserIdentifier,
+    extraInfo: JMap[String, String],
+    registrationTime: Long)

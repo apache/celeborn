@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
+import java.util.{Map => JMap}
 import java.util.Collections
 import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
@@ -429,6 +430,13 @@ private[celeborn] class Master(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
+    case RegisterApplicationInfo(appId, userIdentifier, extraInfo, requestId) =>
+      logDebug(
+        s"Received RegisterApplicationInfo request for app $appId/$userIdentifier/$extraInfo.")
+      checkAuth(context, appId)
+      executeWithLeaderChecker(
+        context,
+        handleRegisterApplicationInfo(context, appId, userIdentifier, extraInfo, requestId))
     case HeartbeatFromApplication(
           appId,
           totalWritten,
@@ -488,10 +496,6 @@ private[celeborn] class Master(
           disks,
           userResourceConsumption,
           requestId))
-
-    case ReleaseSlots(_, _, _, _, _) =>
-      // keep it for compatible reason
-      context.reply(ReleaseSlotsResponse(StatusCode.SUCCESS))
 
     case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
@@ -1164,6 +1168,16 @@ private[celeborn] class Master(
         Option(statusSystem.shuffleFallbackCounts.get(fallbackPolicy)).getOrElse(0L)
       }
     }
+  }
+
+  private def handleRegisterApplicationInfo(
+      context: RpcCallContext,
+      appId: String,
+      userIdentifier: UserIdentifier,
+      extraInfo: JMap[String, String],
+      requestId: String): Unit = {
+    statusSystem.handleRegisterApplicationInfo(appId, userIdentifier, extraInfo, requestId)
+    context.reply(OneWayMessageResponse)
   }
 
   private def handleHeartbeatFromApplication(

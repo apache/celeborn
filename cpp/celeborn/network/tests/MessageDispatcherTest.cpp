@@ -127,6 +127,92 @@ TEST(MessageDispatcherTest, sendRpcRequestAndReceiveFailure) {
   EXPECT_TRUE(future.hasException());
 }
 
+TEST(MessageDispatcherTest, sendPushDataAndReceiveSuccess) {
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(sentMsg);
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
+  const long requestId = 1001;
+  const uint8_t mode = 2;
+  const std::string shuffleKey = "test-shuffle-key";
+  const std::string partitionUniqueId = "test-partition-id";
+  const std::string requestBody = "test-request-body";
+  auto pushData = std::make_unique<PushData>(
+      requestId,
+      mode,
+      shuffleKey,
+      partitionUniqueId,
+      toReadOnlyByteBuffer(requestBody));
+  auto future = dispatcher->sendPushDataRequest(std::move(pushData));
+
+  EXPECT_FALSE(future.isReady());
+  EXPECT_EQ(sentMsg->type(), Message::PUSH_DATA);
+  auto sentPushData = dynamic_cast<PushData*>(sentMsg.get());
+  EXPECT_EQ(sentPushData->requestId(), requestId);
+  EXPECT_EQ(sentPushData->mode(), mode);
+  EXPECT_EQ(sentPushData->shuffleKey(), shuffleKey);
+  EXPECT_EQ(sentPushData->partitionUniqueId(), partitionUniqueId);
+  EXPECT_EQ(sentPushData->body()->remainingSize(), requestBody.size());
+  EXPECT_EQ(
+      sentPushData->body()->readToString(requestBody.size()), requestBody);
+
+  const std::string responseBody = "test-response-body";
+  auto rpcResponse = std::make_unique<RpcResponse>(
+      requestId, toReadOnlyByteBuffer(responseBody));
+  dispatcher->read(nullptr, std::move(rpcResponse));
+
+  EXPECT_TRUE(future.isReady());
+  auto receivedMsg = std::move(future).get();
+  EXPECT_EQ(receivedMsg->type(), Message::RPC_RESPONSE);
+  auto receivedRpcResponse = dynamic_cast<RpcResponse*>(receivedMsg.get());
+  EXPECT_EQ(receivedRpcResponse->body()->remainingSize(), responseBody.size());
+  EXPECT_EQ(
+      receivedRpcResponse->body()->readToString(responseBody.size()),
+      responseBody);
+}
+
+TEST(MessageDispatcherTest, sendPushDataAndReceiveFailure) {
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(sentMsg);
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
+  const long requestId = 1001;
+  const uint8_t mode = 2;
+  const std::string shuffleKey = "test-shuffle-key";
+  const std::string partitionUniqueId = "test-partition-id";
+  const std::string requestBody = "test-request-body";
+  auto pushData = std::make_unique<PushData>(
+      requestId,
+      mode,
+      shuffleKey,
+      partitionUniqueId,
+      toReadOnlyByteBuffer(requestBody));
+  auto future = dispatcher->sendPushDataRequest(std::move(pushData));
+
+  EXPECT_FALSE(future.isReady());
+  EXPECT_EQ(sentMsg->type(), Message::PUSH_DATA);
+  auto sentPushData = dynamic_cast<PushData*>(sentMsg.get());
+  EXPECT_EQ(sentPushData->requestId(), requestId);
+  EXPECT_EQ(sentPushData->mode(), mode);
+  EXPECT_EQ(sentPushData->shuffleKey(), shuffleKey);
+  EXPECT_EQ(sentPushData->partitionUniqueId(), partitionUniqueId);
+  EXPECT_EQ(sentPushData->body()->remainingSize(), requestBody.size());
+  EXPECT_EQ(
+      sentPushData->body()->readToString(requestBody.size()), requestBody);
+
+  const std::string errorMsg = "test-error-msg";
+  auto copiedErrorMsg = errorMsg;
+  auto rpcFailure =
+      std::make_unique<RpcFailure>(requestId, std::move(copiedErrorMsg));
+  dispatcher->read(nullptr, std::move(rpcFailure));
+
+  EXPECT_TRUE(future.hasException());
+}
+
 TEST(MessageDispatcherTest, sendFetchChunkRequestAndReceiveSuccess) {
   std::unique_ptr<Message> sentMsg;
   MockHandler mockHandler(sentMsg);

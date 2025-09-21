@@ -265,7 +265,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       logWarning(
         s"[handlePushData] FileWriter is already closed! File path ${fileInfo.getFilePath} " +
           s"length ${fileInfo.getFileLength}")
-      callbackWithTimer.onFailure(new CelebornIOException("File already closed!"))
+      callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
       fileWriter.decrementPendingWrites()
       return
     }

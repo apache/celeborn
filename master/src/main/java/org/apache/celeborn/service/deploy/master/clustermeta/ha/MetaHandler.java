@@ -130,9 +130,6 @@ public class MetaHandler {
               shuffleKey, request.getRequestSlotsRequest().getHostName(), new HashMap<>());
           break;
 
-        case ReleaseSlots:
-          break;
-
         case UnRegisterShuffle:
           shuffleKey = request.getUnregisterShuffleRequest().getShuffleKey();
           LOG.debug("Handle unregister shuffle for {}", shuffleKey);
@@ -144,6 +141,18 @@ public class MetaHandler {
               request.getBatchUnregisterShuffleRequest().getShuffleKeysList();
           metaSystem.updateBatchUnregisterShuffleMeta(shuffleKeys);
           LOG.debug("Handle batch unregister shuffle for {}", shuffleKeys);
+          break;
+
+        case RegisterApplicationInfo:
+          appId = request.getRegisterApplicationInfoRequest().getAppId();
+          UserIdentifier userIdentifier =
+              new UserIdentifier(
+                  request.getRegisterApplicationInfoRequest().getUserIdentifier().getTenantId(),
+                  request.getRegisterApplicationInfoRequest().getUserIdentifier().getName());
+          Map<String, String> extraInfo =
+              request.getRegisterApplicationInfoRequest().getExtraInfoMap();
+          metaSystem.updateApplicationInfo(appId, userIdentifier, extraInfo);
+          LOG.debug("Handle register application info for {}/{}", appId, userIdentifier);
           break;
 
         case AppHeartbeat:
@@ -201,17 +210,6 @@ public class MetaHandler {
           replicatePort = request.getWorkerLostRequest().getReplicatePort();
           LOG.debug("Handle worker lost for {} {}", host, pushPort);
           metaSystem.updateWorkerLostMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
-          break;
-
-        case WorkerRemove:
-          // TODO: Remove `WorkerRemove` in 0.7.x version to guarantee upgrade compatibility.
-          host = request.getWorkerRemoveRequest().getHost();
-          rpcPort = request.getWorkerRemoveRequest().getRpcPort();
-          pushPort = request.getWorkerRemoveRequest().getPushPort();
-          fetchPort = request.getWorkerRemoveRequest().getFetchPort();
-          replicatePort = request.getWorkerRemoveRequest().getReplicatePort();
-          LOG.debug("Handle worker remove for {} {}", host, pushPort);
-          metaSystem.updateWorkerRemoveMeta(host, rpcPort, pushPort, fetchPort, replicatePort);
           break;
 
         case WorkerHeartbeat:

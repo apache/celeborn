@@ -116,6 +116,7 @@ enum MessageType {
   GET_STAGE_END_RESPONSE = 93;
   READ_REDUCER_PARTITION_END = 94;
   READ_REDUCER_PARTITION_END_RESPONSE = 95;
+  REGISTER_APPLICATION_INFO = 96;
 }
 
 enum StreamType {
@@ -327,21 +328,6 @@ message PbRequestSlots {
 message PbSlotInfo {
   map<string, int32> slot = 1;
 }
-
-// keep it for compatible reason
-message PbReleaseSlots {
-  string applicationId = 1;
-  int32 shuffleId = 2;
-  repeated string workerIds = 3;
-  repeated PbSlotInfo slots = 4;
-  string requestId = 6;
-}
-
-// keep it for compatible reason
-message PbReleaseSlotsResponse {
-  int32 status = 1;
-}
-
 
 message PbRequestSlotsResponse {
   int32 status = 1;
@@ -753,6 +739,7 @@ message PbSnapshotMetaInfo {
   map<string, int64> shuffleFallbackCounts = 19;
   int64 applicationTotalCount = 20;
   map<string, int64> applicationFallbackCounts = 21;
+  map<string, PbApplicationInfo> applicationInfos = 22;
 }
 
 message PbOpenStream {
@@ -904,6 +891,13 @@ message PbApplicationMeta {
   string secret = 2;
 }
 
+message PbApplicationInfo {
+  string appId = 1;
+  PbUserIdentifier userIdentifier = 2;
+  map<string, string> extraInfo = 3;
+  int64 registrationTime = 4;
+}
+
 message PbApplicationMetaRequest {
   string appId = 1;
 }
@@ -988,8 +982,6 @@ enum PbMetaRequestType {
 
   UnRegisterShuffle = 12;
   RequestSlots = 13;
-  //deprecated
-  ReleaseSlots = 14;
   AppHeartbeat = 15;
   AppLost = 16;
   WorkerLost = 17;
@@ -997,7 +989,6 @@ enum PbMetaRequestType {
   RegisterWorker = 19;
   ReportWorkerUnavailable = 20;
   UpdatePartitionSize = 21;
-  WorkerRemove = 22;
   RemoveWorkersUnavailableInfo = 23;
   WorkerExclude = 24;
   WorkerEvent = 25;
@@ -1005,6 +996,7 @@ enum PbMetaRequestType {
   ReportWorkerDecommission = 27;
   BatchUnRegisterShuffle = 28;
   ReviseLostShuffles = 29;
+  RegisterApplicationInfo = 30;
 }
 
 message PbMetaRequest {
@@ -1012,8 +1004,6 @@ message PbMetaRequest {
   string requestId = 2;
 
   PbMetaRequestSlotsRequest requestSlotsRequest = 10;
-  // deprecated
-  PbReleaseSlots releaseSlotsRequest = 11;
   PbMetaUnregisterShuffle unregisterShuffleRequest = 12;
   PbMetaAppHeartbeatRequest appHeartbeatRequest = 13;
   PbApplicationLost appLostRequest = 14;
@@ -1021,13 +1011,13 @@ message PbMetaRequest {
   PbMetaWorkerHeartbeatRequest workerHeartbeatRequest = 16;
   PbMetaRegisterWorkerRequest registerWorkerRequest = 17;
   PbReportWorkerUnavailable reportWorkerUnavailableRequest = 18;
-  PbWorkerAddress workerRemoveRequest = 19;
   PbRemoveWorkersUnavailableInfo removeWorkersUnavailableInfoRequest = 20;
   PbMetaWorkerExcludeRequest workerExcludeRequest = 21;
   PbWorkerEventRequest workerEventRequest = 22;
   PbApplicationMeta applicationMetaRequest = 23;
   PbReportWorkerDecommission reportWorkerDecommissionRequest = 24;
   PbMetaBatchUnregisterShuffles batchUnregisterShuffleRequest = 25;
+  PbRegisterApplicationInfo registerApplicationInfoRequest = 26;
   PbReviseLostShuffles reviseLostShufflesRequest = 102;
 }
 
@@ -1074,4 +1064,11 @@ message PbMetaRequestResponse {
   bool success = 2;
   string message = 3;
   PbMetaRequestStatus status = 4;
+}
+
+message PbRegisterApplicationInfo {
+  string appId = 1;
+  PbUserIdentifier userIdentifier = 2;
+  map<string, string> extraInfo = 3;
+  string requestId = 4;
 }

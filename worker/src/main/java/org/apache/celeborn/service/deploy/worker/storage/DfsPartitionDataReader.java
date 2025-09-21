@@ -35,7 +35,12 @@ public class DfsPartitionDataReader extends PartitionDataReader {
   private final FSDataInputStream indexInputStream;
 
   public DfsPartitionDataReader(
-      DiskFileInfo fileInfo, ByteBuffer headerBuffer, ByteBuffer indexBuffer) throws IOException {
+      DiskFileInfo fileInfo,
+      FSDataInputStream dataInputStream,
+      FSDataInputStream indexInputStream,
+      ByteBuffer headerBuffer,
+      ByteBuffer indexBuffer)
+      throws IOException {
     super(fileInfo, headerBuffer, indexBuffer);
     FileSystem fileSystem =
         StorageManager.hadoopFs()
@@ -43,8 +48,8 @@ public class DfsPartitionDataReader extends PartitionDataReader {
                 fileInfo.isHdfs()
                     ? StorageInfo.Type.HDFS
                     : fileInfo.isS3() ? StorageInfo.Type.S3 : StorageInfo.Type.OSS);
-    this.dataInputStream = fileSystem.open(fileInfo.getDfsPath());
-    this.indexInputStream = fileSystem.open(fileInfo.getDfsIndexPath());
+    this.dataInputStream = dataInputStream;
+    this.indexInputStream = indexInputStream;
     this.dataFileSize = fileSystem.getFileStatus(fileInfo.getDfsPath()).getLen();
     this.indexFileSize = fileSystem.getFileStatus(fileInfo.getDfsIndexPath()).getLen();
   }

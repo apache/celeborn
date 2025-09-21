@@ -25,9 +25,6 @@ enum Type {
   UnRegisterShuffle = 12;
   RequestSlots = 13;
 
-  //deprecated
-  ReleaseSlots = 14;
-
   AppHeartbeat = 15;
   AppLost = 16;
   WorkerLost = 17;
@@ -35,7 +32,6 @@ enum Type {
   RegisterWorker = 19;
   ReportWorkerUnavailable = 20;
   UpdatePartitionSize = 21;
-  WorkerRemove = 22;
   RemoveWorkersUnavailableInfo = 23;
   WorkerExclude = 24;
   WorkerEvent = 25;
@@ -44,6 +40,8 @@ enum Type {
   BatchUnRegisterShuffle = 28;
 
   ReviseLostShuffles = 29;
+
+  RegisterApplicationInfo = 30;
 }
 
 enum WorkerEventType {
@@ -62,8 +60,6 @@ message ResourceRequest {
   optional string requestId = 2;
 
   optional RequestSlotsRequest requestSlotsRequest = 10;
-  // deprecated
-  optional ReleaseSlotsRequest releaseSlotsRequest = 11;
   optional UnregisterShuffleRequest unregisterShuffleRequest = 12;
   optional AppHeartbeatRequest appHeartbeatRequest = 13;
   optional AppLostRequest appLostRequest = 14;
@@ -71,13 +67,13 @@ message ResourceRequest {
   optional WorkerHeartbeatRequest workerHeartbeatRequest = 16;
   optional RegisterWorkerRequest registerWorkerRequest = 17;
   optional ReportWorkerUnavailableRequest reportWorkerUnavailableRequest = 18;
-  optional WorkerRemoveRequest workerRemoveRequest = 19;
   optional RemoveWorkersUnavailableInfoRequest removeWorkersUnavailableInfoRequest = 20;
   optional WorkerExcludeRequest workerExcludeRequest = 21;
   optional WorkerEventRequest workerEventRequest = 22;
   optional ApplicationMetaRequest applicationMetaRequest = 23;
   optional ReportWorkerDecommissionRequest reportWorkerDecommissionRequest = 24;
   optional BatchUnregisterShuffleRequest batchUnregisterShuffleRequest = 25;
+  optional RegisterApplicationInfoRequest registerApplicationInfoRequest = 26;
   optional ReviseLostShufflesRequest reviseLostShufflesRequest = 102;
 }
 
@@ -100,12 +96,6 @@ message RequestSlotsRequest {
 
 message SlotInfo{
   map<string, int32> slot = 1;
-}
-
-message ReleaseSlotsRequest {
-  string shuffleKey = 1;
-  repeated string workerIds = 2;
-  repeated SlotInfo slots = 3;
 }
 
 message UnregisterShuffleRequest {
@@ -146,14 +136,6 @@ message WorkerExcludeRequest {
 }
 
 message WorkerLostRequest {
-  string host = 1;
-  int32 rpcPort = 2;
-  int32 pushPort = 3;
-  int32 fetchPort = 4 ;
-  int32 replicatePort = 5;
-}
-
-message WorkerRemoveRequest {
   string host = 1;
   int32 rpcPort = 2;
   int32 pushPort = 3;
@@ -265,4 +247,10 @@ message ApplicationMetaRequest {
 message ReviseLostShufflesRequest {
   string appId = 1 ;
   repeated int32 lostShuffles = 2 ;
+}
+
+message RegisterApplicationInfoRequest {
+  string appId = 1;
+  UserIdentifier userIdentifier = 2;
+  map<string, string> extraInfo = 3;
 }

@@ -1333,14 +1333,16 @@ public class ShuffleClientImpl extends ShuffleClient {
       if (shouldPush) {
         limitMaxInFlight(mapKey, pushState, loc.hostAndPushPort());
         DataBatches dataBatches = pushState.takeDataBatches(addressPair);
-        doPushMergedData(
-            addressPair,
-            shuffleId,
-            mapId,
-            attemptId,
-            dataBatches.requireBatches(),
-            pushState,
-            maxReviveTimes);
+        if (dataBatches != null) {
+          doPushMergedData(
+              addressPair,
+              shuffleId,
+              mapId,
+              attemptId,
+              dataBatches.requireBatches(),
+              pushState,
+              maxReviveTimes);
+        }
       }
     }
 

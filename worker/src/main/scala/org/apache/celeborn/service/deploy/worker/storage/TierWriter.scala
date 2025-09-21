@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker.storage
 
-import java.io.IOException
+import java.io.{ByteArrayOutputStream, DataOutputStream, IOException}
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.util.concurrent.TimeUnit
@@ -308,6 +308,12 @@ class MemoryTierWriter(
       MemoryManager.instance.incrementDiskBuffer(numBytes)
       storageManager.unregisterMemoryPartitionWriterAndFileInfo(fileInfo, shuffleKey, filename)
       storageManager.evictedFileCount.incrementAndGet
+      if (file.isInstanceOf[LocalTierWriter]) {
+        storageManager.evictedLocalFileCount.incrementAndGet()
+      }
+      if (file.isInstanceOf[DfsTierWriter]) {
+        storageManager.evictedDfsFileCount.incrementAndGet()
+      }
     }
   }
 
@@ -530,6 +536,7 @@ class DfsTierWriter(
 
   try {
     hadoopFs.create(dfsFileInfo.getDfsPath, true).close()
+    hadoopFs.setReplication(dfsFileInfo.getDfsPath, conf.workerDfsReplicationFactor.toShort);
     if (dfsFileInfo.isS3) {
       val uri = hadoopFs.getUri
       val bucketName = uri.getHost
@@ -648,9 +655,19 @@ class DfsTierWriter(
       hadoopFs.create(dfsFileInfo.getDfsWriterSuccessPath).close()
       if (dfsFileInfo.isReduceFileMeta) {
         val indexOutputStream = hadoopFs.create(dfsFileInfo.getDfsIndexPath)
-        indexOutputStream.writeInt(dfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
-        for (offset <- dfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala) {
-          indexOutputStream.writeLong(offset)
+        hadoopFs.setReplication(
+          dfsFileInfo.getDfsIndexPath,
+          conf.workerDfsReplicationFactor.toShort)
+        val byteStream: ByteArrayOutputStream = new ByteArrayOutputStream()
+        val dataStream = new DataOutputStream(byteStream)
+        try {
+          dataStream.writeInt(dfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
+          for (offset <- dfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala) {
+            dataStream.writeLong(offset)
+          }
+          indexOutputStream.write(byteStream.toByteArray)
+        } finally if (dataStream != null) {
+          dataStream.close()
         }
         indexOutputStream.close()
       }

@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.meta.ApplicationInfo;
 import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.DiskStatus;
@@ -101,8 +102,16 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final Map<String, Long> shuffleFallbackCounts = JavaUtils.newConcurrentHashMap();
   public final Map<String, Long> applicationFallbackCounts = JavaUtils.newConcurrentHashMap();
 
+  public final ConcurrentHashMap<String, ApplicationInfo> applicationInfos =
+      JavaUtils.newConcurrentHashMap();
   public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
       JavaUtils.newConcurrentHashMap();
+
+  public void updateApplicationInfo(
+      String appId, UserIdentifier userIdentifier, Map<String, String> extraInfo) {
+    applicationInfos.putIfAbsent(
+        appId, new ApplicationInfo(appId, userIdentifier, extraInfo, System.currentTimeMillis()));
+  }
 
   public void updateRequestSlotsMeta(
       String shuffleKey, String hostName, Map<String, Map<String, Integer>> workerWithAllocations) {
@@ -175,6 +184,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     registeredAppAndShuffles.remove(appId);
     appHeartbeatTime.remove(appId);
     applicationMetas.remove(appId);
+    applicationInfos.remove(appId);
   }
 
   @VisibleForTesting
@@ -226,18 +236,6 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
     excludedWorkers.remove(worker);
     workerLostEvents.remove(worker);
-  }
-
-  public void updateWorkerRemoveMeta(
-      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort) {
-    WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);
-    // remove worker from workers
-    synchronized (workersMap) {
-      workersMap.remove(worker.toUniqueId());
-      lostWorkers.put(worker, System.currentTimeMillis());
-      availableWorkers.remove(worker);
-    }
-    excludedWorkers.remove(worker);
   }
 
   public void removeWorkersUnavailableInfoMeta(List<WorkerInfo> unavailableWorkers) {
@@ -418,6 +416,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 shutdownWorkers,
                 workerEventInfos,
                 applicationMetas,
+                applicationInfos,
                 decommissionWorkers)
             .toByteArray();
     Files.write(file.toPath(), snapshotBytes);
@@ -523,6 +522,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           .forEach(
               (key, value) -> applicationMetas.put(key, PbSerDeUtils.fromPbApplicationMeta(value)));
 
+      snapshotMetaInfo
+          .getApplicationInfosMap()
+          .forEach(
+              (key, value) -> applicationInfos.put(key, PbSerDeUtils.fromPbApplicationInfo(value)));
+
       availableWorkers.addAll(
           workersMap.values().stream()
               .filter(worker -> isWorkerAvailable(worker))
@@ -562,6 +566,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     applicationFallbackCounts.clear();
     workerEventInfos.clear();
     applicationMetas.clear();
+    applicationInfos.clear();
   }
 
   public void updateMetaByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {
@@ -690,5 +695,13 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         diskMap.values().stream().filter(disk -> !disk.status().equals(DiskStatus.HEALTHY)).count();
     return new ImmutablePair<>(
         unhealthyCount * 1.0 / diskMap.size() >= unhealthyDiskRatioThreshold, unhealthyCount);
+  }
+
+  public boolean isAppInterruptShuffleEnabled(String appId) {
+    return Boolean.parseBoolean(
+        Optional.ofNullable(applicationInfos.get(appId))
+            .map(ApplicationInfo::extraInfo)
+            .map(extraInfo -> extraInfo.get(CelebornConf.QUOTA_INTERRUPT_SHUFFLE_ENABLED().key()))
+            .orElse(CelebornConf.QUOTA_INTERRUPT_SHUFFLE_ENABLED().defaultValueString()));
   }
 }
