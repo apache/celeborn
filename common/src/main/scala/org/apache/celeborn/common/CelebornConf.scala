@@ -1355,6 +1355,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_INTERVAL)
   def workerGracefulShutdownSaveCommittedFileInfoSync: Boolean =
     get(WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_SYNC)
+  def workerGracefulShutdownDbDeleteFailurePolicy: String =
+    get(WORKER_GRACEFUL_SHUTDOWN_DB_DELETE_FAILURE_POLICY)
 
   // //////////////////////////////////////////////////////
   //                      Flusher                        //
@@ -3914,6 +3916,17 @@ object CelebornConf extends Logging {
       .version("0.3.1")
       .booleanConf
       .createWithDefault(false)
+
+  val WORKER_GRACEFUL_SHUTDOWN_DB_DELETE_FAILURE_POLICY: ConfigEntry[String] =
+    buildConf("celeborn.worker.graceful.shutdown.dbDeleteFailurePolicy")
+      .categories("worker")
+      .doc("Policy for handling DB delete failures during graceful shutdown. " +
+        "THROW: throw exception (default), EXIT: trigger graceful shutdown, IGNORE: log error and continue.")
+      .version("0.7.0")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set("THROW", "EXIT", "IGNORE"))
+      .createWithDefault("THROW")
 
   val WORKER_DISKTIME_SLIDINGWINDOW_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.worker.flusher.diskTime.slidingWindow.size")

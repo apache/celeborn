@@ -282,6 +282,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     conf.workerGracefulShutdownSaveCommittedFileInfoSync
   private val saveCommittedFileInfoInterval =
     conf.workerGracefulShutdownSaveCommittedFileInfoInterval
+  private val dbDeleteFailurePolicy =
+    conf.workerGracefulShutdownDbDeleteFailurePolicy
   private val committedFileInfos =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, DiskFileInfo]]()
   // ShuffleClient can fetch data from a restarted worker only
@@ -674,7 +676,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         if (workerGracefulShutdown) {
           committedFileInfos.remove(shuffleKey)
           if (cleanDB) {
-            db.delete(dbShuffleKey(shuffleKey))
+            try {
+              db.delete(dbShuffleKey(shuffleKey))
+            } catch {
+              case e: Exception =>
+                logError(s"Failed to delete DB entry for shuffle key $shuffleKey", e)
+                handleDbDeleteFailure(e, shuffleKey)
+            }
           }
         }
       }
@@ -1228,6 +1236,18 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           mapFileMeta.setMountPoint(mountPoint)
         }
         mapFileMeta
+    }
+  }
+
+  private def handleDbDeleteFailure(exception: Exception, shuffleKey: String): Unit = {
+    dbDeleteFailurePolicy match {
+      case "EXIT" =>
+        logError("Triggering graceful shutdown due to DB delete failure")
+        System.exit(-1)
+      case "IGNORE" =>
+        logWarning(s"DB delete failed for shuffle key $shuffleKey, but ignoring error and continuing execution")
+      case "THROW" | _ =>
+        throw exception
     }
   }
 }
