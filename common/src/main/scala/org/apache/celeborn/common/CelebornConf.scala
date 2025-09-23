@@ -3921,12 +3921,12 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.graceful.shutdown.dbDeleteFailurePolicy")
       .categories("worker")
       .doc("Policy for handling DB delete failures during graceful shutdown. " +
-        "THROW: throw exception (default), EXIT: trigger graceful shutdown, IGNORE: log error and continue.")
+        "THROW: throw exception, EXIT: trigger graceful shutdown, IGNORE: log error and continue (default).")
       .version("0.7.0")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set("THROW", "EXIT", "IGNORE"))
-      .createWithDefault("THROW")
+      .createWithDefault("IGNORE")
 
   val WORKER_DISKTIME_SLIDINGWINDOW_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.worker.flusher.diskTime.slidingWindow.size")

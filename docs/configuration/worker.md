@@ -99,7 +99,7 @@ license: |
 | celeborn.worker.flusher.threads | 16 | false | Flusher's thread count per disk for unknown-type disks. | 0.2.0 |  | 
 | celeborn.worker.graceful.shutdown.checkSlotsFinished.interval | 1s | false | The wait interval of checking whether all released slots to be committed or destroyed during worker graceful shutdown | 0.2.0 |  | 
 | celeborn.worker.graceful.shutdown.checkSlotsFinished.timeout | 480s | false | The wait time of waiting for the released slots to be committed or destroyed during worker graceful shutdown. | 0.2.0 |  | 
-| celeborn.worker.graceful.shutdown.dbDeleteFailurePolicy | THROW | false | Policy for handling DB delete failures during graceful shutdown. THROW: throw exception (default), EXIT: trigger graceful shutdown, IGNORE: log error and continue. | 0.7.0 |  | 
+| celeborn.worker.graceful.shutdown.dbDeleteFailurePolicy | IGNORE | false | Policy for handling DB delete failures during graceful shutdown. THROW: throw exception, EXIT: trigger graceful shutdown, IGNORE: log error and continue (default). | 0.7.0 |  | 
 | celeborn.worker.graceful.shutdown.enabled | false | false | When true, during worker shutdown, the worker will wait for all released slots to be committed or destroyed. | 0.2.0 |  | 
 | celeborn.worker.graceful.shutdown.partitionSorter.shutdownTimeout | 120s | false | The wait time of waiting for sorting partition files during worker graceful shutdown. | 0.2.0 |  | 
 | celeborn.worker.graceful.shutdown.recoverDbBackend | ROCKSDB | false | Specifies a disk-based store used in local db. ROCKSDB or LEVELDB (deprecated). | 0.4.0 |  | 
