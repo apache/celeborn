@@ -3844,7 +3844,7 @@ object CelebornConf extends Logging {
   val WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.worker.graceful.shutdown.saveCommittedFileInfo.interval")
       .categories("worker")
-      .doc("Interval for a Celeborn worker to flush committed file infos into Level DB.")
+      .doc("Interval for a Celeborn worker to flush committed file infos into DB.")
       .version("0.3.1")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("5s")
@@ -3853,7 +3853,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.graceful.shutdown.saveCommittedFileInfo.sync")
       .categories("worker")
       .doc(
-        "Whether to call sync method to save committed file infos into Level DB to handle OS crash.")
+        "Whether to call sync method to save committed file infos into DB to handle OS crash.")
       .version("0.3.1")
       .booleanConf
       .createWithDefault(false)
