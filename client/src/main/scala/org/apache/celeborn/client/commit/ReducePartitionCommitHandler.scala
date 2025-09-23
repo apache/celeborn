@@ -282,6 +282,12 @@ class ReducePartitionCommitHandler(
     }
   }
 
+  private val valueIncrementFunction = new function.BiFunction[Int, Int, Int]() {
+    override def apply(key: Int, value: Int): Int = {
+      value + 1
+    }
+  }
+
   override def finishMapperAttempt(
       shuffleId: Int,
       mapId: Int,
@@ -304,7 +310,7 @@ class ReducePartitionCommitHandler(
         attempts(mapId) = attemptId
         // increment completed mappers
         val completedMappers =
-          shuffleToCompletedMappers.compute(shuffleId, (_, value) => value + 1)
+          shuffleToCompletedMappers.compute(shuffleId, valueIncrementFunction)
 
         if (null != pushFailedBatches && !pushFailedBatches.isEmpty) {
           val pushFailedBatchesMap = shufflePushFailedBatches.computeIfAbsent(
