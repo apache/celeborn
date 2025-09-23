@@ -28,4 +28,9 @@ public interface SecretRegistry {
   void register(String appId, String secret);
 
   void unregister(String appId);
+
+  /** Checks if the SecretRegistry can register the application. */
+  default boolean registrationEnabled() {
+    return true;
+  }
 }

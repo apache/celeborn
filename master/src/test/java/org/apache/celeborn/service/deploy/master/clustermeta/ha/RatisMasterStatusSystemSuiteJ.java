@@ -17,12 +17,13 @@
 
 package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -34,19 +35,29 @@ import org.mockito.Mockito;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
+import org.apache.celeborn.common.client.MasterNotLeaderException;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.network.sasl.SaslCredentials;
+import org.apache.celeborn.common.network.sasl.SaslTestBase;
+import org.apache.celeborn.common.network.sasl.SecretRegistry;
+import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBootstrap;
+import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo;
+import org.apache.celeborn.common.network.sasl.registration.RegistrationServerBootstrap;
+import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.WorkerEventType;
 import org.apache.celeborn.common.quota.ResourceConsumption;
+import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.util.Utils$;
+import org.apache.celeborn.service.deploy.master.MasterSecretRegistryImpl;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 
@@ -302,7 +313,7 @@ public class RatisMasterStatusSystemSuiteJ {
           disks1,
           userResourceConsumption1,
           getNewReqeustId());
-      Assert.fail();
+      fail();
     } catch (CelebornRuntimeException e) {
       Assert.assertTrue(true);
     } finally {
@@ -1399,7 +1410,7 @@ public class RatisMasterStatusSystemSuiteJ {
       Assert.assertEquals(1, STATUSSYSTEM2.availableWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM3.availableWorkers.size());
     } catch (Exception e) {
-      Assert.fail(e.getMessage());
+      fail(e.getMessage());
     } finally {
       resetRaftServer(
           configureServerConf(new CelebornConf(), 1),
@@ -1937,6 +1948,66 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
+  }
+
+  @Test
+  public void testRedirectToLeaderForRegistration() throws Throwable {
+    CelebornConf celebornConf = new CelebornConf();
+    celebornConf.set("celeborn.shuffle.io.maxRetries", "1");
+    celebornConf.set("celeborn.network.bind.preferIpAddress", "false");
+    TransportConf conf = new TransportConf("shuffle", celebornConf);
+
+    // if server1 is the leader, pick server2, else server1 - so that it is always a follower
+    AbstractMetaManager followerStatusSystem =
+        RATISSERVER1.isLeader() ? STATUSSYSTEM2 : STATUSSYSTEM1;
+
+    SecretRegistry registry =
+        new SecretRegistry() {
+          // Only canRegisterElseReturnFailure is relevant for this test, rest dont matter
+          public String getSecretKey(String appId) {
+            return null;
+          }
+
+          public boolean isRegistered(String appId) {
+            return false;
+          }
+
+          public void register(String appId, String secret) {}
+
+          public void unregister(String appId) {}
+
+          public boolean registrationEnabled() {
+            // what MasterSecretRegistryImpl does - except we purposefully pick a follower
+            return MasterSecretRegistryImpl.registrationEnabledImpl(followerStatusSystem, false);
+          }
+        };
+
+    RegistrationServerBootstrap serverBootstrap = new RegistrationServerBootstrap(conf, registry);
+    RegistrationClientBootstrap clientBootstrap =
+        new RegistrationClientBootstrap(
+            conf, "app", new SaslCredentials("user", "password"), new RegistrationInfo());
+    try {
+      SaslTestBase.authHelper(conf, serverBootstrap, clientBootstrap);
+      fail("Should have redirected to leader");
+    } catch (Exception e) {
+      assertTrue(e.getCause() instanceof MasterNotLeaderException);
+      MasterNotLeaderException notLeaderException = (MasterNotLeaderException) e.getCause();
+
+      HARaftServer leader =
+          RATISSERVER1.isLeader()
+              ? RATISSERVER1
+              : RATISSERVER2.isLeader() ? RATISSERVER2 : RATISSERVER3;
+
+      // By default, prefer ip is true - which is used while the config above returns hostnames.
+      // Resolve the host in order to match
+      RpcAddress leaderEndpointAddress = RpcAddress.fromHostAndPort(leader.getRpcEndpoint());
+      RpcAddress suggestedEndpointAddress =
+          RpcAddress.fromHostAndPort(notLeaderException.getSuggestedLeaderAddress());
+
+      assertEquals(
+          new InetSocketAddress(leaderEndpointAddress.host(), leaderEndpointAddress.port()),
+          new InetSocketAddress(suggestedEndpointAddress.host(), suggestedEndpointAddress.port()));
+    }
   }
 
   @Test

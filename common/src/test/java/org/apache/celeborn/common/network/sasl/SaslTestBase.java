@@ -59,7 +59,7 @@ public class SaslTestBase {
   static final String TEST_SECRET = "secret";
 
   @SuppressWarnings("Finally")
-  void authHelper(
+  public static void authHelper(
       TransportConf conf,
       TransportServerBootstrap serverBootstrap,
       TransportClientBootstrap clientBootstrap)
