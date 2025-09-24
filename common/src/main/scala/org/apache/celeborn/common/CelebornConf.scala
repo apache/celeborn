@@ -849,6 +849,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(ESTIMATED_PARTITION_SIZE_MAX_SIZE).getOrElse(partitionSplitMaximumSize * 2)
   def minPartitionSizeToEstimate: Long = get(ESTIMATED_PARTITION_SIZE_MIN_SIZE)
   def workerPartitionSorterSortPartitionTimeout: Long = get(WORKER_PARTITION_SORTER_SORT_TIMEOUT)
+  def workerPartitionSorterSortTimeLogThreshold: Long =
+    get(WORKER_PARTITION_SORTER_SORT_TIME_LOG_THRESHOLD)
   def workerPartitionSorterPrefetchEnabled: Boolean =
     get(WORKER_PARTITION_SORTER_PREFETCH_ENABLED)
   def workerPartitionSorterShuffleBlockCompactionFactor: Double =
@@ -3687,6 +3689,14 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("220s")
+
+  val WORKER_PARTITION_SORTER_SORT_TIME_LOG_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.worker.sortPartition.sortTimeLogThreshold")
+      .categories("worker")
+      .doc("When sort time exceeds this threshold, log the file id and sort duration. " +
+        "Set to 0 to disable logging.")
+      .version("0.6.2")
+      .fallbackConf(WORKER_PARTITION_SORTER_SORT_TIMEOUT)
 
   val WORKER_PARTITION_SORTER_THREADS: OptionalConfigEntry[Int] =
     buildConf("celeborn.worker.sortPartition.threads")
