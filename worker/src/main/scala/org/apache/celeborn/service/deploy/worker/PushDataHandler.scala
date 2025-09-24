@@ -45,6 +45,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.storage.{LocalFlusher, PartitionDataWriter, StorageManager}
 
 class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler with Logging {
@@ -65,6 +66,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   private var workerPartitionSplitEnabled: Boolean = _
   private var workerReplicateRandomConnectionEnabled: Boolean = _
   private var workerPushDataMergeBufferEnabled: Boolean = _
+  private var workerDirectMemoryRatioToMergeBuffer: Double = _
 
   private var testPushPrimaryDataTimeout: Boolean = _
   private var testPushReplicaDataTimeout: Boolean = _
@@ -85,6 +87,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     workerPartitionSplitEnabled = worker.conf.workerPartitionSplitEnabled
     workerReplicateRandomConnectionEnabled = worker.conf.workerReplicateRandomConnectionEnabled
     workerPushDataMergeBufferEnabled = worker.conf.workerPushDataMergeBufferEnabled
+    workerDirectMemoryRatioToMergeBuffer = worker.conf.workerDirectMemoryRatioToMergeBuffer
     testPushPrimaryDataTimeout = worker.conf.testPushPrimaryDataTimeout
     testPushReplicaDataTimeout = worker.conf.testPushReplicaDataTimeout
     registered = Some(worker.registered)
@@ -1496,7 +1499,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
     var finalBody: ByteBuf = body
     var copyBody: ByteBuf = null
-    if (workerPushDataMergeBufferEnabled) {
+    if (workerPushDataMergeBufferEnabled &&
+      MemoryManager.instance().workerMemoryUsageRatio() > workerDirectMemoryRatioToMergeBuffer) {
       val numBytes = body.readableBytes()
       try {
         copyBody = body.alloc.directBuffer(numBytes)
