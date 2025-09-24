@@ -183,6 +183,15 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       })
   }
 
+  def removeTimer(name: String): Unit = removeTimer(name, Map.empty[String, String])
+
+  def removeTimer(name: String, labels: Map[String, String]): Unit = {
+    val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
+    if (metricRegistry.getTimers.containsKey(metricNameWithLabel)) {
+      namedTimers.remove(metricNameWithLabel)
+    }
+  }
+
   def addCounter(name: String): Unit = addCounter(name, Map.empty[String, String])
 
   def addCounter(name: String, labels: Map[String, String]): Unit = {
@@ -259,6 +268,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   def removeGauge(name: String, labels: Map[String, String]): Unit = {
     namedGauges.remove(removeMetric(name, labels))
   }
+
+  def removeGauge[T](name: String): Unit = removeGauge(name, Map.empty[String, String])
 
   def removeMetric(name: String, labels: Map[String, String]): String = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
