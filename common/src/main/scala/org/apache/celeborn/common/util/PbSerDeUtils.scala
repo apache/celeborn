@@ -330,7 +330,9 @@ object PbSerDeUtils {
       mode,
       null,
       StorageInfo.fromPb(pbLoc.getStorageInfo),
-      Utils.byteStringToRoaringBitmap(pbLoc.getMapIdBitmap))
+      Utils.byteStringToRoaringBitmap(pbLoc.getMapIdBitmap),
+      pbLoc.getSplitStart,
+      pbLoc.getSplitEnd)
     if (pbLoc.hasPeer) {
       val peerPb = pbLoc.getPeer
       var peerMode = Mode.PRIMARY
@@ -346,7 +348,9 @@ object PbSerDeUtils {
         peerMode,
         partitionLocation,
         StorageInfo.fromPb(peerPb.getStorageInfo),
-        Utils.byteStringToRoaringBitmap(peerPb.getMapIdBitmap))
+        Utils.byteStringToRoaringBitmap(peerPb.getMapIdBitmap),
+        pbLoc.getSplitStart,
+        pbLoc.getSplitEnd)
       partitionLocation.setPeer(peerLocation)
     }
     partitionLocation
@@ -369,6 +373,8 @@ object PbSerDeUtils {
       .setReplicatePort(location.getReplicatePort)
       .setStorageInfo(StorageInfo.toPb(location.getStorageInfo))
       .setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMap))
+      .setSplitStart(location.getSplitStart)
+      .setSplitEnd(location.getSplitEnd)
     if (location.hasPeer) {
       val peerBuilder = PbPartitionLocation.newBuilder
       if (location.getPeer.getMode eq Mode.PRIMARY) {
@@ -386,6 +392,8 @@ object PbSerDeUtils {
         .setReplicatePort(location.getPeer.getReplicatePort)
         .setStorageInfo(StorageInfo.toPb(location.getPeer.getStorageInfo))
         .setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMap))
+        .setSplitStart(location.getSplitStart)
+        .setSplitEnd(location.getSplitEnd)
       builder.setPeer(peerBuilder.build)
     }
     builder.build
@@ -569,6 +577,8 @@ object PbSerDeUtils {
       pbPackedLocationsBuilder.addChunksOffsets(chunkOffsets.build())
     }
     pbPackedLocationsBuilder.addModes(location.getMode.mode())
+    pbPackedLocationsBuilder.addSplitStarts(location.getSplitStart)
+    pbPackedLocationsBuilder.addSplitEnds(location.getSplitEnd)
   }
 
   def toPbPackedPartitionLocationsPair(inputLocations: List[PartitionLocation])
@@ -701,7 +711,9 @@ object PbSerDeUtils {
       mode,
       null,
       storageInfo,
-      Utils.byteStringToRoaringBitmap(pbPackedPartitionLocations.getMapIdBitMap(index)))
+      Utils.byteStringToRoaringBitmap(pbPackedPartitionLocations.getMapIdBitMap(index)),
+      pbPackedPartitionLocations.getSplitStarts(index),
+      pbPackedPartitionLocations.getSplitEnds(index))
   }
 
   def fromPbPackedWorkerResource(pbWorkerResource: util.Map[String, PbPackedWorkerResource])
