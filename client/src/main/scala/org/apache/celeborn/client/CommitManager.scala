@@ -215,6 +215,10 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
     getCommitHandler(shuffleId).getMapperAttempts(shuffleId)
   }
 
+  def areAllMapperAttemptsFinished(shuffleId: Int): Boolean = {
+    getCommitHandler(shuffleId).areAllMapperAttemptsFinished(shuffleId)
+  }
+
   def finishMapperAttempt(
       shuffleId: Int,
       mapId: Int,

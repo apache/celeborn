@@ -22,6 +22,7 @@ import java.io.File
 import scala.util.Random
 
 import org.apache.spark.SparkConf
+import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.internal.SQLConf
 import org.scalatest.BeforeAndAfterEach
@@ -100,8 +101,8 @@ class MemorySkewJoinSuite extends AnyFunSuite
       })
       .toDF("key", "fa", "fb", "fc", "fd")
     df2.createOrReplaceTempView("view2")
-    new File("./df1").delete()
-    new File("./df2").delete()
+    JavaUtils.deleteRecursively(new File("./df1"))
+    JavaUtils.deleteRecursively(new File("./df2"))
     df.write.parquet("./df1")
     df2.write.parquet("./df2")
     sparkSession.close()

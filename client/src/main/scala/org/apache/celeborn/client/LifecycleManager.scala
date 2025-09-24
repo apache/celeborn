@@ -997,7 +997,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
 
     def areAllMapTasksEnd(shuffleId: Int): Boolean = {
-      ClientUtils.areAllMapperAttemptsFinished(commitManager.getMapperAttempts(shuffleId))
+      commitManager.areAllMapperAttemptsFinished(shuffleId)
     }
 
     shuffleIds.synchronized {
