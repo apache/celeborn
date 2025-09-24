@@ -96,6 +96,8 @@ private[celeborn] class Worker(
 
   private val hasHDFSStorage = conf.hasHDFSStorage
 
+  private val reuseHDFSOutputStream = conf.workerReuseHdfsOutputStream
+
   if (conf.logCelebornConfEnabled) {
     logInfo(getConf)
   }
@@ -487,6 +489,48 @@ private[celeborn] class Worker(
   }
   workerSource.addGauge(WorkerSource.CLEAN_TASK_QUEUE_SIZE) { () =>
     cleanTaskQueue.size()
+  }
+
+  if (reuseHDFSOutputStream) {
+    workerSource.addGauge(WorkerSource.OPEN_DFS_OUTPUT_STREAM_COUNT) { () =>
+      if (StorageManager.streamsManager != null) {
+        StorageManager.streamsManager.getSize
+      } else {
+        0
+      }
+    }
+
+    workerSource.addGauge(WorkerSource.REUSE_DFS_OUTPUT_STREAM_HIT_COUNT) { () =>
+      if (StorageManager.streamsManager != null) {
+        StorageManager.streamsManager.getCacheStats.hitCount()
+      } else {
+        0
+      }
+    }
+
+    workerSource.addGauge(WorkerSource.REUSE_DFS_OUTPUT_STREAM_HIT_RATE) { () =>
+      if (StorageManager.streamsManager != null) {
+        StorageManager.streamsManager.getCacheStats.hitRate()
+      } else {
+        0
+      }
+    }
+
+    workerSource.addGauge(WorkerSource.REUSE_DFS_OUTPUT_STREAM_MISS_COUNT) { () =>
+      if (StorageManager.streamsManager != null) {
+        StorageManager.streamsManager.getCacheStats.missCount()
+      } else {
+        0
+      }
+    }
+
+    workerSource.addGauge(WorkerSource.REUSE_DFS_OUTPUT_STREAM_MISS_RATE) { () =>
+      if (StorageManager.streamsManager != null) {
+        StorageManager.streamsManager.getCacheStats.missRate()
+      } else {
+        0
+      }
+    }
   }
 
   private def highWorkload: Boolean = {
