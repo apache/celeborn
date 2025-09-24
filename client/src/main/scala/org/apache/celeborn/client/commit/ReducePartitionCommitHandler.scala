@@ -304,7 +304,7 @@ class ReducePartitionCommitHandler(
           }
         }
         // Mapper with this attemptId finished, also check all other mapper finished or not.
-        (true, ClientUtils.areAllMapperAttemptsFinished(attempts))
+        (true, ClientUtils.areAllMapperAttemptsFinished(attempts, shuffleId))
       } else {
         // Mapper with another attemptId finished, skip this request
         (false, false)
