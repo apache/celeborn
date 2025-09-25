@@ -1372,8 +1372,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerS3FlusherThreads: Int = get(WORKER_FLUSHER_S3_THREADS)
   def workerOssFlusherThreads: Int = get(WORKER_FLUSHER_OSS_THREADS)
   def workerCreateWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
-  def workerWriterHdfsCreateFileMaxRetries: Int = get(WORKER_WRITER_HDFS_CREATE_FILE_MAX_RETRIES)
-  def workerWriterHdfsCreateFileRetryWait: Long = get(WORKER_WRITER_HDFS_CREATE_FILE_RETRY_WAIT)
+  def workerWriterHdfsCreateAuxiliaryFileMaxRetries: Int =
+    get(WORKER_WRITER_HDFS_CREATE_AUXILIARY_FILE_MAX_RETRIES)
+  def workerWriterHdfsCreateAuxiliaryFileRetryWait: Long =
+    get(WORKER_WRITER_HDFS_CREATE_AUXILIARY_FILE_RETRY_WAIT)
   def workerFlusherLocalGatherAPIEnabled: Boolean = get(WORKER_FLUSHER_LOCAL_GATHER_API_ENABLED)
 
   // //////////////////////////////////////////////////////
@@ -4088,19 +4090,20 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(3)
 
-  val WORKER_WRITER_HDFS_CREATE_FILE_MAX_RETRIES: ConfigEntry[Int] =
-    buildConf("celeborn.worker.writer.hdfs.createFile.maxRetries")
+  val WORKER_WRITER_HDFS_CREATE_AUXILIARY_FILE_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.worker.writer.hdfs.createAuxiliaryFile.maxRetries")
       .categories("worker")
       .version("0.7.0")
-      .doc("Retry count for a index file writer to create if its creation was failed.")
+      .doc("Retry count for a auxiliary file including index file and success file with HDFS storage to create" +
+        " if its creation was failed.")
       .intConf
       .createWithDefault(5)
 
-  val WORKER_WRITER_HDFS_CREATE_FILE_RETRY_WAIT: ConfigEntry[Long] =
-    buildConf("celeborn.worker.writer.hdfs.createFile.retryWait")
+  val WORKER_WRITER_HDFS_CREATE_AUXILIARY_FILE_RETRY_WAIT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.writer.hdfs.createAuxiliaryFile.retryWait")
       .categories("worker")
       .version("0.7.0")
-      .doc("Wait interval after attempt to create index file or success file and then retry it.")
+      .doc("Wait interval after failure to create a auxiliary file with HDFS storage and then retry it.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("200ms")
 
