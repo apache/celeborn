@@ -103,8 +103,8 @@ license: |
 | celeborn.worker.graceful.shutdown.partitionSorter.shutdownTimeout | 120s | false | The wait time of waiting for sorting partition files during worker graceful shutdown. | 0.2.0 |  | 
 | celeborn.worker.graceful.shutdown.recoverDbBackend | ROCKSDB | false | Specifies a disk-based store used in local db. ROCKSDB or LEVELDB (deprecated). | 0.4.0 |  | 
 | celeborn.worker.graceful.shutdown.recoverPath | &lt;tmp&gt;/recover | false | The path to store DB. | 0.2.0 |  | 
-| celeborn.worker.graceful.shutdown.saveCommittedFileInfo.interval | 5s | false | Interval for a Celeborn worker to flush committed file infos into Level DB. | 0.3.1 |  | 
-| celeborn.worker.graceful.shutdown.saveCommittedFileInfo.sync | false | false | Whether to call sync method to save committed file infos into Level DB to handle OS crash. | 0.3.1 |  | 
+| celeborn.worker.graceful.shutdown.saveCommittedFileInfo.interval | 5s | false | Interval for a Celeborn worker to flush committed file infos into DB. | 0.3.1 |  | 
+| celeborn.worker.graceful.shutdown.saveCommittedFileInfo.sync | false | false | Whether to call sync method to save committed file infos into DB to handle OS crash. | 0.3.1 |  | 
 | celeborn.worker.graceful.shutdown.timeout | 600s | false | The worker's graceful shutdown timeout time. | 0.2.0 |  | 
 | celeborn.worker.hdfs.replication.factor | 2 | false | HDFS replication factor for shuffle files. | 0.7.0 |  | 
 | celeborn.worker.http.auth.administers |  | false | A comma-separated list of users who have admin privileges, Note, when celeborn.worker.http.auth.supportedSchemes is not set, everyone is treated as administrator. | 0.6.0 |  | 
@@ -181,6 +181,7 @@ license: |
 | celeborn.worker.sortPartition.indexCache.maxWeight | 100000 | false | PartitionSorter's cache max weight for index buffer. | 0.4.0 |  | 
 | celeborn.worker.sortPartition.prefetch.enabled | true | false | When true, partition sorter will prefetch the original partition files to page cache and reserve memory configured by `celeborn.worker.sortPartition.reservedMemoryPerPartition` to allocate a block of memory for prefetching while sorting a shuffle file off-heap with page cache for non-hdfs files. Otherwise, partition sorter seeks to position of each block and does not prefetch for non-hdfs files. | 0.5.0 |  | 
 | celeborn.worker.sortPartition.reservedMemoryPerPartition | 1mb | false | Reserved memory when sorting a shuffle file off-heap. | 0.3.0 | celeborn.worker.partitionSorter.reservedMemoryPerPartition | 
+| celeborn.worker.sortPartition.sortTimeLogThreshold | &lt;value of celeborn.worker.sortPartition.timeout&gt; | false | When sort time exceeds this threshold, log the file id and sort duration. Set to 0 to disable logging. | 0.6.2 |  | 
 | celeborn.worker.sortPartition.threads | &lt;undefined&gt; | false | PartitionSorter's thread counts. It's recommended to set at least `64` when `HDFS` is enabled in `celeborn.storage.availableTypes`. | 0.3.0 | celeborn.worker.partitionSorter.threads | 
 | celeborn.worker.sortPartition.timeout | 220s | false | Timeout for a shuffle file to sort. | 0.3.0 | celeborn.worker.partitionSorter.sort.timeout | 
 | celeborn.worker.storage.checkDirsEmpty.maxRetries | 3 | false | The number of retries for a worker to check if the working directory is cleaned up before registering with the master. | 0.3.0 | celeborn.worker.disk.checkFileClean.maxRetries | 
