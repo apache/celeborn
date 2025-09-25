@@ -195,5 +195,7 @@ license: |
 | celeborn.worker.storage.workingDir | celeborn-worker/shuffle_data | false | Worker's working dir path name. | 0.3.0 | celeborn.worker.workingDir | 
 | celeborn.worker.writer.close.timeout | 120s | false | Timeout for a file writer to close | 0.2.0 |  | 
 | celeborn.worker.writer.create.maxAttempts | 3 | false | Retry count for a file writer to create if its creation was failed. | 0.2.0 |  | 
+| celeborn.worker.writer.hdfs.createAuxiliaryFile.maxRetries | 5 | false | Retry count for a auxiliary file including index file and success file with HDFS storage to create if its creation was failed. | 0.7.0 |  | 
+| celeborn.worker.writer.hdfs.createAuxiliaryFile.retryWait | 200ms | false | Wait interval after failure to create a auxiliary file with HDFS storage and then retry it. | 0.7.0 |  | 
 | worker.flush.reuseCopyBuffer.enabled | true | false | Whether to enable reuse copy buffer for flush. Note that this copy buffer must not be referenced again after flushing. This means that, for example, the Hdfs(Oss or S3) client will not asynchronously access this buffer after the flush method returns, otherwise data modification problems will occur. | 0.6.1 |  | 
 <!--end-include-->
