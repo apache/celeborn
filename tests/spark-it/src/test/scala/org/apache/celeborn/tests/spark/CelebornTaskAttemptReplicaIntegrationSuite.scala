@@ -52,7 +52,7 @@ class CelebornTaskAttemptReplicaIntegrationSuite extends AnyFunSuite
         .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
         .config("spark.celeborn.client.spark.stageRerun.enabled", "false")
         .config("celeborn.client.push.replicate.enabled", "true")
-        .config("spark.celeborn.client.spark.maxRetries", "1")
+        .config("spark.task.maxFailures", "1")
         .config(
           "spark.shuffle.manager",
           "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
@@ -94,8 +94,7 @@ class CelebornTaskAttemptReplicaIntegrationSuite extends AnyFunSuite
         .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
         .config("spark.celeborn.client.spark.stageRerun.enabled", "false")
         .config("celeborn.client.push.replicate.enabled", "true")
-        .config("spark.celeborn.client.spark.maxRetries", "2")
-        .config("spark.celeborn.client.spark.retryWait", "100ms")
+        .config("spark.task.maxFailures", "2")
         .config(
           "spark.shuffle.manager",
           "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
