@@ -18,6 +18,7 @@
 package org.apache.celeborn.tests.spark
 
 import org.apache.spark.SparkConf
+import org.apache.spark.TaskContext
 import org.apache.spark.shuffle.celeborn.{SparkUtils, TestCelebornShuffleManager}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
@@ -29,7 +30,7 @@ import org.apache.celeborn.tests.spark.fetch.failure.PartitionFileDeletionHook
 
 /**
  * Simple integration test for CELEBORN-2032: Create reader should change to peer by taskAttemptId
- * 
+ *
  * Two simple test cases:
  * 1. UT1: attempt0 succeeds, delete replica files, verify only primary files accessed
  * 2. UT2: attempt1 succeeds, delete primary files, verify only replica files accessed
@@ -43,7 +44,8 @@ class CelebornTaskAttemptReplicaIntegrationSuite extends AnyFunSuite
     TestCelebornShuffleManager.registerReaderGetHook(null)
   }
 
-  test("CELEBORN-2032 UT1: attempt0 succeeds, delete replica files, verify only primary files accessed") {
+  test(
+    "CELEBORN-2032 UT1: attempt0 succeeds, delete replica files, verify only primary files accessed") {
     if (Spark3OrNewer) {
       val sparkConf = new SparkConf().setAppName("CELEBORN-2032-ut1-test").setMaster("local[2]")
       val sparkSession = SparkSession.builder()
@@ -58,7 +60,7 @@ class CelebornTaskAttemptReplicaIntegrationSuite extends AnyFunSuite
         .getOrCreate()
 
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
-      
+
       // Hook to delete replica files before shuffle read
       val hook = new PartitionFileDeletionHook(celebornConf, workerDirs, deleteReplicaFiles = true)
       TestCelebornShuffleManager.registerReaderGetHook(hook)
@@ -66,7 +68,7 @@ class CelebornTaskAttemptReplicaIntegrationSuite extends AnyFunSuite
       try {
         logInfo("=== Starting CELEBORN-2032 UT1 ===")
         logInfo("Test: attempt0 succeeds, delete replica files, verify only primary files accessed")
-        
+
         // Create test data
         val testData = sparkSession.sparkContext.parallelize(1 to 1000, 4)
           .map { i => (i % 100, s"value_$i") }
@@ -84,7 +86,8 @@ class CelebornTaskAttemptReplicaIntegrationSuite extends AnyFunSuite
     }
   }
 
-  test("CELEBORN-2032 UT2: attempt1 succeeds, delete primary files, verify only replica files accessed") {
+  test(
+    "CELEBORN-2032 UT2: attempt1 succeeds, delete primary files, verify only replica files accessed") {
     if (Spark3OrNewer) {
       val sparkConf = new SparkConf().setAppName("CELEBORN-2032-ut2-test").setMaster("local[2]")
       val sparkSession = SparkSession.builder()
@@ -99,7 +102,7 @@ class CelebornTaskAttemptReplicaIntegrationSuite extends AnyFunSuite
         .getOrCreate()
 
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
-      
+
       // Hook to delete primary files before shuffle read
       val hook = new PartitionFileDeletionHook(celebornConf, workerDirs, deleteReplicaFiles = false)
       TestCelebornShuffleManager.registerReaderGetHook(hook)
@@ -107,11 +110,18 @@ class CelebornTaskAttemptReplicaIntegrationSuite extends AnyFunSuite
       try {
         logInfo("=== Starting CELEBORN-2032 UT2 ===")
         logInfo("Test: attempt1 succeeds, delete primary files, verify only replica files accessed")
-        
-        // Create test data
+
+        // Create test data with attempt0 failure simulation
         val testData = sparkSession.sparkContext.parallelize(1 to 1000, 4)
           .map { i => (i % 100, s"value_$i") }
           .groupByKey(8)
+          .mapPartitions { iter =>
+            val context = TaskContext.get()
+            if (context.attemptNumber() == 0) {
+              throw new RuntimeException("Mock task failure for attempt0")
+            }
+            iter
+          }
           .collect()
 
         // Verify hook was executed

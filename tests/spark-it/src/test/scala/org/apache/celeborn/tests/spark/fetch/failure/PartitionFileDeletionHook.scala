@@ -61,24 +61,25 @@ class PartitionFileDeletionHook(
             h.userIdentifier,
             h.extension)
           val celebornShuffleId = SparkUtils.celebornShuffleId(shuffleClient, h, context, false)
-
-          if (context.attemptNumber % 2 == 0 && !deleteReplicaFiles) {
-            // fail task attempt0
-            throw new RuntimeException("Mock task failure.");
-          }
-          logInfo(s"PartitionFileDeletionHook: Deleting ${if (deleteReplicaFiles) "REPLICA" else "PRIMARY"} files for shuffle $celebornShuffleId")
+          logInfo(s"PartitionFileDeletionHook: Deleting ${if (deleteReplicaFiles) "REPLICA"
+          else "PRIMARY"} files for shuffle $celebornShuffleId")
           deletePartitionFiles(appUniqueId, celebornShuffleId, deleteReplicaFiles)
           executed.set(true)
         }
-        case x => throw new RuntimeException(s"unexpected, only support CelebornShuffleHandle here," +
+        case x =>
+          throw new RuntimeException(s"unexpected, only support CelebornShuffleHandle here," +
             s" but get ${x.getClass.getCanonicalName}")
       }
     }
   }
 
-  private def deletePartitionFiles(appUniqueId: String, celebornShuffleId: Int, deleteReplicaFiles: Boolean): Unit = {
+  private def deletePartitionFiles(
+      appUniqueId: String,
+      celebornShuffleId: Int,
+      deleteReplicaFiles: Boolean): Unit = {
     workerDirs.foreach { dir =>
-      val shuffleDataDir = new File(s"$dir/celeborn-worker/shuffle_data/$appUniqueId/$celebornShuffleId")
+      val shuffleDataDir =
+        new File(s"$dir/celeborn-worker/shuffle_data/$appUniqueId/$celebornShuffleId")
       if (shuffleDataDir.exists()) {
         shuffleDataDir.listFiles().foreach { file =>
           if (file.isFile && shouldDeleteFile(file.getName, deleteReplicaFiles)) {
@@ -99,7 +100,7 @@ class PartitionFileDeletionHook(
     if (parts.length >= 3) {
       val modeByte = parts(2).toByte
       val isReplicaFile = modeByte == 1
-      
+
       if (deleteReplicaFiles) {
         isReplicaFile // Delete replica files
       } else {
