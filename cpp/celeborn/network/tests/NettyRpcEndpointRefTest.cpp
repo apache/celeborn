@@ -29,18 +29,18 @@ class MockTransportClient : public TransportClient {
  public:
   MockTransportClient()
       : TransportClient(nullptr, nullptr, MS(100)),
-        response_(
-            RpcResponse(0, memory::ReadOnlyByteBuffer::createEmptyBuffer())),
+        respPromise_(),
+        respFuture_(respPromise_.getFuture()),
         request_(
             RpcRequest(0, memory::ReadOnlyByteBuffer::createEmptyBuffer())) {}
   RpcResponse sendRpcRequestSync(const RpcRequest& request, Timeout timeout)
       override {
     request_ = request;
-    return response_;
+    return std::move(respFuture_).get(timeout);
   }
 
   void setResponse(const RpcResponse& response) {
-    response_ = response;
+    respPromise_.setValue(response);
   }
 
   RpcRequest getRequest() {
@@ -48,7 +48,8 @@ class MockTransportClient : public TransportClient {
   }
 
  private:
-  RpcResponse response_;
+  folly::Promise<RpcResponse> respPromise_;
+  folly::Future<RpcResponse> respFuture_;
   RpcRequest request_;
 };
 
@@ -223,4 +224,40 @@ TEST(NettyRpcEndpointRefTest, askSyncGetReducerFileGroup) {
   auto sentRequest = mockedClient->getRequest();
   verifyRequestForNettyRpcEndpointRef(
       sentRequest, srcName, srcHost, srcPort, dstHost, dstPort);
+}
+
+TEST(NettyRpcEndpointRefTest, askSyncTimeout) {
+  auto mockedClient = std::make_shared<MockTransportClient>();
+  const std::string srcName = "test-name";
+  const std::string srcHost = "test-src-host";
+  const int srcPort = 100;
+  const std::string dstHost = "test-dst-host";
+  const int dstPort = 101;
+  const auto conf = std::make_shared<conf::CelebornConf>();
+  auto nettyRpcEndpointRef = NettyRpcEndpointRef(
+      srcName, srcHost, srcPort, dstHost, dstPort, mockedClient, *conf);
+
+  const auto timeoutInterval = MS(200);
+  const auto sleepInterval = MS(100);
+  protocol::MapperEnd request{1001};
+  bool timeoutHappened = false;
+  std::thread syncThread([&]() {
+    try {
+      auto response =
+          nettyRpcEndpointRef
+              .askSync<protocol::MapperEnd, protocol::MapperEndResponse>(
+                  request, timeoutInterval);
+    } catch (std::exception e) {
+      timeoutHappened = true;
+    }
+  });
+  std::this_thread::sleep_for(sleepInterval);
+
+  auto sentRequest = mockedClient->getRequest();
+  verifyRequestForNettyRpcEndpointRef(
+      sentRequest, srcName, srcHost, srcPort, dstHost, dstPort);
+  EXPECT_FALSE(timeoutHappened);
+
+  syncThread.join();
+  EXPECT_TRUE(timeoutHappened);
 }
