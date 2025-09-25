@@ -18,13 +18,15 @@
 package org.apache.celeborn.tests.spark.fetch.failure
 
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 
 import org.apache.spark.TaskContext
 import org.apache.spark.shuffle.ShuffleHandle
-import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkCommonUtils, SparkUtils}
+import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkUtils}
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.internal.Logging
 
 /**
  * Hook to delete specific type of partition files before shuffle read
@@ -33,8 +35,8 @@ import org.apache.celeborn.common.CelebornConf
 class PartitionFileDeletionHook(
     conf: CelebornConf,
     workerDirs: Seq[String],
-    deleteReplicaFiles: Boolean = false)
-  extends ShuffleManagerHook {
+    deleteReplicaFiles: Boolean)
+  extends ShuffleManagerHook with Logging {
 
   val executed = new AtomicBoolean(false)
   val lock = new Object

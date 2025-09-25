@@ -18,13 +18,14 @@
 package org.apache.celeborn.tests.spark
 
 import org.apache.spark.SparkConf
+import org.apache.spark.shuffle.celeborn.{SparkUtils, TestCelebornShuffleManager}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.protocol.{PartitionLocation, ShuffleMode}
-import org.apache.celeborn.tests.spark.fetch.failure.{PartitionFileDeletionHook, FileSystemMonitor}
+import org.apache.celeborn.tests.spark.fetch.failure.PartitionFileDeletionHook
 
 /**
  * Simple integration test for CELEBORN-2032: Create reader should change to peer by taskAttemptId
@@ -39,10 +40,7 @@ class CelebornTaskAttemptReplicaIntegrationSuite extends AnyFunSuite
 
   override def beforeEach(): Unit = {
     ShuffleClient.reset()
-  }
-
-  override def afterEach(): Unit = {
-    System.gc()
+    TestCelebornShuffleManager.registerReaderGetHook(null)
   }
 
   test("CELEBORN-2032 UT1: attempt0 succeeds, delete replica files, verify only primary files accessed") {
@@ -75,9 +73,6 @@ class CelebornTaskAttemptReplicaIntegrationSuite extends AnyFunSuite
           .map { i => (i % 100, s"value_$i") }
           .groupByKey(8)
           .collect()
-
-        // Record final file access times
-        fileMonitor.recordFinalAccessTimes()
 
         // Verify hook was executed
         assert(hook.executed.get() == true, "PartitionFileDeletionHook should have been executed")
