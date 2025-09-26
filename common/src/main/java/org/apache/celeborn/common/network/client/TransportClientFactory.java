@@ -38,13 +38,13 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
-import org.apache.celeborn.common.client.MasterNotLeaderException;
-import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBootstrap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.client.MasterNotLeaderException;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.TransportContext;
+import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBootstrap;
 import org.apache.celeborn.common.network.server.TransportChannelHandler;
 import org.apache.celeborn.common.network.util.*;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -363,8 +363,8 @@ public class TransportClientFactory implements Closeable {
           String message =
               (processed instanceof MasterNotLeaderException)
                   ? String.format(
-                  "Suggested leader is %s",
-                  ((MasterNotLeaderException) processed).getSuggestedLeaderAddress())
+                      "Suggested leader is %s",
+                      ((MasterNotLeaderException) processed).getSuggestedLeaderAddress())
                   : e.getMessage();
           logger.info(
               "Attempted to register with a Master that is not the leader after {}: {}",
