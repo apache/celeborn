@@ -276,7 +276,7 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
           Pattern.MULTILINE | Pattern.DOTALL);
 
   @SuppressWarnings("NonInclusiveLanguage")
-  static Exception processMasterNotLeaderException(Exception ex) {
+  public static Exception processMasterNotLeaderException(Exception ex) {
     String stringified = Throwables.getStackTraceAsString(ex);
 
     Matcher matcher = MASTER_NOT_LEADER_EXCEPTION_PATTERN.matcher(stringified);

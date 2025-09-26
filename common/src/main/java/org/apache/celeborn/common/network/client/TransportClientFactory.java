@@ -38,6 +38,8 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+import org.apache.celeborn.common.client.MasterNotLeaderException;
+import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBootstrap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -350,19 +352,34 @@ public class TransportClientFactory implements Closeable {
     // Execute any client bootstraps synchronously before marking the Client as successful.
     long preBootstrap = System.nanoTime();
     logger.debug("Running bootstraps for {} ...", address);
-    try {
-      for (TransportClientBootstrap clientBootstrap : clientBootstraps) {
+    for (TransportClientBootstrap clientBootstrap : clientBootstraps) {
+      try {
         clientBootstrap.doBootstrap(client);
+      } catch (
+          Exception e) { // catch non-RuntimeExceptions too as bootstrap may be written in Scala
+        long bootstrapTime = System.nanoTime() - preBootstrap;
+        if (clientBootstrap instanceof RegistrationClientBootstrap) {
+          Exception processed = RegistrationClientBootstrap.processMasterNotLeaderException(e);
+          String message =
+              (processed instanceof MasterNotLeaderException)
+                  ? String.format(
+                  "Suggested leader is %s",
+                  ((MasterNotLeaderException) processed).getSuggestedLeaderAddress())
+                  : e.getMessage();
+          logger.info(
+              "Attempted to register with a Master that is not the leader after {}: {}",
+              Utils.nanoDurationToString(bootstrapTime),
+              message);
+        } else {
+          logger.error(
+              "Exception while bootstrapping client after {}",
+              Utils.nanoDurationToString(bootstrapTime),
+              e);
+        }
+        client.close();
+        Throwables.throwIfUnchecked(e);
+        throw new RuntimeException(e);
       }
-    } catch (Exception e) { // catch non-RuntimeExceptions too as bootstrap may be written in Scala
-      long bootstrapTime = System.nanoTime() - preBootstrap;
-      logger.error(
-          "Exception while bootstrapping client after {}",
-          Utils.nanoDurationToString(bootstrapTime),
-          e);
-      client.close();
-      Throwables.throwIfUnchecked(e);
-      throw new RuntimeException(e);
     }
     long postBootstrap = System.nanoTime();
     logger.debug(
