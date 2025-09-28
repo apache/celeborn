@@ -36,6 +36,7 @@ import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.common.util.FileChannelUtils
+import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 import org.apache.celeborn.service.deploy.worker.congestcontrol.{CongestionController, UserCongestionControlContext}
@@ -652,24 +653,35 @@ class DfsTierWriter(
       hadoopFs.delete(dfsFileInfo.getDfsPath, false)
       deleted = true
     } else {
-      hadoopFs.create(dfsFileInfo.getDfsWriterSuccessPath).close()
+      val retryCount = conf.workerWriterHdfsCreateAuxiliaryFileMaxRetries
+      val retryWait = conf.workerWriterHdfsCreateAuxiliaryFileRetryWait
+      Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
+        hadoopFs.create(dfsFileInfo.getDfsWriterSuccessPath).close()
+      }
       if (dfsFileInfo.isReduceFileMeta) {
-        val indexOutputStream = hadoopFs.create(dfsFileInfo.getDfsIndexPath)
-        hadoopFs.setReplication(
-          dfsFileInfo.getDfsIndexPath,
-          conf.workerDfsReplicationFactor.toShort)
-        val byteStream: ByteArrayOutputStream = new ByteArrayOutputStream()
-        val dataStream = new DataOutputStream(byteStream)
-        try {
-          dataStream.writeInt(dfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
-          for (offset <- dfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala) {
-            dataStream.writeLong(offset)
+        Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
+          if (hadoopFs.exists(dfsFileInfo.getDfsIndexPath)) {
+            hadoopFs.delete(dfsFileInfo.getDfsIndexPath, true)
           }
-          indexOutputStream.write(byteStream.toByteArray)
-        } finally if (dataStream != null) {
-          dataStream.close()
+          val indexOutputStream = hadoopFs.create(dfsFileInfo.getDfsIndexPath)
+          hadoopFs.setReplication(
+            dfsFileInfo.getDfsIndexPath,
+            conf.workerDfsReplicationFactor.toShort)
+          val byteStream: ByteArrayOutputStream = new ByteArrayOutputStream()
+          val dataStream = new DataOutputStream(byteStream)
+          try {
+            dataStream.writeInt(dfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
+            dfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala.foreach(dataStream.writeLong(_))
+            indexOutputStream.write(byteStream.toByteArray)
+          } finally {
+            if (dataStream != null) {
+              dataStream.close()
+            }
+            if (indexOutputStream != null) {
+              indexOutputStream.close()
+            }
+          }
         }
-        indexOutputStream.close()
       }
     }
     if (s3MultipartUploadHandler != null) {

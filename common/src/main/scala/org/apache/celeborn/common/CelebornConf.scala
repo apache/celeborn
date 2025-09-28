@@ -1372,6 +1372,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerS3FlusherThreads: Int = get(WORKER_FLUSHER_S3_THREADS)
   def workerOssFlusherThreads: Int = get(WORKER_FLUSHER_OSS_THREADS)
   def workerCreateWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
+  def workerWriterHdfsCreateAuxiliaryFileMaxRetries: Int =
+    get(WORKER_WRITER_HDFS_CREATE_AUXILIARY_FILE_MAX_RETRIES)
+  def workerWriterHdfsCreateAuxiliaryFileRetryWait: Long =
+    get(WORKER_WRITER_HDFS_CREATE_AUXILIARY_FILE_RETRY_WAIT)
   def workerFlusherLocalGatherAPIEnabled: Boolean = get(WORKER_FLUSHER_LOCAL_GATHER_API_ENABLED)
 
   // //////////////////////////////////////////////////////
@@ -4085,6 +4089,23 @@ object CelebornConf extends Logging {
       .doc("Retry count for a file writer to create if its creation was failed.")
       .intConf
       .createWithDefault(3)
+
+  val WORKER_WRITER_HDFS_CREATE_AUXILIARY_FILE_MAX_RETRIES: ConfigEntry[Int] =
+    buildConf("celeborn.worker.writer.hdfs.createAuxiliaryFile.maxRetries")
+      .categories("worker")
+      .version("0.7.0")
+      .doc("Retry count for a auxiliary file including index file and success file with HDFS storage to create" +
+        " if its creation was failed.")
+      .intConf
+      .createWithDefault(5)
+
+  val WORKER_WRITER_HDFS_CREATE_AUXILIARY_FILE_RETRY_WAIT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.writer.hdfs.createAuxiliaryFile.retryWait")
+      .categories("worker")
+      .version("0.7.0")
+      .doc("Wait interval after failure to create a auxiliary file with HDFS storage and then retry it.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("200ms")
 
   val WORKER_FLUSHER_LOCAL_GATHER_API_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.flusher.local.gatherAPI.enabled")
