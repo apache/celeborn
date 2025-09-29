@@ -1020,7 +1020,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         pushData.`type`(),
         isPrimary,
         pushData.requestId,
-        null,
         location,
         if (isPrimary) WorkerSource.PRIMARY_PUSH_DATA_TIME else WorkerSource.REPLICA_PUSH_DATA_TIME,
         callback)
@@ -1054,27 +1053,14 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     val writePromise = Promise[Array[StatusCode]]()
     writeLocalData(Seq(fileWriter), body, shuffleKey, isPrimary, None, writePromise)
     // for primary, send data to replica
-    if (location.hasPeer && isPrimary) {
-      // to do
-      Try(Await.result(writePromise.future, Duration.Inf)) match {
-        case Success(result) =>
-          if (result(0) != StatusCode.SUCCESS) {
-            wrappedCallback.onFailure(new CelebornIOException("Write data failed!"))
-          } else {
-            wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
-          }
-        case Failure(e) => wrappedCallback.onFailure(e)
-      }
-    } else {
-      Try(Await.result(writePromise.future, Duration.Inf)) match {
-        case Success(result) =>
-          if (result(0) != StatusCode.SUCCESS) {
-            wrappedCallback.onFailure(new CelebornIOException("Write data failed!"))
-          } else {
-            wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
-          }
-        case Failure(e) => wrappedCallback.onFailure(e)
-      }
+    Try(Await.result(writePromise.future, Duration.Inf)) match {
+      case Success(result) =>
+        if (result(0) != StatusCode.SUCCESS) {
+          wrappedCallback.onFailure(new CelebornIOException("Write data failed!"))
+        } else {
+          wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
+        }
+      case Failure(e) => wrappedCallback.onFailure(e)
     }
   }
 
@@ -1238,7 +1224,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         messageType,
         isPrimary,
         requestId,
-        null,
         location,
         if (isPrimary) workerSourcePrimary else workerSourceReplica,
         callback)
@@ -1258,17 +1243,15 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
     // During worker shutdown, worker will return HARD_SPLIT for all existed partition.
     // This should before return exception to make current push request revive and retry.
-    val isPartitionSplitEnabled = fileWriter.getCurrentFileInfo.isPartitionSplitEnabled
-
     if (shutdown.get() && (messageType == Type.REGION_START || messageType ==
-        Type.PUSH_DATA_HAND_SHAKE) && isPartitionSplitEnabled) {
+        Type.PUSH_DATA_HAND_SHAKE)) {
       logInfo(s"$messageType return HARD_SPLIT for shuffle $shuffleKey since worker shutdown.")
       callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
       return
     }
 
     if (checkSplit && (messageType == Type.REGION_START || messageType ==
-        Type.PUSH_DATA_HAND_SHAKE) && isPartitionSplitEnabled && checkDiskFullAndSplit(
+        Type.PUSH_DATA_HAND_SHAKE) && checkDiskFullAndSplit(
         fileWriter,
         isPrimary) == StatusCode.HARD_SPLIT) {
       workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
@@ -1306,12 +1289,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         case _ => throw new IllegalArgumentException(s"Not support $messageType yet")
       }
       // for primary , send data to replica
-      if (location.hasPeer && isPrimary) {
-        // TODO replica
-        wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
-      } else {
-        wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
-      }
+      wrappedCallback.onSuccess(ByteBuffer.wrap(Array[Byte]()))
     } catch {
       case t: Throwable =>
         callback.onFailure(new CelebornIOException(s"$messageType failed", t))
@@ -1322,7 +1300,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       messageType: Message.Type,
       isPrimary: Boolean,
       requestId: Long,
-      softSplit: AtomicBoolean,
       location: PartitionLocation,
       workerSourceTime: String,
       callback: RpcResponseCallback)
@@ -1335,8 +1312,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           resp.put(response)
           resp.flip()
           callback.onSuccess(resp)
-        } else if (softSplit != null && softSplit.get()) {
-          callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
         } else {
           callback.onSuccess(response)
         }
@@ -1407,6 +1382,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     val (messagePrimary, messageReplica) =
       messageType match {
         case Type.PUSH_DATA =>
+          workerSource.incCounter(WorkerSource.WRITE_DATA_FAIL_COUNT)
           (
             StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY,
             StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA)
