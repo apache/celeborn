@@ -135,7 +135,8 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                 partitionDataWriterContext.isPartitionSplitEnabled)
               partitionDataWriterContext.setWorkingDir(workingDir)
               val metaHandler = getPartitionMetaHandler(diskFileInfo)
-              if ((storageInfoType == StorageInfo.Type.HDD || storageInfoType == StorageInfo.Type.SSD) && location.getStorageInfo.localDiskAvailable()) {
+              if (flusher.isInstanceOf[LocalFlusher]
+                && location.getStorageInfo.localDiskAvailable()) {
                 new LocalTierWriter(
                   conf,
                   metaHandler,
@@ -144,7 +145,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                   flusher,
                   source,
                   diskFileInfo,
-                  storageInfoType,
+                  diskFileInfo.getStorageType,
                   partitionDataWriterContext,
                   storageManager)
               } else {
@@ -156,7 +157,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                   flusher,
                   source,
                   diskFileInfo,
-                  storageInfoType,
+                  diskFileInfo.getStorageType,
                   partitionDataWriterContext,
                   storageManager)
               }
