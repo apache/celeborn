@@ -366,7 +366,7 @@ public class TransportClientFactory implements Closeable {
                       "Suggested leader is %s",
                       ((MasterNotLeaderException) processed).getSuggestedLeaderAddress())
                   : e.getMessage();
-          logger.info(
+          logger.warn(
               "Attempted to register with a Master that is not the leader after {}: {}",
               Utils.nanoDurationToString(bootstrapTime),
               message);
