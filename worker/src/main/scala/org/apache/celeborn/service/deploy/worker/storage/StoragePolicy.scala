@@ -130,7 +130,8 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                 location.getFileName,
                 partitionDataWriterContext.getUserIdentifier,
                 partitionDataWriterContext.getPartitionType,
-                partitionDataWriterContext.isPartitionSplitEnabled)
+                partitionDataWriterContext.isPartitionSplitEnabled,
+                Option.apply(storageInfoType))
               partitionDataWriterContext.setWorkingDir(workingDir)
               val metaHandler = getPartitionMetaHandler(diskFileInfo)
               if (flusher.isInstanceOf[LocalFlusher]
