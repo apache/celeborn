@@ -75,6 +75,8 @@ class ReducePartitionCommitHandler(
   private val stageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val inProcessStageEndShuffleSet = ConcurrentHashMap.newKeySet[Int]()
   private val shuffleMapperAttempts = JavaUtils.newConcurrentHashMap[Int, Array[Int]]()
+  // TODO: Move this to native Int -> Int Map
+  private val shuffleToCompletedMappers = JavaUtils.newConcurrentHashMap[Int, Int]()
   private val stageEndTimeout = conf.clientPushStageEndTimeout
   private val mockShuffleLost = conf.testMockShuffleLost
   private val mockShuffleLostShuffle = conf.testMockShuffleLostShuffle
@@ -161,6 +163,7 @@ class ReducePartitionCommitHandler(
     stageEndShuffleSet.remove(shuffleId)
     inProcessStageEndShuffleSet.remove(shuffleId)
     shuffleMapperAttempts.remove(shuffleId)
+    shuffleToCompletedMappers.remove(shuffleId)
     commitMetadataForReducer.remove(shuffleId)
     skewPartitionCompletenessValidator.remove(shuffleId)
     super.removeExpiredShuffle(shuffleId)
@@ -271,6 +274,21 @@ class ReducePartitionCommitHandler(
     shuffleMapperAttempts.get(shuffleId)
   }
 
+  override def areAllMapperAttemptsFinished(shuffleId: Int): Boolean = {
+    val attempts = shuffleMapperAttempts.get(shuffleId)
+    if (null != attempts) {
+      attempts.length == shuffleToCompletedMappers.get(shuffleId)
+    } else {
+      false
+    }
+  }
+
+  private val valueIncrementFunction = new function.BiFunction[Int, Int, Int]() {
+    override def apply(key: Int, value: Int): Int = {
+      value + 1
+    }
+  }
+
   override def finishMapperAttempt(
       shuffleId: Int,
       mapId: Int,
@@ -291,6 +309,9 @@ class ReducePartitionCommitHandler(
       val attempts = shuffleMapperAttempts.get(shuffleId)
       if (attempts(mapId) < 0) {
         attempts(mapId) = attemptId
+        // increment completed mappers
+        val completedMappers =
+          shuffleToCompletedMappers.compute(shuffleId, valueIncrementFunction)
 
         if (null != pushFailedBatches && !pushFailedBatches.isEmpty) {
           val pushFailedBatchesMap = shufflePushFailedBatches.computeIfAbsent(
@@ -304,7 +325,7 @@ class ReducePartitionCommitHandler(
           }
         }
         // Mapper with this attemptId finished, also check all other mapper finished or not.
-        (true, ClientUtils.areAllMapperAttemptsFinished(attempts))
+        (true, completedMappers == attempts.length)
       } else {
         // Mapper with another attemptId finished, skip this request
         (false, false)
@@ -391,8 +412,9 @@ class ReducePartitionCommitHandler(
     shuffleMapperAttempts.synchronized {
       if (!shuffleMapperAttempts.containsKey(shuffleId)) {
         val attempts = new Array[Int](numMappers)
-        0 until numMappers foreach (idx => attempts(idx) = -1)
+        util.Arrays.fill(attempts, -1)
         shuffleMapperAttempts.put(shuffleId, attempts)
+        shuffleToCompletedMappers.put(shuffleId, 0)
       }
       if (shuffleIntegrityCheckEnabled) {
         commitMetadataForReducer.put(shuffleId, Array.fill(numPartitions)(new CommitMetadata()))
