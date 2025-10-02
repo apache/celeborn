@@ -113,7 +113,7 @@ object CelebornHadoopUtils extends Logging {
         case (storageType, dirs) => {
           dirs.foreach { dir =>
             val list = hadoopFs.get(storageType)
-            if (list != null && !list.stream().anyMatch(v => v._1.equals(dir))) {
+            if (list != null && !list.stream().anyMatch(_._1.equals(dir))) {
               val path = new Path(dir)
               list.add((dir, path.getFileSystem(hadoopConf)))
             } else {

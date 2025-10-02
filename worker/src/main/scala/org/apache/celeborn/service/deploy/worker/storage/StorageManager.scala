@@ -159,9 +159,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     (flushers, totalThread)
   }
 
-  val hdfsDirList = conf.hdfsDirList.get
-  val s3DirList = conf.s3DirList.get
-  val ossDirList = conf.ossDirList.get
+  val hdfsDirList = conf.hdfsDirList
+  val s3DirList = conf.s3DirList
+  val ossDirList = conf.ossDirList
   val hdfsPermission = new FsPermission("755")
   val (hdfsFlusher, _totalHdfsFlusherThread) =
     if (hasHDFSStorage) {
@@ -656,10 +656,14 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         expireStorageTypes.foreach(storageType => {
           try {
             val dirList =
-              if (storageType == StorageInfo.Type.HDFS) hdfsDirList
-              else if (storageType == StorageInfo.Type.OSS) ossDirList
+              if (hasHDFSStorage && isHdfs) hdfsDirList
+              else if (hasOssStorage && isOss) ossDirList
               else s3DirList
-            StorageManager.hadoopFs.get(storageType).forEach(tuple => {
+            val storageInfo =
+              if (hasHDFSStorage && isHdfs) StorageInfo.Type.HDFS
+              else if (hasOssStorage && isOss) StorageInfo.Type.OSS
+              else StorageInfo.Type.S3
+            StorageManager.hadoopFs.get(storageInfo).forEach(tuple => {
               val fs = tuple._2
               dirList.foreach(dir => {
                 fs.delete(
