@@ -19,6 +19,7 @@ package org.apache.celeborn.client;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -56,7 +57,7 @@ public abstract class ShuffleClient {
   private static Logger logger = LoggerFactory.getLogger(ShuffleClient.class);
   private static volatile ShuffleClient _instance;
   private static volatile boolean initialized = false;
-  private static volatile Map<StorageInfo.Type, FileSystem> hadoopFs;
+  private static volatile Map<StorageInfo.Type, List<Tuple2<String, FileSystem>>> hadoopFs;
   private static LongAdder totalReadCounter = new LongAdder();
   private static LongAdder localShuffleReadCounter = new LongAdder();
 
@@ -114,7 +115,8 @@ public abstract class ShuffleClient {
     return _instance;
   }
 
-  public static Map<StorageInfo.Type, FileSystem> getHadoopFs(CelebornConf conf) {
+  public static Map<StorageInfo.Type, List<Tuple2<String, FileSystem>>> getHadoopFs(
+      CelebornConf conf) {
     if (null == hadoopFs) {
       synchronized (ShuffleClient.class) {
         if (null == hadoopFs) {
