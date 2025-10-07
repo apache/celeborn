@@ -136,8 +136,21 @@ class ReducePartitionCommitHandler(
     if (mockShuffleLost) {
       mockShuffleLostShuffle == shuffleId
     } else {
-      dataLostShuffleSet.contains(shuffleId)
+      dataLostShuffleSet.contains(shuffleId) || isStageDataLostInUnknownWorker(shuffleId)
     }
+  }
+
+  private def isStageDataLostInUnknownWorker(shuffleId: Int): Boolean = {
+    if (conf.clientPushReplicateEnabled) {
+      val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
+      if (allocatedWorkers != null) {
+        return workerStatusTracker.excludedWorkers.asScala.collect {
+          case (workerId, (status, _))
+            if status == StatusCode.WORKER_UNKNOWN && allocatedWorkers.contains(workerId) => workerId
+        }.nonEmpty
+      }
+    }
+    false
   }
 
   override def isPartitionInProcess(shuffleId: Int, partitionId: Int): Boolean = {

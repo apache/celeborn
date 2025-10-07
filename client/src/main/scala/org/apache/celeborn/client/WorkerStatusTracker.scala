@@ -157,8 +157,7 @@ class WorkerStatusTracker(
       excludedWorkers.asScala.foreach {
         case (workerInfo: WorkerInfo, (statusCode, registerTime)) =>
           statusCode match {
-            case StatusCode.WORKER_UNKNOWN |
-                StatusCode.WORKER_UNRESPONSIVE |
+            case StatusCode.WORKER_UNRESPONSIVE |
                 StatusCode.COMMIT_FILE_EXCEPTION |
                 StatusCode.NO_AVAILABLE_WORKING_DIR |
                 StatusCode.RESERVE_SLOTS_FAILED |
@@ -186,9 +185,9 @@ class WorkerStatusTracker(
       }
       for (worker <- res.unknownWorkers.asScala) {
         if (!excludedWorkers.containsKey(worker)) {
-          excludedWorkers.put(worker, (StatusCode.WORKER_UNKNOWN, current))
           statusChanged = true
         }
+        excludedWorkers.put(worker, (StatusCode.WORKER_UNKNOWN, current))
       }
 
       val retainShuttingWorkersResult = shuttingWorkers.retainAll(res.shuttingWorkers)
