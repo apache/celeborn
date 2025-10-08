@@ -184,10 +184,11 @@ class WorkerStatusTracker(
         }
       }
       for (worker <- res.unknownWorkers.asScala) {
-        if (!excludedWorkers.containsKey(worker)) {
+        if (!excludedWorkers.containsKey(worker) || excludedWorkers.get(
+            worker)._1 != StatusCode.WORKER_UNKNOWN) {
+          excludedWorkers.put(worker, (StatusCode.WORKER_UNKNOWN, current))
           statusChanged = true
         }
-        excludedWorkers.put(worker, (StatusCode.WORKER_UNKNOWN, current))
       }
 
       val retainShuttingWorkersResult = shuttingWorkers.retainAll(res.shuttingWorkers)
