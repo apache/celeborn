@@ -141,12 +141,13 @@ class ReducePartitionCommitHandler(
   }
 
   private def isStageDataLostInUnknownWorker(shuffleId: Int): Boolean = {
-    if (conf.clientPushReplicateEnabled) {
+    if (conf.clientShuffleDataLostOnUnknownWorkerEnabled && !conf.clientPushReplicateEnabled) {
       val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
       if (allocatedWorkers != null) {
         return workerStatusTracker.excludedWorkers.asScala.collect {
           case (workerId, (status, _))
-            if status == StatusCode.WORKER_UNKNOWN && allocatedWorkers.contains(workerId) => workerId
+              if status == StatusCode.WORKER_UNKNOWN && allocatedWorkers.contains(workerId) =>
+            workerId
         }.nonEmpty
       }
     }
