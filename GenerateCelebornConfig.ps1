@@ -125,6 +125,7 @@ Function global:ConvertIniToPropertiesFile($iniPath, $propsPath)
     }
 }
 
+$currentDir = pwd
 # Create the celeborn-defaults-before-expand.conf 
 Try
 {
@@ -132,6 +133,7 @@ Try
     $celebornConfigDir = "$currentDir\conf"
     $celebornConfigFileOut = $celebornConfigDir + "\celeborn-defaults-before-expand.conf"
     if (Test-Path -Path $celebornConfigFileOut) {
+        Write-Host "Deleting existing file celeborn-defaults-before-expand.conf"
         Remove-Item -Force $celebornConfigFileOut
     }
 
@@ -156,5 +158,3 @@ Catch
 
 # generate host machines
 GenerateMaterMachineHost
-
-Remove-Item -Recurse -Force $celebornConfigTmpFolder
