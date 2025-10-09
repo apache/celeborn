@@ -272,7 +272,7 @@ public class MasterClient {
       // Catch all exceptions. Because we don't care whether this exception is IOException or
       // TimeoutException or other exceptions, so we just try to connect to host:port, if fail,
       // we try next address.
-      LOG.warn("Connect to {} failed.", endpoint, e);
+      LOG.info("Connect to {} failed.", endpoint);
     }
     return endpointRef;
   }
