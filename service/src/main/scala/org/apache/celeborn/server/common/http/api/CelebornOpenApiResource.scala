@@ -106,9 +106,9 @@ class CelebornOpenApiResource extends BaseOpenApiResource with ApiRequestContext
             .`type`(SecurityScheme.Type.HTTP)
             .scheme("Bearer")
             .bearerFormat("JWT")))
-      .addSecurityItem(new SecurityRequirement()
+      .security(List(new SecurityRequirement()
         .addList("BasicAuth")
-        .addList("BearerAuth"))
+        .addList("BearerAuth")).asJava)
   }
 }
 
