@@ -1,7 +1,7 @@
 # Create the celeborn-defaults-before-expand.conf from the settings
 param (
     # Watch a period of time for hadoop.latest to become available
-    [int]$timeout = 60
+    [int]$timeout = [int]::MaxValue
 )
 
 function Wait-File {
@@ -125,40 +125,19 @@ Function global:ConvertIniToPropertiesFile($iniPath, $propsPath)
     }
 }
 
-
-$configGenerator = "D:\Data\hadoop.latest\YarnppConfigurationGenerator.exe"
-try {
-    # Wait until the config generator becomes available
-    Wait-File -Path $configGenerator -Timeout $timeout -Interval 1
-} catch {
-    Write-Error $_.Exception.Message
-}
-
 $currentDir = pwd
-Write-Host "Generate celeborn config in dir: " $currentDir
-
-$celebornConfigTmpFolder = "$currentDir\tmp"
-if (Test-Path -Path $celebornConfigTmpFolder) {
-     Remove-Item -Recurse -Force $celebornConfigTmpFolder
-}
-
-New-Item -ItemType Directory -Force -Path $celebornConfigTmpFolder
-# The YarnppConfigurationGenerator.exe has to be called under the hadoop.latest folder, in order to use the settings in the hadoop folder.
-Push-Location "D:\Data\hadoop.latest"
-Write-Host "Call the config generator in dir: $(Get-Location)"
-D:\Data\hadoop.latest\YarnppConfigurationGenerator.exe $currentDir\celeborn.ini $celebornConfigTmpFolder
-Pop-Location
-Write-Host "Continue executing the script in dir: $(Get-Location)"
-
 # Create the celeborn-defaults-before-expand.conf 
 Try
 {
     $celebornDir = "$currentDir"
     $celebornConfigDir = "$currentDir\conf"
     $celebornConfigFileOut = $celebornConfigDir + "\celeborn-defaults-before-expand.conf"
-    $celebornConfigFile = $celebornConfigTmpFolder +"\celeborn-site.xml"
-    $celebornConfigFileXML = [xml](Get-Content $celebornConfigFile)
-    $celebornConfigFileXML.configuration.property |% { $AuxConfLine=$_.name+" "+$_.value; $AuxConfLine } | Out-File $celebornConfigFileOut -Encoding ASCII
+    if (Test-Path -Path $celebornConfigFileOut) {
+        Write-Host "Deleting existing file celeborn-defaults-before-expand.conf"
+        Remove-Item -Force $celebornConfigFileOut
+    }
+
+    ConvertIniToPropertiesFile '.\celeborn.ini.flattened.ini' $celebornConfigFileOut
     Write-Host "Celeborn configuration written to " $celebornConfigFileOut
 }
 Catch
@@ -179,5 +158,3 @@ Catch
 
 # generate host machines
 GenerateMaterMachineHost
-
-Remove-Item -Recurse -Force $celebornConfigTmpFolder
