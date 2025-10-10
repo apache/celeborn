@@ -908,7 +908,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def updateDiskInfos(): Unit = this.synchronized {
     disksSnapshot()
       .filter(diskInfo =>
-        diskInfo.status != DiskStatus.IO_HANG || diskInfo.status != DiskStatus.READ_OR_WRITE_FAILURE)
+        diskInfo.status != DiskStatus.IO_HANG && diskInfo.status != DiskStatus.READ_OR_WRITE_FAILURE)
       .foreach {
         diskInfo =>
           val totalUsage = diskInfo.dirs.map { dir =>
