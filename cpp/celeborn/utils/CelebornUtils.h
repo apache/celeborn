@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <folly/Synchronized.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <charconv>
 #include <chrono>
@@ -112,6 +113,75 @@ std::unique_ptr<T> parseProto(const uint8_t* bytes, int len) {
   }
   return pbObj;
 }
+
+template <typename TKey, typename TValue, typename THasher = std::hash<TKey>>
+class ConcurrentHashMap {
+ public:
+  std::optional<TValue> get(const TKey& key) {
+    // Explicitly declaring the return type helps type deduction.
+    return synchronizedMap_.withLock([&](auto& map) -> std::optional<TValue> {
+      auto iter = map.find(key);
+      if (iter != map.end()) {
+        return iter->second;
+      }
+      return std::nullopt;
+    });
+  }
+
+  bool containsKey(const TKey& key) {
+    return synchronizedMap_.withLock([&](auto& map) {
+      auto iter = map.find(key);
+      if (iter != map.end()) {
+        return true;
+      }
+      return false;
+    });
+  }
+
+  TValue computeIfAbsent(const TKey& key, std::function<TValue()> compute) {
+    return synchronizedMap_.withLock([&](auto& map) {
+      auto iter = map.find(key);
+      if (iter != map.end()) {
+        return iter->second;
+      }
+      map[key] = compute();
+      return map[key];
+    });
+  }
+
+  void set(const TKey& key, TValue&& value) {
+    synchronizedMap_.withLock([&](auto& map) { map[key] = std::move(value); });
+  }
+
+  void set(const TKey& key, const TValue& value) {
+    synchronizedMap_.withLock([&](auto& map) { map[key] = value; });
+  }
+
+  size_t size() const {
+    return synchronizedMap_.lock()->size();
+  }
+
+  std::optional<TValue> erase(const TKey& key) {
+    // Explicitly declaring the return type helps type deduction.
+    return synchronizedMap_.withLock([&](auto& map) -> std::optional<TValue> {
+      auto iter = map.find(key);
+      if (iter != map.end()) {
+        auto result = std::move(iter->second);
+        map.erase(key);
+        return std::move(result);
+      }
+      return std::nullopt;
+    });
+  }
+
+  void clear() {
+    synchronizedMap_.lock()->clear();
+  }
+
+ private:
+  folly::Synchronized<std::unordered_map<TKey, TValue, THasher>, std::mutex>
+      synchronizedMap_;
+};
 
 } // namespace utils
 } // namespace celeborn

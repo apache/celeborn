@@ -65,20 +65,21 @@ std::unique_ptr<CelebornInputStream> ShuffleClientImpl::readPartition(
     int startMapIndex,
     int endMapIndex,
     bool needCompression) {
-  const auto& reducerFileGroupInfo = getReducerFileGroupInfo(shuffleId);
+  const auto reducerFileGroupInfo = getReducerFileGroupInfo(shuffleId);
+  CELEBORN_CHECK_NOT_NULL(reducerFileGroupInfo);
   std::string shuffleKey = utils::makeShuffleKey(appUniqueId_, shuffleId);
   std::vector<std::shared_ptr<const protocol::PartitionLocation>> locations;
-  if (!reducerFileGroupInfo.fileGroups.empty() &&
-      reducerFileGroupInfo.fileGroups.count(partitionId)) {
+  if (!reducerFileGroupInfo->fileGroups.empty() &&
+      reducerFileGroupInfo->fileGroups.count(partitionId)) {
     locations = std::move(utils::toVector(
-        reducerFileGroupInfo.fileGroups.find(partitionId)->second));
+        reducerFileGroupInfo->fileGroups.find(partitionId)->second));
   }
   return std::make_unique<CelebornInputStream>(
       shuffleKey,
       conf_,
       clientFactory_,
       std::move(locations),
-      reducerFileGroupInfo.attempts,
+      reducerFileGroupInfo->attempts,
       attemptNumber,
       startMapIndex,
       endMapIndex,
@@ -98,13 +99,10 @@ void ShuffleClientImpl::updateReducerFileGroup(int shuffleId) {
   switch (reducerFileGroupInfo->status) {
     case protocol::SUCCESS: {
       VLOG(1) << "success to get reducerFileGroupInfo, shuffleId " << shuffleId;
-      std::lock_guard<std::mutex> lock(mutex_);
-      if (reducerFileGroupInfos_.count(shuffleId) > 0) {
-        VLOG(1) << "reducerFileGroupInfo for shuffleId" << shuffleId
-                << " already exists, ignored";
-        return;
-      }
-      reducerFileGroupInfos_[shuffleId] = std::move(reducerFileGroupInfo);
+      reducerFileGroupInfos_.set(
+          shuffleId,
+          std::shared_ptr<protocol::GetReducerFileGroupResponse>(
+              reducerFileGroupInfo.release()));
       return;
     }
     case protocol::SHUFFLE_NOT_REGISTERED: {
@@ -112,13 +110,10 @@ void ShuffleClientImpl::updateReducerFileGroup(int shuffleId) {
       // shuffle.
       LOG(WARNING) << "shuffleId " << shuffleId
                    << " is not registered when get reducerFileGroupInfo";
-      std::lock_guard<std::mutex> lock(mutex_);
-      if (reducerFileGroupInfos_.count(shuffleId) > 0) {
-        VLOG(1) << "reducerFileGroupInfo for shuffleId" << shuffleId
-                << " already exists, ignored";
-        return;
-      }
-      reducerFileGroupInfos_[shuffleId] = std::move(reducerFileGroupInfo);
+      reducerFileGroupInfos_.set(
+          shuffleId,
+          std::shared_ptr<protocol::GetReducerFileGroupResponse>(
+              reducerFileGroupInfo.release()));
       return;
     }
     case protocol::STAGE_END_TIME_OUT:
@@ -140,21 +135,16 @@ bool ShuffleClientImpl::cleanupShuffle(int shuffleId) {
   return true;
 }
 
-protocol::GetReducerFileGroupResponse&
+std::shared_ptr<protocol::GetReducerFileGroupResponse>
 ShuffleClientImpl::getReducerFileGroupInfo(int shuffleId) {
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto iter = reducerFileGroupInfos_.find(shuffleId);
-    if (iter != reducerFileGroupInfos_.end()) {
-      return *iter->second;
-    }
+  auto reducerFileGroupInfoOptional = reducerFileGroupInfos_.get(shuffleId);
+  if (reducerFileGroupInfoOptional.has_value()) {
+    return reducerFileGroupInfoOptional.value();
   }
 
   updateReducerFileGroup(shuffleId);
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return *reducerFileGroupInfos_[shuffleId];
-  }
+
+  return getReducerFileGroupInfo(shuffleId);
 }
 } // namespace client
 } // namespace celeborn
