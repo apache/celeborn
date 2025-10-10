@@ -26,51 +26,14 @@ NettyRpcEndpointRef::NettyRpcEndpointRef(
     int srcPort,
     const std::string& dstHost,
     int dstPort,
-    std::shared_ptr<TransportClient> client)
+    const std::shared_ptr<TransportClient>& client,
+    const conf::CelebornConf& conf)
     : name_(name),
       srcHost_(srcHost),
       srcPort_(srcPort),
       dstHost_(dstHost),
       dstPort_(dstPort),
-      client_(client) {}
-
-std::unique_ptr<protocol::GetReducerFileGroupResponse>
-NettyRpcEndpointRef::askSync(
-    const protocol::GetReducerFileGroup& msg,
-    Timeout timeout) {
-  auto rpcRequest = buildRpcRequest(msg);
-  auto rpcResponse = client_->sendRpcRequestSync(rpcRequest, timeout);
-  return fromRpcResponse(std::move(rpcResponse));
-}
-
-RpcRequest NettyRpcEndpointRef::buildRpcRequest(
-    const protocol::GetReducerFileGroup& msg) {
-  auto transportData = msg.toTransportMessage().toReadOnlyByteBuffer();
-  int size =
-      srcHost_.size() + 3 + 4 + dstHost_.size() + 3 + 4 + name_.size() + 2 + 1;
-  auto buffer = memory::ByteBuffer::createWriteOnly(size);
-  // write srcAddr msg
-  utils::writeRpcAddress(*buffer, srcHost_, srcPort_);
-  // write dstAddr msg
-  utils::writeRpcAddress(*buffer, dstHost_, dstPort_);
-  // write srcName
-  utils::writeUTF(*buffer, name_);
-  // write the isTransportMessage flag
-  buffer->write<uint8_t>(kNativeTransportMessageFlag);
-  CELEBORN_CHECK_EQ(buffer->size(), size);
-  auto result = memory::ByteBuffer::toReadOnly(std::move(buffer));
-  auto combined = memory::ByteBuffer::concat(*result, *transportData);
-  return RpcRequest(RpcRequest::nextRequestId(), std::move(combined));
-}
-
-std::unique_ptr<protocol::GetReducerFileGroupResponse>
-NettyRpcEndpointRef::fromRpcResponse(RpcResponse&& response) {
-  auto body = response.body();
-  uint8_t nativeTransportMessageFlag = body->read<uint8_t>();
-  CELEBORN_CHECK_EQ(nativeTransportMessageFlag, kNativeTransportMessageFlag);
-  auto transportMessage = protocol::TransportMessage(std::move(body));
-  return protocol::GetReducerFileGroupResponse::fromTransportMessage(
-      transportMessage);
-}
+      client_(client),
+      defaultTimeout_(conf.rpcAskTimeout()) {}
 } // namespace network
 } // namespace celeborn
