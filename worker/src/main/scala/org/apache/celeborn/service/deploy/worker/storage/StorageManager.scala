@@ -1138,7 +1138,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val s3FileInfo = new DiskFileInfo(
           userIdentifier,
           partitionSplitEnabled,
-          new ReduceFileMeta(conf.shuffleChunkSize),
+          getFileMeta(partitionType, s"s3", conf.shuffleChunkSize),
           s3FilePath,
           StorageInfo.Type.S3)
         diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
@@ -1156,7 +1156,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val ossFileInfo = new DiskFileInfo(
           userIdentifier,
           partitionSplitEnabled,
-          new ReduceFileMeta(conf.shuffleChunkSize),
+          getFileMeta(partitionType, s"oss", conf.shuffleChunkSize),
           ossFilePath,
           StorageInfo.Type.OSS)
         diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
