@@ -219,7 +219,14 @@ TEST(ByteBufferTest, continuousBufferRead) {
   auto ioBuf = folly::IOBuf::wrapBuffer(data.get(), size);
 
   auto readBuffer = ByteBuffer::createReadOnly(std::move(ioBuf));
+  auto readBuffer2 = readBuffer->clone();
+
   testReadData(readBuffer.get(), size);
+
+  // Test readToReadOnlyBuffer.
+  auto toReadBuffer = readBuffer2->readToReadOnlyBuffer(size);
+  EXPECT_EQ(readBuffer2->remainingSize(), 0);
+  testReadData(toReadBuffer.get(), size);
 }
 
 TEST(ByteBufferTest, segmentedBufferRead) {
@@ -248,7 +255,14 @@ TEST(ByteBufferTest, segmentedBufferRead) {
   }
 
   auto readBuffer = ByteBuffer::createReadOnly(std::move(ioBuf));
+  auto readBuffer2 = readBuffer->clone();
+
   testReadData(readBuffer.get(), size);
+
+  // Test readToReadOnlyBuffer.
+  auto toReadBuffer = readBuffer2->readToReadOnlyBuffer(size);
+  EXPECT_EQ(readBuffer2->remainingSize(), 0);
+  testReadData(toReadBuffer.get(), size);
 }
 
 TEST(ByteBufferTest, writeBufferAndRead) {
