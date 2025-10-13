@@ -84,11 +84,12 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
           new ReducePartitionMetaHandler(partitionDataWriterContext.isRangeReadFilter, fileInfo)
         case PartitionType.MAP =>
           if (partitionDataWriterContext.isSegmentGranularityVisible) {
-            new SegmentMapPartitionMetaHandler(fileInfo.asInstanceOf[DiskFileInfo], notifier)
+            new SegmentMapPartitionMetaHandler(fileInfo.asInstanceOf[DiskFileInfo], notifier, conf)
           } else {
             new MapPartitionMetaHandler(
               fileInfo.asInstanceOf[DiskFileInfo],
-              notifier)
+              notifier,
+              conf)
           }
       }
     }

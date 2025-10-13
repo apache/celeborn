@@ -24,6 +24,7 @@ import java.nio.file.Files
 import io.netty.buffer.{ByteBuf, UnpooledByteBufAllocator}
 
 import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{DiskFileInfo, MapFileMeta, ReduceFileMeta}
 import org.apache.celeborn.common.protocol._
@@ -45,7 +46,7 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
       tmpFilePath.toString,
       StorageInfo.Type.HDD)
 
-    val mapMetaHandler = new MapPartitionMetaHandler(diskFileInfo, notifier)
+    val mapMetaHandler = new MapPartitionMetaHandler(diskFileInfo, notifier, new CelebornConf())
     val pbPushDataHandShake =
       PbPushDataHandShake.newBuilder().setNumPartitions(10).setBufferSize(1024).build()
     mapMetaHandler.handleEvent(pbPushDataHandShake)
@@ -80,7 +81,7 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
     assert(0 === start)
     assert(1024 === len)
 
-    assert(mapMetaHandler.indexChannel !== null)
+    assert(mapMetaHandler.indexFile.isLeft)
     mapMetaHandler.afterClose()
 
     val file = new File(diskFileInfo.getIndexPath)
@@ -155,7 +156,8 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
       tmpFilePath.toString,
       StorageInfo.Type.HDD)
 
-    val mapMetaHandler = new SegmentMapPartitionMetaHandler(diskFileInfo, notifier)
+    val mapMetaHandler =
+      new SegmentMapPartitionMetaHandler(diskFileInfo, notifier, new CelebornConf())
     val pbPushDataHandShake =
       PbPushDataHandShake.newBuilder().setNumPartitions(10).setBufferSize(1024).build()
     mapMetaHandler.handleEvent(pbPushDataHandShake)
@@ -200,7 +202,7 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
     assert(0 === start)
     assert(10240 === len)
 
-    assert(mapMetaHandler.indexChannel !== null)
+    assert(mapMetaHandler.indexFile.isLeft)
     mapMetaHandler.afterClose()
 
     val file = new File(diskFileInfo.getIndexPath)

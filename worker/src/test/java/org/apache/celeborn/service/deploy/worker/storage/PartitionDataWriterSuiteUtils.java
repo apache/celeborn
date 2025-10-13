@@ -65,7 +65,7 @@ public class PartitionDataWriterSuiteUtils {
     PartitionMetaHandler metaHandler = null;
     if (!reduceMeta) {
       fileInfo.replaceFileMeta(new MapFileMeta(32 * 1024, 10));
-      metaHandler = new MapPartitionMetaHandler(fileInfo, flushNotifier);
+      metaHandler = new MapPartitionMetaHandler(fileInfo, flushNotifier, new CelebornConf());
     } else {
       metaHandler = new ReducePartitionMetaHandler(conf.shuffleRangeReadFilterEnabled(), fileInfo);
     }

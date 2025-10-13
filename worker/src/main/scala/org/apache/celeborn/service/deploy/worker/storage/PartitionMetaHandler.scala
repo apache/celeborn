@@ -29,10 +29,11 @@ import org.apache.hadoop.fs.{FileSystem, FSDataOutputStream}
 import org.roaringbitmap.RoaringBitmap
 import org.slf4j.{Logger, LoggerFactory}
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, MapFileMeta, ReduceFileMeta}
-import org.apache.celeborn.common.protocol.{PbPushDataHandShake, PbRegionFinish, PbRegionStart, PbSegmentStart, StorageInfo}
+import org.apache.celeborn.common.protocol.{PbPushDataHandShake, PbRegionFinish, PbRegionStart, PbSegmentStart}
 import org.apache.celeborn.common.unsafe.Platform
-import org.apache.celeborn.common.util.FileChannelUtils
+import org.apache.celeborn.common.util.{FileChannelUtils, Utils}
 
 /**
  * It's the specific logic for reduce partition writer, map partition writer and map segment partition writer
@@ -93,7 +94,8 @@ trait PartitionMetaHandler {
 
 class MapPartitionMetaHandler(
     diskFileInfo: DiskFileInfo,
-    notifier: FlushNotifier) extends PartitionMetaHandler {
+    notifier: FlushNotifier,
+    conf: CelebornConf) extends PartitionMetaHandler {
   lazy val hadoopFs: FileSystem = StorageManager.hadoopFs.get(diskFileInfo.getStorageType)
   val logger: Logger = LoggerFactory.getLogger(classOf[MapPartitionMetaHandler])
   val fileMeta: MapFileMeta = diskFileInfo.getFileMeta.asInstanceOf[MapFileMeta]
@@ -105,9 +107,7 @@ class MapPartitionMetaHandler(
   var currentSubpartition = 0
   private var totalBytes = 0L
   private var regionStartingOffset = 0L
-  var indexChannel: FileChannel =
-    FileChannelUtils.createWritableFileChannel(diskFileInfo.getIndexPath)
-  var indexDfsStream: FSDataOutputStream = createIndexFile
+  var indexFile: Either[FileChannel, FSDataOutputStream] = createIndexFile
   @volatile private var isRegionFinished = true
 
   override def handleEvent(message: GeneratedMessageV3): Unit = {
@@ -185,23 +185,16 @@ class MapPartitionMetaHandler(
     isRegionFinished = true
   }
 
-  private def createIndexFile(): FSDataOutputStream = {
-    try {
-      val hdfsPath = diskFileInfo.getDfsIndexPath
-      hadoopFs.create(hdfsPath, true)
-    } catch {
-      case e: IOException =>
-        try {
-          // If create file failed, wait 10 ms and retry
-          Thread.sleep(10)
-        } catch {
-          case ex: InterruptedException =>
-            throw new RuntimeException(ex)
-        }
-        val hdfsPath = diskFileInfo.getDfsIndexPath
-        hadoopFs.create(hdfsPath, true)
+  private def createIndexFile: Either[FileChannel, FSDataOutputStream] = {
+    if (diskFileInfo.isDFS) {
+      Right(Utils.withRetryOnTimeoutOrIOException(
+        conf.workerWriterHdfsCreateAuxiliaryFileMaxRetries,
+        conf.workerWriterHdfsCreateAuxiliaryFileRetryWait) {
+        hadoopFs.create(diskFileInfo.getDfsIndexPath)
+      })
+    } else {
+      Left(FileChannelUtils.createWritableFileChannel(diskFileInfo.getIndexPath))
     }
-    null
   }
 
   private def allocateIndexBuffer(numSubpartitions: Int): ByteBuffer = {
@@ -233,11 +226,16 @@ class MapPartitionMetaHandler(
       try {
         if (indexBuffer.hasRemaining) {
           // map partition synchronously writes file index
-          if (indexChannel != null) while (indexBuffer.hasRemaining) indexChannel.write(indexBuffer)
-          else if (diskFileInfo.isDFS) {
-            val indexBytes = new Array[Byte](indexBuffer.remaining)
-            indexBuffer.get(indexBytes)
-            indexDfsStream.write(indexBytes)
+          indexFile match {
+            case Left(indexChannel) =>
+              while (indexBuffer.hasRemaining) {
+                indexChannel.write(indexBuffer)
+              }
+            case Right(indexStream) =>
+              val indexBytes = new Array[Byte](indexBuffer.remaining)
+              indexBuffer.get(indexBytes)
+              indexStream.write(indexBytes)
+              indexStream.hflush()
           }
         }
         indexBuffer.clear
@@ -316,12 +314,14 @@ class MapPartitionMetaHandler(
 
   override def beforeDestroy(): Unit = {
     try {
-      if (indexChannel != null) indexChannel.close()
-      if (indexDfsStream != null) indexDfsStream.close()
+      indexFile match {
+        case Left(indexChannel) => indexChannel.close()
+        case Right(indexStream) => indexStream.close()
+      }
     } catch {
       case e: IOException =>
         logger.warn(
-          s"Close channel/DfsStream failed for file ${diskFileInfo.getIndexPath} caused by {}.",
+          s"Close index file failed for file ${diskFileInfo.getIndexPath} caused by {}.",
           e.getMessage)
     }
   }
@@ -382,8 +382,11 @@ class ReducePartitionMetaHandler(val rangeReadFilter: Boolean, val fileInfo: Fil
   }
 }
 
-class SegmentMapPartitionMetaHandler(diskFileInfo: DiskFileInfo, notifier: FlushNotifier)
-  extends MapPartitionMetaHandler(diskFileInfo, notifier) {
+class SegmentMapPartitionMetaHandler(
+    diskFileInfo: DiskFileInfo,
+    notifier: FlushNotifier,
+    conf: CelebornConf)
+  extends MapPartitionMetaHandler(diskFileInfo, notifier, conf) {
 
   @VisibleForTesting
   private val subPartitionHasStartSegment: util.Map[Integer, Boolean] =
