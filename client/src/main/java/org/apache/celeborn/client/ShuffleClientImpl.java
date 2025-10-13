@@ -476,7 +476,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
 
     for (int i = index; i < reviveRequests.length; i++) {
-      ReviveRequest request = reviveRequests[index];
+      ReviveRequest request = reviveRequests[i];
       DataBatches.DataBatch batch = batches.get(i);
       if (remainReviveTimes > 0) {
         reviveFailedBatchesMap.add(batch);
