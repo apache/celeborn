@@ -26,10 +26,11 @@ import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import java.util.function.{BiConsumer, IntUnaryOperator}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.concurrent.duration._
 
 import com.google.common.annotations.VisibleForTesting
-import io.netty.buffer.{ByteBufAllocator, PooledByteBufAllocator}
+import io.netty.buffer.ByteBufAllocator
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
@@ -634,16 +635,12 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
       if (diskFileInfos.containsKey(shuffleKey)) {
         val removedFileInfos = diskFileInfos.remove(shuffleKey)
-        var isDfsExpired = false
-        var isHdfs = false
-        var isOss = false
+        val expireStorageTypes = mutable.Set[StorageInfo.Type]()
         if (removedFileInfos != null) {
           removedFileInfos.asScala.foreach {
             case (_, fileInfo) =>
               if (cleanFileInternal(shuffleKey, fileInfo)) {
-                isDfsExpired = true
-                isHdfs = fileInfo.isHdfs
-                isOss = fileInfo.isOSS
+                expireStorageTypes.add(fileInfo.getStorageType)
               }
           }
         }
@@ -656,23 +653,19 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             deleteDirectory(file, diskOperators.get(diskInfo.mountPoint))
           }
         }
-        if (isDfsExpired) {
+        expireStorageTypes.foreach(storageType => {
           try {
             val dir =
-              if (hasHDFSStorage && isHdfs) hdfsDir
-              else if (hasOssStorage && isOss) ossDir
+              if (storageType == StorageInfo.Type.HDFS) hdfsDir
+              else if (storageType == StorageInfo.Type.OSS) ossDir
               else s3Dir
-            val storageInfo =
-              if (hasHDFSStorage && isHdfs) StorageInfo.Type.HDFS
-              else if (hasOssStorage && isOss) StorageInfo.Type.OSS
-              else StorageInfo.Type.S3
-            StorageManager.hadoopFs.get(storageInfo).delete(
+            StorageManager.hadoopFs.get(storageType).delete(
               new Path(new Path(dir, conf.workerWorkingDir), s"$appId/$shuffleId"),
               true)
           } catch {
-            case e: Exception => logWarning("Clean expired DFS shuffle failed.", e)
+            case e: Exception => logWarning(s"Clean expired $storageType shuffle failed.", e)
           }
-        }
+        })
         if (workerGracefulShutdown) {
           committedFileInfos.remove(shuffleKey)
           if (cleanDB) {
