@@ -164,16 +164,14 @@ public class PartitionDataWriter implements DeviceObserver {
         }
       } else {
         LocalFlusher flusher = (LocalFlusher) currentTierWriter.getFlusher();
-        storageInfo = new StorageInfo(flusher.diskType(), true, "");
+        storageInfo = new StorageInfo(flusher.diskType(), true, diskFileInfo.getFilePath());
       }
     } else if (fileInfo instanceof MemoryFileInfo) {
       storageInfo = new StorageInfo(StorageInfo.Type.MEMORY, true, "");
     }
-    if (storageInfo != null
-        && currentTierWriter.fileInfo().getFileMeta() instanceof ReduceFileMeta) {
-      storageInfo.setFileSize(currentTierWriter.fileInfo().getFileLength());
-      storageInfo.setChunkOffsets(
-          ((ReduceFileMeta) currentTierWriter.fileInfo().getFileMeta()).getChunkOffsets());
+    if (storageInfo != null && fileInfo.isReduceFileMeta()) {
+      storageInfo.setFileSize(fileInfo.getFileLength());
+      storageInfo.setChunkOffsets(((ReduceFileMeta) fileInfo.getFileMeta()).getChunkOffsets());
     }
     return storageInfo;
   }
