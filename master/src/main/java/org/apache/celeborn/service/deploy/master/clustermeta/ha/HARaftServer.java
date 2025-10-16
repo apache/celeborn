@@ -62,6 +62,7 @@ import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.network.ssl.SSLFactory;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
+import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
@@ -220,7 +221,10 @@ public class HARaftServer {
 
   public ResourceResponse submitRequest(ResourceProtos.ResourceRequest request)
       throws CelebornRuntimeException {
-    String requestId = request.getRequestId();
+    String requestId =
+        ControlMessages.ZERO_UUID().equals(request.getRequestId())
+            ? MasterClient.genRequestId()
+            : request.getRequestId();
     Tuple2<String, Long> decoded = MasterClient.decodeRequestId(requestId);
     if (decoded == null) {
       throw new CelebornRuntimeException(
