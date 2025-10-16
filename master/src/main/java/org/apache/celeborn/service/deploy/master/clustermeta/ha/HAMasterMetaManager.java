@@ -93,7 +93,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {
-      LOG.error("Handle app lost for {} failed!", appId, e);
+      LOG.error("Handle app register for {} failed!", appId, e);
       throw e;
     }
   }
