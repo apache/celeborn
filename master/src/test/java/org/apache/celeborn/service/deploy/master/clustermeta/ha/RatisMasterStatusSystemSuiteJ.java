@@ -49,6 +49,7 @@ import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo;
 import org.apache.celeborn.common.network.sasl.registration.RegistrationServerBootstrap;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.WorkerEventType;
+import org.apache.celeborn.common.protocol.message.ControlMessages;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
@@ -2066,7 +2067,8 @@ public class RatisMasterStatusSystemSuiteJ {
 
     String appId = "app1";
     Map<String, String> extraInfo = Collections.singletonMap("k1", "v1");
-    statusSystem.handleRegisterApplicationInfo(appId, userIdentifier, extraInfo, getNewReqeustId());
+    statusSystem.handleRegisterApplicationInfo(
+        appId, userIdentifier, extraInfo, ControlMessages.ZERO_UUID());
 
     assertEquals(statusSystem.applicationInfos.get(appId).userIdentifier(), userIdentifier);
     assertEquals(statusSystem.applicationInfos.get(appId).extraInfo(), extraInfo);
