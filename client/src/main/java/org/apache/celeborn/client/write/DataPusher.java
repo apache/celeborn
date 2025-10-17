@@ -139,6 +139,9 @@ public class DataPusher {
                   } catch (InterruptedException e) {
                     logger.error("DataPusher push thread interrupted while pushing data.");
                     break;
+                  } catch (Throwable e) {
+                    logger.error("Unexpected exception occurs.", e);
+                    exceptionRef.set(new IOException(e));
                   }
                 }
               }

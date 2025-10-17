@@ -138,6 +138,46 @@ public class DataPushQueueSuiteJ {
     client.shutdown();
   }
 
+  @Test
+  public void testDataPusherUnCaughtException() throws Exception {
+    int shuffleId = 0;
+    int mapId = 0;
+    int attemptId = 0;
+    int numMappers = 10;
+    CelebornConf conf = new CelebornConf();
+    final File tempFile = new File(tempDir, UUID.randomUUID().toString());
+    DummyShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    LongAdder[] mapStatusLengths = new LongAdder[numPartitions];
+    for (int i = 0; i < numPartitions; i++) {
+      mapStatusLengths[i] = new LongAdder();
+    }
+    DataPusher dataPusher =
+        new DataPusher(
+            shuffleId,
+            mapId,
+            attemptId,
+            0,
+            numMappers,
+            numPartitions,
+            conf,
+            client,
+            null,
+            integer -> {},
+            mapStatusLengths) {
+          @Override
+          protected void pushData(PushTask task) throws IOException {
+            throw new OutOfMemoryError();
+          }
+        };
+    dataPusher.addTask(0, new byte[10], 0);
+    try {
+      dataPusher.waitOnTermination();
+    } catch (Throwable e) {
+      Assert.assertTrue(e.getCause() instanceof OutOfMemoryError);
+    }
+    client.shutdown();
+  }
+
   public static byte[] intToBytes(int value) {
     byte[] src = new byte[4];
     src[0] = (byte) (value & 0xFF);
