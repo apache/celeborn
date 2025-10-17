@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_executable(celeborn_utils_test ExceptionTest.cpp)
+add_executable(celeborn_utils_test ExceptionTest.cpp CelebornUtilsTest.cpp)
 
 add_test(NAME celeborn_utils_test COMMAND celeborn_utils_test)
 

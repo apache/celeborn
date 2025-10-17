@@ -85,16 +85,17 @@ class ShuffleClientImpl : public ShuffleClient {
   void shutdown() override {}
 
  private:
-  protocol::GetReducerFileGroupResponse& getReducerFileGroupInfo(int shuffleId);
+  std::shared_ptr<protocol::GetReducerFileGroupResponse>
+  getReducerFileGroupInfo(int shuffleId);
 
   const std::string appUniqueId_;
   std::shared_ptr<const conf::CelebornConf> conf_;
   std::shared_ptr<network::NettyRpcEndpointRef> lifecycleManagerRef_;
   std::shared_ptr<network::TransportClientFactory> clientFactory_;
   std::mutex mutex_;
-  std::unordered_map<
-      long,
-      std::unique_ptr<protocol::GetReducerFileGroupResponse>>
+  utils::ConcurrentHashMap<
+      int,
+      std::shared_ptr<protocol::GetReducerFileGroupResponse>>
       reducerFileGroupInfos_;
 };
 } // namespace client
