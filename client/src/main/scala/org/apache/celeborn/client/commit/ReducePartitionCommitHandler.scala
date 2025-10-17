@@ -345,6 +345,11 @@ class ReducePartitionCommitHandler(
         }
       }
     }
+    if (!mapperAttemptFinishedSuccess) {
+      val another = shuffleMapperAttempts.get(shuffleId)(mapId)
+      logInfo(
+        s"Skip mapper $mapId (attempt $attemptId) for shuffle $shuffleId, another attempt $another already completed")
+    }
     (mapperAttemptFinishedSuccess, allMapperFinished)
   }
 
