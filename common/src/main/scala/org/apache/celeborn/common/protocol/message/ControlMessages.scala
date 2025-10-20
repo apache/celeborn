@@ -1514,7 +1514,8 @@ object ControlMessages extends Logging {
         RegisterApplicationInfo(
           pbRegisterApplicationInfo.getAppId,
           PbSerDeUtils.fromPbUserIdentifier(pbRegisterApplicationInfo.getUserIdentifier),
-          pbRegisterApplicationInfo.getExtraInfoMap)
+          pbRegisterApplicationInfo.getExtraInfoMap,
+          pbRegisterApplicationInfo.getRequestId)
     }
   }
 }
