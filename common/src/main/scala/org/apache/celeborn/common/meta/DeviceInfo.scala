@@ -179,16 +179,16 @@ class DiskInfo(
       s" availableSlots: $availableSlots," +
       s" committed shuffles ${emptyShuffles.size}," +
       s" running applications ${applicationAllocations.size}," +
-      s" shuffleAllocations: ${nonEmptyShuffles.toMap}," +
       s" mountPoint: $mountPoint," +
       s" usableSpace: ${Utils.bytesToString(actualUsableSpace)}," +
       s" totalSpace: ${Utils.bytesToString(totalSpace)}," +
       s" avgFlushTime: ${Utils.nanoDurationToString(avgFlushTime)}," +
       s" avgFetchTime: ${Utils.nanoDurationToString(avgFetchTime)}," +
       s" activeSlots: $activeSlots," +
-      s" storageType: ${storageType})" +
+      s" storageType: $storageType)" +
       s" status: $status" +
-      s" dirs ${dirs.mkString("\t")}"
+      s" dirs ${dirs.mkString("\t")}" +
+      s" shuffleAllocations: ${nonEmptyShuffles.toMap}"
 
   }
 }
