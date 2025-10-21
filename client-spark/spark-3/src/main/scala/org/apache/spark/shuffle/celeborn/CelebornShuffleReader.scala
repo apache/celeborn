@@ -244,7 +244,8 @@ class CelebornShuffleReader[K, C](
         // CELEBORN-2032. For the first time of open stream and
         // attemptNumber % 2 = 1, we should read the replica data first.
         val originLocations = fileGroups.partitionGroups.get(partitionId)
-        val hasReplicate = originLocations.asScala.exists(p => p != null && p.hasPeer)
+        val hasReplicate = conf.clientPushReplicateEnabled &&
+          originLocations.asScala.exists(p => p != null && p.hasPeer)
         var locations =
           if (context.attemptNumber % 2 == 1 && hasReplicate) {
             originLocations.asScala.map { p =>
