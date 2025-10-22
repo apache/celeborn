@@ -97,6 +97,7 @@ class CelebornShuffleReader[K, C](
   private val stageRerunEnabled = handle.stageRerunEnabled
   private val encodedAttemptId = SparkCommonUtils.getEncodedAttemptNumber(context)
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled
+  private val preferReplicaRead = context.attemptNumber % 2 == 1
 
   override def read(): Iterator[Product2[K, C]] = {
 
@@ -248,7 +249,7 @@ class CelebornShuffleReader[K, C](
         val hasReplicate = pushReplicateEnabled &&
           originLocations.asScala.exists(p => p != null && p.hasPeer)
         var locations =
-          if (context.attemptNumber % 2 == 1 && hasReplicate) {
+          if (preferReplicaRead && hasReplicate) {
             originLocations.asScala.map { p =>
               if (p != null && p.hasPeer) p.getPeer else p
             }.asJava
