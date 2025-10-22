@@ -537,7 +537,7 @@ class DfsTierWriter(
 
   try {
     hadoopFs.create(dfsFileInfo.getDfsPath, true).close()
-    hadoopFs.setReplication(dfsFileInfo.getDfsPath, conf.workerDfsReplicationFactor.toShort);
+    hadoopFs.setReplication(dfsFileInfo.getDfsPath, conf.workerDfsReplicationFactor.toShort)
     if (dfsFileInfo.isS3) {
       val uri = hadoopFs.getUri
       val bucketName = uri.getHost
