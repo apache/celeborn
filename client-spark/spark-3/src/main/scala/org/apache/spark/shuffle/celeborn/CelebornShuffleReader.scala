@@ -96,6 +96,7 @@ class CelebornShuffleReader[K, C](
   private val exceptionRef = new AtomicReference[IOException]
   private val stageRerunEnabled = handle.stageRerunEnabled
   private val encodedAttemptId = SparkCommonUtils.getEncodedAttemptNumber(context)
+  private val pushReplicateEnabled = conf.clientPushReplicateEnabled
 
   override def read(): Iterator[Product2[K, C]] = {
 
@@ -244,7 +245,7 @@ class CelebornShuffleReader[K, C](
         // CELEBORN-2032. For the first time of open stream and
         // attemptNumber % 2 = 1, we should read the replica data first.
         val originLocations = fileGroups.partitionGroups.get(partitionId)
-        val hasReplicate = conf.clientPushReplicateEnabled &&
+        val hasReplicate = pushReplicateEnabled &&
           originLocations.asScala.exists(p => p != null && p.hasPeer)
         var locations =
           if (context.attemptNumber % 2 == 1 && hasReplicate) {
