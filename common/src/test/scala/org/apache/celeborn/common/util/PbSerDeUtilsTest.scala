@@ -71,25 +71,21 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
 
   val fileInfo1 = new DiskFileInfo(
     userIdentifier1,
-    true,
     new ReduceFileMeta(chunkOffsets1, 123),
     file1.getAbsolutePath,
     3000L)
   val fileInfo2 = new DiskFileInfo(
     userIdentifier2,
-    true,
     new ReduceFileMeta(chunkOffsets2, 123),
     file2.getAbsolutePath,
     6000L)
   val mapFileInfo1 = new DiskFileInfo(
     userIdentifier1,
-    true,
     new MapFileMeta(1024, 10),
     file1.getAbsolutePath,
     6000L)
   val mapFileInfo2 = new DiskFileInfo(
     userIdentifier2,
-    true,
     new MapFileMeta(1024, 10),
     file2.getAbsolutePath,
     6000L)

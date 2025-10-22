@@ -431,7 +431,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType,
       rangeReadFilter,
       userIdentifier,
-      true,
       isSegmentGranularityVisible = false)
   }
 
@@ -445,7 +444,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier,
-      partitionSplitEnabled: Boolean,
       isSegmentGranularityVisible: Boolean): PartitionDataWriter = {
     if (healthyWorkingDirs().isEmpty && remoteStorageDirs.isEmpty) {
       throw new IOException("No available working dirs!")
@@ -459,7 +457,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       shuffleId,
       userIdentifier,
       partitionType,
-      partitionSplitEnabled,
       isSegmentGranularityVisible)
 
     val writer =
@@ -1021,8 +1018,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           partitionDataWriterContext.getShuffleId,
           location.getFileName,
           partitionDataWriterContext.getUserIdentifier,
-          partitionDataWriterContext.getPartitionType,
-          partitionDataWriterContext.isPartitionSplitEnabled),
+          partitionDataWriterContext.getPartitionType),
         null,
         null,
         null)
@@ -1035,8 +1031,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         partitionDataWriterContext.getShuffleId,
         location.getFileName,
         partitionDataWriterContext.getUserIdentifier,
-        partitionDataWriterContext.getPartitionType,
-        partitionDataWriterContext.isPartitionSplitEnabled)
+        partitionDataWriterContext.getPartitionType)
       (null, createDiskFileResult._1, createDiskFileResult._2, createDiskFileResult._3)
     } else {
       (null, null, null, null)
@@ -1048,8 +1043,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       shuffleId: Int,
       fileName: String,
       userIdentifier: UserIdentifier,
-      partitionType: PartitionType,
-      partitionSplitEnabled: Boolean): MemoryFileInfo = {
+      partitionType: PartitionType): MemoryFileInfo = {
     val fileMeta = partitionType match {
       case PartitionType.REDUCE =>
         new ReduceFileMeta(conf.shuffleChunkSize)
@@ -1060,7 +1054,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     val memoryFileInfo =
       new MemoryFileInfo(
         userIdentifier,
-        partitionSplitEnabled,
         fileMeta)
     logDebug(s"create memory file for ${shuffleKey} ${fileName} and put it int memoryFileInfos")
     memoryFileInfos.computeIfAbsent(shuffleKey, memoryFileInfoMapFunc).put(
@@ -1078,8 +1071,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       shuffleId: Int,
       fileName: String,
       userIdentifier: UserIdentifier,
-      partitionType: PartitionType,
-      partitionSplitEnabled: Boolean): (Flusher, DiskFileInfo, File) = {
+      partitionType: PartitionType): (Flusher, DiskFileInfo, File) = {
     val suggestedMountPoint = location.getStorageInfo.getMountPoint
     var retryCount = 0
     var exception: IOException = null
@@ -1112,7 +1104,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val hdfsFilePath = new Path(shuffleDir, fileName).toString
         val hdfsFileInfo = new DiskFileInfo(
           userIdentifier,
-          partitionSplitEnabled,
           getFileMeta(partitionType, s"hdfs", conf.shuffleChunkSize),
           hdfsFilePath,
           StorageInfo.Type.HDFS)
@@ -1130,7 +1121,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val s3FilePath = new Path(shuffleDir, fileName).toString
         val s3FileInfo = new DiskFileInfo(
           userIdentifier,
-          partitionSplitEnabled,
           new ReduceFileMeta(conf.shuffleChunkSize),
           s3FilePath,
           StorageInfo.Type.S3)
@@ -1148,7 +1138,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val ossFilePath = new Path(shuffleDir, fileName).toString
         val ossFileInfo = new DiskFileInfo(
           userIdentifier,
-          partitionSplitEnabled,
           new ReduceFileMeta(conf.shuffleChunkSize),
           ossFilePath,
           StorageInfo.Type.OSS)
@@ -1178,7 +1167,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           val storageType = diskInfos.get(mountPoint).storageType
           val diskFileInfo = new DiskFileInfo(
             userIdentifier,
-            partitionSplitEnabled,
             fileMeta,
             filePath,
             storageType)
