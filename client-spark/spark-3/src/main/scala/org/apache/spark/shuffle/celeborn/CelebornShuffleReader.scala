@@ -96,6 +96,8 @@ class CelebornShuffleReader[K, C](
   private val exceptionRef = new AtomicReference[IOException]
   private val stageRerunEnabled = handle.stageRerunEnabled
   private val encodedAttemptId = SparkCommonUtils.getEncodedAttemptNumber(context)
+  private val pushReplicateEnabled = conf.clientPushReplicateEnabled
+  private val preferReplicaRead = context.attemptNumber % 2 == 1
 
   override def read(): Iterator[Product2[K, C]] = {
 
@@ -241,7 +243,20 @@ class CelebornShuffleReader[K, C](
 
     partitionIdList.foreach { partitionId =>
       if (fileGroups.partitionGroups.containsKey(partitionId)) {
-        var locations = fileGroups.partitionGroups.get(partitionId)
+        // CELEBORN-2032. For the first time of open stream and
+        // attemptNumber % 2 = 1, we should read the replica data first.
+        val originLocations = fileGroups.partitionGroups.get(partitionId)
+        val hasReplicate = pushReplicateEnabled &&
+          originLocations.asScala.exists(p => p != null && p.hasPeer)
+        var locations =
+          if (preferReplicaRead && hasReplicate) {
+            originLocations.asScala.map { p =>
+              if (p != null && p.hasPeer) p.getPeer else p
+            }.asJava
+          } else {
+            originLocations
+          }
+
         if (splitSkewPartitionWithoutMapRange) {
           val partitionLocation2ChunkRange = CelebornPartitionUtil.splitSkewedPartitionLocations(
             new JArrayList(locations),
@@ -255,8 +270,8 @@ class CelebornShuffleReader[K, C](
               partitionLocation2ChunkRange.containsKey(location.getUniqueId)
             }
           locations = filterLocations.asJava
-          partitionId2PartitionLocations.put(partitionId, locations)
         }
+        partitionId2PartitionLocations.put(partitionId, locations)
         makeOpenStreamList(locations)
       }
     }
@@ -299,12 +314,7 @@ class CelebornShuffleReader[K, C](
     val streams = JavaUtils.newConcurrentHashMap[Integer, CelebornInputStream]()
 
     def createInputStream(partitionId: Int): Unit = {
-      val locations =
-        if (splitSkewPartitionWithoutMapRange) {
-          partitionId2PartitionLocations.get(partitionId)
-        } else {
-          fileGroups.partitionGroups.get(partitionId)
-        }
+      val locations = partitionId2PartitionLocations.get(partitionId)
 
       val locationList =
         if (null == locations) {
