@@ -16,6 +16,8 @@ add_library(
         client
         reader/WorkerPartitionReader.cpp
         reader/CelebornInputStream.cpp
+        writer/PushState.cpp
+        writer/PushStrategy.cpp
         ShuffleClient.cpp
         compress/Decompressor.cpp
         compress/Lz4Decompressor.cpp
