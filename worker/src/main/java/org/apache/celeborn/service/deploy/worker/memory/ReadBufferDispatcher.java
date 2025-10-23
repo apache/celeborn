@@ -58,17 +58,18 @@ public class ReadBufferDispatcher {
     this.memoryManager = memoryManager;
     dispatcherThread =
         new AtomicReference<>(
-            ThreadUtils.newThread(new DispatcherRunnable(), "read-buffer-dispatcher"));
+            ThreadUtils.newThread(new DispatcherRunnable(), "worker-read-buffer-dispatcher"));
     dispatcherThread.get().start();
 
     if (checkThreadInterval > 0) {
       ScheduledExecutorService checkAliveThread =
-          ThreadUtils.newDaemonSingleThreadScheduledExecutor("read-buffer-dispatcher-checker");
+          ThreadUtils.newDaemonSingleThreadScheduledExecutor(
+              "worker-read-buffer-dispatcher-checker");
       checkAliveThread.scheduleWithFixedDelay(
           () -> {
             if (!dispatcherThread.get().isAlive()) {
               dispatcherThread.set(
-                  ThreadUtils.newThread(new DispatcherRunnable(), "read-buffer-dispatcher"));
+                  ThreadUtils.newThread(new DispatcherRunnable(), "worker-read-buffer-dispatcher"));
               dispatcherThread.get().start();
             }
           },

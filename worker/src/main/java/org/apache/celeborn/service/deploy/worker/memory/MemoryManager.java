@@ -502,6 +502,10 @@ public class MemoryManager {
     return readBufferCounter.get() + requiredBytes < readBufferThreshold;
   }
 
+  public long availableReadBuffer() {
+    return Math.max(0, readBufferThreshold - readBufferCounter.get());
+  }
+
   public long getPausePushDataAndReplicateCounter() {
     return pausePushDataAndReplicateCounter.sum();
   }
