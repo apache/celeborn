@@ -467,7 +467,9 @@ public abstract class CelebornInputStream extends InputStream {
           lastException = e;
           shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort(), e);
           fetchChunkRetryCnt++;
-          if (location.hasPeer() && !readSkewPartitionWithoutMapRange) {
+          if (location.hasPeer()
+              && !isExcluded(location.getPeer())
+              && !readSkewPartitionWithoutMapRange) {
             // fetchChunkRetryCnt % 2 == 0 means both replicas have been tried,
             // so sleep before next try.
             if (fetchChunkRetryCnt % 2 == 0) {
@@ -479,6 +481,7 @@ public abstract class CelebornInputStream extends InputStream {
                 fetchChunkMaxRetry,
                 location,
                 e);
+            location = location.getPeer();
             if (pbStreamHandler != null) {
               try {
                 TransportClient client =
@@ -501,7 +504,6 @@ public abstract class CelebornInputStream extends InputStream {
               }
               pbStreamHandler = null;
             }
-            location = location.getPeer();
           } else {
             logger.warn(
                 "CreatePartitionReader failed {}/{} times for location {}, retry the same location",
