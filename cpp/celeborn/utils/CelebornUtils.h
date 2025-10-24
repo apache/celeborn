@@ -57,6 +57,7 @@ void writeRpcAddress(
 
 using Duration = std::chrono::duration<double>;
 using Timeout = std::chrono::milliseconds;
+using MS = std::chrono::milliseconds;
 inline Timeout toTimeout(Duration duration) {
   return std::chrono::duration_cast<Timeout>(duration);
 }
@@ -181,6 +182,52 @@ class ConcurrentHashMap {
  private:
   folly::Synchronized<std::unordered_map<TKey, TValue, THasher>, std::mutex>
       synchronizedMap_;
+};
+
+template <typename TValue, typename THasher = std::hash<TValue>>
+class ConcurrentHashSet {
+ public:
+  // Return true if the value exists, false otherwise.
+  bool contains(const TValue& value) {
+    return synchronizedSet_.withLock(
+        [&](auto& set) { return set.find(value) != set.end(); });
+  }
+
+  // Return true if the value is inserted because it doesn't exist,
+  // false if the value is not inserted because it already exists.
+  bool insert(const TValue& value) {
+    return synchronizedSet_.withLock([&](auto& set) {
+      if (set.find(value) != set.end()) {
+        return false;
+      }
+      set.insert(value);
+      return true;
+    });
+  }
+
+  // Return true if the erasion happens because the value exists,
+  // false if the erasion doesn't happen because the value doesn't exist.
+  bool erase(const TValue& value) {
+    return synchronizedSet_.withLock([&](auto& set) {
+      if (set.find(value) != set.end()) {
+        set.erase(value);
+        return true;
+      }
+      return false;
+    });
+  }
+
+  size_t size() const {
+    return synchronizedSet_.lock()->size();
+  }
+
+  void clear() {
+    synchronizedSet_.lock()->clear();
+  }
+
+ private:
+  folly::Synchronized<std::unordered_set<TValue, THasher>, std::mutex>
+      synchronizedSet_;
 };
 
 } // namespace utils
