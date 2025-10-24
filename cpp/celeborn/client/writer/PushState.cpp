@@ -34,11 +34,8 @@ void PushState::addBatch(int batchId, const std::string& hostAndPushPort) {
   auto batchIdSet = inflightBatchesPerAddress_.computeIfAbsent(
       hostAndPushPort,
       [&]() { return std::make_shared<utils::ConcurrentHashSet<int>>(); });
-  if (batchIdSet->insert(batchId)) {
-    totalInflightReqs_.fetch_add(1);
-  } else {
-    VLOG(1) << "BatchIdSet already has batchId " << batchId << ", ignored";
-  }
+  batchIdSet->insert(batchId);
+  totalInflightReqs_.fetch_add(1);
 }
 
 void PushState::onSuccess(const std::string& hostAndPushPort) {
@@ -53,12 +50,8 @@ void PushState::removeBatch(int batchId, const std::string& hostAndPushPort) {
   auto batchIdSetOptional = inflightBatchesPerAddress_.get(hostAndPushPort);
   if (batchIdSetOptional.has_value()) {
     auto batchIdSet = batchIdSetOptional.value();
-    if (batchIdSet->erase(batchId)) {
-      totalInflightReqs_.fetch_sub(1);
-    } else {
-      VLOG(1) << "BatchIdSet has already removed batchId " << batchId
-              << ", ignored";
-    }
+    batchIdSet->erase(batchId);
+    totalInflightReqs_.fetch_sub(1);
   } else {
     LOG(WARNING) << "BatchIdSet of " << hostAndPushPort << " doesn't exist.";
   }
