@@ -162,6 +162,15 @@ class ConcurrentHashMap {
     return synchronizedMap_.lock()->size();
   }
 
+  template <class Function>
+  void forEach(Function&& apply) {
+    synchronizedMap_.withLock([&](auto& map) -> void {
+      for (auto& [key, value] : map) {
+        apply(key, value);
+      }
+    });
+  }
+
   std::optional<TValue> erase(const TKey& key) {
     // Explicitly declaring the return type helps type deduction.
     return synchronizedMap_.withLock([&](auto& map) -> std::optional<TValue> {

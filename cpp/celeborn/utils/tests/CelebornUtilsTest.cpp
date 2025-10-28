@@ -65,6 +65,23 @@ TEST_F(CelebornUtilsTest, mapComputeIfAbsent) {
   EXPECT_EQ(30, *result);
 }
 
+TEST_F(CelebornUtilsTest, mapForEach) {
+  map_->set("apple", 10);
+  map_->set("banana", 20);
+
+  int sum = 0;
+  int64_t hashSum = 0;
+  map_->forEach([&](const std::string& key, const int value) {
+    sum += value;
+    hashSum += std::hash<std::string>{}(key);
+  });
+
+  EXPECT_EQ(sum, 10 + 20);
+  EXPECT_EQ(
+      hashSum,
+      std::hash<std::string>{}("apple") + std::hash<std::string>{}("banana"));
+}
+
 TEST_F(CelebornUtilsTest, mapRemoveKey) {
   map_->set("banana", 30);
   map_->erase("banana");

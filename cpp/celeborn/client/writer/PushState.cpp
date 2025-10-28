@@ -101,10 +101,26 @@ bool PushState::limitZeroInFlight() {
   }
 
   if (times <= 0) {
-    // TODO: log with more detailed address msg.
+    std::string addressInfos;
+    inflightBatchesPerAddress_.forEach(
+        [&](const std::string& address,
+            const std::shared_ptr<utils::ConcurrentHashSet<int>>&
+                inflightBatches) {
+          if (inflightBatches->size() <= 0) {
+            return;
+          }
+          if (!addressInfos.empty()) {
+            addressInfos += ", ";
+          }
+          addressInfos += fmt::format(
+              "{} batches for hostAndPushPort {}",
+              inflightBatches->size(),
+              address);
+        });
     LOG(ERROR) << "After waiting for " << waitInflightTimeoutMs_
                << " ms, there are still " << totalInflightReqs_
-               << " in flight  which exceeds the current limit 0.";
+               << " in flight: [" << addressInfos
+               << "] which exceeds the current limit 0.";
   }
   throwIfExceptionExists();
   return times <= 0;
