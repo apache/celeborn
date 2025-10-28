@@ -241,6 +241,7 @@ These metrics are exposed by Celeborn worker.
     | BufferStreamReadBuffer                 | The memory used by credit stream read buffer.                                                                   |
     | ReadBufferDispatcherRequestsLength     | The queue size of read buffer allocation requests.                                                              |
     | ReadBufferAllocatedCount               | Allocated read buffer count.                                                                                    |
+  - | AvailableReadBuffer                    | The available memory for credit stream read buffer.                                                             |
     | ActiveCreditStreamCount                | Active stream count for map partition reading streams.                                                          |
     | ActiveMapPartitionCount                | The count of active map partition reading streams.                                                              |
     | SorterCacheHitRate                     | The cache hit rate for worker partition sorter index.                                                           |
@@ -254,14 +255,14 @@ These metrics are exposed by Celeborn worker.
     | UserProduceSpeed                       | The speed of user production for congestion control.                                                            |
     | WorkerConsumeSpeed                     | The speed of worker consumption for congestion control.                                                         |
     | IsDecommissioningWorker                | 1 means worker decommissioning, 0 means not decommissioning.                                                    |
-    | IsHighWorkload                         | 1 means worker high workload, 0 means not high workload.                                                    | 
+    | IsHighWorkload                         | 1 means worker high workload, 0 means not high workload.                                                        | 
     | UnreleasedShuffleCount                 | Unreleased shuffle count when worker is decommissioning.                                                        |
     | UnreleasedPartitionLocationCount       | Unreleased partition location count when worker is shutting down.                                               |
     | MemoryStorageFileCount                 | The count of files in Memory Storage of a worker.                                                               |
     | MemoryFileStorageSize                  | The total amount of memory used by Memory Storage.                                                              |
     | EvictedFileCount                       | The count of files evicted from Memory Storage to Disk.                                                         |
     | EvictedLocalFileCount                  | The count of files evicted from Memory Storage to LocalDisk.                                                    |
-    | EvictedDfsFileCount                  | The count of files evicted from Memory Storage to Dfs.                                                            |
+    | EvictedDfsFileCount                    | The count of files evicted from Memory Storage to Dfs.                                                          |
     | DirectMemoryUsageRatio                 | Ratio of direct memory used and max direct memory.                                                              |
     | RegisterWithMasterFailCount            | The count of failures in register with master request.                                                          |
     | FlushWorkingQueueSize                  | The size of flush working queue for mount point.                                                                |
