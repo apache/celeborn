@@ -387,7 +387,19 @@ private[celeborn] class Master(
     messagesHelper.close()
 
     metricsSystem.stop()
-
+    if (hadoopFs != null) {
+      hadoopFs.asScala.foreach {
+        case (storageType, fs) =>
+          if (fs != null) {
+            try {
+              fs.close()
+            } catch {
+              case t: Throwable =>
+                logError(s"Close $storageType FileSystem ${fs.getUri} failed.", t)
+            }
+          }
+      }
+    }
     logInfo("Celeborn Master is stopped.")
   }
 
