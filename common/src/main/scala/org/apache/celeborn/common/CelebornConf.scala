@@ -28,6 +28,7 @@ import scala.util.Try
 import scala.util.matching.Regex
 
 import io.netty.channel.epoll.Epoll
+import io.netty.channel.kqueue.KQueue
 
 import org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl
 import org.apache.celeborn.common.client.{ApplicationInfoProvider, DefaultApplicationInfoProvider}
@@ -543,7 +544,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def networkIoMode(module: String): String = {
     get(
       NETWORK_IO_MODE.key.replace("<module>", module),
-      if (Epoll.isAvailable) IOMode.EPOLL.name() else IOMode.NIO.name())
+      if (Epoll.isAvailable) { IOMode.EPOLL.name() }
+      else if (KQueue.isAvailable) { IOMode.KQUEUE.name() }
+      else { IOMode.NIO.name() })
   }
 
   def networkIoPreferDirectBufs(module: String): Boolean = {
@@ -2089,10 +2092,12 @@ object CelebornConf extends Logging {
   val NETWORK_IO_MODE: OptionalConfigEntry[String] =
     buildConf("celeborn.<module>.io.mode")
       .categories("network")
-      .doc("Netty EventLoopGroup backend, available options: NIO, EPOLL. If epoll mode is available, the default IO mode is EPOLL; otherwise, the default is NIO.")
+      .doc("Netty EventLoopGroup backend, available options: NIO, EPOLL, KQUEUE. " +
+        "For Linux environments, EPOLL is used if available before using NIO. " +
+        "For MacOS/BSD environments, KQUEUE is used if available before using NIO.")
       .stringConf
       .transform(_.toUpperCase)
-      .checkValues(Set(IOMode.NIO.name(), IOMode.EPOLL.name()))
+      .checkValues(Set(IOMode.NIO.name(), IOMode.EPOLL.name(), IOMode.KQUEUE.name()))
       .createOptional
 
   val NETWORK_IO_PREFER_DIRECT_BUFS: ConfigEntry[Boolean] =

@@ -121,11 +121,24 @@
                   <fileset dir="${project.build.directory}/unpacked/META-INF/native"></fileset>
                   <mapper from="libnetty_transport_native_epoll_aarch_64.so" to="liborg_apache_celeborn_shaded_netty_transport_native_epoll_aarch_64.so" type="glob"></mapper>
                 </move>
-                <echo message="deleting native kqueue library"></echo>
-                <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_transport_native_kqueue_x86_64.jnilib"></delete>
-                <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_transport_native_kqueue_aarch_64.jnilib"></delete>
-                <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_resolver_dns_native_macos_aarch_64.jnilib"></delete>
-                <delete file="${project.build.directory}/unpacked/META-INF/native/libnetty_resolver_dns_native_macos_x86_64.jnilib"></delete>
+                <echo message="renaming native kqueue library"></echo>
+                <move includeemptydirs="false" todir="${project.build.directory}/unpacked/META-INF/native">
+                  <fileset dir="${project.build.directory}/unpacked/META-INF/native"></fileset>
+                  <mapper from="libnetty_transport_native_kqueue_x86_64.jnilib" to="liborg_apache_celeborn_shaded_netty_transport_native_kqueue_x86_64.jnilib" type="glob"></mapper>
+                </move>
+                <move includeemptydirs="false" todir="${project.build.directory}/unpacked/META-INF/native">
+                  <fileset dir="${project.build.directory}/unpacked/META-INF/native"></fileset>
+                  <mapper from="libnetty_transport_native_kqueue_aarch_64.jnilib" to="liborg_apache_celeborn_shaded_netty_transport_native_kqueue_aarch_64.jnilib" type="glob"></mapper>
+                </move>
+                <echo message="renaming native dns resolver library"></echo>
+                <move includeemptydirs="false" todir="${project.build.directory}/unpacked/META-INF/native">
+                  <fileset dir="${project.build.directory}/unpacked/META-INF/native"></fileset>
+                  <mapper from="libnetty_resolver_dns_native_macos_aarch_64.jnilib" to="liborg_apache_celeborn_shaded_netty_resolver_dns_native_macos_aarch_64.jnilib" type="glob"></mapper>
+                </move>
+                <move includeemptydirs="false" todir="${project.build.directory}/unpacked/META-INF/native">
+                  <fileset dir="${project.build.directory}/unpacked/META-INF/native"></fileset>
+                  <mapper from="libnetty_resolver_dns_native_macos_x86_64.jnilib" to="liborg_apache_celeborn_shaded_netty_resolver_dns_native_macos_x86_64.jnilib" type="glob"></mapper>
+                </move>
                 <echo message="repackaging netty jar"></echo>
                 <jar basedir="${project.build.directory}/unpacked" destfile="${project.build.directory}/${artifactId}-${version}.jar"></jar>
               </target>
