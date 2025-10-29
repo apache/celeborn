@@ -43,6 +43,7 @@ import com.google.common.cache.CacheBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import org.apache.commons.io.IOUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -99,6 +100,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   private final ExecutorService fileSorterExecutors;
   private final ExecutorService fileSorterSchedulerThread;
+  private final Configuration hadoopConf;
 
   public PartitionFilesSorter(
       MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
@@ -133,6 +135,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     } else {
       this.sortedFilesDb = null;
     }
+
+    hadoopConf = CelebornHadoopUtils.getHadoopConf(conf);
 
     fileSorterExecutors =
         ThreadUtils.newDaemonCachedThreadPool(
@@ -490,7 +494,10 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   }
 
   protected void writeIndex(
-      Map<Integer, List<ShuffleBlockInfo>> indexMap, String indexFilePath, boolean isDfs)
+      Map<Integer, List<ShuffleBlockInfo>> indexMap,
+      String indexFilePath,
+      boolean isDfs,
+      FileSystem hadoopFs)
       throws IOException {
     FSDataOutputStream dfsIndexOutput = null;
     FileChannel indexFileChannel = null;
@@ -501,7 +508,6 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       } else if (Utils.isOssPath(indexFilePath)) {
         storageType = StorageInfo.Type.OSS;
       }
-      FileSystem hadoopFs = StorageManager.hadoopFs().get(storageType);
       // If the index file exists, it will be overwritten.
       // So there is no need to check its existence.
       dfsIndexOutput = hadoopFs.create(new Path(indexFilePath));
@@ -620,13 +626,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                 int indexSize;
                 try {
                   if (isDfs) {
-                    StorageInfo.Type storageType = StorageInfo.Type.HDFS;
-                    if (Utils.isS3Path(indexFilePath)) {
-                      storageType = StorageInfo.Type.S3;
-                    } else if (Utils.isOssPath(indexFilePath)) {
-                      storageType = StorageInfo.Type.OSS;
-                    }
-                    FileSystem hadoopFs = StorageManager.hadoopFs().get(storageType);
+                    FileSystem hadoopFs =
+                        CelebornHadoopUtils.getHadoopFs(indexFilePath, hadoopConf);
                     dfsIndexStream = hadoopFs.open(new Path(indexFilePath));
                     indexSize = (int) hadoopFs.getFileStatus(new Path(indexFilePath)).getLen();
                   } else {
@@ -710,13 +711,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           indexFile.delete();
         }
       } else {
-        StorageInfo.Type storageType = StorageInfo.Type.HDFS;
-        if (Utils.isS3Path(indexFilePath)) {
-          storageType = StorageInfo.Type.S3;
-        } else if (Utils.isOssPath(indexFilePath)) {
-          storageType = StorageInfo.Type.OSS;
-        }
-        this.hadoopFs = StorageManager.hadoopFs().get(storageType);
+        this.hadoopFs = CelebornHadoopUtils.getHadoopFs(fileInfo.getDfsSortedPath(), hadoopConf);
         if (hadoopFs.exists(fileInfo.getDfsSortedPath())) {
           hadoopFs.delete(fileInfo.getDfsSortedPath(), false);
         }
@@ -796,7 +791,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           sortedBlockInfoMap.put(mapId, sortedShuffleBlocks);
         }
 
-        writeIndex(sortedBlockInfoMap, indexFilePath, isDfs);
+        writeIndex(sortedBlockInfoMap, indexFilePath, isDfs, hadoopFs);
         updateSortedShuffleFiles(shuffleKey, fileId, originFileLen);
         originFileInfo.getReduceFileMeta().setSorted();
         cleaner.add(this);

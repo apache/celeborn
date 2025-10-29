@@ -132,13 +132,21 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
       FileChannel dataFileChannel,
       FileChannel indexFileChannel,
       FSDataInputStream dataInputStream,
-      FSDataInputStream indexInputStream)
+      FSDataInputStream indexInputStream,
+      long dataFileSize,
+      long indexFileSize)
       throws IOException {
     if (!isOpen) {
       this.partitionDataReader =
           fileInfo.isDFS()
               ? new DfsPartitionDataReader(
-                  fileInfo, dataInputStream, indexInputStream, headerBuffer, indexBuffer)
+                  fileInfo,
+                  dataInputStream,
+                  indexInputStream,
+                  headerBuffer,
+                  indexBuffer,
+                  dataFileSize,
+                  indexFileSize)
               : new LocalPartitionDataReader(
                   fileInfo, dataFileChannel, indexFileChannel, headerBuffer, indexBuffer);
       // index is (offset,length)
