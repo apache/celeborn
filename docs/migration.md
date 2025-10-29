@@ -29,6 +29,8 @@ license: |
 
 - Since 0.7.0, Celeborn worker metrics `FlushDataTime` is renamed as `FlushLocalDataTime`.
 
+- Since 0.7.0, Celeborn changed the default value of `celeborn.<module>.io.mode` from `NIO` to `KQUEUE` if kqueue mode is available, falling back to `NIO` otherwise.
+
 # Upgrading from 0.5 to 0.6
 
 - Since 0.6.0, Celeborn deprecate `celeborn.client.spark.fetch.throwsFetchFailure`. Please use `celeborn.client.spark.stageRerun.enabled` instead.

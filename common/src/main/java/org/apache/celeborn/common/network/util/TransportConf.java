@@ -20,6 +20,7 @@ package org.apache.celeborn.common.network.util;
 import java.io.File;
 
 import io.netty.channel.epoll.Epoll;
+import io.netty.channel.kqueue.KQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,9 +45,11 @@ public class TransportConf {
     return module;
   }
 
-  /** IO mode: nio or epoll */
+  /** IO mode: NIO, EPOLL, or KQUEUE */
   public String ioMode() {
-    return Epoll.isAvailable() ? celebornConf.networkIoMode(module) : IOMode.NIO.name();
+    return Epoll.isAvailable() || KQueue.isAvailable()
+        ? celebornConf.networkIoMode(module)
+        : IOMode.NIO.name();
   }
 
   /** If true, we will prefer allocating off-heap byte buffers within Netty. */

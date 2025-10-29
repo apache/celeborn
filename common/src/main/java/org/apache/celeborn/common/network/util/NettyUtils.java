@@ -36,6 +36,9 @@ import io.netty.channel.ServerChannel;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.epoll.EpollSocketChannel;
+import io.netty.channel.kqueue.KQueueEventLoopGroup;
+import io.netty.channel.kqueue.KQueueServerSocketChannel;
+import io.netty.channel.kqueue.KQueueSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -47,7 +50,10 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.util.JavaUtils;
 
-/** Utilities for creating various Netty constructs based on whether we're using EPOLL or NIO. */
+/**
+ * Utilities for creating various Netty constructs based on whether we're using NIO, EPOLL, or
+ * KQUEUE.
+ */
 public class NettyUtils {
   private static final ByteBufAllocator[] _sharedByteBufAllocator = new ByteBufAllocator[2];
   private static final ConcurrentHashMap<String, Integer> allocatorsIndex =
@@ -80,6 +86,8 @@ public class NettyUtils {
             : new NioEventLoopGroup(numThreads, threadFactory);
       case EPOLL:
         return new EpollEventLoopGroup(numThreads, threadFactory);
+      case KQUEUE:
+        return new KQueueEventLoopGroup(numThreads, threadFactory);
       default:
         throw new IllegalArgumentException("Unknown io mode: " + mode);
     }
@@ -92,6 +100,8 @@ public class NettyUtils {
         return NioSocketChannel.class;
       case EPOLL:
         return EpollSocketChannel.class;
+      case KQUEUE:
+        return KQueueSocketChannel.class;
       default:
         throw new IllegalArgumentException("Unknown io mode: " + mode);
     }
@@ -104,6 +114,8 @@ public class NettyUtils {
         return NioServerSocketChannel.class;
       case EPOLL:
         return EpollServerSocketChannel.class;
+      case KQUEUE:
+        return KQueueServerSocketChannel.class;
       default:
         throw new IllegalArgumentException("Unknown io mode: " + mode);
     }
