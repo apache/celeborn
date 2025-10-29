@@ -36,7 +36,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     val statusTracker = new WorkerStatusTracker(celebornConf, null)
 
     val registerTime = System.currentTimeMillis()
-    statusTracker.excludedWorkers.put(mock("host1"), (StatusCode.WORKER_UNKNOWN, registerTime))
+    statusTracker.excludedWorkers.put(mock("host1"), (StatusCode.WORKER_UNRESPONSIVE, registerTime))
     statusTracker.excludedWorkers.put(mock("host2"), (StatusCode.WORKER_SHUTDOWN, registerTime))
 
     // test reserve (only statusCode list in handleHeartbeatResponse)
@@ -46,7 +46,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     // only reserve host1
     Assert.assertEquals(
       statusTracker.excludedWorkers.get(mock("host1")),
-      (StatusCode.WORKER_UNKNOWN, registerTime))
+      (StatusCode.WORKER_UNRESPONSIVE, registerTime))
     Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mock("host2")))
 
     // add shutdown/excluded worker
@@ -55,13 +55,20 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     statusTracker.handleHeartbeatResponse(response1)
 
     // test keep Unknown register time
+    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host1")))
     Assert.assertEquals(
-      statusTracker.excludedWorkers.get(mock("host1")),
-      (StatusCode.WORKER_UNKNOWN, registerTime))
+      statusTracker.excludedWorkers.get(mock("host1"))._1,
+      StatusCode.WORKER_UNKNOWN)
+    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host3")))
+    Assert.assertEquals(
+      statusTracker.excludedWorkers.get(mock("host3"))._1,
+      StatusCode.WORKER_UNKNOWN)
 
     // test new added shutdown/excluded workers
     Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host0")))
-    Assert.assertTrue(statusTracker.excludedWorkers.containsKey(mock("host3")))
+    Assert.assertEquals(
+      statusTracker.excludedWorkers.get(mock("host0"))._1,
+      StatusCode.WORKER_EXCLUDED)
     Assert.assertTrue(!statusTracker.excludedWorkers.containsKey(mock("host4")))
     Assert.assertTrue(statusTracker.shuttingWorkers.contains(mock("host4")))
 
