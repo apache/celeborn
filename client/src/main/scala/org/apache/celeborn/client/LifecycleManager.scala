@@ -590,7 +590,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 e)
               connectFailedWorkers.put(
                 workerInfo,
-                (StatusCode.WORKER_UNKNOWN, System.currentTimeMillis()))
+                (StatusCode.WORKER_UNRESPONSIVE, System.currentTimeMillis()))
           }
           iter.remove()
         }
@@ -608,7 +608,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         logError(s"Init rpc client failed for $shuffleId on $workerInfo during reserve slots, reason: Timeout.")
         connectFailedWorkers.put(
           workerInfo,
-          (StatusCode.WORKER_UNKNOWN, System.currentTimeMillis()))
+          (StatusCode.WORKER_UNRESPONSIVE, System.currentTimeMillis()))
       }
     }
   }

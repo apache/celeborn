@@ -1093,6 +1093,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_PUSH_SENDBUFFERPOOL_CHECKEXPIREINTERVAL)
   def clientAdaptiveOptimizeSkewedPartitionReadEnabled: Boolean =
     get(CLIENT_ADAPTIVE_OPTIMIZE_SKEWED_PARTITION_READ_ENABLED)
+  def clientShuffleDataLostOnUnknownWorkerEnabled: Boolean =
+    get(CLIENT_SHUFFLE_DATA_LOST_ON_UNKNOWN_WORKER_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                   Client Shuffle                    //
@@ -6666,4 +6668,11 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefaultString("true")
 
+  val CLIENT_SHUFFLE_DATA_LOST_ON_UNKNOWN_WORKER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffleDataLostOnUnknownWorker.enabled")
+      .categories("client")
+      .version("0.7.0")
+      .doc("Whether to mark shuffle data lost when unknown worker is detected.")
+      .booleanConf
+      .createWithDefault(false)
 }
