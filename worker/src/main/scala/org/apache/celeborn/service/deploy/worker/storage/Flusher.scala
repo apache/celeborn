@@ -71,7 +71,7 @@ abstract private[worker] class Flusher(
           while (!stopFlag.get()) {
             val task = workingQueues(index).take()
             val key = s"Flusher-$this-${Random.nextInt()}"
-            workerSource.sample(WorkerSource.FLUSH_DATA_TIME, key) {
+            workerSource.sample(getFlushTimeMetric(), key) {
               if (!task.notifier.hasException) {
                 try {
                   val flushBeginTime = System.nanoTime()
@@ -137,6 +137,8 @@ abstract private[worker] class Flusher(
   }
 
   def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit
+
+  def getFlushTimeMetric(): String
 }
 
 private[worker] class LocalFlusher(
@@ -180,6 +182,8 @@ private[worker] class LocalFlusher(
   }
 
   override def toString: String = s"LocalFlusher@$flusherId-$mountPoint"
+
+  override def getFlushTimeMetric(): String = WorkerSource.FLUSH_LOCAL_DATA_TIME
 }
 
 final private[worker] class HdfsFlusher(
@@ -203,6 +207,8 @@ final private[worker] class HdfsFlusher(
   }
 
   override def toString: String = s"HdfsFlusher@$flusherId"
+
+  override def getFlushTimeMetric(): String = WorkerSource.FLUSH_HDFS_DATA_TIME
 }
 
 final private[worker] class S3Flusher(
@@ -226,6 +232,8 @@ final private[worker] class S3Flusher(
   }
 
   override def toString: String = s"s3Flusher@$flusherId"
+
+  override def getFlushTimeMetric(): String = WorkerSource.FLUSH_S3_DATA_TIME
 }
 
 final private[worker] class OssFlusher(
@@ -249,4 +257,6 @@ final private[worker] class OssFlusher(
   }
 
   override def toString: String = s"ossFlusher@$flusherId"
+
+  override def getFlushTimeMetric(): String = WorkerSource.FLUSH_OSS_DATA_TIME
 }
