@@ -681,34 +681,46 @@
 
   <repositories>
     <repository>
+      <id>central</id>
+      <url>https://msasg.pkgs.visualstudio.com/ManagedOSS/_packaging/ManagedOSS_PublicPackages/maven/v1</url>
       <releases>
         <enabled>true</enabled>
       </releases>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
-      <id>${mavenCentralId}</id>
-      <name>${mavenCentralName}</name>
-      <url>${mavenCentralUrl}</url>
     </repository>
     <repository>
-      <id>apache-release-candidates</id>
-      <name>Apache Release Candidates Repository</name>
-      <url>https://repository.apache.org/content/repositories/staging</url>
+      <id>Compute</id>
+      <url>https://msasg.pkgs.visualstudio.com/ManagedOSS/_packaging/Compute/maven/v1</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+    <repository>
+      <id>MultiTenancy-Test3</id>
+      <url>https://msasg.pkgs.visualstudio.com/_packaging/MultiTenancy-Test3/maven/v1</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
     </repository>
   </repositories>
-
   <pluginRepositories>
     <pluginRepository>
+      <id>central</id>
+      <url>https://msasg.pkgs.visualstudio.com/ManagedOSS/_packaging/ManagedOSS_PublicPackages/maven/v1</url>
       <releases>
         <enabled>true</enabled>
       </releases>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
-      <id>${mavenCentralId}</id>
-      <name>${mavenCentralName}</name>
-      <url>${mavenCentralUrl}</url>
     </pluginRepository>
   </pluginRepositories>
 

@@ -36,6 +36,51 @@
     </dependency>
   </dependencies>
 
+  <repositories>
+    <repository>
+      <id>central</id>
+      <url>https://msasg.pkgs.visualstudio.com/ManagedOSS/_packaging/ManagedOSS_PublicPackages/maven/v1</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+    <repository>
+      <id>Compute</id>
+      <url>https://msasg.pkgs.visualstudio.com/ManagedOSS/_packaging/Compute/maven/v1</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+    <repository>
+      <id>MultiTenancy-Test3</id>
+      <url>https://msasg.pkgs.visualstudio.com/_packaging/MultiTenancy-Test3/maven/v1</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
+  <pluginRepositories>
+    <pluginRepository>
+      <id>central</id>
+      <url>https://msasg.pkgs.visualstudio.com/ManagedOSS/_packaging/ManagedOSS_PublicPackages/maven/v1</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </pluginRepository>
+  </pluginRepositories>
+
   <build>
     <plugins>
       <plugin>

@@ -14,6 +14,8 @@ variables:
 extends:
   template: v1/WebXT.Official.EntryPoint.yml@CustomPipelineTemplates
   parameters:
+    settings:
+      networkIsolationPolicy: Permissive,CFSClean
     pool:
       name: Azure-Pipelines-1ESPT-ExDShared
       image: windows-2022
@@ -57,7 +59,7 @@ extends:
               - task: MavenAuthenticate@0
                 displayName: '[ENV] Maven Authenticate'
                 inputs:
-                  artifactsFeeds: central,MultiTenancy-Test3
+                  artifactsFeeds: central,Compute,MultiTenancy-Test3
 
               - task: AddBuildTag@1
                 displayName: '[ENV] Add build tag $(Build.SourceVersion)'
@@ -78,7 +80,7 @@ extends:
                 inputs:
                   targetType: 'filePath'
                   filePath: build/make-distribution.sh
-                  arguments: -DskipTests -Pspark-3.2 -Dscala.version=2.12.15 -Dscala.binary.version=2.12 -Dmaven.plugin.scala.version=3.2.2 -Pjdk-8
+                  arguments: -DskipTests -Pspark-3.2 -Phadoop-3 -Dscala.version=2.12.15 -Dscala.binary.version=2.12 -Dmaven.plugin.scala.version=3.2.2 -Pjdk-8
                 env:
                   MAVEN_OPTS: $(MAVEN_OPTS)
 

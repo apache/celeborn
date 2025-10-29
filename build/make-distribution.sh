@@ -120,14 +120,8 @@ mkdir -p "$DIST_DIR"
 MVN_DIST_OPT="-DskipTests -Dmaven.javadoc.skip=true -Dmaven.source.skip"
 
 function build_service {
-  VERSION=$("$MVN" help:evaluate -Dexpression=project.version $@ 2>/dev/null \
-      | grep -v "INFO" \
-      | grep -v "WARNING" \
-      | tail -n 1)
-  SCALA_VERSION=$("$MVN" help:evaluate -Dexpression=scala.binary.version $@ 2>/dev/null \
-      | grep -v "INFO" \
-      | grep -v "WARNING" \
-      | tail -n 1)
+  VERSION="0.5.4"
+  SCALA_VERSION="2.12"
 
   echo "Celeborn version is $VERSION"
   echo "Making apache-celeborn-$VERSION-$NAME.tgz"
