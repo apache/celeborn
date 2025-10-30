@@ -22,7 +22,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.commons.io.IOUtils;
 
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.util.Utils;
@@ -83,12 +82,6 @@ public class LocalPartitionDataReader extends PartitionDataReader {
   @Override
   public long position() throws IOException {
     return dataFileChanel.position();
-  }
-
-  @Override
-  public void close() {
-    IOUtils.closeQuietly(dataFileChanel);
-    IOUtils.closeQuietly(indexFileChannel);
   }
 
   private void readHeaderOrIndexBuffer(

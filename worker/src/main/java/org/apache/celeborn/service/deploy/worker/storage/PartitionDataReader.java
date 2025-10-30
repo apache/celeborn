@@ -56,8 +56,6 @@ public abstract class PartitionDataReader {
 
   public abstract long position() throws IOException;
 
-  public abstract void close();
-
   public int readBuffer(ByteBuf buffer, long dataConsumingOffset) throws IOException {
     position(dataConsumingOffset);
     int headerSize = headerBuffer.capacity();
