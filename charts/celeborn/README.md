@@ -17,6 +17,22 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+# OpenAI Internal Release
+
+1. Bump the `PRERELEASE` in `version` in `Chart.yaml`. E.g. from `0.1.0-oai.0` to `0.1.0-oai.0`
+
+2. Upload to internal artifactory
+
+```
+ARTIFACTORY_USER=admin ARTIFACTORY_PASSWORD=<> ./release.sh
+```
+
+NOTE: you can get the password via:
+
+```
+echo $(az keyvault secret show --name data-platform-artifactory-admin-password-data0 --vault-name openai-api-tf-prod | jq -r .value | base64 --decode)
+```
+
 # Helm Chart for Apache Celeborn
 
 [Apache Celeborn](https://celeborn.apache.org) is an intermediate data service for Big Data compute engines (i.e. ETL, OLAP and Streaming engines) to boost performance, stability, and flexibility. Intermediate data typically include shuffle and spilled data.
