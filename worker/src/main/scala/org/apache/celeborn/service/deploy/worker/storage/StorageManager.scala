@@ -1102,7 +1102,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
       }
 
-      if (dirs.isEmpty && location.getStorageInfo.HDFSAvailable()) {
+      if ((dirs.isEmpty && location.getStorageInfo.HDFSAvailable())
+        || useDfs(StorageInfo.Type.HDFS, location)) {
         val shuffleDir =
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(
@@ -1120,7 +1121,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           fileName,
           hdfsFileInfo)
         return (hdfsFlusher.get, hdfsFileInfo, null)
-      } else if (dirs.isEmpty && location.getStorageInfo.S3Available()) {
+      } else if ((dirs.isEmpty && location.getStorageInfo.S3Available())
+        || useDfs(StorageInfo.Type.S3, location)) {
         val shuffleDir =
           new Path(new Path(s3Dir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(
@@ -1138,7 +1140,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           fileName,
           s3FileInfo)
         return (s3Flusher.get, s3FileInfo, null)
-      } else if (dirs.isEmpty && location.getStorageInfo.OSSAvailable()) {
+      } else if ((dirs.isEmpty && location.getStorageInfo.OSSAvailable())
+        || useDfs(StorageInfo.Type.OSS, location)) {
         val shuffleDir =
           new Path(new Path(ossDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(
@@ -1211,6 +1214,18 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       retryCount += 1
     }
     throw exception
+  }
+
+  private def useDfs(
+      storageType: StorageInfo.Type,
+      partitionLocation: PartitionLocation): Boolean = {
+    storageType match {
+      case StorageInfo.Type.HDFS =>
+        hasHDFSStorage && partitionLocation.getStorageInfo.HDFSAvailable()
+      case StorageInfo.Type.S3 => hasS3Storage && partitionLocation.getStorageInfo.S3Available()
+      case StorageInfo.Type.OSS => hasOssStorage && partitionLocation.getStorageInfo.OSSAvailable()
+      case _ => false
+    }
   }
 
   def startDeviceMonitor(): Unit = {

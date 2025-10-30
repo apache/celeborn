@@ -83,7 +83,7 @@ class StoragePolicyCase2 extends CelebornFunSuite {
       null,
       new StorageInfo("mountpoint", StorageInfo.Type.MEMORY, StorageInfo.LOCAL_DISK_MASK),
       null)
-  val localHintPartitionLocatioin =
+  val localHintPartitionLocation =
     new PartitionLocation(
       1,
       1,
@@ -98,7 +98,7 @@ class StoragePolicyCase2 extends CelebornFunSuite {
       null)
 
   test("test create file order case2") {
-    when(mockedPartitionWriterContext.getPartitionLocation).thenAnswer(localHintPartitionLocatioin)
+    when(mockedPartitionWriterContext.getPartitionLocation).thenAnswer(localHintPartitionLocation)
     when(mockedPartitionWriterContext.getPartitionType).thenAnswer(PartitionType.REDUCE)
     when(mockedStorageManager.localOrDfsStorageAvailable).thenAnswer(true)
     when(mockedDiskFile.getStorageType).thenAnswer(StorageInfo.Type.HDD)
