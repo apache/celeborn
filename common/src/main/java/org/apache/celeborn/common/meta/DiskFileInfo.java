@@ -19,7 +19,7 @@ package org.apache.celeborn.common.meta;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.fs.FileSystem;
@@ -42,23 +42,18 @@ public class DiskFileInfo extends FileInfo {
 
   public DiskFileInfo(
       UserIdentifier userIdentifier,
-      boolean partitionSplitEnabled,
       FileMeta fileMeta,
       String filePath,
       StorageInfo.Type storageType) {
-    super(userIdentifier, partitionSplitEnabled, fileMeta);
+    super(userIdentifier, fileMeta);
     this.filePath = filePath;
     this.storageType = storageType;
   }
 
   // only called when restore from pb or in UT
   public DiskFileInfo(
-      UserIdentifier userIdentifier,
-      boolean partitionSplitEnabled,
-      FileMeta fileMeta,
-      String filePath,
-      long bytesFlushed) {
-    super(userIdentifier, partitionSplitEnabled, fileMeta);
+      UserIdentifier userIdentifier, FileMeta fileMeta, String filePath, long bytesFlushed) {
+    super(userIdentifier, fileMeta);
     this.filePath = filePath;
     this.storageType = StorageInfo.Type.HDD;
     this.bytesFlushed = bytesFlushed;
@@ -68,14 +63,13 @@ public class DiskFileInfo extends FileInfo {
   public DiskFileInfo(File file, UserIdentifier userIdentifier, CelebornConf conf) {
     this(
         userIdentifier,
-        true,
-        new ReduceFileMeta(new ArrayList<>(Arrays.asList(0L)), conf.shuffleChunkSize()),
+        new ReduceFileMeta(new ArrayList<>(Collections.singletonList(0L)), conf.shuffleChunkSize()),
         file.getAbsolutePath(),
         StorageInfo.Type.HDD);
   }
 
   public DiskFileInfo(UserIdentifier userIdentifier, FileMeta fileMeta, String filePath) {
-    super(userIdentifier, true, fileMeta);
+    super(userIdentifier, fileMeta);
     this.filePath = filePath;
     this.storageType = StorageInfo.Type.HDD;
   }
