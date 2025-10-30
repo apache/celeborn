@@ -135,6 +135,11 @@ const std::unordered_map<std::string, folly::Optional<std::string>>
     CelebornConf::kDefaultProperties = {
         STR_PROP(kRpcAskTimeout, "60s"),
         STR_PROP(kRpcLookupTimeout, "30s"),
+        STR_PROP(kClientPushLimitStrategy, kSimplePushStrategy),
+        NUM_PROP(kClientPushMaxReqsInFlightPerWorker, 32),
+        NUM_PROP(kClientPushMaxReqsInFlightTotal, 256),
+        NUM_PROP(kClientPushLimitInFlightTimeoutMs, 240000),
+        NUM_PROP(kClientPushLimitInFlightSleepDeltaMs, 50),
         STR_PROP(kClientRpcGetReducerFileGroupRpcAskTimeout, "60s"),
         STR_PROP(kNetworkConnectTimeout, "10s"),
         STR_PROP(kClientFetchTimeout, "600s"),
@@ -183,6 +188,28 @@ Timeout CelebornConf::rpcAskTimeout() const {
 Timeout CelebornConf::rpcLookupTimeout() const {
   return utils::toTimeout(
       toDuration(optionalProperty(kRpcLookupTimeout).value()));
+}
+
+std::string CelebornConf::clientPushLimitStrategy() const {
+  return optionalProperty(kClientPushLimitStrategy).value();
+}
+
+int CelebornConf::clientPushMaxReqsInFlightPerWorker() const {
+  return std::stoi(
+      optionalProperty(kClientPushMaxReqsInFlightPerWorker).value());
+}
+
+int CelebornConf::clientPushMaxReqsInFlightTotal() const {
+  return std::stoi(optionalProperty(kClientPushMaxReqsInFlightTotal).value());
+}
+
+long CelebornConf::clientPushLimitInFlightTimeoutMs() const {
+  return std::stol(optionalProperty(kClientPushLimitInFlightTimeoutMs).value());
+}
+
+long CelebornConf::clientPushLimitInFlightSleepDeltaMs() const {
+  return std::stol(
+      optionalProperty(kClientPushLimitInFlightSleepDeltaMs).value());
 }
 
 Timeout CelebornConf::clientRpcGetReducerFileGroupRpcAskTimeout() const {
