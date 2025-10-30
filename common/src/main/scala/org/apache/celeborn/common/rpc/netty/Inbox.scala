@@ -282,6 +282,7 @@ private[celeborn] class Inbox(
         stopped = true
         addMessage(OnStop)
         metrics.dump()
+        metrics.close()
         // Note: The concurrent events in messages will be processed one by one.
       }
     } finally {

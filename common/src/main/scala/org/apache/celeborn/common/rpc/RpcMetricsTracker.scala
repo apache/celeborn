@@ -67,6 +67,13 @@ private[celeborn] class RpcMetricsTracker(
     }
   }
 
+  def close(): Unit = {
+    histogramMap.clear()
+    rpcSource.removeGauge(RpcSource.QUEUE_LENGTH)
+    rpcSource.removeTimer(RpcSource.QUEUE_TIME)
+    rpcSource.removeTimer(RpcSource.PROCESS_TIME)
+  }
+
   def updateHistogram(name: String, value: Long): Unit = {
     histogramMap.putIfAbsent(name, new Histogram(new UniformReservoir()))
     val histogram = histogramMap.get(name)
