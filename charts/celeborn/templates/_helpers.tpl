@@ -98,6 +98,7 @@ Create the name of the roleBinding to use
 
 {{/* Create the name of configmap to use. */}}
 {{- define "celeborn.configMap.name" -}}
+{{- include "celeborn.worker.ensureStorageDirs" . -}}
 {{ include "celeborn.fullname" . }}-conf
 {{- end -}}
 
@@ -109,4 +110,41 @@ Create the name of the celeborn image to use
 {{- $imageRepository := .Values.image.repository | default "apache/celeborn" }}
 {{- $imageTag := .Values.image.tag | default .Chart.AppVersion }}
 {{- printf "%s/%s:%s" $imageRegistry $imageRepository $imageTag }}
+{{- end }}
+
+{{/*
+Resolve the worker storage directories string. Prefer the explicit
+`celeborn.worker.storage.dirs` value and fall back to joining the optional list.
+*/}}
+{{- define "celeborn.worker.storageDirs" -}}
+{{- $celeborn := .Values.celeborn | default dict -}}
+{{- $dirs := index $celeborn "celeborn.worker.storage.dirs" -}}
+{{- $dirsList := index $celeborn "celeborn.worker.storage.dirsList" | default (list) -}}
+{{- if and $dirs (ne (trim $dirs) "") }}
+{{- $dirs -}}
+{{- else if gt (len $dirsList) 0 }}
+{{- join "," $dirsList -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Ensure `celeborn.worker.storage.dirs` exists when a list variant is provided,
+and drop the helper-only `celeborn.worker.storage.dirsList` key.
+*/}}
+{{- define "celeborn.worker.ensureStorageDirs" -}}
+{{- if not .Values.celeborn }}
+{{- $_ := set .Values "celeborn" (dict) -}}
+{{- end }}
+{{- $celeborn := .Values.celeborn -}}
+{{- $existing := default "" (index $celeborn "celeborn.worker.storage.dirs") -}}
+{{- $existingTrim := trim $existing -}}
+{{- $resolved := include "celeborn.worker.storageDirs" . -}}
+{{- $resolvedTrim := trim $resolved -}}
+{{- if and (ne $resolvedTrim "") (or (eq $existingTrim "") (not (hasKey $celeborn "celeborn.worker.storage.dirs"))) }}
+{{- $_ := set $celeborn "celeborn.worker.storage.dirs" $resolvedTrim -}}
+{{- end }}
+{{- if and (hasKey $celeborn "celeborn.worker.storage.dirsList") (ne $resolvedTrim "") }}
+{{- $_ := unset $celeborn "celeborn.worker.storage.dirsList" -}}
+{{- end }}
+{{- "" -}}
 {{- end }}

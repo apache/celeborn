@@ -71,7 +71,13 @@ celeborn:
   celeborn.worker.http.port: 9096
   celeborn.worker.monitor.disk.enabled: false
   celeborn.worker.push.io.threads: 32
-  celeborn.worker.storage.dirs: /mnt/disk1:disktype=SSD:capacity=100Gi,/mnt/disk2:disktype=SSD:capacity=100Gi,/mnt/disk3:disktype=SSD:capacity=100Gi,/mnt/disk4:disktype=SSD:capacity=100Gi
+  celeborn.worker.storage.dirs: ~
+
+  # [OPENAI]: readable list format for worker storage dirs,
+  # which will be converted to `celeborn.worker.storage.dirs` internally
+  celeborn.worker.storage.dirsList:
+    - /mnt/disk1:disktype=SSD:capacity=100Gi
+    - /mnt/disk2:disktype=SSD:capacity=100Gi
 
   # ============================================================================
   # Client
