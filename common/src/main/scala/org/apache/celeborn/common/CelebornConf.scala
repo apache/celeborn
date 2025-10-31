@@ -680,6 +680,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(MASTER_SLOT_ASSIGN_LOADAWARE_FLUSHTIME_WEIGHT)
   def masterSlotAssignLoadAwareFetchTimeWeight: Double =
     get(MASTER_SLOT_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT)
+  def masterSlotAssignLoadAwareDiskCountWeight: Int = get(MASTER_SLOT_ASSIGN_LOADAWARE_DISK_COUNT_WEIGHT)
   def masterSlotAssignExtraSlots: Int = get(MASTER_SLOT_ASSIGN_EXTRA_SLOTS)
   def masterSlotAssignMaxWorkers: Int = get(MASTER_SLOT_ASSIGN_MAX_WORKERS)
   def masterSlotAssignMinWorkers: Int = get(MASTER_SLOT_ASSIGN_MIN_WORKERS)
@@ -3071,6 +3072,19 @@ object CelebornConf extends Logging {
         "Weight of average fetch time when calculating ordering in load-aware assignment strategy")
       .version("0.3.0")
       .doubleConf
+      .createWithDefault(1)
+
+  val MASTER_SLOT_ASSIGN_LOADAWARE_DISK_COUNT_WEIGHT: ConfigEntry[Int] =
+    buildConf("celeborn.master.slot.assign.loadAware.diskCountWeight")
+      .withAlternative("celeborn.slots.assign.loadAware.diskCountWeight")
+      .categories("master")
+      .doc(
+        "Weight of number of disks per group when calculating allocation ratio in load-aware assignment strategy")
+      .version("0.6.0")
+      .intConf
+      .checkValue(
+        v => v > 0,
+        "Disk count weight value should be > 0")
       .createWithDefault(1)
 
   val MASTER_SLOT_ASSIGN_EXTRA_SLOTS: ConfigEntry[Int] =
