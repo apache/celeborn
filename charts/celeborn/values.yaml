@@ -233,6 +233,8 @@ worker:
     # key1: value1
     # key2: value2
 
+  terminationGracePeriodSeconds: 30
+
   # -- Environment variables for Celeborn worker containers.
   env:
   - name: CELEBORN_WORKER_MEMORY

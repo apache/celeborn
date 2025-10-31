@@ -92,7 +92,7 @@ spec:
         {{- $namespace := .Release.Namespace }}
         - >
           until {{ range until (.Values.master.replicas | int) }}
-          nslookup {{ include "celeborn.master.statefulSet.name" $ }}-{{ . }}.{{ include "celeborn.master.service.name" $ }}.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local && 
+          nslookup {{ include "celeborn.master.statefulSet.name" $ }}-{{ . }}.{{ include "celeborn.master.service.name" $ }}.{{ $namespace }}.svc.{{ $.Values.cluster.name }}.local &&
           {{- end }}
           true; do
             echo "waiting for master";
@@ -176,4 +176,4 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      terminationGracePeriodSeconds: 30
+      terminationGracePeriodSeconds: {{ .Values.worker.terminationGracePeriodSeconds }}

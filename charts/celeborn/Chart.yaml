@@ -21,7 +21,7 @@ description: >
   [Apache Celeborn](https://celeborn.apache.org) is an intermediate data service for Big Data compute engines (i.e. ETL, OLAP and Streaming engines) to boost performance, stability, and flexibility.
   Intermediate data typically include shuffle and spilled data.
 type: application
-version: 0.1.0-oai.2
+version: 0.1.0-oai.3
 appVersion: 0.6.1
 keywords:
   - Apache Celeborn
