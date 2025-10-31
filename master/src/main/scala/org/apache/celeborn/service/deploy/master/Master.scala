@@ -212,6 +212,7 @@ private[celeborn] class Master(
     conf.masterSlotAssignLoadAwareDiskGroupGradient
   private val loadAwareFlushTimeWeight = conf.masterSlotAssignLoadAwareFlushTimeWeight
   private val loadAwareFetchTimeWeight = conf.masterSlotAssignLoadAwareFetchTimeWeight
+  private val loadAwareDiskCountWeight = conf.masterSlotAssignLoadAwareDiskCountWeight
 
   private val estimatedPartitionSizeUpdaterInitialDelay =
     conf.estimatedPartitionSizeUpdaterInitialDelay
@@ -981,7 +982,8 @@ private[celeborn] class Master(
               loadAwareFetchTimeWeight,
               requestSlots.availableStorageTypes,
               slotsAssignInterruptionAware,
-              slotsAssignInterruptionAwareThreshold)
+              slotsAssignInterruptionAwareThreshold,
+              loadAwareDiskCountWeight)
           } else {
             SlotsAllocator.offerSlotsRoundRobin(
               selectedWorkers,

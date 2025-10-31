@@ -126,7 +126,8 @@ public class SlotsAllocator {
           double fetchTimeWeight,
           int availableStorageTypes,
           boolean interruptionAware,
-          int interruptionAwareThreshold) {
+          int interruptionAwareThreshold,
+          int diskCountWeight) {
     if (partitionIds.isEmpty()) {
       return new HashMap<>();
     }
@@ -195,7 +196,7 @@ public class SlotsAllocator {
         getSlotsRestrictionsByLoadAwareAlgorithm(
             placeDisksToGroups(usableDisks, diskGroupCount, flushTimeWeight, fetchTimeWeight),
             diskToWorkerMap,
-            shouldReplicate ? partitionIds.size() * 2 : partitionIds.size());
+            shouldReplicate ? partitionIds.size() * 2 : partitionIds.size(), diskCountWeight);
     return locateSlots(
         partitionIds,
         workers,
@@ -715,7 +716,7 @@ public class SlotsAllocator {
    * /docs/developers/slotsallocation.md
    */
   private static Map<WorkerInfo, List<UsableDiskInfo>> getSlotsRestrictionsByLoadAwareAlgorithm(
-      List<List<DiskInfo>> groups, Map<DiskInfo, WorkerInfo> diskWorkerMap, int partitionCnt) {
+      List<List<DiskInfo>> groups, Map<DiskInfo, WorkerInfo> diskWorkerMap, int partitionCnt, int diskCountWeight) {
     int groupSize = groups.size();
     long[] groupAllocations = new long[groupSize];
     Map<WorkerInfo, List<UsableDiskInfo>> restrictions = new HashMap<>();
@@ -729,12 +730,12 @@ public class SlotsAllocator {
     double currentAllocationSum = 0;
     for (int i = 0; i < groupSize; i++) {
       if (!groups.get(i).isEmpty()) {
-        currentAllocationSum += taskAllocationRatio[i];
+        currentAllocationSum += (Math.pow(groups.get(i).size(), diskCountWeight) * taskAllocationRatio[i]);
       }
     }
     for (int i = 0; i < groupSize; i++) {
       if (!groups.get(i).isEmpty()) {
-        currentAllocation[i] = taskAllocationRatio[i] / currentAllocationSum;
+        currentAllocation[i] = (Math.pow(groups.get(i).size(), diskCountWeight) * taskAllocationRatio[i]) / currentAllocationSum;
       }
     }
     long toNextGroup = 0;
