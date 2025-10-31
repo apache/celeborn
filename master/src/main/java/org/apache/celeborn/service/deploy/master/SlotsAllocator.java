@@ -730,12 +730,12 @@ public class SlotsAllocator {
     double currentAllocationSum = 0;
     for (int i = 0; i < groupSize; i++) {
       if (!groups.get(i).isEmpty()) {
-        currentAllocationSum += (Math.pow(groups.get(i).size(), diskCountWeight) * taskAllocationRatio[i]);
+        currentAllocationSum += (groups.get(i).size() * diskCountWeight * taskAllocationRatio[i]);
       }
     }
     for (int i = 0; i < groupSize; i++) {
       if (!groups.get(i).isEmpty()) {
-        currentAllocation[i] = (Math.pow(groups.get(i).size(), diskCountWeight) * taskAllocationRatio[i]) / currentAllocationSum;
+        currentAllocation[i] = (groups.get(i).size() * diskCountWeight * taskAllocationRatio[i]) / currentAllocationSum;
       }
     }
     long toNextGroup = 0;

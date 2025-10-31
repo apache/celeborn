@@ -3082,7 +3082,10 @@ object CelebornConf extends Logging {
         "Weight of number of disks per group when calculating allocation ratio in load-aware assignment strategy")
       .version("0.6.0")
       .intConf
-      .createWithDefault(0)
+      .checkValue(
+        v => v > 0,
+        "Disk count weight value should be > 0")
+      .createWithDefault(1)
 
   val MASTER_SLOT_ASSIGN_EXTRA_SLOTS: ConfigEntry[Int] =
     buildConf("celeborn.master.slot.assign.extraSlots")
