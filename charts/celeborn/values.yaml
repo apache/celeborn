@@ -435,7 +435,11 @@ additionalNodePortServicePerReplica:
   # -- when using NodePort service type, you can specify map of annotations for each master replica
   annotations: {}
 
-cluster:
+# [OPENAI] applied_spec injects the cluster in the `helm` cli, e.g. ` --set-json 'cluster="spark0s"'`
+# in the `helm template`, which collides this def, and we dont want this value to be overridden either
+# otherwise, the nslookup would fail
+# thus we change it as celeborn_cluster
+celeborn_cluster:
   # -- Specifies Kubernetes cluster name
   name: cluster
 

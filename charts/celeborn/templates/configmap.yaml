@@ -27,13 +27,13 @@ data:
 
     {{- $endpoints := list }}
     {{- range until (.Values.master.replicas | int) }}
-    {{- $endpoint := (printf "%s-%d.%s.%s.svc.%s.local" (include "celeborn.master.statefulSet.name" $) . (include "celeborn.master.service.name" $) $.Release.Namespace $.Values.cluster.name) }}
+    {{- $endpoint := (printf "%s-%d.%s.%s.svc.%s.local" (include "celeborn.master.statefulSet.name" $) . (include "celeborn.master.service.name" $) $.Release.Namespace $.Values.celeborn_cluster.name) }}
     {{- $endpoints = append $endpoints $endpoint }}
     {{- end }}
     celeborn.master.endpoints={{ $endpoints | join "," }}
 
     {{- range until (.Values.master.replicas | int) }}
-    {{- $host := (printf "%s-%d.%s.%s.svc.%s.local" (include "celeborn.master.statefulSet.name" $) . (include "celeborn.master.service.name" $) $.Release.Namespace $.Values.cluster.name) }}
+    {{- $host := (printf "%s-%d.%s.%s.svc.%s.local" (include "celeborn.master.statefulSet.name" $) . (include "celeborn.master.service.name" $) $.Release.Namespace $.Values.celeborn_cluster.name) }}
     celeborn.master.ha.node.{{ . }}.host={{ $host }}
     {{- end }}
 
