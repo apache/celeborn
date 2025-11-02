@@ -518,14 +518,6 @@ class DfsTierWriter(
     storageManager) {
   assert(
     storageType == StorageInfo.Type.HDFS || storageType == StorageInfo.Type.OSS || storageType == StorageInfo.Type.S3)
-  flusherBufferSize = conf.workerHdfsFlusherBufferSize
-  private val flushWorkerIndex: Int = flusher.getWorkerIndex
-  val hadoopFs: FileSystem = StorageManager.hadoopFs.get(storageType)
-  var deleted = false
-  private var s3MultipartUploadHandler: MultipartUploadHandler = _
-  private var ossMultipartUploadHandler: MultipartUploadHandler = _
-  var partNumber: Int = 1
-
   this.flusherBufferSize =
     if (dfsFileInfo.isS3()) {
       conf.workerS3FlusherBufferSize
@@ -534,6 +526,12 @@ class DfsTierWriter(
     } else {
       conf.workerHdfsFlusherBufferSize
     }
+  private val flushWorkerIndex: Int = flusher.getWorkerIndex
+  val hadoopFs: FileSystem = StorageManager.hadoopFs.get(storageType)
+  var deleted = false
+  private var s3MultipartUploadHandler: MultipartUploadHandler = _
+  private var ossMultipartUploadHandler: MultipartUploadHandler = _
+  @volatile private var partNumber: Int = 1
 
   try {
     hadoopFs.create(dfsFileInfo.getDfsPath, true).close()
