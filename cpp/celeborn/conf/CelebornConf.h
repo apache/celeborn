@@ -45,6 +45,23 @@ class CelebornConf : public BaseConf {
   static constexpr std::string_view kRpcLookupTimeout{
       "celeborn.rpc.lookupTimeout"};
 
+  static constexpr std::string_view kClientPushLimitStrategy{
+      "celeborn.client.push.limit.strategy"};
+
+  static constexpr std::string_view kSimplePushStrategy{"SIMPLE"};
+
+  static constexpr std::string_view kClientPushMaxReqsInFlightPerWorker{
+      "celeborn.client.push.maxReqsInFlight.perWorker"};
+
+  static constexpr std::string_view kClientPushMaxReqsInFlightTotal{
+      "celeborn.client.push.maxReqsInFlight.total"};
+
+  static constexpr std::string_view kClientPushLimitInFlightTimeoutMs{
+      "celeborn.client.push.limit.inFlight.timeout"};
+
+  static constexpr std::string_view kClientPushLimitInFlightSleepDeltaMs{
+      "celeborn.client.push.limit.inFlight.sleepInterval"};
+
   static constexpr std::string_view kClientRpcGetReducerFileGroupRpcAskTimeout{
       "celeborn.client.rpc.getReducerFileGroup.askTimeout"};
 
@@ -82,6 +99,16 @@ class CelebornConf : public BaseConf {
   Timeout rpcAskTimeout() const;
 
   Timeout rpcLookupTimeout() const;
+
+  std::string clientPushLimitStrategy() const;
+
+  int clientPushMaxReqsInFlightPerWorker() const;
+
+  int clientPushMaxReqsInFlightTotal() const;
+
+  long clientPushLimitInFlightTimeoutMs() const;
+
+  long clientPushLimitInFlightSleepDeltaMs() const;
 
   Timeout clientRpcGetReducerFileGroupRpcAskTimeout() const;
 
