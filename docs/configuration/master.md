@@ -76,6 +76,7 @@ license: |
 | celeborn.master.slot.assign.extraSlots | 2 | false | Extra slots number when master assign slots. Provided enough workers are available. | 0.3.0 | celeborn.slots.assign.extraSlots | 
 | celeborn.master.slot.assign.interruptionAware | false | false | If this is set to true, Celeborn master will prioritize partition placement on workers that are not in scope for maintenance soon. | 0.7.0 |  | 
 | celeborn.master.slot.assign.interruptionAware.threshold | 50 | false | This controls what percentage of hosts would be selected for slot selection in the first iteration of creating partitions. Default is 50%. | 0.7.0 |  | 
+| celeborn.master.slot.assign.loadAware.diskCountWeight | 1 | false | Weight of number of disks per group when calculating allocation ratio in load-aware assignment strategy | 0.6.0 | celeborn.slots.assign.loadAware.diskCountWeight | 
 | celeborn.master.slot.assign.loadAware.diskGroupGradient | 0.1 | false | This value means how many more workload will be placed into a faster disk group than a slower group. | 0.3.0 | celeborn.slots.assign.loadAware.diskGroupGradient | 
 | celeborn.master.slot.assign.loadAware.fetchTimeWeight | 1.0 | false | Weight of average fetch time when calculating ordering in load-aware assignment strategy | 0.3.0 | celeborn.slots.assign.loadAware.fetchTimeWeight | 
 | celeborn.master.slot.assign.loadAware.flushTimeWeight | 0.0 | false | Weight of average flush time when calculating ordering in load-aware assignment strategy | 0.3.0 | celeborn.slots.assign.loadAware.flushTimeWeight | 

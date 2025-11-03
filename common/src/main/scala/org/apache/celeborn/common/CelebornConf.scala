@@ -3080,7 +3080,7 @@ object CelebornConf extends Logging {
       .categories("master")
       .doc(
         "Weight of number of disks per group when calculating allocation ratio in load-aware assignment strategy")
-      .version("0.6.0")
+      .version("0.7.0")
       .intConf
       .checkValue(
         v => v > 0,
