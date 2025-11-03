@@ -726,16 +726,23 @@ public class SlotsAllocator {
         groupAvailableSlots[i] += disk.getAvailableSlots();
       }
     }
+    int[] groupDiskCountWeights = new int[groupSize];
+    for (int i = 0; i < groupSize; i++) {
+      groupDiskCountWeights[i] = diskCountWeight;
+      if (diskCountWeight > 1){
+        diskCountWeight -= 1;
+      }
+    }
     double[] currentAllocation = new double[groupSize];
     double currentAllocationSum = 0;
     for (int i = 0; i < groupSize; i++) {
       if (!groups.get(i).isEmpty()) {
-        currentAllocationSum += (groups.get(i).size() * diskCountWeight * taskAllocationRatio[i]);
+        currentAllocationSum += (groups.get(i).size() * groupDiskCountWeights[i] * taskAllocationRatio[i]);
       }
     }
     for (int i = 0; i < groupSize; i++) {
       if (!groups.get(i).isEmpty()) {
-        currentAllocation[i] = (groups.get(i).size() * diskCountWeight * taskAllocationRatio[i]) / currentAllocationSum;
+        currentAllocation[i] = (groups.get(i).size() * groupDiskCountWeights[i] * taskAllocationRatio[i]) / currentAllocationSum;
       }
     }
     long toNextGroup = 0;
