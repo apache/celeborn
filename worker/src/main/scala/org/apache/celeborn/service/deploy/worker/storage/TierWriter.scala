@@ -705,12 +705,12 @@ class DfsTierWriter(
   override def handleException(): Unit = {
     if (s3MultipartUploadHandler != null) {
       logWarning(s"Abort s3 multipart upload for ${fileInfo.getFilePath}")
-      s3MultipartUploadHandler.complete()
+      s3MultipartUploadHandler.abort()
       s3MultipartUploadHandler.close()
     }
     if (ossMultipartUploadHandler != null) {
       logWarning(s"Abort Oss multipart upload for ${fileInfo.getFilePath}")
-      ossMultipartUploadHandler.complete()
+      ossMultipartUploadHandler.abort()
       ossMultipartUploadHandler.close()
     }
   }
