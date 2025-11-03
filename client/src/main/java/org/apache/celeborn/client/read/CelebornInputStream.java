@@ -467,7 +467,9 @@ public abstract class CelebornInputStream extends InputStream {
           lastException = e;
           shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort(), e);
           fetchChunkRetryCnt++;
-          if (location.hasPeer() && !readSkewPartitionWithoutMapRange) {
+            if (location.hasPeer()
+                    && !isExcluded(location.getPeer())
+                    && !readSkewPartitionWithoutMapRange) {
             // fetchChunkRetryCnt % 2 == 0 means both replicas have been tried,
             // so sleep before next try.
             if (fetchChunkRetryCnt % 2 == 0) {
