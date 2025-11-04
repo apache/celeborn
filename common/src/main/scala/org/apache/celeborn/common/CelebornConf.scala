@@ -4153,7 +4153,7 @@ object CelebornConf extends Logging {
       .doc("Max ratio of direct memory for read buffer")
       .version("0.2.0")
       .doubleConf
-      .createWithDefault(0.1)
+      .createWithDefault(0.35)
 
   val WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE: ConfigEntry[Double] =
     buildConf("celeborn.worker.directMemoryRatioForMemoryFileStorage")
