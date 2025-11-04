@@ -61,6 +61,9 @@ import org.apache.celeborn.common.CelebornConf;
 /** A {@link IndexedInputGate} which ingest data from remote shuffle workers. */
 public class RemoteShuffleInputGate extends AbstractRemoteShuffleInputGate {
 
+  /** The type of the partition the input gate is consuming. */
+  private final ResultPartitionType consumedPartitionType;
+
   public RemoteShuffleInputGate(
       CelebornConf celebornConf,
       ShuffleIOOwnerContext ownerContext,
@@ -79,6 +82,7 @@ public class RemoteShuffleInputGate extends AbstractRemoteShuffleInputGate {
         bufferDecompressor,
         numConcurrentReading,
         shuffleIOMetricGroups);
+    this.consumedPartitionType = gateDescriptor.getConsumedPartitionType();
   }
 
   @Override
@@ -91,6 +95,12 @@ public class RemoteShuffleInputGate extends AbstractRemoteShuffleInputGate {
       InputGateDeploymentDescriptor gateDescriptor) {
     IndexRange indexRange = gateDescriptor.getConsumedSubpartitionRange(0);
     return Tuple2.of(indexRange.getStartIndex(), indexRange.getEndIndex());
+  }
+
+  public ResultPartitionType getConsumedPartitionType() {
+    // Flink 1.19.3
+    // [FLINK-37783] Auto-disable buffer debloating for tiered shuffle
+    return consumedPartitionType;
   }
 
   /** Accommodation for the incompleteness of Flink pluggable shuffle service. */
