@@ -1,66 +1,100 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    ~ Licensed to the Apache Software Foundation (ASF) under one or more
-    ~ contributor license agreements.  See the NOTICE file distributed with
-    ~ this work for additional information regarding copyright ownership.
-    ~ The ASF licenses this file to You under the Apache License, Version 2.0
-    ~ (the "License"); you may not use this file except in compliance with
-    ~ the License.  You may obtain a copy of the License at
-    ~
-    ~     http://www.apache.org/licenses/LICENSE-2.0
-    ~
-    ~ Unless required by applicable law or agreed to in writing, software
-    ~ distributed under the License is distributed on an "AS IS" BASIS,
-    ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    ~ See the License for the specific language governing permissions and
-    ~ limitations under the License.
-    -->
+  ~ Licensed to the Apache Software Foundation (ASF) under one or more
+  ~ contributor license agreements.  See the NOTICE file distributed with
+  ~ this work for additional information regarding copyright ownership.
+  ~ The ASF licenses this file to You under the Apache License, Version 2.0
+  ~ (the "License"); you may not use this file except in compliance with
+  ~ the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
 <!--
-    ~ Extra logging related to initialization of Log4j.
-    ~ Set to debug or trace if log4j initialization is failing.
-    -->
+  ~ Extra logging related to initialization of Log4j.
+  ~ Set to debug or trace if log4j initialization is failing.
+  -->
 <Configuration status="INFO">
     <Appenders>
         <Console name="stdout" target="SYSTEM_OUT">
             <!--
-                  ~ In the pattern layout configuration below, we specify an explicit `%ex` conversion
-                  ~ pattern for logging Throwables. If this was omitted, then (by default) Log4J would
-                  ~ implicitly add an `%xEx` conversion pattern which logs stacktraces with additional
-                  ~ class packaging information. That extra information can sometimes add a substantial
-                  ~ performance overhead, so we disable it in our default logging config.
-                  -->
-            <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex" />
+              ~ In the pattern layout configuration below, we specify an explicit `%ex` conversion
+              ~ pattern for logging Throwables. If this was omitted, then (by default) Log4J would
+              ~ implicitly add an `%xEx` conversion pattern which logs stacktraces with additional
+              ~ class packaging information. That extra information can sometimes add a substantial
+              ~ performance overhead, so we disable it in our default logging config.
+              -->
+            <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
         </Console>
         <RollingRandomAccessFile name="file" fileName="${env:CELEBORN_LOG_DIR}/celeborn.log"
-            filePattern="${env:CELEBORN_LOG_DIR}/celeborn.log.%d-%i">
-            <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex" />
+                                 filePattern="${env:CELEBORN_LOG_DIR}/celeborn.log.%d-%i">
+            <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
             <Policies>
-                <SizeBasedTriggeringPolicy size="200 MB" />
+                <SizeBasedTriggeringPolicy size="200 MB"/>
             </Policies>
             <DefaultRolloverStrategy max="7">
                 <Delete basePath="${env:CELEBORN_LOG_DIR}" maxDepth="1">
                     <IfFileName glob="celeborn.log*">
                         <IfAny>
-                            <IfAccumulatedFileSize exceeds="1 GB" />
-                            <IfAccumulatedFileCount exceeds="10" />
+                            <IfAccumulatedFileSize exceeds="1 GB"/>
+                            <IfAccumulatedFileCount exceeds="10"/>
                         </IfAny>
                     </IfFileName>
                 </Delete>
             </DefaultRolloverStrategy>
         </RollingRandomAccessFile>
-        <RollingRandomAccessFile name="restAuditFile"
-            fileName="${env:CELEBORN_LOG_DIR}/audit/rest-audit.log"
-            filePattern="${env:CELEBORN_LOG_DIR}/audit/rest-audit.log.%d-%i">
-            <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex" />
+        <RollingRandomAccessFile name="restAuditFile" fileName="${env:CELEBORN_LOG_DIR}/audit/rest-audit.log"
+                                 filePattern="${env:CELEBORN_LOG_DIR}/audit/rest-audit.log.%d-%i">
+            <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
             <Policies>
-                <SizeBasedTriggeringPolicy size="200 MB" />
+                <SizeBasedTriggeringPolicy size="200 MB"/>
             </Policies>
             <DefaultRolloverStrategy max="7">
                 <Delete basePath="${env:CELEBORN_LOG_DIR}/audit" maxDepth="1">
                     <IfFileName glob="rest-audit.log*">
                         <IfAny>
-                            <IfAccumulatedFileSize exceeds="1 GB" />
-                            <IfAccumulatedFileCount exceeds="10" />
+                            <IfAccumulatedFileSize exceeds="1 GB"/>
+                            <IfAccumulatedFileCount exceeds="10"/>
+                        </IfAny>
+                    </IfFileName>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingRandomAccessFile>
+        <RollingRandomAccessFile name="shuffleAuditFile" fileName="${env:CELEBORN_LOG_DIR}/audit/shuffle-audit.log"
+                                 filePattern="${env:CELEBORN_LOG_DIR}/audit/shuffle-audit.log.%d-%i">
+            <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="200 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="7">
+                <Delete basePath="${env:CELEBORN_LOG_DIR}/audit" maxDepth="1">
+                    <IfFileName glob="shuffle-audit.log*">
+                        <IfAny>
+                            <IfAccumulatedFileSize exceeds="1 GB"/>
+                            <IfAccumulatedFileCount exceeds="10"/>
+                        </IfAny>
+                    </IfFileName>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingRandomAccessFile>
+        <RollingRandomAccessFile name="metricsAuditFile" fileName="${env:CELEBORN_LOG_DIR}/audit/metrics-audit.log"
+                                 filePattern="${env:CELEBORN_LOG_DIR}/audit/metrics-audit.log.%d-%i">
+            <PatternLayout pattern="%d{yy/MM/dd HH:mm:ss,SSS} %p [%t] %c{1}: %m%n%ex"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="200 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="7">
+                <Delete basePath="${env:CELEBORN_LOG_DIR}/audit" maxDepth="1">
+                    <IfFileName glob="metrics-audit.log*">
+                        <IfAny>
+                            <IfAccumulatedFileSize exceeds="1 GB"/>
+                            <IfAccumulatedFileCount exceeds="10"/>
                         </IfAny>
                     </IfFileName>
                 </Delete>
@@ -70,16 +104,26 @@
 
     <Loggers>
         <Root level="INFO">
-            <AppenderRef ref="stdout" />
-            <AppenderRef ref="file" />
+            <AppenderRef ref="stdout"/>
+            <AppenderRef ref="file"/>
         </Root>
         <Logger name="org.apache.hadoop.hdfs" level="WARN" additivity="false">
-            <Appender-ref ref="stdout" level="WARN" />
-            <Appender-ref ref="file" level="WARN" />
+            <Appender-ref ref="stdout" level="WARN"/>
+            <Appender-ref ref="file" level="WARN"/>
         </Logger>
-        <Logger name="org.apache.celeborn.server.common.http.RestAuditLogger" level="INFO"
-            additivity="false">
-            <Appender-ref ref="restAuditFile" level="INFO" />
+        <Logger name="org.apache.ratis.server.RaftServerConfigKeys" level="WARN" additivity="false">
+            <Appender-ref ref="stdout" level="WARN"/>
+            <Appender-ref ref="file" level="WARN"/>
+        </Logger>
+        <Logger name="org.apache.celeborn.server.common.http.RestAuditLogger" level="INFO" additivity="false">
+            <Appender-ref ref="restAuditFile" level="INFO"/>
+        </Logger>
+        <Logger name="org.apache.celeborn.service.deploy.master.audit.ShuffleAuditLogger" level="INFO"
+                additivity="false">
+            <Appender-ref ref="shuffleAuditFile" level="INFO"/>
+        </Logger>
+        <Logger name="org.apache.celeborn.common.metrics.sink.LoggerSink" level="INFO" additivity="false">
+            <Appender-ref ref="metricsAuditFile" level="INFO"/>
         </Logger>
     </Loggers>
 </Configuration>
