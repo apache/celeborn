@@ -93,6 +93,9 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
       "execution.batch-shuffle-mode",
       "ALL_EXCHANGES_HYBRID_FULL")
     configuration.setString("taskmanager.memory.network.min", "1024m")
+    configuration.setString(
+      "execution.batch.adaptive.auto-parallelism.min-parallelism",
+      "" + parallelism)
     configuration.setString("restart-strategy.type", "fixed-delay")
     configuration.setString("restart-strategy.fixed-delay.attempts", "50")
     configuration.setString("restart-strategy.fixed-delay.delay", "5s")
@@ -105,8 +108,7 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
     env.getConfig.setParallelism(parallelism)
     env.disableOperatorChaining()
     // make parameters available in the web interface
-    // TODO: WordCountHelper should execute with parallelism for [FLINK-37576][runtime] Fix the incorrect status of the isBroadcast field in AllToAllBlockingResultInfo when submitting a job graph.
-    WordCountHelper.execute(env, 1)
+    WordCountHelper.execute(env, parallelism)
 
     val graph = env.getStreamGraph
     env.execute(graph)
@@ -129,6 +131,9 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
       "execution.batch-shuffle-mode",
       "ALL_EXCHANGES_HYBRID_FULL")
     configuration.setString("taskmanager.memory.network.min", "256m")
+    configuration.setString(
+      "execution.batch.adaptive.auto-parallelism.min-parallelism",
+      "" + parallelism)
     configuration.setString("restart-strategy.type", "fixed-delay")
     configuration.setString("restart-strategy.fixed-delay.attempts", "50")
     configuration.setString("restart-strategy.fixed-delay.delay", "5s")
@@ -140,8 +145,7 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
     env.getConfig.setParallelism(parallelism)
     env.disableOperatorChaining()
     // make parameters available in the web interface
-    // TODO: WordCountHelper should execute with parallelism for [FLINK-37576][runtime] Fix the incorrect status of the isBroadcast field in AllToAllBlockingResultInfo when submitting a job graph.
-    WordCountHelper.execute(env, 1)
+    WordCountHelper.execute(env, parallelism)
 
     val graph = env.getStreamGraph
     graph.setJobType(JobType.BATCH)
