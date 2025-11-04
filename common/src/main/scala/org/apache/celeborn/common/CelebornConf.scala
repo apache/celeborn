@@ -4433,7 +4433,7 @@ object CelebornConf extends Logging {
   val WORKER_READBUFFER_PROCESS_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.readBuffer.processTimeout")
       .categories("worker")
-      .version("0.7.0")
+      .version("0.6.2")
       .doc("Timeout for buffer dispatcher to process a read buffer request.")
       .timeConf(TimeUnit.NANOSECONDS)
       .createWithDefaultString("600s")
