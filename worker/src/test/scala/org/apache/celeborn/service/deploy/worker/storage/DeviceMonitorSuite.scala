@@ -32,7 +32,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.WORKER_DISK_MONITOR_CHECK_INTERVAL
 import org.apache.celeborn.common.meta.{DeviceInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.protocol.StorageInfo
-import org.apache.celeborn.common.util.Utils
+import org.apache.celeborn.common.util.{ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 
 class DeviceMonitorSuite extends AnyFunSuite {
@@ -356,6 +356,11 @@ class DeviceMonitorSuite extends AnyFunSuite {
   }
 
   test("tryWithTimeoutAndCallback") {
+    val pool = Option(DeviceMonitor.deviceCheckThreadPool).getOrElse {
+      // Initialize a temporary pool for test
+      ThreadUtils.newDaemonCachedThreadPool("test-worker-device-checker")
+    }
+
     val fn = (i: Int) => {
       0 until 100 foreach (x => {
         // scalastyle:off println
@@ -368,10 +373,10 @@ class DeviceMonitorSuite extends AnyFunSuite {
     0 until 3 foreach (i => {
       val result = Utils.tryWithTimeoutAndCallback({
         fn(i)
-      })(false)(DeviceMonitor.deviceCheckThreadPool, 1)
+      })(false)(pool, 1)
       assert(!result)
     })
-    DeviceMonitor.deviceCheckThreadPool.shutdownNow()
+    pool.shutdownNow()
   }
 
   test("monitor non-critical error metrics") {
