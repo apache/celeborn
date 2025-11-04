@@ -31,6 +31,8 @@ license: |
 
 - Since 0.7.0, Celeborn changed the default value of `celeborn.<module>.io.mode` from `NIO` to `KQUEUE` if kqueue mode is available, falling back to `NIO` otherwise.
 
+- Since 0.7.0, Celeborn changed the default value of `celeborn.worker.directMemoryRatioForReadBuffer` from `0.1` to `0.35`, which means read buffer threshold of buffer dispatcher is max direct memory * 0.35 at default.
+
 # Upgrading from 0.5 to 0.6
 
 - Since 0.6.0, Celeborn deprecate `celeborn.client.spark.fetch.throwsFetchFailure`. Please use `celeborn.client.spark.stageRerun.enabled` instead.
