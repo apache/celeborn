@@ -450,6 +450,16 @@ public class SparkUtils {
         if (taskAttempts == null) return true;
 
         TaskInfo taskInfo = taskAttempts._1();
+        if (taskInfo.attemptNumber() >= maxTaskFails - 1) {
+          logger.warn(
+              "StageId={} index={} taskId={} attemptNumber {} reach maxTaskFails {}.",
+              stageId,
+              taskInfo.index(),
+              taskId,
+              ti.attemptNumber(),
+              maxTaskFails);
+          return true;
+        }
         for (TaskInfo ti : taskAttempts._2()) {
           if (ti.taskId() != taskId) {
             if (reportedStageTaskIds.contains(ti.taskId())) {
@@ -460,6 +470,7 @@ public class SparkUtils {
                   taskId,
                   taskInfo.attemptNumber(),
                   ti.attemptNumber());
+              return false;
             } else if (ti.successful()) {
               LOG.info(
                   "StageId={} index={} taskId={} attempt={} another attempt {} is successful.",
@@ -478,17 +489,6 @@ public class SparkUtils {
                   taskInfo.attemptNumber(),
                   ti.attemptNumber());
               return false;
-            }
-          } else {
-            if (ti.attemptNumber() >= maxTaskFails - 1) {
-              LOG.warn(
-                  "StageId={} index={} taskId={} attemptNumber {} reach maxTaskFails {}.",
-                  stageId,
-                  taskInfo.index(),
-                  taskId,
-                  ti.attemptNumber(),
-                  maxTaskFails);
-              return true;
             }
           }
         }
