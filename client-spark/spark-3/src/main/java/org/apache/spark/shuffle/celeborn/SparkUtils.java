@@ -451,7 +451,7 @@ public class SparkUtils {
 
         TaskInfo taskInfo = taskAttempts._1();
         if (taskInfo.attemptNumber() >= maxTaskFails - 1) {
-          logger.warn(
+          LOG.warn(
               "StageId={} index={} taskId={} attemptNumber {} reach maxTaskFails {}.",
               stageId,
               taskInfo.index(),
