@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -45,12 +46,15 @@ public class ReadBufferDispatcher {
   private final ByteBufAllocator readBufferAllocator;
   private final LongAdder allocatedReadBuffers = new LongAdder();
   private final long readBufferAllocationWait;
+  private final long readBufferProcessTimeout;
   @VisibleForTesting public volatile boolean stopFlag = false;
-  @VisibleForTesting public final AtomicReference<Thread> dispatcherThread;
+  @VisibleForTesting public AtomicReference<Thread> dispatcherThread;
+  private ScheduledExecutorService checkAliveThread;
 
   public ReadBufferDispatcher(
       MemoryManager memoryManager, CelebornConf conf, AbstractSource source) {
     readBufferAllocationWait = conf.readBufferAllocationWait();
+    readBufferProcessTimeout = conf.readBufferProcessTimeout();
     long checkThreadInterval = conf.readBufferDispatcherCheckThreadInterval();
     // readBuffer is not a module name, it's a placeholder.
     readBufferAllocator =
@@ -62,7 +66,7 @@ public class ReadBufferDispatcher {
     dispatcherThread.get().start();
 
     if (checkThreadInterval > 0) {
-      ScheduledExecutorService checkAliveThread =
+      checkAliveThread =
           ThreadUtils.newDaemonSingleThreadScheduledExecutor("read-buffer-dispatcher-checker");
       checkAliveThread.scheduleWithFixedDelay(
           () -> {
@@ -104,6 +108,14 @@ public class ReadBufferDispatcher {
   public void close() {
     stopFlag = true;
     requests.clear();
+    if (dispatcherThread != null) {
+      dispatcherThread.get().interrupt();
+      dispatcherThread = null;
+    }
+    if (checkAliveThread != null) {
+      ThreadUtils.shutdown(checkAliveThread);
+      checkAliveThread = null;
+    }
   }
 
   private class DispatcherRunnable implements Runnable {
@@ -144,10 +156,11 @@ public class ReadBufferDispatcher {
       }
     }
 
-    void processBufferRequest(ReadBufferRequest request, List<ByteBuf> buffers) {
+    void processBufferRequest(ReadBufferRequest request, List<ByteBuf> buffers) throws Exception {
       long start = System.nanoTime();
+      int number = request.getNumber();
       int bufferSize = request.getBufferSize();
-      while (buffers.size() < request.getNumber()) {
+      while (buffers.size() < number && System.nanoTime() - start <= readBufferProcessTimeout) {
         if (memoryManager.readBufferAvailable(bufferSize)) {
           ByteBuf buf = readBufferAllocator.buffer(bufferSize, bufferSize);
           buffers.add(buf);
@@ -163,10 +176,21 @@ public class ReadBufferDispatcher {
           }
         }
       }
-      long end = System.nanoTime();
-      logger.debug(
-          "process read buffer request using {} ms", TimeUnit.NANOSECONDS.toMillis(end - start));
-      request.getBufferListener().notifyBuffers(buffers, null);
+      if (buffers.size() == number) {
+        logger.debug(
+            "Processing {} read buffer (size: {}) request uses {} ms.",
+            number,
+            bufferSize,
+            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
+        request.getBufferListener().notifyBuffers(buffers, null);
+      } else {
+        // The buffer dispatcher should add timeout constraints to fast fail in case of timeout,
+        // avoiding long wait times for client.
+        throw new TimeoutException(
+            String.format(
+                "Process %d read buffer (size: %d) request timeout after %d ms.",
+                number, bufferSize, TimeUnit.NANOSECONDS.toMillis(readBufferProcessTimeout)));
+      }
     }
   }
 }

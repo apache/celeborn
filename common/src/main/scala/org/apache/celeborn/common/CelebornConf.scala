@@ -1277,6 +1277,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def partitionReadBuffersMin: Int = get(WORKER_PARTITION_READ_BUFFERS_MIN)
   def partitionReadBuffersMax: Int = get(WORKER_PARTITION_READ_BUFFERS_MAX)
   def readBufferAllocationWait: Long = get(WORKER_READBUFFER_ALLOCATIONWAIT)
+  def readBufferProcessTimeout: Long = get(WORKER_READBUFFER_PROCESS_TIMEOUT)
   def readBufferTargetRatio: Double = get(WORKER_READBUFFER_TARGET_RATIO)
   def readBufferTargetUpdateInterval: Long = get(WORKER_READBUFFER_TARGET_UPDATE_INTERVAL)
   def readBufferTargetNotifyThreshold: Long = get(WORKER_READBUFFER_TARGET_NOTIFY_THRESHOLD)
@@ -4332,6 +4333,14 @@ object CelebornConf extends Logging {
       .doc("The time to wait when buffer dispatcher can not allocate a buffer.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("50ms")
+
+  val WORKER_READBUFFER_PROCESS_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.readBuffer.processTimeout")
+      .categories("worker")
+      .version("0.6.2")
+      .doc("Timeout for buffer dispatcher to process a read buffer request.")
+      .timeConf(TimeUnit.NANOSECONDS)
+      .createWithDefaultString("600s")
 
   val WORKER_READBUFFER_TARGET_RATIO: ConfigEntry[Double] =
     buildConf("celeborn.worker.readBuffer.target.ratio")
