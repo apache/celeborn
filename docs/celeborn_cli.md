@@ -85,8 +85,8 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
                            h3...] [--hostport=host:port] [--upsert-configs=k1:
                            v1,k2:v2,k3:v3...] [--worker-ids=w1,w2,w3...]
                            (--show-masters-info | --show-cluster-apps |
-                           --show-cluster-shuffles | --exclude-worker |
-                           --remove-excluded-worker |
+                           --show-cluster-apps-info | --show-cluster-shuffles |
+                           --exclude-worker | --remove-excluded-worker |
                            --send-worker-event=IMMEDIATELY | DECOMMISSION | 
                            DECOMMISSION_THEN_IDLE | GRACEFUL | RECOMMISSION | 
                            NONE | --show-worker-event-info |
@@ -142,7 +142,9 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
       --send-worker-event=IMMEDIATELY | DECOMMISSION | DECOMMISSION_THEN_IDLE |
         GRACEFUL | RECOMMISSION | NONE
                              Send an event to a worker
-      --show-cluster-apps    Show cluster applications
+      --show-cluster-apps    Show cluster application's ids
+      --show-cluster-apps-info
+                             Show cluster application's info
       --show-cluster-shuffles
                              Show cluster shuffles
       --show-conf            Show master conf

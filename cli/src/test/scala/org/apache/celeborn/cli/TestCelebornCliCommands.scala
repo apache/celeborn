@@ -189,6 +189,11 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "ApplicationsHeartbeatResponse")
   }
 
+  test("master --show-cluster-apps-info") {
+    val args = prepareMasterArgs() :+ "--show-cluster-apps-info"
+    captureOutputAndValidateResponse(args, "ApplicationInfoResponse")
+  }
+
   test("master --show-cluster-shuffles") {
     val args = prepareMasterArgs() :+ "--show-cluster-shuffles"
     captureOutputAndValidateResponse(args, "ShufflesResponse")
