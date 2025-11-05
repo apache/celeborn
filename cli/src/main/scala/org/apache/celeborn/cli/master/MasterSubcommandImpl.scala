@@ -33,6 +33,7 @@ class MasterSubcommandImpl extends MasterSubcommand {
   override def run(): Unit = {
     if (masterOptions.showMastersInfo) log(runShowMastersInfo)
     if (masterOptions.showClusterApps) log(runShowClusterApps)
+    if (masterOptions.showClusterAppsInfo) log(runShowClusterAppsInfo)
     if (masterOptions.showClusterShuffles) log(runShowClusterShuffles)
     if (masterOptions.excludeWorkers) log(runExcludeWorkers)
     if (masterOptions.removeExcludedWorkers) log(runRemoveExcludedWorkers)
@@ -67,6 +68,9 @@ class MasterSubcommandImpl extends MasterSubcommand {
 
   private[master] def runShowClusterApps: ApplicationsHeartbeatResponse =
     applicationApi.getApplications(commonOptions.getAuthHeader)
+
+  private[master] def runShowClusterAppsInfo: ApplicationInfoResponse =
+    applicationApi.getApplicationsInfo(commonOptions.getAuthHeader)
 
   private[master] def runShowClusterShuffles: ShufflesResponse =
     shuffleApi.getShuffles(commonOptions.getAuthHeader)
