@@ -516,8 +516,4 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
       return !isReleased && !readFinished;
     }
   }
-
-  public void close() {
-    partitionDataReader.close();
-  }
 }

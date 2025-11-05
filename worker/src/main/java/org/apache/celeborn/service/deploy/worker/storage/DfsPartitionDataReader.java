@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 
@@ -91,12 +90,6 @@ public class DfsPartitionDataReader extends PartitionDataReader {
   @Override
   public long position() throws IOException {
     return dataInputStream.getPos();
-  }
-
-  @Override
-  public void close() {
-    IOUtils.closeQuietly(dataInputStream);
-    IOUtils.closeQuietly(indexInputStream);
   }
 
   private void readHeaderOrIndexBuffer(
