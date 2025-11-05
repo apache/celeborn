@@ -456,7 +456,7 @@ public class SparkUtils {
               stageId,
               taskInfo.index(),
               taskId,
-              ti.attemptNumber(),
+              taskInfo.attemptNumber(),
               maxTaskFails);
           return true;
         }
