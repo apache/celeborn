@@ -18,7 +18,7 @@
 package org.apache.celeborn.service.deploy.memory
 
 import java.util
-import java.util.concurrent.{CompletableFuture, TimeUnit}
+import java.util.concurrent.{CompletableFuture, TimeoutException, TimeUnit}
 
 import io.netty.buffer.ByteBuf
 import org.mockito.ArgumentMatchers.anyInt
@@ -35,8 +35,8 @@ class ReadBufferDispactherSuite extends CelebornFunSuite {
   test("[CELEBORN-1580] Test ReadBufferDispacther notify exception to listener") {
     val mockedMemoryManager = mock(classOf[MemoryManager])
     when(mockedMemoryManager.readBufferAvailable(anyInt())).thenAnswer(
-      new Answer[Int] {
-        override def answer(invocation: InvocationOnMock): Int = {
+      new Answer[Boolean] {
+        override def answer(invocation: InvocationOnMock): Boolean = {
           throw new RuntimeException("throw exception for test")
         }
       })
@@ -66,7 +66,7 @@ class ReadBufferDispactherSuite extends CelebornFunSuite {
   test("Test check thread alive") {
     val mockedMemoryManager = mock(classOf[MemoryManager])
     val conf = new CelebornConf()
-    conf.set("celeborn.worker.readBufferDispatcherThreadWatchdog.checkInterval", "100ms")
+    conf.set(CelebornConf.WORKER_READBUFFER_CHECK_THREAD_INTERVAL.key, "100ms")
     val readBufferDispatcher = new ReadBufferDispatcher(mockedMemoryManager, conf, null)
     val threadId1 = readBufferDispatcher.dispatcherThread.get().getId
     readBufferDispatcher.stopFlag = true
@@ -74,5 +74,33 @@ class ReadBufferDispactherSuite extends CelebornFunSuite {
     readBufferDispatcher.stopFlag = false
     val threadId2 = readBufferDispatcher.dispatcherThread.get().getId
     assert(threadId1 != threadId2)
+  }
+
+  test("[CELEBORN-2192] ReadBufferDispatcher should add timeout constraints to fast fail in case of timeout") {
+    val memoryManager = mock(classOf[MemoryManager])
+    val readBufferDispatcher = new ReadBufferDispatcher(
+      memoryManager,
+      new CelebornConf().set(
+        CelebornConf.WORKER_READBUFFER_PROCESS_TIMEOUT.key,
+        CelebornConf.WORKER_READBUFFER_ALLOCATIONWAIT.defaultValueString),
+      null)
+    when(memoryManager.readBufferAvailable(anyInt())).thenAnswer(new Answer[Boolean] {
+      override def answer(invocationOnMock: InvocationOnMock): Boolean = false
+    })
+    val completableFuture = new CompletableFuture[Void]()
+    val readBufferRequest = new ReadBufferRequest(
+      Integer.MAX_VALUE,
+      Integer.MAX_VALUE,
+      new ReadBufferListener {
+        override def notifyBuffers(
+            allocatedBuffers: util.List[ByteBuf],
+            throwable: Throwable): Unit = {
+          assert(throwable != null)
+          assert(throwable.isInstanceOf[TimeoutException])
+          completableFuture.complete(null);
+        }
+      })
+    readBufferDispatcher.addBufferRequest(readBufferRequest)
+    completableFuture.get(5, TimeUnit.SECONDS)
   }
 }
