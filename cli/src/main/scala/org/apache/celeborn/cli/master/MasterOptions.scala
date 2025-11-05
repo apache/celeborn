@@ -24,8 +24,15 @@ final class MasterOptions {
   @Option(names = Array("--show-masters-info"), description = Array("Show master group info"))
   private[master] var showMastersInfo: Boolean = _
 
-  @Option(names = Array("--show-cluster-apps"), description = Array("Show cluster applications"))
+  @Option(
+    names = Array("--show-cluster-apps"),
+    description = Array("Show cluster application's ids"))
   private[master] var showClusterApps: Boolean = _
+
+  @Option(
+    names = Array("--show-cluster-apps-info"),
+    description = Array("Show cluster application's info"))
+  private[master] var showClusterAppsInfo: Boolean = _
 
   @Option(names = Array("--show-cluster-shuffles"), description = Array("Show cluster shuffles"))
   private[master] var showClusterShuffles: Boolean = _
