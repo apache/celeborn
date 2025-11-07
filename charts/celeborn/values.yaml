@@ -222,6 +222,9 @@ worker:
   # -- Number of Celeborn worker replicas to deploy, should less than node number.
   replicas: 5
 
+  # -- Value for terminationGracePeriodSeconds for worker pods
+  terminationGracePeriodSeconds: 30
+
   # -- Annotations for Celeborn worker pods.
   annotations:
     # key1: value1

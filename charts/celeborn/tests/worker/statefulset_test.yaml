@@ -75,6 +75,14 @@ tests:
           path: spec.replicas
           value: 10
 
+  - it: Should use the specified terminationGracePeriodSeconds if `worker.terminationGracePeriodSeconds` is set
+    set:
+      worker.terminationGracePeriodSeconds: 70
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 70
+
   - it: Should add environment variables if `worker.env` is set
     set:
       worker:
