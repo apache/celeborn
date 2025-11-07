@@ -280,11 +280,12 @@ private[celeborn] class Inbox(
         // safely.
         enableConcurrent = false
         stopped = true
-        addMessage(OnStop)
         metrics.dump()
+        addMessage(OnStop)
         // Note: The concurrent events in messages will be processed one by one.
       }
     } finally {
+      metrics.close()
       inboxLock.unlock()
     }
   }
