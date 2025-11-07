@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.client.compress;
 
+import java.io.IOException;
 import java.util.zip.CRC32;
 import java.util.zip.Checksum;
 
@@ -38,7 +39,7 @@ public class ZstdDecompressor extends ZstdTrait implements Decompressor {
   }
 
   @Override
-  public int decompress(byte[] src, byte[] dst, int dstOff) {
+  public int decompress(byte[] src, byte[] dst, int dstOff) throws IOException {
     int compressionMethod = src[MAGIC_LENGTH] & 0xFF;
     int compressedLen = readIntLE(src, MAGIC_LENGTH + 1);
     int originalLen = readIntLE(src, MAGIC_LENGTH + 5);
@@ -54,21 +55,24 @@ public class ZstdDecompressor extends ZstdTrait implements Decompressor {
                 Zstd.decompressByteArray(
                     dst, dstOff, originalLen, src, HEADER_LENGTH, compressedLen);
         if (originalLen != originalLen2) {
-          logger.error(
-              "Original length corrupted! expected: {}, actual: {}.", originalLen, originalLen2);
-          return -1;
+          throw new IOException(
+              "Original length corrupted! expected: "
+                  + originalLen
+                  + ", actual: "
+                  + originalLen2
+                  + ".");
         }
         break;
       default:
-        logger.error("Unknown compression method whose decimal number is {} .", compressionMethod);
-        return -1;
+        throw new IOException(
+            "Unknown compression method whose decimal number is {" + compressionMethod + "} .");
     }
 
     checksum.reset();
     checksum.update(dst, dstOff, originalLen);
     if ((int) checksum.getValue() != check) {
-      logger.error("Checksum not equal! expected: {}, actual: {}.", check, checksum.getValue());
-      return -1;
+      throw new IOException(
+          "Checksum not equal! expected: " + check + ", actual: " + checksum.getValue() + ".");
     }
     return originalLen;
   }

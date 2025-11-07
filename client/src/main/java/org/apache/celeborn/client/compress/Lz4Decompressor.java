@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.client.compress;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.zip.Checksum;
@@ -56,7 +57,7 @@ public class Lz4Decompressor extends Lz4Trait implements Decompressor {
   }
 
   @Override
-  public int decompress(byte[] src, byte[] dst, int dstOff) {
+  public int decompress(byte[] src, byte[] dst, int dstOff) throws IOException {
     int compressionMethod = src[MAGIC_LENGTH] & 0xFF;
     int compressedLen = readIntLE(src, MAGIC_LENGTH + 1);
     int originalLen = readIntLE(src, MAGIC_LENGTH + 5);
@@ -69,19 +70,20 @@ public class Lz4Decompressor extends Lz4Trait implements Decompressor {
       case COMPRESSION_METHOD_LZ4:
         int compressedLen2 = decompressor.decompress(src, HEADER_LENGTH, dst, dstOff, originalLen);
         if (compressedLen != compressedLen2) {
-          logger.error(
-              "Compressed length corrupted! expected: {}, actual: {}.",
-              compressedLen,
-              compressedLen2);
-          return -1;
+          throw new IOException(
+              "Compressed length corrupted! expected: "
+                  + compressedLen
+                  + ", actual: "
+                  + compressedLen2
+                  + ".");
         }
     }
 
     checksum.reset();
     checksum.update(dst, dstOff, originalLen);
     if ((int) checksum.getValue() != check) {
-      logger.error("Checksum not equal! expected: {}, actual: {}.", check, checksum.getValue());
-      return -1;
+      throw new IOException(
+          "Checksum not equal! expected: " + check + ", actual: " + checksum.getValue() + ".");
     }
 
     return originalLen;

@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.client.compress;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 import scala.Option;
@@ -30,7 +31,7 @@ import org.apache.celeborn.common.CelebornConf;
 public class CodecSuiteJ {
 
   @Test
-  public void testLz4Codec() {
+  public void testLz4Codec() throws IOException {
     int blockSize = new CelebornConf().clientPushBufferMaxSize();
     Lz4Compressor lz4Compressor = new Lz4Compressor(blockSize);
     byte[] data = RandomStringUtils.random(1024).getBytes(StandardCharsets.UTF_8);
@@ -47,7 +48,28 @@ public class CodecSuiteJ {
   }
 
   @Test
-  public void testZstdCodec() {
+  public void testLz4CodecCorrupted() {
+    int blockSize = (new CelebornConf()).clientPushBufferMaxSize();
+    Lz4Compressor lz4Compressor = new Lz4Compressor(blockSize);
+    byte[] data = RandomStringUtils.random(1024).getBytes(StandardCharsets.UTF_8);
+    int oriLength = data.length;
+    lz4Compressor.compress(data, 0, oriLength);
+
+    byte[] compressedBuffer = lz4Compressor.getCompressedBuffer().clone();
+    // Manually corrupted data
+    compressedBuffer[Lz4Trait.MAGIC_LENGTH + 9] = ++compressedBuffer[Lz4Trait.MAGIC_LENGTH + 9];
+
+    Lz4Decompressor lz4Decompressor = new Lz4Decompressor(Option.empty());
+    byte[] dst = new byte[oriLength];
+    try {
+      lz4Decompressor.decompress(compressedBuffer, dst, 0);
+    } catch (IOException e) {
+      Assert.assertTrue(e.getMessage().contains("Checksum not equal!"));
+    }
+  }
+
+  @Test
+  public void testZstdCodec() throws IOException {
     for (int level = -5; level <= 22; level++) {
       int blockSize = new CelebornConf().clientPushBufferMaxSize();
       ZstdCompressor zstdCompressor = new ZstdCompressor(blockSize, level);
@@ -63,6 +85,28 @@ public class CodecSuiteJ {
       Assert.assertNotEquals(-1, decompressLength);
       Assert.assertEquals(oriLength, decompressLength);
       Assert.assertArrayEquals(data, dst);
+    }
+  }
+
+  @Test
+  public void testZstdCodecCorrupted() {
+    int blockSize = (new CelebornConf()).clientPushBufferMaxSize();
+    ZstdCompressor zstdCompressor = new ZstdCompressor(blockSize, 1);
+    byte[] data = RandomStringUtils.random(1024).getBytes(StandardCharsets.UTF_8);
+    int oriLength = data.length;
+    zstdCompressor.compress(data, 0, oriLength);
+
+    byte[] compressedBuffer = zstdCompressor.getCompressedBuffer().clone();
+    // Manually corrupted data
+    compressedBuffer[ZstdTrait.MAGIC_LENGTH + 9] = ++compressedBuffer[ZstdTrait.MAGIC_LENGTH + 9];
+
+    ZstdDecompressor zstdDecompressor = new ZstdDecompressor();
+    byte[] dst = new byte[oriLength];
+    try {
+      zstdDecompressor.decompress(compressedBuffer, dst, 0);
+      Assert.fail("The compressed data is corrupted, so decompression should fail.");
+    } catch (IOException e) {
+      Assert.assertTrue(e.getMessage().contains("Checksum not equal!"));
     }
   }
 }
