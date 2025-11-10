@@ -101,6 +101,11 @@ Create the name of the roleBinding to use
 {{ include "celeborn.fullname" . }}-conf
 {{- end -}}
 
+{{/* Checksum of the Celeborn ConfigMap for rollout triggers. */}}
+{{- define "celeborn.configChecksum" -}}
+{{ include (print .Template.BasePath "/configmap.yaml") . | sha256sum }}
+{{- end -}}
+
 {{/*
 Create the name of the celeborn image to use
 */}}
