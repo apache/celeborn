@@ -32,6 +32,8 @@ data:
     {{- end }}
     celeborn.master.endpoints={{ $endpoints | join "," }}
 
+    celeborn.master.internal.endpoints = {{ $endpoints | join "," }}
+
     {{- range until (.Values.master.replicas | int) }}
     {{- $host := (printf "%s-%d.%s.%s.svc.%s.local" (include "celeborn.master.statefulSet.name" $) . (include "celeborn.master.service.name" $) $.Release.Namespace $.Values.cluster.name) }}
     celeborn.master.ha.node.{{ . }}.host={{ $host }}
