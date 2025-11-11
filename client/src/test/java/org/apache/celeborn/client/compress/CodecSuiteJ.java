@@ -63,6 +63,7 @@ public class CodecSuiteJ {
     byte[] dst = new byte[oriLength];
     try {
       lz4Decompressor.decompress(compressedBuffer, dst, 0);
+      Assert.fail("The compressed data is corrupted, so decompression should fail.");
     } catch (IOException e) {
       Assert.assertTrue(e.getMessage().contains("Checksum not equal!"));
     }
