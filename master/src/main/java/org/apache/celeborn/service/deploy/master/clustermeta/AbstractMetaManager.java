@@ -211,7 +211,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         disks.values().stream().filter(s -> s.status().equals(DiskStatus.HEALTHY)).count();
     if (!excludedWorkers.contains(worker)
         && (((disks.isEmpty() || healthyDiskNum <= 0) && !conf.hasHDFSStorage()) || highWorkload)) {
-      LOG.debug("Worker: {} num total slots is 0, add to excluded list", worker);
+      LOG.info("Worker: {} num total slots is 0, add to excluded list", worker);
       excludedWorkers.add(worker);
     } else if ((availableSlots.get() > 0 || conf.hasHDFSStorage()) && !highWorkload) {
       // only unblack if numSlots larger than 0
