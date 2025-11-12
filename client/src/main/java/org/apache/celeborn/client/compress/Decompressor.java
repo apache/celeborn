@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.client.compress;
 
+import java.io.IOException;
+
 import scala.Option;
 
 import org.apache.celeborn.common.CelebornConf;
@@ -24,7 +26,7 @@ import org.apache.celeborn.common.protocol.CompressionCodec;
 
 public interface Decompressor {
 
-  int decompress(byte[] src, byte[] dst, int dstOff);
+  int decompress(byte[] src, byte[] dst, int dstOff) throws IOException;
 
   int getOriginalLen(byte[] src);
 
