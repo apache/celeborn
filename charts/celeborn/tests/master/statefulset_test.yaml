@@ -18,6 +18,7 @@
 suite: Test Celeborn master statefulset
 
 templates:
+  - configmap.yaml
   - master/statefulset.yaml
 
 release:
@@ -26,6 +27,7 @@ release:
 
 tests:
   - it: Should create master statefulset
+    template: master/statefulset.yaml
     asserts:
       - containsDocument:
           apiVersion: apps/v1
@@ -33,7 +35,28 @@ tests:
           name: celeborn-master
           namespace: celeborn
 
+  - it: Should add checksum annotation referencing configmap
+    template: master/statefulset.yaml
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["celeborn.apache.org/conf-hash"]
+          value: cd692d34c71437aec034c5a08728570eba1b8f5f2b20a36b153e1cd92a399481
+
+  - it: Should change checksum annotation when celeborn config changes
+    template: master/statefulset.yaml
+    set:
+      celeborn:
+        "celeborn.rpc.io.serverThreads": 128
+    asserts:
+      - notEqual:
+          path: spec.template.metadata.annotations["celeborn.apache.org/conf-hash"]
+          value: cd692d34c71437aec034c5a08728570eba1b8f5f2b20a36b153e1cd92a399481
+      - equal:
+          path: spec.template.metadata.annotations["celeborn.apache.org/conf-hash"]
+          value: fa6255908e6daaba8d190cb61ea2fa3f57c554279ae0dc753e56008158080d13
+
   - it: Should add extra pod annotations if `master.annotations` is specified
+    template: master/statefulset.yaml
     set:
       master:
         annotations:
@@ -48,6 +71,7 @@ tests:
           value: value2
 
   - it: Should use the specified image if `image.registry`, `image.repository` and `image.tag` is set
+    template: master/statefulset.yaml
     set:
       image:
         registry: test-registry
@@ -59,6 +83,7 @@ tests:
           value: test-registry/test-repository:test-tag
 
   - it: Should use the specified image pull policy if `image.pullPolicy` is set
+    template: master/statefulset.yaml
     set:
       image:
         pullPolicy: Always
@@ -68,6 +93,7 @@ tests:
           value: Always
 
   - it: Should use the specified replicas if `master.replicas` is set
+    template: master/statefulset.yaml
     set:
       master:
         replicas: 10
@@ -77,6 +103,7 @@ tests:
           value: 10
 
   - it: Should add environment variables if `master.env` is set
+    template: master/statefulset.yaml
     set:
       master:
         env:
@@ -120,6 +147,7 @@ tests:
                 optional: false
 
   - it: Should add environment variable sources if `master.envFrom` is set
+    template: master/statefulset.yaml
     set:
       master:
         envFrom:
@@ -144,6 +172,7 @@ tests:
               optional: false
 
   - it: Should add volume mounts if `master.volumeMounts` is set
+    template: master/statefulset.yaml
     set:
       master:
         volumeMounts:
@@ -164,6 +193,7 @@ tests:
             mountPath: /mnt/disk1
 
   - it: Should use the specified resources if `master.resources` is set
+    template: master/statefulset.yaml
     set:
       master:
         resources:
@@ -194,6 +224,7 @@ tests:
               memory: 128Mi
 
   - it: Should add container securityContext if `master.securityContext` is set
+    template: master/statefulset.yaml
     set:
       master:
         securityContext:
@@ -223,6 +254,7 @@ tests:
             privileged: false
 
   - it: Should add secrets if `imagePullSecrets` is set
+    template: master/statefulset.yaml
     set:
       imagePullSecrets:
         - name: test-secret1
@@ -236,6 +268,7 @@ tests:
           value: test-secret2
 
   - it: Should add volumes if `master.volumes` is set
+    template: master/statefulset.yaml
     set:
       master:
         volumes:
@@ -262,6 +295,7 @@ tests:
               path: /mnt/disk2
 
   - it: Should add node selector if `master.nodeSelector` is set
+    template: master/statefulset.yaml
     set:
       master:
         nodeSelector:
@@ -276,6 +310,7 @@ tests:
           value: value2
 
   - it: Should add tolerations if `master.tolerations` is set
+    template: master/statefulset.yaml
     set:
       master:
         tolerations:
@@ -299,6 +334,7 @@ tests:
               effect: NoSchedule
 
   - it: Should use the specified affinity if `master.affinity` is set
+    template: master/statefulset.yaml
     set:
       master:
         affinity:
@@ -341,6 +377,7 @@ tests:
                         - another-node-label-value
 
   - it: Should use the specified priority class name if `master.priorityClass.name` is set
+    template: master/statefulset.yaml
     set:
       master:
         priorityClass:
@@ -351,6 +388,7 @@ tests:
           value: test-priority-class
 
   - it: Should use the specified dns policy if `master.dnsPolicy` is set
+    template: master/statefulset.yaml
     set:
       master:
         dnsPolicy: ClusterFirstWithHostNet
@@ -360,6 +398,7 @@ tests:
           value: ClusterFirstWithHostNet
 
   - it: Should enable host network if `master.hostNetwork` is set to true
+    template: master/statefulset.yaml
     set:
       master:
         hostNetwork: true
@@ -369,6 +408,7 @@ tests:
           value: true
 
   - it: Should use the specified security context if `master.podSecurityContext` is set
+    template: master/statefulset.yaml
     set:
       master:
         podSecurityContext:
@@ -387,6 +427,7 @@ tests:
           value: 3000
 
   - it: Should add volume claim templates if `master.volumeClaimTemplates` is set
+    template: master/statefulset.yaml
     set:
       master:
         volumeClaimTemplates:

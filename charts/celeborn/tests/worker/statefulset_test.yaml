@@ -18,6 +18,7 @@
 suite: Test Celeborn worker statefulset
 
 templates:
+  - configmap.yaml
   - worker/statefulset.yaml
 
 release:
@@ -26,6 +27,7 @@ release:
 
 tests:
   - it: Should create worker statefulset
+    template: worker/statefulset.yaml
     asserts:
       - containsDocument:
           apiVersion: apps/v1
@@ -33,7 +35,28 @@ tests:
           name: celeborn-worker
           namespace: celeborn
 
+  - it: Should add checksum annotation referencing configmap
+    template: worker/statefulset.yaml
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["celeborn.apache.org/conf-hash"]
+          value: cd692d34c71437aec034c5a08728570eba1b8f5f2b20a36b153e1cd92a399481
+
+  - it: Should change checksum annotation when celeborn config changes
+    template: worker/statefulset.yaml
+    set:
+      celeborn:
+        "celeborn.rpc.io.serverThreads": 128
+    asserts:
+      - notEqual:
+          path: spec.template.metadata.annotations["celeborn.apache.org/conf-hash"]
+          value: cd692d34c71437aec034c5a08728570eba1b8f5f2b20a36b153e1cd92a399481
+      - equal:
+          path: spec.template.metadata.annotations["celeborn.apache.org/conf-hash"]
+          value: fa6255908e6daaba8d190cb61ea2fa3f57c554279ae0dc753e56008158080d13
+
   - it: Should add extra pod annotations if `worker.annotations` is specified
+    template: worker/statefulset.yaml
     set:
       worker:
         annotations:
@@ -48,6 +71,7 @@ tests:
           value: value2
 
   - it: Should use the specified image if `image.registry`, `image.repository` and `image.tag` is set
+    template: worker/statefulset.yaml
     set:
       image:
         registry: test-registry
@@ -59,6 +83,7 @@ tests:
           value: test-registry/test-repository:test-tag
 
   - it: Should use the specified image pull policy if `image.pullPolicy` is set
+    template: worker/statefulset.yaml
     set:
       image:
         pullPolicy: Always
@@ -68,6 +93,7 @@ tests:
           value: Always
 
   - it: Should use the specified replicas if `worker.replicas` is set
+    template: worker/statefulset.yaml
     set:
       worker.replicas: 10
     asserts:
@@ -76,6 +102,7 @@ tests:
           value: 10
 
   - it: Should use the specified terminationGracePeriodSeconds if `worker.terminationGracePeriodSeconds` is set
+    template: worker/statefulset.yaml
     set:
       worker.terminationGracePeriodSeconds: 70
     asserts:
@@ -84,6 +111,7 @@ tests:
           value: 70
 
   - it: Should add environment variables if `worker.env` is set
+    template: worker/statefulset.yaml
     set:
       worker:
         env:
@@ -127,6 +155,7 @@ tests:
                 optional: false
 
   - it: Should add environment variable sources if `worker.envFrom` is set
+    template: worker/statefulset.yaml
     set:
       worker:
         envFrom:
@@ -151,6 +180,7 @@ tests:
               optional: false
 
   - it: Should add volume mounts if `worker.volumeMounts` is set
+    template: worker/statefulset.yaml
     set:
       worker:
         volumeMounts:
@@ -171,6 +201,7 @@ tests:
             mountPath: /mnt/disk1
 
   - it: Should use the specified resources if `worker.resources` is set
+    template: worker/statefulset.yaml
     set:
       worker:
         resources:
@@ -201,6 +232,7 @@ tests:
               memory: 128Mi
 
   - it: Should add container securityContext if `worker.securityContext` is set
+    template: worker/statefulset.yaml
     set:
       worker:
         securityContext:
@@ -230,6 +262,7 @@ tests:
             privileged: false
 
   - it: Should add secrets if `imagePullSecrets` is set
+    template: worker/statefulset.yaml
     set:
       imagePullSecrets:
         - name: test-secret1
@@ -243,6 +276,7 @@ tests:
           value: test-secret2
 
   - it: Should add volumes if `worker.volumes` is set
+    template: worker/statefulset.yaml
     set:
       worker:
         volumes:
@@ -269,6 +303,7 @@ tests:
               path: /mnt/disk2
 
   - it: Should add node selector if `worker.nodeSelector` is set
+    template: worker/statefulset.yaml
     set:
       worker:
         nodeSelector:
@@ -283,6 +318,7 @@ tests:
           value: value2
 
   - it: Should add tolerations if `worker.tolerations` is set
+    template: worker/statefulset.yaml
     set:
       worker:
         tolerations:
@@ -306,6 +342,7 @@ tests:
               effect: NoSchedule
 
   - it: Should use the specified affinity if `worker.affinity` is specified
+    template: worker/statefulset.yaml
     set:
       worker:
         affinity:
@@ -348,6 +385,7 @@ tests:
                         - another-node-label-value
 
   - it: Should use the specified priority class name if `worker.priorityClass.name` is set
+    template: worker/statefulset.yaml
     set:
       worker:
         priorityClass:
@@ -358,6 +396,7 @@ tests:
           value: test-priority-class
 
   - it: Should use the specified dns policy if `worker.dnsPolicy` is set
+    template: worker/statefulset.yaml
     set:
       worker:
         dnsPolicy: ClusterFirstWithHostNet
@@ -367,6 +406,7 @@ tests:
           value: ClusterFirstWithHostNet
 
   - it: Should enable host network if `worker.hostNetwork` is set to true
+    template: worker/statefulset.yaml
     set:
       worker:
         hostNetwork: true
@@ -376,6 +416,7 @@ tests:
           value: true
 
   - it: Should use the specified security context if `worker.podSecurityContext` is set
+    template: worker/statefulset.yaml
     set:
       worker:
         podSecurityContext:
@@ -394,6 +435,7 @@ tests:
           value: 3000
 
   - it: Should add volume claim templates if `worker.volumeClaimTemplates` is set
+    template: worker/statefulset.yaml
     set:
       worker:
         volumeClaimTemplates:
