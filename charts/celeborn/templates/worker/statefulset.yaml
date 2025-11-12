@@ -37,10 +37,11 @@ spec:
       labels:
         {{- include "celeborn.worker.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/tag: {{ .Values.image.tag | quote }}
-      {{- with .Values.worker.annotations }}
       annotations:
+        celeborn.apache.org/conf-hash: {{ include "celeborn.configChecksum" . }}
+        {{- with .Values.worker.annotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
     spec:
       {{- /* Add an init container to chown mount paths of Celeborn workers volume if necessary. */}}
       {{- $paths := list }}
