@@ -29,14 +29,11 @@ std::string bool2String(bool value) {
   return value ? "true" : "false";
 }
 
-#define STR_PROP(_key_, _val_) \
-  { std::string(_key_), std::string(_val_) }
+#define STR_PROP(_key_, _val_) {std::string(_key_), std::string(_val_)}
 #define NUM_PROP(_key_, _val_) \
-  { std::string(_key_), folly::to<std::string>(_val_) }
-#define BOOL_PROP(_key_, _val_) \
-  { std::string(_key_), bool2String(_val_) }
-#define NONE_PROP(_key_) \
-  { std::string(_key_), folly::none }
+  {std::string(_key_), folly::to<std::string>(_val_)}
+#define BOOL_PROP(_key_, _val_) {std::string(_key_), bool2String(_val_)}
+#define NONE_PROP(_key_) {std::string(_key_), folly::none}
 
 enum class CapacityUnit {
   BYTE,
@@ -135,6 +132,8 @@ const std::unordered_map<std::string, folly::Optional<std::string>>
     CelebornConf::kDefaultProperties = {
         STR_PROP(kRpcAskTimeout, "60s"),
         STR_PROP(kRpcLookupTimeout, "30s"),
+        STR_PROP(kClientPushReviveInterval, "100ms"),
+        NUM_PROP(kClientPushReviveBatchSize, 2048),
         STR_PROP(kClientPushLimitStrategy, kSimplePushStrategy),
         NUM_PROP(kClientPushMaxReqsInFlightPerWorker, 32),
         NUM_PROP(kClientPushMaxReqsInFlightTotal, 256),
@@ -188,6 +187,15 @@ Timeout CelebornConf::rpcAskTimeout() const {
 Timeout CelebornConf::rpcLookupTimeout() const {
   return utils::toTimeout(
       toDuration(optionalProperty(kRpcLookupTimeout).value()));
+}
+
+Timeout CelebornConf::clientPushReviveInterval() const {
+  return utils::toTimeout(
+      toDuration(optionalProperty(kClientPushReviveInterval).value()));
+}
+
+int CelebornConf::clientPushReviveBatchSize() const {
+  return std::stoi(optionalProperty(kClientPushReviveBatchSize).value());
 }
 
 std::string CelebornConf::clientPushLimitStrategy() const {
