@@ -163,7 +163,7 @@ TEST_F(ReviveManagerTest, successOnReviveSuccess) {
           const std::unordered_set<int>& mapIds,
           const std::unordered_map<int, ShuffleClientImpl::PtrReviveRequest>&
               requestsToSend) mutable
-          -> std::optional<std::unordered_map<int, int>> {
+      -> std::optional<std::unordered_map<int, int>> {
         EXPECT_EQ(testShuffleId, shuffleId);
         EXPECT_GT(mapIds.count(testMapId), 0);
         EXPECT_GT(requestsToSend.count(testPartitionId), 0);
@@ -211,7 +211,7 @@ TEST_F(ReviveManagerTest, failureOnReviveFailure) {
           const std::unordered_set<int>& mapIds,
           const std::unordered_map<int, ShuffleClientImpl::PtrReviveRequest>&
               requestsToSend) mutable
-          -> std::optional<std::unordered_map<int, int>> {
+      -> std::optional<std::unordered_map<int, int>> {
         EXPECT_EQ(testShuffleId, shuffleId);
         EXPECT_GT(mapIds.count(testMapId), 0);
         EXPECT_GT(requestsToSend.count(testPartitionId), 0);

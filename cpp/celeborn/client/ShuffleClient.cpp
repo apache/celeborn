@@ -79,9 +79,8 @@ std::unique_ptr<CelebornInputStream> ShuffleClientImpl::readPartition(
   std::vector<std::shared_ptr<const protocol::PartitionLocation>> locations;
   if (!reducerFileGroupInfo->fileGroups.empty() &&
       reducerFileGroupInfo->fileGroups.count(partitionId)) {
-    locations = std::move(
-        utils::toVector(
-            reducerFileGroupInfo->fileGroups.find(partitionId)->second));
+    locations = std::move(utils::toVector(
+        reducerFileGroupInfo->fileGroups.find(partitionId)->second));
   }
   return std::make_unique<CelebornInputStream>(
       shuffleKey,

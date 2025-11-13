@@ -27,8 +27,8 @@ std::shared_ptr<ReviveManager> ReviveManager::create(
     const std::string& name,
     const conf::CelebornConf& conf,
     std::weak_ptr<ShuffleClientImpl> weakClient) {
-  auto reviveManager = std::shared_ptr<ReviveManager>(
-      new ReviveManager(name, conf, weakClient));
+  auto reviveManager =
+      std::shared_ptr<ReviveManager>(new ReviveManager(name, conf, weakClient));
   reviveManager->start();
   return std::move(reviveManager);
 }

@@ -29,7 +29,7 @@ namespace client {
 /// ReviveManager is responsible for buffering the ReviveRequests, and issue
 /// the revive requests periodically in batches.
 class ReviveManager : public std::enable_shared_from_this<ReviveManager> {
-public:
+ public:
   using PtrReviveRequest = std::shared_ptr<protocol::ReviveRequest>;
 
   // Only allow construction from create() method to ensure that functionality
@@ -43,7 +43,7 @@ public:
 
   void addRequest(PtrReviveRequest request);
 
-private:
+ private:
   // The constructor is hidden to ensure that functionality of
   // std::shared_from_this works properly.
   ReviveManager(
