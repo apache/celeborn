@@ -35,14 +35,14 @@ Off-heap memory requirement can be estimated as below:
 
 ```
 numDirs = `celeborn.worker.storage.dirs`             # the amount of directory will be used by Celeborn storage
-bufferSize = `celeborn.worker.flusher.buffer.size`   # the amount of memory will be used by a single flush buffer 
-off-heap-memory = (disk buffer * disks) + network memory       # the disk buffer is a logical memory region that stores shuffle data received from network 
+bufferSize = `celeborn.worker.flusher.buffer.size`   # the amount of memory will be used by a single flush buffer
+off-heap-memory = (disk buffer * disks) + network memory       # the disk buffer is a logical memory region that stores shuffle data received from network
                                                                # shuffle data will be flushed to disks through write tasks
                                                                # the amount of disk buffer can be set to 1GB or larger for each disk according to the difference of your disk speed and network speed
 ```
 
-For example, if a Celeborn worker give each disk 1GiB memory and the buffer size is set to 256 KB. 
-Celeborn worker can support up to 4096 concurrent write tasks for each disk.  
+For example, if a Celeborn worker give each disk 1GiB memory and the buffer size is set to 256 KB.
+Celeborn worker can support up to 4096 concurrent write tasks for each disk.
 If this worker has 10 disks, the offheap memory should be set to 12GB.
 
 Network memory will be consumed when netty reads from a TCP channel, there will need some extra
@@ -162,10 +162,21 @@ Assume we have a cluster described as below:
 As we need to reserve 20% off-heap memory for netty,
 so we could assume 16 GB off-heap memory can be used for flush buffers.
 
-If `spark.celeborn.client.push.buffer.max.size` is 64 KB, we can have in-flight requests up to 1310720.
+If `spark.celeborn.client.push.buffer.max.size` is 64 KB and `celeborn.worker.flusher.buffer.size` is 256 KB, we can have total slots up to 327,680 slots and in-flight requests up to 1,310,720.
 If you have 8192 mapper tasks, you could set `spark.celeborn.client.push.maxReqsInFlight=160` to gain performance improvements.
 
-If `celeborn.worker.flusher.buffer.size` is 256 KB, we can have total slots up to 327680 slots.
+> In-Flight Request Calculation (1,310,720):
+>
+> Given: `16 GB` usable off-heap per worker, `celeborn.worker.flusher.buffer.size = 256 KB`, `spark.celeborn.client.push.buffer.max.size = 64 KB` and `5 Celeborn workers`
+>
+> Steps:
+>
+> ```
+> slots_per_worker          = 16 GB / 256 KB   -> 65,536
+> total_slots               = 65,536 * 5       -> 327,680
+> requests_per_slot         = 256 KB / 64 KB   -> 4
+> total_inflight_requests   = 327,680 × 4      -> 1,310,720
+> ```
 
 ## Rack Awareness
 
@@ -180,12 +191,12 @@ where `/` is the topology delimiter, `myrack` is the rack identifier, and `myhos
 Assuming a single `/24` subnet per rack, one could use the format of `/192.168.100.0/192.168.100.5` as a unique rack-host topology mapping.
 
 To use the Java class for topology mapping, the class name is specified by the `celeborn.hadoop.net.topology.node.switch.mapping.impl` parameter in the master configuration file.
-An example, `NetworkTopology.java`, is included with the Celeborn distribution and can be customized by the Celeborn administrator. 
+An example, `NetworkTopology.java`, is included with the Celeborn distribution and can be customized by the Celeborn administrator.
 Using a Java class instead of an external script has a performance benefit in that Celeborn doesn't need to fork an external process when a new worker node registers itself.
 
-If implementing an external script, it will be specified with the `celeborn.hadoop.net.topology.script.file.name` parameter in the master side configuration files. 
-Unlike the Java class, the external topology script is not included with the Celeborn distribution and is provided by the administrator. 
-Celeborn will send multiple IP addresses to ARGV when forking the topology script. The number of IP addresses sent to the topology script 
+If implementing an external script, it will be specified with the `celeborn.hadoop.net.topology.script.file.name` parameter in the master side configuration files.
+Unlike the Java class, the external topology script is not included with the Celeborn distribution and is provided by the administrator.
+Celeborn will send multiple IP addresses to ARGV when forking the topology script. The number of IP addresses sent to the topology script
 is controlled with `celeborn.hadoop.net.topology.script.number.args` and defaults to 100.
 If `celeborn.hadoop.net.topology.script.number.args` was changed to 1, a topology script would get forked for each IP submitted by workers.
 
