@@ -227,11 +227,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           memoryFileInfo.getSortedBuffer(),
           targetBuffer,
           shuffleChunkSize);
-      return new MemoryFileInfo(
-          memoryFileInfo.getUserIdentifier(),
-          memoryFileInfo.isPartitionSplitEnabled(),
-          reduceFileMeta,
-          targetBuffer);
+      return new MemoryFileInfo(memoryFileInfo.getUserIdentifier(), reduceFileMeta, targetBuffer);
     } else {
       DiskFileInfo diskFileInfo = ((DiskFileInfo) fileInfo);
       String fileId = shuffleKey + "-" + fileName;

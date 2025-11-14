@@ -91,7 +91,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
       AbstractSource source,
       PartitionDataWriterContext writerContext) {
     ReduceFileMeta reduceFileMeta = new ReduceFileMeta(celebornConf.shuffleChunkSize());
-    MemoryFileInfo memoryFileInfo = new MemoryFileInfo(userIdentifier, false, reduceFileMeta);
+    MemoryFileInfo memoryFileInfo = new MemoryFileInfo(userIdentifier, reduceFileMeta);
     if (!reduceMeta) {
       memoryFileInfo.replaceFileMeta(new MapFileMeta(32 * 1024, 10));
     }
@@ -294,7 +294,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
 
     PartitionDataWriter partitionDataWriter =
@@ -349,7 +348,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     PartitionDataWriter partitionDataWriter =
         new PartitionDataWriter(
@@ -405,7 +403,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     PartitionDataWriter partitionDataWriter =
         new PartitionDataWriter(
@@ -466,7 +463,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     PartitionDataWriter partitionDataWriter =
         new PartitionDataWriter(
@@ -554,7 +550,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     PartitionDataWriter partitionDataWriter =
         new PartitionDataWriter(
@@ -684,7 +679,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     PartitionDataWriter partitionDataWriter =
         new PartitionDataWriter(
@@ -716,7 +710,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     partitionDataWriter =
         new PartitionDataWriter(
@@ -748,7 +741,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     partitionDataWriter =
         new PartitionDataWriter(
@@ -779,7 +771,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     partitionDataWriter =
         new PartitionDataWriter(
@@ -812,7 +803,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     partitionDataWriter =
         new PartitionDataWriter(
@@ -844,7 +834,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     partitionDataWriter =
         new PartitionDataWriter(
@@ -878,7 +867,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     partitionDataWriter =
         new PartitionDataWriter(
@@ -911,7 +899,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     partitionDataWriter =
         new PartitionDataWriter(
@@ -945,7 +932,6 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     partitionDataWriter =
         new PartitionDataWriter(

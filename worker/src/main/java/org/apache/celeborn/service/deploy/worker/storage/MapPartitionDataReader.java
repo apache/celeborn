@@ -455,7 +455,7 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
         logger.debug("release reader for stream {}", streamId);
         // old client can't support BufferStreamEnd, so for new client it tells client that this
         // stream is finished.
-        if (fileInfo.isPartitionSplitEnabled() && !errorNotified) {
+        if (!errorNotified) {
           associatedChannel.writeAndFlush(
               new RpcRequest(
                   TransportClient.requestId(),

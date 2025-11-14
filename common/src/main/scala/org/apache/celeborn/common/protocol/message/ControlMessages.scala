@@ -526,7 +526,6 @@ object ControlMessages extends Logging {
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier,
       pushDataTimeout: Long,
-      partitionSplitEnabled: Boolean = false,
       isSegmentGranularityVisible: Boolean = false)
     extends WorkerMessage
 
@@ -967,7 +966,6 @@ object ControlMessages extends Logging {
           rangeReadFilter,
           userIdentifier,
           pushDataTimeout,
-          partitionSplitEnabled,
           isSegmentGranularityVisible) =>
       val payload = PbReserveSlots.newBuilder()
         .setApplicationId(applicationId)
@@ -980,7 +978,6 @@ object ControlMessages extends Logging {
         .setRangeReadFilter(rangeReadFilter)
         .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
         .setPushDataTimeout(pushDataTimeout)
-        .setPartitionSplitEnabled(partitionSplitEnabled)
         .setIsSegmentGranularityVisible(isSegmentGranularityVisible)
         .build().toByteArray
       new TransportMessage(MessageType.RESERVE_SLOTS, payload)
@@ -1391,7 +1388,6 @@ object ControlMessages extends Logging {
           pbReserveSlots.getRangeReadFilter,
           userIdentifier,
           pbReserveSlots.getPushDataTimeout,
-          pbReserveSlots.getPartitionSplitEnabled,
           pbReserveSlots.getIsSegmentGranularityVisible)
 
       case RESERVE_SLOTS_RESPONSE_VALUE =>
