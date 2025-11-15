@@ -18,6 +18,7 @@ add_library(
         reader/CelebornInputStream.cpp
         writer/PushState.cpp
         writer/PushStrategy.cpp
+        writer/ReviveManager.cpp
         ShuffleClient.cpp
         compress/Decompressor.cpp
         compress/Lz4Decompressor.cpp

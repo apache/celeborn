@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
       celeborn::conf::CelebornConf::kShuffleCompressionCodec, compressCodec);
   auto clientFactory =
       std::make_shared<celeborn::network::TransportClientFactory>(conf);
-  auto shuffleClient = std::make_unique<celeborn::client::ShuffleClientImpl>(
+  auto shuffleClient = celeborn::client::ShuffleClientImpl::create(
       appUniqueId, conf, clientFactory);
   shuffleClient->setupLifecycleManagerRef(
       lifecycleManagerHost, lifecycleManagerPort);

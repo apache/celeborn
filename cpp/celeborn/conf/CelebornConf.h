@@ -45,6 +45,12 @@ class CelebornConf : public BaseConf {
   static constexpr std::string_view kRpcLookupTimeout{
       "celeborn.rpc.lookupTimeout"};
 
+  static constexpr std::string_view kClientPushReviveInterval{
+      "celeborn.client.push.revive.interval"};
+
+  static constexpr std::string_view kClientPushReviveBatchSize{
+      "celeborn.client.push.revive.batchSize"};
+
   static constexpr std::string_view kClientPushLimitStrategy{
       "celeborn.client.push.limit.strategy"};
 
@@ -99,6 +105,10 @@ class CelebornConf : public BaseConf {
   Timeout rpcAskTimeout() const;
 
   Timeout rpcLookupTimeout() const;
+
+  Timeout clientPushReviveInterval() const;
+
+  int clientPushReviveBatchSize() const;
 
   std::string clientPushLimitStrategy() const;
 

@@ -51,9 +51,21 @@ class ShuffleClient {
   virtual void shutdown() = 0;
 };
 
-class ShuffleClientImpl : public ShuffleClient {
+class ShuffleClientImpl
+    : public ShuffleClient,
+      public std::enable_shared_from_this<ShuffleClientImpl> {
  public:
-  ShuffleClientImpl(
+  friend class ReviveManager;
+
+  using PtrReviveRequest = std::shared_ptr<protocol::ReviveRequest>;
+  using PartitionLocationMap = utils::ConcurrentHashMap<
+      int,
+      std::shared_ptr<const protocol::PartitionLocation>>;
+  using PtrPartitionLocationMap = std::shared_ptr<PartitionLocationMap>;
+
+  // Only allow construction from create() method to ensure that functionality
+  // of std::shared_from_this works properly.
+  static std::shared_ptr<ShuffleClientImpl> create(
       const std::string& appUniqueId,
       const std::shared_ptr<const conf::CelebornConf>& conf,
       const std::shared_ptr<network::TransportClientFactory>& clientFactory);
@@ -84,7 +96,43 @@ class ShuffleClientImpl : public ShuffleClient {
 
   void shutdown() override {}
 
+ protected:
+  // The constructor is hidden to ensure that functionality of
+  // std::shared_from_this works properly.
+  ShuffleClientImpl(
+      const std::string& appUniqueId,
+      const std::shared_ptr<const conf::CelebornConf>& conf,
+      const std::shared_ptr<network::TransportClientFactory>& clientFactory);
+
+  // TODO: currently this function serves as a stub. will be updated in future
+  //  commits.
+  virtual bool mapperEnded(int shuffleId, int mapId) {
+    return true;
+  }
+
+  // TODO: currently this function serves as a stub. will be updated in future
+  //  commits.
+  virtual std::optional<std::unordered_map<int, int>> reviveBatch(
+      int shuffleId,
+      const std::unordered_set<int>& mapIds,
+      const std::unordered_map<int, PtrReviveRequest>& requests) {
+    return std::nullopt;
+  }
+
+  virtual std::optional<PtrPartitionLocationMap> getPartitionLocationMap(
+      int shuffleId) {
+    return partitionLocationMaps_.get(shuffleId);
+  }
+
  private:
+  // TODO: no support for WAIT as it is not used.
+  static bool newerPartitionLocationExists(
+      std::shared_ptr<utils::ConcurrentHashMap<
+          int,
+          std::shared_ptr<const protocol::PartitionLocation>>> locationMap,
+      int partitionId,
+      int epoch);
+
   std::shared_ptr<protocol::GetReducerFileGroupResponse>
   getReducerFileGroupInfo(int shuffleId);
 
@@ -97,6 +145,7 @@ class ShuffleClientImpl : public ShuffleClient {
       int,
       std::shared_ptr<protocol::GetReducerFileGroupResponse>>
       reducerFileGroupInfos_;
+  utils::ConcurrentHashMap<int, PtrPartitionLocationMap> partitionLocationMaps_;
 };
 } // namespace client
 } // namespace celeborn
