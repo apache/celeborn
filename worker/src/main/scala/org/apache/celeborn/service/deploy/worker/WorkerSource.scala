@@ -40,8 +40,10 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   // add counters
   addCounter(OPEN_STREAM_SUCCESS_COUNT)
   addCounter(OPEN_STREAM_FAIL_COUNT)
-  addCounter(FETCH_CHUNK_SUCCESS_COUNT)
-  addCounter(FETCH_CHUNK_FAIL_COUNT)
+  addCounter(FETCH_MEMORY_CHUNK_SUCCESS_COUNT)
+  addCounter(FETCH_LOCAL_CHUNK_SUCCESS_COUNT)
+  addCounter(FETCH_MEMORY_CHUNK_FAIL_COUNT)
+  addCounter(FETCH_LOCAL_CHUNK_FAIL_COUNT)
   addCounter(WRITE_DATA_HARD_SPLIT_COUNT)
   addCounter(WRITE_DATA_SUCCESS_COUNT)
   addCounter(WRITE_DATA_FAIL_COUNT)
@@ -91,7 +93,8 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   addTimer(PRIMARY_SEGMENT_START_TIME)
   addTimer(REPLICA_SEGMENT_START_TIME)
 
-  addTimer(FETCH_CHUNK_TIME)
+  addTimer(FETCH_MEMORY_CHUNK_TIME)
+  addTimer(FETCH_LOCAL_CHUNK_TIME)
   addTimer(OPEN_STREAM_TIME)
   addTimer(TAKE_BUFFER_TIME)
   addTimer(SORT_TIME)
@@ -161,12 +164,15 @@ object WorkerSource {
 
   // fetch data
   val OPEN_STREAM_TIME = "OpenStreamTime"
-  val FETCH_CHUNK_TIME = "FetchChunkTime"
+  val FETCH_MEMORY_CHUNK_TIME = "FetchMemoryChunkTime"
+  val FETCH_LOCAL_CHUNK_TIME = "FetchLocalChunkTime"
   val ACTIVE_CHUNK_STREAM_COUNT = "ActiveChunkStreamCount"
   val OPEN_STREAM_SUCCESS_COUNT = "OpenStreamSuccessCount"
   val OPEN_STREAM_FAIL_COUNT = "OpenStreamFailCount"
-  val FETCH_CHUNK_SUCCESS_COUNT = "FetchChunkSuccessCount"
-  val FETCH_CHUNK_FAIL_COUNT = "FetchChunkFailCount"
+  val FETCH_MEMORY_CHUNK_SUCCESS_COUNT = "FetchMemoryChunkSuccessCount"
+  val FETCH_LOCAL_CHUNK_SUCCESS_COUNT = "FetchLocalChunkSuccessCount"
+  val FETCH_MEMORY_CHUNK_FAIL_COUNT = "FetchMemoryChunkFailCount"
+  val FETCH_LOCAL_CHUNK_FAIL_COUNT = "FetchLocalChunkFailCount"
   val FETCH_CHUNK_TRANSFER_SIZE = "FetchChunkTransferSize"
   val FETCH_CHUNK_TRANSFER_TIME = "FetchChunkTransferTime"
 
