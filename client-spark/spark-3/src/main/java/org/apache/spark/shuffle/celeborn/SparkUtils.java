@@ -494,7 +494,7 @@ public class SparkUtils {
           }
         }
         // The following situations should trigger a FetchFailed exception:
-        //  1. If other taskAttempts are running, but failedTaskAttempts >= maxTaskFails
+        //  1. If failedTaskAttempts >= maxTaskFails
         //  2. If no other taskAttempts are running
         if (failedTaskAttempts >= maxTaskFails) {
           LOG.warn(
