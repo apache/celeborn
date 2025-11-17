@@ -481,7 +481,12 @@ public class SparkUtils {
                   taskInfo.attemptNumber(),
                   ti.attemptNumber());
               hasRunningAttempt = true;
-            } else if (ti.status() == "FAILED") {
+            } else if (ti.status() == "FAILED" || ti.status() == "UNKNOWN") {
+              // For KILLED state task, Spark does not count the number of failures
+              // For UNKNOWN state task, Spark does count the number of failures
+              // For FAILED state task, Spark decides whether to count the failure based on the
+              // different failure reasons. In this case, since we cannot obtain the failure reasons,
+              // we will count all tasks in FAILED state.
               LOG.info(
                   "StageId={} index={} taskId={} attempt={} another attempt {} is failed.",
                   stageId,
