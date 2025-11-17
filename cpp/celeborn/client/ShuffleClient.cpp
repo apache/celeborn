@@ -149,11 +149,9 @@ bool ShuffleClientImpl::newerPartitionLocationExists(
         std::shared_ptr<const protocol::PartitionLocation>>> locationMap,
     int partitionId,
     int epoch) {
-  if (auto locationOptional = locationMap->get(partitionId);
-      locationOptional.has_value() && locationOptional.value()->epoch > epoch) {
-    return true;
-  }
-  return false;
+  auto locationOptional = locationMap->get(partitionId);
+  return locationOptional.has_value() &&
+      locationOptional.value()->epoch > epoch;
 }
 
 std::shared_ptr<protocol::GetReducerFileGroupResponse>
