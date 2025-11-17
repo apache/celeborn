@@ -370,7 +370,18 @@ public class SparkUtils {
             }
           }
         }
-        return true;
+        if (failedTaskAttempts >= maxTaskFails) {
+          logger.warn(
+              "StageId={} index={} taskId={} attemptNumber {} reach maxTaskFails {}.",
+              stageId,
+              taskInfo.index(),
+              taskId,
+              taskInfo.attemptNumber(),
+              maxTaskFails);
+          return true;
+        } else {
+          return false;
+        }
       } else {
         logger.error(
             "Can not get TaskSetManager for taskId: {}, ignore it. (This typically occurs when: "
