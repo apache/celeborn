@@ -450,16 +450,7 @@ public class SparkUtils {
         if (taskAttempts == null) return true;
 
         TaskInfo taskInfo = taskAttempts._1();
-        if (taskInfo.attemptNumber() >= maxTaskFails - 1) {
-          LOG.warn(
-              "StageId={} index={} taskId={} attemptNumber {} reach maxTaskFails {}.",
-              stageId,
-              taskInfo.index(),
-              taskId,
-              taskInfo.attemptNumber(),
-              maxTaskFails);
-          return true;
-        }
+        int failedTaskAttempts = 1;
         for (TaskInfo ti : taskAttempts._2()) {
           if (ti.taskId() != taskId) {
             if (reportedStageTaskIds.contains(ti.taskId())) {
@@ -470,6 +461,7 @@ public class SparkUtils {
                   taskId,
                   taskInfo.attemptNumber(),
                   ti.attemptNumber());
+              failedTaskAttempts += 1;
             } else if (ti.successful()) {
               LOG.info(
                   "StageId={} index={} taskId={} attempt={} another attempt {} is successful.",
@@ -488,10 +480,12 @@ public class SparkUtils {
                   taskInfo.attemptNumber(),
                   ti.attemptNumber());
               return false;
+            } else if (ti.status() == "FAILED") {
+              failedTaskAttempts += 1;
             }
           }
         }
-        return true;
+        return failedTaskAttempts < maxTaskFails;
       } else {
         LOG.error(
             "Can not get TaskSetManager for taskId: {}, ignore it. (This typically occurs when: "
