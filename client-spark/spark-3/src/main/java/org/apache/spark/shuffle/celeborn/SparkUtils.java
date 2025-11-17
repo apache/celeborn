@@ -456,14 +456,21 @@ public class SparkUtils {
           if (ti.taskId() != taskId) {
             if (reportedStageTaskIds.contains(ti.taskId())) {
               LOG.info(
-                  "StageId={} index={} taskId={} attempt={} another attempt {} has reported shuffle fetch failure, ignore it.",
+                  "StageId={} index={} taskId={} attempt={} another attempt {} has reported shuffle fetch failure.",
                   stageId,
                   taskInfo.index(),
                   taskId,
                   taskInfo.attemptNumber(),
                   ti.attemptNumber());
-              failedTaskAttempts += 1;
+              return true;
             } else if (ti.successful()) {
+              LOG.info(
+                  "StageId={} index={} taskId={} attempt={} another attempt {} is successful.",
+                  stageId,
+                  taskInfo.index(),
+                  taskId,
+                  taskInfo.attemptNumber(),
+                  ti.attemptNumber());
               return false;
             } else if (ti.running()) {
               LOG.info(
@@ -487,11 +494,9 @@ public class SparkUtils {
           }
         }
         // The following situations should trigger a FetchFailed exception:
-        //  1. If no other taskAttempts are running
-        //  2. If other taskAttempts are running, but failedTaskAttempts >= maxTaskFails
-        if (!hasRunningAttempt) {
-          return true;
-        } else if (failedTaskAttempts >= maxTaskFails) {
+        //  1. If other taskAttempts are running, but failedTaskAttempts >= maxTaskFails
+        //  2. If no other taskAttempts are running
+        if (failedTaskAttempts >= maxTaskFails) {
           LOG.warn(
               "StageId={} index={} taskId={} attemptNumber {} reach maxTaskFails {}.",
               stageId,
@@ -499,6 +504,8 @@ public class SparkUtils {
               taskId,
               taskInfo.attemptNumber(),
               maxTaskFails);
+          return true;
+        } else if (!hasRunningAttempt) {
           return true;
         } else {
           return false;

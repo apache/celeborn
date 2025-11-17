@@ -341,13 +341,13 @@ public class SparkUtils {
           if (ti.taskId() != taskId) {
             if (reportedStageTaskIds.contains(ti.taskId())) {
               logger.info(
-                  "StageId={} index={} taskId={} attempt={} another attempt {} has reported shuffle fetch failure, ignore it.",
+                  "StageId={} index={} taskId={} attempt={} another attempt {} has reported shuffle fetch failure.",
                   stageId,
                   taskInfo.index(),
                   taskId,
                   taskInfo.attemptNumber(),
                   ti.attemptNumber());
-              failedTaskAttempts += 1;
+              return true;
             } else if (ti.successful()) {
               logger.info(
                   "StageId={} index={} taskId={} attempt={} another attempt {} is successful.",
@@ -378,12 +378,10 @@ public class SparkUtils {
             }
           }
         }
-        // 1. If no other taskAttempts are running, a FetchFailed exception should be thrown.
-        // 2. If other taskAttempts are running, but failedTaskAttempts >= maxTaskFails,
-        // a FetchFailed exception should be thrown.
-        if (!hasRunningAttempt) {
-          return true;
-        } else if (failedTaskAttempts >= maxTaskFails) {
+        // The following situations should trigger a FetchFailed exception:
+        //  1. If other taskAttempts are running, but failedTaskAttempts >= maxTaskFails
+        //  2. If no other taskAttempts are running
+        if (failedTaskAttempts >= maxTaskFails) {
           logger.warn(
               "StageId={} index={} taskId={} attemptNumber {} reach maxTaskFails {}.",
               stageId,
@@ -391,6 +389,8 @@ public class SparkUtils {
               taskId,
               taskInfo.attemptNumber(),
               maxTaskFails);
+          return true;
+        } else if (!hasRunningAttempt) {
           return true;
         } else {
           return false;
