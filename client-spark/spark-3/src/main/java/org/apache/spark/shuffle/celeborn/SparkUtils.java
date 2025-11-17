@@ -451,6 +451,7 @@ public class SparkUtils {
 
         TaskInfo taskInfo = taskAttempts._1();
         int failedTaskAttempts = 1;
+        boolean hasRunningAttempt = false;
         for (TaskInfo ti : taskAttempts._2()) {
           if (ti.taskId() != taskId) {
             if (reportedStageTaskIds.contains(ti.taskId())) {
@@ -463,22 +464,6 @@ public class SparkUtils {
                   ti.attemptNumber());
               failedTaskAttempts += 1;
             } else if (ti.successful()) {
-              LOG.info(
-                  "StageId={} index={} taskId={} attempt={} another attempt {} is successful.",
-                  stageId,
-                  taskInfo.index(),
-                  taskId,
-                  taskInfo.attemptNumber(),
-                  ti.attemptNumber());
-              return false;
-            } else if (ti.running()) {
-              LOG.info(
-                  "StageId={} index={} taskId={} attempt={} another attempt {} is running.",
-                  stageId,
-                  taskInfo.index(),
-                  taskId,
-                  taskInfo.attemptNumber(),
-                  ti.attemptNumber());
               return false;
             } else if (ti.status() == "FAILED") {
               failedTaskAttempts += 1;
