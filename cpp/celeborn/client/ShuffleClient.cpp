@@ -21,6 +21,14 @@
 
 namespace celeborn {
 namespace client {
+std::shared_ptr<ShuffleClientImpl> ShuffleClientImpl::create(
+    const std::string& appUniqueId,
+    const std::shared_ptr<const conf::CelebornConf>& conf,
+    const std::shared_ptr<network::TransportClientFactory>& clientFactory) {
+  return std::shared_ptr<ShuffleClientImpl>(
+      new ShuffleClientImpl(appUniqueId, conf, clientFactory));
+}
+
 ShuffleClientImpl::ShuffleClientImpl(
     const std::string& appUniqueId,
     const std::shared_ptr<const conf::CelebornConf>& conf,
@@ -133,6 +141,17 @@ bool ShuffleClientImpl::cleanupShuffle(int shuffleId) {
   std::lock_guard<std::mutex> lock(mutex_);
   reducerFileGroupInfos_.erase(shuffleId);
   return true;
+}
+
+bool ShuffleClientImpl::newerPartitionLocationExists(
+    std::shared_ptr<utils::ConcurrentHashMap<
+        int,
+        std::shared_ptr<const protocol::PartitionLocation>>> locationMap,
+    int partitionId,
+    int epoch) {
+  auto locationOptional = locationMap->get(partitionId);
+  return locationOptional.has_value() &&
+      locationOptional.value()->epoch > epoch;
 }
 
 std::shared_ptr<protocol::GetReducerFileGroupResponse>

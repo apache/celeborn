@@ -135,6 +135,8 @@ const std::unordered_map<std::string, folly::Optional<std::string>>
     CelebornConf::kDefaultProperties = {
         STR_PROP(kRpcAskTimeout, "60s"),
         STR_PROP(kRpcLookupTimeout, "30s"),
+        STR_PROP(kClientPushReviveInterval, "100ms"),
+        NUM_PROP(kClientPushReviveBatchSize, 2048),
         STR_PROP(kClientPushLimitStrategy, kSimplePushStrategy),
         NUM_PROP(kClientPushMaxReqsInFlightPerWorker, 32),
         NUM_PROP(kClientPushMaxReqsInFlightTotal, 256),
@@ -188,6 +190,15 @@ Timeout CelebornConf::rpcAskTimeout() const {
 Timeout CelebornConf::rpcLookupTimeout() const {
   return utils::toTimeout(
       toDuration(optionalProperty(kRpcLookupTimeout).value()));
+}
+
+Timeout CelebornConf::clientPushReviveInterval() const {
+  return utils::toTimeout(
+      toDuration(optionalProperty(kClientPushReviveInterval).value()));
+}
+
+int CelebornConf::clientPushReviveBatchSize() const {
+  return std::stoi(optionalProperty(kClientPushReviveBatchSize).value());
 }
 
 std::string CelebornConf::clientPushLimitStrategy() const {
