@@ -38,3 +38,9 @@ tests:
           path: data["celeborn-defaults.conf"]
       - exists:
           path: data["log4j2.xml"]
+
+  - it: Should include celeborn.master.internal.endpoints key in celeborn-defaults.conf
+    asserts:
+      - matchRegex:
+          path: data["celeborn-defaults.conf"]
+          pattern: "(?m)^\\s*celeborn\\.master\\.internal\\.endpoints\\s*=.*"
