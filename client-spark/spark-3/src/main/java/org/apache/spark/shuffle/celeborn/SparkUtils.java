@@ -486,6 +486,9 @@ public class SparkUtils {
             }
           }
         }
+        // 1. If no other taskAttempts are running, a FetchFailed exception should be thrown.
+        // 2. If other taskAttempts are running, but failedTaskAttempts >= maxTaskFails,
+        // a FetchFailed exception should be thrown.
         if (!hasRunningAttempt) {
           return true;
         } else if (failedTaskAttempts >= maxTaskFails) {
