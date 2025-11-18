@@ -4233,15 +4233,15 @@ object CelebornConf extends Logging {
   val WORKER_PUSH_DATA_MERGE_BUFFER_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.pushdata.mergeBuffer.enabled")
       .categories("worker")
-      .version("0.5.1")
+      .version("0.6.2")
       .doc("enable merge low utilization push data's body buffer before write")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val WORKER_DIRECT_MEMORY_RATIO_TO_MERGE_BUFFER: ConfigEntry[Double] = {
     buildConf("celeborn.worker.directMemoryRatioToMergeBuffer")
       .categories("worker")
-      .version("0.5.1")
+      .version("0.6.2")
       .doc("If direct memory usage is above this limit, the worker will merge low utilization push data's body buffer")
       .doubleConf
       .createWithDefault(0.4)

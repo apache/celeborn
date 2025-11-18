@@ -78,7 +78,7 @@ license: |
 | celeborn.worker.decommission.forceExitTimeout | 6h | false | The wait time of waiting for all the shuffle expire during worker decommission. | 0.4.0 |  | 
 | celeborn.worker.directMemoryRatioForMemoryFileStorage | 0.0 | false | Max ratio of direct memory to store shuffle data. This feature is experimental and disabled by default. | 0.5.0 |  | 
 | celeborn.worker.directMemoryRatioForReadBuffer | 0.35 | false | Max ratio of direct memory for read buffer | 0.2.0 |  | 
-| celeborn.worker.directMemoryRatioToMergeBuffer | 0.4 | false | If direct memory usage is above this limit, the worker will merge low utilization push data's body buffer | 0.5.1 |  | 
+| celeborn.worker.directMemoryRatioToMergeBuffer | 0.4 | false | If direct memory usage is above this limit, the worker will merge low utilization push data's body buffer | 0.6.2 |  | 
 | celeborn.worker.directMemoryRatioToPauseReceive | 0.85 | false | If direct memory usage reaches this limit, the worker will stop to receive data from Celeborn shuffle clients. | 0.2.0 |  | 
 | celeborn.worker.directMemoryRatioToPauseReplicate | 0.95 | false | If direct memory usage reaches this limit, the worker will stop to receive replication data from other workers. This value should be higher than celeborn.worker.directMemoryRatioToPauseReceive. | 0.2.0 |  | 
 | celeborn.worker.directMemoryRatioToResume | 0.7 | false | If direct memory usage is less than this limit, worker will resume. | 0.2.0 |  | 
@@ -164,7 +164,7 @@ license: |
 | celeborn.worker.push.heartbeat.enabled | false | false | enable the heartbeat from worker to client when pushing data | 0.3.0 |  | 
 | celeborn.worker.push.io.threads | &lt;undefined&gt; | false | Netty IO thread number of worker to handle client push data. The default threads number is the number of flush thread. | 0.2.0 |  | 
 | celeborn.worker.push.port | 0 | false | Server port for Worker to receive push data request from ShuffleClient. | 0.2.0 |  | 
-| celeborn.worker.pushdata.mergeBuffer.enabled | true | false | enable merge low utilization push data's body buffer before write | 0.5.1 |  | 
+| celeborn.worker.pushdata.mergeBuffer.enabled | false | false | enable merge low utilization push data's body buffer before write | 0.6.2 |  | 
 | celeborn.worker.readBuffer.allocationWait | 50ms | false | The time to wait when buffer dispatcher can not allocate a buffer. | 0.3.0 |  | 
 | celeborn.worker.readBuffer.processTimeout | 600s | false | Timeout for buffer dispatcher to process a read buffer request. | 0.6.2 |  | 
 | celeborn.worker.readBuffer.target.changeThreshold | 1mb | false | The target ratio for pre read memory usage. | 0.3.0 |  | 
