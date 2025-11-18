@@ -370,9 +370,8 @@ public class SparkUtils {
               // For KILLED state task, Spark does not count the number of failures
               // For UNKNOWN state task, Spark does count the number of failures
               // For FAILED state task, Spark decides whether to count the failure based on the
-              // different failure reasons. In this case, since we cannot obtain the failure
-              // reasons,
-              // we will count all tasks in FAILED state.
+              // different failure reasons. Since we cannot obtain the failure
+              // reason here, we will count all tasks in FAILED state.
               logger.info(
                   "StageId={} index={} taskId={} attempt={} another attempt {} status={}.",
                   stageId,
