@@ -38,6 +38,10 @@ tests:
           path: data["celeborn-defaults.conf"]
       - exists:
           path: data["log4j2.xml"]
+      - exists:
+          path: data["metrics.properties"]
+      - exists:
+          path: data["ratis-log4j.properties"]
 
   - it: Should include celeborn.master.internal.endpoints key in celeborn-defaults.conf
     asserts:

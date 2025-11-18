@@ -122,6 +122,9 @@ spec:
         - name: celeborn-conf
           subPath: metrics.properties
           mountPath: /opt/celeborn/conf/metrics.properties
+        - name: celeborn-conf
+          subPath: ratis-log4j.properties
+          mountPath: /opt/celeborn/conf/ratis-log4j.properties
         {{- with .Values.master.volumeMounts }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -149,6 +152,8 @@ spec:
             path: log4j2.xml
           - key: metrics.properties
             path: metrics.properties
+          - key: ratis-log4j.properties
+            path: ratis-log4j.properties
       {{- with .Values.master.volumes }}
       {{- toYaml . | nindent 6 }}
       {{- end }}

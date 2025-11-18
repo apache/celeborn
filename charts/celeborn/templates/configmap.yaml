@@ -48,3 +48,6 @@ data:
 
   metrics.properties: |-
     {{- .Files.Get "files/conf/metrics.properties" | nindent 4 }}
+
+  ratis-log4j.properties: |-
+    {{- .Files.Get "files/conf/ratis-log4j.properties" | nindent 4 }}

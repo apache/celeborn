@@ -40,7 +40,7 @@ tests:
     asserts:
       - equal:
           path: spec.template.metadata.annotations["celeborn.apache.org/conf-hash"]
-          value: cd692d34c71437aec034c5a08728570eba1b8f5f2b20a36b153e1cd92a399481
+          value: 316cfc634ed083bd70e36ad0b429578ace6893d4de3ef4897a078db5f01a7522
 
   - it: Should change checksum annotation when celeborn config changes
     template: worker/statefulset.yaml
@@ -50,10 +50,10 @@ tests:
     asserts:
       - notEqual:
           path: spec.template.metadata.annotations["celeborn.apache.org/conf-hash"]
-          value: cd692d34c71437aec034c5a08728570eba1b8f5f2b20a36b153e1cd92a399481
+          value: 316cfc634ed083bd70e36ad0b429578ace6893d4de3ef4897a078db5f01a7522
       - equal:
           path: spec.template.metadata.annotations["celeborn.apache.org/conf-hash"]
-          value: fa6255908e6daaba8d190cb61ea2fa3f57c554279ae0dc753e56008158080d13
+          value: fae6199c4ac5ac5a9fd9049705ac239ad6e3474a65db55bdd98f29720122b756
 
   - it: Should add extra pod annotations if `worker.annotations` is specified
     template: worker/statefulset.yaml
