@@ -481,19 +481,21 @@ public class SparkUtils {
                   taskInfo.attemptNumber(),
                   ti.attemptNumber());
               hasRunningAttempt = true;
-            } else if (ti.status() == "FAILED" || ti.status() == "UNKNOWN") {
+            } else if ("FAILED".equals(ti.status()) || "UNKNOWN".equals(ti.status())) {
               // For KILLED state task, Spark does not count the number of failures
               // For UNKNOWN state task, Spark does count the number of failures
               // For FAILED state task, Spark decides whether to count the failure based on the
-              // different failure reasons. In this case, since we cannot obtain the failure reasons,
+              // different failure reasons. In this case, since we cannot obtain the failure
+              // reasons,
               // we will count all tasks in FAILED state.
               LOG.info(
-                  "StageId={} index={} taskId={} attempt={} another attempt {} is failed.",
+                  "StageId={} index={} taskId={} attempt={} another attempt {} status={}.",
                   stageId,
                   taskInfo.index(),
                   taskId,
                   taskInfo.attemptNumber(),
-                  ti.attemptNumber());
+                  ti.attemptNumber(),
+                  ti.status());
               failedTaskAttempts += 1;
             }
           }
@@ -501,16 +503,16 @@ public class SparkUtils {
         // The following situations should trigger a FetchFailed exception:
         //  1. If failedTaskAttempts >= maxTaskFails
         //  2. If no other taskAttempts are running
-        if (failedTaskAttempts >= maxTaskFails) {
+        if (failedTaskAttempts >= maxTaskFails || !hasRunningAttempt) {
           LOG.warn(
-              "StageId={} index={} taskId={} attemptNumber {} reach maxTaskFails {}.",
+              "StageId={}, index={}, taskId={}, attemptNumber={}: Task failure count {} reached "
+                  + "maximum allowed failures {} or no running attempt exists.",
               stageId,
               taskInfo.index(),
               taskId,
               taskInfo.attemptNumber(),
+              failedTaskAttempts,
               maxTaskFails);
-          return true;
-        } else if (!hasRunningAttempt) {
           return true;
         } else {
           return false;
