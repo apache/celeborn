@@ -347,7 +347,7 @@ public class SparkUtils {
                   taskId,
                   taskInfo.attemptNumber(),
                   ti.attemptNumber());
-              return true;
+              failedTaskAttempts += 1;
             } else if (ti.successful()) {
               logger.info(
                   "StageId={} index={} taskId={} attempt={} another attempt {} is successful.",
