@@ -62,6 +62,12 @@ inline Timeout toTimeout(Duration duration) {
   return std::chrono::duration_cast<Timeout>(duration);
 }
 
+inline uint64_t currentTimeMillis() {
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+             std::chrono::system_clock::now().time_since_epoch())
+      .count();
+}
+
 /// parse string like "Any-Host-Str:Port#1:Port#2:...:Port#num", split into
 /// {"Any-Host-Str", "Port#1", "Port#2", ..., "Port#num"}. Note that the
 /// "Any-Host-Str" might contain ':' in IPV6 address.
