@@ -75,6 +75,7 @@ public class DfsPartitionReader implements PartitionReader {
   private TransportClient client;
   private PbStreamHandler streamHandler;
   private MetricsCallback metricsCallback;
+  private long partitionReaderWaitLogThread;
   private FileSystem hadoopFs;
 
   private Path dataFilePath;
@@ -100,6 +101,7 @@ public class DfsPartitionReader implements PartitionReader {
     results = new LinkedBlockingQueue<>();
 
     this.metricsCallback = metricsCallback;
+    this.partitionReaderWaitLogThread = conf.clientPartitionReadrWaitLogThreshold();
     this.location = location;
     if (location.getStorageInfo() != null
         && location.getStorageInfo().getType() == StorageInfo.Type.S3) {
@@ -290,13 +292,35 @@ public class DfsPartitionReader implements PartitionReader {
           });
     }
     try {
+      long totalWaitTimeMs = 0;
+      long lastLogTimeMs = 0;
+
       while (chunk == null) {
         checkException();
         Long startFetchWait = System.nanoTime();
         chunk = results.poll(500, TimeUnit.MILLISECONDS);
-        metricsCallback.incReadTime(
-            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait));
+        long waitTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait);
+        metricsCallback.incReadTime(waitTimeMs);
+        totalWaitTimeMs += waitTimeMs;
+        // Log when wait time exceeds another threshold since last log
+        if (chunk == null && totalWaitTimeMs >= lastLogTimeMs + partitionReaderWaitLogThread) {
+          lastLogTimeMs = totalWaitTimeMs;
+          logger.info(
+              "Waiting for data from partition {}/{} for {}ms",
+              location.getFileName(),
+              location.hostAndPorts(),
+              totalWaitTimeMs);
+        }
+
         logger.debug("poll result with result size: {}", results.size());
+      }
+
+      if (totalWaitTimeMs >= partitionReaderWaitLogThread) {
+        logger.info(
+            "Finished waiting for data from partition {}/{} after {}ms",
+            location.getFileName(),
+            location.hostAndPorts(),
+            totalWaitTimeMs);
       }
     } catch (Exception e) {
       logger.error("PartitionReader thread interrupted while fetching data.");

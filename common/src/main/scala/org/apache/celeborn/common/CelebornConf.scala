@@ -1025,6 +1025,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
   def isPartitionReaderCheckpointEnabled: Boolean =
     get(PARTITION_READER_CHECKPOINT_ENABLED)
+  def clientPartitionReadrWaitLogThreshold: Long =
+    get(PARTITION_READER_WAIT_LOG_THRESHOLD)
 
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
   def clientStageRerunEnabled: Boolean = get(CLIENT_STAGE_RERUN_ENABLED)
@@ -5014,6 +5016,15 @@ object CelebornConf extends Logging {
         " the amount of unnecessary reads during partition read retries")
       .booleanConf
       .createWithDefault(false)
+
+  val PARTITION_READER_WAIT_LOG_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.client.partition.reader.waitLog.threshold")
+      .categories("client")
+      .version("0.6.2")
+      .doc("The threshold in milliseconds for logging partition read wait time. " +
+        "Log messages will be generated when wait time exceeds multiples of this threshold.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("60s")
 
   val CLIENT_FETCH_MAX_REQS_IN_FLIGHT: ConfigEntry[Int] =
     buildConf("celeborn.client.fetch.maxReqsInFlight")
