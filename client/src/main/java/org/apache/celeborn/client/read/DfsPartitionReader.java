@@ -75,7 +75,7 @@ public class DfsPartitionReader implements PartitionReader {
   private TransportClient client;
   private PbStreamHandler streamHandler;
   private MetricsCallback metricsCallback;
-  private long partitionReaderWaitLogThreashold;
+  private long partitionReaderWaitLogThreshold;
   private FileSystem hadoopFs;
 
   private Path dataFilePath;
@@ -101,7 +101,7 @@ public class DfsPartitionReader implements PartitionReader {
     results = new LinkedBlockingQueue<>();
 
     this.metricsCallback = metricsCallback;
-    this.partitionReaderWaitLogThreashold = conf.clientPartitionReadrWaitLogThreshold();
+    this.partitionReaderWaitLogThreshold = conf.clientPartitionReaderWaitLogThreshold();
     this.location = location;
     if (location.getStorageInfo() != null
         && location.getStorageInfo().getType() == StorageInfo.Type.S3) {
@@ -303,7 +303,7 @@ public class DfsPartitionReader implements PartitionReader {
         metricsCallback.incReadTime(waitTimeMs);
         totalWaitTimeMs += waitTimeMs;
         // Log when wait time exceeds another threshold since last log
-        if (chunk == null && totalWaitTimeMs >= lastLogTimeMs + partitionReaderWaitLogThreashold) {
+        if (chunk == null && totalWaitTimeMs >= lastLogTimeMs + partitionReaderWaitLogThreshold) {
           lastLogTimeMs = totalWaitTimeMs;
           logger.info(
               "Waiting for data from partition {}/{} for {}ms",
@@ -315,7 +315,7 @@ public class DfsPartitionReader implements PartitionReader {
         logger.debug("poll result with result size: {}", results.size());
       }
 
-      if (totalWaitTimeMs >= partitionReaderWaitLogThreashold) {
+      if (totalWaitTimeMs >= partitionReaderWaitLogThreshold) {
         logger.info(
             "Finished waiting for data from partition {}/{} after {}ms",
             location.getFileName(),

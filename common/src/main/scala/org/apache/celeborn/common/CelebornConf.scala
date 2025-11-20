@@ -1025,7 +1025,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
   def isPartitionReaderCheckpointEnabled: Boolean =
     get(PARTITION_READER_CHECKPOINT_ENABLED)
-  def clientPartitionReadrWaitLogThreshold: Long =
+  def clientPartitionReaderWaitLogThreshold: Long =
     get(PARTITION_READER_WAIT_LOG_THRESHOLD)
 
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
