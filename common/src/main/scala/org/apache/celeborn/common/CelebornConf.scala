@@ -1386,6 +1386,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_MEMORY_FILE_STORAGE_EVICT_AGGRESSIVE_MODE_ENABLED)
   def workerMemoryFileStorageEvictRatio: Double =
     get(WORKER_MEMORY_FILE_STORAGE_EVICT_RATIO)
+  def workerPushDataMergeBufferEnabled: Boolean = get(WORKER_PUSH_DATA_MERGE_BUFFER_ENABLED)
+  def workerDirectMemoryRatioToMergeBuffer: Double = get(WORKER_DIRECT_MEMORY_RATIO_TO_MERGE_BUFFER)
 
   // //////////////////////////////////////////////////////
   //                  Rate Limit controller              //
@@ -4131,6 +4133,23 @@ object CelebornConf extends Logging {
       .version("0.5.1")
       .doubleConf
       .createWithDefault(0.5)
+
+  val WORKER_PUSH_DATA_MERGE_BUFFER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.pushdata.mergeBuffer.enabled")
+      .categories("worker")
+      .version("0.6.2")
+      .doc("enable merge low utilization push data's body buffer before write")
+      .booleanConf
+      .createWithDefault(false)
+
+  val WORKER_DIRECT_MEMORY_RATIO_TO_MERGE_BUFFER: ConfigEntry[Double] = {
+    buildConf("celeborn.worker.directMemoryRatioToMergeBuffer")
+      .categories("worker")
+      .version("0.6.2")
+      .doc("If direct memory usage is above this limit, the worker will merge low utilization push data's body buffer")
+      .doubleConf
+      .createWithDefault(0.4)
+  }
 
   val WORKER_CONGESTION_CONTROL_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.congestionControl.enabled")
