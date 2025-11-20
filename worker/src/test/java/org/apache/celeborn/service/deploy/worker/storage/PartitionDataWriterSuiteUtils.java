@@ -117,7 +117,7 @@ public class PartitionDataWriterSuiteUtils {
       AbstractSource source,
       PartitionDataWriterContext writerContext) {
     ReduceFileMeta reduceFileMeta = new ReduceFileMeta(celebornConf.shuffleChunkSize());
-    MemoryFileInfo memoryFileInfo = new MemoryFileInfo(userIdentifier, false, reduceFileMeta);
+    MemoryFileInfo memoryFileInfo = new MemoryFileInfo(userIdentifier, reduceFileMeta);
     if (!reduceMeta) {
       memoryFileInfo.replaceFileMeta(new MapFileMeta(32 * 1024, 10));
     }
@@ -164,7 +164,7 @@ public class PartitionDataWriterSuiteUtils {
       StoragePolicy storagePolicy)
       throws IOException {
     ReduceFileMeta reduceFileMeta = new ReduceFileMeta(celebornConf.shuffleChunkSize());
-    MemoryFileInfo memoryFileInfo = new MemoryFileInfo(userIdentifier, false, reduceFileMeta);
+    MemoryFileInfo memoryFileInfo = new MemoryFileInfo(userIdentifier, reduceFileMeta);
     if (!reduceMeta) {
       memoryFileInfo.replaceFileMeta(new MapFileMeta(32 * 1024, 10));
     }
