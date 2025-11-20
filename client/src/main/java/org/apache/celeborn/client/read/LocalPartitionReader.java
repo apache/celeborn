@@ -69,7 +69,7 @@ public class LocalPartitionReader implements PartitionReader {
   private PbStreamHandler streamHandler;
   private TransportClient client;
   private MetricsCallback metricsCallback;
-  private long partitionReaderWaitLogThread;
+  private long partitionReaderWaitLogThreashold;
   private int startChunkIndex;
   private int endChunkIndex;
 
@@ -99,7 +99,7 @@ public class LocalPartitionReader implements PartitionReader {
     results = new LinkedBlockingQueue<>();
     this.location = location;
     this.metricsCallback = metricsCallback;
-    this.partitionReaderWaitLogThread = conf.clientPartitionReadrWaitLogThreshold();
+    this.partitionReaderWaitLogThreashold = conf.clientPartitionReadrWaitLogThreshold();
     long fetchTimeoutMs = conf.clientFetchTimeoutMs();
     try {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort(), 0);
@@ -232,7 +232,7 @@ public class LocalPartitionReader implements PartitionReader {
         metricsCallback.incReadTime(waitTimeMs);
         totalWaitTimeMs += waitTimeMs;
         // Log when wait time exceeds another threshold since last log
-        if (chunk == null && totalWaitTimeMs >= lastLogTimeMs + partitionReaderWaitLogThread) {
+        if (chunk == null && totalWaitTimeMs >= lastLogTimeMs + partitionReaderWaitLogThreashold) {
           lastLogTimeMs = totalWaitTimeMs;
           logger.info(
               "Waiting for data from partition {}/{} for {}ms",
@@ -243,7 +243,7 @@ public class LocalPartitionReader implements PartitionReader {
         logger.debug("Poll result with result size: {}", results.size());
       }
 
-      if (totalWaitTimeMs >= partitionReaderWaitLogThread) {
+      if (totalWaitTimeMs >= partitionReaderWaitLogThreashold) {
         logger.info(
             "Finished waiting for data from partition {}/{} after {}ms",
             location.getFileName(),

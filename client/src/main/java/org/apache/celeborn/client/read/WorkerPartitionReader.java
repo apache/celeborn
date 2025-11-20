@@ -54,7 +54,7 @@ public class WorkerPartitionReader implements PartitionReader {
   private PbStreamHandler streamHandler;
   private TransportClient client;
   private MetricsCallback metricsCallback;
-  private long partitionReaderWaitLogThread;
+  private long partitionReaderWaitLogThreashold;
 
   private int lastReturnedChunkId = -1;
   private int returnedChunks;
@@ -102,7 +102,7 @@ public class WorkerPartitionReader implements PartitionReader {
     pollChunkWaitTime = conf.clientFetchPollChunkWaitTime();
     inflightRequestCount = 0;
     this.metricsCallback = metricsCallback;
-    this.partitionReaderWaitLogThread = conf.clientPartitionReadrWaitLogThreshold();
+    this.partitionReaderWaitLogThreashold = conf.clientPartitionReadrWaitLogThreshold();
     // only add the buffer to results queue if this reader is not closed.
     callback =
         new ChunkReceivedCallback() {
@@ -204,7 +204,7 @@ public class WorkerPartitionReader implements PartitionReader {
         metricsCallback.incReadTime(waitTimeMs);
         totalWaitTimeMs += waitTimeMs;
         // Log when wait time exceeds another threshold since last log
-        if (chunk == null && totalWaitTimeMs >= lastLogTimeMs + partitionReaderWaitLogThread) {
+        if (chunk == null && totalWaitTimeMs >= lastLogTimeMs + partitionReaderWaitLogThreashold) {
           lastLogTimeMs = totalWaitTimeMs;
           logger.info(
               "Waiting for data from partition {}/{} for {}ms",
@@ -215,7 +215,7 @@ public class WorkerPartitionReader implements PartitionReader {
         logger.debug("poll result with result size: {}", results.size());
       }
 
-      if (totalWaitTimeMs >= partitionReaderWaitLogThread) {
+      if (totalWaitTimeMs >= partitionReaderWaitLogThreashold) {
         logger.info(
             "Finished waiting for data from partition {}/{} after {}ms",
             location.getFileName(),
