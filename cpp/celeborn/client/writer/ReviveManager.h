@@ -26,6 +26,7 @@
 namespace celeborn {
 namespace client {
 
+class ShuffleClientImpl;
 /// ReviveManager is responsible for buffering the ReviveRequests, and issue
 /// the revive requests periodically in batches.
 class ReviveManager : public std::enable_shared_from_this<ReviveManager> {

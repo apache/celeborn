@@ -18,6 +18,9 @@
 #pragma once
 
 #include "celeborn/client/reader/CelebornInputStream.h"
+#include "celeborn/client/writer/PushDataCallback.h"
+#include "celeborn/client/writer/PushState.h"
+#include "celeborn/client/writer/ReviveManager.h"
 #include "celeborn/network/NettyRpcEndpointRef.h"
 
 namespace celeborn {
@@ -51,11 +54,15 @@ class ShuffleClient {
   virtual void shutdown() = 0;
 };
 
+class ReviveManager;
+class PushDataCallback;
+
 class ShuffleClientImpl
     : public ShuffleClient,
       public std::enable_shared_from_this<ShuffleClientImpl> {
  public:
   friend class ReviveManager;
+  friend class PushDataCallback;
 
   using PtrReviveRequest = std::shared_ptr<protocol::ReviveRequest>;
   using PartitionLocationMap = utils::ConcurrentHashMap<
@@ -106,9 +113,26 @@ class ShuffleClientImpl
 
   // TODO: currently this function serves as a stub. will be updated in future
   //  commits.
+  virtual void submitRetryPushData(
+      int shuffleId,
+      std::unique_ptr<memory::ReadOnlyByteBuffer> body,
+      int batchId,
+      std::shared_ptr<PushDataCallback> pushDataCallback,
+      std::shared_ptr<PushState> pushState,
+      PtrReviveRequest request,
+      int remainReviveTimes,
+      long dueTimeMs) {}
+
+  // TODO: currently this function serves as a stub. will be updated in future
+  //  commits.
   virtual bool mapperEnded(int shuffleId, int mapId) {
     return true;
   }
+
+  // TODO: currently this function serves as a stub. will be updated in future
+  //  commits.
+  virtual void addRequestToReviveManager(
+      std::shared_ptr<protocol::ReviveRequest> reviveRequest) {}
 
   // TODO: currently this function serves as a stub. will be updated in future
   //  commits.
@@ -122,6 +146,16 @@ class ShuffleClientImpl
   virtual std::optional<PtrPartitionLocationMap> getPartitionLocationMap(
       int shuffleId) {
     return partitionLocationMaps_.get(shuffleId);
+  }
+
+  virtual utils::
+      ConcurrentHashMap<int, std::shared_ptr<utils::ConcurrentHashSet<int>>>&
+      mapperEndSets() {
+    return mapperEndSets_;
+  }
+
+  virtual void addPushDataRetryTask(folly::Func&& task) {
+    pushDataRetryPool_->add(std::move(task));
   }
 
  private:
@@ -140,12 +174,16 @@ class ShuffleClientImpl
   std::shared_ptr<const conf::CelebornConf> conf_;
   std::shared_ptr<network::NettyRpcEndpointRef> lifecycleManagerRef_;
   std::shared_ptr<network::TransportClientFactory> clientFactory_;
+  std::shared_ptr<folly::IOExecutor> pushDataRetryPool_;
+  std::shared_ptr<ReviveManager> reviveManager_;
   std::mutex mutex_;
   utils::ConcurrentHashMap<
       int,
       std::shared_ptr<protocol::GetReducerFileGroupResponse>>
       reducerFileGroupInfos_;
   utils::ConcurrentHashMap<int, PtrPartitionLocationMap> partitionLocationMaps_;
+  utils::ConcurrentHashMap<int, std::shared_ptr<utils::ConcurrentHashSet<int>>>
+      mapperEndSets_;
 };
 } // namespace client
 } // namespace celeborn

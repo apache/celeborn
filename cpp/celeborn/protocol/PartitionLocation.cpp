@@ -148,6 +148,18 @@ std::unique_ptr<PbPartitionLocation> PartitionLocation::toPbWithoutPeer()
   return pbPartitionLocation;
 }
 
+std::string PartitionLocation::filename() const {
+  return fmt::format("{}-{}-{}", id, epoch, static_cast<int>(mode));
+}
+
+std::string PartitionLocation::uniqueId() const {
+  return fmt::format("{}-{}", id, epoch);
+}
+
+std::string PartitionLocation::hostAndPushPort() const {
+  return fmt::format("{}:{}", host, pushPort);
+}
+
 StatusCode toStatusCode(int32_t code) {
   CELEBORN_CHECK(code >= 0);
   CELEBORN_CHECK(code <= StatusCode::TAIL);

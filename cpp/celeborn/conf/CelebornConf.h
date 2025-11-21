@@ -68,6 +68,10 @@ class CelebornConf : public BaseConf {
   static constexpr std::string_view kClientPushLimitInFlightSleepDeltaMs{
       "celeborn.client.push.limit.inFlight.sleepInterval"};
 
+  static constexpr std::string_view
+      kClientRpcRequestPartitionLocationAskTimeout{
+          "celeborn.client.rpc.requestPartition.askTimeout"};
+
   static constexpr std::string_view kClientRpcGetReducerFileGroupRpcAskTimeout{
       "celeborn.client.rpc.getReducerFileGroup.askTimeout"};
 
@@ -119,6 +123,8 @@ class CelebornConf : public BaseConf {
   long clientPushLimitInFlightTimeoutMs() const;
 
   long clientPushLimitInFlightSleepDeltaMs() const;
+
+  Timeout clientRpcRequestPartitionLocationRpcAskTimeout() const;
 
   Timeout clientRpcGetReducerFileGroupRpcAskTimeout() const;
 

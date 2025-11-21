@@ -19,6 +19,7 @@ add_library(
         writer/PushState.cpp
         writer/PushStrategy.cpp
         writer/ReviveManager.cpp
+        writer/PushDataCallback.cpp
         ShuffleClient.cpp
         compress/Decompressor.cpp
         compress/Lz4Decompressor.cpp
