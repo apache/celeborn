@@ -243,6 +243,7 @@ object WorkerSource {
   val READ_BUFFER_DISPATCHER_REQUESTS_LENGTH = "ReadBufferDispatcherRequestsLength"
   val READ_BUFFER_ALLOCATED_COUNT = "ReadBufferAllocatedCount"
   val AVAILABLE_READ_BUFFER = "AvailableReadBuffer"
+  val READ_BUFFER_USAGE_RATIO = "ReadBufferUsageRatio"
   val MEMORY_FILE_STORAGE_SIZE = "MemoryFileStorageSize"
   val DIRECT_MEMORY_USAGE_RATIO = "DirectMemoryUsageRatio"
   val EVICTED_FILE_COUNT = "EvictedFileCount"

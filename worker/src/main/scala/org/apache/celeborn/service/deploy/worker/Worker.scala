@@ -409,6 +409,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.AVAILABLE_READ_BUFFER) { () =>
     memoryManager.availableReadBuffer
   }
+  workerSource.addGauge(WorkerSource.READ_BUFFER_USAGE_RATIO) { () =>
+    memoryManager.readBufferUsageRatio
+  }
   workerSource.addGauge(WorkerSource.MEMORY_FILE_STORAGE_SIZE) { () =>
     memoryManager.getMemoryFileStorageCounter
   }
