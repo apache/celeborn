@@ -147,7 +147,7 @@ void PushDataCallback::onSuccess(
     }
     case protocol::StatusCode::PUSH_DATA_SUCCESS_REPLICA_CONGESTED: {
       VLOG(1) << "Push data to " << latestLocation_->hostAndPushPort()
-              << " primary congestion required for shuffle " << shuffleId_
+              << " replicate congestion required for shuffle " << shuffleId_
               << " map " << mapId_ << " attempt " << attemptId_ << " partition "
               << partitionId_ << " batch " << batchId_ << ".";
       pushState_->onCongestControl(latestLocation_->hostAndPushPort());
