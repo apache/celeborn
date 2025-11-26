@@ -198,7 +198,9 @@ void PushDataCallback::onFailure(std::unique_ptr<std::exception> exception) {
     return;
   }
   remainingReviveTimes_--;
-  // TODO: the cause should be extracted from error msg.
+  // TODO: we use PRIMARY exception as the dummy value here, but the cause
+  //  should be extracted from error msg. Especially, the cause should tell if
+  //  the exception is from PRIMARY or REPLICATE.
   protocol::StatusCode cause =
       protocol::StatusCode::PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY;
   reviveAndRetryPushData(*sharedClient, cause);
