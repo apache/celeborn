@@ -56,6 +56,9 @@ spec:
       {{- end }}
       {{- if $paths }}
       initContainers:
+        {{- if .Values.worker.extraInitContainers }}
+          {{- tpl (toYaml .Values.worker.extraInitContainers) . | nindent 6 }}
+        {{- end }}
       - name: chown-celeborn-worker-volume
         image: {{ include "celeborn.image" . }}
         {{- with .Values.image.pullPolicy }}
