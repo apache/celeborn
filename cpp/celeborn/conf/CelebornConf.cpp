@@ -142,10 +142,11 @@ const std::unordered_map<std::string, folly::Optional<std::string>>
         NUM_PROP(kClientPushMaxReqsInFlightTotal, 256),
         NUM_PROP(kClientPushLimitInFlightTimeoutMs, 240000),
         NUM_PROP(kClientPushLimitInFlightSleepDeltaMs, 50),
+        STR_PROP(kClientRpcRequestPartitionLocationAskTimeout, "60s"),
         STR_PROP(kClientRpcGetReducerFileGroupRpcAskTimeout, "60s"),
         STR_PROP(kNetworkConnectTimeout, "10s"),
         STR_PROP(kClientFetchTimeout, "600s"),
-        NUM_PROP(kNetworkIoNumConnectionsPerPeer, "1"),
+        NUM_PROP(kNetworkIoNumConnectionsPerPeer, 1),
         NUM_PROP(kNetworkIoClientThreads, 0),
         NUM_PROP(kClientFetchMaxReqsInFlight, 3),
         STR_PROP(
@@ -221,6 +222,11 @@ long CelebornConf::clientPushLimitInFlightTimeoutMs() const {
 long CelebornConf::clientPushLimitInFlightSleepDeltaMs() const {
   return std::stol(
       optionalProperty(kClientPushLimitInFlightSleepDeltaMs).value());
+}
+
+Timeout CelebornConf::clientRpcRequestPartitionLocationRpcAskTimeout() const {
+  return utils::toTimeout(toDuration(
+      optionalProperty(kClientRpcRequestPartitionLocationAskTimeout).value()));
 }
 
 Timeout CelebornConf::clientRpcGetReducerFileGroupRpcAskTimeout() const {

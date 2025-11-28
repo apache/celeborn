@@ -92,10 +92,11 @@ struct PartitionLocation {
 
   std::unique_ptr<PbPartitionLocation> toPb() const;
 
-  std::string filename() const {
-    return std::to_string(id) + "-" + std::to_string(epoch) + "-" +
-        std::to_string(mode);
-  }
+  std::string filename() const;
+
+  std::string uniqueId() const;
+
+  std::string hostAndPushPort() const;
 
  private:
   static std::unique_ptr<PartitionLocation> fromPbWithoutPeer(
