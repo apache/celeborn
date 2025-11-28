@@ -507,7 +507,7 @@ public class MemoryManager {
   }
 
   public double readBufferUsageRatio() {
-    return readBufferCounter.get() / (double) maxDirectMemory;
+    return readBufferCounter.get() / (double) readBufferThreshold;
   }
 
   public long getPausePushDataAndReplicateCounter() {
