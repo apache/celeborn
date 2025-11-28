@@ -104,8 +104,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                 partitionDataWriterContext.getShuffleId,
                 location.getFileName,
                 partitionDataWriterContext.getUserIdentifier,
-                partitionDataWriterContext.getPartitionType,
-                partitionDataWriterContext.isPartitionSplitEnabled)
+                partitionDataWriterContext.getPartitionType)
               val metaHandler = getPartitionMetaHandler(memoryFileInfo)
               new MemoryTierWriter(
                 conf,
@@ -129,8 +128,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                 partitionDataWriterContext.getShuffleId,
                 location.getFileName,
                 partitionDataWriterContext.getUserIdentifier,
-                partitionDataWriterContext.getPartitionType,
-                partitionDataWriterContext.isPartitionSplitEnabled)
+                partitionDataWriterContext.getPartitionType)
               partitionDataWriterContext.setWorkingDir(workingDir)
               val metaHandler = getPartitionMetaHandler(diskFileInfo)
               if (flusher.isInstanceOf[LocalFlusher]
