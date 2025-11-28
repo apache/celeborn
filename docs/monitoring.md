@@ -244,7 +244,8 @@ These metrics are exposed by Celeborn worker.
     | BufferStreamReadBuffer                 | The memory used by credit stream read buffer.                                                                   |
     | ReadBufferDispatcherRequestsLength     | The queue size of read buffer allocation requests.                                                              |
     | ReadBufferAllocatedCount               | Allocated read buffer count.                                                                                    |
-  - | AvailableReadBuffer                    | The available memory for credit stream read buffer.                                                             |
+    | AvailableReadBuffer                    | The available memory for credit stream read buffer.                                                             |
+    | ReadBufferUsageRatio                   | Ratio of credit stream read buffer used and max direct memory.                                                  |
     | ActiveCreditStreamCount                | Active stream count for map partition reading streams.                                                          |
     | ActiveMapPartitionCount                | The count of active map partition reading streams.                                                              |
     | SorterCacheHitRate                     | The cache hit rate for worker partition sorter index.                                                           |
