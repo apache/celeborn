@@ -280,6 +280,9 @@ worker:
     # runAsGroup: 10006
     # fsGroup: 10006
 
+  # Add additional init containers into workers (templated).
+  extraInitContainers: []
+
   # --Volumes for Celeborn worker pods.
   volumes:
   - name: disk1
