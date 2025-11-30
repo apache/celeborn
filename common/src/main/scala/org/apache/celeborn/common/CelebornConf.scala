@@ -30,6 +30,7 @@ import scala.util.matching.Regex
 import io.netty.channel.epoll.Epoll
 import io.netty.channel.kqueue.KQueue
 
+import org.apache.celeborn.common.CelebornConf.CLIENT_DFS_FETCH_EXECUTOR_THREADS
 import org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl
 import org.apache.celeborn.common.client.{ApplicationInfoProvider, DefaultApplicationInfoProvider}
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, HadoopBasedIdentityProvider, IdentityProvider}
@@ -1109,6 +1110,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_ADAPTIVE_OPTIMIZE_SKEWED_PARTITION_READ_ENABLED)
   def clientShuffleDataLostOnUnknownWorkerEnabled: Boolean =
     get(CLIENT_SHUFFLE_DATA_LOST_ON_UNKNOWN_WORKER_ENABLED)
+  def clientDfsFetchExecutorThreads: Int =
+    get(CLIENT_DFS_FETCH_EXECUTOR_THREADS)
 
   // //////////////////////////////////////////////////////
   //                   Client Shuffle                    //
@@ -4986,6 +4989,14 @@ object CelebornConf extends Logging {
       .version("0.3.1")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val CLIENT_DFS_FETCH_EXECUTOR_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.client.dfs.fetch.executorThreads")
+      .categories("client")
+      .version("0.7.0")
+      .doc("Number of threads in the fetch executor thread pool for DFS partition reader.")
+      .intConf
+      .createWithDefault(3)
 
   val TEST_CLIENT_RETRY_REVIVE: ConfigEntry[Boolean] =
     buildConf("celeborn.test.client.retryRevive")
