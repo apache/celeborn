@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.service.deploy.cluster
 
-import org.apache.celeborn.client.read.MetricsCallback
-
 import java.io.File
 import java.util
 
@@ -30,6 +28,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
+import org.apache.celeborn.client.read.MetricsCallback
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -205,9 +204,16 @@ trait JavaCppHybridReadWriteTestBase extends AnyFunSuite
     var sums = new util.ArrayList[Long](numPartitions)
     for (partitionId <- 0 until numPartitions) {
       sums.add(0)
-      val inputStream = shuffleClient.readPartition(shuffleId, partitionId, attemptId, 0, 0, Integer.MAX_VALUE, metricsCallback)
+      val inputStream = shuffleClient.readPartition(
+        shuffleId,
+        partitionId,
+        attemptId,
+        0,
+        0,
+        Integer.MAX_VALUE,
+        metricsCallback)
       var c = inputStream.read()
-      var data : Long = 0
+      var data: Long = 0
       var dataCnt = 0
       while (c != -1) {
         if (c == '-') {
