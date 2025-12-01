@@ -19,9 +19,9 @@ package org.apache.celeborn.service.deploy.cluster
 
 import org.apache.celeborn.common.protocol.CompressionCodec
 
-object JavaWriteCppReadTestWithNONE extends JavaCppHybridReadWriteTestBase {
+object CppWriteJavaReadTestWithNONE extends JavaCppHybridReadWriteTestBase {
 
   def main(args: Array[String]) = {
-    testJavaWriteCppRead(CompressionCodec.NONE)
+    testCppWriteJavaRead(CompressionCodec.NONE)
   }
 }
