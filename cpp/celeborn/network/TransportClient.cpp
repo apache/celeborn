@@ -180,6 +180,13 @@ TransportClientFactory::TransportClientFactory(
 std::shared_ptr<TransportClient> TransportClientFactory::createClient(
     const std::string& host,
     uint16_t port) {
+  return createClient(host, port, std::rand());
+}
+
+std::shared_ptr<TransportClient> TransportClientFactory::createClient(
+    const std::string& host,
+    uint16_t port,
+    int32_t partitionId) {
   auto address = folly::SocketAddress(host, port);
   auto pool = clientPools_.withLock([&](auto& registry) {
     auto iter = registry.find(address);
@@ -191,7 +198,7 @@ std::shared_ptr<TransportClient> TransportClientFactory::createClient(
     registry[address] = createdPool;
     return createdPool;
   });
-  auto clientId = std::rand() % numConnectionsPerPeer_;
+  auto clientId = partitionId % numConnectionsPerPeer_;
   {
     std::lock_guard<std::mutex> lock(pool->mutex);
     // TODO: auto-disconnect if the connection is idle for a long time?

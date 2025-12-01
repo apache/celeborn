@@ -45,11 +45,32 @@ class CelebornConf : public BaseConf {
   static constexpr std::string_view kRpcLookupTimeout{
       "celeborn.rpc.lookupTimeout"};
 
+  static constexpr std::string_view kClientIoConnectionTimeout{
+      "celeborn.client.io.connectionTimeout"};
+
+  static constexpr std::string_view kClientRpcRegisterShuffleAskTimeout{
+      "celeborn.client.rpc.registerShuffle.askTimeout"};
+
+  static constexpr std::string_view kClientRegisterShuffleMaxRetries{
+      "celeborn.client.registerShuffle.maxRetries"};
+
+  static constexpr std::string_view kClientRegisterShuffleRetryWait{
+      "celeborn.client.registerShuffle.retryWait"};
+
+  static constexpr std::string_view kClientPushRetryThreads{
+      "celeborn.client.push.retry.threads"};
+
+  static constexpr std::string_view kClientPushTimeout{
+      "celeborn.client.push.timeout"};
+
   static constexpr std::string_view kClientPushReviveInterval{
       "celeborn.client.push.revive.interval"};
 
   static constexpr std::string_view kClientPushReviveBatchSize{
       "celeborn.client.push.revive.batchSize"};
+
+  static constexpr std::string_view kClientPushMaxReviveTimes{
+      "celeborn.client.push.revive.maxRetries"};
 
   static constexpr std::string_view kClientPushLimitStrategy{
       "celeborn.client.push.limit.strategy"};
@@ -110,9 +131,23 @@ class CelebornConf : public BaseConf {
 
   Timeout rpcLookupTimeout() const;
 
+  Timeout clientIoConnectionTimeout() const;
+
+  Timeout clientRpcRegisterShuffleRpcAskTimeout() const;
+
+  int clientRegisterShuffleMaxRetries() const;
+
+  Timeout clientRegisterShuffleRetryWait() const;
+
+  int clientPushRetryThreads() const;
+
+  Timeout clientPushDataTimeout() const;
+
   Timeout clientPushReviveInterval() const;
 
   int clientPushReviveBatchSize() const;
+
+  int clientPushMaxReviveTimes() const;
 
   std::string clientPushLimitStrategy() const;
 

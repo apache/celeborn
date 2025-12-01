@@ -135,8 +135,15 @@ const std::unordered_map<std::string, folly::Optional<std::string>>
     CelebornConf::kDefaultProperties = {
         STR_PROP(kRpcAskTimeout, "60s"),
         STR_PROP(kRpcLookupTimeout, "30s"),
+        STR_PROP(kClientIoConnectionTimeout, "300s"),
+        STR_PROP(kClientRpcRegisterShuffleAskTimeout, "60s"),
+        NUM_PROP(kClientRegisterShuffleMaxRetries, 3),
+        STR_PROP(kClientRegisterShuffleRetryWait, "3s"),
+        NUM_PROP(kClientPushRetryThreads, 8),
+        STR_PROP(kClientPushTimeout, "120s"),
         STR_PROP(kClientPushReviveInterval, "100ms"),
         NUM_PROP(kClientPushReviveBatchSize, 2048),
+        NUM_PROP(kClientPushMaxReviveTimes, 5),
         STR_PROP(kClientPushLimitStrategy, kSimplePushStrategy),
         NUM_PROP(kClientPushMaxReqsInFlightPerWorker, 32),
         NUM_PROP(kClientPushMaxReqsInFlightTotal, 256),
@@ -193,6 +200,34 @@ Timeout CelebornConf::rpcLookupTimeout() const {
       toDuration(optionalProperty(kRpcLookupTimeout).value()));
 }
 
+Timeout CelebornConf::clientIoConnectionTimeout() const {
+  return utils::toTimeout(
+      toDuration(optionalProperty(kClientIoConnectionTimeout).value()));
+}
+
+Timeout CelebornConf::clientRpcRegisterShuffleRpcAskTimeout() const {
+  return utils::toTimeout(toDuration(
+      optionalProperty(kClientRpcRegisterShuffleAskTimeout).value()));
+}
+
+int CelebornConf::clientRegisterShuffleMaxRetries() const {
+  return std::stoi(optionalProperty(kClientRegisterShuffleMaxRetries).value());
+}
+
+Timeout CelebornConf::clientRegisterShuffleRetryWait() const {
+  return utils::toTimeout(
+      toDuration(optionalProperty(kClientRegisterShuffleRetryWait).value()));
+}
+
+int CelebornConf::clientPushRetryThreads() const {
+  return std::stoi(optionalProperty(kClientPushRetryThreads).value());
+}
+
+Timeout CelebornConf::clientPushDataTimeout() const {
+  return utils::toTimeout(
+      toDuration(optionalProperty(kClientPushTimeout).value()));
+}
+
 Timeout CelebornConf::clientPushReviveInterval() const {
   return utils::toTimeout(
       toDuration(optionalProperty(kClientPushReviveInterval).value()));
@@ -200,6 +235,10 @@ Timeout CelebornConf::clientPushReviveInterval() const {
 
 int CelebornConf::clientPushReviveBatchSize() const {
   return std::stoi(optionalProperty(kClientPushReviveBatchSize).value());
+}
+
+int CelebornConf::clientPushMaxReviveTimes() const {
+  return std::stoi(optionalProperty(kClientPushMaxReviveTimes).value());
 }
 
 std::string CelebornConf::clientPushLimitStrategy() const {

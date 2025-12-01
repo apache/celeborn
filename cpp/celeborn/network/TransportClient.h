@@ -125,6 +125,9 @@ class TransportClientFactory {
       const std::string& host,
       uint16_t port);
 
+  virtual std::shared_ptr<TransportClient>
+  createClient(const std::string& host, uint16_t port, int32_t partitionId);
+
  private:
   struct ClientPool {
     std::mutex mutex;
