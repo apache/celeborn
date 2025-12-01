@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
+#include <folly/init/Init.h>
 #include <cstdio>
 #include <fstream>
 #include <iostream>
-#include <folly/init/Init.h>
 
 #include <celeborn/client/ShuffleClient.h>
 
