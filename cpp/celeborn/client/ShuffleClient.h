@@ -76,6 +76,23 @@ class ShuffleClient {
 class ReviveManager;
 class PushDataCallback;
 
+/// ShuffleClientEndpoint holds all the resources of ShuffleClient, including
+/// threadPools and clientFactories. The endpoint could be reused by multiple
+/// ShuffleClient to avoid creating too many resources.
+class ShuffleClientEndpoint {
+ public:
+  ShuffleClientEndpoint(const std::shared_ptr<const conf::CelebornConf>& conf);
+
+  std::shared_ptr<folly::IOThreadPoolExecutor> pushDataRetryPool() const;
+
+  std::shared_ptr<network::TransportClientFactory> clientFactory() const;
+
+ private:
+  const std::shared_ptr<const conf::CelebornConf> conf_;
+  std::shared_ptr<folly::IOThreadPoolExecutor> pushDataRetryPool_;
+  std::shared_ptr<network::TransportClientFactory> clientFactory_;
+};
+
 class ShuffleClientImpl
     : public ShuffleClient,
       public std::enable_shared_from_this<ShuffleClientImpl> {
@@ -94,7 +111,7 @@ class ShuffleClientImpl
   static std::shared_ptr<ShuffleClientImpl> create(
       const std::string& appUniqueId,
       const std::shared_ptr<const conf::CelebornConf>& conf,
-      const std::shared_ptr<network::TransportClientFactory>& clientFactory);
+      const ShuffleClientEndpoint& clientEndpoint);
 
   void setupLifecycleManagerRef(std::string& host, int port) override;
 
@@ -156,7 +173,7 @@ class ShuffleClientImpl
   ShuffleClientImpl(
       const std::string& appUniqueId,
       const std::shared_ptr<const conf::CelebornConf>& conf,
-      const std::shared_ptr<network::TransportClientFactory>& clientFactory);
+      const ShuffleClientEndpoint& clientEndpoint);
 
   virtual void submitRetryPushData(
       int shuffleId,

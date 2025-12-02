@@ -21,25 +21,46 @@
 
 namespace celeborn {
 namespace client {
+
+ShuffleClientEndpoint::ShuffleClientEndpoint(
+    const std::shared_ptr<const conf::CelebornConf>& conf)
+    : conf_(conf),
+      pushDataRetryPool_(std::make_shared<folly::IOThreadPoolExecutor>(
+          conf_->clientPushRetryThreads(),
+          std::make_shared<folly::NamedThreadFactory>(
+              "celeborn-retry-pushdata"))),
+      clientFactory_(std::make_shared<network::TransportClientFactory>(conf_)) {
+}
+
+std::shared_ptr<folly::IOThreadPoolExecutor>
+ShuffleClientEndpoint::pushDataRetryPool() const {
+  return pushDataRetryPool_;
+}
+
+std::shared_ptr<network::TransportClientFactory>
+ShuffleClientEndpoint::clientFactory() const {
+  return clientFactory_;
+}
+
 std::shared_ptr<ShuffleClientImpl> ShuffleClientImpl::create(
     const std::string& appUniqueId,
     const std::shared_ptr<const conf::CelebornConf>& conf,
-    const std::shared_ptr<network::TransportClientFactory>& clientFactory) {
+    const ShuffleClientEndpoint& clientEndpoint) {
   return std::shared_ptr<ShuffleClientImpl>(
-      new ShuffleClientImpl(appUniqueId, conf, clientFactory));
+      new ShuffleClientImpl(appUniqueId, conf, clientEndpoint));
 }
 
 ShuffleClientImpl::ShuffleClientImpl(
     const std::string& appUniqueId,
     const std::shared_ptr<const conf::CelebornConf>& conf,
-    const std::shared_ptr<network::TransportClientFactory>& clientFactory)
+    const ShuffleClientEndpoint& clientEndpoint)
     : appUniqueId_(appUniqueId),
       conf_(conf),
-      clientFactory_(clientFactory),
-      pushDataRetryPool_(std::make_shared<folly::IOThreadPoolExecutor>(
-          conf_->clientPushRetryThreads(),
-          std::make_shared<folly::NamedThreadFactory>(
-              "celeborn-retry-pushdata"))) {}
+      clientFactory_(clientEndpoint.clientFactory()),
+      pushDataRetryPool_(clientEndpoint.pushDataRetryPool()) {
+  CELEBORN_CHECK_NOT_NULL(clientFactory_);
+  CELEBORN_CHECK_NOT_NULL(pushDataRetryPool_);
+}
 
 void ShuffleClientImpl::setupLifecycleManagerRef(std::string& host, int port) {
   auto managerClient = clientFactory_->createClient(host, port);

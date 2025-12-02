@@ -37,8 +37,8 @@ namespace conf {
 
 class CelebornConf : public BaseConf {
  public:
-  static const std::unordered_map<std::string, folly::Optional<std::string>>
-      kDefaultProperties;
+  static const std::unordered_map<std::string, folly::Optional<std::string>>&
+  defaultProperties();
 
   static constexpr std::string_view kRpcAskTimeout{"celeborn.rpc.askTimeout"};
 

@@ -165,7 +165,7 @@ SerializePipeline::Ptr MessagePipelineFactory::newPipeline(
 }
 
 TransportClientFactory::TransportClientFactory(
-    const std::shared_ptr<conf::CelebornConf>& conf) {
+    const std::shared_ptr<const conf::CelebornConf>& conf) {
   numConnectionsPerPeer_ = conf->networkIoNumConnectionsPerPeer();
   rpcLookupTimeout_ = conf->rpcLookupTimeout();
   connectTimeout_ = conf->networkConnectTimeout();
