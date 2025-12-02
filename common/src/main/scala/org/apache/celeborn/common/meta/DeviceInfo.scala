@@ -234,6 +234,7 @@ object DeviceInfo {
       """
       |Filesystem      Size  Used Avail  Use% Mounted on
       |D:\        1.8T   91G  1.7T    6% D:
+      |K:\        1.8T   91G  1.7T    6% K:
       |/data/yarnnm/local       1.8T   91G  1.7T    6% /data/yarnnm/local
       |""".stripMargin
 
@@ -249,7 +250,7 @@ object DeviceInfo {
 
     // (vda, vdb)
     // val lsBlockResult = runCommand("ls /sys/block/").trim
-    val lsBlockResult =  "D:\\ /data/yarnnm/local"
+    val lsBlockResult =  "D:\\ /data/yarnnm/local K:\\"
     logger.info(s"ls block\n$lsBlockResult")
     val blocks = lsBlockResult.split("[ \n\r\t]+")
 

@@ -1054,7 +1054,25 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                       Worker                        //
   // //////////////////////////////////////////////////////
 
-  /**
+
+  def parseStorageConf(str: String): (String, List[String]) = {
+    require(str.nonEmpty, "Illegal storage dir")
+
+    // Skip the drive colon (e.g., "D:")
+    val startIdx = if (str.matches("^[A-Za-z]:.*")) 2 else 0
+    val firstAttrColon = str.indexOf(':', startIdx)
+    if (firstAttrColon < 0) {
+      // No attributes
+      (str, Nil)
+    } else {
+      val dir = str.substring(0, firstAttrColon)
+      val rest = str.substring(firstAttrColon + 1)
+      val attrs = rest.split(":", -1).toList
+      (dir, attrs)
+    }
+  }
+
+    /**
    * @return workingDir, usable space, flusher thread count, disk type
    *         check more details at CONFIGURATION_GUIDE.md
    */
@@ -1066,10 +1084,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         var maxCapacity = defaultMaxCapacity
         var diskType = HDD
         var flushThread = get(WORKER_FLUSHER_THREADS)
-        val (dir, attributes) = str.split(":").toList match {
-          case _dir :: tail => (_dir, tail)
-          case nil => throw new IllegalArgumentException(s"Illegal storage dir: $nil")
-        }
+        val (dir, attributes) = parseStorageConf(str)
         var flushThreadsDefined = false
         attributes.foreach {
           case capacityStr if capacityStr.toLowerCase.startsWith("capacity=") =>
