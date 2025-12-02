@@ -212,7 +212,7 @@ class ShuffleClientImpl
   void limitMaxInFlight(
       const std::string& mapKey,
       PushState& pushState,
-      const std::string hostAndPushPort);
+      const std::string& hostAndPushPort);
 
   // Check if the pushState's ongoing package num reaches zero, if not, block
   // until the ongoing package num decreases to zero.

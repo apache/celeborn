@@ -33,7 +33,13 @@ ShuffleClientImpl::ShuffleClientImpl(
     const std::string& appUniqueId,
     const std::shared_ptr<const conf::CelebornConf>& conf,
     const std::shared_ptr<network::TransportClientFactory>& clientFactory)
-    : appUniqueId_(appUniqueId), conf_(conf), clientFactory_(clientFactory) {}
+    : appUniqueId_(appUniqueId),
+      conf_(conf),
+      clientFactory_(clientFactory),
+      pushDataRetryPool_(std::make_shared<folly::IOThreadPoolExecutor>(
+          conf_->clientPushRetryThreads(),
+          std::make_shared<folly::NamedThreadFactory>(
+              "celeborn-retry-pushdata"))) {}
 
 void ShuffleClientImpl::setupLifecycleManagerRef(std::string& host, int port) {
   auto managerClient = clientFactory_->createClient(host, port);
@@ -127,7 +133,7 @@ int ShuffleClientImpl::pushData(
   auto pushState = getPushState(mapKey);
   const int nextBatchId = pushState->nextBatchId();
 
-  // TODO: compression is not supported.
+  // TODO: compression in writing is not supported.
 
   auto writeBuffer =
       memory::ByteBuffer::createWriteOnly(kBatchHeaderSize + length);
@@ -361,7 +367,7 @@ void ShuffleClientImpl::registerShuffle(
               std::shared_ptr<const protocol::PartitionLocation>>>();
           auto& partitionLocations =
               registerShuffleResponse->partitionLocations;
-          for (int i = 0; i < partitionLocations.size(); i++) {
+          for (auto i = 0; i < partitionLocations.size(); i++) {
             auto id = partitionLocations[i]->id;
             partitionLocationMap->set(id, std::move(partitionLocations[i]));
           }
@@ -420,17 +426,25 @@ void ShuffleClientImpl::submitRetryPushData(
     accumulatedTimeMs += deltaMs;
   }
   if (mapperEnded(shuffleId, request->mapId)) {
-    VLOG(1) << "Revive for push data success, but the mapper already ended "
-               "for shuffle "
-            << shuffleId << " map " << request->mapId << " attempt "
-            << request->attemptId << " partition " << request->partitionId
-            << " batch " << batchId << " location hostAndPushPort "
-            << request->loc->hostAndPushPort() << ".";
-    pushState->removeBatch(batchId, request->loc->hostAndPushPort());
+    if (request->loc) {
+      VLOG(1) << "Revive for push data success, but the mapper already ended "
+                 "for shuffle "
+              << shuffleId << " map " << request->mapId << " attempt "
+              << request->attemptId << " partition " << request->partitionId
+              << " batch " << batchId << " location hostAndPushPort "
+              << request->loc->hostAndPushPort() << ".";
+      pushState->removeBatch(batchId, request->loc->hostAndPushPort());
+    } else {
+      VLOG(1) << "Revive for push data success, but the mapper already ended "
+                 "for shuffle "
+              << shuffleId << " map " << request->mapId << " attempt "
+              << request->attemptId << " partition " << request->partitionId
+              << " batch " << batchId << " no location available.";
+    }
     return;
   }
   if (request->reviveStatus.load() != protocol::StatusCode::SUCCESS) {
-    // TODO: the exception message here should be assembled...
+    // TODO: the exception message here should be assembled.
     pushDataCallback->onFailure(std::make_unique<std::exception>());
     return;
   }
@@ -459,7 +473,7 @@ void ShuffleClientImpl::submitRetryPushData(
         newLocation->host, newLocation->pushPort, request->partitionId);
     client->pushDataAsync(
         pushData, conf_->clientPushDataTimeout(), pushDataCallback);
-  } catch (std::exception e) {
+  } catch (const std::exception& e) {
     LOG(ERROR) << "Exception raised while pushing data for shuffle "
                << shuffleId << " map " << request->mapId << " attempt "
                << request->attemptId << " partition " << request->partitionId
@@ -593,7 +607,7 @@ bool ShuffleClientImpl::revive(
 void ShuffleClientImpl::limitMaxInFlight(
     const std::string& mapKey,
     PushState& pushState,
-    const std::string hostAndPushPort) {
+    const std::string& hostAndPushPort) {
   bool reachLimit = pushState.limitMaxInFlight(hostAndPushPort);
   if (reachLimit) {
     auto msg = fmt::format(
