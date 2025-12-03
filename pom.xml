@@ -91,7 +91,8 @@
     <leveldb.version>1.8</leveldb.version>
     <log4j2.version>2.24.3</log4j2.version>
     <disruptor.version>3.4.4</disruptor.version>
-    <lz4-java.version>1.8.0</lz4-java.version>
+    <lz4-java.group>at.yawk.lz4</lz4-java.group>
+    <lz4-java.version>1.10.3</lz4-java.version>
     <mockito.version>4.11.0</mockito.version>
     <mockito-scalatest.version>1.17.14</mockito-scalatest.version>
     <netty.version>4.2.10.Final</netty.version>
@@ -527,7 +528,7 @@
         <version>${leveldb.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.lz4</groupId>
+        <groupId>${lz4-java.group}</groupId>
         <artifactId>lz4-java</artifactId>
         <version>${lz4-java.version}</version>
       </dependency>
@@ -1530,6 +1531,7 @@
         <module>tests/spark-it</module>
       </modules>
       <properties>
+        <lz4-java.group>org.lz4</lz4-java.group>
         <lz4-java.version>1.4.0</lz4-java.version>
         <scala.version>2.11.12</scala.version>
         <scala.binary.version>2.11</scala.binary.version>
@@ -1549,6 +1551,7 @@
         <module>tests/spark-it</module>
       </modules>
       <properties>
+        <lz4-java.group>org.lz4</lz4-java.group>
         <lz4-java.version>1.7.1</lz4-java.version>
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
@@ -1569,6 +1572,7 @@
         <module>tests/spark-it</module>
       </modules>
       <properties>
+        <lz4-java.group>org.lz4</lz4-java.group>
         <lz4-java.version>1.7.1</lz4-java.version>
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
@@ -1589,6 +1593,7 @@
         <module>tests/spark-it</module>
       </modules>
       <properties>
+        <lz4-java.group>org.lz4</lz4-java.group>
         <lz4-java.version>1.7.1</lz4-java.version>
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
@@ -1608,6 +1613,7 @@
         <module>tests/spark-it</module>
       </modules>
       <properties>
+        <lz4-java.group>org.lz4</lz4-java.group>
         <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
@@ -1627,6 +1633,7 @@
         <module>tests/spark-it</module>
       </modules>
       <properties>
+        <lz4-java.group>org.lz4</lz4-java.group>
         <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.12.17</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
@@ -1646,6 +1653,7 @@
         <module>tests/spark-it</module>
       </modules>
       <properties>
+        <lz4-java.group>org.lz4</lz4-java.group>
         <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.12.18</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
@@ -1665,6 +1673,7 @@
         <module>tests/spark-it</module>
       </modules>
       <properties>
+        <lz4-java.group>org.lz4</lz4-java.group>
         <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.13.16</scala.version>
         <scala.binary.version>2.13</scala.binary.version>
@@ -1684,6 +1693,7 @@
         <module>tests/spark-it</module>
       </modules>
       <properties>
+        <lz4-java.group>org.lz4</lz4-java.group>
         <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.13.17</scala.version>
         <scala.binary.version>2.13</scala.binary.version>

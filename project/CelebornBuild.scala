@@ -38,7 +38,8 @@ import CelebornCommonSettings._
 object Dependencies {
 
   val zstdJniVersion = sparkClientProjects.map(_.zstdJniVersion).getOrElse("1.5.7-1")
-  val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.8.0")
+  val lz4JavaGroup = sparkClientProjects.map(_.lz4JavaGroup).getOrElse("at.yawk.lz4")
+  val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.10.3")
 
   // Dependent library versions
   val apLoaderVersion = "4.0-10"
@@ -176,7 +177,7 @@ object Dependencies {
   val log4j12Api = "org.apache.logging.log4j" % "log4j-1.2-api" % log4j2Version
   val log4jSlf4jImpl = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4j2Version
   val disruptor = "com.lmax" % "disruptor" % disruptorVersion
-  val lz4Java = "org.lz4" % "lz4-java" % lz4JavaVersion
+  val lz4Java = lz4JavaGroup % "lz4-java" % lz4JavaVersion
   val protobufJava = "com.google.protobuf" % "protobuf-java" % protoVersion
   val ratisClient = "org.apache.ratis" % "ratis-client" % ratisVersion
   val ratisCommon = "org.apache.ratis" % "ratis-common" % ratisVersion
@@ -1017,6 +1018,7 @@ trait SparkClientProjects {
   val sparkClientShadedProjectPath: String
   val sparkClientShadedProjectName: String
 
+  val lz4JavaGroup: String = "org.lz4"
   val lz4JavaVersion: String
   val sparkProjectScalaVersion: String
   val sparkVersion: String
