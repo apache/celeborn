@@ -51,6 +51,10 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) 
 
   // Track the receivers whose inboxes may contain messages.
   private val receivers = new LinkedBlockingQueue[EndpointData]
+  private val endpointVerifierSeparate: Boolean =
+    nettyEnv.celebornConf.endpointVerifierSeparateEnabled
+  private var endpointVerifierMessageLoopRunning: Boolean = true
+  private var rpcEndpointVerifier: EndpointData = _
 
   /**
    * True if the dispatcher has been stopped. Once stopped, all messages posted will be bounced
@@ -71,7 +75,11 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) 
       }
       val data = endpoints.get(name)
       endpointRefs.put(data.endpoint, data.ref)
-      receivers.offer(data) // for the OnStart message
+      if (endpointVerifierSeparate && RpcEndpointVerifier.NAME.equals(name)) {
+        rpcEndpointVerifier = data
+      } else {
+        receivers.offer(data) // for the OnStart message
+      }
     }
     endpointRef
   }
@@ -174,7 +182,11 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) 
         Some(new CelebornException(s"Could not find $endpointName."))
       } else {
         data.inbox.post(message)
-        receivers.offer(data)
+        if (endpointVerifierSeparate && RpcEndpointVerifier.NAME.equals(endpointName)) {
+          // RpcEndpointVerifier's message will process by EndpointVerifierMessageLoop, so do noting here
+        } else {
+          receivers.offer(data)
+        }
         None
       }
     }
@@ -193,6 +205,9 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) 
     endpoints.keySet().asScala.foreach(unregisterRpcEndpoint)
     // Enqueue a message that tells the message loops to stop.
     receivers.offer(PoisonPill)
+    if (endpointVerifierSeparate) {
+      endpointVerifierMessageLoopRunning = false
+    }
     threadpool.shutdown()
   }
 
@@ -221,6 +236,17 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) 
     for (i <- 0 until numThreads) {
       pool.execute(new MessageLoop)
     }
+    if (endpointVerifierSeparate) {
+      for (i <- 0 until numThreads - 1) {
+        pool.execute(new MessageLoop)
+      }
+      pool.execute(new EndpointVerifierMessageLoop)
+      logInfo("EndpointVerifierMessageLoop started")
+    } else {
+      for (i <- 0 until numThreads) {
+        pool.execute(new MessageLoop)
+      }
+    }
     pool
   }
 
@@ -248,6 +274,35 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) 
             // Re-submit a MessageLoop so that Dispatcher will still work if
             // UncaughtExceptionHandler decides to not kill JVM.
             threadpool.execute(new MessageLoop)
+          } finally {
+            throw t
+          }
+      }
+    }
+  }
+
+  /** Message loop used for dispatching messages. */
+  private class EndpointVerifierMessageLoop extends Runnable {
+    override def run(): Unit = {
+      try {
+        while (endpointVerifierMessageLoopRunning) {
+          if (rpcEndpointVerifier == null || rpcEndpointVerifier.inbox.isEmpty) {
+            TimeUnit.MILLISECONDS.sleep(50)
+          } else {
+            try {
+              rpcEndpointVerifier.inbox.process(Dispatcher.this)
+            } catch {
+              case NonFatal(e) => logError(e.getMessage, e)
+            }
+          }
+        }
+      } catch {
+        case _: InterruptedException => // exit
+        case t: Throwable =>
+          try {
+            // Re-submit a PriorityMessageLoop so that Dispatcher will still work if
+            // UncaughtExceptionHandler decides to not kill JVM.
+            threadpool.execute(new EndpointVerifierMessageLoop)
           } finally {
             throw t
           }

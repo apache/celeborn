@@ -30,6 +30,7 @@ import scala.util.matching.Regex
 import io.netty.channel.epoll.Epoll
 import io.netty.channel.kqueue.KQueue
 
+import org.apache.celeborn.common.CelebornConf.ENDPOINT_VERIFIER_SEPARATE_ENABLED
 import org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl
 import org.apache.celeborn.common.client.{ApplicationInfoProvider, DefaultApplicationInfoProvider}
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, HadoopBasedIdentityProvider, IdentityProvider}
@@ -1015,6 +1016,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     new RpcTimeout(
       get(CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT).milli,
       CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT.key)
+
+  def endpointVerifierSeparateEnabled: Boolean = get(ENDPOINT_VERIFIER_SEPARATE_ENABLED)
 
   // //////////////////////////////////////////////////////
   //               Shuffle Client Fetch                  //
@@ -6795,4 +6798,13 @@ object CelebornConf extends Logging {
       .doc("Whether to mark shuffle data lost when unknown worker is detected.")
       .booleanConf
       .createWithDefault(false)
+
+  val ENDPOINT_VERIFIER_SEPARATE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.rpc.RpcEndpointVerifier.separate.enabled")
+      .categories("network")
+      .version("0.7.0")
+      .doc("dispatcher will process RpcEndpointVerifier's request separately")
+      .booleanConf
+      .createWithDefault(true)
+
 }
