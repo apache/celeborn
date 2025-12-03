@@ -64,8 +64,8 @@
               <shadedPattern>${shading.prefix}.org.scala-lang</shadedPattern>
             </relocation>
             <relocation>
-              <pattern>org.lz4</pattern>
-              <shadedPattern>${shading.prefix}.org.lz4</shadedPattern>
+              <pattern>${lz4-java.group}</pattern>
+              <shadedPattern>${shading.prefix}.${lz4-java.group}</shadedPattern>
             </relocation>
             <relocation>
               <pattern>org.roaringbitmap</pattern>
@@ -81,7 +81,7 @@
               <include>io.netty:*</include>
               <include>org.apache.commons:commons-lang3</include>
               <include>org.scala-lang:scala-library</include>
-              <include>org.lz4:lz4-java</include>
+              <include>${lz4-java.group}:lz4-java</include>
               <include>com.github.luben:zstd-jni</include>
               <include>org.roaringbitmap:RoaringBitmap</include>
             </includes>
