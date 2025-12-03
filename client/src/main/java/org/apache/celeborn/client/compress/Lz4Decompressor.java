@@ -26,7 +26,7 @@ import scala.Option;
 
 import com.google.common.collect.ImmutableMap;
 import net.jpountz.lz4.LZ4Factory;
-import net.jpountz.lz4.LZ4FastDecompressor;
+import net.jpountz.lz4.LZ4SafeDecompressor;
 import net.jpountz.xxhash.XXHashFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 public class Lz4Decompressor extends Lz4Trait implements Decompressor {
   private static final Logger logger = LoggerFactory.getLogger(Lz4Decompressor.class);
 
-  private final LZ4FastDecompressor decompressor;
+  private final LZ4SafeDecompressor decompressor;
   private final Checksum checksum;
 
   private final Map<String, Supplier<XXHashFactory>> xxHashFactories =
@@ -47,7 +47,7 @@ public class Lz4Decompressor extends Lz4Trait implements Decompressor {
           XXHashFactory::unsafeInstance);
 
   public Lz4Decompressor(Option<String> xxHashInstance) {
-    decompressor = LZ4Factory.fastestInstance().fastDecompressor();
+    decompressor = LZ4Factory.fastestInstance().safeDecompressor();
     checksum = getXXHashFactory(xxHashInstance).newStreamingHash32(DEFAULT_SEED).asChecksum();
   }
 
@@ -68,7 +68,7 @@ public class Lz4Decompressor extends Lz4Trait implements Decompressor {
         System.arraycopy(src, HEADER_LENGTH, dst, dstOff, originalLen);
         break;
       case COMPRESSION_METHOD_LZ4:
-        int compressedLen2 = decompressor.decompress(src, HEADER_LENGTH, dst, dstOff, originalLen);
+        int compressedLen2 = decompressor.decompress(src, HEADER_LENGTH, originalLen, dst, dstOff);
         if (compressedLen != compressedLen2) {
           throw new IOException(
               "Compressed length corrupted! expected: "
