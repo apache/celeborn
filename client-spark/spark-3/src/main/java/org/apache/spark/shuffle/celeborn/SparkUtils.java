@@ -430,7 +430,7 @@ public class SparkUtils {
       LOG.error(
           "Task index {} is out of bounds for numFailures array (length: {})",
           index,
-          numFailures.length());
+          numFailures.length);
       return -1;
     }
 
