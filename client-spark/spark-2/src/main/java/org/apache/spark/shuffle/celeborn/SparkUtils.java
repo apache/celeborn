@@ -407,7 +407,7 @@ public class SparkUtils {
         }
         // The following situations should trigger a FetchFailed exception:
         //  1. If total failures (previous failures + current failure) >= maxTaskFails
-        //  2. If no other taskAttempts are running, Trigger a FetchFailed exception
+        //  2. If no other taskAttempts are running, trigger a FetchFailed exception
         //  to keep the same behavior as Spark.
         // Note: previousFailureCount does NOT include the current failure,
         //       so we compare with (maxTaskFails - 1) which is equivalent to
