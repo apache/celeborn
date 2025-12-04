@@ -247,12 +247,11 @@ public class SparkUtils {
               .hiddenImpl(TaskSetManager.class, "taskInfos")
               .defaultAlwaysNull()
               .build();
-  private static final DynFields.UnboundField<int[]>
-          TASK_FAILURES =
-          DynFields.builder()
-                  .hiddenImpl(TaskSetManager.class, "numFailures")
-                  .defaultAlwaysNull()
-                  .build();
+  private static final DynFields.UnboundField<int[]> TASK_FAILURES =
+      DynFields.builder()
+          .hiddenImpl(TaskSetManager.class, "numFailures")
+          .defaultAlwaysNull()
+          .build();
 
   /**
    * TaskSetManager - it is not designed to be used outside the spark scheduler. Please be careful.
@@ -291,9 +290,9 @@ public class SparkUtils {
   }
 
   /**
-   * Gets the number of task attempts that have already failed for the given task index.
-   * Note: This count does NOT include the current failure. To get the total failure count
-   * including the current attempt, you need to add 1 to the returned value.
+   * Gets the number of task attempts that have already failed for the given task index. Note: This
+   * count does NOT include the current failure. To get the total failure count including the
+   * current attempt, you need to add 1 to the returned value.
    *
    * @param taskSetManager the TaskSetManager to query
    * @param index the task index
