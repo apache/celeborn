@@ -518,7 +518,7 @@ public class SparkUtils {
                   ti.attemptNumber());
               hasRunningAttempt = true;
             }
-          }`
+          }
         }
         // The following situations should trigger a FetchFailed exception:
         //  1. If total failures (previous failures + current failure) >= maxTaskFails
