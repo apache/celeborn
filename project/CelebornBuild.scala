@@ -194,11 +194,14 @@ object Dependencies {
   val jerseyServer = "org.glassfish.jersey.core" % "jersey-server" % jerseyVersion excludeAll(
     ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"),
     ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
-  val jerseyContainerServletCore = "org.glassfish.jersey.containers" % "jersey-container-servlet-core" % jerseyVersion
-  val jerseyHk2 = "org.glassfish.jersey.inject" % "jersey-hk2" % jerseyVersion
+  val jerseyContainerServletCore = "org.glassfish.jersey.containers" % "jersey-container-servlet-core" % jerseyVersion excludeAll(
+    ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
+  val jerseyHk2 = "org.glassfish.jersey.inject" % "jersey-hk2" % jerseyVersion excludeAll(
+    ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
   val jerseyMediaJsonJackson = "org.glassfish.jersey.media" % "jersey-media-json-jackson" % jerseyVersion excludeAll(
     ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
-  val jerseyMediaMultipart = "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyVersion
+  val jerseyMediaMultipart = "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyVersion excludeAll(
+    ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
   val swaggerJaxrs2 = "io.swagger.core.v3" % "swagger-jaxrs2" %swaggerVersion excludeAll(
     ExclusionRule("com.sun.activation", "jakarta.activation"),
     ExclusionRule("org.javassist", "javassist"),
