@@ -79,7 +79,7 @@ object Dependencies {
   val swaggerVersion = "2.2.1"
   val swaggerUiVersion = "4.9.1"
   val jerseyVersion = "2.39.1"
-  val jettyVersion = "9.4.56.v20240826"
+  val jettyVersion = "9.4.58.v20250814"
   val javaxServletApiVersion = "4.0.1"
   val jakartaServeletApiVersion = "5.0.0"
   val openApiToolsJacksonBindNullableVersion = "0.2.6"
