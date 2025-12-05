@@ -30,6 +30,7 @@ import scala.util.matching.Regex
 import io.netty.channel.epoll.Epoll
 import io.netty.channel.kqueue.KQueue
 
+import org.apache.celeborn.common.CelebornConf.ENDPOINT_VERIFIER_SEPARATE_ENABLED
 import org.apache.celeborn.common.authentication.AnonymousAuthenticationProviderImpl
 import org.apache.celeborn.common.client.{ApplicationInfoProvider, DefaultApplicationInfoProvider}
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, HadoopBasedIdentityProvider, IdentityProvider}
@@ -1016,6 +1017,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       get(CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT).milli,
       CLIENT_RPC_COMMIT_FILES_ASK_TIMEOUT.key)
 
+  def endpointVerifierSeparateEnabled: Boolean = get(ENDPOINT_VERIFIER_SEPARATE_ENABLED)
+
   // //////////////////////////////////////////////////////
   //               Shuffle Client Fetch                  //
   // //////////////////////////////////////////////////////
@@ -1488,6 +1491,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
+  def testProcessEndpointVerifierSeparate: Boolean = get(TEST_RPC_ENDPOINT_VERIFIER_SEPARATE)
   def clientFlinkMemoryPerResultPartition: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION)
   def clientFlinkMemoryPerInputGate: Long = get(CLIENT_MEMORY_PER_INPUT_GATE)
   def clientFlinkNumConcurrentReading: Int = get(CLIENT_NUM_CONCURRENT_READINGS)
@@ -6795,4 +6799,22 @@ object CelebornConf extends Logging {
       .doc("Whether to mark shuffle data lost when unknown worker is detected.")
       .booleanConf
       .createWithDefault(false)
+
+  val ENDPOINT_VERIFIER_SEPARATE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.rpc.RpcEndpointVerifier.separate.enabled")
+      .categories("network")
+      .version("0.7.0")
+      .doc("Whether to enable dispatcher process RpcEndpointVerifier's request separately.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val TEST_RPC_ENDPOINT_VERIFIER_SEPARATE: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.RpcEndpointVerifier.separate.enabled")
+      .internal
+      .categories("test", "rpc")
+      .doc("test to process RpcEndpointVerifier's request separately")
+      .version("0.7.0")
+      .booleanConf
+      .createWithDefault(false)
+
 }
