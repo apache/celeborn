@@ -78,7 +78,7 @@ object Dependencies {
   val h2Version = "2.2.224"
   val swaggerVersion = "2.2.1"
   val swaggerUiVersion = "4.9.1"
-  val jerseyVersion = "2.39.1"
+  val jerseyVersion = "2.47"
   val jettyVersion = "9.4.56.v20240826"
   val javaxServletApiVersion = "4.0.1"
   val jakartaServeletApiVersion = "5.0.0"
