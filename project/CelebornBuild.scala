@@ -221,10 +221,12 @@ object Dependencies {
   val scalatestMockito = "org.mockito" %% "mockito-scala-scalatest" % scalatestMockitoVersion
   val scalatest = "org.scalatest" %% "scalatest" % scalatestVersion
   val h2 = "com.h2database" % "h2" % h2Version
-  val jerseyTestFrameworkCore = "org.glassfish.jersey.test-framework" % "jersey-test-framework-core" % jerseyVersion
+  val jerseyTestFrameworkCore = "org.glassfish.jersey.test-framework" % "jersey-test-framework-core" % jerseyVersion excludeAll(
+    ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
   val jerseyTestFrameworkProviderJetty = "org.glassfish.jersey.test-framework.providers" % "jersey-test-framework-provider-jetty" % jerseyVersion excludeAll(
     ExclusionRule("org.eclipse.jetty", "jetty-util"),
-    ExclusionRule("org.eclipse.jetty", "jetty-continuation"))
+    ExclusionRule("org.eclipse.jetty", "jetty-continuation"),
+    ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
 
   // SSL support
   val bouncycastleBcprovJdk18on = "org.bouncycastle" % "bcprov-jdk18on" % bouncycastleVersion % "test"
