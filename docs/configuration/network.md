@@ -50,7 +50,7 @@ license: |
 | celeborn.network.memory.allocator.verbose.metric | false | false | Whether to enable verbose metric for pooled allocator. | 0.3.0 |  | 
 | celeborn.network.timeout | 240s | false | Default timeout for network operations. | 0.2.0 |  | 
 | celeborn.port.maxRetries | 1 | false | When port is occupied, we will retry for max retry times. | 0.2.0 |  | 
-| celeborn.rpc.RpcEndpointVerifier.separate.enabled | true | false | dispatcher will process RpcEndpointVerifier's request separately | 0.7.0 |  | 
+| celeborn.rpc.RpcEndpointVerifier.separate.enabled | true | false | Whether to enable dispatcher process RpcEndpointVerifier's request separately. | 0.7.0 |  | 
 | celeborn.rpc.askTimeout | 60s | false | Timeout for RPC ask operations. It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.availableTypes` | 0.2.0 |  | 
 | celeborn.rpc.connect.threads | 64 | false |  | 0.2.0 |  | 
 | celeborn.rpc.dispatcher.threads | 0 | false | Threads number of message dispatcher event loop. Default to 0, which is availableCore. | 0.3.0 | celeborn.rpc.dispatcher.numThreads | 

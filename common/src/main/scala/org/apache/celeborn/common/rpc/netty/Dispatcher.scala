@@ -53,8 +53,12 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) 
   private val receivers = new LinkedBlockingQueue[EndpointData]
   private val endpointVerifierSeparate: Boolean =
     nettyEnv.celebornConf.endpointVerifierSeparateEnabled
+  private val testProcessEndpointVerifierSeparate: Boolean =
+    nettyEnv.celebornConf.testProcessEndpointVerifierSeparate
   private var endpointVerifierMessageLoopRunning: Boolean = true
   private var rpcEndpointVerifier: EndpointData = _
+  private val CURRENT_RUNNABLE: ThreadLocal[Runnable] = new ThreadLocal[Runnable]
+  private[netty] var testProcessEndpointVerifierSeparateResult: Boolean = false
 
   /**
    * True if the dispatcher has been stopped. Once stopped, all messages posted will be bounced
@@ -219,6 +223,10 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) 
    * Return if the endpoint exists
    */
   def verify(name: String): Boolean = {
+    if (testProcessEndpointVerifierSeparate && !testProcessEndpointVerifierSeparateResult && CURRENT_RUNNABLE.get() != null && CURRENT_RUNNABLE.get().isInstanceOf[
+        EndpointVerifierMessageLoop]) {
+      testProcessEndpointVerifierSeparateResult = true
+    }
     endpoints.containsKey(name)
   }
 
@@ -233,9 +241,6 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) 
 
     val pool = ThreadUtils.newDaemonFixedThreadPool(numThreads, "celeborn-dispatcher")
     logInfo(s"Celeborn dispatcher numThreads: $numThreads")
-    for (i <- 0 until numThreads) {
-      pool.execute(new MessageLoop)
-    }
     if (endpointVerifierSeparate) {
       for (i <- 0 until numThreads - 1) {
         pool.execute(new MessageLoop)
@@ -285,6 +290,7 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) 
   private class EndpointVerifierMessageLoop extends Runnable {
     override def run(): Unit = {
       try {
+        CURRENT_RUNNABLE.set(this)
         while (endpointVerifierMessageLoopRunning) {
           if (rpcEndpointVerifier == null || rpcEndpointVerifier.inbox.isEmpty) {
             TimeUnit.MILLISECONDS.sleep(50)
@@ -306,6 +312,8 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) 
           } finally {
             throw t
           }
+      } finally {
+        CURRENT_RUNNABLE.remove()
       }
     }
   }

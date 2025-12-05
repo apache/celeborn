@@ -1491,6 +1491,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
+  def testProcessEndpointVerifierSeparate: Boolean = get(TEST_RPC_ENDPOINT_VERIFIER_SEPARATE)
   def clientFlinkMemoryPerResultPartition: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION)
   def clientFlinkMemoryPerInputGate: Long = get(CLIENT_MEMORY_PER_INPUT_GATE)
   def clientFlinkNumConcurrentReading: Int = get(CLIENT_NUM_CONCURRENT_READINGS)
@@ -6803,8 +6804,17 @@ object CelebornConf extends Logging {
     buildConf("celeborn.rpc.RpcEndpointVerifier.separate.enabled")
       .categories("network")
       .version("0.7.0")
-      .doc("dispatcher will process RpcEndpointVerifier's request separately")
+      .doc("Whether to enable dispatcher process RpcEndpointVerifier's request separately.")
       .booleanConf
       .createWithDefault(true)
+
+  val TEST_RPC_ENDPOINT_VERIFIER_SEPARATE: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.RpcEndpointVerifier.separate.enabled")
+      .internal
+      .categories("test", "rpc")
+      .doc("test to process RpcEndpointVerifier's request separately")
+      .version("0.7.0")
+      .booleanConf
+      .createWithDefault(false)
 
 }
