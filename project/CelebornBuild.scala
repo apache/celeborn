@@ -192,7 +192,8 @@ object Dependencies {
   val javaxServletApi = "javax.servlet" % "javax.servlet-api" % javaxServletApiVersion
   val jakartaServletApi = "jakarta.servlet" % "jakarta.servlet-api" % jakartaServeletApiVersion
   val jerseyServer = "org.glassfish.jersey.core" % "jersey-server" % jerseyVersion excludeAll(
-    ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"))
+    ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"),
+    ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
   val jerseyContainerServletCore = "org.glassfish.jersey.containers" % "jersey-container-servlet-core" % jerseyVersion
   val jerseyHk2 = "org.glassfish.jersey.inject" % "jersey-hk2" % jerseyVersion
   val jerseyMediaJsonJackson = "org.glassfish.jersey.media" % "jersey-media-json-jackson" % jerseyVersion excludeAll(
