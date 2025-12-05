@@ -192,16 +192,12 @@ object Dependencies {
   val javaxServletApi = "javax.servlet" % "javax.servlet-api" % javaxServletApiVersion
   val jakartaServletApi = "jakarta.servlet" % "jakarta.servlet-api" % jakartaServeletApiVersion
   val jerseyServer = "org.glassfish.jersey.core" % "jersey-server" % jerseyVersion excludeAll(
-    ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"),
-    ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
-  val jerseyContainerServletCore = "org.glassfish.jersey.containers" % "jersey-container-servlet-core" % jerseyVersion excludeAll(
-    ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
-  val jerseyHk2 = "org.glassfish.jersey.inject" % "jersey-hk2" % jerseyVersion excludeAll(
-    ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
+    ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"))
+  val jerseyContainerServletCore = "org.glassfish.jersey.containers" % "jersey-container-servlet-core" % jerseyVersion
+  val jerseyHk2 = "org.glassfish.jersey.inject" % "jersey-hk2" % jerseyVersion
   val jerseyMediaJsonJackson = "org.glassfish.jersey.media" % "jersey-media-json-jackson" % jerseyVersion excludeAll(
-    ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
-  val jerseyMediaMultipart = "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyVersion excludeAll(
-    ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
+    ExclusionRule("com.fasterxml.jackson.core", "jackson-module-jaxb-annotations"))
+  val jerseyMediaMultipart = "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyVersion
   val swaggerJaxrs2 = "io.swagger.core.v3" % "swagger-jaxrs2" %swaggerVersion excludeAll(
     ExclusionRule("com.sun.activation", "jakarta.activation"),
     ExclusionRule("org.javassist", "javassist"),
@@ -224,12 +220,10 @@ object Dependencies {
   val scalatestMockito = "org.mockito" %% "mockito-scala-scalatest" % scalatestMockitoVersion
   val scalatest = "org.scalatest" %% "scalatest" % scalatestVersion
   val h2 = "com.h2database" % "h2" % h2Version
-  val jerseyTestFrameworkCore = "org.glassfish.jersey.test-framework" % "jersey-test-framework-core" % jerseyVersion excludeAll(
-    ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
+  val jerseyTestFrameworkCore = "org.glassfish.jersey.test-framework" % "jersey-test-framework-core" % jerseyVersion
   val jerseyTestFrameworkProviderJetty = "org.glassfish.jersey.test-framework.providers" % "jersey-test-framework-provider-jetty" % jerseyVersion excludeAll(
     ExclusionRule("org.eclipse.jetty", "jetty-util"),
-    ExclusionRule("org.eclipse.jetty", "jetty-continuation"),
-    ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"))
+    ExclusionRule("org.eclipse.jetty", "jetty-continuation"))
 
   // SSL support
   val bouncycastleBcprovJdk18on = "org.bouncycastle" % "bcprov-jdk18on" % bouncycastleVersion % "test"
