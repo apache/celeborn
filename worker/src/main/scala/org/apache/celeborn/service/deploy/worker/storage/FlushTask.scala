@@ -21,11 +21,10 @@ import java.io.{ByteArrayInputStream, Closeable, IOException}
 import java.nio.channels.FileChannel
 
 import io.netty.buffer.{ByteBufUtil, CompositeByteBuf}
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.FSDataOutputStream
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.source.AbstractSource
-import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 
@@ -98,15 +97,14 @@ abstract private[worker] class DfsFlushTask(
 
 private[worker] class HdfsFlushTask(
     buffer: CompositeByteBuf,
-    val path: Path,
+    hdfsStream: FSDataOutputStream,
     notifier: FlushNotifier,
     keepBuffer: Boolean,
     source: AbstractSource) extends DfsFlushTask(buffer, notifier, keepBuffer, source) {
   override def flush(copyBytes: Array[Byte]): Unit = {
     val readableBytes = buffer.readableBytes()
-    val hadoopFs = StorageManager.hadoopFs.get(Type.HDFS)
-    val hdfsStream = hadoopFs.append(path, 256 * 1024)
-    flush(hdfsStream) {
+    // TODO : If the FSDataOutputStream supports concurrent writes, the lock can be removed.
+    hdfsStream.synchronized {
       hdfsStream.write(convertBufferToBytes(buffer, copyBytes, readableBytes))
       source.incCounter(WorkerSource.HDFS_FLUSH_COUNT)
       source.incCounter(WorkerSource.HDFS_FLUSH_SIZE, readableBytes)
