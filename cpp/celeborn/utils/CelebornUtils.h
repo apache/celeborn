@@ -48,6 +48,8 @@ std::vector<T> toVector(const std::set<T>& in) {
 
 std::string makeShuffleKey(const std::string& appId, int shuffleId);
 
+std::string makeMapKey(int shuffleId, int mapId, int attemptId);
+
 void writeUTF(memory::WriteOnlyByteBuffer& buffer, const std::string& msg);
 
 void writeRpcAddress(
@@ -65,6 +67,12 @@ inline Timeout toTimeout(Duration duration) {
 inline uint64_t currentTimeMillis() {
   return std::chrono::duration_cast<std::chrono::milliseconds>(
              std::chrono::system_clock::now().time_since_epoch())
+      .count();
+}
+
+inline uint64_t currentTimeNanos() {
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(
+             std::chrono::high_resolution_clock ::now().time_since_epoch())
       .count();
 }
 

@@ -72,7 +72,10 @@ class MockShuffleClient : public ShuffleClientImpl {
       : ShuffleClientImpl(
             "mock",
             std::make_shared<conf::CelebornConf>(),
-            nullptr) {}
+            dummyEndpoint()) {}
+
+  static const ShuffleClientEndpoint& dummyEndpoint();
+
   std::function<bool(int, int)> onMapperEnded_ = [](int, int) { return false; };
   std::function<std::optional<std::unordered_map<int, int>>(
       int,
@@ -89,6 +92,12 @@ class MockShuffleClient : public ShuffleClientImpl {
     return {std::make_shared<PartitionLocationMap>()};
   };
 };
+
+const ShuffleClientEndpoint& MockShuffleClient::dummyEndpoint() {
+  static auto conf = std::make_shared<conf::CelebornConf>();
+  static auto dummy = ShuffleClientEndpoint(conf);
+  return dummy;
+}
 } // namespace
 
 class ReviveManagerTest : public testing::Test {
