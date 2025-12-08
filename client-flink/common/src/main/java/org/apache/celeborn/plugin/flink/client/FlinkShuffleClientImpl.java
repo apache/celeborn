@@ -528,7 +528,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   public Optional<PartitionLocation> revive(
       int shuffleId, int mapId, int attemptId, PartitionLocation location)
       throws CelebornIOException {
-    Set<Integer> mapIds = new HashSet<>();
+    List<Integer> mapIds = new ArrayList<>();
     mapIds.add(mapId);
     List<ReviveRequest> requests = new ArrayList<>();
     ReviveRequest req =

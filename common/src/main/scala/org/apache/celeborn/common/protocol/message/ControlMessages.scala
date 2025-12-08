@@ -187,7 +187,7 @@ object ControlMessages extends Logging {
       shuffleId: Int,
       mapIds: util.List[Integer],
       reviveRequests: util.List[ReviveRequest],
-      serdeVersion: SerdeVersion) extends MasterMessage
+      serdeVersion: SerdeVersion = SerdeVersion.V1) extends MasterMessage
 
   object PartitionSplit {
     def apply(
