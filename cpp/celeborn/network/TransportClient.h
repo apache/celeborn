@@ -119,11 +119,14 @@ class MessagePipelineFactory
 
 class TransportClientFactory {
  public:
-  TransportClientFactory(const std::shared_ptr<conf::CelebornConf>& conf);
+  TransportClientFactory(const std::shared_ptr<const conf::CelebornConf>& conf);
 
   virtual std::shared_ptr<TransportClient> createClient(
       const std::string& host,
       uint16_t port);
+
+  virtual std::shared_ptr<TransportClient>
+  createClient(const std::string& host, uint16_t port, int32_t partitionId);
 
  private:
   struct ClientPool {

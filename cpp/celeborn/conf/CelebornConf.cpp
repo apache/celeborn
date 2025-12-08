@@ -131,39 +131,50 @@ Duration toDuration(const std::string& str) {
 
 } // namespace
 
-const std::unordered_map<std::string, folly::Optional<std::string>>
-    CelebornConf::kDefaultProperties = {
-        STR_PROP(kRpcAskTimeout, "60s"),
-        STR_PROP(kRpcLookupTimeout, "30s"),
-        STR_PROP(kClientPushReviveInterval, "100ms"),
-        NUM_PROP(kClientPushReviveBatchSize, 2048),
-        STR_PROP(kClientPushLimitStrategy, kSimplePushStrategy),
-        NUM_PROP(kClientPushMaxReqsInFlightPerWorker, 32),
-        NUM_PROP(kClientPushMaxReqsInFlightTotal, 256),
-        NUM_PROP(kClientPushLimitInFlightTimeoutMs, 240000),
-        NUM_PROP(kClientPushLimitInFlightSleepDeltaMs, 50),
-        STR_PROP(kClientRpcRequestPartitionLocationAskTimeout, "60s"),
-        STR_PROP(kClientRpcGetReducerFileGroupRpcAskTimeout, "60s"),
-        STR_PROP(kNetworkConnectTimeout, "10s"),
-        STR_PROP(kClientFetchTimeout, "600s"),
-        NUM_PROP(kNetworkIoNumConnectionsPerPeer, 1),
-        NUM_PROP(kNetworkIoClientThreads, 0),
-        NUM_PROP(kClientFetchMaxReqsInFlight, 3),
-        STR_PROP(
-            kShuffleCompressionCodec,
-            protocol::toString(protocol::CompressionCodec::NONE)),
-        NUM_PROP(kShuffleCompressionZstdCompressLevel, 1),
-        // NUM_PROP(kNumExample, 50'000),
-        // BOOL_PROP(kBoolExample, false),
-};
+const std::unordered_map<std::string, folly::Optional<std::string>>&
+CelebornConf::defaultProperties() {
+  static const std::unordered_map<std::string, folly::Optional<std::string>>
+      defaultProp = {
+          STR_PROP(kRpcAskTimeout, "60s"),
+          STR_PROP(kRpcLookupTimeout, "30s"),
+          STR_PROP(kClientIoConnectionTimeout, "300s"),
+          STR_PROP(kClientRpcRegisterShuffleAskTimeout, "60s"),
+          NUM_PROP(kClientRegisterShuffleMaxRetries, 3),
+          STR_PROP(kClientRegisterShuffleRetryWait, "3s"),
+          NUM_PROP(kClientPushRetryThreads, 8),
+          STR_PROP(kClientPushTimeout, "120s"),
+          STR_PROP(kClientPushReviveInterval, "100ms"),
+          NUM_PROP(kClientPushReviveBatchSize, 2048),
+          NUM_PROP(kClientPushMaxReviveTimes, 5),
+          STR_PROP(kClientPushLimitStrategy, kSimplePushStrategy),
+          NUM_PROP(kClientPushMaxReqsInFlightPerWorker, 32),
+          NUM_PROP(kClientPushMaxReqsInFlightTotal, 256),
+          NUM_PROP(kClientPushLimitInFlightTimeoutMs, 240000),
+          NUM_PROP(kClientPushLimitInFlightSleepDeltaMs, 50),
+          STR_PROP(kClientRpcRequestPartitionLocationAskTimeout, "60s"),
+          STR_PROP(kClientRpcGetReducerFileGroupRpcAskTimeout, "60s"),
+          STR_PROP(kNetworkConnectTimeout, "10s"),
+          STR_PROP(kClientFetchTimeout, "600s"),
+          NUM_PROP(kNetworkIoNumConnectionsPerPeer, 1),
+          NUM_PROP(kNetworkIoClientThreads, 0),
+          NUM_PROP(kClientFetchMaxReqsInFlight, 3),
+          STR_PROP(
+              kShuffleCompressionCodec,
+              protocol::toString(protocol::CompressionCodec::NONE)),
+          NUM_PROP(kShuffleCompressionZstdCompressLevel, 1),
+          // NUM_PROP(kNumExample, 50'000),
+          // BOOL_PROP(kBoolExample, false),
+      };
+  return defaultProp;
+}
 
 CelebornConf::CelebornConf() {
-  registeredProps_ = kDefaultProperties;
+  registeredProps_ = defaultProperties();
 }
 
 CelebornConf::CelebornConf(const std::string& filename) {
   initialize(filename);
-  registeredProps_ = kDefaultProperties;
+  registeredProps_ = defaultProperties();
 }
 
 CelebornConf::CelebornConf(const CelebornConf& other) {
@@ -193,6 +204,34 @@ Timeout CelebornConf::rpcLookupTimeout() const {
       toDuration(optionalProperty(kRpcLookupTimeout).value()));
 }
 
+Timeout CelebornConf::clientIoConnectionTimeout() const {
+  return utils::toTimeout(
+      toDuration(optionalProperty(kClientIoConnectionTimeout).value()));
+}
+
+Timeout CelebornConf::clientRpcRegisterShuffleRpcAskTimeout() const {
+  return utils::toTimeout(toDuration(
+      optionalProperty(kClientRpcRegisterShuffleAskTimeout).value()));
+}
+
+int CelebornConf::clientRegisterShuffleMaxRetries() const {
+  return std::stoi(optionalProperty(kClientRegisterShuffleMaxRetries).value());
+}
+
+Timeout CelebornConf::clientRegisterShuffleRetryWait() const {
+  return utils::toTimeout(
+      toDuration(optionalProperty(kClientRegisterShuffleRetryWait).value()));
+}
+
+int CelebornConf::clientPushRetryThreads() const {
+  return std::stoi(optionalProperty(kClientPushRetryThreads).value());
+}
+
+Timeout CelebornConf::clientPushDataTimeout() const {
+  return utils::toTimeout(
+      toDuration(optionalProperty(kClientPushTimeout).value()));
+}
+
 Timeout CelebornConf::clientPushReviveInterval() const {
   return utils::toTimeout(
       toDuration(optionalProperty(kClientPushReviveInterval).value()));
@@ -200,6 +239,10 @@ Timeout CelebornConf::clientPushReviveInterval() const {
 
 int CelebornConf::clientPushReviveBatchSize() const {
   return std::stoi(optionalProperty(kClientPushReviveBatchSize).value());
+}
+
+int CelebornConf::clientPushMaxReviveTimes() const {
+  return std::stoi(optionalProperty(kClientPushMaxReviveTimes).value());
 }
 
 std::string CelebornConf::clientPushLimitStrategy() const {

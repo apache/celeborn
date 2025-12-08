@@ -106,7 +106,9 @@ class MockShuffleClient : public ShuffleClientImpl {
       : ShuffleClientImpl(
             "mock",
             std::make_shared<conf::CelebornConf>(),
-            nullptr) {}
+            dummyEndpoint()) {}
+
+  static const ShuffleClientEndpoint& dummyEndpoint();
 
   FuncOnSubmitRetryPushData onSubmitRetryPushData_ =
       [](int,
@@ -125,6 +127,12 @@ class MockShuffleClient : public ShuffleClientImpl {
     CELEBORN_UNREACHABLE("not expected to call this");
   };
 };
+
+const ShuffleClientEndpoint& MockShuffleClient::dummyEndpoint() {
+  static auto conf = std::make_shared<conf::CelebornConf>();
+  static auto dummy = ShuffleClientEndpoint(conf);
+  return dummy;
+}
 
 std::unique_ptr<memory::ReadOnlyByteBuffer> createReadOnlyByteBuffer(
     uint8_t code) {

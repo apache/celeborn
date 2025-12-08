@@ -23,6 +23,10 @@ std::string makeShuffleKey(const std::string& appId, const int shuffleId) {
   return appId + "-" + std::to_string(shuffleId);
 }
 
+std::string makeMapKey(int shuffleId, int mapId, int attemptId) {
+  return fmt::format("{}-{}-{}", shuffleId, mapId, attemptId);
+}
+
 void writeUTF(memory::WriteOnlyByteBuffer& buffer, const std::string& msg) {
   buffer.write<short>(msg.size());
   buffer.writeFromString(msg);
