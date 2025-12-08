@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import scala.Tuple2;
 import scala.Tuple3;
 import scala.reflect.ClassTag$;
 
@@ -897,7 +898,8 @@ public class ShuffleClientImpl extends ShuffleClient {
     try {
       PbChangeLocationResponse response =
           lifecycleManagerRef.askSync(
-              Revive$.MODULE$.apply(shuffleId, mapIds, requests, SerdeVersion.V1),
+              Revive$.MODULE$.apply(
+                  shuffleId, new ArrayList<>(mapIds), new ArrayList<>(requests), SerdeVersion.V1),
               conf.clientRpcRequestPartitionLocationAskTimeout(),
               ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
 

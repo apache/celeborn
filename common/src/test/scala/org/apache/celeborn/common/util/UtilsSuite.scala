@@ -150,7 +150,17 @@ class UtilsSuite extends CelebornFunSuite {
 
   test("MapperEnd class convert with pb") {
     val mapperEnd =
-      MapperEnd(1, 1, 1, 2, 1, Collections.emptyMap(), 1, Array.emptyIntArray, Array.emptyLongArray, SerdeVersion.V1)
+      MapperEnd(
+        1,
+        1,
+        1,
+        2,
+        1,
+        Collections.emptyMap(),
+        1,
+        Array.emptyIntArray,
+        Array.emptyLongArray,
+        SerdeVersion.V1)
     val mapperEndTrans =
       Utils.fromTransportMessage(Utils.toTransportMessage(mapperEnd)).asInstanceOf[MapperEnd]
     assert(mapperEnd.shuffleId == mapperEndTrans.shuffleId)
