@@ -549,7 +549,6 @@ public class ShuffleClientImpl extends ShuffleClient {
         numMappers,
         numPartitions,
         () ->
-            // todo: this is the msg to be changed...
             lifecycleManagerRef.askSync(
                 new RegisterShuffle(shuffleId, numMappers, numPartitions, SerdeVersion.V1),
                 conf.clientRpcRegisterShuffleAskTimeout(),
@@ -594,7 +593,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                         partitionId,
                         isSegmentGranularityVisible),
                     conf.clientRpcRegisterShuffleAskTimeout(),
-                    ClassTag$.MODULE$.apply(PbRegisterShuffleResponse.class)));
+                    ClassTag$.MODULE$.apply(RegisterShuffleResponse.class)));
 
     return partitionLocationMap.get(partitionId);
   }
