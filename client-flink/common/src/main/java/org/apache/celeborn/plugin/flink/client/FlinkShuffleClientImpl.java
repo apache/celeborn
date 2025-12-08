@@ -46,6 +46,7 @@ import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.PushData;
+import org.apache.celeborn.common.network.protocol.SerdeVersion;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.MessageType;
@@ -543,7 +544,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     requests.add(req);
     PbChangeLocationResponse response =
         lifecycleManagerRef.askSync(
-            ControlMessages.Revive$.MODULE$.apply(shuffleId, mapIds, requests),
+            ControlMessages.Revive$.MODULE$.apply(shuffleId, mapIds, requests, SerdeVersion.V1),
             conf.clientRpcRequestPartitionLocationAskTimeout(),
             ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
     // per partitionKey only serve single PartitionLocation in Client Cache.
