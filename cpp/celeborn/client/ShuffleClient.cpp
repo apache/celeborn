@@ -400,7 +400,7 @@ void ShuffleClientImpl::registerShuffle(
           LOG(ERROR)
               << "LifecycleManager request slots return protocol::StatusCode "
               << registerShuffleResponse->status << " , shuffleId " << shuffleId
-              << " NumMappers " << numMappers << " numPartitions "
+              << " numMappers " << numMappers << " numPartitions "
               << numPartitions << " , retry again, remain retry times "
               << maxRetries - numRetries;
         }
