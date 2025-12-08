@@ -1853,7 +1853,6 @@ public class ShuffleClientImpl extends ShuffleClient {
       GetReducerFileGroup getReducerFileGroup =
           new GetReducerFileGroup(shuffleId, isSegmentGranularityVisible, SerdeVersion.V1);
 
-      // todo: this is the ref implementation...
       GetReducerFileGroupResponse response =
           lifecycleManagerRef.askSync(
               getReducerFileGroup,

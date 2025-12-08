@@ -707,7 +707,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       if (partitionLocations.size > 0) {
         context.reply(RegisterShuffleResponse(StatusCode.SUCCESS, partitionLocations, serdeVersion))
       } else {
-        // todo: should we handle the serdeVersion here??
         // request new resource for this task
         changePartitionManager.handleRequestPartitionLocation(
           ApplyNewLocationCallContext(context, serdeVersion),
