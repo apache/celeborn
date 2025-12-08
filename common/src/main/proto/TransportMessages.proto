@@ -661,6 +661,7 @@ message PbFileInfo {
   bool isSegmentGranularityVisible = 9;
   map<int32, int32> partitionWritingSegment = 10;
   repeated PbSegmentIndex segmentIndex = 11;
+  int32 storageType = 12;
 }
 
 message PbSegmentIndex {
