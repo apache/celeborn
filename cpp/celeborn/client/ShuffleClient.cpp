@@ -28,7 +28,7 @@ ShuffleClientEndpoint::ShuffleClientEndpoint(
       pushDataRetryPool_(std::make_shared<folly::IOThreadPoolExecutor>(
           conf_->clientPushRetryThreads(),
           std::make_shared<folly::NamedThreadFactory>(
-              "client-pushdata-retryer"))),
+              "client-pushdata-retrier"))),
       clientFactory_(std::make_shared<network::TransportClientFactory>(conf_)) {
 }
 
