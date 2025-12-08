@@ -895,44 +895,43 @@ public class ShuffleClientImpl extends ShuffleClient {
       oldLocMap.put(req.partitionId, req.loc);
     }
     try {
-      PbChangeLocationResponse response =
+      ChangeLocationResponse response =
           lifecycleManagerRef.askSync(
               Revive$.MODULE$.apply(
                   shuffleId, new ArrayList<>(mapIds), new ArrayList<>(requests), SerdeVersion.V1),
               conf.clientRpcRequestPartitionLocationAskTimeout(),
-              ClassTag$.MODULE$.apply(PbChangeLocationResponse.class));
+              ClassTag$.MODULE$.apply(ChangeLocationResponse.class));
 
-      for (int i = 0; i < response.getEndedMapIdCount(); i++) {
-        int mapId = response.getEndedMapId(i);
+      for (int i = 0; i < response.endedMapIds().size(); i++) {
+        int mapId = response.endedMapIds().get(i);
         mapperEndMap.computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet()).add(mapId);
       }
 
-      for (int i = 0; i < response.getPartitionInfoCount(); i++) {
-        PbChangeLocationPartitionInfo partitionInfo = response.getPartitionInfo(i);
-        int partitionId = partitionInfo.getPartitionId();
-        int statusCode = partitionInfo.getStatus();
-        if (partitionInfo.getOldAvailable()) {
+      for (Map.Entry<Integer, Tuple3<StatusCode, Boolean, PartitionLocation>> entry :
+          response.newLocs().entrySet()) {
+        int partitionId = entry.getKey();
+        StatusCode statusCode = entry.getValue()._1();
+        if (entry.getValue()._2() != null) {
           PartitionLocation oldLoc = oldLocMap.get(partitionId);
           // Currently, revive only check if main location available, here won't remove peer loc.
           pushExcludedWorkers.remove(oldLoc.hostAndPushPort());
         }
 
-        if (StatusCode.SUCCESS.getValue() == statusCode) {
-          PartitionLocation loc =
-              PbSerDeUtils.fromPbPartitionLocation(partitionInfo.getPartition());
+        if (StatusCode.SUCCESS == statusCode) {
+          PartitionLocation loc = entry.getValue()._3();
           partitionLocationMap.put(partitionId, loc);
           pushExcludedWorkers.remove(loc.hostAndPushPort());
           if (loc.hasPeer()) {
             pushExcludedWorkers.remove(loc.getPeer().hostAndPushPort());
           }
-        } else if (StatusCode.STAGE_ENDED.getValue() == statusCode) {
+        } else if (StatusCode.STAGE_ENDED == statusCode) {
           stageEndShuffleSet.add(shuffleId);
           return results;
-        } else if (StatusCode.SHUFFLE_UNREGISTERED.getValue() == statusCode) {
+        } else if (StatusCode.SHUFFLE_UNREGISTERED == statusCode) {
           logger.error("SHUFFLE_NOT_REGISTERED!");
           return null;
         }
-        results.put(partitionId, statusCode);
+        results.put(partitionId, (int) (statusCode.getValue()));
       }
 
       return results;
