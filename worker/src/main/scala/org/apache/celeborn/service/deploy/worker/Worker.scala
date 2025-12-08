@@ -380,6 +380,18 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.DISK_BUFFER) { () =>
     memoryManager.getDiskBufferCounter.get()
   }
+  workerSource.addGauge(WorkerSource.HEAP_USD_MEMORY_MB) { () =>
+    memoryManager.getMemHeapUsedM
+  }
+  workerSource.addGauge(WorkerSource.HEAP_COMMITTED_MEMORY_MB) { () =>
+    memoryManager.getMemHeapCommittedM
+  }
+  workerSource.addGauge(WorkerSource.NON_HEAP_USED_MEMORY_MB) { () =>
+    memoryManager.getMemNonHeapUsedM
+  }
+  workerSource.addGauge(WorkerSource.DIRECT_MEMORY_USAGE_MB) { () =>
+    memoryManager.getDirectMemoryUsageM
+  }
   workerSource.addGauge(WorkerSource.NETTY_MEMORY) { () =>
     memoryManager.getNettyUsedDirectMemory
   }

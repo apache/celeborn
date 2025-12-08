@@ -179,6 +179,11 @@ object WorkerSource {
   val ACTIVE_CONNECTION_COUNT = "ActiveConnectionCount"
 
   // memory
+  val HEAP_USD_MEMORY_MB = "MemHeapUsedM"
+  val HEAP_COMMITTED_MEMORY_MB = "MemHeapCommittedM"
+  val NON_HEAP_USED_MEMORY_MB = "MemNonHeapUsedM"
+  val DIRECT_MEMORY_USAGE_MB = "DirectMemoryUsageM"
+
   val NETTY_MEMORY = "NettyMemory"
   val SORT_TIME = "SortTime"
   val SORT_MEMORY = "SortMemory"

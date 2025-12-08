@@ -18,6 +18,9 @@
 package org.apache.celeborn.service.deploy.worker.memory;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryUsage;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -76,6 +79,9 @@ public class MemoryManager {
   private long pausePushDataAndReplicateTime = 0L;
   private int trimCounter = 0;
   private volatile boolean isPaused = false;
+
+  final MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
+  static final float M = 1024*1024;
   // For credit stream
   private final AtomicLong readBufferCounter = new AtomicLong(0);
   private long readBufferThreshold;
@@ -424,6 +430,22 @@ public class MemoryManager {
     diskBufferCounter.addAndGet(size * -1);
   }
 
+  public float getMemHeapUsedM() {
+    return memoryMXBean.getHeapMemoryUsage().getUsed() / M;
+  }
+
+  public float getMemHeapCommittedM() {
+    return memoryMXBean.getHeapMemoryUsage().getCommitted() / M;
+  }
+
+  public float getMemNonHeapUsedM() {
+    return memoryMXBean.getNonHeapMemoryUsage().getUsed() / M;
+  }
+
+  public float getDirectMemoryUsageM() {
+    return PlatformDependent.usedDirectMemory() / M;
+  }
+
   public long getNettyUsedDirectMemory() {
     long usedDirectMemory = PlatformDependent.usedDirectMemory();
     assert usedDirectMemory != -1;
@@ -516,8 +538,9 @@ public class MemoryManager {
     this.creditStreamManager = creditStreamManager;
   }
 
+  // Jarvis can only publish integer counter
   public double workerMemoryUsageRatio() {
-    return getMemoryUsage() / (double) (maxDirectMemory);
+    return 100 * getMemoryUsage() / (double) (maxDirectMemory);
   }
 
   public long getMemoryFileStorageCounter() {
