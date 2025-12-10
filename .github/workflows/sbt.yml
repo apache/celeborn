@@ -277,6 +277,7 @@ jobs:
         flink:
           - '2.0'
           - '2.1'
+          - '2.2'
     steps:
       - uses: actions/checkout@v4
       - name: Setup JDK ${{ matrix.java }}

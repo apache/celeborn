@@ -108,6 +108,7 @@ jobs:
         module:
           - 'flink-2.0'
           - 'flink-2.1'
+          - 'flink-2.2'
     steps:
       - uses: actions/checkout@v4
       - name: Setup JDK 11

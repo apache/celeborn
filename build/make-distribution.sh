@@ -365,6 +365,7 @@ if [ "$SBT_ENABLED" == "true" ]; then
     export JAVA_HOME=$JAVA11_HOME
     sbt_build_client -Pflink-2.0
     sbt_build_client -Pflink-2.1
+    sbt_build_client -Pflink-2.2
     export JAVA_HOME=$JAVA8_HOME
     sbt_build_client -Pmr
 #    sbt_build_client -Ptez
@@ -407,6 +408,7 @@ else
     export JAVA_HOME=$JAVA11_HOME
     build_flink_client -Pflink-2.0
     build_flink_client -Pflink-2.1
+    build_flink_client -Pflink-2.2
     export JAVA_HOME=$JAVA8_HOME
     build_mr_client -Pmr
     build_tez_client -Ptez
