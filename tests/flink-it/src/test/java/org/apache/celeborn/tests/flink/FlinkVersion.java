@@ -29,7 +29,8 @@ public enum FlinkVersion {
   v1_19("1.19"),
   v1_20("1.20"),
   v2_0("2.0"),
-  v2_1("2.1");
+  v2_1("2.1"),
+  v2_2("2.2");
 
   private final String versionStr;
 
@@ -53,6 +54,8 @@ public enum FlinkVersion {
         return v2_0;
       case "2.1":
         return v2_1;
+      case "2.2":
+        return v2_2;
       default:
         throw new IllegalArgumentException("Unsupported flink version: " + versionStr);
     }
