@@ -257,8 +257,9 @@ public class MemoryManager {
                 logger.info("Start evicting {} memory file infos", memoryWriters.size());
                 // always evict the largest memory file info first
                 memoryWriters.sort(
-                    Comparator.comparingLong(o -> o.getMemoryFileInfo().getFileLength()));
-                Collections.reverse(memoryWriters);
+                    Comparator.comparingLong(
+                            (PartitionDataWriter o) -> o.getMemoryFileInfo().getFileLength())
+                        .reversed());
                 for (PartitionDataWriter writer : memoryWriters) {
                   // this branch means that there is no memory pressure
                   if (!shouldEvict(aggressiveEvictModeEnabled, evictRatio)) {
