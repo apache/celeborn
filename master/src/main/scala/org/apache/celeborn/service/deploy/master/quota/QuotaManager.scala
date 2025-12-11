@@ -372,7 +372,7 @@ class QuotaManager(
       resourceConsumption: ResourceConsumption): Unit = {
     if (resourceConsumptionMetricsEnabled) {
       resourceConsumptionSource.addGauge(DISK_FILE_COUNT, userIdentifier.toMap) { () =>
-        resourceConsumption.diskBytesWritten
+        resourceConsumption.diskFileCount
       }
       resourceConsumptionSource.addGauge(DISK_BYTES_WRITTEN, userIdentifier.toMap) { () =>
         resourceConsumption.diskBytesWritten
