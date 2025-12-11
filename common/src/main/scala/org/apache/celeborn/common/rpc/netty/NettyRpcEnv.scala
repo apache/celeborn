@@ -57,7 +57,7 @@ class NettyRpcEnv(
 
   private val _rpcSource: RpcSource = new RpcSource(celebornConf, config.role)
 
-  private val dispatcher: Dispatcher = new Dispatcher(this, _rpcSource)
+  private[netty] val dispatcher: Dispatcher = new Dispatcher(this, _rpcSource)
 
   private var worker: RpcEndpoint = null
 
