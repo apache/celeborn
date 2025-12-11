@@ -486,3 +486,33 @@ tests:
                   storage: 200Gi
                 limits:
                   storage: 200Gi
+
+  - it: Should add extra init containers when `worker.extraInitContainers` is set
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        volumeMounts: []
+        extraInitContainers:
+          - name: custom-init
+            image: busybox:1.36
+            command:
+              - sh
+              - -c
+              - echo "hello celeborn"
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: custom-init
+      - equal:
+          path: spec.template.spec.initContainers[0].command[2]
+          value: echo "hello celeborn"
+
+  - it: Should not have initContainers when no volumes and extraInitContainers
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        volumeMounts: []
+        extraInitContainers: []
+    asserts:
+      - notExists:
+          path: spec.template.spec.initContainers
