@@ -19,7 +19,7 @@ package org.apache.celeborn.service.deploy.cluster
 
 import org.apache.celeborn.common.protocol.CompressionCodec
 
-object JavaWriteCppReadTestWithZSTD extends JavaWriteCppReadTestBase {
+object JavaWriteCppReadTestWithZSTD extends JavaCppHybridReadWriteTestBase {
 
   def main(args: Array[String]) = {
     testJavaWriteCppRead(CompressionCodec.ZSTD)
