@@ -274,6 +274,7 @@ public class SparkShuffleManager implements ShuffleManager {
       _sortShuffleManager.stop();
       _sortShuffleManager = null;
     }
+    ListenerHelper.reset();
   }
 
   @Override
