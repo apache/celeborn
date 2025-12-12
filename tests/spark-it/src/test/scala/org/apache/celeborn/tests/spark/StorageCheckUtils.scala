@@ -89,11 +89,11 @@ object StorageCheckUtils {
   }
 
   def triggerStorageCheckThread(
-                                 workerDirs: Seq[String],
-                                 shuffleIdShouldNotExist: Seq[Int],
-                                 shuffleIdMustExist: Seq[Int],
-                                 sparkSession: SparkSession,
-                                 forStableStatusChecking: Boolean): CheckingThread = {
+      workerDirs: Seq[String],
+      shuffleIdShouldNotExist: Seq[Int],
+      shuffleIdMustExist: Seq[Int],
+      sparkSession: SparkSession,
+      forStableStatusChecking: Boolean): CheckingThread = {
     val checkingThread =
       if (!forStableStatusChecking) {
         new CheckingThread(workerDirs, shuffleIdShouldNotExist, shuffleIdMustExist, sparkSession)

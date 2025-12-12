@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.celeborn.spark.StageDependencyManager;
 import org.apache.spark.*;
 import org.apache.spark.launcher.SparkLauncher;
+import org.apache.spark.listener.ListenerHelper;
 import org.apache.spark.rdd.DeterministicLevel;
 import org.apache.spark.scheduler.RunningStageManager;
 import org.apache.spark.scheduler.RunningStageManagerImpl;
@@ -162,6 +163,7 @@ public class SparkShuffleManager implements ShuffleManager {
           }
           if (lifecycleManager.conf().clientShuffleEarlyDeletion()) {
             logger.info("register early deletion callbacks");
+            ListenerHelper.addShuffleStatsTrackingListener();
             lifecycleManager.registerStageToWriteCelebornShuffleCallback(
                 (celebornShuffleId, appShuffleIdentifier) ->
                     SparkUtils.addStageToWriteCelebornShuffleIdDep(

@@ -43,7 +43,7 @@ class ShuffleStatsTrackingListener extends SparkListener with Logging {
   override def onStageCompleted(stageCompleted: SparkListenerStageCompleted): Unit = {
     val stageIdentifier = s"${stageCompleted.stageInfo.stageId}-" +
       s"${stageCompleted.stageInfo.attemptNumber()}"
-    logInfo(s"stage $stageIdentifier finished with" +
+    println(s"stage $stageIdentifier finished with" +
       s" ${stageCompleted.stageInfo.taskMetrics.shuffleWriteMetrics.bytesWritten} shuffle bytes")
     val shuffleMgr = SparkEnv.get.shuffleManager.asInstanceOf[SparkShuffleManager]
     if (shuffleMgr.getLifecycleManager.conf.clientShuffleEarlyDeletion) {
