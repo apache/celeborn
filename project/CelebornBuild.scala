@@ -78,7 +78,7 @@ object Dependencies {
   val h2Version = "2.2.224"
   val swaggerVersion = "2.2.1"
   val swaggerUiVersion = "4.9.1"
-  val jerseyVersion = "2.39.1"
+  val jerseyVersion = "2.47"
   val jettyVersion = "9.4.58.v20250814"
   val javaxServletApiVersion = "4.0.1"
   val jakartaServeletApiVersion = "5.0.0"
@@ -195,7 +195,10 @@ object Dependencies {
     ExclusionRule("jakarta.xml.bind", "jakarta.xml.bind-api"))
   val jerseyContainerServletCore = "org.glassfish.jersey.containers" % "jersey-container-servlet-core" % jerseyVersion
   val jerseyHk2 = "org.glassfish.jersey.inject" % "jersey-hk2" % jerseyVersion
-  val jerseyMediaJsonJackson = "org.glassfish.jersey.media" % "jersey-media-json-jackson" % jerseyVersion
+  val jerseyMediaJsonJackson = "org.glassfish.jersey.media" % "jersey-media-json-jackson" % jerseyVersion excludeAll(
+    ExclusionRule("com.fasterxml.jackson.core", "jackson-annotations"),
+    ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"),
+    ExclusionRule("com.fasterxml.jackson.module", "jackson-module-jaxb-annotations"))
   val jerseyMediaMultipart = "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyVersion
   val swaggerJaxrs2 = "io.swagger.core.v3" % "swagger-jaxrs2" %swaggerVersion excludeAll(
     ExclusionRule("com.sun.activation", "jakarta.activation"),

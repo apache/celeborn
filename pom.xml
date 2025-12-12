@@ -119,7 +119,7 @@
     <!-- RESTful service dependencies -->
     <swagger.version>2.2.1</swagger.version>
     <swagger-ui.version>4.9.1</swagger-ui.version>
-    <jersey.version>2.39.1</jersey.version>
+    <jersey.version>2.47</jersey.version>
     <jetty.version>9.4.58.v20250814</jetty.version>
     <javax.servlet-api.version>4.0.1</javax.servlet-api.version>
     <!-- 6.0.0 requires JDK 11 -->
@@ -583,6 +583,20 @@
         <groupId>org.glassfish.jersey.media</groupId>
         <artifactId>jersey-media-json-jackson</artifactId>
         <version>${jersey.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.fasterxml.jackson.module</groupId>
+            <artifactId>jackson-module-jaxb-annotations</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
