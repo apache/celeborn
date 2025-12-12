@@ -22,18 +22,15 @@ import java.util
 import java.util.{function, List => JList}
 import java.util.concurrent.{Callable, ConcurrentHashMap, LinkedBlockingQueue, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.function.Consumer
-
+import java.util.function.{BiConsumer, Consumer, Function}
 import scala.collection.JavaConverters._
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 import scala.util.Random
-
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
-
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.client.listener.WorkerStatusListener
 import org.apache.celeborn.common.CelebornConf
@@ -728,6 +725,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 : scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)] = {
               val newShuffleId = shuffleIdGenerator.getAndIncrement()
               logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
+              logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId" +
+                s" appShuffleIdentifier $appShuffleIdentifier")
+              stageToWriteCelebornShuffleCallback.foreach(callback =>
+                callback.accept(newShuffleId, appShuffleIdentifier))
+              celebornToAppShuffleIdMappingCallback.foreach(callback =>
+                callback.accept(newShuffleId, appShuffleIdentifier))
               scala.collection.mutable.LinkedHashMap(appShuffleIdentifier -> (newShuffleId, true))
             }
           })
@@ -769,7 +772,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                   id
                 } else {
                   val newShuffleId = shuffleIdGenerator.getAndIncrement()
-                  logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
+                  logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId" +
+                    s" appShuffleIdentifier $appShuffleIdentifier")
+                  getCelebornShuffleIdForWriterCallback.foreach(callback =>
+                    callback.accept(newShuffleId, appShuffleIdentifier))
+                  stageToWriteCelebornShuffleCallback.foreach { callback =>
+                    callback.accept(newShuffleId, appShuffleIdentifier)
+                  }
+                  celebornToAppShuffleIdMappingCallback.foreach(callback =>
+                    callback.accept(newShuffleId, appShuffleIdentifier))
                   shuffleIds.put(appShuffleIdentifier, (newShuffleId, true))
                   newShuffleId
                 }
@@ -1564,6 +1575,58 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   @volatile private var appShuffleTrackerCallback: Option[Consumer[Integer]] = None
   def registerShuffleTrackerCallback(callback: Consumer[Integer]): Unit = {
     appShuffleTrackerCallback = Some(callback)
+  }
+
+  @volatile private var getUpstreamAppShuffleIdsCallback
+  : Option[Function[Integer, Array[Integer]]] = None
+  def registerUpstreamAppShuffleIdsCallback(callback: Function[Integer, Array[Integer]]): Unit = {
+    getUpstreamAppShuffleIdsCallback = Some(callback)
+  }
+
+  @volatile private var getAppShuffleIdByStageIdCallback: Option[Function[Integer, Integer]] = None
+  def registerGetAppShuffleIdByStageIdCallback(
+                                                callback: Function[Integer, Integer]): Unit = {
+    getAppShuffleIdByStageIdCallback = Some(callback)
+  }
+
+  // expecting celeborn shuffle id and application shuffle identifier
+  @volatile private var getCelebornShuffleIdForWriterCallback: Option[BiConsumer[Integer, String]] =
+  None
+  def registerGetCelebornShuffleIdForWriterCallback(callback: BiConsumer[Integer, String]): Unit = {
+    getCelebornShuffleIdForWriterCallback = Some(callback)
+  }
+
+  // expecting celeborn shuffle id and application shuffle identifier
+  @volatile private var getCelebornShuffleIdForReaderCallback: Option[BiConsumer[Integer, String]] =
+  None
+  def registerGetCelebornShuffleIdForReaderCallback(callback: BiConsumer[Integer, String]): Unit = {
+    getCelebornShuffleIdForReaderCallback = Some(callback)
+  }
+
+  @volatile private var getAppShuffleIdForReaderCallback: Option[BiConsumer[Integer, String]] = None
+  def registerReaderStageToAppShuffleIdsCallback(callback: BiConsumer[Integer, String]): Unit = {
+    getAppShuffleIdForReaderCallback = Some(callback)
+  }
+
+  @volatile private var stageToWriteCelebornShuffleCallback: Option[BiConsumer[Integer, String]] =
+    None
+  def registerStageToWriteCelebornShuffleCallback(
+                                                   callback: BiConsumer[Integer, String]): Unit = {
+    stageToWriteCelebornShuffleCallback = Some(callback)
+  }
+
+  @volatile private var celebornToAppShuffleIdMappingCallback: Option[BiConsumer[Integer, String]] =
+    None
+  def registerCelebornToAppShuffleIdMappingCallback(
+                                                     callback: BiConsumer[Integer, String]): Unit = {
+    celebornToAppShuffleIdMappingCallback = Some(callback)
+  }
+
+  @volatile private var checkWhetherToInvalidateAllUpstreamCallback
+  : Option[Function[String, Boolean]] = None
+  def registerInvalidateAllUpstreamCheckCallback(
+                                                  callback: Function[String, Boolean]): Unit = {
+    checkWhetherToInvalidateAllUpstreamCallback = Some(callback)
   }
 
   def registerAppShuffleDeterminate(appShuffleId: Int, determinate: Boolean): Unit = {

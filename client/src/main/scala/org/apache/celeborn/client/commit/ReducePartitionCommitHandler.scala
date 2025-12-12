@@ -18,14 +18,11 @@
 package org.apache.celeborn.client.commit
 
 import java.nio.ByteBuffer
-import java.util
+import java.{lang, util}
 import java.util.concurrent.{Callable, ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-
 import com.google.common.cache.{Cache, CacheBuilder}
-
 import org.apache.celeborn.client.{ClientUtils, ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
@@ -95,6 +92,10 @@ class ReducePartitionCommitHandler(
 
   override def isStageDataLost(shuffleId: Int): Boolean = {
     dataLostShuffleSet.contains(shuffleId)
+  }
+
+  def getDataLostShuffleSet: ConcurrentHashMap.KeySetView[Int, lang.Boolean] = {
+    dataLostShuffleSet
   }
 
   override def isPartitionInProcess(shuffleId: Int, partitionId: Int): Boolean = {

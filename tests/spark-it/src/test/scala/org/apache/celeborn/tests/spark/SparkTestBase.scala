@@ -98,4 +98,8 @@ trait SparkTestBase extends AnyFunSuite
     val outMap = result.collect().map(row => row.getString(0) -> row.getLong(1)).toMap
     outMap
   }
+
+  protected def runningWithSpark3OrNewer(): Boolean = {
+    SPARK_VERSION >= "3.0"
+  }
 }
