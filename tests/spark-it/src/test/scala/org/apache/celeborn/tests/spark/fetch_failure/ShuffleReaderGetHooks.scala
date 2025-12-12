@@ -63,7 +63,7 @@ class FailedCommitAndExpireDataReaderHook(
           if (celebornShuffleId == triggerShuffleId && !executed.get()) {
             println(s"putting celeborn shuffle $celebornShuffleId as commit failure")
             val commitHandler = lifecycleManager.commitManager.getCommitHandler(celebornShuffleId)
-            commitHandler.asInstanceOf[ReducePartitionCommitHandler].dataLostShuffleSet.add(
+            commitHandler.asInstanceOf[ReducePartitionCommitHandler].getDataLostShuffleSet.add(
               celebornShuffleId)
             shuffleIdsToExpire.foreach(sid =>
               SparkEnv.get.shuffleManager.asInstanceOf[TestCelebornShuffleManager]
@@ -112,7 +112,7 @@ class FailCommitShuffleReaderGetHook(
               .getLifecycleManager
           val celebornShuffleId = SparkUtils.celebornShuffleId(shuffleClient, h, context, false)
           val commitHandler = lifecycleManager.commitManager.getCommitHandler(celebornShuffleId)
-          commitHandler.asInstanceOf[ReducePartitionCommitHandler].dataLostShuffleSet.add(
+          commitHandler.asInstanceOf[ReducePartitionCommitHandler].getDataLostShuffleSet.add(
             celebornShuffleId)
           executed.set(true)
         case _ => throw new RuntimeException("unexpected, only support RssShuffleHandle here")

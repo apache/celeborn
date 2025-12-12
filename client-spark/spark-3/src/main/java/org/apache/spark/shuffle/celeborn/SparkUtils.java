@@ -276,13 +276,6 @@ public class SparkUtils {
         "unexpected! neither methods unregisterAllMapAndMergeOutput/unregisterAllMapOutput are found in MapOutputTrackerMaster");
   }
 
-  public static void addWriterShuffleIdsToBeCleaned(
-      SparkShuffleManager sparkShuffleManager, int celebornShuffeId, String appShuffleIdentifier) {
-    sparkShuffleManager
-        .getFailedShuffleCleaner()
-        .addShuffleIdToBeCleaned(celebornShuffeId, appShuffleIdentifier);
-  }
-
   public static Integer[] getAllUpstreamAppShuffleIds(
       SparkShuffleManager sparkShuffleManager, int readerStageId) {
     int[] upstreamShuffleIds =
