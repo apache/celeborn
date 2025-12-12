@@ -141,7 +141,7 @@ class StageDependencyManager(shuffleManager: SparkShuffleManager) extends Loggin
       appShuffleIdentifier.split('-')
     val shuffleSize = queryShuffleSizeByAppShuffleIdentifier(appShuffleIdentifier)
     celebornToAppShuffleIdentifier.remove(celebornShuffleId)
-    logInfo(s"clean up app shuffle id $appShuffleIdentifier," +
+    println(s"clean up app shuffle id $appShuffleIdentifier," +
       s" celeborn shuffle id : $celebornShuffleId")
     stageId.foreach(sid => removeStageAndReadInfo(sid))
 //    ClientMetricsSystem.updateShuffleWrittenBytes(shuffleSize * -1)

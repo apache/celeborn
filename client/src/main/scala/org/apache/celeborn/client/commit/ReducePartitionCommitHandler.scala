@@ -94,7 +94,7 @@ class ReducePartitionCommitHandler(
     dataLostShuffleSet.contains(shuffleId)
   }
 
-  def getDataLostShuffleSet(): ConcurrentHashMap.KeySetView[Int, lang.Boolean] = {
+  def getDataLostShuffleSet: ConcurrentHashMap.KeySetView[Int, lang.Boolean] = {
     dataLostShuffleSet
   }
 

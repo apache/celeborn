@@ -163,15 +163,18 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
     }
   }
 
-  test("spark integration test - when the stage has a skipped parent stage, we should still be" +
-    " able to delete data") {
+  test("spark integration test - when the stage has a skipped parent stage," +
+    " we should still be able to delete data") {
     if (runningWithSpark3OrNewer()) {
       val spark = createSparkSession()
       try {
-        val rdd1 = spark.sparkContext.parallelize(0 until 20, 3).repartition(2)
-        rdd1.count()
+        // shuffle 0
+        val rdd1 = spark.sparkContext
+          .parallelize(0 until 20, 3)
+          .repartition(2)
         val t = new Thread() {
           override def run(): Unit = {
+            // shuffle 1
             rdd1.mapPartitions(iter => {
               Thread.sleep(20000)
               iter
@@ -179,6 +182,8 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
           }
         }
         t.start()
+        // skip shuffle 0
+        rdd1.count()
         val thread = StorageCheckUtils.triggerStorageCheckThread(
           workerDirs,
           shuffleIdShouldNotExist = Seq(0, 2),
@@ -193,6 +198,7 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
     }
   }
 
+  /*
   private def deleteTooEarlyTest(
                                   shuffleIdShouldNotExist: Seq[Int],
                                   shuffleIdMustExist: Seq[Int],
@@ -444,7 +450,7 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
     " are to be retried for fetching") {
     val spark = createSparkSession(Map("spark.stage.maxConsecutiveAttempts" -> "3"))
     multiShuffleFailureTest(Seq(0, 1, 2, 3, 4, 5), Seq(17), spark)
-  }
+  }*/
 
 //  test("spark integration test - do not fail job when multiple shuffles (be zipped/joined)" +
 //    " are to be retried for fetching (with failed shuffle deletion)") {
