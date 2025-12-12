@@ -91,7 +91,7 @@
     <leveldb.version>1.8</leveldb.version>
     <log4j2.version>2.24.3</log4j2.version>
     <disruptor.version>3.4.4</disruptor.version>
-    <lz4-java.version>1.8.0</lz4-java.version>
+    <lz4-java.version>1.10.0</lz4-java.version>
     <mockito.version>4.11.0</mockito.version>
     <mockito-scalatest.version>1.17.14</mockito-scalatest.version>
     <netty.version>4.1.118.Final</netty.version>
@@ -441,7 +441,7 @@
         <version>${leveldb.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.lz4</groupId>
+        <groupId>at.yawk.lz4</groupId>
         <artifactId>lz4-java</artifactId>
         <version>${lz4-java.version}</version>
       </dependency>
@@ -1414,6 +1414,22 @@
       <properties>
         <aliyun-deps>true</aliyun-deps>
       </properties>
+    </profile>
+    <profile>
+      <id>org-lz4</id>
+      <activation>
+        <property>
+          <name>lz4-java.version</name>
+          <value>[1.4.0,1.10.0)</value>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.lz4</groupId>
+          <artifactId>lz4-java</artifactId>
+          <version>${lz4-java.version}</version>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>spark-2.4</id>
