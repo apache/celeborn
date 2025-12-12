@@ -19,15 +19,15 @@ package org.apache.celeborn.service.deploy
 
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
-
 import scala.collection.mutable
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
+
+import scala.util.Random
 
 trait MiniClusterFeature extends Logging {
   val masterHttpPort = new AtomicInteger(22378)
@@ -40,6 +40,46 @@ trait MiniClusterFeature extends Logging {
       Utils.tryLogNonFatalError(code)
     }
   })
+
+  def setupMiniClusterWithRandomPorts(
+                                       masterConf: Option[Map[String, String]] = None,
+                                       workerConf: Option[Map[String, String]] = None,
+                                       workerNum: Int = 3): (Master, collection.Set[Worker]) = {
+    var retryCount = 0
+    var created = false
+    var master: Master = null
+    var workers: collection.Set[Worker] = null
+    while (retryCount < 3 && !created) {
+      try {
+        val randomPort = Random.nextInt(65535 - 1200) + 1200
+        val finalMasterConf = Map(
+          s"${CelebornConf.MASTER_HOST.key}" -> "localhost",
+          s"${CelebornConf.MASTER_PORT.key}" -> s"$randomPort",
+          s"${CelebornConf.MASTER_ENDPOINTS.key}" -> s"localhost:$randomPort",
+          s"${CelebornConf.CLIENT_SLOT_ASSIGN_MAX_WORKERS.key}" -> "10") ++
+          masterConf.getOrElse(Map())
+        val finalWorkerConf = Map(
+          s"${CelebornConf.MASTER_ENDPOINTS.key}" -> s"localhost:$randomPort") ++
+          workerConf.getOrElse(Map())
+        logInfo(s"generated configuration $finalMasterConf")
+        val (m, w) =
+          setUpMiniCluster(masterConf = finalMasterConf, workerConf = finalWorkerConf, workerNum)
+        master = m
+        workers = w
+        created = true
+      } catch {
+        case e: Exception =>
+          if (retryCount < 3) {
+            logError("failed to setup mini cluster, reached the max retry count")
+            throw e
+          } else {
+            logError(s"failed to setup mini cluster, retrying (retry count: $retryCount")
+            retryCount += 1
+          }
+      }
+    }
+    (master, workers)
+  }
 
   def createTmpDir(): String = {
     val tmpDir = Files.createTempDirectory("celeborn-")

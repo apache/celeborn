@@ -17,6 +17,7 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import java.util.Arrays;
 import java.util.concurrent.atomic.LongAdder;
 
 import scala.Tuple2;
@@ -273,5 +274,64 @@ public class SparkUtils {
     }
     throw new UnsupportedOperationException(
         "unexpected! neither methods unregisterAllMapAndMergeOutput/unregisterAllMapOutput are found in MapOutputTrackerMaster");
+  }
+
+  public static void addWriterShuffleIdsToBeCleaned(
+      SparkShuffleManager sparkShuffleManager, int celebornShuffeId, String appShuffleIdentifier) {
+    sparkShuffleManager
+        .getFailedShuffleCleaner()
+        .addShuffleIdToBeCleaned(celebornShuffeId, appShuffleIdentifier);
+  }
+
+  public static Integer[] getAllUpstreamAppShuffleIds(
+      SparkShuffleManager sparkShuffleManager, int readerStageId) {
+    int[] upstreamShuffleIds =
+        sparkShuffleManager
+            .getStageDepManager()
+            .getAllUpstreamAppShuffleIdsByStageId(readerStageId);
+    return Arrays.stream(upstreamShuffleIds).boxed().toArray(Integer[]::new);
+  }
+
+  public static Integer getAppShuffleIdByStageId(
+      SparkShuffleManager sparkShuffleManager, int readerStageId) {
+    int writtenAppShuffleId =
+        sparkShuffleManager.getStageDepManager().getAppShuffleIdByStageId(readerStageId);
+    return writtenAppShuffleId;
+  }
+
+  public static void addCelebornShuffleReadingStageDep(
+      SparkShuffleManager sparkShuffleManager, int celebornShuffeId, String appShuffleIdentifier) {
+    sparkShuffleManager
+        .getStageDepManager()
+        .addCelebornShuffleIdReadingStageDep(celebornShuffeId, appShuffleIdentifier);
+  }
+
+  public static void addAppShuffleReadingStageDep(
+      SparkShuffleManager sparkShuffleManager, int appShuffleId, String appShuffleIdentifier) {
+    sparkShuffleManager
+        .getStageDepManager()
+        .addAppShuffleIdReadingStageDep(appShuffleId, appShuffleIdentifier);
+  }
+
+  public static boolean canInvalidateAllUpstream(
+      SparkShuffleManager sparkShuffleManager, String appShuffleIdentifier) {
+    String[] decodedAppShuffleIdentifier = appShuffleIdentifier.split("-");
+    return sparkShuffleManager
+        .getStageDepManager()
+        .hasAllUpstreamShuffleIdsInfo(Integer.valueOf(decodedAppShuffleIdentifier[1]));
+  }
+
+  public static void addStageToWriteCelebornShuffleIdDep(
+      SparkShuffleManager sparkShuffleManager, int celebornShuffeId, String appShuffleIdentifier) {
+    sparkShuffleManager
+        .getStageDepManager()
+        .addStageToCelebornShuffleIdRef(celebornShuffeId, appShuffleIdentifier);
+  }
+
+  public static void addCelebornToSparkShuffleIdRef(
+      SparkShuffleManager sparkShuffleManager, int celebornShuffeId, String appShuffleIdentifier) {
+    sparkShuffleManager
+        .getStageDepManager()
+        .addCelebornToAppShuffleIdMapping(celebornShuffeId, appShuffleIdentifier);
   }
 }

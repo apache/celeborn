@@ -17,15 +17,15 @@
 
 package org.apache.celeborn.common
 
-import java.io.IOException
-import java.util.{Collection => JCollection, Collections, HashMap => JHashMap, Locale, Map => JMap}
-import java.util.concurrent.TimeUnit
+import org.apache.celeborn.common.CelebornConf.{CLIENT_SHUFFLE_EARLY_DELETION, CLIENT_SHUFFLE_EARLY_DELETION_CHECK_PROPERTY, CLIENT_SHUFFLE_EARLY_DELETION_INTERVAL_MS}
 
+import java.io.IOException
+import java.util.{Collections, Locale, Collection => JCollection, HashMap => JHashMap, Map => JMap}
+import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.util.Try
-
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, IdentityProvider}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
@@ -812,6 +812,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
   def clientFetchThrowsFetchFailure: Boolean = get(CLIENT_FETCH_THROWS_FETCH_FAILURE)
+  def clientShuffleEarlyDeletion: Boolean = get(CLIENT_SHUFFLE_EARLY_DELETION)
+  def clientShuffleEarlyDeletionCheckProp: Boolean =
+    get(CLIENT_SHUFFLE_EARLY_DELETION_CHECK_PROPERTY)
+  def clientShuffleEarlyDeletionIntervalMs: Long = get(CLIENT_SHUFFLE_EARLY_DELETION_INTERVAL_MS)
   def clientFetchExcludeWorkerOnFailureEnabled: Boolean =
     get(CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
   def clientFetchExcludedWorkerExpireTimeout: Long =
@@ -3485,6 +3489,31 @@ object CelebornConf extends Logging {
       .doc("client throws FetchFailedException instead of CelebornIOException")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_SHUFFLE_EARLY_DELETION: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.fetch.shuffleEarlyDeletion")
+      .categories("client")
+      .version("0.4.1")
+      .doc("whether to delete shuffle when we determine a shuffle is not needed by any stage")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_SHUFFLE_EARLY_DELETION_CHECK_PROPERTY: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.fetch.shuffleEarlyDeletion.checkProperty")
+      .categories("client")
+      .version("0.4.1")
+      .doc("when this is enabled, we only early delete shuffle when" +
+        " \"CELEBORN_EARLY_SHUFFLE_DELETION\" property is set to true")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_SHUFFLE_EARLY_DELETION_INTERVAL_MS: ConfigEntry[Long] =
+    buildConf("celeborn.client.spark.fetch.shuffleEarlyDeletion.intervalMs")
+      .categories("client")
+      .version("0.4.1")
+      .doc("interval length to delete unused shuffle (ms)")
+      .longConf
+      .createWithDefault(5 * 60 * 1000)
 
   val CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.fetch.excludeWorkerOnFailure.enabled")

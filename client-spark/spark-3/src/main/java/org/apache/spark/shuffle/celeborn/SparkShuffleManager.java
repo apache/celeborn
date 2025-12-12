@@ -18,11 +18,15 @@
 package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.celeborn.spark.StageDependencyManager;
 import org.apache.spark.*;
 import org.apache.spark.launcher.SparkLauncher;
 import org.apache.spark.rdd.DeterministicLevel;
+import org.apache.spark.scheduler.RunningStageManager;
+import org.apache.spark.scheduler.RunningStageManagerImpl;
 import org.apache.spark.shuffle.*;
 import org.apache.spark.shuffle.sort.SortShuffleManager;
 import org.apache.spark.sql.internal.SQLConf;
@@ -86,6 +90,30 @@ public class SparkShuffleManager implements ShuffleManager {
   private long sendBufferPoolExpireTimeout;
 
   private ExecutorShuffleIdTracker shuffleIdTracker = new ExecutorShuffleIdTracker();
+  private StageDependencyManager stageDepManager = null;
+
+  public static final String RUNNING_STAGE_CHECKER_CLASS =
+      "CELEBORN_TEST_RUNNING_STAGE_CHECKER_IMPL";
+
+  private RunningStageManager runningStageManager = null;
+
+  // for testing
+  public void buildRunningStageChecker()
+      throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException,
+      InstantiationException, IllegalAccessException {
+    if (System.getProperty(RUNNING_STAGE_CHECKER_CLASS) == null) {
+      runningStageManager = new RunningStageManagerImpl();
+    } else {
+      String className = System.getProperty(RUNNING_STAGE_CHECKER_CLASS);
+      Class claz = Class.forName(className);
+      runningStageManager = (RunningStageManager) claz.getDeclaredConstructor().newInstance();
+    }
+  }
+
+  // for testing
+  public void initStageDepManager() {
+    this.stageDepManager = new StageDependencyManager(this);
+  }
 
   public SparkShuffleManager(SparkConf conf, boolean isDriver) {
     if (conf.getBoolean(SQLConf.LOCAL_SHUFFLE_READER_ENABLED().key(), true)) {
@@ -131,6 +159,36 @@ public class SparkShuffleManager implements ShuffleManager {
 
             lifecycleManager.registerShuffleTrackerCallback(
                 shuffleId -> SparkUtils.unregisterAllMapOutput(mapOutputTracker, shuffleId));
+          }
+          if (lifecycleManager.conf().clientShuffleEarlyDeletion()) {
+            logger.info("register early deletion callbacks");
+            lifecycleManager.registerStageToWriteCelebornShuffleCallback(
+                (celebornShuffleId, appShuffleIdentifier) ->
+                    SparkUtils.addStageToWriteCelebornShuffleIdDep(
+                        this, celebornShuffleId, appShuffleIdentifier));
+            lifecycleManager.registerCelebornToAppShuffleIdMappingCallback(
+                (celebornShuffleId, appShuffleIdentifier) ->
+                    SparkUtils.addCelebornToSparkShuffleIdRef(
+                        this, celebornShuffleId, appShuffleIdentifier));
+            lifecycleManager.registerGetCelebornShuffleIdForReaderCallback(
+                (celebornShuffleId, appShuffleIdentifier) ->
+                    SparkUtils.addCelebornShuffleReadingStageDep(
+                        this, celebornShuffleId, appShuffleIdentifier));
+            lifecycleManager.registerUpstreamAppShuffleIdsCallback(
+                (stageId) -> SparkUtils.getAllUpstreamAppShuffleIds(this, stageId));
+            lifecycleManager.registerGetAppShuffleIdByStageIdCallback(
+                (stageId) -> SparkUtils.getAppShuffleIdByStageId(this, stageId));
+            lifecycleManager.registerReaderStageToAppShuffleIdsCallback(
+                (appShuffleId, appShuffleIdentifier) ->
+                    SparkUtils.addAppShuffleReadingStageDep(
+                        this, appShuffleId, appShuffleIdentifier));
+            lifecycleManager.registerInvalidateAllUpstreamCheckCallback(
+                (appShuffleIdentifier) ->
+                    SparkUtils.canInvalidateAllUpstream(this, appShuffleIdentifier));
+            if (stageDepManager == null) {
+              stageDepManager = new StageDependencyManager(this);
+            }
+            stageDepManager.start();
           }
         }
       }
@@ -389,5 +447,13 @@ public class SparkShuffleManager implements ShuffleManager {
   // for testing
   public LifecycleManager getLifecycleManager() {
     return this.lifecycleManager;
+  }
+
+  public RunningStageManager getRunningStageManager() {
+    return this.runningStageManager;
+  }
+
+  public StageDependencyManager getStageDepManager() {
+    return this.stageDepManager;
   }
 }
