@@ -162,4 +162,22 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
       anotherEnv.awaitTermination()
     }
   }
+
+  test("test process RpcEndpointVerifier separately") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.TEST_RPC_ENDPOINT_VERIFIER_SEPARATE, true)
+    val localEnv = createRpcEnv(conf, "local", 0, clientMode = true)
+    val anotherEnv = createRpcEnv(conf, "remote", 0, clientMode = true)
+    try {
+      localEnv.setupEndpointRef(anotherEnv.address, RpcEndpointVerifier.NAME)
+      assert(
+        anotherEnv.asInstanceOf[NettyRpcEnv].dispatcher.testProcessEndpointVerifierSeparateResult)
+    } finally {
+      anotherEnv.shutdown()
+      anotherEnv.awaitTermination()
+      localEnv.shutdown()
+      localEnv.awaitTermination()
+    }
+  }
+
 }
