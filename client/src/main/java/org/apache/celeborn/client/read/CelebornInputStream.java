@@ -814,7 +814,6 @@ public abstract class CelebornInputStream extends InputStream {
           return false;
         }
 
-        LocationPushFailedBatches failedBatch = new LocationPushFailedBatches();
         boolean hasData = false;
         while (currentChunk.isReadable() || moveToNextChunk()) {
           currentChunk.readBytes(sizeBuf);

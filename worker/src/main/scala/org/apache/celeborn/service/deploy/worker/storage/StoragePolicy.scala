@@ -94,7 +94,6 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
     }
 
     def tryCreateFileByType(storageInfoType: StorageInfo.Type): TierWriterBase = {
-      val overrideType = if (evict) storageInfoType else location.getStorageInfo.getType
       try {
         storageInfoType match {
           case StorageInfo.Type.MEMORY =>
@@ -123,24 +122,20 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                 s"Not creating ${storageInfoType} file from ${location.getStorageInfo.getType} for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
               null
             }
-          case StorageInfo.Type.HDD | StorageInfo.Type.SSD | StorageInfo.Type.HDFS | StorageInfo.Type.OSS | StorageInfo.Type.S3 =>
-            if (storageManager.localOrDfsStorageAvailable) {
-              logDebug(
-                s"create non-memory file type $storageInfoType (evict=$evict, override=$overrideType) for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
-              val (flusher, diskFileInfo, workingDir) = storageManager.createDiskFile(
+          case StorageInfo.Type.HDD | StorageInfo.Type.SSD =>
+            if (storageManager.localStorageAvailable) {
+              logDebug(s"create local disk file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
+              val (flusher, diskFileInfo, workingDir) = storageManager.createLocalDiskFile(
                 location,
                 partitionDataWriterContext.getAppId,
                 partitionDataWriterContext.getShuffleId,
                 location.getFileName,
                 partitionDataWriterContext.getUserIdentifier,
                 partitionDataWriterContext.getPartitionType,
-                partitionDataWriterContext.isPartitionSplitEnabled,
-                overrideType // this is different from location type, in case of eviction
-              )
-              partitionDataWriterContext.setWorkingDir(workingDir)
-              val metaHandler = getPartitionMetaHandler(diskFileInfo)
-              if (flusher.isInstanceOf[LocalFlusher]
-                && location.getStorageInfo.localDiskAvailable()) {
+                partitionDataWriterContext.isPartitionSplitEnabled)
+              if (diskFileInfo != null) {
+                partitionDataWriterContext.setWorkingDir(workingDir)
+                val metaHandler = getPartitionMetaHandler(diskFileInfo)
                 new LocalTierWriter(
                   conf,
                   metaHandler,
@@ -153,6 +148,25 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                   partitionDataWriterContext,
                   storageManager)
               } else {
+                null
+              }
+            } else {
+              null
+            }
+          case StorageInfo.Type.HDFS | StorageInfo.Type.OSS | StorageInfo.Type.S3 =>
+            if (storageManager.dfsStorageAvailable) {
+              logDebug(s"create dfs disk file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
+              val (flusher, diskFileInfo, workingDir) = storageManager.createDfsDiskFile(
+                location,
+                partitionDataWriterContext.getAppId,
+                partitionDataWriterContext.getShuffleId,
+                location.getFileName,
+                partitionDataWriterContext.getUserIdentifier,
+                partitionDataWriterContext.getPartitionType,
+                partitionDataWriterContext.isPartitionSplitEnabled)
+              if (diskFileInfo != null) {
+                partitionDataWriterContext.setWorkingDir(workingDir)
+                val metaHandler = getPartitionMetaHandler(diskFileInfo)
                 new DfsTierWriter(
                   conf,
                   metaHandler,
@@ -164,6 +178,8 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                   diskFileInfo.getStorageType,
                   partitionDataWriterContext,
                   storageManager)
+              } else {
+                null
               }
             } else {
               logError(

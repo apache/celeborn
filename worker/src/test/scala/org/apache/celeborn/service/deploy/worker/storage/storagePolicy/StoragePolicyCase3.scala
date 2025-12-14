@@ -59,8 +59,7 @@ class StoragePolicyCase3 extends CelebornFunSuite {
   val mockedFlusher = mock[LocalFlusher]
   val mockedFile = mock[File]
   when(
-    mockedStorageManager.createDiskFile(
-      any(),
+    mockedStorageManager.createLocalDiskFile(
       any(),
       any(),
       any(),
@@ -101,11 +100,10 @@ class StoragePolicyCase3 extends CelebornFunSuite {
   test("test getEvicted file case1") {
     when(mockedPartitionWriterContext.getPartitionLocation).thenAnswer(localHintPartitionLocatioin)
     when(mockedPartitionWriterContext.getPartitionType).thenAnswer(PartitionType.REDUCE)
-    when(mockedStorageManager.localOrDfsStorageAvailable).thenAnswer(true)
+    when(mockedStorageManager.localStorageAvailable).thenAnswer(true)
     when(mockedDiskFile.getStorageType).thenAnswer(StorageInfo.Type.SSD)
     val mockedMemoryFile = mock[LocalTierWriter]
     val conf = new CelebornConf()
-    val flushLock = new AnyRef
     val storagePolicy = new StoragePolicy(conf, mockedStorageManager, mockedSource)
     val pendingWriters = new AtomicInteger()
     val notifier = new FlushNotifier
@@ -121,11 +119,10 @@ class StoragePolicyCase3 extends CelebornFunSuite {
   test("test evict file case2") {
     when(mockedPartitionWriterContext.getPartitionLocation).thenAnswer(memoryHintPartitionLocation)
     when(mockedPartitionWriterContext.getPartitionType).thenAnswer(PartitionType.REDUCE)
-    when(mockedStorageManager.localOrDfsStorageAvailable).thenAnswer(true)
+    when(mockedStorageManager.localStorageAvailable).thenAnswer(true)
     when(mockedDiskFile.getStorageType).thenAnswer(StorageInfo.Type.HDD)
     val mockedMemoryFile = mock[LocalTierWriter]
     val conf = new CelebornConf()
-    val flushLock = new AnyRef
     val storagePolicy = new StoragePolicy(conf, mockedStorageManager, mockedSource)
     val pendingWriters = new AtomicInteger()
     val notifier = new FlushNotifier
