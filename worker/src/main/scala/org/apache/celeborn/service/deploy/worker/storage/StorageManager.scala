@@ -238,9 +238,16 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val activeTypes = conf.availableStorageTypes
 
   lazy val localOrDfsStorageAvailable: Boolean = {
+    localStorageAvailable || dfsStorageAvailable
+  }
+
+  lazy val localStorageAvailable: Boolean = {
+    StorageInfo.localDiskAvailable(activeTypes) || !diskInfos.isEmpty
+  }
+
+  lazy val dfsStorageAvailable: Boolean = {
     StorageInfo.OSSAvailable(activeTypes) || StorageInfo.S3Available(activeTypes) ||
-    StorageInfo.HDFSAvailable(activeTypes) || StorageInfo.localDiskAvailable(activeTypes) ||
-    hdfsDir.nonEmpty || !diskInfos.isEmpty || s3Dir.nonEmpty || ossDir.nonEmpty
+    StorageInfo.HDFSAvailable(activeTypes) || hdfsDir.nonEmpty || s3Dir.nonEmpty || ossDir.nonEmpty
   }
 
   override def notifyError(mountPoint: String, diskStatus: DiskStatus): Unit = this.synchronized {
@@ -1029,7 +1036,17 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     } else if (location.getStorageInfo.localDiskAvailable() || location.getStorageInfo.HDFSAvailable()
       || location.getStorageInfo.S3Available() || location.getStorageInfo.OSSAvailable()) {
       logDebug(s"create non-memory file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
-      val createDiskFileResult = createDiskFile(
+      val createDiskFileResult = createLocalDiskFile(
+        location,
+        partitionDataWriterContext.getAppId,
+        partitionDataWriterContext.getShuffleId,
+        location.getFileName,
+        partitionDataWriterContext.getUserIdentifier,
+        partitionDataWriterContext.getPartitionType,
+        partitionDataWriterContext.isPartitionSplitEnabled)
+      (null, createDiskFileResult._1, createDiskFileResult._2, createDiskFileResult._3)
+    } else if (location.getStorageInfo.HDFSAvailable() || location.getStorageInfo.S3Available() || location.getStorageInfo.OSSAvailable()) {
+      val createDiskFileResult = createDfsDiskFile(
         location,
         partitionDataWriterContext.getAppId,
         partitionDataWriterContext.getShuffleId,
@@ -1069,10 +1086,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     memoryFileInfo
   }
 
-  /**
-   * @return (Flusher,DiskFileInfo,workingDir)
-   */
-  def createDiskFile(
+  def createLocalDiskFile(
       location: PartitionLocation,
       appId: String,
       shuffleId: Int,
@@ -1102,61 +1116,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
       }
 
-      if (dirs.isEmpty && location.getStorageInfo.HDFSAvailable()) {
-        val shuffleDir =
-          new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
-        FileSystem.mkdirs(
-          StorageManager.hadoopFs.get(StorageInfo.Type.HDFS),
-          shuffleDir,
-          hdfsPermission)
-        val hdfsFilePath = new Path(shuffleDir, fileName).toString
-        val hdfsFileInfo = new DiskFileInfo(
-          userIdentifier,
-          partitionSplitEnabled,
-          getFileMeta(partitionType, s"hdfs", conf.shuffleChunkSize),
-          hdfsFilePath,
-          StorageInfo.Type.HDFS)
-        diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
-          fileName,
-          hdfsFileInfo)
-        return (hdfsFlusher.get, hdfsFileInfo, null)
-      } else if (dirs.isEmpty && location.getStorageInfo.S3Available()) {
-        val shuffleDir =
-          new Path(new Path(s3Dir, conf.workerWorkingDir), s"$appId/$shuffleId")
-        FileSystem.mkdirs(
-          StorageManager.hadoopFs.get(StorageInfo.Type.S3),
-          shuffleDir,
-          hdfsPermission)
-        val s3FilePath = new Path(shuffleDir, fileName).toString
-        val s3FileInfo = new DiskFileInfo(
-          userIdentifier,
-          partitionSplitEnabled,
-          new ReduceFileMeta(conf.shuffleChunkSize),
-          s3FilePath,
-          StorageInfo.Type.S3)
-        diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
-          fileName,
-          s3FileInfo)
-        return (s3Flusher.get, s3FileInfo, null)
-      } else if (dirs.isEmpty && location.getStorageInfo.OSSAvailable()) {
-        val shuffleDir =
-          new Path(new Path(ossDir, conf.workerWorkingDir), s"$appId/$shuffleId")
-        FileSystem.mkdirs(
-          StorageManager.hadoopFs.get(StorageInfo.Type.OSS),
-          shuffleDir,
-          hdfsPermission)
-        val ossFilePath = new Path(shuffleDir, fileName).toString
-        val ossFileInfo = new DiskFileInfo(
-          userIdentifier,
-          partitionSplitEnabled,
-          new ReduceFileMeta(conf.shuffleChunkSize),
-          ossFilePath,
-          StorageInfo.Type.OSS)
-        diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
-          fileName,
-          ossFileInfo)
-        return (ossFlusher.get, ossFileInfo, null)
-      } else if (dirs.nonEmpty && location.getStorageInfo.localDiskAvailable()) {
+      if (dirs.nonEmpty && location.getStorageInfo.localDiskAvailable()) {
         val dir = dirs(getNextIndex % dirs.size)
         val mountPoint = DeviceInfo.getMountPoint(dir.getAbsolutePath, mountPoints)
         val shuffleDir = new File(dir, s"$appId/$shuffleId")
@@ -1210,7 +1170,78 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       }
       retryCount += 1
     }
+    if (dfsStorageAvailable) {
+      logWarning("Failed to create localFileWriter", exception)
+      return (null, null, null)
+    }
     throw exception
+  }
+
+  def createDfsDiskFile(
+      location: PartitionLocation,
+      appId: String,
+      shuffleId: Int,
+      fileName: String,
+      userIdentifier: UserIdentifier,
+      partitionType: PartitionType,
+      partitionSplitEnabled: Boolean): (Flusher, DiskFileInfo, File) = {
+    val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
+    if (location.getStorageInfo.HDFSAvailable()) {
+      val shuffleDir =
+        new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
+      FileSystem.mkdirs(
+        StorageManager.hadoopFs.get(StorageInfo.Type.HDFS),
+        shuffleDir,
+        hdfsPermission)
+      val hdfsFilePath = new Path(shuffleDir, fileName).toString
+      val hdfsFileInfo = new DiskFileInfo(
+        userIdentifier,
+        partitionSplitEnabled,
+        getFileMeta(partitionType, s"hdfs", conf.shuffleChunkSize),
+        hdfsFilePath,
+        StorageInfo.Type.HDFS)
+      diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
+        fileName,
+        hdfsFileInfo)
+      return (hdfsFlusher.get, hdfsFileInfo, null)
+    } else if (location.getStorageInfo.S3Available()) {
+      val shuffleDir =
+        new Path(new Path(s3Dir, conf.workerWorkingDir), s"$appId/$shuffleId")
+      FileSystem.mkdirs(
+        StorageManager.hadoopFs.get(StorageInfo.Type.S3),
+        shuffleDir,
+        hdfsPermission)
+      val s3FilePath = new Path(shuffleDir, fileName).toString
+      val s3FileInfo = new DiskFileInfo(
+        userIdentifier,
+        partitionSplitEnabled,
+        new ReduceFileMeta(conf.shuffleChunkSize),
+        s3FilePath,
+        StorageInfo.Type.S3)
+      diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
+        fileName,
+        s3FileInfo)
+      return (s3Flusher.get, s3FileInfo, null)
+    } else if (location.getStorageInfo.OSSAvailable()) {
+      val shuffleDir =
+        new Path(new Path(ossDir, conf.workerWorkingDir), s"$appId/$shuffleId")
+      FileSystem.mkdirs(
+        StorageManager.hadoopFs.get(StorageInfo.Type.OSS),
+        shuffleDir,
+        hdfsPermission)
+      val ossFilePath = new Path(shuffleDir, fileName).toString
+      val ossFileInfo = new DiskFileInfo(
+        userIdentifier,
+        partitionSplitEnabled,
+        new ReduceFileMeta(conf.shuffleChunkSize),
+        ossFilePath,
+        StorageInfo.Type.OSS)
+      diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
+        fileName,
+        ossFileInfo)
+      return (ossFlusher.get, ossFileInfo, null)
+    }
+    (null, null, null)
   }
 
   def startDeviceMonitor(): Unit = {
