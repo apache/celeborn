@@ -261,4 +261,15 @@ public abstract class ShuffleClient {
    * incorrect shuffle data can be fetched in re-run tasks
    */
   public abstract boolean reportShuffleFetchFailure(int appShuffleId, int shuffleId);
+
+  /**
+   * report fetch failure for all upstream shuffles for a given stage id, It must be a sync call and
+   * make sure the cleanup is done, otherwise, incorrect shuffle data can be fetched in re-run tasks
+   */
+  public abstract boolean invalidateAllUpstreamShuffle(
+      int stageId, int attemptId, int triggerAppShuffleId);
+
+  /** report the failure to find the corresponding celeborn id for a shuffle id */
+  public abstract boolean reportMissingShuffleId(
+      int appShuffleId, int readerStageId, int stageAttemptId);
 }

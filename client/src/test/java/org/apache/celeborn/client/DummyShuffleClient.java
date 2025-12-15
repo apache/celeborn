@@ -170,6 +170,16 @@ public class DummyShuffleClient extends ShuffleClient {
     return true;
   }
 
+  @Override
+  public boolean invalidateAllUpstreamShuffle(int stageId, int attemptId, int appShuffleId) {
+    return true;
+  }
+
+  @Override
+  public boolean reportMissingShuffleId(int appShuffleId, int readerStageId, int stageAttemptId) {
+    return true;
+  }
+
   public void initReducePartitionMap(int shuffleId, int numPartitions, int workerNum) {
     ConcurrentHashMap<Integer, PartitionLocation> map = JavaUtils.newConcurrentHashMap();
     String host = "host";
