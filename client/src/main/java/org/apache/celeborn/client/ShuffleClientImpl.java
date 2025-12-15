@@ -568,7 +568,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     PbInvalidateAllUpstreamShuffleResponse pbInvalidateAllUpstreamShuffleResponse =
         lifecycleManagerRef.askSync(
             pbInvalidateAllUpstreamShuffle,
-            conf.clientRpcRegisterShuffleRpcAskTimeout(),
+            conf.clientRpcRegisterShuffleAskTimeout(),
             ClassTag$.MODULE$.apply(PbInvalidateAllUpstreamShuffleResponse.class));
     return pbInvalidateAllUpstreamShuffleResponse.getSuccess();
   }
@@ -584,7 +584,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     PbReportMissingShuffleIdResponse response =
         lifecycleManagerRef.askSync(
             pbReportMissingShuffleId,
-            conf.clientRpcRegisterShuffleRpcAskTimeout(),
+            conf.clientRpcRegisterShuffleAskTimeout(),
             ClassTag$.MODULE$.apply(PbReportMissingShuffleIdResponse.class));
     return response.getSuccess();
   }
