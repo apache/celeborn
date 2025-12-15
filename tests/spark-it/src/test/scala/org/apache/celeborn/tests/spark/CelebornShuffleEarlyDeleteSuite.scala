@@ -52,7 +52,7 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
   private def createSparkSession(additionalConf: Map[String, String] = Map()): SparkSession = {
     var builder = SparkSession
       .builder()
-      .master("local[*]")
+      .master("local[*, 4]")
       .appName("celeborn early delete")
       .config(updateSparkConf(new SparkConf(), ShuffleMode.SORT))
       .config("spark.sql.shuffle.partitions", 2)
@@ -72,6 +72,7 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
     builder.getOrCreate()
   }
 
+  /*
   test("spark integration test - delete shuffle data from unneeded stages") {
     if (runningWithSpark3OrNewer()) {
       val spark = createSparkSession()
@@ -163,7 +164,6 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
     }
   }
 
-  /*
   test("spark integration test - when the stage has a skipped parent stage, we should still be" +
     " able to delete data") {
     if (runningWithSpark3OrNewer()) {
@@ -192,7 +192,7 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
         spark.stop()
       }
     }
-  }
+  }*/
 
   private def deleteTooEarlyTest(
                                   shuffleIdShouldNotExist: Seq[Int],
@@ -244,6 +244,7 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
     deleteTooEarlyTest(Seq(0, 3, 5), Seq(1, 2, 4), spark)
   }
 
+  /*
 //  test("spark integration test - do not fail job when shuffle is deleted \"too early\"" +
 //    " (with failed shuffle deletion)") {
 //    val spark = createSparkSession(

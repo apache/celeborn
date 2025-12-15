@@ -887,7 +887,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       stagesReceivedInvalidatingUpstream.getOrElseUpdate(
         stageIdentifier,
         new mutable.HashSet[Int]())
-    logInfo(s"invalidating all upstream shuffles of stage $stageIdentifier")
+    println(s"invalidating all upstream shuffles of stage $stageIdentifier")
     val upstreamShuffleIds = getUpstreamAppShuffleIdsCallback.map(f =>
       f.apply(readerStageId)).getOrElse(Array())
     upstreamShuffleIds.foreach { upstreamAppShuffleId =>
@@ -905,10 +905,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   private def handleInvalidateAllUpstreamShuffle(
-                                                  context: RpcCallContext,
-                                                  readerStageId: Int,
-                                                  readerStageAttemptId: Int,
-                                                  triggerAppShuffleId: Int): Unit = stagesReceivedInvalidatingUpstream.synchronized {
+      context: RpcCallContext,
+      readerStageId: Int,
+      readerStageAttemptId: Int,
+      triggerAppShuffleId: Int): Unit = stagesReceivedInvalidatingUpstream.synchronized {
     require(
       conf.clientShuffleEarlyDeletion,
       "ReportFetchFailureForAllUpstream message is " +
