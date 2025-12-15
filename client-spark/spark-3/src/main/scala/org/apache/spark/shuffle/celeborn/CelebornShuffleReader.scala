@@ -20,19 +20,18 @@ package org.apache.spark.shuffle.celeborn
 import java.io.IOException
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
-
 import org.apache.spark.{InterruptibleIterator, ShuffleDependency, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.SerializerInstance
-import org.apache.spark.shuffle.{FetchFailedException, ShuffleReader, ShuffleReadMetricsReporter}
+import org.apache.spark.shuffle.{FetchFailedException, ShuffleReadMetricsReporter, ShuffleReader}
 import org.apache.spark.shuffle.celeborn.CelebornShuffleReader.streamCreatorPool
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
-
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.client.read.{CelebornInputStream, MetricsCallback}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.{CelebornIOException, PartitionUnRetryAbleException}
+import org.apache.celeborn.common.util.Utils.{KNOWN_MISSING_CELEBORN_SHUFFLE_ID, UNKNOWN_MISSING_CELEBORN_SHUFFLE_ID}
 import org.apache.celeborn.common.util.{ExceptionMaker, ThreadUtils}
 
 class CelebornShuffleReader[K, C](
@@ -60,14 +59,84 @@ class CelebornShuffleReader[K, C](
   private val throwsFetchFailure = handle.throwsFetchFailure
   private val encodedAttemptId = SparkCommonUtils.getEncodedAttemptNumber(context)
 
+  private def throwFetchFailureForMissingId(partitionId: Int, celebornShuffleId: Int): Unit = {
+    throw new FetchFailedException(
+      null,
+      handle.shuffleId,
+      -1,
+      -1,
+      partitionId,
+      SparkUtils.FETCH_FAILURE_ERROR_MSG + celebornShuffleId,
+      new CelebornIOException(s"cannot find shuffle id for ${handle.shuffleId}"))
+  }
+
+  private def handleMissingCelebornShuffleId(celebornShuffleId: Int, stageId: Int): Unit = {
+    if (conf.clientShuffleEarlyDeletion) {
+      if (celebornShuffleId == UNKNOWN_MISSING_CELEBORN_SHUFFLE_ID) {
+        logError(s"cannot find celeborn shuffle id for app shuffle ${handle.shuffleId} which " +
+          s"never appear before, throwing FetchFailureException")
+        (startPartition until endPartition).foreach(partitionId => {
+          if (handle.throwsFetchFailure &&
+            shuffleClient.reportMissingShuffleId(
+              handle.shuffleId,
+              context.stageId(),
+              context.stageAttemptNumber())) {
+            throwFetchFailureForMissingId(partitionId, celebornShuffleId)
+          } else {
+            val e = new IllegalStateException(s"failed to handle missing celeborn id for app" +
+              s" shuffle ${handle.shuffleId}")
+            logError(s"failed to handle missing celeborn id for app shuffle ${handle.shuffleId}", e)
+            throw e
+          }
+        })
+      } else if (celebornShuffleId == KNOWN_MISSING_CELEBORN_SHUFFLE_ID) {
+        logError(s"cannot find celeborn shuffle id for app shuffle ${handle.shuffleId} which " +
+          s"has appeared before, invalidating all upstream shuffle of this shuffle")
+        (startPartition until endPartition).foreach(partitionId => {
+          if (handle.throwsFetchFailure) {
+            val invalidateAllUpstreamRet = shuffleClient.invalidateAllUpstreamShuffle(
+              context.stageId(),
+              context.stageAttemptNumber(),
+              handle.shuffleId)
+            if (invalidateAllUpstreamRet) {
+              throwFetchFailureForMissingId(partitionId, celebornShuffleId)
+            } else {
+              // if we cannot invalidate all upstream, we need to report regular fetch failure
+              // for this particular shuffle id
+              val fetchFailureResponse = shuffleClient.reportMissingShuffleId(
+                handle.shuffleId,
+                context.stageId(),
+                context.stageAttemptNumber())
+              if (fetchFailureResponse) {
+                throwFetchFailureForMissingId(partitionId, UNKNOWN_MISSING_CELEBORN_SHUFFLE_ID)
+              } else {
+                val e = new IllegalStateException(s"failed to handle missing celeborn id for app" +
+                  s" shuffle ${handle.shuffleId}")
+                logError(
+                  s"failed to handle missing celeborn id for app shuffle" +
+                    s" ${handle.shuffleId}",
+                  e)
+                throw e
+              }
+            }
+          }
+        })
+      }
+    }
+  }
+
   override def read(): Iterator[Product2[K, C]] = {
 
     val serializerInstance = newSerializerInstance(dep)
 
-    val shuffleId = SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
-    shuffleIdTracker.track(handle.shuffleId, shuffleId)
+    val celebornShuffleId = SparkUtils.celebornShuffleId(shuffleClient, handle, context, false)
+
+    handleMissingCelebornShuffleId(celebornShuffleId, context.stageId())
+
+    shuffleIdTracker.track(handle.shuffleId, celebornShuffleId)
     logDebug(
-      s"get shuffleId $shuffleId for appShuffleId ${handle.shuffleId} attemptNum ${context.stageAttemptNumber()}")
+      s"get shuffleId $celebornShuffleId for appShuffleId ${handle.shuffleId} attemptNum" +
+        s" ${context.stageAttemptNumber()}")
 
     // Update the context task metrics for each record read.
     val metricsCallback = new MetricsCallback {
@@ -113,9 +182,12 @@ class CelebornShuffleReader[K, C](
       streamCreatorPool.submit(new Runnable {
         override def run(): Unit = {
           if (exceptionRef.get() == null) {
+            logInfo(
+              s"reading shuffle ${celebornShuffleId} partition ${partitionId} startMap: ${startMapIndex}" +
+                s" endMapIndex: ${endMapIndex}")
             try {
               val inputStream = shuffleClient.readPartition(
-                shuffleId,
+                celebornShuffleId,
                 handle.shuffleId,
                 partitionId,
                 encodedAttemptId,
@@ -146,14 +218,14 @@ class CelebornShuffleReader[K, C](
             exceptionRef.get() match {
               case ce @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
                 if (throwsFetchFailure &&
-                  shuffleClient.reportShuffleFetchFailure(handle.shuffleId, shuffleId)) {
+                  shuffleClient.reportShuffleFetchFailure(handle.shuffleId, celebornShuffleId)) {
                   throw new FetchFailedException(
                     null,
                     handle.shuffleId,
                     -1,
                     -1,
                     partitionId,
-                    SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + shuffleId,
+                    SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + celebornShuffleId,
                     ce)
                 } else
                   throw ce
@@ -179,14 +251,14 @@ class CelebornShuffleReader[K, C](
       } catch {
         case e @ (_: CelebornIOException | _: PartitionUnRetryAbleException) =>
           if (throwsFetchFailure &&
-            shuffleClient.reportShuffleFetchFailure(handle.shuffleId, shuffleId)) {
+            shuffleClient.reportShuffleFetchFailure(handle.shuffleId, celebornShuffleId)) {
             throw new FetchFailedException(
               null,
               handle.shuffleId,
               -1,
               -1,
               partitionId,
-              SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + shuffleId,
+              SparkUtils.FETCH_FAILURE_ERROR_MSG + handle.shuffleId + "/" + celebornShuffleId,
               e)
           } else
             throw e
