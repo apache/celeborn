@@ -72,7 +72,6 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
     builder.getOrCreate()
   }
 
-  /*
   test("spark integration test - delete shuffle data from unneeded stages") {
     if (runningWithSpark3OrNewer()) {
       val spark = createSparkSession()
@@ -192,7 +191,7 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
         spark.stop()
       }
     }
-  }*/
+  }
 
   private def deleteTooEarlyTest(
                                   shuffleIdShouldNotExist: Seq[Int],
@@ -244,7 +243,6 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
     deleteTooEarlyTest(Seq(0, 3, 5), Seq(1, 2, 4), spark)
   }
 
-  /*
 //  test("spark integration test - do not fail job when shuffle is deleted \"too early\"" +
 //    " (with failed shuffle deletion)") {
 //    val spark = createSparkSession(
@@ -446,7 +444,7 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
     " are to be retried for fetching") {
     val spark = createSparkSession(Map("spark.stage.maxConsecutiveAttempts" -> "3"))
     multiShuffleFailureTest(Seq(0, 1, 2, 3, 4, 5), Seq(17), spark)
-  }*/
+  }
 
 //  test("spark integration test - do not fail job when multiple shuffles (be zipped/joined)" +
 //    " are to be retried for fetching (with failed shuffle deletion)") {
