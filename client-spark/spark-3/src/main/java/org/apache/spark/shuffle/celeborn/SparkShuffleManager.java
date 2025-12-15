@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.LifecycleManager;
+import org.apache.spark.listener.ListenerHelper;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.ShuffleMode;
@@ -172,6 +173,7 @@ public class SparkShuffleManager implements ShuffleManager {
           }
           if (lifecycleManager.conf().clientShuffleEarlyDeletion()) {
             logger.info("register early deletion callbacks");
+            ListenerHelper.addShuffleStatsTrackingListener();
             lifecycleManager.registerStageToWriteCelebornShuffleCallback(
                 (celebornShuffleId, appShuffleIdentifier) ->
                     SparkUtils.addStageToWriteCelebornShuffleIdDep(
@@ -282,6 +284,7 @@ public class SparkShuffleManager implements ShuffleManager {
       _sortShuffleManager.stop();
       _sortShuffleManager = null;
     }
+    ListenerHelper.reset();
   }
 
   @Override

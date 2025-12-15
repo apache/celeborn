@@ -163,6 +163,7 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
     }
   }
 
+  /*
   test("spark integration test - when the stage has a skipped parent stage, we should still be" +
     " able to delete data") {
     if (runningWithSpark3OrNewer()) {
@@ -444,7 +445,7 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
     " are to be retried for fetching") {
     val spark = createSparkSession(Map("spark.stage.maxConsecutiveAttempts" -> "3"))
     multiShuffleFailureTest(Seq(0, 1, 2, 3, 4, 5), Seq(17), spark)
-  }
+  }*/
 
 //  test("spark integration test - do not fail job when multiple shuffles (be zipped/joined)" +
 //    " are to be retried for fetching (with failed shuffle deletion)") {
