@@ -34,11 +34,15 @@ import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
 import org.apache.celeborn.common.protocol.PbGetShuffleId;
 import org.apache.celeborn.common.protocol.PbGetShuffleIdResponse;
+import org.apache.celeborn.common.protocol.PbInvalidateAllUpstreamShuffle;
+import org.apache.celeborn.common.protocol.PbInvalidateAllUpstreamShuffleResponse;
 import org.apache.celeborn.common.protocol.PbOpenStream;
 import org.apache.celeborn.common.protocol.PbPushDataHandShake;
 import org.apache.celeborn.common.protocol.PbReadAddCredit;
 import org.apache.celeborn.common.protocol.PbRegionFinish;
 import org.apache.celeborn.common.protocol.PbRegionStart;
+import org.apache.celeborn.common.protocol.PbReportMissingShuffleId;
+import org.apache.celeborn.common.protocol.PbReportMissingShuffleIdResponse;
 import org.apache.celeborn.common.protocol.PbReportShuffleFetchFailure;
 import org.apache.celeborn.common.protocol.PbReportShuffleFetchFailureResponse;
 import org.apache.celeborn.common.protocol.PbSaslRequest;
@@ -103,6 +107,14 @@ public class TransportMessage implements Serializable {
         return (T) PbReportShuffleFetchFailure.parseFrom(payload);
       case REPORT_SHUFFLE_FETCH_FAILURE_RESPONSE_VALUE:
         return (T) PbReportShuffleFetchFailureResponse.parseFrom(payload);
+      case INVALIDATE_ALL_UPSTREAM_SHUFFLE_VALUE:
+        return (T) PbInvalidateAllUpstreamShuffle.parseFrom(payload);
+      case INVALIDATE_ALL_UPSTREAM_SHUFFLE_RESPONSE_VALUE:
+        return (T) PbInvalidateAllUpstreamShuffleResponse.parseFrom(payload);
+      case REPORT_MISSING_SHUFFLE_ID_VALUE:
+        return (T) PbReportMissingShuffleId.parseFrom(payload);
+      case REPORT_MISSING_SHUFFLE_ID_RESPONSE_VALUE:
+        return (T) PbReportMissingShuffleIdResponse.parseFrom(payload);
       case SASL_REQUEST_VALUE:
         return (T) PbSaslRequest.parseFrom(payload);
       default:

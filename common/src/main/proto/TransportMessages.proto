@@ -92,6 +92,10 @@ enum MessageType {
   GET_SHUFFLE_ID = 69;
   GET_SHUFFLE_ID_RESPONSE = 70;
   SASL_REQUEST = 71;
+  INVALIDATE_ALL_UPSTREAM_SHUFFLE = 72;
+  INVALIDATE_ALL_UPSTREAM_SHUFFLE_RESPONSE = 73;
+  REPORT_MISSING_SHUFFLE_ID = 74;
+  REPORT_MISSING_SHUFFLE_ID_RESPONSE = 75;
 }
 
 enum StreamType {
@@ -319,6 +323,26 @@ message PbReportShuffleFetchFailure {
 }
 
 message PbReportShuffleFetchFailureResponse {
+  bool success = 1;
+}
+
+message PbReportMissingShuffleId {
+  int32 readerStageId = 1;
+  int32 attemptId = 2;
+  int32 triggerAppShuffleId = 3;
+}
+
+message PbReportMissingShuffleIdResponse {
+  bool success = 1;
+}
+
+message PbInvalidateAllUpstreamShuffle {
+  int32 readerStageId = 1;
+  int32 attemptId = 2;
+  int32 triggerAppShuffleId = 3;
+}
+
+message PbInvalidateAllUpstreamShuffleResponse {
   bool success = 1;
 }
 

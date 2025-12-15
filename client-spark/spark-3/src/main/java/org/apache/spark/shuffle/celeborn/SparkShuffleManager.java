@@ -159,6 +159,16 @@ public class SparkShuffleManager implements ShuffleManager {
 
             lifecycleManager.registerShuffleTrackerCallback(
                 shuffleId -> SparkUtils.unregisterAllMapOutput(mapOutputTracker, shuffleId));
+
+            if (stageDepManager == null) {
+              stageDepManager = new StageDependencyManager(this);
+            }
+            stageDepManager.start();
+            try {
+              buildRunningStageChecker();
+            } catch (Exception re) {
+              throw new RuntimeException("cannot create running stage manager");
+            }
           }
           if (lifecycleManager.conf().clientShuffleEarlyDeletion()) {
             logger.info("register early deletion callbacks");

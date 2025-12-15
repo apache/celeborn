@@ -557,6 +557,39 @@ public class ShuffleClientImpl extends ShuffleClient {
     return pbReportShuffleFetchFailureResponse.getSuccess();
   }
 
+  @Override
+  public boolean invalidateAllUpstreamShuffle(int stageId, int attemptId, int triggerAppId) {
+    PbInvalidateAllUpstreamShuffle pbInvalidateAllUpstreamShuffle =
+        PbInvalidateAllUpstreamShuffle.newBuilder()
+            .setReaderStageId(stageId)
+            .setAttemptId(attemptId)
+            .setTriggerAppShuffleId(triggerAppId)
+            .build();
+    PbInvalidateAllUpstreamShuffleResponse pbInvalidateAllUpstreamShuffleResponse =
+        lifecycleManagerRef.askSync(
+            pbInvalidateAllUpstreamShuffle,
+            conf.clientRpcRegisterShuffleRpcAskTimeout(),
+            ClassTag$.MODULE$.apply(PbInvalidateAllUpstreamShuffleResponse.class));
+    return pbInvalidateAllUpstreamShuffleResponse.getSuccess();
+  }
+
+  @Override
+  public boolean reportMissingShuffleId(int appShuffleId, int readerStageId, int stageAttemptId) {
+    PbReportMissingShuffleId pbReportMissingShuffleId =
+        PbReportMissingShuffleId.newBuilder()
+            .setReaderStageId(readerStageId)
+            .setAttemptId(stageAttemptId)
+            .setTriggerAppShuffleId(appShuffleId)
+            .build();
+    PbReportMissingShuffleIdResponse response =
+        lifecycleManagerRef.askSync(
+            pbReportMissingShuffleId,
+            conf.clientRpcRegisterShuffleRpcAskTimeout(),
+            ClassTag$.MODULE$.apply(PbReportMissingShuffleIdResponse.class));
+    return response.getSuccess();
+  }
+
+
   private ConcurrentHashMap<Integer, PartitionLocation> registerShuffleInternal(
       int shuffleId,
       int numMappers,
