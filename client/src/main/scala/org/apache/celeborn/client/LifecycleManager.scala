@@ -1101,7 +1101,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 val pbGetShuffleIdResponse = {
                   logDebug(
                     s"get shuffleId $celebornShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier isWriter $isWriter")
-                  PbGetShuffleIdResponse.newBuilder().setShuffleId(celebornShuffleId).build()
+                  PbGetShuffleIdResponse.newBuilder()
+                    .setShuffleId(celebornShuffleId)
+                    .setSuccess(true)
+                    .build()
                 }
                 context.reply(pbGetShuffleIdResponse)
                 found = true
@@ -1127,6 +1130,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                         UNKNOWN_MISSING_CELEBORN_SHUFFLE_ID
                       }
                     })
+                    .setSuccess(true)
                     .build()
                   context.reply(pbGetShuffleIdResponse)
                 } else {
