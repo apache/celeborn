@@ -1119,6 +1119,9 @@ object Utils extends Logging {
 
   val UNKNOWN_APP_SHUFFLE_ID = -1
 
+  val UNKNOWN_MISSING_CELEBORN_SHUFFLE_ID = -2
+  val KNOWN_MISSING_CELEBORN_SHUFFLE_ID = -3
+
   def isHdfsPath(path: String): Boolean = {
     path.matches(COMPATIBLE_HDFS_REGEX)
   }
