@@ -25,7 +25,7 @@ import org.apache.spark.*;
 import org.apache.spark.celeborn.StageDependencyManager;
 import org.apache.spark.internal.config.package$;
 import org.apache.spark.launcher.SparkLauncher;
-import org.apache.spark.listener.ListenerHelper;
+import org.apache.spark.listener.ShuffleStatsTrackingListener;
 import org.apache.spark.rdd.DeterministicLevel;
 import org.apache.spark.shuffle.*;
 import org.apache.spark.shuffle.sort.SortShuffleManager;
@@ -160,6 +160,9 @@ public class SparkShuffleManager implements ShuffleManager {
                 taskId -> SparkUtils.shouldReportShuffleFetchFailure(taskId));
             SparkUtils.addSparkListener(new ShuffleFetchFailureReportTaskCleanListener());
 
+            lifecycleManager.registerShuffleTrackerCallback(
+                    shuffleId -> SparkUtils.unregisterAllMapOutput(mapOutputTracker, shuffleId));
+
             if (celebornConf.clientAdaptiveOptimizeSkewedPartitionReadEnabled()) {
               lifecycleManager.registerCelebornSkewShuffleCheckCallback(
                   SparkUtils::isCelebornSkewShuffleOrChildShuffle);
@@ -185,7 +188,7 @@ public class SparkShuffleManager implements ShuffleManager {
 
           if (lifecycleManager.conf().clientShuffleEarlyDeletion()) {
             logger.info("register early deletion callbacks");
-            ListenerHelper.addShuffleStatsTrackingListener();
+            SparkUtils.addSparkListener(new ShuffleStatsTrackingListener());
             lifecycleManager.registerStageToWriteCelebornShuffleCallback(
                 (celebornShuffleId, appShuffleIdentifier) ->
                     SparkUtils.addStageToWriteCelebornShuffleIdDep(
