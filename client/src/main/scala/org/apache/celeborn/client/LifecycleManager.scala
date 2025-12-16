@@ -25,6 +25,7 @@ import java.util.{function, List => JList}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
 import java.util.function.{BiConsumer, BiFunction, Consumer}
+
 import scala.collection.JavaConverters._
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
@@ -32,9 +33,11 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 import scala.util.Random
+
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
 import org.roaringbitmap.RoaringBitmap
+
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.client.listener.WorkerStatusListener
 import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
@@ -53,11 +56,11 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.rpc.{ClientSaslContextBuilder, RpcSecurityContext, RpcSecurityContextBuilder}
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
-import org.apache.celeborn.common.util.Utils.{KNOWN_MISSING_CELEBORN_SHUFFLE_ID, UNKNOWN_MISSING_CELEBORN_SHUFFLE_ID}
 import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils.awaitResult
+import org.apache.celeborn.common.util.Utils.{KNOWN_MISSING_CELEBORN_SHUFFLE_ID, UNKNOWN_MISSING_CELEBORN_SHUFFLE_ID}
 import org.apache.celeborn.common.util.Utils.UNKNOWN_APP_SHUFFLE_ID
 import org.apache.celeborn.common.write.LocationPushFailedBatches
 
@@ -1045,8 +1048,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                       s" shuffle $appShuffleIdentifier")
                   }
                   result
-                }
-                else
+                } else
                   None
 
               val shuffleId: Integer =
@@ -1184,7 +1186,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       if (!stagesReceivedInvalidatingUpstream.contains(stageIdentifier)) {
         invalidateAllKnownUpstreamShuffleOutput(stageIdentifier)
       } else if (!stagesReceivedInvalidatingUpstream(stageIdentifier)
-        .contains(triggerAppShuffleId)) {
+          .contains(triggerAppShuffleId)) {
         // in this case, it means that we haven't been able to capture a certain upstream app
         // shuffle id for the current stage when we invalidate all upstream last time,
         // and the new upstream shuffle id show up now, we need to add the new shuffle id
@@ -1252,10 +1254,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   private def handleReportMissingShuffleId(
-                                            context: RpcCallContext,
-                                            appShuffleId: Int,
-                                            stageId: Int,
-                                            stageAttemptId: Int): Unit = {
+      context: RpcCallContext,
+      appShuffleId: Int,
+      stageId: Int,
+      stageAttemptId: Int): Unit = {
     val shuffleIds = shuffleIdMapping.get(appShuffleId)
     if (shuffleIds == null) {
       throw new UnsupportedOperationException(s"unexpected! unknown appShuffleId $appShuffleId")
@@ -2211,15 +2213,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     getUpstreamAppShuffleIdsCallback = Some(callback)
   }
 
-  @volatile private var getAppShuffleIdByStageIdCallback
-      : Option[Function[Integer, Integer]] = None
+  @volatile private var getAppShuffleIdByStageIdCallback: Option[Function[Integer, Integer]] = None
   def registerGetAppShuffleIdByStageIdCallback(callback: Function[Integer, Integer]): Unit = {
     getAppShuffleIdByStageIdCallback = Some(callback)
   }
 
   // expecting celeborn shuffle id and application shuffle identifier
-  @volatile private var getCelebornShuffleIdForReaderCallback
-      : Option[BiConsumer[Integer, String]] = None
+  @volatile private var getCelebornShuffleIdForReaderCallback: Option[BiConsumer[Integer, String]] =
+    None
   def registerGetCelebornShuffleIdForReaderCallback(callback: BiConsumer[Integer, String]): Unit = {
     getCelebornShuffleIdForReaderCallback = Some(callback)
   }
@@ -2235,8 +2236,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     stageToWriteCelebornShuffleCallback = Some(callback)
   }
 
-  @volatile private var celebornToAppShuffleIdMappingCallback
-      : Option[BiConsumer[Integer, String]] = None
+  @volatile private var celebornToAppShuffleIdMappingCallback: Option[BiConsumer[Integer, String]] =
+    None
   def registerCelebornToAppShuffleIdMappingCallback(callback: BiConsumer[Integer, String]): Unit = {
     celebornToAppShuffleIdMappingCallback = Some(callback)
   }
