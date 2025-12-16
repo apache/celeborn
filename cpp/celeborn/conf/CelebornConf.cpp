@@ -162,6 +162,10 @@ CelebornConf::defaultProperties() {
               kShuffleCompressionCodec,
               protocol::toString(protocol::CompressionCodec::NONE)),
           NUM_PROP(kShuffleCompressionZstdCompressLevel, 1),
+          STR_PROP(kClientPushBufferMaxSize, "64k"),
+          BOOL_PROP(kClientPushMaxBytesSizeInFlightEnabled, false),
+          NONE_PROP(kClientPushMaxBytesSizeInFlightTotal),
+          NONE_PROP(kClientPushMaxBytesSizeInFlightPerWorker),
           // NUM_PROP(kNumExample, 50'000),
           // BOOL_PROP(kBoolExample, false),
       };
@@ -265,6 +269,41 @@ long CelebornConf::clientPushLimitInFlightTimeoutMs() const {
 long CelebornConf::clientPushLimitInFlightSleepDeltaMs() const {
   return std::stol(
       optionalProperty(kClientPushLimitInFlightSleepDeltaMs).value());
+}
+
+int CelebornConf::clientPushBufferMaxSize() const {
+  return toCapacity(
+      optionalProperty(kClientPushBufferMaxSize).value(), CapacityUnit::BYTE);
+}
+
+bool CelebornConf::clientPushMaxBytesSizeInFlightEnabled() const {
+  return optionalProperty(kClientPushMaxBytesSizeInFlightEnabled).value() ==
+      "true";
+}
+
+long CelebornConf::clientPushMaxBytesSizeInFlightTotal() const {
+  auto optionalValue = optionalProperty(kClientPushMaxBytesSizeInFlightTotal);
+  long maxBytesSizeInFlight =
+      optionalValue.has_value() ? toCapacity(optionalValue.value(), CapacityUnit::BYTE) : 0L;
+  if (clientPushMaxBytesSizeInFlightEnabled() && maxBytesSizeInFlight > 0L) {
+    return maxBytesSizeInFlight;
+  }
+  // Default: maxReqsInFlightTotal * bufferMaxSize
+  return static_cast<long>(clientPushMaxReqsInFlightTotal()) *
+      clientPushBufferMaxSize();
+}
+
+long CelebornConf::clientPushMaxBytesSizeInFlightPerWorker() const {
+  auto optionalValue =
+      optionalProperty(kClientPushMaxBytesSizeInFlightPerWorker);
+  long maxBytesSizeInFlight =
+      optionalValue.has_value() ? toCapacity(optionalValue.value(), CapacityUnit::BYTE) : 0L;
+  if (clientPushMaxBytesSizeInFlightEnabled() && maxBytesSizeInFlight > 0L) {
+    return maxBytesSizeInFlight;
+  }
+  // Default: maxReqsInFlightPerWorker * bufferMaxSize
+  return static_cast<long>(clientPushMaxReqsInFlightPerWorker()) *
+      clientPushBufferMaxSize();
 }
 
 Timeout CelebornConf::clientRpcRequestPartitionLocationRpcAskTimeout() const {

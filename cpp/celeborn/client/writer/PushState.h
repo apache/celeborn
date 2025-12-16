@@ -18,6 +18,7 @@
 #pragma once
 
 #include <atomic>
+#include <optional>
 
 #include "celeborn/client/writer/PushStrategy.h"
 #include "celeborn/conf/CelebornConf.h"
@@ -36,7 +37,7 @@ class PushState {
 
   int nextBatchId();
 
-  void addBatch(int batchId, const std::string& hostAndPushPort);
+  void addBatch(int batchId, int batchBytesSize,const std::string& hostAndPushPort);
 
   void onSuccess(const std::string& hostAndPushPort);
 
@@ -48,6 +49,10 @@ class PushState {
   // block until the ongoing package num decreases below max limit. If the
   // limit operation succeeds before timeout, return false, otherwise return
   // true.
+  // When maxBytesSizeInFlight is enabled, the limit check considers both 
+  // request count and byte size limits. The push is allowed if either: 
+  // 1. Request count is within limits, or
+  // 2. Byte size is within limits (when enabled)
   bool limitMaxInFlight(const std::string& hostAndPushPort);
 
   // Check if the pushState's ongoing package num reaches zero, if not, block
@@ -68,15 +73,28 @@ class PushState {
 
   std::atomic<int> currBatchId_{1};
   std::atomic<long> totalInflightReqs_{0};
+  std::atomic<long> totalInflightBytes_{0};
   const long waitInflightTimeoutMs_;
   const long deltaMs_;
   const std::unique_ptr<PushStrategy> pushStrategy_;
   const int maxInFlightReqsTotal_;
+  const bool maxInFlightBytesSizeEnabled_;
+  const long maxInFlightBytesSizeTotal_;
+  const long maxInFlightBytesSizePerWorker_;
   utils::ConcurrentHashMap<
       std::string,
       std::shared_ptr<utils::ConcurrentHashSet<int>>>
       inflightBatchesPerAddress_;
+  std::optional<utils::ConcurrentHashMap<
+      std::string, 
+      std::shared_ptr<std::atomic<long>>>> 
+      inflightBytesSizePerAddress_;
+  std::optional<utils::ConcurrentHashMap<
+      int,
+      int>>
+      inflightBatchBytesSizes_;
   folly::Synchronized<std::unique_ptr<std::exception>> exception_;
+  volatile bool cleaned_{false};
 };
 
 } // namespace client
