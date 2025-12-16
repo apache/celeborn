@@ -89,6 +89,18 @@ class CelebornConf : public BaseConf {
   static constexpr std::string_view kClientPushLimitInFlightSleepDeltaMs{
       "celeborn.client.push.limit.inFlight.sleepInterval"};
 
+  static constexpr std::string_view kClientPushBufferMaxSize{
+      "celeborn.client.push.buffer.max.size"};
+
+  static constexpr std::string_view kClientPushMaxBytesSizeInFlightEnabled{
+      "celeborn.client.push.maxBytesSizeInFlight.enabled"};
+
+  static constexpr std::string_view kClientPushMaxBytesSizeInFlightTotal{
+      "celeborn.client.push.maxBytesSizeInFlight.total"};
+
+  static constexpr std::string_view kClientPushMaxBytesSizeInFlightPerWorker{
+      "celeborn.client.push.maxBytesSizeInFlight.perWorker"};
+
   static constexpr std::string_view
       kClientRpcRequestPartitionLocationAskTimeout{
           "celeborn.client.rpc.requestPartition.askTimeout"};
@@ -158,6 +170,14 @@ class CelebornConf : public BaseConf {
   long clientPushLimitInFlightTimeoutMs() const;
 
   long clientPushLimitInFlightSleepDeltaMs() const;
+
+  int clientPushBufferMaxSize() const;
+
+  bool clientPushMaxBytesSizeInFlightEnabled() const;
+
+  long clientPushMaxBytesSizeInFlightTotal() const;
+
+  long clientPushMaxBytesSizeInFlightPerWorker() const;
 
   Timeout clientRpcRequestPartitionLocationRpcAskTimeout() const;
 
