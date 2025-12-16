@@ -106,16 +106,11 @@ fi
 
 export MAVEN_OPTS="${MAVEN_OPTS:--Xmx2g -XX:ReservedCodeCacheSize=1g}"
 
-# Validate Maven - fallback to system mvn if bundled doesn't work
+# Validate Maven
 if ! "$MVN" --version &>/dev/null; then
-    echo -e "Warning: Maven '$MVN' not working, trying system 'mvn'..."
-    if [ `command -v mvn` ] && mvn --version &>/dev/null; then
-        MVN="mvn"
-        echo "Using system Maven: $MVN"
-    else
-        echo -e "Could not find a working Maven installation."
-        exit -1;
-    fi
+    echo -e "Could not execute Maven command: '$MVN'."
+    echo "       Use --mvn /path/to/mvn to specify an alternate Maven."
+    exit -1
 fi
 
 if [ $(command -v git) ]; then
