@@ -129,7 +129,7 @@ class StageDependencyManager(shuffleManager: SparkShuffleManager) extends Loggin
     }
   }
 
-  private[celeborn] def removeCelebornShuffleInternal(
+  def removeCelebornShuffleInternal(
       celebornShuffleId: Int,
       stageId: Option[Int]): Unit = {
     shuffleIdsToBeCleaned.put(celebornShuffleId)
