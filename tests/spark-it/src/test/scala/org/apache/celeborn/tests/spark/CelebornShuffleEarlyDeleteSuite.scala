@@ -20,6 +20,7 @@ package org.apache.celeborn.tests.spark
 import org.apache.spark.SparkConf
 import org.apache.spark.shuffle.celeborn.{SparkUtils, TestCelebornShuffleManager}
 import org.apache.spark.sql.SparkSession
+
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
@@ -69,7 +70,7 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
     }
     builder.getOrCreate()
   }
-  
+
   test("spark integration test - delete shuffle data from unneeded stages") {
     if (Spark3OrNewer) {
       val spark = createSparkSession()
