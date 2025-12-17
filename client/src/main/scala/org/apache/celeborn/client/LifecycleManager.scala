@@ -1090,7 +1090,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         // this is not necessarily the most concise coding style, but it helps for debugging
         // purpose
         var found = false
-        shuffleIds.values.map(v => v._1).toSeq.reverse.foreach { celebornShuffleId: Int =>
+        val revertedShuffleIds = shuffleIds.values.map(v => v._1).toSeq.reverse
+        revertedShuffleIds.foreach { celebornShuffleId: Int =>
           if (!found) {
             try {
               if (areAllMapTasksEnd(celebornShuffleId)) {
@@ -1112,12 +1113,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 logInfo(s"not all map tasks finished for shuffle $celebornShuffleId")
               }
             } catch {
-              case npe: NullPointerException =>
+              case ise: IllegalStateException =>
                 if (conf.clientShuffleEarlyDeletion) {
                   logError(
                     s"hit error when getting celeborn shuffle id $celebornShuffleId for" +
                       s" appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier",
-                    npe)
+                    ise)
                   val canInvalidateAllUpstream =
                     checkWhetherToInvalidateAllUpstreamCallback.exists(func =>
                       func.apply(appShuffleIdentifier))
@@ -1135,10 +1136,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                   context.reply(pbGetShuffleIdResponse)
                 } else {
                   logError(
-                    s"unexpected NullPointerException without" +
+                    s"unexpected IllegalStateException without" +
                       s" ${CelebornConf.CLIENT_SHUFFLE_EARLY_DELETION.key} turning on",
-                    npe)
-                  throw npe;
+                    ise)
+                  throw ise;
                 }
             }
           }

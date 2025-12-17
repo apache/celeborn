@@ -69,8 +69,7 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
     }
     builder.getOrCreate()
   }
-
-  /*
+  
   test("spark integration test - delete shuffle data from unneeded stages") {
     if (Spark3OrNewer) {
       val spark = createSparkSession()
@@ -186,7 +185,7 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
         spark.stop()
       }
     }
-  }*/
+  }
 
   private def deleteTooEarlyTest(
       shuffleIdShouldNotExist: Seq[Int],
