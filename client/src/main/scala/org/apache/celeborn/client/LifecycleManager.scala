@@ -1271,10 +1271,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     shuffleIds.synchronized {
       val latestUpstreamShuffleId = shuffleIds.maxBy(_._2._1)
       if (latestUpstreamShuffleId._2._1 == UNKNOWN_MISSING_CELEBORN_SHUFFLE_ID) {
-        logInfo(s"ignoring missing shuffle id report from stage $stageId.$stageAttemptId as" +
+        println(s"ignoring missing shuffle id report from stage $stageId.$stageAttemptId as" +
           s" it is already reported  by other reader and handled")
       } else {
-        logInfo(s"handle missing shuffle id for appShuffleId $appShuffleId stage" +
+        println(s"handle missing shuffle id for appShuffleId $appShuffleId stage" +
           s" $stageId.$stageAttemptId")
         appShuffleTrackerCallback match {
           case Some(callback) =>
