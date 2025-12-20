@@ -82,9 +82,17 @@ public class SparkUtils {
   public static final String FETCH_FAILURE_ERROR_MSG =
       "Celeborn FetchFailure appShuffleId/shuffleId: ";
 
+  private static final DynMethods.BoundMethod MAP_STATUS_APPLY_METHOD =
+      DynMethods.builder("apply")
+          // for SPARK-51756 (4.1.0) and later
+          .impl(MapStatus$.class, BlockManagerId.class, long[].class, long.class, long.class)
+          // for Spark 4.0 and earlier
+          .impl(MapStatus$.class, BlockManagerId.class, long[].class, long.class)
+          .build(MapStatus$.MODULE$);
+
   public static MapStatus createMapStatus(
       BlockManagerId loc, long[] uncompressedSizes, long mapTaskId) {
-    return MapStatus$.MODULE$.apply(loc, uncompressedSizes, mapTaskId);
+    return MAP_STATUS_APPLY_METHOD.invoke(loc, uncompressedSizes, mapTaskId, 0L);
   }
 
   private static final DynFields.UnboundField<SQLMetric> DATA_SIZE_METRIC_FIELD =
