@@ -341,8 +341,18 @@ class MemoryTierWriter(
   }
 
   override def closeStreams(): Unit = {
-    flushBuffer.consolidate()
-    fileInfo.setBuffer(flushBuffer)
+    try {
+      flushBuffer.consolidate()
+    } catch {
+      case oom: OutOfMemoryError =>
+        logError(
+          s"MemoryTierWriter shuffleKey:${partitionDataWriterContext.getShuffleKey}, " +
+            s"partitionId:${partitionDataWriterContext.getPartitionLocation.getFileName} " +
+            s"failed to consolidate flush buffer due to OutOfMemoryError.",
+          oom)
+    } finally {
+      fileInfo.setBuffer(flushBuffer)
+    }
   }
 
   override def takeBufferInternal(): CompositeByteBuf = {
