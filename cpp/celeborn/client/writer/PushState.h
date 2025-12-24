@@ -37,7 +37,8 @@ class PushState {
 
   int nextBatchId();
 
-  void addBatch(int batchId, int batchBytesSize,const std::string& hostAndPushPort);
+  void
+  addBatch(int batchId, int batchBytesSize, const std::string& hostAndPushPort);
 
   void onSuccess(const std::string& hostAndPushPort);
 
@@ -49,8 +50,8 @@ class PushState {
   // block until the ongoing package num decreases below max limit. If the
   // limit operation succeeds before timeout, return false, otherwise return
   // true.
-  // When maxBytesSizeInFlight is enabled, the limit check considers both 
-  // request count and byte size limits. The push is allowed if either: 
+  // When maxBytesSizeInFlight is enabled, the limit check considers both
+  // request count and byte size limits. The push is allowed if either:
   // 1. Request count is within limits, or
   // 2. Byte size is within limits (when enabled)
   bool limitMaxInFlight(const std::string& hostAndPushPort);
@@ -85,14 +86,10 @@ class PushState {
       std::string,
       std::shared_ptr<utils::ConcurrentHashSet<int>>>
       inflightBatchesPerAddress_;
-  std::optional<utils::ConcurrentHashMap<
-      std::string, 
-      std::shared_ptr<std::atomic<long>>>> 
+  std::optional<
+      utils::ConcurrentHashMap<std::string, std::shared_ptr<std::atomic<long>>>>
       inflightBytesSizePerAddress_;
-  std::optional<utils::ConcurrentHashMap<
-      int,
-      int>>
-      inflightBatchBytesSizes_;
+  std::optional<utils::ConcurrentHashMap<int, int>> inflightBatchBytesSizes_;
   folly::Synchronized<std::unique_ptr<std::exception>> exception_;
   volatile bool cleaned_{false};
 };

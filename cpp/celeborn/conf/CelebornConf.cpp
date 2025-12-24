@@ -162,7 +162,7 @@ CelebornConf::defaultProperties() {
               kShuffleCompressionCodec,
               protocol::toString(protocol::CompressionCodec::NONE)),
           NUM_PROP(kShuffleCompressionZstdCompressLevel, 1),
-          STR_PROP(kClientPushBufferMaxSize, "64k"),
+          STR_PROP(kClientPushBufferMaxSize, "64kB"),
           BOOL_PROP(kClientPushMaxBytesSizeInFlightEnabled, false),
           NONE_PROP(kClientPushMaxBytesSizeInFlightTotal),
           NONE_PROP(kClientPushMaxBytesSizeInFlightPerWorker),
@@ -283,8 +283,9 @@ bool CelebornConf::clientPushMaxBytesSizeInFlightEnabled() const {
 
 long CelebornConf::clientPushMaxBytesSizeInFlightTotal() const {
   auto optionalValue = optionalProperty(kClientPushMaxBytesSizeInFlightTotal);
-  long maxBytesSizeInFlight =
-      optionalValue.has_value() ? toCapacity(optionalValue.value(), CapacityUnit::BYTE) : 0L;
+  long maxBytesSizeInFlight = optionalValue.has_value()
+      ? toCapacity(optionalValue.value(), CapacityUnit::BYTE)
+      : 0L;
   if (clientPushMaxBytesSizeInFlightEnabled() && maxBytesSizeInFlight > 0L) {
     return maxBytesSizeInFlight;
   }
@@ -296,8 +297,9 @@ long CelebornConf::clientPushMaxBytesSizeInFlightTotal() const {
 long CelebornConf::clientPushMaxBytesSizeInFlightPerWorker() const {
   auto optionalValue =
       optionalProperty(kClientPushMaxBytesSizeInFlightPerWorker);
-  long maxBytesSizeInFlight =
-      optionalValue.has_value() ? toCapacity(optionalValue.value(), CapacityUnit::BYTE) : 0L;
+  long maxBytesSizeInFlight = optionalValue.has_value()
+      ? toCapacity(optionalValue.value(), CapacityUnit::BYTE)
+      : 0L;
   if (clientPushMaxBytesSizeInFlightEnabled() && maxBytesSizeInFlight > 0L) {
     return maxBytesSizeInFlight;
   }

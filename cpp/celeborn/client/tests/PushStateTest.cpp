@@ -50,41 +50,41 @@ class PushStateTest : public testing::Test {
 };
 
 class PushStateBytesSizeTest : public testing::Test {
-  protected:
-    void SetUp() override {
-      conf::CelebornConf conf;
-      conf.registerProperty(
-          conf::CelebornConf::kClientPushLimitInFlightTimeoutMs,
-          std::to_string(pushTimeoutMs_));
-      conf.registerProperty(
-          conf::CelebornConf::kClientPushLimitInFlightSleepDeltaMs,
-          std::to_string(pushSleepDeltaMs_));
-      conf.registerProperty(
-          conf::CelebornConf::kClientPushMaxReqsInFlightTotal, "100");
-      conf.registerProperty(
-          conf::CelebornConf::kClientPushMaxReqsInFlightPerWorker, "100");
-      conf.registerProperty(
-          conf::CelebornConf::kClientPushMaxBytesSizeInFlightEnabled, "true");
-      conf.registerProperty(
-          conf::CelebornConf::kClientPushMaxBytesSizeInFlightTotal,
-          std::to_string(maxBytesSizeTotal_));
-      conf.registerProperty(
-          conf::CelebornConf::kClientPushMaxBytesSizeInFlightPerWorker,
-          std::to_string(maxBytesSizePerWorker_));
-      conf.registerProperty(
-          conf::CelebornConf::kClientPushBufferMaxSize,
-          std::to_string(bufferMaxSize_));
+ protected:
+  void SetUp() override {
+    conf::CelebornConf conf;
+    conf.registerProperty(
+        conf::CelebornConf::kClientPushLimitInFlightTimeoutMs,
+        std::to_string(pushTimeoutMs_));
+    conf.registerProperty(
+        conf::CelebornConf::kClientPushLimitInFlightSleepDeltaMs,
+        std::to_string(pushSleepDeltaMs_));
+    conf.registerProperty(
+        conf::CelebornConf::kClientPushMaxReqsInFlightTotal, "2");
+    conf.registerProperty(
+        conf::CelebornConf::kClientPushMaxReqsInFlightPerWorker, "100");
+    conf.registerProperty(
+        conf::CelebornConf::kClientPushMaxBytesSizeInFlightEnabled, "true");
+    conf.registerProperty(
+        conf::CelebornConf::kClientPushMaxBytesSizeInFlightTotal,
+        std::to_string(maxBytesSizeTotal_) + "B");
+    conf.registerProperty(
+        conf::CelebornConf::kClientPushMaxBytesSizeInFlightPerWorker,
+        std::to_string(maxBytesSizePerWorker_) + "B");
+    conf.registerProperty(
+        conf::CelebornConf::kClientPushBufferMaxSize,
+        std::to_string(bufferMaxSize_) + "B");
 
-      pushState_ = std::make_unique<PushState>(conf);
-    }
+    pushState_ = std::make_unique<PushState>(conf);
+  }
 
-    std::unique_ptr<PushState> pushState_;
-    static constexpr int pushTimeoutMs_ = 100;
-    static constexpr int pushSleepDeltaMs_ = 10;
-    static constexpr int batchSize_ = 1024;
-    static constexpr long maxBytesSizeTotal_ = 3000;
-    static constexpr long maxBytesSizePerWorker_ = 2500;
-    static constexpr int bufferMaxSize_ = 65536;
+  std::unique_ptr<PushState> pushState_;
+  static constexpr int pushTimeoutMs_ = 100;
+  static constexpr int pushSleepDeltaMs_ = 10;
+  static constexpr int batchSize_ = 1024;
+  static constexpr long maxBytesSizeTotal_ = 3000;
+  static constexpr long maxBytesSizePerWorker_ = 2500;
+  static constexpr int bufferMaxSize_ = 65536;
 };
 
 TEST_F(PushStateTest, limitMaxInFlight) {

@@ -209,7 +209,8 @@ void PushDataCallback::onFailure(std::unique_ptr<std::exception> exception) {
 
 void PushDataCallback::updateLatestLocation(
     std::shared_ptr<const protocol::PartitionLocation> latestLocation) {
-  pushState_->addBatch(batchId_, batchBytesSize_, latestLocation->hostAndPushPort());
+  pushState_->addBatch(
+      batchId_, batchBytesSize_, latestLocation->hostAndPushPort());
   pushState_->removeBatch(batchId_, latestLocation_->hostAndPushPort());
   latestLocation_ = latestLocation;
 }

@@ -25,20 +25,25 @@ PushState::PushState(const conf::CelebornConf& conf)
       deltaMs_(conf.clientPushLimitInFlightSleepDeltaMs()),
       pushStrategy_(PushStrategy::create(conf)),
       maxInFlightReqsTotal_(conf.clientPushMaxReqsInFlightTotal()),
-      maxInFlightBytesSizeEnabled_(conf.clientPushMaxBytesSizeInFlightEnabled()),
+      maxInFlightBytesSizeEnabled_(
+          conf.clientPushMaxBytesSizeInFlightEnabled()),
       maxInFlightBytesSizeTotal_(conf.clientPushMaxBytesSizeInFlightTotal()),
-      maxInFlightBytesSizePerWorker_(conf.clientPushMaxBytesSizeInFlightPerWorker()) {
-        if (maxInFlightBytesSizeEnabled_) {
-          inflightBytesSizePerAddress_.emplace();
-          inflightBatchBytesSizes_.emplace();
-        }
-      }
+      maxInFlightBytesSizePerWorker_(
+          conf.clientPushMaxBytesSizeInFlightPerWorker()) {
+  if (maxInFlightBytesSizeEnabled_) {
+    inflightBytesSizePerAddress_.emplace();
+    inflightBatchBytesSizes_.emplace();
+  }
+}
 
 int PushState::nextBatchId() {
   return currBatchId_.fetch_add(1);
 }
 
-void PushState::addBatch(int batchId, int batchBytesSize, const std::string& hostAndPushPort) {
+void PushState::addBatch(
+    int batchId,
+    int batchBytesSize,
+    const std::string& hostAndPushPort) {
   auto batchIdSet = inflightBatchesPerAddress_.computeIfAbsent(
       hostAndPushPort,
       [&]() { return std::make_shared<utils::ConcurrentHashSet<int>>(); });
@@ -46,9 +51,9 @@ void PushState::addBatch(int batchId, int batchBytesSize, const std::string& hos
   totalInflightReqs_.fetch_add(1);
 
   if (maxInFlightBytesSizeEnabled_) {
-    auto bytesSizePerAddress = inflightBytesSizePerAddress_->computeIfAbsent(hostAndPushPort, [&]() {
-      return std::make_shared<std::atomic<long>>(0);
-    });
+    auto bytesSizePerAddress = inflightBytesSizePerAddress_->computeIfAbsent(
+        hostAndPushPort,
+        [&]() { return std::make_shared<std::atomic<long>>(0); });
     bytesSizePerAddress->fetch_add(batchBytesSize);
     inflightBatchBytesSizes_->set(batchId, batchBytesSize);
     totalInflightBytes_.fetch_add(batchBytesSize);
@@ -78,7 +83,8 @@ void PushState::removeBatch(int batchId, const std::string& hostAndPushPort) {
     auto inflightBatchBytesSize = inflightBatchBytesSizes_->get(batchId);
     inflightBatchBytesSizes_->erase(batchId);
     if (inflightBatchBytesSize.has_value()) {
-      auto inflightBytesSize = inflightBytesSizePerAddress_->get(hostAndPushPort);
+      auto inflightBytesSize =
+          inflightBytesSizePerAddress_->get(hostAndPushPort);
       if (inflightBytesSize.has_value()) {
         inflightBytesSize.value()->fetch_sub(inflightBatchBytesSize.value());
       }
@@ -100,8 +106,8 @@ bool PushState::limitMaxInFlight(const std::string& hostAndPushPort) {
   std::shared_ptr<std::atomic<long>> batchBytesSize = nullptr;
   if (maxInFlightBytesSizeEnabled_) {
     batchBytesSize = inflightBytesSizePerAddress_->computeIfAbsent(
-      hostAndPushPort,
-      [&]() { return std::make_shared<std::atomic<long>>(0); });
+        hostAndPushPort,
+        [&]() { return std::make_shared<std::atomic<long>>(0); });
   }
   long times = waitInflightTimeoutMs_ / deltaMs_;
   for (; times > 0; times--) {
@@ -109,16 +115,19 @@ bool PushState::limitMaxInFlight(const std::string& hostAndPushPort) {
       return false;
     }
 
-    bool reqCountWithinLimits = (totalInflightReqs_ <= maxInFlightReqsTotal_ &&
-        static_cast<int>(batchIdSet->size()) <= currentMaxReqsInFlight);
+    bool reqCountWithinLimits =
+        (totalInflightReqs_ <= maxInFlightReqsTotal_ &&
+         static_cast<int>(batchIdSet->size()) <= currentMaxReqsInFlight);
     bool byteSizeWithinLimits = false;
 
     if (maxInFlightBytesSizeEnabled_ && batchBytesSize) {
-      byteSizeWithinLimits = (totalInflightBytes_.load() <= maxInFlightBytesSizeTotal_ && 
-        batchBytesSize->load() <= maxInFlightBytesSizePerWorker_);
+      byteSizeWithinLimits =
+          (totalInflightBytes_.load() <= maxInFlightBytesSizeTotal_ &&
+           batchBytesSize->load() <= maxInFlightBytesSizePerWorker_);
     }
 
-    if (reqCountWithinLimits || (maxInFlightBytesSizeEnabled_ && byteSizeWithinLimits)) {
+    if (reqCountWithinLimits ||
+        (maxInFlightBytesSizeEnabled_ && byteSizeWithinLimits)) {
       break;
     }
 
@@ -127,25 +136,27 @@ bool PushState::limitMaxInFlight(const std::string& hostAndPushPort) {
   }
 
   if (times <= 0) {
-    if (totalInflightReqs_ > maxInFlightReqsTotal_ || static_cast<int>(batchIdSet->size()) > currentMaxReqsInFlight) {
+    if (totalInflightReqs_ > maxInFlightReqsTotal_ ||
+        static_cast<int>(batchIdSet->size()) > currentMaxReqsInFlight) {
       LOG(WARNING) << "After waiting for " << waitInflightTimeoutMs_
-      << " ms, there are still " << totalInflightReqs_
-      << " requests in flight (limit: " << maxInFlightReqsTotal_
-      << "): " << batchIdSet->size()
-      << " batches in flight for hostAndPushPort " << hostAndPushPort
-      << ", which exceeds the current limit "
-      << currentMaxReqsInFlight;
+                   << " ms, there are still " << totalInflightReqs_
+                   << " requests in flight (limit: " << maxInFlightReqsTotal_
+                   << "): " << batchIdSet->size()
+                   << " batches in flight for hostAndPushPort "
+                   << hostAndPushPort << ", which exceeds the current limit "
+                   << currentMaxReqsInFlight;
     }
     if (maxInFlightBytesSizeEnabled_ && batchBytesSize) {
       if (totalInflightBytes_.load() > maxInFlightBytesSizeTotal_ ||
           batchBytesSize->load() > maxInFlightBytesSizePerWorker_) {
-            LOG(WARNING) << "After waiting for " << waitInflightTimeoutMs_
-           << " ms, there are still " << totalInflightBytes_.load()
-           << " bytes in flight (limit: " << maxInFlightBytesSizeTotal_
-           << "): " << batchBytesSize->load()
-           << " bytes for hostAndPushPort " << hostAndPushPort 
-           << ", which exceeds the current limit " 
-           << maxInFlightBytesSizePerWorker_;
+        LOG(WARNING) << "After waiting for " << waitInflightTimeoutMs_
+                     << " ms, there are still " << totalInflightBytes_.load()
+                     << " bytes in flight (limit: "
+                     << maxInFlightBytesSizeTotal_
+                     << "): " << batchBytesSize->load()
+                     << " bytes for hostAndPushPort " << hostAndPushPort
+                     << ", which exceeds the current limit "
+                     << maxInFlightBytesSizePerWorker_;
       }
     }
   }
@@ -215,14 +226,16 @@ std::optional<std::string> PushState::getExceptionMsg() const {
 }
 
 void PushState::cleanup() {
-  LOG(INFO) << "Cleanup " << totalInflightReqs_.load() << " requests in flight.";
+  LOG(INFO) << "Cleanup " << totalInflightReqs_.load()
+            << " requests in flight.";
   cleaned_ = true;
   inflightBatchesPerAddress_.clear();
   totalInflightReqs_ = 0;
   pushStrategy_->clear();
 
   if (maxInFlightBytesSizeEnabled_) {
-    LOG(INFO) << "Cleanup " << totalInflightBytes_.load() << " bytes in flight.";
+    LOG(INFO) << "Cleanup " << totalInflightBytes_.load()
+              << " bytes in flight.";
     inflightBytesSizePerAddress_->clear();
     inflightBatchBytesSizes_->clear();
     totalInflightBytes_ = 0;
