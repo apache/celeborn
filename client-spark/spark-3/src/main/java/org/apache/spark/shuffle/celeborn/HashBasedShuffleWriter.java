@@ -367,17 +367,16 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   }
 
   private void close() throws IOException, InterruptedException {
-    // here we wait for all the in-flight batches to return which sent by dataPusher thread
+    // Send the remaining data in sendBuffer
     long pushMergedDataTime = System.nanoTime();
-    dataPusher.waitOnTermination();
-    sendBufferPool.returnPushTaskQueue(dataPusher.getAndResetIdleQueue());
-    shuffleClient.prepareForMergeData(shuffleId, mapId, encodedAttemptId);
     closeWrite();
     shuffleClient.pushMergedData(shuffleId, mapId, encodedAttemptId);
     writeMetrics.incWriteTime(System.nanoTime() - pushMergedDataTime);
     updateRecordsWrittenMetrics();
 
     long waitStartTime = System.nanoTime();
+    dataPusher.waitOnTermination();
+    sendBufferPool.returnPushTaskQueue(dataPusher.getAndResetIdleQueue());
     shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers, numPartitions);
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
 
