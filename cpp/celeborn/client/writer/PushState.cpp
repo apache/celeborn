@@ -29,8 +29,7 @@ PushState::PushState(const conf::CelebornConf& conf)
           conf.clientPushMaxBytesSizeInFlightEnabled()),
       maxInFlightBytesSizeTotal_(conf.clientPushMaxBytesSizeInFlightTotal()),
       maxInFlightBytesSizePerWorker_(
-          conf.clientPushMaxBytesSizeInFlightPerWorker()) {
-}
+          conf.clientPushMaxBytesSizeInFlightPerWorker()) {}
 
 int PushState::nextBatchId() {
   return currBatchId_.fetch_add(1);
