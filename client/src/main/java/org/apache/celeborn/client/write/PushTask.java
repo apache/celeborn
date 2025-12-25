@@ -46,7 +46,9 @@ public class PushTask {
     this.size = size;
   }
 
-  public void setBuffer(byte[] buffer) { this.buffer = buffer; }
+  public void setBuffer(byte[] buffer) {
+    this.buffer = buffer;
+  }
 
   public byte[] getBuffer() {
     return buffer;
