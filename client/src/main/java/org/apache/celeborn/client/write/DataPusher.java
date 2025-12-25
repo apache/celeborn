@@ -151,8 +151,9 @@ public class DataPusher {
     pushThread.start();
   }
 
-  public void addTask(int partitionId, byte[] buffer, int size)
+  public byte[] swapBufferWithIdleTask(int partitionId, byte[] buffer, int size)
       throws IOException, InterruptedException {
+    byte[] returnBuffer = null;
     try {
       PushTask task = null;
       while (task == null) {
@@ -161,7 +162,9 @@ public class DataPusher {
       }
       task.setSize(size);
       task.setPartitionId(partitionId);
-      System.arraycopy(buffer, 0, task.getBuffer(), 0, size);
+      // swap buffer
+      returnBuffer = task.getBuffer();
+      task.setBuffer(buffer);
       while (!dataPushQueue.addPushTask(task)) {
         checkException();
       }
@@ -170,6 +173,7 @@ public class DataPusher {
       pushThread.interrupt();
       throw e;
     }
+    return returnBuffer;
   }
 
   public void waitOnTermination() throws IOException, InterruptedException {
