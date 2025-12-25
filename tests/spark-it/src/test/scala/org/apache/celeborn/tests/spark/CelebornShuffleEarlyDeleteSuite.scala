@@ -237,12 +237,12 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
     deleteTooEarlyTest(Seq(0, 3, 5), Seq(1, 2, 4), spark)
   }
 
-  //  test("spark integration test - do not fail job when shuffle is deleted \"too early\"" +
-  //    " (with failed shuffle deletion)") {
-  //    val spark = createSparkSession(
-  //      Map(s"spark.${CelebornConf.CLIENT_FETCH_CLEAN_FAILED_SHUFFLE.key}" -> "true"))
-  //    deleteTooEarlyTest(Seq(0, 2, 3, 5), Seq(1, 4), spark)
-  //  }
+  test("spark integration test - do not fail job when shuffle is deleted \"too early\"" +
+    " (with failed shuffle deletion)") {
+    val spark = createSparkSession(
+      Map(s"spark.${CelebornConf.CLIENT_FETCH_CLEAN_FAILED_SHUFFLE.key}" -> "true"))
+    deleteTooEarlyTest(Seq(0, 2, 3, 5), Seq(1, 4), spark)
+  }
 
   test("spark integration test - do not fail job when shuffle files" +
     " are deleted \"too early\" (ancestor dependency)") {
@@ -336,57 +336,55 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
     }
   }
 
-  //  test("spark integration test - do not fail job when multiple shuffles (be zipped/joined)" +
-  //    " are deleted \"too early\"") {
-  //    if (runningWithSpark3OrNewer()) {
-  //      val spark = createSparkSession(
-  //        Map(s"spark.${CelebornConf.CLIENT_FETCH_CLEAN_FAILED_SHUFFLE.key}" -> "true"))
-  //      var r = 0L
-  //      try {
-  //        // shuffle 0&1
-  //        val rdd1 = spark.sparkContext.parallelize((0 until 20), 3).repartition(2)
-  //        val rdd2 = spark.sparkContext.parallelize((0 until 20), 3).repartition(2)
-  //        rdd1.count()
-  //        rdd2.count()
-  //        val t = new Thread() {
-  //          override def run(): Unit = {
-  //            // shuffle 2&3
-  //            val rdd3 = rdd1.repartition(3)
-  //            val rdd4 = rdd2.repartition(3)
-  //            rdd3.count()
-  //            rdd4.count()
-  //            // leaving enough time for shuffle 0&1 to be expired
-  //            Thread.sleep(10000)
-  //            // shuffle 4&5
-  //            rdd3.repartition(4).count()
-  //            rdd4.repartition(4).count()
-  //            // leaving enough time for shuffle 2&3 to be expired
-  //            Thread.sleep(10000)
-  //            println("starting job for rdd 5")
-  //            val rdd5 = rdd3.zip(rdd4).mapPartitions(iter => {
-  //              Thread.sleep(10000)
-  //              iter
-  //            })
-  //            r = rdd5.count()
-  //          }
-  //        }
-  //        t.start()
-  //        val thread = StorageCheckUtils.triggerStorageCheckThread(
-  //          workerDirs,
-  //          // 4,5 are based on vanilla spark gc which are not necessarily stable in a test
-  //          // 6,9 is based on failed shuffle cleanup, which is not covered here
-  //          shuffleIdShouldNotExist = Seq(0, 1, 2, 3, 7, 10, 12),
-  //          shuffleIdMustExist = Seq(8, 11),
-  //          sparkSession = spark,
-  //          forStableStatusChecking = false)
-  //        StorageCheckUtils.checkStorageValidation(thread)
-  //        t.join()
-  //        assert(r === 20)
-  //      } finally {
-  //        spark.stop(
-  //      }
-  //    }
-  //  }
+  test("spark integration test - do not fail job when multiple shuffles (be zipped/joined)" +
+    " are deleted \"too early\"") {
+    if (Spark3OrNewer) {
+      val spark = createSparkSession()
+      var r = 0L
+      try {
+        // shuffle 0&1
+        val rdd1 = spark.sparkContext.parallelize((0 until 20), 3).repartition(2)
+        val rdd2 = spark.sparkContext.parallelize((0 until 20), 3).repartition(2)
+        rdd1.count()
+        rdd2.count()
+        val t = new Thread() {
+          override def run(): Unit = {
+            // shuffle 2&3
+            val rdd3 = rdd1.repartition(3)
+            val rdd4 = rdd2.repartition(3)
+            rdd3.count()
+            rdd4.count()
+            // leaving enough time for shuffle 0&1 to be expired
+            Thread.sleep(10000)
+            // shuffle 4&5
+            rdd3.repartition(4).count()
+            rdd4.repartition(4).count()
+            // leaving enough time for shuffle 2&3 to be expired
+            Thread.sleep(10000)
+            println("starting job for rdd 5")
+            val rdd5 = rdd3.zip(rdd4).mapPartitions(iter => {
+              Thread.sleep(10000)
+              iter
+            })
+            r = rdd5.count()
+          }
+        }
+        t.start()
+        val thread = StorageCheckUtils.triggerStorageCheckThread(
+          workerDirs,
+          // 4,5 are based on vanilla spark gc which are not necessarily stable in a test
+          // 6,9 are based on failed shuffle cleanup, which is not covered here
+          shuffleIdShouldNotExist = Seq(0, 1, 2, 3, 7, 10, 12),
+          shuffleIdMustExist = Seq(8, 11),
+          sparkSession = spark)
+        StorageCheckUtils.checkStorageValidation(thread)
+        t.join()
+        assert(r === 20)
+      } finally {
+        spark.stop()
+      }
+    }
+  }
 
   private def multiShuffleFailureTest(
       shuffleIdShouldNotExist: Seq[Int],
@@ -437,11 +435,11 @@ class CelebornShuffleEarlyDeleteSuite extends SparkTestBase {
     multiShuffleFailureTest(Seq(0, 1, 2, 3, 4, 5), Seq(17), spark)
   }
 
-  //  test("spark integration test - do not fail job when multiple shuffles (be zipped/joined)" +
-  //    " are to be retried for fetching (with failed shuffle deletion)") {
-  //    val spark = createSparkSession(Map(
-  //      "spark.stage.maxConsecutiveAttempts" -> "3",
-  //      s"spark.${CelebornConf.CLIENT_FETCH_CLEAN_FAILED_SHUFFLE.key}" -> "true"))
-  //    multiShuffleFailureTest(Seq(0, 1, 2, 3, 4, 5, 8, 9, 10), Seq(17), spark)
-  //  }
+  test("spark integration test - do not fail job when multiple shuffles (be zipped/joined)" +
+    " are to be retried for fetching (with failed shuffle deletion)") {
+    val spark = createSparkSession(Map(
+      "spark.stage.maxConsecutiveAttempts" -> "3",
+      s"spark.${CelebornConf.CLIENT_FETCH_CLEAN_FAILED_SHUFFLE.key}" -> "true"))
+    multiShuffleFailureTest(Seq(0, 1, 2, 3, 4, 5, 8, 9, 10), Seq(17), spark)
+  }
 }

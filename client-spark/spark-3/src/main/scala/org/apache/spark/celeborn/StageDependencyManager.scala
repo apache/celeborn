@@ -240,13 +240,18 @@ class StageDependencyManager(shuffleManager: SparkShuffleManager) extends Loggin
     val cleanerThread = new Thread() {
       override def run(): Unit = {
         while (!stopped) {
-          val allShuffleIds = new util.ArrayList[Int]
-          shuffleIdsToBeCleaned.drainTo(allShuffleIds)
-          allShuffleIds.asScala.foreach { shuffleId =>
-            shuffleManager.getLifecycleManager.unregisterShuffle(shuffleId)
-            logInfo(s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
+          try {
+            val allShuffleIds = new util.ArrayList[Int]
+            shuffleIdsToBeCleaned.drainTo(allShuffleIds)
+            allShuffleIds.asScala.foreach { shuffleId =>
+              shuffleManager.getLifecycleManager.unregisterShuffle(shuffleId)
+              logInfo(s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
+            }
+            Thread.sleep(cleanInterval)
+          } catch {
+            case t: Throwable =>
+              logError("unexpected error in shuffle early cleaner thread", t)
           }
-          Thread.sleep(cleanInterval)
         }
       }
     }

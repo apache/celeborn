@@ -187,7 +187,14 @@ public class SparkShuffleManager implements ShuffleManager {
           }
 
           if (lifecycleManager.conf().clientShuffleEarlyDeletion()) {
-            logger.info("register early deletion callbacks");
+            if (!lifecycleManager.conf().clientStageRerunEnabled()) {
+              throw new IllegalArgumentException(
+                      CelebornConf.CLIENT_STAGE_RERUN_ENABLED().key()
+                              + " has to be "
+                              + "enabled, when "
+                              + CelebornConf.CLIENT_SHUFFLE_EARLY_DELETION().key()
+                              + " is set to true");
+            }
             SparkUtils.addSparkListener(new ShuffleStatsTrackingListener());
             lifecycleManager.registerStageToWriteCelebornShuffleCallback(
                 (celebornShuffleId, appShuffleIdentifier) ->
