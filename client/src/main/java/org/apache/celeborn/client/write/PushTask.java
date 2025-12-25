@@ -21,7 +21,7 @@ public class PushTask {
   private int partitionId;
   private int size;
 
-  private byte[] buffer;
+  private volatile byte[] buffer;
 
   public PushTask(int bufferSize) {
     this.buffer = new byte[bufferSize];
@@ -45,6 +45,8 @@ public class PushTask {
     }
     this.size = size;
   }
+
+  public void setBuffer(byte[] buffer) { this.buffer = buffer; }
 
   public byte[] getBuffer() {
     return buffer;
