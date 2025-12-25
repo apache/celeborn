@@ -245,7 +245,8 @@ class StageDependencyManager(shuffleManager: SparkShuffleManager) extends Loggin
             shuffleIdsToBeCleaned.drainTo(allShuffleIds)
             allShuffleIds.asScala.foreach { shuffleId =>
               shuffleManager.getLifecycleManager.unregisterShuffle(shuffleId)
-              logInfo(s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
+              logInfo(
+                s"sent unregister shuffle request for shuffle $shuffleId (celeborn shuffle id)")
             }
             Thread.sleep(cleanInterval)
           } catch {
