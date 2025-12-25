@@ -17,6 +17,9 @@
 
 #pragma once
 
+#include <thread>
+
+#include "celeborn/client/compress/Compressor.h"
 #include "celeborn/client/reader/CelebornInputStream.h"
 #include "celeborn/client/writer/PushDataCallback.h"
 #include "celeborn/client/writer/PushState.h"
@@ -204,6 +207,9 @@ class ShuffleClientImpl
 
   virtual void addPushDataRetryTask(folly::Func&& task);
 
+  std::shared_ptr<network::TransportClientFactory> clientFactory_;
+  utils::ConcurrentHashMap<int, PtrPartitionLocationMap> partitionLocationMaps_;
+
  private:
   std::shared_ptr<PushState> getPushState(const std::string& mapKey);
 
@@ -251,7 +257,6 @@ class ShuffleClientImpl
   const std::string appUniqueId_;
   std::shared_ptr<const conf::CelebornConf> conf_;
   std::shared_ptr<network::NettyRpcEndpointRef> lifecycleManagerRef_;
-  std::shared_ptr<network::TransportClientFactory> clientFactory_;
   std::shared_ptr<folly::IOExecutor> pushDataRetryPool_;
   std::shared_ptr<ReviveManager> reviveManager_;
   std::mutex mutex_;
@@ -260,11 +265,15 @@ class ShuffleClientImpl
       int,
       std::shared_ptr<protocol::GetReducerFileGroupResponse>>
       reducerFileGroupInfos_;
-  utils::ConcurrentHashMap<int, PtrPartitionLocationMap> partitionLocationMaps_;
   utils::ConcurrentHashMap<std::string, std::shared_ptr<PushState>> pushStates_;
   utils::ConcurrentHashMap<int, std::shared_ptr<utils::ConcurrentHashSet<int>>>
       mapperEndSets_;
   utils::ConcurrentHashSet<int> stageEndShuffleSet_;
+
+  // Thread-local compressor for compression support
+  static thread_local std::unique_ptr<compress::Compressor> compressorThreadLocal_;
+
+  compress::Compressor* getCompressor();
 
   // TODO: pushExcludedWorker is not supported yet
 };

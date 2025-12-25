@@ -19,6 +19,7 @@ add_executable(
         PushDataCallbackTest.cpp
         PushStateTest.cpp
         ReviveManagerTest.cpp
+        ShuffleClientTest.cpp
         Lz4DecompressorTest.cpp
         ZstdDecompressorTest.cpp
         Lz4CompressorTest.cpp
