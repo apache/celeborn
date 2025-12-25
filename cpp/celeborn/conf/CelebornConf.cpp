@@ -277,8 +277,8 @@ int CelebornConf::clientPushBufferMaxSize() const {
 }
 
 bool CelebornConf::clientPushMaxBytesSizeInFlightEnabled() const {
-  return optionalProperty(kClientPushMaxBytesSizeInFlightEnabled).value() ==
-      "true";
+  return optionalProperty<bool>(kClientPushMaxBytesSizeInFlightEnabled)
+      .value_or(false);
 }
 
 long CelebornConf::clientPushMaxBytesSizeInFlightTotal() const {

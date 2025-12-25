@@ -86,12 +86,13 @@ class PushState {
       std::string,
       std::shared_ptr<utils::ConcurrentHashSet<int>>>
       inflightBatchesPerAddress_;
-  std::optional<
-      utils::ConcurrentHashMap<std::string, std::shared_ptr<std::atomic<long>>>>
+  utils::ConcurrentHashMap<
+      std::string, 
+      std::shared_ptr<std::atomic<long>>>
       inflightBytesSizePerAddress_;
-  std::optional<utils::ConcurrentHashMap<int, int>> inflightBatchBytesSizes_;
+  utils::ConcurrentHashMap<int, int> inflightBatchBytesSizes_;
   folly::Synchronized<std::unique_ptr<std::exception>> exception_;
-  volatile bool cleaned_{false};
+  std::atomic<bool> cleaned_{false};
 };
 
 } // namespace client
