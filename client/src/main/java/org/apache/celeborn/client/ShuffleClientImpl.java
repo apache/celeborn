@@ -1526,6 +1526,12 @@ public class ShuffleClientImpl extends ShuffleClient {
         new RpcResponseCallback() {
           @Override
           public void onSuccess(ByteBuffer response) {
+            // Compatible with lower versions of Server
+            if (response.remaining() <= 0) {
+              pushState.onSuccess(hostPort);
+              callback.onSuccess(ByteBuffer.wrap(new byte[] {StatusCode.SUCCESS.getValue()}));
+              return;
+            }
             byte reason = response.get();
             if (reason == StatusCode.HARD_SPLIT.getValue()
                 || reason == StatusCode.SOFT_SPLIT.getValue()) {
