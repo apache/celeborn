@@ -1274,7 +1274,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       val stageIdentifier = s"$stageId.$stageAttemptId"
       val shuffleIdentifier = s"$appShuffleId.$stageId.$stageAttemptId"
       if (stagesReceivedInvalidatingUpstream.getOrElse(stageIdentifier, new mutable.HashSet[Int]())
-        .contains(appShuffleId)) {
+          .contains(appShuffleId)) {
         println(s"${Thread.currentThread().getName} " +
           s"ignoring missing shuffle id report from stage $stageId.$stageAttemptId as" +
           s" it is already reported  by other reader and handled")
@@ -1299,11 +1299,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         invalidateShuffleWrittenByStage(stageId)
         stagesReceivedInvalidatingUpstream += stageIdentifier ->
           (stagesReceivedInvalidatingUpstream.getOrElse(
-            stageIdentifier, new mutable.HashSet[Int]()) ++ Set(appShuffleId))
+            stageIdentifier,
+            new mutable.HashSet[Int]()) ++ Set(appShuffleId))
         val pbReportMissingShuffleIdResponse =
           PbReportMissingShuffleIdResponse.newBuilder().setSuccess(ret).build()
         context.reply(pbReportMissingShuffleIdResponse)
-      /*
+        /*
       val latestUpstreamShuffleId = shuffleIds.maxBy(_._2._1)
       if (latestUpstreamShuffleId._2._1 == UNKNOWN_MISSING_CELEBORN_SHUFFLE_ID) {
         println(s"ignoring missing shuffle id report from stage $stageId.$stageAttemptId as" +
