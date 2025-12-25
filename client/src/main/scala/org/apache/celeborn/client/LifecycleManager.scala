@@ -1092,7 +1092,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         // this is not necessarily the most concise coding style, but it helps for debugging
         // purpose
         var found = false
-        val revertedShuffleIds = shuffleIds.values.map(v => v._1).toSeq.reverse.filter(_ >= 0)
+        val revertedShuffleIds = shuffleIds.values.map(v => v._1).toSeq.reverse
         revertedShuffleIds.foreach { celebornShuffleId: Int =>
           if (!found) {
             try {
