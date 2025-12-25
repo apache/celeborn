@@ -28,25 +28,25 @@ class PushStateTest : public testing::Test {
     conf::CelebornConf conf;
     conf.registerProperty(
         conf::CelebornConf::kClientPushLimitInFlightTimeoutMs,
-        std::to_string(pushTimeoutMs_));
+        std::to_string(kPushTimeoutMs_));
     conf.registerProperty(
         conf::CelebornConf::kClientPushLimitInFlightSleepDeltaMs,
-        std::to_string(pushSleepDeltaMs_));
+        std::to_string(kPushSleepDeltaMs_));
     conf.registerProperty(
         conf::CelebornConf::kClientPushMaxReqsInFlightTotal,
-        std::to_string(maxReqsInFlight_));
+        std::to_string(kMaxReqsInFlight_));
     conf.registerProperty(
         conf::CelebornConf::kClientPushMaxReqsInFlightPerWorker,
-        std::to_string(maxReqsInFlight_));
+        std::to_string(kMaxReqsInFlight_));
 
     pushState_ = std::make_unique<PushState>(conf);
   }
 
   std::unique_ptr<PushState> pushState_;
-  static constexpr int pushTimeoutMs_ = 100;
-  static constexpr int pushSleepDeltaMs_ = 10;
-  static constexpr int maxReqsInFlight_ = 2;
-  static constexpr int defaultBatchSize_ = 1024;
+  static constexpr int kPushTimeoutMs_ = 100;
+  static constexpr int kPushSleepDeltaMs_ = 10;
+  static constexpr int kMaxReqsInFlight_ = 2;
+  static constexpr int kDefaultBatchSize_ = 1024;
 };
 
 class PushStateBytesSizeTest : public testing::Test {
@@ -55,10 +55,10 @@ class PushStateBytesSizeTest : public testing::Test {
     conf::CelebornConf conf;
     conf.registerProperty(
         conf::CelebornConf::kClientPushLimitInFlightTimeoutMs,
-        std::to_string(pushTimeoutMs_));
+        std::to_string(kPushTimeoutMs_));
     conf.registerProperty(
         conf::CelebornConf::kClientPushLimitInFlightSleepDeltaMs,
-        std::to_string(pushSleepDeltaMs_));
+        std::to_string(kPushSleepDeltaMs_));
     conf.registerProperty(
         conf::CelebornConf::kClientPushMaxReqsInFlightTotal, "2");
     conf.registerProperty(
@@ -67,58 +67,58 @@ class PushStateBytesSizeTest : public testing::Test {
         conf::CelebornConf::kClientPushMaxBytesSizeInFlightEnabled, "true");
     conf.registerProperty(
         conf::CelebornConf::kClientPushMaxBytesSizeInFlightTotal,
-        std::to_string(maxBytesSizeTotal_) + "B");
+        std::to_string(kMaxBytesSizeTotal_) + "B");
     conf.registerProperty(
         conf::CelebornConf::kClientPushMaxBytesSizeInFlightPerWorker,
-        std::to_string(maxBytesSizePerWorker_) + "B");
+        std::to_string(kMaxBytesSizePerWorker_) + "B");
     conf.registerProperty(
         conf::CelebornConf::kClientPushBufferMaxSize,
-        std::to_string(bufferMaxSize_) + "B");
+        std::to_string(kBufferMaxSize_) + "B");
 
     pushState_ = std::make_unique<PushState>(conf);
   }
 
   std::unique_ptr<PushState> pushState_;
-  static constexpr int pushTimeoutMs_ = 100;
-  static constexpr int pushSleepDeltaMs_ = 10;
-  static constexpr int batchSize_ = 1024;
-  static constexpr long maxBytesSizeTotal_ = 3000;
-  static constexpr long maxBytesSizePerWorker_ = 2500;
-  static constexpr int bufferMaxSize_ = 65536;
+  static constexpr int kPushTimeoutMs_ = 100;
+  static constexpr int kPushSleepDeltaMs_ = 10;
+  static constexpr int kBatchSize_ = 1024;
+  static constexpr long kMaxBytesSizeTotal_ = 3000;
+  static constexpr long kMaxBytesSizePerWorker_ = 2500;
+  static constexpr int kBufferMaxSize_ = 65536;
 };
 
 TEST_F(PushStateTest, limitMaxInFlight) {
   const std::string hostAndPushPort = "xx.xx.xx.xx:8080";
-  const int addBatchCalls = maxReqsInFlight_ + 1;
+  const int addBatchCalls = kMaxReqsInFlight_ + 1;
   std::vector<bool> addBatchMarks(addBatchCalls, false);
   std::thread addBatchThread([&]() {
     for (auto i = 0; i < addBatchCalls; i++) {
-      pushState_->addBatch(i, defaultBatchSize_, hostAndPushPort);
+      pushState_->addBatch(i, kDefaultBatchSize_, hostAndPushPort);
       EXPECT_FALSE(pushState_->limitMaxInFlight(hostAndPushPort));
       addBatchMarks[i] = true;
     }
   });
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(pushSleepDeltaMs_));
-  for (auto i = 0; i < maxReqsInFlight_; i++) {
+  std::this_thread::sleep_for(std::chrono::milliseconds(kPushSleepDeltaMs_));
+  for (auto i = 0; i < kMaxReqsInFlight_; i++) {
     EXPECT_TRUE(addBatchMarks[i]);
   }
-  EXPECT_FALSE(addBatchMarks[maxReqsInFlight_]);
+  EXPECT_FALSE(addBatchMarks[kMaxReqsInFlight_]);
 
   pushState_->removeBatch(0, hostAndPushPort);
   addBatchThread.join();
-  EXPECT_TRUE(addBatchMarks[maxReqsInFlight_]);
+  EXPECT_TRUE(addBatchMarks[kMaxReqsInFlight_]);
 }
 
 TEST_F(PushStateTest, limitMaxInFlightTimeout) {
   const std::string hostAndPushPort = "xx.xx.xx.xx:8080";
-  const int addBatchCalls = maxReqsInFlight_ + 1;
+  const int addBatchCalls = kMaxReqsInFlight_ + 1;
   std::vector<bool> addBatchMarks(addBatchCalls, false);
   std::thread addBatchThread([&]() {
     for (auto i = 0; i < addBatchCalls; i++) {
-      pushState_->addBatch(i, defaultBatchSize_, hostAndPushPort);
+      pushState_->addBatch(i, kDefaultBatchSize_, hostAndPushPort);
       auto result = pushState_->limitMaxInFlight(hostAndPushPort);
-      if (i < maxReqsInFlight_) {
+      if (i < kMaxReqsInFlight_) {
         EXPECT_FALSE(result);
       } else {
         EXPECT_TRUE(result);
@@ -127,14 +127,14 @@ TEST_F(PushStateTest, limitMaxInFlightTimeout) {
     }
   });
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(pushSleepDeltaMs_));
-  for (auto i = 0; i < maxReqsInFlight_; i++) {
+  std::this_thread::sleep_for(std::chrono::milliseconds(kPushSleepDeltaMs_));
+  for (auto i = 0; i < kMaxReqsInFlight_; i++) {
     EXPECT_TRUE(addBatchMarks[i]);
   }
-  EXPECT_FALSE(addBatchMarks[maxReqsInFlight_]);
+  EXPECT_FALSE(addBatchMarks[kMaxReqsInFlight_]);
 
   addBatchThread.join();
-  EXPECT_FALSE(addBatchMarks[maxReqsInFlight_]);
+  EXPECT_FALSE(addBatchMarks[kMaxReqsInFlight_]);
 }
 
 TEST_F(PushStateTest, limitZeroInFlight) {
@@ -142,12 +142,12 @@ TEST_F(PushStateTest, limitZeroInFlight) {
   const int addBatchCalls = 1;
   std::vector<bool> addBatchMarks(addBatchCalls, false);
   std::thread addBatchThread([&]() {
-    pushState_->addBatch(0, defaultBatchSize_, hostAndPushPort);
+    pushState_->addBatch(0, kDefaultBatchSize_, hostAndPushPort);
     EXPECT_FALSE(pushState_->limitZeroInFlight());
     addBatchMarks[0] = true;
   });
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(pushSleepDeltaMs_));
+  std::this_thread::sleep_for(std::chrono::milliseconds(kPushSleepDeltaMs_));
   EXPECT_FALSE(addBatchMarks[0]);
 
   pushState_->removeBatch(0, hostAndPushPort);
@@ -160,13 +160,13 @@ TEST_F(PushStateTest, limitZeroInFlightTimeout) {
   const int addBatchCalls = 1;
   std::vector<bool> addBatchMarks(addBatchCalls, false);
   std::thread addBatchThread([&]() {
-    pushState_->addBatch(0, defaultBatchSize_, hostAndPushPort);
+    pushState_->addBatch(0, kDefaultBatchSize_, hostAndPushPort);
     auto result = pushState_->limitZeroInFlight();
     EXPECT_TRUE(result);
     addBatchMarks[0] = !result;
   });
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(pushSleepDeltaMs_));
+  std::this_thread::sleep_for(std::chrono::milliseconds(kPushSleepDeltaMs_));
   EXPECT_FALSE(addBatchMarks[0]);
 
   addBatchThread.join();
@@ -201,7 +201,7 @@ TEST_F(PushStateBytesSizeTest, limitMaxInFlightByBytesSize) {
 
   std::thread addBatchThread([&]() {
     for (auto i = 0; i < addBatchCalls; i++) {
-      pushState_->addBatch(i, batchSize_, hostAndPushPort);
+      pushState_->addBatch(i, kBatchSize_, hostAndPushPort);
       auto result = pushState_->limitMaxInFlight(hostAndPushPort);
       addBatchMarks[i] = true;
       if (i < expectedAllowedBatches) {
@@ -210,7 +210,7 @@ TEST_F(PushStateBytesSizeTest, limitMaxInFlightByBytesSize) {
     }
   });
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(pushSleepDeltaMs_));
+  std::this_thread::sleep_for(std::chrono::milliseconds(kPushSleepDeltaMs_));
   for (auto i = 0; i < expectedAllowedBatches; i++) {
     EXPECT_TRUE(addBatchMarks[i]) << "Batch " << i << " should have completed";
   }
@@ -224,20 +224,20 @@ TEST_F(PushStateBytesSizeTest, limitMaxInFlightByTotalBytesSize) {
   const std::string hostAndPushPort1 = "xx.xx.xx.xx:8080";
   const std::string hostAndPushPort2 = "yy.yy.yy.yy:8080";
 
-  pushState_->addBatch(0, batchSize_, hostAndPushPort1);
+  pushState_->addBatch(0, kBatchSize_, hostAndPushPort1);
   EXPECT_FALSE(pushState_->limitMaxInFlight(hostAndPushPort1));
 
-  pushState_->addBatch(1, batchSize_, hostAndPushPort2);
+  pushState_->addBatch(1, kBatchSize_, hostAndPushPort2);
   EXPECT_FALSE(pushState_->limitMaxInFlight(hostAndPushPort2));
 
   std::atomic<bool> thirdBatchCompleted{false};
   std::thread addBatchThread([&]() {
-    pushState_->addBatch(2, batchSize_, hostAndPushPort1);
+    pushState_->addBatch(2, kBatchSize_, hostAndPushPort1);
     pushState_->limitMaxInFlight(hostAndPushPort1);
     thirdBatchCompleted = true;
   });
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(pushSleepDeltaMs_));
+  std::this_thread::sleep_for(std::chrono::milliseconds(kPushSleepDeltaMs_));
   EXPECT_FALSE(thirdBatchCompleted.load())
       << "Third batch should be blocked due to total bytes limit";
 
@@ -250,8 +250,8 @@ TEST_F(PushStateBytesSizeTest, limitMaxInFlightByTotalBytesSize) {
 TEST_F(PushStateBytesSizeTest, cleanupClearsBytesSizeTracking) {
   const std::string hostAndPushPort = "xx.xx.xx.xx:8080";
 
-  pushState_->addBatch(0, batchSize_, hostAndPushPort);
-  pushState_->addBatch(1, batchSize_, hostAndPushPort);
+  pushState_->addBatch(0, kBatchSize_, hostAndPushPort);
+  pushState_->addBatch(1, kBatchSize_, hostAndPushPort);
   pushState_->cleanup();
 
   EXPECT_FALSE(pushState_->limitMaxInFlight(hostAndPushPort));
