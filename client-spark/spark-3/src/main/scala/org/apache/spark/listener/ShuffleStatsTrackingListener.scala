@@ -25,7 +25,7 @@ import org.apache.spark.shuffle.celeborn.SparkShuffleManager
 class ShuffleStatsTrackingListener extends SparkListener with Logging {
 
   override def onStageSubmitted(stageSubmitted: SparkListenerStageSubmitted): Unit = {
-    println(s"stage ${stageSubmitted.stageInfo.stageId}.${stageSubmitted.stageInfo.attemptNumber()} started")
+    logInfo(s"stage ${stageSubmitted.stageInfo.stageId}.${stageSubmitted.stageInfo.attemptNumber()} started")
     val stageId = stageSubmitted.stageInfo.stageId
     val shuffleMgr = SparkEnv.get.shuffleManager.asInstanceOf[SparkShuffleManager]
     val parentStages = stageSubmitted.stageInfo.parentIds

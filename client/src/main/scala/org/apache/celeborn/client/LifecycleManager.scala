@@ -1034,7 +1034,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           case Some((shuffleId, _)) =>
             val pbGetShuffleIdResponse =
               PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).setSuccess(true).build()
-            println(s"reply with shuffle id ${shuffleId} for $appShuffleIdentifier")
             context.reply(pbGetShuffleIdResponse)
           case None =>
             Option(appShuffleDeterminateMap.get(appShuffleId)).map { determinate =>
@@ -1156,7 +1155,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       stagesReceivedInvalidatingUpstream.getOrElseUpdate(
         stageIdentifier,
         new mutable.HashSet[Int]())
-    println(s"invalidating all upstream shuffles of stage $stageIdentifier")
+    logInfo(s"invalidating all upstream shuffles of stage $stageIdentifier")
     val upstreamShuffleIds = getUpstreamAppShuffleIdsCallback.map(f =>
       f.apply(readerStageId)).getOrElse(Array())
     upstreamShuffleIds.foreach { upstreamAppShuffleId =>
@@ -1275,12 +1274,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       val shuffleIdentifier = s"$appShuffleId.$stageId.$stageAttemptId"
       if (stagesReceivedInvalidatingUpstream.getOrElse(stageIdentifier, new mutable.HashSet[Int]())
           .contains(appShuffleId)) {
-        println(s"${Thread.currentThread().getName} " +
-          s"ignoring missing shuffle id report from stage $stageId.$stageAttemptId as" +
+        logInfo(s"ignoring missing shuffle id report from stage $stageId.$stageAttemptId as" +
           s" it is already reported  by other reader and handled")
       } else {
-        println(s"${Thread.currentThread().getName} handle missing shuffle id for appShuffleId" +
-          s" $appShuffleId stage" +
+        logInfo(s"handle missing shuffle id for appShuffleId $appShuffleId stage" +
           s" $stageId.$stageAttemptId")
         appShuffleTrackerCallback match {
           case Some(callback) =>
@@ -1304,33 +1301,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         val pbReportMissingShuffleIdResponse =
           PbReportMissingShuffleIdResponse.newBuilder().setSuccess(ret).build()
         context.reply(pbReportMissingShuffleIdResponse)
-        /*
-      val latestUpstreamShuffleId = shuffleIds.maxBy(_._2._1)
-      if (latestUpstreamShuffleId._2._1 == UNKNOWN_MISSING_CELEBORN_SHUFFLE_ID) {
-        println(s"ignoring missing shuffle id report from stage $stageId.$stageAttemptId as" +
-          s" it is already reported  by other reader and handled")
-      } else {
-        println(s"handle missing shuffle id for appShuffleId $appShuffleId stage" +
-          s" $stageId.$stageAttemptId")
-        appShuffleTrackerCallback match {
-          case Some(callback) =>
-            try {
-              callback.accept(appShuffleId)
-            } catch {
-              case t: Throwable =>
-                logError(t.toString)
-                ret = false
-            }
-            shuffleIds.put(latestUpstreamShuffleId._1, (UNKNOWN_MISSING_CELEBORN_SHUFFLE_ID, false))
-          case None =>
-            throw new UnsupportedOperationException(
-              "unexpected! appShuffleTrackerCallback is not registered")
-        }
-        // invalidate the shuffle written by stage
-        invalidateShuffleWrittenByStage(stageId)
-        val pbReportMissingShuffleIdResponse =
-          PbReportMissingShuffleIdResponse.newBuilder().setSuccess(ret).build()
-        context.reply(pbReportMissingShuffleIdResponse)*/
       }
     }
   }
@@ -1413,7 +1383,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       if (shuffleId >= 0) {
         val celebornShuffleIds = shuffleIdMapping.get(writtenShuffleId)
         if (celebornShuffleIds != null) {
-          println(s"invalidating location of app shuffle id $writtenShuffleId written" +
+          logInfo(s"invalidating location of app shuffle id $writtenShuffleId written" +
             s" by stage $stageId")
           val latestShuffleId = celebornShuffleIds.maxBy(_._2._1)
           celebornShuffleIds.put(latestShuffleId._1, (latestShuffleId._2._1, false))
