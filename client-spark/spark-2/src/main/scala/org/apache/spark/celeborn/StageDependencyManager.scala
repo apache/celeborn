@@ -17,13 +17,14 @@
 
 package org.apache.spark.celeborn
 
-import org.apache.celeborn.common.internal.Logging
 import org.apache.spark.shuffle.celeborn.SparkShuffleManager
+
+import org.apache.celeborn.common.internal.Logging
 
 class StageDependencyManager(shuffleManager: SparkShuffleManager) extends Logging {
   def removeCelebornShuffleInternal(
-                                     celebornShuffleId: Int,
-                                     stageId: Option[Int]): Unit = {
+      celebornShuffleId: Int,
+      stageId: Option[Int]): Unit = {
     throw new NotImplementedError("the method is not implemented")
   }
 }

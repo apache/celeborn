@@ -43,7 +43,7 @@ public class TestCelebornShuffleManager extends SparkShuffleManager {
     }
     return super.getReader(handle, startPartition, endPartition, context);
   }
-  
+
   public StageDependencyManager getStageDepManager() {
     return new StageDependencyManager(this);
   }
