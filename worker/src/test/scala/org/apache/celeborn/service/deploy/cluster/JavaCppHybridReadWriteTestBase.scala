@@ -28,6 +28,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
+import org.apache.celeborn.client.read.MetricsCallback
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -35,7 +36,7 @@ import org.apache.celeborn.common.protocol.CompressionCodec
 import org.apache.celeborn.common.util.Utils.runCommand
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
-trait JavaWriteCppReadTestBase extends AnyFunSuite
+trait JavaCppHybridReadWriteTestBase extends AnyFunSuite
   with Logging with MiniClusterFeature with BeforeAndAfterAll {
 
   var masterPort = 0
@@ -134,6 +135,101 @@ trait JavaWriteCppReadTestBase extends AnyFunSuite
     println(s"run command: $command")
     val commandOutput = runCommand(command)
     println(s"command output: $commandOutput")
+
+    // Verify the sum result.
+    var lineCount = 0
+    for (line <- Source.fromFile(cppResultFile, "utf-8").getLines.toList) {
+      val data = line.toLong
+      Assert.assertEquals(data, sums.get(lineCount))
+      lineCount += 1
+    }
+    Assert.assertEquals(lineCount, numPartitions)
+    lifecycleManager.stop()
+    shuffleClient.shutdown()
+  }
+
+  def testCppWriteJavaRead(codec: CompressionCodec): Unit = {
+    beforeAll()
+    try {
+      runCppWriteJavaRead(codec)
+    } finally {
+      afterAll()
+    }
+  }
+
+  def runCppWriteJavaRead(codec: CompressionCodec): Unit = {
+    val appUniqueId = "test-app"
+    val shuffleId = 0
+    val attemptId = 0
+
+    // Create lifecycleManager.
+    val clientConf = new CelebornConf()
+      .set(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$masterPort")
+      .set(CelebornConf.SHUFFLE_COMPRESSION_CODEC.key, codec.name)
+      .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "true")
+      .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
+      .set(CelebornConf.READ_LOCAL_SHUFFLE_FILE, false)
+      .set("celeborn.data.io.numConnectionsPerPeer", "1")
+    val lifecycleManager = new LifecycleManager(appUniqueId, clientConf)
+
+    // Create writer shuffleClient.
+    val shuffleClient =
+      new ShuffleClientImpl(appUniqueId, clientConf, UserIdentifier("mock", "mock"))
+    shuffleClient.setupLifecycleManagerRef(lifecycleManager.self)
+
+    val numMappers = 2
+    val numPartitions = 2
+
+    // Launch cpp writer to write data, calculate result and write to specific result file.
+    val cppResultFile = "/tmp/celeborn-cpp-writer-result.txt"
+    val lifecycleManagerHost = lifecycleManager.getHost
+    val lifecycleManagerPort = lifecycleManager.getPort
+    val projectDirectory = new File(new File(".").getAbsolutePath)
+    val cppBinRelativeDirectory = "cpp/build/celeborn/tests/"
+    val cppBinFileName = "cppDataSumWithWriterClient"
+    val cppBinFilePath = s"$projectDirectory/$cppBinRelativeDirectory/$cppBinFileName"
+    // Execution command: $exec lifecycleManagerHost lifecycleManagerPort appUniqueId shuffleId attemptId numMappers numPartitions cppResultFile
+    val command = {
+      s"$cppBinFilePath $lifecycleManagerHost $lifecycleManagerPort $appUniqueId $shuffleId $attemptId $numMappers $numPartitions $cppResultFile"
+    }
+    println(s"run command: $command")
+    val commandOutput = runCommand(command)
+    println(s"command output: $commandOutput")
+
+    val metricsCallback = new MetricsCallback {
+      override def incBytesRead(bytesWritten: Long): Unit = {}
+      override def incReadTime(time: Long): Unit = {}
+    }
+
+    var sums = new util.ArrayList[Long](numPartitions)
+    for (partitionId <- 0 until numPartitions) {
+      sums.add(0)
+      val inputStream = shuffleClient.readPartition(
+        shuffleId,
+        partitionId,
+        attemptId,
+        0,
+        0,
+        Integer.MAX_VALUE,
+        metricsCallback)
+      var c = inputStream.read()
+      var data: Long = 0
+      var dataCnt = 0
+      while (c != -1) {
+        if (c == '-') {
+          sums.set(partitionId, sums.get(partitionId) + data)
+          data = 0
+          dataCnt += 1
+        } else {
+          assert(c >= '0' && c <= '9')
+          data *= 10
+          data += c - '0'
+        }
+        c = inputStream.read()
+      }
+      sums.set(partitionId, sums.get(partitionId) + data)
+      println(s"partition $partitionId sum result = ${sums.get(partitionId)}, dataCnt = $dataCnt")
+    }
 
     // Verify the sum result.
     var lineCount = 0
