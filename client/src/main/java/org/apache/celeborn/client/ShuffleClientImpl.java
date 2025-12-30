@@ -1526,6 +1526,16 @@ public class ShuffleClientImpl extends ShuffleClient {
         new RpcResponseCallback() {
           @Override
           public void onSuccess(ByteBuffer response) {
+            // Compatible with lower versions of Server
+            // Workers that do not incorporate the changes from [CELEBORN-1721]
+            // return an empty payload upon success;
+            // however, clients with this patch applied will attempt to read the response content,
+            // which results in a BufferUnderflowException.
+            if (response.remaining() <= 0) {
+              pushState.onSuccess(hostPort);
+              callback.onSuccess(ByteBuffer.wrap(new byte[] {StatusCode.SUCCESS.getValue()}));
+              return;
+            }
             byte reason = response.get();
             if (reason == StatusCode.HARD_SPLIT.getValue()
                 || reason == StatusCode.SOFT_SPLIT.getValue()) {
