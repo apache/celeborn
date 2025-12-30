@@ -93,9 +93,6 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
-  public void prepareForMergeData(int shuffleId, int mapId, int attemptId) throws IOException {}
-
-  @Override
   public int mergeData(
       int shuffleId,
       int mapId,
