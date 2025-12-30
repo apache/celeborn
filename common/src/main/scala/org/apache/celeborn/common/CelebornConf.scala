@@ -6671,7 +6671,7 @@ object CelebornConf extends Logging {
   val CLIENT_SHUFFLE_DATA_LOST_ON_UNKNOWN_WORKER_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffleDataLostOnUnknownWorker.enabled")
       .categories("client")
-      .version("0.7.0")
+      .version("0.6.3")
       .doc("Whether to mark shuffle data lost when unknown worker is detected.")
       .booleanConf
       .createWithDefault(false)
