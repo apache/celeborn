@@ -17,10 +17,15 @@
 
 #include "celeborn/client/ShuffleClient.h"
 
+#include "celeborn/client/compress/Compressor.h"
 #include "celeborn/utils/CelebornUtils.h"
 
 namespace celeborn {
 namespace client {
+
+// Thread-local compressor instance
+thread_local std::unique_ptr<compress::Compressor>
+    ShuffleClientImpl::compressorThreadLocal_ = nullptr;
 
 ShuffleClientEndpoint::ShuffleClientEndpoint(
     const std::shared_ptr<const conf::CelebornConf>& conf)
@@ -154,23 +159,40 @@ int ShuffleClientImpl::pushData(
   auto pushState = getPushState(mapKey);
   const int nextBatchId = pushState->nextBatchId();
 
-  // TODO: compression in writing is not supported.
+  // Compress data if compression is enabled
+  const uint8_t* dataToWrite = data + offset;
+  size_t dataLength = length;
+  std::vector<uint8_t> compressedData;
+
+  const auto compressionCodec = conf_->shuffleCompressionCodec();
+  if (compressionCodec != protocol::CompressionCodec::NONE) {
+    auto* compressor = getCompressor();
+    const size_t dstCapacity = compressor->getDstCapacity(static_cast<int>(length));
+    compressedData.resize(dstCapacity);
+    const size_t compressedSize = compressor->compress(
+        data, static_cast<int>(offset), static_cast<int>(length),
+        compressedData.data(), 0);
+    compressedData.resize(compressedSize);
+    dataToWrite = compressedData.data();
+    dataLength = compressedSize;
+  }
 
   auto writeBuffer =
-      memory::ByteBuffer::createWriteOnly(kBatchHeaderSize + length);
+      memory::ByteBuffer::createWriteOnly(kBatchHeaderSize + dataLength);
   // TODO: the java side uses Platform to write the data. We simply assume
   //  littleEndian here.
   writeBuffer->writeLE<int>(mapId);
   writeBuffer->writeLE<int>(attemptId);
   writeBuffer->writeLE<int>(nextBatchId);
-  writeBuffer->writeLE<int>(length);
-  writeBuffer->writeFromBuffer(data, offset, length);
+  writeBuffer->writeLE<int>(static_cast<int>(dataLength));
+  writeBuffer->writeFromBuffer(dataToWrite, 0, dataLength);
 
   auto hostAndPushPort = partitionLocation->hostAndPushPort();
   // Check limit.
   limitMaxInFlight(mapKey, *pushState, hostAndPushPort);
   // Add inFlight requests.
-  pushState->addBatch(nextBatchId, hostAndPushPort);
+  const int batchBytesSize = length + kBatchHeaderSize;
+  pushState->addBatch(nextBatchId, batchBytesSize, hostAndPushPort);
   // Build pushData request.
   const auto shuffleKey = utils::makeShuffleKey(appUniqueId_, shuffleId);
   auto body = memory::ByteBuffer::toReadOnly(std::move(writeBuffer));
@@ -342,6 +364,11 @@ std::shared_ptr<PushState> ShuffleClientImpl::getPushState(
     const std::string& mapKey) {
   return pushStates_.computeIfAbsent(
       mapKey, [&]() { return std::make_shared<PushState>(*conf_); });
+}
+
+compress::Compressor* ShuffleClientImpl::getCompressor() {
+  compressorThreadLocal_ = compress::Compressor::createCompressor(*conf_);
+  return compressorThreadLocal_.get();
 }
 
 void ShuffleClientImpl::initReviveManagerLocked() {

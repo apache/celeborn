@@ -85,6 +85,7 @@ class PushDataCallback : public network::RpcResponseCallback,
   const int numPartitions_;
   const std::string mapKey_;
   const int batchId_;
+  const int batchBytesSize_;
   const std::unique_ptr<memory::ReadOnlyByteBuffer> databody_;
   const std::shared_ptr<PushState> pushState_;
   const std::weak_ptr<ShuffleClientImpl> weakClient_;
