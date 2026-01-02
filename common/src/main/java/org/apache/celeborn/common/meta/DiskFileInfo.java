@@ -57,10 +57,15 @@ public class DiskFileInfo extends FileInfo {
       boolean partitionSplitEnabled,
       FileMeta fileMeta,
       String filePath,
+      StorageInfo.Type storageType,
       long bytesFlushed) {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
     this.filePath = filePath;
-    this.storageType = StorageInfo.Type.HDD;
+    if (storageType != null) {
+      this.storageType = storageType;
+    } else {
+      this.storageType = StorageInfo.Type.HDD;
+    }
     this.bytesFlushed = bytesFlushed;
   }
 
@@ -150,19 +155,21 @@ public class DiskFileInfo extends FileInfo {
   }
 
   public boolean isHdfs() {
-    return Utils.isHdfsPath(filePath);
+    return storageType == StorageInfo.Type.HDFS;
   }
 
   public boolean isS3() {
-    return Utils.isS3Path(filePath);
+    return storageType == StorageInfo.Type.S3;
   }
 
   public boolean isOSS() {
-    return Utils.isOssPath(filePath);
+    return storageType == StorageInfo.Type.OSS;
   }
 
   public boolean isDFS() {
-    return Utils.isS3Path(filePath) || Utils.isOssPath(filePath) || Utils.isHdfsPath(filePath);
+    return storageType == StorageInfo.Type.HDFS
+        || storageType == StorageInfo.Type.S3
+        || storageType == StorageInfo.Type.OSS;
   }
 
   public StorageInfo.Type getStorageType() {

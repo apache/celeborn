@@ -114,11 +114,24 @@ object PbSerDeUtils {
         fileMeta.setIsWriterClosed(true)
         fileMeta
     }
+    var storageType: StorageInfo.Type = null
+    if (pbFileInfo.getStorageType == 0) {
+      if (Utils.isHdfsPath(pbFileInfo.getFilePath)) {
+        storageType = StorageInfo.Type.HDFS
+      } else if (Utils.isOssPath(pbFileInfo.getFilePath)) {
+        storageType = StorageInfo.Type.OSS
+      } else if (Utils.isS3Path(pbFileInfo.getFilePath)) {
+        storageType = StorageInfo.Type.S3
+      }
+    } else {
+      storageType = StorageInfo.typesMap.get(pbFileInfo.getStorageType)
+    }
     new DiskFileInfo(
       userIdentifier,
       pbFileInfo.getPartitionSplitEnabled,
       meta,
       pbFileInfo.getFilePath,
+      storageType,
       pbFileInfo.getBytesFlushed)
   }
 
@@ -141,6 +154,7 @@ object PbSerDeUtils {
       .setUserIdentifier(toPbUserIdentifier(fileInfo.getUserIdentifier))
       .setBytesFlushed(fileInfo.getFileLength)
       .setPartitionSplitEnabled(fileInfo.isPartitionSplitEnabled)
+      .setStorageType(fileInfo.getStorageType.getValue)
     if (fileInfo.getFileMeta.isInstanceOf[MapFileMeta]) {
       val mapFileMeta = fileInfo.getFileMeta.asInstanceOf[MapFileMeta]
       builder.setPartitionType(PartitionType.MAP.getValue)
