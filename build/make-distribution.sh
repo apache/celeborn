@@ -106,9 +106,11 @@ fi
 
 export MAVEN_OPTS="${MAVEN_OPTS:--Xmx2g -XX:ReservedCodeCacheSize=1g}"
 
-if [ ! "$(command -v "$MVN")" ] ; then
-    echo -e "Could not locate Maven command: '$MVN'."
-    exit -1;
+# Validate Maven
+if ! "$MVN" --version &>/dev/null; then
+    echo -e "Could not execute Maven command: '$MVN'."
+    echo "       Use --mvn /path/to/mvn to specify an alternate Maven."
+    exit -1
 fi
 
 if [ $(command -v git) ]; then
