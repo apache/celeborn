@@ -955,6 +955,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientShuffleDynamicResourceFactor: Double = get(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def dfsExpireDirsTimeoutMS: Long = get(DFS_EXPIRE_DIRS_TIMEOUT)
+  def reuseHdfsOuputSteamEnabled: Boolean = get(REUSE_HDFS_OUTPUT_STREAM_ENABLED)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def applicationUnregisterEnabled: Boolean = get(APPLICATION_UNREGISTER_ENABLED)
 
@@ -2487,6 +2488,14 @@ object CelebornConf extends Logging {
       .doc("The timeout for an expired dirs to be deleted on dfs like HDFS, S3, OSS.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1h")
+
+  val REUSE_HDFS_OUTPUT_STREAM_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.reuse.hdfs.outputStream.enabled")
+      .categories("worker")
+      .version("0.7.0")
+      .doc("Enable reuse output stream on hdfs.")
+      .booleanConf
+      .createWithDefault(false)
 
   val WORKER_HEARTBEAT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.heartbeat.worker.timeout")
