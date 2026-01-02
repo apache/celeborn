@@ -170,7 +170,8 @@ int ShuffleClientImpl::pushData(
   // Check limit.
   limitMaxInFlight(mapKey, *pushState, hostAndPushPort);
   // Add inFlight requests.
-  pushState->addBatch(nextBatchId, hostAndPushPort);
+  const int batchBytesSize = length + kBatchHeaderSize;
+  pushState->addBatch(nextBatchId, batchBytesSize, hostAndPushPort);
   // Build pushData request.
   const auto shuffleKey = utils::makeShuffleKey(appUniqueId_, shuffleId);
   auto body = memory::ByteBuffer::toReadOnly(std::move(writeBuffer));
