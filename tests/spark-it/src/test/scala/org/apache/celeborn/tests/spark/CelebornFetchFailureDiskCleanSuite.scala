@@ -16,8 +16,6 @@
  */
 package org.apache.celeborn.tests.spark
 
-import java.io.File
-
 import org.apache.spark.SparkConf
 import org.apache.spark.shuffle.celeborn.{SparkUtils, TestCelebornShuffleManager}
 import org.apache.spark.sql.SparkSession
@@ -73,10 +71,10 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
         shuffleIdToBeDeleted = Seq(0))
       TestCelebornShuffleManager.registerReaderGetHook(hook)
       val checkingThread =
-        triggerStorageCheckThread(Seq(0), Seq(1), sparkSession)
+        StorageCheckUtils.triggerStorageCheckThread(workerDirs, Seq(0), Seq(1), sparkSession)
       val tuples = sparkSession.sparkContext.parallelize(1 to 10000, 2)
         .map { i => (i, i) }.groupByKey(4).collect()
-      checkStorageValidation(checkingThread)
+      StorageCheckUtils.checkStorageValidation(checkingThread)
       // verify result
       assert(hook.executed.get())
       assert(tuples.length == 10000)
@@ -84,71 +82,6 @@ class CelebornFetchFailureDiskCleanSuite extends AnyFunSuite
         elem._2.foreach(i => assert(i.equals(elem._1)))
       }
       sparkSession.stop()
-    }
-  }
-
-  class CheckingThread(
-      shuffleIdShouldNotExist: Seq[Int],
-      shuffleIdMustExist: Seq[Int],
-      sparkSession: SparkSession)
-    extends Thread {
-    var exception: Exception = _
-
-    protected def checkDirStatus(): Boolean = {
-      val deletedSuccessfully = shuffleIdShouldNotExist.forall(shuffleId => {
-        workerDirs.forall(dir =>
-          !new File(s"$dir/celeborn-worker/shuffle_data/" +
-            s"${sparkSession.sparkContext.applicationId}/$shuffleId").exists())
-      })
-      val deletedSuccessfullyString = shuffleIdShouldNotExist.map(shuffleId => {
-        shuffleId.toString + ":" +
-          workerDirs.map(dir =>
-            !new File(s"$dir/celeborn-worker/shuffle_data/" +
-              s"${sparkSession.sparkContext.applicationId}/$shuffleId").exists()).toList
-      }).mkString(",")
-      val createdSuccessfully = shuffleIdMustExist.forall(shuffleId => {
-        workerDirs.exists(dir =>
-          new File(s"$dir/celeborn-worker/shuffle_data/" +
-            s"${sparkSession.sparkContext.applicationId}/$shuffleId").exists())
-      })
-      val createdSuccessfullyString = shuffleIdMustExist.map(shuffleId => {
-        shuffleId.toString + ":" +
-          workerDirs.map(dir =>
-            new File(s"$dir/celeborn-worker/shuffle_data/" +
-              s"${sparkSession.sparkContext.applicationId}/$shuffleId").exists()).toList
-      }).mkString(",")
-      println(s"shuffle-to-be-deleted status: $deletedSuccessfullyString \n" +
-        s"shuffle-to-be-created status: $createdSuccessfullyString")
-      deletedSuccessfully && createdSuccessfully
-    }
-
-    override def run(): Unit = {
-      var allDataInShape = checkDirStatus()
-      while (!allDataInShape) {
-        Thread.sleep(1000)
-        allDataInShape = checkDirStatus()
-      }
-    }
-  }
-
-  protected def triggerStorageCheckThread(
-      shuffleIdShouldNotExist: Seq[Int],
-      shuffleIdMustExist: Seq[Int],
-      sparkSession: SparkSession): CheckingThread = {
-    val checkingThread =
-      new CheckingThread(shuffleIdShouldNotExist, shuffleIdMustExist, sparkSession)
-    checkingThread.setDaemon(true)
-    checkingThread.start()
-    checkingThread
-  }
-
-  protected def checkStorageValidation(thread: Thread, timeout: Long = 1200 * 1000): Unit = {
-    val checkingThread = thread.asInstanceOf[CheckingThread]
-    checkingThread.join(timeout)
-    if (checkingThread.isAlive || checkingThread.exception != null) {
-      throw new IllegalStateException("the storage checking status failed," +
-        s"${checkingThread.isAlive} ${if (checkingThread.exception != null) checkingThread.exception.getMessage
-        else "NULL"}")
     }
   }
 }
