@@ -131,17 +131,12 @@ object ControlMessages extends Logging {
       workerEvent: WorkerEventType = WorkerEventType.None)
     extends MasterMessage
 
-  object RegisterShuffle {
-    def apply(
-        shuffleId: Int,
-        numMappers: Int,
-        numPartitions: Int): PbRegisterShuffle =
-      PbRegisterShuffle.newBuilder()
-        .setShuffleId(shuffleId)
-        .setNumMappers(numMappers)
-        .setNumPartitions(numPartitions)
-        .build()
-  }
+  case class RegisterShuffle(
+      shuffleId: Int,
+      numMappers: Int,
+      numPartitions: Int,
+      serdeVersion: SerdeVersion)
+    extends MasterMessage
 
   object RegisterMapPartitionTask {
     def apply(
@@ -161,17 +156,10 @@ object ControlMessages extends Logging {
         .build()
   }
 
-  object RegisterShuffleResponse {
-    def apply(
-        status: StatusCode,
-        partitionLocations: Array[PartitionLocation]): PbRegisterShuffleResponse = {
-      val builder = PbRegisterShuffleResponse.newBuilder()
-        .setStatus(status.getValue)
-      builder.setPackedPartitionLocationsPair(
-        PbSerDeUtils.toPbPackedPartitionLocationsPair(partitionLocations.toList))
-      builder.build()
-    }
-  }
+  case class RegisterShuffleResponse(
+      status: StatusCode,
+      partitionLocations: Array[PartitionLocation],
+      serdeVersion: SerdeVersion) extends MasterMessage
 
   case class RequestSlots(
       applicationId: String,
@@ -195,29 +183,11 @@ object ControlMessages extends Logging {
       packed: Boolean = false)
     extends MasterMessage
 
-  object Revive {
-    def apply(
-        shuffleId: Int,
-        mapIds: util.Set[Integer],
-        reviveRequests: util.Collection[ReviveRequest]): PbRevive = {
-      val builder = PbRevive.newBuilder()
-        .setShuffleId(shuffleId)
-        .addAllMapId(mapIds)
-
-      reviveRequests.asScala.foreach { req =>
-        val partitionInfoBuilder = PbRevivePartitionInfo.newBuilder()
-          .setPartitionId(req.partitionId)
-          .setEpoch(req.epoch)
-          .setStatus(req.cause.getValue)
-        if (req.loc != null) {
-          partitionInfoBuilder.setPartition(PbSerDeUtils.toPbPartitionLocation(req.loc))
-        }
-        builder.addPartitionInfo(partitionInfoBuilder.build())
-      }
-
-      builder.build()
-    }
-  }
+  case class Revive(
+      shuffleId: Int,
+      mapIds: util.List[Integer],
+      reviveRequests: util.List[ReviveRequest],
+      serdeVersion: SerdeVersion) extends MasterMessage
 
   object PartitionSplit {
     def apply(
@@ -233,26 +203,10 @@ object ControlMessages extends Logging {
         .build()
   }
 
-  object ChangeLocationResponse {
-    def apply(
-        mapIds: util.Set[Integer],
-        newLocs: util.Map[Integer, (StatusCode, Boolean, PartitionLocation)])
-        : PbChangeLocationResponse = {
-      val builder = PbChangeLocationResponse.newBuilder()
-      builder.addAllEndedMapId(mapIds)
-      newLocs.asScala.foreach { case (partitionId, (status, available, loc)) =>
-        val pbChangeLocationPartitionInfoBuilder = PbChangeLocationPartitionInfo.newBuilder()
-          .setPartitionId(partitionId)
-          .setStatus(status.getValue)
-          .setOldAvailable(available)
-        if (loc != null) {
-          pbChangeLocationPartitionInfoBuilder.setPartition(PbSerDeUtils.toPbPartitionLocation(loc))
-        }
-        builder.addPartitionInfo(pbChangeLocationPartitionInfoBuilder.build())
-      }
-      builder.build()
-    }
-  }
+  case class ChangeLocationResponse(
+      endedMapIds: util.List[Integer],
+      newLocs: util.Map[Integer, (StatusCode, java.lang.Boolean, PartitionLocation)],
+      serdeVersion: SerdeVersion) extends MasterMessage
 
   case class MapperEnd(
       shuffleId: Int,
@@ -263,7 +217,8 @@ object ControlMessages extends Logging {
       failedBatchSet: util.Map[String, LocationPushFailedBatches],
       numPartitions: Int,
       crc32PerPartition: Array[Int],
-      bytesWrittenPerPartition: Array[Long])
+      bytesWrittenPerPartition: Array[Long],
+      serdeVersion: SerdeVersion)
     extends MasterMessage
 
   case class ReadReducerPartitionEnd(
@@ -275,7 +230,7 @@ object ControlMessages extends Logging {
       bytesWritten: Long)
     extends MasterMessage
 
-  case class MapperEndResponse(status: StatusCode) extends MasterMessage
+  case class MapperEndResponse(status: StatusCode, serdeVersion: SerdeVersion) extends MasterMessage
 
   case class ReadReducerPartitionEndResponse(status: StatusCode) extends MasterMessage
 
@@ -674,14 +629,23 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_WORKER_RESPONSE, payload)
 
-    case pb: PbRegisterShuffle =>
-      new TransportMessage(MessageType.REGISTER_SHUFFLE, pb.toByteArray)
+    case RegisterShuffle(shuffleId, numMappers, numPartitions, serdeVersion) =>
+      val payload = PbRegisterShuffle.newBuilder()
+        .setShuffleId(shuffleId)
+        .setNumMappers(numMappers)
+        .setNumPartitions(numPartitions)
+        .build().toByteArray
+      new TransportMessage(MessageType.REGISTER_SHUFFLE, payload, serdeVersion)
 
     case pb: PbRegisterMapPartitionTask =>
       new TransportMessage(MessageType.REGISTER_MAP_PARTITION_TASK, pb.toByteArray)
 
-    case pb: PbRegisterShuffleResponse =>
-      new TransportMessage(MessageType.REGISTER_SHUFFLE_RESPONSE, pb.toByteArray)
+    case RegisterShuffleResponse(status, partitionLocations, serdeVersion) =>
+      val payload = PbRegisterShuffleResponse.newBuilder()
+        .setStatus(status.getValue).setPackedPartitionLocationsPair(
+          PbSerDeUtils.toPbPackedPartitionLocationsPair(partitionLocations.toList))
+        .build().toByteArray
+      new TransportMessage(MessageType.REGISTER_SHUFFLE_RESPONSE, payload, serdeVersion)
 
     case RequestSlots(
           applicationId,
@@ -729,11 +693,39 @@ object ControlMessages extends Logging {
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.REQUEST_SLOTS_RESPONSE, payload)
 
-    case pb: PbRevive =>
-      new TransportMessage(MessageType.CHANGE_LOCATION, pb.toByteArray)
+    case Revive(shuffleId, mapIds, reviveRequests, serdeVersion) =>
+      val builder = PbRevive.newBuilder()
+        .setShuffleId(shuffleId)
+        .addAllMapId(mapIds)
 
-    case pb: PbChangeLocationResponse =>
-      new TransportMessage(MessageType.CHANGE_LOCATION_RESPONSE, pb.toByteArray)
+      reviveRequests.asScala.foreach { req =>
+        val partitionInfoBuilder = PbRevivePartitionInfo.newBuilder()
+          .setPartitionId(req.partitionId)
+          .setEpoch(req.epoch)
+          .setStatus(req.cause.getValue)
+        if (req.loc != null) {
+          partitionInfoBuilder.setPartition(PbSerDeUtils.toPbPartitionLocation(req.loc))
+        }
+        builder.addPartitionInfo(partitionInfoBuilder.build())
+      }
+      val payload = builder.build().toByteArray
+      new TransportMessage(MessageType.CHANGE_LOCATION, payload, serdeVersion)
+
+    case ChangeLocationResponse(mapIds, newLocs, serdeVersion) =>
+      val builder = PbChangeLocationResponse.newBuilder()
+      builder.addAllEndedMapId(mapIds)
+      newLocs.asScala.foreach { case (partitionId, (status, available, loc)) =>
+        val pbChangeLocationPartitionInfoBuilder = PbChangeLocationPartitionInfo.newBuilder()
+          .setPartitionId(partitionId)
+          .setStatus(status.getValue)
+          .setOldAvailable(available)
+        if (loc != null) {
+          pbChangeLocationPartitionInfoBuilder.setPartition(PbSerDeUtils.toPbPartitionLocation(loc))
+        }
+        builder.addPartitionInfo(pbChangeLocationPartitionInfoBuilder.build())
+      }
+      val payload = builder.build().toByteArray
+      new TransportMessage(MessageType.CHANGE_LOCATION_RESPONSE, payload, serdeVersion)
 
     case MapperEnd(
           shuffleId,
@@ -744,7 +736,8 @@ object ControlMessages extends Logging {
           pushFailedBatch,
           numPartitions,
           crc32PerPartition,
-          bytesWrittenPerPartition) =>
+          bytesWrittenPerPartition,
+          serdeVersion) =>
       val pushFailedMap = pushFailedBatch.asScala.map { case (k, v) =>
         val resultValue = PbSerDeUtils.toPbLocationPushFailedBatches(v)
         (k, resultValue)
@@ -761,13 +754,13 @@ object ControlMessages extends Logging {
         .addAllBytesWrittenPerPartition(bytesWrittenPerPartition.map(
           java.lang.Long.valueOf).toSeq.asJava)
         .build().toByteArray
-      new TransportMessage(MessageType.MAPPER_END, payload)
+      new TransportMessage(MessageType.MAPPER_END, payload, serdeVersion)
 
-    case MapperEndResponse(status) =>
+    case MapperEndResponse(status, serdeVersion) =>
       val payload = PbMapperEndResponse.newBuilder()
         .setStatus(status.getValue)
         .build().toByteArray
-      new TransportMessage(MessageType.MAPPER_END_RESPONSE, payload)
+      new TransportMessage(MessageType.MAPPER_END_RESPONSE, payload, serdeVersion)
 
     case GetReducerFileGroup(shuffleId, isSegmentGranularityVisible, serdeVersion) =>
       val payload = PbGetReducerFileGroup.newBuilder()
@@ -1132,13 +1125,23 @@ object ControlMessages extends Logging {
           pbHeartbeatFromWorkerResponse.getWorkerEventType)
 
       case REGISTER_SHUFFLE_VALUE =>
-        PbRegisterShuffle.parseFrom(message.getPayload)
+        val pbRegisterShuffle = PbRegisterShuffle.parseFrom(message.getPayload)
+        RegisterShuffle(
+          pbRegisterShuffle.getShuffleId,
+          pbRegisterShuffle.getNumMappers,
+          pbRegisterShuffle.getNumPartitions,
+          message.getSerdeVersion)
 
       case REGISTER_MAP_PARTITION_TASK_VALUE =>
         PbRegisterMapPartitionTask.parseFrom(message.getPayload)
 
       case REGISTER_SHUFFLE_RESPONSE_VALUE =>
-        PbRegisterShuffleResponse.parseFrom(message.getPayload)
+        val pbRegisterShuffleResponse = PbRegisterShuffleResponse.parseFrom(message.getPayload)
+        RegisterShuffleResponse(
+          StatusCode.fromValue(pbRegisterShuffleResponse.getStatus),
+          PbSerDeUtils.fromPbPackedPartitionLocationsPair(
+            pbRegisterShuffleResponse.getPackedPartitionLocationsPair)._1.asScala.toArray,
+          message.getSerdeVersion)
 
       case REQUEST_SLOTS_VALUE =>
         val pbRequestSlots = PbRequestSlots.parseFrom(message.getPayload)
@@ -1175,10 +1178,51 @@ object ControlMessages extends Logging {
           workerResource)
 
       case CHANGE_LOCATION_VALUE =>
-        PbRevive.parseFrom(message.getPayload)
+        val pbRevive = PbRevive.parseFrom(message.getPayload)
+        val shuffleId = pbRevive.getShuffleId
+        val partitionInfos = pbRevive.getPartitionInfoList
+        val reviveRequests = new util.ArrayList[ReviveRequest]()
+        (0 until partitionInfos.size).foreach { idx =>
+          val info = partitionInfos.get(idx)
+          var partition: PartitionLocation = null
+          if (info.hasPartition) {
+            partition = PbSerDeUtils.fromPbPartitionLocation(info.getPartition)
+          }
+          val reviveRequest = new ReviveRequest(
+            shuffleId,
+            -1,
+            -1,
+            info.getPartitionId,
+            info.getEpoch,
+            partition,
+            StatusCode.fromValue(info.getStatus))
+          reviveRequests.add(reviveRequest)
+        }
+        Revive(
+          pbRevive.getShuffleId,
+          pbRevive.getMapIdList,
+          reviveRequests,
+          message.getSerdeVersion)
 
       case CHANGE_LOCATION_RESPONSE_VALUE =>
-        PbChangeLocationResponse.parseFrom(message.getPayload)
+        val pbChangeLocationResponse = PbChangeLocationResponse.parseFrom(message.getPayload)
+        val newLocs =
+          new util.HashMap[Integer, (StatusCode, java.lang.Boolean, PartitionLocation)]()
+        val partitionInfos = pbChangeLocationResponse.getPartitionInfoList
+        (0 until partitionInfos.size).foreach { idx =>
+          val info = partitionInfos.get(idx)
+          var partition: PartitionLocation = null
+          if (info.hasPartition) {
+            partition = PbSerDeUtils.fromPbPartitionLocation(info.getPartition)
+          }
+          newLocs.put(
+            info.getPartitionId,
+            (StatusCode.fromValue(info.getStatus), info.getOldAvailable, partition))
+        }
+        ChangeLocationResponse(
+          pbChangeLocationResponse.getEndedMapIdList,
+          newLocs,
+          message.getSerdeVersion)
 
       case MAPPER_END_VALUE =>
         val pbMapperEnd = PbMapperEnd.parseFrom(message.getPayload)
@@ -1203,7 +1247,8 @@ object ControlMessages extends Logging {
           }.toMap.asJava,
           pbMapperEnd.getNumPartitions,
           crc32Array,
-          bytesWrittenPerPartitionArray)
+          bytesWrittenPerPartitionArray,
+          message.getSerdeVersion)
 
       case READ_REDUCER_PARTITION_END_VALUE =>
         val pbReadReducerPartitionEnd = PbReadReducerPartitionEnd.parseFrom(message.getPayload)
@@ -1220,7 +1265,9 @@ object ControlMessages extends Logging {
 
       case MAPPER_END_RESPONSE_VALUE =>
         val pbMapperEndResponse = PbMapperEndResponse.parseFrom(message.getPayload)
-        MapperEndResponse(StatusCode.fromValue(pbMapperEndResponse.getStatus))
+        MapperEndResponse(
+          StatusCode.fromValue(pbMapperEndResponse.getStatus),
+          message.getSerdeVersion)
 
       case GET_REDUCER_FILE_GROUP_VALUE =>
         val pbGetReducerFileGroup = PbGetReducerFileGroup.parseFrom(message.getPayload)

@@ -20,6 +20,7 @@ package org.apache.celeborn.client
 import java.util
 
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.PartitionLocation
 import org.apache.celeborn.common.protocol.message.ControlMessages.{ChangeLocationResponse, RegisterShuffleResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -36,11 +37,12 @@ trait RequestLocationCallContext {
 
 case class ChangeLocationsCallContext(
     context: RpcCallContext,
-    partitionCount: Int)
+    partitionCount: Int,
+    serdeVersion: SerdeVersion)
   extends RequestLocationCallContext with Logging {
-  val endedMapIds = new util.HashSet[Integer]()
+  val endedMapIds = new util.ArrayList[Integer]()
   val newLocs =
-    JavaUtils.newConcurrentHashMap[Integer, (StatusCode, Boolean, PartitionLocation)](
+    JavaUtils.newConcurrentHashMap[Integer, (StatusCode, java.lang.Boolean, PartitionLocation)](
       partitionCount)
 
   def markMapperEnd(mapId: Int): Unit = this.synchronized {
@@ -59,12 +61,13 @@ case class ChangeLocationsCallContext(
 
     if (newLocs.size() == partitionCount || StatusCode.SHUFFLE_UNREGISTERED == status
       || StatusCode.STAGE_ENDED == status) {
-      context.reply(ChangeLocationResponse(endedMapIds, newLocs))
+      context.reply(ChangeLocationResponse(endedMapIds, newLocs, serdeVersion))
     }
   }
 }
 
-case class ApplyNewLocationCallContext(context: RpcCallContext) extends RequestLocationCallContext {
+case class ApplyNewLocationCallContext(context: RpcCallContext, serdeVersion: SerdeVersion)
+  extends RequestLocationCallContext {
   override def reply(
       partitionId: Int,
       status: StatusCode,
@@ -72,8 +75,8 @@ case class ApplyNewLocationCallContext(context: RpcCallContext) extends RequestL
       available: Boolean): Unit = {
     partitionLocationOpt match {
       case Some(partitionLocation) =>
-        context.reply(RegisterShuffleResponse(status, Array(partitionLocation)))
-      case None => context.reply(RegisterShuffleResponse(status, Array.empty))
+        context.reply(RegisterShuffleResponse(status, Array(partitionLocation), serdeVersion))
+      case None => context.reply(RegisterShuffleResponse(status, Array.empty, serdeVersion))
     }
   }
 }

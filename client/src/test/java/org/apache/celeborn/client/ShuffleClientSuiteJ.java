@@ -263,13 +263,13 @@ public class ShuffleClientSuiteJ {
         .thenAnswer(
             t ->
                 RegisterShuffleResponse$.MODULE$.apply(
-                    statusCode, new PartitionLocation[] {primaryLocation}));
+                    statusCode, new PartitionLocation[] {primaryLocation}, SerdeVersion.V1));
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
         .thenAnswer(
             t ->
                 RegisterShuffleResponse$.MODULE$.apply(
-                    statusCode, new PartitionLocation[] {primaryLocation}));
+                    statusCode, new PartitionLocation[] {primaryLocation}, SerdeVersion.V1));
 
     shuffleClient.setupLifecycleManagerRef(endpointRef);
 
