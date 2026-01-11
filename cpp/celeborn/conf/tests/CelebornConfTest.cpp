@@ -51,6 +51,9 @@ void testDefaultValues(CelebornConf* conf) {
   EXPECT_EQ(conf->clientFetchMaxReqsInFlight(), 3);
   EXPECT_EQ(conf->shuffleCompressionCodec(), CompressionCodec::NONE);
   EXPECT_EQ(conf->shuffleCompressionZstdCompressLevel(), 1);
+  EXPECT_EQ(conf->clientFetchMaxRetriesForEachReplica(), 3);
+  EXPECT_EQ(conf->dataIoRetryWait(), SECOND(5));
+  EXPECT_FALSE(conf->clientPushReplicateEnabled());
 }
 
 TEST(CelebornConfTest, defaultValues) {
@@ -86,6 +89,15 @@ TEST(CelebornConfTest, setValues) {
   conf->registerProperty(
       CelebornConf::kShuffleCompressionZstdCompressLevel, "5");
   EXPECT_EQ(conf->shuffleCompressionZstdCompressLevel(), 5);
+  conf->registerProperty(
+      CelebornConf::kClientFetchMaxRetriesForEachReplica, "5");
+  EXPECT_EQ(conf->clientFetchMaxRetriesForEachReplica(), 5);
+  conf->registerProperty(CelebornConf::kDataIoRetryWait, "10s");
+  EXPECT_EQ(conf->dataIoRetryWait(), SECOND(10));
+  conf->registerProperty(CelebornConf::kClientPushReplicateEnabled, "true");
+  EXPECT_TRUE(conf->clientPushReplicateEnabled());
+  conf->registerProperty(CelebornConf::kClientPushReplicateEnabled, "false");
+  EXPECT_FALSE(conf->clientPushReplicateEnabled());
 
   EXPECT_THROW(
       conf->registerProperty("non-exist-key", "non-exist-value"),

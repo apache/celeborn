@@ -193,3 +193,55 @@ TEST(PartitionLocationTest, toProtoWithPeer) {
       pbPartitionLocationReplica->mode(), PbPartitionLocation_Mode_Replica);
   verifyStorageInfoPb(&pbPartitionLocationReplica->storageinfo());
 }
+
+TEST(PartitionLocationTest, hasPeer) {
+  auto partitionLocationWithoutPeer = generateBasicPartitionLocation();
+  partitionLocationWithoutPeer->mode = PartitionLocation::PRIMARY;
+  partitionLocationWithoutPeer->storageInfo = generateStorageInfo();
+
+  EXPECT_FALSE(partitionLocationWithoutPeer->hasPeer());
+
+  auto partitionLocationWithPeer = generateBasicPartitionLocation();
+  partitionLocationWithPeer->mode = PartitionLocation::PRIMARY;
+  partitionLocationWithPeer->storageInfo = generateStorageInfo();
+
+  auto partitionLocationReplica = generateBasicPartitionLocation();
+  partitionLocationReplica->mode = PartitionLocation::REPLICA;
+  partitionLocationReplica->storageInfo = generateStorageInfo();
+
+  partitionLocationWithPeer->replicaPeer = std::move(partitionLocationReplica);
+
+  EXPECT_TRUE(partitionLocationWithPeer->hasPeer());
+}
+
+TEST(PartitionLocationTest, getPeer) {
+  auto partitionLocationPrimary = generateBasicPartitionLocation();
+  partitionLocationPrimary->mode = PartitionLocation::PRIMARY;
+  partitionLocationPrimary->storageInfo = generateStorageInfo();
+
+  auto partitionLocationReplica = generateBasicPartitionLocation();
+  partitionLocationReplica->mode = PartitionLocation::REPLICA;
+  partitionLocationReplica->storageInfo = generateStorageInfo();
+
+  partitionLocationPrimary->replicaPeer = std::move(partitionLocationReplica);
+
+  const auto* peer = partitionLocationPrimary->getPeer();
+  EXPECT_NE(peer, nullptr);
+  EXPECT_EQ(peer->mode, PartitionLocation::Mode::REPLICA);
+  verifyBasicPartitionLocation(peer);
+
+  auto partitionLocationWithoutPeer = generateBasicPartitionLocation();
+  partitionLocationWithoutPeer->mode = PartitionLocation::PRIMARY;
+  partitionLocationWithoutPeer->storageInfo = generateStorageInfo();
+
+  EXPECT_EQ(partitionLocationWithoutPeer->getPeer(), nullptr);
+}
+
+TEST(PartitionLocationTest, hostAndFetchPort) {
+  auto partitionLocation = generateBasicPartitionLocation();
+  partitionLocation->host = "test_host";
+  partitionLocation->fetchPort = 1003;
+
+  std::string expected = "test_host:1003";
+  EXPECT_EQ(partitionLocation->hostAndFetchPort(), expected);
+}

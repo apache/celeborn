@@ -160,6 +160,18 @@ std::string PartitionLocation::hostAndPushPort() const {
   return fmt::format("{}:{}", host, pushPort);
 }
 
+std::string PartitionLocation::hostAndFetchPort() const {
+  return fmt::format("{}:{}", host, fetchPort);
+}
+
+bool PartitionLocation::hasPeer() const {
+  return replicaPeer != nullptr;
+}
+
+const PartitionLocation* PartitionLocation::getPeer() const {
+  return replicaPeer.get();
+}
+
 StatusCode toStatusCode(int32_t code) {
   CELEBORN_CHECK(code >= 0);
   CELEBORN_CHECK(code <= StatusCode::TAIL);

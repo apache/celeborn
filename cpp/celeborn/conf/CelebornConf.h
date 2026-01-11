@@ -129,6 +129,15 @@ class CelebornConf : public BaseConf {
   static constexpr std::string_view kShuffleCompressionZstdCompressLevel{
       "celeborn.client.shuffle.compression.zstd.level"};
 
+  static constexpr std::string_view kClientFetchMaxRetriesForEachReplica{
+      "celeborn.client.fetch.maxRetriesForEachReplica"};
+
+  static constexpr std::string_view kDataIoRetryWait{
+      "celeborn.data.io.retryWait"};
+
+  static constexpr std::string_view kClientPushReplicateEnabled{
+      "celeborn.client.push.replicate.enabled"};
+
   CelebornConf();
 
   CelebornConf(const std::string& filename);
@@ -196,6 +205,12 @@ class CelebornConf : public BaseConf {
   protocol::CompressionCodec shuffleCompressionCodec() const;
 
   int shuffleCompressionZstdCompressLevel() const;
+
+  int clientFetchMaxRetriesForEachReplica() const;
+
+  Timeout dataIoRetryWait() const;
+
+  bool clientPushReplicateEnabled() const;
 };
 } // namespace conf
 } // namespace celeborn
