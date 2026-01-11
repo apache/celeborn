@@ -45,7 +45,13 @@ CelebornInputStream::CelebornInputStream(
       shouldDecompress_(
           conf_->shuffleCompressionCodec() !=
               protocol::CompressionCodec::NONE &&
-          needCompression) {
+          needCompression),
+      fetchChunkRetryCnt_(0),
+      fetchChunkMaxRetry_(
+          conf_->clientPushReplicateEnabled()
+              ? conf_->clientFetchMaxRetriesForEachReplica() * 2
+              : conf_->clientFetchMaxRetriesForEachReplica()),
+      retryWait_(conf_->dataIoRetryWait()) {
   if (shouldDecompress_) {
     decompressor_ = compress::Decompressor::createDecompressor(
         conf_->shuffleCompressionCodec());
@@ -178,6 +184,7 @@ void CelebornInputStream::moveToNextReader() {
   if (!location) {
     return;
   }
+  fetchChunkRetryCnt_ = 0;
   currReader_ = createReaderWithRetry(*location);
   currLocationIndex_++;
   if (currReader_->hasNext()) {
@@ -189,9 +196,45 @@ void CelebornInputStream::moveToNextReader() {
 
 std::shared_ptr<PartitionReader> CelebornInputStream::createReaderWithRetry(
     const protocol::PartitionLocation& location) {
-  // TODO: support retrying when createReader failed. Maybe switch to peer
-  // location?
-  return createReader(location);
+  const protocol::PartitionLocation* currentLocation = &location;
+  std::exception_ptr lastException;
+
+  while (fetchChunkRetryCnt_ < fetchChunkMaxRetry_) {
+    try {
+      VLOG(1) << "Create reader for location " << currentLocation->host << ":"
+              << currentLocation->fetchPort;
+      auto reader = createReader(*currentLocation);
+      fetchChunkRetryCnt_ = 0;
+      return reader;
+    } catch (const std::exception& e) {
+      lastException = std::current_exception();
+      fetchChunkRetryCnt_++;
+
+      if (currentLocation->hasPeer()) {
+        if (fetchChunkRetryCnt_ % 2 == 0) {
+          std::this_thread::sleep_for(
+              std::chrono::milliseconds(retryWait_.count()));
+        }
+        LOG(WARNING) << "CreatePartitionReader failed " << fetchChunkRetryCnt_
+                     << "/" << fetchChunkMaxRetry_ << " times for location "
+                     << currentLocation->hostAndFetchPort()
+                     << ", change to peer. Error: " << e.what();
+        currentLocation = currentLocation->getPeer();
+      } else {
+        LOG(WARNING) << "CreatePartitionReader failed " << fetchChunkRetryCnt_
+                     << "/" << fetchChunkMaxRetry_ << " times for location "
+                     << currentLocation->hostAndFetchPort()
+                     << ", retry the same location. Error: " << e.what();
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(retryWait_.count()));
+      }
+    }
+  }
+
+  CELEBORN_FAIL(
+      "createPartitionReader failed after " +
+      std::to_string(fetchChunkRetryCnt_) + " retries for location " +
+      location.hostAndFetchPort());
 }
 
 std::shared_ptr<PartitionReader> CelebornInputStream::createReader(
