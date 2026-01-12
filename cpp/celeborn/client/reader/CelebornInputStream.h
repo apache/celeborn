@@ -17,9 +17,12 @@
 
 #pragma once
 
+#include <thread>
+
 #include "celeborn/client/compress/Decompressor.h"
 #include "celeborn/client/reader/WorkerPartitionReader.h"
 #include "celeborn/conf/CelebornConf.h"
+#include "celeborn/utils/CelebornUtils.h"
 
 namespace celeborn {
 namespace client {
@@ -81,6 +84,10 @@ class CelebornInputStream {
   size_t currBatchSize_;
   std::shared_ptr<PartitionReader> currReader_;
   std::vector<std::unique_ptr<std::unordered_set<int>>> batchRecords_;
+
+  int fetchChunkRetryCnt_;
+  int fetchChunkMaxRetry_;
+  utils::Timeout retryWait_;
 };
 } // namespace client
 } // namespace celeborn

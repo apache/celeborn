@@ -98,6 +98,12 @@ struct PartitionLocation {
 
   std::string hostAndPushPort() const;
 
+  std::string hostAndFetchPort() const;
+
+  bool hasPeer() const;
+
+  const PartitionLocation* getPeer() const;
+
  private:
   static std::unique_ptr<PartitionLocation> fromPbWithoutPeer(
       const PbPartitionLocation& pb);

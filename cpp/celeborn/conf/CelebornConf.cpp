@@ -162,6 +162,9 @@ CelebornConf::defaultProperties() {
               kShuffleCompressionCodec,
               protocol::toString(protocol::CompressionCodec::NONE)),
           NUM_PROP(kShuffleCompressionZstdCompressLevel, 1),
+          NUM_PROP(kClientFetchMaxRetriesForEachReplica, 3),
+          STR_PROP(kDataIoRetryWait, "5s"),
+          BOOL_PROP(kClientPushReplicateEnabled, false),
           // NUM_PROP(kNumExample, 50'000),
           // BOOL_PROP(kBoolExample, false),
       };
@@ -307,6 +310,20 @@ protocol::CompressionCodec CelebornConf::shuffleCompressionCodec() const {
 int CelebornConf::shuffleCompressionZstdCompressLevel() const {
   return std::stoi(
       optionalProperty(kShuffleCompressionZstdCompressLevel).value());
+}
+
+int CelebornConf::clientFetchMaxRetriesForEachReplica() const {
+  return std::stoi(
+      optionalProperty(kClientFetchMaxRetriesForEachReplica).value());
+}
+
+Timeout CelebornConf::dataIoRetryWait() const {
+  return utils::toTimeout(
+      toDuration(optionalProperty(kDataIoRetryWait).value()));
+}
+
+bool CelebornConf::clientPushReplicateEnabled() const {
+  return folly::to<bool>(optionalProperty(kClientPushReplicateEnabled).value());
 }
 } // namespace conf
 } // namespace celeborn
