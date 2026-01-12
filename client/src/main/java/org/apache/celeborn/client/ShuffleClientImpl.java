@@ -1371,15 +1371,6 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public void prepareForMergeData(int shuffleId, int mapId, int attemptId) throws IOException {
-    final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
-    PushState pushState = pushStates.get(mapKey);
-    if (pushState != null) {
-      limitZeroInFlight(mapKey, pushState);
-    }
-  }
-
-  @Override
   public int mergeData(
       int shuffleId,
       int mapId,

@@ -186,9 +186,6 @@ public abstract class ShuffleClient {
       int numPartitions)
       throws IOException;
 
-  public abstract void prepareForMergeData(int shuffleId, int mapId, int attemptId)
-      throws IOException;
-
   public abstract int mergeData(
       int shuffleId,
       int mapId,
