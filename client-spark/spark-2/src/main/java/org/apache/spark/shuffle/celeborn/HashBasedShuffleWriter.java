@@ -54,7 +54,7 @@ import org.apache.celeborn.client.write.PushTask;
 import org.apache.celeborn.common.CelebornConf;
 
 @Private
-public class HashBasedShuffleWriter<K, V, C> extends ShuffeWriter<K, V> {
+public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private static final Logger logger = LoggerFactory.getLogger(HashBasedShuffleWriter.class);
 
