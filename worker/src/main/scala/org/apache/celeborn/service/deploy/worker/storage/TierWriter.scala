@@ -610,6 +610,7 @@ class DfsTierWriter(
   def closeHdfsStream(): Unit = {
     if (hdfsStream != null) {
       hdfsStream.close()
+      hdfsStream = null
     }
   }
 
