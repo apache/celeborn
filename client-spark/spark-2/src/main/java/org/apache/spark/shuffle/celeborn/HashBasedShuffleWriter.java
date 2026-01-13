@@ -332,11 +332,6 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   }
 
   private void close() throws IOException, InterruptedException {
-    // here we wait for all the in-flight batches to return which sent by dataPusher thread
-    dataPusher.waitOnTermination();
-    sendBufferPool.returnPushTaskQueue(dataPusher.getAndResetIdleQueue());
-    shuffleClient.prepareForMergeData(shuffleId, mapId, encodedAttemptId);
-
     // merge and push residual data to reduce network traffic
     // NB: since dataPusher thread have no in-flight data at this point,
     //     we now push merged data by task thread will not introduce any contention
@@ -369,6 +364,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     sendOffsets = null;
 
     long waitStartTime = System.nanoTime();
+    dataPusher.waitOnTermination();
+    sendBufferPool.returnPushTaskQueue(dataPusher.getAndResetIdleQueue());
     shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers, numPartitions);
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
 
