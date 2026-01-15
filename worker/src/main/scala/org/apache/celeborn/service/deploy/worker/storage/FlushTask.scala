@@ -105,22 +105,29 @@ private[worker] class HdfsFlushTask(
     source: AbstractSource) extends DfsFlushTask(buffer, notifier, keepBuffer, source) {
   override def flush(copyBytes: Array[Byte]): Unit = {
     val readableBytes = buffer.readableBytes()
+    val bytes = convertBufferToBytes(buffer, copyBytes, readableBytes)
+
     if (hdfsStream != null) {
       // TODO : If the FSDataOutputStream supports concurrent writes, the lock can be removed.
       hdfsStream.synchronized {
-        hdfsStream.write(convertBufferToBytes(buffer, copyBytes, readableBytes))
-        source.incCounter(WorkerSource.HDFS_FLUSH_COUNT)
-        source.incCounter(WorkerSource.HDFS_FLUSH_SIZE, readableBytes)
+        writeAndRecordMetrics(hdfsStream, bytes, readableBytes)
       }
     } else {
       val hadoopFs = StorageManager.hadoopFs.get(Type.HDFS)
-      val hdfsStream = hadoopFs.append(path, 256 * 1024)
-      flush(hdfsStream) {
-        hdfsStream.write(convertBufferToBytes(buffer, copyBytes, readableBytes))
-        source.incCounter(WorkerSource.HDFS_FLUSH_COUNT)
-        source.incCounter(WorkerSource.HDFS_FLUSH_SIZE, readableBytes)
+      val appendStream = hadoopFs.append(path, 256 * 1024)
+      flush(appendStream) {
+        writeAndRecordMetrics(appendStream, bytes, readableBytes)
       }
     }
+  }
+
+  private def writeAndRecordMetrics(
+      hdfsStream: FSDataOutputStream,
+      bytes: Array[Byte],
+      size: Int): Unit = {
+    hdfsStream.write(bytes)
+    source.incCounter(WorkerSource.HDFS_FLUSH_COUNT)
+    source.incCounter(WorkerSource.HDFS_FLUSH_SIZE, size)
   }
 }
 
