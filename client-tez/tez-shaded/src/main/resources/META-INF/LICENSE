@@ -208,6 +208,7 @@ This project bundles the following dependencies under the Apache License 2.0 (ht
 Apache License 2.0
 --------------------------------------
 
+at.yawk.lz4:lz4-java
 com.google.guava:failureaccess
 com.google.guava:guava
 io.netty:netty
@@ -240,7 +241,6 @@ io.netty:netty-transport-rxtx
 io.netty:netty-transport-sctp
 io.netty:netty-transport-udt
 org.apache.commons:commons-lang3
-org.lz4:lz4-java
 org.roaringbitmap:RoaringBitmap
 org.scala-lang:scala-library
 
