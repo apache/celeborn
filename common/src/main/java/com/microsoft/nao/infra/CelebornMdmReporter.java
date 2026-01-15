@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Map;
 import java.util.SortedMap;
@@ -17,31 +16,32 @@ import java.util.Properties;
 import java.io.FileInputStream;
 
 
-public class MdmReporter extends ScheduledReporter {
+public class CelebornMdmReporter extends ScheduledReporter {
 
-  private static final Logger logger = LoggerFactory.getLogger(MdmReporter.class);
+  private static final Logger logger = LoggerFactory.getLogger(
+      CelebornMdmReporter.class);
   private static final String[] dimensions = {"CelebornCluster", "Role",
       "MachineName", "Environment", "Cluster"};
   private static String UNKNOWN = "UNKNOWN";
 
-  private final Mdm mdm;
+  private final CelebornMdm mdm;
   private String celebornCluster;
   private String role = "Server";
   private String machineName;
   private String environmentName;
   private String cluster;
   /**
-   * Returns a new {@link Builder} for {@link MdmReporter}.
+   * Returns a new {@link Builder} for {@link CelebornMdmReporter}.
    *
    * @param registry the registry to report
-   * @return a {@link Builder} instance for a {@link MdmReporter}
+   * @return a {@link Builder} instance for a {@link CelebornMdmReporter}
    */
   public static Builder forRegistry(MetricRegistry registry) {
     return new Builder(registry);
   }
 
   /**
-   * A builder for {@link MdmReporter} instances.
+   * A builder for {@link CelebornMdmReporter} instances.
    */
   public static class Builder {
     private final MetricRegistry registry;
@@ -111,15 +111,15 @@ public class MdmReporter extends ScheduledReporter {
     }
 
     /**
-     * Builds a {@link MdmReporter} with the given properties.
+     * Builds a {@link CelebornMdmReporter} with the given properties.
      *
-     * @return a {@link MdmReporter}
+     * @return a {@link CelebornMdmReporter}
      */
-    public MdmReporter build() {
+    public CelebornMdmReporter build() {
       logger.info("Init MdmReport, monitoringAccount {}, metricNamespace {}.",
           this.monitoringAccount, this.metricNamespace);
-      Mdm mdm = new Mdm(this.monitoringAccount, this.metricNamespace);
-      return new MdmReporter(
+      CelebornMdm mdm = new CelebornMdm(this.monitoringAccount, this.metricNamespace);
+      return new CelebornMdmReporter(
           this.registry,
           mdm,
           rateUnit,
@@ -128,9 +128,9 @@ public class MdmReporter extends ScheduledReporter {
     }
   }
 
-  private MdmReporter(
+  private CelebornMdmReporter(
       MetricRegistry registry,
-      Mdm mdm,
+      CelebornMdm mdm,
       TimeUnit rateUnit,
       TimeUnit durationUnit,
       MetricFilter filter) {

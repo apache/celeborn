@@ -2,14 +2,14 @@ package com.microsoft.nao.infra;
 
 import com.sun.jna.ptr.PointerByReference;
 
-public class MeasureMetric3D {
+public class CelebornMeasureMetric3D {
   private PointerByReference hMetric;
 
-  private MeasureMetric3D(PointerByReference hMetric) {
+  private CelebornMeasureMetric3D(PointerByReference hMetric) {
     this.hMetric = hMetric;
   }
 
-  public static MeasureMetric3D create(
+  public static CelebornMeasureMetric3D create(
       String monitoringAccount,
       String metricNamespace,
       String metricName,
@@ -19,7 +19,7 @@ public class MeasureMetric3D {
     return create(monitoringAccount, metricNamespace, metricName, dimensionName1, dimensionName2, dimensionName3, false);
   }
 
-  public static MeasureMetric3D create(
+  public static CelebornMeasureMetric3D create(
       String monitoringAccount,
       String metricNamespace,
       String metricName,
@@ -32,7 +32,7 @@ public class MeasureMetric3D {
     dimensions[0] = dimensionName1;
     dimensions[1] = dimensionName2;
     dimensions[2] = dimensionName3;
-    long rc = IfxMetricsInterface.INSTANCE.CreateIfxMeasureMetric(
+    long rc = CelebornIfxMetricsInterface.INSTANCE.CreateIfxMeasureMetric(
         hMetric,
         monitoringAccount,
         metricNamespace,
@@ -41,7 +41,7 @@ public class MeasureMetric3D {
         dimensions,
         addDefaultDimension);
     if (rc >= 0) {
-      return new MeasureMetric3D(hMetric);
+      return new CelebornMeasureMetric3D(hMetric);
     }
 
     return null;
@@ -57,7 +57,7 @@ public class MeasureMetric3D {
     dimensions[1] = dimensionValue2;
     dimensions[2] = dimensionValue3;
 
-    return IfxMetricsInterface.INSTANCE.SetIfxMeasureMetric(this.hMetric.getValue(), rawData, 3, dimensions);
+    return CelebornIfxMetricsInterface.INSTANCE.SetIfxMeasureMetric(this.hMetric.getValue(), rawData, 3, dimensions);
   }
 
   public long LogValue(
@@ -71,7 +71,7 @@ public class MeasureMetric3D {
     dimensions[1] = dimensionValue2;
     dimensions[2] = dimensionValue3;
 
-    return IfxMetricsInterface.INSTANCE.SetIfxMeasureMetricWithTimestamp(this.hMetric.getValue(), timestampUtc, rawData, 3, dimensions);
+    return CelebornIfxMetricsInterface.INSTANCE.SetIfxMeasureMetricWithTimestamp(this.hMetric.getValue(), timestampUtc, rawData, 3, dimensions);
   }
 
 
@@ -85,6 +85,6 @@ public class MeasureMetric3D {
     dimensions[1] = dimensionValue2;
     dimensions[2] = dimensionValue3;
 
-    return IfxMetricsInterface.INSTANCE.SetIfxMeasureMetric(this.hMetric.getValue(), rawData, 3, dimensions);
+    return CelebornIfxMetricsInterface.INSTANCE.SetIfxMeasureMetric(this.hMetric.getValue(), rawData, 3, dimensions);
   }
 }

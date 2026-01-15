@@ -1,16 +1,16 @@
 package com.microsoft.nao.infra;
 
-public class Mdm {
+public class CelebornMdm {
   private String account;
   private String namespace;
 
-  public Mdm(String account, String namespace){
+  public CelebornMdm(String account, String namespace){
     this.account = account;
     this.namespace = namespace;
   }
 
   public void ReportMetric3D(String metricName, String[] dimensions, String[] dimensionValue, long metricValue) {
-    MeasureMetric3D metric = MeasureMetric3D.create(
+    CelebornMeasureMetric3D metric = CelebornMeasureMetric3D.create(
         this.account,
         this.namespace,
         metricName,
@@ -24,7 +24,7 @@ public class Mdm {
 
   public void ReportMetric5D(String metricName, String[] dimensions,
       String[] dimensionValue, long metricValue) {
-    MeasureMetric5D metric = MeasureMetric5D.create(
+    CelebornMeasureMetric5D metric = CelebornMeasureMetric5D.create(
         this.account,
         this.namespace,
         metricName,
@@ -39,7 +39,7 @@ public class Mdm {
   }
 
   public void ReportMetric3D(String metricName, String[] dimensions, String[] dimensionValue, double metricValue) {
-    MeasureMetric3D metric = MeasureMetric3D.create(
+    CelebornMeasureMetric3D metric = CelebornMeasureMetric3D.create(
         this.account,
         this.namespace,
         metricName,

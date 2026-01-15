@@ -5,9 +5,9 @@ import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.PointerByReference;
 
-public interface IfxMetricsInterface extends Library {
+public interface CelebornIfxMetricsInterface extends Library {
 
-  IfxMetricsInterface INSTANCE = (IfxMetricsInterface) Native.loadLibrary("IfxMetrics", IfxMetricsInterface.class);
+  CelebornIfxMetricsInterface INSTANCE = (CelebornIfxMetricsInterface) Native.loadLibrary("IfxMetrics", CelebornIfxMetricsInterface.class);
 
 
   long CreateIfxMeasureMetric(PointerByReference hMetric,

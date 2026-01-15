@@ -1,0 +1,144 @@
+trigger:
+  branches:
+    include:
+      - refs/heads/v0.5.4-mt
+resources:
+  repositories:
+    - repository: CustomPipelineTemplates
+      type: git
+      name: Engineering Fundamentals/WebXT.Pipeline.Templates
+      ref: refs/heads/main
+variables:
+  - name: PUBLISH_DIR
+    value: $(System.DefaultWorkingDirectory)\publish\celeborn
+extends:
+  template: v1/WebXT.Official.EntryPoint.yml@CustomPipelineTemplates
+  parameters:
+    settings:
+      networkIsolationPolicy: Permissive,CFSClean
+    pool:
+      name: Azure-Pipelines-1ESPT-ExDShared
+      image: windows-2022
+      os: windows
+    sdl:
+      # Spotbugs fails due to "The filename or extension is too long"
+      spotBugs:
+        enabled: false
+      credscan:
+        enabled: true
+        suppressionsFile: $(Build.SourcesDirectory)\build\.config\CredScanSuppressions.json
+      sourceAnalysisPool:
+        name: Azure-Pipelines-1ESPT-ExDShared
+        image: windows-2022
+        os: windows
+      git:
+        submodules: false
+        longpaths: true
+      codeql:
+        compiled:
+          enabled: true
+        runSourceLanguagesInSourceAnalysis: true
+    customBuildTags:
+      - ES365AIMigrationTooling
+    stages:
+      - stage: stage
+        jobs:
+          - job: BuildPublishCeleborn
+            displayName: Build And Publish Celeborn
+            timeoutInMinutes: 0
+            variables:
+              MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
+              MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER) -Xss4m -XX:ReservedCodeCacheSize=1g'
+
+            steps:
+              - checkout: self
+
+              - task: ComponentGovernanceComponentDetection@0
+                displayName: Component Detection
+
+              - task: MavenAuthenticate@0
+                displayName: '[ENV] Maven Authenticate'
+                inputs:
+                  artifactsFeeds: central,Compute,MultiTenancy-Test3
+
+              - task: AddBuildTag@1
+                displayName: '[ENV] Add build tag $(Build.SourceVersion)'
+                inputs:
+                  tag: $(Build.SourceVersion)
+
+              - task: Cache@2
+                inputs:
+                  key: 'maven | "$(Agent.OS)" | **/pom.xml'
+                  restoreKeys: |
+                    maven | "$(Agent.OS)"
+                    maven
+                  path: $(MAVEN_CACHE_FOLDER)
+                displayName: Cache Maven local repo
+
+              - task: Bash@3
+                displayName: '[BUILD] Celeborn Spark-3.2'
+                inputs:
+                  targetType: 'filePath'
+                  filePath: build/make-distribution.sh
+                  arguments: -DskipTests -Pspark-3.2 -Phadoop-3 -Dscala.version=2.12.15 -Dscala.binary.version=2.12 -Dmaven.plugin.scala.version=3.2.2 -Pjdk-8
+                env:
+                  MAVEN_OPTS: $(MAVEN_OPTS)
+
+              - task: PowerShell@2
+                displayName: '[Copy] Prepare the Celeborn build'
+                inputs:
+                  targetType: 'inline'
+                  script: |
+                    mkdir $(PUBLISH_DIR)
+                    mkdir $(PUBLISH_DIR)\Celeborn
+                    Copy-Item -Path $(System.DefaultWorkingDirectory)\dist\spark\celeborn-client-spark-3-shaded_2.12-0.5.4.jar -Destination $(PUBLISH_DIR)\Celeborn\celeborn-client-spark-3.2-shaded_2.12-0.5.4.jar
+
+              - task: Bash@3
+                displayName: '[BUILD] Celeborn Spark 3.3'
+                inputs:
+                  targetType: 'filePath'
+                  filePath: build/make-distribution.sh
+                  arguments: -DskipTests -Pspark-3.3 -Phadoop-3 -Dscala.version=2.12.15 -Dscala.binary.version=2.12 -Dmaven.plugin.scala.version=3.2.2 -Pjdk-8
+                env:
+                  MAVEN_OPTS: $(MAVEN_OPTS)
+
+              - task: PowerShell@2
+                displayName: '[Copy] Prepare the Celeborn build'
+                inputs:
+                  targetType: 'inline'
+                  script: |
+                    Copy-Item -Path $(System.DefaultWorkingDirectory)\dist\spark\celeborn-client-spark-3-shaded_2.12-0.5.4.jar -Destination $(PUBLISH_DIR)\Celeborn\celeborn-client-spark-3.3-shaded_2.12-0.5.4.jar
+
+              - task: Bash@3
+                displayName: '[BUILD] Celeborn Spark 3.5'
+                inputs:
+                  targetType: 'filePath'
+                  filePath: build/make-distribution.sh
+                  arguments: -DskipTests -Pspark-3.5 -Phadoop-3 -Dscala.version=2.12.18 -Dscala.binary.version=2.12 -Dmaven.plugin.scala.version=3.2.2 -Pjdk-8
+                env:
+                  MAVEN_OPTS: $(MAVEN_OPTS)
+
+              - task: PowerShell@2
+                displayName: '[Copy] Prepare the Celeborn build'
+                inputs:
+                  targetType: 'inline'
+                  script: |
+                    Copy-Item -Path $(System.DefaultWorkingDirectory)\dist\spark\celeborn-client-spark-3-shaded_2.12-0.5.4.jar -Destination $(PUBLISH_DIR)\Celeborn\celeborn-client-spark-3.5-shaded_2.12-0.5.4.jar
+
+              - script: |
+                  cd $(PUBLISH_DIR)
+                  dir /B /S
+                displayName: '[TEMP] Print Artifact Structure'
+            templateContext:
+              outputs:
+                - output: pipelineArtifact
+                  displayName: '[PUBLISH] Celeborn Artifact'
+                  targetPath: $(PUBLISH_DIR)\Celeborn
+                  artifactName: Celeborn
+                - output: artifactsDrop
+                  displayName: '[PUBLISH] Celeborn to Artifact Services Drop'
+                  dropServiceURI: 'https://msasg.artifacts.visualstudio.com/DefaultCollection'
+                  buildNumber: 'mtp/$(Build.Repository.Name)/$(Build.SourceBranchName)/$(Build.BuildNumber)'
+                  sourcePath: $(PUBLISH_DIR)
+                  sbomBuildDropPath: $(PUBLISH_DIR)
+                  retentionDays: 90

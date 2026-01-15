@@ -4,10 +4,10 @@ import java.util.Properties
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 import com.codahale.metrics.MetricRegistry
-import com.microsoft.nao.infra.MdmReporter
+import com.microsoft.nao.infra.CelebornMdmReporter
 
-class MdmSink(val property: Properties, val registry: MetricRegistry) extends Sink {
-  import MdmSink._
+class CelebornMdmSink(val property: Properties, val registry: MetricRegistry) extends Sink {
+  import CelebornMdmSink._
 
   val monitoringAccount = Option(property.getProperty(MDM_KEY_MONITORING_ACCOUNT)) match {
     case Some(s) => s
@@ -34,7 +34,7 @@ class MdmSink(val property: Properties, val registry: MetricRegistry) extends Si
     case None => None
   }
 
-  val reporter: MdmReporter = MdmReporter.forRegistry(registry)
+  val reporter: CelebornMdmReporter = CelebornMdmReporter.forRegistry(registry)
     .overrideMonitoringAccount(this.monitoringAccount)
     .overrideMetricNamespace(this.metricNamespace)
     .convertDurationsTo(TimeUnit.MILLISECONDS)
@@ -55,7 +55,7 @@ class MdmSink(val property: Properties, val registry: MetricRegistry) extends Si
   }
 }
 
-object MdmSink {
+object CelebornMdmSink {
   val MDM_DEFAULT_PERIOD = 1
   val MDM_DEFAULT_UNIT = "MINUTES"
 
