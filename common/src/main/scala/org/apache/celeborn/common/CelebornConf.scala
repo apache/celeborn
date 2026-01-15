@@ -853,6 +853,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerUnavailableInfoExpireTimeout: Long = get(WORKER_UNAVAILABLE_INFO_EXPIRE_TIMEOUT)
   def allowWorkerHostPattern: Option[Regex] = get(ALLOW_WORKER_HOST_PATTERN)
   def denyWorkerHostPattern: Option[Regex] = get(DENY_WORKER_HOST_PATTERN)
+  def workerReuseHdfsOuputSteamEnabled: Boolean = get(WORKER_REUSE_HDFS_OUTPUT_STREAM_ENABLED)
 
   def workerReplicateThreads: Int = get(WORKER_REPLICATE_THREADS)
   def workerCommitThreads: Int =
@@ -2487,6 +2488,14 @@ object CelebornConf extends Logging {
       .doc("The timeout for an expired dirs to be deleted on dfs like HDFS, S3, OSS.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1h")
+
+  val WORKER_REUSE_HDFS_OUTPUT_STREAM_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.reuse.hdfs.outputStream.enabled")
+      .categories("worker")
+      .version("0.7.0")
+      .doc("Whether to enable reuse output stream on hdfs.")
+      .booleanConf
+      .createWithDefault(false)
 
   val WORKER_HEARTBEAT_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.heartbeat.worker.timeout")

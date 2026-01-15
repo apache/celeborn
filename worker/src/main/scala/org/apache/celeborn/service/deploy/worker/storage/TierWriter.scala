@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.JavaConverters.asScalaBufferConverter
 
 import io.netty.buffer.{ByteBuf, CompositeByteBuf}
-import org.apache.hadoop.fs.FileSystem
+import org.apache.hadoop.fs.{FileSystem, FSDataOutputStream}
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.AlreadyClosedException
@@ -532,6 +532,8 @@ class DfsTierWriter(
   private val flushWorkerIndex: Int = flusher.getWorkerIndex
   val hadoopFs: FileSystem = StorageManager.hadoopFs.get(storageType)
   var deleted = false
+  private var hdfsStream: FSDataOutputStream = null
+  private val workerReuseHdfsOutputStreamEnabled = conf.workerReuseHdfsOuputSteamEnabled
   private var s3MultipartUploadHandler: MultipartUploadHandler = _
   private var ossMultipartUploadHandler: MultipartUploadHandler = _
   var partNumber: Int = 1
@@ -546,7 +548,10 @@ class DfsTierWriter(
     }
 
   try {
-    hadoopFs.create(dfsFileInfo.getDfsPath, true).close()
+    hdfsStream = hadoopFs.create(dfsFileInfo.getDfsPath, true)
+    if (!workerReuseHdfsOutputStreamEnabled) {
+      closeHdfsStream()
+    }
     hadoopFs.setReplication(dfsFileInfo.getDfsPath, conf.workerDfsReplicationFactor.toShort);
     if (dfsFileInfo.isS3) {
       val uri = hadoopFs.getUri
@@ -590,13 +595,24 @@ class DfsTierWriter(
         case ex: InterruptedException =>
           throw new RuntimeException(ex)
       }
-      hadoopFs.create(dfsFileInfo.getDfsPath, true).close()
+      closeHdfsStream()
+      hdfsStream = hadoopFs.create(dfsFileInfo.getDfsPath, true)
+      if (!workerReuseHdfsOutputStreamEnabled) {
+        hdfsStream.close()
+      }
   }
 
   storageManager.registerDiskFilePartitionWriter(
     partitionDataWriterContext.getPartitionDataWriter,
     partitionDataWriterContext.getWorkingDir,
     fileInfo.asInstanceOf[DiskFileInfo])
+
+  def closeHdfsStream(): Unit = {
+    if (hdfsStream != null) {
+      hdfsStream.close()
+      hdfsStream = null
+    }
+  }
 
   override def needEvict(): Boolean = {
     false
@@ -605,7 +621,7 @@ class DfsTierWriter(
   override def genFlushTask(finalFlush: Boolean, keepBuffer: Boolean): FlushTask = {
     notifier.numPendingFlushes.incrementAndGet()
     if (dfsFileInfo.isHdfs) {
-      new HdfsFlushTask(flushBuffer, dfsFileInfo.getDfsPath(), notifier, true, source)
+      new HdfsFlushTask(flushBuffer, hdfsStream, dfsFileInfo.getDfsPath(), notifier, true, source)
     } else if (dfsFileInfo.isOSS) {
       val flushTask = new OssFlushTask(
         flushBuffer,
@@ -659,6 +675,7 @@ class DfsTierWriter(
   }
 
   override def closeStreams(): Unit = {
+    closeHdfsStream()
     if (hadoopFs.exists(dfsFileInfo.getDfsPeerWriterSuccessPath)) {
       hadoopFs.delete(dfsFileInfo.getDfsPath, false)
       deleted = true
