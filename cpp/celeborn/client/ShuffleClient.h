@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "celeborn/client/compress/Compressor.h"
 #include "celeborn/client/reader/CelebornInputStream.h"
 #include "celeborn/client/writer/PushDataCallback.h"
 #include "celeborn/client/writer/PushState.h"
@@ -249,6 +250,8 @@ class ShuffleClientImpl
   static constexpr size_t kBatchHeaderSize = 4 * 4;
 
   const std::string appUniqueId_;
+  const bool shuffleCompressionEnabled_;
+  std::unique_ptr<compress::Compressor> compressor_;
   std::shared_ptr<const conf::CelebornConf> conf_;
   std::shared_ptr<network::NettyRpcEndpointRef> lifecycleManagerRef_;
   std::shared_ptr<network::TransportClientFactory> clientFactory_;
