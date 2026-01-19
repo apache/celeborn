@@ -23,72 +23,22 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import javax.annotation.Nullable;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemorySpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFactory;
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierMasterAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProducerAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
-import org.apache.flink.runtime.util.ConfigurationParserUtils;
-
-import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.plugin.flink.utils.FlinkUtils;
 
 /**
  * The factory class of the Celeborn client, used as a tier of flink hybrid shuffle tiered storage.
  */
-public class CelebornTierFactory implements TierFactory {
-
-  private CelebornConf conf;
-
-  /**
-   * The bytes size of a single buffer, default value is 32KB, it will be set according to the flink
-   * configuration in {@link CelebornTierFactory#setup}.
-   */
-  private int bufferSizeBytes = -1;
-
-  /**
-   * The max bytes size of a single segment, it will determine how many buffer can save in a single
-   * segment.
-   */
-  private static int MAX_BYTES_PER_SEGMENT = 8 * 1024 * 1024;
-
-  private static final String CELEBORN_TIER_NAME = CelebornTierFactory.class.getSimpleName();
-
-  @Override
-  public void setup(Configuration configuration) {
-    conf = FlinkUtils.toCelebornConf(configuration);
-    this.bufferSizeBytes = ConfigurationParserUtils.getPageSize(configuration);
-  }
-
-  @Override
-  public TieredStorageMemorySpec getMasterAgentMemorySpec() {
-    return new TieredStorageMemorySpec(getCelebornTierName(), 0);
-  }
-
-  @Override
-  public TieredStorageMemorySpec getProducerAgentMemorySpec() {
-    return new TieredStorageMemorySpec(getCelebornTierName(), 1);
-  }
-
-  @Override
-  public TieredStorageMemorySpec getConsumerAgentMemorySpec() {
-    return new TieredStorageMemorySpec(getCelebornTierName(), 0);
-  }
-
-  @Override
-  public TierMasterAgent createMasterAgent(
-      TieredStorageResourceRegistry tieredStorageResourceRegistry) {
-    return new CelebornTierMasterAgent(conf);
-  }
+public class CelebornTierFactory extends BaseCelebornTierFactory implements TierFactory {
 
   @Override
   public TierProducerAgent createProducerAgent(
@@ -124,14 +74,5 @@ public class CelebornTierFactory implements TierFactory {
       TieredStorageNettyService nettyService) {
     return new CelebornTierConsumerAgent(
         conf, tieredStorageConsumerSpecs, shuffleDescriptors, bufferSizeBytes);
-  }
-
-  @Override
-  public String identifier() {
-    return "celeborn";
-  }
-
-  public static String getCelebornTierName() {
-    return CELEBORN_TIER_NAME;
   }
 }

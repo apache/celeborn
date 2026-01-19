@@ -73,10 +73,10 @@ public class RemoteShuffleEnvironment
   /** A trivial {@link ResultPartitionManager}. */
   private final ResultPartitionManager resultPartitionManager;
 
-  /** Factory class to create {@link AbstractRemoteShuffleResultPartition}. */
-  private final AbstractRemoteShuffleResultPartitionFactory resultPartitionFactory;
+  /** Factory class to create {@link RemoteShuffleResultPartition}. */
+  private final RemoteShuffleResultPartitionFactory resultPartitionFactory;
 
-  private final AbstractRemoteShuffleInputGateFactory inputGateFactory;
+  private final RemoteShuffleInputGateFactory inputGateFactory;
 
   private final CelebornConf conf;
 
@@ -103,8 +103,8 @@ public class RemoteShuffleEnvironment
   public RemoteShuffleEnvironment(
       NetworkBufferPool networkBufferPool,
       ResultPartitionManager resultPartitionManager,
-      AbstractRemoteShuffleResultPartitionFactory resultPartitionFactory,
-      AbstractRemoteShuffleInputGateFactory inputGateFactory,
+      RemoteShuffleResultPartitionFactory resultPartitionFactory,
+      RemoteShuffleInputGateFactory inputGateFactory,
       CelebornConf conf,
       NettyShuffleEnvironmentWrapper shuffleEnvironmentWrapper) {
     this.networkBufferPool = networkBufferPool;
@@ -277,7 +277,7 @@ public class RemoteShuffleEnvironment
   }
 
   @VisibleForTesting
-  AbstractRemoteShuffleResultPartitionFactory getResultPartitionFactory() {
+  RemoteShuffleResultPartitionFactory getResultPartitionFactory() {
     return resultPartitionFactory;
   }
 }
