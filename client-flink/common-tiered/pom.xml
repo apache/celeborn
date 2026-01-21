@@ -26,7 +26,7 @@
 
   <artifactId>celeborn-client-flink-common-tiered_${scala.binary.version}</artifactId>
   <packaging>jar</packaging>
-  <name>Celeborn Client for Flink Common</name>
+  <name>Celeborn Client for Flink Common Tiered</name>
 
   <dependencies>
     <dependency>

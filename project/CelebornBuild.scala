@@ -1163,6 +1163,8 @@ object Flink116 extends FlinkClientProjects {
   val flinkClientProjectName = "celeborn-client-flink-1_16"
   val flinkClientShadedProjectPath: String = "client-flink/flink-1.16-shaded"
   val flinkClientShadedProjectName: String = "celeborn-client-flink-1_16-shaded"
+
+  override val dependOnCommonTiered: Boolean = false
 }
 
 object Flink117 extends FlinkClientProjects {
@@ -1173,6 +1175,8 @@ object Flink117 extends FlinkClientProjects {
   val flinkClientProjectName = "celeborn-client-flink-1_17"
   val flinkClientShadedProjectPath: String = "client-flink/flink-1.17-shaded"
   val flinkClientShadedProjectName: String = "celeborn-client-flink-1_17-shaded"
+
+  override val dependOnCommonTiered: Boolean = false
 }
 
 object Flink118 extends FlinkClientProjects {
@@ -1183,6 +1187,8 @@ object Flink118 extends FlinkClientProjects {
   val flinkClientProjectName = "celeborn-client-flink-1_18"
   val flinkClientShadedProjectPath: String = "client-flink/flink-1.18-shaded"
   val flinkClientShadedProjectName: String = "celeborn-client-flink-1_18-shaded"
+
+  override val dependOnCommonTiered: Boolean = false
 }
 
 object Flink119 extends FlinkClientProjects {
@@ -1193,6 +1199,8 @@ object Flink119 extends FlinkClientProjects {
   val flinkClientProjectName = "celeborn-client-flink-1_19"
   val flinkClientShadedProjectPath: String = "client-flink/flink-1.19-shaded"
   val flinkClientShadedProjectName: String = "celeborn-client-flink-1_19-shaded"
+
+  override val dependOnCommonTiered: Boolean = false
 }
 
 object Flink120 extends FlinkClientProjects {
@@ -1249,7 +1257,16 @@ trait FlinkClientProjects {
   lazy val flinkClientsDependency: ModuleID = "org.apache.flink" % "flink-clients" % flinkVersion % "test"
   lazy val flinkRuntimeWebDependency: ModuleID = "org.apache.flink" % "flink-runtime-web" % flinkVersion % "test"
 
-  def modules: Seq[Project] = Seq(flinkCommon, flinkClient, flinkIt, flinkGroup, flinkClientShade)
+  val dependOnCommonTiered: Boolean = true
+
+  def modules: Seq[Project] = {
+    val modules = Seq(flinkCommon, flinkClient, flinkIt, flinkGroup, flinkClientShade)
+    if (dependOnCommonTiered) {
+      modules :+ flinkCommonTiered
+    } else {
+      modules
+    }
+  }
 
   // for test only, don't use this group for any other projects
   lazy val flinkGroup = (project withId "celeborn-flink-group")
@@ -1284,9 +1301,21 @@ trait FlinkClientProjects {
       )
   }
 
+  def flinkCommonTiered: Project = {
+    Project("celeborn-flink-common-tiered", file("client-flink/common-tiered"))
+      .dependsOn(flinkCommon)
+      .settings (
+        commonSettings,
+        libraryDependencies ++= Seq(
+          "org.apache.flink" % "flink-runtime" % flinkVersion % "provided"
+        ) ++ commonUnitTestDependencies
+      )
+  }
+
   def flinkClient: Project = {
-    Project(flinkClientProjectName, file(flinkClientProjectPath))
-      .dependsOn(CelebornCommon.common, CelebornClient.client, flinkCommon)
+    val flinkClient = Project(flinkClientProjectName, file(flinkClientProjectPath))
+      .dependsOn(CelebornCommon.common, CelebornClient.client)
+      .dependsOn(flinkCommon % "test->test;compile->compile")
       .settings (
         commonSettings,
 
@@ -1298,6 +1327,11 @@ trait FlinkClientProjects {
           Dependencies.log4j12Api % "test"
         ) ++ commonUnitTestDependencies
       )
+    if (dependOnCommonTiered) {
+      flinkClient.dependsOn(flinkCommonTiered % "test->test;compile->compile")
+    } else {
+      flinkClient
+    }
   }
 
   def flinkIt: Project = {
