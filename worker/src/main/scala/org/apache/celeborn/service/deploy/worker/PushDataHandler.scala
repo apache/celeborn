@@ -1522,7 +1522,19 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         shuffleKey: String,
         index: Int): Unit = {
       try {
-        fileWriter.write(body)
+        val (endedAttempt, toWrite, curMapId, curMapAttempt) =
+          if (shuffleMapperAttempts.containsKey(shuffleKey)) {
+            val (mapId, attemptId) = getMapAttempt(body)
+            val endedAttemptId = shuffleMapperAttempts.get(shuffleKey).get(mapId)
+            val toWriteAttempt = attemptId == endedAttemptId
+            (endedAttemptId, toWriteAttempt, mapId, attemptId)
+          } else (-1, true, -1, -1)
+        if (endedAttempt == -1 || toWrite) {
+          fileWriter.write(body)
+        } else {
+          fileWriter.decrementPendingWrites()
+          logInfo(s"Shuffle $shuffleKey is committing, map $curMapId, ignore attemptId $curMapAttempt data and endedAttempt $endedAttempt")
+        }
         result(index) = StatusCode.SUCCESS
       } catch {
         case e: Throwable =>
