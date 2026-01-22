@@ -1823,6 +1823,7 @@
       <id>flink-1.20</id>
       <modules>
         <module>client-flink/common</module>
+        <module>client-flink/common-tiered</module>
         <module>client-flink/flink-1.20</module>
         <module>client-flink/flink-1.20-shaded</module>
         <module>tests/flink-it</module>
@@ -1842,6 +1843,7 @@
       <id>flink-2.0</id>
       <modules>
         <module>client-flink/common</module>
+        <module>client-flink/common-tiered</module>
         <module>client-flink/flink-2.0</module>
         <module>client-flink/flink-2.0-shaded</module>
         <module>tests/flink-it</module>
@@ -1861,6 +1863,7 @@
       <id>flink-2.1</id>
       <modules>
         <module>client-flink/common</module>
+        <module>client-flink/common-tiered</module>
         <module>client-flink/flink-2.1</module>
         <module>client-flink/flink-2.1-shaded</module>
         <module>tests/flink-it</module>
@@ -1880,6 +1883,7 @@
       <id>flink-2.2</id>
       <modules>
         <module>client-flink/common</module>
+        <module>client-flink/common-tiered</module>
         <module>client-flink/flink-2.2</module>
         <module>client-flink/flink-2.2-shaded</module>
         <module>tests/flink-it</module>
