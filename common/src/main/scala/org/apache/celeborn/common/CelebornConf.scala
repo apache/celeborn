@@ -481,6 +481,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     }
   }
 
+  def dynamicGenerateDeviceInfoOnWindows : Boolean = get(DYNAMIC_GENERATE_DEVICE_INFO_ON_WINDOWS)
+
   def dynamicConfigStoreBackend: Option[String] = get(DYNAMIC_CONFIG_STORE_BACKEND)
   def dynamicConfigRefreshInterval: Long = get(DYNAMIC_CONFIG_REFRESH_INTERVAL)
   def dynamicConfigStoreFsPath: Option[String] = get(DYNAMIC_CONFIG_STORE_FS_PATH)
@@ -5044,6 +5046,16 @@ object CelebornConf extends Logging {
       .doc("Kerberos keytab file path for HDFS storage connection.")
       .stringConf
       .createOptional
+
+  val DYNAMIC_GENERATE_DEVICE_INFO_ON_WINDOWS : ConfigEntry[Boolean] =
+    buildConf("celeborn.storage.dynamicGenerateDeviceInfo.onWindows")
+      .categories("worker")
+      .version("0.3.2")
+      .doc("Whether to dynamically generate device info on Windows system. "
+        + "If true, worker will dynamically generate device info when " +
+        "registering to master. ")
+      .booleanConf
+      .createWithDefault(true)
 
   val DYNAMIC_CONFIG_STORE_BACKEND: OptionalConfigEntry[String] =
     buildConf("celeborn.dynamicConfig.store.backend")

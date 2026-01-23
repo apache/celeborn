@@ -229,14 +229,20 @@ object DeviceInfo {
     val deviceNameToDeviceInfo = new util.HashMap[String, DeviceInfo]()
     val mountPointToDeviceInfo = new util.HashMap[String, DeviceInfo]()
 
-    //val dfResult = runCommand("df -ah").trim
-    val dfResult =
-      """
-      |Filesystem      Size  Used Avail  Use% Mounted on
-      |D:\        1.8T   91G  1.7T    6% D:
-      |K:\        1.8T   91G  1.7T    6% K:
-      |/data/yarnnm/local       1.8T   91G  1.7T    6% /data/yarnnm/local
-      |""".stripMargin
+
+    val dfResult = conf.dynamicGenerateDeviceInfoOnWindows match {
+      case true => runCommand("df -ah").trim
+      case false => """
+                     |Filesystem      Size  Used Avail  Use% Mounted on
+                     |D:\        1.8T   91G  1.7T    6% D:
+                     |K:\        1.8T   91G  1.7T    6% K:
+                     |L:\        1.8T   91G  1.7T    6% L:
+                     |M:\        1.8T   91G  1.7T    6% M:
+                     |N:\        1.8T   91G  1.7T    6% N:
+                     |O:\        1.8T   91G  1.7T    6% O:
+                     |/data/yarnnm/local       1.8T   91G  1.7T    6% /data/yarnnm/local
+                     |""".stripMargin
+    }
 
     logger.info(s"df result\n$dfResult")
     // (/dev/vdb, /mnt/disk1)
@@ -250,7 +256,12 @@ object DeviceInfo {
 
     // (vda, vdb)
     // val lsBlockResult = runCommand("ls /sys/block/").trim
-    val lsBlockResult =  "D:\\ /data/yarnnm/local K:\\"
+    // TODO: Make this configurable for different OS
+    val lsBlockResult = conf.dynamicGenerateDeviceInfoOnWindows match {
+      case true => runCommand("ls /sys/block/").trim
+      case false => "D:\\ /data/yarnnm/local K:\\ L:\\ M:\\ N:\\ O:\\"
+    }
+
     logger.info(s"ls block\n$lsBlockResult")
     val blocks = lsBlockResult.split("[ \n\r\t]+")
 
