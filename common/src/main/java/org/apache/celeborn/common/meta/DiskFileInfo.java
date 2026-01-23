@@ -120,6 +120,15 @@ public class DiskFileInfo extends FileInfo {
   public void deleteAllFiles(FileSystem hdfsFs) {
     if (isHdfs()) {
       try {
+        if (logger.isDebugEnabled()) {
+          logger.debug(
+              "delete HDFS file {},{},{},{},callstack {}",
+              getHdfsPath(),
+              getHdfsWriterSuccessPath(),
+              getHdfsIndexPath(),
+              getHdfsSortedPath(),
+              Arrays.toString(Thread.currentThread().getStackTrace()));
+        }
         hdfsFs.delete(getHdfsPath(), false);
         hdfsFs.delete(getHdfsWriterSuccessPath(), false);
         hdfsFs.delete(getHdfsIndexPath(), false);

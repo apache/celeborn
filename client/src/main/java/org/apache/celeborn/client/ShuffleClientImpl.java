@@ -417,7 +417,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     for (DataBatches.DataBatch batch : batches) {
       logger.info("batch id {}, loc {}.", batch.batchId, batch.loc);
     }
-
     HashMap<Pair<String, String>, DataBatches> newDataBatchesMap = new HashMap<>();
     ArrayList<DataBatches.DataBatch> reviveFailedBatchesMap = new ArrayList<>();
 
@@ -429,8 +428,13 @@ public class ShuffleClientImpl extends ShuffleClient {
       ReviveRequest request = reviveRequests[index];
       DataBatches.DataBatch batch = batches.get(index);
       if (request.reviveStatus != StatusCode.REVIVE_INITIALIZED.getValue()) {
+        logger.debug(
+            "Revive status {} for shuffle {} map {} attempt {} partition {} batch {}, oldGroupedBatchId {} oldLoc {}.",
+            request.reviveStatus, shuffleId, mapId, attemptId,
+            request.partitionId, batch.batchId, oldGroupedBatchId, batch.loc);
+
         if (mapperEnded(shuffleId, mapId)) {
-          logger.debug(
+          logger.info(
               "Revive for push merged data success, but the mapper already ended for shuffle {} map {} attempt {} partition {} batch {}.",
               shuffleId,
               mapId,
@@ -439,6 +443,10 @@ public class ShuffleClientImpl extends ShuffleClient {
               oldGroupedBatchId);
         } else if (request.reviveStatus == StatusCode.SUCCESS.getValue()) {
           PartitionLocation newLoc = reducePartitionMap.get(shuffleId).get(request.partitionId);
+          logger.info(
+              "Revive for shuffle {} map {} attempt {} partition {} batch {}, oldGroupedBatchId {} oldLoc {}, newLoc {}.",
+              shuffleId, mapId, attemptId, request.partitionId, batch.batchId,
+              oldGroupedBatchId, batch.loc, newLoc);
           DataBatches newDataBatches =
               newDataBatchesMap.computeIfAbsent(genAddressPair(newLoc), (s) -> new DataBatches());
           newDataBatches.addDataBatch(newLoc, batch.batchId, batch.body);
@@ -475,6 +483,9 @@ public class ShuffleClientImpl extends ShuffleClient {
         accumulatedTime += delta;
       }
     }
+
+    logger.info("Total revive request {}, handled {}.", reviveRequests.length
+        , index);
 
     for (int i = index; i < reviveRequests.length; i++) {
       ReviveRequest request = reviveRequests[index];

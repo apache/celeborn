@@ -105,6 +105,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
   private boolean metricsCollectCriticalEnabled;
   private long chunkSize;
 
+  protected final boolean hdfsReplicaEnabled;
+
   private UserBufferInfo userBufferInfo = null;
 
   public PartitionDataWriter(
@@ -130,6 +132,8 @@ public abstract class PartitionDataWriter implements DeviceObserver {
     this.hdfsFlusherBufferSize = conf.workerHdfsFlusherBufferSize();
     this.metricsCollectCriticalEnabled = conf.metricsCollectCriticalEnabled();
     this.chunkSize = conf.shuffleChunkSize();
+
+    this.hdfsReplicaEnabled = conf.workerHdfsReplicateEnabled();
 
     Tuple4<MemoryFileInfo, Flusher, DiskFileInfo, File> createFileResult =
         storageManager.createFile(writerContext, supportInMemory);

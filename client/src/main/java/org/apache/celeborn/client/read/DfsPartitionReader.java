@@ -120,9 +120,34 @@ public class DfsPartitionReader implements PartitionReader {
       chunkOffsets.addAll(
           getChunkOffsetsFromSortedIndex(conf, location, startMapIndex, endMapIndex));
     } else {
-      hdfsInputStream =
-          ShuffleClient.getHdfsFs(conf).open(new Path(location.getStorageInfo().getFilePath()));
-      chunkOffsets.addAll(getChunkOffsetsFromUnsortedIndex(conf, location));
+      // It can happen that there is ranged fetch
+      // (endMapIndex != Integer.MAX_VALUE) for this partition before, so the
+      // original hdfs file is already be deleted, in such cases, sorted file
+      // should be used.
+      try {
+        if (ShuffleClient.getHdfsFs(conf).exists(new Path(location.getStorageInfo().getFilePath()))) {
+          hdfsInputStream =
+              ShuffleClient.getHdfsFs(conf)
+                  .open(new Path(location.getStorageInfo().getFilePath()));
+          chunkOffsets.addAll(getChunkOffsetsFromUnsortedIndex(conf, location));
+        } else {
+          logger.info("Original path {} not exist, use sorted file {}.",
+              location.getStorageInfo().getFilePath(),
+              Utils.getSortedFilePath(location.getStorageInfo().getFilePath()));
+          hdfsInputStream = ShuffleClient.getHdfsFs(conf).open(new Path(
+              Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
+          chunkOffsets.addAll(
+              getChunkOffsetsFromSortedIndex(conf, location, startMapIndex,
+                  endMapIndex));
+        }
+      } catch (IOException e) {
+        logger.warn("Failed to check existence or open HDFS path, using sorted file as fallback.", e);
+        hdfsInputStream = ShuffleClient.getHdfsFs(conf).open(new Path(
+            Utils.getSortedFilePath(location.getStorageInfo().getFilePath())));
+        chunkOffsets.addAll(
+            getChunkOffsetsFromSortedIndex(conf, location, startMapIndex,
+                endMapIndex));
+      }
     }
     logger.debug(
         "DFS {} index count:{} offsets:{}",

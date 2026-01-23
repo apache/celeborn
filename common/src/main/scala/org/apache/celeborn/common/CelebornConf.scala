@@ -1190,6 +1190,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerHdfsFlusherThreads: Int = get(WORKER_FLUSHER_HDFS_THREADS)
   def workerCreateWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
 
+
+  def workerHdfsReplicateEnabled: Boolean = get(WORKER_HDFS_REPLICATE_ENABLED)
   // //////////////////////////////////////////////////////
   //                    Disk Monitor                     //
   // //////////////////////////////////////////////////////
@@ -3068,6 +3070,15 @@ object CelebornConf extends Logging {
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")
       .createWithDefault(0.25)
+
+
+  val WORKER_HDFS_REPLICATE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.hdfs.replicate.enabled")
+      .categories("worker")
+      .version("0.3.0")
+      .doc("Whether replication worker commit files when HDFS storage is used.")
+      .booleanConf
+      .createWithDefault(false)
 
   val WORKER_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.flusher.buffer.size")

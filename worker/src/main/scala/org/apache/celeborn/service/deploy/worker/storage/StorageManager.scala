@@ -589,6 +589,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         }
         if (isHdfsExpired) {
           try {
+            logInfo(s"Delete $shuffleKey.")
             StorageManager.hadoopFs.delete(
               new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId"),
               true)
@@ -1003,6 +1004,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       if (dirs.isEmpty && hdfsFlusher.isEmpty) {
         throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
       }
+
+      logInfo(s" availableStorageTypes for $appId is ${location.getStorageInfo
+        .availableStorageTypes}")
 
       if ((dirs.isEmpty && location.getStorageInfo.HDFSAvailable()) ||
         (location.getStorageInfo.HDFSOnly() && hdfsFlusher.isDefined)) {

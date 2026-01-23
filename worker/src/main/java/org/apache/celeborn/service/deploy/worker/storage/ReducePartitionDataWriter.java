@@ -90,7 +90,8 @@ public final class ReducePartitionDataWriter extends PartitionDataWriter {
               if (diskFileInfo != null) {
                 if (diskFileInfo.isHdfs()) {
                   if (StorageManager.hadoopFs()
-                      .exists(diskFileInfo.getHdfsPeerWriterSuccessPath())) {
+                      .exists(diskFileInfo.getHdfsPeerWriterSuccessPath()) && !hdfsReplicaEnabled) {
+                    logger.info("Delete {}.", diskFileInfo.getFilePath());
                     StorageManager.hadoopFs().delete(diskFileInfo.getHdfsPath(), false);
                     deleted = true;
                   } else {

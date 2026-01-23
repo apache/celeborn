@@ -233,11 +233,17 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       Set<String> sorting =
           sortingShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
 
+      logger.debug(
+          "Start to add sorter to sort queue for shuffle key {}, file name {}.",
+          shuffleKey, diskFileInfo.getFilePath());
+
       String sortedFilePath = Utils.getSortedFilePath(diskFileInfo.getFilePath());
       String indexFilePath = Utils.getIndexFilePath(diskFileInfo.getFilePath());
       boolean fileSorting = true;
       synchronized (sorting) {
         if (sorted.contains(fileId)) {
+          logger.debug(
+              "shuffle key {}, file name {} is already sorted", shuffleKey, diskFileInfo.getFilePath());
           fileSorting = false;
         } else if (!sorting.contains(fileId)) {
           try {
@@ -814,6 +820,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     public void deleteOriginFiles() throws IOException {
       boolean deleteSuccess;
       if (isHdfs) {
+        logger.info("Clean origin file is : {}", originFilePath);
         deleteSuccess = StorageManager.hadoopFs().delete(new Path(originFilePath), false);
       } else {
         deleteSuccess = new File(originFilePath).delete();
