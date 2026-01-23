@@ -944,7 +944,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchBufferSize: Int = get(CLIENT_FETCH_BUFFER_SIZE).toInt
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
+  def clientStageRerunEnabled: Boolean = get(CLIENT_FETCH_THROWS_FETCH_FAILURE)
   def clientFetchThrowsFetchFailure: Boolean = get(CLIENT_FETCH_THROWS_FETCH_FAILURE)
+  def clientFetchCleanFailedShuffle: Boolean = get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE)
+  def clientFetchCleanFailedShuffleIntervalMS: Long =
+    get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_INTERVAL)
   def clientFetchExcludeWorkerOnFailureEnabled: Boolean =
     get(CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
   def clientFetchExcludedWorkerExpireTimeout: Long =
@@ -4090,6 +4094,23 @@ object CelebornConf extends Logging {
       .doc("client throws FetchFailedException instead of CelebornIOException")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_FETCH_CLEAN_FAILED_SHUFFLE: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.fetch.cleanFailedShuffle")
+      .categories("client")
+      .version("0.6.0")
+      .doc("whether to clean those disk space occupied by shuffles which cannot be fetched")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.spark.fetch.cleanFailedShuffleInterval")
+      .categories("client")
+      .version("0.6.0")
+      .doc("the interval to clean the failed-to-fetch shuffle files, only valid when" +
+        s" ${CLIENT_FETCH_CLEAN_FAILED_SHUFFLE.key} is enabled")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1s")
 
   val CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.fetch.excludeWorkerOnFailure.enabled")

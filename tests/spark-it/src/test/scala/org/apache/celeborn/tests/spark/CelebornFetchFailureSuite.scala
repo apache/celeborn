@@ -33,6 +33,7 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.service.deploy.worker.Worker
+import org.apache.celeborn.tests.spark.fetch.failure.ShuffleReaderGetHooks
 
 class CelebornFetchFailureSuite extends AnyFunSuite
   with SparkTestBase
@@ -111,7 +112,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         .getOrCreate()
 
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
-      val hook = new ShuffleReaderGetHook(celebornConf)
+      val hook = new ShuffleReaderGetHooks(celebornConf, workerDirs)
       TestCelebornShuffleManager.registerReaderGetHook(hook)
 
       val value = Range(1, 10000).mkString(",")
@@ -184,7 +185,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         .getOrCreate()
 
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
-      val hook = new ShuffleReaderGetHook(celebornConf)
+      val hook = new ShuffleReaderGetHooks(celebornConf, workerDirs)
       TestCelebornShuffleManager.registerReaderGetHook(hook)
 
       import sparkSession.implicits._
@@ -215,7 +216,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         .getOrCreate()
 
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
-      val hook = new ShuffleReaderGetHook(celebornConf)
+      val hook = new ShuffleReaderGetHooks(celebornConf, workerDirs)
       TestCelebornShuffleManager.registerReaderGetHook(hook)
 
       val sc = sparkSession.sparkContext
@@ -255,7 +256,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         .getOrCreate()
 
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
-      val hook = new ShuffleReaderGetHook(celebornConf)
+      val hook = new ShuffleReaderGetHooks(celebornConf, workerDirs)
       TestCelebornShuffleManager.registerReaderGetHook(hook)
 
       val sc = sparkSession.sparkContext

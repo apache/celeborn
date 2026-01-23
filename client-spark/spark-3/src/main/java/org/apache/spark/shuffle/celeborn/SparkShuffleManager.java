@@ -37,6 +37,7 @@ import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.celeborn.reflect.DynMethods;
+import org.apache.celeborn.spark.FailedShuffleCleaner;
 
 /**
  * In order to support Spark Stage resubmit with ShuffleReader FetchFails, Celeborn shuffleId has to
@@ -83,6 +84,8 @@ public class SparkShuffleManager implements ShuffleManager {
   private final ConcurrentHashMap.KeySetView<Integer, Boolean> sortShuffleIds =
       ConcurrentHashMap.newKeySet();
   private final CelebornShuffleFallbackPolicyRunner fallbackPolicyRunner;
+
+  private FailedShuffleCleaner failedShuffleCleaner = null;
 
   private long sendBufferPoolCheckInterval;
   private long sendBufferPoolExpireTimeout;
@@ -144,6 +147,23 @@ public class SparkShuffleManager implements ShuffleManager {
 
             lifecycleManager.registerShuffleTrackerCallback(
                 shuffleId -> SparkUtils.unregisterAllMapOutput(mapOutputTracker, shuffleId));
+          }
+
+          if (lifecycleManager.conf().clientFetchCleanFailedShuffle()) {
+            if (!lifecycleManager.conf().clientStageRerunEnabled()) {
+              throw new IllegalArgumentException(
+                  CelebornConf.CLIENT_FETCH_THROWS_FETCH_FAILURE().key()
+                      + " has to be "
+                      + "enabled, when "
+                      + CelebornConf.CLIENT_FETCH_CLEAN_FAILED_SHUFFLE().key()
+                      + " is set to true");
+            }
+            failedShuffleCleaner = new FailedShuffleCleaner(lifecycleManager);
+            lifecycleManager.registerValidateCelebornShuffleIdForCleanCallback(
+                (appShuffleIdentifier) ->
+                    SparkUtils.addWriterShuffleIdsToBeCleaned(this, appShuffleIdentifier));
+            lifecycleManager.registerUnregisterShuffleCallback(
+                (celebornShuffleId) -> SparkUtils.removeCleanedShuffleId(this, celebornShuffleId));
           }
         }
       }
@@ -227,6 +247,9 @@ public class SparkShuffleManager implements ShuffleManager {
     if (_sortShuffleManager != null) {
       _sortShuffleManager.stop();
       _sortShuffleManager = null;
+    }
+    if (celebornConf.clientFetchCleanFailedShuffle() && failedShuffleCleaner != null) {
+      failedShuffleCleaner.reset();
     }
   }
 
@@ -448,5 +471,9 @@ public class SparkShuffleManager implements ShuffleManager {
   // for testing
   public LifecycleManager getLifecycleManager() {
     return this.lifecycleManager;
+  }
+
+  public FailedShuffleCleaner getFailedShuffleCleaner() {
+    return this.failedShuffleCleaner;
   }
 }

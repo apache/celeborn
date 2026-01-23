@@ -133,17 +133,14 @@ public class SparkUtils {
         .getOrElse(context::applicationId);
   }
 
-  public static String getAppShuffleIdentifier(int appShuffleId, TaskContext context) {
-    return appShuffleId + "-" + context.stageId() + "-" + context.stageAttemptNumber();
-  }
-
   public static int celebornShuffleId(
       ShuffleClient client,
       CelebornShuffleHandle<?, ?, ?> handle,
       TaskContext context,
       Boolean isWriter) {
     if (handle.throwsFetchFailure()) {
-      String appShuffleIdentifier = getAppShuffleIdentifier(handle.shuffleId(), context);
+      String appShuffleIdentifier =
+          SparkCommonUtils.encodeAppShuffleIdentifier(handle.shuffleId(), context);
       return client.getShuffleId(
           handle.shuffleId(),
           appShuffleIdentifier,
@@ -323,7 +320,8 @@ public class SparkUtils {
 
     if (!(taskContext instanceof BarrierTaskContext)) return;
     int appShuffleId = handle.shuffleId();
-    String appShuffleIdentifier = SparkUtils.getAppShuffleIdentifier(appShuffleId, taskContext);
+    String appShuffleIdentifier =
+        SparkCommonUtils.encodeAppShuffleIdentifier(appShuffleId, taskContext);
 
     BarrierTaskContext barrierContext = (BarrierTaskContext) taskContext;
     barrierContext.addTaskFailureListener(
@@ -331,5 +329,15 @@ public class SparkUtils {
           // whatever is the reason for failure, we notify lifecycle manager about the failure
           shuffleClient.reportBarrierTaskFailure(appShuffleId, appShuffleIdentifier);
         });
+  }
+
+  public static void addWriterShuffleIdsToBeCleaned(
+      SparkShuffleManager sparkShuffleManager, String appShuffleIdentifier) {
+    sparkShuffleManager.getFailedShuffleCleaner().addShuffleIdToBeCleaned(appShuffleIdentifier);
+  }
+
+  public static void removeCleanedShuffleId(
+      SparkShuffleManager sparkShuffleManager, int celebornShuffleId) {
+    sparkShuffleManager.getFailedShuffleCleaner().removeCleanedShuffleId(celebornShuffleId);
   }
 }
