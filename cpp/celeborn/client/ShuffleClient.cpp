@@ -172,7 +172,7 @@ int ShuffleClientImpl::pushData(
 
     // Compress the data
     lengthToWrite =
-        compressor_->compress(data, offset, length, compressedBuffer.get(), 0);
+        compressor_->compress(dataToWrite, 0, length, compressedBuffer.get(), 0);
     dataToWrite = compressedBuffer.get();
   }
 
