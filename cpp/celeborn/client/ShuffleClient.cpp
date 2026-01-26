@@ -171,8 +171,8 @@ int ShuffleClientImpl::pushData(
     compressedBuffer = std::make_unique<uint8_t[]>(compressedCapacity);
 
     // Compress the data
-    lengthToWrite =
-        compressor_->compress(dataToWrite, 0, length, compressedBuffer.get(), 0);
+    lengthToWrite = compressor_->compress(
+        dataToWrite, 0, length, compressedBuffer.get(), 0);
     dataToWrite = compressedBuffer.get();
   }
 
