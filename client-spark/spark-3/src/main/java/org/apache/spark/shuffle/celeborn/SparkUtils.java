@@ -228,17 +228,24 @@ public class SparkUtils {
 
   public static final String COLUMNAR_HASH_BASED_SHUFFLE_WRITER_CLASS =
       "org.apache.spark.shuffle.celeborn.ColumnarHashBasedShuffleWriter";
-  static final DynConstructors.Builder COLUMNAR_HASH_BASED_SHUFFLE_WRITER_CONSTRUCTOR_BUILDER =
-      DynConstructors.builder()
-          .impl(
-              COLUMNAR_HASH_BASED_SHUFFLE_WRITER_CLASS,
-              int.class,
-              CelebornShuffleHandle.class,
-              TaskContext.class,
-              CelebornConf.class,
-              ShuffleClient.class,
-              ShuffleWriteMetricsReporter.class,
-              SendBufferPool.class);
+
+  /**
+   * Lazy holder for ColumnarHashBasedShuffleWriter constructor builder. The builder is initialized
+   * only when this class is first accessed, ensuring lazy loading without explicit synchronization.
+   */
+  private static class ColumnarHashBasedShuffleWriterConstructorBuilderHolder {
+    private static final DynConstructors.Builder INSTANCE =
+        DynConstructors.builder()
+            .impl(
+                COLUMNAR_HASH_BASED_SHUFFLE_WRITER_CLASS,
+                int.class,
+                CelebornShuffleHandle.class,
+                TaskContext.class,
+                CelebornConf.class,
+                ShuffleClient.class,
+                ShuffleWriteMetricsReporter.class,
+                SendBufferPool.class);
+  }
 
   public static <K, V, C> HashBasedShuffleWriter<K, V, C> createColumnarHashBasedShuffleWriter(
       int shuffleId,
@@ -248,26 +255,33 @@ public class SparkUtils {
       ShuffleClient client,
       ShuffleWriteMetricsReporter metrics,
       SendBufferPool sendBufferPool) {
-    return COLUMNAR_HASH_BASED_SHUFFLE_WRITER_CONSTRUCTOR_BUILDER
+    return ColumnarHashBasedShuffleWriterConstructorBuilderHolder.INSTANCE
         .build()
         .invoke(null, shuffleId, handle, taskContext, conf, client, metrics, sendBufferPool);
   }
 
   public static final String COLUMNAR_SHUFFLE_READER_CLASS =
       "org.apache.spark.shuffle.celeborn.CelebornColumnarShuffleReader";
-  static final DynConstructors.Builder COLUMNAR_SHUFFLE_READER_CONSTRUCTOR_BUILDER =
-      DynConstructors.builder()
-          .impl(
-              COLUMNAR_SHUFFLE_READER_CLASS,
-              CelebornShuffleHandle.class,
-              int.class,
-              int.class,
-              int.class,
-              int.class,
-              TaskContext.class,
-              CelebornConf.class,
-              ShuffleReadMetricsReporter.class,
-              ExecutorShuffleIdTracker.class);
+
+  /**
+   * Lazy holder for CelebornColumnarShuffleReader constructor builder. The builder is initialized
+   * only when this class is first accessed, ensuring lazy loading without explicit synchronization.
+   */
+  private static class ColumnarShuffleReaderConstructorBuilderHolder {
+    private static final DynConstructors.Builder INSTANCE =
+        DynConstructors.builder()
+            .impl(
+                COLUMNAR_SHUFFLE_READER_CLASS,
+                CelebornShuffleHandle.class,
+                int.class,
+                int.class,
+                int.class,
+                int.class,
+                TaskContext.class,
+                CelebornConf.class,
+                ShuffleReadMetricsReporter.class,
+                ExecutorShuffleIdTracker.class);
+  }
 
   public static <K, C> CelebornShuffleReader<K, C> createColumnarShuffleReader(
       CelebornShuffleHandle<K, ?, C> handle,
@@ -279,7 +293,7 @@ public class SparkUtils {
       CelebornConf conf,
       ShuffleReadMetricsReporter metrics,
       ExecutorShuffleIdTracker shuffleIdTracker) {
-    return COLUMNAR_SHUFFLE_READER_CONSTRUCTOR_BUILDER
+    return ColumnarShuffleReaderConstructorBuilderHolder.INSTANCE
         .build()
         .invoke(
             null,
@@ -541,15 +555,21 @@ public class SparkUtils {
     }
   }
 
-  private static final DynMethods.UnboundMethod isCelebornSkewShuffle_METHOD =
-      DynMethods.builder("isCelebornSkewedShuffle")
-          .hiddenImpl("org.apache.spark.celeborn.CelebornShuffleState", Integer.TYPE)
-          .orNoop()
-          .build();
+  /**
+   * Lazy holder for isCelebornSkewedShuffle method. The method is initialized only when this class
+   * is first accessed, ensuring lazy loading without explicit synchronization.
+   */
+  private static class CelebornSkewShuffleMethodHolder {
+    private static final DynMethods.UnboundMethod INSTANCE =
+        DynMethods.builder("isCelebornSkewedShuffle")
+            .hiddenImpl("org.apache.spark.celeborn.CelebornShuffleState", Integer.TYPE)
+            .orNoop()
+            .build();
+  }
 
   public static boolean isCelebornSkewShuffleOrChildShuffle(int appShuffleId) {
-    if (!isCelebornSkewShuffle_METHOD.isNoop()) {
-      return isCelebornSkewShuffle_METHOD.asStatic().invoke(appShuffleId);
+    if (!CelebornSkewShuffleMethodHolder.INSTANCE.isNoop()) {
+      return CelebornSkewShuffleMethodHolder.INSTANCE.asStatic().invoke(appShuffleId);
     } else {
       return false;
     }
