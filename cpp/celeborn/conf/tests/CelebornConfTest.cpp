@@ -19,8 +19,10 @@
 #include <fstream>
 
 #include "celeborn/conf/CelebornConf.h"
+#include "celeborn/protocol/CompressionCodec.h"
 
 using namespace celeborn::conf;
+using namespace celeborn::protocol;
 
 using CelebornUserError = celeborn::utils::CelebornUserError;
 using SECOND = std::chrono::seconds;
@@ -47,6 +49,8 @@ void testDefaultValues(CelebornConf* conf) {
   EXPECT_EQ(conf->networkIoNumConnectionsPerPeer(), 1);
   EXPECT_EQ(conf->networkIoClientThreads(), 0);
   EXPECT_EQ(conf->clientFetchMaxReqsInFlight(), 3);
+  EXPECT_EQ(conf->shuffleCompressionCodec(), CompressionCodec::NONE);
+  EXPECT_EQ(conf->shuffleCompressionZstdCompressLevel(), 1);
 }
 
 TEST(CelebornConfTest, defaultValues) {
@@ -73,6 +77,15 @@ TEST(CelebornConfTest, setValues) {
   EXPECT_EQ(conf->networkIoClientThreads(), 10);
   conf->registerProperty(CelebornConf::kClientFetchMaxReqsInFlight, "10");
   EXPECT_EQ(conf->clientFetchMaxReqsInFlight(), 10);
+  conf->registerProperty(CelebornConf::kShuffleCompressionCodec, "LZ4");
+  EXPECT_EQ(conf->shuffleCompressionCodec(), CompressionCodec::LZ4);
+  conf->registerProperty(CelebornConf::kShuffleCompressionCodec, "ZSTD");
+  EXPECT_EQ(conf->shuffleCompressionCodec(), CompressionCodec::ZSTD);
+  conf->registerProperty(CelebornConf::kShuffleCompressionCodec, "NONE");
+  EXPECT_EQ(conf->shuffleCompressionCodec(), CompressionCodec::NONE);
+  conf->registerProperty(
+      CelebornConf::kShuffleCompressionZstdCompressLevel, "5");
+  EXPECT_EQ(conf->shuffleCompressionZstdCompressLevel(), 5);
 
   EXPECT_THROW(
       conf->registerProperty("non-exist-key", "non-exist-value"),
