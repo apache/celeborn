@@ -494,6 +494,7 @@ object Utils {
     case Some("spark-3.4") => Some(Spark34)
     case Some("spark-3.5") => Some(Spark35)
     case Some("spark-4.0") => Some(Spark40)
+    case Some("spark-4.1") => Some(Spark41)
     case _ => None
   }
 
@@ -937,6 +938,23 @@ object Spark40 extends SparkClientProjects {
 
   val sparkVersion = "4.0.1"
   val zstdJniVersion = "1.5.6-9"
+  val scalaBinaryVersion = "2.13"
+
+  override val sparkColumnarShuffleVersion: String = "4"
+}
+
+object Spark41 extends SparkClientProjects {
+
+  val sparkClientProjectPath = "client-spark/spark-3"
+  val sparkClientProjectName = "celeborn-client-spark-4"
+  val sparkClientShadedProjectPath = "client-spark/spark-4-shaded"
+  val sparkClientShadedProjectName = "celeborn-client-spark-4-shaded"
+
+  val lz4JavaVersion = "1.8.0"
+  val sparkProjectScalaVersion = "2.13.17"
+
+  val sparkVersion = "4.1.0"
+  val zstdJniVersion = "1.5.7-6"
   val scalaBinaryVersion = "2.13"
 
   override val sparkColumnarShuffleVersion: String = "4"
