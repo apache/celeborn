@@ -121,6 +121,10 @@ class ReducePartitionCommitHandler(
       }
     }
 
+  private val shuffleIdLocksRegisterFunc = new util.function.Function[Int, Object] {
+    override def apply(key: Int): Object = new Object()
+  }
+
   override def getPartitionType(): PartitionType = {
     PartitionType.REDUCE
   }
@@ -317,7 +321,7 @@ class ReducePartitionCommitHandler(
       numPartitions: Int,
       crc32PerPartition: Array[Int],
       bytesWrittenPerPartition: Array[Long]): (Boolean, Boolean) = {
-    val shuffleLock = shuffleIdLocks.computeIfAbsent(shuffleId, _ => new Object())
+    val shuffleLock = shuffleIdLocks.computeIfAbsent(shuffleId, shuffleIdLocksRegisterFunc)
     val (mapperAttemptFinishedSuccess, allMapperFinished) = shuffleLock.synchronized {
       if (getMapperAttempts(shuffleId) == null) {
         logDebug(s"[handleMapperEnd] $shuffleId not registered, create one.")
@@ -432,7 +436,7 @@ class ReducePartitionCommitHandler(
   }
 
   private def initMapperAttempts(shuffleId: Int, numMappers: Int, numPartitions: Int): Unit = {
-    val shuffleLock = shuffleIdLocks.computeIfAbsent(shuffleId, _ => new Object())
+    val shuffleLock = shuffleIdLocks.computeIfAbsent(shuffleId, shuffleIdLocksRegisterFunc)
     shuffleLock.synchronized {
       if (!shuffleMapperAttempts.containsKey(shuffleId)) {
         val attempts = new Array[Int](numMappers)
