@@ -246,7 +246,7 @@ public class SortBasedPusher extends MemoryConsumer {
 
       if (offSet + recordSize > dataBuf.length) {
         try {
-          dataPusher.addTask(partition, dataBuf, offSet);
+          dataBuf = dataPusher.swapBufferWithIdleTask(partition, dataBuf, offSet);
           memoryThresholdManager.updateStats(offSet, true);
         } catch (InterruptedException e) {
           TaskInterruptedHelper.throwTaskKillException();
@@ -261,7 +261,7 @@ public class SortBasedPusher extends MemoryConsumer {
     }
     if (offSet > 0) {
       try {
-        dataPusher.addTask(currentPartition, dataBuf, offSet);
+        dataPusher.swapBufferWithIdleTask(currentPartition, dataBuf, offSet);
         memoryThresholdManager.updateStats(offSet, offSet == pushBufferMaxSize);
       } catch (InterruptedException e) {
         TaskInterruptedHelper.throwTaskKillException();
