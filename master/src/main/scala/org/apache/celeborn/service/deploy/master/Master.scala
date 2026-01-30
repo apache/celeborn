@@ -1100,6 +1100,19 @@ private[celeborn] class Master(
     resourceConsumption
   }
 
+  private def computeAppDiskUsage(): util.concurrent.ConcurrentHashMap[String,
+    java.lang.Long]  = {
+    val appDiskUsages = JavaUtils.newConcurrentHashMap[String, java.lang.Long]
+    statusSystem.workers.asScala.flatMap {
+      workerInfo => workerInfo.appDiskUsage.asScala
+    }.foreach { case (appId, usage) =>
+      appDiskUsages.put(
+        appId,
+        appDiskUsages.getOrDefault(appId, 0L) + usage)
+    }
+    appDiskUsages
+  }
+
   private[master] def handleCheckQuota(
       userIdentifier: UserIdentifier,
       context: RpcCallContext): Unit = {
@@ -1257,6 +1270,7 @@ private[celeborn] class Master(
   override def listTopDiskUseApps: String = {
     val sb = new StringBuilder
     sb.append("================== Top Disk Usage Applications =======================\n")
+    statusSystem.appDiskUsageMetric.update(computeAppDiskUsage())
     sb.append(statusSystem.appDiskUsageMetric.summary())
     sb.toString()
   }

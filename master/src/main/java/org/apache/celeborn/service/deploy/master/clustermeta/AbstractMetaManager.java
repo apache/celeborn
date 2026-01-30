@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -84,6 +85,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public long estimatedPartitionSize;
   public final LongAdder partitionTotalWritten = new LongAdder();
   public final LongAdder partitionTotalFileCount = new LongAdder();
+
+  public long lastUpdateAppDiskUsageMetricTimeStamp = 0;
   public AppDiskUsageMetric appDiskUsageMetric = null;
 
   public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
@@ -190,6 +193,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           info -> {
             info.updateThenGetDiskInfos(disks, Option.apply(estimatedPartitionSize));
             info.updateThenGetUserResourceConsumption(userResourceConsumption);
+            info.updateAppDiskUsage(estimatedAppDiskUsage);
             availableSlots.set(info.totalAvailableSlots());
             info.lastHeartbeat_$eq(time);
             info.setWorkerStatus(workerStatus);
@@ -205,7 +209,13 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       }
     }
 
-    appDiskUsageMetric.update(estimatedAppDiskUsage);
+    if (appDiskUsageMetric.enabled()
+        && System.currentTimeMillis() - lastUpdateAppDiskUsageMetricTimeStamp > appDiskUsageMetric.interval() * 1000) {
+      LOG.info("Updating application disk usage.");
+      appDiskUsageMetric.update(computeAppDiskUsage());
+      lastUpdateAppDiskUsageMetricTimeStamp = System.currentTimeMillis();
+    }
+
     // If using HDFSONLY mode, workers with empty disks should not be put into excluded worker list.
     long healthyDiskNum =
         disks.values().stream().filter(s -> s.status().equals(DiskStatus.HEALTHY)).count();
@@ -478,4 +488,18 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public void removeApplicationMeta(String appId) {
     applicationMetas.remove(appId);
   }
+
+
+  public Map<String, Long> computeAppDiskUsage() {
+    Map<String, Long> appDiskUsages = new HashMap<>();
+
+    for (WorkerInfo workerInfo : workers) {
+      Map<String, Long> workerAppDiskUsages = workerInfo.appDiskUsage();
+      for (Map.Entry<String, Long> entry : workerAppDiskUsages.entrySet()) {
+        appDiskUsages.merge(entry.getKey(), entry.getValue(), Long::sum);
+      }
+    }
+    return appDiskUsages;
+  }
+
 }

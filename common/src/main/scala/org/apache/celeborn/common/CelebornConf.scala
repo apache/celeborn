@@ -861,6 +861,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsCapacity: Int = get(METRICS_CAPACITY)
   def metricsExtraLabels: Map[String, String] =
     get(METRICS_EXTRA_LABELS).map(Utils.parseMetricLabels).toMap
+
+  def metricAppTopDiskUsageEnabled: Boolean = get(METRICS_APP_TOP_DISK_USAGE_ENABLED)
   def metricsAppTopDiskUsageCount: Int = get(METRICS_APP_TOP_DISK_USAGE_COUNT)
   def metricsAppTopDiskUsageWindowSize: Int = get(METRICS_APP_TOP_DISK_USAGE_WINDOW_SIZE)
   def metricsAppTopDiskUsageInterval: Long = get(METRICS_APP_TOP_DISK_USAGE_INTERVAL)
@@ -4737,6 +4739,14 @@ object CelebornConf extends Logging {
         labels => labels.map(_ => Try(Utils.parseMetricLabels(_))).forall(_.isSuccess),
         "Allowed pattern is: `<label1_key>:<label1_value>[,<label2_key>:<label2_value>]*`")
       .createWithDefault(Seq.empty)
+
+
+  val METRICS_APP_TOP_DISK_USAGE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.metrics.app.topDiskUsage.enabled")
+      .categories("metrics")
+      .version("0.2.0")
+      .booleanConf
+      .createWithDefault(true)
 
   val METRICS_APP_TOP_DISK_USAGE_COUNT: ConfigEntry[Int] =
     buildConf("celeborn.metrics.app.topDiskUsage.count")

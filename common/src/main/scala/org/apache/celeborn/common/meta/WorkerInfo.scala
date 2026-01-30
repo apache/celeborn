@@ -51,6 +51,9 @@ class WorkerInfo(
     if (_userResourceConsumption != null)
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption](_userResourceConsumption)
     else null
+
+  val appDiskUsage = JavaUtils.newConcurrentHashMap[String, java.lang.Long]
+
   var endpoint: RpcEndpointRef = null
 
   def this(
@@ -243,6 +246,15 @@ class WorkerInfo(
     }
     userResourceConsumption.putAll(resourceConsumptions)
     userResourceConsumption
+  }
+
+  def updateAppDiskUsage(diskUsage: java.util.Map[String, java.lang.Long]): Unit = {
+    if (appDiskUsage != null) {
+      appDiskUsage.keys().asScala.filterNot(diskUsage.containsKey).foreach {
+        identifier => appDiskUsage.put(identifier, 0)
+      }
+      appDiskUsage.putAll(diskUsage)
+    }
   }
 
   override def toString: String = {
