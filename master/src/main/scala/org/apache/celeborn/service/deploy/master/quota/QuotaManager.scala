@@ -43,6 +43,7 @@ class QuotaManager(celebornConf: CelebornConf, configService: ConfigService) ext
       userIdentifier: UserIdentifier,
       resourceResumption: ResourceConsumption): (Boolean, String) = {
     val quota = getQuota(userIdentifier)
+    logDebug(s"Quota for user $userIdentifier are $quota")
     val checkResults = Seq(
       checkDiskBytesWritten(userIdentifier, resourceResumption.diskBytesWritten, quota),
       checkDiskFileCount(userIdentifier, resourceResumption.diskFileCount, quota),

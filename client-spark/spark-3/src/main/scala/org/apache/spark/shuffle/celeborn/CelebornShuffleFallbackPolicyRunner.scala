@@ -75,6 +75,8 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
    * @return if celeborn cluster have available space for current user
    */
   def checkQuota(lifecycleManager: LifecycleManager): Boolean = {
+    logInfo(s"quotaEnabled is set as $quotaEnabled.")
+
     if (!quotaEnabled) {
       return true
     }

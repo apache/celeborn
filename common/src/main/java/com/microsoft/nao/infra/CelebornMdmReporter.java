@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.net.InetAddress;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
@@ -22,6 +24,10 @@ public class CelebornMdmReporter extends ScheduledReporter {
       CelebornMdmReporter.class);
   private static final String[] dimensions = {"CelebornCluster", "Role",
       "MachineName", "Environment", "Cluster"};
+
+  private static final String[] threeDimensions = {"CelebornCluster",
+      "MachineName", "Environment"};
+
   private static String UNKNOWN = "UNKNOWN";
 
   private final CelebornMdm mdm;
@@ -220,6 +226,69 @@ public class CelebornMdmReporter extends ScheduledReporter {
     String[] dimensionsValue = {getCelebornCluster(), role, getMachineName(),
         getEnvironment(), getCluster() };
     this.mdm.ReportMetric5D(metricName, dimensions, dimensionsValue, value);
+
+    String roleValue = role;
+    Map<String, String> labels = extractLabels(metricName);
+    if (labels.size() <= 1) {
+      return;
+    } else if (labels.size() > 3) {
+      logger.info(
+          "Extra 2 dimensions are supported at most now, {} has {} " + "labels.",
+          metricName, labels.size());
+      return;
+    } else if (labels.size() == 3) {
+      roleValue = labels.remove("role");
+    }
+
+    // labels.size() is 2 now
+    String[] newDimensions = new String[dimensions.length];
+    String[] newDimensionsValue = new String[dimensions.length];
+    int braceIndex = metricName.lastIndexOf('{');
+    String newMetricName = braceIndex >= 0 ? metricName.substring(0, braceIndex) : metricName;
+    if (!newMetricName.contains("worker") && !newMetricName.contains(
+        "master") && roleValue != null) {
+      newMetricName = roleValue + "." + newMetricName;
+    }
+
+    String[] threeDimensionsValue = { getCelebornCluster(),
+        getMachineName(), getEnvironment() };
+    System.arraycopy(threeDimensions, 0, newDimensions, 0,
+        threeDimensions.length);
+    System.arraycopy(threeDimensionsValue, 0, newDimensionsValue, 0,
+        threeDimensionsValue.length);
+
+    int i = threeDimensions.length;
+    for (Map.Entry<String, String> labelEntry : labels.entrySet()) {
+      newDimensions[i] = labelEntry.getKey();
+      newDimensionsValue[i] = labelEntry.getValue();
+      i++;
+    }
+    this.mdm.ReportMetric5D(newMetricName, newDimensions,
+        newDimensionsValue, value);
+  }
+
+  private Map<String, String> extractLabels(String metricName) {
+    int start = metricName.lastIndexOf('{');
+    int end = metricName.lastIndexOf('}');
+    Map<String, String> labels = new HashMap<>();
+    if (start >= 0 && end > start) {
+      String labelString = metricName.substring(start + 1, end);
+      String[] parts = labelString.split(",");
+      for (String part : parts) {
+        String[] kv = part.split("=", 2);
+        if (kv.length == 2) {
+          String val = kv[1];
+          if (val.startsWith("\"")) {
+            val = val.substring(1);
+          }
+          if (val.endsWith("\"")) {
+            val = val.substring(0, val.length() - 1);
+          }
+          labels.put(kv[0], val);
+        }
+      }
+    }
+    return labels;
   }
 
   // MDM only accepts long, multiple 100 for percentage value.
