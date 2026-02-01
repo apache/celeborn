@@ -251,7 +251,6 @@ class ShuffleClientImpl
 
   const std::string appUniqueId_;
   const bool shuffleCompressionEnabled_;
-  std::unique_ptr<compress::Compressor> compressor_;
   std::shared_ptr<const conf::CelebornConf> conf_;
   std::shared_ptr<network::NettyRpcEndpointRef> lifecycleManagerRef_;
   std::shared_ptr<network::TransportClientFactory> clientFactory_;
@@ -269,6 +268,9 @@ class ShuffleClientImpl
       mapperEndSets_;
   utils::ConcurrentHashSet<int> stageEndShuffleSet_;
 
+  // Factory for creating compressor instances on demand to avoid sharing a
+  // single non-thread-safe compressor across concurrent operations.
+  std::function<std::unique_ptr<compress::Compressor>()> compressorFactory_;
   // TODO: pushExcludedWorker is not supported yet
 };
 } // namespace client

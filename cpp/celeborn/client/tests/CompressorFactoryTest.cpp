@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 
 #include "celeborn/client/compress/Compressor.h"
+#include "celeborn/client/compress/Decompressor.h"
 #include "celeborn/conf/CelebornConf.h"
 
 using namespace celeborn;
@@ -32,8 +33,26 @@ TEST(CompressorFactoryTest, CreateLz4CompressorFromConf) {
   auto compressor = compress::Compressor::createCompressor(conf);
   ASSERT_NE(compressor, nullptr);
 
-  // Verify it's an LZ4 compressor
-  EXPECT_GT(compressor->getDstCapacity(100), 0);
+  const std::string testData = "Test data for compression";
+  const size_t maxLength = compressor->getDstCapacity(testData.size());
+  std::vector<uint8_t> compressedData(maxLength);
+
+  const size_t compressedSize = compressor->compress(
+      reinterpret_cast<const uint8_t*>(testData.data()),
+      0,
+      testData.size(),
+      compressedData.data(),
+      0);
+
+  ASSERT_GT(compressedSize, 8);
+  EXPECT_EQ(compressedData[0], 'L');
+  EXPECT_EQ(compressedData[1], 'Z');
+  EXPECT_EQ(compressedData[2], '4');
+  EXPECT_EQ(compressedData[3], 'B');
+  EXPECT_EQ(compressedData[4], 'l');
+  EXPECT_EQ(compressedData[5], 'o');
+  EXPECT_EQ(compressedData[6], 'c');
+  EXPECT_EQ(compressedData[7], 'k');
 }
 
 TEST(CompressorFactoryTest, CreateZstdCompressorFromConf) {
@@ -45,8 +64,27 @@ TEST(CompressorFactoryTest, CreateZstdCompressorFromConf) {
   auto compressor = compress::Compressor::createCompressor(conf);
   ASSERT_NE(compressor, nullptr);
 
-  // Verify it's a ZSTD compressor
-  EXPECT_GT(compressor->getDstCapacity(100), 0);
+  const std::string testData = "Test data for compression";
+  const size_t maxLength = compressor->getDstCapacity(testData.size());
+  std::vector<uint8_t> compressedData(maxLength);
+
+  const size_t compressedSize = compressor->compress(
+      reinterpret_cast<const uint8_t*>(testData.data()),
+      0,
+      testData.size(),
+      compressedData.data(),
+      0);
+
+  ASSERT_GT(compressedSize, 9);
+  EXPECT_EQ(compressedData[0], 'Z');
+  EXPECT_EQ(compressedData[1], 'S');
+  EXPECT_EQ(compressedData[2], 'T');
+  EXPECT_EQ(compressedData[3], 'D');
+  EXPECT_EQ(compressedData[4], 'B');
+  EXPECT_EQ(compressedData[5], 'l');
+  EXPECT_EQ(compressedData[6], 'o');
+  EXPECT_EQ(compressedData[7], 'c');
+  EXPECT_EQ(compressedData[8], 'k');
 }
 
 TEST(CompressorFactoryTest, CompressionCodecNoneDisablesCompression) {
@@ -57,6 +95,8 @@ TEST(CompressorFactoryTest, CompressionCodecNoneDisablesCompression) {
 
 TEST(CompressorFactoryTest, ZstdCompressionLevelFromConf) {
   // Test that configuration correctly reads ZSTD compression levels
+  const std::string testData = "Test data for compression";
+
   for (int level = -5; level <= 10; level++) {
     CelebornConf conf;
     conf.registerProperty(CelebornConf::kShuffleCompressionCodec, "ZSTD");
@@ -67,10 +107,25 @@ TEST(CompressorFactoryTest, ZstdCompressionLevelFromConf) {
     // Verify the compression level is set correctly
     EXPECT_EQ(conf.shuffleCompressionZstdCompressLevel(), level);
 
-    // Verify the compressor is created correctly
+    // Verify the compressor is created correctly and produces ZSTD output
     auto compressor = compress::Compressor::createCompressor(conf);
     ASSERT_NE(compressor, nullptr);
-    EXPECT_GT(compressor->getDstCapacity(100), 0);
+
+    const size_t maxLength = compressor->getDstCapacity(testData.size());
+    std::vector<uint8_t> compressedData(maxLength);
+
+    const size_t compressedSize = compressor->compress(
+        reinterpret_cast<const uint8_t*>(testData.data()),
+        0,
+        testData.size(),
+        compressedData.data(),
+        0);
+
+    ASSERT_GT(compressedSize, 9);
+    EXPECT_EQ(compressedData[0], 'Z');
+    EXPECT_EQ(compressedData[1], 'S');
+    EXPECT_EQ(compressedData[2], 'T');
+    EXPECT_EQ(compressedData[3], 'D');
   }
 }
 
@@ -100,9 +155,25 @@ TEST(CompressorFactoryTest, CompressWithOffsetLz4) {
       compressedData.data(),
       0);
 
-  // Verify compression succeeded with offset
-  EXPECT_GT(compressedSize, 0);
-  EXPECT_LE(compressedSize, maxLength);
+  ASSERT_GT(compressedSize, 0);
+  ASSERT_LE(compressedSize, maxLength);
+
+  auto decompressor =
+      compress::Decompressor::createDecompressor(CompressionCodec::LZ4);
+  ASSERT_NE(decompressor, nullptr);
+
+  const int originalLen = decompressor->getOriginalLen(compressedData.data());
+  EXPECT_EQ(originalLen, testData.size());
+
+  std::vector<uint8_t> decompressedData(originalLen);
+  const int decompressedSize = decompressor->decompress(
+      compressedData.data(), decompressedData.data(), 0);
+  EXPECT_EQ(decompressedSize, originalLen);
+
+  const std::string decompressedStr(
+      reinterpret_cast<const char*>(decompressedData.data()), decompressedSize);
+  EXPECT_EQ(decompressedStr, testData);
+  EXPECT_NE(decompressedStr, fullData);
 }
 
 TEST(CompressorFactoryTest, CompressWithOffsetZstd) {
@@ -133,7 +204,23 @@ TEST(CompressorFactoryTest, CompressWithOffsetZstd) {
       compressedData.data(),
       0);
 
-  // Verify compression succeeded with offset
-  EXPECT_GT(compressedSize, 0);
-  EXPECT_LE(compressedSize, maxLength);
+  ASSERT_GT(compressedSize, 0);
+  ASSERT_LE(compressedSize, maxLength);
+
+  auto decompressor =
+      compress::Decompressor::createDecompressor(CompressionCodec::ZSTD);
+  ASSERT_NE(decompressor, nullptr);
+
+  const int originalLen = decompressor->getOriginalLen(compressedData.data());
+  EXPECT_EQ(originalLen, testData.size());
+
+  std::vector<uint8_t> decompressedData(originalLen);
+  const int decompressedSize = decompressor->decompress(
+      compressedData.data(), decompressedData.data(), 0);
+  EXPECT_EQ(decompressedSize, originalLen);
+
+  const std::string decompressedStr(
+      reinterpret_cast<const char*>(decompressedData.data()), decompressedSize);
+  EXPECT_EQ(decompressedStr, testData);
+  EXPECT_NE(decompressedStr, fullData);
 }
