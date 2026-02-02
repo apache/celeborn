@@ -130,7 +130,7 @@ public class ChannelsLimiter extends ChannelDuplexHandler
   @Override
   public void onPause(String moduleName) {
     if (this.moduleName.equals(moduleName)) {
-      logger.info("{} channels pause read.", this.moduleName);
+      logger.debug("{} channels pause read.", this.moduleName);
       pauseAllChannels();
     }
   }

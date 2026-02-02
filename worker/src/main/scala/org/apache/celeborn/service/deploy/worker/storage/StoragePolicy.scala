@@ -160,6 +160,8 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                   storageManager)
               }
             } else {
+              logError(
+                s"CANNOT create non-memory file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName} because localOrDfsStorageAvailable is false")
               null
             }
         }

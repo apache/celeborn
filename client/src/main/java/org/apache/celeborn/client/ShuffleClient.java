@@ -122,6 +122,7 @@ public abstract class ShuffleClient {
             hadoopFs = CelebornHadoopUtils.getHadoopFS(conf);
           } catch (Exception e) {
             logger.error("Celeborn initialize DFS failed.", e);
+            hadoopFs = Map.of();
           }
         }
       }

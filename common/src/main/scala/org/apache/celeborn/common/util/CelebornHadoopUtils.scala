@@ -99,6 +99,7 @@ object CelebornHadoopUtils extends Logging {
       dirs.foreach {
         case (storageType, dir) => {
           val path = new Path(dir)
+          logInfo(s"Creating HadoopFS for type $storageType at path $path");
           hadoopFs.put(storageType, path.getFileSystem(hadoopConf))
         }
       })

@@ -182,6 +182,17 @@
       <artifactId>jakarta.servlet-api</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>com.dimafeng</groupId>
+      <artifactId>testcontainers-scala-minio_3</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.minio</groupId>
+      <artifactId>minio</artifactId>
+      <scope>test</scope>
+      <classifier>all</classifier>
+    </dependency>
   </dependencies>
   <profiles>
     <profile>
