@@ -156,7 +156,6 @@
     <maven.plugin.resources.version>3.3.1</maven.plugin.resources.version>
     <openapi.generator.version>7.8.0</openapi.generator.version>
     <testcontainers-scala-minio.version>0.44.1</testcontainers-scala-minio.version>
-    <minio.version>8.6.0</minio.version>
 
     <!-- Allow modules to enable / disable certain build plugins easily. -->
     <testJarPhase>prepare-package</testJarPhase>
@@ -531,13 +530,6 @@
         <groupId>com.dimafeng</groupId>
         <artifactId>testcontainers-scala-minio_3</artifactId>
         <version>${testcontainers-scala-minio.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.minio</groupId>
-        <artifactId>minio</artifactId>
-        <version>${minio.version}</version>
-        <classifier>all</classifier>
       </dependency>
 
       <dependency>

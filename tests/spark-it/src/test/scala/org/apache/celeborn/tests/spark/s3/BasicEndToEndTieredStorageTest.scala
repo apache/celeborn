@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.tests.spark
 
-import io.minio.{MakeBucketArgs, MinioClient}
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
@@ -52,13 +51,16 @@ class BasicEndToEndTieredStorageTest extends AnyFunSuite
     container = new MinIOContainer("minio/minio:RELEASE.2023-09-04T19-57-37Z");
     container.start()
 
-    val minioClient = MinioClient
-      .builder()
-      .endpoint(container.getS3URL)
-      .credentials(container.getUserName, container.getPassword)
-      .build();
-    minioClient
-      .makeBucket(MakeBucketArgs.builder().bucket("sample-bucket").build())
+    // create bucket using Minio command line tool
+    container.execInContainer(
+      "mc",
+      "alias",
+      "set",
+      "dockerminio",
+      "http://minio:9000",
+      container.getUserName,
+      container.getPassword)
+    container.execInContainer("mc", "mb", "dockerminio/sample-bucket")
 
     System.setProperty("aws.accessKeyId", container.getUserName)
     System.setProperty("aws.secretKey", container.getPassword)

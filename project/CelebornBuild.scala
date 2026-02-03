@@ -91,7 +91,6 @@ object Dependencies {
   val jmhVersion = "1.37"
 
   // S3 integration tests with Minio
-  val minioClientVersion = "8.6.0"
   val testContainerMinioVersion = "0.44.1"
 
   // For SSL support
@@ -217,7 +216,6 @@ object Dependencies {
   val jakartaAnnotationApi = "jakarta.annotation" % "jakarta.annotation-api" % jakartaAnnotationApiVersion
   val jakartaWsRsApi = "jakarta.ws.rs" % "jakarta.ws.rs-api" % jakartaWsRsApiVersion
 
-  val minioClient = "io.minio" % "minio" % minioClientVersion classifier "all"
   val testContainerMinio = "com.dimafeng" % "testcontainers-scala-minio_3" %  testContainerMinioVersion
 
   // Test dependencies
@@ -330,11 +328,7 @@ object CelebornCommonSettings {
     dependencyOverrides := Seq(
       Dependencies.commonsLogging,
       Dependencies.findbugsJsr305,
-      Dependencies.slf4jApi,
-      // ensure we use the version of Jackson supported by Scala
-      Dependencies.jacksonDatabind,
-      Dependencies.jacksonCore,
-      Dependencies.jacksonAnnotations),
+      Dependencies.slf4jApi),
 
     // Make sure any tests in any project that uses Spark is configured for running well locally
     Test / javaOptions ++= Seq(
@@ -437,7 +431,6 @@ object CelebornCommonSettings {
     Dependencies.junit % "test",
     // https://www.scala-sbt.org/1.x/docs/Testing.html
     Dependencies.junitInterface % "test",
-    Dependencies.minioClient  % "test",
     Dependencies.testContainerMinio  % "test")
 }
 
