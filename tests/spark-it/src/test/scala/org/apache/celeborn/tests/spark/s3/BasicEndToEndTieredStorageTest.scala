@@ -63,7 +63,23 @@ class BasicEndToEndTieredStorageTest extends AnyFunSuite
     System.setProperty("aws.accessKeyId", container.getUserName)
     System.setProperty("aws.secretKey", container.getPassword)
 
-    super.beforeAll()
+    val s3url = container.getS3URL
+    val augmentedConfiguration = Map(
+      CelebornConf.ACTIVE_STORAGE_TYPES.key -> "MEMORY,S3",
+      CelebornConf.WORKER_STORAGE_CREATE_FILE_POLICY.key -> "MEMORY,S3",
+      CelebornConf.WORKER_STORAGE_EVICT_POLICY.key -> "MEMORY|S3",
+      "celeborn.hadoop.fs.s3a.endpoint" -> s"$s3url",
+      "celeborn.hadoop.fs.s3a.aws.credentials.provider" -> "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
+      "celeborn.hadoop.fs.s3a.access.key" -> container.getUserName,
+      "celeborn.hadoop.fs.s3a.secret.key" -> container.getPassword,
+      "celeborn.hadoop.fs.s3a.path.style.access" -> "true",
+      CelebornConf.S3_DIR.key -> "s3://sample-bucket/test/celeborn",
+      CelebornConf.S3_ENDPOINT_REGION.key -> "dummy-region")
+
+    setupMiniClusterWithRandomPorts(
+      masterConf = augmentedConfiguration,
+      workerConf = augmentedConfiguration,
+      workerNum = 1)
   }
 
   override def beforeEach(): Unit = {

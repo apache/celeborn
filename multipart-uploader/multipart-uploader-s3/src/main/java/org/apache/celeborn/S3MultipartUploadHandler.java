@@ -26,7 +26,6 @@ import java.util.List;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.ClientConfiguration;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.event.ProgressListener;
@@ -108,9 +107,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
             .withMaxErrorRetry(s3MultiplePartUploadMaxRetries);
     var builder =
         AmazonS3ClientBuilder.standard()
-            .withCredentials(
-                DefaultAWSCredentialsProviderChain.getInstance()) // TODO: Use config from Hadoop or
-            // DefaultAWSCredentialsProviderChain
+            .withCredentials(providers)
             .withClientConfiguration(clientConfig);
     // for MinIO
     String endpoint = conf.get("fs.s3a.endpoint");
