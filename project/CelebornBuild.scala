@@ -330,7 +330,11 @@ object CelebornCommonSettings {
     dependencyOverrides := Seq(
       Dependencies.commonsLogging,
       Dependencies.findbugsJsr305,
-      Dependencies.slf4jApi),
+      Dependencies.slf4jApi,
+      // ensure we use the version of Jackson supported by Scala
+      Dependencies.jacksonDatabind,
+      Dependencies.jacksonCore,
+      Dependencies.jacksonAnnotations),
 
     // Make sure any tests in any project that uses Spark is configured for running well locally
     Test / javaOptions ++= Seq(
