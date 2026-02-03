@@ -389,7 +389,15 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       }
 
       CompletableFuture<Void> gate =
-          sortCompletions.computeIfAbsent(fileId, k -> new CompletableFuture<>());
+          sortCompletions.compute(
+              fileId,
+              (k, existing) -> {
+                if (existing == null || existing.isDone()) {
+                  return new CompletableFuture<>();
+                } else {
+                  return existing;
+                }
+              });
       return gate.thenApplyAsync(
           v -> {
             try {
@@ -902,6 +910,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         if (f != null && !f.isDone()) {
           f.complete(null);
         }
+        sortCompletions.remove(fileId);
       } catch (Exception e) {
         logger.error(
             "Sorting shuffle file for " + fileId + " " + originFilePath + " failed, detail: ", e);
@@ -909,6 +918,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         if (f != null && !f.isDone()) {
           f.completeExceptionally(e);
         }
+        sortCompletions.remove(fileId);
       } finally {
         closeFiles();
         Set<String> sorting = sortingShuffleFiles.get(shuffleKey);
