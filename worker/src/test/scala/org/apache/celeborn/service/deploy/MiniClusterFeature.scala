@@ -74,10 +74,6 @@ trait MiniClusterFeature extends Logging {
     }
   }
 
-  def overrideDefaultConfiguration(conf: Map[String, String]): Map[String, String] = {
-    return conf;
-  }
-
   def setupMiniClusterWithRandomPorts(
       masterConf: Map[String, String] = Map(),
       workerConf: Map[String, String] = Map(),
@@ -90,18 +86,18 @@ trait MiniClusterFeature extends Logging {
       try {
         val randomPort = selectRandomPort()
         val randomInternalPort = selectRandomPort()
-        val finalMasterConf = overrideDefaultConfiguration(Map(
+        val finalMasterConf = Map(
           s"${CelebornConf.MASTER_HOST.key}" -> "localhost",
           s"${CelebornConf.PORT_MAX_RETRY.key}" -> "0",
           s"${CelebornConf.MASTER_PORT.key}" -> s"$randomPort",
           s"${CelebornConf.MASTER_ENDPOINTS.key}" -> s"localhost:$randomPort",
           s"${CelebornConf.MASTER_INTERNAL_PORT.key}" -> s"$randomInternalPort",
           s"${CelebornConf.MASTER_INTERNAL_ENDPOINTS.key}" -> s"localhost:$randomInternalPort") ++
-          masterConf)
-        val finalWorkerConf = overrideDefaultConfiguration(Map(
+          masterConf
+        val finalWorkerConf = Map(
           s"${CelebornConf.MASTER_ENDPOINTS.key}" -> s"localhost:$randomPort",
           s"${CelebornConf.MASTER_INTERNAL_ENDPOINTS.key}" -> s"localhost:$randomInternalPort") ++
-          workerConf)
+          workerConf
         logInfo(
           s"generated configuration. Master conf = $finalMasterConf, worker conf = $finalWorkerConf")
         workerConfForAdding = finalWorkerConf
