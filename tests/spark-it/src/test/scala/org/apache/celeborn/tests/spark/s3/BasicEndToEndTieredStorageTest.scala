@@ -22,22 +22,23 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
+import org.testcontainers.containers.MinIOContainer
+
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
-import org.testcontainers.containers.MinIOContainer
 
 class BasicEndToEndTieredStorageTest extends AnyFunSuite
   with SparkTestBase
   with BeforeAndAfterEach {
 
-  var container : MinIOContainer = null;
+  var container: MinIOContainer = null;
 
   override def beforeAll(): Unit = {
     container = new MinIOContainer("minio/minio:RELEASE.2023-09-04T19-57-37Z");
     container.start()
 
-    val minioClient =  MinioClient
+    val minioClient = MinioClient
       .builder()
       .endpoint(container.getS3URL)
       .credentials(container.getUserName, container.getPassword)
@@ -69,10 +70,10 @@ class BasicEndToEndTieredStorageTest extends AnyFunSuite
       CelebornConf.WORKER_STORAGE_CREATE_FILE_POLICY.key -> "MEMORY,S3",
       CelebornConf.WORKER_STORAGE_EVICT_POLICY.key -> "MEMORY|S3",
       "celeborn.hadoop.fs.s3a.endpoint" -> s"$s3url",
-      "celeborn.hadoop.fs.s3a.aws.credentials.provider"-> "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
-      "celeborn.hadoop.fs.s3a.access.key"-> container.getUserName,
+      "celeborn.hadoop.fs.s3a.aws.credentials.provider" -> "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
+      "celeborn.hadoop.fs.s3a.access.key" -> container.getUserName,
       "celeborn.hadoop.fs.s3a.secret.key" -> container.getPassword,
-      "celeborn.hadoop.fs.s3a.path.style.access"-> "true",
+      "celeborn.hadoop.fs.s3a.path.style.access" -> "true",
       CelebornConf.S3_DIR.key -> "s3://sample-bucket/test/celeborn",
       CelebornConf.S3_ENDPOINT_REGION.key -> "dummy-region") ++
       conf
@@ -86,7 +87,9 @@ class BasicEndToEndTieredStorageTest extends AnyFunSuite
       .set("spark." + CelebornConf.S3_DIR.key, "s3://sample-bucket/test/celeborn")
       .set("spark." + CelebornConf.S3_ENDPOINT_REGION.key, "dummy-region")
       .set("spark.celeborn.hadoop.fs.s3a.endpoint", s"$s3url")
-      .set("spark.celeborn.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
+      .set(
+        "spark.celeborn.hadoop.fs.s3a.aws.credentials.provider",
+        "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")
       .set("spark.celeborn.hadoop.fs.s3a.access.key", container.getUserName)
       .set("spark.celeborn.hadoop.fs.s3a.secret.key", container.getPassword)
       .set("spark.celeborn.hadoop.fs.s3a.path.style.access", "true")

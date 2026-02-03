@@ -26,8 +26,8 @@ import java.util.List;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.ClientConfiguration;
-import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.event.ProgressListener;
 import com.amazonaws.retry.PredefinedBackoffStrategies;
@@ -35,6 +35,7 @@ import com.amazonaws.retry.PredefinedRetryPolicies;
 import com.amazonaws.retry.RetryPolicy;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.*;
 import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
@@ -45,8 +46,6 @@ import com.amazonaws.services.s3.model.PartETag;
 import com.amazonaws.services.s3.model.PartListing;
 import com.amazonaws.services.s3.model.PartSummary;
 import com.amazonaws.services.s3.model.UploadPartRequest;
-import com.amazonaws.services.s3.model.*;
-import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.s3a.AWSCredentialProviderList;
@@ -56,6 +55,8 @@ import org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider;
 import org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler;
 
 public class S3MultipartUploadHandler implements MultipartUploadHandler {
 
@@ -105,18 +106,20 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
         new ClientConfiguration()
             .withRetryPolicy(retryPolicy)
             .withMaxErrorRetry(s3MultiplePartUploadMaxRetries);
-    var builder = AmazonS3ClientBuilder.standard()
-            .withCredentials(DefaultAWSCredentialsProviderChain.getInstance()) // TODO: Use config from Hadoop or DefaultAWSCredentialsProviderChain
+    var builder =
+        AmazonS3ClientBuilder.standard()
+            .withCredentials(
+                DefaultAWSCredentialsProviderChain.getInstance()) // TODO: Use config from Hadoop or
+            // DefaultAWSCredentialsProviderChain
             .withClientConfiguration(clientConfig);
     // for MinIO
     String endpoint = conf.get("fs.s3a.endpoint");
-    if (endpoint != null && !endpoint.isEmpty())
-    {
-      builder = builder.withEndpointConfiguration(
-              new AwsClientBuilder.EndpointConfiguration(
-                      endpoint,
-                      conf.get(Constants.AWS_REGION)
-              ))
+    if (endpoint != null && !endpoint.isEmpty()) {
+      builder =
+          builder
+              .withEndpointConfiguration(
+                  new AwsClientBuilder.EndpointConfiguration(
+                      endpoint, conf.get(Constants.AWS_REGION)))
               .withPathStyleAccessEnabled(conf.getBoolean("fs.s3a.path.style.access", false));
     } else {
       builder = builder.withRegion(conf.get(Constants.AWS_REGION));

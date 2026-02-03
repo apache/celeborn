@@ -190,8 +190,8 @@
     <dependency>
       <groupId>io.minio</groupId>
       <artifactId>minio</artifactId>
-      <scope>test</scope>
       <classifier>all</classifier>
+      <scope>test</scope>
     </dependency>
   </dependencies>
   <profiles>
