@@ -91,7 +91,7 @@ object Dependencies {
   val jmhVersion = "1.37"
 
   // S3 integration tests with Minio
-  val testContainerMinioVersion = "0.44.1"
+  val testContainerMinioVersion = "1.21.4"
 
   // For SSL support
   val bouncycastleVersion = "1.77"
@@ -216,7 +216,7 @@ object Dependencies {
   val jakartaAnnotationApi = "jakarta.annotation" % "jakarta.annotation-api" % jakartaAnnotationApiVersion
   val jakartaWsRsApi = "jakarta.ws.rs" % "jakarta.ws.rs-api" % jakartaWsRsApiVersion
 
-  val testContainerMinio = "com.dimafeng" % "testcontainers-scala-minio_3" %  testContainerMinioVersion
+  val testContainerMinio = "org.testcontainers" % "minio" %  testContainerMinioVersion
 
   // Test dependencies
   // https://www.scala-sbt.org/1.x/docs/Testing.html

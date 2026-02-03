@@ -183,8 +183,8 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.dimafeng</groupId>
-      <artifactId>testcontainers-scala-minio_3</artifactId>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>minio</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
