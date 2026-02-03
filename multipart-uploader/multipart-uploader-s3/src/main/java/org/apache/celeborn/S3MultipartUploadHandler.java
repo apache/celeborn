@@ -105,7 +105,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
         new ClientConfiguration()
             .withRetryPolicy(retryPolicy)
             .withMaxErrorRetry(s3MultiplePartUploadMaxRetries);
-    var builder =
+    AmazonS3ClientBuilder builder =
         AmazonS3ClientBuilder.standard()
             .withCredentials(providers)
             .withClientConfiguration(clientConfig);
