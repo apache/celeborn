@@ -202,6 +202,32 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return sortedFilesSize.get();
   }
 
+  private MemoryFileInfo getSortedMemoryFileInfo(MemoryFileInfo memoryFileInfo, int startMapIndex, int endMapIndex) {
+    Map<Integer, List<ShuffleBlockInfo>> indexesMap;
+    sortMemoryShuffleFile(memoryFileInfo);
+    indexesMap = memoryFileInfo.getSortedIndexes();
+
+    ReduceFileMeta reduceFileMeta =
+            new ReduceFileMeta(
+                    ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
+                            startMapIndex, endMapIndex, shuffleChunkSize, indexesMap, true),
+                    shuffleChunkSize);
+    CompositeByteBuf targetBuffer =
+            MemoryManager.instance().getStorageByteBufAllocator().compositeBuffer(Integer.MAX_VALUE);
+    ShuffleBlockInfoUtils.sliceSortedBufferByMapRange(
+            startMapIndex,
+            endMapIndex,
+            indexesMap,
+            memoryFileInfo.getSortedBuffer(),
+            targetBuffer,
+            shuffleChunkSize);
+    return new MemoryFileInfo(
+            memoryFileInfo.getUserIdentifier(),
+            memoryFileInfo.isPartitionSplitEnabled(),
+            reduceFileMeta,
+            targetBuffer);
+  }
+
   // return the sorted FileInfo.
   // 1. If the sorted file is not generated, it adds the FileSorter task to the sorting queue and
   //    synchronously waits for the sorted FileInfo.
@@ -213,30 +239,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex)
       throws IOException {
     if (fileInfo instanceof MemoryFileInfo) {
-      MemoryFileInfo memoryFileInfo = ((MemoryFileInfo) fileInfo);
-      Map<Integer, List<ShuffleBlockInfo>> indexesMap;
-      sortMemoryShuffleFile(memoryFileInfo);
-      indexesMap = memoryFileInfo.getSortedIndexes();
-
-      ReduceFileMeta reduceFileMeta =
-          new ReduceFileMeta(
-              ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
-                  startMapIndex, endMapIndex, shuffleChunkSize, indexesMap, true),
-              shuffleChunkSize);
-      CompositeByteBuf targetBuffer =
-          MemoryManager.instance().getStorageByteBufAllocator().compositeBuffer(Integer.MAX_VALUE);
-      ShuffleBlockInfoUtils.sliceSortedBufferByMapRange(
-          startMapIndex,
-          endMapIndex,
-          indexesMap,
-          memoryFileInfo.getSortedBuffer(),
-          targetBuffer,
-          shuffleChunkSize);
-      return new MemoryFileInfo(
-          memoryFileInfo.getUserIdentifier(),
-          memoryFileInfo.isPartitionSplitEnabled(),
-          reduceFileMeta,
-          targetBuffer);
+      return getSortedMemoryFileInfo((MemoryFileInfo) fileInfo, startMapIndex, endMapIndex);
     } else {
       DiskFileInfo diskFileInfo = ((DiskFileInfo) fileInfo);
       String fileId = shuffleKey + "-" + fileName;
@@ -276,6 +279,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         while (!sorted.contains(fileId)) {
           if (sorting.contains(fileId)) {
             try {
+              // This blocks the netty thread
               Thread.sleep(50);
               if (System.currentTimeMillis() - sortStartTime > sortTimeout) {
                 String msg =
@@ -324,32 +328,13 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       String fileName,
       FileInfo fileInfo,
       int startMapIndex,
-      int endMapIndex) {
+      int endMapIndex,
+      Executor executor) {
     if (fileInfo instanceof MemoryFileInfo) {
-      MemoryFileInfo memoryFileInfo = ((MemoryFileInfo) fileInfo);
-      sortMemoryShuffleFile(memoryFileInfo);
-      Map<Integer, List<ShuffleBlockInfo>> indexesMap = memoryFileInfo.getSortedIndexes();
-      ReduceFileMeta reduceFileMeta =
-          new ReduceFileMeta(
-              ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
-                  startMapIndex, endMapIndex, shuffleChunkSize, indexesMap, true),
-              shuffleChunkSize);
-      CompositeByteBuf targetBuffer =
-          MemoryManager.instance().getStorageByteBufAllocator().compositeBuffer(Integer.MAX_VALUE);
-      ShuffleBlockInfoUtils.sliceSortedBufferByMapRange(
-          startMapIndex,
-          endMapIndex,
-          indexesMap,
-          memoryFileInfo.getSortedBuffer(),
-          targetBuffer,
-          shuffleChunkSize);
-      FileInfo result =
-          new MemoryFileInfo(
-              memoryFileInfo.getUserIdentifier(),
-              memoryFileInfo.isPartitionSplitEnabled(),
-              reduceFileMeta,
-              targetBuffer);
-      return CompletableFuture.completedFuture(result);
+      return CompletableFuture.completedFuture(getSortedMemoryFileInfo(
+              (MemoryFileInfo) fileInfo,
+              startMapIndex,
+              endMapIndex));
     } else {
       DiskFileInfo diskFileInfo = ((DiskFileInfo) fileInfo);
       String fileId = shuffleKey + "-" + fileName;
@@ -405,7 +390,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
       CompletableFuture<Void> gate =
           sortCompletions.computeIfAbsent(fileId, k -> new CompletableFuture<>());
-      return gate.thenApply(
+      return gate.thenApplyAsync(
           v -> {
             try {
               // This part would now run on the sorter thread and not the netty thread like before, can be revisited
@@ -420,7 +405,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             } catch (IOException e) {
               throw new CompletionException(e);
             }
-          });
+          }, executor);
     }
   }
 

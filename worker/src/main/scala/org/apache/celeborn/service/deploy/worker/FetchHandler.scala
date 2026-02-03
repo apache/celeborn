@@ -144,6 +144,7 @@ class FetchHandler(
         val startIndices = openStreamList.getStartIndexList
         val endIndices = openStreamList.getEndIndexList
         val readLocalFlags = openStreamList.getReadLocalShuffleList
+        val pbOpenStreamListResponse = PbOpenStreamListResponse.newBuilder()
         checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
         val openStreamRequestId = Utils.makeOpenStreamRequestId(
           shuffleKey,
@@ -153,7 +154,6 @@ class FetchHandler(
         val asyncOpen = conf.getBoolean("celeborn.worker.async.openStream.enabled", false)
         if (asyncOpen) {
           val total = files.size()
-          val results = new Array[PbStreamHandlerOpt](total)
           val completed = new AtomicInteger(0)
           0 until total foreach { idx =>
             handleReduceOpenStreamInternalAsync(
@@ -167,14 +167,12 @@ class FetchHandler(
                 if (res.getStatus != StatusCode.SUCCESS.getValue) {
                   workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
                 }
-                results(idx) = res
+                pbOpenStreamListResponse.addStreamHandlerOpt(res)
 
                 // TODO ideally because this is running on the same eventloop thread,
                 //  we can getaway with a non atomic counter too
                 if (completed.incrementAndGet() == total) {
                   // all done, reply once
-                  val pbOpenStreamListResponse = PbOpenStreamListResponse.newBuilder()
-                  0 until total foreach { i => pbOpenStreamListResponse.addStreamHandlerOpt(results(i)) }
                   client.getChannel.writeAndFlush(new RpcResponse(
                     rpcRequest.requestId,
                     new NioManagedBuffer(new TransportMessage(
@@ -185,10 +183,9 @@ class FetchHandler(
               })
           }
         } else {
-          val pbOpenStreamListResponse = PbOpenStreamListResponse.newBuilder()
           try {
             0 until files.size() foreach { idx =>
-              val pbStreamHandlerOpt = handleReduceOpenStreamInternalSync(
+              handleReduceOpenStreamInternalSync(
                 client,
                 shuffleKey,
                 files.get(idx),
@@ -313,7 +310,7 @@ class FetchHandler(
           endIndex)
       }
 
-      buildAndCompleteStreamHandler(
+      callback(buildAndCompleteStreamHandler(
         client,
         shuffleKey,
         fileName,
@@ -321,16 +318,15 @@ class FetchHandler(
         endIndex,
         readLocalShuffle,
         streamId,
-        fileInfo,
-        callback
-      )
+        fileInfo
+      ))
     } catch {
       case e: IOException =>
         val msg =
           s"Read file: $fileName with shuffleKey: $shuffleKey error from ${NettyUtils.getRemoteAddress(
             client.getChannel)}, Exception: ${e.getMessage}"
-        PbStreamHandlerOpt.newBuilder().setStatus(StatusCode.OPEN_STREAM_FAILED.getValue)
-          .setErrorMsg(msg).build()
+        callback(PbStreamHandlerOpt.newBuilder().setStatus(StatusCode.OPEN_STREAM_FAILED.getValue)
+          .setErrorMsg(msg).build())
     }
   }
 
@@ -386,7 +382,6 @@ class FetchHandler(
             return
           } else {
             // Original synchronous path
-            val pbStreamHandlerOpt =
               handleReduceOpenStreamInternalSync(
                 client,
                 shuffleKey,
@@ -486,7 +481,7 @@ class FetchHandler(
 
         // async wait for sorted file
         partitionsSorter
-          .getSortedFileInfoAsync(shuffleKey, fileName, fileInfo, startIndex, endIndex)
+          .getSortedFileInfoAsync(shuffleKey, fileName, fileInfo, startIndex, endIndex, client.getChannel.eventLoop())
           .whenCompleteAsync(
             new BiConsumer[FileInfo, Throwable] {
               override def accept(sortedOrOriginal: FileInfo, error: Throwable): Unit = {
@@ -508,8 +503,8 @@ class FetchHandler(
                     .setErrorMsg(msg).build())
                   return
                 }
-                buildAndCompleteStreamHandler(client, shuffleKey, fileName, startIndex, endIndex,
-                  readLocalShuffle, streamId, sortedOrOriginal, onComplete)
+                onComplete(buildAndCompleteStreamHandler(client, shuffleKey, fileName, startIndex, endIndex,
+                  readLocalShuffle, streamId, sortedOrOriginal))
               }
             },
 
@@ -519,7 +514,7 @@ class FetchHandler(
           )
       } else {
         // no sorting needed, this will run on eventloop thread by default
-        buildAndCompleteStreamHandler(
+        onComplete(buildAndCompleteStreamHandler(
           client,
           shuffleKey,
           fileName,
@@ -527,8 +522,7 @@ class FetchHandler(
           endIndex,
           readLocalShuffle,
           streamId,
-          fileInfo,
-          onComplete)
+          fileInfo))
       }
     } catch {
       case e: IOException =>
@@ -548,8 +542,7 @@ class FetchHandler(
       endIndex: Int,
       readLocalShuffle: Boolean,
       streamId: Long,
-      fileInfo: FileInfo,
-      onComplete: PbStreamHandlerOpt => Unit): Unit = {
+      fileInfo: FileInfo): PbStreamHandlerOpt = {
     val meta = fileInfo.getReduceFileMeta
     val streamHandler =
       if (readLocalShuffle && !fileInfo.isInstanceOf[MemoryFileInfo]) {
