@@ -33,8 +33,22 @@ class BasicEndToEndTieredStorageTest extends AnyFunSuite
   with BeforeAndAfterEach {
 
   var container: MinIOContainer = null;
+  val skipAWSTest = !isClassPresent("org.apache.hadoop.fs.s3a.S3AFileSystem")
+
+  def isClassPresent(className: String): Boolean = {
+    try {
+      Class.forName(className)
+      true
+    } catch {
+      case _: ClassNotFoundException => false
+    }
+  }
 
   override def beforeAll(): Unit = {
+
+    if (skipAWSTest)
+      return
+
     container = new MinIOContainer("minio/minio:RELEASE.2023-09-04T19-57-37Z");
     container.start()
 
@@ -57,6 +71,8 @@ class BasicEndToEndTieredStorageTest extends AnyFunSuite
   }
 
   override def afterAll(): Unit = {
+    System.clearProperty("aws.accessKeyId")
+    System.clearProperty("aws.secretKey")
     if (container != null) {
       container.close()
       super.afterAll()
@@ -98,6 +114,10 @@ class BasicEndToEndTieredStorageTest extends AnyFunSuite
   }
 
   test("celeborn spark integration test - s3") {
+    assume(
+      !skipAWSTest,
+      "Skipping test because AWS Hadoop client is not in the classpath (enable with -Paws")
+
     val s3url = container.getS3URL
     log.info(s"s3url $s3url");
     val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
