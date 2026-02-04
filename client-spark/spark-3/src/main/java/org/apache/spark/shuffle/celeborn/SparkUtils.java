@@ -104,6 +104,11 @@ public class SparkUtils {
           Utils.loadDefaultCelebornProperties(tmpCelebornConf,
               new File(resourceUrl.getFile()).getAbsolutePath());
         } else {
+          // In Yarn Federation, we can't directly use local
+          // celeborn-defaults.conf file, because an applications may run
+          // across different subClusters, the celeborn-defaults.conf file is
+          // different across subClusters, the file carried from the machine
+          // where this application should be used.
           String filePath =
               System.getenv("LOCAL_DIRS") + File.separator + System.getenv(
                   "CONTAINER_ID") + File.separator +
