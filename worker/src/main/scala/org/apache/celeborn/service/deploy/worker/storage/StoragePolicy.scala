@@ -120,10 +120,10 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
             } else {
               null
             }
-          case StorageInfo.Type.HDD | StorageInfo.Type.SSD | StorageInfo.Type.HDFS | StorageInfo.Type.OSS | StorageInfo.Type.S3 =>
-            if (storageManager.localOrDfsStorageAvailable) {
-              logDebug(s"create non-memory file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
-              val (flusher, diskFileInfo, workingDir) = storageManager.createDiskFile(
+          case StorageInfo.Type.HDD | StorageInfo.Type.SSD =>
+            if (storageManager.localStorageAvailable) {
+              logDebug(s"create local disk file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
+              val (flusher, diskFileInfo, workingDir) = storageManager.createLocalDiskFile(
                 location,
                 partitionDataWriterContext.getAppId,
                 partitionDataWriterContext.getShuffleId,
@@ -131,10 +131,9 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                 partitionDataWriterContext.getUserIdentifier,
                 partitionDataWriterContext.getPartitionType,
                 partitionDataWriterContext.isPartitionSplitEnabled)
-              partitionDataWriterContext.setWorkingDir(workingDir)
-              val metaHandler = getPartitionMetaHandler(diskFileInfo)
-              if (flusher.isInstanceOf[LocalFlusher]
-                && location.getStorageInfo.localDiskAvailable()) {
+              if (diskFileInfo != null) {
+                partitionDataWriterContext.setWorkingDir(workingDir)
+                val metaHandler = getPartitionMetaHandler(diskFileInfo)
                 new LocalTierWriter(
                   conf,
                   metaHandler,
@@ -147,6 +146,25 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                   partitionDataWriterContext,
                   storageManager)
               } else {
+                null
+              }
+            } else {
+              null
+            }
+          case StorageInfo.Type.HDFS | StorageInfo.Type.OSS | StorageInfo.Type.S3 =>
+            if (storageManager.dfsStorageAvailable) {
+              logDebug(s"create dfs disk file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
+              val (flusher, diskFileInfo, workingDir) = storageManager.createDfsDiskFile(
+                location,
+                partitionDataWriterContext.getAppId,
+                partitionDataWriterContext.getShuffleId,
+                location.getFileName,
+                partitionDataWriterContext.getUserIdentifier,
+                partitionDataWriterContext.getPartitionType,
+                partitionDataWriterContext.isPartitionSplitEnabled)
+              if (diskFileInfo != null) {
+                partitionDataWriterContext.setWorkingDir(workingDir)
+                val metaHandler = getPartitionMetaHandler(diskFileInfo)
                 new DfsTierWriter(
                   conf,
                   metaHandler,
@@ -158,6 +176,8 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                   diskFileInfo.getStorageType,
                   partitionDataWriterContext,
                   storageManager)
+              } else {
+                null
               }
             } else {
               null
