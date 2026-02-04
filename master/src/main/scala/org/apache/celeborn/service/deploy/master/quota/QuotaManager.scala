@@ -50,6 +50,8 @@ class QuotaManager(
   @volatile
   var clusterQuotaStatus: QuotaStatus = new QuotaStatus()
   val appQuotaStatus: JMap[String, QuotaStatus] = JavaUtils.newConcurrentHashMap()
+  val userResourceConsumptionCache: JMap[UserIdentifier, ResourceConsumption] =
+    JavaUtils.newConcurrentHashMap()
   private val quotaChecker =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("master-quota-checker")
   quotaChecker.scheduleWithFixedDelay(
@@ -219,7 +221,8 @@ class QuotaManager(
 
                 // Step 2: Update user resource consumption metrics.
                 // For extract metrics
-                registerUserResourceConsumptionMetrics(userIdentifier, userResourceConsumption)
+                userResourceConsumptionCache.put(userIdentifier, userResourceConsumption)
+                registerUserResourceConsumptionMetrics(userIdentifier)
 
                 // Step 3: Expire user level exceeded app except already expired app
                 clusterResourceConsumption = clusterResourceConsumption.add(userResourceConsumption)
@@ -368,26 +371,37 @@ class QuotaManager(
     }
   }
 
-  private def registerUserResourceConsumptionMetrics(
-      userIdentifier: UserIdentifier,
-      resourceConsumption: ResourceConsumption): Unit = {
+  private def registerUserResourceConsumptionMetrics(userIdentifier: UserIdentifier): Unit = {
     if (resourceConsumptionMetricsEnabled) {
       resourceConsumptionSource.addGauge(DISK_FILE_COUNT, userIdentifier.toMap) { () =>
-        resourceConsumption.diskFileCount
+        Option(userResourceConsumptionCache.get(userIdentifier))
+          .map(_.diskFileCount)
+          .getOrElse(0L)
       }
       resourceConsumptionSource.addGauge(DISK_BYTES_WRITTEN, userIdentifier.toMap) { () =>
-        resourceConsumption.diskBytesWritten
+        Option(userResourceConsumptionCache.get(userIdentifier))
+          .map(_.diskBytesWritten)
+          .getOrElse(0L)
       }
       resourceConsumptionSource.addGauge(HDFS_FILE_COUNT, userIdentifier.toMap) { () =>
-        resourceConsumption.hdfsFileCount
+        Option(userResourceConsumptionCache.get(userIdentifier))
+          .map(_.hdfsFileCount)
+          .getOrElse(0L)
       }
       resourceConsumptionSource.addGauge(HDFS_BYTES_WRITTEN, userIdentifier.toMap) { () =>
-        resourceConsumption.hdfsBytesWritten
+        Option(userResourceConsumptionCache.get(userIdentifier))
+          .map(_.hdfsBytesWritten)
+          .getOrElse(0L)
       }
     }
   }
 
   private def clearQuotaStatus(activeUsers: mutable.Set[UserIdentifier]): Unit = {
+    userResourceConsumptionCache.keySet().removeIf(new Predicate[UserIdentifier] {
+      override def test(userIdentifier: UserIdentifier): Boolean =
+        !activeUsers.contains(userIdentifier)
+    })
+
     userQuotaStatus.keySet().removeIf(new Predicate[UserIdentifier] {
       override def test(userIdentifier: UserIdentifier): Boolean =
         !activeUsers.contains(userIdentifier)
