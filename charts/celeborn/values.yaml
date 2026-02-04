@@ -405,6 +405,8 @@ serviceAccount:
   create: false
   # -- (Optional) Name of the Celeborn service account.
   name: ""
+  # -- (Optional) Additional annotations, example: eks.amazonaws.com/role-arn:  arn:aws:iam::0000000000:role/XXXXXXX
+  annotations: {}
 
 rbac:
   create: true
