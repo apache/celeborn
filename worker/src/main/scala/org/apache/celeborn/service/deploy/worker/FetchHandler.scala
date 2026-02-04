@@ -553,11 +553,21 @@ class FetchHandler(
       s" to fetch block $streamChunkSlice")
 
     val streamState = chunkStreamManager.getStreamState(streamChunkSlice.streamId)
+    val storageMetrics = streamState.buffers match {
+      case _: FileChunkBuffers => (
+          WorkerSource.FETCH_LOCAL_CHUNK_TIME,
+          WorkerSource.FETCH_LOCAL_CHUNK_SUCCESS_COUNT,
+          WorkerSource.FETCH_LOCAL_CHUNK_FAIL_COUNT)
+      case _: MemoryChunkBuffers => (
+          WorkerSource.FETCH_MEMORY_CHUNK_TIME,
+          WorkerSource.FETCH_MEMORY_CHUNK_SUCCESS_COUNT,
+          WorkerSource.FETCH_MEMORY_CHUNK_FAIL_COUNT)
+    }
     if (streamState == null) {
       val message = s"Stream ${streamChunkSlice.streamId} is not registered with worker. " +
         "This can happen if the worker was restart recently."
       logError(message)
-      workerSource.incCounter(WorkerSource.FETCH_CHUNK_FAIL_COUNT)
+      workerSource.incCounter(storageMetrics._3)
       client.getChannel.writeAndFlush(new ChunkFetchFailure(streamChunkSlice, message))
       return
     }
@@ -569,7 +579,7 @@ class FetchHandler(
           s"$chunksBeingTransferred exceeds ${MAX_CHUNKS_BEING_TRANSFERRED.key} " +
           s"${Utils.bytesToString(threshold)}."
         logError(message)
-        workerSource.incCounter(WorkerSource.FETCH_CHUNK_FAIL_COUNT)
+        workerSource.incCounter(storageMetrics._3)
         client.getChannel.writeAndFlush(new ChunkFetchFailure(streamChunkSlice, message))
         return
       }
@@ -578,7 +588,7 @@ class FetchHandler(
     workerSource.recordAppActiveConnection(client, streamState.shuffleKey)
 
     val reqStr = req.toString
-    workerSource.startTimer(WorkerSource.FETCH_CHUNK_TIME, reqStr)
+    workerSource.startTimer(storageMetrics._1, reqStr)
     val fetchTimeMetric = chunkStreamManager.getFetchTimeMetric(streamChunkSlice.streamId)
     val fetchBeginTime = System.nanoTime()
     try {
@@ -596,18 +606,18 @@ class FetchHandler(
                 logDebug(
                   s"Sending ChunkFetchSuccess to $remoteAddr succeeded, chunk $streamChunkSlice")
               }
-              workerSource.incCounter(WorkerSource.FETCH_CHUNK_SUCCESS_COUNT)
+              workerSource.incCounter(storageMetrics._2)
             } else {
               logWarning(
                 s"Sending ChunkFetchSuccess to $remoteAddr failed, chunk $streamChunkSlice",
                 future.cause())
-              workerSource.incCounter(WorkerSource.FETCH_CHUNK_FAIL_COUNT)
+              workerSource.incCounter(storageMetrics._3)
             }
             chunkStreamManager.chunkSent(streamChunkSlice.streamId)
             if (fetchTimeMetric != null) {
               fetchTimeMetric.update(System.nanoTime() - fetchBeginTime)
             }
-            workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, reqStr)
+            workerSource.stopTimer(storageMetrics._1, reqStr)
           }
         })
     } catch {
@@ -616,11 +626,11 @@ class FetchHandler(
           s"Error opening block $streamChunkSlice for request from " +
             NettyUtils.getRemoteAddress(client.getChannel),
           e)
-        workerSource.incCounter(WorkerSource.FETCH_CHUNK_FAIL_COUNT)
+        workerSource.incCounter(storageMetrics._3)
         client.getChannel.writeAndFlush(new ChunkFetchFailure(
           streamChunkSlice,
           Throwables.getStackTraceAsString(e)))
-        workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, reqStr)
+        workerSource.stopTimer(storageMetrics._1, reqStr)
     }
   }
 
