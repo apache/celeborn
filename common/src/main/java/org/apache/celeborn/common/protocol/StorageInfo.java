@@ -22,21 +22,33 @@ import java.util.*;
 
 public class StorageInfo implements Serializable {
   public enum Type {
-    MEMORY(0),
-    HDD(1),
-    SSD(2),
-    HDFS(3),
-    OSS(4),
-    S3(5);
+    MEMORY(0, false, MEMORY_MASK),
+    HDD(1, false, LOCAL_DISK_MASK),
+    SSD(2, false, LOCAL_DISK_MASK),
+    HDFS(3, true, HDFS_MASK),
+    OSS(4, true, OSS_MASK),
+    S3(5, true, S3_MASK);
 
     private final int value;
+    private final boolean isDFS;
+    private final int mask;
 
-    Type(int value) {
+    Type(int value, boolean isDFS, int mask) {
       this.value = value;
+      this.isDFS = isDFS;
+      this.mask = mask;
     }
 
     public int getValue() {
       return value;
+    }
+
+    public boolean isDFS() {
+      return isDFS;
+    }
+
+    public int getMask() {
+      return mask;
     }
   }
 
@@ -226,6 +238,11 @@ public class StorageInfo implements Serializable {
 
   public boolean S3Available() {
     return StorageInfo.S3Available(availableStorageTypes);
+  }
+
+  public static boolean isAvailable(Type type, int availableStorageTypes) {
+    return availableStorageTypes == ALL_TYPES_AVAILABLE_MASK
+        || (availableStorageTypes & type.getMask()) > 0;
   }
 
   @Override

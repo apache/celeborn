@@ -54,7 +54,7 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
     diskInfo.setUsableSpace(-1L)
 
     var diskSetSpace = (0L, 0L)
-    doReturn(List(diskInfo)).when(spyStorageManager).disksSnapshot()
+    doReturn(List(diskInfo)).when(spyStorageManager).localDisksSnapshot()
     doAnswer(diskSetSpace).when(spyStorageManager).getFileSystemReportedSpace(any)
 
     // disk usable 80g, total 80g, worker config 8EB
