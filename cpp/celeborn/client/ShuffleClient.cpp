@@ -225,6 +225,12 @@ int ShuffleClientImpl::pushData(
   // Check limit.
   limitMaxInFlight(mapKey, *pushState, hostAndPushPort);
   // Add inFlight requests.
+  CELEBORN_CHECK(
+      lengthToWrite <= std::numeric_limits<int>::max() - kBatchHeaderSize,
+      fmt::format(
+          "Batch bytes size {} + header {} would overflow int",
+          lengthToWrite,
+          kBatchHeaderSize));
   const int batchBytesSize = lengthToWrite + kBatchHeaderSize;
   pushState->addBatch(nextBatchId, batchBytesSize, hostAndPushPort);
   // Build pushData request.

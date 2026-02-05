@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <functional>
 #include "celeborn/client/compress/Compressor.h"
 #include "celeborn/client/reader/CelebornInputStream.h"
 #include "celeborn/client/writer/PushDataCallback.h"
