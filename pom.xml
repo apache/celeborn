@@ -155,6 +155,7 @@
     <maven.plugin.silencer.version>1.7.19</maven.plugin.silencer.version>
     <maven.plugin.resources.version>3.3.1</maven.plugin.resources.version>
     <openapi.generator.version>7.8.0</openapi.generator.version>
+    <testcontainers-minio.version>1.21.4</testcontainers-minio.version>
 
     <!-- Allow modules to enable / disable certain build plugins easily. -->
     <testJarPhase>prepare-package</testJarPhase>
@@ -523,6 +524,12 @@
         <groupId>jakarta.ws.rs</groupId>
         <artifactId>jakarta.ws.rs-api</artifactId>
         <version>${jakarta.ws.rs-api.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>minio</artifactId>
+        <version>${testcontainers-minio.version}</version>
       </dependency>
 
       <dependency>

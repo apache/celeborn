@@ -90,6 +90,9 @@ object Dependencies {
   val picocliVersion = "4.7.6"
   val jmhVersion = "1.37"
 
+  // S3 integration tests with Minio
+  val testContainerMinioVersion = "1.21.4"
+
   // For SSL support
   val bouncycastleVersion = "1.77"
 
@@ -212,6 +215,8 @@ object Dependencies {
   val httpCore5H2 = "org.apache.httpcomponents.core5" % "httpcore5-h2" % httpCore5Version
   val jakartaAnnotationApi = "jakarta.annotation" % "jakarta.annotation-api" % jakartaAnnotationApiVersion
   val jakartaWsRsApi = "jakarta.ws.rs" % "jakarta.ws.rs-api" % jakartaWsRsApiVersion
+
+  val testContainerMinio = "org.testcontainers" % "minio" %  testContainerMinioVersion
 
   // Test dependencies
   // https://www.scala-sbt.org/1.x/docs/Testing.html
@@ -425,7 +430,8 @@ object CelebornCommonSettings {
     Dependencies.scalatest % "test",
     Dependencies.junit % "test",
     // https://www.scala-sbt.org/1.x/docs/Testing.html
-    Dependencies.junitInterface % "test")
+    Dependencies.junitInterface % "test",
+    Dependencies.testContainerMinio  % "test")
 }
 
 object CelebornBuild extends sbt.internal.BuildDef {

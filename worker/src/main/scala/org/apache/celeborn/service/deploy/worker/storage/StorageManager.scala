@@ -43,6 +43,7 @@ import org.apache.celeborn.common.meta.{DeviceInfo, DiskFileInfo, DiskInfo, Disk
 import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
+import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, CollectionUtils, DiskUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
@@ -1081,6 +1082,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType: PartitionType,
       partitionSplitEnabled: Boolean): (Flusher, DiskFileInfo, File) = {
     val suggestedMountPoint = location.getStorageInfo.getMountPoint
+    val storageType = location.getStorageInfo.getType
     var retryCount = 0
     var exception: IOException = null
     val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
@@ -1102,7 +1104,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
       }
 
-      if (dirs.isEmpty && location.getStorageInfo.HDFSAvailable()) {
+      if (storageType == Type.HDFS && location.getStorageInfo.HDFSAvailable()) {
         val shuffleDir =
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(
@@ -1120,9 +1122,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           fileName,
           hdfsFileInfo)
         return (hdfsFlusher.get, hdfsFileInfo, null)
-      } else if (dirs.isEmpty && location.getStorageInfo.S3Available()) {
+      } else if (storageType == Type.S3 && location.getStorageInfo.S3Available()) {
         val shuffleDir =
           new Path(new Path(s3Dir, conf.workerWorkingDir), s"$appId/$shuffleId")
+        logDebug(s"trying to create S3 file at $shuffleDir");
         FileSystem.mkdirs(
           StorageManager.hadoopFs.get(StorageInfo.Type.S3),
           shuffleDir,
@@ -1138,7 +1141,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           fileName,
           s3FileInfo)
         return (s3Flusher.get, s3FileInfo, null)
-      } else if (dirs.isEmpty && location.getStorageInfo.OSSAvailable()) {
+      } else if (storageType == Type.OSS && location.getStorageInfo.OSSAvailable()) {
         val shuffleDir =
           new Path(new Path(ossDir, conf.workerWorkingDir), s"$appId/$shuffleId")
         FileSystem.mkdirs(

@@ -36,6 +36,7 @@ import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -231,6 +232,13 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     reviveManager = new ReviveManager(this, conf);
 
+    if (conf.hasS3Storage()) {
+      Map<StorageInfo.Type, FileSystem> hadoopFs = getHadoopFs(conf);
+      FileSystem s3client = hadoopFs.get(StorageInfo.Type.S3);
+      logger.info("S3 client: {}", s3client);
+      if (s3client == null)
+        throw new IllegalStateException("S3 type is requred but the S3 client was not created");
+    }
     logger.info("Created ShuffleClientImpl, appUniqueId: {}", appUniqueId);
   }
 
