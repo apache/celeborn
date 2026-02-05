@@ -1066,6 +1066,22 @@ object ControlMessages extends Logging {
 
     case pb: PbApplicationMetaRequest =>
       new TransportMessage(MessageType.APPLICATION_META_REQUEST, pb.toByteArray)
+
+    case pb: PbInvalidateAllUpstreamShuffle =>
+      new TransportMessage(MessageType.INVALIDATE_ALL_UPSTREAM_SHUFFLE, pb.toByteArray)
+
+    case pb: PbInvalidateAllUpstreamShuffleResponse =>
+      new TransportMessage(
+        MessageType.INVALIDATE_ALL_UPSTREAM_SHUFFLE_RESPONSE,
+        pb.toByteArray)
+
+    case pb: PbReportMissingShuffleId =>
+      new TransportMessage(MessageType.REPORT_MISSING_SHUFFLE_ID, pb.toByteArray)
+
+    case pb: PbReportMissingShuffleIdResponse =>
+      new TransportMessage(
+        MessageType.REPORT_MISSING_SHUFFLE_ID_RESPONSE,
+        pb.toByteArray)
   }
 
   // TODO change return type to GeneratedMessageV3
@@ -1563,6 +1579,18 @@ object ControlMessages extends Logging {
           PbSerDeUtils.fromPbUserIdentifier(pbRegisterApplicationInfo.getUserIdentifier),
           pbRegisterApplicationInfo.getExtraInfoMap,
           pbRegisterApplicationInfo.getRequestId)
+
+      case REPORT_MISSING_SHUFFLE_ID_VALUE =>
+        message.getParsedPayload()
+
+      case REPORT_MISSING_SHUFFLE_ID_RESPONSE_VALUE =>
+        message.getParsedPayload()
+
+      case INVALIDATE_ALL_UPSTREAM_SHUFFLE_VALUE =>
+        message.getParsedPayload()
+
+      case INVALIDATE_ALL_UPSTREAM_SHUFFLE_RESPONSE_VALUE =>
+        message.getParsedPayload()
     }
   }
 }
