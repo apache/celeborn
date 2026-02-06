@@ -241,6 +241,7 @@ public class TransportClientFactorySuiteJ {
       TransportServer server = ctx.createServer();
       int unreachablePort = server.getPort();
       JavaUtils.closeQuietly(server);
+      Thread.sleep(1000);
       IOException exception =
           assertThrows(
               IOException.class, () -> factory.createClient(getLocalHost(), unreachablePort));
