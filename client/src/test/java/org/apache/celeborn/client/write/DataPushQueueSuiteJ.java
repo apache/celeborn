@@ -126,7 +126,7 @@ public class DataPushQueueSuiteJ {
       int batchId = pushState.nextBatchId();
       pushState.addBatch(batchId, b.length, reducePartitionMap.get(i).hostAndPushPort());
       partitionBatchIdMap.put(i, batchId);
-      dataPusher.addTask(i, b, b.length);
+      dataPusher.swapBufferWithIdleTask(i, b, b.length);
     }
 
     dataPusher.waitOnTermination();
@@ -169,7 +169,7 @@ public class DataPushQueueSuiteJ {
             throw new OutOfMemoryError();
           }
         };
-    dataPusher.addTask(0, new byte[10], 0);
+    dataPusher.swapBufferWithIdleTask(0, new byte[10], 0);
     try {
       dataPusher.waitOnTermination();
     } catch (Throwable e) {
