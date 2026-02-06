@@ -214,6 +214,10 @@ class WorkerInfo(
       for (newDisk <- newDiskInfos.values().asScala) {
         val mountPoint: String = newDisk.mountPoint
         val curDisk = diskInfos.get(mountPoint)
+        if (estimatedPartitionSize.nonEmpty && !newDisk.storageType.isDFS) {
+          newDisk.maxSlots = newDisk.totalSpace / estimatedPartitionSize.get
+          newDisk.availableSlots = newDisk.actualUsableSpace / estimatedPartitionSize.get
+        }
         if (curDisk != null) {
           curDisk.actualUsableSpace = newDisk.actualUsableSpace
           curDisk.totalSpace = newDisk.totalSpace
@@ -221,18 +225,10 @@ class WorkerInfo(
           curDisk.activeSlots = newDisk.activeSlots
           curDisk.avgFlushTime = newDisk.avgFlushTime
           curDisk.avgFetchTime = newDisk.avgFetchTime
-          if (estimatedPartitionSize.nonEmpty && curDisk.storageType != StorageInfo.Type.HDFS
-            && curDisk.storageType != StorageInfo.Type.S3 && curDisk.storageType != StorageInfo.Type.OSS) {
-            curDisk.maxSlots = curDisk.totalSpace / estimatedPartitionSize.get
-            curDisk.availableSlots = curDisk.actualUsableSpace / estimatedPartitionSize.get
-          }
+          curDisk.maxSlots = newDisk.maxSlots
+          curDisk.availableSlots = newDisk.availableSlots
           curDisk.setStatus(newDisk.status)
         } else {
-          if (estimatedPartitionSize.nonEmpty && newDisk.storageType != StorageInfo.Type.HDFS
-            && newDisk.storageType != StorageInfo.Type.S3 && newDisk.storageType != StorageInfo.Type.OSS) {
-            newDisk.maxSlots = newDisk.totalSpace / estimatedPartitionSize.get
-            newDisk.availableSlots = newDisk.actualUsableSpace / estimatedPartitionSize.get
-          }
           diskInfos.put(mountPoint, newDisk)
         }
       }

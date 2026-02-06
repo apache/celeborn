@@ -284,11 +284,10 @@ private[celeborn] class Worker(
   storageManager.updateDiskInfos()
   storageManager.startDeviceMonitor()
 
-  // WorkerInfo's diskInfos is a reference to storageManager.diskInfos
-  val diskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
-  storageManager.disksSnapshot().foreach { diskInfo =>
-    diskInfos.put(diskInfo.mountPoint, diskInfo)
-  }
+  private val diskInfos = storageManager
+    .allDisksSnapshot()
+    .map { diskInfo => diskInfo.mountPoint -> diskInfo }
+    .toMap.asJava
 
   val workerInfo =
     new WorkerInfo(
@@ -514,10 +513,10 @@ private[celeborn] class Worker(
     activeShuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     activeShuffleKeys.addAll(storageManager.shuffleKeySet())
     storageManager.updateDiskInfos()
-    val diskInfos =
-      workerInfo.updateThenGetDiskInfos(storageManager.disksSnapshot().map { disk =>
-        disk.mountPoint -> disk
-      }.toMap.asJava).values().asScala.toSeq ++ storageManager.remoteDiskInfos.getOrElse(Set.empty)
+    val currentDiskMap = storageManager.localDisksSnapshot().map { disk =>
+      disk.mountPoint -> disk
+    }.toMap.asJava
+    val diskInfos = workerInfo.updateThenGetDiskInfos(currentDiskMap).asScala.values.toSeq
     workerStatusManager.checkIfNeedTransitionStatus()
     val response = masterClient.askSync[HeartbeatFromWorkerResponse](
       HeartbeatFromWorker(
