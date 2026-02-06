@@ -62,7 +62,7 @@ object Dependencies {
   val jdkToolsVersion = "0.1"
   val metricsVersion = "4.2.25"
   val mockitoVersion = "4.11.0"
-  val nettyVersion = "4.1.118.Final"
+  val nettyVersion = "4.2.10.Final"
   val ratisVersion = "3.1.3"
   val roaringBitmapVersion = "1.0.6"
   val rocksdbJniVersion = "9.10.0"
@@ -142,7 +142,26 @@ object Dependencies {
     ExclusionRule("com.rabbitmq", "amqp-client"))
   val ioDropwizardMetricsJvm = "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion
   val ioNetty = "io.netty" % "netty-all" % nettyVersion excludeAll(
-    ExclusionRule("io.netty", "netty-handler-ssl-ocsp"))
+    ExclusionRule("io.netty", "netty-codec-haproxy"),
+    ExclusionRule("io.netty", "netty-codec-memcache"),
+    ExclusionRule("io.netty", "netty-codec-mqtt"),
+    ExclusionRule("io.netty", "netty-codec-redis"),
+    ExclusionRule("io.netty", "netty-codec-smtp"),
+    ExclusionRule("io.netty", "netty-codec-stomp"),
+    ExclusionRule("io.netty", "netty-codec-xml"),
+    ExclusionRule("io.netty", "netty-resolver-dns-classes-macos"),
+    ExclusionRule("io.netty", "netty-resolver-dns-native-macos"),
+    ExclusionRule("io.netty", "netty-transport-rxtx"),
+    ExclusionRule("io.netty", "netty-transport-sctp"),
+    ExclusionRule("io.netty", "netty-transport-udt"),
+    ExclusionRule("io.netty", "netty-transport-sctp"),
+    ExclusionRule("io.netty", "netty-handler-ssl-ocsp"),
+    ExclusionRule("org.jctools", "jctools-core")
+  )
+  val ioNettyEpollLinuxX8664 = "io.netty" % "netty-transport-native-epoll" % nettyVersion classifier "linux-x86_64"
+  val ioNettyEpollLinuxAach64 = "io.netty" % "netty-transport-native-epoll" % nettyVersion classifier "linux-aarch_64"
+  val ioNettyKqueueOsxX8664 = "io.netty" % "netty-transport-native-kqueue" % nettyVersion classifier "osx-x86_64"
+  val ioNettyKqueueOsxAach64 = "io.netty" % "netty-transport-native-kqueue" % nettyVersion classifier "osx-aarch_64"
   val leveldbJniGroup = if (System.getProperty("os.name").startsWith("Linux")
     && System.getProperty("os.arch").equals("aarch64")) {
     // use org.openlabtesting.leveldbjni on aarch64 platform except MacOS
@@ -352,7 +371,9 @@ object CelebornCommonSettings {
       "--add-opens=java.base/sun.security.action=ALL-UNNAMED",
       "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED",
       "--add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED",
-      "-Dio.netty.tryReflectionSetAccessible=true"
+      "-Dio.netty.tryReflectionSetAccessible=true",
+      "-Dio.netty.allocator.type=pooled",
+      "-Dio.netty.handler.ssl.defaultEndpointVerificationAlgorithm=NONE"
     ),
 
     testOptions += Tests.Argument("-oF"),
@@ -642,6 +663,10 @@ object CelebornCommon {
         Dependencies.ioDropwizardMetricsGraphite,
         Dependencies.ioDropwizardMetricsJvm,
         Dependencies.ioNetty,
+        Dependencies.ioNettyEpollLinuxX8664,
+        Dependencies.ioNettyEpollLinuxAach64,
+        Dependencies.ioNettyKqueueOsxX8664,
+        Dependencies.ioNettyKqueueOsxAach64,
         Dependencies.commonsCrypto,
         Dependencies.commonsLang3,
         Dependencies.hadoopClientApi,
@@ -698,6 +723,10 @@ object CelebornClient {
       commonSettings,
       libraryDependencies ++= Seq(
         Dependencies.ioNetty,
+        Dependencies.ioNettyEpollLinuxX8664,
+        Dependencies.ioNettyEpollLinuxAach64,
+        Dependencies.ioNettyKqueueOsxX8664,
+        Dependencies.ioNettyKqueueOsxAach64,
         Dependencies.guava,
         Dependencies.lz4Java,
         Dependencies.zstdJni,
@@ -718,6 +747,10 @@ object CelebornService {
         Dependencies.findbugsJsr305,
         Dependencies.commonsIo,
         Dependencies.ioNetty,
+        Dependencies.ioNettyEpollLinuxX8664,
+        Dependencies.ioNettyEpollLinuxAach64,
+        Dependencies.ioNettyKqueueOsxX8664,
+        Dependencies.ioNettyKqueueOsxAach64,
         Dependencies.commonsCrypto,
         Dependencies.slf4jApi,
         Dependencies.mybatis,
@@ -771,6 +804,10 @@ object CelebornMaster {
         Dependencies.guava,
         Dependencies.protobufJava,
         Dependencies.ioNetty,
+        Dependencies.ioNettyEpollLinuxX8664,
+        Dependencies.ioNettyEpollLinuxAach64,
+        Dependencies.ioNettyKqueueOsxX8664,
+        Dependencies.ioNettyKqueueOsxAach64,
         Dependencies.hadoopClientApi,
         Dependencies.log4j12Api,
         Dependencies.log4jSlf4jImpl,
@@ -808,6 +845,10 @@ object CelebornWorker {
         Dependencies.guava,
         Dependencies.commonsIo,
         Dependencies.ioNetty,
+        Dependencies.ioNettyEpollLinuxX8664,
+        Dependencies.ioNettyEpollLinuxAach64,
+        Dependencies.ioNettyKqueueOsxX8664,
+        Dependencies.ioNettyKqueueOsxAach64,
         Dependencies.log4j12Api,
         Dependencies.log4jSlf4jImpl,
         Dependencies.disruptor,
