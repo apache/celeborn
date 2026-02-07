@@ -483,4 +483,18 @@ class CelebornConfSuite extends CelebornFunSuite {
     }
   }
 
+  test("test workerReserveSlotsIoThreadPoolSize") {
+    // Test default value
+    val conf1 = new CelebornConf()
+    assert(conf1.workerReserveSlotsIoThreadPoolSize == 1)
+
+    // Test configured value
+    val conf2 = new CelebornConf().set(RESERVE_SLOTS_IO_THREAD_POOL_SIZE.key, "10")
+    assert(conf2.workerReserveSlotsIoThreadPoolSize == 10)
+
+    // Test configured value with 0
+    val conf3 = new CelebornConf().set(RESERVE_SLOTS_IO_THREAD_POOL_SIZE.key, "0")
+    assert(conf3.workerReserveSlotsIoThreadPoolSize == Runtime.getRuntime.availableProcessors() * 8)
+  }
+
 }
