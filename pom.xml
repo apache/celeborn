@@ -94,7 +94,7 @@
     <lz4-java.version>1.8.0</lz4-java.version>
     <mockito.version>4.11.0</mockito.version>
     <mockito-scalatest.version>1.17.14</mockito-scalatest.version>
-    <netty.version>4.1.118.Final</netty.version>
+    <netty.version>4.2.10.Final</netty.version>
     <bouncycastle.version>1.77</bouncycastle.version>
     <protobuf.version>3.25.5</protobuf.version>
     <ratis.version>3.1.3</ratis.version>
@@ -141,7 +141,7 @@
     <maven.plugin.compiler.version>3.12.1</maven.plugin.compiler.version>
     <maven.plugin.dependency.version>3.1.1</maven.plugin.dependency.version>
     <maven.plugin.flatten.version>1.3.0</maven.plugin.flatten.version>
-    <maven.plugin.jacoco.version>0.8.11</maven.plugin.jacoco.version>
+    <maven.plugin.jacoco.version>0.8.14</maven.plugin.jacoco.version>
     <maven.plugin.jar.version>3.0.2</maven.plugin.jar.version>
     <maven.plugin.os.version>1.7.0</maven.plugin.os.version>
     <maven.plugin.protobuf.version>0.6.1</maven.plugin.protobuf.version>
@@ -178,7 +178,10 @@
       --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
       --add-opens=java.base/sun.security.action=ALL-UNNAMED
       --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
-      --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED</extraJavaTestArgs>
+      --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED
+      -Dio.netty.tryReflectionSetAccessible=true
+      -Dio.netty.allocator.type=pooled
+      -Dio.netty.handler.ssl.defaultEndpointVerificationAlgorithm=NONE</extraJavaTestArgs>
 
     <spark.shuffle.plugin.class>org.apache.spark.shuffle.sort.io.LocalDiskShuffleDataIO</spark.shuffle.plugin.class>
 
@@ -360,6 +363,12 @@
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-sql_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
@@ -411,9 +420,85 @@
         <exclusions>
           <exclusion>
             <groupId>io.netty</groupId>
+            <artifactId>netty-codec-haproxy</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-memcache</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-mqtt</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-redis</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-smtp</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-stomp</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-xml</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-resolver-dns-classes-macos</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-resolver-dns-native-macos</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-transport-rxtx</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-transport-sctp</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-transport-udt</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
             <artifactId>netty-handler-ssl-ocsp</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>org.jctools</groupId>
+            <artifactId>jctools-core</artifactId>
+          </exclusion>
         </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-transport-native-epoll</artifactId>
+        <version>${netty.version}</version>
+        <classifier>linux-x86_64</classifier>
+      </dependency>
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-transport-native-epoll</artifactId>
+        <version>${netty.version}</version>
+        <classifier>linux-aarch_64</classifier>
+      </dependency>
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-transport-native-kqueue</artifactId>
+        <version>${netty.version}</version>
+        <classifier>osx-x86_64</classifier>
+      </dependency>
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-transport-native-kqueue</artifactId>
+        <version>${netty.version}</version>
+        <classifier>osx-aarch_64</classifier>
       </dependency>
       <dependency>
         <groupId>org.apache.commons</groupId>
@@ -954,7 +1039,7 @@
               <include>**/*Test*.*</include>
             </includes>
             <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
-            <argLine>${argLine} -ea -Xmx4g -Xss4m -XX:MaxMetaspaceSize=2g -XX:ReservedCodeCacheSize=128m ${extraJavaTestArgs} -Dio.netty.tryReflectionSetAccessible=true</argLine>
+            <argLine>${argLine} -ea -Xmx4g -Xss4m -XX:MaxMetaspaceSize=2g -XX:ReservedCodeCacheSize=128m ${extraJavaTestArgs}</argLine>
             <systemProperties>
               <log4j.configuration>file:src/test/resources/log4j.properties</log4j.configuration>
               <log4j2.configurationFile>src/test/resources/log4j2-test.xml</log4j2.configurationFile>
@@ -988,7 +1073,7 @@
           <version>${maven.plugin.scalatest.version}</version>
           <configuration>
             <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
-            <argLine>${argLine} -ea -Xmx4g -Xss4m -XX:MaxMetaspaceSize=2g -XX:ReservedCodeCacheSize=128m ${extraJavaTestArgs} -Dio.netty.tryReflectionSetAccessible=true</argLine>
+            <argLine>${argLine} -ea -Xmx4g -Xss4m -XX:MaxMetaspaceSize=2g -XX:ReservedCodeCacheSize=128m ${extraJavaTestArgs}</argLine>
             <filereports>TestSuite.txt</filereports>
             <!--
               the plugin does not support always now, we must be careful w/ singletons.
