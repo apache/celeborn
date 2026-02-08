@@ -77,7 +77,7 @@ public class SlotsAllocator {
     Map<WorkerInfo, List<UsableDiskInfo>> slotsRestrictions = new HashMap<>();
     for (WorkerInfo worker : workers) {
       List<UsableDiskInfo> usableDisks =
-          slotsRestrictions.computeIfAbsent(worker, v -> new LinkedList<>());
+          slotsRestrictions.computeIfAbsent(worker, v -> new ArrayList<>());
       for (DiskInfo diskInfo : worker.diskInfos().values()) {
         if (diskInfo.status().equals(DiskStatus.HEALTHY)
             && StorageInfo.isAvailable(diskInfo.storageType(), availableStorageTypes)) {
@@ -133,7 +133,7 @@ public class SlotsAllocator {
           interruptionAwareThreshold);
     }
 
-    List<DiskInfo> usableDisks = new LinkedList<>();
+    List<DiskInfo> usableDisks = new ArrayList<>();
     Map<DiskInfo, WorkerInfo> diskToWorkerMap = new HashMap<>();
 
     workers.forEach(

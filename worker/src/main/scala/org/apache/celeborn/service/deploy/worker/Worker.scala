@@ -513,7 +513,7 @@ private[celeborn] class Worker(
     activeShuffleKeys.addAll(partitionLocationInfo.shuffleKeySet)
     activeShuffleKeys.addAll(storageManager.shuffleKeySet())
     storageManager.updateDiskInfos()
-    val currentDiskMap = storageManager.localDisksSnapshot().map { disk =>
+    val currentDiskMap = storageManager.allDisksSnapshot().map { disk =>
       disk.mountPoint -> disk
     }.toMap.asJava
     val diskInfos = workerInfo.updateThenGetDiskInfos(currentDiskMap).asScala.values.toSeq
