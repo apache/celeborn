@@ -50,6 +50,12 @@
       <artifactId>aws-java-sdk-s3</artifactId>
       <version>${aws.version}</version>
     </dependency>
+    <!-- Needed for com.amazonaws.auth.WebIdentityTokenCredentialsProvider -->
+    <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-java-sdk-sts</artifactId>
+      <version>${aws.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
