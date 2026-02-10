@@ -144,7 +144,7 @@ private[worker] class S3FlushTask(
   override def flush(copyBytes: Array[Byte]): Unit = {
     val readableBytes = buffer.readableBytes()
     val bytes = convertBufferToBytes(buffer, copyBytes, readableBytes)
-    val inputStream = new ByteArrayInputStream(bytes)
+    val inputStream = new ByteArrayInputStream(bytes, 0, readableBytes)
     flush(inputStream) {
       s3MultipartUploader.putPart(inputStream, partNumber, finalFlush)
       source.incCounter(WorkerSource.S3_FLUSH_COUNT)
@@ -166,7 +166,7 @@ private[worker] class OssFlushTask(
   override def flush(copyBytes: Array[Byte]): Unit = {
     val readableBytes = buffer.readableBytes()
     val bytes = convertBufferToBytes(buffer, copyBytes, readableBytes)
-    val inputStream = new ByteArrayInputStream(bytes)
+    val inputStream = new ByteArrayInputStream(bytes, 0, readableBytes)
     flush(inputStream) {
       ossMultipartUploader.putPart(inputStream, partNumber, finalFlush)
       source.incCounter(WorkerSource.OSS_FLUSH_COUNT)
