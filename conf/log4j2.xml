@@ -46,7 +46,7 @@
         </Async>
 
 
-        <RollingFile name="RFA_SYNC" fileName="${env:CELEBORN_LOG_DIR}/celeborn.log" filePattern="${env:CELEBORN_LOG_DIR}/celeborn.log.%i" createOnDemand="true">
+        <RollingFile name="RFA_SYNC" fileName="${env:CELEBORN_LOG_DIR}/${env:CELEBORN_LOG_FILE:-celeborn.log}" filePattern="${env:CELEBORN_LOG_DIR}/${env:CELEBORN_LOG_FILE:-celeborn.log}.%i" createOnDemand="true">
           <PatternLayout>
             <Pattern>%d{ISO8601} %p [%t] %c: %m%n</Pattern>
           </PatternLayout>

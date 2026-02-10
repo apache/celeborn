@@ -68,8 +68,31 @@ if [ ! -d "$CELEBORN_JARS_DIR" ]; then
   echo "Failed to find CELEBORN jars directory ($CELEBORN_JARS_DIR)." 1>&2
   echo "You need to build CELEBORN with the target \"package\" before running this program." 1>&2
   exit 1
-else
-  CELEBORN_CLASSPATH="$CELEBORN_CONF_DIR:$HADOOP_CONF_DIR:$CELEBORN_JARS_DIR/*:$JAVA_TOOLS_JAR"
+fi
+
+# Construct classpath
+export HADOOP_YARN_HOME="${HADOOP_HOME}"
+export YARN_CONF_DIR="${HADOOP_CONF_DIR}"
+export HADOOP_BIN_PATH="${HADOOP_HOME}/bin"
+
+# Build Hadoop classpath - use direct classpath instead of JAR to avoid MANIFEST issues
+HADOOP_CLASSPATH=""
+if [ -n "${HADOOP_HOME}" ] && [ -d "${HADOOP_HOME}/share/hadoop" ]; then
+  # Collect Hadoop JARs into classpath string
+  HADOOP_JARS=$(find "${HADOOP_HOME}/share/hadoop/common" "${HADOOP_HOME}/share/hadoop/common/lib" "${HADOOP_HOME}/share/hadoop/hdfs" \
+    -type f -name "*.jar" \
+    ! -name "*-sources.jar" ! -name "*-tests.jar" 2>/dev/null | tr '\n' ':')
+  
+  # Remove trailing colon if present
+  HADOOP_CLASSPATH=${HADOOP_JARS%:}
+fi
+
+# Construct CELEBORN_CLASSPATH
+CELEBORN_CLASSPATH="${CELEBORN_CONF_DIR}:${HADOOP_CONF_DIR}:${HADOOP_BIN_PATH}:${CELEBORN_JARS_DIR}/*:${JAVA_TOOLS_JAR}"
+
+# Add Hadoop classpath if available
+if [ -n "${HADOOP_CLASSPATH}" ]; then
+  CELEBORN_CLASSPATH="${CELEBORN_CLASSPATH}:${HADOOP_CLASSPATH}"
 fi
 
 # Turn off posix mode since it does not allow process substitution

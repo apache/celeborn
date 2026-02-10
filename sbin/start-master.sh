@@ -49,4 +49,6 @@ CELEBORN_JAVA_OPTS="$CELEBORN_JAVA_OPTS --add-opens=java.base/sun.util.calendar=
 CELEBORN_JAVA_OPTS="$CELEBORN_JAVA_OPTS -Dorg.apache.logging.log4j.level=INFO"
 export CELEBORN_JAVA_OPTS="$CELEBORN_JAVA_OPTS"
 
+export CELEBORN_LOG_FILE="celeborn-master.log"
+
 exec "${CELEBORN_HOME}/sbin/celeborn-daemon.sh" start org.apache.celeborn.service.deploy.master.Master 1 "$@"
