@@ -30,7 +30,8 @@ CelebornInputStream::CelebornInputStream(
     int attemptNumber,
     int startMapIndex,
     int endMapIndex,
-    bool needCompression)
+    bool needCompression,
+    const std::shared_ptr<FetchExcludedWorkers>& fetchExcludedWorkers)
     : shuffleKey_(shuffleKey),
       conf_(conf),
       clientFactory_(clientFactory),
@@ -51,7 +52,12 @@ CelebornInputStream::CelebornInputStream(
           conf_->clientPushReplicateEnabled()
               ? conf_->clientFetchMaxRetriesForEachReplica() * 2
               : conf_->clientFetchMaxRetriesForEachReplica()),
-      retryWait_(conf_->dataIoRetryWait()) {
+      retryWait_(conf_->networkIoRetryWait()),
+      fetchExcludedWorkers_(fetchExcludedWorkers),
+      fetchExcludedWorkerExpireTimeoutMs_(
+          std::chrono::duration_cast<std::chrono::milliseconds>(
+              conf_->clientFetchExcludedWorkerExpireTimeout())
+              .count()) {
   if (shouldDecompress_) {
     decompressor_ = compress::Decompressor::createDecompressor(
         conf_->shuffleCompressionCodec());
@@ -203,11 +209,16 @@ std::shared_ptr<PartitionReader> CelebornInputStream::createReaderWithRetry(
     try {
       VLOG(1) << "Create reader for location " << currentLocation->host << ":"
               << currentLocation->fetchPort;
+      if (isExcluded(*currentLocation)) {
+        throw std::runtime_error(
+            "Fetch data from excluded worker! " +
+            currentLocation->hostAndFetchPort());
+      }
       auto reader = createReader(*currentLocation);
-      fetchChunkRetryCnt_ = 0;
       return reader;
     } catch (const std::exception& e) {
       lastException = std::current_exception();
+      excludeFailedFetchLocation(currentLocation->hostAndFetchPort(), e);
       fetchChunkRetryCnt_++;
 
       if (currentLocation->hasPeer()) {
@@ -231,10 +242,13 @@ std::shared_ptr<PartitionReader> CelebornInputStream::createReaderWithRetry(
     }
   }
 
-  CELEBORN_FAIL(
+  // Max retries exceeded, rethrow the last exception wrapped with context
+  throw utils::CelebornRuntimeError(
+      lastException,
       "createPartitionReader failed after " +
-      std::to_string(fetchChunkRetryCnt_) + " retries for location " +
-      location.hostAndFetchPort());
+          std::to_string(fetchChunkRetryCnt_) + " retries for location " +
+          location.hostAndFetchPort(),
+      false);
 }
 
 std::shared_ptr<PartitionReader> CelebornInputStream::createReader(
@@ -277,6 +291,45 @@ std::unordered_set<int>& CelebornInputStream::getBatchRecord(int mapId) {
     batchRecords_[mapId] = std::make_unique<std::unordered_set<int>>();
   }
   return *batchRecords_[mapId];
+}
+
+bool CelebornInputStream::isExcluded(
+    const protocol::PartitionLocation& location) {
+  auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                 std::chrono::steady_clock::now().time_since_epoch())
+                 .count();
+  auto timestamp = fetchExcludedWorkers_->get(location.hostAndFetchPort());
+  if (!timestamp.has_value()) {
+    return false;
+  }
+  if (now - timestamp.value() > fetchExcludedWorkerExpireTimeoutMs_) {
+    fetchExcludedWorkers_->erase(location.hostAndFetchPort());
+    return false;
+  }
+  if (location.hasPeer()) {
+    auto peerTimestamp =
+        fetchExcludedWorkers_->get(location.getPeer()->hostAndFetchPort());
+    // To avoid both replicate locations being excluded, if peer was added to
+    // excluded list earlier, change to try peer.
+    if (!peerTimestamp.has_value() ||
+        peerTimestamp.value() < timestamp.value()) {
+      return true;
+    }
+    return false;
+  }
+  return true;
+}
+
+void CelebornInputStream::excludeFailedFetchLocation(
+    const std::string& hostAndFetchPort,
+    const std::exception& e) {
+  if (conf_->clientPushReplicateEnabled() &&
+      conf_->clientFetchExcludeWorkerOnFailureEnabled()) {
+    auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::steady_clock::now().time_since_epoch())
+                   .count();
+    fetchExcludedWorkers_->set(hostAndFetchPort, now);
+  }
 }
 
 void CelebornInputStream::cleanupReader() {

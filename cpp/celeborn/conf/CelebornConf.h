@@ -132,11 +132,17 @@ class CelebornConf : public BaseConf {
   static constexpr std::string_view kClientFetchMaxRetriesForEachReplica{
       "celeborn.client.fetch.maxRetriesForEachReplica"};
 
-  static constexpr std::string_view kDataIoRetryWait{
+  static constexpr std::string_view kNetworkIoRetryWait{
       "celeborn.data.io.retryWait"};
 
   static constexpr std::string_view kClientPushReplicateEnabled{
       "celeborn.client.push.replicate.enabled"};
+
+  static constexpr std::string_view kClientFetchExcludeWorkerOnFailureEnabled{
+      "celeborn.client.fetch.excludeWorkerOnFailure.enabled"};
+
+  static constexpr std::string_view kClientFetchExcludedWorkerExpireTimeout{
+      "celeborn.client.fetch.excludedWorker.expireTimeout"};
 
   CelebornConf();
 
@@ -208,9 +214,13 @@ class CelebornConf : public BaseConf {
 
   int clientFetchMaxRetriesForEachReplica() const;
 
-  Timeout dataIoRetryWait() const;
+  Timeout networkIoRetryWait() const;
 
   bool clientPushReplicateEnabled() const;
+
+  bool clientFetchExcludeWorkerOnFailureEnabled() const;
+
+  Timeout clientFetchExcludedWorkerExpireTimeout() const;
 };
 } // namespace conf
 } // namespace celeborn

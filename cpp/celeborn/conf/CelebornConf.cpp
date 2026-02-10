@@ -167,10 +167,10 @@ CelebornConf::defaultProperties() {
           NONE_PROP(kClientPushMaxBytesSizeInFlightTotal),
           NONE_PROP(kClientPushMaxBytesSizeInFlightPerWorker),
           NUM_PROP(kClientFetchMaxRetriesForEachReplica, 3),
-          STR_PROP(kDataIoRetryWait, "5s"),
+          STR_PROP(kNetworkIoRetryWait, "5s"),
           BOOL_PROP(kClientPushReplicateEnabled, false),
-          // NUM_PROP(kNumExample, 50'000),
-          // BOOL_PROP(kBoolExample, false),
+          BOOL_PROP(kClientFetchExcludeWorkerOnFailureEnabled, false),
+          STR_PROP(kClientFetchExcludedWorkerExpireTimeout, "60s"),
       };
   return defaultProp;
 }
@@ -358,13 +358,23 @@ int CelebornConf::clientFetchMaxRetriesForEachReplica() const {
       optionalProperty(kClientFetchMaxRetriesForEachReplica).value());
 }
 
-Timeout CelebornConf::dataIoRetryWait() const {
+Timeout CelebornConf::networkIoRetryWait() const {
   return utils::toTimeout(
-      toDuration(optionalProperty(kDataIoRetryWait).value()));
+      toDuration(optionalProperty(kNetworkIoRetryWait).value()));
 }
 
 bool CelebornConf::clientPushReplicateEnabled() const {
   return folly::to<bool>(optionalProperty(kClientPushReplicateEnabled).value());
+}
+
+bool CelebornConf::clientFetchExcludeWorkerOnFailureEnabled() const {
+  return folly::to<bool>(
+      optionalProperty(kClientFetchExcludeWorkerOnFailureEnabled).value());
+}
+
+Timeout CelebornConf::clientFetchExcludedWorkerExpireTimeout() const {
+  return utils::toTimeout(toDuration(
+      optionalProperty(kClientFetchExcludedWorkerExpireTimeout).value()));
 }
 } // namespace conf
 } // namespace celeborn
