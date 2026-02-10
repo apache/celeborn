@@ -57,7 +57,11 @@ ShuffleClientImpl::ShuffleClientImpl(
     : appUniqueId_(appUniqueId),
       conf_(conf),
       clientFactory_(clientEndpoint.clientFactory()),
-      pushDataRetryPool_(clientEndpoint.pushDataRetryPool()) {
+      pushDataRetryPool_(clientEndpoint.pushDataRetryPool()),
+      pushReplicateEnabled_(conf->clientPushReplicateEnabled()),
+      fetchExcludeWorkerOnFailureEnabled_(
+          conf->clientFetchExcludeWorkerOnFailureEnabled()),
+      fetchExcludedWorkers_(std::make_shared<FetchExcludedWorkers>()) {
   CELEBORN_CHECK_NOT_NULL(clientFactory_);
   CELEBORN_CHECK_NOT_NULL(pushDataRetryPool_);
 }
@@ -286,7 +290,19 @@ std::unique_ptr<CelebornInputStream> ShuffleClientImpl::readPartition(
       attemptNumber,
       startMapIndex,
       endMapIndex,
-      needCompression);
+      needCompression,
+      fetchExcludedWorkers_);
+}
+
+void ShuffleClientImpl::excludeFailedFetchLocation(
+    const std::string& hostAndFetchPort,
+    const std::exception& e) {
+  if (pushReplicateEnabled_ && fetchExcludeWorkerOnFailureEnabled_) {
+    auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::steady_clock::now().time_since_epoch())
+                   .count();
+    fetchExcludedWorkers_->set(hostAndFetchPort, now);
+  }
 }
 
 void ShuffleClientImpl::updateReducerFileGroup(int shuffleId) {

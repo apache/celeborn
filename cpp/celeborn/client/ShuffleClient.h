@@ -53,6 +53,8 @@ class ShuffleClient {
 
   virtual void updateReducerFileGroup(int shuffleId) = 0;
 
+  using FetchExcludedWorkers = utils::ConcurrentHashMap<std::string, int64_t>;
+
   virtual std::unique_ptr<CelebornInputStream> readPartition(
       int shuffleId,
       int partitionId,
@@ -67,6 +69,10 @@ class ShuffleClient {
       int startMapIndex,
       int endMapIndex,
       bool needCompression) = 0;
+
+  virtual void excludeFailedFetchLocation(
+      const std::string& hostAndFetchPort,
+      const std::exception& e) = 0;
 
   virtual bool cleanupShuffle(int shuffleId) = 0;
 
@@ -160,6 +166,10 @@ class ShuffleClientImpl
       int startMapIndex,
       int endMapIndex,
       bool needCompression) override;
+
+  void excludeFailedFetchLocation(
+      const std::string& hostAndFetchPort,
+      const std::exception& e) override;
 
   void updateReducerFileGroup(int shuffleId) override;
 
@@ -265,6 +275,10 @@ class ShuffleClientImpl
   utils::ConcurrentHashMap<int, std::shared_ptr<utils::ConcurrentHashSet<int>>>
       mapperEndSets_;
   utils::ConcurrentHashSet<int> stageEndShuffleSet_;
+
+  bool pushReplicateEnabled_;
+  bool fetchExcludeWorkerOnFailureEnabled_;
+  std::shared_ptr<FetchExcludedWorkers> fetchExcludedWorkers_;
 
   // TODO: pushExcludedWorker is not supported yet
 };

@@ -48,8 +48,10 @@ void testDefaultValues(CelebornConf* conf) {
   EXPECT_EQ(conf->networkIoClientThreads(), 0);
   EXPECT_EQ(conf->clientFetchMaxReqsInFlight(), 3);
   EXPECT_EQ(conf->clientFetchMaxRetriesForEachReplica(), 3);
-  EXPECT_EQ(conf->dataIoRetryWait(), SECOND(5));
+  EXPECT_EQ(conf->networkIoRetryWait(), SECOND(5));
   EXPECT_FALSE(conf->clientPushReplicateEnabled());
+  EXPECT_FALSE(conf->clientFetchExcludeWorkerOnFailureEnabled());
+  EXPECT_EQ(conf->clientFetchExcludedWorkerExpireTimeout(), SECOND(60));
 }
 
 TEST(CelebornConfTest, defaultValues) {
@@ -79,12 +81,21 @@ TEST(CelebornConfTest, setValues) {
   conf->registerProperty(
       CelebornConf::kClientFetchMaxRetriesForEachReplica, "5");
   EXPECT_EQ(conf->clientFetchMaxRetriesForEachReplica(), 5);
-  conf->registerProperty(CelebornConf::kDataIoRetryWait, "10s");
-  EXPECT_EQ(conf->dataIoRetryWait(), SECOND(10));
+  conf->registerProperty(CelebornConf::kNetworkIoRetryWait, "10s");
+  EXPECT_EQ(conf->networkIoRetryWait(), SECOND(10));
   conf->registerProperty(CelebornConf::kClientPushReplicateEnabled, "true");
   EXPECT_TRUE(conf->clientPushReplicateEnabled());
   conf->registerProperty(CelebornConf::kClientPushReplicateEnabled, "false");
   EXPECT_FALSE(conf->clientPushReplicateEnabled());
+  conf->registerProperty(
+      CelebornConf::kClientFetchExcludeWorkerOnFailureEnabled, "true");
+  EXPECT_TRUE(conf->clientFetchExcludeWorkerOnFailureEnabled());
+  conf->registerProperty(
+      CelebornConf::kClientFetchExcludeWorkerOnFailureEnabled, "false");
+  EXPECT_FALSE(conf->clientFetchExcludeWorkerOnFailureEnabled());
+  conf->registerProperty(
+      CelebornConf::kClientFetchExcludedWorkerExpireTimeout, "30s");
+  EXPECT_EQ(conf->clientFetchExcludedWorkerExpireTimeout(), SECOND(30));
 
   EXPECT_THROW(
       conf->registerProperty("non-exist-key", "non-exist-value"),
