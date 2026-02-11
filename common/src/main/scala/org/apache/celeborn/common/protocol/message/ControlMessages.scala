@@ -218,7 +218,8 @@ object ControlMessages extends Logging {
       numPartitions: Int,
       crc32PerPartition: Array[Int],
       bytesWrittenPerPartition: Array[Long],
-      serdeVersion: SerdeVersion)
+      serdeVersion: SerdeVersion,
+      bytesWritten: Long)
     extends MasterMessage
 
   case class ReadReducerPartitionEnd(
@@ -737,7 +738,8 @@ object ControlMessages extends Logging {
           numPartitions,
           crc32PerPartition,
           bytesWrittenPerPartition,
-          serdeVersion) =>
+          serdeVersion,
+          bytesWritten) =>
       val pushFailedMap = pushFailedBatch.asScala.map { case (k, v) =>
         val resultValue = PbSerDeUtils.toPbLocationPushFailedBatches(v)
         (k, resultValue)
@@ -753,6 +755,7 @@ object ControlMessages extends Logging {
         .addAllCrc32PerPartition(crc32PerPartition.map(Integer.valueOf).toSeq.asJava)
         .addAllBytesWrittenPerPartition(bytesWrittenPerPartition.map(
           java.lang.Long.valueOf).toSeq.asJava)
+        .setBytesWritten(bytesWritten)
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END, payload, serdeVersion)
 
@@ -1248,7 +1251,8 @@ object ControlMessages extends Logging {
           pbMapperEnd.getNumPartitions,
           crc32Array,
           bytesWrittenPerPartitionArray,
-          message.getSerdeVersion)
+          message.getSerdeVersion,
+          pbMapperEnd.getBytesWritten)
 
       case READ_REDUCER_PARTITION_END_VALUE =>
         val pbReadReducerPartitionEnd = PbReadReducerPartitionEnd.parseFrom(message.getPayload)

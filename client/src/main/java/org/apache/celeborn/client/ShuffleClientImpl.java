@@ -149,6 +149,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final boolean dataPushFailureTrackingEnabled;
 
+  private final boolean shuffleWriteLimitEnabled;
+
   public static class ReduceFileGroups {
     public Map<Integer, Set<PartitionLocation>> partitionGroups;
     public Map<String, LocationPushFailedBatches> pushFailedBatches;
@@ -211,6 +213,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     }
     authEnabled = conf.authEnabledOnClient();
     dataPushFailureTrackingEnabled = conf.clientAdaptiveOptimizeSkewedPartitionReadEnabled();
+    shuffleWriteLimitEnabled = conf.shuffleWriteLimitEnabled();
 
     // init rpc env
     rpcEnv =
@@ -1067,6 +1070,10 @@ public class ShuffleClientImpl extends ShuffleClient {
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 12, length);
     System.arraycopy(data, offset, body, BATCH_HEADER_SIZE, length);
 
+    if (shuffleWriteLimitEnabled) {
+      pushState.addWrittenBytes(body.length);
+    }
+
     if (doPush) {
       // check limit
       limitMaxInFlight(mapKey, pushState, loc.hostAndPushPort());
@@ -1789,6 +1796,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       long[] bytesPerPartition =
           pushState.getBytesWrittenPerPartition(shuffleIntegrityCheckEnabled, numPartitions);
 
+      long bytesWritten = pushState.getBytesWritten();
+
       MapperEndResponse response =
           lifecycleManagerRef.askSync(
               new MapperEnd(
@@ -1801,7 +1810,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                   numPartitions,
                   crc32PerPartition,
                   bytesPerPartition,
-                  SerdeVersion.V1),
+                  SerdeVersion.V1,
+                  bytesWritten),
               rpcMaxRetries,
               rpcRetryWait,
               ClassTag$.MODULE$.apply(MapperEndResponse.class));
