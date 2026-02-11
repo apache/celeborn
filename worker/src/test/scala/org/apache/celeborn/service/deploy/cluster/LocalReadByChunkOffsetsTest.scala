@@ -116,7 +116,7 @@ class LocalReadByChunkOffsetsTest extends AnyFunSuite
     shuffleClient.pushMergedData(1, 0, 0)
     Thread.sleep(1000)
 
-    shuffleClient.mapperEnd(1, 0, 0, 1, 0, getBytesWritten())
+    shuffleClient.mapperEnd(1, 0, 0, 1, 0)
 
     val metricsCallback = new MetricsCallback {
       override def incBytesRead(bytesWritten: Long): Unit = {}

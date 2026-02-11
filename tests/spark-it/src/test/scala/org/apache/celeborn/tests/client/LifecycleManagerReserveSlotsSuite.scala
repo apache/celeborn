@@ -157,7 +157,7 @@ class LifecycleManagerReserveSlotsSuite extends AnyFunSuite
 
     // push merged data, we expect that partition(0) will be split, while partition(1) will not be split
     shuffleClient1.pushMergedData(SHUFFLE_ID, MAP_ID, ATTEMPT_ID)
-    shuffleClient1.mapperEnd(SHUFFLE_ID, MAP_ID, ATTEMPT_ID, MAP_NUM, PARTITION_NUM, getBytesWritten())
+    shuffleClient1.mapperEnd(SHUFFLE_ID, MAP_ID, ATTEMPT_ID, MAP_NUM, PARTITION_NUM)
     // partition(1) will not be split
     assert(partitionLocationMap1.get(partitions(1)).getEpoch == 0)
 
