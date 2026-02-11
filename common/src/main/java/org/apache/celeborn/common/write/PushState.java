@@ -40,10 +40,13 @@ public class PushState {
 
   private final Map<String, LocationPushFailedBatches> failedBatchMap;
 
+  private long bytesWritten;
+
   public PushState(CelebornConf conf) {
     pushBufferMaxSize = conf.clientPushBufferMaxSize();
     inFlightRequestTracker = new InFlightRequestTracker(conf, this);
     failedBatchMap = JavaUtils.newConcurrentHashMap();
+    bytesWritten = 0;
   }
 
   public void cleanup() {
@@ -135,5 +138,13 @@ public class PushState {
     CommitMetadata commitMetadata =
         commitMetadataMap.computeIfAbsent(partitionId, id -> new CommitMetadata());
     commitMetadata.addDataWithOffsetAndLength(data, offset, length);
+  }
+
+  public void addWrittenBytes(int length) {
+    bytesWritten += length;
+  }
+
+  public long getBytesWritten() {
+    return bytesWritten;
   }
 }

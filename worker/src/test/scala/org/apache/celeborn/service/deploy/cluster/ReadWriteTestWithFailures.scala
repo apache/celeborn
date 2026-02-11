@@ -92,7 +92,7 @@ class ReadWriteTestWithFailures extends AnyFunSuite
     shuffleClient.pushMergedData(1, 0, 0)
     Thread.sleep(1000)
 
-    shuffleClient.mapperEnd(1, 0, 0, 1, 1)
+    shuffleClient.mapperEnd(1, 0, 0, 1, 1, getBytesWritten())
 
     var duplicateBytesRead = new AtomicLong(0)
     val metricsCallback = new MetricsCallback {

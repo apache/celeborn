@@ -153,7 +153,7 @@ class PushMergedDataSplitSuite extends AnyFunSuite
 
         // push merged data, we expect that partition(0) will be split, while partition(1) will not be split
         shuffleClient.pushMergedData(SHUFFLE_ID, MAP_ID, ATTEMPT_ID)
-        shuffleClient.mapperEnd(SHUFFLE_ID, MAP_ID, ATTEMPT_ID, MAP_NUM, PARTITION_NUM)
+        shuffleClient.mapperEnd(SHUFFLE_ID, MAP_ID, ATTEMPT_ID, MAP_NUM, PARTITION_NUM, getBytesWritten())
         assert(
           partitionLocationMap.get(partitions(1)).getEpoch == 0
         ) // means partition(1) will not be split

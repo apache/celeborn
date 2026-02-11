@@ -98,7 +98,7 @@ trait ReadWriteTestBase extends AnyFunSuite
     shuffleClient.pushMergedData(1, 0, 0)
     Thread.sleep(1000)
 
-    shuffleClient.mapperEnd(1, 0, 0, 1, 1)
+    shuffleClient.mapperEnd(1, 0, 0, 1, 1, getBytesWritten())
 
     val metricsCallback = new MetricsCallback {
       override def incBytesRead(bytesWritten: Long): Unit = {}

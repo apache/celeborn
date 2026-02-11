@@ -116,7 +116,7 @@ trait JavaCppHybridReadWriteTestBase extends AnyFunSuite
         }
       }
       shuffleClient.pushMergedData(shuffleId, mapId, attemptId)
-      shuffleClient.mapperEnd(shuffleId, mapId, attemptId, numMappers, numPartitions)
+      shuffleClient.mapperEnd(shuffleId, mapId, attemptId, numMappers, numPartitions, getBytesWritten())
     }
 
     // Launch cpp reader to read data, calculate result and write to specific result file.
