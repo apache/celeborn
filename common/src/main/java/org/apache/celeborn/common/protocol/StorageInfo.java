@@ -175,6 +175,11 @@ public class StorageInfo implements Serializable {
         + '}';
   }
 
+  public static boolean memoryAvailable(int availableStorageTypes) {
+    return availableStorageTypes == ALL_TYPES_AVAILABLE_MASK
+        || (availableStorageTypes & MEMORY_MASK) > 0;
+  }
+
   public boolean memoryAvailable() {
     return availableStorageTypes == ALL_TYPES_AVAILABLE_MASK
         || (availableStorageTypes & MEMORY_MASK) > 0;

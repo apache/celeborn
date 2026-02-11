@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.tests.spark
 
+import scala.collection.immutable
 import scala.util.Random
 
 import org.apache.spark.{SPARK_VERSION, SparkConf}
@@ -25,9 +26,12 @@ import org.apache.spark.sql.internal.SQLConf
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.ShuffleMode
+import org.apache.celeborn.rest.v1.worker.ShuffleApi
+import org.apache.celeborn.rest.v1.worker.invoker.ApiClient
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.worker.Worker
 
@@ -37,7 +41,7 @@ trait SparkTestBase extends AnyFunSuite
   val Spark3OrNewer = SPARK_VERSION >= "3.0"
   println(s"Spark version is $SPARK_VERSION, Spark3OrNewer: $Spark3OrNewer")
 
-  private val sampleSeq = (1 to 78)
+  private val sampleSeq: immutable.Seq[(Char, Int)] = (1 to 78)
     .map(Random.alphanumeric)
     .toList
     .map(v => (v.toUpper, Random.nextInt(12) + 1))
@@ -53,6 +57,10 @@ trait SparkTestBase extends AnyFunSuite
   }
 
   var workerDirs: Seq[String] = Seq.empty
+
+  def getOneWorker(): Worker = {
+    workerInfos.head._1
+  }
 
   override def createWorker(map: Map[String, String]): Worker = {
     val storageDir = createTmpDir()
@@ -89,9 +97,18 @@ trait SparkTestBase extends AnyFunSuite
     resultWithOutCeleborn
   }
 
-  def repartition(sparkSession: SparkSession): collection.Map[Char, Int] = {
-    val inputRdd = sparkSession.sparkContext.parallelize(sampleSeq, 2)
-    val result = inputRdd.repartition(8).reduceByKey((acc, v) => acc + v).collectAsMap()
+  def repartition(
+      sparkSession: SparkSession,
+      sequence: immutable.Seq[(Any, Int)] = sampleSeq,
+      parallelism: Integer = 2,
+      partitions: Integer = 8,
+      additionalFilter: (Any) => Boolean = (a) => true): collection.Map[Any, Int] = {
+    val inputRdd = sparkSession.sparkContext.parallelize(sequence, parallelism)
+    val result = inputRdd
+      .repartition(partitions)
+      .reduceByKey((acc, v) => acc + v)
+      .filter(additionalFilter)
+      .collectAsMap()
     result
   }
 
