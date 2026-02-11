@@ -41,7 +41,7 @@ abstract private[worker] class FlushTask(
       copyBytes: Array[Byte],
       length: Int): Array[Byte] = {
     if (copyBytes != null && copyBytes.length >= length) {
-      buffer.readBytes(copyBytes, 0, length)
+      buffer.getBytes(buffer.readerIndex(),copyBytes, 0, length)
       copyBytes
     } else {
       ByteBufUtil.getBytes(buffer)

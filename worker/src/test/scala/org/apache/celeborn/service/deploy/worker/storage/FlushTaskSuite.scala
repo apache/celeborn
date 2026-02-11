@@ -125,12 +125,9 @@ class FlushTaskSuite extends CelebornFunSuite {
       val copyBytesArray = new Array[Byte](bufferSize)
       flushTask.flush(copyBytesArray)
 
-      if (bufferSize >= bytes.length)
-        assert(mockBuffer.readableBytes() == 0)
-      else {
-        // here buffer position is not moved, because of ByteBufUtil.getBytes
-        assert(mockBuffer.readableBytes() == bytes.length)
-      }
+      // buffer position is not moved
+      assert(mockBuffer.readableBytes() == bytes.length)
+
 
       val streamCaptor = ArgumentCaptor.forClass(classOf[ByteArrayInputStream])
       verify(mockMultipartUploader).putPart(
