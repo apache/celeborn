@@ -21,6 +21,7 @@ FROM eclipse-temurin:${java_image_tag}
 ARG celeborn_uid=10006
 ARG celeborn_gid=10006
 
+ENV HADOOP_HOME=/opt/hadoop
 ENV CELEBORN_HOME=/opt/celeborn
 ENV CELEBORN_PREFER_JEMALLOC=true
 ENV PATH=${PATH}:/opt/busybox:${CELEBORN_HOME}/sbin:${CELEBORN_HOME}/bin
@@ -36,6 +37,7 @@ RUN set -ex && \
     useradd  --uid=${celeborn_uid} --gid=${celeborn_gid} celeborn -d /home/celeborn -m && \
     mkdir -p ${CELEBORN_HOME}
 
+COPY hadoop/ /opt/hadoop/
 COPY bin /opt/celeborn/bin
 COPY sbin /opt/celeborn/sbin
 COPY conf /opt/celeborn/conf
@@ -47,7 +49,9 @@ COPY RELEASE /opt/celeborn/RELEASE
 RUN chown -R celeborn:celeborn ${CELEBORN_HOME} && \
     chmod -R ug+rw ${CELEBORN_HOME} && \
     chmod a+x ${CELEBORN_HOME}/bin/* && \
-    chmod a+x ${CELEBORN_HOME}/sbin/*
+    chmod a+x ${CELEBORN_HOME}/sbin/* && \
+    chown -R celeborn:celeborn /mnt/ && \
+    chmod -R ug+rw /mnt/
 
 USER celeborn
 WORKDIR /opt/celeborn
