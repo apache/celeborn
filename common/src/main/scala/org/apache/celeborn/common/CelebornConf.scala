@@ -1674,6 +1674,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def secretRedactionPattern = get(SECRET_REDACTION_PATTERN)
 
   def containerInfoProviderClass = get(CONTAINER_INFO_PROVIDER)
+
+  def shuffleWriteLimitEnabled: Boolean = get(SHUFFLE_WRITE_LIMIT_ENABLED)
+
+  def shuffleWriteLimitThreshold: Long = get(SHUFFLE_WRITE_LIMIT_THRESHOLD)
 }
 
 object CelebornConf extends Logging {
@@ -6854,4 +6858,19 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
+  val SHUFFLE_WRITE_LIMIT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffle.write.limit.enabled")
+      .categories("client")
+      .doc("Enable shuffle write limit check to prevent cluster resource exhaustion.")
+      .version("0.7.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val SHUFFLE_WRITE_LIMIT_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.client.shuffle.write.limit.threshold")
+      .categories("client")
+      .doc("Shuffle write limit threshold, exceed to cancel oversized shuffle tasks.")
+      .version("0.7.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("5TB")
 }
