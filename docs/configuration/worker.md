@@ -177,6 +177,7 @@ license: |
 | celeborn.worker.replicate.port | 0 | false | Server port for Worker to receive replicate data request from other Workers. | 0.2.0 |  | 
 | celeborn.worker.replicate.randomConnection.enabled | true | false | Whether worker will create random connection to peer when replicate data. When false, worker tend to reuse the same cached TransportClient to a specific replicate worker; when true, worker tend to use different cached TransportClient. Netty will use the same thread to serve the same connection, so with more connections replicate server can leverage more netty threads | 0.2.1 |  | 
 | celeborn.worker.replicate.threads | 64 | false | Thread number of worker to replicate shuffle data. | 0.2.0 |  | 
+| celeborn.worker.reserve.slots.io.threads | 1 | false | The number of threads used to create PartitionDataWriter in parallel in handleReserveSlots. | 0.7.0 |  | 
 | celeborn.worker.reuse.hdfs.outputStream.enabled | false | false | Whether to enable reuse output stream on hdfs. | 0.7.0 |  | 
 | celeborn.worker.rpc.port | 0 | false | Server port for Worker to receive RPC request. | 0.2.0 |  | 
 | celeborn.worker.shuffle.partitionSplit.enabled | true | false | enable the partition split on worker side | 0.3.0 | celeborn.worker.partition.split.enabled | 

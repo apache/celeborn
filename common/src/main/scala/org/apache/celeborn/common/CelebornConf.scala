@@ -696,6 +696,13 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_FLUSH_REUSE_COPY_BUFFER_ENABLED)
   def workerDfsReplicationFactor: Int =
     get(WORKER_DFS_REPLICATION_FACTOR)
+  def workerReserveSlotsIoThreadPoolSize: Int = {
+    val configured = get(RESERVE_SLOTS_IO_THREAD_POOL_SIZE);
+    // reserve slots creates files, locally or on DFS, parallelism can be high
+    // compared to the number of CPUs
+    if (configured == 0) Runtime.getRuntime.availableProcessors() * 8
+    else configured
+  }
 
   def clusterName: String = get(CLUSTER_NAME)
 
@@ -6800,6 +6807,17 @@ object CelebornConf extends Logging {
       .doc("HDFS replication factor for shuffle files.")
       .intConf
       .createWithDefault(2)
+
+  val RESERVE_SLOTS_IO_THREAD_POOL_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.worker.reserve.slots.io.threads")
+      .categories("worker")
+      .version("0.7.0")
+      .doc("The number of threads used to create PartitionDataWriter in parallel in handleReserveSlots.")
+      .intConf
+      .checkValue(
+        v => v >= 0,
+        "The number of threads must be positive or zero. Setting to zero lets the worker compute the optimal size automatically")
+      .createWithDefault(1)
 
   val CLIENT_SHUFFLE_DATA_LOST_ON_UNKNOWN_WORKER_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.shuffleDataLostOnUnknownWorker.enabled")
