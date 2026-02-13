@@ -21,27 +21,35 @@ import org.apache.hadoop.fs.FileSystem;
 
 import org.apache.celeborn.reflect.DynConstructors;
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler;
+import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandlerSharedState;
 
 public class TierWriterHelper {
-  public static MultipartUploadHandler getS3MultipartUploadHandler(
-      FileSystem hadoopFs,
-      String bucketName,
-      String key,
-      int maxRetryies,
-      int baseDelay,
-      int maxBackoff) {
-    return (MultipartUploadHandler)
+
+  public static MultipartUploadHandlerSharedState getS3MultipartUploadHandlerSharedState(
+      FileSystem hadoopFs, String bucketName, int maxRetryies, int baseDelay, int maxBackoff) {
+    return (MultipartUploadHandlerSharedState)
         DynConstructors.builder()
             .impl(
-                "org.apache.celeborn.S3MultipartUploadHandler",
+                "org.apache.celeborn.S3MultipartUploadHandler$S3MultipartUploadHandlerSharedState",
                 FileSystem.class,
-                String.class,
                 String.class,
                 Integer.class,
                 Integer.class,
                 Integer.class)
             .build()
-            .newInstance(hadoopFs, bucketName, key, maxRetryies, baseDelay, maxBackoff);
+            .newInstance(hadoopFs, bucketName, maxRetryies, baseDelay, maxBackoff);
+  }
+
+  public static MultipartUploadHandler getS3MultipartUploadHandler(
+      MultipartUploadHandlerSharedState sharedState, String key) {
+    return (MultipartUploadHandler)
+        DynConstructors.builder()
+            .impl(
+                "org.apache.celeborn.S3MultipartUploadHandler",
+                MultipartUploadHandlerSharedState.class,
+                String.class)
+            .build()
+            .newInstance(sharedState, key);
   }
 
   public static MultipartUploadHandler getOssMultipartUploadHandler(
