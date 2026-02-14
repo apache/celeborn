@@ -99,6 +99,7 @@ class CelebornInputStream {
   utils::Timeout retryWait_;
   std::shared_ptr<FetchExcludedWorkers> fetchExcludedWorkers_;
   int64_t fetchExcludedWorkerExpireTimeoutMs_;
+  bool readSkewPartitionWithoutMapRange_;
 };
 } // namespace client
 } // namespace celeborn

@@ -57,7 +57,10 @@ CelebornInputStream::CelebornInputStream(
       fetchExcludedWorkerExpireTimeoutMs_(
           std::chrono::duration_cast<std::chrono::milliseconds>(
               conf_->clientFetchExcludedWorkerExpireTimeout())
-              .count()) {
+              .count()),
+      readSkewPartitionWithoutMapRange_(
+          conf_->clientAdaptiveOptimizeSkewedPartitionReadEnabled() &&
+          startMapIndex > endMapIndex) {
   if (shouldDecompress_) {
     decompressor_ = compress::Decompressor::createDecompressor(
         conf_->shuffleCompressionCodec());
@@ -221,7 +224,7 @@ std::shared_ptr<PartitionReader> CelebornInputStream::createReaderWithRetry(
       excludeFailedFetchLocation(currentLocation->hostAndFetchPort(), e);
       fetchChunkRetryCnt_++;
 
-      if (currentLocation->hasPeer()) {
+      if (currentLocation->hasPeer() && !readSkewPartitionWithoutMapRange_) {
         if (fetchChunkRetryCnt_ % 2 == 0) {
           std::this_thread::sleep_for(
               std::chrono::milliseconds(retryWait_.count()));
@@ -230,6 +233,11 @@ std::shared_ptr<PartitionReader> CelebornInputStream::createReaderWithRetry(
                      << "/" << fetchChunkMaxRetry_ << " times for location "
                      << currentLocation->hostAndFetchPort()
                      << ", change to peer. Error: " << e.what();
+        // TODO: When stream handlers are supported, send BUFFER_STREAM_END
+        // to close the active stream before switching to peer, matching the
+        // Java CelebornInputStream behavior. Currently, the C++ client does
+        // not have pre-opened stream handlers, so stream cleanup is handled
+        // by WorkerPartitionReader's destructor.
         currentLocation = currentLocation->getPeer();
       } else {
         LOG(WARNING) << "CreatePartitionReader failed " << fetchChunkRetryCnt_
@@ -324,7 +332,8 @@ void CelebornInputStream::excludeFailedFetchLocation(
     const std::string& hostAndFetchPort,
     const std::exception& e) {
   if (conf_->clientPushReplicateEnabled() &&
-      conf_->clientFetchExcludeWorkerOnFailureEnabled()) {
+      conf_->clientFetchExcludeWorkerOnFailureEnabled() &&
+      utils::isCriticalCauseForFetch(e)) {
     auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
                    std::chrono::steady_clock::now().time_since_epoch())
                    .count();

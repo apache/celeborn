@@ -52,6 +52,7 @@ void testDefaultValues(CelebornConf* conf) {
   EXPECT_FALSE(conf->clientPushReplicateEnabled());
   EXPECT_FALSE(conf->clientFetchExcludeWorkerOnFailureEnabled());
   EXPECT_EQ(conf->clientFetchExcludedWorkerExpireTimeout(), SECOND(60));
+  EXPECT_FALSE(conf->clientAdaptiveOptimizeSkewedPartitionReadEnabled());
 }
 
 TEST(CelebornConfTest, defaultValues) {
@@ -96,6 +97,12 @@ TEST(CelebornConfTest, setValues) {
   conf->registerProperty(
       CelebornConf::kClientFetchExcludedWorkerExpireTimeout, "30s");
   EXPECT_EQ(conf->clientFetchExcludedWorkerExpireTimeout(), SECOND(30));
+  conf->registerProperty(
+      CelebornConf::kClientAdaptiveOptimizeSkewedPartitionReadEnabled, "true");
+  EXPECT_TRUE(conf->clientAdaptiveOptimizeSkewedPartitionReadEnabled());
+  conf->registerProperty(
+      CelebornConf::kClientAdaptiveOptimizeSkewedPartitionReadEnabled, "false");
+  EXPECT_FALSE(conf->clientAdaptiveOptimizeSkewedPartitionReadEnabled());
 
   EXPECT_THROW(
       conf->registerProperty("non-exist-key", "non-exist-value"),
