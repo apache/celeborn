@@ -144,6 +144,10 @@ class CelebornConf : public BaseConf {
   static constexpr std::string_view kClientFetchExcludedWorkerExpireTimeout{
       "celeborn.client.fetch.excludedWorker.expireTimeout"};
 
+  static constexpr std::string_view
+      kClientAdaptiveOptimizeSkewedPartitionReadEnabled{
+          "celeborn.client.adaptive.optimizeSkewedPartitionRead.enabled"};
+
   CelebornConf();
 
   CelebornConf(const std::string& filename);
@@ -221,6 +225,8 @@ class CelebornConf : public BaseConf {
   bool clientFetchExcludeWorkerOnFailureEnabled() const;
 
   Timeout clientFetchExcludedWorkerExpireTimeout() const;
+
+  bool clientAdaptiveOptimizeSkewedPartitionReadEnabled() const;
 };
 } // namespace conf
 } // namespace celeborn

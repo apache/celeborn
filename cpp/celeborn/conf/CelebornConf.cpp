@@ -171,6 +171,7 @@ CelebornConf::defaultProperties() {
           BOOL_PROP(kClientPushReplicateEnabled, false),
           BOOL_PROP(kClientFetchExcludeWorkerOnFailureEnabled, false),
           STR_PROP(kClientFetchExcludedWorkerExpireTimeout, "60s"),
+          BOOL_PROP(kClientAdaptiveOptimizeSkewedPartitionReadEnabled, false),
       };
   return defaultProp;
 }
@@ -375,6 +376,12 @@ bool CelebornConf::clientFetchExcludeWorkerOnFailureEnabled() const {
 Timeout CelebornConf::clientFetchExcludedWorkerExpireTimeout() const {
   return utils::toTimeout(toDuration(
       optionalProperty(kClientFetchExcludedWorkerExpireTimeout).value()));
+}
+
+bool CelebornConf::clientAdaptiveOptimizeSkewedPartitionReadEnabled() const {
+  return folly::to<bool>(
+      optionalProperty(kClientAdaptiveOptimizeSkewedPartitionReadEnabled)
+          .value());
 }
 } // namespace conf
 } // namespace celeborn

@@ -22,6 +22,7 @@
 #include <charconv>
 #include <chrono>
 #include <set>
+#include <system_error>
 #include <vector>
 
 #include "celeborn/memory/ByteBuffer.h"
@@ -36,6 +37,11 @@ namespace utils {
 #define CELEBORN_SHUTDOWN_LOG_PREFIX "[CELEBORN_SHUTDOWN] "
 #define CELEBORN_SHUTDOWN_LOG(severity) \
   LOG(severity) << CELEBORN_SHUTDOWN_LOG_PREFIX
+
+/// Checks if an exception represents a critical cause for fetch failure,
+/// matching the behavior of Java's Utils.isCriticalCauseForFetch.
+/// Critical causes include: connection errors, timeouts, and IO failures.
+bool isCriticalCauseForFetch(const std::exception& e);
 
 template <typename T>
 std::vector<T> toVector(const std::set<T>& in) {
