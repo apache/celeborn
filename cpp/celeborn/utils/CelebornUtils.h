@@ -21,6 +21,7 @@
 #include <google/protobuf/io/coded_stream.h>
 #include <charconv>
 #include <chrono>
+#include <set>
 #include <vector>
 
 #include "celeborn/memory/ByteBuffer.h"

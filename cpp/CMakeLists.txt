@@ -120,7 +120,7 @@ find_path(OPT_OPENSSL_DIR NAMES opt/openssl@1.1)
 set(OPENSSL_ROOT_DIR "${OPT_OPENSSL_DIR}/opt/openssl@1.1")
 find_package(OpenSSL REQUIRED)
 
-find_package(Protobuf REQUIRED)
+find_package(Protobuf CONFIG REQUIRED)
 
 set(CMAKE_MODULE_PATH
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
@@ -156,7 +156,7 @@ set(ProtoGenSource "${CMAKE_BINARY_DIR}/celeborn/proto/TransportMessagesCpp.pb.c
 add_custom_command(
         OUTPUT ${ProtoGenSource} ${ProtoGenHeader}
         COMMAND mkdir -p ${CMAKE_BINARY_DIR}/celeborn/proto
-        COMMAND protoc --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/celeborn/proto --cpp_out=${CMAKE_BINARY_DIR}/celeborn/proto ${ProtoFile}
+        COMMAND protobuf::protoc --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/celeborn/proto --cpp_out=${CMAKE_BINARY_DIR}/celeborn/proto ${ProtoFile}
         DEPENDS ${ProtoFile}
         VERBATIM)
 add_custom_target(
@@ -175,3 +175,27 @@ if(CELEBORN_BUILD_TESTS)
 endif()
 
 add_subdirectory(celeborn)
+
+# ---------------------------------------------------------------------------
+# Install rules — headers + static libraries
+# ---------------------------------------------------------------------------
+# Install all public headers preserving directory structure.
+install(
+  DIRECTORY celeborn/
+  DESTINATION include/celeborn
+  FILES_MATCHING PATTERN "*.h"
+  PATTERN "tests" EXCLUDE
+)
+
+# Install the generated proto header.
+install(
+  FILES ${ProtoGenHeader}
+  DESTINATION include/celeborn/proto
+)
+
+# Install static libraries.
+install(
+  TARGETS client conf memory network proto protocol utils
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+)
