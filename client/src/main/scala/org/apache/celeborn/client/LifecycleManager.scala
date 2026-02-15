@@ -1275,7 +1275,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         }
       }
 
-      if(shuffleWriteLimitEnabled) {
+      if (shuffleWriteLimitEnabled) {
         shuffleTotalWrittenBytes.remove(shuffleId)
       }
     }
