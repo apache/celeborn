@@ -120,7 +120,7 @@ find_path(OPT_OPENSSL_DIR NAMES opt/openssl@1.1)
 set(OPENSSL_ROOT_DIR "${OPT_OPENSSL_DIR}/opt/openssl@1.1")
 find_package(OpenSSL REQUIRED)
 
-find_package(Protobuf CONFIG REQUIRED)
+find_package(Protobuf REQUIRED)
 
 set(CMAKE_MODULE_PATH
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
