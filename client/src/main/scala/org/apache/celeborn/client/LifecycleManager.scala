@@ -1274,6 +1274,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           logInfo(s"[handleUnregisterShuffle] Wait for handleStageEnd complete costs ${cost}ms")
         }
       }
+
+      if(shuffleWriteLimitEnabled) {
+        shuffleTotalWrittenBytes.remove(shuffleId)
+      }
     }
 
     // add shuffleKey to delay shuffle removal set

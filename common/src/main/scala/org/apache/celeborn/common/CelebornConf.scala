@@ -6859,7 +6859,7 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val SHUFFLE_WRITE_LIMIT_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.shuffle.write.limit.enabled")
+    buildConf("celeborn.client.spark.shuffle.write.limit.enabled")
       .categories("client")
       .doc("Enable shuffle write limit check to prevent cluster resource exhaustion.")
       .version("0.7.0")
@@ -6867,9 +6867,9 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val SHUFFLE_WRITE_LIMIT_THRESHOLD: ConfigEntry[Long] =
-    buildConf("celeborn.client.shuffle.write.limit.threshold")
+    buildConf("celeborn.client.spark.shuffle.write.limit.threshold")
       .categories("client")
-      .doc("Shuffle write limit threshold, exceed to cancel oversized shuffle tasks.")
+      .doc("Shuffle write limit threshold, exceed to cancel oversized shuffle.")
       .version("0.7.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("5TB")
