@@ -26,8 +26,7 @@ bool isCriticalCauseForFetch(const std::exception& e) {
   }
 
   std::string msg = e.what();
-  if (msg.find("Connecting to") != std::string::npos ||
-      msg.find("Failed to") != std::string::npos ||
+  if (msg.rfind("Connecting to", 0) == 0 || msg.rfind("Failed to", 0) == 0 ||
       msg.find("imeout") != std::string::npos) {
     return true;
   }

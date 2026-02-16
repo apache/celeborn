@@ -67,7 +67,7 @@ ShuffleClientImpl::ShuffleClientImpl(
                     [conf]() {
                       return compress::Compressor::createCompressor(*conf);
                     })
-              : std::function<std::unique_ptr<compress::Compressor>()>()) {
+              : std::function<std::unique_ptr<compress::Compressor>()>()),
       pushReplicateEnabled_(conf->clientPushReplicateEnabled()),
       fetchExcludeWorkerOnFailureEnabled_(
           conf->clientFetchExcludeWorkerOnFailureEnabled()),
@@ -353,13 +353,15 @@ std::unique_ptr<CelebornInputStream> ShuffleClientImpl::readPartition(
       startMapIndex,
       endMapIndex,
       needCompression,
-      fetchExcludedWorkers_);
+      fetchExcludedWorkers_,
+      this);
 }
 
 void ShuffleClientImpl::excludeFailedFetchLocation(
     const std::string& hostAndFetchPort,
     const std::exception& e) {
-  if (pushReplicateEnabled_ && fetchExcludeWorkerOnFailureEnabled_) {
+  if (pushReplicateEnabled_ && fetchExcludeWorkerOnFailureEnabled_ &&
+      utils::isCriticalCauseForFetch(e)) {
     auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
                    std::chrono::steady_clock::now().time_since_epoch())
                    .count();

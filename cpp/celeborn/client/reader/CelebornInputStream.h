@@ -17,8 +17,6 @@
 
 #pragma once
 
-#include <thread>
-
 #include "celeborn/client/compress/Decompressor.h"
 #include "celeborn/client/reader/WorkerPartitionReader.h"
 #include "celeborn/conf/CelebornConf.h"
@@ -26,6 +24,8 @@
 
 namespace celeborn {
 namespace client {
+class ShuffleClient;
+
 class CelebornInputStream {
  public:
   using FetchExcludedWorkers = utils::ConcurrentHashMap<std::string, int64_t>;
@@ -41,7 +41,8 @@ class CelebornInputStream {
       int startMapIndex,
       int endMapIndex,
       bool needCompression,
-      const std::shared_ptr<FetchExcludedWorkers>& fetchExcludedWorkers);
+      const std::shared_ptr<FetchExcludedWorkers>& fetchExcludedWorkers,
+      ShuffleClient* shuffleClient);
 
   int read(uint8_t* buffer, size_t offset, size_t len);
 
@@ -63,10 +64,6 @@ class CelebornInputStream {
       const protocol::PartitionLocation& location);
 
   bool isExcluded(const protocol::PartitionLocation& location);
-
-  void excludeFailedFetchLocation(
-      const std::string& hostAndFetchPort,
-      const std::exception& e);
 
   std::shared_ptr<const protocol::PartitionLocation> nextReadableLocation();
 
@@ -100,6 +97,7 @@ class CelebornInputStream {
   std::shared_ptr<FetchExcludedWorkers> fetchExcludedWorkers_;
   int64_t fetchExcludedWorkerExpireTimeoutMs_;
   bool readSkewPartitionWithoutMapRange_;
+  ShuffleClient* shuffleClient_;
 };
 } // namespace client
 } // namespace celeborn

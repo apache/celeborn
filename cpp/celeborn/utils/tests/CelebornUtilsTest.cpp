@@ -81,6 +81,16 @@ TEST(IsCriticalCauseForFetchTest, emptyMessageIsNotCritical) {
   EXPECT_FALSE(isCriticalCauseForFetch(e));
 }
 
+TEST(IsCriticalCauseForFetchTest, substringConnectingToIsNotCritical) {
+  std::runtime_error e("Error while Connecting to worker1:9097");
+  EXPECT_FALSE(isCriticalCauseForFetch(e));
+}
+
+TEST(IsCriticalCauseForFetchTest, substringFailedToIsNotCritical) {
+  std::runtime_error e("Worker unexpectedly Failed to respond");
+  EXPECT_FALSE(isCriticalCauseForFetch(e));
+}
+
 TEST_F(CelebornUtilsTest, mapBasicInsertAndRetrieve) {
   map_->set("apple", 10);
   auto result = map_->get("apple");

@@ -17,6 +17,7 @@ add_executable(
         celeborn_client_test
         WorkerPartitionReaderTest.cpp
         PushDataCallbackTest.cpp
+        CelebornInputStreamRetryTest.cpp
         PushStateTest.cpp
         ReviveManagerTest.cpp
         Lz4DecompressorTest.cpp
