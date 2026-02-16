@@ -31,7 +31,6 @@ public class S3MultipartUploadHandlerSuiteJ {
     AWSCredentialProviderList providers =
         S3MultipartUploadHandler.getCredentialsProvider(null, conf);
     Assert.assertTrue(providers.size() != 0);
-    System.out.println(providers.listProviderNames());
   }
 
   @Test
