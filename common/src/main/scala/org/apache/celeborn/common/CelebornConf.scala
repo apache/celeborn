@@ -1386,6 +1386,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerS3FlusherThreads: Int = get(WORKER_FLUSHER_S3_THREADS)
   def workerOssFlusherThreads: Int = get(WORKER_FLUSHER_OSS_THREADS)
   def workerCreateWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
+  def workerCreateWriterParallelEnabled: Boolean = get(WORKER_WRITER_CREATE_PARALLEL_ENABLED)
+  def workerCreateWriterParallelThreads: Int =
+    get(WORKER_WRITER_CREATE_PARALLEL_THREADS).getOrElse(Runtime.getRuntime.availableProcessors)
+  def workerCreateWriterParallelTimeout: Long = get(WORKER_WRITER_CREATE_PARALLEL_TIMEOUT)
   def workerWriterHdfsCreateAuxiliaryFileMaxRetries: Int =
     get(WORKER_WRITER_HDFS_CREATE_AUXILIARY_FILE_MAX_RETRIES)
   def workerWriterHdfsCreateAuxiliaryFileRetryWait: Long =
@@ -4127,6 +4131,30 @@ object CelebornConf extends Logging {
       .doc("Retry count for a file writer to create if its creation was failed.")
       .intConf
       .createWithDefault(3)
+
+  val WORKER_WRITER_CREATE_PARALLEL_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.writer.create.parallel.enabled")
+      .categories("worker")
+      .version("0.6.3")
+      .doc("Whether to parallelize the creation of file writer.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val WORKER_WRITER_CREATE_PARALLEL_THREADS: OptionalConfigEntry[Int] =
+    buildConf("celeborn.worker.writer.create.parallel.threads")
+      .categories("worker")
+      .version("0.6.3")
+      .doc("Thread number of worker to parallelize the creation of file writer.")
+      .intConf
+      .createOptional
+
+  val WORKER_WRITER_CREATE_PARALLEL_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.writer.create.parallel.timeout")
+      .categories("worker")
+      .version("0.6.3")
+      .doc("Timeout for a worker to create a file writer in parallel.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
 
   val WORKER_WRITER_HDFS_CREATE_AUXILIARY_FILE_MAX_RETRIES: ConfigEntry[Int] =
     buildConf("celeborn.worker.writer.hdfs.createAuxiliaryFile.maxRetries")
