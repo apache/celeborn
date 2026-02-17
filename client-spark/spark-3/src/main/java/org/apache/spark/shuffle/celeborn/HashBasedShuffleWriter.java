@@ -320,7 +320,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private void flushSendBuffer(int partitionId, byte[] buffer, int size)
       throws IOException, InterruptedException {
     long start = System.nanoTime();
-    logger.debug("Flush buffer, size {}.", Utils.bytesToString(size));
+    if (logger.isDebugEnabled()) logger.debug("Flush buffer, size {}.", Utils.bytesToString(size));
     dataPusher.addTask(partitionId, buffer, size);
     writeMetrics.incWriteTime(System.nanoTime() - start);
   }
