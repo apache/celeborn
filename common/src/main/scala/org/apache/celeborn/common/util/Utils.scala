@@ -1004,11 +1004,14 @@ object Utils extends Logging {
   }
 
   /**
-   * if the action is timeout, will return the callback result
-   * if other exception will be thrown directly
+   * If the action is timeout, will return the callback result.
+   * If other exception will be thrown directly.
+   *
    * @param block the normal action block
    * @param callback callback if timeout
+   * @param threadPool thread pool to submit
    * @param timeoutInSeconds timeout limit value in seconds
+   * @param errorMessage error message to log exception
    * @tparam T result type
    * @return result
    */
@@ -1016,15 +1019,45 @@ object Utils extends Logging {
       threadPool: ThreadPoolExecutor,
       timeoutInSeconds: Long = 10,
       errorMessage: String = "none"): T = {
-    val futureTask = new Callable[T] {
+    tryFutureWithTimeoutAndCallback(callback)(
+      future(block)(threadPool),
+      timeoutInSeconds,
+      errorMessage)
+  }
+
+  /**
+   * Create future that thread pool submits future task.
+   *
+   * @param block the normal action block
+   * @param threadPool thread pool to submit
+   * @tparam T result type
+   * @return future
+   */
+  def future[T](block: => T)(
+      threadPool: ThreadPoolExecutor): java.util.concurrent.Future[T] = {
+    threadPool.submit(new Callable[T] {
       override def call(): T = {
         block
       }
-    }
+    })
+  }
 
-    var future: java.util.concurrent.Future[T] = null
+  /**
+   * If the action is timeout, will return the callback result.
+   * If other exception will be thrown directly.
+   *
+   * @param callback callback if timeout
+   * @param future future to try with timeout and callback
+   * @param timeoutInSeconds timeout limit value in seconds
+   * @param errorMessage error message to log exception
+   * @tparam T result type
+   * @return result
+   */
+  def tryFutureWithTimeoutAndCallback[T](callback: => T)(
+      future: java.util.concurrent.Future[T],
+      timeoutInSeconds: Long = 10,
+      errorMessage: String = "none"): T = {
     try {
-      future = threadPool.submit(futureTask)
       future.get(timeoutInSeconds, TimeUnit.SECONDS)
     } catch {
       case _: TimeoutException =>
@@ -1034,9 +1067,40 @@ object Utils extends Logging {
       case throwable: Throwable =>
         throw throwable
     } finally {
-      if (null != future && !future.isCancelled) {
-        future.cancel(true)
-      }
+      cancelFuture(future)
+    }
+  }
+
+  /**
+   * If the action is timeout, will return the callback result.
+   * If other exception will be thrown directly.
+   *
+   * @param futures futures to try with timeout and callback
+   * @param timeoutInSeconds timeout limit value in seconds
+   * @param errorMessage error message to log exception
+   * @tparam T result type
+   * @return results
+   */
+  def tryFuturesWithTimeout[T](
+      futures: List[java.util.concurrent.Future[T]],
+      timeoutInSeconds: Long = 10,
+      errorMessage: String = "none"): List[T] = {
+    try {
+      futures.map(_.get(timeoutInSeconds, TimeUnit.SECONDS))
+    } catch {
+      case throwable: Throwable =>
+        logError(
+          s"${throwable.getClass.getSimpleName} in thread ${Thread.currentThread().getName}," +
+            s" error message: $errorMessage")
+        throw throwable
+    } finally {
+      futures.foreach(cancelFuture)
+    }
+  }
+
+  def cancelFuture[T](future: java.util.concurrent.Future[T]): Unit = {
+    if (null != future && !future.isCancelled) {
+      future.cancel(true)
     }
   }
 
