@@ -26,7 +26,6 @@ import java.util.List;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.ClientConfiguration;
-import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.event.ProgressListener;
 import com.amazonaws.retry.PredefinedBackoffStrategies;
@@ -35,23 +34,11 @@ import com.amazonaws.retry.RetryPolicy;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.*;
-import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
-import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
-import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
-import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
-import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
-import com.amazonaws.services.s3.model.ListPartsRequest;
-import com.amazonaws.services.s3.model.PartETag;
-import com.amazonaws.services.s3.model.PartListing;
-import com.amazonaws.services.s3.model.PartSummary;
-import com.amazonaws.services.s3.model.UploadPartRequest;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.s3a.AWSCredentialProviderList;
 import org.apache.hadoop.fs.s3a.Constants;
-import org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider;
-import org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider;
-import org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider;
+import org.apache.hadoop.fs.s3a.S3AUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,12 +74,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
     this.maxBackoff = maxBackoff;
 
     Configuration conf = hadoopFs.getConf();
-    AWSCredentialProviderList providers = new AWSCredentialProviderList();
-    providers.add(new TemporaryAWSCredentialsProvider(conf));
-    providers.add(
-        new SimpleAWSCredentialsProvider(new URI(String.format("s3a://%s", bucketName)), conf));
-    providers.add(new EnvironmentVariableCredentialsProvider());
-    providers.add(new IAMInstanceCredentialsProvider());
+    URI binding = new URI(String.format("s3a://%s", bucketName));
 
     RetryPolicy retryPolicy =
         new RetryPolicy(
@@ -107,7 +89,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
             .withMaxErrorRetry(s3MultiplePartUploadMaxRetries);
     AmazonS3ClientBuilder builder =
         AmazonS3ClientBuilder.standard()
-            .withCredentials(providers)
+            .withCredentials(getCredentialsProvider(binding, conf))
             .withClientConfiguration(clientConfig);
     // for MinIO
     String endpoint = conf.get("fs.s3a.endpoint");
@@ -258,5 +240,10 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
     if (s3Client != null) {
       s3Client.shutdown();
     }
+  }
+
+  static AWSCredentialProviderList getCredentialsProvider(URI binding, Configuration conf)
+      throws IOException {
+    return S3AUtils.createAWSCredentialProviderSet(binding, conf);
   }
 }
