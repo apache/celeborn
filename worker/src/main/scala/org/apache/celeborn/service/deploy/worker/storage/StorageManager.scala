@@ -438,7 +438,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       isSegmentGranularityVisible = false)
   }
 
-  def ensureS3MultipartUploaderSharedState(): Unit = {
+  def ensureS3MultipartUploaderSharedState(): Unit = this.synchronized {
     if (s3MultipartUploadHandlerSharedState != null)
       return
 
@@ -1162,7 +1162,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       } else if (storageType == Type.S3 && location.getStorageInfo.S3Available()) {
         val shuffleDir =
           new Path(new Path(s3Dir, conf.workerWorkingDir), s"$appId/$shuffleId")
-        // directory as been prepared by ensureS3DirectoryForShuffleKey
+        // directory has been prepared by ensureS3DirectoryForShuffleKey
         val s3FilePath = new Path(shuffleDir, fileName).toString
         val s3FileInfo = new DiskFileInfo(
           userIdentifier,

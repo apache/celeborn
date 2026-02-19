@@ -17,7 +17,8 @@
 
 package org.apache.celeborn.server.common.service.mpu;
 
-public interface MultipartUploadHandlerSharedState {
+public interface MultipartUploadHandlerSharedState extends AutoCloseable {
 
+  @Override
   void close();
 }

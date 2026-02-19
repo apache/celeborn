@@ -52,7 +52,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
   private String uploadId;
   private final String key;
 
-  private S3MultipartUploadHandlerSharedState sharedState;
+  private final S3MultipartUploadHandlerSharedState sharedState;
 
   public static class S3MultipartUploadHandlerSharedState
       implements MultipartUploadHandlerSharedState {
@@ -107,6 +107,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
       this.s3Client = builder.build();
     }
 
+    @Override
     public void close() {
       if (s3Client != null) {
         s3Client.shutdown();
