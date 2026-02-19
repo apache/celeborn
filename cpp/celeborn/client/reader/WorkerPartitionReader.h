@@ -29,6 +29,8 @@ class PartitionReader {
   virtual bool hasNext() = 0;
 
   virtual std::unique_ptr<memory::ReadOnlyByteBuffer> next() = 0;
+
+  virtual const protocol::PartitionLocation& getLocation() const = 0;
 };
 
 class WorkerPartitionReader
@@ -50,6 +52,8 @@ class WorkerPartitionReader
   bool hasNext() override;
 
   std::unique_ptr<memory::ReadOnlyByteBuffer> next() override;
+
+  const protocol::PartitionLocation& getLocation() const override;
 
  private:
   // Disable creating the object directly to make sure that
@@ -88,6 +92,10 @@ class WorkerPartitionReader
   static constexpr auto kDefaultConsumeIter = std::chrono::milliseconds(500);
 
   // TODO: add other params, such as fetchChunkRetryCnt, fetchChunkMaxRetries
+  // TODO: add TEST_CLIENT_FETCH_FAILURE support (matching Java's testFetch
+  // flag) to enable integration testing of getNextChunk() retry logic, as
+  // done by Java's ReadWriteTestWithFailures. This will likely be done once
+  // full C++ write support is achieved.
 };
 } // namespace client
 } // namespace celeborn

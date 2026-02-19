@@ -227,3 +227,39 @@ TEST(WorkerPartitionReaderTest, fetchChunkFailure) {
   EXPECT_TRUE(partitionReader->hasNext());
   EXPECT_THROW(partitionReader->next(), std::exception);
 }
+
+TEST(WorkerPartitionReaderTest, getLocationReturnsCorrectLocation) {
+  MockTransportClientFactory mockedClientFactory;
+  auto conf = std::make_shared<CelebornConf>();
+  auto transportClient = mockedClientFactory.getClient();
+
+  PbStreamHandler pb;
+  pb.set_streamid(100);
+  pb.set_numchunks(0);
+  pb.set_fullpath("test-fullpath");
+  TransportMessage transportMessage(STREAM_HANDLER, pb.SerializeAsString());
+  RpcResponse response =
+      RpcResponse(1111, transportMessage.toReadOnlyByteBuffer());
+  transportClient->setSyncResponse(response);
+
+  PartitionLocation location;
+  location.id = 42;
+  location.epoch = 7;
+  location.host = "test-location-host";
+  location.rpcPort = 0;
+  location.pushPort = 0;
+  location.fetchPort = 9999;
+  location.replicatePort = 0;
+  location.mode = PartitionLocation::PRIMARY;
+  location.storageInfo = std::make_unique<StorageInfo>();
+  location.storageInfo->type = StorageInfo::HDD;
+
+  auto reader = WorkerPartitionReader::create(
+      conf, "shuffle-key", location, 0, 100, &mockedClientFactory);
+
+  const auto& loc = reader->getLocation();
+  EXPECT_EQ(loc.host, "test-location-host");
+  EXPECT_EQ(loc.fetchPort, 9999);
+  EXPECT_EQ(loc.id, 42);
+  EXPECT_EQ(loc.epoch, 7);
+}

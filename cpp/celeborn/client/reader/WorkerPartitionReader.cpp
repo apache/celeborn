@@ -73,6 +73,10 @@ WorkerPartitionReader::~WorkerPartitionReader() {
   client_->sendRpcRequestWithoutResponse(request);
 }
 
+const protocol::PartitionLocation& WorkerPartitionReader::getLocation() const {
+  return location_;
+}
+
 bool WorkerPartitionReader::hasNext() {
   return toConsumeChunkId_ < streamHandler_->numChunks;
 }
