@@ -34,6 +34,7 @@ import com.amazonaws.retry.RetryPolicy;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.*;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.s3a.AWSCredentialProviderList;
@@ -43,7 +44,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler;
-import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandlerSharedState;
 
 public class S3MultipartUploadHandler implements MultipartUploadHandler {
 
@@ -54,8 +54,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
 
   private final S3MultipartUploadHandlerSharedState sharedState;
 
-  public static class S3MultipartUploadHandlerSharedState
-      implements MultipartUploadHandlerSharedState {
+  public static class S3MultipartUploadHandlerSharedState implements AutoCloseable {
 
     private final AmazonS3 s3Client;
     private final String bucketName;
@@ -93,14 +92,14 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
               .withCredentials(getCredentialsProvider(binding, conf))
               .withClientConfiguration(clientConfig);
       // for MinIO
-      String endpoint = conf.get("fs.s3a.endpoint");
-      if (endpoint != null && !endpoint.isEmpty()) {
+      String endpoint = conf.get(Constants.ENDPOINT);
+      if (!StringUtils.isEmpty(endpoint)) {
         builder =
             builder
                 .withEndpointConfiguration(
                     new AwsClientBuilder.EndpointConfiguration(
                         endpoint, conf.get(Constants.AWS_REGION)))
-                .withPathStyleAccessEnabled(conf.getBoolean("fs.s3a.path.style.access", false));
+                .withPathStyleAccessEnabled(conf.getBoolean(Constants.PATH_STYLE_ACCESS, false));
       } else {
         builder = builder.withRegion(conf.get(Constants.AWS_REGION));
       }
@@ -115,7 +114,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
     }
   }
 
-  public S3MultipartUploadHandler(MultipartUploadHandlerSharedState sharedState, String key) {
+  public S3MultipartUploadHandler(AutoCloseable sharedState, String key) {
     this.sharedState = (S3MultipartUploadHandlerSharedState) sharedState;
     this.key = key;
   }

@@ -46,7 +46,6 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMod
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, CollectionUtils, DiskUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
-import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandlerSharedState
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
@@ -80,7 +79,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   val diskReserveSize = conf.workerDiskReserveSize
   val diskReserveRatio = conf.workerDiskReserveRatio
-  var s3MultipartUploadHandlerSharedState: MultipartUploadHandlerSharedState = _
+  var s3MultipartUploadHandlerSharedState: AutoCloseable = _
 
   // (deviceName -> deviceInfo) and (mount point -> diskInfo)
   val (deviceInfos, diskInfos) = {

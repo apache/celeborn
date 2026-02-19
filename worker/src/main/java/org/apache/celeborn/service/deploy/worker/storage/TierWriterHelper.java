@@ -21,13 +21,12 @@ import org.apache.hadoop.fs.FileSystem;
 
 import org.apache.celeborn.reflect.DynConstructors;
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler;
-import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandlerSharedState;
 
 public class TierWriterHelper {
 
-  public static MultipartUploadHandlerSharedState getS3MultipartUploadHandlerSharedState(
+  public static AutoCloseable getS3MultipartUploadHandlerSharedState(
       FileSystem hadoopFs, String bucketName, int maxRetryies, int baseDelay, int maxBackoff) {
-    return (MultipartUploadHandlerSharedState)
+    return (AutoCloseable)
         DynConstructors.builder()
             .impl(
                 "org.apache.celeborn.S3MultipartUploadHandler$S3MultipartUploadHandlerSharedState",
@@ -41,13 +40,10 @@ public class TierWriterHelper {
   }
 
   public static MultipartUploadHandler getS3MultipartUploadHandler(
-      MultipartUploadHandlerSharedState sharedState, String key) {
+      AutoCloseable sharedState, String key) {
     return (MultipartUploadHandler)
         DynConstructors.builder()
-            .impl(
-                "org.apache.celeborn.S3MultipartUploadHandler",
-                MultipartUploadHandlerSharedState.class,
-                String.class)
+            .impl("org.apache.celeborn.S3MultipartUploadHandler", AutoCloseable.class, String.class)
             .build()
             .newInstance(sharedState, key);
   }
