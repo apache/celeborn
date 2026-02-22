@@ -25,6 +25,7 @@ import scala.util.Random
 
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.{SparkConf, SparkException}
+import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
 import org.apache.spark.sql.SparkSession
 import org.scalatest.{BeforeAndAfterEach, Ignore}
 import org.scalatest.funsuite.AnyFunSuite
@@ -35,6 +36,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.{PartitionLocation, ShuffleMode}
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.tests.spark.SparkTestBase
+import org.apache.celeborn.tests.spark.s3.ShuffleManagerSpy.Callback
 
 class EvictMemoryToTieredStorageTest extends AnyFunSuite
   with SparkTestBase
@@ -243,30 +245,34 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
 
   def interceptLocationsSeenByClient(): Unit = {
     val worker = getOneWorker()
-    ShuffleManagerSpy.interceptOpenShuffleReader((handle, startPartition, endPartition) => {
-      val appId = handle.appUniqueId
-      val shuffleId = handle.shuffleId
-      logInfo(
-        s"Open Shuffle Reader for App $appId shuffleId $shuffleId locations ${worker.controller.partitionLocationInfo.primaryPartitionLocations}")
-      val locations = worker.controller.partitionLocationInfo.primaryPartitionLocations.get(
-        appId + "-" + shuffleId)
-      logInfo(s"Locations on openReader $locations")
-      seenPartitionLocationsOpenReader.addAll(locations.values());
+    ShuffleManagerSpy.interceptOpenShuffleReader(new Callback[Any, Any, Any] {
+      override def accept(
+          handle: CelebornShuffleHandle[Any, Any, Any],
+          startPartition: java.lang.Integer,
+          endPartition: java.lang.Integer): Unit = {
+        val appId = handle.appUniqueId
+        val shuffleId = handle.shuffleId
+        logInfo(
+          s"Open Shuffle Reader for App $appId shuffleId $shuffleId locations ${worker.controller.partitionLocationInfo.primaryPartitionLocations}")
+        val locations = worker.controller.partitionLocationInfo.primaryPartitionLocations.get(
+          appId + "-" + shuffleId)
+        logInfo(s"Locations on openReader $locations")
+        seenPartitionLocationsOpenReader.addAll(locations.values());
 
-      val client = ShuffleClient.get(
-        handle.appUniqueId,
-        handle.lifecycleManagerHost,
-        handle.lifecycleManagerPort,
-        worker.conf,
-        handle.userIdentifier)
-      val partitionIdList = List.range(startPartition, endPartition)
-      partitionIdList.foreach(partitionId => {
-        val fileGroups = client.updateFileGroup(shuffleId, partitionId)
-        val locationsForPartition = fileGroups.partitionGroups.get(partitionId)
-        logInfo(s"locationsForPartition $partitionId $locationsForPartition")
-        seenPartitionLocationsUpdateFileGroups.addAll(locationsForPartition)
-      })
-
+        val client = ShuffleClient.get(
+          handle.appUniqueId,
+          handle.lifecycleManagerHost,
+          handle.lifecycleManagerPort,
+          worker.conf,
+          handle.userIdentifier)
+        val partitionIdList = List.range(startPartition.intValue(), endPartition.intValue())
+        partitionIdList.foreach(partitionId => {
+          val fileGroups = client.updateFileGroup(shuffleId, partitionId)
+          val locationsForPartition = fileGroups.partitionGroups.get(partitionId)
+          logInfo(s"locationsForPartition $partitionId $locationsForPartition")
+          seenPartitionLocationsUpdateFileGroups.addAll(locationsForPartition)
+        })
+      }
     })
   }
 

@@ -12,7 +12,7 @@ import org.apache.spark.shuffle.celeborn.SparkShuffleManager;
 
 public class ShuffleManagerSpy extends SparkShuffleManager {
 
-  private static AtomicReference<Callback> getShuffleReaderHook = new AtomicReference<>();
+  private static AtomicReference<Callback<?, ?, ?>> getShuffleReaderHook = new AtomicReference<>();
 
   public ShuffleManagerSpy(SparkConf conf, boolean isDriver) {
     super(conf, isDriver);
@@ -36,11 +36,12 @@ public class ShuffleManagerSpy extends SparkShuffleManager {
         handle, startPartition, endPartition, startMapIndex, endMapIndex, context, metrics);
   }
 
-  interface Callback {
-    void accept(CelebornShuffleHandle handle, int startPartition, int endPartition);
+  interface Callback<K, V, T> {
+    void accept(
+        CelebornShuffleHandle<K, V, T> handle, Integer startPartition, Integer endPartition);
   }
 
-  public static void interceptOpenShuffleReader(Callback hook) {
+  public static <K, V, T> void interceptOpenShuffleReader(Callback<K, V, T> hook) {
     getShuffleReaderHook.set(hook);
   }
 
