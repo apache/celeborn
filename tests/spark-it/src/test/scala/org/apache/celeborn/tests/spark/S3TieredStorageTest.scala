@@ -27,11 +27,11 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
 
-class BasicEndToEndTieredStorageTest extends AnyFunSuite
+class S3TieredStorageTest extends AnyFunSuite
   with SparkTestBase
   with BeforeAndAfterEach {
 
-  var container: MinIOContainer = null;
+  var container: MinIOContainer = _
 
   override def beforeAll(): Unit = {
 
@@ -106,11 +106,9 @@ class BasicEndToEndTieredStorageTest extends AnyFunSuite
 
   test("celeborn spark integration test - s3") {
     assume(
-      !isS3LibraryAvailable,
-      "Skipping test because AWS Hadoop client is not in the classpath (enable with -Paws")
+      isS3LibraryAvailable,
+      "Skipping test because AWS Hadoop client is not in the classpath (enable with -Paws)")
 
-    val s3url = container.getS3URL
-    log.info(s"s3url $s3url");
     val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
     val celebornSparkSession = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))

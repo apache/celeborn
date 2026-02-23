@@ -42,19 +42,14 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
   with BeforeAndAfterEach {
 
   private var container: MinIOContainer = _;
-  private val skipAWSTest: Boolean = !isClassPresent("org.apache.hadoop.fs.s3a.S3AFileSystem")
   private val seenPartitionLocationsOpenReader: CopyOnWriteArrayList[PartitionLocation] =
     new CopyOnWriteArrayList[PartitionLocation]()
   private val seenPartitionLocationsUpdateFileGroups: CopyOnWriteArrayList[PartitionLocation] =
     new CopyOnWriteArrayList[PartitionLocation]()
 
-  def skipTestIfNotAWS(): Boolean = {
-    !isS3LibraryAvailable
-  }
-
   override def beforeAll(): Unit = {
 
-    if (skipTestIfNotAWS())
+    if (!isS3LibraryAvailable)
       return
 
     container = new MinIOContainer("minio/minio:RELEASE.2023-09-04T19-57-37Z");
@@ -143,8 +138,8 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
 
   def assumeS3LibraryIsLoaded(): Unit = {
     assume(
-      !skipTestIfNotAWS(),
-      "Skipping test because AWS Hadoop client is not in the classpath(enable with -Paws")
+      isS3LibraryAvailable,
+      "Skipping test because AWS Hadoop client is not in the classpath(enable with -Paws)")
   }
 
   test("celeborn spark integration test - only memory") {
