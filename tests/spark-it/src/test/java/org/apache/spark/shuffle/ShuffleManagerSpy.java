@@ -15,15 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.tests.spark.s3;
+package org.apache.spark.shuffle;
 
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
-import org.apache.spark.shuffle.ShuffleHandle;
-import org.apache.spark.shuffle.ShuffleReadMetricsReporter;
-import org.apache.spark.shuffle.ShuffleReader;
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle;
 import org.apache.spark.shuffle.celeborn.SparkShuffleManager;
 

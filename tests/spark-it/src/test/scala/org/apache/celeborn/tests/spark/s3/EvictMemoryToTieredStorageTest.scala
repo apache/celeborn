@@ -18,11 +18,9 @@
 package org.apache.celeborn.tests.spark.s3
 
 import java.util.concurrent.CopyOnWriteArrayList
-
 import scala.collection.JavaConverters._
 import scala.collection.immutable
 import scala.util.Random
-
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
@@ -30,13 +28,13 @@ import org.apache.spark.sql.SparkSession
 import org.scalatest.{BeforeAndAfterEach, Ignore}
 import org.scalatest.funsuite.AnyFunSuite
 import org.testcontainers.containers.MinIOContainer
-
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.{PartitionLocation, ShuffleMode}
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.tests.spark.SparkTestBase
-import org.apache.celeborn.tests.spark.s3.ShuffleManagerSpy.Callback
+import org.apache.spark.shuffle.ShuffleManagerSpy
+import org.apache.spark.shuffle.ShuffleManagerSpy.Callback
 
 class EvictMemoryToTieredStorageTest extends AnyFunSuite
   with SparkTestBase
@@ -144,7 +142,7 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
 
     super.updateSparkConf(newConf, mode)
 
-    sparkConf.set("spark.shuffle.manager", "org.apache.celeborn.tests.spark.s3.ShuffleManagerSpy")
+    sparkConf.set("spark.shuffle.manager", "org.apache.spark.shuffle.ShuffleManagerSpy")
   }
 
   test("celeborn spark integration test - only memory") {
