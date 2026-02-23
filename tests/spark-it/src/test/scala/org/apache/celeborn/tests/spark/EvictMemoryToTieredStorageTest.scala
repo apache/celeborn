@@ -15,28 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.tests.spark.s3
-
-import java.util.concurrent.CopyOnWriteArrayList
-
-import scala.collection.JavaConverters._
-import scala.collection.immutable
-import scala.util.Random
-
-import ShuffleManagerSpy.Callback
-import org.apache.commons.lang3.StringUtils
-import org.apache.spark.{SparkConf, SparkException}
-import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerSpy}
-import org.apache.spark.sql.SparkSession
-import org.scalatest.{BeforeAndAfterEach, Ignore}
-import org.scalatest.funsuite.AnyFunSuite
-import org.testcontainers.containers.MinIOContainer
+package org.apache.celeborn.tests.spark
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.protocol.{PartitionLocation, ShuffleMode}
 import org.apache.celeborn.common.protocol.StorageInfo.Type
-import org.apache.celeborn.tests.spark.SparkTestBase
+import org.apache.celeborn.common.protocol.{PartitionLocation, ShuffleMode}
+import org.apache.commons.lang3.StringUtils
+import org.apache.spark.shuffle.celeborn.ShuffleManagerSpy.Callback
+import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerSpy}
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.{SparkConf, SparkException}
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.funsuite.AnyFunSuite
+import org.testcontainers.containers.MinIOContainer
+
+import java.util.concurrent.CopyOnWriteArrayList
+import scala.collection.JavaConverters._
+import scala.collection.immutable
+import scala.util.Random
 
 class EvictMemoryToTieredStorageTest extends AnyFunSuite
   with SparkTestBase

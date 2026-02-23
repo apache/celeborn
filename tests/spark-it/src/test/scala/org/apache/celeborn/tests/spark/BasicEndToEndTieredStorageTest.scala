@@ -15,18 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.tests.spark.s3
+package org.apache.celeborn.tests.spark
 
+import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 import org.testcontainers.containers.MinIOContainer
-
-import org.apache.celeborn.client.ShuffleClient
-import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.protocol.ShuffleMode
-import org.apache.celeborn.tests.spark.SparkTestBase
 
 class BasicEndToEndTieredStorageTest extends AnyFunSuite
   with SparkTestBase
