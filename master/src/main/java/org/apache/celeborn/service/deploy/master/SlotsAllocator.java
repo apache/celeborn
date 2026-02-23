@@ -207,7 +207,7 @@ public class SlotsAllocator {
         interruptionAwareThreshold);
   }
 
-  private static StorageInfo getStorageInfo(
+  static StorageInfo buildStorageInfo(
       List<WorkerInfo> workers,
       int workerIndex,
       Map<WorkerInfo, List<UsableDiskInfo>> restrictions,
@@ -552,7 +552,7 @@ public class SlotsAllocator {
           }
         }
         storageInfo =
-            getStorageInfo(
+            buildStorageInfo(
                 primaryWorkers,
                 nextPrimaryInd,
                 slotsRestrictions,
@@ -568,7 +568,7 @@ public class SlotsAllocator {
           }
         }
         storageInfo =
-            getStorageInfo(
+            buildStorageInfo(
                 primaryWorkers, nextPrimaryInd, null, workerDiskIndex, availableStorageTypes);
       }
       PartitionLocation primaryPartition =
@@ -591,7 +591,7 @@ public class SlotsAllocator {
             }
           }
           storageInfo =
-              getStorageInfo(
+              buildStorageInfo(
                   replicaWorkers,
                   nextReplicaInd,
                   slotsRestrictions,
@@ -617,7 +617,7 @@ public class SlotsAllocator {
             }
           }
           storageInfo =
-              getStorageInfo(
+              buildStorageInfo(
                   replicaWorkers, nextReplicaInd, null, workerDiskIndex, availableStorageTypes);
         }
         PartitionLocation replicaPartition =
