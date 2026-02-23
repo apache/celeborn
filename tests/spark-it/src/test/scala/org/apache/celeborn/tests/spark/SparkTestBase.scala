@@ -41,6 +41,17 @@ trait SparkTestBase extends AnyFunSuite
   val Spark3OrNewer = SPARK_VERSION >= "3.0"
   println(s"Spark version is $SPARK_VERSION, Spark3OrNewer: $Spark3OrNewer")
 
+  def isClassPresent(className: String): Boolean = {
+    try {
+      Class.forName(className)
+      true
+    } catch {
+      case _: ClassNotFoundException => false
+    }
+  }
+
+  val isS3LibraryAvailable = isClassPresent("org.apache.hadoop.fs.s3a.S3AFileSystem")
+
   private val sampleSeq: immutable.Seq[(Char, Int)] = (1 to 78)
     .map(Random.alphanumeric)
     .toList

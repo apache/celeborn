@@ -15,14 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle;
+package org.apache.spark.shuffle.celeborn;
 
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
-import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle;
-import org.apache.spark.shuffle.celeborn.SparkShuffleManager;
+import org.apache.spark.shuffle.ShuffleHandle;
+import org.apache.spark.shuffle.ShuffleReadMetricsReporter;
+import org.apache.spark.shuffle.ShuffleReader;
 
 public class ShuffleManagerSpy extends SparkShuffleManager {
 
@@ -50,7 +51,7 @@ public class ShuffleManagerSpy extends SparkShuffleManager {
         handle, startPartition, endPartition, startMapIndex, endMapIndex, context, metrics);
   }
 
-  interface Callback<K, V, T> {
+  public interface Callback<K, V, T> {
     void accept(
         CelebornShuffleHandle<K, V, T> handle, Integer startPartition, Integer endPartition);
   }

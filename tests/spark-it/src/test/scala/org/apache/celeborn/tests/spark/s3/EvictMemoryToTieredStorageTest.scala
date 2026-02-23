@@ -18,23 +18,25 @@
 package org.apache.celeborn.tests.spark.s3
 
 import java.util.concurrent.CopyOnWriteArrayList
+
 import scala.collection.JavaConverters._
 import scala.collection.immutable
 import scala.util.Random
+
+import ShuffleManagerSpy.Callback
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.{SparkConf, SparkException}
-import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
+import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerSpy}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.{BeforeAndAfterEach, Ignore}
 import org.scalatest.funsuite.AnyFunSuite
 import org.testcontainers.containers.MinIOContainer
+
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.{PartitionLocation, ShuffleMode}
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.tests.spark.SparkTestBase
-import org.apache.spark.shuffle.ShuffleManagerSpy
-import org.apache.spark.shuffle.ShuffleManagerSpy.Callback
 
 class EvictMemoryToTieredStorageTest extends AnyFunSuite
   with SparkTestBase
@@ -47,18 +49,13 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
   private val seenPartitionLocationsUpdateFileGroups: CopyOnWriteArrayList[PartitionLocation] =
     new CopyOnWriteArrayList[PartitionLocation]()
 
-  def isClassPresent(className: String): Boolean = {
-    try {
-      Class.forName(className)
-      true
-    } catch {
-      case _: ClassNotFoundException => false
-    }
+  def skipTestIfNotSpark3andAWS(): Boolean = {
+    !isS3LibraryAvailable || !Spark3OrNewer
   }
 
   override def beforeAll(): Unit = {
 
-    if (skipAWSTest)
+    if (skipTestIfNotSpark3andAWS())
       return
 
     container = new MinIOContainer("minio/minio:RELEASE.2023-09-04T19-57-37Z");
@@ -142,13 +139,17 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
 
     super.updateSparkConf(newConf, mode)
 
-    sparkConf.set("spark.shuffle.manager", "org.apache.spark.shuffle.ShuffleManagerSpy")
+    sparkConf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.ShuffleManagerSpy")
+  }
+
+  def assumeS3AndSpark3(): Unit = {
+    assume(
+      !skipTestIfNotSpark3andAWS(),
+      "Skipping test because AWS Hadoop client is not in the classpath or not running on Spark 3 (enable with -Paws")
   }
 
   test("celeborn spark integration test - only memory") {
-    assume(
-      !skipAWSTest,
-      "Skipping test because AWS Hadoop client is not in the classpath (enable with -Paws")
+    assumeS3AndSpark3()
 
     val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
     val celebornSparkSession = SparkSession.builder()
@@ -161,9 +162,7 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
   }
 
   test("celeborn spark integration test - only s3") {
-    assume(
-      !skipAWSTest,
-      "Skipping test because AWS Hadoop client is not in the classpath (enable with -Paws")
+    assumeS3AndSpark3()
 
     val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
     val celebornSparkSession = SparkSession.builder()
@@ -176,9 +175,7 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
   }
 
   test("celeborn spark integration test - memory does not evict to s3") {
-    assume(
-      !skipAWSTest,
-      "Skipping test because AWS Hadoop client is not in the classpath (enable with -Paws")
+    assumeS3AndSpark3()
 
     val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
     val celebornSparkSession = SparkSession.builder()
@@ -192,9 +189,7 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
   }
 
   test("celeborn spark integration test - memory evict to s3") {
-    assume(
-      !skipAWSTest,
-      "Skipping test because AWS Hadoop client is not in the classpath (enable with -Paws")
+    assumeS3AndSpark3()
 
     val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
     val celebornSparkSession = SparkSession.builder()
