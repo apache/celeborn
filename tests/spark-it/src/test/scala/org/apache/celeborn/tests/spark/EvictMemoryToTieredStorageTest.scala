@@ -141,14 +141,14 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
     sparkConf.set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.ShuffleManagerSpy")
   }
 
-  def assumeS3AndSpark3(): Unit = {
+  def assumeS3LibraryIsLoaded(): Unit = {
     assume(
       !skipTestIfNotAWS(),
-      "Skipping test because AWS Hadoop client is not in the classpath or not running on Spark 3 (enable with -Paws")
+      "Skipping test because AWS Hadoop client is not in the classpath(enable with -Paws")
   }
 
   test("celeborn spark integration test - only memory") {
-    assumeS3AndSpark3()
+    assumeS3LibraryIsLoaded()
 
     val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
     val celebornSparkSession = SparkSession.builder()
@@ -161,7 +161,7 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
   }
 
   test("celeborn spark integration test - only s3") {
-    assumeS3AndSpark3()
+    assumeS3LibraryIsLoaded()
 
     val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
     val celebornSparkSession = SparkSession.builder()
@@ -174,7 +174,7 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
   }
 
   test("celeborn spark integration test - memory does not evict to s3") {
-    assumeS3AndSpark3()
+    assumeS3LibraryIsLoaded()
 
     val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
     val celebornSparkSession = SparkSession.builder()
@@ -188,7 +188,7 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
   }
 
   test("celeborn spark integration test - memory evict to s3") {
-    assumeS3AndSpark3()
+    assumeS3LibraryIsLoaded()
 
     val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
     val celebornSparkSession = SparkSession.builder()
@@ -205,9 +205,7 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
   }
 
   test("celeborn spark integration test - push fails no way of evicting") {
-    assume(
-      !skipAWSTest,
-      "Skipping test because AWS Hadoop client is not in the classpath (enable with -Paws")
+    assumeS3LibraryIsLoaded()
 
     val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
     val celebornSparkSession = SparkSession.builder()
