@@ -22,7 +22,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
 import org.apache.spark.shuffle.ShuffleHandle;
-import org.apache.spark.shuffle.ShuffleReadMetricsReporter;
 import org.apache.spark.shuffle.ShuffleReader;
 
 import org.apache.celeborn.client.ShuffleClient;
@@ -39,14 +38,8 @@ public class ShuffleManagerSpy extends SparkShuffleManager {
   }
 
   @Override
-  public <K, C> ShuffleReader<K, C> getCelebornShuffleReader(
-      ShuffleHandle handle,
-      int startPartition,
-      int endPartition,
-      int startMapIndex,
-      int endMapIndex,
-      TaskContext context,
-      ShuffleReadMetricsReporter metrics) {
+  public <K, C> ShuffleReader<K, C> getReader(
+      ShuffleHandle handle, int startPartition, int endPartition, TaskContext context) {
     OpenShuffleReaderCallback consumer = getShuffleReaderHook.get();
     if (consumer != null) {
       CelebornShuffleHandle celebornShuffleHandle = (CelebornShuffleHandle) handle;
@@ -64,8 +57,7 @@ public class ShuffleManagerSpy extends SparkShuffleManager {
           startPartition,
           endPartition);
     }
-    return super.getCelebornShuffleReader(
-        handle, startPartition, endPartition, startMapIndex, endMapIndex, context, metrics);
+    return super.getReader(handle, startPartition, endPartition, context);
   }
 
   public interface OpenShuffleReaderCallback {

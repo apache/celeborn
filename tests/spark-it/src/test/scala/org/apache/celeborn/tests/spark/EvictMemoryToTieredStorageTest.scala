@@ -17,23 +17,25 @@
 
 package org.apache.celeborn.tests.spark
 
-import org.apache.celeborn.client.ShuffleClient
-import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.protocol.StorageInfo.Type
-import org.apache.celeborn.common.protocol.{PartitionLocation, ShuffleMode}
+import java.util.concurrent.CopyOnWriteArrayList
+
+import scala.collection.JavaConverters._
+import scala.collection.immutable
+import scala.util.Random
+
 import org.apache.commons.lang3.StringUtils
-import org.apache.spark.shuffle.celeborn.ShuffleManagerSpy.Callback
-import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerSpy}
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkException}
+import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerSpy}
+import org.apache.spark.shuffle.celeborn.ShuffleManagerSpy.OpenShuffleReaderCallback
+import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 import org.testcontainers.containers.MinIOContainer
 
-import java.util.concurrent.CopyOnWriteArrayList
-import scala.collection.JavaConverters._
-import scala.collection.immutable
-import scala.util.Random
+import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.protocol.{PartitionLocation, ShuffleMode}
+import org.apache.celeborn.common.protocol.StorageInfo.Type
 
 class EvictMemoryToTieredStorageTest extends AnyFunSuite
   with SparkTestBase
@@ -46,13 +48,13 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
   private val seenPartitionLocationsUpdateFileGroups: CopyOnWriteArrayList[PartitionLocation] =
     new CopyOnWriteArrayList[PartitionLocation]()
 
-  def skipTestIfNotSpark3andAWS(): Boolean = {
-    !isS3LibraryAvailable || !Spark3OrNewer
+  def skipTestIfNotAWS(): Boolean = {
+    !isS3LibraryAvailable
   }
 
   override def beforeAll(): Unit = {
 
-    if (skipTestIfNotSpark3andAWS())
+    if (skipTestIfNotAWS())
       return
 
     container = new MinIOContainer("minio/minio:RELEASE.2023-09-04T19-57-37Z");
@@ -141,7 +143,7 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
 
   def assumeS3AndSpark3(): Unit = {
     assume(
-      !skipTestIfNotSpark3andAWS(),
+      !skipTestIfNotAWS(),
       "Skipping test because AWS Hadoop client is not in the classpath or not running on Spark 3 (enable with -Paws")
   }
 
@@ -235,35 +237,31 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
 
   def interceptLocationsSeenByClient(): Unit = {
     val worker = getOneWorker()
-    ShuffleManagerSpy.interceptOpenShuffleReader(new Callback[Any, Any, Any] {
-      override def accept(
-          handle: CelebornShuffleHandle[Any, Any, Any],
-          startPartition: java.lang.Integer,
-          endPartition: java.lang.Integer): Unit = {
-        val appId = handle.appUniqueId
-        val shuffleId = handle.shuffleId
-        logInfo(
-          s"Open Shuffle Reader for App $appId shuffleId $shuffleId locations ${worker.controller.partitionLocationInfo.primaryPartitionLocations}")
-        val locations = worker.controller.partitionLocationInfo.primaryPartitionLocations.get(
-          appId + "-" + shuffleId)
-        logInfo(s"Locations on openReader $locations")
-        seenPartitionLocationsOpenReader.addAll(locations.values());
+    ShuffleManagerSpy.interceptOpenShuffleReader(
+      new OpenShuffleReaderCallback {
+        override def accept(
+            appId: String,
+            shuffleId: java.lang.Integer,
+            client: ShuffleClient,
+            startPartition: java.lang.Integer,
+            endPartition: java.lang.Integer): Unit = {
+          logInfo(
+            s"Open Shuffle Reader for App $appId shuffleId $shuffleId locations ${worker.controller.partitionLocationInfo.primaryPartitionLocations}")
+          val locations = worker.controller.partitionLocationInfo.primaryPartitionLocations.get(
+            appId + "-" + shuffleId)
+          logInfo(s"Locations on openReader $locations")
+          seenPartitionLocationsOpenReader.addAll(locations.values());
 
-        val client = ShuffleClient.get(
-          handle.appUniqueId,
-          handle.lifecycleManagerHost,
-          handle.lifecycleManagerPort,
-          worker.conf,
-          handle.userIdentifier)
-        val partitionIdList = List.range(startPartition.intValue(), endPartition.intValue())
-        partitionIdList.foreach(partitionId => {
-          val fileGroups = client.updateFileGroup(shuffleId, partitionId)
-          val locationsForPartition = fileGroups.partitionGroups.get(partitionId)
-          logInfo(s"locationsForPartition $partitionId $locationsForPartition")
-          seenPartitionLocationsUpdateFileGroups.addAll(locationsForPartition)
-        })
-      }
-    })
+          val partitionIdList = List.range(startPartition.intValue(), endPartition.intValue())
+          partitionIdList.foreach(partitionId => {
+            val fileGroups = client.updateFileGroup(shuffleId, partitionId)
+            val locationsForPartition = fileGroups.partitionGroups.get(partitionId)
+            logInfo(s"locationsForPartition $partitionId $locationsForPartition")
+            seenPartitionLocationsUpdateFileGroups.addAll(locationsForPartition)
+          })
+        }
+      },
+      worker.conf)
   }
 
   def validateLocationTypesSeenByClient(
