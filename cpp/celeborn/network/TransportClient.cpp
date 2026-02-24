@@ -187,7 +187,7 @@ std::shared_ptr<TransportClient> TransportClientFactory::createClient(
     const std::string& host,
     uint16_t port,
     int32_t partitionId) {
-  auto address = folly::SocketAddress(host, port);
+  auto address = folly::SocketAddress(host, port, true);
   auto pool = clientPools_.withLock([&](auto& registry) {
     auto iter = registry.find(address);
     if (iter != registry.end()) {
@@ -212,7 +212,7 @@ std::shared_ptr<TransportClient> TransportClientFactory::createClient(
     bootstrap->group(clientExecutor_);
     bootstrap->pipelineFactory(std::make_shared<MessagePipelineFactory>());
     try {
-      auto pipeline = bootstrap->connect(folly::SocketAddress(host, port))
+      auto pipeline = bootstrap->connect(folly::SocketAddress(host, port, true))
                           .get(rpcLookupTimeout_);
 
       auto dispatcher = std::make_unique<MessageDispatcher>();
