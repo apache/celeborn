@@ -456,7 +456,14 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       conf.s3MultiplePartUploadMaxBackoff)
   }
 
-  def ensureS3DirectoryForShuffleKey(appId: String, shuffleId: Int): Unit = this.synchronized {
+  /**
+   * Ensure that the directory for the Shuffle exists.
+   * This method is not synchronized because from the protocol it is not expected
+   * to have more than one reserveSlots running for a given shuffleId.
+   * Also running the method concurrently should not make any harm, the worst case
+   * is that we send a little bit more requests to S3
+   */
+  def ensureS3DirectoryForShuffleKey(appId: String, shuffleId: Int): Unit = {
 
     ensureS3MultipartUploaderSharedState()
 
