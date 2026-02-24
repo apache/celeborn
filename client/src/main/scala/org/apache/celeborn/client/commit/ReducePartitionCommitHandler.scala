@@ -77,6 +77,8 @@ class ReducePartitionCommitHandler(
   private val shuffleMapperAttempts = JavaUtils.newConcurrentHashMap[Int, Array[Int]]()
   // TODO: Move this to native Int -> Int Map
   private val shuffleToCompletedMappers = JavaUtils.newConcurrentHashMap[Int, Int]()
+  private val shuffleIdLocks = JavaUtils.newConcurrentHashMap[Int, Object]()
+
   private val stageEndTimeout = conf.clientPushStageEndTimeout
   private val mockShuffleLost = conf.testMockShuffleLost
   private val mockShuffleLostShuffle = conf.testMockShuffleLostShuffle
@@ -118,6 +120,10 @@ class ReducePartitionCommitHandler(
         new LocationPushFailedBatches()
       }
     }
+
+  private val shuffleIdLocksRegisterFunc = new util.function.Function[Int, Object] {
+    override def apply(key: Int): Object = new Object()
+  }
 
   override def getPartitionType(): PartitionType = {
     PartitionType.REDUCE
@@ -178,6 +184,7 @@ class ReducePartitionCommitHandler(
     inProcessStageEndShuffleSet.remove(shuffleId)
     shuffleMapperAttempts.remove(shuffleId)
     shuffleToCompletedMappers.remove(shuffleId)
+    shuffleIdLocks.remove(shuffleId)
     commitMetadataForReducer.remove(shuffleId)
     skewPartitionCompletenessValidator.remove(shuffleId)
     super.removeExpiredShuffle(shuffleId)
@@ -314,7 +321,8 @@ class ReducePartitionCommitHandler(
       numPartitions: Int,
       crc32PerPartition: Array[Int],
       bytesWrittenPerPartition: Array[Long]): (Boolean, Boolean) = {
-    val (mapperAttemptFinishedSuccess, allMapperFinished) = shuffleMapperAttempts.synchronized {
+    val shuffleLock = shuffleIdLocks.computeIfAbsent(shuffleId, shuffleIdLocksRegisterFunc)
+    val (mapperAttemptFinishedSuccess, allMapperFinished) = shuffleLock.synchronized {
       if (getMapperAttempts(shuffleId) == null) {
         logDebug(s"[handleMapperEnd] $shuffleId not registered, create one.")
         initMapperAttempts(shuffleId, numMappers, numPartitions)
@@ -428,7 +436,8 @@ class ReducePartitionCommitHandler(
   }
 
   private def initMapperAttempts(shuffleId: Int, numMappers: Int, numPartitions: Int): Unit = {
-    shuffleMapperAttempts.synchronized {
+    val shuffleLock = shuffleIdLocks.computeIfAbsent(shuffleId, shuffleIdLocksRegisterFunc)
+    shuffleLock.synchronized {
       if (!shuffleMapperAttempts.containsKey(shuffleId)) {
         val attempts = new Array[Int](numMappers)
         util.Arrays.fill(attempts, -1)

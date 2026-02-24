@@ -19,6 +19,7 @@ package org.apache.celeborn.client;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -122,6 +123,7 @@ public abstract class ShuffleClient {
             hadoopFs = CelebornHadoopUtils.getHadoopFS(conf);
           } catch (Exception e) {
             logger.error("Celeborn initialize DFS failed.", e);
+            hadoopFs = Collections.emptyMap();
           }
         }
       }

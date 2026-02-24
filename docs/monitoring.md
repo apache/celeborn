@@ -184,13 +184,16 @@ These metrics are exposed by Celeborn worker.
     | ActiveShuffleSize                      | The active shuffle size of a worker including master replica and slave replica.                                 |
     | ActiveShuffleFileCount                 | The active shuffle file count of a worker including master replica and slave replica.                           |
     | OpenStreamTime                         | The time for a worker to process openStream RPC and return StreamHandle.                                        |
-    | FetchChunkTime                         | The time for a worker to fetch a chunk which is 8MB by default from a reduced partition.                        |
+    | FetchMemoryChunkTime                   | The time for a worker to fetch a memory chunk which is 8MB by default from a reduced partition.                 |
+    | FetchLocalChunkTime                    | The time for a worker to fetch a local disk chunk which is 8MB by default from a reduced partition.             |
     | FetchChunkTransferTime                 | The time for a worker to transfer for fetching a chunk from a reduced partition.                                |
     | ActiveChunkStreamCount                 | Active stream count for reduce partition reading streams.                                                       |
     | OpenStreamSuccessCount                 | The count of opening stream succeed in current worker.                                                          |
     | OpenStreamFailCount                    | The count of opening stream failed in current worker.                                                           |
-    | FetchChunkSuccessCount                 | The count of fetching chunk succeed in current worker.                                                          |
-    | FetchChunkFailCount                    | The count of fetching chunk failed in current worker.                                                           |
+    | FetchMemoryChunkSuccessCount           | The count of fetching memory chunk succeed in current worker.                                                   |
+    | FetchLocalChunkSuccessCount            | The count of fetching local disk chunk succeed in current worker.                                               |
+    | FetchMemoryChunkFailCount              | The count of fetching memory chunk failed in current worker.                                                    |
+    | FetchLocalChunkFailCount               | The count of fetching local disk chunk failed in current worker.                                                |
     | FetchChunkTransferSize                 | The size of transfer for fetching chunk in current worker.                                                      |
     | PrimaryPushDataTime                    | The time for a worker to handle a pushData RPC sent from a celeborn client.                                     |
     | ReplicaPushDataTime                    | The time for a worker to handle a pushData RPC sent from a celeborn worker by replicating.                      |

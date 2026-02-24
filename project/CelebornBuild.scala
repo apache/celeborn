@@ -90,6 +90,9 @@ object Dependencies {
   val picocliVersion = "4.7.6"
   val jmhVersion = "1.37"
 
+  // S3 integration tests with Minio
+  val testContainerMinioVersion = "1.21.4"
+
   // For SSL support
   val bouncycastleVersion = "1.77"
 
@@ -129,6 +132,8 @@ object Dependencies {
   val hadoopAws = "org.apache.hadoop" % "hadoop-aws" % hadoopVersion excludeAll (
     ExclusionRule("com.amazonaws", "aws-java-sdk-bundle"))
   val awsS3 = "com.amazonaws" % "aws-java-sdk-s3" % awsS3Version
+  // Needed for com.amazonaws.auth.WebIdentityTokenCredentialsProvider
+  val awsSTS = "com.amazonaws" % "aws-java-sdk-sts" % awsS3Version
   val commonsCollections = "commons-collections" % "commons-collections" % commonsCollectionsVersion
   val hadoopAliyun = "org.apache.hadoop" % "hadoop-aliyun" % hadoopVersion
   val aliyunOss = "com.aliyun.oss" % "aliyun-sdk-oss" % aliyunOssVersion
@@ -212,6 +217,8 @@ object Dependencies {
   val httpCore5H2 = "org.apache.httpcomponents.core5" % "httpcore5-h2" % httpCore5Version
   val jakartaAnnotationApi = "jakarta.annotation" % "jakarta.annotation-api" % jakartaAnnotationApiVersion
   val jakartaWsRsApi = "jakarta.ws.rs" % "jakarta.ws.rs-api" % jakartaWsRsApiVersion
+
+  val testContainerMinio = "org.testcontainers" % "minio" %  testContainerMinioVersion
 
   // Test dependencies
   // https://www.scala-sbt.org/1.x/docs/Testing.html
@@ -425,7 +432,8 @@ object CelebornCommonSettings {
     Dependencies.scalatest % "test",
     Dependencies.junit % "test",
     // https://www.scala-sbt.org/1.x/docs/Testing.html
-    Dependencies.junitInterface % "test")
+    Dependencies.junitInterface % "test",
+    Dependencies.testContainerMinio  % "test")
 }
 
 object CelebornBuild extends sbt.internal.BuildDef {
@@ -593,7 +601,7 @@ object CelebornSpi {
 
 object CeleborMPU {
 
-  lazy val hadoopAwsDependencies = Seq(Dependencies.hadoopAws, Dependencies.awsS3)
+  lazy val hadoopAwsDependencies = Seq(Dependencies.hadoopAws, Dependencies.awsS3, Dependencies.awsSTS)
   lazy val hadoopAliyunDependencies = Seq(Dependencies.commonsCollections, Dependencies.hadoopAliyun, Dependencies.aliyunOss)
 
   lazy val celeborMPU = Project("celeborn-multipart-uploader-s3", file("multipart-uploader/multipart-uploader-s3"))
@@ -1163,6 +1171,8 @@ object Flink116 extends FlinkClientProjects {
   val flinkClientProjectName = "celeborn-client-flink-1_16"
   val flinkClientShadedProjectPath: String = "client-flink/flink-1.16-shaded"
   val flinkClientShadedProjectName: String = "celeborn-client-flink-1_16-shaded"
+
+  override val dependOnCommonTiered: Boolean = false
 }
 
 object Flink117 extends FlinkClientProjects {
@@ -1173,6 +1183,8 @@ object Flink117 extends FlinkClientProjects {
   val flinkClientProjectName = "celeborn-client-flink-1_17"
   val flinkClientShadedProjectPath: String = "client-flink/flink-1.17-shaded"
   val flinkClientShadedProjectName: String = "celeborn-client-flink-1_17-shaded"
+
+  override val dependOnCommonTiered: Boolean = false
 }
 
 object Flink118 extends FlinkClientProjects {
@@ -1183,6 +1195,8 @@ object Flink118 extends FlinkClientProjects {
   val flinkClientProjectName = "celeborn-client-flink-1_18"
   val flinkClientShadedProjectPath: String = "client-flink/flink-1.18-shaded"
   val flinkClientShadedProjectName: String = "celeborn-client-flink-1_18-shaded"
+
+  override val dependOnCommonTiered: Boolean = false
 }
 
 object Flink119 extends FlinkClientProjects {
@@ -1193,6 +1207,8 @@ object Flink119 extends FlinkClientProjects {
   val flinkClientProjectName = "celeborn-client-flink-1_19"
   val flinkClientShadedProjectPath: String = "client-flink/flink-1.19-shaded"
   val flinkClientShadedProjectName: String = "celeborn-client-flink-1_19-shaded"
+
+  override val dependOnCommonTiered: Boolean = false
 }
 
 object Flink120 extends FlinkClientProjects {
@@ -1249,7 +1265,16 @@ trait FlinkClientProjects {
   lazy val flinkClientsDependency: ModuleID = "org.apache.flink" % "flink-clients" % flinkVersion % "test"
   lazy val flinkRuntimeWebDependency: ModuleID = "org.apache.flink" % "flink-runtime-web" % flinkVersion % "test"
 
-  def modules: Seq[Project] = Seq(flinkCommon, flinkClient, flinkIt, flinkGroup, flinkClientShade)
+  val dependOnCommonTiered: Boolean = true
+
+  def modules: Seq[Project] = {
+    val modules = Seq(flinkCommon, flinkClient, flinkIt, flinkGroup, flinkClientShade)
+    if (dependOnCommonTiered) {
+      modules :+ flinkCommonTiered
+    } else {
+      modules
+    }
+  }
 
   // for test only, don't use this group for any other projects
   lazy val flinkGroup = (project withId "celeborn-flink-group")
@@ -1284,9 +1309,21 @@ trait FlinkClientProjects {
       )
   }
 
+  def flinkCommonTiered: Project = {
+    Project("celeborn-flink-common-tiered", file("client-flink/common-tiered"))
+      .dependsOn(flinkCommon)
+      .settings (
+        commonSettings,
+        libraryDependencies ++= Seq(
+          "org.apache.flink" % "flink-runtime" % flinkVersion % "provided"
+        ) ++ commonUnitTestDependencies
+      )
+  }
+
   def flinkClient: Project = {
-    Project(flinkClientProjectName, file(flinkClientProjectPath))
-      .dependsOn(CelebornCommon.common, CelebornClient.client, flinkCommon)
+    val flinkClient = Project(flinkClientProjectName, file(flinkClientProjectPath))
+      .dependsOn(CelebornCommon.common, CelebornClient.client)
+      .dependsOn(flinkCommon % "test->test;compile->compile")
       .settings (
         commonSettings,
 
@@ -1298,6 +1335,11 @@ trait FlinkClientProjects {
           Dependencies.log4j12Api % "test"
         ) ++ commonUnitTestDependencies
       )
+    if (dependOnCommonTiered) {
+      flinkClient.dependsOn(flinkCommonTiered % "test->test;compile->compile")
+    } else {
+      flinkClient
+    }
   }
 
   def flinkIt: Project = {

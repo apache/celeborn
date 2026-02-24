@@ -45,6 +45,25 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
+      <groupId>org.apache.celeborn</groupId>
+      <artifactId>celeborn-client-flink-common-tiered_${scala.binary.version}</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.celeborn</groupId>
+      <artifactId>celeborn-client-flink-common_${scala.binary.version}</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.celeborn</groupId>
+      <artifactId>celeborn-client-flink-common-tiered_${scala.binary.version}</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-runtime</artifactId>
       <scope>provided</scope>

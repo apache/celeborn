@@ -133,7 +133,8 @@ jobs:
       run: |
         SPARK_BINARY_VERSION=${{ matrix.spark }}
         SPARK_MAJOR_VERSION=${SPARK_BINARY_VERSION%%.*}
-        PROFILES="-Pgoogle-mirror,spark-${{ matrix.spark }}"
+        # enable AWS profile to run end-to-end tests with S3 storage
+        PROFILES="-Pgoogle-mirror,aws,spark-${{ matrix.spark }}"
         TEST_MODULES="client-spark/common,client-spark/spark-${SPARK_MAJOR_VERSION},client-spark/spark-${SPARK_MAJOR_VERSION}-columnar-common,client-spark/spark-${SPARK_MAJOR_VERSION}-shaded,tests/spark-it"
         build/mvn $PROFILES -pl $TEST_MODULES -am clean install -DskipTests
         build/mvn $PROFILES -pl $TEST_MODULES -Dspark.shuffle.sort.io.plugin.class=${{ matrix.shuffle-plugin-class }} test
@@ -170,7 +171,8 @@ jobs:
         run: |
           SPARK_BINARY_VERSION=${{ matrix.spark }}
           SPARK_MAJOR_VERSION=${SPARK_BINARY_VERSION%%.*}
-          PROFILES="-Pgoogle-mirror,spark-${{ matrix.spark }}"
+          # enable AWS profile to run end-to-end tests with S3 storage
+          PROFILES="-Pgoogle-mirror,aws,spark-${{ matrix.spark }}"
           TEST_MODULES="client-spark/common,client-spark/spark-3,client-spark/spark-3-columnar-common,client-spark/spark-${SPARK_MAJOR_VERSION}-shaded,tests/spark-it"
           build/mvn $PROFILES -pl $TEST_MODULES -am clean install -DskipTests
           build/mvn $PROFILES -pl $TEST_MODULES -Dspark.shuffle.sort.io.plugin.class=${{ matrix.shuffle-plugin-class }} test

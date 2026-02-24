@@ -204,6 +204,7 @@
 This project bundles the following dependencies under the Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt):
 
 com.amazonaws:aws-java-sdk-bundle
+com.amazonaws:aws-java-sdk-sts
 com.fasterxml.jackson.core:jackson-annotations
 com.fasterxml.jackson.core:jackson-core
 com.fasterxml.jackson.core:jackson-databind
