@@ -132,14 +132,14 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     }
   }
 
-  test("CELEBORN-2264: Support cancel shuffle when write bytes exceeds threshold") {
+  test("CELEBORN-2264: Support cancel shuffle when write bytes exceeds threshold (enabled)") {
     val conf = celebornConf.clone
     conf.set(CelebornConf.SHUFFLE_WRITE_LIMIT_ENABLED.key, "true")
       .set(CelebornConf.SHUFFLE_WRITE_LIMIT_THRESHOLD.key, "2000")
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val ctx = Mockito.mock(classOf[RpcCallContext])
 
-    // Custom BiConsumer callback to track if cancelShuffle is invoked
+    // Track cancelShuffle invocation
     var isCancelShuffleInvoked = false
     val cancelShuffleCallback = new BiConsumer[Integer, String] {
       override def accept(shuffleId: Integer, reason: String): Unit = {
@@ -148,7 +148,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     }
     lifecycleManager.registerCancelShuffleCallback(cancelShuffleCallback)
 
-    // Scenario 1: Same mapper with multiple attempts (total bytes exceed threshold but no cancel)
+    // Same mapper multiple attempts (total > threshold, no cancel)
     val shuffleId = 0
     val mapId1 = 0
     lifecycleManager.receiveAndReply(ctx)(MapperEnd(
@@ -177,7 +177,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
       bytesWritten = 1500))
     assert(!isCancelShuffleInvoked)
 
-    // Scenario 2: Total bytes of mapId1 + mapId2 exceed threshold (trigger cancel)
+    // mapId1 + mapId2 exceed threshold (trigger cancel)
     val mapId2 = 1
     lifecycleManager.receiveAndReply(ctx)(MapperEnd(
       shuffleId = shuffleId,
@@ -192,6 +192,55 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
       SerdeVersion.V1,
       bytesWritten = 1000))
     assert(isCancelShuffleInvoked)
+  }
+
+  test("CELEBORN-2264: Support cancel shuffle when write bytes exceeds threshold (disable)") {
+    val conf = celebornConf.clone
+    conf.set(CelebornConf.SHUFFLE_WRITE_LIMIT_ENABLED.key, "false")
+      .set(CelebornConf.SHUFFLE_WRITE_LIMIT_THRESHOLD.key, "2000")
+    val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
+    val ctx = Mockito.mock(classOf[RpcCallContext])
+
+    // Track cancelShuffle invocation
+    var isCancelShuffleInvoked = false
+    val cancelShuffleCallback = new BiConsumer[Integer, String] {
+      override def accept(shuffleId: Integer, reason: String): Unit = {
+        isCancelShuffleInvoked = true
+      }
+    }
+    lifecycleManager.registerCancelShuffleCallback(cancelShuffleCallback)
+
+    // Cumulative bytes exceed threshold (no cancel when disabled)
+    val shuffleId = 0
+    val mapId1 = 0
+    lifecycleManager.receiveAndReply(ctx)(MapperEnd(
+      shuffleId = shuffleId,
+      mapId = mapId1,
+      attemptId = 0,
+      2,
+      1,
+      Collections.emptyMap(),
+      1,
+      Array.emptyIntArray,
+      Array.emptyLongArray,
+      SerdeVersion.V1,
+      bytesWritten = 1500))
+
+    val mapId2 = 1
+    lifecycleManager.receiveAndReply(ctx)(MapperEnd(
+      shuffleId = shuffleId,
+      mapId = mapId2,
+      attemptId = 0,
+      2,
+      1,
+      Collections.emptyMap(),
+      1,
+      Array.emptyIntArray,
+      Array.emptyLongArray,
+      SerdeVersion.V1,
+      bytesWritten = 1500))
+
+    assert(!isCancelShuffleInvoked)
   }
 
   override def afterAll(): Unit = {
