@@ -299,6 +299,7 @@ class MemoryTierWriter(
   override def evict(file: TierWriterBase): Unit = {
     flushLock.synchronized {
       val numBytes = flushBuffer.readableBytes()
+
       logDebug(s"Evict ${Utils.bytesToString(
         numBytes)} from memory to other tier ${file.filename} on ${file.storageType} for ${file.shuffleKey}")
       // swap tier writer's flush buffer to memory tier writer's
