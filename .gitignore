@@ -42,6 +42,7 @@ dev/create-release/*final
 dev/create-release/*txt
 dev/pr-deps/
 dist/
+.release-dist/
 assets/_site
 assets/api
 lib_managed/

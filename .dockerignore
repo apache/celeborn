@@ -1,0 +1,7 @@
+.git
+.release-dist
+dist
+build/apache-maven-*/
+apache-celeborn-*.tgz
+apache-celeborn-*-bin
+**/target
