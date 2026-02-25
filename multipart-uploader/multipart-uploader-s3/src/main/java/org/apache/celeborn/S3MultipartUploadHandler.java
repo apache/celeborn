@@ -34,6 +34,7 @@ import com.amazonaws.retry.RetryPolicy;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.*;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.s3a.AWSCredentialProviderList;
@@ -49,69 +50,81 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
   private static final Logger logger = LoggerFactory.getLogger(S3MultipartUploadHandler.class);
 
   private String uploadId;
-
-  private final AmazonS3 s3Client;
-
   private final String key;
 
-  private final String bucketName;
+  private final S3MultipartUploadHandlerSharedState sharedState;
 
-  private final Integer s3MultiplePartUploadMaxRetries;
-  private final Integer baseDelay;
-  private final Integer maxBackoff;
+  public static class S3MultipartUploadHandlerSharedState implements AutoCloseable {
 
-  public S3MultipartUploadHandler(
-      FileSystem hadoopFs,
-      String bucketName,
-      String key,
-      Integer s3MultiplePartUploadMaxRetries,
-      Integer baseDelay,
-      Integer maxBackoff)
-      throws IOException, URISyntaxException {
-    this.bucketName = bucketName;
-    this.s3MultiplePartUploadMaxRetries = s3MultiplePartUploadMaxRetries;
-    this.baseDelay = baseDelay;
-    this.maxBackoff = maxBackoff;
+    private final AmazonS3 s3Client;
+    private final String bucketName;
+    private final int s3MultiplePartUploadMaxRetries;
+    private final int baseDelay;
+    private final int maxBackoff;
 
-    Configuration conf = hadoopFs.getConf();
-    URI binding = new URI(String.format("s3a://%s", bucketName));
+    public S3MultipartUploadHandlerSharedState(
+        FileSystem hadoopFs,
+        String bucketName,
+        Integer s3MultiplePartUploadMaxRetries,
+        Integer baseDelay,
+        Integer maxBackoff)
+        throws IOException, URISyntaxException {
+      this.bucketName = bucketName;
+      this.s3MultiplePartUploadMaxRetries = s3MultiplePartUploadMaxRetries;
+      this.baseDelay = baseDelay;
+      this.maxBackoff = maxBackoff;
+      Configuration conf = hadoopFs.getConf();
+      URI binding = new URI(String.format("s3a://%s", bucketName));
 
-    RetryPolicy retryPolicy =
-        new RetryPolicy(
-            PredefinedRetryPolicies.DEFAULT_RETRY_CONDITION,
-            new PredefinedBackoffStrategies.SDKDefaultBackoffStrategy(
-                baseDelay, baseDelay, maxBackoff),
-            s3MultiplePartUploadMaxRetries,
-            false);
-    ClientConfiguration clientConfig =
-        new ClientConfiguration()
-            .withRetryPolicy(retryPolicy)
-            .withMaxErrorRetry(s3MultiplePartUploadMaxRetries);
-    AmazonS3ClientBuilder builder =
-        AmazonS3ClientBuilder.standard()
-            .withCredentials(getCredentialsProvider(binding, conf))
-            .withClientConfiguration(clientConfig);
-    // for MinIO
-    String endpoint = conf.get("fs.s3a.endpoint");
-    if (endpoint != null && !endpoint.isEmpty()) {
-      builder =
-          builder
-              .withEndpointConfiguration(
-                  new AwsClientBuilder.EndpointConfiguration(
-                      endpoint, conf.get(Constants.AWS_REGION)))
-              .withPathStyleAccessEnabled(conf.getBoolean("fs.s3a.path.style.access", false));
-    } else {
-      builder = builder.withRegion(conf.get(Constants.AWS_REGION));
+      RetryPolicy retryPolicy =
+          new RetryPolicy(
+              PredefinedRetryPolicies.DEFAULT_RETRY_CONDITION,
+              new PredefinedBackoffStrategies.SDKDefaultBackoffStrategy(
+                  baseDelay, baseDelay, maxBackoff),
+              s3MultiplePartUploadMaxRetries,
+              false);
+      ClientConfiguration clientConfig =
+          new ClientConfiguration()
+              .withRetryPolicy(retryPolicy)
+              .withMaxErrorRetry(s3MultiplePartUploadMaxRetries);
+      AmazonS3ClientBuilder builder =
+          AmazonS3ClientBuilder.standard()
+              .withCredentials(getCredentialsProvider(binding, conf))
+              .withClientConfiguration(clientConfig);
+      // for MinIO
+      String endpoint = conf.get(Constants.ENDPOINT);
+      if (!StringUtils.isEmpty(endpoint)) {
+        builder =
+            builder
+                .withEndpointConfiguration(
+                    new AwsClientBuilder.EndpointConfiguration(
+                        endpoint, conf.get(Constants.AWS_REGION)))
+                .withPathStyleAccessEnabled(conf.getBoolean(Constants.PATH_STYLE_ACCESS, false));
+      } else {
+        builder = builder.withRegion(conf.get(Constants.AWS_REGION));
+      }
+      this.s3Client = builder.build();
     }
-    this.s3Client = builder.build();
+
+    @Override
+    public void close() {
+      if (s3Client != null) {
+        s3Client.shutdown();
+      }
+    }
+  }
+
+  public S3MultipartUploadHandler(AutoCloseable sharedState, String key) {
+    this.sharedState = (S3MultipartUploadHandlerSharedState) sharedState;
     this.key = key;
   }
 
   @Override
   public void startUpload() {
     InitiateMultipartUploadRequest initRequest =
-        new InitiateMultipartUploadRequest(bucketName, key);
-    InitiateMultipartUploadResult initResponse = s3Client.initiateMultipartUpload(initRequest);
+        new InitiateMultipartUploadRequest(sharedState.bucketName, key);
+    InitiateMultipartUploadResult initResponse =
+        sharedState.s3Client.initiateMultipartUpload(initRequest);
     this.uploadId = initResponse.getUploadId();
   }
 
@@ -131,14 +144,14 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
       }
       UploadPartRequest uploadRequest =
           new UploadPartRequest()
-              .withBucketName(bucketName)
+              .withBucketName(sharedState.bucketName)
               .withKey(key)
               .withUploadId(uploadId)
               .withPartNumber(partNumber)
               .withInputStream(inStream)
               .withPartSize(partSize)
               .withLastPart(finalFlush);
-      s3Client.uploadPart(uploadRequest);
+      sharedState.s3Client.uploadPart(uploadRequest);
       logger.debug(
           "key {} uploadId {} part number {} uploaded with size {} finalFlush {}",
           key,
@@ -155,10 +168,10 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
   @Override
   public void complete() {
     List<PartETag> partETags = new ArrayList<>();
-    ListPartsRequest listPartsRequest = new ListPartsRequest(bucketName, key, uploadId);
+    ListPartsRequest listPartsRequest = new ListPartsRequest(sharedState.bucketName, key, uploadId);
     PartListing partListing;
     do {
-      partListing = s3Client.listParts(listPartsRequest);
+      partListing = sharedState.s3Client.listParts(listPartsRequest);
       for (PartSummary part : partListing.getParts()) {
         partETags.add(new PartETag(part.getPartNumber(), part.getETag()));
       }
@@ -167,11 +180,12 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
     if (partETags.size() == 0) {
       logger.debug(
           "bucket {} key {} uploadId {} has no parts uploaded, aborting upload",
-          bucketName,
+          sharedState.bucketName,
           key,
           uploadId);
       abort();
-      logger.debug("bucket {} key {} upload completed with size {}", bucketName, key, 0);
+      logger.debug(
+          "bucket {} key {} upload completed with size {}", sharedState.bucketName, key, 0);
       return;
     }
     ProgressListener progressListener =
@@ -185,34 +199,36 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
         };
 
     CompleteMultipartUploadRequest compRequest =
-        new CompleteMultipartUploadRequest(bucketName, key, uploadId, partETags)
+        new CompleteMultipartUploadRequest(sharedState.bucketName, key, uploadId, partETags)
             .withGeneralProgressListener(progressListener);
     CompleteMultipartUploadResult compResult = null;
-    for (int attempt = 1; attempt <= this.s3MultiplePartUploadMaxRetries; attempt++) {
+    for (int attempt = 1; attempt <= sharedState.s3MultiplePartUploadMaxRetries; attempt++) {
       try {
-        compResult = s3Client.completeMultipartUpload(compRequest);
+        compResult = sharedState.s3Client.completeMultipartUpload(compRequest);
         break;
       } catch (AmazonClientException e) {
-        if (attempt == this.s3MultiplePartUploadMaxRetries
+        if (attempt == sharedState.s3MultiplePartUploadMaxRetries
             || !PredefinedRetryPolicies.DEFAULT_RETRY_CONDITION.shouldRetry(null, e, attempt)) {
           logger.error(
               "bucket {} key {} uploadId {} upload failed to complete, will not retry",
-              bucketName,
+              sharedState.bucketName,
               key,
               uploadId,
               e);
           throw e;
         }
 
-        long backoffTime = Math.min(maxBackoff, baseDelay * (long) Math.pow(2, attempt - 1));
+        long backoffTime =
+            Math.min(
+                sharedState.maxBackoff, sharedState.baseDelay * (long) Math.pow(2, attempt - 1));
         try {
           logger.warn(
               "bucket {} key {} uploadId {} upload failed to complete, will retry ({}/{})",
-              bucketName,
+              sharedState.bucketName,
               key,
               uploadId,
               attempt,
-              this.s3MultiplePartUploadMaxRetries,
+              sharedState.s3MultiplePartUploadMaxRetries,
               e);
           Thread.sleep(backoffTime);
         } catch (InterruptedException ex) {
@@ -222,7 +238,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
     }
     logger.debug(
         "bucket {} key {} uploadId {} upload completed location is in {} ",
-        bucketName,
+        sharedState.bucketName,
         key,
         uploadId,
         compResult.getLocation());
@@ -231,16 +247,12 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
   @Override
   public void abort() {
     AbortMultipartUploadRequest abortMultipartUploadRequest =
-        new AbortMultipartUploadRequest(bucketName, key, uploadId);
-    s3Client.abortMultipartUpload(abortMultipartUploadRequest);
+        new AbortMultipartUploadRequest(sharedState.bucketName, key, uploadId);
+    sharedState.s3Client.abortMultipartUpload(abortMultipartUploadRequest);
   }
 
   @Override
-  public void close() {
-    if (s3Client != null) {
-      s3Client.shutdown();
-    }
-  }
+  public void close() {}
 
   static AWSCredentialProviderList getCredentialsProvider(URI binding, Configuration conf)
       throws IOException {

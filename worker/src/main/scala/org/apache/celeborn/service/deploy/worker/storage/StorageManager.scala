@@ -79,6 +79,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   val diskReserveSize = conf.workerDiskReserveSize
   val diskReserveRatio = conf.workerDiskReserveRatio
+  var s3MultipartUploadHandlerSharedState: AutoCloseable = _
 
   // (deviceName -> deviceInfo) and (mount point -> diskInfo)
   val (deviceInfos, diskInfos) = {
@@ -434,6 +435,45 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       userIdentifier,
       true,
       isSegmentGranularityVisible = false)
+  }
+
+  def ensureS3MultipartUploaderSharedState(): Unit = this.synchronized {
+    if (s3MultipartUploadHandlerSharedState != null)
+      return
+
+    val s3HadoopFs: FileSystem = hadoopFs.get(StorageInfo.Type.S3)
+    if (s3HadoopFs == null)
+      throw new IllegalStateException("S3 is not configured")
+
+    val uri = s3HadoopFs.getUri
+    val bucketName = uri.getHost
+    logInfo(s"Creating S3 client for $uri, bucketName is $bucketName")
+    s3MultipartUploadHandlerSharedState = TierWriterHelper.getS3MultipartUploadHandlerSharedState(
+      s3HadoopFs,
+      bucketName,
+      conf.s3MultiplePartUploadMaxRetries,
+      conf.s3MultiplePartUploadBaseDelay,
+      conf.s3MultiplePartUploadMaxBackoff)
+  }
+
+  /**
+   * Ensure that the directory for the Shuffle exists.
+   * This method is not synchronized because from the protocol it is not expected
+   * to have more than one reserveSlots running for a given shuffleId.
+   * Also running the method concurrently should not make any harm, the worst case
+   * is that we send a little bit more requests to S3
+   */
+  def ensureS3DirectoryForShuffleKey(appId: String, shuffleId: Int): Unit = {
+
+    ensureS3MultipartUploaderSharedState()
+
+    val shuffleDir =
+      new Path(new Path(s3Dir, conf.workerWorkingDir), s"$appId/$shuffleId")
+    logDebug(s"Creating S3 directory at $shuffleDir");
+    FileSystem.mkdirs(
+      StorageManager.hadoopFs.get(StorageInfo.Type.S3),
+      shuffleDir,
+      hdfsPermission)
   }
 
   @throws[IOException]
@@ -850,6 +890,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     if (null != deviceMonitor) {
       deviceMonitor.close()
     }
+
+    if (s3MultipartUploadHandlerSharedState != null)
+      s3MultipartUploadHandlerSharedState.close()
   }
 
   private def flushFileWriters(): Unit = {
@@ -1125,11 +1168,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       } else if (storageType == Type.S3 && location.getStorageInfo.S3Available()) {
         val shuffleDir =
           new Path(new Path(s3Dir, conf.workerWorkingDir), s"$appId/$shuffleId")
-        logDebug(s"trying to create S3 file at $shuffleDir");
-        FileSystem.mkdirs(
-          StorageManager.hadoopFs.get(StorageInfo.Type.S3),
-          shuffleDir,
-          hdfsPermission)
+        // directory has been prepared by ensureS3DirectoryForShuffleKey
         val s3FilePath = new Path(shuffleDir, fileName).toString
         val s3FileInfo = new DiskFileInfo(
           userIdentifier,

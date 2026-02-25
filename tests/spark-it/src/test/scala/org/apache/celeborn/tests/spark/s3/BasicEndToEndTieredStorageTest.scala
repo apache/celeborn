@@ -125,6 +125,9 @@ class BasicEndToEndTieredStorageTest extends AnyFunSuite
     val celebornSparkSession = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
       .getOrCreate()
+
+    // execute multiple operations that reserve slots
+    repartition(celebornSparkSession)
     groupBy(celebornSparkSession)
 
     celebornSparkSession.stop()

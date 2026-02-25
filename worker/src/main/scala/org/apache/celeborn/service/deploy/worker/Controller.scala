@@ -196,6 +196,11 @@ private[deploy] class Controller(
       context.reply(ReserveSlotsResponse(StatusCode.NO_AVAILABLE_WORKING_DIR, msg))
       return
     }
+
+    // do this once, and not for each location
+    if (conf.hasS3Storage)
+      storageManager.ensureS3DirectoryForShuffleKey(applicationId, shuffleId)
+
     val primaryLocs = createWriters(
       shuffleKey,
       applicationId,
