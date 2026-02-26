@@ -166,8 +166,12 @@ CelebornConf::defaultProperties() {
           BOOL_PROP(kClientPushMaxBytesSizeInFlightEnabled, false),
           NONE_PROP(kClientPushMaxBytesSizeInFlightTotal),
           NONE_PROP(kClientPushMaxBytesSizeInFlightPerWorker),
-          // NUM_PROP(kNumExample, 50'000),
-          // BOOL_PROP(kBoolExample, false),
+          NUM_PROP(kClientFetchMaxRetriesForEachReplica, 3),
+          STR_PROP(kNetworkIoRetryWait, "5s"),
+          BOOL_PROP(kClientPushReplicateEnabled, false),
+          BOOL_PROP(kClientFetchExcludeWorkerOnFailureEnabled, false),
+          STR_PROP(kClientFetchExcludedWorkerExpireTimeout, "60s"),
+          BOOL_PROP(kClientAdaptiveOptimizeSkewedPartitionReadEnabled, false),
       };
   return defaultProp;
 }
@@ -348,6 +352,36 @@ protocol::CompressionCodec CelebornConf::shuffleCompressionCodec() const {
 int CelebornConf::shuffleCompressionZstdCompressLevel() const {
   return std::stoi(
       optionalProperty(kShuffleCompressionZstdCompressLevel).value());
+}
+
+int CelebornConf::clientFetchMaxRetriesForEachReplica() const {
+  return std::stoi(
+      optionalProperty(kClientFetchMaxRetriesForEachReplica).value());
+}
+
+Timeout CelebornConf::networkIoRetryWait() const {
+  return utils::toTimeout(
+      toDuration(optionalProperty(kNetworkIoRetryWait).value()));
+}
+
+bool CelebornConf::clientPushReplicateEnabled() const {
+  return folly::to<bool>(optionalProperty(kClientPushReplicateEnabled).value());
+}
+
+bool CelebornConf::clientFetchExcludeWorkerOnFailureEnabled() const {
+  return folly::to<bool>(
+      optionalProperty(kClientFetchExcludeWorkerOnFailureEnabled).value());
+}
+
+Timeout CelebornConf::clientFetchExcludedWorkerExpireTimeout() const {
+  return utils::toTimeout(toDuration(
+      optionalProperty(kClientFetchExcludedWorkerExpireTimeout).value()));
+}
+
+bool CelebornConf::clientAdaptiveOptimizeSkewedPartitionReadEnabled() const {
+  return folly::to<bool>(
+      optionalProperty(kClientAdaptiveOptimizeSkewedPartitionReadEnabled)
+          .value());
 }
 } // namespace conf
 } // namespace celeborn

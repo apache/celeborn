@@ -129,6 +129,25 @@ class CelebornConf : public BaseConf {
   static constexpr std::string_view kShuffleCompressionZstdCompressLevel{
       "celeborn.client.shuffle.compression.zstd.level"};
 
+  static constexpr std::string_view kClientFetchMaxRetriesForEachReplica{
+      "celeborn.client.fetch.maxRetriesForEachReplica"};
+
+  static constexpr std::string_view kNetworkIoRetryWait{
+      "celeborn.data.io.retryWait"};
+
+  static constexpr std::string_view kClientPushReplicateEnabled{
+      "celeborn.client.push.replicate.enabled"};
+
+  static constexpr std::string_view kClientFetchExcludeWorkerOnFailureEnabled{
+      "celeborn.client.fetch.excludeWorkerOnFailure.enabled"};
+
+  static constexpr std::string_view kClientFetchExcludedWorkerExpireTimeout{
+      "celeborn.client.fetch.excludedWorker.expireTimeout"};
+
+  static constexpr std::string_view
+      kClientAdaptiveOptimizeSkewedPartitionReadEnabled{
+          "celeborn.client.adaptive.optimizeSkewedPartitionRead.enabled"};
+
   CelebornConf();
 
   CelebornConf(const std::string& filename);
@@ -196,6 +215,18 @@ class CelebornConf : public BaseConf {
   protocol::CompressionCodec shuffleCompressionCodec() const;
 
   int shuffleCompressionZstdCompressLevel() const;
+
+  int clientFetchMaxRetriesForEachReplica() const;
+
+  Timeout networkIoRetryWait() const;
+
+  bool clientPushReplicateEnabled() const;
+
+  bool clientFetchExcludeWorkerOnFailureEnabled() const;
+
+  Timeout clientFetchExcludedWorkerExpireTimeout() const;
+
+  bool clientAdaptiveOptimizeSkewedPartitionReadEnabled() const;
 };
 } // namespace conf
 } // namespace celeborn

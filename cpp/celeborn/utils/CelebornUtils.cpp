@@ -19,6 +19,21 @@
 
 namespace celeborn {
 namespace utils {
+
+bool isCriticalCauseForFetch(const std::exception& e) {
+  if (dynamic_cast<const std::system_error*>(&e)) {
+    return true;
+  }
+
+  std::string msg = e.what();
+  if (msg.rfind("Connecting to", 0) == 0 || msg.rfind("Failed to", 0) == 0 ||
+      msg.find("imeout") != std::string::npos) {
+    return true;
+  }
+
+  return false;
+}
+
 std::string makeShuffleKey(const std::string& appId, const int shuffleId) {
   return appId + "-" + std::to_string(shuffleId);
 }

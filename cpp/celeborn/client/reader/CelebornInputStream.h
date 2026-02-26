@@ -20,11 +20,16 @@
 #include "celeborn/client/compress/Decompressor.h"
 #include "celeborn/client/reader/WorkerPartitionReader.h"
 #include "celeborn/conf/CelebornConf.h"
+#include "celeborn/utils/CelebornUtils.h"
 
 namespace celeborn {
 namespace client {
+class ShuffleClient;
+
 class CelebornInputStream {
  public:
+  using FetchExcludedWorkers = utils::ConcurrentHashMap<std::string, int64_t>;
+
   CelebornInputStream(
       const std::string& shuffleKey,
       const std::shared_ptr<const conf::CelebornConf>& conf,
@@ -35,7 +40,9 @@ class CelebornInputStream {
       int attemptNumber,
       int startMapIndex,
       int endMapIndex,
-      bool needCompression);
+      bool needCompression,
+      const std::shared_ptr<FetchExcludedWorkers>& fetchExcludedWorkers,
+      ShuffleClient* shuffleClient);
 
   int read(uint8_t* buffer, size_t offset, size_t len);
 
@@ -55,6 +62,8 @@ class CelebornInputStream {
 
   std::shared_ptr<PartitionReader> createReader(
       const protocol::PartitionLocation& location);
+
+  bool isExcluded(const protocol::PartitionLocation& location);
 
   std::shared_ptr<const protocol::PartitionLocation> nextReadableLocation();
 
@@ -81,6 +90,14 @@ class CelebornInputStream {
   size_t currBatchSize_;
   std::shared_ptr<PartitionReader> currReader_;
   std::vector<std::unique_ptr<std::unordered_set<int>>> batchRecords_;
+
+  int fetchChunkRetryCnt_;
+  int fetchChunkMaxRetry_;
+  utils::Timeout retryWait_;
+  std::shared_ptr<FetchExcludedWorkers> fetchExcludedWorkers_;
+  int64_t fetchExcludedWorkerExpireTimeoutMs_;
+  bool readSkewPartitionWithoutMapRange_;
+  ShuffleClient* shuffleClient_;
 };
 } // namespace client
 } // namespace celeborn

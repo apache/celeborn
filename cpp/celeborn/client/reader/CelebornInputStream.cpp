@@ -17,7 +17,11 @@
 
 #include "celeborn/client/reader/CelebornInputStream.h"
 #include <lz4.h>
+#include <thread>
+#include "CelebornInputStream.h"
+#include "celeborn/client/ShuffleClient.h"
 #include "celeborn/client/compress/Decompressor.h"
+#include "celeborn/utils/CelebornUtils.h"
 
 namespace celeborn {
 namespace client {
@@ -30,7 +34,9 @@ CelebornInputStream::CelebornInputStream(
     int attemptNumber,
     int startMapIndex,
     int endMapIndex,
-    bool needCompression)
+    bool needCompression,
+    const std::shared_ptr<FetchExcludedWorkers>& fetchExcludedWorkers,
+    ShuffleClient* shuffleClient)
     : shuffleKey_(shuffleKey),
       conf_(conf),
       clientFactory_(clientFactory),
@@ -45,7 +51,22 @@ CelebornInputStream::CelebornInputStream(
       shouldDecompress_(
           conf_->shuffleCompressionCodec() !=
               protocol::CompressionCodec::NONE &&
-          needCompression) {
+          needCompression),
+      fetchChunkRetryCnt_(0),
+      fetchChunkMaxRetry_(
+          conf_->clientPushReplicateEnabled()
+              ? conf_->clientFetchMaxRetriesForEachReplica() * 2
+              : conf_->clientFetchMaxRetriesForEachReplica()),
+      retryWait_(conf_->networkIoRetryWait()),
+      fetchExcludedWorkers_(fetchExcludedWorkers),
+      fetchExcludedWorkerExpireTimeoutMs_(
+          std::chrono::duration_cast<std::chrono::milliseconds>(
+              conf_->clientFetchExcludedWorkerExpireTimeout())
+              .count()),
+      readSkewPartitionWithoutMapRange_(
+          conf_->clientAdaptiveOptimizeSkewedPartitionReadEnabled() &&
+          startMapIndex > endMapIndex),
+      shuffleClient_(shuffleClient) {
   if (shouldDecompress_) {
     decompressor_ = compress::Decompressor::createDecompressor(
         conf_->shuffleCompressionCodec());
@@ -178,6 +199,7 @@ void CelebornInputStream::moveToNextReader() {
   if (!location) {
     return;
   }
+  fetchChunkRetryCnt_ = 0;
   currReader_ = createReaderWithRetry(*location);
   currLocationIndex_++;
   if (currReader_->hasNext()) {
@@ -189,9 +211,62 @@ void CelebornInputStream::moveToNextReader() {
 
 std::shared_ptr<PartitionReader> CelebornInputStream::createReaderWithRetry(
     const protocol::PartitionLocation& location) {
-  // TODO: support retrying when createReader failed. Maybe switch to peer
-  // location?
-  return createReader(location);
+  const protocol::PartitionLocation* currentLocation = &location;
+  std::exception_ptr lastException;
+
+  while (fetchChunkRetryCnt_ < fetchChunkMaxRetry_) {
+    // TODO (Investigate): When a location is already in the exclusion list, the
+    // code throws and then retries/sleeps (especially in the no-peer branch).
+    // Since isExcluded(*currentLocation) will keep returning true until the
+    // exclusion expires, these retries are guaranteed to fail and just add
+    // delay. Consider failing fast (no sleep/retry) or skipping to another
+    // available location/peer when the current location is excluded.
+    try {
+      VLOG(1) << "Create reader for location " << currentLocation->host << ":"
+              << currentLocation->fetchPort;
+      if (isExcluded(*currentLocation)) {
+        CELEBORN_FAIL(
+            "Fetch data from excluded worker! {}",
+            currentLocation->hostAndFetchPort());
+      }
+      auto reader = createReader(*currentLocation);
+      return reader;
+    } catch (const std::exception& e) {
+      lastException = std::current_exception();
+      shuffleClient_->excludeFailedFetchLocation(
+          currentLocation->hostAndFetchPort(), e);
+      fetchChunkRetryCnt_++;
+
+      if (currentLocation->hasPeer() && !readSkewPartitionWithoutMapRange_) {
+        if (fetchChunkRetryCnt_ % 2 == 0) {
+          std::this_thread::sleep_for(retryWait_);
+        }
+        LOG(WARNING) << "CreatePartitionReader failed " << fetchChunkRetryCnt_
+                     << "/" << fetchChunkMaxRetry_ << " times for location "
+                     << currentLocation->hostAndFetchPort()
+                     << ", change to peer. Error: " << e.what();
+        // TODO: When stream handlers are supported, send BUFFER_STREAM_END
+        // to close the active stream before switching to peer, matching the
+        // Java CelebornInputStream behavior. Currently, the C++ client does
+        // not have pre-opened stream handlers, so stream cleanup is handled
+        // by WorkerPartitionReader's destructor.
+        currentLocation = currentLocation->getPeer();
+      } else {
+        LOG(WARNING) << "CreatePartitionReader failed " << fetchChunkRetryCnt_
+                     << "/" << fetchChunkMaxRetry_ << " times for location "
+                     << currentLocation->hostAndFetchPort()
+                     << ", retry the same location. Error: " << e.what();
+        std::this_thread::sleep_for(retryWait_);
+      }
+    }
+  }
+
+  // Max retries exceeded, rethrow the last exception wrapped with context
+  std::string errorMessage = "createPartitionReader failed after " +
+      std::to_string(fetchChunkRetryCnt_) +
+      " retries. Original location: " + location.hostAndFetchPort() +
+      ", last attempted location: " + currentLocation->hostAndFetchPort();
+  throw utils::CelebornRuntimeError(lastException, errorMessage, false);
 }
 
 std::shared_ptr<PartitionReader> CelebornInputStream::createReader(
@@ -234,6 +309,33 @@ std::unordered_set<int>& CelebornInputStream::getBatchRecord(int mapId) {
     batchRecords_[mapId] = std::make_unique<std::unordered_set<int>>();
   }
   return *batchRecords_[mapId];
+}
+
+bool CelebornInputStream::isExcluded(
+    const protocol::PartitionLocation& location) {
+  auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                 std::chrono::steady_clock::now().time_since_epoch())
+                 .count();
+  auto timestamp = fetchExcludedWorkers_->get(location.hostAndFetchPort());
+  if (!timestamp.has_value()) {
+    return false;
+  }
+  if (now - timestamp.value() > fetchExcludedWorkerExpireTimeoutMs_) {
+    fetchExcludedWorkers_->erase(location.hostAndFetchPort());
+    return false;
+  }
+  if (location.hasPeer()) {
+    auto peerTimestamp =
+        fetchExcludedWorkers_->get(location.getPeer()->hostAndFetchPort());
+    // To avoid both replicate locations being excluded, if peer was added to
+    // excluded list earlier, change to try peer.
+    if (!peerTimestamp.has_value() ||
+        peerTimestamp.value() < timestamp.value()) {
+      return true;
+    }
+    return false;
+  }
+  return true;
 }
 
 void CelebornInputStream::cleanupReader() {
