@@ -957,8 +957,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     if (mapperAttemptFinishedSuccess && shuffleWriteLimitEnabled) {
       handleShuffleWriteLimitCheck(shuffleId, bytesWritten)
       logDebug(s"Shuffle $shuffleId, mapId: $mapId, attemptId: $attemptId, " +
-        s"map written bytes: $bytesWritten, shuffle total written bytes: ${shuffleTotalWrittenBytes.get(
-          shuffleId).get()}, write limit threshold: $shuffleWriteLimitThreshold")
+        s"map written bytes: ${Utils.bytesToString(bytesWritten)}, shuffle total written bytes: ${Utils.bytesToString(shuffleTotalWrittenBytes.get(
+          shuffleId).get())}, write limit threshold: ${Utils.bytesToString(
+          shuffleWriteLimitThreshold.getOrElse(0L))}")
     }
 
     if (mapperAttemptFinishedSuccess && allMapperFinished) {
@@ -2103,16 +2104,17 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   def getShuffleIdMapping = shuffleIdMapping
 
   private def handleShuffleWriteLimitCheck(shuffleId: Int, writtenBytes: Long): Unit = {
-    if (!shuffleWriteLimitEnabled || shuffleWriteLimitThreshold <= 0) return
+    if (!shuffleWriteLimitEnabled || shuffleWriteLimitThreshold.isEmpty) return
 
     if (writtenBytes > 0) {
       val totalBytesAccumulator =
         shuffleTotalWrittenBytes.computeIfAbsent(shuffleId, (id: Int) => new AtomicLong(0))
       val currentTotalBytes = totalBytesAccumulator.addAndGet(writtenBytes)
 
-      if (currentTotalBytes > shuffleWriteLimitThreshold) {
+      if (currentTotalBytes > shuffleWriteLimitThreshold.get) {
         val reason =
-          s"Shuffle $shuffleId exceeded write limit threshold: current total ${currentTotalBytes} bytes, max allowed ${shuffleWriteLimitThreshold} bytes"
+          s"Shuffle $shuffleId exceeded write limit threshold: current total ${Utils.bytesToString(
+            currentTotalBytes)}, max allowed ${Utils.bytesToString(shuffleWriteLimitThreshold.get)}"
         logError(reason)
 
         cancelShuffleCallback match {

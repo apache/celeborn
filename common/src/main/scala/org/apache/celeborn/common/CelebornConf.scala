@@ -1677,7 +1677,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def shuffleWriteLimitEnabled: Boolean = get(SHUFFLE_WRITE_LIMIT_ENABLED)
 
-  def shuffleWriteLimitThreshold: Long = get(SHUFFLE_WRITE_LIMIT_THRESHOLD)
+  def shuffleWriteLimitThreshold: Option[Long] = get(SHUFFLE_WRITE_LIMIT_THRESHOLD)
 }
 
 object CelebornConf extends Logging {
@@ -6866,11 +6866,11 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val SHUFFLE_WRITE_LIMIT_THRESHOLD: ConfigEntry[Long] =
+  val SHUFFLE_WRITE_LIMIT_THRESHOLD: OptionalConfigEntry[Long] =
     buildConf("celeborn.client.spark.shuffle.write.limit.threshold")
       .categories("client")
       .doc("Shuffle write limit threshold, exceed to cancel oversized shuffle.")
       .version("0.7.0")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("5TB")
+      .createOptional
 }
