@@ -30,8 +30,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.ShuffleMode
-import org.apache.celeborn.rest.v1.worker.ShuffleApi
-import org.apache.celeborn.rest.v1.worker.invoker.ApiClient
+
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.worker.Worker
 

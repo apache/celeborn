@@ -176,7 +176,7 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
       .config(updateSparkConfWithStorageTypes(sparkConf, ShuffleMode.HASH, "MEMORY,S3"))
       .getOrCreate()
 
-    // little data, not eviction to s3 happens
+    // little data, no eviction to s3 happens
     repartition(celebornSparkSession, partitions = 1)
     validateLocationTypesSeenByClient(Type.MEMORY, 0, 2)
     celebornSparkSession.stop()
@@ -263,7 +263,7 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
       numberAfterUpdateFileGroups: Int): Unit = {
     seenPartitionLocationsOpenReader.asScala.foreach(location => {
       assert(location.getStorageInfo.getType == storageType)
-      // filePath is empty string for MEMORY and S3 at this start
+      // filePath is empty string for MEMORY and S3 at this stage
       assert(location.getStorageInfo.getFilePath == "")
     })
     seenPartitionLocationsUpdateFileGroups.asScala.foreach(location => {
