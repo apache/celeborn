@@ -181,8 +181,7 @@ public class StorageInfo implements Serializable {
   }
 
   public boolean memoryAvailable() {
-    return availableStorageTypes == ALL_TYPES_AVAILABLE_MASK
-        || (availableStorageTypes & MEMORY_MASK) > 0;
+    return memoryAvailable(availableStorageTypes);
   }
 
   public static boolean localDiskAvailable(int availableStorageTypes) {
@@ -191,7 +190,7 @@ public class StorageInfo implements Serializable {
   }
 
   public boolean localDiskAvailable() {
-    return StorageInfo.localDiskAvailable(availableStorageTypes);
+    return localDiskAvailable(availableStorageTypes);
   }
 
   public static boolean HDFSAvailable(int availableStorageTypes) {
@@ -200,7 +199,7 @@ public class StorageInfo implements Serializable {
   }
 
   public boolean HDFSAvailable() {
-    return StorageInfo.HDFSAvailable(availableStorageTypes);
+    return HDFSAvailable(availableStorageTypes);
   }
 
   public static boolean HDFSOnly(int availableStorageTypes) {
@@ -226,11 +225,11 @@ public class StorageInfo implements Serializable {
   }
 
   public boolean OSSAvailable() {
-    return StorageInfo.OSSAvailable(availableStorageTypes);
+    return OSSAvailable(availableStorageTypes);
   }
 
   public boolean S3Available() {
-    return StorageInfo.S3Available(availableStorageTypes);
+    return S3Available(availableStorageTypes);
   }
 
   @Override
