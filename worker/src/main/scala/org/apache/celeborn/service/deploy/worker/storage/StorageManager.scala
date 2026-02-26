@@ -103,19 +103,23 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     if (diskInfoSet.nonEmpty) Some(diskInfoSet) else None
   }
 
-  def disksSnapshot(): List[DiskInfo] = {
+  def localDisksSnapshot(): List[DiskInfo] = {
     diskInfos.synchronized {
       val disks = new util.ArrayList[DiskInfo](diskInfos.values())
       disks.asScala.toList
     }
   }
 
-  def healthyWorkingDirs(): List[File] =
-    disksSnapshot().filter(_.status == DiskStatus.HEALTHY).flatMap(_.dirs)
+  def allDisksSnapshot(): List[DiskInfo] = {
+    localDisksSnapshot() ++ remoteDiskInfos.getOrElse(Nil)
+  }
+
+  def healthyLocalWorkingDirs(): List[File] =
+    localDisksSnapshot().filter(_.status == DiskStatus.HEALTHY).flatMap(_.dirs)
 
   private val diskOperators: ConcurrentHashMap[String, ThreadPoolExecutor] = {
     val cleaners = JavaUtils.newConcurrentHashMap[String, ThreadPoolExecutor]()
-    disksSnapshot().foreach {
+    localDisksSnapshot().foreach {
       diskInfo =>
         cleaners.put(
           diskInfo.mountPoint,
@@ -127,7 +131,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   val tmpDiskInfos = JavaUtils.newConcurrentHashMap[String, DiskInfo]()
-  disksSnapshot().foreach { diskInfo =>
+  localDisksSnapshot().foreach { diskInfo =>
     tmpDiskInfos.put(diskInfo.mountPoint, diskInfo)
   }
   private val deviceMonitor =
@@ -142,7 +146,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     _totalLocalFlusherThread: Int) = {
     val flushers = JavaUtils.newConcurrentHashMap[String, LocalFlusher]()
     var totalThread = 0
-    disksSnapshot().foreach { diskInfo =>
+    localDisksSnapshot().foreach { diskInfo =>
       if (!flushers.containsKey(diskInfo.mountPoint)) {
         val flusher = new LocalFlusher(
           workerSource,
@@ -269,7 +273,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   private val counter = new AtomicInteger()
   private val counterOperator = new IntUnaryOperator() {
     override def applyAsInt(operand: Int): Int = {
-      val dirs = healthyWorkingDirs()
+      val dirs = healthyLocalWorkingDirs()
       if (dirs.nonEmpty) {
         (operand + 1) % dirs.length
       } else 0
@@ -489,7 +493,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       userIdentifier: UserIdentifier,
       partitionSplitEnabled: Boolean,
       isSegmentGranularityVisible: Boolean): PartitionDataWriter = {
-    if (healthyWorkingDirs().isEmpty && remoteStorageDirs.isEmpty) {
+    if (healthyLocalWorkingDirs().isEmpty && remoteStorageDirs.isEmpty) {
       throw new IOException("No available working dirs!")
     }
     val partitionDataWriterContext = new PartitionDataWriterContext(
@@ -687,7 +691,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           }
         }
         val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
-        disksSnapshot().filter(diskInfo =>
+        localDisksSnapshot().filter(diskInfo =>
           diskInfo.status == DiskStatus.HEALTHY
             || diskInfo.status == DiskStatus.HIGH_DISK_USAGE).foreach { diskInfo =>
           diskInfo.dirs.foreach { dir =>
@@ -751,7 +755,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     TimeUnit.MINUTES)
 
   private def cleanupExpiredAppDirs(expireDuration: Long): Unit = {
-    val diskInfoAndAppDirs = disksSnapshot()
+    val diskInfoAndAppDirs = localDisksSnapshot()
       .filter(diskInfo =>
         diskInfo.status == DiskStatus.HEALTHY
           || diskInfo.status == DiskStatus.HIGH_DISK_USAGE)
@@ -801,7 +805,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     val appIds = shuffleKeySet().asScala.map(key => Utils.splitShuffleKey(key)._1)
     while (retryTimes < conf.workerCheckFileCleanMaxRetries) {
       val localCleaned =
-        !disksSnapshot().filter(_.status != DiskStatus.IO_HANG).exists { diskInfo =>
+        !localDisksSnapshot().filter(_.status != DiskStatus.IO_HANG).exists { diskInfo =>
           diskInfo.dirs.exists {
             case workingDir if workingDir.exists() =>
               // Don't check appDirs that store information in the fileInfos
@@ -946,7 +950,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def updateDiskInfos(): Unit = this.synchronized {
-    disksSnapshot()
+    localDisksSnapshot()
       .filter(diskInfo =>
         diskInfo.status != DiskStatus.IO_HANG && diskInfo.status != DiskStatus.READ_OR_WRITE_FAILURE)
       .foreach {
@@ -985,7 +989,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           diskInfo.updateFlushTime()
           diskInfo.updateFetchTime()
       }
-    logInfo(s"Updated diskInfos:\n${disksSnapshot().mkString("\n")}")
+    logInfo(s"Updated diskInfos:\n${localDisksSnapshot().mkString("\n")}")
   }
 
   def getFileSystemReportedSpace(mountPoint: String): (Long, Long) = {
@@ -1142,7 +1146,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             logInfo(s"Disk(${diskInfo.mountPoint}) unavailable for $suggestedMountPoint, return all healthy" +
               s" working dirs.")
           }
-          healthyWorkingDirs()
+          healthyLocalWorkingDirs()
         }
       if (dirs.isEmpty && hdfsFlusher.isEmpty && s3Flusher.isEmpty && ossFlusher.isEmpty) {
         throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
