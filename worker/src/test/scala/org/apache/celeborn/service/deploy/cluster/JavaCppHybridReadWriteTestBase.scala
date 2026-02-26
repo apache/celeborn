@@ -188,9 +188,10 @@ trait JavaCppHybridReadWriteTestBase extends AnyFunSuite
     val cppBinRelativeDirectory = "cpp/build/celeborn/tests/"
     val cppBinFileName = "cppDataSumWithWriterClient"
     val cppBinFilePath = s"$projectDirectory/$cppBinRelativeDirectory/$cppBinFileName"
-    // Execution command: $exec lifecycleManagerHost lifecycleManagerPort appUniqueId shuffleId attemptId numMappers numPartitions cppResultFile
+    val cppCodec = codec.name()
+    // Execution command: $exec lifecycleManagerHost lifecycleManagerPort appUniqueId shuffleId attemptId numMappers numPartitions cppResultFile cppCodec
     val command = {
-      s"$cppBinFilePath $lifecycleManagerHost $lifecycleManagerPort $appUniqueId $shuffleId $attemptId $numMappers $numPartitions $cppResultFile"
+      s"$cppBinFilePath $lifecycleManagerHost $lifecycleManagerPort $appUniqueId $shuffleId $attemptId $numMappers $numPartitions $cppResultFile $cppCodec"
     }
     println(s"run command: $command")
     val commandOutput = runCommand(command)
