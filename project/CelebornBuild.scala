@@ -159,7 +159,7 @@ object Dependencies {
     ExclusionRule("org.jctools", "jctools-core")
   )
   val ioNettyEpollLinuxX8664 = "io.netty" % "netty-transport-native-epoll" % nettyVersion classifier "linux-x86_64"
-  val ioNettyEpollLinuxAach64 = "io.netty" % "netty-transport-native-epoll" % nettyVersion classifier "linux-aarch_64"
+  val ioNettyEpollLinuxAarch64 = "io.netty" % "netty-transport-native-epoll" % nettyVersion classifier "linux-aarch_64"
   val ioNettyKqueueOsxX8664 = "io.netty" % "netty-transport-native-kqueue" % nettyVersion classifier "osx-x86_64"
   val ioNettyKqueueOsxAach64 = "io.netty" % "netty-transport-native-kqueue" % nettyVersion classifier "osx-aarch_64"
   val leveldbJniGroup = if (System.getProperty("os.name").startsWith("Linux")
@@ -664,7 +664,7 @@ object CelebornCommon {
         Dependencies.ioDropwizardMetricsJvm,
         Dependencies.ioNetty,
         Dependencies.ioNettyEpollLinuxX8664,
-        Dependencies.ioNettyEpollLinuxAach64,
+        Dependencies.ioNettyEpollLinuxAarch64,
         Dependencies.ioNettyKqueueOsxX8664,
         Dependencies.ioNettyKqueueOsxAach64,
         Dependencies.commonsCrypto,
@@ -724,7 +724,7 @@ object CelebornClient {
       libraryDependencies ++= Seq(
         Dependencies.ioNetty,
         Dependencies.ioNettyEpollLinuxX8664,
-        Dependencies.ioNettyEpollLinuxAach64,
+        Dependencies.ioNettyEpollLinuxAarch64,
         Dependencies.ioNettyKqueueOsxX8664,
         Dependencies.ioNettyKqueueOsxAach64,
         Dependencies.guava,
@@ -748,7 +748,7 @@ object CelebornService {
         Dependencies.commonsIo,
         Dependencies.ioNetty,
         Dependencies.ioNettyEpollLinuxX8664,
-        Dependencies.ioNettyEpollLinuxAach64,
+        Dependencies.ioNettyEpollLinuxAarch64,
         Dependencies.ioNettyKqueueOsxX8664,
         Dependencies.ioNettyKqueueOsxAach64,
         Dependencies.commonsCrypto,
@@ -805,7 +805,7 @@ object CelebornMaster {
         Dependencies.protobufJava,
         Dependencies.ioNetty,
         Dependencies.ioNettyEpollLinuxX8664,
-        Dependencies.ioNettyEpollLinuxAach64,
+        Dependencies.ioNettyEpollLinuxAarch64,
         Dependencies.ioNettyKqueueOsxX8664,
         Dependencies.ioNettyKqueueOsxAach64,
         Dependencies.hadoopClientApi,
@@ -846,7 +846,7 @@ object CelebornWorker {
         Dependencies.commonsIo,
         Dependencies.ioNetty,
         Dependencies.ioNettyEpollLinuxX8664,
-        Dependencies.ioNettyEpollLinuxAach64,
+        Dependencies.ioNettyEpollLinuxAarch64,
         Dependencies.ioNettyKqueueOsxX8664,
         Dependencies.ioNettyKqueueOsxAach64,
         Dependencies.log4j12Api,
