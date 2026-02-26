@@ -364,6 +364,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def saveAllCommittedFileInfosToDB(): Unit = {
+    saveCommittedFileInfosExecutor.shutdown()
     // save committed fileinfo to DB should be done within the time of saveCommittedFileInfoInterval
     saveCommittedFileInfosExecutor.awaitTermination(saveCommittedFileInfoInterval, MILLISECONDS)
     // graceful shutdown might be timed out, persist all committed fileinfos to DB
