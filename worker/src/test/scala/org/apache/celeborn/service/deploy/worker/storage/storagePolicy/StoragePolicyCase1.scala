@@ -51,7 +51,7 @@ class StoragePolicyCase1 extends CelebornFunSuite {
 
   val mockedCelebornMemoryFile = mock[MemoryFileInfo]
   when(
-    mockedStorageManager.createMemoryFileInfo(any(), any(), any(), any(), any(), any())).thenAnswer(
+    mockedStorageManager.createMemoryFileInfo(any(), any(), any(), any(), any())).thenAnswer(
     mockedCelebornMemoryFile)
   when(mockedStorageManager.storageBufferAllocator).thenAnswer(UnpooledByteBufAllocator.DEFAULT)
 
@@ -60,7 +60,6 @@ class StoragePolicyCase1 extends CelebornFunSuite {
   val mockedFile = mock[File]
   when(
     mockedStorageManager.createDiskFile(
-      any(),
       any(),
       any(),
       any(),

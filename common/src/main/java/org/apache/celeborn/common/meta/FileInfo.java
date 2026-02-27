@@ -24,17 +24,13 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 
 public abstract class FileInfo {
   private final UserIdentifier userIdentifier;
-  // whether to split is decided by client side.
-  // now it's just used for mappartition to compatible with old client which can't support split
-  private boolean partitionSplitEnabled;
   protected FileMeta fileMeta;
   protected final Set<Long> streams = ConcurrentHashMap.newKeySet();
   protected volatile long bytesFlushed;
   private boolean isReduceFileMeta;
 
-  public FileInfo(UserIdentifier userIdentifier, boolean partitionSplitEnabled, FileMeta fileMeta) {
+  public FileInfo(UserIdentifier userIdentifier, FileMeta fileMeta) {
     this.userIdentifier = userIdentifier;
-    this.partitionSplitEnabled = partitionSplitEnabled;
     this.fileMeta = fileMeta;
     this.isReduceFileMeta = fileMeta instanceof ReduceFileMeta;
   }
@@ -65,14 +61,6 @@ public abstract class FileInfo {
 
   public UserIdentifier getUserIdentifier() {
     return userIdentifier;
-  }
-
-  public boolean isPartitionSplitEnabled() {
-    return partitionSplitEnabled;
-  }
-
-  public void setPartitionSplitEnabled(boolean partitionSplitEnabled) {
-    this.partitionSplitEnabled = partitionSplitEnabled;
   }
 
   public boolean addStream(long streamId) {

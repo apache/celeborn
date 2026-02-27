@@ -128,7 +128,6 @@ object PbSerDeUtils {
     }
     new DiskFileInfo(
       userIdentifier,
-      pbFileInfo.getPartitionSplitEnabled,
       meta,
       pbFileInfo.getFilePath,
       storageType,
@@ -153,21 +152,20 @@ object PbSerDeUtils {
       .setFilePath(fileInfo.getFilePath)
       .setUserIdentifier(toPbUserIdentifier(fileInfo.getUserIdentifier))
       .setBytesFlushed(fileInfo.getFileLength)
-      .setPartitionSplitEnabled(fileInfo.isPartitionSplitEnabled)
       .setStorageType(fileInfo.getStorageType.getValue)
-    if (fileInfo.getFileMeta.isInstanceOf[MapFileMeta]) {
-      val mapFileMeta = fileInfo.getFileMeta.asInstanceOf[MapFileMeta]
-      builder.setPartitionType(PartitionType.MAP.getValue)
-      builder.setBufferSize(mapFileMeta.getBufferSize)
-      builder.setNumSubpartitions(mapFileMeta.getNumSubpartitions)
-      builder.setIsSegmentGranularityVisible(mapFileMeta.isSegmentGranularityVisible)
-      builder.putAllPartitionWritingSegment(mapFileMeta.getSubPartitionWritingSegmentId)
-      builder.addAllSegmentIndex(
-        mapFileMeta.getSubPartitionSegmentIndexes.asScala.map(toPbSegmentIndex).asJava)
-    } else {
-      val reduceFileMeta = fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta]
-      builder.setPartitionType(PartitionType.REDUCE.getValue)
-      builder.addAllChunkOffsets(reduceFileMeta.getChunkOffsets)
+    fileInfo.getFileMeta match {
+      case mapFileMeta: MapFileMeta =>
+        builder.setPartitionType(PartitionType.MAP.getValue)
+        builder.setBufferSize(mapFileMeta.getBufferSize)
+        builder.setNumSubpartitions(mapFileMeta.getNumSubpartitions)
+        builder.setIsSegmentGranularityVisible(mapFileMeta.isSegmentGranularityVisible)
+        builder.putAllPartitionWritingSegment(mapFileMeta.getSubPartitionWritingSegmentId)
+        builder.addAllSegmentIndex(
+          mapFileMeta.getSubPartitionSegmentIndexes.asScala.map(toPbSegmentIndex).asJava)
+      case _ =>
+        val reduceFileMeta = fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta]
+        builder.setPartitionType(PartitionType.REDUCE.getValue)
+        builder.addAllChunkOffsets(reduceFileMeta.getChunkOffsets)
     }
     builder.build
   }

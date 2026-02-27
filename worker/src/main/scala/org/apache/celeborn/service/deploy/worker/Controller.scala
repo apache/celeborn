@@ -113,7 +113,6 @@ private[deploy] class Controller(
           rangeReadFilter,
           userIdentifier,
           pushDataTimeout,
-          partitionSplitEnabled,
           isSegmentGranularityVisible) =>
       checkAuth(context, applicationId)
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
@@ -133,7 +132,6 @@ private[deploy] class Controller(
           rangeReadFilter,
           userIdentifier,
           pushDataTimeout,
-          partitionSplitEnabled,
           isSegmentGranularityVisible)
         logDebug(s"ReserveSlots for $shuffleKey finished.")
       }
@@ -180,7 +178,6 @@ private[deploy] class Controller(
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier,
       pushDataTimeout: Long,
-      partitionSplitEnabled: Boolean,
       isSegmentGranularityVisible: Boolean): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (shutdown.get()) {
@@ -211,7 +208,6 @@ private[deploy] class Controller(
       partitionType,
       rangeReadFilter,
       userIdentifier,
-      partitionSplitEnabled,
       isSegmentGranularityVisible,
       isPrimary = true)
     if (primaryLocs.size() < requestPrimaryLocs.size()) {
@@ -232,7 +228,6 @@ private[deploy] class Controller(
       partitionType,
       rangeReadFilter,
       userIdentifier,
-      partitionSplitEnabled,
       isSegmentGranularityVisible,
       isPrimary = false)
     if (replicaLocs.size() < requestReplicaLocs.size()) {
@@ -275,7 +270,6 @@ private[deploy] class Controller(
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier,
-      partitionSplitEnabled: Boolean,
       isSegmentGranularityVisible: Boolean,
       isPrimary: Boolean): jList[PartitionLocation] = {
     val partitionLocations = new jArrayList[PartitionLocation]()
@@ -291,7 +285,6 @@ private[deploy] class Controller(
           partitionType,
           rangeReadFilter,
           userIdentifier,
-          partitionSplitEnabled,
           isSegmentGranularityVisible,
           isPrimary)
       }
@@ -321,7 +314,6 @@ private[deploy] class Controller(
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier,
-      partitionSplitEnabled: Boolean,
       isSegmentGranularityVisible: Boolean,
       isPrimary: Boolean): PartitionLocation = {
     try {
@@ -346,7 +338,6 @@ private[deploy] class Controller(
           partitionType,
           rangeReadFilter,
           userIdentifier,
-          partitionSplitEnabled,
           isSegmentGranularityVisible)
         new WorkingPartition(location, writer)
       } else {

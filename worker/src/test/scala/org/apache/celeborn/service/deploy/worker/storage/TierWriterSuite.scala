@@ -43,7 +43,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
     celebornConf.set("celeborn.worker.memoryFileStorage.maxFileSize", "80k")
     val reduceFileMeta = new ReduceFileMeta(celebornConf.shuffleChunkSize)
     val userIdentifier = UserIdentifier("`aa`.`bb`")
-    val memoryFileInfo = new MemoryFileInfo(userIdentifier, false, reduceFileMeta)
+    val memoryFileInfo = new MemoryFileInfo(userIdentifier, reduceFileMeta)
     val numPendingWriters = new AtomicInteger()
     val flushNotifier = new FlushNotifier()
 
@@ -68,7 +68,6 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
       1,
       userIdentifier,
       PartitionType.REDUCE,
-      false,
       false)
 
     val source = new WorkerSource(celebornConf)
@@ -183,7 +182,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
     val userIdentifier = UserIdentifier("`aa`.`bb`")
     val tmpFile = Files.createTempFile("celeborn", "local-test").toString
     val diskFileInfo =
-      new DiskFileInfo(userIdentifier, false, reduceFileMeta, tmpFile, StorageInfo.Type.HDD)
+      new DiskFileInfo(userIdentifier, reduceFileMeta, tmpFile, StorageInfo.Type.HDD)
     val numPendingWriters = new AtomicInteger()
     val flushNotifier = new FlushNotifier()
     val source = new WorkerSource(celebornConf)
@@ -206,7 +205,6 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
       1,
       userIdentifier,
       PartitionType.REDUCE,
-      false,
       false)
 
     val flusher = new LocalFlusher(
