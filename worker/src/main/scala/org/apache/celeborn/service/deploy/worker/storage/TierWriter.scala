@@ -362,7 +362,7 @@ class MemoryTierWriter(
   override def returnBufferInternal(destroy: Boolean): Unit = {
     if (destroy && flushBuffer != null) {
       flushBuffer.removeComponents(0, flushBuffer.numComponents)
-      flushBuffer.release
+      flushBuffer.release()
     }
   }
 
