@@ -19,15 +19,12 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import org.apache.commons.io.IOUtils
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo}
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.{PartitionType, StorageInfo}
-import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
 class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: AbstractSource)
@@ -138,8 +135,8 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                 partitionDataWriterContext.getUserIdentifier,
                 partitionDataWriterContext.getPartitionType,
                 partitionDataWriterContext.isPartitionSplitEnabled,
-                overrideType
-              ) // this is different from location type, in case of eviction
+                overrideType  // this is different from location type, in case of eviction
+              )
               partitionDataWriterContext.setWorkingDir(workingDir)
               val metaHandler = getPartitionMetaHandler(diskFileInfo)
               if (flusher.isInstanceOf[LocalFlusher]
