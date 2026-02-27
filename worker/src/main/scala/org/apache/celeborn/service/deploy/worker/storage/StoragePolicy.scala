@@ -209,7 +209,6 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
       if (file != null) {
         return file
       }
-
     }
 
     logError(
