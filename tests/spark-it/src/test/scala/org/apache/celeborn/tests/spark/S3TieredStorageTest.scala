@@ -27,25 +27,15 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
 
-class BasicEndToEndTieredStorageTest extends AnyFunSuite
+class S3TieredStorageTest extends AnyFunSuite
   with SparkTestBase
   with BeforeAndAfterEach {
 
-  var container: MinIOContainer = null;
-  val skipAWSTest = !isClassPresent("org.apache.hadoop.fs.s3a.S3AFileSystem")
-
-  def isClassPresent(className: String): Boolean = {
-    try {
-      Class.forName(className)
-      true
-    } catch {
-      case _: ClassNotFoundException => false
-    }
-  }
+  var container: MinIOContainer = _
 
   override def beforeAll(): Unit = {
 
-    if (skipAWSTest)
+    if (!isS3LibraryAvailable)
       return
 
     container = new MinIOContainer("minio/minio:RELEASE.2023-09-04T19-57-37Z");
@@ -67,9 +57,9 @@ class BasicEndToEndTieredStorageTest extends AnyFunSuite
 
     val s3url = container.getS3URL
     val augmentedConfiguration = Map(
-      CelebornConf.ACTIVE_STORAGE_TYPES.key -> "MEMORY,S3",
-      CelebornConf.WORKER_STORAGE_CREATE_FILE_POLICY.key -> "MEMORY,S3",
-      CelebornConf.WORKER_STORAGE_EVICT_POLICY.key -> "MEMORY|S3",
+      CelebornConf.ACTIVE_STORAGE_TYPES.key -> "S3",
+      CelebornConf.WORKER_STORAGE_CREATE_FILE_POLICY.key -> "S3",
+      CelebornConf.WORKER_STORAGE_EVICT_POLICY.key -> "S3",
       "celeborn.hadoop.fs.s3a.endpoint" -> s"$s3url",
       "celeborn.hadoop.fs.s3a.aws.credentials.provider" -> "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
       "celeborn.hadoop.fs.s3a.access.key" -> container.getUserName,
@@ -100,7 +90,7 @@ class BasicEndToEndTieredStorageTest extends AnyFunSuite
   override def updateSparkConf(sparkConf: SparkConf, mode: ShuffleMode): SparkConf = {
     val s3url = container.getS3URL
     val newConf = sparkConf
-      .set("spark." + CelebornConf.ACTIVE_STORAGE_TYPES.key, "MEMORY,S3")
+      .set("spark." + CelebornConf.ACTIVE_STORAGE_TYPES.key, "S3")
       .set("spark." + CelebornConf.S3_DIR.key, "s3://sample-bucket/test/celeborn")
       .set("spark." + CelebornConf.S3_ENDPOINT_REGION.key, "dummy-region")
       .set("spark.celeborn.hadoop.fs.s3a.endpoint", s"$s3url")
@@ -116,11 +106,9 @@ class BasicEndToEndTieredStorageTest extends AnyFunSuite
 
   test("celeborn spark integration test - s3") {
     assume(
-      !skipAWSTest,
-      "Skipping test because AWS Hadoop client is not in the classpath (enable with -Paws")
+      isS3LibraryAvailable,
+      "Skipping test because AWS Hadoop client is not in the classpath (enable with -Paws)")
 
-    val s3url = container.getS3URL
-    log.info(s"s3url $s3url");
     val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
     val celebornSparkSession = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
