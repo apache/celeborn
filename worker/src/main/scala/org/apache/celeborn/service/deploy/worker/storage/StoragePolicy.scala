@@ -135,7 +135,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                 partitionDataWriterContext.getUserIdentifier,
                 partitionDataWriterContext.getPartitionType,
                 partitionDataWriterContext.isPartitionSplitEnabled,
-                overrideType  // this is different from location type, in case of eviction
+                overrideType // this is different from location type, in case of eviction
               )
               partitionDataWriterContext.setWorkingDir(workingDir)
               val metaHandler = getPartitionMetaHandler(diskFileInfo)
