@@ -36,6 +36,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
@@ -77,6 +79,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
       JavaUtils.newConcurrentHashMap();
   private final ConcurrentHashMap<String, Set<String>> sortingShuffleFiles =
+      JavaUtils.newConcurrentHashMap();
+  // Completion signals for per-file sorting tasks (keyed by fileId "shuffleKey-fileName")
+  private final ConcurrentHashMap<String, CompletableFuture<Void>> sortCompletions =
       JavaUtils.newConcurrentHashMap();
   private final Cache<String, Map<Integer, List<ShuffleBlockInfo>>> indexCache;
   private final Map<String, Set<String>> indexCacheNames = JavaUtils.newConcurrentHashMap();
@@ -197,6 +202,32 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     return sortedFilesSize.get();
   }
 
+  private MemoryFileInfo getSortedMemoryFileInfo(MemoryFileInfo memoryFileInfo, int startMapIndex, int endMapIndex) {
+    Map<Integer, List<ShuffleBlockInfo>> indexesMap;
+    sortMemoryShuffleFile(memoryFileInfo);
+    indexesMap = memoryFileInfo.getSortedIndexes();
+
+    ReduceFileMeta reduceFileMeta =
+            new ReduceFileMeta(
+                    ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
+                            startMapIndex, endMapIndex, shuffleChunkSize, indexesMap, true),
+                    shuffleChunkSize);
+    CompositeByteBuf targetBuffer =
+            MemoryManager.instance().getStorageByteBufAllocator().compositeBuffer(Integer.MAX_VALUE);
+    ShuffleBlockInfoUtils.sliceSortedBufferByMapRange(
+            startMapIndex,
+            endMapIndex,
+            indexesMap,
+            memoryFileInfo.getSortedBuffer(),
+            targetBuffer,
+            shuffleChunkSize);
+    return new MemoryFileInfo(
+            memoryFileInfo.getUserIdentifier(),
+            memoryFileInfo.isPartitionSplitEnabled(),
+            reduceFileMeta,
+            targetBuffer);
+  }
+
   // return the sorted FileInfo.
   // 1. If the sorted file is not generated, it adds the FileSorter task to the sorting queue and
   //    synchronously waits for the sorted FileInfo.
@@ -208,30 +239,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex)
       throws IOException {
     if (fileInfo instanceof MemoryFileInfo) {
-      MemoryFileInfo memoryFileInfo = ((MemoryFileInfo) fileInfo);
-      Map<Integer, List<ShuffleBlockInfo>> indexesMap;
-      sortMemoryShuffleFile(memoryFileInfo);
-      indexesMap = memoryFileInfo.getSortedIndexes();
-
-      ReduceFileMeta reduceFileMeta =
-          new ReduceFileMeta(
-              ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
-                  startMapIndex, endMapIndex, shuffleChunkSize, indexesMap, true),
-              shuffleChunkSize);
-      CompositeByteBuf targetBuffer =
-          MemoryManager.instance().getStorageByteBufAllocator().compositeBuffer(Integer.MAX_VALUE);
-      ShuffleBlockInfoUtils.sliceSortedBufferByMapRange(
-          startMapIndex,
-          endMapIndex,
-          indexesMap,
-          memoryFileInfo.getSortedBuffer(),
-          targetBuffer,
-          shuffleChunkSize);
-      return new MemoryFileInfo(
-          memoryFileInfo.getUserIdentifier(),
-          memoryFileInfo.isPartitionSplitEnabled(),
-          reduceFileMeta,
-          targetBuffer);
+      return getSortedMemoryFileInfo((MemoryFileInfo) fileInfo, startMapIndex, endMapIndex);
     } else {
       DiskFileInfo diskFileInfo = ((DiskFileInfo) fileInfo);
       String fileId = shuffleKey + "-" + fileName;
@@ -271,6 +279,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         while (!sorted.contains(fileId)) {
           if (sorting.contains(fileId)) {
             try {
+              // This blocks the netty thread
               Thread.sleep(50);
               if (System.currentTimeMillis() - sortStartTime > sortTimeout) {
                 String msg =
@@ -310,6 +319,101 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           indexFilePath,
           startMapIndex,
           endMapIndex);
+    }
+  }
+
+  // Async variant: returns a future that completes with sorted FileInfo without blocking Netty threads.
+  public CompletableFuture<FileInfo> getSortedFileInfoAsync(
+      String shuffleKey,
+      String fileName,
+      FileInfo fileInfo,
+      int startMapIndex,
+      int endMapIndex,
+      Executor executor) {
+    if (fileInfo instanceof MemoryFileInfo) {
+      return CompletableFuture.completedFuture(getSortedMemoryFileInfo(
+              (MemoryFileInfo) fileInfo,
+              startMapIndex,
+              endMapIndex));
+    } else {
+      DiskFileInfo diskFileInfo = ((DiskFileInfo) fileInfo);
+      String fileId = shuffleKey + "-" + fileName;
+      Set<String> sorted =
+          sortedShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
+      Set<String> sorting =
+          sortingShuffleFiles.computeIfAbsent(shuffleKey, v -> ConcurrentHashMap.newKeySet());
+
+      String sortedFilePath = Utils.getSortedFilePath(diskFileInfo.getFilePath());
+      String indexFilePath = Utils.getIndexFilePath(diskFileInfo.getFilePath());
+
+      synchronized (sorting) {
+        if (!sorted.contains(fileId) && !sorting.contains(fileId)) {
+          try {
+            FileSorter fileSorter = new FileSorter(diskFileInfo, fileId, shuffleKey);
+            sorting.add(fileId);
+            logger.debug(
+                "Adding sorter to sort queue (async) shuffle key {}, file name {}",
+                shuffleKey,
+                fileName);
+            shuffleSortTaskDeque.put(fileSorter);
+          } catch (InterruptedException e) {
+            CompletableFuture<FileInfo> failed = new CompletableFuture<>();
+            failed.completeExceptionally(
+                new IOException(
+                    "Sort scheduler thread is interrupted means worker is shutting down.", e));
+            return failed;
+          } catch (IOException e) {
+            CompletableFuture<FileInfo> failed = new CompletableFuture<>();
+            failed.completeExceptionally(new IOException("File sorter access DFS failed.", e));
+            return failed;
+          }
+        }
+      }
+
+      if (sorted.contains(fileId)) {
+        try {
+          return CompletableFuture.completedFuture(
+              resolve(
+                  shuffleKey,
+                  fileId,
+                  diskFileInfo.getUserIdentifier(),
+                  sortedFilePath,
+                  indexFilePath,
+                  startMapIndex,
+                  endMapIndex));
+        } catch (IOException e) {
+          CompletableFuture<FileInfo> failed = new CompletableFuture<>();
+          failed.completeExceptionally(e);
+          return failed;
+        }
+      }
+
+      CompletableFuture<Void> gate =
+          sortCompletions.compute(
+              fileId,
+              (k, existing) -> {
+                if (existing == null || existing.isDone()) {
+                  return new CompletableFuture<>();
+                } else {
+                  return existing;
+                }
+              });
+      return gate.thenApplyAsync(
+          v -> {
+            try {
+              // This part would now run on the sorter thread and not the netty thread like before, can be revisited
+              return resolve(
+                  shuffleKey,
+                  fileId,
+                  diskFileInfo.getUserIdentifier(),
+                  sortedFilePath,
+                  indexFilePath,
+                  startMapIndex,
+                  endMapIndex);
+            } catch (IOException e) {
+              throw new CompletionException(e);
+            }
+          }, executor);
     }
   }
 
@@ -801,9 +905,20 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         originFileInfo.getReduceFileMeta().setSorted();
         cleaner.add(this);
         logger.debug("sort complete for {} {}", shuffleKey, originFilePath);
+        // complete async future if any waiter exists
+        CompletableFuture<Void> f = sortCompletions.get(fileId);
+        if (f != null && !f.isDone()) {
+          f.complete(null);
+        }
+        sortCompletions.remove(fileId);
       } catch (Exception e) {
         logger.error(
             "Sorting shuffle file for " + fileId + " " + originFilePath + " failed, detail: ", e);
+        CompletableFuture<Void> f = sortCompletions.get(fileId);
+        if (f != null && !f.isDone()) {
+          f.completeExceptionally(e);
+        }
+        sortCompletions.remove(fileId);
       } finally {
         closeFiles();
         Set<String> sorting = sortingShuffleFiles.get(shuffleKey);
