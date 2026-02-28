@@ -19,6 +19,7 @@ package org.apache.spark.shuffle.celeborn;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
+import org.apache.spark.celeborn.StageDependencyManager;
 import org.apache.spark.shuffle.ShuffleHandle;
 import org.apache.spark.shuffle.ShuffleReader;
 
@@ -41,5 +42,9 @@ public class TestCelebornShuffleManager extends SparkShuffleManager {
       shuffleReaderGetHook.exec(handle, startPartition, endPartition, context);
     }
     return super.getReader(handle, startPartition, endPartition, context);
+  }
+
+  public StageDependencyManager getStageDepManager() {
+    return new StageDependencyManager(this);
   }
 }

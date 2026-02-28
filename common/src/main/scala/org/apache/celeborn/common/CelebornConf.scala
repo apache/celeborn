@@ -1037,6 +1037,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchCleanFailedShuffle: Boolean = get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE)
   def clientFetchCleanFailedShuffleIntervalMS: Long =
     get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_INTERVAL)
+  def clientShuffleEarlyDeletion: Boolean = get(CLIENT_SHUFFLE_EARLY_DELETION)
+  def clientShuffleEarlyDeletionCheckProp: Boolean =
+    get(CLIENT_SHUFFLE_EARLY_DELETION_CHECK_PROPERTY)
+  def clientShuffleEarlyDeletionIntervalMs: Long = get(CLIENT_SHUFFLE_EARLY_DELETION_INTERVAL_MS)
   def clientFetchExcludeWorkerOnFailureEnabled: Boolean =
     get(CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
   def clientFetchExcludedWorkerExpireTimeout: Long =
@@ -5121,6 +5125,31 @@ object CelebornConf extends Logging {
       .doc("whether to clean those disk space occupied by shuffles which cannot be fetched")
       .booleanConf
       .createWithDefault(false)
+
+  val CLIENT_SHUFFLE_EARLY_DELETION: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.fetch.shuffleEarlyDeletion")
+      .categories("client")
+      .version("0.7.0")
+      .doc("whether to delete shuffle when we determine a shuffle is not needed by any stage")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_SHUFFLE_EARLY_DELETION_CHECK_PROPERTY: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.fetch.shuffleEarlyDeletion.checkProperty")
+      .categories("client")
+      .version("0.7.0")
+      .doc("when this is enabled, we only early delete shuffle when" +
+        " \"CELEBORN_EARLY_SHUFFLE_DELETION\" property is set to true")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_SHUFFLE_EARLY_DELETION_INTERVAL_MS: ConfigEntry[Long] =
+    buildConf("celeborn.client.spark.fetch.shuffleEarlyDeletion.intervalMs")
+      .categories("client")
+      .version("0.7.0")
+      .doc("interval length to delete unused shuffle (ms)")
+      .longConf
+      .createWithDefault(5 * 60 * 1000)
 
   val CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.client.spark.fetch.cleanFailedShuffleInterval")

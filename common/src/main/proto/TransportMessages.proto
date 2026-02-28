@@ -117,6 +117,10 @@ enum MessageType {
   READ_REDUCER_PARTITION_END = 94;
   READ_REDUCER_PARTITION_END_RESPONSE = 95;
   REGISTER_APPLICATION_INFO = 96;
+  INVALIDATE_ALL_UPSTREAM_SHUFFLE = 97;
+  INVALIDATE_ALL_UPSTREAM_SHUFFLE_RESPONSE = 98;
+  REPORT_MISSING_SHUFFLE_ID = 99;
+  REPORT_MISSING_SHUFFLE_ID_RESPONSE = 100;
 }
 
 enum StreamType {
@@ -1072,4 +1076,24 @@ message PbRegisterApplicationInfo {
   PbUserIdentifier userIdentifier = 2;
   map<string, string> extraInfo = 3;
   string requestId = 4;
+}
+
+message PbReportMissingShuffleId {
+  int32 readerStageId = 1;
+  int32 attemptId = 2;
+  int32 triggerAppShuffleId = 3;
+}
+
+message PbReportMissingShuffleIdResponse {
+  bool success = 1;
+}
+
+message PbInvalidateAllUpstreamShuffle {
+  int32 readerStageId = 1;
+  int32 attemptId = 2;
+  int32 triggerAppShuffleId = 3;
+}
+
+message PbInvalidateAllUpstreamShuffleResponse {
+  bool success = 1;
 }

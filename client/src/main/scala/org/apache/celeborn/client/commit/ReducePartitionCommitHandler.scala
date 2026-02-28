@@ -300,7 +300,7 @@ class ReducePartitionCommitHandler(
     if (null != attempts) {
       attempts.length == shuffleToCompletedMappers.get(shuffleId)
     } else {
-      false
+      throw new IllegalStateException(s"cannot find mapper attempts record for shuffle $shuffleId")
     }
   }
 

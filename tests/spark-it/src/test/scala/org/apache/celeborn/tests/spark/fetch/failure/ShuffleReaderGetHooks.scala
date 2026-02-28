@@ -20,12 +20,65 @@ package org.apache.celeborn.tests.spark.fetch.failure
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
-import org.apache.spark.TaskContext
+import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.shuffle.ShuffleHandle
-import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkCommonUtils, SparkShuffleManager, SparkUtils, TestCelebornShuffleManager}
+import org.apache.spark.shuffle.celeborn.{CelebornShuffleHandle, ShuffleManagerHook, SparkCommonUtils, SparkUtils, TestCelebornShuffleManager}
 
 import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.client.commit.ReducePartitionCommitHandler
 import org.apache.celeborn.common.CelebornConf
+
+class FailedCommitAndExpireDataReaderHook(
+    conf: CelebornConf,
+    triggerShuffleId: Int,
+    shuffleIdsToExpire: List[Int])
+  extends ShuffleManagerHook {
+  var executed: AtomicBoolean = new AtomicBoolean(false)
+  val lock = new Object
+
+  override def exec(
+      handle: ShuffleHandle,
+      startPartition: Int,
+      endPartition: Int,
+      context: TaskContext): Unit = {
+
+    if (executed.get()) return
+
+    lock.synchronized {
+      // this has to be used in local mode since it leverages that the lifecycle manager
+      // is in the same process with reader
+      handle match {
+        case h: CelebornShuffleHandle[_, _, _] =>
+          val shuffleClient = ShuffleClient.get(
+            h.appUniqueId,
+            h.lifecycleManagerHost,
+            h.lifecycleManagerPort,
+            conf,
+            h.userIdentifier,
+            h.extension)
+          val lifecycleManager =
+            SparkEnv.get.shuffleManager.asInstanceOf[TestCelebornShuffleManager]
+              .getLifecycleManager
+          val celebornShuffleId = SparkUtils.celebornShuffleId(shuffleClient, h, context, false)
+          if (celebornShuffleId == triggerShuffleId && !executed.get()) {
+            println(s"putting celeborn shuffle $celebornShuffleId as commit failure")
+            val commitHandler = lifecycleManager.commitManager.getCommitHandler(celebornShuffleId)
+            commitHandler.asInstanceOf[ReducePartitionCommitHandler].dataLostShuffleSet.add(
+              celebornShuffleId)
+            shuffleIdsToExpire.foreach(sid =>
+              SparkEnv.get.shuffleManager.asInstanceOf[TestCelebornShuffleManager]
+                .getStageDepManager.removeCelebornShuffleInternal(sid, None))
+            // leaving enough time for all shuffles to expire
+            Thread.sleep(10000)
+            executed.set(true)
+          } else {
+            println(s"ignore hook with $celebornShuffleId $triggerShuffleId and ${executed.get()}")
+          }
+        case _ => throw new RuntimeException("unexpected, only support RssShuffleHandle here")
+      }
+    }
+  }
+}
 
 class ShuffleReaderGetHooks(
     conf: CelebornConf,

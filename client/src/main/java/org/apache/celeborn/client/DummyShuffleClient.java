@@ -233,4 +233,14 @@ public class DummyShuffleClient extends ShuffleClient {
   public Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> getReducePartitionMap() {
     return reducePartitionMap;
   }
+
+  @Override
+  public boolean invalidateAllUpstreamShuffle(int stageId, int attemptId, int appShuffleId) {
+    return true;
+  }
+
+  @Override
+  public boolean reportMissingShuffleId(int appShuffleId, int readerStageId, int stageAttemptId) {
+    return true;
+  }
 }
