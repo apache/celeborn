@@ -23,7 +23,7 @@ import java.security.SecureRandom
 import java.util
 import java.util.{function, List => JList}
 import java.util.concurrent._
-import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, LongAdder}
 import java.util.function.{BiConsumer, BiFunction, Consumer}
 
 import scala.collection.JavaConverters._
@@ -132,6 +132,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val mockDestroyFailure = conf.testMockDestroySlotsFailure
   private val authEnabled = conf.authEnabledOnClient
   private var applicationMeta: ApplicationMeta = _
+
+  private val shuffleWriteLimitEnabled = conf.shuffleWriteLimitEnabled
+  private val shuffleWriteLimitThreshold = conf.shuffleWriteLimitThreshold
+  private val shuffleTotalWrittenBytes = JavaUtils.newConcurrentHashMap[Int, AtomicLong]()
+
   @VisibleForTesting
   def workerSnapshots(shuffleId: Int): util.Map[String, ShufflePartitionLocationInfo] =
     shuffleAllocatedWorkers.get(shuffleId)
@@ -439,7 +444,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           numPartitions,
           crc32PerPartition,
           bytesWrittenPerPartition,
-          serdeVersion) =>
+          serdeVersion,
+          bytesWritten) =>
       logTrace(s"Received MapperEnd TaskEnd request, " +
         s"${Utils.makeMapKey(shuffleId, mapId, attemptId)}")
       val partitionType = getPartitionType(shuffleId)
@@ -455,7 +461,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             numPartitions,
             crc32PerPartition,
             bytesWrittenPerPartition,
-            serdeVersion)
+            serdeVersion,
+            bytesWritten)
         case PartitionType.MAP =>
           handleMapPartitionEnd(
             context,
@@ -933,7 +940,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       numPartitions: Int,
       crc32PerPartition: Array[Int],
       bytesWrittenPerPartition: Array[Long],
-      serdeVersion: SerdeVersion): Unit = {
+      serdeVersion: SerdeVersion,
+      bytesWritten: Long): Unit = {
 
     val (mapperAttemptFinishedSuccess, allMapperFinished) =
       commitManager.finishMapperAttempt(
@@ -945,6 +953,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         numPartitions = numPartitions,
         crc32PerPartition = crc32PerPartition,
         bytesWrittenPerPartition = bytesWrittenPerPartition)
+
+    if (mapperAttemptFinishedSuccess && shuffleWriteLimitEnabled) {
+      handleShuffleWriteLimitCheck(shuffleId, bytesWritten)
+      logDebug(s"Shuffle $shuffleId, mapId: $mapId, attemptId: $attemptId, " +
+        s"map written bytes: $bytesWritten, shuffle total written bytes: ${shuffleTotalWrittenBytes.get(
+          shuffleId).get()}, write limit threshold: ${shuffleWriteLimitThreshold.getOrElse(0L)}")
+    }
+
     if (mapperAttemptFinishedSuccess && allMapperFinished) {
       // last mapper finished. call mapper end
       logInfo(s"Last MapperEnd, call StageEnd with shuffleKey:" +
@@ -1257,6 +1273,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         } else {
           logInfo(s"[handleUnregisterShuffle] Wait for handleStageEnd complete costs ${cost}ms")
         }
+      }
+
+      if (shuffleWriteLimitEnabled) {
+        shuffleTotalWrittenBytes.remove(shuffleId)
       }
     }
 
@@ -2081,4 +2101,25 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   def getShuffleIdMapping = shuffleIdMapping
+
+  private def handleShuffleWriteLimitCheck(shuffleId: Int, writtenBytes: Long): Unit = {
+    if (!shuffleWriteLimitEnabled || shuffleWriteLimitThreshold.isEmpty) return
+
+    if (writtenBytes > 0) {
+      val totalBytesAccumulator =
+        shuffleTotalWrittenBytes.computeIfAbsent(shuffleId, (id: Int) => new AtomicLong(0))
+      val currentTotalBytes = totalBytesAccumulator.addAndGet(writtenBytes)
+
+      if (currentTotalBytes > shuffleWriteLimitThreshold.get) {
+        val reason =
+          s"Shuffle $shuffleId exceeded write limit threshold: current total ${currentTotalBytes} bytes, max allowed ${shuffleWriteLimitThreshold.get} bytes"
+        logError(reason)
+
+        cancelShuffleCallback match {
+          case Some(c) => c.accept(shuffleId, reason)
+          case _ => None
+        }
+      }
+    }
+  }
 }

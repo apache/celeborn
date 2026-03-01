@@ -160,7 +160,8 @@ class UtilsSuite extends CelebornFunSuite {
         1,
         Array.emptyIntArray,
         Array.emptyLongArray,
-        SerdeVersion.V1)
+        SerdeVersion.V1,
+        1)
     val mapperEndTrans =
       Utils.fromTransportMessage(Utils.toTransportMessage(mapperEnd)).asInstanceOf[MapperEnd]
     assert(mapperEnd.shuffleId == mapperEndTrans.shuffleId)
@@ -172,6 +173,7 @@ class UtilsSuite extends CelebornFunSuite {
     assert(mapperEnd.numPartitions == mapperEndTrans.numPartitions)
     mapperEnd.crc32PerPartition.array should contain theSameElementsInOrderAs mapperEndTrans.crc32PerPartition
     mapperEnd.bytesWrittenPerPartition.array should contain theSameElementsInOrderAs mapperEndTrans.bytesWrittenPerPartition
+    assert(mapperEnd.bytesWritten == mapperEndTrans.bytesWritten)
   }
 
   test("validate HDFS compatible fs path") {
