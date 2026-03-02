@@ -32,18 +32,13 @@ public class MemoryFileInfo extends FileInfo {
   private CompositeByteBuf sortedBuffer;
   private Map<Integer, List<ShuffleBlockInfo>> sortedIndexes;
 
-  public MemoryFileInfo(
-      UserIdentifier userIdentifier, boolean partitionSplitEnabled, FileMeta fileMeta) {
-    super(userIdentifier, partitionSplitEnabled, fileMeta);
+  public MemoryFileInfo(UserIdentifier userIdentifier, FileMeta fileMeta) {
+    super(userIdentifier, fileMeta);
   }
 
   // This constructor is only used in partition sorter for temp new memory file
-  public MemoryFileInfo(
-      UserIdentifier userIdentifier,
-      boolean partitionSplitEnabled,
-      FileMeta fileMeta,
-      CompositeByteBuf buffer) {
-    super(userIdentifier, partitionSplitEnabled, fileMeta);
+  public MemoryFileInfo(UserIdentifier userIdentifier, FileMeta fileMeta, CompositeByteBuf buffer) {
+    super(userIdentifier, fileMeta);
     this.buffer = buffer;
   }
 
