@@ -71,9 +71,9 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
 
     val s3url = container.getS3URL
     val augmentedConfiguration = Map(
-      CelebornConf.ACTIVE_STORAGE_TYPES.key -> "MEMORY,HDD,S3",
-      CelebornConf.WORKER_STORAGE_CREATE_FILE_POLICY.key -> "MEMORY,HDD,S3",
-      // CelebornConf.WORKER_STORAGE_EVICT_POLICY.key -> "MEMORY,S3",
+      CelebornConf.ACTIVE_STORAGE_TYPES.key -> "MEMORY,S3",
+      CelebornConf.WORKER_STORAGE_CREATE_FILE_POLICY.key -> "MEMORY,S3",
+      CelebornConf.WORKER_STORAGE_EVICT_POLICY.key -> "MEMORY,S3",
       // note that in S3 (and Minio) you cannot upload parts smaller than 5MB, so we trigger eviction only when there
       // is enough data
       CelebornConf.WORKER_MEMORY_FILE_STORAGE_MAX_FILE_SIZE.key -> "5MB",
@@ -199,6 +199,52 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
     celebornSparkSession.stop()
   }
 
+  test("celeborn spark integration test - memory evict to s3 after partition split") {
+    assumeS3LibraryIsLoaded()
+
+    val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
+    val celebornSparkSession = SparkSession.builder()
+      .config(updateSparkConfWithStorageTypes(sparkConf, ShuffleMode.HASH, "MEMORY,S3"))
+      // Set split threshold equal to WORKER_MEMORY_FILE_STORAGE_MAX_FILE_SIZE (5MB) to trigger
+      // the following sequence that reproduces the production failure:
+      // 1. MemoryTierWriter accumulates ~5MB → eviction → DfsTierWriter (S3) created.
+      //    getDiskFileInfo() is now non-null, enabling the regular split-threshold check.
+      //    (Without prior eviction to disk, getDiskFileInfo() == null and no split fires.)
+      // 2. The S3 file grows past 5MB → SOFT_SPLIT response sent to the Spark client.
+      // 3. ChangePartitionManager calls allocateFromCandidates, which builds the new location
+      //    with type=MEMORY (storageTypes.head for "MEMORY,S3") and availableTypes=MEMORY|S3.
+      // 4. The new MemoryTierWriter fills again → eviction triggered on the MEMORY-typed
+      //    location → StorageManager.createDiskFile must handle type=MEMORY as a valid S3
+      //    target (using availableStorageTypes) rather than rejecting it.
+      .config(s"spark.${CelebornConf.SHUFFLE_PARTITION_SPLIT_THRESHOLD.key}", "5MB")
+      .getOrCreate()
+
+    // 20MB covers all three phases:
+    //   ~5MB to fill the first MemoryTierWriter and trigger eviction to S3,
+    //   ~5MB of additional S3 writes to exceed the split threshold and fire SOFT_SPLIT,
+    //   ~10MB remaining for the second MemoryTierWriter to fill and trigger the second eviction.
+    val sampleSeq: immutable.Seq[(String, Int)] = buildDataSet(20 * 1024 * 1024)
+
+    repartition(celebornSparkSession, sequence = sampleSeq, partitions = 1)
+
+    // After splits there are more than 2 committed locations (one per epoch), so we assert
+    // type and path for each rather than an exact count.
+    assert(seenPartitionLocationsOpenReader.size >= 2)
+    seenPartitionLocationsOpenReader.asScala.foreach(location => {
+      assert(
+        location.getStorageInfo.getType == Type.MEMORY || location.getStorageInfo.getType == Type.S3)
+      assert(location.getStorageInfo.getFilePath == "")
+    })
+    assert(seenPartitionLocationsUpdateFileGroups.size >= 2)
+    seenPartitionLocationsUpdateFileGroups.asScala.foreach { location =>
+      if (location.getStorageInfo.getType == Type.MEMORY)
+        assert(location.getStorageInfo.getFilePath == "")
+      else if (location.getStorageInfo.getType == Type.S3)
+        assert(location.getStorageInfo.getFilePath.startsWith("s3://"))
+    }
+    celebornSparkSession.stop()
+  }
+
   test("celeborn spark integration test - push fails no way of evicting") {
     assumeS3LibraryIsLoaded()
 
@@ -216,16 +262,15 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
     celebornSparkSession.stop()
   }
 
-  private def buildBigDataSet = {
+  private def buildBigDataSet: immutable.Seq[(String, Int)] = buildDataSet(10 * 1024 * 1024)
+
+  private def buildDataSet(sizeBytes: Int): immutable.Seq[(String, Int)] = {
     val big1KBString: String = StringUtils.repeat(' ', 1024)
-    val partitionSize = 10 * 1024 * 1024
-    val numValues = partitionSize / big1KBString.length
-    // we need to write enough to trigger eviction from MEMORY to S3
-    val sampleSeq: immutable.Seq[(String, Int)] = (1 to numValues)
+    val numValues = sizeBytes / big1KBString.length
+    (1 to numValues)
       .map(i => big1KBString + i) // all different keys
       .toList
       .map(v => (v.toUpperCase, Random.nextInt(12) + 1))
-    sampleSeq
   }
 
   def interceptLocationsSeenByClient(): Unit = {
