@@ -17,11 +17,12 @@
 
 package org.apache.celeborn.client.compress
 
+import java.util
+
+import scala.collection.mutable.ArrayBuffer
+
 import org.apache.celeborn.benchmark.Benchmark
 import org.apache.celeborn.common.CelebornConf
-
-import java.util
-import scala.collection.mutable.ArrayBuffer
 
 /**
  * Benchmark for LZ4 codec performance.
@@ -42,7 +43,7 @@ object LZ4TPCDSDataBenchmark extends TPCDSDataBenchmark {
         64 * 1024 /* 64k */,
         256 * 1024 /* 256k */,
         1024 * 1024 /* 1m */,
-        4 * 1024 * 1024 /* 4m */).foreach { chunkSize: Int =>
+        4 * 1024 * 1024 /* 4m */ ).foreach { chunkSize: Int =>
         compressionBenchmark(chunkSize)
         decompressionBenchmark(chunkSize)
       }

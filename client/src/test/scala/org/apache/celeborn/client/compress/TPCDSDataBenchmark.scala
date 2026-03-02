@@ -17,9 +17,9 @@
 
 package org.apache.celeborn.client.compress
 
-import org.apache.celeborn.benchmark.BenchmarkBase
-
 import java.nio.file.{Files, Paths}
+
+import org.apache.celeborn.benchmark.BenchmarkBase
 
 /**
  * TPC-DS data preparation:
@@ -51,8 +51,10 @@ abstract class TPCDSDataBenchmark extends BenchmarkBase {
     require(tpcDsDataDir.nonEmpty, "Can not find env var SPARK_TPCDS_DATA_TEXT")
 
     val catalogSalesDatPath = Paths.get(tpcDsDataDir.get, "catalog_sales.dat")
-    require(Files.exists(catalogSalesDatPath), s"File $catalogSalesDatPath does not exists, " +
-      s"please follow instruction to generate the TPC-DS (SF1) text data first.")
+    require(
+      Files.exists(catalogSalesDatPath),
+      s"File $catalogSalesDatPath does not exists, " +
+        s"please follow instruction to generate the TPC-DS (SF1) text data first.")
 
     // the size of TPCDS catalog_sales.dat (SF1) is about 283M
     data = Files.readAllBytes(catalogSalesDatPath)
