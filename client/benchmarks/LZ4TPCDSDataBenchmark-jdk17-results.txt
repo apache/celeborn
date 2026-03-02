@@ -1,0 +1,53 @@
+================================================================================================
+Benchmark LZ4CompressionCodec
+================================================================================================
+
+OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.17.9-76061709-generic
+Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
+Compression:                               Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+-------------------------------------------------------------------------------------------------------------------------
+Compression with chunk size 65536 4 times           2131           2134           5          0.0   532707902.0       1.0X
+
+OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.17.9-76061709-generic
+Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
+Decompression:                               Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+---------------------------------------------------------------------------------------------------------------------------
+Decompression with chunk size 65536 4 times            536            541           9          0.0   133951799.0       1.0X
+
+OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.17.9-76061709-generic
+Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
+Compression:                                Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+--------------------------------------------------------------------------------------------------------------------------
+Compression with chunk size 262144 4 times           1754           1756           2          0.0   438523185.2       1.0X
+
+OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.17.9-76061709-generic
+Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
+Decompression:                                Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+----------------------------------------------------------------------------------------------------------------------------
+Decompression with chunk size 262144 4 times            436            439           4          0.0   109013659.0       1.0X
+
+OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.17.9-76061709-generic
+Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
+Compression:                                 Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+---------------------------------------------------------------------------------------------------------------------------
+Compression with chunk size 1048576 4 times           1774           1780           9          0.0   443426664.3       1.0X
+
+OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.17.9-76061709-generic
+Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
+Decompression:                                 Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+-----------------------------------------------------------------------------------------------------------------------------
+Decompression with chunk size 1048576 4 times            431            434           4          0.0   107823243.0       1.0X
+
+OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.17.9-76061709-generic
+Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
+Compression:                                 Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+---------------------------------------------------------------------------------------------------------------------------
+Compression with chunk size 4194304 4 times           1785           1791           8          0.0   446360006.8       1.0X
+
+OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.17.9-76061709-generic
+Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
+Decompression:                                 Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+-----------------------------------------------------------------------------------------------------------------------------
+Decompression with chunk size 4194304 4 times            436            438           1          0.0   109117732.3       1.0X
+
+
