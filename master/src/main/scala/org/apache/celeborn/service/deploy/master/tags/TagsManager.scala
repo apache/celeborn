@@ -79,7 +79,7 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
         case Some(w) =>
           w.retainAll(taggedWorkers)
         case _ =>
-          workersForTags = Some(taggedWorkers)
+          workersForTags = Some(new util.HashSet[String](taggedWorkers))
       }
     }
 
