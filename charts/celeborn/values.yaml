@@ -408,6 +408,16 @@ serviceAccount:
   # -- (Optional) Name of the Celeborn service account.
   name: ""
 
+managedDiskStorageClass:
+  # -- Whether to create a StorageClass for Celeborn managed worker disks.
+  create: false
+  # -- Name of the StorageClass used by Celeborn worker PVCs.
+  name: ""
+  # -- Azure managed disk SKU name.
+  skuName: Premium_LRS
+  # -- Azure managed disk caching mode.
+  cachingMode: None
+
 rbac:
   create: true
   roleName: default

@@ -1,13 +1,35 @@
 #!/usr/bin/env bash
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 set -euo pipefail
 
-REPO_BASE="https://artifactory.data-0.internal.api.openai.org/artifactory"
+REPO_BASE="https://artifactory.gateway.data-0.internal.api.openai.org/artifactory"
 HELM_REPO="helm-local"
 NAMESPACE="celeborn"
 CHART_DIR="."
 CHART_NAME="celeborn"
-OUT_DIR="dist"
 REPO_BASED_URL="$REPO_BASE/$HELM_REPO/$NAMESPACE"
+OUT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/celeborn-chart-release.XXXXXX")"
+
+cleanup() {
+  rm -rf "$OUT_DIR"
+}
+
+trap cleanup EXIT
 
 # Auth must be exported in the env already:
 #   export ARTIFACTORY_USER=...
@@ -16,8 +38,6 @@ REPO_BASED_URL="$REPO_BASE/$HELM_REPO/$NAMESPACE"
 : "${ARTIFACTORY_PASSWORD:?ARTIFACTORY_PASSWORD required}"
 
 echo "Using ARTIFACTORY_USER: $ARTIFACTORY_USER"
-mkdir -p "$OUT_DIR"
-rm -rf "${OUT_DIR:?}/"*
 
 echo "==> Package chart (reads version from Chart.yaml)"
 helm dependency update "$CHART_DIR"
