@@ -6,48 +6,48 @@ OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.17.9-76061709-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 Compression:                               Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 -------------------------------------------------------------------------------------------------------------------------
-Compression with chunk size 65536 4 times           2379           2380           2          0.0   594723682.5       1.0X
+Compression with chunk size 65536 4 times           2193           2210          24          0.0   548315522.5       1.0X
 
 OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.17.9-76061709-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 Decompression:                               Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ---------------------------------------------------------------------------------------------------------------------------
-Decompression with chunk size 65536 4 times            724            728           3          0.0   181120209.3       1.0X
+Decompression with chunk size 65536 4 times            460            463           3          0.0   114986376.3       1.0X
 
 OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.17.9-76061709-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 Compression:                                Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 --------------------------------------------------------------------------------------------------------------------------
-Compression with chunk size 262144 4 times           1885           1885           0          0.0   471239549.0       1.0X
+Compression with chunk size 262144 4 times           1683           1683           0          0.0   420711475.3       1.0X
 
 OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.17.9-76061709-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 Decompression:                                Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ----------------------------------------------------------------------------------------------------------------------------
-Decompression with chunk size 262144 4 times            547            548           1          0.0   136632004.5       1.0X
+Decompression with chunk size 262144 4 times            367            369           1          0.0    91804273.0       1.0X
 
 OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.17.9-76061709-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 Compression:                                 Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ---------------------------------------------------------------------------------------------------------------------------
-Compression with chunk size 1048576 4 times           1895           1903          12          0.0   473643940.0       1.0X
+Compression with chunk size 1048576 4 times           1725           1726           3          0.0   431152298.8       1.0X
 
 OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.17.9-76061709-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 Decompression:                                 Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 -----------------------------------------------------------------------------------------------------------------------------
-Decompression with chunk size 1048576 4 times            550            557           6          0.0   137584770.3       1.0X
+Decompression with chunk size 1048576 4 times            367            368           1          0.0    91743487.5       1.0X
 
 OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.17.9-76061709-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 Compression:                                 Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ---------------------------------------------------------------------------------------------------------------------------
-Compression with chunk size 4194304 4 times           1915           1928          18          0.0   478851910.0       1.0X
+Compression with chunk size 4194304 4 times           1697           1702           7          0.0   424249326.5       1.0X
 
 OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.17.9-76061709-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 Decompression:                                 Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 -----------------------------------------------------------------------------------------------------------------------------
-Decompression with chunk size 4194304 4 times            548            550           1          0.0   137091254.0       1.0X
+Decompression with chunk size 4194304 4 times            371            376           4          0.0    92720790.5       1.0X
 
 
