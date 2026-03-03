@@ -39,7 +39,7 @@ object Dependencies {
 
   val zstdJniVersion = sparkClientProjects.map(_.zstdJniVersion).getOrElse("1.5.7-1")
   val lz4JavaGroup = sparkClientProjects.map(_.lz4JavaGroup).getOrElse("at.yawk.lz4")
-  val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.10.3")
+  val lz4JavaVersion = sparkClientProjects.map(_.lz4JavaVersion).getOrElse("1.10.4")
 
   // Dependent library versions
   val apLoaderVersion = "4.0-10"
