@@ -27,6 +27,7 @@ import java.util.List;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
+import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.event.ProgressListener;
 import com.amazonaws.retry.PredefinedBackoffStrategies;
 import com.amazonaws.retry.PredefinedRetryPolicies;
@@ -103,13 +104,42 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
         new ClientConfiguration()
             .withRetryPolicy(retryPolicy)
             .withMaxErrorRetry(s3MultiplePartUploadMaxRetries);
-    this.s3Client =
+
+    String region = conf.get(Constants.AWS_REGION);
+    String endpoint = conf.getTrimmed(Constants.ENDPOINT);
+    AmazonS3ClientBuilder builder =
         AmazonS3ClientBuilder.standard()
             .withCredentials(providers)
-            .withRegion(conf.get(Constants.AWS_REGION))
-            .withClientConfiguration(clientConfig)
-            .build();
+            .withRegion(region)
+            .withClientConfiguration(clientConfig);
+    if (isS3ExpressEndpoint(endpoint)) {
+      String normalizedEndpoint = normalizeEndpoint(endpoint);
+      logger.info(
+          "Using S3 Express endpoint {} for multipart upload bucket {} (region={})",
+          normalizedEndpoint,
+          bucketName,
+          region);
+      builder
+          .withEndpointConfiguration(
+              new AwsClientBuilder.EndpointConfiguration(normalizedEndpoint, region))
+          // S3 Express directory bucket requires virtual-host style access.
+          .withPathStyleAccessEnabled(false);
+    } else {
+      logger.info("Using standard S3 endpoint resolution for multipart upload bucket {}", bucketName);
+    }
+    this.s3Client = builder.build();
     this.key = key;
+  }
+
+  static boolean isS3ExpressEndpoint(String endpoint) {
+    return endpoint != null && endpoint.contains("s3express-");
+  }
+
+  static String normalizeEndpoint(String endpoint) {
+    if (endpoint.startsWith("http://") || endpoint.startsWith("https://")) {
+      return endpoint;
+    }
+    return "https://" + endpoint;
   }
 
   @Override

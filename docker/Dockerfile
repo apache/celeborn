@@ -21,6 +21,7 @@ ARG java_image_tag=8-jdk-noble
 FROM eclipse-temurin:${builder_java_image_tag} AS dist-builder
 
 ARG TARGETARCH
+ARG DIST_PROFILES="-Pspark-3.5 -Pjdk-17 -Paws"
 
 WORKDIR /src
 
@@ -32,7 +33,7 @@ RUN set -ex && \
 COPY . /src
 
 RUN set -ex && \
-    dist_profiles="-Pspark-3.5 -Pjdk-17" && \
+    dist_profiles="${DIST_PROFILES}" && \
     if [ "${TARGETARCH}" = "arm64" ]; then \
       dist_profiles="${dist_profiles} -Paarch64"; \
     fi && \
