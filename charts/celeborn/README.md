@@ -30,7 +30,7 @@ ARTIFACTORY_USER=admin ARTIFACTORY_PASSWORD=<> ./release.sh
 NOTE: you can get the password via:
 
 ```
-echo $(az keyvault secret show --name data-platform-artifactory-admin-password-data0 --vault-name openai-api-tf-prod | jq -r .value | base64 --decode)
+az keyvault secret show --name data-platform-artifactory-admin-password-data-0 --vault-name databricks-data-ss --subscription data-platform
 ```
 
 # Helm Chart for Apache Celeborn
