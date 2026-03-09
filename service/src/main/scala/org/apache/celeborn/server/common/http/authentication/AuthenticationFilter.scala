@@ -73,6 +73,9 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
       conf.get(CelebornConf.WORKER_HTTP_AUTH_ADMINISTERS).toSet
   }
 
+  private val bypassApiPaths: Set[String] =
+    BYPASS_DEFAULT_API_PATHS ++ conf.get(CelebornConf.HTTP_AUTH_BYPASS_API_PATHS).toSet
+
   private def initAuthHandlers(): Unit = {
     if (authSchemes.contains(HttpAuthSchemes.NEGOTIATE)) {
       serviceName match {
@@ -137,7 +140,7 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
     HTTP_CLIENT_IP_ADDRESS.set(httpRequest.getRemoteAddr)
     HTTP_PROXY_HEADER_CLIENT_IP_ADDRESS.set(httpRequest.getHeader(proxyClientIpHeader))
 
-    if (authSchemeHandlers.isEmpty || BYPASS_API_PATHS.contains(httpRequest.getRequestURI)) {
+    if (authSchemeHandlers.isEmpty || bypassApiPaths.contains(httpRequest.getRequestURI)) {
       try {
         filterChain.doFilter(request, response)
         return
@@ -218,7 +221,7 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
 }
 
 object AuthenticationFilter {
-  private val BYPASS_API_PATHS = Set("/openapi.json", "/openapi.yaml")
+  private val BYPASS_DEFAULT_API_PATHS = Set("/openapi.json", "/openapi.yaml")
 
   final val HTTP_CLIENT_IP_ADDRESS = new ThreadLocal[String]() {
     override protected def initialValue: String = null
