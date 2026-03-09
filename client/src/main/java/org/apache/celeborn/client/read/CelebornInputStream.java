@@ -492,7 +492,7 @@ public abstract class CelebornInputStream extends InputStream {
                             .build()
                             .toByteArray());
                 client.sendRpc(bufferStreamEnd.toByteBuffer());
-              } catch (InterruptedException | IOException ex) {
+              } catch (InterruptedException | IOException | RuntimeException ex) {
                 logger.warn(
                     "Close {} stream {} failed",
                     location.hostAndFetchPort(),
