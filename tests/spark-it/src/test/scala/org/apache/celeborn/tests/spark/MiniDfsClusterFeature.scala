@@ -1,10 +1,11 @@
 package org.apache.celeborn.tests.spark
 
-import org.apache.celeborn.common.internal.Logging
+import java.nio.file.Files
+
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.hdfs.{HdfsConfiguration, MiniDFSCluster}
 
-import java.nio.file.Files
+import org.apache.celeborn.common.internal.Logging
 
 trait MiniDfsClusterFeature extends Logging {
   private var cluster: MiniDFSCluster = null
@@ -13,8 +14,7 @@ trait MiniDfsClusterFeature extends Logging {
 
   def getHDFSConfigs(): Map[String, String] = {
     Map(
-      "celeborn.storage.hdfs.dir" -> "hdfs://localhost/shuffle-test"
-    )
+      "celeborn.storage.hdfs.dir" -> "hdfs://localhost/shuffle-test")
   }
 
   private def createHdfsTempDir(): String = {
