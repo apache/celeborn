@@ -61,3 +61,28 @@ target_link_libraries(
 add_executable(cppDataSumWithWriterClient DataSumWithWriterClient.cpp)
 
 target_link_libraries(cppDataSumWithWriterClient dataSumWithWriterClient)
+
+add_library(
+        dataSumWithMergeWriterClient
+        DataSumWithMergeWriterClient.cpp)
+
+target_link_libraries(
+        dataSumWithMergeWriterClient
+        memory
+        utils
+        conf
+        proto
+        network
+        protocol
+        client
+        ${WANGLE}
+        ${FIZZ}
+        ${LIBSODIUM_LIBRARY}
+        ${FOLLY_WITH_DEPENDENCIES}
+        ${GLOG}
+        ${GFLAGS_LIBRARIES}
+)
+
+add_executable(cppDataSumWithMergeWriterClient DataSumWithMergeWriterClient.cpp)
+
+target_link_libraries(cppDataSumWithMergeWriterClient dataSumWithMergeWriterClient)

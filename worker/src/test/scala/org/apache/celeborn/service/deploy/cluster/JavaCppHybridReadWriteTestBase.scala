@@ -244,4 +244,95 @@ trait JavaCppHybridReadWriteTestBase extends AnyFunSuite
     shuffleClient.shutdown()
   }
 
+  def testCppMergeWriteJavaRead(codec: CompressionCodec): Unit = {
+    beforeAll()
+    try {
+      runCppMergeWriteJavaRead(codec)
+    } finally {
+      afterAll()
+    }
+  }
+
+  def runCppMergeWriteJavaRead(codec: CompressionCodec): Unit = {
+    val appUniqueId = "test-app"
+    val shuffleId = 0
+    val attemptId = 0
+
+    val clientConf = new CelebornConf()
+      .set(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$masterPort")
+      .set(CelebornConf.SHUFFLE_COMPRESSION_CODEC.key, codec.name)
+      .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "true")
+      .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
+      .set(CelebornConf.READ_LOCAL_SHUFFLE_FILE, false)
+      .set("celeborn.data.io.numConnectionsPerPeer", "1")
+    val lifecycleManager = new LifecycleManager(appUniqueId, clientConf)
+
+    val shuffleClient =
+      new ShuffleClientImpl(appUniqueId, clientConf, UserIdentifier("mock", "mock"))
+    shuffleClient.setupLifecycleManagerRef(lifecycleManager.self)
+
+    val numMappers = 2
+    val numPartitions = 2
+
+    val cppResultFile = "/tmp/celeborn-cpp-merge-writer-result.txt"
+    val lifecycleManagerHost = lifecycleManager.getHost
+    val lifecycleManagerPort = lifecycleManager.getPort
+    val projectDirectory = new File(new File(".").getAbsolutePath)
+    val cppBinRelativeDirectory = "cpp/build/celeborn/tests/"
+    val cppBinFileName = "cppDataSumWithMergeWriterClient"
+    val cppBinFilePath = s"$projectDirectory/$cppBinRelativeDirectory/$cppBinFileName"
+    val cppCodec = codec.name()
+    val command = {
+      s"$cppBinFilePath $lifecycleManagerHost $lifecycleManagerPort $appUniqueId $shuffleId $attemptId $numMappers $numPartitions $cppResultFile $cppCodec"
+    }
+    println(s"run command: $command")
+    val commandOutput = runCommand(command)
+    println(s"command output: $commandOutput")
+
+    val metricsCallback = new MetricsCallback {
+      override def incBytesRead(bytesWritten: Long): Unit = {}
+      override def incReadTime(time: Long): Unit = {}
+    }
+
+    var sums = new util.ArrayList[Long](numPartitions)
+    for (partitionId <- 0 until numPartitions) {
+      sums.add(0)
+      val inputStream = shuffleClient.readPartition(
+        shuffleId,
+        partitionId,
+        attemptId,
+        0,
+        0,
+        Integer.MAX_VALUE,
+        metricsCallback)
+      var c = inputStream.read()
+      var data: Long = 0
+      var dataCnt = 0
+      while (c != -1) {
+        if (c == '-') {
+          sums.set(partitionId, sums.get(partitionId) + data)
+          data = 0
+          dataCnt += 1
+        } else {
+          assert(c >= '0' && c <= '9')
+          data *= 10
+          data += c - '0'
+        }
+        c = inputStream.read()
+      }
+      sums.set(partitionId, sums.get(partitionId) + data)
+      println(s"partition $partitionId sum result = ${sums.get(partitionId)}, dataCnt = $dataCnt")
+    }
+
+    var lineCount = 0
+    for (line <- Source.fromFile(cppResultFile, "utf-8").getLines.toList) {
+      val data = line.toLong
+      Assert.assertEquals(data, sums.get(lineCount))
+      lineCount += 1
+    }
+    Assert.assertEquals(lineCount, numPartitions)
+    lifecycleManager.stop()
+    shuffleClient.shutdown()
+  }
+
 }
