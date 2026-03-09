@@ -29,7 +29,8 @@ PushState::PushState(const conf::CelebornConf& conf)
           conf.clientPushMaxBytesSizeInFlightEnabled()),
       maxInFlightBytesSizeTotal_(conf.clientPushMaxBytesSizeInFlightTotal()),
       maxInFlightBytesSizePerWorker_(
-          conf.clientPushMaxBytesSizeInFlightPerWorker()) {}
+          conf.clientPushMaxBytesSizeInFlightPerWorker()),
+      pushBufferMaxSize_(conf.clientPushBufferMaxSize()) {}
 
 int PushState::nextBatchId() {
   return currBatchId_.fetch_add(1);
@@ -233,6 +234,32 @@ void PushState::cleanup() {
     inflightBatchBytesSizes_.clear();
     totalInflightBytes_ = 0;
   }
+}
+
+bool PushState::addBatchData(
+    const std::string& addressPairKey,
+    std::shared_ptr<const protocol::PartitionLocation> loc,
+    int batchId,
+    std::unique_ptr<memory::ReadOnlyByteBuffer> body) {
+  auto batches = batchesMap_.computeIfAbsent(
+      addressPairKey, [&]() { return std::make_shared<DataBatches>(); });
+  batches->addDataBatch(std::move(loc), batchId, std::move(body));
+  return batches->getTotalSize() > pushBufferMaxSize_;
+}
+
+std::shared_ptr<DataBatches> PushState::takeDataBatches(
+    const std::string& addressPairKey) {
+  auto result = batchesMap_.get(addressPairKey);
+  if (result.has_value()) {
+    batchesMap_.erase(addressPairKey);
+    return result.value();
+  }
+  return nullptr;
+}
+
+utils::ConcurrentHashMap<std::string, std::shared_ptr<DataBatches>>&
+PushState::getBatchesMap() {
+  return batchesMap_;
 }
 
 void PushState::throwIfExceptionExists() {

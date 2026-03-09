@@ -18,6 +18,7 @@
 #include "celeborn/client/ShuffleClient.h"
 #include <limits>
 
+#include "celeborn/client/writer/PushMergedDataCallback.h"
 #include "celeborn/utils/CelebornUtils.h"
 
 namespace celeborn {
@@ -269,11 +270,423 @@ int ShuffleClientImpl::pushData(
   return body->remainingSize();
 }
 
+int ShuffleClientImpl::mergeData(
+    int shuffleId,
+    int mapId,
+    int attemptId,
+    int partitionId,
+    const uint8_t* data,
+    size_t offset,
+    size_t length,
+    int numMappers,
+    int numPartitions) {
+  const auto mapKey = utils::makeMapKey(shuffleId, mapId, attemptId);
+  if (checkMapperEnded(shuffleId, mapId, mapKey)) {
+    return 0;
+  }
+
+  auto partitionLocationMap =
+      getPartitionLocation(shuffleId, numMappers, numPartitions);
+  CELEBORN_CHECK_NOT_NULL(partitionLocationMap);
+  auto partitionLocationOptional = partitionLocationMap->get(partitionId);
+  if (!partitionLocationOptional.has_value()) {
+    if (!revive(
+            shuffleId,
+            mapId,
+            attemptId,
+            partitionId,
+            -1,
+            nullptr,
+            protocol::StatusCode::PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
+      CELEBORN_FAIL(fmt::format(
+          "Revive for shuffleId {} partitionId {} failed.",
+          shuffleId,
+          partitionId));
+    }
+    partitionLocationOptional = partitionLocationMap->get(partitionId);
+  }
+  if (checkMapperEnded(shuffleId, mapId, mapKey)) {
+    return 0;
+  }
+
+  CELEBORN_CHECK(partitionLocationOptional.has_value());
+  auto partitionLocation = partitionLocationOptional.value();
+  auto pushState = getPushState(mapKey);
+  const int nextBatchId = pushState->nextBatchId();
+
+  CELEBORN_CHECK(
+      length <= static_cast<size_t>(std::numeric_limits<int>::max()),
+      fmt::format(
+          "Data length {} exceeds maximum supported size {}",
+          length,
+          std::numeric_limits<int>::max()));
+
+  const uint8_t* dataToWrite = data + offset;
+  int lengthToWrite = static_cast<int>(length);
+  std::unique_ptr<uint8_t[]> compressedBuffer;
+
+  if (shuffleCompressionEnabled_ && compressorFactory_) {
+    auto compressor = compressorFactory_();
+    const size_t compressedCapacity =
+        compressor->getDstCapacity(static_cast<int>(length));
+    compressedBuffer = std::make_unique<uint8_t[]>(compressedCapacity);
+    const size_t compressedSize = compressor->compress(
+        dataToWrite, 0, static_cast<int>(length), compressedBuffer.get(), 0);
+
+    CELEBORN_CHECK(
+        compressedSize <= static_cast<size_t>(std::numeric_limits<int>::max()),
+        fmt::format(
+            "Compressed size {} exceeds maximum supported size {}",
+            compressedSize,
+            std::numeric_limits<int>::max()));
+
+    lengthToWrite = static_cast<int>(compressedSize);
+    dataToWrite = compressedBuffer.get();
+  }
+
+  CELEBORN_CHECK(
+      static_cast<size_t>(lengthToWrite) <=
+          std::numeric_limits<size_t>::max() - kBatchHeaderSize,
+      fmt::format(
+          "Buffer size {} + header {} would overflow",
+          lengthToWrite,
+          kBatchHeaderSize));
+
+  auto writeBuffer = memory::ByteBuffer::createWriteOnly(
+      kBatchHeaderSize + static_cast<size_t>(lengthToWrite));
+  writeBuffer->writeLE<int>(mapId);
+  writeBuffer->writeLE<int>(attemptId);
+  writeBuffer->writeLE<int>(nextBatchId);
+  writeBuffer->writeLE<int>(lengthToWrite);
+  writeBuffer->writeFromBuffer(
+      dataToWrite, 0, static_cast<size_t>(lengthToWrite));
+
+  auto body = memory::ByteBuffer::toReadOnly(std::move(writeBuffer));
+  auto addressPairKey = genAddressPairKey(*partitionLocation);
+
+  bool shouldPush = pushState->addBatchData(
+      addressPairKey, partitionLocation, nextBatchId, std::move(body));
+
+  if (shouldPush) {
+    auto dataBatches = pushState->takeDataBatches(addressPairKey);
+    if (dataBatches) {
+      auto hostAndPushPort = partitionLocation->hostAndPushPort();
+      doPushMergedData(
+          hostAndPushPort,
+          shuffleId,
+          mapId,
+          attemptId,
+          numMappers,
+          numPartitions,
+          mapKey,
+          dataBatches->requireBatches(),
+          pushState,
+          conf_->clientPushMaxReviveTimes());
+    }
+  }
+
+  return static_cast<int>(kBatchHeaderSize) + lengthToWrite;
+}
+
+void ShuffleClientImpl::pushMergedData(
+    int shuffleId,
+    int mapId,
+    int attemptId) {
+  const auto mapKey = utils::makeMapKey(shuffleId, mapId, attemptId);
+  auto pushState = getPushState(mapKey);
+  int pushBufferMaxSize = conf_->clientPushBufferMaxSize();
+
+  auto& batchesMap = pushState->getBatchesMap();
+  std::vector<std::string> keys;
+  batchesMap.forEach(
+      [&keys](const std::string& key, const std::shared_ptr<DataBatches>&) {
+        keys.push_back(key);
+      });
+
+  for (const auto& addressPairKey : keys) {
+    auto dataBatches = pushState->takeDataBatches(addressPairKey);
+    if (!dataBatches) {
+      continue;
+    }
+    while (dataBatches->getTotalSize() > 0) {
+      auto batches = dataBatches->requireBatches(pushBufferMaxSize);
+      if (batches.empty()) {
+        break;
+      }
+      auto hostAndPushPort = batches.front().loc->hostAndPushPort();
+      doPushMergedData(
+          hostAndPushPort,
+          shuffleId,
+          mapId,
+          attemptId,
+          0,
+          0,
+          mapKey,
+          std::move(batches),
+          pushState,
+          conf_->clientPushMaxReviveTimes());
+    }
+  }
+}
+
+void ShuffleClientImpl::doPushMergedData(
+    const std::string& hostAndPushPort,
+    int shuffleId,
+    int mapId,
+    int attemptId,
+    int numMappers,
+    int numPartitions,
+    const std::string& mapKey,
+    std::vector<DataBatch> batches,
+    std::shared_ptr<PushState> pushState,
+    int remainReviveTimes) {
+  if (batches.empty()) {
+    return;
+  }
+
+  int groupedBatchId = pushState->nextBatchId();
+  int groupedBatchBytesSize = 0;
+  for (const auto& batch : batches) {
+    groupedBatchBytesSize += static_cast<int>(batch.body->size());
+  }
+
+  limitMaxInFlight(mapKey, *pushState, hostAndPushPort);
+  pushState->addBatch(groupedBatchId, groupedBatchBytesSize, hostAndPushPort);
+
+  const int numBatches = static_cast<int>(batches.size());
+  std::vector<int> partitionIds(numBatches);
+  std::vector<std::string> partitionUniqueIds(numBatches);
+  std::vector<int32_t> offsets(numBatches);
+  int currentSize = 0;
+
+  std::vector<std::unique_ptr<memory::ReadOnlyByteBuffer>> bodyParts;
+  for (int i = 0; i < numBatches; i++) {
+    partitionIds[i] = batches[i].loc->id;
+    partitionUniqueIds[i] = batches[i].loc->uniqueId();
+    offsets[i] = currentSize;
+    currentSize += static_cast<int>(batches[i].body->size());
+    bodyParts.push_back(batches[i].body->clone());
+  }
+
+  // Concatenate all bodies
+  std::unique_ptr<memory::ReadOnlyByteBuffer> mergedBody;
+  if (bodyParts.size() == 1) {
+    mergedBody = std::move(bodyParts[0]);
+  } else {
+    mergedBody = memory::ByteBuffer::concat(*bodyParts[0], *bodyParts[1]);
+    for (size_t i = 2; i < bodyParts.size(); i++) {
+      mergedBody = memory::ByteBuffer::concat(*mergedBody, *bodyParts[i]);
+    }
+  }
+
+  auto shuffleKey = utils::makeShuffleKey(appUniqueId_, shuffleId);
+  network::PushMergedData pushMergedData(
+      network::Message::nextRequestId(),
+      protocol::PartitionLocation::Mode::PRIMARY,
+      shuffleKey,
+      std::move(partitionUniqueIds),
+      std::move(offsets),
+      std::move(mergedBody));
+
+  auto callback = PushMergedDataCallback::create(
+      shuffleId,
+      mapId,
+      attemptId,
+      numMappers,
+      numPartitions,
+      mapKey,
+      hostAndPushPort,
+      groupedBatchId,
+      std::move(batches),
+      std::move(partitionIds),
+      pushState,
+      weak_from_this(),
+      remainReviveTimes);
+
+  auto host = hostAndPushPort.substr(0, hostAndPushPort.find(':'));
+  auto portStr = hostAndPushPort.substr(hostAndPushPort.find(':') + 1);
+  auto port = static_cast<uint16_t>(std::stoi(portStr));
+
+  auto client = clientFactory_->createClient(host, port);
+  client->pushMergedDataAsync(
+      pushMergedData, conf_->clientPushDataTimeout(), callback);
+}
+
+void ShuffleClientImpl::submitRetryPushMergedData(
+    int shuffleId,
+    int mapId,
+    int attemptId,
+    int numMappers,
+    int numPartitions,
+    const std::string& mapKey,
+    std::vector<DataBatch> batches,
+    std::vector<std::shared_ptr<protocol::ReviveRequest>> reviveRequests,
+    int oldGroupedBatchId,
+    std::shared_ptr<PushState> pushState,
+    int remainReviveTimes,
+    long reviveResponseDueTimeMs) {
+  addPushDataRetryTask([weakClient = weak_from_this(),
+                        shuffleId,
+                        mapId,
+                        attemptId,
+                        numMappers,
+                        numPartitions,
+                        mapKey,
+                        batches = std::make_shared<std::vector<DataBatch>>(
+                            std::move(batches)),
+                        reviveRequests = std::make_shared<std::vector<
+                            std::shared_ptr<protocol::ReviveRequest>>>(
+                            std::move(reviveRequests)),
+                        oldGroupedBatchId,
+                        pushState,
+                        remainReviveTimes,
+                        reviveResponseDueTimeMs]() mutable {
+    auto sharedClient = weakClient.lock();
+    if (!sharedClient) {
+      LOG(WARNING)
+          << "ShuffleClientImpl has expired in submitRetryPushMergedData.";
+      return;
+    }
+
+    long reviveWaitTimeMs =
+        reviveResponseDueTimeMs - utils::currentTimeMillis();
+    long accumulatedTimeMs = 0;
+    const long deltaMs = 50;
+
+    // Wait for all revive requests to complete
+    for (size_t i = 0; i < reviveRequests->size(); i++) {
+      while ((*reviveRequests)[i]->reviveStatus.load() ==
+                 protocol::StatusCode::REVIVE_INITIALIZED &&
+             accumulatedTimeMs <= reviveWaitTimeMs) {
+        std::this_thread::sleep_for(utils::MS(deltaMs));
+        accumulatedTimeMs += deltaMs;
+      }
+    }
+
+    // Group successful batches by new address pair
+    std::unordered_map<std::string, std::vector<DataBatch>> newBatchesByAddress;
+    std::vector<DataBatch> failedBatches;
+    std::vector<std::shared_ptr<protocol::ReviveRequest>> failedRequests;
+
+    for (size_t i = 0; i < reviveRequests->size(); i++) {
+      auto& request = (*reviveRequests)[i];
+      auto& batch = (*batches)[i];
+
+      if (sharedClient->mapperEnded(shuffleId, mapId)) {
+        VLOG(1) << "Revive for push merged data success, but the mapper "
+                   "already ended for shuffle "
+                << shuffleId << " map " << mapId << " attempt " << attemptId
+                << " partition " << request->partitionId << " groupedBatch "
+                << oldGroupedBatchId << ".";
+        continue;
+      }
+
+      if (request->reviveStatus.load() == protocol::StatusCode::SUCCESS) {
+        auto locationMapOptional =
+            sharedClient->partitionLocationMaps_.get(shuffleId);
+        if (locationMapOptional.has_value()) {
+          auto newLocOptional =
+              locationMapOptional.value()->get(request->partitionId);
+          if (newLocOptional.has_value()) {
+            auto newLoc = newLocOptional.value();
+            auto newAddressKey = ShuffleClientImpl::genAddressPairKey(*newLoc);
+            batch.loc = newLoc;
+            newBatchesByAddress[newAddressKey].push_back(std::move(batch));
+            continue;
+          }
+        }
+      }
+
+      if (remainReviveTimes > 0) {
+        failedBatches.push_back(std::move(batch));
+        failedRequests.push_back(request);
+      } else {
+        auto errorMsg = fmt::format(
+            "Revive failed while pushing merged data for shuffle {} map {} "
+            "attempt {} partition {} groupedBatch {}.",
+            shuffleId,
+            mapId,
+            attemptId,
+            request->partitionId,
+            oldGroupedBatchId);
+        pushState->setException(std::make_unique<std::runtime_error>(errorMsg));
+      }
+    }
+
+    // Push each regrouped batch set
+    for (auto& [addressKey, newBatches] : newBatchesByAddress) {
+      auto hostPort = newBatches.front().loc->hostAndPushPort();
+      sharedClient->doPushMergedData(
+          hostPort,
+          shuffleId,
+          mapId,
+          attemptId,
+          numMappers,
+          numPartitions,
+          mapKey,
+          std::move(newBatches),
+          pushState,
+          remainReviveTimes);
+    }
+
+    if (failedBatches.empty()) {
+      if (!batches->empty() && (*batches)[0].loc) {
+        pushState->removeBatch(
+            oldGroupedBatchId, (*batches)[0].loc->hostAndPushPort());
+      }
+    } else {
+      // Re-submit failed batches with new revive requests
+      std::vector<std::shared_ptr<protocol::ReviveRequest>> newReviveRequests;
+      protocol::StatusCode cause =
+          protocol::StatusCode::PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY;
+      for (size_t i = 0; i < failedBatches.size(); i++) {
+        auto reviveRequest = std::make_shared<protocol::ReviveRequest>(
+            shuffleId,
+            mapId,
+            attemptId,
+            failedBatches[i].loc->id,
+            failedBatches[i].loc->epoch,
+            failedBatches[i].loc,
+            cause);
+        sharedClient->addRequestToReviveManager(reviveRequest);
+        newReviveRequests.push_back(reviveRequest);
+      }
+
+      long newDueTimeMs = utils::currentTimeMillis() +
+          sharedClient->conf_
+                  ->clientRpcRequestPartitionLocationRpcAskTimeout() /
+              utils::MS(1);
+      sharedClient->submitRetryPushMergedData(
+          shuffleId,
+          mapId,
+          attemptId,
+          numMappers,
+          numPartitions,
+          mapKey,
+          std::move(failedBatches),
+          std::move(newReviveRequests),
+          oldGroupedBatchId,
+          pushState,
+          remainReviveTimes - 1,
+          newDueTimeMs);
+    }
+  });
+}
+
+std::string ShuffleClientImpl::genAddressPairKey(
+    const protocol::PartitionLocation& loc) {
+  if (loc.hasPeer()) {
+    return loc.hostAndPushPort() + "," + loc.getPeer()->hostAndPushPort();
+  }
+  return loc.hostAndPushPort();
+}
+
 void ShuffleClientImpl::mapperEnd(
     int shuffleId,
     int mapId,
     int attemptId,
     int numMappers) {
+  pushMergedData(shuffleId, mapId, attemptId);
   mapPartitionMapperEnd(shuffleId, mapId, attemptId, numMappers, -1);
 }
 
