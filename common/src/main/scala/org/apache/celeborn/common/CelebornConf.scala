@@ -2647,6 +2647,16 @@ object CelebornConf extends Logging {
       .stringConf
       .createWithDefault("X-Real-IP")
 
+  val HTTP_AUTH_BYPASS_API_PATHS: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.http.auth.bypass.api.paths")
+      .categories("master", "worker")
+      .version("0.7.0")
+      .doc("A comma-separated list of additional API paths that bypass authentication. The " +
+        "path must match exactly and is case-sensitive. Wildcards not accepted.")
+      .stringConf
+      .toSequence
+      .createWithDefault(Seq.empty)
+
   val MASTER_HTTP_AUTH_BASIC_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.master.http.auth.basic.provider")
       .categories("master")
