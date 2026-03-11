@@ -69,6 +69,7 @@ import org.apache.celeborn.service.deploy.worker.shuffledb.StoreVersion;
 
 public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private static final Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
+  private static final int DFS_TRANSFER_BUFFER_SIZE = 1024 * 1024;
 
   private static final StoreVersion CURRENT_VERSION = new StoreVersion(1, 0);
   private static final String RECOVERY_SORTED_FILES_FILE_NAME_PREFIX = "sortedFiles";
@@ -543,16 +544,19 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
   protected void readStreamFully(FSDataInputStream stream, ByteBuffer buffer, String path)
       throws IOException {
+    if (buffer.hasArray()) {
+      int offset = buffer.arrayOffset() + buffer.position();
+      int length = buffer.remaining();
+      stream.readFully(buffer.array(), offset, length);
+      buffer.position(buffer.position() + length);
+      return;
+    }
+
+    byte[] tmp = new byte[Math.min(buffer.remaining(), 8192)];
     while (buffer.hasRemaining()) {
-      if (-1 == stream.read(buffer)) {
-        throw new IOException(
-            "Unexpected EOF, file name : "
-                + path
-                + " position :"
-                + stream.getPos()
-                + " buffer size :"
-                + buffer.limit());
-      }
+      int toRead = Math.min(buffer.remaining(), tmp.length);
+      stream.readFully(tmp, 0, toRead);
+      buffer.put(tmp, 0, toRead);
     }
   }
 
@@ -572,13 +576,19 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   }
 
   private long transferStreamFully(
-      FSDataInputStream origin, FSDataOutputStream sorted, long offset, long length)
+      FSDataInputStream origin,
+      FSDataOutputStream sorted,
+      long offset,
+      long length,
+      byte[] transferBuffer)
       throws IOException {
-    // Worker read a shuffle block whose size is 256K by default.
-    // So there is no need to worry about integer overflow.
-    byte[] buffer = new byte[Math.toIntExact(length)];
-    origin.readFully(offset, buffer);
-    sorted.write(buffer);
+    long transferredSize = 0;
+    while (transferredSize < length) {
+      int toRead = (int) Math.min(transferBuffer.length, length - transferredSize);
+      origin.readFully(offset + transferredSize, transferBuffer, 0, toRead);
+      sorted.write(transferBuffer, 0, toRead);
+      transferredSize += toRead;
+    }
     return length;
   }
 
@@ -684,6 +694,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private FileChannel originFileChannel = null;
     private FileChannel sortedFileChannel = null;
     private FileSystem hadoopFs;
+    private final byte[] dfsTransferBuffer;
 
     FileSorter(DiskFileInfo fileInfo, String fileId, String shuffleKey) throws IOException {
       this.originFileInfo = fileInfo;
@@ -698,6 +709,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       this.fileId = fileId;
       this.shuffleKey = shuffleKey;
       this.indexFilePath = Utils.getIndexFilePath(originFilePath);
+      this.dfsTransferBuffer = isDfs ? new byte[DFS_TRANSFER_BUFFER_SIZE] : null;
       if (!isDfs) {
         File sortedFile = new File(this.sortedFilePath);
         if (sortedFile.exists()) {
@@ -843,7 +855,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     private long transferBlock(long offset, long length) throws IOException {
       if (isDfs) {
-        return transferStreamFully(dfsOriginInput, dfsSortedOutput, offset, length);
+        return transferStreamFully(
+            dfsOriginInput, dfsSortedOutput, offset, length, dfsTransferBuffer);
       } else {
         return transferChannelFully(originFileChannel, sortedFileChannel, offset, length);
       }

@@ -110,7 +110,6 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
     AmazonS3ClientBuilder builder =
         AmazonS3ClientBuilder.standard()
             .withCredentials(providers)
-            .withRegion(region)
             .withClientConfiguration(clientConfig);
     if (isS3ExpressEndpoint(endpoint)) {
       String normalizedEndpoint = normalizeEndpoint(endpoint);
@@ -125,6 +124,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
           // S3 Express directory bucket requires virtual-host style access.
           .withPathStyleAccessEnabled(false);
     } else {
+      builder.withRegion(region);
       logger.info("Using standard S3 endpoint resolution for multipart upload bucket {}", bucketName);
     }
     this.s3Client = builder.build();
