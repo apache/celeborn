@@ -20,6 +20,7 @@
 #include <functional>
 #include "celeborn/client/compress/Compressor.h"
 #include "celeborn/client/reader/CelebornInputStream.h"
+#include "celeborn/client/writer/DataBatches.h"
 #include "celeborn/client/writer/PushDataCallback.h"
 #include "celeborn/client/writer/PushState.h"
 #include "celeborn/client/writer/ReviveManager.h"
@@ -45,7 +46,18 @@ class ShuffleClient {
       int numMappers,
       int numPartitions) = 0;
 
-  // TODO: PushMergedData is not supported yet.
+  virtual int mergeData(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      const uint8_t* data,
+      size_t offset,
+      size_t length,
+      int numMappers,
+      int numPartitions) = 0;
+
+  virtual void pushMergedData(int shuffleId, int mapId, int attemptId) = 0;
 
   virtual void
   mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers) = 0;
@@ -83,6 +95,7 @@ class ShuffleClient {
 
 class ReviveManager;
 class PushDataCallback;
+class PushMergedDataCallback;
 
 /// ShuffleClientEndpoint holds all the resources of ShuffleClient, including
 /// threadPools and clientFactories. The endpoint could be reused by multiple
@@ -107,6 +120,7 @@ class ShuffleClientImpl
  public:
   friend class ReviveManager;
   friend class PushDataCallback;
+  friend class PushMergedDataCallback;
 
   using PtrReviveRequest = std::shared_ptr<protocol::ReviveRequest>;
   using PartitionLocationMap = utils::ConcurrentHashMap<
@@ -141,6 +155,19 @@ class ShuffleClientImpl
       size_t length,
       int numMappers,
       int numPartitions) override;
+
+  int mergeData(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      const uint8_t* data,
+      size_t offset,
+      size_t length,
+      int numMappers,
+      int numPartitions) override;
+
+  void pushMergedData(int shuffleId, int mapId, int attemptId) override;
 
   void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers)
       override;
@@ -216,6 +243,20 @@ class ShuffleClientImpl
 
   virtual void addPushDataRetryTask(folly::Func&& task);
 
+  virtual void submitRetryPushMergedData(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int numPartitions,
+      const std::string& mapKey,
+      std::vector<DataBatch> batches,
+      std::vector<std::shared_ptr<protocol::ReviveRequest>> reviveRequests,
+      int oldGroupedBatchId,
+      std::shared_ptr<PushState> pushState,
+      int remainReviveTimes,
+      long reviveResponseDueTimeMs);
+
  private:
   std::shared_ptr<PushState> getPushState(const std::string& mapKey);
 
@@ -246,6 +287,20 @@ class ShuffleClientImpl
   // Check if the pushState's ongoing package num reaches zero, if not, block
   // until the ongoing package num decreases to zero.
   void limitZeroInFlight(const std::string& mapKey, PushState& pushState);
+
+  void doPushMergedData(
+      const std::string& hostAndPushPort,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int numPartitions,
+      const std::string& mapKey,
+      std::vector<DataBatch> batches,
+      std::shared_ptr<PushState> pushState,
+      int remainReviveTimes);
+
+  static std::string genAddressPairKey(const protocol::PartitionLocation& loc);
 
   // TODO: no support for WAIT as it is not used.
   static bool newerPartitionLocationExists(

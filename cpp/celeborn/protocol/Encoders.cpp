@@ -16,6 +16,7 @@
  */
 
 #include "celeborn/protocol/Encoders.h"
+#include "celeborn/utils/Exceptions.h"
 
 namespace celeborn {
 namespace protocol {
@@ -33,5 +34,70 @@ std::string decode(memory::ReadOnlyByteBuffer& buffer) {
   int size = buffer.read<int>();
   return buffer.readToString(size);
 }
+
+int encodedLength(const std::vector<std::string>& arr) {
+  int total = sizeof(int);
+  for (const auto& s : arr) {
+    total += encodedLength(s);
+  }
+  return total;
+}
+
+void encode(
+    memory::WriteOnlyByteBuffer& buffer,
+    const std::vector<std::string>& arr) {
+  buffer.write<int>(static_cast<int>(arr.size()));
+  for (const auto& s : arr) {
+    encode(buffer, s);
+  }
+}
+
+std::vector<std::string> decodeStringArray(memory::ReadOnlyByteBuffer& buffer) {
+  int count = buffer.read<int>();
+  CELEBORN_CHECK_GE(count, 0, "Invalid string array count: {}", count);
+  CELEBORN_CHECK_LE(
+      static_cast<size_t>(count) * sizeof(int),
+      buffer.remainingSize(),
+      "String array count {} exceeds remaining buffer size {}",
+      count,
+      buffer.remainingSize());
+  std::vector<std::string> result;
+  result.reserve(count);
+  for (int i = 0; i < count; i++) {
+    result.push_back(decode(buffer));
+  }
+  return result;
+}
+
+int encodedLength(const std::vector<int32_t>& arr) {
+  return sizeof(int) + sizeof(int32_t) * arr.size();
+}
+
+void encode(
+    memory::WriteOnlyByteBuffer& buffer,
+    const std::vector<int32_t>& arr) {
+  buffer.write<int>(static_cast<int>(arr.size()));
+  for (auto val : arr) {
+    buffer.write<int32_t>(val);
+  }
+}
+
+std::vector<int32_t> decodeIntArray(memory::ReadOnlyByteBuffer& buffer) {
+  int count = buffer.read<int>();
+  CELEBORN_CHECK_GE(count, 0, "Invalid int array count: {}", count);
+  CELEBORN_CHECK_LE(
+      static_cast<size_t>(count) * sizeof(int32_t),
+      buffer.remainingSize(),
+      "Int array count {} exceeds remaining buffer size {}",
+      count,
+      buffer.remainingSize());
+  std::vector<int32_t> result;
+  result.reserve(count);
+  for (int i = 0; i < count; i++) {
+    result.push_back(buffer.read<int32_t>());
+  }
+  return result;
+}
+
 } // namespace protocol
 } // namespace celeborn

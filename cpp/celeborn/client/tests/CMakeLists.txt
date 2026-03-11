@@ -24,7 +24,8 @@ add_executable(
         ZstdDecompressorTest.cpp
         Lz4CompressorTest.cpp
         ZstdCompressorTest.cpp
-        CompressorFactoryTest.cpp)
+        CompressorFactoryTest.cpp
+        DataBatchesTest.cpp)
 
 add_test(NAME celeborn_client_test COMMAND celeborn_client_test)
 

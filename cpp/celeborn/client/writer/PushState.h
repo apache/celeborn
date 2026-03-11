@@ -20,6 +20,7 @@
 #include <atomic>
 #include <optional>
 
+#include "celeborn/client/writer/DataBatches.h"
 #include "celeborn/client/writer/PushStrategy.h"
 #include "celeborn/conf/CelebornConf.h"
 #include "celeborn/utils/CelebornUtils.h"
@@ -69,6 +70,21 @@ class PushState {
 
   void cleanup();
 
+  // Merge-related: accumulate batch data grouped by address pair.
+  // Returns true when totalSize for that address pair exceeds
+  // pushBufferMaxSize.
+  bool addBatchData(
+      const std::string& addressPairKey,
+      std::shared_ptr<const protocol::PartitionLocation> loc,
+      int batchId,
+      std::unique_ptr<memory::ReadOnlyByteBuffer> body);
+
+  std::shared_ptr<DataBatches> takeDataBatches(
+      const std::string& addressPairKey);
+
+  utils::ConcurrentHashMap<std::string, std::shared_ptr<DataBatches>>&
+  getBatchesMap();
+
  private:
   void throwIfExceptionExists();
 
@@ -79,6 +95,7 @@ class PushState {
   const long deltaMs_;
   const std::unique_ptr<PushStrategy> pushStrategy_;
   const int maxInFlightReqsTotal_;
+  const int pushBufferMaxSize_;
   const bool maxInFlightBytesSizeEnabled_;
   const long maxInFlightBytesSizeTotal_;
   const long maxInFlightBytesSizePerWorker_;
@@ -89,6 +106,8 @@ class PushState {
   utils::ConcurrentHashMap<std::string, std::shared_ptr<std::atomic<long>>>
       inflightBytesSizePerAddress_;
   utils::ConcurrentHashMap<int, int> inflightBatchBytesSizes_;
+  utils::ConcurrentHashMap<std::string, std::shared_ptr<DataBatches>>
+      batchesMap_;
   folly::Synchronized<std::unique_ptr<std::exception>> exception_;
   std::atomic<bool> cleaned_{false};
 };

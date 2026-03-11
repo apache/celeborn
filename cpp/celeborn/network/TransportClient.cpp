@@ -116,6 +116,42 @@ void TransportClient::pushDataAsync(
   }
 }
 
+void TransportClient::pushMergedDataAsync(
+    const PushMergedData& pushMergedData,
+    Timeout timeout,
+    std::shared_ptr<RpcResponseCallback> callback) {
+  try {
+    auto requestMsg = std::make_unique<PushMergedData>(pushMergedData);
+    auto future = dispatcher_->sendPushDataRequest(std::move(requestMsg));
+    std::move(future)
+        .within(timeout)
+        .thenValue(
+            [_callback = callback](std::unique_ptr<Message> responseMsg) {
+              if (responseMsg->type() == Message::RPC_RESPONSE) {
+                auto rpcResponse =
+                    reinterpret_cast<RpcResponse*>(responseMsg.get());
+                _callback->onSuccess(rpcResponse->body());
+              } else {
+                _callback->onFailure(std::make_unique<std::runtime_error>(
+                    "pushMergedData return value type is not rpcResponse"));
+              }
+            })
+        .thenError([_callback = callback](const folly::exception_wrapper& e) {
+          _callback->onFailure(
+              std::make_unique<std::runtime_error>(e.what().toStdString()));
+        });
+
+  } catch (std::exception& e) {
+    auto errorMsg = fmt::format(
+        "PushMergedData failed. shuffleKey: {}, mode: {}, error message: {}",
+        pushMergedData.shuffleKey(),
+        pushMergedData.mode(),
+        e.what());
+    LOG(ERROR) << errorMsg;
+    callback->onFailure(std::make_unique<std::runtime_error>(errorMsg));
+  }
+}
+
 void TransportClient::fetchChunkAsync(
     const protocol::StreamChunkSlice& streamChunkSlice,
     const RpcRequest& request,
