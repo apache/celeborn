@@ -16,6 +16,7 @@
  */
 
 #include "celeborn/client/writer/DataBatches.h"
+#include "celeborn/utils/Exceptions.h"
 
 namespace celeborn {
 namespace client {
@@ -25,7 +26,18 @@ void DataBatches::addDataBatch(
     int batchId,
     std::unique_ptr<memory::ReadOnlyByteBuffer> body) {
   std::lock_guard<std::mutex> lock(mutex_);
+  CELEBORN_CHECK_LE(
+      body->size(),
+      static_cast<size_t>(INT_MAX),
+      "Data batch body size {} exceeds INT_MAX",
+      body->size());
   int bodySize = static_cast<int>(body->size());
+  CELEBORN_CHECK_LE(
+      bodySize,
+      INT_MAX - totalSize_,
+      "Adding batch of size {} would overflow totalSize (current: {})",
+      bodySize,
+      totalSize_);
   batches_.emplace_back(std::move(loc), batchId, std::move(body));
   totalSize_ += bodySize;
 }
@@ -49,13 +61,18 @@ std::vector<DataBatch> DataBatches::requireBatches(int requestSize) {
   }
   std::vector<DataBatch> result;
   int currentSize = 0;
-  while (currentSize < requestSize && !batches_.empty()) {
-    int bodySize = static_cast<int>(batches_.front().body->size());
-    result.push_back(std::move(batches_.front()));
-    batches_.erase(batches_.begin());
+  size_t count = 0;
+  while (count < batches_.size() && currentSize < requestSize) {
+    int bodySize = static_cast<int>(batches_[count].body->size());
     currentSize += bodySize;
     totalSize_ -= bodySize;
+    ++count;
   }
+  result.reserve(count);
+  for (size_t i = 0; i < count; ++i) {
+    result.push_back(std::move(batches_[i]));
+  }
+  batches_.erase(batches_.begin(), batches_.begin() + count);
   return result;
 }
 

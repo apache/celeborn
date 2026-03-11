@@ -16,6 +16,7 @@
  */
 
 #include "celeborn/protocol/Encoders.h"
+#include "celeborn/utils/Exceptions.h"
 
 namespace celeborn {
 namespace protocol {
@@ -53,6 +54,13 @@ void encode(
 
 std::vector<std::string> decodeStringArray(memory::ReadOnlyByteBuffer& buffer) {
   int count = buffer.read<int>();
+  CELEBORN_CHECK_GE(count, 0, "Invalid string array count: {}", count);
+  CELEBORN_CHECK_LE(
+      static_cast<size_t>(count) * sizeof(int),
+      buffer.remainingSize(),
+      "String array count {} exceeds remaining buffer size {}",
+      count,
+      buffer.remainingSize());
   std::vector<std::string> result;
   result.reserve(count);
   for (int i = 0; i < count; i++) {
@@ -76,6 +84,13 @@ void encode(
 
 std::vector<int32_t> decodeIntArray(memory::ReadOnlyByteBuffer& buffer) {
   int count = buffer.read<int>();
+  CELEBORN_CHECK_GE(count, 0, "Invalid int array count: {}", count);
+  CELEBORN_CHECK_LE(
+      static_cast<size_t>(count) * sizeof(int32_t),
+      buffer.remainingSize(),
+      "Int array count {} exceeds remaining buffer size {}",
+      count,
+      buffer.remainingSize());
   std::vector<int32_t> result;
   result.reserve(count);
   for (int i = 0; i < count; i++) {

@@ -18,6 +18,7 @@
 #include "celeborn/client/writer/PushMergedDataCallback.h"
 #include "celeborn/conf/CelebornConf.h"
 #include "celeborn/protocol/TransportMessage.h"
+#include "celeborn/utils/Exceptions.h"
 
 namespace celeborn {
 namespace client {
@@ -125,8 +126,22 @@ void PushMergedDataCallback::onSuccess(
           return;
         }
 
+        CELEBORN_CHECK_EQ(
+            partitionInfo.statuscodes_size(),
+            partitionInfo.splitpartitionindexes_size(),
+            "Mismatched sizes: statuscodes {} vs splitpartitionindexes {}",
+            partitionInfo.statuscodes_size(),
+            partitionInfo.splitpartitionindexes_size());
+        const int numBatches = static_cast<int>(batches_.size());
         for (int i = 0; i < partitionInfo.splitpartitionindexes_size(); i++) {
           int partitionIndex = partitionInfo.splitpartitionindexes(i);
+          CELEBORN_CHECK_GE(partitionIndex, 0);
+          CELEBORN_CHECK_LT(
+              partitionIndex,
+              numBatches,
+              "Partition index {} out of range [0, {})",
+              partitionIndex,
+              numBatches);
           int statusCode = partitionInfo.statuscodes(i);
 
           if (statusCode ==
@@ -154,6 +169,8 @@ void PushMergedDataCallback::onSuccess(
         std::vector<std::shared_ptr<protocol::ReviveRequest>> reviveRequests;
         for (int i = 0; i < partitionInfo.splitpartitionindexes_size(); i++) {
           int partitionIndex = partitionInfo.splitpartitionindexes(i);
+          CELEBORN_DCHECK_GE(partitionIndex, 0);
+          CELEBORN_DCHECK_LT(partitionIndex, numBatches);
           int statusCode = partitionInfo.statuscodes(i);
           if (statusCode ==
               static_cast<int>(protocol::StatusCode::HARD_SPLIT)) {

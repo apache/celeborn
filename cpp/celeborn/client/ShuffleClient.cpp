@@ -385,6 +385,12 @@ int ShuffleClientImpl::mergeData(
     }
   }
 
+  CELEBORN_CHECK_LE(
+      lengthToWrite,
+      std::numeric_limits<int>::max() - static_cast<int>(kBatchHeaderSize),
+      "Batch bytes size {} + header {} would overflow int",
+      lengthToWrite,
+      kBatchHeaderSize);
   return static_cast<int>(kBatchHeaderSize) + lengthToWrite;
 }
 
@@ -447,7 +453,19 @@ void ShuffleClientImpl::doPushMergedData(
   int groupedBatchId = pushState->nextBatchId();
   int groupedBatchBytesSize = 0;
   for (const auto& batch : batches) {
-    groupedBatchBytesSize += static_cast<int>(batch.body->size());
+    CELEBORN_CHECK_LE(
+        batch.body->size(),
+        static_cast<size_t>(INT_MAX),
+        "Batch body size {} exceeds INT_MAX",
+        batch.body->size());
+    int bodySize = static_cast<int>(batch.body->size());
+    CELEBORN_CHECK_LE(
+        bodySize,
+        INT_MAX - groupedBatchBytesSize,
+        "Grouped batch size would overflow: adding {} to {}",
+        bodySize,
+        groupedBatchBytesSize);
+    groupedBatchBytesSize += bodySize;
   }
 
   limitMaxInFlight(mapKey, *pushState, hostAndPushPort);
@@ -459,12 +477,18 @@ void ShuffleClientImpl::doPushMergedData(
   std::vector<int32_t> offsets(numBatches);
   int currentSize = 0;
 
+  // TODO: Each clone() + concat() copies data. Java avoids this with Netty's
+  // zero-copy CompositeByteBuf. We need to build something like an IOBuf chain
+  // directly (ex: via appendToChain) to eliminate the double-clone and O(n^2)
+  // re-copy from repeated pairwise concat.
   std::vector<std::unique_ptr<memory::ReadOnlyByteBuffer>> bodyParts;
   for (int i = 0; i < numBatches; i++) {
     partitionIds[i] = batches[i].loc->id;
     partitionUniqueIds[i] = batches[i].loc->uniqueId();
     offsets[i] = currentSize;
-    currentSize += static_cast<int>(batches[i].body->size());
+    int bodySize = static_cast<int>(batches[i].body->size());
+    CELEBORN_DCHECK_LE(bodySize, INT_MAX - currentSize);
+    currentSize += bodySize;
     bodyParts.push_back(batches[i].body->clone());
   }
 

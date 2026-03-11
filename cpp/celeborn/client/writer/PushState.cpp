@@ -228,6 +228,7 @@ void PushState::cleanup() {
   inflightBatchesPerAddress_.clear();
   totalInflightReqs_ = 0;
   pushStrategy_->clear();
+  batchesMap_.clear();
 
   if (maxInFlightBytesSizeEnabled_) {
     inflightBytesSizePerAddress_.clear();
