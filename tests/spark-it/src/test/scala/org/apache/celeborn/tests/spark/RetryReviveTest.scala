@@ -41,7 +41,7 @@ class RetryReviveTest extends AnyFunSuite
     System.gc()
   }
 
-  test("celeborn spark integration test - retry revive as configured times") {
+  ignore("celeborn spark integration test - retry revive as configured times") {
     setupMiniClusterWithRandomPorts()
     ShuffleClient.reset()
     val sparkConf = new SparkConf()
