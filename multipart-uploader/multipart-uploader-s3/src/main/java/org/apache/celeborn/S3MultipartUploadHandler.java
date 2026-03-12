@@ -24,6 +24,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.ClientConfiguration;
@@ -40,11 +41,9 @@ import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
-import com.amazonaws.services.s3.model.ListPartsRequest;
 import com.amazonaws.services.s3.model.PartETag;
-import com.amazonaws.services.s3.model.PartListing;
-import com.amazonaws.services.s3.model.PartSummary;
 import com.amazonaws.services.s3.model.UploadPartRequest;
+import com.amazonaws.services.s3.model.UploadPartResult;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.s3a.AWSCredentialProviderList;
@@ -71,6 +70,8 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
   private final Integer s3MultiplePartUploadMaxRetries;
   private final Integer baseDelay;
   private final Integer maxBackoff;
+  private final ConcurrentSkipListMap<Integer, PartETag> uploadedPartETags =
+      new ConcurrentSkipListMap<>();
 
   public S3MultipartUploadHandler(
       FileSystem hadoopFs,
@@ -109,7 +110,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
       Integer baseDelay,
       Integer maxBackoff)
       throws IOException, URISyntaxException {
-    
+
     Configuration conf = hadoopFs.getConf();
     AWSCredentialProviderList providers = new AWSCredentialProviderList();
     providers.add(new TemporaryAWSCredentialsProvider(conf));
@@ -182,6 +183,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
     if (uploadStarted.get()) {
       return;
     }
+    uploadedPartETags.clear();
     InitiateMultipartUploadRequest initRequest =
         new InitiateMultipartUploadRequest(bucketName, key);
     InitiateMultipartUploadResult initResponse = s3Client().initiateMultipartUpload(initRequest);
@@ -215,7 +217,10 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
               .withInputStream(inStream)
               .withPartSize(partSize)
               .withLastPart(finalFlush);
-      s3Client().uploadPart(uploadRequest);
+      UploadPartResult uploadPartResult = s3Client().uploadPart(uploadRequest);
+      uploadedPartETags.put(
+          uploadPartResult.getPartNumber(),
+          new PartETag(uploadPartResult.getPartNumber(), uploadPartResult.getETag()));
       logger.debug(
           "key {} uploadId {} part number {} uploaded with size {} finalFlush {}",
           key,
@@ -234,16 +239,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
     if (!uploadStarted.get() || uploadId == null) {
       return;
     }
-    List<PartETag> partETags = new ArrayList<>();
-    ListPartsRequest listPartsRequest = new ListPartsRequest(bucketName, key, uploadId);
-    PartListing partListing;
-    do {
-      partListing = s3Client().listParts(listPartsRequest);
-      for (PartSummary part : partListing.getParts()) {
-        partETags.add(new PartETag(part.getPartNumber(), part.getETag()));
-      }
-      listPartsRequest.setPartNumberMarker(partListing.getNextPartNumberMarker());
-    } while (partListing.isTruncated());
+    List<PartETag> partETags = new ArrayList<>(uploadedPartETags.values());
     if (partETags.size() == 0) {
       logger.debug(
           "bucket {} key {} uploadId {} has no parts uploaded, aborting upload",
@@ -306,6 +302,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
         key,
         uploadId,
         compResult.getLocation());
+    uploadedPartETags.clear();
     uploadId = null;
     uploadStarted.set(false);
   }
@@ -318,6 +315,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
     AbortMultipartUploadRequest abortMultipartUploadRequest =
         new AbortMultipartUploadRequest(bucketName, key, uploadId);
     s3Client().abortMultipartUpload(abortMultipartUploadRequest);
+    uploadedPartETags.clear();
     uploadId = null;
     uploadStarted.set(false);
   }
