@@ -279,7 +279,6 @@ public class DiskReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     PartitionDataWriter partitionDataWriter =
         new PartitionDataWriter(
@@ -333,7 +332,6 @@ public class DiskReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     PartitionDataWriter partitionDataWriter =
         new PartitionDataWriter(
@@ -388,7 +386,6 @@ public class DiskReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     PartitionDataWriter partitionDataWriter =
         new PartitionDataWriter(
@@ -458,7 +455,6 @@ public class DiskReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     PartitionDataWriter partitionDataWriter =
         new PartitionDataWriter(
@@ -577,7 +573,6 @@ public class DiskReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     PartitionDataWriter partitionDataWriter =
         new PartitionDataWriter(
@@ -609,7 +604,6 @@ public class DiskReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     partitionDataWriter =
         new PartitionDataWriter(
@@ -641,7 +635,6 @@ public class DiskReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     partitionDataWriter =
         new PartitionDataWriter(
@@ -672,7 +665,6 @@ public class DiskReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     partitionDataWriter =
         new PartitionDataWriter(
@@ -705,7 +697,6 @@ public class DiskReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     partitionDataWriter =
         new PartitionDataWriter(
@@ -737,7 +728,6 @@ public class DiskReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     partitionDataWriter =
         new PartitionDataWriter(
@@ -771,7 +761,6 @@ public class DiskReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     partitionDataWriter =
         new PartitionDataWriter(
@@ -804,7 +793,6 @@ public class DiskReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     partitionDataWriter =
         new PartitionDataWriter(
@@ -838,7 +826,6 @@ public class DiskReducePartitionDataWriterSuiteJ {
             1,
             userIdentifier,
             PartitionType.REDUCE,
-            false,
             false);
     partitionDataWriter =
         new PartitionDataWriter(
