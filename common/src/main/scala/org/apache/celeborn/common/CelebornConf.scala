@@ -36,7 +36,7 @@ import org.apache.celeborn.common.client.{ApplicationInfoProvider, DefaultApplic
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, HadoopBasedIdentityProvider, IdentityProvider}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
-import org.apache.celeborn.common.network.util.{ByteUnit, IOMode}
+import org.apache.celeborn.common.network.util.{ByteUnit, IOMode, NettyMemoryAllocatorType}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.protocol.StorageInfo.Type.{HDD, SSD}
@@ -616,8 +616,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def networkMemoryAllocatorAllowCache: Boolean =
     get(NETWORK_MEMORY_ALLOCATOR_ALLOW_CACHE)
 
-  def networkMemoryAllocatorPooled: Boolean =
-    get(NETWORK_MEMORY_ALLOCATOR_POOLED)
+  def networkMemoryAllocatorType: NettyMemoryAllocatorType =
+    NettyMemoryAllocatorType.valueOf(get(NETWORK_MEMORY_ALLOCATOR_TYPE))
 
   def networkAllocatorArenas: Int = get(NETWORK_MEMORY_ALLOCATOR_ARENAS).getOrElse(Math.max(
     Runtime.getRuntime.availableProcessors(),
@@ -1949,16 +1949,22 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val NETWORK_MEMORY_ALLOCATOR_POOLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.network.memory.allocator.pooled")
+  val NETWORK_MEMORY_ALLOCATOR_TYPE: ConfigEntry[String] =
+    buildConf("celeborn.network.memory.allocator.type")
       .categories("network")
       .internal
-      .version("0.6.0")
-      .doc("If disabled, always use UnpooledByteBufAllocator for aggressive memory reclamation, " +
-        "this is helpful for cases that worker has high memory usage even after triming. " +
-        "Disabling would cause performace degression and higher CPU usage.")
-      .booleanConf
-      .createWithDefault(true)
+      .version("0.7.0")
+      .doc("Specifies netty memory allocator type including: " +
+        s"${NettyMemoryAllocatorType.POOLED.name}: use PooledByteBufAllocator, which is the default and recommended for better performance. " +
+        s"${NettyMemoryAllocatorType.UNPOOLED.name}: use UnpooledByteBufAllocator, which is more aggressive in memory reclamation and may cause performance degradation and higher CPU usage. " +
+        s"${NettyMemoryAllocatorType.ADAPTIVE.name}: use AdaptiveByteBufAllocator, which is recommended to roll out usage slowly, and to carefully monitor application performance in the process.")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set(
+        NettyMemoryAllocatorType.POOLED.name,
+        NettyMemoryAllocatorType.UNPOOLED.name,
+        NettyMemoryAllocatorType.ADAPTIVE.name))
+      .createWithDefault(NettyMemoryAllocatorType.POOLED.name)
 
   val NETWORK_MEMORY_ALLOCATOR_SHARE: ConfigEntry[Boolean] =
     buildConf("celeborn.network.memory.allocator.share")
