@@ -44,6 +44,7 @@ import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, DiskUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandlerSharedState
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
@@ -78,6 +79,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   val diskReserveSize = conf.workerDiskReserveSize
   val diskReserveRatio = conf.workerDiskReserveRatio
+  @volatile private var s3MultipartUploadHandlerSharedState: MultipartUploadHandlerSharedState = _
 
   // (deviceName -> deviceInfo) and (mount point -> diskInfo)
   val (deviceInfos, diskInfos) = {
@@ -487,6 +489,30 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     writer
   }
 
+  def getOrCreateS3MultipartUploadHandlerSharedState(): MultipartUploadHandlerSharedState = {
+    if (s3MultipartUploadHandlerSharedState != null) {
+      return s3MultipartUploadHandlerSharedState
+    }
+    this.synchronized {
+      if (s3MultipartUploadHandlerSharedState == null) {
+        val s3HadoopFs = hadoopFs.get(StorageInfo.Type.S3)
+        if (s3HadoopFs == null) {
+          throw new IllegalStateException("S3 is not configured")
+        }
+        val uri = s3HadoopFs.getUri
+        val bucketName = uri.getHost
+        logInfo(s"Creating shared S3 client for $uri, bucketName is $bucketName")
+        s3MultipartUploadHandlerSharedState = TierWriterHelper.getS3MultipartUploadHandlerSharedState(
+          s3HadoopFs,
+          bucketName,
+          conf.s3MultiplePartUploadMaxRetries,
+          conf.s3MultiplePartUploadBaseDelay,
+          conf.s3MultiplePartUploadMaxBackoff)
+      }
+      s3MultipartUploadHandlerSharedState
+    }
+  }
+
   def registerMemoryPartitionWriter(writer: PartitionDataWriter, fileInfo: MemoryFileInfo): Unit = {
     memoryWriters.put(fileInfo, writer)
   }
@@ -855,6 +881,16 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     if (null != deviceMonitor) {
       deviceMonitor.close()
     }
+    if (s3MultipartUploadHandlerSharedState != null) {
+      try {
+        s3MultipartUploadHandlerSharedState.close()
+      } catch {
+        case t: Throwable =>
+          logError("Close shared S3 multipart uploader state failed.", t)
+      } finally {
+        s3MultipartUploadHandlerSharedState = null
+      }
+    }
   }
 
   private def flushFileWriters(): Unit = {
@@ -1129,12 +1165,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           hdfsFileInfo)
         return (hdfsFlusher.get, hdfsFileInfo, null)
       } else if (dirs.isEmpty && location.getStorageInfo.S3Available()) {
+        getOrCreateS3MultipartUploadHandlerSharedState()
         val shuffleDir =
           new Path(new Path(s3Dir, conf.workerWorkingDir), s"$appId/$shuffleId")
-        FileSystem.mkdirs(
-          StorageManager.hadoopFs.get(StorageInfo.Type.S3),
-          shuffleDir,
-          hdfsPermission)
         val s3FilePath = new Path(shuffleDir, fileName).toString
         val s3FileInfo = new DiskFileInfo(
           userIdentifier,

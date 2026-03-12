@@ -23,6 +23,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.ClientConfiguration;
@@ -55,22 +56,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler;
+import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandlerSharedState;
 
 public class S3MultipartUploadHandler implements MultipartUploadHandler {
 
   private static final Logger logger = LoggerFactory.getLogger(S3MultipartUploadHandler.class);
 
-  private String uploadId;
-
-  private AmazonS3 s3Client;
-
-  private String key;
-
-  private String bucketName;
-
-  private Integer s3MultiplePartUploadMaxRetries;
-  private Integer baseDelay;
-  private Integer maxBackoff;
+  private volatile String uploadId;
+  private final MultipartUploadHandlerSharedState sharedState;
+  private final boolean ownsSharedState;
+  private final AtomicBoolean uploadStarted = new AtomicBoolean(false);
+  private final String key;
+  private final String bucketName;
+  private final Integer s3MultiplePartUploadMaxRetries;
+  private final Integer baseDelay;
+  private final Integer maxBackoff;
 
   public S3MultipartUploadHandler(
       FileSystem hadoopFs,
@@ -80,11 +80,36 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
       Integer baseDelay,
       Integer maxBackoff)
       throws IOException, URISyntaxException {
-    this.bucketName = bucketName;
-    this.s3MultiplePartUploadMaxRetries = s3MultiplePartUploadMaxRetries;
-    this.baseDelay = baseDelay;
-    this.maxBackoff = maxBackoff;
+    this(
+        createSharedState(
+            hadoopFs, bucketName, s3MultiplePartUploadMaxRetries, baseDelay, maxBackoff),
+        key,
+        true);
+  }
 
+  public S3MultipartUploadHandler(MultipartUploadHandlerSharedState sharedState, String key) {
+    this(sharedState, key, false);
+  }
+
+  private S3MultipartUploadHandler(
+      MultipartUploadHandlerSharedState sharedState, String key, boolean ownsSharedState) {
+    this.sharedState = sharedState;
+    this.ownsSharedState = ownsSharedState;
+    this.bucketName = sharedState.getBucketName();
+    this.s3MultiplePartUploadMaxRetries = sharedState.getMaxRetries();
+    this.baseDelay = sharedState.getBaseDelay();
+    this.maxBackoff = sharedState.getMaxBackoff();
+    this.key = key;
+  }
+
+  public static MultipartUploadHandlerSharedState createSharedState(
+      FileSystem hadoopFs,
+      String bucketName,
+      Integer s3MultiplePartUploadMaxRetries,
+      Integer baseDelay,
+      Integer maxBackoff)
+      throws IOException, URISyntaxException {
+    
     Configuration conf = hadoopFs.getConf();
     AWSCredentialProviderList providers = new AWSCredentialProviderList();
     providers.add(new TemporaryAWSCredentialsProvider(conf));
@@ -127,8 +152,18 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
       builder.withRegion(region);
       logger.info("Using standard S3 endpoint resolution for multipart upload bucket {}", bucketName);
     }
-    this.s3Client = builder.build();
-    this.key = key;
+    AmazonS3 s3Client = builder.build();
+    return new MultipartUploadHandlerSharedState(
+        s3Client,
+        bucketName,
+        s3MultiplePartUploadMaxRetries,
+        baseDelay,
+        maxBackoff,
+        s3Client::shutdown);
+  }
+
+  private AmazonS3 s3Client() {
+    return (AmazonS3) sharedState.getClient();
   }
 
   static boolean isS3ExpressEndpoint(String endpoint) {
@@ -143,17 +178,24 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
   }
 
   @Override
-  public void startUpload() {
+  public synchronized void startUpload() {
+    if (uploadStarted.get()) {
+      return;
+    }
     InitiateMultipartUploadRequest initRequest =
         new InitiateMultipartUploadRequest(bucketName, key);
-    InitiateMultipartUploadResult initResponse = s3Client.initiateMultipartUpload(initRequest);
+    InitiateMultipartUploadResult initResponse = s3Client().initiateMultipartUpload(initRequest);
     this.uploadId = initResponse.getUploadId();
+    uploadStarted.set(true);
   }
 
   @Override
   public void putPart(InputStream inputStream, Integer partNumber, Boolean finalFlush)
       throws IOException {
     try (InputStream inStream = inputStream) {
+      if (!uploadStarted.get()) {
+        startUpload();
+      }
       int partSize = inStream.available();
       if (partSize == 0) {
         logger.debug(
@@ -173,7 +215,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
               .withInputStream(inStream)
               .withPartSize(partSize)
               .withLastPart(finalFlush);
-      s3Client.uploadPart(uploadRequest);
+      s3Client().uploadPart(uploadRequest);
       logger.debug(
           "key {} uploadId {} part number {} uploaded with size {} finalFlush {}",
           key,
@@ -188,12 +230,15 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
   }
 
   @Override
-  public void complete() {
+  public synchronized void complete() {
+    if (!uploadStarted.get() || uploadId == null) {
+      return;
+    }
     List<PartETag> partETags = new ArrayList<>();
     ListPartsRequest listPartsRequest = new ListPartsRequest(bucketName, key, uploadId);
     PartListing partListing;
     do {
-      partListing = s3Client.listParts(listPartsRequest);
+      partListing = s3Client().listParts(listPartsRequest);
       for (PartSummary part : partListing.getParts()) {
         partETags.add(new PartETag(part.getPartNumber(), part.getETag()));
       }
@@ -225,7 +270,7 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
     CompleteMultipartUploadResult compResult = null;
     for (int attempt = 1; attempt <= this.s3MultiplePartUploadMaxRetries; attempt++) {
       try {
-        compResult = s3Client.completeMultipartUpload(compRequest);
+        compResult = s3Client().completeMultipartUpload(compRequest);
         break;
       } catch (AmazonClientException e) {
         if (attempt == this.s3MultiplePartUploadMaxRetries
@@ -261,19 +306,26 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
         key,
         uploadId,
         compResult.getLocation());
+    uploadId = null;
+    uploadStarted.set(false);
   }
 
   @Override
-  public void abort() {
+  public synchronized void abort() {
+    if (!uploadStarted.get() || uploadId == null) {
+      return;
+    }
     AbortMultipartUploadRequest abortMultipartUploadRequest =
         new AbortMultipartUploadRequest(bucketName, key, uploadId);
-    s3Client.abortMultipartUpload(abortMultipartUploadRequest);
+    s3Client().abortMultipartUpload(abortMultipartUploadRequest);
+    uploadId = null;
+    uploadStarted.set(false);
   }
 
   @Override
   public void close() {
-    if (s3Client != null) {
-      s3Client.shutdown();
+    if (ownsSharedState && sharedState != null) {
+      sharedState.close();
     }
   }
 }

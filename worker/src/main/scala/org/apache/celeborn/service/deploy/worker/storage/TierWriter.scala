@@ -528,51 +528,45 @@ class DfsTierWriter(
       conf.workerHdfsFlusherBufferSize
     }
 
-  try {
-    hadoopFs.create(hdfsFileInfo.getDfsPath, true).close()
-    if (hdfsFileInfo.isS3) {
-      val uri = hadoopFs.getUri
-      val bucketName = uri.getHost
-      val index = hdfsFileInfo.getFilePath.indexOf(bucketName)
-      val key = hdfsFileInfo.getFilePath.substring(index + bucketName.length + 1)
-
-      this.s3MultipartUploadHandler = TierWriterHelper.getS3MultipartUploadHandler(
-        hadoopFs,
-        bucketName,
-        key,
-        conf.s3MultiplePartUploadMaxRetries,
-        conf.s3MultiplePartUploadBaseDelay,
-        conf.s3MultiplePartUploadMaxBackoff)
-      s3MultipartUploadHandler.startUpload()
-    } else if (hdfsFileInfo.isOSS) {
-      val configuration = hadoopFs.getConf
-      val ossEndpoint = configuration.get("fs.oss.endpoint")
-      val ossAccessKey = configuration.get("fs.oss.accessKeyId")
-      val ossSecretKey = configuration.get("fs.oss.accessKeySecret")
-
-      val uri = hadoopFs.getUri
-      val bucketName = uri.getHost
-      val index = hdfsFileInfo.getFilePath.indexOf(bucketName)
-      val key = hdfsFileInfo.getFilePath.substring(index + bucketName.length + 1)
-
-      this.ossMultipartUploadHandler = TierWriterHelper.getOssMultipartUploadHandler(
-        ossEndpoint,
-        bucketName,
-        ossAccessKey,
-        ossSecretKey,
-        key)
-      ossMultipartUploadHandler.startUpload()
-    }
-  } catch {
-    case _: IOException =>
-      try
-      // If create file failed, wait 10 ms and retry
-      Thread.sleep(10)
-      catch {
-        case ex: InterruptedException =>
-          throw new RuntimeException(ex)
-      }
+  if (hdfsFileInfo.isS3) {
+    val sharedState = storageManager.getOrCreateS3MultipartUploadHandlerSharedState()
+    val bucketName = sharedState.getBucketName
+    val index = hdfsFileInfo.getFilePath.indexOf(bucketName)
+    val key = hdfsFileInfo.getFilePath.substring(index + bucketName.length + 1)
+    this.s3MultipartUploadHandler = TierWriterHelper.getS3MultipartUploadHandler(sharedState, key)
+  } else {
+    try {
       hadoopFs.create(hdfsFileInfo.getDfsPath, true).close()
+      if (hdfsFileInfo.isOSS) {
+        val configuration = hadoopFs.getConf
+        val ossEndpoint = configuration.get("fs.oss.endpoint")
+        val ossAccessKey = configuration.get("fs.oss.accessKeyId")
+        val ossSecretKey = configuration.get("fs.oss.accessKeySecret")
+
+        val uri = hadoopFs.getUri
+        val bucketName = uri.getHost
+        val index = hdfsFileInfo.getFilePath.indexOf(bucketName)
+        val key = hdfsFileInfo.getFilePath.substring(index + bucketName.length + 1)
+
+        this.ossMultipartUploadHandler = TierWriterHelper.getOssMultipartUploadHandler(
+          ossEndpoint,
+          bucketName,
+          ossAccessKey,
+          ossSecretKey,
+          key)
+        ossMultipartUploadHandler.startUpload()
+      }
+    } catch {
+      case _: IOException =>
+        try
+        // If create file failed, wait 10 ms and retry
+        Thread.sleep(10)
+        catch {
+          case ex: InterruptedException =>
+            throw new RuntimeException(ex)
+        }
+        hadoopFs.create(hdfsFileInfo.getDfsPath, true).close()
+    }
   }
 
   storageManager.registerDiskFilePartitionWriter(
@@ -705,7 +699,7 @@ class DfsTierWriter(
   override def handleException(): Unit = {
     if (s3MultipartUploadHandler != null) {
       logWarning(s"Abort s3 multipart upload for ${fileInfo.getFilePath}")
-      s3MultipartUploadHandler.complete()
+      s3MultipartUploadHandler.abort()
       s3MultipartUploadHandler.close()
     }
     if (ossMultipartUploadHandler != null) {
