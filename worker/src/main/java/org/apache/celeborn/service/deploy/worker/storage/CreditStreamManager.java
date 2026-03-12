@@ -185,7 +185,7 @@ public class CreditStreamManager {
         logger.warn("Only non-null SegmentMapPartitionData is expected for notifyRequiredSegment.");
       }
     } catch (Throwable e) {
-      logger.error("Fail to notify segmentId {} for stream {}.", requiredSegmentId, streamId, e);
+      logger.error("Failed to notify segmentId {} for stream {}.", requiredSegmentId, streamId, e);
       throw e;
     }
   }
