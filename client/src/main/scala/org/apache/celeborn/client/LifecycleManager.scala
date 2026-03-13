@@ -60,6 +60,7 @@ import org.apache.celeborn.common.util.{JavaUtils, PbSerDeUtils, ThreadUtils, Ut
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils.awaitResult
+import org.apache.celeborn.common.util.Utils.{KNOWN_MISSING_CELEBORN_SHUFFLE_ID, UNKNOWN_MISSING_CELEBORN_SHUFFLE_ID}
 import org.apache.celeborn.common.util.Utils.UNKNOWN_APP_SHUFFLE_ID
 import org.apache.celeborn.common.write.LocationPushFailedBatches
 
@@ -112,6 +113,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val shuffleIdGenerator = new AtomicInteger(0)
   // app shuffle id -> whether shuffle is determinate, rerun of a indeterminate shuffle gets different result
   private val appShuffleDeterminateMap = JavaUtils.newConcurrentHashMap[Int, Boolean]();
+
+  // format ${stageid}.${attemptid}
+  private val stagesReceivedInvalidatingUpstream =
+    new mutable.HashMap[String, mutable.HashSet[Int]]()
 
   private val rpcCacheSize = conf.clientRpcCacheSize
   private val rpcCacheConcurrencyLevel = conf.clientRpcCacheConcurrencyLevel
@@ -534,6 +539,23 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       } else {
         context.reply(PbSerDeUtils.toPbApplicationMeta(applicationMeta))
       }
+
+    case pb: PbReportMissingShuffleId =>
+      val appShuffleId = pb.getTriggerAppShuffleId
+      val readerStageId = pb.getReaderStageId
+      val stageAttemptId = pb.getAttemptId
+      logInfo(
+        s"Received ReportMissingShuffleId, appShuffleId $appShuffleId readerStageIdentifier:" +
+          s" $readerStageId.$stageAttemptId")
+      handleReportMissingShuffleId(context, appShuffleId, readerStageId, stageAttemptId)
+
+    case pb: PbInvalidateAllUpstreamShuffle =>
+      val readerStageId = pb.getReaderStageId
+      val attemptId = pb.getAttemptId
+      val triggerAppShuffleId = pb.getTriggerAppShuffleId
+      logInfo(s"received ReportFetchFailureForAllUpstream for stage $readerStageId," +
+        s" attemptId: $attemptId")
+      handleInvalidateAllUpstreamShuffle(context, readerStageId, attemptId, triggerAppShuffleId)
   }
 
   private def handleReducerPartitionEnd(
@@ -986,6 +1008,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       appShuffleIdentifier: String,
       isWriter: Boolean,
       isBarrierStage: Boolean): Unit = {
+    println(s"get shuffle id for $appShuffleIdentifier isWriter: $isWriter")
     val shuffleIds =
       if (isWriter) {
         shuffleIdMapping.computeIfAbsent(
@@ -996,7 +1019,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             override def apply(id: Int)
                 : scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)] = {
               val newShuffleId = shuffleIdGenerator.getAndIncrement()
-              logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
+              logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId" +
+                s" appShuffleIdentifier $appShuffleIdentifier")
+              stageToWriteCelebornShuffleCallback.foreach(callback =>
+                callback.accept(newShuffleId, appShuffleIdentifier))
+              celebornToAppShuffleIdMappingCallback.foreach(callback =>
+                callback.accept(newShuffleId, appShuffleIdentifier))
               scala.collection.mutable.LinkedHashMap(appShuffleIdentifier -> (newShuffleId, true))
             }
           })
@@ -1031,15 +1059,20 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 // So if a barrier stage is getting reexecuted, previous stage/attempt needs to
                 // be cleaned up as it is entirely unusuable
                 if (determinate && !isBarrierStage && !isCelebornSkewShuffleOrChildShuffle(
-                    appShuffleId))
-                  shuffleIds.values.toSeq.reverse.find(e => e._2 == true)
-                else
+                    appShuffleId) && !conf.clientShuffleEarlyDeletion) {
+                  val result = shuffleIds.values.toSeq.reverse.find(e => e._2 == true)
+                  if (result.isEmpty) {
+                    logWarning(s"cannot find candidate shuffleId for determinate" +
+                      s" shuffle $appShuffleIdentifier")
+                  }
+                  result
+                } else
                   None
 
               val shuffleId: Integer =
                 if (determinate && candidateShuffle.isDefined) {
                   val id = candidateShuffle.get._1
-                  logInfo(s"reuse existing shuffleId $id for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
+                  println(s"reuse existing shuffleId $id for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
                   id
                 } else {
                   // this branch means it is a redo of previous write stage
@@ -1052,9 +1085,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                     shuffleIds ++= mapUpdates
                   }
                   val newShuffleId = shuffleIdGenerator.getAndIncrement()
-                  logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
+                  logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId" +
+                    s" appShuffleIdentifier $appShuffleIdentifier")
                   validateCelebornShuffleIdForClean.foreach(callback =>
                     callback.accept(appShuffleIdentifier))
+                  stageToWriteCelebornShuffleCallback.foreach { callback =>
+                    callback.accept(newShuffleId, appShuffleIdentifier)
+                  }
+                  celebornToAppShuffleIdMappingCallback.foreach(callback =>
+                    callback.accept(newShuffleId, appShuffleIdentifier))
                   shuffleIds.put(appShuffleIdentifier, (newShuffleId, true))
                   newShuffleId
                 }
@@ -1066,27 +1105,138 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 s"unexpected! unknown appShuffleId $appShuffleId when checking shuffle deterministic level"))
         }
       } else {
-        shuffleIds.values.filter(v => v._2).map(v => v._1).toSeq.reverse.find(
-          areAllMapTasksEnd) match {
-          case Some(celebornShuffleId) =>
-            val pbGetShuffleIdResponse = {
-              logDebug(
-                s"get shuffleId $celebornShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier isWriter $isWriter")
-              PbGetShuffleIdResponse.newBuilder().setShuffleId(celebornShuffleId).setSuccess(
-                true).build()
+        // this is not necessarily the most concise coding style, but it helps for debugging
+        // purpose
+        var found = false
+        val revertedShuffleIds = shuffleIds.values.map(v => v._1).toSeq.reverse
+        revertedShuffleIds.foreach { celebornShuffleId: Int =>
+          if (!found) {
+            try {
+              if (areAllMapTasksEnd(celebornShuffleId)) {
+                getCelebornShuffleIdForReaderCallback.foreach(callback =>
+                  callback.accept(celebornShuffleId, appShuffleIdentifier))
+                getAppShuffleIdForReaderCallback.foreach(callback =>
+                  callback.accept(appShuffleId, appShuffleIdentifier))
+                val pbGetShuffleIdResponse = {
+                  logDebug(
+                    s"get shuffleId $celebornShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier isWriter $isWriter")
+                  PbGetShuffleIdResponse.newBuilder()
+                    .setShuffleId(celebornShuffleId)
+                    .setSuccess(true)
+                    .build()
+                }
+                context.reply(pbGetShuffleIdResponse)
+                found = true
+              } else {
+                logInfo(s"not all map tasks finished for shuffle $celebornShuffleId")
+              }
+            } catch {
+              case ise: IllegalStateException =>
+                if (conf.clientShuffleEarlyDeletion) {
+                  logError(
+                    s"hit error when getting celeborn shuffle id $celebornShuffleId for" +
+                      s" appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier",
+                    ise)
+                  val canInvalidateAllUpstream =
+                    checkWhetherToInvalidateAllUpstreamCallback.exists(func =>
+                      func.apply(appShuffleIdentifier))
+                  val pbGetShuffleIdResponse = PbGetShuffleIdResponse
+                    .newBuilder()
+                    .setShuffleId({
+                      if (canInvalidateAllUpstream) {
+                        KNOWN_MISSING_CELEBORN_SHUFFLE_ID
+                      } else {
+                        UNKNOWN_MISSING_CELEBORN_SHUFFLE_ID
+                      }
+                    })
+                    .setSuccess(true)
+                    .build()
+                  context.reply(pbGetShuffleIdResponse)
+                } else {
+                  logError(
+                    s"unexpected IllegalStateException without" +
+                      s" ${CelebornConf.CLIENT_SHUFFLE_EARLY_DELETION.key} turning on",
+                    ise)
+                  throw ise;
+                }
             }
-            context.reply(pbGetShuffleIdResponse)
-          case None =>
-            val pbGetShuffleIdResponse = {
-              logInfo(
-                s"there is no finished map stage associated with appShuffleId $appShuffleId")
-              PbGetShuffleIdResponse.newBuilder().setShuffleId(UNKNOWN_APP_SHUFFLE_ID).setSuccess(
-                false).build()
-            }
-            context.reply(pbGetShuffleIdResponse)
+          }
         }
       }
     }
+  }
+
+  private def invalidateAllKnownUpstreamShuffleOutput(stageIdentifier: String): Unit = {
+    val Array(readerStageId, _) = stageIdentifier.split('.').map(_.toInt)
+    val invalidatedUpstreamIds =
+      stagesReceivedInvalidatingUpstream.getOrElseUpdate(
+        stageIdentifier,
+        new mutable.HashSet[Int]())
+    logInfo(s"invalidating all upstream shuffles of stage $stageIdentifier")
+    val upstreamShuffleIds = getUpstreamAppShuffleIdsCallback.map(f =>
+      f.apply(readerStageId)).getOrElse(Array())
+    upstreamShuffleIds.foreach { upstreamAppShuffleId =>
+      appShuffleTrackerCallback.foreach { callback =>
+        logInfo(s"invalidated upstream app shuffle id $upstreamAppShuffleId for stage" +
+          s" $stageIdentifier")
+        callback.accept(upstreamAppShuffleId)
+        invalidatedUpstreamIds += upstreamAppShuffleId
+        val celebornShuffleIds = shuffleIdMapping.get(upstreamAppShuffleId)
+        val latestShuffle = celebornShuffleIds.maxBy(_._2._1)
+        celebornShuffleIds.put(latestShuffle._1, (KNOWN_MISSING_CELEBORN_SHUFFLE_ID, false))
+      }
+    }
+    invalidateShuffleWrittenByStage(readerStageId)
+  }
+
+  private def handleInvalidateAllUpstreamShuffle(
+      context: RpcCallContext,
+      readerStageId: Int,
+      readerStageAttemptId: Int,
+      triggerAppShuffleId: Int): Unit = stagesReceivedInvalidatingUpstream.synchronized {
+    require(
+      conf.clientShuffleEarlyDeletion,
+      "ReportFetchFailureForAllUpstream message is " +
+        s"supposed to be only received when turning on" +
+        s" ${CelebornConf.CLIENT_SHUFFLE_EARLY_DELETION.key}")
+    require(
+      getUpstreamAppShuffleIdsCallback.isDefined,
+      "no callback has been registered for" +
+        " invalidating all upstream shuffles for a reader stage")
+    var ret = true
+    try {
+      val stageIdentifier = s"$readerStageId.$readerStageAttemptId"
+      if (!stagesReceivedInvalidatingUpstream.contains(stageIdentifier)) {
+        invalidateAllKnownUpstreamShuffleOutput(stageIdentifier)
+      } else if (!stagesReceivedInvalidatingUpstream(stageIdentifier)
+          .contains(triggerAppShuffleId)) {
+        // in this case, it means that we haven't been able to capture a certain upstream app
+        // shuffle id for the current stage when we invalidate all upstream last time,
+        // and the new upstream shuffle id show up now, we need to add the new shuffle id
+        // dependency and then fallback to the fetchfailure error for this shuffle
+        // (since other captured upstream shuffles might have been regenerated)
+        logInfo(s"a new upstream shuffle id $triggerAppShuffleId show up for $stageIdentifier" +
+          s" after we have invalidated all known upstream shuffle outputs")
+        val appShuffleIdentifier = s"$triggerAppShuffleId-$readerStageId-$readerStageAttemptId"
+        getAppShuffleIdForReaderCallback.foreach(callback =>
+          callback.accept(triggerAppShuffleId, appShuffleIdentifier))
+        ret = false
+      } else {
+        logInfo(s"ignoring the message to invalidate all upstream shuffles for stage" +
+          s" $stageIdentifier (triggered appShuffleId $triggerAppShuffleId)," +
+          s" as it has been handled by another thread")
+      }
+    } catch {
+      case t: Throwable =>
+        logError(
+          s"hit error when invalidating upstream shuffles for stage $readerStageId," +
+            s" attempt $readerStageAttemptId",
+          t)
+        ret = false
+    }
+    val pbInvalidateAllUpstreamShuffleResponse =
+      PbInvalidateAllUpstreamShuffleResponse.newBuilder().setSuccess(ret).build()
+    context.reply(pbInvalidateAllUpstreamShuffleResponse)
   }
 
   private def handleReportShuffleFetchFailure(
@@ -1124,6 +1274,52 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val pbReportShuffleFetchFailureResponse =
       PbReportShuffleFetchFailureResponse.newBuilder().setSuccess(ret).build()
     context.reply(pbReportShuffleFetchFailureResponse)
+  }
+
+  private def handleReportMissingShuffleId(
+      context: RpcCallContext,
+      appShuffleId: Int,
+      stageId: Int,
+      stageAttemptId: Int): Unit = {
+    val shuffleIds = shuffleIdMapping.get(appShuffleId)
+    if (shuffleIds == null) {
+      throw new UnsupportedOperationException(s"unexpected! unknown appShuffleId $appShuffleId")
+    }
+    var ret = true
+    shuffleIds.synchronized {
+      val stageIdentifier = s"$stageId.$stageAttemptId"
+      val shuffleIdentifier = s"$appShuffleId.$stageId.$stageAttemptId"
+      if (stagesReceivedInvalidatingUpstream.getOrElse(stageIdentifier, new mutable.HashSet[Int]())
+          .contains(appShuffleId)) {
+        logInfo(s"ignoring missing shuffle id report from stage $stageId.$stageAttemptId as" +
+          s" it is already reported  by other reader and handled")
+      } else {
+        logInfo(s"handle missing shuffle id for appShuffleId $appShuffleId stage" +
+          s" $stageId.$stageAttemptId")
+        appShuffleTrackerCallback match {
+          case Some(callback) =>
+            try {
+              callback.accept(appShuffleId)
+            } catch {
+              case t: Throwable =>
+                logError(t.toString)
+                ret = false
+            }
+            shuffleIds.put(shuffleIdentifier, (UNKNOWN_MISSING_CELEBORN_SHUFFLE_ID, false))
+          case None =>
+            throw new UnsupportedOperationException(
+              "unexpected! appShuffleTrackerCallback is not registered")
+        }
+        invalidateShuffleWrittenByStage(stageId)
+        stagesReceivedInvalidatingUpstream += stageIdentifier ->
+          (stagesReceivedInvalidatingUpstream.getOrElse(
+            stageIdentifier,
+            new mutable.HashSet[Int]()) ++ Set(appShuffleId))
+        val pbReportMissingShuffleIdResponse =
+          PbReportMissingShuffleIdResponse.newBuilder().setSuccess(ret).build()
+        context.reply(pbReportMissingShuffleIdResponse)
+      }
+    }
   }
 
   private def handleReportBarrierStageAttemptFailure(
@@ -1193,6 +1389,24 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       case Some(skewShuffleCallback) =>
         skewShuffleCallback.apply(appShuffleId)
       case None => false
+    }
+  }
+
+  private def invalidateShuffleWrittenByStage(stageId: Int): Unit = {
+    val writtenShuffleId = getAppShuffleIdByStageIdCallback.map { callback =>
+      callback.apply(stageId)
+    }
+    writtenShuffleId.foreach { shuffleId =>
+      if (shuffleId >= 0) {
+        val celebornShuffleIds = shuffleIdMapping.get(writtenShuffleId)
+        if (celebornShuffleIds != null) {
+          logInfo(s"invalidating location of app shuffle id $writtenShuffleId written" +
+            s" by stage $stageId")
+          val latestShuffleId = celebornShuffleIds.maxBy(_._2._1)
+          celebornShuffleIds.put(latestShuffleId._1, (latestShuffleId._2._1, false))
+          appShuffleTrackerCallback.foreach(callback => callback.accept(shuffleId))
+        }
+      }
     }
   }
 
@@ -2020,6 +2234,47 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   def registerCelebornSkewShuffleCheckCallback(callback: function.Function[Integer, Boolean])
       : Unit = {
     celebornSkewShuffleCheckCallback = Some(callback)
+  }
+
+  @volatile private var getUpstreamAppShuffleIdsCallback
+      : Option[Function[Integer, Array[Integer]]] = None
+  def registerUpstreamAppShuffleIdsCallback(callback: Function[Integer, Array[Integer]]): Unit = {
+    getUpstreamAppShuffleIdsCallback = Some(callback)
+  }
+
+  @volatile private var getAppShuffleIdByStageIdCallback: Option[Function[Integer, Integer]] = None
+  def registerGetAppShuffleIdByStageIdCallback(callback: Function[Integer, Integer]): Unit = {
+    getAppShuffleIdByStageIdCallback = Some(callback)
+  }
+
+  // expecting celeborn shuffle id and application shuffle identifier
+  @volatile private var getCelebornShuffleIdForReaderCallback: Option[BiConsumer[Integer, String]] =
+    None
+  def registerGetCelebornShuffleIdForReaderCallback(callback: BiConsumer[Integer, String]): Unit = {
+    getCelebornShuffleIdForReaderCallback = Some(callback)
+  }
+
+  @volatile private var getAppShuffleIdForReaderCallback: Option[BiConsumer[Integer, String]] = None
+  def registerReaderStageToAppShuffleIdsCallback(callback: BiConsumer[Integer, String]): Unit = {
+    getAppShuffleIdForReaderCallback = Some(callback)
+  }
+
+  @volatile private var stageToWriteCelebornShuffleCallback: Option[BiConsumer[Integer, String]] =
+    None
+  def registerStageToWriteCelebornShuffleCallback(callback: BiConsumer[Integer, String]): Unit = {
+    stageToWriteCelebornShuffleCallback = Some(callback)
+  }
+
+  @volatile private var celebornToAppShuffleIdMappingCallback: Option[BiConsumer[Integer, String]] =
+    None
+  def registerCelebornToAppShuffleIdMappingCallback(callback: BiConsumer[Integer, String]): Unit = {
+    celebornToAppShuffleIdMappingCallback = Some(callback)
+  }
+
+  @volatile private var checkWhetherToInvalidateAllUpstreamCallback
+      : Option[Function[String, Boolean]] = None
+  def registerInvalidateAllUpstreamCheckCallback(callback: Function[String, Boolean]): Unit = {
+    checkWhetherToInvalidateAllUpstreamCallback = Some(callback)
   }
 
   // Initialize at the end of LifecycleManager construction.

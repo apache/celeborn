@@ -125,6 +125,14 @@ public class TransportMessage implements Serializable {
         return (T) PbNotifyRequiredSegment.parseFrom(payload);
       case PUSH_MERGED_DATA_SPLIT_PARTITION_INFO_VALUE:
         return (T) PbPushMergedDataSplitPartitionInfo.parseFrom(payload);
+      case INVALIDATE_ALL_UPSTREAM_SHUFFLE_VALUE:
+        return (T) PbInvalidateAllUpstreamShuffle.parseFrom(payload);
+      case INVALIDATE_ALL_UPSTREAM_SHUFFLE_RESPONSE_VALUE:
+        return (T) PbInvalidateAllUpstreamShuffleResponse.parseFrom(payload);
+      case REPORT_MISSING_SHUFFLE_ID_VALUE:
+        return (T) PbReportMissingShuffleId.parseFrom(payload);
+      case REPORT_MISSING_SHUFFLE_ID_RESPONSE_VALUE:
+        return (T) PbReportMissingShuffleIdResponse.parseFrom(payload);
       default:
         logger.error("Unexpected type {}", type);
     }
