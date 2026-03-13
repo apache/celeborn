@@ -138,12 +138,10 @@ public class DfsPartitionReader implements PartitionReader {
     }
     if (endMapIndex != Integer.MAX_VALUE && endMapIndex != -1) {
       dataFilePath = new Path(Utils.getSortedFilePath(location.getStorageInfo().getFilePath()));
-      dfsInputStream = hadoopFs.open(dataFilePath);
       chunkOffsets.addAll(
           getChunkOffsetsFromSortedIndex(conf, location, startMapIndex, endMapIndex));
     } else {
       dataFilePath = new Path(location.getStorageInfo().getFilePath());
-      dfsInputStream = hadoopFs.open(dataFilePath);
       chunkOffsets.addAll(getChunkOffsetsFromUnsortedIndex(location));
     }
     this.startChunkIndex = startChunkIndex == -1 ? 0 : startChunkIndex;
@@ -173,6 +171,7 @@ public class DfsPartitionReader implements PartitionReader {
         this.endChunkIndex,
         chunkOffsets);
     if (this.numChunks > 0) {
+      dfsInputStream = hadoopFs.open(dataFilePath);
       fetchThread =
           ThreadUtils.newDaemonSingleThreadExecutor(
               "celeborn-client-dfs-partition-fetcher" + location.getStorageInfo().getFilePath());
@@ -319,10 +318,12 @@ public class DfsPartitionReader implements PartitionReader {
     if (fetchThread != null) {
       fetchThread.shutdownNow();
     }
-    try {
-      dfsInputStream.close();
-    } catch (IOException e) {
-      logger.warn("close DFS input stream failed.", e);
+    if (dfsInputStream != null) {
+      try {
+        dfsInputStream.close();
+      } catch (IOException e) {
+        logger.warn("close DFS input stream failed.", e);
+      }
     }
     if (results.size() > 0) {
       results.forEach(chunk -> chunk.getRight().release());
