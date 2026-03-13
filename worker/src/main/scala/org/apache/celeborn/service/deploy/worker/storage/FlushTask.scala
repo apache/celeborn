@@ -47,6 +47,14 @@ abstract private[worker] class FlushTask(
       ByteBufUtil.getBytes(buffer)
     }
   }
+
+  def convertBufferToInputStream(
+      buffer: CompositeByteBuf,
+      copyBytes: Array[Byte],
+      length: Int): ByteArrayInputStream = {
+    val bytes = convertBufferToBytes(buffer, copyBytes, length)
+    new ByteArrayInputStream(bytes, 0, length)
+  }
 }
 
 private[worker] class LocalFlushTask(
@@ -107,7 +115,8 @@ private[worker] class HdfsFlushTask(
     val hadoopFs = StorageManager.hadoopFs.get(Type.HDFS)
     val hdfsStream = hadoopFs.append(path, 256 * 1024)
     flush(hdfsStream) {
-      hdfsStream.write(convertBufferToBytes(buffer, copyBytes, readableBytes))
+      val bytes = convertBufferToBytes(buffer, copyBytes, readableBytes)
+      hdfsStream.write(bytes, 0, readableBytes)
       source.incCounter(WorkerSource.HDFS_FLUSH_COUNT)
       source.incCounter(WorkerSource.HDFS_FLUSH_SIZE, readableBytes)
     }
@@ -126,8 +135,7 @@ private[worker] class S3FlushTask(
 
   override def flush(copyBytes: Array[Byte]): Unit = {
     val readableBytes = buffer.readableBytes()
-    val bytes = convertBufferToBytes(buffer, copyBytes, readableBytes)
-    val inputStream = new ByteArrayInputStream(bytes)
+    val inputStream = convertBufferToInputStream(buffer, copyBytes, readableBytes)
     flush(inputStream) {
       s3MultipartUploader.putPart(inputStream, partNumber, finalFlush)
       source.incCounter(WorkerSource.S3_FLUSH_COUNT)
@@ -148,8 +156,7 @@ private[worker] class OssFlushTask(
 
   override def flush(copyBytes: Array[Byte]): Unit = {
     val readableBytes = buffer.readableBytes()
-    val bytes = convertBufferToBytes(buffer, copyBytes, readableBytes)
-    val inputStream = new ByteArrayInputStream(bytes)
+    val inputStream = convertBufferToInputStream(buffer, copyBytes, readableBytes)
     flush(inputStream) {
       ossMultipartUploader.putPart(inputStream, partNumber, finalFlush)
       source.incCounter(WorkerSource.OSS_FLUSH_COUNT)
