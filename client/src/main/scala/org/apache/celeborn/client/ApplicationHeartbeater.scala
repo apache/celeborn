@@ -18,7 +18,7 @@
 package org.apache.celeborn.client
 
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit, TimeoutException}
 import java.util.function.Consumer
 
 import scala.collection.JavaConverters._
@@ -50,9 +50,13 @@ class ApplicationHeartbeater(
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
   private val applicationUnregisterEnabled = conf.applicationUnregisterEnabled
+  private val applicationUnregisterTimeoutMs = conf.applicationUnregisterTimeoutMs
   private val appHeartbeatHandlerThread =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor(
       "celeborn-client-lifecycle-manager-app-heartbeater")
+  private lazy val appUnregisterHandlerThread =
+    ThreadUtils.newDaemonSingleThreadExecutor(
+      "celeborn-client-lifecycle-manager-app-unregister")
   private var appHeartbeat: ScheduledFuture[_] = _
 
   def start(): Unit = {
@@ -163,6 +167,25 @@ class ApplicationHeartbeater(
     }
   }
 
+  private def unregisterApplicationWithTimeout(): Unit = {
+    val unregisterFuture = appUnregisterHandlerThread.submit(new Runnable {
+      override def run(): Unit = unregisterApplication()
+    })
+    try {
+      unregisterFuture.get(applicationUnregisterTimeoutMs, TimeUnit.MILLISECONDS)
+    } catch {
+      case _: TimeoutException =>
+        logWarning(
+          s"Timed out after ${applicationUnregisterTimeoutMs} ms while unregistering application $appId. " +
+            "Continue shutdown and let master-side timeout cleanup handle the rest if needed.")
+        unregisterFuture.cancel(true)
+      case e: Exception =>
+        logWarning("Unexpected failure while waiting for application unregister.", e)
+    } finally {
+      ThreadUtils.shutdown(appUnregisterHandlerThread)
+    }
+  }
+
   private def checkQuotaExceeds(response: CheckQuotaResponse): Unit = {
     if (conf.quotaInterruptShuffleEnabled && !response.isAvailable) {
       cancelAllActiveStages(
@@ -175,10 +198,12 @@ class ApplicationHeartbeater(
       if (!stopped) {
         // Stop appHeartbeat first
         logInfo(s"Stop Application heartbeat $appId")
-        appHeartbeat.cancel(true)
+        if (appHeartbeat != null) {
+          appHeartbeat.cancel(true)
+        }
         ThreadUtils.shutdown(appHeartbeatHandlerThread)
         if (applicationUnregisterEnabled) {
-          unregisterApplication()
+          unregisterApplicationWithTimeout()
         }
         stopped = true
       }

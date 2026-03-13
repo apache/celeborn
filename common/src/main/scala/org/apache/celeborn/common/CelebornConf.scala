@@ -940,6 +940,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def dfsExpireDirsTimeoutMS: Long = get(DFS_EXPIRE_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
   def applicationUnregisterEnabled: Boolean = get(APPLICATION_UNREGISTER_ENABLED)
+  def applicationUnregisterTimeoutMs: Long = get(APPLICATION_UNREGISTER_TIMEOUT)
 
   def clientCheckedUseAllocatedWorkers: Boolean = get(CLIENT_CHECKED_USE_ALLOCATED_WORKERS)
   def clientExcludedWorkerExpireTimeout: Long = get(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT)
@@ -4514,6 +4515,14 @@ object CelebornConf extends Logging {
         "exit, this allows the cluster to release resources immediately, resulting in resource savings.")
       .booleanConf
       .createWithDefault(true)
+
+  val APPLICATION_UNREGISTER_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.client.application.unregister.timeout")
+      .categories("client")
+      .version("0.6.1")
+      .doc("Max time to wait for application unregister during client shutdown before continuing exit.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10s")
 
   val CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.excludePeerWorkerOnFailure.enabled")

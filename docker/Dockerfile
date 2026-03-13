@@ -16,7 +16,7 @@
 #
 
 ARG builder_java_image_tag=17-jdk-noble
-ARG java_image_tag=8-jdk-noble
+ARG java_image_tag=17-jdk-noble
 
 FROM eclipse-temurin:${builder_java_image_tag} AS dist-builder
 
