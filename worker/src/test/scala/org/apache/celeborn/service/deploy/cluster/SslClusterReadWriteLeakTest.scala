@@ -91,7 +91,7 @@ class SslClusterReadWriteLeakTest
       CelebornConf.MASTER_ENDPOINTS.key -> s"localhost:$testMasterPort",
       CelebornConf.MASTER_INTERNAL_ENDPOINTS.key -> s"localhost:$masterInternalPort") ++ serverSslConf
 
-    setUpMiniCluster(masterConf, workerConf)
+    setupMiniClusterWithRandomPorts(masterConf, workerConf)
   }
 
   override def afterAll(): Unit = {
@@ -126,7 +126,7 @@ class SslClusterReadWriteLeakTest
       shuffleClient.pushMergedData(1, 0, 0)
       Thread.sleep(500)
 
-      shuffleClient.mapperEnd(1, 0, 0, 1)
+      shuffleClient.mapperEnd(1, 0, 0, 1, 1)
 
       // Read back via the fetch channel and verify total byte count.
       val expectedBytes =
@@ -137,7 +137,7 @@ class SslClusterReadWriteLeakTest
         override def incReadTime(time: Long): Unit = {}
       }
       val inputStream =
-        shuffleClient.readPartition(1, 0, 0, 0, Integer.MAX_VALUE, metricsCallback)
+        shuffleClient.readPartition(1, 0, 0, 0L, 0, Integer.MAX_VALUE, metricsCallback)
       val output = new ByteArrayOutputStream()
       var b = inputStream.read()
       while (b != -1) {
