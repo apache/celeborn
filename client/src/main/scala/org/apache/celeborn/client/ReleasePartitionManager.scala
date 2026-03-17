@@ -106,6 +106,7 @@ class ReleasePartitionManager(
   def stop(): Unit = {
     batchHandleReleasePartition.foreach(_.cancel(true))
     batchHandleReleasePartitionSchedulerThread.foreach(ThreadUtils.shutdown(_))
+    ThreadUtils.shutdown(batchHandleReleasePartitionExecutors)
   }
 
   def releasePartition(shuffleId: Int, partitionId: Int): Unit = {
