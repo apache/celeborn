@@ -131,6 +131,7 @@ class ChangePartitionManager(
   def stop(): Unit = {
     batchHandleChangePartition.foreach(_.cancel(true))
     batchHandleChangePartitionSchedulerThread.foreach(ThreadUtils.shutdown(_))
+    ThreadUtils.shutdown(batchHandleChangePartitionExecutors)
   }
 
   val rpcContextRegisterFunc
