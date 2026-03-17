@@ -47,8 +47,8 @@ import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.protocol.*;
 import org.apache.celeborn.common.unsafe.Platform;
-import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.ExceptionMaker;
+import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.LocationPushFailedBatches;
 
