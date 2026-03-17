@@ -570,9 +570,9 @@ class FetchHandler(
       workerSource.incCounter(storageMetrics._3)
       client.getChannel.writeAndFlush(new ChunkFetchFailure(
         streamChunkSlice,
-        new ChunkFetchFailureException(
+        ChunkFetchFailureException.withErrorCode(
           ChunkFetchFailureException.ErrorCode.STREAM_NOT_REGISTERED,
-          message).toChunkFetchFailureMessage()))
+          message)))
       return
     }
 
