@@ -44,6 +44,19 @@ public class ExceptionUtilsSuiteJ {
   }
 
   @Test
+  public void staleStreamFetchFailureLegacyMessageIsStillDetected() {
+    CelebornIOException exception =
+        new CelebornIOException(
+            "Fetch chunk 0 of shuffle key app-1-1 failed.",
+            new ChunkFetchFailureException(
+                "Stream 123 is not registered with worker. "
+                    + "This can happen if the worker was restart recently."));
+
+    assertTrue(ExceptionUtils.isStaleStreamChunkFetchFailure(exception));
+    assertFalse(Utils$.MODULE$.isCriticalCauseForFetch(exception));
+  }
+
+  @Test
   public void timeoutFetchFailureRemainsCritical() {
     CelebornIOException exception =
         new CelebornIOException(
