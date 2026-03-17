@@ -18,6 +18,8 @@
 package org.apache.celeborn.common.network;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.*;
 
 import java.nio.ByteBuffer;
@@ -25,13 +27,16 @@ import java.nio.ByteBuffer;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.local.LocalChannel;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
+import org.apache.celeborn.common.network.client.ChunkFetchFailureException;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.*;
+import org.apache.celeborn.common.network.protocol.ChunkFetchFailureUtils.ErrorCode;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.read.FetchRequestInfo;
 import org.apache.celeborn.common.util.Utils;
@@ -70,6 +75,35 @@ public class TransportResponseHandlerSuiteJ {
 
     handler.handle(new ChunkFetchFailure(streamChunkSlice, "some error msg"));
     verify(callback, times(1)).onFailure(eq(0), any());
+    assertEquals(0, handler.numOutstandingRequests());
+  }
+
+  @Test
+  public void handleFailedFetchWithErrorCode() throws Exception {
+    StreamChunkSlice streamChunkSlice = new StreamChunkSlice(1, 0);
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.FETCH_MODULE, 8),
+            new LocalChannel());
+    ChunkReceivedCallback callback = mock(ChunkReceivedCallback.class);
+    FetchRequestInfo info = new FetchRequestInfo(System.currentTimeMillis() + 30000, callback);
+    handler.addFetchRequest(streamChunkSlice, info);
+
+    handler.handle(
+        new ChunkFetchFailure(
+            streamChunkSlice,
+            ChunkFetchFailureUtils.withErrorCode(
+                ErrorCode.STREAM_NOT_REGISTERED,
+                "Stream 123 is not registered with worker.")));
+
+    ArgumentCaptor<Throwable> throwableCaptor = ArgumentCaptor.forClass(Throwable.class);
+    verify(callback, times(1)).onFailure(eq(0), throwableCaptor.capture());
+    ChunkFetchFailureException exception =
+        (ChunkFetchFailureException) throwableCaptor.getValue();
+    assertNotNull(exception);
+    assertEquals(ErrorCode.STREAM_NOT_REGISTERED, exception.getErrorCode());
+    assertTrue(exception.getMessage().startsWith("Failure while fetching StreamChunkSlice["));
+    assertTrue(exception.getMessage().endsWith(": Stream 123 is not registered with worker."));
     assertEquals(0, handler.numOutstandingRequests());
   }
 

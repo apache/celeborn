@@ -19,13 +19,31 @@ package org.apache.celeborn.common.network.client;
 
 import java.io.IOException;
 
+import org.apache.celeborn.common.network.protocol.ChunkFetchFailureUtils.ErrorCode;
+
 /** General exception caused by a remote exception while fetching a chunk. */
 public class ChunkFetchFailureException extends IOException {
+  private final ErrorCode errorCode;
+
   public ChunkFetchFailureException(String errorMsg, Throwable cause) {
-    super(errorMsg, cause);
+    this(null, errorMsg, cause);
   }
 
   public ChunkFetchFailureException(String errorMsg) {
+    this(null, errorMsg);
+  }
+
+  public ChunkFetchFailureException(ErrorCode errorCode, String errorMsg, Throwable cause) {
+    super(errorMsg, cause);
+    this.errorCode = errorCode;
+  }
+
+  public ChunkFetchFailureException(ErrorCode errorCode, String errorMsg) {
     super(errorMsg);
+    this.errorCode = errorCode;
+  }
+
+  public ErrorCode getErrorCode() {
+    return errorCode;
   }
 }
