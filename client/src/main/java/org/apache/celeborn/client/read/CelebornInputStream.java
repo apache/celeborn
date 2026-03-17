@@ -47,6 +47,7 @@ import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.protocol.*;
 import org.apache.celeborn.common.unsafe.Platform;
+import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.ExceptionMaker;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.LocationPushFailedBatches;
@@ -528,8 +529,13 @@ public abstract class CelebornInputStream extends InputStream {
           }
           return currentReader.next();
         } catch (Exception e) {
-          shuffleClient.excludeFailedFetchLocation(
-              currentReader.getLocation().hostAndFetchPort(), e);
+          boolean staleStreamFailure = ExceptionUtils.isStaleStreamChunkFetchFailure(e);
+          PartitionLocation currentLocation = currentReader.getLocation();
+          Optional<PartitionReaderCheckpointMetadata> checkpointMetadata =
+              currentReader.getPartitionReaderCheckpointMetadata();
+          if (!staleStreamFailure) {
+            shuffleClient.excludeFailedFetchLocation(currentLocation.hostAndFetchPort(), e);
+          }
           fetchChunkRetryCnt++;
           currentReader.close();
           if (fetchChunkRetryCnt == fetchChunkMaxRetry) {
@@ -538,15 +544,23 @@ public abstract class CelebornInputStream extends InputStream {
                 "Fetch chunk failed for "
                     + fetchChunkRetryCnt
                     + " times for location "
-                    + currentReader.getLocation(),
+                    + currentLocation,
                 e);
           } else {
-            if (currentReader.getLocation().hasPeer() && !readSkewPartitionWithoutMapRange) {
+            if (staleStreamFailure) {
+              logger.info(
+                  "Fetch chunk failed {}/{} times for location {}, reopen stream on the same worker",
+                  fetchChunkRetryCnt,
+                  fetchChunkMaxRetry,
+                  currentLocation,
+                  e);
+              currentReader = createReaderWithRetry(currentLocation, null, checkpointMetadata);
+            } else if (currentLocation.hasPeer() && !readSkewPartitionWithoutMapRange) {
               logger.warn(
                   "Fetch chunk failed {}/{} times for location {}, change to peer",
                   fetchChunkRetryCnt,
                   fetchChunkMaxRetry,
-                  currentReader.getLocation(),
+                  currentLocation,
                   e);
               // fetchChunkRetryCnt % 2 == 0 means both replicas have been tried,
               // so sleep before next try.
@@ -555,23 +569,19 @@ public abstract class CelebornInputStream extends InputStream {
               }
               // We must not use checkpoint for peer location since chunkIds don't always match
               // across peers
-              currentReader = createReaderWithRetry(currentReader.getLocation().getPeer(), null);
+              currentReader = createReaderWithRetry(currentLocation.getPeer(), null);
             } else {
               logger.warn(
                   "Fetch chunk failed {}/{} times for location {}",
                   fetchChunkRetryCnt,
                   fetchChunkMaxRetry,
-                  currentReader.getLocation(),
+                  currentLocation,
                   e);
               Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
               // When reading from the same host again, it is possible to skip already read data
               // chunks,
               // improving read performance during retries.
-              currentReader =
-                  createReaderWithRetry(
-                      currentReader.getLocation(),
-                      null,
-                      currentReader.getPartitionReaderCheckpointMetadata());
+              currentReader = createReaderWithRetry(currentLocation, null, checkpointMetadata);
             }
           }
         }

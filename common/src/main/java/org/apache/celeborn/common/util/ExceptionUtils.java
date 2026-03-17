@@ -73,4 +73,16 @@ public class ExceptionUtils {
         || (message.equals("Connection reset by peer"))
         || (message.startsWith("Failed to send request "));
   }
+
+  public static boolean isStaleStreamChunkFetchFailure(Throwable throwable) {
+    Throwable current = throwable;
+    while (current != null) {
+      String message = current.getMessage();
+      if (message != null && message.contains("is not registered with worker")) {
+        return true;
+      }
+      current = current.getCause();
+    }
+    return false;
+  }
 }

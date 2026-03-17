@@ -1326,6 +1326,7 @@ object Utils extends Logging {
   }
 
   def isCriticalCauseForFetch(e: Exception) = {
+    val staleStreamFailure = ExceptionUtils.isStaleStreamChunkFetchFailure(e)
     val rpcTimeout =
       e.isInstanceOf[IOException] && e.getCause != null && e.getCause.isInstanceOf[TimeoutException]
     val connectException =
@@ -1333,7 +1334,7 @@ object Utils extends Logging {
         "Connecting to") || e.getMessage.startsWith("Failed to"))
     val fetchChunkTimeout = e.isInstanceOf[
       CelebornIOException] && e.getCause != null && e.getCause.isInstanceOf[IOException]
-    connectException || rpcTimeout || fetchChunkTimeout
+    connectException || rpcTimeout || (fetchChunkTimeout && !staleStreamFailure)
   }
 
   def makeOpenStreamRequestId(
