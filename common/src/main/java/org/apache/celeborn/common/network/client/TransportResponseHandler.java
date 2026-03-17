@@ -345,14 +345,9 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
             resp.errorString);
       } else {
         logger.warn("Receive ChunkFetchFailure, errorMsg {}", resp.errorString);
-        ChunkFetchFailureException.ErrorCode errorCode =
-            ChunkFetchFailureException.getErrorCode(resp.errorString);
-        String errorMessage = ChunkFetchFailureException.getErrorMessage(resp.errorString);
         info.callback.onFailure(
             resp.streamChunkSlice.chunkIndex,
-            new ChunkFetchFailureException(
-                errorCode,
-                "Failure while fetching " + resp.streamChunkSlice + ": " + errorMessage));
+            new ChunkFetchFailureException(resp.streamChunkSlice, resp.errorString));
       }
     } else if (message instanceof RpcResponse) {
       RpcResponse resp = (RpcResponse) message;

@@ -19,6 +19,8 @@ package org.apache.celeborn.common.network.client;
 
 import java.io.IOException;
 
+import org.apache.celeborn.common.network.protocol.StreamChunkSlice;
+
 /** General exception caused by a remote exception while fetching a chunk. */
 public class ChunkFetchFailureException extends IOException {
   private static final String ERROR_CODE_PREFIX = "[CELEBORN_CHUNK_FETCH_ERROR_CODE=";
@@ -31,11 +33,13 @@ public class ChunkFetchFailureException extends IOException {
   private final ErrorCode errorCode;
 
   public ChunkFetchFailureException(String errorMsg, Throwable cause) {
-    this(null, errorMsg, cause);
+    super(errorMsg, cause);
+    this.errorCode = null;
   }
 
   public ChunkFetchFailureException(String errorMsg) {
-    this(null, errorMsg);
+    super(errorMsg);
+    this.errorCode = null;
   }
 
   public ChunkFetchFailureException(ErrorCode errorCode, String errorMsg, Throwable cause) {
@@ -48,15 +52,27 @@ public class ChunkFetchFailureException extends IOException {
     this.errorCode = errorCode;
   }
 
+  public ChunkFetchFailureException(StreamChunkSlice streamChunkSlice, String errorString) {
+    super("Failure while fetching " + streamChunkSlice + ": " + decodeErrorMessage(errorString));
+    this.errorCode = decodeErrorCode(errorString);
+  }
+
   public ErrorCode getErrorCode() {
     return errorCode;
   }
 
-  public static String withErrorCode(ErrorCode errorCode, String message) {
+  public String toChunkFetchFailureMessage() {
+    if (errorCode == null) {
+      return getMessage();
+    }
+    return encodeErrorCode(errorCode, getMessage());
+  }
+
+  private static String encodeErrorCode(ErrorCode errorCode, String message) {
     return ERROR_CODE_PREFIX + errorCode.name() + ERROR_CODE_SUFFIX + " " + message;
   }
 
-  public static ErrorCode getErrorCode(String message) {
+  private static ErrorCode decodeErrorCode(String message) {
     if (message == null || !message.startsWith(ERROR_CODE_PREFIX)) {
       return null;
     }
@@ -74,7 +90,7 @@ public class ChunkFetchFailureException extends IOException {
     }
   }
 
-  public static String getErrorMessage(String message) {
+  private static String decodeErrorMessage(String message) {
     if (message == null) {
       return null;
     }

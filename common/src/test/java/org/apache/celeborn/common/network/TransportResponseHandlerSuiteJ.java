@@ -92,9 +92,9 @@ public class TransportResponseHandlerSuiteJ {
     handler.handle(
         new ChunkFetchFailure(
             streamChunkSlice,
-            ChunkFetchFailureException.withErrorCode(
-                ErrorCode.STREAM_NOT_REGISTERED,
-                "Stream 123 is not registered with worker.")));
+            new ChunkFetchFailureException(
+                    ErrorCode.STREAM_NOT_REGISTERED, "Stream 123 is not registered with worker.")
+                .toChunkFetchFailureMessage()));
 
     ArgumentCaptor<Throwable> throwableCaptor = ArgumentCaptor.forClass(Throwable.class);
     verify(callback, times(1)).onFailure(eq(0), throwableCaptor.capture());
