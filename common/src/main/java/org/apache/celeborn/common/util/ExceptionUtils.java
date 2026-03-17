@@ -24,7 +24,7 @@ import java.io.StringWriter;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.exception.PartitionUnRetryAbleException;
 import org.apache.celeborn.common.network.client.ChunkFetchFailureException;
-import org.apache.celeborn.common.network.protocol.ChunkFetchFailureUtils.ErrorCode;
+import org.apache.celeborn.common.network.client.ChunkFetchFailureException.ErrorCode;
 
 public class ExceptionUtils {
 

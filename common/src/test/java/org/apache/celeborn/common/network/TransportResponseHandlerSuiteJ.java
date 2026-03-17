@@ -32,11 +32,11 @@ import org.mockito.ArgumentCaptor;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkFetchFailureException;
+import org.apache.celeborn.common.network.client.ChunkFetchFailureException.ErrorCode;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.*;
-import org.apache.celeborn.common.network.protocol.ChunkFetchFailureUtils.ErrorCode;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.read.FetchRequestInfo;
 import org.apache.celeborn.common.util.Utils;
@@ -92,7 +92,7 @@ public class TransportResponseHandlerSuiteJ {
     handler.handle(
         new ChunkFetchFailure(
             streamChunkSlice,
-            ChunkFetchFailureUtils.withErrorCode(
+            ChunkFetchFailureException.withErrorCode(
                 ErrorCode.STREAM_NOT_REGISTERED,
                 "Stream 123 is not registered with worker.")));
 
