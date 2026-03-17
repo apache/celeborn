@@ -32,7 +32,6 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.protocol.*;
-import org.apache.celeborn.common.network.protocol.ChunkFetchFailureUtils.ErrorCode;
 import org.apache.celeborn.common.network.server.MessageHandler;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
@@ -346,13 +345,10 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
             resp.errorString);
       } else {
         logger.warn("Receive ChunkFetchFailure, errorMsg {}", resp.errorString);
-        ErrorCode errorCode = ChunkFetchFailureUtils.getErrorCode(resp.errorString);
-        String errorMessage = ChunkFetchFailureUtils.getErrorMessage(resp.errorString);
         info.callback.onFailure(
             resp.streamChunkSlice.chunkIndex,
             new ChunkFetchFailureException(
-                errorCode,
-                "Failure while fetching " + resp.streamChunkSlice + ": " + errorMessage));
+                "Failure while fetching " + resp.streamChunkSlice + ": " + resp.errorString));
       }
     } else if (message instanceof RpcResponse) {
       RpcResponse resp = (RpcResponse) message;

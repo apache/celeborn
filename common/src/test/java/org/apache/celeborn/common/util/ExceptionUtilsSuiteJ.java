@@ -26,25 +26,10 @@ import org.junit.Test;
 
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.client.ChunkFetchFailureException;
-import org.apache.celeborn.common.network.protocol.ChunkFetchFailureUtils.ErrorCode;
 
 public class ExceptionUtilsSuiteJ {
   @Test
   public void staleStreamFetchFailureIsDetectedAndNotClassifiedAsCritical() {
-    CelebornIOException exception =
-        new CelebornIOException(
-            "Fetch chunk 0 of shuffle key app-1-1 failed.",
-            new ChunkFetchFailureException(
-                ErrorCode.STREAM_NOT_REGISTERED,
-                "Stream 123 is not registered with worker. "
-                    + "This can happen if the worker was restart recently."));
-
-    assertTrue(ExceptionUtils.isStaleStreamChunkFetchFailure(exception));
-    assertFalse(Utils$.MODULE$.isCriticalCauseForFetch(exception));
-  }
-
-  @Test
-  public void staleStreamFetchFailureLegacyMessageIsStillDetected() {
     CelebornIOException exception =
         new CelebornIOException(
             "Fetch chunk 0 of shuffle key app-1-1 failed.",

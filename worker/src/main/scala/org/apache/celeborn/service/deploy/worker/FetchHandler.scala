@@ -35,8 +35,6 @@ import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, MapFileMeta, Mem
 import org.apache.celeborn.common.network.buffer.{FileChunkBuffers, MemoryChunkBuffers, NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
 import org.apache.celeborn.common.network.protocol._
-import org.apache.celeborn.common.network.protocol.ChunkFetchFailureUtils
-import org.apache.celeborn.common.network.protocol.ChunkFetchFailureUtils.ErrorCode
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{MessageType, PbBufferStreamEnd, PbChunkFetchRequest, PbNotifyRequiredSegment, PbOpenStream, PbOpenStreamList, PbOpenStreamListResponse, PbReadAddCredit, PbStreamHandler, PbStreamHandlerOpt, StreamType}
@@ -570,9 +568,7 @@ class FetchHandler(
         "This can happen if the worker was restart recently."
       logError(message)
       workerSource.incCounter(storageMetrics._3)
-      client.getChannel.writeAndFlush(new ChunkFetchFailure(
-        streamChunkSlice,
-        ChunkFetchFailureUtils.withErrorCode(ErrorCode.STREAM_NOT_REGISTERED, message)))
+      client.getChannel.writeAndFlush(new ChunkFetchFailure(streamChunkSlice, message))
       return
     }
 

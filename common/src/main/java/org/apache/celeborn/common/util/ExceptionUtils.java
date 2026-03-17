@@ -23,9 +23,6 @@ import java.io.StringWriter;
 
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.exception.PartitionUnRetryAbleException;
-import org.apache.celeborn.common.network.client.ChunkFetchFailureException;
-import org.apache.celeborn.common.network.protocol.ChunkFetchFailureUtils;
-import org.apache.celeborn.common.network.protocol.ChunkFetchFailureUtils.ErrorCode;
 
 public class ExceptionUtils {
 
@@ -80,14 +77,7 @@ public class ExceptionUtils {
   public static boolean isStaleStreamChunkFetchFailure(Throwable throwable) {
     Throwable current = throwable;
     while (current != null) {
-      if (current instanceof ChunkFetchFailureException
-          && ((ChunkFetchFailureException) current).getErrorCode() == ErrorCode.STREAM_NOT_REGISTERED) {
-        return true;
-      }
       String message = current.getMessage();
-      if (ChunkFetchFailureUtils.getErrorCode(message) == ErrorCode.STREAM_NOT_REGISTERED) {
-        return true;
-      }
       if (message != null && message.contains("is not registered with worker")) {
         return true;
       }
