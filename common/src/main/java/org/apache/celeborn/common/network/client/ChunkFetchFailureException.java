@@ -19,15 +19,10 @@ package org.apache.celeborn.common.network.client;
 
 import java.io.IOException;
 
+import org.apache.celeborn.common.network.protocol.ChunkFetchFailureUtils.ErrorCode;
+
 /** General exception caused by a remote exception while fetching a chunk. */
 public class ChunkFetchFailureException extends IOException {
-  private static final String ERROR_CODE_PREFIX = "[CELEBORN_CHUNK_FETCH_ERROR_CODE=";
-  private static final String ERROR_CODE_SUFFIX = "]";
-
-  public enum ErrorCode {
-    STREAM_NOT_REGISTERED
-  }
-
   private final ErrorCode errorCode;
 
   public ChunkFetchFailureException(String errorMsg, Throwable cause) {
@@ -50,44 +45,5 @@ public class ChunkFetchFailureException extends IOException {
 
   public ErrorCode getErrorCode() {
     return errorCode;
-  }
-
-  public static String withErrorCode(ErrorCode errorCode, String message) {
-    return ERROR_CODE_PREFIX + errorCode.name() + ERROR_CODE_SUFFIX + " " + message;
-  }
-
-  public static ErrorCode getErrorCode(String message) {
-    if (message == null || !message.startsWith(ERROR_CODE_PREFIX)) {
-      return null;
-    }
-
-    int suffixIndex = message.indexOf(ERROR_CODE_SUFFIX, ERROR_CODE_PREFIX.length());
-    if (suffixIndex < 0) {
-      return null;
-    }
-
-    String errorCodeName = message.substring(ERROR_CODE_PREFIX.length(), suffixIndex);
-    try {
-      return ErrorCode.valueOf(errorCodeName);
-    } catch (IllegalArgumentException e) {
-      return null;
-    }
-  }
-
-  public static String getErrorMessage(String message) {
-    if (message == null) {
-      return null;
-    }
-
-    int suffixIndex = message.indexOf(ERROR_CODE_SUFFIX, ERROR_CODE_PREFIX.length());
-    if (!message.startsWith(ERROR_CODE_PREFIX) || suffixIndex < 0) {
-      return message;
-    }
-
-    int messageStartIndex = suffixIndex + ERROR_CODE_SUFFIX.length();
-    if (messageStartIndex < message.length() && message.charAt(messageStartIndex) == ' ') {
-      messageStartIndex++;
-    }
-    return message.substring(messageStartIndex);
   }
 }

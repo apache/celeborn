@@ -26,7 +26,7 @@ import org.junit.Test;
 
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.client.ChunkFetchFailureException;
-import org.apache.celeborn.common.network.client.ChunkFetchFailureException.ErrorCode;
+import org.apache.celeborn.common.network.protocol.ChunkFetchFailureUtils.ErrorCode;
 
 public class ExceptionUtilsSuiteJ {
   @Test
