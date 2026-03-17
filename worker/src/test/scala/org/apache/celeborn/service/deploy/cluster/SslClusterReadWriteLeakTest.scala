@@ -37,7 +37,6 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.ssl.SslSampleConfigs
 import org.apache.celeborn.common.protocol.{CompressionCodec, TransportModuleConstants}
-import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 /**
@@ -201,7 +200,6 @@ class SslClusterReadWriteLeakTest
 
     val conf = new CelebornConf()
       .set(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$testMasterPort")
-      .set(CelebornConf.SHUFFLE_COMPRESSION_CODEC.key, CompressionCodec.LZ4.name)
       .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "true")
       .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
       .set("celeborn.data.io.numConnectionsPerPeer", "1")
