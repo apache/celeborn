@@ -19,7 +19,7 @@ license: |
 # Gluten Support
 ## Velox Backend
 
-[Gluten](https://github.com/apache/incubator-gluten) with velox backend supports Celeborn as remote shuffle service. Below introduction is used to enable this feature.
+[Gluten](https://github.com/apache/gluten) with velox backend supports Celeborn as remote shuffle service. Below introduction is used to enable this feature.
 
 First refer to [Get Started With Velox](https://gluten.apache.org/docs/getting-started/velox-backend) to build Gluten with velox backend.
 
@@ -36,7 +36,7 @@ Then add the Gluten and Spark Celeborn Client packages to your Spark application
 
 ## ClickHouse Backend
 
-[Gluten](https://github.com/apache/incubator-gluten) with clickhouse backend supports Celeborn as remote shuffle service. Below introduction is used to enable this feature.
+[Gluten](https://github.com/apache/gluten) with clickhouse backend supports Celeborn as remote shuffle service. Below introduction is used to enable this feature.
 
 First refer to [Get Started With ClickHouse](https://gluten.apache.org/docs/getting-started/clickhouse-backend) to build Gluten with clickhouse backend.
 
