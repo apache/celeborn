@@ -947,6 +947,7 @@ private[celeborn] class Master(
       logError(s"Offer slots for $shuffleKey failed due to all workers are excluded!")
       context.reply(
         RequestSlotsResponse(StatusCode.WORKER_EXCLUDED, new WorkerResource(), requestSlots.packed))
+      return
     }
 
     val numWorkers = Math.min(
