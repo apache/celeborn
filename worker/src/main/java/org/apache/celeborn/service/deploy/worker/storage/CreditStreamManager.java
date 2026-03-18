@@ -93,7 +93,7 @@ public class CreditStreamManager {
         streamId,
         fileInfo);
 
-    AtomicReference<IOException> exception = new AtomicReference();
+    AtomicReference<IOException> exception = new AtomicReference<>();
     MapPartitionData mapPartitionData =
         activeMapPartitions.compute(
             fileInfo,
@@ -166,7 +166,7 @@ public class CreditStreamManager {
         mapPartitionData.addReaderCredit(numCredit, streamId);
       }
     } catch (Throwable e) {
-      logger.error("streamId: {}, add credit end: {}", streamId, numCredit);
+      logger.error("streamId: {}, failed to add credit: {}", streamId, numCredit, e);
     }
   }
 
@@ -185,23 +185,21 @@ public class CreditStreamManager {
         logger.warn("Only non-null SegmentMapPartitionData is expected for notifyRequiredSegment.");
       }
     } catch (Throwable e) {
-      logger.error(
-          String.format("Fail to notify segmentId %s for stream %s.", requiredSegmentId, streamId),
-          e);
+      logger.error("Failed to notify segmentId {} for stream {}.", requiredSegmentId, streamId, e);
       throw e;
     }
   }
 
   public void addCredit(int numCredit, long streamId) {
-    if (!streams.containsKey(streamId)) {
+    StreamState streamState = streams.get(streamId);
+    if (streamState == null) {
       // In flink hybrid shuffle integration strategy, the stream may release in worker before
       // client receive bufferStreamEnd,
       // and the client may send request with old streamId, so ignore non-exist streams.
       logger.warn("Ignore AddCredit from stream {}, numCredit {}.", streamId, numCredit);
       return;
     }
-    MapPartitionData mapPartitionData = streams.get(streamId).getMapPartitionData();
-    addCredit(mapPartitionData, numCredit, streamId);
+    addCredit(streamState.getMapPartitionData(), numCredit, streamId);
   }
 
   public void notifyRequiredSegment(int requiredSegmentId, long streamId, int subPartitionId) {
@@ -278,8 +276,9 @@ public class CreditStreamManager {
 
   public void cleanResource(Long streamId) {
     logger.debug("received clean stream: {}", streamId);
-    if (streams.containsKey(streamId)) {
-      MapPartitionData mapPartitionData = streams.get(streamId).getMapPartitionData();
+    StreamState streamState = streams.get(streamId);
+    if (streamState != null) {
+      MapPartitionData mapPartitionData = streamState.getMapPartitionData();
       if (mapPartitionData != null) {
         if (mapPartitionData.releaseReader(streamId)) {
           streams.remove(streamId);
@@ -380,11 +379,7 @@ public class CreditStreamManager {
 
     @Override
     public String toString() {
-      final StringBuilder sb = new StringBuilder("DelayedStreamId{");
-      sb.append("createMillis=").append(createMillis);
-      sb.append(", streamId=").append(streamId);
-      sb.append('}');
-      return sb.toString();
+      return "DelayedStreamId{" + "createMillis=" + createMillis + ", streamId=" + streamId + '}';
     }
   }
 }
