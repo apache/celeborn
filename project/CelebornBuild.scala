@@ -481,9 +481,6 @@ object CelebornBuild extends sbt.internal.BuildDef {
   }
 
   // ThisBuild / parallelExecution := false
-  // Align with Maven surefire forkCount=1: only one forked test JVM at a time
-  Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
-
   // scalaVersion := "2.11.12"
 
   // autoScalaLibrary := false
