@@ -335,11 +335,13 @@ public class MemoryManager {
     }
     switch (servingState) {
       case PUSH_PAUSED:
+        if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
+          resumeReplicate();
+        }
         if (!tryResumeByPinnedMemory(servingState, lastState)) {
           pausePushDataCounter.increment();
           if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
             appendPauseSpentTime(lastState);
-            resumeReplicate();
           } else {
             if (servingState != lastState) {
               pausePushDataStartTime = System.currentTimeMillis();
