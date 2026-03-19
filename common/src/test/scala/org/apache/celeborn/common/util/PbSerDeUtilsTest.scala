@@ -77,42 +77,36 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
 
   val fileInfo1 = new DiskFileInfo(
     userIdentifier1,
-    true,
     new ReduceFileMeta(chunkOffsets1, 123),
     file1.getAbsolutePath,
     StorageInfo.Type.HDD,
     3000L)
   val fileInfo2 = new DiskFileInfo(
     userIdentifier2,
-    true,
     new ReduceFileMeta(chunkOffsets2, 123),
     file2.getAbsolutePath,
     StorageInfo.Type.SSD,
     6000L)
   val fileInfo3 = new DiskFileInfo(
     userIdentifier3,
-    true,
     new ReduceFileMeta(chunkOffsets3, 123),
     file3,
     StorageInfo.Type.HDFS,
     6000L)
   val fileInfo4 = new DiskFileInfo(
     userIdentifier3,
-    true,
     new ReduceFileMeta(chunkOffsets3, 123),
     file4,
     StorageInfo.Type.OSS,
     6000L)
   val fileInfo5 = new DiskFileInfo(
     userIdentifier3,
-    true,
     new ReduceFileMeta(chunkOffsets3, 123),
     file5,
     StorageInfo.Type.S3,
     6000L)
   val fileInfo6 = new DiskFileInfo(
     userIdentifier3,
-    true,
     new ReduceFileMeta(chunkOffsets3, 123),
     file6,
     StorageInfo.Type.S3,
@@ -120,14 +114,12 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
 
   val mapFileInfo1 = new DiskFileInfo(
     userIdentifier1,
-    true,
     new MapFileMeta(1024, 10),
     file1.getAbsolutePath,
     StorageInfo.Type.HDD,
     6000L)
   val mapFileInfo2 = new DiskFileInfo(
     userIdentifier2,
-    true,
     new MapFileMeta(1024, 10),
     file2.getAbsolutePath,
     StorageInfo.Type.SSD,
@@ -376,7 +368,6 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
       .setFilePath(diskFileInfo.getFilePath)
       .setUserIdentifier(toPbUserIdentifier(diskFileInfo.getUserIdentifier))
       .setBytesFlushed(diskFileInfo.getFileLength)
-      .setPartitionSplitEnabled(diskFileInfo.isPartitionSplitEnabled)
     val reduceFileMeta = diskFileInfo.getFileMeta.asInstanceOf[ReduceFileMeta]
     builder.setPartitionType(PartitionType.REDUCE.getValue)
     builder.addAllChunkOffsets(reduceFileMeta.getChunkOffsets)
