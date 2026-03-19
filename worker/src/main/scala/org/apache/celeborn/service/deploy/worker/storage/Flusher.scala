@@ -50,6 +50,9 @@ abstract private[worker] class Flusher(
   protected val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf]()
   protected val workers = new Array[ExecutorService](threadCount)
   protected val nextWorkerIndex: AtomicInteger = new AtomicInteger(0)
+  private val workerIndexUpdater: IntUnaryOperator = new IntUnaryOperator {
+    override def applyAsInt(i: Int): Int = (i + 1) % threadCount
+  }
 
   val lastBeginFlushTime: AtomicLongArray = new AtomicLongArray(threadCount)
   val stopFlag = new AtomicBoolean(false)
@@ -106,9 +109,7 @@ abstract private[worker] class Flusher(
   }
 
   def getWorkerIndex: Int = {
-    nextWorkerIndex.updateAndGet(new IntUnaryOperator {
-      override def applyAsInt(i: Int): Int = (i + 1) % threadCount
-    })
+    nextWorkerIndex.updateAndGet(workerIndexUpdater)
   }
 
   def takeBuffer(): CompositeByteBuf = {
