@@ -296,10 +296,20 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     heartbeater.stop()
 
     masterClient.close()
-    // Note: rpcEnv shutdown is handled in stop() to avoid deadlock.
-    // onStop() runs inside the dispatcher threadpool, so calling
-    // rpcEnv.awaitTermination() here would block the threadpool thread
-    // waiting for itself to terminate.
+    if (rpcEnv != null) {
+      rpcEnv.shutdown()
+      rpcEnv.awaitTermination()
+    }
+    if (authEnabled) {
+      if (masterRpcEnvInUse != null) {
+        masterRpcEnvInUse.shutdown()
+        masterRpcEnvInUse.awaitTermination()
+      }
+      if (workerRpcEnvInUse != null) {
+        workerRpcEnvInUse.shutdown()
+        workerRpcEnvInUse.awaitTermination()
+      }
+    }
     messagesHelper.close()
   }
 
@@ -2020,28 +2030,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
    */
   override def stop(): Unit = {
     heartbeater.stop()
-    // super.stop() triggers onStop() asynchronously via the dispatcher message loop.
-    // onStop() cleans up internal managers but does NOT shut down rpcEnv, because
-    // calling rpcEnv.awaitTermination() inside the dispatcher threadpool would deadlock.
     super.stop()
-    // Shut down all RpcEnv instances synchronously here so that callers (e.g. tests)
-    // can be sure all resources (clientConnectionExecutor, TransportClientFactory
-    // connection pools, etc.) are fully cleaned up when stop() returns.
-    if (rpcEnv != null) {
-      rpcEnv.shutdown()
-      rpcEnv.awaitTermination()
-    }
-    if (authEnabled) {
-      if (masterRpcEnvInUse != null) {
-        masterRpcEnvInUse.shutdown()
-        masterRpcEnvInUse.awaitTermination()
-      }
-      if (workerRpcEnvInUse != null) {
-        workerRpcEnvInUse.shutdown()
-        workerRpcEnvInUse.awaitTermination()
-      }
-    }
-    ThreadUtils.shutdown(rpcSharedThreadPool)
   }
 
   private def createSecret(): String = {
