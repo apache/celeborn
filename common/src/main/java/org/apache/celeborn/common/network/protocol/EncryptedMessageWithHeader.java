@@ -89,40 +89,42 @@ public class EncryptedMessageWithHeader implements ChunkedInput<ByteBuf> {
       ByteBuf bodyBuf = (ByteBuf) body;
       totalBytesTransferred = headerLength + bodyLength;
       return Unpooled.wrappedBuffer(header.retain(), bodyBuf.retain());
-    } else if (totalBytesTransferred < headerLength) {
-      totalBytesTransferred += headerLength;
-      return header.retain();
-    } else if (body instanceof InputStream) {
-      InputStream stream = (InputStream) body;
-      int available = stream.available();
-      if (available <= 0) {
-        available = (int) (length() - totalBytesTransferred);
-      } else {
-        available = (int) Math.min(available, length() - totalBytesTransferred);
-      }
-      ByteBuf buffer = allocator.buffer(available);
-      int toRead = Math.min(available, buffer.writableBytes());
-      int read = buffer.writeBytes(stream, toRead);
-      if (read >= 0) {
-        totalBytesTransferred += read;
-        return buffer;
-      } else {
-        throw new EOFException("Unable to read bytes from InputStream");
-      }
-    } else if (body instanceof ChunkedStream) {
-      ChunkedStream stream = (ChunkedStream) body;
-      long old = stream.transferredBytes();
-      ByteBuf buffer = stream.readChunk(allocator);
-      long read = stream.transferredBytes() - old;
-      if (read >= 0) {
-        totalBytesTransferred += read;
-        assert (totalBytesTransferred <= length());
-        return buffer;
-      } else {
-        throw new EOFException("Unable to read bytes from ChunkedStream");
-      }
     } else {
-      return null;
+      if (totalBytesTransferred < headerLength) {
+        totalBytesTransferred += headerLength;
+        return header.retain();
+      } else if (body instanceof InputStream) {
+        InputStream stream = (InputStream) body;
+        int available = stream.available();
+        if (available <= 0) {
+          available = (int) (length() - totalBytesTransferred);
+        } else {
+          available = (int) Math.min(available, length() - totalBytesTransferred);
+        }
+        ByteBuf buffer = allocator.buffer(available);
+        int toRead = Math.min(available, buffer.writableBytes());
+        int read = buffer.writeBytes(stream, toRead);
+        if (read >= 0) {
+          totalBytesTransferred += read;
+          return buffer;
+        } else {
+          throw new EOFException("Unable to read bytes from InputStream");
+        }
+      } else if (body instanceof ChunkedStream) {
+        ChunkedStream stream = (ChunkedStream) body;
+        long old = stream.transferredBytes();
+        ByteBuf buffer = stream.readChunk(allocator);
+        long read = stream.transferredBytes() - old;
+        if (read >= 0) {
+          totalBytesTransferred += read;
+          assert (totalBytesTransferred <= length());
+          return buffer;
+        } else {
+          throw new EOFException("Unable to read bytes from ChunkedStream");
+        }
+      } else {
+        return null;
+      }
     }
   }
 
