@@ -46,6 +46,11 @@ class StubShuffleClient : public ShuffleClient {
       override {
     return 0;
   }
+  int mergeData(int, int, int, int, const uint8_t*, size_t, size_t, int, int)
+      override {
+    return 0;
+  }
+  void pushMergedData(int, int, int) override {}
   void mapperEnd(int, int, int, int) override {}
   void cleanup(int, int, int) override {}
   void updateReducerFileGroup(int) override {}
