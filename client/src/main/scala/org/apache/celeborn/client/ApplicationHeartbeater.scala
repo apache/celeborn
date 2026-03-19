@@ -59,6 +59,7 @@ class ApplicationHeartbeater(
     appHeartbeat = appHeartbeatHandlerThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = {
+          if (stopped) return
           try {
             require(masterClient != null, "When sending a heartbeat, client shouldn't be null.")
             val (
@@ -117,12 +118,15 @@ class ApplicationHeartbeater(
               }
             }
           } catch {
-            case it: InterruptedException =>
+            case _: InterruptedException =>
               logWarning("Interrupted while sending app heartbeat.")
               Thread.currentThread().interrupt()
-              throw it
             case t: Throwable =>
-              logError("Error while send heartbeat", t)
+              if (!stopped) {
+                logError("Error while send heartbeat", t)
+              } else {
+                logWarning(s"Error while send heartbeat during shutdown, ignore it.", t)
+              }
           }
         }
       },
@@ -139,7 +143,11 @@ class ApplicationHeartbeater(
         classOf[HeartbeatFromApplicationResponse])
     } catch {
       case e: Exception =>
-        logError("AskSync HeartbeatFromApplication failed.", e)
+        if (!stopped) {
+          logError("AskSync HeartbeatFromApplication failed.", e)
+        } else {
+          logWarning("AskSync HeartbeatFromApplication failed during shutdown, ignore it.", e)
+        }
         HeartbeatFromApplicationResponse(
           StatusCode.REQUEST_FAILED,
           List.empty.asJava,
@@ -173,14 +181,14 @@ class ApplicationHeartbeater(
   def stop(): Unit = {
     this.synchronized {
       if (!stopped) {
-        // Stop appHeartbeat first
+        // Set stopped first so in-flight heartbeat tasks can detect shutdown state
+        stopped = true
         logInfo(s"Stop Application heartbeat $appId")
         appHeartbeat.cancel(true)
         ThreadUtils.shutdown(appHeartbeatHandlerThread)
         if (applicationUnregisterEnabled) {
           unregisterApplication()
         }
-        stopped = true
       }
     }
   }
