@@ -21,7 +21,6 @@ import scala.collection.JavaConverters._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.scalatest.Ignore
 import org.scalatest.concurrent.Eventually._
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
@@ -30,7 +29,6 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.service.deploy.worker.Worker
 
-@Ignore
 class CelebornHashCheckDiskSuite extends SparkTestBase {
 
   var workers: collection.Set[Worker] = _
@@ -52,7 +50,7 @@ class CelebornHashCheckDiskSuite extends SparkTestBase {
     System.gc()
   }
 
-  test("celeborn spark integration test - hash-checkDiskFull") {
+  ignore("celeborn spark integration test - hash-checkDiskFull") {
     val sparkConf = new SparkConf().setAppName("celeborn-demo")
       .setMaster("local[2]")
       .set(s"spark.${CelebornConf.SHUFFLE_EXPIRED_CHECK_INTERVAL.key}", "20s")
