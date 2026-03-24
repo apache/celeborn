@@ -77,7 +77,7 @@ class SslClusterReadWriteLeakSuite
     previousLeakFactory = ResourceLeakDetectorFactory.instance()
 
     // Install the leak-counting detector BEFORE any Netty buffers are allocated so that
-    // AbstractByteBuf.leakDetector (a static final field) is initialised with our instance
+    // AbstractByteBuf.leakDetector (a static final field) is initialized with our instance
     // rather than the default one.
     installLeakCountingDetector()
 
