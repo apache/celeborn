@@ -418,6 +418,7 @@ class LocalTierWriter(
     FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath)
 
   val gatherApiEnabled: Boolean = conf.workerFlusherLocalGatherAPIEnabled
+  val commitFilesSync: Boolean = conf.workerCommitFilesFsync
 
   override def needEvict(): Boolean = {
     false
@@ -458,6 +459,9 @@ class LocalTierWriter(
   }
 
   override def closeStreams(): Unit = {
+    if (commitFilesSync) {
+      channel.force(false)
+    }
     channel.close()
   }
 
