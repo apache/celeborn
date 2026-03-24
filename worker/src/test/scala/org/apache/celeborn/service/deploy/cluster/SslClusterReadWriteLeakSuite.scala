@@ -56,6 +56,8 @@ class SslClusterReadWriteLeakSuite
 
   private val reportedLeaks = new AtomicInteger(0)
 
+  private var previousLeakLevel: ResourceLeakDetector.Level = _
+  private var previousLeakFactory: ResourceLeakDetectorFactory = _
   private var testMasterPort: Int = _
 
   private lazy val serverSslConf: Map[String, String] = {
@@ -69,6 +71,10 @@ class SslClusterReadWriteLeakSuite
   }
 
   override def beforeAll(): Unit = {
+
+    // Capture the original leak detection settings so we can restore them in afterAll().
+    previousLeakLevel = ResourceLeakDetector.getLevel
+    previousLeakFactory = ResourceLeakDetectorFactory.instance()
 
     // Install the leak-counting detector BEFORE any Netty buffers are allocated so that
     // AbstractByteBuf.leakDetector (a static final field) is initialised with our instance
@@ -95,12 +101,28 @@ class SslClusterReadWriteLeakSuite
 
   override def afterAll(): Unit = {
     shutdownMiniCluster()
-    ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.DISABLED)
+    // Restore the original leak detection settings so that other suites running
+    // in the same JVM (forkMode=once) are not affected.
+    ResourceLeakDetector.setLevel(previousLeakLevel)
+    ResourceLeakDetectorFactory.setResourceLeakDetectorFactory(previousLeakFactory)
   }
 
   // ---------------------------------------------------------------------------
 
   test("SSL mini-cluster: push+replicate+fetch large data produces no ByteBuf memory leaks") {
+    // Verify that our custom leak-counting detector is the one actually installed in
+    // AbstractByteBuf.leakDetector (a static final field). In a shared JVM (scalatest
+    // forkMode=once), an earlier suite may have triggered class loading of AbstractByteBuf,
+    // causing the default detector to be installed instead of ours. In that case, skip
+    // the test rather than silently producing false negatives.
+    val field = classOf[io.netty.buffer.AbstractByteBuf].getDeclaredField("leakDetector")
+    field.setAccessible(true)
+    val detector = field.get(null)
+    assume(
+      detector.getClass.getEnclosingClass == classOf[SslClusterReadWriteLeakSuite],
+      "Leak-counting detector is not active — AbstractByteBuf.leakDetector was " +
+        "initialised by an earlier test in this JVM. Skipping leak assertions.")
+
     val app = "app-ssl-leak-test"
     val clientConf = buildSslClientConf(app)
     val lifecycleManager = new LifecycleManager(app, clientConf)
@@ -137,14 +159,18 @@ class SslClusterReadWriteLeakSuite
       }
       val inputStream =
         shuffleClient.readPartition(1, 0, 0, 0L, 0, Integer.MAX_VALUE, metricsCallback)
-      val output = new ByteArrayOutputStream()
-      var b = inputStream.read()
-      while (b != -1) {
-        output.write(b)
-        b = inputStream.read()
-      }
+      try {
+        val output = new ByteArrayOutputStream()
+        var b = inputStream.read()
+        while (b != -1) {
+          output.write(b)
+          b = inputStream.read()
+        }
 
-      Assert.assertEquals(expectedBytes, output.size())
+        Assert.assertEquals(expectedBytes, output.size())
+      } finally {
+        inputStream.close()
+      }
     } finally {
       Thread.sleep(2000) // let in-flight replication finish before shutdown
       shuffleClient.shutdown()
