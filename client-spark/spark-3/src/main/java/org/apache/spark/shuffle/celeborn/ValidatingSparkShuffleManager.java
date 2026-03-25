@@ -81,7 +81,7 @@ public class ValidatingSparkShuffleManager implements ShuffleManager {
     if (dependency.rdd().partitions().length == 0) {
       logger.error("Registering empty shuffle {}", shuffleId);
     }
-    try (var ignored = new TimeLogger("registerShuffle")) {
+    try (TimeLogger ignored = new TimeLogger("registerShuffle")) {
       return sparkShuffleManager.registerShuffle(shuffleId, dependency);
     }
   }
@@ -99,7 +99,7 @@ public class ValidatingSparkShuffleManager implements ShuffleManager {
           "Expected non-empty shuffle for shuffleId %s",
           celebornHandle.shuffleId());
     }
-    try (var ignored = new TimeLogger("getWriter")) {
+    try (TimeLogger ignored = new TimeLogger("getWriter")) {
       CelebornIntegrityCheckTracker.checkEnabled();
       return sparkShuffleManager.getWriter(handle, mapId, context, metrics);
     }
@@ -115,7 +115,7 @@ public class ValidatingSparkShuffleManager implements ShuffleManager {
     if (emptyShuffleReader(handle)) {
       return ValidatingIterator::empty;
     }
-    try (var ignored = new TimeLogger("getReader")) {
+    try (TimeLogger ignored = new TimeLogger("getReader")) {
       return new ValidatingShuffleReader<>(
           sparkShuffleManager.getReader(handle, startPartition, endPartition, context, metrics),
           handle.shuffleId(),
@@ -138,7 +138,7 @@ public class ValidatingSparkShuffleManager implements ShuffleManager {
     if (emptyShuffleReader(handle)) {
       return ValidatingIterator::empty;
     }
-    try (var ignored = new TimeLogger("getReader")) {
+    try (TimeLogger ignored = new TimeLogger("getReader")) {
       return new ValidatingShuffleReader<>(
           sparkShuffleManager.getReader(
               handle, startMapIndex, endMapIndex, startPartition, endPartition, context, metrics),
@@ -152,21 +152,21 @@ public class ValidatingSparkShuffleManager implements ShuffleManager {
 
   @Override
   public boolean unregisterShuffle(int shuffleId) {
-    try (var ignored = new TimeLogger("unregisterShuffle")) {
+    try (TimeLogger ignored = new TimeLogger("unregisterShuffle")) {
       return sparkShuffleManager.unregisterShuffle(shuffleId);
     }
   }
 
   @Override
   public ShuffleBlockResolver shuffleBlockResolver() {
-    try (var ignored = new TimeLogger("shuffleBlockResolver")) {
+    try (TimeLogger ignored = new TimeLogger("shuffleBlockResolver")) {
       return sparkShuffleManager.shuffleBlockResolver();
     }
   }
 
   @Override
   public void stop() {
-    try (var ignored = new TimeLogger("stop")) {
+    try (TimeLogger ignored = new TimeLogger("stop")) {
       sparkShuffleManager.stop();
     }
   }
