@@ -193,7 +193,7 @@ public class CelebornIntegrityCheckTracker {
         int endMapper,
         int minPartition,
         int maxPartition) {
-      var removed = readers.remove(reader);
+      boolean removed = readers.remove(reader);
       checkState(removed, "Reader not registered: %s", reader);
       for (int partition = minPartition; partition < maxPartition; partition++) {
         CelebornReaderContextPartition key =
