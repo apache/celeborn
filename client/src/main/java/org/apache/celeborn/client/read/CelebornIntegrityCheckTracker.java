@@ -41,13 +41,13 @@ import org.slf4j.LoggerFactory;
  *   <li>{@link #startTask()} — called at task start, initialises the per-task context.
  *   <li>{@link #registerReader(Iterator)} — called when a {@code ValidatingIterator} is
  *       constructed; records it so we can later verify it was fully consumed.
- *   <li>{@link #registerValidation(int, int, int, int)} — called from {@link
- *       CelebornInputStream}'s {@code validateIntegrity()} after the integrity RPC succeeds.
- *   <li>{@link #ensureIntegrityCheck} — called by {@code ValidatingIterator} when {@code
- *       hasNext()} first returns {@code false}; asserts that every expected partition has a
- *       matching {@code registerValidation} entry.
- *   <li>{@link #finishTask()} — called on task success; asserts no readers finished
- *       prematurely, then cleans up.
+ *   <li>{@link #registerValidation(int, int, int, int)} — called from {@link CelebornInputStream}'s
+ *       {@code validateIntegrity()} after the integrity RPC succeeds.
+ *   <li>{@link #ensureIntegrityCheck} — called by {@code ValidatingIterator} when {@code hasNext()}
+ *       first returns {@code false}; asserts that every expected partition has a matching {@code
+ *       registerValidation} entry.
+ *   <li>{@link #finishTask()} — called on task success; asserts no readers finished prematurely,
+ *       then cleans up.
  *   <li>{@link #discard()} — called on task failure; skips assertions and cleans up.
  * </ol>
  */
