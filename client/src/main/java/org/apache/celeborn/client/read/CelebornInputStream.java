@@ -768,6 +768,8 @@ public abstract class CelebornInputStream extends InputStream {
           partitionId,
           aggregatedActualCommitMetadata);
       integrityChecked = true;
+      CelebornIntegrityCheckTracker.registerValidation(
+          shuffleId, startMapIndex, endMapIndex, partitionId);
     }
 
     private boolean moveToNextChunk() throws IOException {
@@ -886,7 +888,6 @@ public abstract class CelebornInputStream extends InputStream {
 
         if (!hasData) {
           validateIntegrity();
-          // TODO(gaurav): consider closing the stream
         }
         return hasData;
       } catch (LZ4Exception | ZstdException | IOException e) {
