@@ -320,6 +320,8 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
     val conf = new CelebornConf()
     conf.set("celeborn.worker.commitFiles.fsync", "true")
     val localTierWriter = prepareLocalTierWriter(false, conf)
+
+    assert(localTierWriter.commitFilesFsync === true)
     for (i <- 1 to 10) {
       localTierWriter.numPendingWrites.incrementAndGet()
       localTierWriter.write(WriterUtils.generateSparkFormatData(

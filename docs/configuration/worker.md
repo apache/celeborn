@@ -20,7 +20,6 @@ license: |
 | Key | Default | isDynamic | Description | Since | Deprecated |
 | --- | ------- | --------- | ----------- | ----- | ---------- |
 | celeborn.cluster.name | default | false | Celeborn cluster name. | 0.5.0 |  | 
-| celeborn.commitFiles.fsync | false | false | Whether to fsync (fdatasync) shuffle data when committing. When enabled, each partition file is fsynced to disk before the commit completes ensuring committed data survives OS crashes, hard reboots etc. | 0.7.0 |  | 
 | celeborn.container.info.provider | org.apache.celeborn.server.common.container.DefaultContainerInfoProvider | false | ContainerInfoProvider class name. Default class is `org.apache.celeborn.server.common.container.DefaultContainerInfoProvider`.  | 0.6.0 |  | 
 | celeborn.dynamicConfig.refresh.interval | 120s | false | Interval for refreshing the corresponding dynamic config periodically. | 0.4.0 |  | 
 | celeborn.dynamicConfig.store.backend | &lt;undefined&gt; | false | Store backend for dynamic config service. The store backend can be specified in two ways: - Using the short name of the store backend defined in the implementation of `ConfigStore#getName` whose return value can be mapped to the corresponding backend implementation. Available options: FS, DB. - Using the service class name of the store backend implementation. If not provided, it means that dynamic configuration is disabled. | 0.4.0 |  | 
@@ -64,6 +63,7 @@ license: |
 | celeborn.worker.clean.threads | 64 | false | Thread number of worker to clean up expired shuffle keys. | 0.3.2 |  | 
 | celeborn.worker.closeIdleConnections | false | false | Whether worker will close idle connections. | 0.2.0 |  | 
 | celeborn.worker.commitFiles.check.interval | 100 | false | Time length for a window about checking whether commit shuffle data files finished. | 0.6.0 |  | 
+| celeborn.worker.commitFiles.fsync | false | false | Whether to fsync (fdatasync) shuffle data when committing. When enabled, each partition file is fsynced to disk before the commit completes ensuring committed data survives OS crashes, hard reboots etc. Enabling ensures durability but can add some latency to commit times. | 0.7.0 |  | 
 | celeborn.worker.commitFiles.threads | 32 | false | Thread number of worker to commit shuffle data files asynchronously. It's recommended to set at least `128` when `HDFS` is enabled in `celeborn.storage.availableTypes`. | 0.3.0 | celeborn.worker.commit.threads | 
 | celeborn.worker.commitFiles.timeout | 120s | false | Timeout for a Celeborn worker to commit files of a shuffle. It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.availableTypes`. | 0.3.0 | celeborn.worker.shuffle.commit.timeout | 
 | celeborn.worker.congestionControl.check.interval | 10ms | false | Interval of worker checks congestion if celeborn.worker.congestionControl.enabled is true. | 0.3.2 |  | 
