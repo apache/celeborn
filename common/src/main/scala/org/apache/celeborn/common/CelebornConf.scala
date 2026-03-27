@@ -859,6 +859,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerCommitThreads: Int =
     if (hasHDFSStorage) Math.max(128, get(WORKER_COMMIT_THREADS)) else get(WORKER_COMMIT_THREADS)
   def workerCommitFilesCheckInterval: Long = get(WORKER_COMMIT_FILES_CHECK_INTERVAL)
+  def workerCommitFilesFsync: Boolean = get(WORKER_COMMIT_FILES_FSYNC)
   def workerCleanThreads: Int = get(WORKER_CLEAN_THREADS)
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def maxPartitionSizeToEstimate: Long =
@@ -3770,6 +3771,16 @@ object CelebornConf extends Logging {
       .doc("Time length for a window about checking whether commit shuffle data files finished.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("100")
+  val WORKER_COMMIT_FILES_FSYNC: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.commitFiles.fsync")
+      .categories("worker")
+      .version("0.7.0")
+      .doc("Whether to fsync (fdatasync) shuffle data when committing. " +
+        "When enabled, each partition file is fsynced to disk before the commit completes " +
+        "ensuring committed data survives OS crashes, hard reboots etc. " +
+        "Enabling ensures durability but can add some latency to commit times.")
+      .booleanConf
+      .createWithDefault(false)
 
   val WORKER_CLEAN_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.worker.clean.threads")

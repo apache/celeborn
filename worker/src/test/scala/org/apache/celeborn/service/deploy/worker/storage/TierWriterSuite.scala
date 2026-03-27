@@ -175,8 +175,9 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
 
   }
 
-  private def prepareLocalTierWriter(rangeFilter: Boolean): LocalTierWriter = {
-    val celebornConf = new CelebornConf()
+  private def prepareLocalTierWriter(
+      rangeFilter: Boolean,
+      celebornConf: CelebornConf = new CelebornConf()): LocalTierWriter = {
     celebornConf.set("celeborn.worker.memoryFileStorage.maxFileSize", "80k")
     celebornConf.set("celeborn.client.shuffle.rangeReadFilter.enabled", rangeFilter.toString)
     val reduceFileMeta = new ReduceFileMeta(celebornConf.shuffleChunkSize)
@@ -313,5 +314,23 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
     assert(
       localTierWriter.fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getLastChunkOffset == 10240)
 
+  }
+
+  test("test local tier writer with fsync enabled") {
+    val conf = new CelebornConf()
+    conf.set("celeborn.worker.commitFiles.fsync", "true")
+    val localTierWriter = prepareLocalTierWriter(false, conf)
+
+    assert(localTierWriter.commitFilesFsync === true)
+    for (i <- 1 to 10) {
+      localTierWriter.numPendingWrites.incrementAndGet()
+      localTierWriter.write(WriterUtils.generateSparkFormatData(
+        UnpooledByteBufAllocator.DEFAULT,
+        0))
+    }
+
+    val fileLen = localTierWriter.close()
+    assert(fileLen == 10240)
+    assert(localTierWriter.closed === true)
   }
 }
