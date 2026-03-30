@@ -18,6 +18,8 @@
 package org.apache.celeborn.client
 
 import java.util
+import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
+import java.util.concurrent.atomic.AtomicInteger
 
 import org.junit.Assert
 
@@ -90,6 +92,54 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     statusTracker.handleHeartbeatResponse(response3)
     Assert.assertEquals(statusTracker.excludedWorkers.size(), 2)
     Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mock("host1")))
+  }
+
+  test("concurrent access to shuttingWorkers should not throw ConcurrentModificationException") {
+    val celebornConf = new CelebornConf()
+    val statusTracker = new WorkerStatusTracker(celebornConf, null)
+    val executor = Executors.newFixedThreadPool(10)
+    val latch = new CountDownLatch(1)
+    val errors = new AtomicInteger(0)
+
+    // Writers: concurrently add and remove workers
+    (1 to 5).foreach { i =>
+      executor.submit(new Runnable {
+        override def run(): Unit = {
+          latch.await()
+          (1 to 1000).foreach { j =>
+            val worker = mock(s"host-$i-$j")
+            statusTracker.shuttingWorkers.add(worker)
+            statusTracker.shuttingWorkers.remove(worker)
+          }
+        }
+      })
+    }
+
+    // Readers: iterate shuttingWorkers via currentFailedWorkers (called through recordWorkerFailure)
+    (1 to 5).foreach { i =>
+      executor.submit(new Runnable {
+        override def run(): Unit = {
+          try {
+            latch.await()
+            (1 to 1000).foreach { _ =>
+              // Iterate over shuttingWorkers the same way currentFailedWorkers does
+              statusTracker.shuttingWorkers.forEach(_ => ())
+            }
+          } catch {
+            case _: java.util.ConcurrentModificationException =>
+              errors.incrementAndGet()
+          }
+        }
+      })
+    }
+
+    latch.countDown()
+    executor.shutdown()
+    Assert.assertTrue(executor.awaitTermination(30, TimeUnit.SECONDS))
+    Assert.assertEquals(
+      "ConcurrentModificationException should not occur with thread-safe set",
+      0,
+      errors.get())
   }
 
   private def buildResponse(
