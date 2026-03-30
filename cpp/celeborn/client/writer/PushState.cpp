@@ -250,12 +250,10 @@ bool PushState::addBatchData(
 
 std::shared_ptr<DataBatches> PushState::takeDataBatches(
     const std::string& addressPairKey) {
-  auto result = batchesMap_.get(addressPairKey);
-  if (result.has_value()) {
-    batchesMap_.erase(addressPairKey);
-    return result.value();
+  auto removed = batchesMap_.erase(addressPairKey);
+  if (removed.has_value()) {
+    return removed.value();
   }
-  return nullptr;
 }
 
 utils::ConcurrentHashMap<std::string, std::shared_ptr<DataBatches>>&

@@ -16,6 +16,7 @@
  */
 
 #include "celeborn/protocol/Encoders.h"
+#include <limits>
 #include "celeborn/utils/Exceptions.h"
 
 namespace celeborn {
@@ -46,7 +47,14 @@ int encodedLength(const std::vector<std::string>& arr) {
 void encode(
     memory::WriteOnlyByteBuffer& buffer,
     const std::vector<std::string>& arr) {
-  buffer.write<int>(static_cast<int>(arr.size()));
+  CELEBORN_CHECK_LE(
+      arr.size(),
+      static_cast<size_t>(std::numeric_limits<int>::max()),
+      "String array size {} exceeds INT_MAX ({})",
+      arr.size(),
+      std::numeric_limits<int>::max());
+  int count = static_cast<int>(arr.size());
+  buffer.write<int>(count);
   for (const auto& s : arr) {
     encode(buffer, s);
   }
@@ -56,8 +64,8 @@ std::vector<std::string> decodeStringArray(memory::ReadOnlyByteBuffer& buffer) {
   int count = buffer.read<int>();
   CELEBORN_CHECK_GE(count, 0, "Invalid string array count: {}", count);
   CELEBORN_CHECK_LE(
-      static_cast<size_t>(count) * sizeof(int),
-      buffer.remainingSize(),
+      static_cast<size_t>(count),
+      buffer.remainingSize() / sizeof(int),
       "String array count {} exceeds remaining buffer size {}",
       count,
       buffer.remainingSize());
@@ -76,7 +84,14 @@ int encodedLength(const std::vector<int32_t>& arr) {
 void encode(
     memory::WriteOnlyByteBuffer& buffer,
     const std::vector<int32_t>& arr) {
-  buffer.write<int>(static_cast<int>(arr.size()));
+  CELEBORN_CHECK_LE(
+      arr.size(),
+      static_cast<size_t>(std::numeric_limits<int>::max()),
+      "Int array size {} exceeds INT_MAX ({})",
+      arr.size(),
+      std::numeric_limits<int>::max());
+  int count = static_cast<int>(arr.size());
+  buffer.write<int>(count);
   for (auto val : arr) {
     buffer.write<int32_t>(val);
   }
@@ -86,8 +101,8 @@ std::vector<int32_t> decodeIntArray(memory::ReadOnlyByteBuffer& buffer) {
   int count = buffer.read<int>();
   CELEBORN_CHECK_GE(count, 0, "Invalid int array count: {}", count);
   CELEBORN_CHECK_LE(
-      static_cast<size_t>(count) * sizeof(int32_t),
-      buffer.remainingSize(),
+      static_cast<size_t>(count),
+      buffer.remainingSize() / sizeof(int32_t),
       "Int array count {} exceeds remaining buffer size {}",
       count,
       buffer.remainingSize());

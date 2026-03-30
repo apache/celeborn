@@ -93,6 +93,7 @@ void PushMergedDataCallback::onSuccess(
   }
 
   if (response->remainingSize() <= 0) {
+    pushState_->onSuccess(hostAndPushPort_);
     pushState_->removeBatch(groupedBatchId_, hostAndPushPort_);
     return;
   }
@@ -105,6 +106,7 @@ void PushMergedDataCallback::onSuccess(
           shuffleId_,
           []() { return std::make_shared<utils::ConcurrentHashSet<int>>(); });
       mapperEndSet->insert(mapId_);
+      pushState_->onSuccess(hostAndPushPort_);
       pushState_->removeBatch(groupedBatchId_, hostAndPushPort_);
       break;
     }
@@ -189,6 +191,10 @@ void PushMergedDataCallback::onSuccess(
           }
         }
 
+        // TODO: when dataPushFailureTrackingEnabled and pushReplicateEnabled,
+        // call pushState_->recordFailedBatch() for each batch in
+        // batchesToRetry to support adaptive skewed partition
+        // read optimization.
         if (!batchesToRetry.empty()) {
           long dueTimeMs = utils::currentTimeMillis() +
               sharedClient->conf_
@@ -208,6 +214,7 @@ void PushMergedDataCallback::onSuccess(
               remainingReviveTimes_,
               dueTimeMs);
         } else {
+          pushState_->onSuccess(hostAndPushPort_);
           pushState_->removeBatch(groupedBatchId_, hostAndPushPort_);
         }
       } else {
@@ -264,8 +271,14 @@ void PushMergedDataCallback::onSuccess(
       pushState_->removeBatch(groupedBatchId_, hostAndPushPort_);
       break;
     }
+    case protocol::StatusCode::SUCCESS: {
+      pushState_->onSuccess(hostAndPushPort_);
+      pushState_->removeBatch(groupedBatchId_, hostAndPushPort_);
+      break;
+    }
     default: {
       LOG(WARNING) << "unhandled PushMergedData success StatusCode: " << reason;
+      pushState_->onSuccess(hostAndPushPort_);
       pushState_->removeBatch(groupedBatchId_, hostAndPushPort_);
     }
   }
@@ -281,6 +294,10 @@ void PushMergedDataCallback::onFailure(
                  << " groupedBatch " << groupedBatchId_ << ".";
     return;
   }
+  // TODO: When dataPushFailureTrackingEnabled, call
+  // pushState_->recordFailedBatch() for each batch (using
+  // partitionUniqueIds[i], mapId_, attemptId_, batchIds[i]) to support
+  // adaptive skewed read optimization
   if (pushState_->exceptionExists()) {
     return;
   }

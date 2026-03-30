@@ -527,9 +527,12 @@ void ShuffleClientImpl::doPushMergedData(
       weak_from_this(),
       remainReviveTimes);
 
-  auto host = hostAndPushPort.substr(0, hostAndPushPort.find(':'));
-  auto portStr = hostAndPushPort.substr(hostAndPushPort.find(':') + 1);
-  auto port = static_cast<uint16_t>(std::stoi(portStr));
+  // Use the destination host and port from the first batch's location instead
+  // of parsing hostAndPushPort, to correctly handle IPv6 and avoid parse
+  // errors.
+  const auto& firstLoc = *callback->batches().front().loc;
+  const auto& host = firstLoc.host;
+  auto port = static_cast<uint16_t>(firstLoc.pushPort);
 
   auto client = clientFactory_->createClient(host, port);
   client->pushMergedDataAsync(
