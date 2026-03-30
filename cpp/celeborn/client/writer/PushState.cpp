@@ -254,6 +254,7 @@ std::shared_ptr<DataBatches> PushState::takeDataBatches(
   if (removed.has_value()) {
     return removed.value();
   }
+  return nullptr;
 }
 
 utils::ConcurrentHashMap<std::string, std::shared_ptr<DataBatches>>&

@@ -49,6 +49,10 @@ class PushMergedDataCallback
 
   void onFailure(std::unique_ptr<std::exception> exception) override;
 
+  const std::vector<DataBatch>& batches() const {
+    return batches_;
+  }
+
  private:
   PushMergedDataCallback(
       int shuffleId,
