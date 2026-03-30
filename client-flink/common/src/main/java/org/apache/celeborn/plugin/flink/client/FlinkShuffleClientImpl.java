@@ -461,7 +461,15 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                         .toByteBuffer(),
                     pushDataTimeout);
           } catch (IOException e) {
-            // ioexeption revive
+            // IOException during handshake, need to revive. TODO revive with handshake failure
+            // reason
+            logger.warn(
+                "PushDataHandShake failed for shuffle {} mapId {} attemptId {} locationId {}. Triggering revive.",
+                shuffleId,
+                mapId,
+                attemptId,
+                location.getUniqueId(),
+                e);
             return revive(shuffleId, mapId, attemptId, location);
           }
           if (pushDataHandShakeResponse.hasRemaining()
@@ -512,7 +520,14 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
                         .toByteBuffer(),
                     pushDataTimeout);
           } catch (IOException e) {
-            // ioexeption revive
+            // IOException during regionStart, need to revive
+            logger.warn(
+                "RegionStart failed for shuffle {} mapId {} attemptId {} locationId {}. Triggering revive.",
+                shuffleId,
+                mapId,
+                attemptId,
+                location.getUniqueId(),
+                e);
             return revive(shuffleId, mapId, attemptId, location);
           }
 

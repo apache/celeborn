@@ -138,8 +138,34 @@ public class MapPartitionDataReader implements Comparable<MapPartitionDataReader
       this.dataFileChannel = dataFileChannel;
       this.dataFileChannelSize = dataFileChannel.size();
       this.indexFileChannel = indexFileChannel;
+
+      int numSubpartitions = mapFileMeta.getNumSubpartitions();
+      // If numSubpartitions is 0, it means pushDataHandShake was never successfully called.
+      // This can happen when the first handshake failed before any data was written.
+      // In this case, check if data file is empty, and if so, treat this as an empty partition.
+      if (numSubpartitions == 0) {
+        if (dataFileChannelSize == 0) {
+          logger.warn(
+              "Partition {} has numSubpartitions=0 and empty data file, this indicates a failed "
+                  + "handshake before any data was written. Treating as empty partition.",
+              fileInfo.getFilePath());
+          isOpen = true;
+          // Mark as finished and notify consumer with backlog=1 so they can complete normally
+          closeReader();
+          notifyBacklog(1);
+          return;
+        } else {
+          // Data file has content but numSubpartitions is 0, this is a corrupted state
+          throw new FileCorruptedException(
+              "Partition "
+                  + fileInfo.getFilePath()
+                  + " has numSubpartitions=0 but data file size is "
+                  + dataFileChannelSize);
+        }
+      }
+
       // index is (offset,length)
-      long indexRegionSize = mapFileMeta.getNumSubpartitions() * (long) INDEX_ENTRY_SIZE;
+      long indexRegionSize = numSubpartitions * (long) INDEX_ENTRY_SIZE;
       this.numRegions = Utils.checkedDownCast(indexSize / indexRegionSize);
 
       updateConsumingOffset();
