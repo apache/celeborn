@@ -26,6 +26,16 @@ if not defined CELEBORN_HOME (
 
 call "%CELEBORN_HOME%\sbin\load-celeborn-env.cmd"
 
+:: Load CELEBORN_WORKER_MEMORY and CELEBORN_WORKER_OFFHEAP_MEMORY from celeborn-defaults-before-expand.conf
+:: (generated from celeborn.ini [celeborn-site] section by GenerateCelebornConfig.ps1).
+set "WORKER_ENV_CONF=%CELEBORN_HOME%\conf\celeborn-defaults-before-expand.conf"
+if exist "%WORKER_ENV_CONF%" (
+    for /f "usebackq tokens=1,* delims==" %%k in ("%WORKER_ENV_CONF%") do (
+        if "%%k"=="CELEBORN_WORKER_MEMORY" set "CELEBORN_WORKER_MEMORY=%%l"
+        if "%%k"=="CELEBORN_WORKER_OFFHEAP_MEMORY" set "CELEBORN_WORKER_OFFHEAP_MEMORY=%%l"
+    )
+)
+
 if not defined CELEBORN_WORKER_MEMORY (
     set CELEBORN_WORKER_MEMORY=2g
 )
@@ -33,6 +43,8 @@ if not defined CELEBORN_WORKER_MEMORY (
 if not defined CELEBORN_WORKER_OFFHEAP_MEMORY (
     set CELEBORN_WORKER_OFFHEAP_MEMORY=6g
 )
+
+echo [%date% %time%] CELEBORN_WORKER_MEMORY=%CELEBORN_WORKER_MEMORY% CELEBORN_WORKER_OFFHEAP_MEMORY=%CELEBORN_WORKER_OFFHEAP_MEMORY%
 
 set "CELEBORN_JAVA_OPTS=%CELEBORN_WORKER_JAVA_OPTS%"
 set "CELEBORN_JAVA_OPTS=%CELEBORN_JAVA_OPTS% -Xmx%CELEBORN_WORKER_MEMORY%"
