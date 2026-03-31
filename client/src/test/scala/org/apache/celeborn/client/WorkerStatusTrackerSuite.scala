@@ -115,14 +115,14 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
       })
     }
 
-    // Readers: iterate shuttingWorkers via currentFailedWorkers (called through recordWorkerFailure)
+    // Readers: iterate shuttingWorkers directly, mirroring how currentFailedWorkers iterates it
     (1 to 5).foreach { i =>
       executor.submit(new Runnable {
         override def run(): Unit = {
           try {
             latch.await()
             (1 to 1000).foreach { _ =>
-              // Iterate over shuttingWorkers the same way currentFailedWorkers does
+              // Iterate over shuttingWorkers in the same way as currentFailedWorkers
               statusTracker.shuttingWorkers.forEach(_ => ())
             }
           } catch {
