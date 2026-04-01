@@ -21,6 +21,7 @@ import java.util
 import java.util.concurrent.{CyclicBarrier, Executors, Future, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 import org.junit.Assert
@@ -135,7 +136,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
             try {
               barrier.await()
               (1 to 1000).foreach { _ =>
-                statusTracker.shuttingWorkers.forEach((_: WorkerInfo) => ())
+                statusTracker.shuttingWorkers.asScala.foreach(_ => ())
               }
             } catch {
               case _: java.util.ConcurrentModificationException =>
