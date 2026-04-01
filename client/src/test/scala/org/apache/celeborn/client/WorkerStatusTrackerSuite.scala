@@ -135,7 +135,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
             try {
               barrier.await()
               (1 to 1000).foreach { _ =>
-                statusTracker.shuttingWorkers.forEach(_ => ())
+                statusTracker.shuttingWorkers.forEach((_: WorkerInfo) => ())
               }
             } catch {
               case _: java.util.ConcurrentModificationException =>
