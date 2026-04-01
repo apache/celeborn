@@ -18,14 +18,14 @@
 package org.apache.celeborn.client.commit
 
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, ScheduledExecutorService, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.{AtomicLong, LongAdder}
 
 import scala.collection.JavaConverters._
 import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration.Duration
 
 import org.apache.celeborn.client.{ShuffleCommittedInfo, WorkerStatusTracker}
@@ -39,7 +39,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles, CommitFilesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
-import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, Utils}
+import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, ThreadUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils.awaitResult
@@ -80,7 +80,11 @@ abstract class CommitHandler(
 
   val ec = ExecutionContext.fromExecutor(sharedRpcPool)
 
+  private val commitRetryScheduler: ScheduledExecutorService =
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("commit-retry-scheduler")
+
   val maxRetries = conf.clientRequestCommitFilesMaxRetries
+  val retryInterval = conf.clientRequestCommitFilesRetryInterval
   val mockCommitFilesFailure = conf.testMockCommitFilesFailure
 
   def getPartitionType(): PartitionType
@@ -252,7 +256,8 @@ abstract class CommitHandler(
         status.message.copy(mockFailure = mockFailure)
       status.future = commitFiles(
         status.workerInfo,
-        msg)
+        msg,
+        isRetry = true)
     }
 
     def createFailResponse(status: CommitFutureWithStatus): CommitFilesResponse = {
@@ -500,7 +505,8 @@ abstract class CommitHandler(
 
   def commitFiles(
       worker: WorkerInfo,
-      message: CommitFiles): Future[CommitFilesResponse] = {
+      message: CommitFiles,
+      isRetry: Boolean = false): Future[CommitFilesResponse] = {
 
     if (conf.clientCommitFilesIgnoreExcludedWorkers &&
       workerStatusTracker.excludedWorkers.containsKey(worker)) {
@@ -512,6 +518,33 @@ abstract class CommitHandler(
           message.primaryIds,
           message.replicaIds)
       }(ec)
+    } else if (isRetry) {
+      val promise = Promise[CommitFilesResponse]()
+      commitRetryScheduler.schedule(
+        new Runnable {
+          override def run(): Unit = {
+            try {
+              worker.endpoint.ask[CommitFilesResponse](message).onComplete {
+                result => promise.complete(result)
+              }(ec)
+            } catch {
+              case e: Exception =>
+                logError(
+                  s"Failed to send CommitFiles to worker($worker) " +
+                    s"for ${message.shuffleId} after retry delay.",
+                  e)
+                promise.success(CommitFilesResponse(
+                  StatusCode.REQUEST_FAILED,
+                  List.empty.asJava,
+                  List.empty.asJava,
+                  message.primaryIds,
+                  message.replicaIds))
+            }
+          }
+        },
+        retryInterval,
+        TimeUnit.MILLISECONDS)
+      promise.future
     } else {
       worker.endpoint.ask[CommitFilesResponse](message, clientRpcCommitFilesAskTimeout)
     }
@@ -610,5 +643,9 @@ abstract class CommitHandler(
     if (fileGroups != null) {
       fileGroups.remove(partitionId)
     }
+  }
+
+  def stop(): Unit = {
+    commitRetryScheduler.shutdownNow()
   }
 }

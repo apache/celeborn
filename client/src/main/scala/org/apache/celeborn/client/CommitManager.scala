@@ -173,6 +173,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
   def stop(): Unit = {
     batchHandleCommitPartition.foreach(_.cancel(true))
     batchHandleCommitPartitionSchedulerThread.foreach(ThreadUtils.shutdown(_))
+    commitHandlers.asScala.values.foreach(_.stop())
   }
 
   def registerShuffle(
