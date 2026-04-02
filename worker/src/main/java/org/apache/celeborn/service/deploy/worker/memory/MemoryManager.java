@@ -109,7 +109,11 @@ public class MemoryManager {
   public static MemoryManager initialize(
       CelebornConf conf, StorageManager storageManager, AbstractSource source) {
     if (_INSTANCE == null) {
-      _INSTANCE = new MemoryManager(conf, storageManager, source);
+      synchronized (MemoryManager.class) {
+        if (_INSTANCE == null) {
+          _INSTANCE = new MemoryManager(conf, storageManager, source);
+        }
+      }
     }
     return _INSTANCE;
   }
@@ -598,7 +602,7 @@ public class MemoryManager {
   }
 
   @VisibleForTesting
-  public static void reset() {
+  public static synchronized void reset() {
     _INSTANCE = null;
   }
 
