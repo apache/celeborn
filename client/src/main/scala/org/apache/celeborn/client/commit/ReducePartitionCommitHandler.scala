@@ -19,7 +19,7 @@ package org.apache.celeborn.client.commit
 
 import java.nio.ByteBuffer
 import java.util
-import java.util.concurrent.{Callable, ConcurrentHashMap, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{Callable, ConcurrentHashMap, ScheduledExecutorService, ThreadPoolExecutor, TimeUnit}
 import java.util.function
 
 import scala.collection.JavaConverters._
@@ -58,13 +58,15 @@ class ReducePartitionCommitHandler(
     committedPartitionInfo: CommittedPartitionInfo,
     workerStatusTracker: WorkerStatusTracker,
     sharedRpcPool: ThreadPoolExecutor,
+    commitRetryScheduler: ScheduledExecutorService,
     lifecycleManager: LifecycleManager)
   extends CommitHandler(
     appUniqueId,
     conf,
     committedPartitionInfo,
     workerStatusTracker,
-    sharedRpcPool)
+    sharedRpcPool,
+    commitRetryScheduler)
   with Logging {
 
   class MultiSerdeVersionRpcContext(val ctx: RpcCallContext, val serdeVersion: SerdeVersion) {}

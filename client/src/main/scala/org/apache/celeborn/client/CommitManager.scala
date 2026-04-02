@@ -92,6 +92,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
       None
     }
   private var batchHandleCommitPartition: Option[ScheduledFuture[_]] = _
+  private val commitRetryScheduler: ScheduledExecutorService =
+    ThreadUtils.newDaemonSingleThreadScheduledExecutor("commit-retry-scheduler")
   private val commitHandlers = JavaUtils.newConcurrentHashMap[PartitionType, CommitHandler]()
 
   def start(): Unit = {
@@ -173,7 +175,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
   def stop(): Unit = {
     batchHandleCommitPartition.foreach(_.cancel(true))
     batchHandleCommitPartitionSchedulerThread.foreach(ThreadUtils.shutdown(_))
-    commitHandlers.asScala.values.foreach(_.stop())
+    ThreadUtils.shutdown(commitRetryScheduler)
   }
 
   def registerShuffle(
@@ -313,6 +315,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
               committedPartitionInfo,
               lifecycleManager.workerStatusTracker,
               lifecycleManager.rpcSharedThreadPool,
+              commitRetryScheduler,
               lifecycleManager)
           case PartitionType.MAP => new MapPartitionCommitHandler(
               appUniqueId,
@@ -320,7 +323,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
               lifecycleManager.shuffleAllocatedWorkers,
               committedPartitionInfo,
               lifecycleManager.workerStatusTracker,
-              lifecycleManager.rpcSharedThreadPool)
+              lifecycleManager.rpcSharedThreadPool,
+              commitRetryScheduler)
           case _ => throw new UnsupportedOperationException(
               s"Unexpected ShufflePartitionType for CommitManager: $partitionType")
         }

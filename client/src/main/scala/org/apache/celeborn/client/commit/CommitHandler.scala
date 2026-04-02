@@ -39,7 +39,7 @@ import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles, CommitFilesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
-import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, Utils}
 // Can Remove this if celeborn don't support scala211 in future
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.common.util.ThreadUtils.awaitResult
@@ -67,7 +67,8 @@ abstract class CommitHandler(
     conf: CelebornConf,
     committedPartitionInfo: CommittedPartitionInfo,
     workerStatusTracker: WorkerStatusTracker,
-    val sharedRpcPool: ThreadPoolExecutor) extends Logging {
+    val sharedRpcPool: ThreadPoolExecutor,
+    commitRetryScheduler: ScheduledExecutorService) extends Logging {
 
   private val pushReplicateEnabled = conf.clientPushReplicateEnabled
   private val clientRpcCommitFilesAskTimeout = conf.clientRpcCommitFilesAskTimeout
@@ -80,11 +81,8 @@ abstract class CommitHandler(
 
   val ec = ExecutionContext.fromExecutor(sharedRpcPool)
 
-  private val commitRetryScheduler: ScheduledExecutorService =
-    ThreadUtils.newDaemonSingleThreadScheduledExecutor("commit-retry-scheduler")
-
   val maxRetries = conf.clientRequestCommitFilesMaxRetries
-  val retryInterval = conf.clientRequestCommitFilesRetryInterval
+  val retryWait = conf.clientRequestCommitFilesRetryWait
   val mockCommitFilesFailure = conf.testMockCommitFilesFailure
 
   def getPartitionType(): PartitionType
@@ -544,7 +542,7 @@ abstract class CommitHandler(
               }
             }
           },
-          retryInterval,
+          retryWait,
           TimeUnit.MILLISECONDS)
       } catch {
         case e: Exception =>
@@ -657,13 +655,6 @@ abstract class CommitHandler(
     val fileGroups = reducerFileGroupsMap.get(shuffleId)
     if (fileGroups != null) {
       fileGroups.remove(partitionId)
-    }
-  }
-
-  def stop(): Unit = {
-    commitRetryScheduler.shutdown()
-    if (!commitRetryScheduler.awaitTermination(30, TimeUnit.SECONDS)) {
-      commitRetryScheduler.shutdownNow()
     }
   }
 }
