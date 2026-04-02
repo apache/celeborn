@@ -60,7 +60,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     _reader
   }
 
-  private def loadFromMap(props: Map[String, String], silent: Boolean): Unit =
+  def loadFromMap(props: Map[String, String], silent: Boolean): Unit =
     settings.synchronized {
       // Load any celeborn.* system properties
       for ((key, value) <- props if key.startsWith("celeborn.")) {
@@ -545,9 +545,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def networkIoMode(module: String): String = {
     get(
       NETWORK_IO_MODE.key.replace("<module>", module),
-      if (Epoll.isAvailable) { IOMode.EPOLL.name() }
-      else if (KQueue.isAvailable) { IOMode.KQUEUE.name() }
-      else { IOMode.NIO.name() })
+      CelebornConf.networkIoMode())
   }
 
   def networkIoPreferDirectBufs(module: String): Boolean = {
@@ -1915,6 +1913,12 @@ object CelebornConf extends Logging {
   }
 
   private def buildConf(key: String): ConfigBuilder = ConfigBuilder(key).onCreate(register)
+
+  def networkIoMode(): String = {
+    if (Epoll.isAvailable) { IOMode.EPOLL.name() }
+    else if (KQueue.isAvailable) { IOMode.KQUEUE.name() }
+    else { IOMode.NIO.name() }
+  }
 
   val NETWORK_BIND_PREFER_IP: ConfigEntry[Boolean] =
     buildConf("celeborn.network.bind.preferIpAddress")
