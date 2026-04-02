@@ -99,6 +99,8 @@ public class DiskFileInfo extends FileInfo {
     super(userIdentifier, true, fileMeta);
     this.filePath = filePath;
     this.storageType = StorageInfo.Type.HDD;
+
+    // Only used by sorter, hence we know no diskInfo acquires needed
     this.diskInfo = null;
   }
 
