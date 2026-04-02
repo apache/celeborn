@@ -520,30 +520,45 @@ abstract class CommitHandler(
       }(ec)
     } else if (isRetry) {
       val promise = Promise[CommitFilesResponse]()
-      commitRetryScheduler.schedule(
-        new Runnable {
-          override def run(): Unit = {
-            try {
-              worker.endpoint.ask[CommitFilesResponse](message).onComplete {
-                result => promise.complete(result)
-              }(ec)
-            } catch {
-              case e: Exception =>
-                logError(
-                  s"Failed to send CommitFiles to worker($worker) " +
-                    s"for ${message.shuffleId} after retry delay.",
-                  e)
-                promise.success(CommitFilesResponse(
-                  StatusCode.REQUEST_FAILED,
-                  List.empty.asJava,
-                  List.empty.asJava,
-                  message.primaryIds,
-                  message.replicaIds))
+      try {
+        commitRetryScheduler.schedule(
+          new Runnable {
+            override def run(): Unit = {
+              try {
+                worker.endpoint.ask[CommitFilesResponse](message, clientRpcCommitFilesAskTimeout)
+                  .onComplete {
+                    result => promise.complete(result)
+                  }(ec)
+              } catch {
+                case e: Exception =>
+                  logError(
+                    s"Failed to send CommitFiles to worker($worker) " +
+                      s"for ${message.shuffleId} after retry delay.",
+                    e)
+                  promise.success(CommitFilesResponse(
+                    StatusCode.REQUEST_FAILED,
+                    List.empty.asJava,
+                    List.empty.asJava,
+                    message.primaryIds,
+                    message.replicaIds))
+              }
             }
-          }
-        },
-        retryInterval,
-        TimeUnit.MILLISECONDS)
+          },
+          retryInterval,
+          TimeUnit.MILLISECONDS)
+      } catch {
+        case e: Exception =>
+          logError(
+            s"Failed to schedule CommitFiles retry to worker($worker) " +
+              s"for ${message.shuffleId}.",
+            e)
+          promise.success(CommitFilesResponse(
+            StatusCode.REQUEST_FAILED,
+            List.empty.asJava,
+            List.empty.asJava,
+            message.primaryIds,
+            message.replicaIds))
+      }
       promise.future
     } else {
       worker.endpoint.ask[CommitFilesResponse](message, clientRpcCommitFilesAskTimeout)
@@ -646,6 +661,9 @@ abstract class CommitHandler(
   }
 
   def stop(): Unit = {
-    commitRetryScheduler.shutdownNow()
+    commitRetryScheduler.shutdown()
+    if (!commitRetryScheduler.awaitTermination(30, TimeUnit.SECONDS)) {
+      commitRetryScheduler.shutdownNow()
+    }
   }
 }
