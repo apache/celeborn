@@ -451,6 +451,15 @@ public class SparkUtils {
         int stageId = taskSetManager.stageId();
         int stageAttemptId = taskSetManager.taskSet().stageAttemptId();
         int maxTaskFails = taskSetManager.maxTaskFailures();
+        if (taskSetManager.isZombie()) {
+          LOG.info(
+              "StageId={} stageAttemptId={} taskId={}: TaskSetManager is zombie, skip reporting "
+                  + "shuffle fetch failure to avoid invalidating active shuffle data.",
+              stageId,
+              stageAttemptId,
+              taskId);
+          return false;
+        }
         String stageUniqId = stageId + "-" + stageAttemptId;
         Set<Long> reportedStageTaskIds =
             reportedStageShuffleFetchFailureTaskIds.computeIfAbsent(

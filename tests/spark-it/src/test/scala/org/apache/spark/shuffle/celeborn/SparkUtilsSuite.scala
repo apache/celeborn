@@ -20,7 +20,7 @@ package org.apache.spark.shuffle.celeborn
 import scala.collection.JavaConverters._
 
 import org.apache.spark.SparkConf
-import org.apache.spark.scheduler.TaskSchedulerImpl
+import org.apache.spark.scheduler.{TaskSchedulerImpl, TaskSetManager}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually.eventually
@@ -156,6 +156,61 @@ class SparkUtilsSuite extends AnyFunSuite
       eventually(timeout(3.seconds), interval(100.milliseconds)) {
         assert(SparkUtils.reportedStageShuffleFetchFailureTaskIds.size() == 0)
       }
+    } finally {
+      sparkSession.stop()
+    }
+  }
+
+  test("shouldReportShuffleFetchFailure returns false when TaskSetManager is zombie") {
+    val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+    val sparkSession = SparkSession.builder()
+      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+      .config("spark.sql.shuffle.partitions", 2)
+      .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+      .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
+      .config(
+        "spark.shuffle.manager",
+        "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+      .getOrCreate()
+
+    try {
+      val sc = sparkSession.sparkContext
+      val jobThread = new Thread {
+        override def run(): Unit = {
+          try {
+            sc.parallelize(1 to 100, 2)
+              .repartition(1)
+              .mapPartitions { iter =>
+                Thread.sleep(10000)
+                iter
+              }.collect()
+          } catch {
+            case _: InterruptedException =>
+          }
+        }
+      }
+      jobThread.start()
+
+      val taskScheduler = sc.taskScheduler.asInstanceOf[TaskSchedulerImpl]
+      eventually(timeout(3.seconds), interval(100.milliseconds)) {
+        val taskId: Long = 0
+        val taskSetManager = SparkUtils.getTaskSetManager(taskScheduler, taskId)
+        assert(taskSetManager != null)
+
+        val isZombieField = classOf[TaskSetManager].getDeclaredField("isZombie")
+        isZombieField.setAccessible(true)
+        isZombieField.setBoolean(taskSetManager, true)
+
+        SparkUtils.reportedStageShuffleFetchFailureTaskIds.clear()
+        SparkUtils.lastReportedShuffleFetchFailureTaskId = null
+
+        assert(!SparkUtils.shouldReportShuffleFetchFailure(taskId))
+        assert(SparkUtils.reportedStageShuffleFetchFailureTaskIds.isEmpty)
+        assert(SparkUtils.lastReportedShuffleFetchFailureTaskId == null)
+      }
+
+      sparkSession.sparkContext.cancelAllJobs()
+      jobThread.interrupt()
     } finally {
       sparkSession.stop()
     }
