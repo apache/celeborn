@@ -39,7 +39,7 @@ class WorkerStatusTracker(
   private val workerStatusListeners = ConcurrentHashMap.newKeySet[WorkerStatusListener]()
 
   val excludedWorkers = new ShuffleFailedWorkers()
-  val shuttingWorkers: JSet[WorkerInfo] = new JHashSet[WorkerInfo]()
+  val shuttingWorkers: JSet[WorkerInfo] = ConcurrentHashMap.newKeySet[WorkerInfo]()
 
   def registerWorkerStatusListener(workerStatusListener: WorkerStatusListener): Unit = {
     workerStatusListeners.add(workerStatusListener)
