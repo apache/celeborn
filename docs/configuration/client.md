@@ -84,7 +84,7 @@ license: |
 | celeborn.client.registerShuffle.maxRetries | 3 | false | Max retry times for client to register shuffle. | 0.3.0 | celeborn.shuffle.register.maxRetries | 
 | celeborn.client.registerShuffle.retryWait | 3s | false | Wait time before next retry if register shuffle failed. | 0.3.0 | celeborn.shuffle.register.retryWait | 
 | celeborn.client.requestCommitFiles.maxRetries | 4 | false | Max retry times for requestCommitFiles RPC. | 0.3.0 |  | 
-| celeborn.client.requestCommitFiles.retryInterval | 10s | false | Wait interval before next requestCommitFiles RPC retry. | 0.7.0 |  | 
+| celeborn.client.requestCommitFiles.retryWait | 10s | false | Wait time before next retry if requestCommitFiles RPC failed. | 0.7.0 |  | 
 | celeborn.client.reserveSlots.maxRetries | 3 | false | Max retry times for client to reserve slots. | 0.3.0 | celeborn.slots.reserve.maxRetries | 
 | celeborn.client.reserveSlots.rackaware.enabled | false | false | Whether need to place different replicates on different racks when allocating slots. | 0.3.1 | celeborn.client.reserveSlots.rackware.enabled | 
 | celeborn.client.reserveSlots.retryWait | 3s | false | Wait time before next retry if reserve slots failed. | 0.3.0 | celeborn.slots.reserve.retryWait | 
