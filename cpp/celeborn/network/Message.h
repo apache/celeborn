@@ -18,6 +18,8 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
+#include <vector>
 
 #include "celeborn/memory/ByteBuffer.h"
 #include "celeborn/protocol/ControlMessages.h"
@@ -274,6 +276,51 @@ class PushData : public Message {
   uint8_t mode_;
   std::string shuffleKey_;
   std::string partitionUniqueId_;
+};
+
+class PushMergedData : public Message {
+ public:
+  PushMergedData(
+      long requestId,
+      uint8_t mode,
+      const std::string& shuffleKey,
+      std::vector<std::string> partitionUniqueIds,
+      std::vector<int32_t> batchOffsets,
+      std::unique_ptr<memory::ReadOnlyByteBuffer> body);
+
+  PushMergedData(const PushMergedData& other);
+
+  long requestId() const {
+    return requestId_;
+  }
+
+  uint8_t mode() const {
+    return mode_;
+  }
+
+  const std::string& shuffleKey() const {
+    return shuffleKey_;
+  }
+
+  const std::vector<std::string>& partitionUniqueIds() const {
+    return partitionUniqueIds_;
+  }
+
+  const std::vector<int32_t>& batchOffsets() const {
+    return batchOffsets_;
+  }
+
+ private:
+  int internalEncodedLength() const override;
+
+  void internalEncodeTo(memory::WriteOnlyByteBuffer& buffer) const override;
+
+  long requestId_;
+  // 0 for primary, 1 for replica. Ref to PartitionLocation::Mode.
+  uint8_t mode_;
+  std::string shuffleKey_;
+  std::vector<std::string> partitionUniqueIds_;
+  std::vector<int32_t> batchOffsets_;
 };
 } // namespace network
 } // namespace celeborn

@@ -59,6 +59,8 @@ public class DataBatches {
       totalSize = 0;
       return batches;
     }
+    // TODO: ArrayList.remove(0) in a loop is O(n^2) due to element shifting.
+    // Investigate subList(0, count).clear() or use LinkedList/ArrayDeque.
     ArrayList<DataBatch> retBatches = new ArrayList<>();
     int currentSize = 0;
     while (currentSize < requestSize) {
