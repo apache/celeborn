@@ -46,6 +46,13 @@ import org.apache.celeborn.common.util.Utils;
  */
 public class CelebornSortBasedPusher<K, V> extends OutputStream {
   private final Logger logger = LoggerFactory.getLogger(CelebornSortBasedPusher.class);
+
+  // Maximum number of records to accumulate before forcing an early spill.
+  // This limits Young Gen pressure during sorting by preventing too many temporary
+  // Record objects from being created at once.
+  // Record size ~24 bytes, so 5M records = 120MB at peak
+  private static final int MAX_SORT_RECORDS = 5_000_000;
+
   private final int mapId;
   private final int attempt;
   private final int numMappers;
@@ -63,6 +70,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
   private int writePos;
   private byte[] serializedKV;
   private final int maxPushDataSize;
+  private int totalRecordCount;
 
   public CelebornSortBasedPusher(
       int numMappers,
@@ -129,15 +137,12 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
 
       // Additional check: limit total record count to avoid memory pressure during sort
       // If total records exceed safe threshold, force an early spill
-      int totalRecords = getTotalRecordCount();
-      final int MAX_RECORDS_BEFORE_SPILL = 5_000_000; // 5M records = ~120MB temporary objects
-
-      if (totalRecords >= MAX_RECORDS_BEFORE_SPILL && writePos > 0) {
+      if (totalRecordCount >= MAX_SORT_RECORDS && writePos > 0) {
         if (logger.isDebugEnabled()) {
           logger.debug(
               "Record count {} exceeds safe threshold {}, forcing early spill",
-              totalRecords,
-              MAX_RECORDS_BEFORE_SPILL);
+              totalRecordCount,
+              MAX_SORT_RECORDS);
         }
         sortKVs();
         sendKVAndUpdateWritePos();
@@ -155,15 +160,6 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
     }
   }
 
-  /** Get total record count across all partitions. */
-  private int getTotalRecordCount() {
-    int total = 0;
-    for (KVBufferInfo bufferInfo : partitionedKVBuffers.values()) {
-      total += bufferInfo.count;
-    }
-    return total;
-  }
-
   private void sendKVAndUpdateWritePos() throws IOException {
     Iterator<Map.Entry<Integer, KVBufferInfo>> entryIter =
         partitionedKVBuffers.entrySet().iterator();
@@ -174,41 +170,46 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
       KVBufferInfo bufferInfo = entry.getValue();
       int partitionKVTotalLen = 0;
       int batchStartIdx = 0;
-      // process buffers for specific partition (arrays are already sorted in-place)
+
+      // Process buffers for specific partition (arrays are already sorted in-place)
       for (int i = 0; i < bufferInfo.count; i++) {
-        partitionKVTotalLen += bufferInfo.keyLens[i] + bufferInfo.valueLens[i];
-        if (partitionKVTotalLen > maxPushDataSize) {
-          // limit max size of pushdata to avoid possible memory issue in Celeborn worker
-          // data layout
-          // pushdata header (16) + pushDataLen(4) +
-          // [varKeyLen+varValLen+serializedRecord(x)][...]
+        int recordLen = bufferInfo.keyLens[i] + bufferInfo.valueLens[i];
+
+        // Check if adding this record would exceed the limit
+        // This ensures we never send batches larger than maxPushDataSize
+        if (partitionKVTotalLen + recordLen > maxPushDataSize && partitionKVTotalLen > 0) {
+          // Send the previous batch (before adding current record)
+          int batchLength = 0;
+          for (int j = batchStartIdx; j < i; j++) {
+            batchLength += bufferInfo.keyLens[j] + bufferInfo.valueLens[j];
+          }
           sendSortedBuffersPartition(
-              partition, bufferInfo, batchStartIdx, i - batchStartIdx + 1, partitionKVTotalLen);
-          // move batch start
-          partitionKVTotalLen = 0;
-          batchStartIdx = i + 1;
+              partition, bufferInfo, batchStartIdx, i - batchStartIdx, batchLength);
+          // Start new batch with current record
+          batchStartIdx = i;
+          partitionKVTotalLen = recordLen;
+        } else {
+          // Add record to current batch
+          partitionKVTotalLen += recordLen;
         }
       }
-      // send remaining records
+
+      // Send remaining records
       if (batchStartIdx < bufferInfo.count) {
-        // recalculate total length for remaining records
-        partitionKVTotalLen = 0;
+        int batchLength = 0;
         for (int i = batchStartIdx; i < bufferInfo.count; i++) {
-          partitionKVTotalLen += bufferInfo.keyLens[i] + bufferInfo.valueLens[i];
+          batchLength += bufferInfo.keyLens[i] + bufferInfo.valueLens[i];
         }
         sendSortedBuffersPartition(
-            partition,
-            bufferInfo,
-            batchStartIdx,
-            bufferInfo.count - batchStartIdx,
-            partitionKVTotalLen);
+            partition, bufferInfo, batchStartIdx, bufferInfo.count - batchStartIdx, batchLength);
       }
       // Clear buffer info for reuse
       bufferInfo.clear();
     }
-    // all data sent
+    // All data sent, reset counters
     partitionedKVBuffers.clear();
     writePos = 0;
+    totalRecordCount = 0;
   }
 
   private void sendSortedBuffersPartition(
@@ -299,43 +300,18 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
   }
 
   private void sortKVs() {
-    // Maximum number of temporary Record objects to create at once.
-    // This limits Young Gen pressure and prevents Full GC.
-    // Record size ~24 bytes, so 5M records = 120MB at peak
-    final int MAX_SORT_RECORDS = 5_000_000;
-
     for (Map.Entry<Integer, KVBufferInfo> partitionKVEntry : partitionedKVBuffers.entrySet()) {
       KVBufferInfo bufferInfo = partitionKVEntry.getValue();
       if (bufferInfo.count <= 1) {
         continue;
       }
 
-      // If too many records, split into batches
-      if (bufferInfo.count > MAX_SORT_RECORDS) {
-        // Sort and flush each batch immediately
-        int remaining = bufferInfo.count;
-        int start = 0;
-
-        while (remaining > 0) {
-          int batchSize = Math.min(remaining, MAX_SORT_RECORDS);
-          int end = start + batchSize;
-
-          // Sort this batch
-          sortBatch(bufferInfo, start, end);
-
-          // Send this batch immediately to free memory
-          sendPartialBuffer(bufferInfo, start, batchSize);
-
-          start = end;
-          remaining -= batchSize;
-        }
-
-        // After all batches sent, clear the buffer
-        bufferInfo.clear();
-      } else {
-        // Full sort (single batch)
-        sortBatch(bufferInfo, 0, bufferInfo.count);
-      }
+      // The early-spill mechanism in insert() should prevent us from ever exceeding
+      // MAX_SORT_RECORDS.
+      // If we do exceed it, this means the configuration allows too much data to accumulate.
+      // We rely on the early-spill check to keep us within safe limits, so we can always do a full
+      // sort.
+      sortBatch(bufferInfo, 0, bufferInfo.count);
     }
   }
 
@@ -364,25 +340,6 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
       bufferInfo.keyLens[start + i] = records[i].kLen;
       bufferInfo.valueLens[start + i] = records[i].vLen;
     }
-  }
-
-  /**
-   * Send a portion of the buffer (after it's been sorted). This method requires careful re-design
-   * of sendKVAndUpdateWritePos to work with partial sends.
-   *
-   * <p>For simplicity, we revert to the original approach of sorting the entire buffer when it's
-   * safe (within MAX_SORT_RECORDS). But if we exceed the limit, we need to handle partial sends
-   * differently.
-   *
-   * <p>For the first version, let's just throw if we exceed MAX_SORT_RECORDS, and let the user
-   * adjust heap size or spill.percent instead.
-   */
-  private void sendPartialBuffer(KVBufferInfo bufferInfo, int start, int count) {
-    // TODO: This needs careful redesign of sendKVAndUpdateWritePos
-    // For now, throw to force user to adjust configuration
-    throw new UnsupportedOperationException(
-        "Buffer too large for single batch sorting. "
-            + "Please reduce mapreduce.task.io.sort.mb or increase mapreduce.map.java.opts heap.");
   }
 
   /**
@@ -424,6 +381,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
             partition, v -> new KVBufferInfo(1024)); // Initial capacity: 1024 records
     // Store metadata directly in primitive arrays, no object allocation
     bufferInfo.add(offset, keyLen, valLen);
+    totalRecordCount++; // Track total records across all partitions
     if (logger.isDebugEnabled()) {
       logger.debug(
           "Pusher insert into buffer partition:{} offset:{} keyLen:{} valueLen:{} size:{}",
@@ -479,6 +437,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
       exception.compareAndSet(null, e);
     }
     partitionedKVBuffers.clear();
+    totalRecordCount = 0;
     serializedKV = null;
   }
 
