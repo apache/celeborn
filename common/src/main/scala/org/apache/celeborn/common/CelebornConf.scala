@@ -933,6 +933,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientReserveSlotsRackAwareEnabled: Boolean = get(CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED)
   def clientReserveSlotsMaxRetries: Int = get(CLIENT_RESERVE_SLOTS_MAX_RETRIES)
   def clientReserveSlotsRetryWait: Long = get(CLIENT_RESERVE_SLOTS_RETRY_WAIT)
+  def clientRequestCommitFilesRetryWait: Long = get(CLIENT_COMMIT_FILE_REQUEST_RETRY_WAIT)
   def clientRequestCommitFilesMaxRetries: Int = get(CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY)
   def clientCommitFilesIgnoreExcludedWorkers: Boolean = get(CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS)
   def clientShuffleDynamicResourceEnabled: Boolean =
@@ -5308,6 +5309,14 @@ object CelebornConf extends Logging {
       .doc("Wait time before next retry if reserve slots failed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
+
+  val CLIENT_COMMIT_FILE_REQUEST_RETRY_WAIT: ConfigEntry[Long] =
+    buildConf("celeborn.client.requestCommitFiles.retryWait")
+      .categories("client")
+      .doc("Wait time before next retry if requestCommitFiles RPC failed.")
+      .version("0.6.3")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10s")
 
   val CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY: ConfigEntry[Int] =
     buildConf("celeborn.client.requestCommitFiles.maxRetries")
