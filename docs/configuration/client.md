@@ -18,7 +18,7 @@ license: |
 
 <!--begin-include-->
 | Key | Default | isDynamic | Description | Since | Deprecated |
-| --- | ------- | --------- | ----------- | ----- | ---------- |
+| --- | ------- | --------- | ----------- |-------| ---------- |
 | celeborn.client.adaptive.optimizeSkewedPartitionRead.enabled | false | false | If this is true, Celeborn will adaptively split skewed partitions instead of reading them by Spark map range. Please note that this feature requires the `Celeborn-Optimize-Skew-Partitions-spark3_3.patch`.  | 0.6.0 |  | 
 | celeborn.client.application.heartbeatInterval | 10s | false | Interval for client to send heartbeat message to master. | 0.3.0 | celeborn.application.heartbeatInterval | 
 | celeborn.client.application.info.provider | org.apache.celeborn.common.client.DefaultApplicationInfoProvider | false | ApplicationInfoProvider class name. Default class is `org.apache.celeborn.common.client.DefaultApplicationInfoProvider`. Optional values: org.apache.celeborn.common.identity.DefaultIdentityProvider user name and tenant id are default values or user-specific values. | 0.6.1 |  | 
@@ -84,7 +84,7 @@ license: |
 | celeborn.client.registerShuffle.maxRetries | 3 | false | Max retry times for client to register shuffle. | 0.3.0 | celeborn.shuffle.register.maxRetries | 
 | celeborn.client.registerShuffle.retryWait | 3s | false | Wait time before next retry if register shuffle failed. | 0.3.0 | celeborn.shuffle.register.retryWait | 
 | celeborn.client.requestCommitFiles.maxRetries | 4 | false | Max retry times for requestCommitFiles RPC. | 0.3.0 |  | 
-| celeborn.client.requestCommitFiles.retryWait | 10s | false | Wait time before next retry if requestCommitFiles RPC failed. | 0.7.0 |  | 
+| celeborn.client.requestCommitFiles.retryWait | 10s | false | Wait time before next retry if requestCommitFiles RPC failed. | 0.6.3 |  | 
 | celeborn.client.reserveSlots.maxRetries | 3 | false | Max retry times for client to reserve slots. | 0.3.0 | celeborn.slots.reserve.maxRetries | 
 | celeborn.client.reserveSlots.rackaware.enabled | false | false | Whether need to place different replicates on different racks when allocating slots. | 0.3.1 | celeborn.client.reserveSlots.rackware.enabled | 
 | celeborn.client.reserveSlots.retryWait | 3s | false | Wait time before next retry if reserve slots failed. | 0.3.0 | celeborn.slots.reserve.retryWait | 

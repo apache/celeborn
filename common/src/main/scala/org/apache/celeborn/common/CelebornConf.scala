@@ -5447,7 +5447,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.requestCommitFiles.retryWait")
       .categories("client")
       .doc("Wait time before next retry if requestCommitFiles RPC failed.")
-      .version("0.7.0")
+      .version("0.6.3")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
 
