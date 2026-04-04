@@ -290,12 +290,15 @@ trait MiniClusterFeature extends Logging {
         worker.rpcEnv.shutdown()
     }
 
+    // Give in-flight client operations (e.g. heartbeats) time to complete or time out
+    // before shutting down the master, to avoid spurious connection errors in tests.
+    Thread.sleep(5000)
+
     // shutdown masters
     masterInfo._1.stop(CelebornExitKind.EXIT_IMMEDIATELY)
     masterInfo._1.rpcEnv.shutdown()
 
     // interrupt threads
-    Thread.sleep(5000)
     workerInfos.foreach {
       case (worker, thread) =>
         worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)

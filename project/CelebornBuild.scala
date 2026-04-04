@@ -481,7 +481,6 @@ object CelebornBuild extends sbt.internal.BuildDef {
   }
 
   // ThisBuild / parallelExecution := false
-
   // scalaVersion := "2.11.12"
 
   // autoScalaLibrary := false
