@@ -85,4 +85,10 @@ public class MemoryFileInfo extends FileInfo {
   public String getFilePath() {
     return "";
   }
+
+  @Override
+  protected boolean acquireBytesFlushed(long bytes) {
+    // NO-OP
+    return true;
+  }
 }
