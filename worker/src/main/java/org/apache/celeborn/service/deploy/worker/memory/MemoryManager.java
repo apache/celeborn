@@ -594,7 +594,9 @@ public class MemoryManager {
     memoryPressureListeners.clear();
     actionService.shutdown();
     readBufferTargetChangeListeners.clear();
-    readBufferDispatcher.close();
+    if (readBufferDispatcher != null) {
+      readBufferDispatcher.close();
+    }
   }
 
   public ByteBufAllocator getStorageByteBufAllocator() {
