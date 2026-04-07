@@ -1456,8 +1456,10 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
          |""".stripMargin)
     val diskFileInfo = fileWriter.getDiskFileInfo
     if (diskFileInfo != null) {
-      if (workerPartitionSplitEnabled && ((diskFull && diskFileInfo.getFileLength > partitionSplitMinimumSize) ||
-          (isPrimary && diskFileInfo.getFileLength > fileWriter.getSplitThreshold))) {
+      if (workerPartitionSplitEnabled && diskFull && (diskFileInfo.getFileLength >= partitionSplitMinimumSize)) {
+        return StatusCode.HARD_SPLIT
+      }
+      if (workerPartitionSplitEnabled && (isPrimary && diskFileInfo.getFileLength > fileWriter.getSplitThreshold)) {
         if (fileWriter.getSplitMode == PartitionSplitMode.SOFT &&
           (fileWriter.getDiskFileInfo.getFileLength < partitionSplitMaximumSize)) {
           return StatusCode.SOFT_SPLIT
