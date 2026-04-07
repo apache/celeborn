@@ -27,6 +27,9 @@ import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -45,6 +48,7 @@ import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
+import org.apache.celeborn.service.deploy.worker.storage.FileResolvedCallback;
 import org.apache.celeborn.service.deploy.worker.storage.PartitionDataWriter;
 import org.apache.celeborn.service.deploy.worker.storage.PartitionFilesSorter;
 
@@ -136,7 +140,44 @@ public class DiskPartitionFilesSorterSuiteJ {
     JavaUtils.deleteRecursively(new File(shuffleFile.getPath() + ".index"));
   }
 
-  private void check(int mapCount, int startMapIndex, int endMapIndex) throws IOException {
+  private FileInfo getSortedFileInfoAsync(
+      PartitionFilesSorter sorter,
+      String shuffleKey,
+      String fileName,
+      FileInfo fileInfo,
+      int startMapIndex,
+      int endMapIndex)
+      throws Exception {
+    CountDownLatch latch = new CountDownLatch(1);
+    AtomicReference<FileInfo> resultRef = new AtomicReference<>();
+    AtomicReference<Throwable> errorRef = new AtomicReference<>();
+    sorter.getSortedFileInfo(
+        shuffleKey,
+        fileName,
+        fileInfo,
+        startMapIndex,
+        endMapIndex,
+        new FileResolvedCallback() {
+          @Override
+          public void onSuccess(FileInfo sortedFileInfo) {
+            resultRef.set(sortedFileInfo);
+            latch.countDown();
+          }
+
+          @Override
+          public void onFailure(Throwable e) {
+            errorRef.set(e);
+            latch.countDown();
+          }
+        });
+    Assert.assertTrue("Sort timed out", latch.await(60, TimeUnit.SECONDS));
+    if (errorRef.get() != null) {
+      throw new IOException("Sort failed", errorRef.get());
+    }
+    return resultRef.get();
+  }
+
+  private void check(int mapCount, int startMapIndex, int endMapIndex) throws Exception {
     try {
       long[] partitionSize = prepare(mapCount);
       CelebornConf conf = new CelebornConf();
@@ -144,7 +185,8 @@ public class DiskPartitionFilesSorterSuiteJ {
       PartitionFilesSorter partitionFilesSorter =
           new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
       FileInfo info =
-          partitionFilesSorter.getSortedFileInfo(
+          getSortedFileInfoAsync(
+              partitionFilesSorter,
               "application-1",
               originFileName,
               partitionDataWriter.getDiskFileInfo(),
@@ -168,17 +210,83 @@ public class DiskPartitionFilesSorterSuiteJ {
   }
 
   @Test
-  public void testSmallFile() throws IOException {
+  public void testSmallFile() throws Exception {
     int startMapIndex = random.nextInt(5);
     int endMapIndex = startMapIndex + random.nextInt(5) + 5;
     check(1000, startMapIndex, endMapIndex);
   }
 
   @Test
-  public void testLargeFile() throws IOException {
+  public void testLargeFile() throws Exception {
     int startMapIndex = random.nextInt(5);
     int endMapIndex = startMapIndex + random.nextInt(5) + 5;
     check(15000, startMapIndex, endMapIndex);
+  }
+
+  @Test
+  public void testConcurrentSortReaders() throws Exception {
+    try {
+      long[] partitionSize = prepare(1000);
+      CelebornConf conf = new CelebornConf();
+      conf.set(CelebornConf.SHUFFLE_CHUNK_SIZE().key(), "8m");
+      PartitionFilesSorter sorter =
+          new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
+
+      int startMapIndex = 3;
+      int endMapIndex = 8;
+      int numReaders = 5;
+      CountDownLatch allDone = new CountDownLatch(numReaders);
+      @SuppressWarnings("unchecked")
+      AtomicReference<FileInfo>[] results = new AtomicReference[numReaders];
+      @SuppressWarnings("unchecked")
+      AtomicReference<Throwable>[] errors = new AtomicReference[numReaders];
+
+      for (int i = 0; i < numReaders; i++) {
+        results[i] = new AtomicReference<>();
+        errors[i] = new AtomicReference<>();
+        final int idx = i;
+        sorter.getSortedFileInfo(
+            "application-1",
+            originFileName,
+            partitionDataWriter.getDiskFileInfo(),
+            startMapIndex,
+            endMapIndex,
+            new FileResolvedCallback() {
+              @Override
+              public void onSuccess(FileInfo sortedFileInfo) {
+                results[idx].set(sortedFileInfo);
+                allDone.countDown();
+              }
+
+              @Override
+              public void onFailure(Throwable e) {
+                errors[idx].set(e);
+                allDone.countDown();
+              }
+            });
+      }
+
+      Assert.assertTrue(
+          "Concurrent readers timed out", allDone.await(60, TimeUnit.SECONDS));
+
+      long totalSizeToFetch = 0;
+      for (int i = startMapIndex; i < endMapIndex; i++) {
+        totalSizeToFetch += partitionSize[i];
+      }
+
+      for (int i = 0; i < numReaders; i++) {
+        Assert.assertNull(
+            "Reader " + i + " failed: " + errors[i].get(), errors[i].get());
+        FileInfo info = results[i].get();
+        Assert.assertNotNull("Reader " + i + " got null result", info);
+        long actualTotalChunkSize =
+            ((ReduceFileMeta) info.getFileMeta()).getLastChunkOffset()
+                - ((ReduceFileMeta) info.getFileMeta()).getChunkOffsets().get(0);
+        Assert.assertEquals(totalSizeToFetch, actualTotalChunkSize);
+      }
+    } finally {
+      clean();
+    }
   }
 
   @Test

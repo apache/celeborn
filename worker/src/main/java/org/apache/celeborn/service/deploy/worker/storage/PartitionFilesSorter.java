@@ -255,14 +255,21 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       String indexFilePath = Utils.getIndexFilePath(diskFileInfo.getFilePath());
       synchronized (sorting) {
         if (sorted.contains(fileId)) {
-          return resolve(
-              shuffleKey,
-              fileId,
-              userIdentifier,
-              sortedFilePath,
-              indexFilePath,
-              startMapIndex,
-              endMapIndex);
+          try {
+            FileInfo sortedFileInfo =
+                resolve(
+                    shuffleKey,
+                    fileId,
+                    userIdentifier,
+                    sortedFilePath,
+                    indexFilePath,
+                    startMapIndex,
+                    endMapIndex);
+            fileResolvedCallback.onSuccess(sortedFileInfo);
+          } catch (Throwable e) {
+            fileResolvedCallback.onFailure(e);
+          }
+          return null;
         } else if (sorting.contains(fileId)) {
           FileResolvedCallback pendingCallback =
               new FileResolvedCallback() {

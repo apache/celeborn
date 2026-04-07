@@ -192,9 +192,15 @@ public class MemoryReducePartitionDataWriterSuiteJ {
           }
         };
     PartitionFilesSorter sorter = mock(PartitionFilesSorter.class);
-    Mockito.doReturn(info)
+    Mockito.doAnswer(
+            invocation -> {
+              FileResolvedCallback callback = invocation.getArgument(5);
+              callback.onSuccess(info);
+              return null;
+            })
         .when(sorter)
-        .getSortedFileInfo(anyString(), anyString(), eq(info), anyInt(), anyInt());
+        .getSortedFileInfo(
+            anyString(), anyString(), eq(info), anyInt(), anyInt(), any());
     handler.setPartitionsSorter(sorter);
     TransportContext context = new TransportContext(transConf, handler);
     server = context.createServer();
