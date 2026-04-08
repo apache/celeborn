@@ -142,6 +142,12 @@ folly::Future<std::unique_ptr<Message>> MessageDispatcher::operator()(
       requestId = pushData->requestId();
       break;
     }
+    case Message::PUSH_MERGED_DATA: {
+      PushMergedData* pushMergedData =
+          reinterpret_cast<PushMergedData*>(toSendMsg.get());
+      requestId = pushMergedData->requestId();
+      break;
+    }
     default: {
       CELEBORN_FAIL("unsupported type");
     }

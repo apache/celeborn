@@ -181,5 +181,42 @@ void PushData::internalEncodeTo(memory::WriteOnlyByteBuffer& buffer) const {
   protocol::encode(buffer, shuffleKey_);
   protocol::encode(buffer, partitionUniqueId_);
 }
+
+PushMergedData::PushMergedData(
+    long requestId,
+    uint8_t mode,
+    const std::string& shuffleKey,
+    std::vector<std::string> partitionUniqueIds,
+    std::vector<int32_t> batchOffsets,
+    std::unique_ptr<memory::ReadOnlyByteBuffer> body)
+    : Message(PUSH_MERGED_DATA, std::move(body)),
+      requestId_(requestId),
+      mode_(mode),
+      shuffleKey_(shuffleKey),
+      partitionUniqueIds_(std::move(partitionUniqueIds)),
+      batchOffsets_(std::move(batchOffsets)) {}
+
+PushMergedData::PushMergedData(const PushMergedData& other)
+    : Message(PUSH_MERGED_DATA, other.body()),
+      requestId_(other.requestId_),
+      mode_(other.mode_),
+      shuffleKey_(other.shuffleKey_),
+      partitionUniqueIds_(other.partitionUniqueIds_),
+      batchOffsets_(other.batchOffsets_) {}
+
+int PushMergedData::internalEncodedLength() const {
+  return sizeof(long) + sizeof(uint8_t) + protocol::encodedLength(shuffleKey_) +
+      protocol::encodedLength(partitionUniqueIds_) +
+      protocol::encodedLength(batchOffsets_);
+}
+
+void PushMergedData::internalEncodeTo(
+    memory::WriteOnlyByteBuffer& buffer) const {
+  buffer.write<long>(requestId_);
+  buffer.write<uint8_t>(mode_);
+  protocol::encode(buffer, shuffleKey_);
+  protocol::encode(buffer, partitionUniqueIds_);
+  protocol::encode(buffer, batchOffsets_);
+}
 } // namespace network
 } // namespace celeborn

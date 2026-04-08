@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 
 #include "celeborn/network/Message.h"
+#include "celeborn/protocol/Encoders.h"
 
 using namespace celeborn;
 using namespace celeborn::network;
@@ -183,4 +184,74 @@ TEST(MessageTest, encodePushData) {
   EXPECT_EQ(encodedBuffer->read<int32_t>(), partitionUniqueId.size());
   EXPECT_EQ(
       encodedBuffer->readToString(partitionUniqueId.size()), partitionUniqueId);
+}
+
+TEST(MessageTest, encodePushMergedData) {
+  const std::string body = "merged-body-data";
+  auto bodyBuffer = memory::ByteBuffer::createWriteOnly(body.size());
+  bodyBuffer->writeFromString(body);
+  const long requestId = 2000;
+  const uint8_t mode = 0;
+  const std::string shuffleKey = "test-shuffle-key";
+  std::vector<std::string> partitionUniqueIds = {"p-0", "p-1", "p-2"};
+  std::vector<int32_t> batchOffsets = {0, 5, 10};
+
+  auto pushMergedData = std::make_unique<PushMergedData>(
+      requestId,
+      mode,
+      shuffleKey,
+      partitionUniqueIds,
+      batchOffsets,
+      memory::ByteBuffer::toReadOnly(std::move(bodyBuffer)));
+
+  auto encodedBuffer = pushMergedData->encode();
+
+  int expectedEncodedLen = sizeof(long) + sizeof(uint8_t) +
+      protocol::encodedLength(shuffleKey) +
+      protocol::encodedLength(partitionUniqueIds) +
+      protocol::encodedLength(batchOffsets);
+
+  EXPECT_EQ(encodedBuffer->read<int32_t>(), expectedEncodedLen);
+  EXPECT_EQ(encodedBuffer->read<uint8_t>(), Message::Type::PUSH_MERGED_DATA);
+  EXPECT_EQ(encodedBuffer->read<int32_t>(), body.size());
+  EXPECT_EQ(encodedBuffer->read<long>(), requestId);
+  EXPECT_EQ(encodedBuffer->read<uint8_t>(), mode);
+  EXPECT_EQ(encodedBuffer->read<int32_t>(), shuffleKey.size());
+  EXPECT_EQ(encodedBuffer->readToString(shuffleKey.size()), shuffleKey);
+  EXPECT_EQ(encodedBuffer->read<int32_t>(), 3);
+  for (const auto& id : partitionUniqueIds) {
+    EXPECT_EQ(encodedBuffer->read<int32_t>(), id.size());
+    EXPECT_EQ(encodedBuffer->readToString(id.size()), id);
+  }
+  EXPECT_EQ(encodedBuffer->read<int32_t>(), 3);
+  for (auto offset : batchOffsets) {
+    EXPECT_EQ(encodedBuffer->read<int32_t>(), offset);
+  }
+  EXPECT_EQ(encodedBuffer->readToString(body.size()), body);
+}
+
+TEST(MessageTest, pushMergedDataCopyConstructor) {
+  const std::string body = "test-body";
+  auto bodyBuffer = memory::ByteBuffer::createWriteOnly(body.size());
+  bodyBuffer->writeFromString(body);
+  const long requestId = 3000;
+  std::vector<std::string> ids = {"id1", "id2"};
+  std::vector<int32_t> offsets = {0, 4};
+
+  PushMergedData original(
+      requestId,
+      0,
+      "shuffleKey",
+      ids,
+      offsets,
+      memory::ByteBuffer::toReadOnly(std::move(bodyBuffer)));
+
+  PushMergedData copy(original);
+  EXPECT_EQ(copy.requestId(), requestId);
+  EXPECT_EQ(copy.mode(), 0);
+  EXPECT_EQ(copy.shuffleKey(), "shuffleKey");
+  EXPECT_EQ(copy.partitionUniqueIds().size(), 2);
+  EXPECT_EQ(copy.partitionUniqueIds()[0], "id1");
+  EXPECT_EQ(copy.batchOffsets().size(), 2);
+  EXPECT_EQ(copy.batchOffsets()[1], 4);
 }
