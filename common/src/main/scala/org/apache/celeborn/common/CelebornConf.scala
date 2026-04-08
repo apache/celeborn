@@ -2018,7 +2018,7 @@ object CelebornConf extends Logging {
       .doc("When port is occupied, we will retry for max retry times.")
       .version("0.2.0")
       .intConf
-      .createWithDefault(1)
+      .createWithDefault(16)
 
   val RPC_IO_THREADS: OptionalConfigEntry[Int] =
     buildConf("celeborn.rpc.io.threads")

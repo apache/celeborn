@@ -49,7 +49,7 @@ license: |
 | celeborn.network.memory.allocator.numArenas | &lt;undefined&gt; | false | Number of arenas for pooled memory allocator. Default value is Runtime.getRuntime.availableProcessors, min value is 2. | 0.3.0 |  | 
 | celeborn.network.memory.allocator.verbose.metric | false | false | Whether to enable verbose metric for pooled allocator. | 0.3.0 |  | 
 | celeborn.network.timeout | 240s | false | Default timeout for network operations. | 0.2.0 |  | 
-| celeborn.port.maxRetries | 1 | false | When port is occupied, we will retry for max retry times. | 0.2.0 |  | 
+| celeborn.port.maxRetries | 16 | false | When port is occupied, we will retry for max retry times. | 0.2.0 |  | 
 | celeborn.rpc.RpcEndpointVerifier.separate.enabled | true | false | Whether to enable dispatcher process RpcEndpointVerifier's request separately. | 0.7.0 |  | 
 | celeborn.rpc.askTimeout | 60s | false | Timeout for RPC ask operations. It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.availableTypes` | 0.2.0 |  | 
 | celeborn.rpc.connect.threads | 64 | false |  | 0.2.0 |  | 
