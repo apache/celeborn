@@ -266,8 +266,7 @@ public class DiskPartitionFilesSorterSuiteJ {
             });
       }
 
-      Assert.assertTrue(
-          "Concurrent readers timed out", allDone.await(60, TimeUnit.SECONDS));
+      Assert.assertTrue("Concurrent readers timed out", allDone.await(60, TimeUnit.SECONDS));
 
       long totalSizeToFetch = 0;
       for (int i = startMapIndex; i < endMapIndex; i++) {
@@ -275,8 +274,7 @@ public class DiskPartitionFilesSorterSuiteJ {
       }
 
       for (int i = 0; i < numReaders; i++) {
-        Assert.assertNull(
-            "Reader " + i + " failed: " + errors[i].get(), errors[i].get());
+        Assert.assertNull("Reader " + i + " failed: " + errors[i].get(), errors[i].get());
         FileInfo info = results[i].get();
         Assert.assertNotNull("Reader " + i + " got null result", info);
         long actualTotalChunkSize =

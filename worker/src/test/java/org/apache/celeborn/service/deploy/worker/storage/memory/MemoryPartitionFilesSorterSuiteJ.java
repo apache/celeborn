@@ -19,7 +19,6 @@ package org.apache.celeborn.service.deploy.worker.storage.memory;
 
 import static org.mockito.Mockito.when;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;

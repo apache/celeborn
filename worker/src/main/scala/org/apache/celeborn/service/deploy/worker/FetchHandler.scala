@@ -178,12 +178,23 @@ class FetchHandler(
           try {
             val fileInfo = getRawFileInfo(shuffleKey, fileName)
             openReduceStreamAsync(
-              shuffleKey, fileName, fileInfo, startMapIndex, endMapIndex, streamId,
+              shuffleKey,
+              fileName,
+              fileInfo,
+              startMapIndex,
+              endMapIndex,
+              streamId,
               new FileResolvedCallback {
                 override def onSuccess(sortedFileInfo: FileInfo): Unit = {
                   results(idx) = registerAndHandleStream(
-                    client, shuffleKey, fileName,
-                    startMapIndex, endMapIndex, readLocalFlag, sortedFileInfo, streamId)
+                    client,
+                    shuffleKey,
+                    fileName,
+                    startMapIndex,
+                    endMapIndex,
+                    readLocalFlag,
+                    sortedFileInfo,
+                    streamId)
                   if (results(idx).getStatus != StatusCode.SUCCESS.getValue) {
                     workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
                   }
@@ -328,7 +339,11 @@ class FetchHandler(
               case _ => null
             }
             chunkStreamManager.registerStream(
-              streamId, shuffleKey, managedBuffer, fileName, fetchTimeMetric)
+              streamId,
+              shuffleKey,
+              managedBuffer,
+              fileName,
+              fetchTimeMetric)
             if (meta.getNumChunks == 0)
               logDebug(s"StreamId $streamId, fileName $fileName, mapRange " +
                 s"[$startIndex-$endIndex] is empty. Received from client channel " +
@@ -371,7 +386,12 @@ class FetchHandler(
     if ((endIndex != Int.MaxValue && endIndex != -1 && endIndex >= startIndex) ||
       (endIndex == Int.MaxValue && !fileInfo.addStream(streamId))) {
       partitionsSorter.getSortedFileInfo(
-        shuffleKey, fileName, fileInfo, startIndex, endIndex, callback)
+        shuffleKey,
+        fileName,
+        fileInfo,
+        startIndex,
+        endIndex,
+        callback)
     } else {
       callback.onSuccess(fileInfo)
     }
@@ -402,7 +422,12 @@ class FetchHandler(
         case _: ReduceFileMeta =>
           val streamId = chunkStreamManager.nextStreamId()
           openReduceStreamAsync(
-            shuffleKey, fileName, fileInfo, startIndex, endIndex, streamId,
+            shuffleKey,
+            fileName,
+            fileInfo,
+            startIndex,
+            endIndex,
+            streamId,
             new FileResolvedCallback {
               private var timerStopped = false
 
@@ -410,14 +435,22 @@ class FetchHandler(
                 try {
                   val pbStreamHandlerOpt =
                     registerAndHandleStream(
-                      client, shuffleKey, fileName,
-                      startIndex, endIndex, readLocalShuffle,
-                      sortedFileInfo, streamId)
+                      client,
+                      shuffleKey,
+                      fileName,
+                      startIndex,
+                      endIndex,
+                      readLocalShuffle,
+                      sortedFileInfo,
+                      streamId)
                   if (pbStreamHandlerOpt.getStatus != StatusCode.SUCCESS.getValue) {
                     throw new CelebornIOException(pbStreamHandlerOpt.getErrorMsg)
                   }
                   replyStreamHandler(
-                    client, rpcRequestId, pbStreamHandlerOpt.getStreamHandler, isLegacy)
+                    client,
+                    rpcRequestId,
+                    pbStreamHandlerOpt.getStreamHandler,
+                    isLegacy)
                 } catch {
                   case t: Throwable =>
                     onFailure(t)
@@ -429,8 +462,12 @@ class FetchHandler(
               override def onFailure(e: Throwable): Unit = {
                 workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
                 handleRpcIOException(
-                  client, rpcRequestId, shuffleKey, fileName,
-                  ExceptionUtils.wrapThrowableToIOException(e), callback)
+                  client,
+                  rpcRequestId,
+                  shuffleKey,
+                  fileName,
+                  ExceptionUtils.wrapThrowableToIOException(e),
+                  callback)
                 stopTimerIfNeeded()
               }
 

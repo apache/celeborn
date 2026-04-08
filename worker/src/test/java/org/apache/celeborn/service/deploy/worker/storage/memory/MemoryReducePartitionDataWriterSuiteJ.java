@@ -199,8 +199,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
               return null;
             })
         .when(sorter)
-        .getSortedFileInfo(
-            anyString(), anyString(), eq(info), anyInt(), anyInt(), any());
+        .getSortedFileInfo(anyString(), anyString(), eq(info), anyInt(), anyInt(), any());
     handler.setPartitionsSorter(sorter);
     TransportContext context = new TransportContext(transConf, handler);
     server = context.createServer();

@@ -172,8 +172,7 @@ public class DiskReducePartitionDataWriterSuiteJ {
               return null;
             })
         .when(sorter)
-        .getSortedFileInfo(
-            anyString(), anyString(), eq(info), anyInt(), anyInt(), any());
+        .getSortedFileInfo(anyString(), anyString(), eq(info), anyInt(), anyInt(), any());
     handler.setPartitionsSorter(sorter);
     transportContext = new TransportContext(transConf, handler);
     server = transportContext.createServer();

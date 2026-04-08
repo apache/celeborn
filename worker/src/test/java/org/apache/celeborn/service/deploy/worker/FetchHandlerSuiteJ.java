@@ -324,8 +324,7 @@ public class FetchHandlerSuiteJ {
         builder.addReadLocalShuffle(false);
       }
       ByteBuffer batchOpenStreamBuffer =
-          new TransportMessage(
-                  MessageType.BATCH_OPEN_STREAM, builder.build().toByteArray())
+          new TransportMessage(MessageType.BATCH_OPEN_STREAM, builder.build().toByteArray())
               .toByteBuffer();
       fetchHandler.receive(
           client,
@@ -381,15 +380,10 @@ public class FetchHandlerSuiteJ {
       PbOpenStreamList.Builder builder = PbOpenStreamList.newBuilder().setShuffleKey(shuffleKey);
       builder.addFileName(existingFile).addStartIndex(5).addEndIndex(10).addReadLocalShuffle(false);
       builder.addFileName(missingFile).addStartIndex(0).addEndIndex(10).addReadLocalShuffle(false);
-      builder
-          .addFileName(existingFile)
-          .addStartIndex(5)
-          .addEndIndex(10)
-          .addReadLocalShuffle(false);
+      builder.addFileName(existingFile).addStartIndex(5).addEndIndex(10).addReadLocalShuffle(false);
 
       ByteBuffer batchBuffer =
-          new TransportMessage(
-                  MessageType.BATCH_OPEN_STREAM, builder.build().toByteArray())
+          new TransportMessage(MessageType.BATCH_OPEN_STREAM, builder.build().toByteArray())
               .toByteBuffer();
       fetchHandler.receive(
           client,
@@ -401,12 +395,10 @@ public class FetchHandlerSuiteJ {
           TransportMessage.fromByteBuffer(result.body().nioByteBuffer()).getParsedPayload();
       assertEquals(3, response.getStreamHandlerOptCount());
 
-      assertEquals(
-          StatusCode.SUCCESS.getValue(), response.getStreamHandlerOpt(0).getStatus());
+      assertEquals(StatusCode.SUCCESS.getValue(), response.getStreamHandlerOpt(0).getStatus());
       assertEquals(
           StatusCode.OPEN_STREAM_FAILED.getValue(), response.getStreamHandlerOpt(1).getStatus());
-      assertEquals(
-          StatusCode.SUCCESS.getValue(), response.getStreamHandlerOpt(2).getStatus());
+      assertEquals(StatusCode.SUCCESS.getValue(), response.getStreamHandlerOpt(2).getStatus());
     } finally {
       cleanup(fileInfo);
     }
