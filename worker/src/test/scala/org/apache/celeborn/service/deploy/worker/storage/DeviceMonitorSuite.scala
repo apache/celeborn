@@ -373,7 +373,7 @@ class DeviceMonitorSuite extends AnyFunSuite {
     0 until 3 foreach (i => {
       val result = Utils.tryWithTimeoutAndCallback({
         fn(i)
-      })(false)(pool, 1)
+      })(false)(pool, 1000)
       assert(!result)
     })
     pool.shutdownNow()

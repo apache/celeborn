@@ -1011,18 +1011,18 @@ object Utils extends Logging {
    * @param block the normal action block
    * @param callback callback if timeout
    * @param threadPool thread pool to submit
-   * @param timeoutInSeconds timeout limit value in seconds
+   * @param timeoutMs timeout limit value in milliseconds
    * @param errorMessage error message to log exception
    * @tparam T result type
    * @return result
    */
   def tryWithTimeoutAndCallback[T](block: => T)(callback: => T)(
       threadPool: ThreadPoolExecutor,
-      timeoutInSeconds: Long = 10,
+      timeoutMs: Long = 10000,
       errorMessage: String = "none"): T = {
     tryFutureWithTimeoutAndCallback(callback)(
       future(block)(threadPool),
-      timeoutInSeconds,
+      timeoutMs,
       errorMessage)
   }
 
@@ -1049,17 +1049,17 @@ object Utils extends Logging {
    *
    * @param callback callback if timeout
    * @param future future to try with timeout and callback
-   * @param timeoutInSeconds timeout limit value in seconds
+   * @param timeoutMs timeout limit value in milliseconds
    * @param errorMessage error message to log exception
    * @tparam T result type
    * @return result
    */
   def tryFutureWithTimeoutAndCallback[T](callback: => T)(
       future: java.util.concurrent.Future[T],
-      timeoutInSeconds: Long = 10,
+      timeoutMs: Long = 10000,
       errorMessage: String = "none"): T = {
     try {
-      future.get(timeoutInSeconds, TimeUnit.SECONDS)
+      future.get(timeoutMs, TimeUnit.MILLISECONDS)
     } catch {
       case _: TimeoutException =>
         logError(s"TimeoutException in thread ${Thread.currentThread().getName}," +
