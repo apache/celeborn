@@ -1425,7 +1425,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     (false, fileWriter)
   }
 
-  private def checkDiskFull(fileWriter: PartitionDataWriter): Boolean = {
+  private[worker] def checkDiskFull(fileWriter: PartitionDataWriter): Boolean = {
     val flusher = fileWriter.getFlusher;
     if (flusher.isInstanceOf[LocalFlusher]) {
       val mountPoint = flusher.asInstanceOf[LocalFlusher].mountPoint
@@ -1436,7 +1436,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     }
   }
 
-  private def checkDiskFullAndSplit(
+  private[worker] def checkDiskFullAndSplit(
       fileWriter: PartitionDataWriter,
       isPrimary: Boolean): StatusCode = {
     if (fileWriter.needHardSplitForMemoryShuffleStorage()) {
@@ -1455,11 +1455,11 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
          |fileName:${fileWriter.getCurrentFileInfo.getFilePath}
          |""".stripMargin)
     val diskFileInfo = fileWriter.getDiskFileInfo
-    if (diskFileInfo != null) {
-      if (workerPartitionSplitEnabled && diskFull && (diskFileInfo.getFileLength >= partitionSplitMinimumSize)) {
+    if (workerPartitionSplitEnabled && diskFileInfo != null) {
+      if (diskFull && (diskFileInfo.getFileLength > partitionSplitMinimumSize)) {
         return StatusCode.HARD_SPLIT
       }
-      if (workerPartitionSplitEnabled && (isPrimary && diskFileInfo.getFileLength > fileWriter.getSplitThreshold)) {
+      if (isPrimary && diskFileInfo.getFileLength > fileWriter.getSplitThreshold) {
         if (fileWriter.getSplitMode == PartitionSplitMode.SOFT &&
           (fileWriter.getDiskFileInfo.getFileLength < partitionSplitMaximumSize)) {
           return StatusCode.SOFT_SPLIT
