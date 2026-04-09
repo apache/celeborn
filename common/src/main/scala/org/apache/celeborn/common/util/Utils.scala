@@ -1076,17 +1076,17 @@ object Utils extends Logging {
    * If other exception will be thrown directly.
    *
    * @param futures futures to try with timeout and callback
-   * @param timeoutInSeconds timeout limit value in seconds
+   * @param timeoutMs timeout limit value in milliseconds
    * @param errorMessage error message to log exception
    * @tparam T result type
    * @return results
    */
   def tryFuturesWithTimeout[T](
       futures: List[java.util.concurrent.Future[T]],
-      timeoutInSeconds: Long = 10,
+      timeoutMs: Long = 10000,
       errorMessage: String = "none"): List[T] = {
     try {
-      futures.map(_.get(timeoutInSeconds, TimeUnit.SECONDS))
+      futures.map(_.get(timeoutMs, TimeUnit.MILLISECONDS))
     } catch {
       case throwable: Throwable =>
         logError(
