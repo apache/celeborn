@@ -19,7 +19,7 @@ package org.apache.spark.shuffle.celeborn
 
 import scala.collection.JavaConverters._
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, TaskContext}
 import org.apache.spark.scheduler.{TaskSchedulerImpl, TaskSetManager}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
@@ -267,6 +267,60 @@ class SparkUtilsSuite extends AnyFunSuite
     }
   }
 
+  test("getTaskFailureCount after real task failures") {
+    if (Spark3OrNewer) {
+      // local[1,4]: 1 core (sequential execution), max 4 task failures before stage abort
+      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[1,4]")
+      val sparkSession = SparkSession.builder()
+        .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+        .config("spark.sql.shuffle.partitions", 2)
+        .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+        .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
+        .config(
+          "spark.shuffle.manager",
+          "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+        .getOrCreate()
+
+      try {
+        val sc = sparkSession.sparkContext
+        SparkUtilsSuite.survivingTaskAttemptId.set(-1)
+
+        val jobThread = new Thread {
+          override def run(): Unit = {
+            try {
+              sc.parallelize(1 to 10, 1).mapPartitions { iter =>
+                val ctx = TaskContext.get()
+                if (ctx.attemptNumber() < 2) {
+                  throw new RuntimeException("Simulated task failure")
+                }
+                SparkUtilsSuite.survivingTaskAttemptId.set(ctx.taskAttemptId())
+                Thread.sleep(10000)
+                iter
+              }.collect()
+            } catch {
+              case _: Exception =>
+            }
+          }
+        }
+        jobThread.start()
+
+        val taskScheduler = sc.taskScheduler.asInstanceOf[TaskSchedulerImpl]
+        eventually(timeout(10.seconds), interval(100.milliseconds)) {
+          val runningTaskId = SparkUtilsSuite.survivingTaskAttemptId.get()
+          assert(runningTaskId >= 0)
+          val taskSetManager = SparkUtils.getTaskSetManager(taskScheduler, runningTaskId)
+          assert(taskSetManager != null)
+          assert(SparkUtils.getTaskFailureCount(taskSetManager, 0) == 2)
+        }
+
+        sparkSession.sparkContext.cancelAllJobs()
+        jobThread.interrupt()
+      } finally {
+        sparkSession.stop()
+      }
+    }
+  }
+
   test("serialize/deserialize GetReducerFileGroupResponse with broadcast") {
     val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
     val sparkSession = SparkSession.builder()
@@ -323,4 +377,8 @@ class SparkUtilsSuite extends AnyFunSuite
       SparkUtils.getReducerFileGroupResponseBroadcastNum.set(0)
     }
   }
+}
+
+object SparkUtilsSuite {
+  val survivingTaskAttemptId = new java.util.concurrent.atomic.AtomicLong(-1)
 }
