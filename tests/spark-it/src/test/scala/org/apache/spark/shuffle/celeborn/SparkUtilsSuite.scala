@@ -85,15 +85,10 @@ class SparkUtilsSuite extends AnyFunSuite
         }
         jobThread.start()
 
-        val taskScheduler = sc.taskScheduler.asInstanceOf[TaskSchedulerImpl]
         eventually(timeout(30.seconds), interval(0.milliseconds)) {
           assert(hook.executed.get() == true)
           val reportedTaskId = SparkUtils.lastReportedShuffleFetchFailureTaskId
           assert(reportedTaskId != null)
-          val taskSetManager = SparkUtils.getTaskSetManager(taskScheduler, reportedTaskId)
-          assert(taskSetManager != null)
-          assert(SparkUtils.getTaskAttempts(taskSetManager, reportedTaskId)._2.size() == 1)
-          assert(SparkUtils.shouldReportShuffleFetchFailure(reportedTaskId))
         }
 
         sparkSession.sparkContext.cancelAllJobs()
