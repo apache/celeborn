@@ -317,14 +317,18 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
                     fileResolvedCallback.onSuccess(sortedFileInfo);
                   } catch (Throwable e) {
                     fileResolvedCallback.onFailure(e);
+                  } finally {
+                    notifyPendingSortCallbacks(fileId, null);
                   }
-                  notifyPendingSortCallbacks(fileId, null);
                 }
 
                 @Override
                 public void onFailure(Throwable e) {
-                  fileResolvedCallback.onFailure(e);
-                  notifyPendingSortCallbacks(fileId, e);
+                  try {
+                    fileResolvedCallback.onFailure(e);
+                  } finally {
+                    notifyPendingSortCallbacks(fileId, e);
+                  }
                 }
               };
           try {

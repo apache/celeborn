@@ -186,17 +186,23 @@ class FetchHandler(
               streamId,
               new FileResolvedCallback {
                 override def onSuccess(sortedFileInfo: FileInfo): Unit = {
-                  results(idx) = registerAndHandleStream(
-                    client,
-                    shuffleKey,
-                    fileName,
-                    startMapIndex,
-                    endMapIndex,
-                    readLocalFlag,
-                    sortedFileInfo,
-                    streamId)
-                  if (results(idx).getStatus != StatusCode.SUCCESS.getValue) {
-                    workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
+                  try {
+                    results(idx) = registerAndHandleStream(
+                      client,
+                      shuffleKey,
+                      fileName,
+                      startMapIndex,
+                      endMapIndex,
+                      readLocalFlag,
+                      sortedFileInfo,
+                      streamId)
+                    if (results(idx).getStatus != StatusCode.SUCCESS.getValue) {
+                      workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
+                    }
+                  } catch {
+                    case t: Throwable =>
+                      onFailure(t)
+                      return
                   }
                   completedCount.incrementAndGet()
                   trySendBatchResponse()
