@@ -283,17 +283,14 @@ class SparkUtilsSuite extends AnyFunSuite
 
       try {
         val sc = sparkSession.sparkContext
-        SparkUtilsSuite.survivingTaskAttemptId.set(-1)
 
         val jobThread = new Thread {
           override def run(): Unit = {
             try {
               sc.parallelize(1 to 10, 1).mapPartitions { iter =>
-                val ctx = TaskContext.get()
-                if (ctx.attemptNumber() < 2) {
+                if (TaskContext.get().attemptNumber() < 2) {
                   throw new RuntimeException("Simulated task failure")
                 }
-                SparkUtilsSuite.survivingTaskAttemptId.set(ctx.taskAttemptId())
                 Thread.sleep(10000)
                 iter
               }.collect()
@@ -306,9 +303,8 @@ class SparkUtilsSuite extends AnyFunSuite
 
         val taskScheduler = sc.taskScheduler.asInstanceOf[TaskSchedulerImpl]
         eventually(timeout(10.seconds), interval(100.milliseconds)) {
-          val runningTaskId = SparkUtilsSuite.survivingTaskAttemptId.get()
-          assert(runningTaskId >= 0)
-          val taskSetManager = SparkUtils.getTaskSetManager(taskScheduler, runningTaskId)
+          // taskId 0,1 failed and removed; taskId 2 is the surviving 3rd attempt
+          val taskSetManager = SparkUtils.getTaskSetManager(taskScheduler, 2)
           assert(taskSetManager != null)
           assert(SparkUtils.getTaskFailureCount(taskSetManager, 0) == 2)
         }
@@ -377,8 +373,4 @@ class SparkUtilsSuite extends AnyFunSuite
       SparkUtils.getReducerFileGroupResponseBroadcastNum.set(0)
     }
   }
-}
-
-object SparkUtilsSuite {
-  val survivingTaskAttemptId = new java.util.concurrent.atomic.AtomicLong(-1)
 }
