@@ -83,13 +83,18 @@ class PushDataHandlerSuite extends AnyFunSuite {
     when(mockWorker.partitionLocationInfo).thenReturn(mock[
       org.apache.celeborn.common.meta.WorkerPartitionLocationInfo])
     when(mockWorker.shufflePartitionType).thenReturn(
-      new java.util.concurrent.ConcurrentHashMap())
+      new java.util.concurrent.ConcurrentHashMap[
+        String,
+        org.apache.celeborn.common.protocol.PartitionType]())
     when(mockWorker.shufflePushDataTimeout).thenReturn(
-      new java.util.concurrent.ConcurrentHashMap())
+      new java.util.concurrent.ConcurrentHashMap[String, Long]())
     when(mockWorker.shuffleMapperAttempts).thenReturn(
-      new java.util.concurrent.ConcurrentHashMap())
+      new java.util.concurrent.ConcurrentHashMap[
+        String,
+        java.util.concurrent.atomic.AtomicIntegerArray]())
     when(mockWorker.replicateThreadPool).thenReturn(mock[java.util.concurrent.ThreadPoolExecutor])
-    when(mockWorker.unavailablePeers).thenReturn(new java.util.concurrent.ConcurrentHashMap())
+    when(mockWorker.unavailablePeers).thenReturn(
+      new java.util.concurrent.ConcurrentHashMap[WorkerInfo, Long]())
     when(mockWorker.replicateClientFactory).thenReturn(
       mock[org.apache.celeborn.common.network.client.TransportClientFactory])
     when(mockWorker.storageManager).thenReturn(mock[
