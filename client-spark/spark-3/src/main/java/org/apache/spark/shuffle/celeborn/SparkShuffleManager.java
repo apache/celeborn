@@ -22,8 +22,10 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.spark.*;
+import org.apache.spark.celeborn.StageDependencyManager;
 import org.apache.spark.internal.config.package$;
 import org.apache.spark.launcher.SparkLauncher;
+import org.apache.spark.listener.ShuffleStatsTrackingListener;
 import org.apache.spark.rdd.DeterministicLevel;
 import org.apache.spark.shuffle.*;
 import org.apache.spark.shuffle.sort.SortShuffleManager;
@@ -90,6 +92,13 @@ public class SparkShuffleManager implements ShuffleManager {
   private long sendBufferPoolExpireTimeout;
 
   private ExecutorShuffleIdTracker shuffleIdTracker = new ExecutorShuffleIdTracker();
+
+  private StageDependencyManager stageDepManager = null;
+
+  // for testing
+  public void initStageDepManager() {
+    this.stageDepManager = new StageDependencyManager(this);
+  }
 
   public SparkShuffleManager(SparkConf conf, boolean isDriver) {
     if (conf.getBoolean(SQLConf.LOCAL_SHUFFLE_READER_ENABLED().key(), true)) {
@@ -175,6 +184,45 @@ public class SparkShuffleManager implements ShuffleManager {
                     SparkUtils.addWriterShuffleIdsToBeCleaned(this, appShuffleIdentifier));
             lifecycleManager.registerUnregisterShuffleCallback(
                 (celebornShuffleId) -> SparkUtils.removeCleanedShuffleId(this, celebornShuffleId));
+          }
+
+          if (lifecycleManager.conf().clientShuffleEarlyDeletion()) {
+            if (!lifecycleManager.conf().clientStageRerunEnabled()) {
+              throw new IllegalArgumentException(
+                  CelebornConf.CLIENT_STAGE_RERUN_ENABLED().key()
+                      + " has to be "
+                      + "enabled, when "
+                      + CelebornConf.CLIENT_SHUFFLE_EARLY_DELETION().key()
+                      + " is set to true");
+            }
+            SparkUtils.addSparkListener(new ShuffleStatsTrackingListener());
+            lifecycleManager.registerStageToWriteCelebornShuffleCallback(
+                (celebornShuffleId, appShuffleIdentifier) ->
+                    SparkUtils.addStageToWriteCelebornShuffleIdDep(
+                        this, celebornShuffleId, appShuffleIdentifier));
+            lifecycleManager.registerCelebornToAppShuffleIdMappingCallback(
+                (celebornShuffleId, appShuffleIdentifier) ->
+                    SparkUtils.addCelebornToSparkShuffleIdRef(
+                        this, celebornShuffleId, appShuffleIdentifier));
+            lifecycleManager.registerGetCelebornShuffleIdForReaderCallback(
+                (celebornShuffleId, appShuffleIdentifier) ->
+                    SparkUtils.addCelebornShuffleReadingStageDep(
+                        this, celebornShuffleId, appShuffleIdentifier));
+            lifecycleManager.registerUpstreamAppShuffleIdsCallback(
+                (stageId) -> SparkUtils.getAllUpstreamAppShuffleIds(this, stageId));
+            lifecycleManager.registerGetAppShuffleIdByStageIdCallback(
+                (stageId) -> SparkUtils.getAppShuffleIdByStageId(this, stageId));
+            lifecycleManager.registerReaderStageToAppShuffleIdsCallback(
+                (appShuffleId, appShuffleIdentifier) ->
+                    SparkUtils.addAppShuffleReadingStageDep(
+                        this, appShuffleId, appShuffleIdentifier));
+            lifecycleManager.registerInvalidateAllUpstreamCheckCallback(
+                (appShuffleIdentifier) ->
+                    SparkUtils.canInvalidateAllUpstream(this, appShuffleIdentifier));
+            if (stageDepManager == null) {
+              stageDepManager = new StageDependencyManager(this);
+            }
+            stageDepManager.start();
           }
 
           if (celebornConf.getReducerFileGroupBroadcastEnabled()) {
@@ -496,5 +544,9 @@ public class SparkShuffleManager implements ShuffleManager {
 
   public FailedShuffleCleaner getFailedShuffleCleaner() {
     return this.failedShuffleCleaner;
+  }
+
+  public StageDependencyManager getStageDepManager() {
+    return this.stageDepManager;
   }
 }
