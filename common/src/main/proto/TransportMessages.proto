@@ -377,6 +377,7 @@ message PbMapperEnd {
   int32 numPartitions = 7;
   repeated int32 crc32PerPartition = 8;
   repeated int64 bytesWrittenPerPartition = 9;
+  int64 bytesWritten = 10;
 }
 
 message PbLocationPushFailedBatches {

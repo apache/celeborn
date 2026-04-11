@@ -18,7 +18,10 @@
 package org.apache.celeborn.tests.client
 
 import java.util
+import java.util.Collections
+import java.util.function.BiConsumer
 
+import org.mockito.Mockito
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
@@ -26,7 +29,10 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.apache.celeborn.client.{LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.network.protocol.SerdeVersion
+import org.apache.celeborn.common.protocol.message.ControlMessages.MapperEnd
 import org.apache.celeborn.common.protocol.message.StatusCode
+import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
 class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeature {
@@ -124,6 +130,117 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
       assert(appInfo.extraInfo.get("k1") == "v1")
       assert(appInfo.registrationTime > 0 && appInfo.registrationTime < System.currentTimeMillis())
     }
+  }
+
+  test("CELEBORN-2264: Support cancel shuffle when write bytes exceeds threshold (enabled)") {
+    val conf = celebornConf.clone
+    conf.set(CelebornConf.SHUFFLE_WRITE_LIMIT_ENABLED.key, "true")
+      .set(CelebornConf.SHUFFLE_WRITE_LIMIT_THRESHOLD.key, "2000")
+    val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
+    val ctx = Mockito.mock(classOf[RpcCallContext])
+
+    // Track cancelShuffle invocation
+    var isCancelShuffleInvoked = false
+    val cancelShuffleCallback = new BiConsumer[Integer, String] {
+      override def accept(shuffleId: Integer, reason: String): Unit = {
+        isCancelShuffleInvoked = true
+      }
+    }
+    lifecycleManager.registerCancelShuffleCallback(cancelShuffleCallback)
+
+    // Same mapper multiple attempts (total > threshold, no cancel)
+    val shuffleId = 0
+    val mapId1 = 0
+    lifecycleManager.receiveAndReply(ctx)(MapperEnd(
+      shuffleId = shuffleId,
+      mapId = mapId1,
+      attemptId = 0,
+      2,
+      1,
+      Collections.emptyMap(),
+      1,
+      Array.emptyIntArray,
+      Array.emptyLongArray,
+      SerdeVersion.V1,
+      bytesWritten = 1500))
+    lifecycleManager.receiveAndReply(ctx)(MapperEnd(
+      shuffleId = shuffleId,
+      mapId = mapId1,
+      attemptId = 1,
+      2,
+      1,
+      Collections.emptyMap(),
+      1,
+      Array.emptyIntArray,
+      Array.emptyLongArray,
+      SerdeVersion.V1,
+      bytesWritten = 1500))
+    assert(!isCancelShuffleInvoked)
+
+    // mapId1 + mapId2 exceed threshold (trigger cancel)
+    val mapId2 = 1
+    lifecycleManager.receiveAndReply(ctx)(MapperEnd(
+      shuffleId = shuffleId,
+      mapId = mapId2,
+      attemptId = 0,
+      2,
+      1,
+      Collections.emptyMap(),
+      1,
+      Array.emptyIntArray,
+      Array.emptyLongArray,
+      SerdeVersion.V1,
+      bytesWritten = 1000))
+    assert(isCancelShuffleInvoked)
+  }
+
+  test("CELEBORN-2264: Support cancel shuffle when write bytes exceeds threshold (disable)") {
+    val conf = celebornConf.clone
+    conf.set(CelebornConf.SHUFFLE_WRITE_LIMIT_ENABLED.key, "false")
+      .set(CelebornConf.SHUFFLE_WRITE_LIMIT_THRESHOLD.key, "2000")
+    val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
+    val ctx = Mockito.mock(classOf[RpcCallContext])
+
+    // Track cancelShuffle invocation
+    var isCancelShuffleInvoked = false
+    val cancelShuffleCallback = new BiConsumer[Integer, String] {
+      override def accept(shuffleId: Integer, reason: String): Unit = {
+        isCancelShuffleInvoked = true
+      }
+    }
+    lifecycleManager.registerCancelShuffleCallback(cancelShuffleCallback)
+
+    // Cumulative bytes exceed threshold (no cancel when disabled)
+    val shuffleId = 0
+    val mapId1 = 0
+    lifecycleManager.receiveAndReply(ctx)(MapperEnd(
+      shuffleId = shuffleId,
+      mapId = mapId1,
+      attemptId = 0,
+      2,
+      1,
+      Collections.emptyMap(),
+      1,
+      Array.emptyIntArray,
+      Array.emptyLongArray,
+      SerdeVersion.V1,
+      bytesWritten = 1500))
+
+    val mapId2 = 1
+    lifecycleManager.receiveAndReply(ctx)(MapperEnd(
+      shuffleId = shuffleId,
+      mapId = mapId2,
+      attemptId = 0,
+      2,
+      1,
+      Collections.emptyMap(),
+      1,
+      Array.emptyIntArray,
+      Array.emptyLongArray,
+      SerdeVersion.V1,
+      bytesWritten = 1500))
+
+    assert(!isCancelShuffleInvoked)
   }
 
   override def afterAll(): Unit = {
