@@ -1426,7 +1426,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   }
 
   private def checkDiskFull(fileWriter: PartitionDataWriter): Boolean = {
-    val flusher = fileWriter.getFlusher;
+    val flusher = fileWriter.getFlusher
     if (flusher.isInstanceOf[LocalFlusher]) {
       val mountPoint = flusher.asInstanceOf[LocalFlusher].mountPoint
       val diskInfo = workerInfo.diskInfos.get(mountPoint)
@@ -1436,7 +1436,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     }
   }
 
-  private def checkDiskFullAndSplit(
+  private[worker] def checkDiskFullAndSplit(
       fileWriter: PartitionDataWriter,
       isPrimary: Boolean): StatusCode = {
     if (fileWriter.needHardSplitForMemoryShuffleStorage()) {
@@ -1455,25 +1455,32 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
          |fileName:${fileWriter.getCurrentFileInfo.getFilePath}
          |""".stripMargin)
     val diskFileInfo = fileWriter.getDiskFileInfo
-    if (diskFileInfo != null) {
-      if (workerPartitionSplitEnabled && ((diskFull && diskFileInfo.getFileLength > partitionSplitMinimumSize) ||
-          (isPrimary && diskFileInfo.getFileLength > fileWriter.getSplitThreshold))) {
-        if (fileWriter.getSplitMode == PartitionSplitMode.SOFT &&
-          (fileWriter.getDiskFileInfo.getFileLength < partitionSplitMaximumSize)) {
-          return StatusCode.SOFT_SPLIT
+    if (workerPartitionSplitEnabled && diskFileInfo != null) {
+      val splitStatus =
+        if (diskFull && (diskFileInfo.getFileLength > partitionSplitMinimumSize)) {
+          StatusCode.HARD_SPLIT
+        } else if (isPrimary && diskFileInfo.getFileLength > fileWriter.getSplitThreshold) {
+          if (fileWriter.getSplitMode == PartitionSplitMode.SOFT &&
+            diskFileInfo.getFileLength < partitionSplitMaximumSize) {
+            StatusCode.SOFT_SPLIT
+          } else {
+            StatusCode.HARD_SPLIT
+          }
         } else {
-          logInfo(
-            s"""
-               |CheckDiskFullAndSplit hardSplit
-               |diskFull:$diskFull,
-               |partitionSplitMinimumSize:$partitionSplitMinimumSize,
-               |splitThreshold:${fileWriter.getSplitThreshold},
-               |fileLength:${diskFileInfo.getFileLength},
-               |fileName:${diskFileInfo.getFilePath}
-               |""".stripMargin)
-          return StatusCode.HARD_SPLIT
+          StatusCode.NO_SPLIT
         }
+      if (splitStatus == StatusCode.HARD_SPLIT) {
+        logInfo(
+          s"""
+             |CheckDiskFullAndSplit hardSplit
+             |diskFull:$diskFull,
+             |partitionSplitMinimumSize:$partitionSplitMinimumSize,
+             |splitThreshold:${fileWriter.getSplitThreshold},
+             |fileLength:${diskFileInfo.getFileLength},
+             |fileName:${diskFileInfo.getFilePath}
+             |""".stripMargin)
       }
+      return splitStatus
     }
     StatusCode.NO_SPLIT
   }
