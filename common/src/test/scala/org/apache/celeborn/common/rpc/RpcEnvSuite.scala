@@ -666,7 +666,12 @@ abstract class RpcEnvSuite extends CelebornFunSuite {
   }
 
   test("port conflict") {
-    val anotherEnv = createRpcEnv(createCelebornConf(), "remote", env.address.port)
+    // Use a high maxRetries value to ensure we can find a free port even in CI environments
+    // where multiple test classes run concurrently and adjacent ports may already be in use.
+    // The default maxRetries=1 is too low and causes flaky failures when port+1 is also occupied.
+    val conf = createCelebornConf()
+    conf.set(CelebornConf.PORT_MAX_RETRY, 100)
+    val anotherEnv = createRpcEnv(conf, "remote", env.address.port)
     try {
       assert(
         anotherEnv.address.port != env.address.port,

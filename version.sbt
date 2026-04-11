@@ -16,3 +16,6 @@
  */
 
 ThisBuild / version := "0.7.0-SNAPSHOT"
+
+// Align with Maven surefire forkCount=1: only one forked test JVM at a time
+Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
