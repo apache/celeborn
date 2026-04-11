@@ -48,7 +48,7 @@ class FetchHandler(
     val workerSource: WorkerSource)
   extends BaseMessageHandler with Logging {
 
-  val chunkStreamManager = new ChunkStreamManager()
+  val chunkStreamManager = getChunkStreamManager
   val maxChunkBeingTransferred: Option[Long] = conf.shuffleIoMaxChunksBeingTransferred
 
   val creditStreamManager = new CreditStreamManager(
@@ -76,6 +76,10 @@ class FetchHandler(
     this.storageManager = worker.storageManager
     this.partitionsSorter = worker.partitionsSorter
     this.registered = Some(worker.registered)
+  }
+
+  def getChunkStreamManager: ChunkStreamManager = {
+    new ChunkStreamManager()
   }
 
   def getRawFileInfo(
