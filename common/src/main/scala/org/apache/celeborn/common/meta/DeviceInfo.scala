@@ -22,14 +22,14 @@ import java.util
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
-
 import org.slf4j.LoggerFactory
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
 import org.apache.celeborn.common.util.Utils.runCommand
+
+import java.util.concurrent.atomic.AtomicLong
 
 class DiskInfo(
     val mountPoint: String,
@@ -88,6 +88,17 @@ class DiskInfo(
   lazy val shuffleAllocations = new util.HashMap[String, Integer]()
   lazy val applicationAllocations = new util.HashMap[String, Integer]()
 
+  @volatile
+  var transientAvailableBytes = new AtomicLong(actualUsableSpace)
+
+  def getTransientAvailableBytes: Long = {
+    transientAvailableBytes.get()
+  }
+
+  def acquireBytesFlushed(bytes: Long): Boolean = {
+    transientAvailableBytes.addAndGet(-bytes) >= 0
+  }
+
   def setStorageType(storageType: StorageInfo.Type) = {
     this.storageType = storageType
   }
@@ -99,6 +110,7 @@ class DiskInfo(
 
   def setUsableSpace(usableSpace: Long): this.type = this.synchronized {
     this.actualUsableSpace = usableSpace
+    transientAvailableBytes = new AtomicLong(usableSpace)
     this
   }
 
