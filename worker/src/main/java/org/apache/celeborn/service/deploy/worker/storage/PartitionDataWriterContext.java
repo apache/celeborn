@@ -33,7 +33,6 @@ public class PartitionDataWriterContext {
   private final String appId;
   private final int shuffleId;
   private final UserIdentifier userIdentifier;
-  private final boolean partitionSplitEnabled;
   private final String shuffleKey;
   private final PartitionType partitionType;
   private final boolean isSegmentGranularityVisible;
@@ -51,7 +50,6 @@ public class PartitionDataWriterContext {
       int shuffleId,
       UserIdentifier userIdentifier,
       PartitionType partitionType,
-      boolean partitionSplitEnabled,
       boolean isSegmentGranularityVisible) {
     this.splitThreshold = splitThreshold;
     this.partitionSplitMode = partitionSplitMode;
@@ -60,7 +58,6 @@ public class PartitionDataWriterContext {
     this.appId = appId;
     this.shuffleId = shuffleId;
     this.userIdentifier = userIdentifier;
-    this.partitionSplitEnabled = partitionSplitEnabled;
     this.partitionType = partitionType;
     this.shuffleKey = Utils.makeShuffleKey(appId, shuffleId);
     this.isSegmentGranularityVisible = isSegmentGranularityVisible;
@@ -92,10 +89,6 @@ public class PartitionDataWriterContext {
 
   public UserIdentifier getUserIdentifier() {
     return userIdentifier;
-  }
-
-  public boolean isPartitionSplitEnabled() {
-    return partitionSplitEnabled;
   }
 
   public String getShuffleKey() {
@@ -152,8 +145,6 @@ public class PartitionDataWriterContext {
         + shuffleId
         + ", userIdentifier="
         + userIdentifier
-        + ", partitionSplitEnabled="
-        + partitionSplitEnabled
         + ", shuffleKey='"
         + shuffleKey
         + '\''

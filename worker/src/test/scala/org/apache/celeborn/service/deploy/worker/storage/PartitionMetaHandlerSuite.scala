@@ -40,7 +40,6 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
     val notifier = new FlushNotifier()
     val diskFileInfo = new DiskFileInfo(
       UserIdentifier.apply("`a`.`b`"),
-      true,
       fileMeta,
       tmpFilePath.toString,
       StorageInfo.Type.HDD)
@@ -105,7 +104,6 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
     val fileMeta = new ReduceFileMeta(8192)
     val diskFileInfo = new DiskFileInfo(
       UserIdentifier.apply("`a`.`b`"),
-      true,
       fileMeta,
       tmpFilePath.toString,
       StorageInfo.Type.HDD)
@@ -150,7 +148,6 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
     val notifier = new FlushNotifier()
     val diskFileInfo = new DiskFileInfo(
       UserIdentifier.apply("`a`.`b`"),
-      true,
       fileMeta,
       tmpFilePath.toString,
       StorageInfo.Type.HDD)
