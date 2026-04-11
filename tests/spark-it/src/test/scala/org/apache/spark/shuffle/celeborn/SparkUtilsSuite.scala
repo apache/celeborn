@@ -19,7 +19,7 @@ package org.apache.spark.shuffle.celeborn
 
 import scala.collection.JavaConverters._
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, TaskContext}
 import org.apache.spark.scheduler.{TaskSchedulerImpl, TaskSetManager}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
@@ -208,6 +208,107 @@ class SparkUtilsSuite extends AnyFunSuite
       jobThread.interrupt()
     } finally {
       sparkSession.stop()
+    }
+  }
+
+  test("getTaskFailureCount") {
+    assert(SparkUtils.getTaskFailureCount(null, 0) == -1)
+
+    if (Spark3OrNewer) {
+      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
+      val sparkSession = SparkSession.builder()
+        .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+        .config("spark.sql.shuffle.partitions", 2)
+        .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+        .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
+        .config(
+          "spark.shuffle.manager",
+          "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+        .getOrCreate()
+
+      try {
+        val sc = sparkSession.sparkContext
+        val jobThread = new Thread {
+          override def run(): Unit = {
+            try {
+              sc.parallelize(1 to 100, 2)
+                .repartition(1)
+                .mapPartitions { iter =>
+                  Thread.sleep(3000)
+                  iter
+                }.collect()
+            } catch {
+              case _: InterruptedException =>
+            }
+          }
+        }
+        jobThread.start()
+
+        val taskScheduler = sc.taskScheduler.asInstanceOf[TaskSchedulerImpl]
+        eventually(timeout(3.seconds), interval(100.milliseconds)) {
+          val taskId = 0
+          val taskSetManager = SparkUtils.getTaskSetManager(taskScheduler, taskId)
+          assert(taskSetManager != null)
+          assert(SparkUtils.getTaskFailureCount(taskSetManager, 0) == 0)
+          assert(SparkUtils.getTaskFailureCount(taskSetManager, -1) == -1)
+          assert(SparkUtils.getTaskFailureCount(taskSetManager, Int.MaxValue) == -1)
+        }
+
+        sparkSession.sparkContext.cancelAllJobs()
+        jobThread.interrupt()
+      } finally {
+        sparkSession.stop()
+      }
+    }
+  }
+
+  test("getTaskFailureCount after real task failures") {
+    if (Spark3OrNewer) {
+      // local[1,4]: 1 core (sequential execution), max 4 task failures before stage abort
+      val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[1,4]")
+      val sparkSession = SparkSession.builder()
+        .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+        .config("spark.sql.shuffle.partitions", 2)
+        .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
+        .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
+        .config(
+          "spark.shuffle.manager",
+          "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
+        .getOrCreate()
+
+      try {
+        val sc = sparkSession.sparkContext
+
+        val jobThread = new Thread {
+          override def run(): Unit = {
+            try {
+              sc.parallelize(1 to 10, 1).mapPartitions { iter =>
+                if (TaskContext.get().attemptNumber() < 2) {
+                  throw new RuntimeException("Simulated task failure")
+                }
+                Thread.sleep(10000)
+                iter
+              }.collect()
+            } catch {
+              case _: Exception =>
+            }
+          }
+        }
+        jobThread.start()
+
+        val taskScheduler = sc.taskScheduler.asInstanceOf[TaskSchedulerImpl]
+        eventually(timeout(10.seconds), interval(100.milliseconds)) {
+          // taskId 0,1 failed and removed; taskId 2 is the surviving 3rd attempt
+          val taskSetManager = SparkUtils.getTaskSetManager(taskScheduler, 2)
+          assert(taskSetManager != null)
+          assert(SparkUtils.getTaskFailureCount(taskSetManager, 0) == 2)
+        }
+
+        sparkSession.sparkContext.cancelAllJobs()
+        jobThread.interrupt()
+      } finally {
+        sparkSession.stop()
+      }
     }
   }
 
