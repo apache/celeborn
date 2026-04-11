@@ -6,9 +6,9 @@ Java HotSpot(TM) 64-Bit Server VM 1.8.0_202-b08 on Linux 6.12.76-linuxkit
 Unknown processor
 File-Backed Shuffle Fetch:                Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ------------------------------------------------------------------------------------------------------------------------
-NIO, sequential fetch                               143            144           1          0.0     1428295.4       1.0X
-NIO, parallel fetch (4 clients)                      58             61           3          0.0      584521.7       2.4X
-EPOLL, sequential fetch                             524            535          10          0.0     5244734.2       0.3X
-EPOLL, parallel fetch (4 clients)                   191            195           5          0.0     1911557.1       0.7X
+NIO, sequential fetch                               145            148           5          0.0     1449506.3       1.0X
+NIO, parallel fetch (4 clients)                      61             62           1          0.0      608915.0       2.4X
+EPOLL, sequential fetch                             134            135           2          0.0     1335785.8       1.1X
+EPOLL, parallel fetch (4 clients)                    55             56           2          0.0      545577.1       2.7X
 
 
