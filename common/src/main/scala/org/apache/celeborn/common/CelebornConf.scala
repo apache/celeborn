@@ -730,6 +730,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def masterHttpIdleTimeout: Long = get(MASTER_HTTP_IDLE_TIMEOUT)
 
   def haEnabled: Boolean = get(HA_ENABLED)
+  def haMasterGracefulShutdownEnabled: Boolean = get(HA_MASTER_GRACEFUL_SHUTDOWN_ENABLED)
 
   def haMasterNodeId: Option[String] = get(HA_MASTER_NODE_ID)
 
@@ -2758,6 +2759,17 @@ object CelebornConf extends Logging {
       .categories("ha")
       .version("0.3.0")
       .doc("When true, master nodes run as Raft cluster mode.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val HA_MASTER_GRACEFUL_SHUTDOWN_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.master.ha.gracefulShutdown.enabled")
+      .categories("ha")
+      .version("0.7.0")
+      .doc("When true, the master will run a shutdown hook and" +
+        "transfer Raft leadership before shutting down. " +
+        "This reduces chances of client side failures by avoiding " +
+        "the Raft election window where no leader is available.")
       .booleanConf
       .createWithDefault(false)
 

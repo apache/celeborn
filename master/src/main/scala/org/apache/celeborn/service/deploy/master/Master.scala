@@ -51,7 +51,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.rpc.{RpcSecurityContextBuilder, ServerSaslContextBuilder}
-import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeUtils, SignalUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ShutdownHookManager, SignalUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.audit.ShuffleAuditLogger
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
@@ -377,6 +377,27 @@ private[celeborn] class Master(
       return
     }
     logInfo("Stopping Celeborn Master.")
+
+    // Transfer Raft leadership before shutting down so other masters can
+    // immediately take over without waiting for heartbeat timeout
+    if (conf.haMasterGracefulShutdownEnabled) {
+      statusSystem match {
+        case ha: HAMasterMetaManager =>
+          val ratisServer = ha.getRatisServer
+          if (ratisServer != null) {
+            logInfo("HA graceful shutdown enabled. Stopping Raft server (will transfer leadership if leader).")
+            try {
+              ratisServer.stop()
+            } catch {
+              case e: Exception =>
+                logError("Failed to stop Raft server during Master shutdown.", e)
+            }
+          }
+        case _ =>
+          logInfo("Single-master mode, skipping Raft shutdown.")
+      }
+    }
+
     Option(checkForWorkerTimeoutTask).foreach(_.cancel(true))
     Option(checkForUnavailableWorkerTimeOutTask).foreach(_.cancel(true))
     Option(checkForApplicationTimeOutTask).foreach(_.cancel(true))
@@ -1564,6 +1585,19 @@ private[celeborn] class Master(
   override def initialize(): Unit = {
     super.initialize()
     logInfo("Master started.")
+
+    // Register a shutdown hook so that SIGTERM triggers a graceful stop.
+    ShutdownHookManager.get().addShutdownHook(
+      ThreadUtils.newThread(
+        new Runnable {
+          override def run(): Unit = {
+            logInfo("Shutdown hook called for Master.")
+            stop(CelebornExitKind.EXIT_IMMEDIATELY)
+          }
+        },
+        "master-shutdown-hook-thread"),
+      100)
+
     rpcEnv.awaitTermination()
     if (conf.internalPortEnabled) {
       internalRpcEnvInUse.awaitTermination()

@@ -1872,6 +1872,26 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(STATUSSYSTEM3.registeredShuffleCount(), 8);
   }
 
+  @Test
+  public void testGracefulLeaderShutdownStepDown() {
+    // Identify the current leader
+    HARaftServer leader = null;
+    for (HARaftServer server : Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3)) {
+      if (server.isLeader()) {
+        leader = server;
+        break;
+      }
+    }
+    Assert.assertNotNull("A leader should exist before the test", leader);
+
+    // Stop the leader — this calls stepDown() before closing the Raft server.
+    // We only verify that stop() completes without error; the actual new
+    // leader election depends on Raft heartbeat timeout and is non-deterministic.
+    // stop() should complete without throwing — it calls stepDown() internally
+    // before closing the Raft server.
+    leader.stop();
+  }
+
   @AfterClass
   public static void testNotifyLogFailed() {
     List<HARaftServer> list = Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3);

@@ -275,8 +275,27 @@ public class HARaftServer {
 
   public void stop() {
     try {
+      if (isLeader()) {
+        LOG.info(
+            "This node {} is the Raft leader. Transferring leadership before shutdown.",
+            server.getId());
+        long startTime = System.currentTimeMillis();
+        boolean success = stepDown();
+        long elapsed = System.currentTimeMillis() - startTime;
+        if (success) {
+          LOG.info("Successfully transferred leadership from {} in {}ms.", server.getId(), elapsed);
+        } else {
+          LOG.warn(
+              "Leadership transfer from {} failed after {}ms. "
+                  + "Proceeding with shutdown anyway.",
+              server.getId(),
+              elapsed);
+        }
+      }
       server.close();
+      LOG.info("Raft server {} closed.", server.getId());
     } catch (IOException e) {
+      LOG.error("Error while stopping Raft server {}.", server.getId(), e);
       throw new RuntimeException(e);
     }
   }
@@ -616,7 +635,7 @@ public class HARaftServer {
     return this.internalRpcEndpoint;
   }
 
-  void stepDown() {
+  boolean stepDown() {
     try {
       TransferLeadershipRequest request =
           new TransferLeadershipRequest(
@@ -629,11 +648,14 @@ public class HARaftServer {
       RaftClientReply reply = server.transferLeadership(request);
       if (reply.isSuccess()) {
         LOG.info("Successfully step down leader {}.", server.getId());
+        return true;
       } else {
         LOG.warn("Step down leader failed!");
+        return false;
       }
     } catch (Exception e) {
       LOG.warn("Step down leader failed!", e);
+      return false;
     }
   }
 
