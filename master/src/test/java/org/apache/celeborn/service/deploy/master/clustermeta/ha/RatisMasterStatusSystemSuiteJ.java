@@ -1883,13 +1883,15 @@ public class RatisMasterStatusSystemSuiteJ {
       }
     }
     Assert.assertNotNull("A leader should exist before the test", leader);
+    Assert.assertTrue("Leader node should report isLeader=true", leader.isLeader());
 
-    // Stop the leader — this calls stepDown() before closing the Raft server.
-    // We only verify that stop() completes without error; the actual new
-    // leader election depends on Raft heartbeat timeout and is non-deterministic.
-    // stop() should complete without throwing — it calls stepDown() internally
-    // before closing the Raft server.
+    // stop() calls stepDown() then closes the Raft server.
+    // Verify it completes and the underlying server is actually closed.
     leader.stop();
+    Assert.assertEquals(
+        "Raft server should be CLOSED after stop()",
+        "CLOSED",
+        leader.getServer().getLifeCycleState().name());
   }
 
   @AfterClass
