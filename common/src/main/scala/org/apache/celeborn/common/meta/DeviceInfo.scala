@@ -97,7 +97,18 @@ class DiskInfo(
   }
 
   def acquireBytesFlushed(bytes: Long): Boolean = {
-    transientAvailableBytes.addAndGet(-bytes) >= 0
+    // Update only if transientAvailableBytes is greater than or equal to bytes to acquire, otherwise return false.
+    var updated = false
+    transientAvailableBytes.getAndUpdate { current =>
+      if (current >= bytes) {
+        updated = true
+        current - bytes
+      } else {
+        updated = false
+        current
+      }
+    }
+    updated
   }
 
   def setStorageType(storageType: StorageInfo.Type) = {
