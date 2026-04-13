@@ -99,7 +99,7 @@ class DiskInfo(
   def acquireBytesFlushed(bytes: Long): Boolean = {
     // Update only if transientAvailableBytes is greater than or equal to bytes to acquire, otherwise return false.
     var updated = false
-    transientAvailableBytes.getAndUpdate { current =>
+    transientAvailableBytes.getAndUpdate { current: Long =>
       if (current >= bytes) {
         updated = true
         current - bytes
