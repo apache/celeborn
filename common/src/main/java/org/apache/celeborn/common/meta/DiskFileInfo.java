@@ -117,7 +117,7 @@ public class DiskFileInfo extends FileInfo {
   }
 
   @Override
-  protected boolean acquireBytesFlushed(long bytes) {
+  protected boolean canAcquireBytes(long bytes) {
     if (diskInfo != null) {
       return diskInfo.acquireBytesFlushed(bytes);
     } else {

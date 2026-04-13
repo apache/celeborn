@@ -54,37 +54,32 @@ public abstract class FileInfo {
   }
 
   public long getFileLength() {
-    return getFileLength(false);
+    return bytesFlushed;
   }
 
-  public long getFileLength(boolean includeAcquired) {
-    return bytesFlushed + (includeAcquired ? 0 : acquiredBytes);
+  public long getAcquiredBytes() {
+    return acquiredBytes;
   }
 
   public synchronized void updateBytesFlushed(long bytes) {
-    updateBytesFlushed(bytes, false);
-  }
-
-  public synchronized void updateBytesFlushed(long bytes, boolean acquireOnly) {
-    if (!acquireBytesFlushed(bytes)) {
-      throw new IllegalStateException(
-          "Failed to acquire bytesFlushed for file: "
-              + getFilePath()
-              + ", current bytesFlushed: "
-              + bytesFlushed
-              + ", trying to add: "
-              + bytes);
-    }
-
-    if (acquireOnly) {
-      acquiredBytes += bytes;
-      return;
-    }
-
+    acquireBytes(bytes);
     bytesFlushed += bytes;
     if (isReduceFileMeta) {
       getReduceFileMeta().updateChunkOffset(bytesFlushed, false);
     }
+  }
+
+  public synchronized void acquireBytes(long bytes) {
+    if (!canAcquireBytes(bytes)) {
+      throw new IllegalStateException(
+          "Failed to acquire bytes for file: "
+              + getFilePath()
+              + ", current bytesFlushed: "
+              + bytesFlushed
+              + ", trying to acquire: "
+              + bytes);
+    }
+    acquiredBytes += bytes;
   }
 
   public UserIdentifier getUserIdentifier() {
@@ -137,5 +132,5 @@ public abstract class FileInfo {
     return isReduceFileMeta;
   }
 
-  protected abstract boolean acquireBytesFlushed(long bytes);
+  protected abstract boolean canAcquireBytes(long bytes);
 }

@@ -960,7 +960,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             val writers = workingDirWriters.get(dir)
             if (writers != null) {
               writers.synchronized {
-                writers.values.asScala.map(_.getDiskFileInfo.getFileLength(true)).sum
+                writers.values.asScala.map(_.getDiskFileInfo.getAcquiredBytes).sum
               }
             } else {
               0
@@ -1033,7 +1033,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     val diskFileInfos = fileInfos.filter(!_.isDFS)
     val hdfsFileInfos = fileInfos.filter(_.isHdfs)
     ResourceConsumption(
-      diskFileInfos.map(_.getFileLength(true)).sum,
+      diskFileInfos.map(_.getFileLength).sum,
       diskFileInfos.size,
       hdfsFileInfos.map(_.getFileLength).sum,
       hdfsFileInfos.size,
@@ -1048,7 +1048,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def getActiveShuffleSize: Long = {
-    diskFileInfos.values().asScala.map(_.values().asScala.map(_.getFileLength(true)).sum).sum
+    diskFileInfos.values().asScala.map(_.values().asScala.map(_.getFileLength).sum).sum
   }
 
   def getActiveShuffleFileCount: Long = {

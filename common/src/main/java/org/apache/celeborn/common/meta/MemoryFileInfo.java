@@ -87,7 +87,7 @@ public class MemoryFileInfo extends FileInfo {
   }
 
   @Override
-  protected boolean acquireBytesFlushed(long bytes) {
+  protected boolean canAcquireBytes(long bytes) {
     // NO-OP
     return true;
   }
