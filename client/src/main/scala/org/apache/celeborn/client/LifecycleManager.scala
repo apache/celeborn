@@ -2054,8 +2054,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         .filter(!commitManager.isStageEnd(_))
         .flatMap(shuffleId => Option(celebornShuffleIdToAppShuffleIdMap.get(shuffleId)))
         .toSet
-        .foreach(shuffleId => c.accept(shuffleId, reason))
-
+        .foreach((shuffleId: Int) => c.accept(shuffleId, reason))
     case _ =>
   }
 
