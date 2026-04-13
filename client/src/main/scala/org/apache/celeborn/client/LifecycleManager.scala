@@ -2049,10 +2049,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       shuffleAllocatedWorkers
         .asScala
         .keys
-        .filter(!commitManager.isStageEnd(_))
-        .filter(celebornShuffleIdToAppShuffleIdMap.contains(_))
-        .map(celebornShuffleIdToAppShuffleIdMap.get(_))
-        .toSet
+        .filter { shuffleId =>
+          !commitManager.isStageEnd(shuffleId) && celebornShuffleIdToAppShuffleIdMap.contains(shuffleId)
+        }.map(celebornShuffleIdToAppShuffleIdMap.get(_))
         .foreach(c.accept(_, reason))
 
     case _ =>
