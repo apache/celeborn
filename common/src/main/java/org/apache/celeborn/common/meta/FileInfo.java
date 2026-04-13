@@ -30,6 +30,7 @@ public abstract class FileInfo {
   protected FileMeta fileMeta;
   protected final Set<Long> streams = ConcurrentHashMap.newKeySet();
   protected volatile long bytesFlushed;
+  protected volatile long acquiredBytes;
   private boolean isReduceFileMeta;
 
   public FileInfo(UserIdentifier userIdentifier, boolean partitionSplitEnabled, FileMeta fileMeta) {
@@ -53,10 +54,18 @@ public abstract class FileInfo {
   }
 
   public long getFileLength() {
-    return bytesFlushed;
+    return getFileLength(false);
+  }
+
+  public long getFileLength(boolean includeAcquired) {
+    return bytesFlushed + (includeAcquired ? 0 : acquiredBytes);
   }
 
   public synchronized void updateBytesFlushed(long bytes) {
+    updateBytesFlushed(bytes, false);
+  }
+
+  public synchronized void updateBytesFlushed(long bytes, boolean acquireOnly) {
     if (!acquireBytesFlushed(bytes)) {
       throw new IllegalStateException(
           "Failed to acquire bytesFlushed for file: "
@@ -66,6 +75,12 @@ public abstract class FileInfo {
               + ", trying to add: "
               + bytes);
     }
+
+    if (acquireOnly) {
+      acquiredBytes += bytes;
+      return;
+    }
+
     bytesFlushed += bytes;
     if (isReduceFileMeta) {
       getReduceFileMeta().updateChunkOffset(bytesFlushed, false);

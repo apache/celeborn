@@ -6,7 +6,7 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.protocol.StorageInfo
 
-class DiskFileInfoTest extends CelebornFunSuite {
+class DiskFileInfoSuite extends CelebornFunSuite {
 
   test("test diskFileInfoUsageAccounting positive + negative") {
     val usableSpace = 1000L

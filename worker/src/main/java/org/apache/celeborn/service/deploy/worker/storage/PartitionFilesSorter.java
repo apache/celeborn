@@ -863,7 +863,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       if (isDfs) {
         return transferStreamFully(dfsOriginInput, dfsSortedOutput, offset, length);
       } else {
-        originFileInfo.updateBytesFlushed(length);
+        originFileInfo.updateBytesFlushed(length, true);
         return transferChannelFully(originFileChannel, sortedFileChannel, offset, length);
       }
     }
@@ -878,7 +878,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       if (!deleteSuccess) {
         logger.warn("Clean origin file failed, origin file is : {}", originFilePath);
       } else {
-        originFileInfo.updateBytesFlushed(-originFileLen);
+        originFileInfo.updateBytesFlushed(-originFileLen, true);
       }
     }
 
