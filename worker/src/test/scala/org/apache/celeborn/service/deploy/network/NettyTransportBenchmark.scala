@@ -128,6 +128,7 @@ object NettyTransportBenchmark extends BenchmarkBase {
           benchmark.addTimerCase(s"$mode, sequential fetch", numIters = 3) { timer =>
             val conf = createConf(mode)
             val streamId = 0
+            val memoryManager = MemoryManager.initialize(conf.getCelebornConf)
             val streamManager = createFileStreamManager(conf, streamId, files)
             val rpcHandler = createStreamRpcHandler(conf, streamManager)
             val context = new TransportContext(conf, rpcHandler)
@@ -142,6 +143,7 @@ object NettyTransportBenchmark extends BenchmarkBase {
               timer.stopTiming()
               client.close()
             } finally {
+              memoryManager.close()
               clientFactory.close()
               server.close()
               context.close()
@@ -151,6 +153,7 @@ object NettyTransportBenchmark extends BenchmarkBase {
           benchmark.addTimerCase(s"$mode, parallel fetch (4 clients)", numIters = 3) { timer =>
             val conf = createConf(mode)
             val streamId = 0
+            val memoryManager = MemoryManager.initialize(conf.getCelebornConf)
             val streamManager = createFileStreamManager(conf, streamId, files)
             val rpcHandler = createStreamRpcHandler(conf, streamManager)
             val context = new TransportContext(conf, rpcHandler)
@@ -190,6 +193,7 @@ object NettyTransportBenchmark extends BenchmarkBase {
               timer.stopTiming()
               clients.foreach(_.close())
             } finally {
+              memoryManager.close()
               clientFactory.close()
               server.close()
               context.close()
@@ -237,7 +241,6 @@ object NettyTransportBenchmark extends BenchmarkBase {
       conf: TransportConf,
       streamManager: ChunkStreamManager): BaseMessageHandler = {
     val celebornConf = conf.getCelebornConf
-    MemoryManager.initialize(celebornConf)
     new FetchHandler(
       celebornConf,
       Utils.fromCelebornConf(
