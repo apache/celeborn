@@ -1235,8 +1235,7 @@ private[celeborn] class Master(
       System.currentTimeMillis(),
       requestId)
     gaugeShuffleFallbackCounts()
-    val unknownWorkers = needCheckedWorkerList.asScala.filterNot(w =>
-      statusSystem.workersMap.containsKey(w.toUniqueId)).asJava
+    needCheckedWorkerList.removeAll(statusSystem.workersMap.values())
     if (shouldResponse) {
       // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
       // during serialization of HeartbeatFromApplicationResponse
@@ -1246,7 +1245,7 @@ private[celeborn] class Master(
         StatusCode.SUCCESS,
         new util.ArrayList(
           (statusSystem.excludedWorkers.asScala ++ statusSystem.manuallyExcludedWorkers.asScala).asJava),
-        unknownWorkers,
+        needCheckedWorkerList,
         new util.ArrayList[WorkerInfo](
           (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava),
         new util.ArrayList(appRelatedShuffles),
