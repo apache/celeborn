@@ -267,6 +267,18 @@ public class TransportClientFactory implements Closeable {
    *
    * <p>As with {@link #createClient(String, int)}, this method is blocking.
    */
+  public TransportClient createUnmanagedClient(String remoteHost, int remotePort)
+      throws IOException, InterruptedException {
+    final InetSocketAddress address = new InetSocketAddress(remoteHost, remotePort);
+    return internalCreateClient(address, NettyUtils.createFrameDecoder());
+  }
+
+  /**
+   * Create a completely new {@link TransportClient} to the given remote host / port. This
+   * connection is not pooled.
+   *
+   * <p>As with {@link #createClient(String, int)}, this method is blocking.
+   */
   private TransportClient internalCreateClient(
       InetSocketAddress address, ChannelInboundHandlerAdapter decoder)
       throws IOException, InterruptedException {
