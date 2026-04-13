@@ -863,6 +863,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       if (isDfs) {
         return transferStreamFully(dfsOriginInput, dfsSortedOutput, offset, length);
       } else {
+        originFileInfo.updateBytesFlushed(length);
         return transferChannelFully(originFileChannel, sortedFileChannel, offset, length);
       }
     }

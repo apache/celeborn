@@ -75,6 +75,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val remoteStorageDirs = conf.remoteStorageDirs
 
   val storageExpireDirTimeout = conf.workerStorageExpireDirTimeout
+  val diskStorageStrictReserveEnabled = conf.workerDiskStorageStrictReserveEnabled
   val storagePolicy = new StoragePolicy(conf, this, workerSource)
 
   val diskReserveSize = conf.workerDiskReserveSize
@@ -1230,7 +1231,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           val fileMeta = getFileMeta(partitionType, mountPoint, conf.shuffleChunkSize)
           val storageType = diskInfos.get(mountPoint).storageType
           val diskFileInfo = new DiskFileInfo(
-            diskInfo,
+            if (diskStorageStrictReserveEnabled) diskInfo else null,
             userIdentifier,
             partitionSplitEnabled,
             fileMeta,
