@@ -19,17 +19,18 @@ package org.apache.celeborn.common.meta
 
 import java.io.File
 import java.util
+import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
+
 import org.slf4j.LoggerFactory
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
 import org.apache.celeborn.common.util.Utils.runCommand
-
-import java.util.concurrent.atomic.AtomicLong
 
 class DiskInfo(
     val mountPoint: String,

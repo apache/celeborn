@@ -58,8 +58,13 @@ public abstract class FileInfo {
 
   public synchronized void updateBytesFlushed(long bytes) {
     if (!acquireBytesFlushed(bytes)) {
-        throw new IllegalStateException(
-            "Failed to acquire bytesFlushed for file: " + getFilePath() + ", current bytesFlushed: " + bytesFlushed + ", trying to add: " + bytes);
+      throw new IllegalStateException(
+          "Failed to acquire bytesFlushed for file: "
+              + getFilePath()
+              + ", current bytesFlushed: "
+              + bytesFlushed
+              + ", trying to add: "
+              + bytes);
     }
     bytesFlushed += bytes;
     if (isReduceFileMeta) {
@@ -116,5 +121,6 @@ public abstract class FileInfo {
   public boolean isReduceFileMeta() {
     return isReduceFileMeta;
   }
+
   protected abstract boolean acquireBytesFlushed(long bytes);
 }

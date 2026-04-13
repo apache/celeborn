@@ -41,12 +41,13 @@ public class DiskFileInfo extends FileInfo {
   private final StorageInfo.Type storageType;
   private final DiskInfo diskInfo;
 
-  public DiskFileInfo(DiskInfo diskInfo,
-                      UserIdentifier userIdentifier,
-                      boolean partitionSplitEnabled,
-                      FileMeta fileMeta,
-                      String filePath,
-                      StorageInfo.Type storageType) {
+  public DiskFileInfo(
+      DiskInfo diskInfo,
+      UserIdentifier userIdentifier,
+      boolean partitionSplitEnabled,
+      FileMeta fileMeta,
+      String filePath,
+      StorageInfo.Type storageType) {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
     this.diskInfo = diskInfo;
     this.filePath = filePath;
@@ -73,8 +74,10 @@ public class DiskFileInfo extends FileInfo {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
 
     // TODO: Figure out a way to map the right diskInfo when restoring from pb,
-    //  currently we just set it to null and skip the acquireBytesFlushed logic in DiskFileInfo#acquireBytesFlushed
-    //  However during graceful shutdown, we likley have already hard split therefore no more writes to this file.
+    //  currently we just set it to null and skip the acquireBytesFlushed logic in
+    // DiskFileInfo#acquireBytesFlushed
+    //  However during graceful shutdown, we likley have already hard split therefore no more writes
+    // to this file.
     this.diskInfo = null;
     this.filePath = filePath;
     if (storageType != null) {
