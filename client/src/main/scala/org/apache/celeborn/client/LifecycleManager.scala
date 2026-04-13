@@ -109,6 +109,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val shuffleIdMapping = JavaUtils.newConcurrentHashMap[
     Int,
     scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)]]()
+  private val celebornShuffleIdToAppShuffleIdMap = JavaUtils.newConcurrentHashMap[Int, Int]()
   private val shuffleIdGenerator = new AtomicInteger(0)
   // app shuffle id -> whether shuffle is determinate, rerun of a indeterminate shuffle gets different result
   private val appShuffleDeterminateMap = JavaUtils.newConcurrentHashMap[Int, Boolean]();
@@ -997,6 +998,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 : scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)] = {
               val newShuffleId = shuffleIdGenerator.getAndIncrement()
               logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
+              celebornShuffleIdToAppShuffleIdMap.put(newShuffleId, appShuffleId)
               scala.collection.mutable.LinkedHashMap(appShuffleIdentifier -> (newShuffleId, true))
             }
           })
@@ -1053,6 +1055,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                   }
                   val newShuffleId = shuffleIdGenerator.getAndIncrement()
                   logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
+                  celebornShuffleIdToAppShuffleIdMap.put(newShuffleId, appShuffleId)
                   validateCelebornShuffleIdForClean.foreach(callback =>
                     callback.accept(appShuffleIdentifier))
                   shuffleIds.put(appShuffleIdentifier, (newShuffleId, true))
@@ -2047,6 +2050,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         .asScala
         .keys
         .filter(!commitManager.isStageEnd(_))
+        .filter(celebornShuffleIdToAppShuffleIdMap.contains(_))
+        .map(celebornShuffleIdToAppShuffleIdMap.get(_))
+        .toSet
         .foreach(c.accept(_, reason))
 
     case _ =>
