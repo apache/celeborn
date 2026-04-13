@@ -1674,6 +1674,20 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def secretRedactionPattern = get(SECRET_REDACTION_PATTERN)
 
   def containerInfoProviderClass = get(CONTAINER_INFO_PROVIDER)
+
+  // //////////////////////////////////////////////////////
+  //                     Serializer                       //
+  // //////////////////////////////////////////////////////
+  def serializerDeserializationFilterEnabled = get(SERIALIZER_DESERIALIZATION_FILTER_ENABLED)
+  def serializerDeserializationFilterAllowedPackages =
+    get(SERIALIZER_DESERIALIZATION_FILTER_ALLOWED_PACKAGES)
+  def serializerDeserializationFilterMaxDepth = get(SERIALIZER_DESERIALIZATION_FILTER_MAX_DEPTH)
+  def serializerDeserializationFilterMaxArrayLength =
+    get(SERIALIZER_DESERIALIZATION_FILTER_MAX_ARRAY_LENGTH)
+  def serializerDeserializationFilterMaxReferences =
+    get(SERIALIZER_DESERIALIZATION_FILTER_MAX_REFERENCES)
+  def serializerDeserializationFilterMaxStreamBytes =
+    get(SERIALIZER_DESERIALIZATION_FILTER_MAX_STREAM_BYTES)
 }
 
 object CelebornConf extends Logging {
@@ -6484,6 +6498,72 @@ object CelebornConf extends Logging {
         s"${INTERNAL_PORT_ENABLED.key} is enabled as well.")
       .booleanConf
       .createWithDefault(false)
+
+  val SERIALIZER_DESERIALIZATION_FILTER_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.serializer.deserialization.filter.enabled")
+      .categories("security")
+      .version("0.7.0")
+      .doc("Whether to enable deserialization filter to prevent deserialization attacks. " +
+        "When enabled, only classes from allowed packages can be deserialized. " +
+        "This is a critical security feature to prevent Remote Code Execution (RCE) attacks.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val SERIALIZER_DESERIALIZATION_FILTER_ALLOWED_PACKAGES: ConfigEntry[String] =
+    buildConf("celeborn.serializer.deserialization.filter.allowedPackages")
+      .categories("security")
+      .version("0.7.0")
+      .doc("Comma-separated list of package prefixes allowed for deserialization. " +
+        "Classes from these packages will be allowed to be deserialized. " +
+        "Use with caution - adding packages may expose the system to deserialization attacks. " +
+        "Must match DEFAULT_ALLOWED_PACKAGES in JavaDeserializerFilter.")
+      .stringConf
+      .createWithDefault(
+        "java.," +
+          "scala.," +
+          "org.apache.celeborn.," +
+          "com.google.protobuf.," +
+          "[")
+
+  val SERIALIZER_DESERIALIZATION_FILTER_MAX_DEPTH: ConfigEntry[Int] =
+    buildConf("celeborn.serializer.deserialization.filter.maxDepth")
+      .categories("security")
+      .version("0.7.0")
+      .doc("Maximum depth of object graph allowed during deserialization. " +
+        "Helps prevent deep object graph attacks.")
+      .intConf
+      .checkValue(_ > 0, "maxDepth must be positive")
+      .createWithDefault(100)
+
+  val SERIALIZER_DESERIALIZATION_FILTER_MAX_ARRAY_LENGTH: ConfigEntry[Int] =
+    buildConf("celeborn.serializer.deserialization.filter.maxArrayLength")
+      .categories("security")
+      .version("0.7.0")
+      .doc("Maximum array length allowed during deserialization. " +
+        "Helps prevent memory exhaustion attacks.")
+      .intConf
+      .checkValue(_ > 0, "maxArrayLength must be positive")
+      .createWithDefault(10000)
+
+  val SERIALIZER_DESERIALIZATION_FILTER_MAX_REFERENCES: ConfigEntry[Long] =
+    buildConf("celeborn.serializer.deserialization.filter.maxReferences")
+      .categories("security")
+      .version("0.7.0")
+      .doc("Maximum number of object references allowed during deserialization. " +
+        "Helps prevent memory exhaustion attacks.")
+      .longConf
+      .checkValue(_ > 0, "maxReferences must be positive")
+      .createWithDefault(100000)
+
+  val SERIALIZER_DESERIALIZATION_FILTER_MAX_STREAM_BYTES: ConfigEntry[Long] =
+    buildConf("celeborn.serializer.deserialization.filter.maxStreamBytes")
+      .categories("security")
+      .version("0.7.0")
+      .doc("Maximum number of bytes allowed in the deserialization stream. " +
+        "Helps prevent memory exhaustion attacks from large payloads.")
+      .longConf
+      .checkValue(_ > 0, "maxStreamBytes must be positive")
+      .createWithDefault(100000000L)
 
   val MASTER_INTERNAL_PORT: ConfigEntry[Int] =
     buildConf("celeborn.master.internal.port")
