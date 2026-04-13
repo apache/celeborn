@@ -1280,10 +1280,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             case (shuffleId, _) =>
               unregisterShuffle(shuffleId)
               unregisterShuffleCallback.foreach(c => c.accept(shuffleId))
+              celebornShuffleIdToAppShuffleIdMap.remove(shuffleId)
           })
       }
     } else {
       unregisterShuffle(appShuffleId)
+      celebornShuffleIdToAppShuffleIdMap.remove(appShuffleId)
     }
   }
 
@@ -2049,9 +2051,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       shuffleAllocatedWorkers
         .asScala
         .keys
-        .filter { shuffleId =>
-          !commitManager.isStageEnd(shuffleId) && celebornShuffleIdToAppShuffleIdMap.contains(shuffleId)
-        }.map(celebornShuffleIdToAppShuffleIdMap.get(_))
+        .filter(!commitManager.isStageEnd(_))
+        .flatMap(shuffleId => Option(celebornShuffleIdToAppShuffleIdMap.get(shuffleId)))
+        .toSet
         .foreach(c.accept(_, reason))
 
     case _ =>
