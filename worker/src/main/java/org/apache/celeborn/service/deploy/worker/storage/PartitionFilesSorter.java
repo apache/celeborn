@@ -877,6 +877,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       }
       if (!deleteSuccess) {
         logger.warn("Clean origin file failed, origin file is : {}", originFilePath);
+      } else {
+        originFileInfo.updateBytesFlushed(-originFileLen);
       }
     }
 
