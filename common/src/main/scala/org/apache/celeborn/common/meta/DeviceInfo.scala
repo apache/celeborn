@@ -20,6 +20,7 @@ package org.apache.celeborn.common.meta
 import java.io.File
 import java.util
 import java.util.concurrent.atomic.AtomicLong
+import java.util.function.LongUnaryOperator
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -30,7 +31,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
-import org.apache.celeborn.common.util.Utils.runCommand
+import org.apache.celeborn.common.util.Utils.{runCommand, userPort}
 
 class DiskInfo(
     val mountPoint: String,
@@ -99,15 +100,18 @@ class DiskInfo(
   def acquireBytesFlushed(bytes: Long): Boolean = {
     // Update only if transientAvailableBytes is greater than or equal to bytes to acquire, otherwise return false.
     var updated = false
-    transientAvailableBytes.getAndUpdate { current: Long =>
-      if (current >= bytes) {
-        updated = true
-        current - bytes
-      } else {
-        updated = false
-        current
+    transientAvailableBytes.getAndUpdate(new LongUnaryOperator() {
+      override def applyAsLong(availableBytes: Long): Long = {
+        if (availableBytes >= bytes) {
+          updated = true
+          availableBytes - bytes
+        } else {
+          updated = false
+          availableBytes
+        }
       }
-    }
+    })
+
     updated
   }
 
