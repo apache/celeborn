@@ -53,7 +53,7 @@ class DiskFileInfoSuite extends CelebornFunSuite {
       diskFileInfo.updateBytesFlushed(901)
       fail("should throw IllegalStateException when flush bytes exceed usable space")
     } catch {
-      case IllegalStateException =>
+      case _: IllegalStateException =>
         assert(
           diskInfo.getTransientAvailableBytes == usableSpace - 100,
           "available bytes should not be reduced when flush bytes exceed usable space")
