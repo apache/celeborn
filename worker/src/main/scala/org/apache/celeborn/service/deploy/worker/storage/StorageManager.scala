@@ -1244,7 +1244,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           return (
             localFlushers.get(mountPoint),
             diskFileInfo,
-            dir)
+            dir._2)
         } catch {
           case fe: FileAlreadyExistsException =>
             logError("Failed to create fileWriter because of existed file", fe)
