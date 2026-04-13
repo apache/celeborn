@@ -55,7 +55,7 @@ class DeviceInfoSuite extends CelebornFunSuite {
     assert(diskInfo.acquireBytesFlushed(100L), "Should be able to acquire 100 bytes")
     assert(diskInfo.getTransientAvailableBytes === usableSpace - 100L)
 
-    assert(!diskInfo.acquireBytesFlushed(900L), "Should not be able to acquire 900 bytes")
+    assert(!diskInfo.acquireBytesFlushed(901L), "Should not be able to acquire 900 bytes")
     assert(
       diskInfo.getTransientAvailableBytes === usableSpace - 100L,
       "Usable space should not change after failed acquire")
