@@ -298,13 +298,14 @@ class MemoryTierWriter(
 
   override def evict(file: TierWriterBase): Unit = {
     flushLock.synchronized {
+      val numBytes = flushBuffer.readableBytes()
+      logDebug(s"Evict ${Utils.bytesToString(
+        numBytes)} from memory to other tier ${file.filename} on ${file.storageType} for ${file.shuffleKey}")
       // swap tier writer's flush buffer to memory tier writer's
       // and handle its release
       file.swapFlushBuffer(flushBuffer)
       // close memory file writer after evict happened
       file.flush(false, true)
-      val numBytes = flushBuffer.readableBytes()
-      logDebug(s"Evict $numBytes from memory to other tier")
       MemoryManager.instance.releaseMemoryFileStorage(numBytes)
       MemoryManager.instance.incrementDiskBuffer(numBytes)
       storageManager.unregisterMemoryPartitionWriterAndFileInfo(fileInfo, shuffleKey, filename)
@@ -362,7 +363,7 @@ class MemoryTierWriter(
   override def returnBufferInternal(destroy: Boolean): Unit = {
     if (destroy && flushBuffer != null) {
       flushBuffer.removeComponents(0, flushBuffer.numComponents)
-      flushBuffer.release
+      flushBuffer.release()
     }
   }
 
@@ -417,6 +418,7 @@ class LocalTierWriter(
     FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath)
 
   val gatherApiEnabled: Boolean = conf.workerFlusherLocalGatherAPIEnabled
+  val commitFilesFsync: Boolean = conf.workerCommitFilesFsync
 
   override def needEvict(): Boolean = {
     false
@@ -457,7 +459,15 @@ class LocalTierWriter(
   }
 
   override def closeStreams(): Unit = {
-    channel.close()
+    if (channel != null) {
+      try {
+        if (commitFilesFsync) {
+          channel.force(false)
+        }
+      } finally {
+        channel.close()
+      }
+    }
   }
 
   override def notifyFileCommitted(): Unit =
@@ -560,12 +570,8 @@ class DfsTierWriter(
       val key = dfsFileInfo.getFilePath.substring(index + bucketName.length + 1)
 
       this.s3MultipartUploadHandler = TierWriterHelper.getS3MultipartUploadHandler(
-        hadoopFs,
-        bucketName,
-        key,
-        conf.s3MultiplePartUploadMaxRetries,
-        conf.s3MultiplePartUploadBaseDelay,
-        conf.s3MultiplePartUploadMaxBackoff)
+        storageManager.s3MultipartUploadHandlerSharedState,
+        key)
       s3MultipartUploadHandler.startUpload()
     } else if (dfsFileInfo.isOSS) {
       val configuration = hadoopFs.getConf

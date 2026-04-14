@@ -947,6 +947,7 @@ private[celeborn] class Master(
       logError(s"Offer slots for $shuffleKey failed due to all workers are excluded!")
       context.reply(
         RequestSlotsResponse(StatusCode.WORKER_EXCLUDED, new WorkerResource(), requestSlots.packed))
+      return
     }
 
     val numWorkers = Math.min(
@@ -1019,9 +1020,12 @@ private[celeborn] class Master(
       Utils.getSlotsPerDisk(slots.asInstanceOf[WorkerResource])
         .asScala.map { case (worker, slots) => worker.toUniqueId -> slots }.asJava,
       requestSlots.requestId)
-
+    val primaryLocationsByType = slots.values.asScala
+      .flatMap(entry => entry._1.asScala) // ._1 extracts the primary location
+      .groupBy(l => l.getStorageInfo.getType)
+      .mapValues(locations => locations.size)
     var offerSlotsMsg = s"Successfully offered slots for $numReducers reducers of $shuffleKey" +
-      s" on ${slots.size()} workers"
+      s" on ${slots.size()} workers, primary types: $primaryLocationsByType"
     val workersNotSelected = availableWorkers.asScala.filter(!slots.containsKey(_))
     val offerSlotsExtraSize = Math.min(
       Math.max(

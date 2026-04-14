@@ -17,7 +17,10 @@
 
 #pragma once
 
+#include <functional>
+#include "celeborn/client/compress/Compressor.h"
 #include "celeborn/client/reader/CelebornInputStream.h"
+#include "celeborn/client/writer/DataBatches.h"
 #include "celeborn/client/writer/PushDataCallback.h"
 #include "celeborn/client/writer/PushState.h"
 #include "celeborn/client/writer/ReviveManager.h"
@@ -43,7 +46,18 @@ class ShuffleClient {
       int numMappers,
       int numPartitions) = 0;
 
-  // TODO: PushMergedData is not supported yet.
+  virtual int mergeData(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      const uint8_t* data,
+      size_t offset,
+      size_t length,
+      int numMappers,
+      int numPartitions) = 0;
+
+  virtual void pushMergedData(int shuffleId, int mapId, int attemptId) = 0;
 
   virtual void
   mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers) = 0;
@@ -52,6 +66,8 @@ class ShuffleClient {
   virtual void cleanup(int shuffleId, int mapId, int attemptId) = 0;
 
   virtual void updateReducerFileGroup(int shuffleId) = 0;
+
+  using FetchExcludedWorkers = utils::ConcurrentHashMap<std::string, int64_t>;
 
   virtual std::unique_ptr<CelebornInputStream> readPartition(
       int shuffleId,
@@ -68,6 +84,10 @@ class ShuffleClient {
       int endMapIndex,
       bool needCompression) = 0;
 
+  virtual void excludeFailedFetchLocation(
+      const std::string& hostAndFetchPort,
+      const std::exception& e) = 0;
+
   virtual bool cleanupShuffle(int shuffleId) = 0;
 
   virtual void shutdown() = 0;
@@ -75,6 +95,7 @@ class ShuffleClient {
 
 class ReviveManager;
 class PushDataCallback;
+class PushMergedDataCallback;
 
 /// ShuffleClientEndpoint holds all the resources of ShuffleClient, including
 /// threadPools and clientFactories. The endpoint could be reused by multiple
@@ -99,6 +120,7 @@ class ShuffleClientImpl
  public:
   friend class ReviveManager;
   friend class PushDataCallback;
+  friend class PushMergedDataCallback;
 
   using PtrReviveRequest = std::shared_ptr<protocol::ReviveRequest>;
   using PartitionLocationMap = utils::ConcurrentHashMap<
@@ -134,6 +156,19 @@ class ShuffleClientImpl
       int numMappers,
       int numPartitions) override;
 
+  int mergeData(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      const uint8_t* data,
+      size_t offset,
+      size_t length,
+      int numMappers,
+      int numPartitions) override;
+
+  void pushMergedData(int shuffleId, int mapId, int attemptId) override;
+
   void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers)
       override;
 
@@ -160,6 +195,10 @@ class ShuffleClientImpl
       int startMapIndex,
       int endMapIndex,
       bool needCompression) override;
+
+  void excludeFailedFetchLocation(
+      const std::string& hostAndFetchPort,
+      const std::exception& e) override;
 
   void updateReducerFileGroup(int shuffleId) override;
 
@@ -204,6 +243,20 @@ class ShuffleClientImpl
 
   virtual void addPushDataRetryTask(folly::Func&& task);
 
+  virtual void submitRetryPushMergedData(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int numPartitions,
+      const std::string& mapKey,
+      std::vector<DataBatch> batches,
+      std::vector<std::shared_ptr<protocol::ReviveRequest>> reviveRequests,
+      int oldGroupedBatchId,
+      std::shared_ptr<PushState> pushState,
+      int remainReviveTimes,
+      long reviveResponseDueTimeMs);
+
  private:
   std::shared_ptr<PushState> getPushState(const std::string& mapKey);
 
@@ -235,6 +288,20 @@ class ShuffleClientImpl
   // until the ongoing package num decreases to zero.
   void limitZeroInFlight(const std::string& mapKey, PushState& pushState);
 
+  void doPushMergedData(
+      const std::string& hostAndPushPort,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int numPartitions,
+      const std::string& mapKey,
+      std::vector<DataBatch> batches,
+      std::shared_ptr<PushState> pushState,
+      int remainReviveTimes);
+
+  static std::string genAddressPairKey(const protocol::PartitionLocation& loc);
+
   // TODO: no support for WAIT as it is not used.
   static bool newerPartitionLocationExists(
       std::shared_ptr<utils::ConcurrentHashMap<
@@ -249,6 +316,7 @@ class ShuffleClientImpl
   static constexpr size_t kBatchHeaderSize = 4 * 4;
 
   const std::string appUniqueId_;
+  const bool shuffleCompressionEnabled_;
   std::shared_ptr<const conf::CelebornConf> conf_;
   std::shared_ptr<network::NettyRpcEndpointRef> lifecycleManagerRef_;
   std::shared_ptr<network::TransportClientFactory> clientFactory_;
@@ -265,6 +333,13 @@ class ShuffleClientImpl
   utils::ConcurrentHashMap<int, std::shared_ptr<utils::ConcurrentHashSet<int>>>
       mapperEndSets_;
   utils::ConcurrentHashSet<int> stageEndShuffleSet_;
+
+  // Factory for creating compressor instances on demand to avoid sharing a
+  // single non-thread-safe compressor across concurrent operations.
+  std::function<std::unique_ptr<compress::Compressor>()> compressorFactory_;
+  bool pushReplicateEnabled_;
+  bool fetchExcludeWorkerOnFailureEnabled_;
+  std::shared_ptr<FetchExcludedWorkers> fetchExcludedWorkers_;
 
   // TODO: pushExcludedWorker is not supported yet
 };

@@ -33,6 +33,10 @@ license: |
 
 - Since 0.7.0, Celeborn changed the default value of `celeborn.worker.directMemoryRatioForReadBuffer` from `0.1` to `0.35`, which means read buffer threshold of buffer dispatcher is max direct memory * 0.35 at default.
 
+- Since 0.7.0, Celeborn removed `celeborn.network.memory.allocator.pooled`. Please use `celeborn.network.memory.allocator.type` instead.
+
+- Since 0.7.0, Celeborn changed the default value of `celeborn.port.maxRetries` from `1` to `16`.
+
 # Upgrading from 0.5 to 0.6
 
 - Since 0.6.0, Celeborn deprecate `celeborn.client.spark.fetch.throwsFetchFailure`. Please use `celeborn.client.spark.stageRerun.enabled` instead.

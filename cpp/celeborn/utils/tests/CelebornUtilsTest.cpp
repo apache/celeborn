@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 #include <atomic>
 #include <string>
+#include <system_error>
 #include <thread>
 #include <vector>
 
@@ -35,6 +36,60 @@ class CelebornUtilsTest : public testing::Test {
   std::unique_ptr<ConcurrentHashMap<std::string, int>> map_;
   std::unique_ptr<ConcurrentHashSet<int>> set_;
 };
+
+// Tests for isCriticalCauseForFetch, matching Java's
+// Utils.isCriticalCauseForFetch
+TEST(IsCriticalCauseForFetchTest, systemErrorIsCritical) {
+  std::system_error e(
+      std::make_error_code(std::errc::connection_refused),
+      "Connection refused");
+  EXPECT_TRUE(isCriticalCauseForFetch(e));
+}
+
+TEST(IsCriticalCauseForFetchTest, connectionRefusedByMessage) {
+  std::runtime_error e("Connecting to worker1:9097 failed");
+  EXPECT_TRUE(isCriticalCauseForFetch(e));
+}
+
+TEST(IsCriticalCauseForFetchTest, failedToConnectByMessage) {
+  std::runtime_error e("Failed to open stream for shuffle 1");
+  EXPECT_TRUE(isCriticalCauseForFetch(e));
+}
+
+TEST(IsCriticalCauseForFetchTest, timeoutByMessage) {
+  std::runtime_error e("RPC request Timeout after 120s");
+  EXPECT_TRUE(isCriticalCauseForFetch(e));
+}
+
+TEST(IsCriticalCauseForFetchTest, lowercaseTimeoutByMessage) {
+  std::runtime_error e("Fetch chunk timeout for streamId 42");
+  EXPECT_TRUE(isCriticalCauseForFetch(e));
+}
+
+TEST(IsCriticalCauseForFetchTest, genericErrorIsNotCritical) {
+  std::runtime_error e("Invalid batch header checksum");
+  EXPECT_FALSE(isCriticalCauseForFetch(e));
+}
+
+TEST(IsCriticalCauseForFetchTest, decompressionErrorIsNotCritical) {
+  std::runtime_error e("LZ4 decompression failed");
+  EXPECT_FALSE(isCriticalCauseForFetch(e));
+}
+
+TEST(IsCriticalCauseForFetchTest, emptyMessageIsNotCritical) {
+  std::runtime_error e("");
+  EXPECT_FALSE(isCriticalCauseForFetch(e));
+}
+
+TEST(IsCriticalCauseForFetchTest, substringConnectingToIsNotCritical) {
+  std::runtime_error e("Error while Connecting to worker1:9097");
+  EXPECT_FALSE(isCriticalCauseForFetch(e));
+}
+
+TEST(IsCriticalCauseForFetchTest, substringFailedToIsNotCritical) {
+  std::runtime_error e("Worker unexpectedly Failed to respond");
+  EXPECT_FALSE(isCriticalCauseForFetch(e));
+}
 
 TEST_F(CelebornUtilsTest, mapBasicInsertAndRetrieve) {
   map_->set("apple", 10);

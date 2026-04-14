@@ -113,3 +113,17 @@ jobs:
             -Dexec.classpathScope="test" \
             -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.CppWriteJavaReadTestWithNONE" \
             -Dexec.args="-XX:MaxDirectMemorySize=2G"
+      - name: Run Cpp-Write Java-Read Hybrid Integration Test (LZ4 Compression)
+        run: |
+          build/mvn -pl worker \
+            test-compile exec:java \
+            -Dexec.classpathScope="test" \
+            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.CppWriteJavaReadTestWithLZ4" \
+            -Dexec.args="-XX:MaxDirectMemorySize=2G"
+      - name: Run Cpp-Write Java-Read Hybrid Integration Test (ZSTD Compression)
+        run: |
+          build/mvn -pl worker \
+            test-compile exec:java \
+            -Dexec.classpathScope="test" \
+            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.CppWriteJavaReadTestWithZSTD" \
+            -Dexec.args="-XX:MaxDirectMemorySize=2G"

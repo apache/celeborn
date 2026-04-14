@@ -492,7 +492,7 @@ public abstract class CelebornInputStream extends InputStream {
                             .build()
                             .toByteArray());
                 client.sendRpc(bufferStreamEnd.toByteBuffer());
-              } catch (InterruptedException | IOException ex) {
+              } catch (InterruptedException | IOException | RuntimeException ex) {
                 logger.warn(
                     "Close {} stream {} failed",
                     location.hostAndFetchPort(),
@@ -853,11 +853,7 @@ public abstract class CelebornInputStream extends InputStream {
                 }
               }
             }
-            if (!batchesRead.containsKey(mapId)) {
-              Set<Integer> batchSet = new HashSet<>();
-              batchesRead.put(mapId, batchSet);
-            }
-            Set<Integer> batchSet = batchesRead.get(mapId);
+            Set<Integer> batchSet = batchesRead.computeIfAbsent(mapId, k -> new HashSet<>());
             if (!batchSet.contains(batchId)) {
               batchSet.add(batchId);
               callback.incBytesRead(BATCH_HEADER_SIZE + size);

@@ -38,7 +38,6 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-          submodules: recursive
       - uses: actions/setup-java@v4
         name: Setup JDK with Maven
         with:
@@ -51,11 +50,21 @@ jobs:
           python-version: "3.12"
           check-latest: true
       - name: Setup Helm
-        uses: azure/setup-helm@v4.2.0
-        with:
-          version: v3.10.0
+        run: |
+          curl -fsSL "https://get.helm.sh/helm-v3.10.0-linux-amd64.tar.gz" | tar xz -C /tmp
+          sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm
       - name: Setup chart-testing
-        uses: ./.github/actions/chart-testing-action
+        env:
+          CT_VERSION: "3.10.1"
+        run: |
+          curl -sSLo ct.tar.gz \
+            "https://github.com/helm/chart-testing/releases/download/v${CT_VERSION}/chart-testing_${CT_VERSION}_linux_amd64.tar.gz"
+          mkdir -p /tmp/ct
+          tar -xzf ct.tar.gz -C /tmp/ct
+          sudo mv /tmp/ct/ct /usr/local/bin/ct
+          echo "CT_CONFIG_DIR=/tmp/ct/etc" >> "$GITHUB_ENV"
+          rm ct.tar.gz
+          pip3 install yamllint==1.27.1 yamale==3.0.4
       - name: Run chart-testing (list-changed)
         id: list-changed
         run: |
@@ -75,15 +84,8 @@ jobs:
       - name: Build Celeborn Binary
         run:
           ./build/make-distribution.sh -Pspark-3.3 -Pgoogle-mirror
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
       - name: Build Celeborn Docker Image
-        uses: docker/build-push-action@v2
-        with:
-          context: ./dist
-          file: ./docker/Dockerfile
-          load: true
-          tags: apache/celeborn:latest
+        run: docker build -f ./docker/Dockerfile -t apache/celeborn:latest ./dist
       - name: Setup Minikube
         run: |
           # https://minikube.sigs.k8s.io/docs/start/

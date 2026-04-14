@@ -36,7 +36,7 @@ import org.apache.celeborn.common.client.{ApplicationInfoProvider, DefaultApplic
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, HadoopBasedIdentityProvider, IdentityProvider}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.internal.config._
-import org.apache.celeborn.common.network.util.{ByteUnit, IOMode}
+import org.apache.celeborn.common.network.util.{ByteUnit, IOMode, NettyMemoryAllocatorType}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.protocol.StorageInfo.Type.{HDD, SSD}
@@ -60,7 +60,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     _reader
   }
 
-  private def loadFromMap(props: Map[String, String], silent: Boolean): Unit =
+  def loadFromMap(props: Map[String, String], silent: Boolean): Unit =
     settings.synchronized {
       // Load any celeborn.* system properties
       for ((key, value) <- props if key.startsWith("celeborn.")) {
@@ -545,9 +545,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def networkIoMode(module: String): String = {
     get(
       NETWORK_IO_MODE.key.replace("<module>", module),
-      if (Epoll.isAvailable) { IOMode.EPOLL.name() }
-      else if (KQueue.isAvailable) { IOMode.KQUEUE.name() }
-      else { IOMode.NIO.name() })
+      CelebornConf.networkIoMode())
   }
 
   def networkIoPreferDirectBufs(module: String): Boolean = {
@@ -616,8 +614,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def networkMemoryAllocatorAllowCache: Boolean =
     get(NETWORK_MEMORY_ALLOCATOR_ALLOW_CACHE)
 
-  def networkMemoryAllocatorPooled: Boolean =
-    get(NETWORK_MEMORY_ALLOCATOR_POOLED)
+  def networkMemoryAllocatorType: NettyMemoryAllocatorType =
+    NettyMemoryAllocatorType.valueOf(get(NETWORK_MEMORY_ALLOCATOR_TYPE))
 
   def networkAllocatorArenas: Int = get(NETWORK_MEMORY_ALLOCATOR_ARENAS).getOrElse(Math.max(
     Runtime.getRuntime.availableProcessors(),
@@ -859,6 +857,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerCommitThreads: Int =
     if (hasHDFSStorage) Math.max(128, get(WORKER_COMMIT_THREADS)) else get(WORKER_COMMIT_THREADS)
   def workerCommitFilesCheckInterval: Long = get(WORKER_COMMIT_FILES_CHECK_INTERVAL)
+  def workerCommitFilesFsync: Boolean = get(WORKER_COMMIT_FILES_FSYNC)
   def workerCleanThreads: Int = get(WORKER_CLEAN_THREADS)
   def workerShuffleCommitTimeout: Long = get(WORKER_SHUFFLE_COMMIT_TIMEOUT)
   def maxPartitionSizeToEstimate: Long =
@@ -949,6 +948,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientReserveSlotsRackAwareEnabled: Boolean = get(CLIENT_RESERVE_SLOTS_RACKAWARE_ENABLED)
   def clientReserveSlotsMaxRetries: Int = get(CLIENT_RESERVE_SLOTS_MAX_RETRIES)
   def clientReserveSlotsRetryWait: Long = get(CLIENT_RESERVE_SLOTS_RETRY_WAIT)
+  def clientRequestCommitFilesRetryWait: Long = get(CLIENT_COMMIT_FILE_REQUEST_RETRY_WAIT)
   def clientRequestCommitFilesMaxRetries: Int = get(CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY)
   def clientCommitFilesIgnoreExcludedWorkers: Boolean = get(CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS)
   def clientShuffleDynamicResourceEnabled: Boolean =
@@ -1386,6 +1386,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerS3FlusherThreads: Int = get(WORKER_FLUSHER_S3_THREADS)
   def workerOssFlusherThreads: Int = get(WORKER_FLUSHER_OSS_THREADS)
   def workerCreateWriterMaxAttempts: Int = get(WORKER_WRITER_CREATE_MAX_ATTEMPTS)
+  def workerCreateWriterParallelEnabled: Boolean = get(WORKER_WRITER_CREATE_PARALLEL_ENABLED)
+  def workerCreateWriterParallelThreads: Int =
+    get(WORKER_WRITER_CREATE_PARALLEL_THREADS).getOrElse(Runtime.getRuntime.availableProcessors)
+  def workerCreateWriterParallelTimeout: Long = get(WORKER_WRITER_CREATE_PARALLEL_TIMEOUT)
   def workerWriterHdfsCreateAuxiliaryFileMaxRetries: Int =
     get(WORKER_WRITER_HDFS_CREATE_AUXILIARY_FILE_MAX_RETRIES)
   def workerWriterHdfsCreateAuxiliaryFileRetryWait: Long =
@@ -1910,6 +1914,12 @@ object CelebornConf extends Logging {
 
   private def buildConf(key: String): ConfigBuilder = ConfigBuilder(key).onCreate(register)
 
+  def networkIoMode(): String = {
+    if (Epoll.isAvailable) { IOMode.EPOLL.name() }
+    else if (KQueue.isAvailable) { IOMode.KQUEUE.name() }
+    else { IOMode.NIO.name() }
+  }
+
   val NETWORK_BIND_PREFER_IP: ConfigEntry[Boolean] =
     buildConf("celeborn.network.bind.preferIpAddress")
       .categories("network")
@@ -1945,16 +1955,22 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val NETWORK_MEMORY_ALLOCATOR_POOLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.network.memory.allocator.pooled")
+  val NETWORK_MEMORY_ALLOCATOR_TYPE: ConfigEntry[String] =
+    buildConf("celeborn.network.memory.allocator.type")
       .categories("network")
       .internal
-      .version("0.6.0")
-      .doc("If disabled, always use UnpooledByteBufAllocator for aggressive memory reclamation, " +
-        "this is helpful for cases that worker has high memory usage even after triming. " +
-        "Disabling would cause performace degression and higher CPU usage.")
-      .booleanConf
-      .createWithDefault(true)
+      .version("0.7.0")
+      .doc("Specifies netty memory allocator type including: " +
+        s"${NettyMemoryAllocatorType.POOLED.name}: use PooledByteBufAllocator, which is the default and recommended for better performance. " +
+        s"${NettyMemoryAllocatorType.UNPOOLED.name}: use UnpooledByteBufAllocator, which is more aggressive in memory reclamation and may cause performance degradation and higher CPU usage. " +
+        s"${NettyMemoryAllocatorType.ADAPTIVE.name}: use AdaptiveByteBufAllocator, which is recommended to roll out usage slowly, and to carefully monitor application performance in the process.")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(Set(
+        NettyMemoryAllocatorType.POOLED.name,
+        NettyMemoryAllocatorType.UNPOOLED.name,
+        NettyMemoryAllocatorType.ADAPTIVE.name))
+      .createWithDefault(NettyMemoryAllocatorType.POOLED.name)
 
   val NETWORK_MEMORY_ALLOCATOR_SHARE: ConfigEntry[Boolean] =
     buildConf("celeborn.network.memory.allocator.share")
@@ -2006,7 +2022,7 @@ object CelebornConf extends Logging {
       .doc("When port is occupied, we will retry for max retry times.")
       .version("0.2.0")
       .intConf
-      .createWithDefault(1)
+      .createWithDefault(16)
 
   val RPC_IO_THREADS: OptionalConfigEntry[Int] =
     buildConf("celeborn.rpc.io.threads")
@@ -2642,6 +2658,16 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .stringConf
       .createWithDefault("X-Real-IP")
+
+  val HTTP_AUTH_BYPASS_API_PATHS: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.http.auth.bypass.api.paths")
+      .categories("master", "worker")
+      .version("0.7.0")
+      .doc("A comma-separated list of additional API paths that bypass authentication. The " +
+        "path must match exactly and is case-sensitive. Wildcards not accepted.")
+      .stringConf
+      .toSequence
+      .createWithDefault(Seq.empty)
 
   val MASTER_HTTP_AUTH_BASIC_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.master.http.auth.basic.provider")
@@ -3750,6 +3776,16 @@ object CelebornConf extends Logging {
       .doc("Time length for a window about checking whether commit shuffle data files finished.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("100")
+  val WORKER_COMMIT_FILES_FSYNC: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.commitFiles.fsync")
+      .categories("worker")
+      .version("0.7.0")
+      .doc("Whether to fsync (fdatasync) shuffle data when committing. " +
+        "When enabled, each partition file is fsynced to disk before the commit completes " +
+        "ensuring committed data survives OS crashes, hard reboots etc. " +
+        "Enabling ensures durability but can add some latency to commit times.")
+      .booleanConf
+      .createWithDefault(false)
 
   val WORKER_CLEAN_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.worker.clean.threads")
@@ -4127,6 +4163,30 @@ object CelebornConf extends Logging {
       .doc("Retry count for a file writer to create if its creation was failed.")
       .intConf
       .createWithDefault(3)
+
+  val WORKER_WRITER_CREATE_PARALLEL_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.writer.create.parallel.enabled")
+      .categories("worker")
+      .version("0.6.3")
+      .doc("Whether to parallelize the creation of file writer.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val WORKER_WRITER_CREATE_PARALLEL_THREADS: OptionalConfigEntry[Int] =
+    buildConf("celeborn.worker.writer.create.parallel.threads")
+      .categories("worker")
+      .version("0.6.3")
+      .doc("Thread number of worker to parallelize the creation of file writer.")
+      .intConf
+      .createOptional
+
+  val WORKER_WRITER_CREATE_PARALLEL_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.worker.writer.create.parallel.timeout")
+      .categories("worker")
+      .version("0.6.3")
+      .doc("Timeout for a worker to create a file writer in parallel.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
 
   val WORKER_WRITER_HDFS_CREATE_AUXILIARY_FILE_MAX_RETRIES: ConfigEntry[Int] =
     buildConf("celeborn.worker.writer.hdfs.createAuxiliaryFile.maxRetries")
@@ -5386,6 +5446,14 @@ object CelebornConf extends Logging {
       .doc("Wait time before next retry if reserve slots failed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("3s")
+
+  val CLIENT_COMMIT_FILE_REQUEST_RETRY_WAIT: ConfigEntry[Long] =
+    buildConf("celeborn.client.requestCommitFiles.retryWait")
+      .categories("client")
+      .doc("Wait time before next retry if requestCommitFiles RPC failed.")
+      .version("0.6.3")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10s")
 
   val CLIENT_COMMIT_FILE_REQUEST_MAX_RETRY: ConfigEntry[Int] =
     buildConf("celeborn.client.requestCommitFiles.maxRetries")

@@ -18,13 +18,19 @@
 package org.apache.celeborn.service.deploy.master
 
 import java.nio.file.Files
+import java.util
 
-import org.mockito.Mockito.mock
+import org.mockito.ArgumentCaptor
+import org.mockito.Mockito.{mock, verify}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.protocol.{PbCheckForWorkerTimeout, PbRegisterWorker}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{RequestSlots, RequestSlotsResponse}
+import org.apache.celeborn.common.protocol.message.StatusCode
+import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.util.{CelebornExitKind, ThreadUtils}
 
 class MasterSuite extends AnyFunSuite
@@ -152,6 +158,43 @@ class MasterSuite extends AnyFunSuite
     assert(master.workerHostAllowedToRegister("test.k8s.io.com"))
     assert(master.workerHostAllowedToRegister("test.example.com"))
     assert(master.workerHostAllowedToRegister("deny.k8s.io"))
+    master.rpcEnv.shutdown()
+  }
+
+  test("handleRequestSlots replies WORKER_EXCLUDED and does not throw when no workers available") {
+    val conf = new CelebornConf()
+    val randomMasterPort = selectRandomPort()
+    val randomHttpPort = selectRandomPort()
+    conf.set(CelebornConf.HA_ENABLED.key, "false")
+    conf.set(CelebornConf.MASTER_HTTP_HOST.key, "127.0.0.1")
+    conf.set(CelebornConf.MASTER_HTTP_PORT.key, randomHttpPort.toString)
+
+    val args = Array("-h", "localhost", "-p", randomMasterPort.toString)
+    val masterArgs = new MasterArguments(args, conf)
+    val master = new Master(conf, masterArgs)
+
+    // No workers registered — availableWorkers is empty
+    val requestSlots = RequestSlots(
+      "app1",
+      0,
+      new util.ArrayList[Integer](),
+      "localhost",
+      shouldReplicate = false,
+      shouldRackAware = false,
+      new UserIdentifier("tenant", "user"),
+      maxWorkers = 0,
+      availableStorageTypes = 0)
+
+    val context = mock(classOf[RpcCallContext])
+    val captor = ArgumentCaptor.forClass(classOf[Any])
+
+    // Should not throw IllegalArgumentException
+    master.handleRequestSlots(context, requestSlots)
+
+    verify(context).reply(captor.capture())
+    val response = captor.getValue.asInstanceOf[RequestSlotsResponse]
+    assert(response.status === StatusCode.WORKER_EXCLUDED)
+
     master.rpcEnv.shutdown()
   }
 }

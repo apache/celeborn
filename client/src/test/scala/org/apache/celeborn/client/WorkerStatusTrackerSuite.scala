@@ -18,6 +18,11 @@
 package org.apache.celeborn.client
 
 import java.util
+import java.util.concurrent.{CyclicBarrier, Executors, Future, TimeUnit}
+import java.util.concurrent.atomic.AtomicInteger
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 import org.junit.Assert
 
@@ -90,6 +95,68 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     statusTracker.handleHeartbeatResponse(response3)
     Assert.assertEquals(statusTracker.excludedWorkers.size(), 2)
     Assert.assertFalse(statusTracker.excludedWorkers.containsKey(mock("host1")))
+  }
+
+  test("concurrent access to shuttingWorkers should not throw ConcurrentModificationException") {
+    val celebornConf = new CelebornConf()
+    val statusTracker = new WorkerStatusTracker(celebornConf, null)
+    val numWriters = 5
+    val numReaders = 5
+    val totalThreads = numWriters + numReaders
+    val executor = Executors.newFixedThreadPool(totalThreads)
+    val barrier = new CyclicBarrier(totalThreads)
+    val errors = new AtomicInteger(0)
+    val futures = new ArrayBuffer[Future[_]]()
+
+    // Pre-populate the set so iteration takes longer, increasing the
+    // window for concurrent modification to trigger a CME with HashSet.
+    (1 to 1000).foreach { i =>
+      statusTracker.shuttingWorkers.add(mock(s"pre-$i"))
+    }
+
+    try {
+      // Writers: concurrently add and remove workers
+      (1 to numWriters).foreach { i =>
+        futures += executor.submit(new Runnable {
+          override def run(): Unit = {
+            barrier.await()
+            (1 to 1000).foreach { j =>
+              val worker = mock(s"host-$i-$j")
+              statusTracker.shuttingWorkers.add(worker)
+              statusTracker.shuttingWorkers.remove(worker)
+            }
+          }
+        })
+      }
+
+      // Readers: iterate shuttingWorkers directly, mirroring how currentFailedWorkers iterates it
+      (1 to numReaders).foreach { i =>
+        futures += executor.submit(new Runnable {
+          override def run(): Unit = {
+            try {
+              barrier.await()
+              (1 to 1000).foreach { _ =>
+                statusTracker.shuttingWorkers.asScala.foreach(_ => ())
+              }
+            } catch {
+              case _: java.util.ConcurrentModificationException =>
+                errors.incrementAndGet()
+            }
+          }
+        })
+      }
+
+      // Surface any unexpected exceptions from threads
+      futures.foreach(_.get(30, TimeUnit.SECONDS))
+    } finally {
+      executor.shutdown()
+      Assert.assertTrue(executor.awaitTermination(30, TimeUnit.SECONDS))
+    }
+
+    Assert.assertEquals(
+      "ConcurrentModificationException should not occur with thread-safe set",
+      0,
+      errors.get())
   }
 
   private def buildResponse(

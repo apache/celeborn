@@ -192,7 +192,7 @@ public class SlotsAllocator {
         interruptionAwareThreshold);
   }
 
-  private static StorageInfo getStorageInfo(
+  static StorageInfo buildStorageInfo(
       List<WorkerInfo> workers,
       int workerIndex,
       Map<WorkerInfo, List<UsableDiskInfo>> restrictions,
@@ -239,8 +239,12 @@ public class SlotsAllocator {
         storageInfo = new StorageInfo("", S3, availableStorageTypes);
       } else if (StorageInfo.OSSAvailable(availableStorageTypes)) {
         storageInfo = new StorageInfo("", OSS, availableStorageTypes);
-      } else {
+      } else if (StorageInfo.HDFSAvailable(availableStorageTypes)) {
         storageInfo = new StorageInfo("", HDFS, availableStorageTypes);
+      } else if (StorageInfo.memoryAvailable(availableStorageTypes)) {
+        storageInfo = new StorageInfo("", StorageInfo.Type.MEMORY, availableStorageTypes);
+      } else {
+        throw new IllegalStateException("no storage type available");
       }
     }
     return storageInfo;
@@ -527,7 +531,7 @@ public class SlotsAllocator {
           }
         }
         storageInfo =
-            getStorageInfo(
+            buildStorageInfo(
                 primaryWorkers,
                 nextPrimaryInd,
                 slotsRestrictions,
@@ -543,7 +547,7 @@ public class SlotsAllocator {
           }
         }
         storageInfo =
-            getStorageInfo(
+            buildStorageInfo(
                 primaryWorkers, nextPrimaryInd, null, workerDiskIndex, availableStorageTypes);
       }
       PartitionLocation primaryPartition =
@@ -566,7 +570,7 @@ public class SlotsAllocator {
             }
           }
           storageInfo =
-              getStorageInfo(
+              buildStorageInfo(
                   replicaWorkers,
                   nextReplicaInd,
                   slotsRestrictions,
@@ -592,7 +596,7 @@ public class SlotsAllocator {
             }
           }
           storageInfo =
-              getStorageInfo(
+              buildStorageInfo(
                   replicaWorkers, nextReplicaInd, null, workerDiskIndex, availableStorageTypes);
         }
         PartitionLocation replicaPartition =

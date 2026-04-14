@@ -58,12 +58,12 @@ The following command can be invoked in order to get the basic usage:
 
 ```shell
 $ celeborn-ratis sh
-Usage: celeborn-ratis sh [generic options]
-         [election [transfer] [stepDown] [pause] [resume]]
-         [group [info] [list]]
-         [peer [add] [remove] [setPriority]]
-         [snapshot [create]]
-         [local [raftMetaConf]]
+Usage: ratis sh [generic options]
+	 [election [transfer] [stepDown] [pause] [resume]]         
+	 [group [info] [list]]                                     
+	 [local [raftMetaConf]]                                    
+	 [peer [add] [remove] [setPriority]]                       
+	 [snapshot [create]] 
 ```
 
 ## generic options
@@ -87,26 +87,26 @@ It has the following subcommands:
 ### election transfer
 Transfer a group leader to the specified server.
 ```
-$ celeborn-ratis sh election transfer -peers <P0_HOST:P0_PORT,P1_HOST:P1_PORT,P2_HOST:P2_PORT> -address <HOSTNAME:PORT> [-groupid <RAFT_GROUP_ID>]
+$ celeborn-ratis sh election transfer -address <HOSTNAME:PORT> -peers <PEER0_HOST:PEER0_PORT,PEER1_HOST:PEER1_PORT,PEER2_HOST:PEER2_PORT> [-groupid <RAFT_GROUP_ID>] [-timeout <TIMEOUT_IN_SECONDS>]
 ```
 
 ### election stepDown
 Make a group leader of the given group step down its leadership.
 ```
-$ celeborn-ratis sh election stepDown -peers <P0_HOST:P0_PORT,P1_HOST:P1_PORT,P2_HOST:P2_PORT> [-groupid <RAFT_GROUP_ID>]
+$ celeborn-ratis sh election stepDown -peers <PEER0_HOST:PEER0_PORT,PEER1_HOST:PEER1_PORT,PEER2_HOST:PEER2_PORT> [-groupid <RAFT_GROUP_ID>]
 ```
 
 ### election pause
 Pause leader election at the specified server.
 Then, the specified server would not start a leader election.
 ```
-$ celeborn-ratis sh election pause -peers <P0_HOST:P0_PORT,P1_HOST:P1_PORT,P2_HOST:P2_PORT> -address <HOSTNAME:PORT> [-groupid <RAFT_GROUP_ID>]
+$ celeborn-ratis sh election pause -address <HOSTNAME:PORT> -peers <PEER0_HOST:PEER0_PORT,PEER1_HOST:PEER1_PORT,PEER2_HOST:PEER2_PORT> [-groupid <RAFT_GROUP_ID>]
 ```
 
 ### election resume
 Resume leader election at the specified server.
 ```
-$ celeborn-ratis sh election resume -peers <P0_HOST:P0_PORT,P1_HOST:P1_PORT,P2_HOST:P2_PORT> -address <HOSTNAME:PORT> [-groupid <RAFT_GROUP_ID>]
+$ celeborn-ratis sh election resume -address <HOSTNAME:PORT> -peers <PEER0_HOST:PEER0_PORT,PEER1_HOST:PEER1_PORT,PEER2_HOST:PEER2_PORT> [-groupid <RAFT_GROUP_ID>]
 ```
 
 ## group
@@ -117,13 +117,13 @@ It has the following subcommands:
 ### group info
 Display the information of a specific raft group.
 ```
-$ celeborn-ratis sh group info -peers <P0_HOST:P0_PORT,P1_HOST:P1_PORT,P2_HOST:P2_PORT> [-groupid <RAFT_GROUP_ID>]
+$ celeborn-ratis sh group info -peers <PEER0_HOST:PEER0_PORT,PEER1_HOST:PEER1_PORT,PEER2_HOST:PEER2_PORT> [-groupid <RAFT_GROUP_ID>]
 ```
 
 ### group list
 Display the group information of a specific raft server
 ```
-$ celeborn-ratis sh group list -peers <P0_HOST:P0_PORT,P1_HOST:P1_PORT,P2_HOST:P2_PORT> [-groupid <RAFT_GROUP_ID>]  <[-serverAddress <P0_HOST:P0_PORT>]|[-peerId <peerId0>]>
+$ celeborn-ratis sh group list -peers <PEER0_HOST:PEER0_PORT,PEER1_HOST:PEER1_PORT,PEER2_HOST:PEER2_PORT> [-groupid <RAFT_GROUP_ID>] <[-serverAddress <PEER0_HOST:PEER0_PORT>]|[-peerId <peerId>]>
 ```
 
 ## peer
@@ -134,20 +134,20 @@ It has the following subcommands:
 ### peer add
 Add peers to a ratis group.
 ```
-$ celeborn-ratis sh peer add -peers <P0_HOST:P0_PORT,P1_HOST:P1_PORT,P2_HOST:P2_PORT> [-groupid <RAFT_GROUP_ID>] -address <P4_HOST:P4_PORT,...,PN_HOST:PN_PORT>
+$ celeborn-ratis sh peer add -peers <PEER0_HOST:PEER0_PORT,PEER1_HOST:PEER1_PORT,PEER2_HOST:PEER2_PORT> [-groupid <RAFT_GROUP_ID>] <[-address <PEER0_HOST:PEER0_PORT>]|[-peerId <peerId>]> [-clientAddress <CLIENT_ADDRESS1,CLIENT_ADDRESS2,...>] [-adminAddress <ADMIN_ADDRESS1,ADMIN_ADDRESS2,...>]
 ```
 
 ### peer remove
 Remove peers to from a ratis group.
 ```
-$ celeborn-ratis sh peer remove -peers <P0_HOST:P0_PORT,P1_HOST:P1_PORT,P2_HOST:P2_PORT> [-groupid <RAFT_GROUP_ID>] -address <P0_HOST:P0_PORT,...>
+$ celeborn-ratis sh peer remove -peers <PEER0_HOST:PEER0_PORT,PEER1_HOST:PEER1_PORT,PEER2_HOST:PEER2_PORT> [-groupid <RAFT_GROUP_ID>] <[-address <PEER0_HOST:PEER0_PORT>]|[-peerId <peerId>]>
 ```
 
 ### peer setPriority
 Set priority to ratis peers.
 The priority of ratis peer can affect the leader election, the server with the highest priority will eventually become the leader of the cluster.
 ```
-$ celeborn-ratis sh peer setPriority -peers <P0_HOST:P0_PORT,P1_HOST:P1_PORT,P2_HOST:P2_PORT> [-groupid <RAFT_GROUP_ID>] -addressPriority <P0_HOST:P0_PORT|PRIORITY>
+$ celeborn-ratis sh peer setPriority -peers <PEER0_HOST:PEER0_PORT,PEER1_HOST:PEER1_PORT,PEER2_HOST:PEER2_PORT> [-groupid <RAFT_GROUP_ID>] -addressPriority <PEER_HOST:PEER_PORT|PRIORITY>
 ```
 ## snapshot
 The `snapshot` command manages ratis snapshot.
@@ -157,7 +157,7 @@ It has the following subcommands:
 ### snapshot create
 Trigger the specified server take snapshot.
 ```
-$ celeborn-ratis sh snapshot create -peers <P0_HOST:P0_PORT,P1_HOST:P1_PORT,P2_HOST:P2_PORT> -peerId <peerId0> [-groupid <RAFT_GROUP_ID>]
+$ celeborn-ratis sh snapshot create -peers <PEER0_HOST:PEER0_PORT,PEER1_HOST:PEER1_PORT,PEER2_HOST:PEER2_PORT> [-groupid <RAFT_GROUP_ID>] [-snapshotTimeout <timeoutInMs>] [-peerId <raftPeerId>]
 ```
 
 ## local

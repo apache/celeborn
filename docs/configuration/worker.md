@@ -33,6 +33,7 @@ license: |
 | celeborn.dynamicConfig.store.db.hikari.password |  | false | The password of db store backend. | 0.5.0 |  | 
 | celeborn.dynamicConfig.store.db.hikari.username |  | false | The username of db store backend. | 0.5.0 |  | 
 | celeborn.dynamicConfig.store.fs.path | &lt;undefined&gt; | false | The path of dynamic config file for fs store backend. The file format should be yaml. The default path is `${CELEBORN_CONF_DIR}/dynamicConfig.yaml`. | 0.5.0 |  | 
+| celeborn.http.auth.bypass.api.paths |  | false | A comma-separated list of additional API paths that bypass authentication. The path must match exactly and is case-sensitive. Wildcards not accepted. | 0.7.0 |  | 
 | celeborn.internal.port.enabled | false | false | Whether to create a internal port on Masters/Workers for inter-Masters/Workers communication. This is beneficial when SASL authentication is enforced for all interactions between clients and Celeborn Services, but the services can exchange messages without being subject to SASL authentication. | 0.5.0 |  | 
 | celeborn.logConf.enabled | false | false | When `true`, log the CelebornConf for debugging purposes. | 0.5.0 |  | 
 | celeborn.master.endpoints | &lt;localhost&gt;:9097 | false | Endpoints of master nodes for celeborn clients to connect. Client uses resolver provided by celeborn.master.endpoints.resolver to resolve the master endpoints. By default Celeborn uses `org.apache.celeborn.common.client.StaticMasterEndpointResolver` which take static master endpoints as input. Allowed pattern: `<host1>:<port1>[,<host2>:<port2>]*`, e.g. `clb1:9097,clb2:9098,clb3:9099`. If the port is omitted, 9097 will be used. If the master endpoints are not static then users can pass custom resolver implementation to discover master endpoints actively using celeborn.master.endpoints.resolver. | 0.2.0 |  | 
@@ -62,6 +63,7 @@ license: |
 | celeborn.worker.clean.threads | 64 | false | Thread number of worker to clean up expired shuffle keys. | 0.3.2 |  | 
 | celeborn.worker.closeIdleConnections | false | false | Whether worker will close idle connections. | 0.2.0 |  | 
 | celeborn.worker.commitFiles.check.interval | 100 | false | Time length for a window about checking whether commit shuffle data files finished. | 0.6.0 |  | 
+| celeborn.worker.commitFiles.fsync | false | false | Whether to fsync (fdatasync) shuffle data when committing. When enabled, each partition file is fsynced to disk before the commit completes ensuring committed data survives OS crashes, hard reboots etc. Enabling ensures durability but can add some latency to commit times. | 0.7.0 |  | 
 | celeborn.worker.commitFiles.threads | 32 | false | Thread number of worker to commit shuffle data files asynchronously. It's recommended to set at least `128` when `HDFS` is enabled in `celeborn.storage.availableTypes`. | 0.3.0 | celeborn.worker.commit.threads | 
 | celeborn.worker.commitFiles.timeout | 120s | false | Timeout for a Celeborn worker to commit files of a shuffle. It's recommended to set at least `240s` when `HDFS` is enabled in `celeborn.storage.availableTypes`. | 0.3.0 | celeborn.worker.shuffle.commit.timeout | 
 | celeborn.worker.congestionControl.check.interval | 10ms | false | Interval of worker checks congestion if celeborn.worker.congestionControl.enabled is true. | 0.3.2 |  | 
@@ -200,6 +202,9 @@ license: |
 | celeborn.worker.storage.workingDir | celeborn-worker/shuffle_data | false | Worker's working dir path name. | 0.3.0 | celeborn.worker.workingDir | 
 | celeborn.worker.writer.close.timeout | 120s | false | Timeout for a file writer to close | 0.2.0 |  | 
 | celeborn.worker.writer.create.maxAttempts | 3 | false | Retry count for a file writer to create if its creation was failed. | 0.2.0 |  | 
+| celeborn.worker.writer.create.parallel.enabled | false | false | Whether to parallelize the creation of file writer. | 0.6.3 |  | 
+| celeborn.worker.writer.create.parallel.threads | &lt;undefined&gt; | false | Thread number of worker to parallelize the creation of file writer. | 0.6.3 |  | 
+| celeborn.worker.writer.create.parallel.timeout | 120s | false | Timeout for a worker to create a file writer in parallel. | 0.6.3 |  | 
 | celeborn.worker.writer.hdfs.createAuxiliaryFile.maxRetries | 5 | false | Retry count for a auxiliary file including index file and success file with HDFS storage to create if its creation was failed. | 0.7.0 |  | 
 | celeborn.worker.writer.hdfs.createAuxiliaryFile.retryWait | 200ms | false | Wait interval after failure to create a auxiliary file with HDFS storage and then retry it. | 0.7.0 |  | 
 | worker.flush.reuseCopyBuffer.enabled | true | false | Whether to enable reuse copy buffer for flush. Note that this copy buffer must not be referenced again after flushing. This means that, for example, the Hdfs(Oss or S3) client will not asynchronously access this buffer after the flush method returns, otherwise data modification problems will occur. | 0.6.1 |  | 

@@ -59,12 +59,12 @@ public class TransportConf {
 
   /** Connect timeout in milliseconds. Default 10 secs. */
   public int connectTimeoutMs() {
-    return celebornConf.networkIoConnectTimeoutMs(module);
+    return Math.max(celebornConf.networkIoConnectTimeoutMs(module), 0);
   }
 
   /** Connection active timeout in milliseconds. Default 240 secs. */
   public int connectionTimeoutMs() {
-    return celebornConf.networkIoConnectionTimeoutMs(module);
+    return Math.max(celebornConf.networkIoConnectionTimeoutMs(module), 0);
   }
 
   /** Number of concurrent connections between two nodes for fetching data. */

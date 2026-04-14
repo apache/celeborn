@@ -156,6 +156,7 @@ jobs:
           - 17
         spark:
           - '4.0'
+          - '4.1'
         shuffle-plugin-class:
           - 'org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO'
     steps:

@@ -14,4 +14,4 @@
 # limitations under the License.
 add_library(proto STATIC ${ProtoGenSource} ${ProtoGenHeader})
 add_dependencies(proto generate_proto_source)
-target_link_libraries(proto ${Boost_LIBRARIES} ${PROTOBUF_LIBRARY})
+target_link_libraries(proto ${Boost_LIBRARIES} protobuf::libprotobuf)

@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadFactory;
 
+import io.netty.buffer.AdaptiveByteBufAllocator;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.UnpooledByteBufAllocator;
@@ -121,6 +122,14 @@ public class NettyUtils {
     }
   }
 
+  /**
+   * Creates a LengthFieldBasedFrameDecoder where the first 8 bytes are the length of the frame.
+   * This is used before all decoders.
+   */
+  public static TransportFrameDecoder createFrameDecoder() {
+    return new TransportFrameDecoder();
+  }
+
   /** Returns the remote address on the channel or "&lt;unknown remote&gt;" if none exists. */
   public static String getRemoteAddress(Channel channel) {
     if (channel != null && channel.remoteAddress() != null) {
@@ -132,7 +141,7 @@ public class NettyUtils {
   /**
    * Create a ByteBufAllocator that respects the parameters
    *
-   * @param pooled If true, create a PooledByteBufAllocator, otherwise UnpooledByteBufAllocator
+   * @param allocatorType netty memory allocator type.
    * @param allowDirectBufs If true and platform supports, allocate ByteBuf in direct memory,
    *     otherwise in heap memory.
    * @param allowCache If true, enable thread-local cache, it only take effect for
@@ -141,23 +150,32 @@ public class NettyUtils {
    *     effect for PooledByteBufAllocator.
    */
   private static ByteBufAllocator createByteBufAllocator(
-      boolean pooled, boolean allowDirectBufs, boolean allowCache, int numCores) {
-    if (pooled) {
-      if (numCores == 0) {
-        numCores = Runtime.getRuntime().availableProcessors();
-      }
-      return new PooledByteBufAllocator(
-          allowDirectBufs && PlatformDependent.directBufferPreferred(),
-          Math.min(PooledByteBufAllocator.defaultNumHeapArena(), numCores),
-          Math.min(PooledByteBufAllocator.defaultNumDirectArena(), allowDirectBufs ? numCores : 0),
-          PooledByteBufAllocator.defaultPageSize(),
-          PooledByteBufAllocator.defaultMaxOrder(),
-          allowCache ? PooledByteBufAllocator.defaultSmallCacheSize() : 0,
-          allowCache ? PooledByteBufAllocator.defaultNormalCacheSize() : 0,
-          allowCache && PooledByteBufAllocator.defaultUseCacheForAllThreads());
-    } else {
-      return new UnpooledByteBufAllocator(
-          allowDirectBufs && PlatformDependent.directBufferPreferred());
+      NettyMemoryAllocatorType allocatorType,
+      boolean allowDirectBufs,
+      boolean allowCache,
+      int numCores) {
+    boolean preferDirect = allowDirectBufs && PlatformDependent.directBufferPreferred();
+    switch (allocatorType) {
+      case POOLED:
+        if (numCores == 0) {
+          numCores = Runtime.getRuntime().availableProcessors();
+        }
+        return new PooledByteBufAllocator(
+            preferDirect,
+            Math.min(PooledByteBufAllocator.defaultNumHeapArena(), numCores),
+            Math.min(
+                PooledByteBufAllocator.defaultNumDirectArena(), allowDirectBufs ? numCores : 0),
+            PooledByteBufAllocator.defaultPageSize(),
+            PooledByteBufAllocator.defaultMaxOrder(),
+            allowCache ? PooledByteBufAllocator.defaultSmallCacheSize() : 0,
+            allowCache ? PooledByteBufAllocator.defaultNormalCacheSize() : 0,
+            allowCache && PooledByteBufAllocator.defaultUseCacheForAllThreads());
+      case UNPOOLED:
+        return new UnpooledByteBufAllocator(preferDirect);
+      case ADAPTIVE:
+        return new AdaptiveByteBufAllocator(preferDirect);
+      default:
+        throw new IllegalArgumentException("Unknown allocator type: " + allocatorType);
     }
   }
 
@@ -169,10 +187,10 @@ public class NettyUtils {
       CelebornConf conf, AbstractSource source, boolean allowCache) {
     final int index = allowCache ? 0 : 1;
     if (_sharedByteBufAllocator[index] == null) {
+      NettyMemoryAllocatorType allocatorType = conf.networkMemoryAllocatorType();
       _sharedByteBufAllocator[index] =
-          createByteBufAllocator(
-              conf.networkMemoryAllocatorPooled(), true, allowCache, conf.networkAllocatorArenas());
-      if (conf.networkMemoryAllocatorPooled()) {
+          createByteBufAllocator(allocatorType, true, allowCache, conf.networkAllocatorArenas());
+      if (allocatorType == NettyMemoryAllocatorType.POOLED) {
         pooledByteBufAllocators.add((PooledByteBufAllocator) _sharedByteBufAllocator[index]);
       }
       if (source != null) {
@@ -206,13 +224,10 @@ public class NettyUtils {
     } else {
       arenas = conf.getCelebornConf().networkAllocatorArenas();
     }
+    NettyMemoryAllocatorType allocatorType = conf.getCelebornConf().networkMemoryAllocatorType();
     ByteBufAllocator allocator =
-        createByteBufAllocator(
-            conf.getCelebornConf().networkMemoryAllocatorPooled(),
-            conf.preferDirectBufs(),
-            allowCache,
-            arenas);
-    if (conf.getCelebornConf().networkMemoryAllocatorPooled()) {
+        createByteBufAllocator(allocatorType, conf.preferDirectBufs(), allowCache, arenas);
+    if (allocatorType == NettyMemoryAllocatorType.POOLED) {
       pooledByteBufAllocators.add((PooledByteBufAllocator) allocator);
     }
     if (source != null) {

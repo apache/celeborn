@@ -92,6 +92,11 @@ class TransportClient {
       Timeout timeout,
       std::shared_ptr<RpcResponseCallback> callback);
 
+  virtual void pushMergedDataAsync(
+      const PushMergedData& pushMergedData,
+      Timeout timeout,
+      std::shared_ptr<RpcResponseCallback> callback);
+
   virtual void fetchChunkAsync(
       const protocol::StreamChunkSlice& streamChunkSlice,
       const RpcRequest& request,

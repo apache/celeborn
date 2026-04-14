@@ -25,7 +25,7 @@
 int main(int argc, char** argv) {
   folly::init(&argc, &argv, false);
   // Read the configs.
-  assert(argc == 9);
+  assert(argc == 10);
   std::string lifecycleManagerHost = argv[1];
   int lifecycleManagerPort = std::atoi(argv[2]);
   std::string appUniqueId = argv[3];
@@ -34,16 +34,20 @@ int main(int argc, char** argv) {
   int numMappers = std::atoi(argv[6]);
   int numPartitions = std::atoi(argv[7]);
   std::string resultFile = argv[8];
+  std::string compressCodec = argv[9];
   std::cout << "lifecycleManagerHost = " << lifecycleManagerHost
             << ", lifecycleManagerPort = " << lifecycleManagerPort
             << ", appUniqueId = " << appUniqueId
             << ", shuffleId = " << shuffleId << ", attemptId = " << attemptId
             << ", numMappers = " << numMappers
             << ", numPartitions = " << numPartitions
-            << ", resultFile = " << resultFile << std::endl;
+            << ", resultFile = " << resultFile
+            << ", compressCodec = " << compressCodec << std::endl;
 
   // Create shuffleClient and setup.
   auto conf = std::make_shared<celeborn::conf::CelebornConf>();
+  conf->registerProperty(
+      celeborn::conf::CelebornConf::kShuffleCompressionCodec, compressCodec);
   auto clientEndpoint =
       std::make_shared<celeborn::client::ShuffleClientEndpoint>(conf);
   auto shuffleClient = celeborn::client::ShuffleClientImpl::create(
