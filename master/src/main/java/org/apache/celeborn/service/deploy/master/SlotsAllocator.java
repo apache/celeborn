@@ -79,7 +79,7 @@ public class SlotsAllocator {
       List<UsableDiskInfo> usableDisks =
           slotsRestrictions.computeIfAbsent(worker, v -> new ArrayList<>());
       for (DiskInfo diskInfo : worker.diskInfos().values()) {
-        if (diskInfo.status().equals(DiskStatus.HEALTHY)
+        if (DiskStatus.HEALTHY.equals(diskInfo.status())
             && StorageInfo.isAvailable(diskInfo.storageType(), availableStorageTypes)) {
           usableDisks.add(new UsableDiskInfo(diskInfo));
         }
