@@ -1262,7 +1262,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         }
       }
     }
-
+    celebornShuffleIdToAppShuffleIdMap.remove(shuffleId)
     // add shuffleKey to delay shuffle removal set
     unregisterShuffleTime.put(shuffleId, System.currentTimeMillis())
 
@@ -1280,12 +1280,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             case (shuffleId, _) =>
               unregisterShuffle(shuffleId)
               unregisterShuffleCallback.foreach(c => c.accept(shuffleId))
-              celebornShuffleIdToAppShuffleIdMap.remove(shuffleId)
           })
       }
     } else {
       unregisterShuffle(appShuffleId)
-      celebornShuffleIdToAppShuffleIdMap.remove(appShuffleId)
     }
   }
 
