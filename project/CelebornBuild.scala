@@ -955,7 +955,7 @@ object Spark34 extends SparkClientProjects {
   val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
 
   val lz4JavaVersion = "1.8.0"
-  val sparkProjectScalaVersion = "2.12.17"
+  val sparkProjectScalaVersion = "2.12.18"
 
   val sparkVersion = "3.4.4"
   val zstdJniVersion = "1.5.2-5"
