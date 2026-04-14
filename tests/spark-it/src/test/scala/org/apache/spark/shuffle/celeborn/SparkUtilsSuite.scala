@@ -303,8 +303,10 @@ class SparkUtilsSuite extends AnyFunSuite
 
         val taskScheduler = sc.taskScheduler.asInstanceOf[TaskSchedulerImpl]
         eventually(timeout(10.seconds), interval(100.milliseconds)) {
-          // taskId 0,1 failed and removed; taskId 2 is the surviving 3rd attempt
-          val taskSetManager = SparkUtils.getTaskSetManager(taskScheduler, 2)
+          // Task IDs are globally assigned; find the active TaskSetManager dynamically
+          // rather than assuming a specific taskId.
+          val taskSetManager = (0L to 10L).map(id =>
+            SparkUtils.getTaskSetManager(taskScheduler, id)).find(_ != null).orNull
           assert(taskSetManager != null)
           assert(SparkUtils.getTaskFailureCount(taskSetManager, 0) == 2)
         }

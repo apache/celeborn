@@ -557,9 +557,14 @@ public class SparkUtils {
         // Note: previousFailureCount does NOT include the current failure,
         //       so (previousFailureCount + 1) represents the total failure count.
         int previousFailureCount = getTaskFailureCount(taskSetManager, taskInfo.index());
-        // Fail-safe: if failure count cannot be determined, conservatively trigger
-        // FetchFailed to avoid silently swallowing the error.
         if (previousFailureCount < 0) {
+          LOG.warn(
+              "StageId={}, index={}, taskId={}, attemptNumber={}: Unable to determine "
+                  + "previous failure count, conservatively report shuffle fetch failure.",
+              stageId,
+              taskInfo.index(),
+              taskId,
+              taskInfo.attemptNumber());
           return true;
         }
         if (previousFailureCount + 1 >= maxTaskFails || !hasRunningAttempt) {
