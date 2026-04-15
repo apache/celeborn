@@ -25,7 +25,7 @@ import java.util.{HashSet => JHashSet}
 import scala.collection.JavaConverters._
 
 import org.junit.Assert
-import org.mockito.{ArgumentCaptor, ArgumentMatchers, Mockito}
+import org.mockito.{ArgumentCaptor, ArgumentMatchers, MockedConstruction, Mockito}
 import org.mockito.MockedConstruction.MockInitializer
 import org.mockito.Mockito.mockConstruction
 import org.mockito.MockitoSugar._
@@ -308,15 +308,20 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
   }
 
   test("CELEBORN-2257: Properly reports remote disks on worker registration") {
-    val mockInitializer: MockInitializer[MasterClient] = (instance: MasterClient, _) => {
-      doReturn(PbRegisterWorkerResponse
-        .newBuilder()
-        .setSuccess(true)
-        .build())
-        .when(instance)
-        .askSync(
-          ArgumentMatchers.any(classOf[PbRegisterWorker]),
-          ArgumentMatchers.eq(classOf[PbRegisterWorkerResponse]))
+    val mockInitializer = {
+      // Old syntax needed for scala 2.11
+      new MockInitializer[MasterClient] {
+        override def prepare(instance: MasterClient, context: MockedConstruction.Context): Unit = {
+          doReturn(PbRegisterWorkerResponse
+            .newBuilder()
+            .setSuccess(true)
+            .build())
+            .when(instance)
+            .askSync(
+              ArgumentMatchers.any(classOf[PbRegisterWorker]),
+              ArgumentMatchers.eq(classOf[PbRegisterWorkerResponse]))
+        }
+      }
     }
     val mockedMasterClient = mockConstruction(classOf[MasterClient], mockInitializer)
     val argCaptor = ArgumentCaptor.forClass(classOf[PbRegisterWorker])
