@@ -17,30 +17,32 @@
 
 package org.apache.celeborn.service.deploy.worker
 
+import java.io.File
+import java.nio.file.{Files, Paths}
+import java.util
+import java.util.{HashSet => JHashSet}
+
+import scala.collection.JavaConverters._
+
+import org.junit.Assert
+import org.mockito.{ArgumentCaptor, ArgumentMatchers, Mockito}
+import org.mockito.MockedConstruction.MockInitializer
+import org.mockito.Mockito.mockConstruction
+import org.mockito.MockitoSugar._
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.funsuite.AnyFunSuite
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.ControlMessages.CommitFilesResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, ThreadUtils}
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.worker.storage.PartitionDataWriter
-import org.junit.Assert
-import org.mockito.MockedConstruction.MockInitializer
-import org.mockito.Mockito.mockConstruction
-import org.mockito.MockitoSugar._
-import org.mockito.{ArgumentCaptor, ArgumentMatchers, Mockito}
-import org.scalatest.BeforeAndAfterEach
-import org.scalatest.funsuite.AnyFunSuite
-
-import java.io.File
-import java.nio.file.{Files, Paths}
-import java.util
-import java.util.{HashSet => JHashSet}
-import scala.collection.JavaConverters._
 
 class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFeature {
   private var worker: Worker = _
@@ -307,30 +309,27 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
 
   test("CELEBORN-2257: Properly reports remote disks on worker registration") {
     val mockInitializer: MockInitializer[MasterClient] = (instance: MasterClient, _) => {
-      Mockito.doReturn(PbRegisterWorkerResponse
-          .newBuilder()
-          .setSuccess(true)
-          .build())
+      doReturn(PbRegisterWorkerResponse
+        .newBuilder()
+        .setSuccess(true)
+        .build())
         .when(instance)
         .askSync(
           ArgumentMatchers.any(classOf[PbRegisterWorker]),
-          ArgumentMatchers.eq(classOf[PbRegisterWorkerResponse])
-        )
+          ArgumentMatchers.eq(classOf[PbRegisterWorkerResponse]))
     }
     val mockedMasterClient = mockConstruction(classOf[MasterClient], mockInitializer)
     val argCaptor = ArgumentCaptor.forClass(classOf[PbRegisterWorker])
     val workerConf: Map[String, String] = Map(
       CelebornConf.ACTIVE_STORAGE_TYPES.key -> "S3",
       CelebornConf.S3_DIR.key -> "s3a://test-bucket-for-celeborn/",
-      CelebornConf.S3_ENDPOINT_REGION.key -> "test-region"
-    )
+      CelebornConf.S3_ENDPOINT_REGION.key -> "test-region")
     setupMiniClusterWithRandomPorts(workerNum = 1, workerConf = workerConf);
 
     try {
       val createdMocks = mockedMasterClient.constructed();
       assert(createdMocks.size() == 1)
-      Mockito
-        .verify(createdMocks.get(0), timeout(5000).atLeast(1))
+      verify(createdMocks.get(0), timeout(5000).atLeast(1))
         .askSync(argCaptor.capture(), ArgumentMatchers.eq(classOf[PbRegisterWorkerResponse]))
       val registrationMessage = argCaptor.getValue;
 
