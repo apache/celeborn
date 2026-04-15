@@ -109,6 +109,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val shuffleIdMapping = JavaUtils.newConcurrentHashMap[
     Int,
     scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)]]()
+  private val celebornShuffleIdToAppShuffleIdMap = JavaUtils.newConcurrentHashMap[Int, Int]()
   private val shuffleIdGenerator = new AtomicInteger(0)
   // app shuffle id -> whether shuffle is determinate, rerun of a indeterminate shuffle gets different result
   private val appShuffleDeterminateMap = JavaUtils.newConcurrentHashMap[Int, Boolean]();
@@ -977,6 +978,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                 : scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)] = {
               val newShuffleId = shuffleIdGenerator.getAndIncrement()
               logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
+              celebornShuffleIdToAppShuffleIdMap.put(newShuffleId, appShuffleId)
               scala.collection.mutable.LinkedHashMap(appShuffleIdentifier -> (newShuffleId, true))
             }
           })
@@ -1033,6 +1035,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
                   }
                   val newShuffleId = shuffleIdGenerator.getAndIncrement()
                   logInfo(s"generate new shuffleId $newShuffleId for appShuffleId $appShuffleId appShuffleIdentifier $appShuffleIdentifier")
+                  celebornShuffleIdToAppShuffleIdMap.put(newShuffleId, appShuffleId)
                   validateCelebornShuffleIdForClean.foreach(callback =>
                     callback.accept(appShuffleIdentifier))
                   shuffleIds.put(appShuffleIdentifier, (newShuffleId, true))
@@ -1238,7 +1241,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         }
       }
     }
-
+    celebornShuffleIdToAppShuffleIdMap.remove(shuffleId)
     // add shuffleKey to delay shuffle removal set
     unregisterShuffleTime.put(shuffleId, System.currentTimeMillis())
 
@@ -2026,8 +2029,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         .asScala
         .keys
         .filter(!commitManager.isStageEnd(_))
-        .foreach(c.accept(_, reason))
-
+        .flatMap(shuffleId => Option(celebornShuffleIdToAppShuffleIdMap.get(shuffleId)))
+        .toSet
+        .foreach((shuffleId: Int) => c.accept(shuffleId, reason))
     case _ =>
   }
 
