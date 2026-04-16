@@ -113,7 +113,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def healthyWorkingDirs(): List[File] =
     disksSnapshot()
       .filter(diskInfo =>
-        (diskInfo.status == DiskStatus.HEALTHY) && (diskInfo.actualUsableSpace >= 0))
+        (diskInfo.status == DiskStatus.HEALTHY) && (diskInfo.actualUsableSpace > 0))
       .flatMap(_.dirs)
 
   private val diskOperators: ConcurrentHashMap[String, ThreadPoolExecutor] = {
@@ -1143,7 +1143,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       val diskInfo = diskInfos.get(suggestedMountPoint)
       val dirs =
         if (diskInfo != null && diskInfo.status.equals(
-            DiskStatus.HEALTHY) && diskInfo.actualUsableSpace >= 0) {
+            DiskStatus.HEALTHY) && diskInfo.actualUsableSpace > 0) {
           diskInfo.dirs
         } else {
           if (suggestedMountPoint.isEmpty) {
