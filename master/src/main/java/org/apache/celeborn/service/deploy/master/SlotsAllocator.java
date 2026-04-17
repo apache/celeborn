@@ -409,12 +409,25 @@ public class SlotsAllocator {
             createLocation(
                 partitionId, workers.get(nextReplicaInd), primaryPartition, storageInfo, false);
         primaryPartition.setPeer(replicaPartition);
+        logger.debug(
+            "Partition {} allocated primary={} (rack={}) replica={} (rack={})",
+            partitionId,
+            workers.get(nextPrimaryInd).readableAddress(),
+            workers.get(nextPrimaryInd).networkLocation(),
+            workers.get(nextReplicaInd).readableAddress(),
+            workers.get(nextReplicaInd).networkLocation());
         Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
             slots.computeIfAbsent(
                 workers.get(nextReplicaInd),
                 v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
         locations._2.add(replicaPartition);
         replicaIndex = incrementIndex.applyAsInt(nextReplicaInd);
+      } else {
+        logger.debug(
+            "Partition {} allocated primary={} (rack={})",
+            partitionId,
+            workers.get(nextPrimaryInd).readableAddress(),
+            workers.get(nextPrimaryInd).networkLocation());
       }
 
       Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =

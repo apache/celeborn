@@ -1447,6 +1447,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                     Rack Resolver                   //
   // //////////////////////////////////////////////////////
   def rackResolverRefreshInterval = get(RACKRESOLVER_REFRESH_INTERVAL)
+  def rackType: String = get(RACK_TYPE)
 
   def logCelebornConfEnabled = get(LOG_CELEBORN_CONF_ENABLED)
 
@@ -5279,6 +5280,21 @@ object CelebornConf extends Logging {
       .doc("Interval for refreshing the node rack information periodically.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val RACK_TYPE: ConfigEntry[String] =
+    buildConf("celeborn.rack.type")
+      .categories("worker", "master")
+      .version("0.5.0")
+      .doc(
+        "The type of rack resolution to use. " +
+          "'none' uses the default CelebornRackResolver (script/table based). " +
+          "'podset' uses the Autopilot podset as the rack value.")
+      .stringConf
+      .transform(_.toLowerCase(Locale.ROOT))
+      .checkValue(
+        v => v == "none" || v == "podset",
+        "Allowed values are 'none' and 'podset'.")
+      .createWithDefault("none")
 
   val WORKER_INTERNAL_PORT: ConfigEntry[Int] =
     buildConf("celeborn.worker.internal.port")

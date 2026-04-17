@@ -748,6 +748,7 @@ private[celeborn] class Master(
         internalPort,
         disks,
         userResourceConsumption)
+    workerToRegister.networkLocation = networkLocation
     if (statusSystem.workers.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")

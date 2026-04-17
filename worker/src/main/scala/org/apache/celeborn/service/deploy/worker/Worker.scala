@@ -38,7 +38,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, SystemMiscSource, ThreadPoolSource}
-import org.apache.celeborn.common.network.{CelebornRackResolver, TransportContext}
+import org.apache.celeborn.common.network.{AutopilotRackResolver, CelebornRackResolver, TransportContext}
 import org.apache.celeborn.common.network.sasl.SaslServerBootstrap
 import org.apache.celeborn.common.network.server.TransportServerBootstrap
 import org.apache.celeborn.common.network.util.TransportConf
@@ -314,8 +314,19 @@ private[celeborn] class Worker(
   private val masterClient = new MasterClient(internalRpcEnvInUse, conf, true)
   secretRegistry.initialize(masterClient)
 
-  private val rackResolver = new CelebornRackResolver(conf)
-  private val networkLocation = rackResolver.resolve(host).getNetworkLocation
+  private val rackResolver: Option[CelebornRackResolver] =
+    if (conf.rackType == "podset") None else Some(new CelebornRackResolver(conf))
+  private val networkLocation = {
+    val loc = conf.rackType match {
+      case "podset" =>
+        AutopilotRackResolver.resolveLocalPodset().getOrElse(
+          org.apache.hadoop.net.NetworkTopology.DEFAULT_RACK)
+      case _ =>
+        rackResolver.get.resolve(host).getNetworkLocation
+    }
+    logInfo(s"Rack resolution: rackType=${conf.rackType}, networkLocation=$loc")
+    loc
+  }
 
   // (workerInfo -> last connect timeout timestamp)
   val unavailablePeers: ConcurrentHashMap[WorkerInfo, Long] =
