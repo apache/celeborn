@@ -421,15 +421,33 @@ public class SparkUtils {
         // Note: previousFailureCount does NOT include the current failure,
         //       so (previousFailureCount + 1) represents the total failure count.
         int previousFailureCount = getTaskFailureCount(taskSetManager, taskInfo.index());
+        // If failure count cannot be determined, fall back to attempt status based
+        // behavior instead of aggressively reporting FetchFailed. This avoids
+        // premature stage reruns when reflective access to failure counts is
+        // unavailable, while still reporting the failure when no other attempt is
+        // running.
         if (previousFailureCount < 0) {
-          logger.warn(
-              "StageId={}, index={}, taskId={}, attemptNumber={}: Unable to determine "
-                  + "previous failure count, conservatively report shuffle fetch failure.",
-              stageId,
-              taskInfo.index(),
-              taskId,
-              taskInfo.attemptNumber());
-          return true;
+          if (!hasRunningAttempt) {
+            LOG.warn(
+                "StageId={}, index={}, taskId={}, attemptNumber={}: Unable to determine "
+                    + "previous failure count, and no other running attempt exists. "
+                    + "Reporting shuffle fetch failure.",
+                stageId,
+                taskInfo.index(),
+                taskId,
+                taskInfo.attemptNumber());
+            return true;
+          } else {
+            LOG.warn(
+                "StageId={}, index={}, taskId={}, attemptNumber={}: Unable to determine "
+                    + "previous failure count, but another attempt is still running. "
+                    + "Deferring shuffle fetch failure report.",
+                stageId,
+                taskInfo.index(),
+                taskId,
+                taskInfo.attemptNumber());
+            return false;
+          }
         }
         if (previousFailureCount + 1 >= maxTaskFails || !hasRunningAttempt) {
           logger.warn(
