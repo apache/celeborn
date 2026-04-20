@@ -26,7 +26,7 @@ import org.mockito.stubbing.Stubber
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.{WORKER_DISK_RESERVE_SIZE, WORKER_GRACEFUL_SHUTDOWN_ENABLED, WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH}
+import org.apache.celeborn.common.CelebornConf.{WORKER_DISK_RESERVE_SIZE, WORKER_GRACEFUL_SHUTDOWN_ENABLED, WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH, WORKER_STORAGE_DIRS}
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{DiskInfo, DiskStatus}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, StorageInfo}
@@ -115,11 +115,12 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
   }
 
   test("[CELEBORN-2310] Ensure createFile rejected with disks are full, but status is HEALTHY") {
-    val conf = new CelebornConf().set(WORKER_DISK_RESERVE_SIZE, Utils.byteStringAsBytes("5g"))
+    val conf = new CelebornConf().set(WORKER_DISK_RESERVE_SIZE, Utils.byteStringAsBytes("5g")).set(
+      WORKER_STORAGE_DIRS,
+      Seq("/"))
     val storageManager = new StorageManager(conf, new WorkerSource(conf))
     val spyStorageManager = spy(storageManager)
-
-    val diskInfo = new DiskInfo("mountPoint", List.empty, null, conf)
+    val diskInfo = new DiskInfo("/", List.empty, null, conf)
     diskInfo.setUsableSpace(-1L)
     // Should fail even if the status is HEALTHY
     diskInfo.setStatus(DiskStatus.HEALTHY)
@@ -142,7 +143,7 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
         assert(e.getMessage.equals(
           s"No available disks! suggested mountPoint ${partitionLocation.getStorageInfo.getMountPoint}"))
       case e: Throwable =>
-        fail(s"Should throw IOException, but got ${e.getClass.getSimpleName}")
+        fail(s"Should throw IOException, but got ${e.getClass.getSimpleName}", e)
     }
   }
 
@@ -151,7 +152,7 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
       new PartitionLocation(0, epoch, "localhost", 0, 0, 0, 0, PartitionLocation.Mode.PRIMARY)
     val storageInfo: StorageInfo = new StorageInfo(
       StorageInfo.Type.HDD,
-      "mountPoint",
+      "/",
       false,
       "filePath",
       StorageInfo.ALL_TYPES_AVAILABLE_MASK,
