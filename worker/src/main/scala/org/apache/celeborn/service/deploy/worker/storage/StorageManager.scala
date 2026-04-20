@@ -1146,6 +1146,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         } else {
           if (suggestedMountPoint.isEmpty) {
             logDebug(s"Location suggestedMountPoint is not set, return all healthy working dirs.")
+          } else if (diskInfo == null) {
+            logInfo(s"Disk info not found for suggestedMountPoint $suggestedMountPoint, return all healthy " +
+              s"working dirs.")
           } else {
             logInfo(s"Disk(${diskInfo.mountPoint}) unavailable for $suggestedMountPoint, return all healthy" +
               s" working dirs.")
