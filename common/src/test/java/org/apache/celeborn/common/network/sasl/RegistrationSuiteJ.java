@@ -28,6 +28,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.client.MasterNotLeaderException;
 import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBootstrap;
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo;
 import org.apache.celeborn.common.network.sasl.registration.RegistrationRpcHandler;
@@ -92,6 +93,25 @@ public class RegistrationSuiteJ extends SaslTestBase {
           Throwables.getStackTraceAsString(t).contains("Registration information not found"));
       throw t.getCause();
     }
+  }
+
+  @Test
+  public void testProcessMasterNotLeaderException() {
+    RuntimeException wrapper =
+        new RuntimeException(new MasterNotLeaderException("host1:9097", "host2:9097", null));
+
+    Throwable processed = RegistrationClientBootstrap.processMasterNotLeaderException(wrapper);
+
+    assertTrue(processed instanceof MasterNotLeaderException);
+    assertEquals(
+        "host2:9097", ((MasterNotLeaderException) processed).getSuggestedLeaderAddress());
+  }
+
+  @Test
+  public void testProcessMasterNotLeaderExceptionKeepsOtherFailures() {
+    RuntimeException failure = new RuntimeException("registration failed");
+
+    assertSame(failure, RegistrationClientBootstrap.processMasterNotLeaderException(failure));
   }
 
   static class TestSecretRegistry implements SecretRegistry {
