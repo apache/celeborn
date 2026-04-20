@@ -17,8 +17,8 @@
 
 package org.apache.celeborn.service.deploy.worker.storage
 
+import java.{lang, util}
 import java.io.IOException
-import java.util
 
 import org.mockito.{Mockito, MockitoSugar}
 import org.mockito.ArgumentMatchersSugar.any
@@ -154,9 +154,9 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
       "mountPoint",
       false,
       "filePath",
-      StorageInfo.LOCAL_DISK_MASK,
+      StorageInfo.ALL_TYPES_AVAILABLE_MASK,
       offsets(offsets.length - 1),
-      util.Arrays.asList(offsets))
+      new util.ArrayList[lang.Long]())
     location.setStorageInfo(storageInfo)
     location
   }
