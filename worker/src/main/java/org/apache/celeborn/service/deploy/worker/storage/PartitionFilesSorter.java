@@ -664,7 +664,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
                 startMapIndex, endMapIndex, shuffleChunkSize, indexMap, false),
             shuffleChunkSize);
-    return new DiskFileInfo(userIdentifier, reduceFileMeta, sortedFilePath);
+    return new DiskFileInfo(userIdentifier, reduceFileMeta, sortedFilePath, true);
   }
 
   class FileSorter {

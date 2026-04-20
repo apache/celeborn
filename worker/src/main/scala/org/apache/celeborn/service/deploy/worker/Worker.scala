@@ -665,6 +665,7 @@ private[celeborn] class Worker(
       partitionsSorter.close(exitKind)
       storageManager.close(exitKind)
       memoryManager.close()
+      fetchHandler.close(exitKind)
       Option(CongestionController.instance()).foreach(_.close())
 
       masterClient.close()

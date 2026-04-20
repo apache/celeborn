@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.worker.storage;
 import java.util.Arrays;
 import java.util.HashSet;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -29,7 +30,7 @@ import org.apache.celeborn.common.network.buffer.FileChunkBuffers;
 public class ChunkStreamManagerSuiteJ {
   @Test
   public void testStreamRegisterAndCleanup() {
-    ChunkStreamManager manager = new ChunkStreamManager();
+    ChunkStreamManager manager = new ChunkStreamManager(new CelebornConf());
 
     @SuppressWarnings("unchecked")
     FileChunkBuffers buffers = Mockito.mock(FileChunkBuffers.class);

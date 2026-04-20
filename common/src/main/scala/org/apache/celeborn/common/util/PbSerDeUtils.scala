@@ -56,6 +56,18 @@ object PbSerDeUtils {
       .build
       .toByteArray
 
+  def toPbRegisteredStream(shuffleKey: String, fileName: String, isBufferBacked: Boolean): Array[Byte] =
+    PbRegisteredStream.newBuilder
+      .setShuffleKey(shuffleKey)
+      .setFileName(fileName)
+      .setIsBufferBacked(isBufferBacked)
+      .build.toByteArray
+
+  @throws[InvalidProtocolBufferException]
+  def fromPbRegisteredStream(data: Array[Byte]): PbRegisteredStream = {
+    val pbRegisteredStream = PbRegisteredStream.parseFrom(data)
+  }
+
   @throws[InvalidProtocolBufferException]
   def fromPbStoreVersion(data: Array[Byte]): util.ArrayList[Integer] = {
     val pbStoreVersion = PbStoreVersion.parseFrom(data)
