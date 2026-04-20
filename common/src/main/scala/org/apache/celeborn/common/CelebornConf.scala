@@ -2766,10 +2766,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.ha.gracefulShutdown.enabled")
       .categories("ha")
       .version("0.7.0")
-      .doc("When true, the master will run a shutdown hook and " +
-        "transfer Raft leadership before shutting down. " +
-        "This reduces chances of client side failures by avoiding " +
-        "the Raft election window where no leader is available.")
+      .doc("When true, the master will transfer Raft leadership " +
+        "before shutting down gracefully. This reduces chances of " +
+        "client side failures by avoiding the Raft election window " +
+        "where no leader is available.")
       .booleanConf
       .createWithDefault(false)
 

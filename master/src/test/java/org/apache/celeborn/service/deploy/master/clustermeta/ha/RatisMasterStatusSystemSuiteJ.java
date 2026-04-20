@@ -1885,11 +1885,16 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertNotNull("A leader should exist before the test", leader);
     Assert.assertTrue("Leader node should report isLeader=true", leader.isLeader());
 
-    // stop() calls stepDown() then closes the Raft server.
-    // Verify it completes and the underlying server is actually closed.
-    leader.stop();
-    Assert.assertEquals(
-        "Raft server should be CLOSED after stop()",
+    // Do not stop() the shared static server used by the suite, since that permanently
+    // closes one of RATISSERVER1/2/3 and can break later tests depending on execution order.
+    // Instead, trigger the leader to step down without closing the underlying server.
+    leader
+        .getMasterStateMachine()
+        .notifyLogFailed(new Exception("test leader graceful step down"), null);
+
+    Assert.assertFalse("Leader should step down without closing the shared server", leader.isLeader());
+    Assert.assertNotEquals(
+        "Raft server should remain available to the rest of the suite",
         "CLOSED",
         leader.getServer().getLifeCycleState().name());
   }
