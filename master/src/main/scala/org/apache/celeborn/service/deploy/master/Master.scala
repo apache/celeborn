@@ -930,7 +930,7 @@ private[celeborn] class Master(
   }
 
   def handleRequestSlots(context: RpcCallContext, requestSlots: RequestSlots): Unit = {
-    val numReducers = requestSlots.partitionIdList.size()
+    val numReducers = requestSlots.numPartitions
     val shuffleKey = Utils.makeShuffleKey(requestSlots.applicationId, requestSlots.shuffleId)
 
     var availableWorkers = workersAvailable(requestSlots.excludedWorkerSet)
@@ -966,6 +966,13 @@ private[celeborn] class Master(
         0,
         startIndex + numWorkers - numAvailableWorkers))
     }
+    // Build partitionIds list locally from numPartitions
+    val partitionIds = new util.ArrayList[Integer](numReducers)
+    var i = 0
+    while (i < numReducers) {
+      partitionIds.add(Integer.valueOf(i))
+      i += 1
+    }
     // offer slots
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
@@ -973,7 +980,7 @@ private[celeborn] class Master(
           if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE) {
             SlotsAllocator.offerSlotsLoadAware(
               selectedWorkers,
-              requestSlots.partitionIdList,
+              partitionIds,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware,
               slotsAssignLoadAwareDiskGroupNum,
@@ -986,7 +993,7 @@ private[celeborn] class Master(
           } else {
             SlotsAllocator.offerSlotsRoundRobin(
               selectedWorkers,
-              requestSlots.partitionIdList,
+              partitionIds,
               requestSlots.shouldReplicate,
               requestSlots.shouldRackAware,
               requestSlots.availableStorageTypes,

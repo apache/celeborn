@@ -177,7 +177,7 @@ class MasterSuite extends AnyFunSuite
     val requestSlots = RequestSlots(
       "app1",
       0,
-      new util.ArrayList[Integer](),
+      0,
       "localhost",
       shouldReplicate = false,
       shouldRackAware = false,

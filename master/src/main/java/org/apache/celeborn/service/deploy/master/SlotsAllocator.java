@@ -517,7 +517,6 @@ public class SlotsAllocator {
     }
     // workerInfo -> (diskIndexForPrimaryAndReplica)
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
-    List<Integer> partitionIdList = new LinkedList<>(partitionIds);
 
     final int primaryWorkersSize = primaryWorkers.size();
     final int replicaWorkersSize = replicaWorkers.size();
@@ -533,19 +532,27 @@ public class SlotsAllocator {
       replicaIndex = -1;
     }
 
-    ListIterator<Integer> iter = partitionIdList.listIterator(partitionIdList.size());
-    // Iterate from the end to preserve O(1) removal of processed partitions.
-    // This is important when we have a high number of concurrent apps that have a
-    // high number of partitions.
+    // Pre-compute usable slots per worker to avoid repeated stream operations O(N*W) -> O(W)
+    long[] primaryUsableSlots = null;
+    long[] replicaUsableSlots = null;
+    if (slotsRestrictions != null && !slotsRestrictions.isEmpty()) {
+      primaryUsableSlots = computeUsableSlots(primaryWorkers, slotsRestrictions);
+      if (shouldReplicate) {
+        replicaUsableSlots = computeUsableSlots(replicaWorkers, slotsRestrictions);
+      }
+    }
+
+    // Use index-based iteration to avoid O(N^2) LinkedList.remove() overhead.
+    int allocatedCount = 0;
     outer:
-    while (iter.hasPrevious()) {
+    for (int pidIdx = 0; pidIdx < partitionIds.size(); pidIdx++) {
       int nextPrimaryInd = primaryIndex;
 
-      int partitionId = iter.previous();
+      int partitionId = partitionIds.get(pidIdx);
       StorageInfo storageInfo;
-      if (slotsRestrictions != null && !slotsRestrictions.isEmpty()) {
+      if (primaryUsableSlots != null) {
         // this means that we'll select a mount point
-        while (!haveUsableSlots(slotsRestrictions, primaryWorkers, nextPrimaryInd)) {
+        while (primaryUsableSlots[nextPrimaryInd] <= 0) {
           nextPrimaryInd = primaryWorkersIncrementIndex.applyAsInt(nextPrimaryInd);
           if (nextPrimaryInd == primaryIndex) {
             break outer;
@@ -558,6 +565,7 @@ public class SlotsAllocator {
                 slotsRestrictions,
                 workerDiskIndex,
                 availableStorageTypes);
+        primaryUsableSlots[nextPrimaryInd]--;
       } else {
         if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
           while (!primaryWorkers.get(nextPrimaryInd).haveDisk()) {
@@ -576,9 +584,9 @@ public class SlotsAllocator {
 
       if (shouldReplicate) {
         int nextReplicaInd = replicaIndex;
-        if (slotsRestrictions != null) {
+        if (replicaUsableSlots != null) {
           while ((nextReplicaInd == nextPrimaryInd && skipLocationsOnSameWorkerCheck)
-              || !haveUsableSlots(slotsRestrictions, replicaWorkers, nextReplicaInd)
+              || replicaUsableSlots[nextReplicaInd] <= 0
               || !satisfyRackAware(
                   shouldRackAware,
                   primaryWorkers,
@@ -597,6 +605,7 @@ public class SlotsAllocator {
                   slotsRestrictions,
                   workerDiskIndex,
                   availableStorageTypes);
+          replicaUsableSlots[nextReplicaInd]--;
         } else if (shouldRackAware) {
           while ((nextReplicaInd == nextPrimaryInd && skipLocationsOnSameWorkerCheck)
               || !satisfyRackAware(
@@ -642,9 +651,26 @@ public class SlotsAllocator {
               v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
       locations._1.add(primaryPartition);
       primaryIndex = primaryWorkersIncrementIndex.applyAsInt(nextPrimaryInd);
-      iter.remove();
+      allocatedCount++;
     }
-    return partitionIdList;
+    if (allocatedCount == partitionIds.size()) {
+      return Collections.emptyList();
+    }
+    return new ArrayList<>(partitionIds.subList(allocatedCount, partitionIds.size()));
+  }
+
+  private static long[] computeUsableSlots(
+      List<WorkerInfo> workers, Map<WorkerInfo, List<UsableDiskInfo>> restrictions) {
+    long[] slots = new long[workers.size()];
+    for (int i = 0; i < workers.size(); i++) {
+      List<UsableDiskInfo> disks = restrictions.get(workers.get(i));
+      if (disks != null) {
+        for (UsableDiskInfo d : disks) {
+          slots[i] += d.usableSlots;
+        }
+      }
+    }
+    return slots;
   }
 
   private static boolean haveUsableSlots(

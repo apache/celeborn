@@ -18,9 +18,6 @@
 package org.apache.celeborn.tests.client
 
 import java.io.IOException
-import java.util
-
-import scala.collection.JavaConverters._
 
 import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl, WithShuffleClientSuite}
 import org.apache.celeborn.common.CelebornConf
@@ -70,9 +67,7 @@ class ShuffleClientSuite extends WithShuffleClientSuite with MiniClusterFeature 
     prepareService()
     val shuffleId = 0
     val counts = 10
-    val ids =
-      new util.ArrayList[Integer]((0 until counts).toList.map(x => Integer.valueOf(x)).asJava)
-    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, counts)
     assert(res.status == StatusCode.SUCCESS)
     lifecycleManager.registeredShuffle.add(shuffleId)
     assert(!shuffleClient.isShuffleStageEnd(shuffleId))
