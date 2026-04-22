@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.tests.client
 
-import java.util
-
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
@@ -52,14 +50,9 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     celebornConf.set(CelebornConf.REGISTER_SHUFFLE_FILTER_EXCLUDED_WORKER_ENABLED, true)
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
 
-    val arrayList = new util.ArrayList[Integer]()
-    (0 to 10).foreach(i => {
-      arrayList.add(i)
-    })
-
     // test request slots without worker excluded
     val headWorkerInfo = workerInfos.keySet.head.workerInfo
-    val res1 = lifecycleManager.requestMasterRequestSlotsWithRetry(0, arrayList)
+    val res1 = lifecycleManager.requestMasterRequestSlotsWithRetry(0, 11)
       .workerResource.keySet()
     assert(res1.contains(headWorkerInfo))
 
@@ -69,7 +62,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
       workerInfos.keySet.head.workerInfo,
       (StatusCode.PUSH_DATA_TIMEOUT_PRIMARY, System.currentTimeMillis()))
     lifecycleManager.workerStatusTracker.recordWorkerFailure(commitFilesFailedWorkers)
-    val res2 = lifecycleManager.requestMasterRequestSlotsWithRetry(1, arrayList)
+    val res2 = lifecycleManager.requestMasterRequestSlotsWithRetry(1, 11)
       .workerResource.keySet()
     assert(!res2.contains(headWorkerInfo))
 
@@ -79,7 +72,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
         worker.workerInfo,
         (StatusCode.PUSH_DATA_TIMEOUT_PRIMARY, System.currentTimeMillis())))
     lifecycleManager.workerStatusTracker.recordWorkerFailure(commitFilesFailedWorkers)
-    val status = lifecycleManager.requestMasterRequestSlotsWithRetry(2, arrayList).status
+    val status = lifecycleManager.requestMasterRequestSlotsWithRetry(2, 11).status
     assert(status == StatusCode.WORKER_EXCLUDED)
 
     lifecycleManager.stop()
@@ -89,11 +82,6 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     celebornConf.set(CelebornConf.REGISTER_SHUFFLE_FILTER_EXCLUDED_WORKER_ENABLED, false)
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
 
-    val arrayList = new util.ArrayList[Integer]()
-    (0 to 10).foreach(i => {
-      arrayList.add(i)
-    })
-
     // test request slots with all workers excluded, response should not excluded any worker
     val commitFilesFailedWorkers = new LifecycleManager.ShuffleFailedWorkers()
     workerInfos.keySet.foreach(worker =>
@@ -101,7 +89,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
         worker.workerInfo,
         (StatusCode.PUSH_DATA_TIMEOUT_PRIMARY, System.currentTimeMillis())))
     lifecycleManager.workerStatusTracker.recordWorkerFailure(commitFilesFailedWorkers)
-    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(0, arrayList)
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(0, 11)
       .workerResource.keySet()
     assert(res.size() == workerInfos.size)
     assert(res.contains(workerInfos.keySet.head.workerInfo))
@@ -111,12 +99,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
   test("CELEBORN-1258: Support to register application info with user identifier and extra info") {
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
 
-    val arrayList = new util.ArrayList[Integer]()
-    (0 to 10).foreach(i => {
-      arrayList.add(i)
-    })
-
-    lifecycleManager.requestMasterRequestSlotsWithRetry(0, arrayList)
+    lifecycleManager.requestMasterRequestSlotsWithRetry(0, 11)
 
     eventually(timeout(3.seconds), interval(0.milliseconds)) {
       val appInfo = masterInfo._1.statusSystem.applicationInfos.get(APP)
