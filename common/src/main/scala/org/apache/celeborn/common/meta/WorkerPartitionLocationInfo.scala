@@ -173,6 +173,24 @@ class WorkerPartitionLocationInfo extends Logging {
     } else null
   }
 
+  /**
+   * Snapshot uncommitted partition unique IDs grouped by shuffle key.
+   * The returned snapshot is a best-effort view because ConcurrentHashMap
+   * iteration is weakly consistent — concurrent mutations may or may not
+   * be visible.
+   *
+   * @return (primaryIds, replicaIds) — each a Map[shuffleKey, List[uniqueId]]
+   */
+  def snapshotUncommittedUniqueIds
+      : (Map[String, util.List[String]], Map[String, util.List[String]]) =
+    (snapshotIds(primaryPartitionLocations), snapshotIds(replicaPartitionLocations))
+
+  private def snapshotIds(partInfo: PartitionInfo): Map[String, util.List[String]] =
+    partInfo.asScala.collect {
+      case (shuffleKey, partMap) if !partMap.isEmpty =>
+        shuffleKey -> new util.ArrayList[String](partMap.keySet())
+    }.toMap
+
   def isEmpty: Boolean = {
     (primaryPartitionLocations.isEmpty ||
       primaryPartitionLocations.asScala.values.forall(_.isEmpty)) &&

@@ -1371,6 +1371,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_SYNC)
   def workerGracefulShutdownDbDeleteFailurePolicy: String =
     get(WORKER_GRACEFUL_SHUTDOWN_DB_DELETE_FAILURE_POLICY)
+  def workerGracefulShutdownCommitUncommittedPartitionsEnabled: Boolean =
+    get(WORKER_GRACEFUL_SHUTDOWN_COMMIT_UNCOMMITTED_PARTITIONS_ENABLED)
 
   // //////////////////////////////////////////////////////
   //                      Flusher                        //
@@ -4016,6 +4018,15 @@ object CelebornConf extends Logging {
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set("THROW", "EXIT", "IGNORE"))
       .createWithDefault("IGNORE")
+
+  val WORKER_GRACEFUL_SHUTDOWN_COMMIT_UNCOMMITTED_PARTITIONS_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.graceful.shutdown.commitUncommittedPartitions.enabled")
+      .categories("worker")
+      .doc("When true, during graceful shutdown the worker commits uncommitted " +
+        "partitions instead of waiting for LifecycleManager to send CommitFiles RPCs.")
+      .version("0.7.0")
+      .booleanConf
+      .createWithDefault(false)
 
   val WORKER_DISKTIME_SLIDINGWINDOW_SIZE: ConfigEntry[Int] =
     buildConf("celeborn.worker.flusher.diskTime.slidingWindow.size")

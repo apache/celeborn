@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker
 
-import java.io.File
+import java.io.{File, IOException}
 import java.nio.file.{Files, Paths}
 import java.util
 import java.util.{HashSet => JHashSet}
@@ -33,7 +33,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages.CommitFilesResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.quota.ResourceConsumption
@@ -302,5 +302,170 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
     // timeout but SUCCESS epoch2 can reply
     assert(shuffleCommitTime.get(shuffleKey).get(epoch2) == null)
     assert(epochCommitMap.get(epoch2).response.status == StatusCode.SUCCESS)
+  }
+
+  test("commitUncommittedPartitions - commits primary and replica partitions") {
+    val controller = initController()
+    val shuffleKey = "app1-0"
+    val writer1 = mockWriter(100L)
+    val writer2 = mockWriter(200L)
+    val writer3 = mockWriter(50L)
+    val primaryLocs = new util.ArrayList[PartitionLocation]()
+    primaryLocs.add(mockWorkingPartition(0, writer1))
+    primaryLocs.add(mockWorkingPartition(1, writer2))
+    worker.partitionLocationInfo.addPrimaryPartitions(shuffleKey, primaryLocs)
+    val replicaLocs = new util.ArrayList[PartitionLocation]()
+    replicaLocs.add(mockWorkingPartition(2, writer3, PartitionLocation.Mode.REPLICA))
+    worker.partitionLocationInfo.addReplicaPartitions(shuffleKey, replicaLocs)
+    assert(!worker.partitionLocationInfo.isEmpty)
+    controller.commitUncommittedPartitions()
+    verify(writer1).close()
+    verify(writer2).close()
+    verify(writer3).close()
+    assert(worker.partitionLocationInfo.isEmpty)
+  }
+
+  test("commitUncommittedPartitions - no-op when no partitions") {
+    val controller = initController()
+    assert(worker.partitionLocationInfo.isEmpty)
+    controller.commitUncommittedPartitions()
+    assert(worker.partitionLocationInfo.isEmpty)
+  }
+
+  test("commitUncommittedPartitions - idempotent on double call") {
+    val controller = initController()
+    val shuffleKey = "app1-0"
+    val writer = mockWriter(100L)
+    val locs = new util.ArrayList[PartitionLocation]()
+    locs.add(mockWorkingPartition(0, writer))
+    worker.partitionLocationInfo.addPrimaryPartitions(shuffleKey, locs)
+    controller.commitUncommittedPartitions()
+    assert(worker.partitionLocationInfo.isEmpty)
+    // Second call — no partitions remain, verify close only called once
+    controller.commitUncommittedPartitions()
+    assert(worker.partitionLocationInfo.isEmpty)
+    verify(writer, times(1)).close()
+  }
+
+  test("commitUncommittedPartitions - retains failed partitions for passive wait") {
+    val controller = initController()
+    val shuffleKey = "app1-0"
+    val successWriter = mockWriter(100L)
+    val failWriter = mock[PartitionDataWriter]
+    when(failWriter.close()).thenThrow(new IOException("disk error"))
+    when(failWriter.getStorageInfo).thenReturn(new StorageInfo("/tmp", StorageInfo.Type.HDD, 1))
+    when(failWriter.getMapIdBitMap).thenReturn(null)
+    when(failWriter.getMetaHandler).thenReturn(null)
+    val locs = new util.ArrayList[PartitionLocation]()
+    locs.add(mockWorkingPartition(0, successWriter))
+    locs.add(mockWorkingPartition(1, failWriter))
+    worker.partitionLocationInfo.addPrimaryPartitions(shuffleKey, locs)
+    controller.commitUncommittedPartitions()
+    // Successful partition (0-0) removed, failed partition (1-0) retained for LifecycleManager retry
+    assert(worker.partitionLocationInfo.getPrimaryLocation(shuffleKey, "1-0") != null)
+    assert(worker.partitionLocationInfo.getPrimaryLocation(shuffleKey, "0-0") == null)
+  }
+
+  test("commitUncommittedPartitions - commits across multiple shuffle keys") {
+    val controller = initController()
+    val shuffle1 = "app1-0"
+    val shuffle2 = "app2-1"
+    val writer1 = mockWriter(100L)
+    val writer2 = mockWriter(200L)
+    val writer3 = mockWriter(50L)
+    val locs1 = new util.ArrayList[PartitionLocation]()
+    locs1.add(mockWorkingPartition(0, writer1))
+    worker.partitionLocationInfo.addPrimaryPartitions(shuffle1, locs1)
+    val locs2 = new util.ArrayList[PartitionLocation]()
+    locs2.add(mockWorkingPartition(1, writer2))
+    worker.partitionLocationInfo.addPrimaryPartitions(shuffle2, locs2)
+    val replicaLocs = new util.ArrayList[PartitionLocation]()
+    replicaLocs.add(mockWorkingPartition(2, writer3, PartitionLocation.Mode.REPLICA))
+    worker.partitionLocationInfo.addReplicaPartitions(shuffle1, replicaLocs)
+    assert(!worker.partitionLocationInfo.isEmpty)
+    controller.commitUncommittedPartitions()
+    verify(writer1).close()
+    verify(writer2).close()
+    verify(writer3).close()
+    assert(worker.partitionLocationInfo.isEmpty)
+  }
+
+  test("commitUncommittedPartitions - no cross-shuffle uniqueId collision") {
+    val controller = initController()
+    val shuffle1 = "app1-0"
+    val shuffle2 = "app2-1"
+    // Both shuffles have partition 0 (uniqueId "0-0")
+    val writer1 = mockWriter(100L)
+    val writer2 = mockWriter(200L)
+    val locs1 = new util.ArrayList[PartitionLocation]()
+    locs1.add(mockWorkingPartition(0, writer1))
+    worker.partitionLocationInfo.addPrimaryPartitions(shuffle1, locs1)
+    val locs2 = new util.ArrayList[PartitionLocation]()
+    locs2.add(mockWorkingPartition(0, writer2))
+    worker.partitionLocationInfo.addPrimaryPartitions(shuffle2, locs2)
+    controller.commitUncommittedPartitions()
+    verify(writer1).close()
+    verify(writer2).close()
+    // Both shuffles' partitions should be removed independently
+    assert(worker.partitionLocationInfo.isEmpty)
+    assert(worker.partitionLocationInfo.getPrimaryLocation(shuffle1, "0-0") == null)
+    assert(worker.partitionLocationInfo.getPrimaryLocation(shuffle2, "0-0") == null)
+  }
+
+  test("commitUncommittedPartitions - cross-shuffle collision with partial failure") {
+    val controller = initController()
+    val shuffle1 = "app1-0"
+    val shuffle2 = "app2-1"
+    // Both shuffles have partition 0 (uniqueId "0-0")
+    val successWriter = mockWriter(100L)
+    val failWriter = mock[PartitionDataWriter]
+    when(failWriter.close()).thenThrow(new IOException("disk error"))
+    when(failWriter.getStorageInfo).thenReturn(new StorageInfo("/tmp", StorageInfo.Type.HDD, 1))
+    when(failWriter.getMapIdBitMap).thenReturn(null)
+    when(failWriter.getMetaHandler).thenReturn(null)
+    val locs1 = new util.ArrayList[PartitionLocation]()
+    locs1.add(mockWorkingPartition(0, successWriter))
+    worker.partitionLocationInfo.addPrimaryPartitions(shuffle1, locs1)
+    val locs2 = new util.ArrayList[PartitionLocation]()
+    locs2.add(mockWorkingPartition(0, failWriter))
+    worker.partitionLocationInfo.addPrimaryPartitions(shuffle2, locs2)
+    controller.commitUncommittedPartitions()
+    // shuffle1's 0-0 succeeded — should be removed
+    assert(worker.partitionLocationInfo.getPrimaryLocation(shuffle1, "0-0") == null)
+    // shuffle2's 0-0 failed — should be retained for LifecycleManager retry
+    assert(worker.partitionLocationInfo.getPrimaryLocation(shuffle2, "0-0") != null)
+  }
+
+  private def mockWriter(bytesOnClose: Long): PartitionDataWriter = {
+    val writer = mock[PartitionDataWriter]
+    when(writer.close()).thenReturn(bytesOnClose)
+    when(writer.getStorageInfo).thenReturn(new StorageInfo("/tmp", StorageInfo.Type.HDD, 1))
+    when(writer.getMapIdBitMap).thenReturn(null)
+    when(writer.getMetaHandler).thenReturn(null)
+    writer
+  }
+
+  private def mockWorkingPartition(
+      partitionId: Int,
+      writer: PartitionDataWriter,
+      mode: PartitionLocation.Mode = PartitionLocation.Mode.PRIMARY): WorkingPartition = {
+    val location = new PartitionLocation(
+      partitionId,
+      0,
+      "host",
+      0,
+      0,
+      0,
+      0,
+      mode)
+    new WorkingPartition(location, writer)
+  }
+
+  private def initController(): Controller = {
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
+    worker = new Worker(conf, workerArgs)
+    val controller = worker.controller
+    controller.init(worker)
+    controller
   }
 }

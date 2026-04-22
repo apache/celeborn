@@ -985,6 +985,17 @@ private[celeborn] class Worker(
           e)
     }
     shutdown.set(true)
+
+    if (conf.workerGracefulShutdownCommitUncommittedPartitionsEnabled) {
+      // Commit uncommitted partitions instead of waiting for LifecycleManager to send CommitFiles RPCs.
+      try {
+        controller.commitUncommittedPartitions()
+      } catch {
+        case e: Throwable =>
+          logError("Failed to commit uncommitted partitions during graceful shutdown", e)
+      }
+    }
+
     val interval = conf.workerGracefulShutdownCheckSlotsFinishedInterval
     val timeout = conf.workerGracefulShutdownCheckSlotsFinishedTimeoutMs
     var waitTimes = 0
