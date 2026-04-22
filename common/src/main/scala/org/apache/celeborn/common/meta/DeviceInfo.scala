@@ -88,6 +88,10 @@ class DiskInfo(
   lazy val shuffleAllocations = new util.HashMap[String, Integer]()
   lazy val applicationAllocations = new util.HashMap[String, Integer]()
 
+  def isHealthy: Boolean = {
+    DiskStatus.HEALTHY.equals(status) && actualUsableSpace > 0
+  }
+
   def setStorageType(storageType: StorageInfo.Type) = {
     this.storageType = storageType
   }
