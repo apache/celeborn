@@ -348,6 +348,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     if (logger.isDebugEnabled())
       logger.debug("Push giant record, size {}.", Utils.bytesToString(numBytes));
     long start = System.nanoTime();
+    shuffleClient.computeBatchCRC(
+        shuffleId, mapId, encodedAttemptId, partitionId, buffer, 0, numBytes);
     int bytesWritten =
         shuffleClient.pushData(
             shuffleId,

@@ -1044,12 +1044,6 @@ public class ShuffleClientImpl extends ShuffleClient {
     // increment batchId
     final int nextBatchId = pushState.nextBatchId();
 
-    // Track commit metadata if shuffle compression and integrity check are enabled and this request
-    // is not for pushing metadata itself.
-    if (shuffleIntegrityCheckEnabled) {
-      pushState.addDataWithOffsetAndLength(partitionId, data, offset, length);
-    }
-
     if (shuffleCompressionEnabled && !skipCompress) {
       // compress data
       final Compressor compressor = compressorThreadLocal.get();
@@ -1402,6 +1396,23 @@ public class ShuffleClientImpl extends ShuffleClient {
         numPartitions,
         false,
         false);
+  }
+
+  @Override
+  public void computeBatchCRC(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      byte[] data,
+      int offset,
+      int length) {
+    if (!shuffleIntegrityCheckEnabled) {
+      return;
+    }
+    final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
+    PushState pushState = getPushState(mapKey);
+    pushState.addDataWithOffsetAndLength(partitionId, data, offset, length);
   }
 
   @Override
