@@ -25,6 +25,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +49,7 @@ import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.util.ExceptionMaker;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.LocationPushFailedBatches;
 import org.apache.celeborn.common.write.PushState;
 
@@ -56,15 +59,23 @@ public class DummyShuffleClient extends ShuffleClient {
 
   private final OutputStream os;
   private final CelebornConf conf;
+  private final boolean shuffleIntegrityCheckEnabled;
 
   private final Map<Integer, ConcurrentHashMap<Integer, PartitionLocation>> reducePartitionMap =
       new HashMap<>();
+
+  // Tracking for CRC verification in tests
+  private final Map<String, PushState> pushStateMap = new ConcurrentHashMap<>();
+  private final Map<String, Map<Integer, List<byte[]>>> crcDataByMapKey = new ConcurrentHashMap<>();
+  private final Map<String, Map<Integer, List<byte[]>>> pushDataByMapKey =
+      new ConcurrentHashMap<>();
 
   public AtomicInteger fetchFailureCount = new AtomicInteger();
 
   public DummyShuffleClient(CelebornConf conf, File file) throws Exception {
     this.os = new BufferedOutputStream(new FileOutputStream(file));
     this.conf = conf;
+    this.shuffleIntegrityCheckEnabled = conf.clientShuffleIntegrityCheckEnabled();
   }
 
   @Override
@@ -88,8 +99,38 @@ public class DummyShuffleClient extends ShuffleClient {
       int numMappers,
       int numPartitions)
       throws IOException {
+    String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
+    Map<Integer, List<byte[]>> partitionData =
+        pushDataByMapKey.computeIfAbsent(mapKey, k -> new HashMap<>());
+    partitionData
+        .computeIfAbsent(partitionId, k -> new ArrayList<>())
+        .add(Arrays.copyOfRange(data, offset, offset + length));
+
     os.write(data, offset, length);
     return length;
+  }
+
+  @Override
+  public void computeBatchCRC(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      byte[] data,
+      int offset,
+      int length) {
+    if (!shuffleIntegrityCheckEnabled) {
+      return;
+    }
+    String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
+    PushState pushState = pushStateMap.computeIfAbsent(mapKey, k -> new PushState(conf));
+    pushState.addDataWithOffsetAndLength(partitionId, data, offset, length);
+
+    Map<Integer, List<byte[]>> partitionData =
+        crcDataByMapKey.computeIfAbsent(mapKey, k -> new HashMap<>());
+    partitionData
+        .computeIfAbsent(partitionId, k -> new ArrayList<>())
+        .add(Arrays.copyOfRange(data, offset, offset + length));
   }
 
   @Override
@@ -104,6 +145,13 @@ public class DummyShuffleClient extends ShuffleClient {
       int numMappers,
       int numPartitions)
       throws IOException {
+    String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
+    Map<Integer, List<byte[]>> partitionData =
+        pushDataByMapKey.computeIfAbsent(mapKey, k -> new HashMap<>());
+    partitionData
+        .computeIfAbsent(partitionId, k -> new ArrayList<>())
+        .add(Arrays.copyOfRange(data, offset, offset + length));
+
     os.write(data, offset, length);
     return length;
   }
@@ -188,7 +236,15 @@ public class DummyShuffleClient extends ShuffleClient {
 
   @Override
   public PushState getPushState(String mapKey) {
-    return new PushState(conf);
+    return pushStateMap.computeIfAbsent(mapKey, k -> new PushState(conf));
+  }
+
+  public Map<Integer, List<byte[]>> getCrcDataByPartition(String mapKey) {
+    return crcDataByMapKey.getOrDefault(mapKey, Collections.emptyMap());
+  }
+
+  public Map<Integer, List<byte[]>> getPushDataByPartition(String mapKey) {
+    return pushDataByMapKey.getOrDefault(mapKey, Collections.emptyMap());
   }
 
   @Override

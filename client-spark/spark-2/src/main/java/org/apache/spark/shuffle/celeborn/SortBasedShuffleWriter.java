@@ -283,6 +283,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {
     logger.debug("Push giant record, size {}.", Utils.bytesToString(numBytes));
+    shuffleClient.computeBatchCRC(
+        shuffleId, mapId, encodedAttemptId, partitionId, buffer, 0, numBytes);
     int bytesWritten =
         shuffleClient.pushData(
             shuffleId,
