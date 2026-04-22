@@ -161,7 +161,44 @@ public abstract class ShuffleClient {
   public abstract void setExtension(byte[] extension);
 
   /**
-   * Write data to a specific reduce partition
+   * Write data to a specific reduce partition, computing and recording a CRC over the batch before
+   * pushing. Prefer this over {@link #pushData} at all writer call sites.
+   *
+   * @param shuffleId the unique shuffle id of the application
+   * @param mapId the map id of the shuffle
+   * @param attemptId the attempt id of the map task, i.e. speculative task or task rerun for Apache
+   *     Spark
+   * @param partitionId the partition id the data belongs to
+   * @param data byte array containing data to be pushed
+   * @param offset start position of data to be pushed
+   * @param length length of data to be pushed
+   * @param numMappers the number map tasks in the shuffle
+   * @param numPartitions the number of partitions in the shuffle
+   * @return bytes pushed
+   * @throws IOException
+   */
+  public int pushDataWithCRC(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      byte[] data,
+      int offset,
+      int length,
+      int numMappers,
+      int numPartitions)
+      throws IOException {
+    computeBatchCRC(shuffleId, mapId, attemptId, partitionId, data, offset, length);
+    return pushData(
+        shuffleId, mapId, attemptId, partitionId, data, offset, length, numMappers, numPartitions);
+  }
+
+  /**
+   * Write data to a specific reduce partition.
+   *
+   * <p><b>Internal use only.</b> Callers outside the async push pipeline (i.e. {@link
+   * org.apache.celeborn.client.write.DataPusher}) should use {@link #pushDataWithCRC} instead,
+   * which additionally records a CRC over the batch for end-to-end integrity checking.
    *
    * @param shuffleId the unique shuffle id of the application
    * @param mapId the map id of the shuffle
@@ -188,6 +225,73 @@ public abstract class ShuffleClient {
       int numPartitions)
       throws IOException;
 
+  /**
+   * Pre-compute CRC for a batch immediately after assembly in the writer, before the data enters
+   * the async push pipeline. This is the sole CRC accumulation path when shuffle integrity check is
+   * enabled.
+   */
+  public abstract void computeBatchCRC(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      byte[] data,
+      int offset,
+      int length);
+
+  /**
+   * Merge data into a specific reduce partition, computing and recording a CRC over the batch
+   * before merging. Prefer this over {@link #mergeData} at all writer call sites.
+   *
+   * @param shuffleId the unique shuffle id of the application
+   * @param mapId the map id of the shuffle
+   * @param attemptId the attempt id of the map task, i.e. speculative task or task rerun for Apache
+   *     Spark
+   * @param partitionId the partition id the data belongs to
+   * @param data byte array containing data to be merged
+   * @param offset start position of data to be merged
+   * @param length length of data to be merged
+   * @param numMappers the number map tasks in the shuffle
+   * @param numPartitions the number of partitions in the shuffle
+   * @return bytes merged
+   * @throws IOException
+   */
+  public int mergeDataWithCRC(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      byte[] data,
+      int offset,
+      int length,
+      int numMappers,
+      int numPartitions)
+      throws IOException {
+    computeBatchCRC(shuffleId, mapId, attemptId, partitionId, data, offset, length);
+    return mergeData(
+        shuffleId, mapId, attemptId, partitionId, data, offset, length, numMappers, numPartitions);
+  }
+
+  /**
+   * Merge data into a specific reduce partition.
+   *
+   * <p><b>Internal use only.</b> Callers outside the async push pipeline should use {@link
+   * #mergeDataWithCRC} instead, which additionally records a CRC over the batch for end-to-end
+   * integrity checking.
+   *
+   * @param shuffleId the unique shuffle id of the application
+   * @param mapId the map id of the shuffle
+   * @param attemptId the attempt id of the map task, i.e. speculative task or task rerun for Apache
+   *     Spark
+   * @param partitionId the partition id the data belongs to
+   * @param data byte array containing data to be merged
+   * @param offset start position of data to be merged
+   * @param length length of data to be merged
+   * @param numMappers the number map tasks in the shuffle
+   * @param numPartitions the number of partitions in the shuffle
+   * @return bytes merged
+   * @throws IOException
+   */
   public abstract int mergeData(
       int shuffleId,
       int mapId,
