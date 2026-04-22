@@ -17,12 +17,24 @@
 
 package org.apache.celeborn.service.deploy.worker.storage;
 
+import java.io.File;
+import java.nio.ByteBuffer;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.meta.DiskFileInfo;
+import org.apache.celeborn.common.network.buffer.FileChunkBuffers;
+import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.util.CelebornExitKind;
+import org.apache.celeborn.common.util.PbSerDeUtils;
+import org.apache.celeborn.service.deploy.worker.shuffledb.DB;
+import org.apache.celeborn.service.deploy.worker.shuffledb.DBBackend;
+import org.apache.celeborn.service.deploy.worker.shuffledb.DBProvider;
+import org.apache.celeborn.service.deploy.worker.shuffledb.StoreVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,12 +49,17 @@ import org.apache.celeborn.common.util.JavaUtils;
  */
 public class ChunkStreamManager {
   private static final Logger logger = LoggerFactory.getLogger(ChunkStreamManager.class);
+  private static final StoreVersion CURRENT_VERSION = new StoreVersion(1, 0);
+  private static final String RECOVERY_REGISTERED_STREAMS = "registeredStreams";
 
   private final AtomicLong nextStreamId;
   // StreamId -> StreamState
   protected final ConcurrentHashMap<Long, StreamState> streams;
   // ShuffleKey -> StreamId
   protected final ConcurrentHashMap<String, Set<Long>> shuffleStreamIds;
+  private final CelebornConf conf;
+  private File recoverFile;
+  private DB registeredStreamsDb;
 
   /** State of a single stream. */
   public static class StreamState {
@@ -62,12 +79,63 @@ public class ChunkStreamManager {
     }
   }
 
-  public ChunkStreamManager() {
+  public ChunkStreamManager(CelebornConf conf) {
     // For debugging purposes, start with a random stream id to help identifying different streams.
     // This does not need to be globally unique, only unique to this class.
     nextStreamId = new AtomicLong((long) new Random().nextInt(Integer.MAX_VALUE) * 1000);
     streams = JavaUtils.newConcurrentHashMap();
     shuffleStreamIds = JavaUtils.newConcurrentHashMap();
+    this.conf = conf;
+    boolean gracefulShutdown = conf.workerGracefulShutdown();
+    if (gracefulShutdown) {
+      try {
+        String recoverPath = conf.workerGracefulShutdownRecoverPath();
+        DBBackend dbBackend = DBBackend.byName(conf.workerGracefulShutdownRecoverDbBackend());
+        String recoveryRegisteredStreams = dbBackend.fileName(RECOVERY_REGISTERED_STREAMS);
+        this.recoverFile = new File(recoverPath, recoveryRegisteredStreams);
+        this.registeredStreamsDb = DBProvider.initDB(dbBackend, recoverFile, CURRENT_VERSION);
+      } catch (Exception e) {
+        throw new IllegalStateException(
+                "Failed to reload DB for sorted shuffle files from: " + recoverFile, e);
+      }
+    }
+  }
+
+  public void init(StorageManager storageManager, TransportConf transportConf) {
+    reloadRegisteredStreams(storageManager, transportConf);
+  }
+
+  private void reloadRegisteredStreams(StorageManager storageManager, TransportConf transportConf) {
+    registeredStreamsDb.iterator().forEachRemaining(
+        entry -> {
+          try {
+            long streamId = ByteBuffer.wrap(entry.getKey()).getLong();
+            PbRegisteredStream pbRegisteredStream =
+                    PbSerDeUtils.fromPbRegisteredStream(entry.getValue());
+            String shuffleKey = pbRegisteredStream.getShuffleKey();
+            String fileName = pbRegisteredStream.getFileName();
+            Boolean isBufferBacked = pbRegisteredStream.getIsBufferBacked();
+
+            ChunkBuffers buffers = null;
+            TimeWindow fetchTimeMetric = null;
+            Boolean isValidRestore = true;
+            if (isBufferBacked) {
+              DiskFileInfo diskFileInfo = (DiskFileInfo) storageManager.getFileInfo(shuffleKey, fileName);
+              if (diskFileInfo != null) {
+                buffers = new FileChunkBuffers(diskFileInfo, transportConf);
+                fetchTimeMetric = storageManager.getFetchTimeMetric(diskFileInfo.getFile());
+              } else {
+                isValidRestore = false;
+              }
+            }
+
+            if (isValidRestore) {
+              registerStream(streamId, shuffleKey, buffers, fileName, fetchTimeMetric);
+            }
+          } catch (Exception e) {
+            logger.error("Failed to reload registered stream from DB entry: " + entry, e);
+          }
+        });
   }
 
   public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
@@ -171,7 +239,12 @@ public class ChunkStreamManager {
   }
 
   public long nextStreamId() {
-    return nextStreamId.getAndIncrement();
+    long currentId = nextStreamId.getAndIncrement();
+    while (streams.containsKey(currentId)) {
+      currentId = nextStreamId.getAndIncrement();;
+    }
+
+    return currentId;
   }
 
   public void cleanupExpiredShuffleKey(Set<String> expiredShuffleKeys) {
@@ -207,5 +280,43 @@ public class ChunkStreamManager {
   @VisibleForTesting
   public long numShuffleSteams() {
     return shuffleStreamIds.values().stream().mapToLong(Set::size).sum();
+  }
+
+  private void persisteRegisteredStreams() {
+    streams.forEach(
+        (streamId, streamState) -> {
+          // Only need to persist FileChunkBuffers since MemoryChunkBuffers aren't restored anyways
+          // Skipping sorted file info since these are not restored
+          if (streamState.buffers == null || (streamState.buffers instanceof FileChunkBuffers &&
+                  !((FileChunkBuffers) streamState.buffers).isSortedFileInfo())) {
+            ByteBuffer keyBuffer = ByteBuffer.allocate(Long.BYTES);
+            keyBuffer.putLong(0, streamId);
+            keyBuffer.flip();
+            try {
+              registeredStreamsDb.put(keyBuffer.array(),
+                      PbSerDeUtils.toPbRegisteredStream(streamState.shuffleKey, streamState.fileName,
+                              streamState.buffers != null));
+            } catch (Exception e) {
+              logger.error("Failed to persist stream state for streamId: " + streamId, e);
+            }
+          }
+        });
+  }
+
+  public void close(int exitKind) {
+    logger.info("Closing {}", this.getClass().getSimpleName());
+    if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN() && registeredStreamsDb != null) {
+      try {
+        persisteRegisteredStreams();
+      } catch (Exception e) {
+        logger.error("Failed to persist registered streams to DB: " + recoverFile, e);
+      } finally {
+        try {
+          registeredStreamsDb.close();
+        } catch (Exception e) {
+          logger.error("Failed to close DB for registered streams: " + recoverFile, e);
+        }
+      }
+    }
   }
 }

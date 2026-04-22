@@ -213,7 +213,7 @@ object NettyTransportBenchmark extends BenchmarkBase {
       conf: TransportConf,
       streamId: Long,
       files: Seq[File]): ChunkStreamManager = {
-    val streamManager = new ChunkStreamManager() {
+    val streamManager = new ChunkStreamManager(new CelebornConf()) {
       override def getChunk(
           streamId: Long,
           chunkIndex: Int,

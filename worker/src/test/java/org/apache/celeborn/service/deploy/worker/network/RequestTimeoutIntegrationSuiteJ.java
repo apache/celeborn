@@ -215,7 +215,7 @@ public class RequestTimeoutIntegrationSuiteJ {
   public void furtherRequestsDelay() throws Exception {
     final byte[] response = new byte[16];
     final ChunkStreamManager manager =
-        new ChunkStreamManager() {
+        new ChunkStreamManager(new CelebornConf()) {
           @Override
           public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
             Uninterruptibles.sleepUninterruptibly(FOREVER, TimeUnit.MILLISECONDS);

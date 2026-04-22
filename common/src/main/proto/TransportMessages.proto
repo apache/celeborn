@@ -643,6 +643,11 @@ message PbSortedShuffleFileSet {
   repeated string files = 1;
 }
 
+message PbRegisteredStream {
+  string shuffleKey = 1;
+  string fileName = 2;
+}
+
 message PbStoreVersion {
   int32 major = 1;
   int32 minor = 2;

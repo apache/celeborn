@@ -61,6 +61,7 @@ class FetchHandler(
   var registered: Option[AtomicBoolean] = None
 
   def init(worker: Worker): Unit = {
+    chunkStreamManager.init(worker.storageManager, transportConf)
     workerSource.addGauge(WorkerSource.ACTIVE_CHUNK_STREAM_COUNT) { () =>
       chunkStreamManager.getStreamsCount
     }
@@ -79,7 +80,7 @@ class FetchHandler(
   }
 
   def getChunkStreamManager: ChunkStreamManager = {
-    new ChunkStreamManager()
+    new ChunkStreamManager(conf)
   }
 
   def getRawFileInfo(
@@ -667,5 +668,9 @@ class FetchHandler(
 
   def setPartitionsSorter(partitionFilesSorter: PartitionFilesSorter): Unit = {
     this.partitionsSorter = partitionFilesSorter
+  }
+
+  def close(exitKind: Int): Unit = {
+    chunkStreamManager.close(exitKind)
   }
 }
