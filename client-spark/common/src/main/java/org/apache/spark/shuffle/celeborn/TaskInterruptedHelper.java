@@ -17,6 +17,8 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import scala.Option;
+
 import org.apache.spark.TaskContext;
 import org.apache.spark.TaskKilledException;
 
@@ -30,8 +32,17 @@ public class TaskInterruptedHelper {
    * kill reason, so here we throw the TaskKilledException.
    */
   public static void throwTaskKillException() {
-    if (TaskContext.get().getKillReason().isDefined()) {
-      throw new TaskKilledException(TaskContext.get().getKillReason().get());
+    throwTaskKillException(null);
+  }
+
+  public static void throwTaskKillException(String message) {
+    Option<String> sparkReason = TaskContext.get().getKillReason();
+    if (sparkReason.isDefined() && message != null) {
+      throw new TaskKilledException(sparkReason.get() + "; " + message);
+    } else if (sparkReason.isDefined()) {
+      throw new TaskKilledException(sparkReason.get());
+    } else if (message != null) {
+      throw new TaskKilledException(message);
     } else {
       throw new TaskKilledException();
     }
