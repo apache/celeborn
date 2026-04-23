@@ -716,4 +716,18 @@ public class SparkUtils {
     String master = conf.get("spark.master", "");
     return master.equals("local") || master.startsWith("local[");
   }
+
+  /**
+   * Asserts that the shuffle writer's iterator has been fully consumed. Only call this when the
+   * shuffle writer finishes writing records. If records remain in the iterator, the task will be
+   * killed.
+   *
+   * @param iteratorHasNext true if the iterator still has records remaining
+   */
+  public static void assertIteratorFullyConsumed(boolean iteratorHasNext) {
+    if (iteratorHasNext) {
+      TaskInterruptedHelper.throwTaskKillException(
+          "Shuffle write task finished but iterator was not fully consumed.");
+    }
+  }
 }
