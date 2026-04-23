@@ -47,7 +47,7 @@ object Dependencies {
   val commonsCryptoVersion = "1.0.0"
   val commonsIoVersion = "2.17.0"
   val commonsLoggingVersion = "1.1.3"
-  val commonsLang3Version = "3.17.0"
+  val commonsLang3Version = "3.20.0"
   val commonsCollectionsVersion = "3.2.2"
   val findbugsVersion = "1.3.9"
   val guavaVersion = "33.1.0-jre"
@@ -955,7 +955,7 @@ object Spark34 extends SparkClientProjects {
   val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
 
   val lz4JavaVersion = "1.8.0"
-  val sparkProjectScalaVersion = "2.12.17"
+  val sparkProjectScalaVersion = "2.12.18"
 
   val sparkVersion = "3.4.4"
   val zstdJniVersion = "1.5.2-5"
