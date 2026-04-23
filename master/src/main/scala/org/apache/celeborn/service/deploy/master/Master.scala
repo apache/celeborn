@@ -51,7 +51,7 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc._
 import org.apache.celeborn.common.rpc.{RpcSecurityContextBuilder, ServerSaslContextBuilder}
-import org.apache.celeborn.common.util.{CelebornHadoopUtils, JavaUtils, PbSerDeUtils, SignalUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, JavaUtils, PbSerDeUtils, ShutdownHookManager, SignalUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.master.audit.ShuffleAuditLogger
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
@@ -377,6 +377,7 @@ private[celeborn] class Master(
       return
     }
     logInfo("Stopping Celeborn Master.")
+
     Option(checkForWorkerTimeoutTask).foreach(_.cancel(true))
     Option(checkForUnavailableWorkerTimeOutTask).foreach(_.cancel(true))
     Option(checkForApplicationTimeOutTask).foreach(_.cancel(true))
@@ -1564,6 +1565,19 @@ private[celeborn] class Master(
   override def initialize(): Unit = {
     super.initialize()
     logInfo("Master started.")
+
+    // Register a shutdown hook so that SIGTERM triggers a graceful stop.
+    ShutdownHookManager.get().addShutdownHook(
+      ThreadUtils.newThread(
+        new Runnable {
+          override def run(): Unit = {
+            logInfo("Shutdown hook called for Master.")
+            stop(CelebornExitKind.EXIT_IMMEDIATELY)
+          }
+        },
+        "master-shutdown-hook-thread"),
+      100)
+
     rpcEnv.awaitTermination()
     if (conf.internalPortEnabled) {
       internalRpcEnvInUse.awaitTermination()
@@ -1573,6 +1587,22 @@ private[celeborn] class Master(
   override def stop(exitKind: Int): Unit = synchronized {
     if (!stopped) {
       logInfo("Stopping Master")
+      // Transfer Raft leadership before shutting down so other masters can
+      // immediately take over without waiting for heartbeat timeout.
+      val transferLeadership = conf.haMasterGracefulShutdownEnabled
+      statusSystem match {
+        case ha: HAMasterMetaManager =>
+          val ratisServer = ha.getRatisServer
+          if (ratisServer != null) {
+            try {
+              ratisServer.stop(transferLeadership)
+            } catch {
+              case e: Exception =>
+                logError("Failed to stop Raft server during Master shutdown.", e)
+            }
+          }
+        case _ => // single-master mode, no Raft server to stop
+      }
       rpcEnv.stop(self)
       if (conf.internalPortEnabled) {
         internalRpcEnvInUse.stop(internalRpcEndpointRef)

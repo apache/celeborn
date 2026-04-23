@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.net.ssl.KeyManager;
@@ -99,6 +100,7 @@ public class HARaftServer {
   private Optional<LeaderPeerEndpoints> cachedLeaderPeerRpcEndpoints = Optional.empty();
 
   private final CelebornConf conf;
+  private final AtomicBoolean stopped = new AtomicBoolean(false);
   private long workerTimeoutDeadline;
   private long appTimeoutDeadline;
 
@@ -274,9 +276,36 @@ public class HARaftServer {
   }
 
   public void stop() {
+    stop(false);
+  }
+
+  public void stop(boolean transferLeadership) {
+    if (!stopped.compareAndSet(false, true)) {
+      LOG.info("Raft server {} already stopped.", server.getId());
+      return;
+    }
     try {
+      if (transferLeadership && isLeader()) {
+        LOG.info(
+            "This node {} is the Raft leader. Transferring leadership before shutdown.",
+            server.getId());
+        long startTime = System.currentTimeMillis();
+        boolean success = stepDown();
+        long elapsed = System.currentTimeMillis() - startTime;
+        if (success) {
+          LOG.info("Successfully transferred leadership from {} in {}ms.", server.getId(), elapsed);
+        } else {
+          LOG.warn(
+              "Leadership transfer from {} failed after {}ms. "
+                  + "Proceeding with shutdown anyway.",
+              server.getId(),
+              elapsed);
+        }
+      }
       server.close();
+      LOG.info("Raft server {} closed.", server.getId());
     } catch (IOException e) {
+      LOG.error("Error while stopping Raft server {}.", server.getId(), e);
       throw new RuntimeException(e);
     }
   }
@@ -616,7 +645,7 @@ public class HARaftServer {
     return this.internalRpcEndpoint;
   }
 
-  void stepDown() {
+  boolean stepDown() {
     try {
       TransferLeadershipRequest request =
           new TransferLeadershipRequest(
@@ -628,13 +657,13 @@ public class HARaftServer {
               REQUEST_TIMEOUT_MS);
       RaftClientReply reply = server.transferLeadership(request);
       if (reply.isSuccess()) {
-        LOG.info("Successfully step down leader {}.", server.getId());
-      } else {
-        LOG.warn("Step down leader failed!");
+        return true;
       }
+      LOG.warn("Step down leader {} failed.", server.getId());
     } catch (Exception e) {
-      LOG.warn("Step down leader failed!", e);
+      LOG.warn("Step down leader {} failed.", server.getId(), e);
     }
+    return false;
   }
 
   public void setDeadlineTime(long increaseWorkerTime, long increaseAppTime) {

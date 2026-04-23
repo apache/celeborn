@@ -1872,6 +1872,53 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(STATUSSYSTEM3.registeredShuffleCount(), 8);
   }
 
+  @Test
+  public void testGracefulLeaderShutdownStepDown() {
+    // Identify the current leader
+    HARaftServer leader = null;
+    for (HARaftServer server : Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3)) {
+      if (server.isLeader()) {
+        leader = server;
+        break;
+      }
+    }
+    Assert.assertNotNull("A leader should exist before the test", leader);
+    Assert.assertTrue("Leader node should report isLeader=true", leader.isLeader());
+
+    // Do not stop() the shared static server used by the suite, since that permanently
+    // closes one of RATISSERVER1/2/3 and can break later tests depending on execution order.
+    // Instead, trigger the leader to step down without closing the underlying server.
+    leader
+        .getMasterStateMachine()
+        .notifyLogFailed(new Exception("test leader graceful step down"), null);
+
+    Assert.assertFalse(
+        "Leader should step down without closing the shared server", leader.isLeader());
+    Assert.assertNotEquals(
+        "Raft server should remain available to the rest of the suite",
+        "CLOSED",
+        leader.getServer().getLifeCycleState().name());
+
+    // Wait for a new leader to be elected so subsequent tests are not affected.
+    boolean newLeaderElected = false;
+    for (int i = 0; i < 30; i++) {
+      for (HARaftServer server : Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3)) {
+        if (server != leader && server.isLeader()) {
+          newLeaderElected = true;
+          break;
+        }
+      }
+      if (newLeaderElected) break;
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
+      }
+    }
+    Assert.assertTrue("A new leader should be elected after step down", newLeaderElected);
+  }
+
   @AfterClass
   public static void testNotifyLogFailed() {
     List<HARaftServer> list = Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3);
