@@ -147,23 +147,32 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
     boolean needCleanupPusher = true;
     try {
-      if (canUseFastWrite()) {
-        fastWrite0(records);
-      } else if (dep.mapSideCombine()) {
-        if (dep.aggregator().isEmpty()) {
-          throw new UnsupportedOperationException(
-              "When using map side combine, an aggregator must be specified.");
-        }
-        write0(dep.aggregator().get().combineValuesByKey(records, taskContext));
-      } else {
-        write0(records);
-      }
-      close();
+      boolean iteratorHasNext = doWrite(records);
+      close(iteratorHasNext);
       needCleanupPusher = false;
     } finally {
       if (needCleanupPusher) {
         cleanupPusher();
       }
+    }
+  }
+
+  boolean doWrite(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
+    if (canUseFastWrite()) {
+      fastWrite0(records);
+      return records.hasNext();
+    } else if (dep.mapSideCombine()) {
+      if (dep.aggregator().isEmpty()) {
+        throw new UnsupportedOperationException(
+            "When using map side combine, an aggregator must be specified.");
+      }
+      scala.collection.Iterator combinedIterator =
+          dep.aggregator().get().combineValuesByKey(records, taskContext);
+      write0(combinedIterator);
+      return combinedIterator.hasNext();
+    } else {
+      write0(records);
+      return records.hasNext();
     }
   }
 
@@ -304,7 +313,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
   }
 
-  private void close() throws IOException {
+  private void close(boolean iteratorHasNext) throws IOException {
     logger.info("Memory used {}", Utils.bytesToString(pusher.getUsed()));
     long pushStartTime = System.nanoTime();
     pusher.pushData(false);
@@ -314,6 +323,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     shuffleClient.pushMergedData(shuffleId, mapId, encodedAttemptId);
 
     updateMapStatus();
+
+    SparkUtils.assertIteratorFullyConsumed(iteratorHasNext);
 
     long waitStartTime = System.nanoTime();
     shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers, numPartitions);

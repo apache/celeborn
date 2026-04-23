@@ -166,18 +166,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
     boolean needCleanupPusher = true;
     try {
-      if (canUseFastWrite()) {
-        fastWrite0(records);
-      } else if (dep.mapSideCombine()) {
-        if (dep.aggregator().isEmpty()) {
-          throw new UnsupportedOperationException(
-              "When using map side combine, an aggregator must be specified.");
-        }
-        write0(dep.aggregator().get().combineValuesByKey(records, taskContext));
-      } else {
-        write0(records);
-      }
-      close();
+      boolean iteratorHasNext = doWrite(records);
+      close(iteratorHasNext);
       needCleanupPusher = false;
     } catch (InterruptedException e) {
       TaskInterruptedHelper.throwTaskKillException();
@@ -185,6 +175,26 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       if (needCleanupPusher) {
         cleanupPusher();
       }
+    }
+  }
+
+  boolean doWrite(scala.collection.Iterator<Product2<K, V>> records)
+      throws IOException, InterruptedException {
+    if (canUseFastWrite()) {
+      fastWrite0(records);
+      return records.hasNext();
+    } else if (dep.mapSideCombine()) {
+      if (dep.aggregator().isEmpty()) {
+        throw new UnsupportedOperationException(
+            "When using map side combine, an aggregator must be specified.");
+      }
+      scala.collection.Iterator combinedIterator =
+          dep.aggregator().get().combineValuesByKey(records, taskContext);
+      write0(combinedIterator);
+      return combinedIterator.hasNext();
+    } else {
+      write0(records);
+      return records.hasNext();
     }
   }
 
@@ -331,7 +341,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
   }
 
-  private void close() throws IOException, InterruptedException {
+  private void close(boolean iteratorHasNext) throws IOException, InterruptedException {
     // merge and push residual data to reduce network traffic
     // NB: since dataPusher thread have no in-flight data at this point,
     //     we now push merged data by task thread will not introduce any contention
@@ -358,6 +368,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     shuffleClient.pushMergedData(shuffleId, mapId, encodedAttemptId);
 
     updateMapStatus();
+
+    SparkUtils.assertIteratorFullyConsumed(iteratorHasNext);
 
     sendBufferPool.returnBuffer(sendBuffers);
     sendBuffers = null;
