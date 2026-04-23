@@ -93,6 +93,16 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
+  public void computeBatchCRC(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      byte[] data,
+      int offset,
+      int length) {}
+
+  @Override
   public int mergeData(
       int shuffleId,
       int mapId,
