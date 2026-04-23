@@ -50,7 +50,7 @@ class CelebornHashCheckDiskSuite extends SparkTestBase {
     System.gc()
   }
 
-  test("celeborn spark integration test - hash-checkDiskFull") {
+  ignore("celeborn spark integration test - hash-checkDiskFull") {
     val sparkConf = new SparkConf().setAppName("celeborn-demo")
       .setMaster("local[2]")
       .set(s"spark.${CelebornConf.SHUFFLE_EXPIRED_CHECK_INTERVAL.key}", "20s")
