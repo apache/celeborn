@@ -75,7 +75,7 @@ class CelebornHashCheckDiskSuite extends SparkTestBase {
     // shuffle key not expired, diskInfo.actualUsableSpace <= 0, no space
     workers.foreach { worker =>
       worker.storageManager.updateDiskInfos()
-      worker.storageManager.disksSnapshot().foreach { diskInfo =>
+      worker.storageManager.localDisksSnapshot().foreach { diskInfo =>
         assert(diskInfo.actualUsableSpace <= 0)
       }
     }
@@ -89,7 +89,7 @@ class CelebornHashCheckDiskSuite extends SparkTestBase {
           assert(t.size() === 0)
         }
         // after shuffle key expired, diskInfo.actualUsableSpace will equal capacity=1000
-        worker.storageManager.disksSnapshot().foreach { diskInfo =>
+        worker.storageManager.localDisksSnapshot().foreach { diskInfo =>
           assert(diskInfo.actualUsableSpace === 1000)
         }
       }

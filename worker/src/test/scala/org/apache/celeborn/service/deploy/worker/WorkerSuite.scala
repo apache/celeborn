@@ -21,27 +21,30 @@ import java.io.File
 import java.nio.file.{Files, Paths}
 import java.util
 import java.util.{HashSet => JHashSet}
-import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 
 import org.junit.Assert
+import org.mockito.{ArgumentCaptor, ArgumentMatchers, MockedConstruction, Mockito}
+import org.mockito.MockedConstruction.MockInitializer
+import org.mockito.Mockito.mockConstruction
 import org.mockito.MockitoSugar._
-import org.scalatest.{shortstacks, BeforeAndAfterEach}
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
+import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.ControlMessages.CommitFilesResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, ThreadUtils}
+import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.worker.storage.PartitionDataWriter
 
-class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
+class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFeature {
   private var worker: Worker = _
   private val conf = new CelebornConf()
   private val workerArgs = new WorkerArguments(Array(), conf)
@@ -302,5 +305,49 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach {
     // timeout but SUCCESS epoch2 can reply
     assert(shuffleCommitTime.get(shuffleKey).get(epoch2) == null)
     assert(epochCommitMap.get(epoch2).response.status == StatusCode.SUCCESS)
+  }
+
+  test("CELEBORN-2257: Properly reports remote disks on worker registration") {
+    val mockInitializer = {
+      // Old syntax needed for scala 2.11
+      new MockInitializer[MasterClient] {
+        override def prepare(instance: MasterClient, context: MockedConstruction.Context): Unit = {
+          doReturn(PbRegisterWorkerResponse
+            .newBuilder()
+            .setSuccess(true)
+            .build())
+            .when(instance)
+            .askSync(
+              ArgumentMatchers.any(classOf[PbRegisterWorker]),
+              ArgumentMatchers.eq(classOf[PbRegisterWorkerResponse]))
+        }
+      }
+    }
+    val mockedMasterClient = mockConstruction(classOf[MasterClient], mockInitializer)
+    val argCaptor = ArgumentCaptor.forClass(classOf[PbRegisterWorker])
+    val workerConf: Map[String, String] = Map(
+      CelebornConf.ACTIVE_STORAGE_TYPES.key -> "S3",
+      CelebornConf.S3_DIR.key -> "s3a://test-bucket-for-celeborn/",
+      CelebornConf.S3_ENDPOINT_REGION.key -> "test-region")
+    setupMiniClusterWithRandomPorts(workerNum = 1, workerConf = workerConf);
+
+    try {
+      val createdMocks = mockedMasterClient.constructed();
+      assert(createdMocks.size() == 1)
+      verify(createdMocks.get(0), timeout(5000).atLeast(1))
+        .askSync(argCaptor.capture(), ArgumentMatchers.eq(classOf[PbRegisterWorkerResponse]))
+      val registrationMessage = argCaptor.getValue;
+
+      Assert.assertEquals(2, registrationMessage.getDisksCount)
+      val maybeS3DiskInfo = registrationMessage
+        .getDisksList.asScala
+        .find(diskInfo => diskInfo.getStorageType == StorageInfo.Type.S3.getValue)
+      assert(maybeS3DiskInfo.nonEmpty)
+    } catch {
+      case e: Throwable => throw e;
+    } finally {
+      shutdownMiniCluster()
+      mockedMasterClient.close()
+    }
   }
 }
