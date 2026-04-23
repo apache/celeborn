@@ -138,10 +138,15 @@ trait JavaCppHybridReadWriteTestBase extends AnyFunSuite
 
     // Verify the sum result.
     var lineCount = 0
-    for (line <- Source.fromFile(cppResultFile, "utf-8").getLines.toList) {
-      val data = line.toLong
-      Assert.assertEquals(data, sums.get(lineCount))
-      lineCount += 1
+    val source = Source.fromFile(cppResultFile, "utf-8")
+    try {
+      for (line <- source.getLines.toList) {
+        val data = line.toLong
+        Assert.assertEquals(data, sums.get(lineCount))
+        lineCount += 1
+      }
+    } finally {
+      source.close()
     }
     Assert.assertEquals(lineCount, numPartitions)
     lifecycleManager.stop()
@@ -213,31 +218,40 @@ trait JavaCppHybridReadWriteTestBase extends AnyFunSuite
         0,
         Integer.MAX_VALUE,
         metricsCallback)
-      var c = inputStream.read()
-      var data: Long = 0
-      var dataCnt = 0
-      while (c != -1) {
-        if (c == '-') {
-          sums.set(partitionId, sums.get(partitionId) + data)
-          data = 0
-          dataCnt += 1
-        } else {
-          assert(c >= '0' && c <= '9')
-          data *= 10
-          data += c - '0'
+      try {
+        var c = inputStream.read()
+        var data: Long = 0
+        var dataCnt = 0
+        while (c != -1) {
+          if (c == '-') {
+            sums.set(partitionId, sums.get(partitionId) + data)
+            data = 0
+            dataCnt += 1
+          } else {
+            assert(c >= '0' && c <= '9')
+            data *= 10
+            data += c - '0'
+          }
+          c = inputStream.read()
         }
-        c = inputStream.read()
+        sums.set(partitionId, sums.get(partitionId) + data)
+        println(s"partition $partitionId sum result = ${sums.get(partitionId)}, dataCnt = $dataCnt")
+      } finally {
+        inputStream.close()
       }
-      sums.set(partitionId, sums.get(partitionId) + data)
-      println(s"partition $partitionId sum result = ${sums.get(partitionId)}, dataCnt = $dataCnt")
     }
 
     // Verify the sum result.
     var lineCount = 0
-    for (line <- Source.fromFile(cppResultFile, "utf-8").getLines.toList) {
-      val data = line.toLong
-      Assert.assertEquals(data, sums.get(lineCount))
-      lineCount += 1
+    val source = Source.fromFile(cppResultFile, "utf-8")
+    try {
+      for (line <- source.getLines.toList) {
+        val data = line.toLong
+        Assert.assertEquals(data, sums.get(lineCount))
+        lineCount += 1
+      }
+    } finally {
+      source.close()
     }
     Assert.assertEquals(lineCount, numPartitions)
     lifecycleManager.stop()
@@ -305,30 +319,39 @@ trait JavaCppHybridReadWriteTestBase extends AnyFunSuite
         0,
         Integer.MAX_VALUE,
         metricsCallback)
-      var c = inputStream.read()
-      var data: Long = 0
-      var dataCnt = 0
-      while (c != -1) {
-        if (c == '-') {
-          sums.set(partitionId, sums.get(partitionId) + data)
-          data = 0
-          dataCnt += 1
-        } else {
-          assert(c >= '0' && c <= '9')
-          data *= 10
-          data += c - '0'
+      try {
+        var c = inputStream.read()
+        var data: Long = 0
+        var dataCnt = 0
+        while (c != -1) {
+          if (c == '-') {
+            sums.set(partitionId, sums.get(partitionId) + data)
+            data = 0
+            dataCnt += 1
+          } else {
+            assert(c >= '0' && c <= '9')
+            data *= 10
+            data += c - '0'
+          }
+          c = inputStream.read()
         }
-        c = inputStream.read()
+        sums.set(partitionId, sums.get(partitionId) + data)
+        println(s"partition $partitionId sum result = ${sums.get(partitionId)}, dataCnt = $dataCnt")
+      } finally {
+        inputStream.close()
       }
-      sums.set(partitionId, sums.get(partitionId) + data)
-      println(s"partition $partitionId sum result = ${sums.get(partitionId)}, dataCnt = $dataCnt")
     }
 
     var lineCount = 0
-    for (line <- Source.fromFile(cppResultFile, "utf-8").getLines.toList) {
-      val data = line.toLong
-      Assert.assertEquals(data, sums.get(lineCount))
-      lineCount += 1
+    val source = Source.fromFile(cppResultFile, "utf-8")
+    try {
+      for (line <- source.getLines.toList) {
+        val data = line.toLong
+        Assert.assertEquals(data, sums.get(lineCount))
+        lineCount += 1
+      }
+    } finally {
+      source.close()
     }
     Assert.assertEquals(lineCount, numPartitions)
     lifecycleManager.stop()

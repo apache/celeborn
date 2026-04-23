@@ -87,64 +87,55 @@ jobs:
         run: build/mvn clean install -DskipTests
       - name: Run Java-Write Cpp-Read Hybrid Integration Test (NONE Decompression)
         run: |
-          build/mvn -pl worker \
+          MAVEN_OPTS="-XX:MaxDirectMemorySize=2G" build/mvn -pl worker \
             test-compile exec:java \
             -Dexec.classpathScope="test" \
-            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.JavaWriteCppReadTestWithNONE" \
-            -Dexec.args="-XX:MaxDirectMemorySize=2G"
+            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.JavaWriteCppReadTestWithNONE"
       - name: Run Java-Write Cpp-Read Hybrid Integration Test (LZ4 Decompression)
         run: |
-          build/mvn -pl worker \
+          MAVEN_OPTS="-XX:MaxDirectMemorySize=2G" build/mvn -pl worker \
             test-compile exec:java \
             -Dexec.classpathScope="test" \
-            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.JavaWriteCppReadTestWithLZ4" \
-            -Dexec.args="-XX:MaxDirectMemorySize=2G"
+            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.JavaWriteCppReadTestWithLZ4"
       - name: Run Java-Write Cpp-Read Hybrid Integration Test (ZSTD Decompression)
         run: |
-          build/mvn -pl worker \
+          MAVEN_OPTS="-XX:MaxDirectMemorySize=2G" build/mvn -pl worker \
             test-compile exec:java \
             -Dexec.classpathScope="test" \
-            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.JavaWriteCppReadTestWithZSTD" \
-            -Dexec.args="-XX:MaxDirectMemorySize=2G"
+            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.JavaWriteCppReadTestWithZSTD"
       - name: Run Cpp-Write Java-Read Hybrid Integration Test (NONE Compression)
         run: |
-          build/mvn -pl worker \
+          MAVEN_OPTS="-XX:MaxDirectMemorySize=2G" build/mvn -pl worker \
             test-compile exec:java \
             -Dexec.classpathScope="test" \
-            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.CppWriteJavaReadTestWithNONE" \
-            -Dexec.args="-XX:MaxDirectMemorySize=2G"
+            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.CppWriteJavaReadTestWithNONE"
       - name: Run Cpp-Write Java-Read Hybrid Integration Test (LZ4 Compression)
         run: |
-          build/mvn -pl worker \
+          MAVEN_OPTS="-XX:MaxDirectMemorySize=2G" build/mvn -pl worker \
             test-compile exec:java \
             -Dexec.classpathScope="test" \
-            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.CppWriteJavaReadTestWithLZ4" \
-            -Dexec.args="-XX:MaxDirectMemorySize=2G"
+            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.CppWriteJavaReadTestWithLZ4"
       - name: Run Cpp-Write Java-Read Hybrid Integration Test (ZSTD Compression)
         run: |
-          build/mvn -pl worker \
+          MAVEN_OPTS="-XX:MaxDirectMemorySize=2G" build/mvn -pl worker \
             test-compile exec:java \
             -Dexec.classpathScope="test" \
-            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.CppWriteJavaReadTestWithZSTD" \
-            -Dexec.args="-XX:MaxDirectMemorySize=2G"
+            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.CppWriteJavaReadTestWithZSTD"
       - name: Run Cpp-MergeWrite Java-Read Hybrid Integration Test (NONE Compression)
         run: |
-          build/mvn -pl worker \
+          MAVEN_OPTS="-XX:MaxDirectMemorySize=2G" build/mvn -pl worker \
             test-compile exec:java \
             -Dexec.classpathScope="test" \
-            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.CppMergeWriteJavaReadTestWithNONE" \
-            -Dexec.args="-XX:MaxDirectMemorySize=2G"
+            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.CppMergeWriteJavaReadTestWithNONE"
       - name: Run Cpp-MergeWrite Java-Read Hybrid Integration Test (LZ4 Compression)
         run: |
-          build/mvn -pl worker \
+          MAVEN_OPTS="-XX:MaxDirectMemorySize=2G" build/mvn -pl worker \
             test-compile exec:java \
             -Dexec.classpathScope="test" \
-            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.CppMergeWriteJavaReadTestWithLZ4" \
-            -Dexec.args="-XX:MaxDirectMemorySize=2G"
+            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.CppMergeWriteJavaReadTestWithLZ4"
       - name: Run Cpp-MergeWrite Java-Read Hybrid Integration Test (ZSTD Compression)
         run: |
-          build/mvn -pl worker \
+          MAVEN_OPTS="-XX:MaxDirectMemorySize=2G" build/mvn -pl worker \
             test-compile exec:java \
             -Dexec.classpathScope="test" \
-            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.CppMergeWriteJavaReadTestWithZSTD" \
-            -Dexec.args="-XX:MaxDirectMemorySize=2G"
+            -Dexec.mainClass="org.apache.celeborn.service.deploy.cluster.CppMergeWriteJavaReadTestWithZSTD"
