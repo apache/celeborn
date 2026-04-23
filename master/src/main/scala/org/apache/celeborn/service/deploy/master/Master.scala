@@ -378,26 +378,6 @@ private[celeborn] class Master(
     }
     logInfo("Stopping Celeborn Master.")
 
-    // Transfer Raft leadership before shutting down so other masters can
-    // immediately take over without waiting for heartbeat timeout
-    if (conf.haMasterGracefulShutdownEnabled) {
-      statusSystem match {
-        case ha: HAMasterMetaManager =>
-          val ratisServer = ha.getRatisServer
-          if (ratisServer != null) {
-            logInfo("HA graceful shutdown enabled. Stopping Raft server (will transfer leadership if leader).")
-            try {
-              ratisServer.stop()
-            } catch {
-              case e: Exception =>
-                logError("Failed to stop Raft server during Master shutdown.", e)
-            }
-          }
-        case _ =>
-          logInfo("Single-master mode, skipping Raft shutdown.")
-      }
-    }
-
     Option(checkForWorkerTimeoutTask).foreach(_.cancel(true))
     Option(checkForUnavailableWorkerTimeOutTask).foreach(_.cancel(true))
     Option(checkForApplicationTimeOutTask).foreach(_.cancel(true))
@@ -1607,6 +1587,22 @@ private[celeborn] class Master(
   override def stop(exitKind: Int): Unit = synchronized {
     if (!stopped) {
       logInfo("Stopping Master")
+      // Transfer Raft leadership before shutting down so other masters can
+      // immediately take over without waiting for heartbeat timeout.
+      val transferLeadership = conf.haMasterGracefulShutdownEnabled
+      statusSystem match {
+        case ha: HAMasterMetaManager =>
+          val ratisServer = ha.getRatisServer
+          if (ratisServer != null) {
+            try {
+              ratisServer.stop(transferLeadership)
+            } catch {
+              case e: Exception =>
+                logError("Failed to stop Raft server during Master shutdown.", e)
+            }
+          }
+        case _ => // single-master mode, no Raft server to stop
+      }
       rpcEnv.stop(self)
       if (conf.internalPortEnabled) {
         internalRpcEnvInUse.stop(internalRpcEndpointRef)

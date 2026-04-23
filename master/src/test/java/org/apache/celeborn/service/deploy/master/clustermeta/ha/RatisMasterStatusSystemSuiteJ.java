@@ -1892,11 +1892,31 @@ public class RatisMasterStatusSystemSuiteJ {
         .getMasterStateMachine()
         .notifyLogFailed(new Exception("test leader graceful step down"), null);
 
-    Assert.assertFalse("Leader should step down without closing the shared server", leader.isLeader());
+    Assert.assertFalse(
+        "Leader should step down without closing the shared server", leader.isLeader());
     Assert.assertNotEquals(
         "Raft server should remain available to the rest of the suite",
         "CLOSED",
         leader.getServer().getLifeCycleState().name());
+
+    // Wait for a new leader to be elected so subsequent tests are not affected.
+    boolean newLeaderElected = false;
+    for (int i = 0; i < 30; i++) {
+      for (HARaftServer server : Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3)) {
+        if (server != leader && server.isLeader()) {
+          newLeaderElected = true;
+          break;
+        }
+      }
+      if (newLeaderElected) break;
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
+      }
+    }
+    Assert.assertTrue("A new leader should be elected after step down", newLeaderElected);
   }
 
   @AfterClass

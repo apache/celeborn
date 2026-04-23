@@ -20,7 +20,7 @@ license: |
 | Key | Default | isDynamic | Description | Since | Deprecated |
 | --- | ------- | --------- | ----------- | ----- | ---------- |
 | celeborn.master.ha.enabled | false | false | When true, master nodes run as Raft cluster mode. | 0.3.0 | celeborn.ha.enabled | 
-| celeborn.master.ha.gracefulShutdown.enabled | false | false | When true, the master will run a shutdown hook and transfer Raft leadership before shutting down. This reduces chances of client side failures by avoiding the Raft election window where no leader is available. | 0.7.0 |  | 
+| celeborn.master.ha.gracefulShutdown.enabled | false | false | When true, the master will transfer Raft leadership before shutting down gracefully. This reduces chances of client side failures by avoiding the Raft election window where no leader is available. | 0.7.0 |  | 
 | celeborn.master.ha.node.&lt;id&gt;.host | &lt;required&gt; | false | Host to bind of master node <id> in HA mode. | 0.3.0 | celeborn.ha.master.node.&lt;id&gt;.host | 
 | celeborn.master.ha.node.&lt;id&gt;.internal.port | 8097 | false | Internal port for the workers and other masters to bind to a master node <id> in HA mode. | 0.5.0 |  | 
 | celeborn.master.ha.node.&lt;id&gt;.port | 9097 | false | Port to bind of master node <id> in HA mode. | 0.3.0 | celeborn.ha.master.node.&lt;id&gt;.port | 
