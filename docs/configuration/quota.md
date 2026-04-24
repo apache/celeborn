@@ -19,6 +19,10 @@ license: |
 <!--begin-include-->
 | Key | Default | isDynamic | Description | Since | Deprecated |
 | --- | ------- | --------- | ----------- | ----- | ---------- |
+| celeborn.quota.app.diskBytesWritten | 9223372036854775807b | true | App level quota for written disk bytes. Only enforced when a higher-level quota (user/tenant/cluster) is already exceeded, to identify the app that should be throttled first. | 0.7.0 |  | 
+| celeborn.quota.app.diskFileCount | 9223372036854775807 | true | App level quota for written disk file count. Only enforced when a higher-level quota (user/tenant/cluster) is already exceeded. | 0.7.0 |  | 
+| celeborn.quota.app.hdfsBytesWritten | 9223372036854775807b | true | App level quota for written HDFS bytes. Only enforced when a higher-level quota (user/tenant/cluster) is already exceeded. | 0.7.0 |  | 
+| celeborn.quota.app.hdfsFileCount | 9223372036854775807 | true | App level quota for written HDFS file count. Only enforced when a higher-level quota (user/tenant/cluster) is already exceeded. | 0.7.0 |  | 
 | celeborn.quota.cluster.diskBytesWritten | 9223372036854775807b | true | Cluster level quota dynamic configuration for written disk bytes. | 0.6.0 |  | 
 | celeborn.quota.cluster.diskFileCount | 9223372036854775807 | true | Cluster level quota dynamic configuration for written disk file count. | 0.6.0 |  | 
 | celeborn.quota.cluster.enabled | true | false | Whether to enable cluster-level quota. | 0.6.0 |  | 
