@@ -767,6 +767,7 @@ private[celeborn] class Master(
         userResourceConsumption,
         newRequestId)
       context.reply(RegisterWorkerResponse(true, "Worker in snapshot, re-register."))
+      masterSource.incCounter(MasterSource.REGISTER_WORKER_EXISTING_COUNT)
     } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker $workerToRegister " +
         s"in workerLostEvents.")
@@ -783,6 +784,7 @@ private[celeborn] class Master(
         userResourceConsumption,
         requestId)
       context.reply(RegisterWorkerResponse(true, "Worker in workerLostEvents, re-register."))
+      masterSource.incCounter(MasterSource.REGISTER_WORKER_FROM_LOST_COUNT)
     } else {
       statusSystem.handleRegisterWorker(
         host,
@@ -797,6 +799,7 @@ private[celeborn] class Master(
         requestId)
       logInfo(s"Registered worker $workerToRegister.")
       context.reply(RegisterWorkerResponse(true, ""))
+      masterSource.incCounter(MasterSource.REGISTER_WORKER_NEW_COUNT)
     }
   }
 

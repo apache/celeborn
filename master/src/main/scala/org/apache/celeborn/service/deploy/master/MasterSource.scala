@@ -25,6 +25,10 @@ class MasterSource(conf: CelebornConf) extends AbstractSource(conf, MetricsSyste
   override val sourceName = "master"
 
   import MasterSource._
+  // add counters
+  addCounter(REGISTER_WORKER_NEW_COUNT)
+  addCounter(REGISTER_WORKER_EXISTING_COUNT)
+  addCounter(REGISTER_WORKER_FROM_LOST_COUNT)
   // add timers
   addTimer(OFFER_SLOTS_TIME)
   // start cleaner
@@ -53,6 +57,10 @@ object MasterSource {
   val ACTIVE_SHUFFLE_FILE_COUNT = "ActiveShuffleFileCount"
 
   val OFFER_SLOTS_TIME = "OfferSlotsTime"
+
+  val REGISTER_WORKER_NEW_COUNT = "RegisterWorkerNewCount"
+  val REGISTER_WORKER_EXISTING_COUNT = "RegisterWorkerExistingCount"
+  val REGISTER_WORKER_FROM_LOST_COUNT = "RegisterWorkerFromLostCount"
 
   // Capacity
   val DEVICE_CELEBORN_FREE_CAPACITY = "DeviceCelebornFreeBytes"
