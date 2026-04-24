@@ -85,6 +85,7 @@ license: |
 | celeborn.worker.directMemoryRatioToPauseReplicate | 0.95 | false | If direct memory usage reaches this limit, the worker will stop to receive replication data from other workers. This value should be higher than celeborn.worker.directMemoryRatioToPauseReceive. | 0.2.0 |  | 
 | celeborn.worker.directMemoryRatioToResume | 0.7 | false | If direct memory usage is less than this limit, worker will resume. | 0.2.0 |  | 
 | celeborn.worker.disk.clean.threads | 4 | false | Thread number of worker to clean up directories of expired shuffle keys on disk. | 0.3.2 |  | 
+| celeborn.worker.disk.storage.strictReserve.enabled | false | false | Whether to enable strict bookkeeping for worker's disk storage.With this set to true, data wrtiers try to acquire storage space before each flush,ensuring that disk full based HARD_SPLITs are accurately triggered. | 0.6.0 |  | 
 | celeborn.worker.fetch.heartbeat.enabled | false | false | enable the heartbeat from worker to client when fetching data | 0.3.0 |  | 
 | celeborn.worker.fetch.io.threads | &lt;undefined&gt; | false | Netty IO thread number of worker to handle client fetch data. The default threads number is the number of flush thread. | 0.2.0 |  | 
 | celeborn.worker.fetch.port | 0 | false | Server port for Worker to receive fetch data request from ShuffleClient. | 0.2.0 |  | 

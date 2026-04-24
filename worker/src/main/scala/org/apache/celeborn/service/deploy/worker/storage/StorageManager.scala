@@ -75,6 +75,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val remoteStorageDirs = conf.remoteStorageDirs
 
   val storageExpireDirTimeout = conf.workerStorageExpireDirTimeout
+  val diskStorageStrictReserveEnabled = conf.workerDiskStorageStrictReserveEnabled
   val storagePolicy = new StoragePolicy(conf, this, workerSource)
 
   val diskReserveSize = conf.workerDiskReserveSize
@@ -109,6 +110,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       disks.asScala.toList
     }
   }
+
+  def healthyWorkingDirsWithDiskInfo(): List[(DiskInfo, File)] =
+    disksSnapshot().filter(_.status == DiskStatus.HEALTHY).flatMap(diskInfo =>
+      diskInfo.dirs.map(dir => (diskInfo, dir)))
 
   def healthyWorkingDirs(): List[File] =
     disksSnapshot().filter(_.status == DiskStatus.HEALTHY).flatMap(_.dirs)
@@ -955,7 +960,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             val writers = workingDirWriters.get(dir)
             if (writers != null) {
               writers.synchronized {
-                writers.values.asScala.map(_.getDiskFileInfo.getFileLength).sum
+                writers.values.asScala.map(_.getDiskFileInfo.getAcquiredBytes).sum
               }
             } else {
               0
@@ -1138,9 +1143,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
     while (retryCount < conf.workerCreateWriterMaxAttempts) {
       val diskInfo = diskInfos.get(suggestedMountPoint)
-      val dirs =
+      val dirsWithDiskInfos: List[(DiskInfo, File)] =
         if (diskInfo != null && diskInfo.status.equals(DiskStatus.HEALTHY)) {
-          diskInfo.dirs
+          diskInfo.dirs.map(dir => (diskInfo, dir)).toList
         } else {
           if (suggestedMountPoint.isEmpty) {
             logDebug(s"Location suggestedMountPoint is not set, return all healthy working dirs.")
@@ -1148,9 +1153,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             logInfo(s"Disk(${diskInfo.mountPoint}) unavailable for $suggestedMountPoint, return all healthy" +
               s" working dirs.")
           }
-          healthyWorkingDirs()
+          healthyWorkingDirsWithDiskInfo()
         }
-      if (dirs.isEmpty && hdfsFlusher.isEmpty && s3Flusher.isEmpty && ossFlusher.isEmpty) {
+      if (dirsWithDiskInfos.isEmpty && hdfsFlusher.isEmpty && s3Flusher.isEmpty && ossFlusher.isEmpty) {
         throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
       }
 
@@ -1205,10 +1210,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           fileName,
           ossFileInfo)
         return (ossFlusher.get, ossFileInfo, null)
-      } else if (dirs.nonEmpty && location.getStorageInfo.localDiskAvailable()) {
-        val dir = dirs(getNextIndex % dirs.size)
-        val mountPoint = DeviceInfo.getMountPoint(dir.getAbsolutePath, mountPoints)
-        val shuffleDir = new File(dir, s"$appId/$shuffleId")
+      } else if (dirsWithDiskInfos.nonEmpty && location.getStorageInfo.localDiskAvailable()) {
+        val dir = dirsWithDiskInfos(getNextIndex % dirsWithDiskInfos.size)
+        val mountPoint = DeviceInfo.getMountPoint(dir._2.getAbsolutePath, mountPoints)
+        val shuffleDir = new File(dir._2, s"$appId/$shuffleId")
         shuffleDir.mkdirs()
         val file = new File(shuffleDir, fileName)
         try {
@@ -1226,6 +1231,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           val fileMeta = getFileMeta(partitionType, mountPoint, conf.shuffleChunkSize)
           val storageType = diskInfos.get(mountPoint).storageType
           val diskFileInfo = new DiskFileInfo(
+            if (diskStorageStrictReserveEnabled) diskInfo else null,
             userIdentifier,
             partitionSplitEnabled,
             fileMeta,
@@ -1238,7 +1244,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           return (
             localFlushers.get(mountPoint),
             diskFileInfo,
-            dir)
+            dir._2)
         } catch {
           case fe: FileAlreadyExistsException =>
             logError("Failed to create fileWriter because of existed file", fe)

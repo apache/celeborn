@@ -1319,6 +1319,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerStorageBaseDirNumber: Int = get(WORKER_STORAGE_BASE_DIR_COUNT)
   def workerStorageBaseDirDiskType: String = get(WORKER_STORAGE_BASE_DIR_DISK_TYPE)
   def workerStorageExpireDirTimeout: Long = get(WORKER_STORAGE_EXPIRE_DIR_TIMEOUT)
+  def workerDiskStorageStrictReserveEnabled: Boolean =
+    get(WORKER_DISK_STORAGE_STRICT_RESERVE_ENABLED)
   def creditStreamThreadsPerMountpoint: Int = get(WORKER_BUFFERSTREAM_THREADS_PER_MOUNTPOINT)
   def workerDirectMemoryRatioForReadBuffer: Double = get(WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER)
   def partitionReadBuffersMin: Int = get(WORKER_PARTITION_READ_BUFFERS_MIN)
@@ -3326,6 +3328,16 @@ object CelebornConf extends Logging {
       .doc(s"The timeout for a expire dirs to be deleted on disk.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1h")
+
+  val WORKER_DISK_STORAGE_STRICT_RESERVE_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.disk.storage.strictReserve.enabled")
+      .categories("worker")
+      .version("0.6.0")
+      .doc("Whether to enable strict bookkeeping for worker's disk storage." +
+        "With this set to true, data wrtiers try to acquire storage space before each flush," +
+        "ensuring that disk full based HARD_SPLITs are accurately triggered.")
+      .booleanConf
+      .createWithDefault(false)
 
   val HDFS_DIR: OptionalConfigEntry[String] =
     buildConf("celeborn.storage.hdfs.dir")

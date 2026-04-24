@@ -39,6 +39,20 @@ public class DiskFileInfo extends FileInfo {
   private static final Logger logger = LoggerFactory.getLogger(DiskFileInfo.class);
   private final String filePath;
   private final StorageInfo.Type storageType;
+  private final DiskInfo diskInfo;
+
+  public DiskFileInfo(
+      DiskInfo diskInfo,
+      UserIdentifier userIdentifier,
+      boolean partitionSplitEnabled,
+      FileMeta fileMeta,
+      String filePath,
+      StorageInfo.Type storageType) {
+    super(userIdentifier, partitionSplitEnabled, fileMeta);
+    this.diskInfo = diskInfo;
+    this.filePath = filePath;
+    this.storageType = storageType;
+  }
 
   public DiskFileInfo(
       UserIdentifier userIdentifier,
@@ -46,9 +60,7 @@ public class DiskFileInfo extends FileInfo {
       FileMeta fileMeta,
       String filePath,
       StorageInfo.Type storageType) {
-    super(userIdentifier, partitionSplitEnabled, fileMeta);
-    this.filePath = filePath;
-    this.storageType = storageType;
+    this(null, userIdentifier, partitionSplitEnabled, fileMeta, filePath, storageType);
   }
 
   // only called when restore from pb or in UT
@@ -60,6 +72,13 @@ public class DiskFileInfo extends FileInfo {
       StorageInfo.Type storageType,
       long bytesFlushed) {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
+
+    // TODO: Figure out a way to map the right diskInfo when restoring from pb,
+    //  currently we just set it to null and skip the acquireBytesFlushed logic in
+    // DiskFileInfo#acquireBytesFlushed
+    //  However during graceful shutdown, we likley have already hard split therefore no more writes
+    // to this file.
+    this.diskInfo = null;
     this.filePath = filePath;
     if (storageType != null) {
       this.storageType = storageType;
@@ -83,6 +102,9 @@ public class DiskFileInfo extends FileInfo {
     super(userIdentifier, true, fileMeta);
     this.filePath = filePath;
     this.storageType = StorageInfo.Type.HDD;
+
+    // Only used by sorter, hence we know no diskInfo acquires needed
+    this.diskInfo = null;
   }
 
   public File getFile() {
@@ -92,6 +114,15 @@ public class DiskFileInfo extends FileInfo {
   @Override
   public String getFilePath() {
     return filePath;
+  }
+
+  @Override
+  protected boolean canAcquireBytes(long bytes) {
+    if (diskInfo != null) {
+      return diskInfo.acquireBytesFlushed(bytes);
+    } else {
+      return true;
+    }
   }
 
   public String getSortedPath() {
