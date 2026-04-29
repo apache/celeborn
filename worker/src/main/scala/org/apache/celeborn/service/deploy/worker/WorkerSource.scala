@@ -74,6 +74,11 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   addCounter(S3_FLUSH_COUNT)
   addCounter(S3_FLUSH_SIZE)
 
+  addCounter(METADATA_OPERATION_STATUS_COUNT, WRITE_FAIL_COUNT_LABELS)
+  addCounter(METADATA_OPERATION_STATUS_COUNT, WRITE_SUCCESS_COUNT_LABELS)
+  addCounter(METADATA_OPERATION_STATUS_COUNT, READ_FAIL_COUNT_LABELS)
+  addCounter(METADATA_OPERATION_STATUS_COUNT, READ_SUCCESS_COUNT_LABELS)
+
   // add timers
   addTimer(COMMIT_FILES_TIME)
   addTimer(RESERVE_SLOTS_TIME)
@@ -290,4 +295,17 @@ object WorkerSource {
   // clean
   val CLEAN_TASK_QUEUE_SIZE = "CleanTaskQueueSize"
   val CLEAN_EXPIRED_SHUFFLE_KEYS_TIME = "CleanExpiredShuffleKeysTime"
+
+  // metadata operations
+  val METADATA_OPERATION_STATUS_COUNT = "MetadataOperationStatusCount"
+  val WRITE_OPERATION_LABEL = Map("operation" -> "write")
+  val READ_OPERATION_LABEL = Map("operation" -> "read")
+
+  val SUCCESS_STATUS_LABEL = Map("status" -> "success")
+  val FAIL_STATUS_LABEL = Map("status" -> "fail")
+
+  val WRITE_FAIL_COUNT_LABELS = WRITE_OPERATION_LABEL ++ FAIL_STATUS_LABEL
+  val WRITE_SUCCESS_COUNT_LABELS = WRITE_OPERATION_LABEL ++ SUCCESS_STATUS_LABEL
+  val READ_FAIL_COUNT_LABELS = READ_OPERATION_LABEL ++ FAIL_STATUS_LABEL
+  val READ_SUCCESS_COUNT_LABELS = READ_OPERATION_LABEL ++ SUCCESS_STATUS_LABEL
 }

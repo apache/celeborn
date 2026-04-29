@@ -297,7 +297,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       val dbBackend = DBBackend.byName(conf.workerGracefulShutdownRecoverDbBackend)
       RECOVERY_FILE_NAME = dbBackend.fileName(RECOVERY_FILE_NAME_PREFIX)
       val recoverFile = new File(conf.workerGracefulShutdownRecoverPath, RECOVERY_FILE_NAME)
-      this.db = DBProvider.initDB(dbBackend, recoverFile, CURRENT_VERSION)
+      this.db = DBProvider.initDB(dbBackend, recoverFile, CURRENT_VERSION, workerSource)
       reloadAndCleanFileInfos(this.db)
     } catch {
       case e: Exception =>
