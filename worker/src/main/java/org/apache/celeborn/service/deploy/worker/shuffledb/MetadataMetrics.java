@@ -17,12 +17,12 @@
 
 package org.apache.celeborn.service.deploy.worker.shuffledb;
 
+import scala.collection.immutable.Map;
+
 import org.rocksdb.RocksDBException;
 
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
-
-import scala.collection.immutable.Map;
 
 /**
  * Records success/fail counters for metadata DB operations.
@@ -45,7 +45,19 @@ class MetadataMetrics {
   private final AbstractSource source;
 
   MetadataMetrics(AbstractSource source) {
+    // A null source disables metrics but does not break DB operations: missing telemetry is
+    // strictly preferable to failing every read/write. When non-null, idempotently register
+    // the four label combinations so callers that have not pre-registered these counters do
+    // not log a "Metric not found!" warning on every op (addCounter is putIfAbsent, so it is
+    // safe to call even when WorkerSource has already registered them).
     this.source = source;
+    if (source != null) {
+      String name = WorkerSource.METADATA_OPERATION_STATUS_COUNT();
+      source.addCounter(name, WorkerSource.WRITE_SUCCESS_COUNT_LABELS());
+      source.addCounter(name, WorkerSource.WRITE_FAIL_COUNT_LABELS());
+      source.addCounter(name, WorkerSource.READ_SUCCESS_COUNT_LABELS());
+      source.addCounter(name, WorkerSource.READ_FAIL_COUNT_LABELS());
+    }
   }
 
   void onWrite(ThrowingRunnable action) {
@@ -74,17 +86,25 @@ class MetadataMetrics {
   }
 
   private <T> T record(
-      ThrowingSupplier<T> action, Map<String, String> successLabels, Map<String, String> failLabels) {
+      ThrowingSupplier<T> action,
+      Map<String, String> successLabels,
+      Map<String, String> failLabels) {
     try {
       T result = action.get();
-      source.incCounter(WorkerSource.METADATA_OPERATION_STATUS_COUNT(), 1, successLabels);
+      incCounter(successLabels);
       return result;
     } catch (RocksDBException | RuntimeException e) {
-      source.incCounter(WorkerSource.METADATA_OPERATION_STATUS_COUNT(), 1, failLabels);
+      incCounter(failLabels);
       if (e instanceof RuntimeException) {
         throw (RuntimeException) e;
       }
       throw new RuntimeException(e);
+    }
+  }
+
+  private void incCounter(Map<String, String> labels) {
+    if (source != null) {
+      source.incCounter(WorkerSource.METADATA_OPERATION_STATUS_COUNT(), 1, labels);
     }
   }
 }

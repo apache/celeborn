@@ -72,6 +72,11 @@ public class RocksDB implements DB {
 
   @Override
   public void close() throws IOException {
-    db.close();
+    try {
+      db.close();
+    } finally {
+      // WriteOptions is a native handle; release it even if db.close() throws.
+      SYNC_WRITE_OPTIONS.close();
+    }
   }
 }

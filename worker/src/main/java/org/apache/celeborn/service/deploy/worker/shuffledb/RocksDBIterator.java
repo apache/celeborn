@@ -96,8 +96,7 @@ public class RocksDBIterator implements DBIterator {
     }
     return metrics.onRead(
         () -> {
-          Map.Entry<byte[], byte[]> nextEntry =
-              new AbstractMap.SimpleEntry<>(it.key(), it.value());
+          Map.Entry<byte[], byte[]> nextEntry = new AbstractMap.SimpleEntry<>(it.key(), it.value());
           it.next();
           it.status();
           return nextEntry;

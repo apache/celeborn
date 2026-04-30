@@ -29,7 +29,8 @@ import org.apache.celeborn.common.metrics.source.AbstractSource;
 public class DBProvider {
   private static final Logger logger = LoggerFactory.getLogger(DBProvider.class);
 
-  public static DB initDB(DBBackend dbBackend, File dbFile, StoreVersion version, AbstractSource source)
+  public static DB initDB(
+      DBBackend dbBackend, File dbFile, StoreVersion version, AbstractSource source)
       throws IOException {
     if (dbFile != null) {
       switch (dbBackend) {

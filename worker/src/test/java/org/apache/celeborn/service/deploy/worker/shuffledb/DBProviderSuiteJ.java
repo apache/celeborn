@@ -71,7 +71,9 @@ public class DBProviderSuiteJ {
       DBProvider.initDB(dbBackend, dbFile, v1, new WorkerSource(new CelebornConf())).close();
       StoreVersion v2 = new StoreVersion(2, 0);
       IOException ioe =
-          assertThrows(IOException.class, () -> DBProvider.initDB(dbBackend, dbFile, v2, new WorkerSource(new CelebornConf())));
+          assertThrows(
+              IOException.class,
+              () -> DBProvider.initDB(dbBackend, dbFile, v2, new WorkerSource(new CelebornConf())));
       assertTrue(ioe.getMessage().contains("incompatible with current version StoreVersion[2.0]"));
     } finally {
       JavaUtils.deleteRecursively(dbDir);
