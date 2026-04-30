@@ -148,7 +148,9 @@ class FetchHandler(
         val endIndices = openStreamList.getEndIndexList
         val readLocalFlags = openStreamList.getReadLocalShuffleList
         val pbOpenStreamListResponse = PbOpenStreamListResponse.newBuilder()
-        checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
+        val applicationId = Utils.splitShuffleKey(shuffleKey)._1
+        Utils.validateAppId(applicationId)
+        checkAuth(client, applicationId)
         val openStreamRequestId = Utils.makeOpenStreamRequestId(
           shuffleKey,
           client.getChannel.id().toString,
@@ -364,7 +366,9 @@ class FetchHandler(
       isLegacy: Boolean,
       readLocalShuffle: Boolean = false,
       callback: RpcResponseCallback): Unit = {
-    checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
+    val applicationId = Utils.splitShuffleKey(shuffleKey)._1
+    Utils.validateAppId(applicationId)
+    checkAuth(client, applicationId)
     workerSource.recordAppActiveConnection(client, shuffleKey)
     val requestId = Utils.makeOpenStreamRequestId(
       shuffleKey,
