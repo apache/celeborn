@@ -23,11 +23,14 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.metrics.source.AbstractSource;
+
 /** Note: code copied from Apache Spark. */
 public class DBProvider {
   private static final Logger logger = LoggerFactory.getLogger(DBProvider.class);
 
-  public static DB initDB(DBBackend dbBackend, File dbFile, StoreVersion version)
+  public static DB initDB(
+      DBBackend dbBackend, File dbFile, StoreVersion version, AbstractSource source)
       throws IOException {
     if (dbFile != null) {
       switch (dbBackend) {
@@ -37,7 +40,7 @@ public class DBProvider {
           return levelDB != null ? new LevelDB(levelDB) : null;
         case ROCKSDB:
           org.rocksdb.RocksDB rocksDB = RocksDBProvider.initRockDB(dbFile, version);
-          return rocksDB != null ? new RocksDB(rocksDB) : null;
+          return rocksDB != null ? new RocksDB(rocksDB, source) : null;
         default:
           throw new IllegalArgumentException("Unsupported DBBackend: " + dbBackend);
       }

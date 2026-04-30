@@ -32,6 +32,7 @@ import org.rocksdb.RocksIterator;
 public class RocksDBIterator implements DBIterator {
 
   private final RocksIterator it;
+  private final MetadataMetrics metrics;
 
   private boolean checkedNext;
 
@@ -39,8 +40,9 @@ public class RocksDBIterator implements DBIterator {
 
   private Map.Entry<byte[], byte[]> next;
 
-  public RocksDBIterator(RocksIterator it) {
+  public RocksDBIterator(RocksIterator it, MetadataMetrics metrics) {
     this.it = it;
+    this.metrics = metrics;
   }
 
   @Override
@@ -81,15 +83,23 @@ public class RocksDBIterator implements DBIterator {
 
   @Override
   public void seek(byte[] key) {
-    it.seek(key);
+    metrics.onRead(
+        () -> {
+          it.seek(key);
+          it.status();
+        });
   }
 
   private Map.Entry<byte[], byte[]> loadNext() {
-    if (it.isValid()) {
-      Map.Entry<byte[], byte[]> nextEntry = new AbstractMap.SimpleEntry<>(it.key(), it.value());
-      it.next();
-      return nextEntry;
+    if (!it.isValid()) {
+      return null;
     }
-    return null;
+    return metrics.onRead(
+        () -> {
+          Map.Entry<byte[], byte[]> nextEntry = new AbstractMap.SimpleEntry<>(it.key(), it.value());
+          it.next();
+          it.status();
+          return nextEntry;
+        });
   }
 }
