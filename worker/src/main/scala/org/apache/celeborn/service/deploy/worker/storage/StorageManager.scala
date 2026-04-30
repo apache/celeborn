@@ -1209,8 +1209,15 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val dir = dirs(getNextIndex % dirs.size)
         val mountPoint = DeviceInfo.getMountPoint(dir.getAbsolutePath, mountPoints)
         val shuffleDir = new File(dir, s"$appId/$shuffleId")
-        shuffleDir.mkdirs()
         val file = new File(shuffleDir, fileName)
+        // Defense in depth: ensure the resolved path stays under the working dir
+        // even if appId / shuffleId / fileName contained traversal characters.
+        val dirCanonical = dir.getCanonicalPath + File.separator
+        if (!file.getCanonicalPath.startsWith(dirCanonical)) {
+          throw new IOException(
+            s"Refusing to create shuffle file outside working dir: ${file.getCanonicalPath}")
+        }
+        shuffleDir.mkdirs()
         try {
           if (file.exists()) {
             throw new FileAlreadyExistsException(
