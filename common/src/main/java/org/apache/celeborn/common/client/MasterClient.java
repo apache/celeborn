@@ -42,6 +42,7 @@ import org.apache.celeborn.common.protocol.message.ControlMessages.OneWayMessage
 import org.apache.celeborn.common.protocol.message.MasterRequestMessage;
 import org.apache.celeborn.common.protocol.message.Message;
 import org.apache.celeborn.common.rpc.*;
+import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
 
@@ -112,7 +113,13 @@ public class MasterClient {
           try {
             sendMessageInner(message, OneWayMessageResponse$.class);
           } catch (Throwable e) {
-            LOG.warn("Exception occurs while send one-way message.", e);
+            if (ExceptionUtils.isMasterNotLeader(e)) {
+              LOG.info(
+                  "Exception occurs while send one-way message: {}",
+                  ExceptionUtils.getRootCauseMessage(e));
+            } else {
+              LOG.warn("Exception occurs while send one-way message.", e);
+            }
           }
         });
     LOG.debug("Send one-way message {}.", message);
@@ -164,7 +171,15 @@ public class MasterClient {
       }
     }
 
-    LOG.error("Send rpc with failure, has tried {}, max try {}!", numTries, maxRetries, throwable);
+    if (ExceptionUtils.isMasterNotLeader(throwable)) {
+      LOG.warn(
+          "Send rpc with failure, has tried {}, max try {}: {}",
+          numTries,
+          maxRetries,
+          ExceptionUtils.getRootCauseMessage(throwable));
+    } else {
+      LOG.error("Send rpc with failure, has tried {}, max try {}!", numTries, maxRetries, throwable);
+    }
     throw throwable;
   }
 
@@ -180,7 +195,7 @@ public class MasterClient {
       if (!leaderAddr.equals(MasterNotLeaderException.LEADER_NOT_PRESENTED)) {
         setRpcEndpointRef(leaderAddr);
       } else {
-        LOG.warn("Master leader is not present currently, please check masters' status!");
+        LOG.info("Master leader is not present currently, will retry with another master.");
         resetRpcEndpointRef(oldRef);
       }
       return true;

@@ -35,6 +35,7 @@ import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
+import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
 import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
@@ -464,7 +465,14 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {
-      LOG.error("Handle app meta for {} failed!", applicationMeta.appId(), e);
+      if (ExceptionUtils.isMasterNotLeader(e)) {
+        LOG.info(
+            "Skip handling app meta for {} because this master is not leader. Cause: {}",
+            applicationMeta.appId(),
+            ExceptionUtils.getRootCauseMessage(e));
+      } else {
+        LOG.error("Handle app meta for {} failed!", applicationMeta.appId(), e);
+      }
       throw e;
     }
   }

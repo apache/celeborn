@@ -48,6 +48,7 @@ import org.apache.celeborn.common.protocol.PbRegisterApplicationRequest;
 import org.apache.celeborn.common.protocol.PbRegisterApplicationResponse;
 import org.apache.celeborn.common.protocol.PbSaslMechanism;
 import org.apache.celeborn.common.protocol.PbSaslRequest;
+import org.apache.celeborn.common.util.ExceptionUtils;
 
 /**
  * RPC Handler which registers an application. If an application is registered or the connection is
@@ -121,12 +122,22 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
       try {
         processRpcMessage(client, rpcRequest, callback);
       } catch (Exception e) {
-        LOG.error("Error while invoking RpcHandler#receive() on RPC id " + rpcRequest.requestId, e);
+        String errorString;
+        if (ExceptionUtils.isMasterNotLeader(e)) {
+          errorString = ExceptionUtils.getMasterNotLeaderMessage(e);
+          LOG.info(
+              "Rejecting registration RPC id {} because this master is not leader. Cause: {}",
+              rpcRequest.requestId,
+              errorString);
+        } else {
+          errorString = Throwables.getStackTraceAsString(e);
+          LOG.error(
+              "Error while invoking RpcHandler#receive() on RPC id " + rpcRequest.requestId, e);
+        }
         registrationState = RegistrationState.FAILED;
         client
             .getChannel()
-            .writeAndFlush(
-                new RpcFailure(rpcRequest.requestId, Throwables.getStackTraceAsString(e)));
+            .writeAndFlush(new RpcFailure(rpcRequest.requestId, errorString));
       }
     }
   }

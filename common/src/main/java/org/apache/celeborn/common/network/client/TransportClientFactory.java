@@ -47,6 +47,7 @@ import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBootstrap;
 import org.apache.celeborn.common.network.server.TransportChannelHandler;
 import org.apache.celeborn.common.network.util.*;
+import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 
@@ -165,12 +166,20 @@ public class TransportClientFactory implements Closeable {
           throw e;
         }
         numTries++;
-        logger.warn(
-            "Retry create client, times {}/{} with error: {}",
-            numTries,
-            maxClientConnectRetries,
-            e.getMessage(),
-            e);
+        if (ExceptionUtils.isMasterNotLeader(e)) {
+          logger.info(
+              "Retry create client, times {}/{} because master is not leader: {}",
+              numTries,
+              maxClientConnectRetries,
+              ExceptionUtils.getRootCauseMessage(e));
+        } else {
+          logger.warn(
+              "Retry create client, times {}/{} with error: {}",
+              numTries,
+              maxClientConnectRetries,
+              e.getMessage(),
+              e);
+        }
         if (numTries == maxClientConnectRetries) {
           throw e;
         }
@@ -365,10 +374,17 @@ public class TransportClientFactory implements Closeable {
           }
         }
         if (notLeader != null) {
-          logger.warn(
-              "Attempted to register with a Master that is not the leader after {}: Suggested leader is {}",
+          logger.info(
+              "Attempted to register with a Master that is not the leader after {}; retrying with"
+                  + " suggested leader {}",
               Utils.nanoDurationToString(bootstrapTime),
               notLeader.getSuggestedLeaderAddress());
+        } else if (ExceptionUtils.isMasterNotLeader(e)) {
+          logger.info(
+              "Master is not leader while bootstrapping client after {}; retrying with another"
+                  + " master. Cause: {}",
+              Utils.nanoDurationToString(bootstrapTime),
+              ExceptionUtils.getRootCauseMessage(e));
         } else {
           logger.error(
               "Exception while bootstrapping client after {}",
