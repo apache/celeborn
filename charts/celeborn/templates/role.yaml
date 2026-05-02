@@ -20,7 +20,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: {{ include "celeborn.role.name" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "celeborn.namespace" . }}
   labels:
     {{- include "celeborn.labels" . | nindent 4 }}
 rules:
@@ -28,4 +28,3 @@ rules:
   resources: ["pods"]
   verbs: ["create", "list", "delete"]
 {{- end }}
-

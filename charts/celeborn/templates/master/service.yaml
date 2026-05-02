@@ -22,7 +22,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "celeborn.master.service.name" $ }}-{{ $i }}
-  namespace: {{ $.Release.Namespace }}
+  namespace: {{ include "celeborn.namespace" $ }}
   labels:
     {{- include "celeborn.labels" $ | nindent 4 }}
   annotations:
@@ -51,7 +51,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "celeborn.master.service.name" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "celeborn.namespace" . }}
   labels:
     {{- include "celeborn.master.labels" . | nindent 4 }}
   annotations:

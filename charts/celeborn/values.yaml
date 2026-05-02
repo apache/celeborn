@@ -25,6 +25,9 @@ nameOverride: ""
 # -- String to override the default generated fullname
 fullnameOverride: ""
 
+# -- String to override the release namespace for rendered resources and in-cluster DNS
+namespaceOverride: ""
+
 # Specifies the Celeborn image to use
 image:
   # -- Image registry

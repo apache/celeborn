@@ -21,7 +21,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
   name: {{ include "celeborn.worker.podMonitor.name" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "celeborn.namespace" . }}
   labels:
     {{- include "celeborn.worker.labels" . | nindent 4 }}
 spec:
@@ -33,7 +33,7 @@ spec:
   jobLabel: celeborn-worker-podmonitor
   namespaceSelector:
     matchNames:
-    - {{ .Release.Namespace }}
+    - {{ include "celeborn.namespace" . }}
   selector:
     matchLabels:
       {{- include "celeborn.worker.selectorLabels" . | nindent 6 }}

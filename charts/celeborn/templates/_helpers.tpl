@@ -76,6 +76,11 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 {{- end }}
 
+{{/* Resolve the namespace used by Celeborn resources and in-cluster DNS. */}}
+{{- define "celeborn.namespace" -}}
+{{- default .Release.Namespace .Values.namespaceOverride -}}
+{{- end }}
+
 {{/* Create the name of the role to use. */}}
 {{- define "celeborn.role.name" -}}
 {{- if .Values.rbac.create }}
