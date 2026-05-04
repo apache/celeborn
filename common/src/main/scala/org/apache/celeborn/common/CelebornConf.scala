@@ -2763,7 +2763,7 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val HA_MASTER_GRACEFUL_SHUTDOWN_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.master.ha.gracefulShutdown.enabled")
+    buildConf("celeborn.master.ha.graceful.shutdown.enabled")
       .categories("ha")
       .version("0.7.0")
       .doc("When true, the master will transfer Raft leadership " +

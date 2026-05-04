@@ -1873,7 +1873,7 @@ public class RatisMasterStatusSystemSuiteJ {
   }
 
   @Test
-  public void testGracefulLeaderShutdownStepDown() {
+  public void testLeaderStepDownOnLogFailed() {
     // Identify the current leader
     HARaftServer leader = null;
     for (HARaftServer server : Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3)) {

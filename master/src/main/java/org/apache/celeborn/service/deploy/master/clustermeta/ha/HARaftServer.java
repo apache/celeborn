@@ -305,6 +305,7 @@ public class HARaftServer {
       server.close();
       LOG.info("Raft server {} closed.", server.getId());
     } catch (IOException e) {
+      stopped.set(false);
       LOG.error("Error while stopping Raft server {}.", server.getId(), e);
       throw new RuntimeException(e);
     }
