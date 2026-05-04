@@ -101,6 +101,22 @@ tests:
           path: spec.replicas
           value: 10
 
+  - it: Should use RollingUpdate as the default worker update strategy
+    template: worker/statefulset.yaml
+    asserts:
+      - equal:
+          path: spec.updateStrategy.type
+          value: RollingUpdate
+
+  - it: Should use the specified worker update strategy
+    template: worker/statefulset.yaml
+    set:
+      worker.updateStrategy.type: OnDelete
+    asserts:
+      - equal:
+          path: spec.updateStrategy.type
+          value: OnDelete
+
   - it: Should use the specified terminationGracePeriodSeconds if `worker.terminationGracePeriodSeconds` is set
     template: worker/statefulset.yaml
     set:

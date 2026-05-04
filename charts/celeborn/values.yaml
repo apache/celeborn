@@ -231,6 +231,10 @@ worker:
   # -- Number of Celeborn worker replicas to deploy, should less than node number.
   replicas: 5
 
+  # -- Update strategy for the Celeborn worker StatefulSet.
+  updateStrategy:
+    type: RollingUpdate
+
   # -- Annotations for Celeborn worker pods.
   annotations:
     # key1: value1

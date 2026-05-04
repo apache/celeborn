@@ -24,6 +24,8 @@ metadata:
     {{- include "celeborn.worker.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.worker.replicas }}
+  updateStrategy:
+    {{- toYaml .Values.worker.updateStrategy | nindent 4 }}
   selector:
     matchLabels:
       {{- include "celeborn.worker.selectorLabels" . | nindent 6 }}
