@@ -1899,19 +1899,32 @@ public class RatisMasterStatusSystemSuiteJ {
         "CLOSED",
         leader.getServer().getLifeCycleState().name());
 
-    // Wait until the cluster has a leader again, so subsequent tests can proceed.
+    // Wait until the cluster has a ready leader again, so subsequent tests can proceed.
     // Any of the three peers may win the ensuing election (including the one that
     // just stepped down, since TransferLeadershipRequest with a null target just
     // demotes the leader to follower and lets the normal election protocol run).
-    boolean leaderElected = false;
+    // We require isLeaderReady(), not just isLeader(): a newly elected leader rejects
+    // writes with LeaderNotReadyException until its no-op log entry for the new term
+    // has been committed.
+    boolean leaderReady = false;
     for (int i = 0; i < 60; i++) {
       for (HARaftServer server : Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3)) {
         if (server.isLeader()) {
-          leaderElected = true;
-          break;
+          try {
+            if (server
+                .getServer()
+                .getDivision(server.getGroupId())
+                .getInfo()
+                .isLeaderReady()) {
+              leaderReady = true;
+              break;
+            }
+          } catch (IOException e) {
+            // Division not available yet; keep polling.
+          }
         }
       }
-      if (leaderElected) break;
+      if (leaderReady) break;
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e) {
@@ -1919,7 +1932,8 @@ public class RatisMasterStatusSystemSuiteJ {
         break;
       }
     }
-    Assert.assertTrue("A leader should be elected after step down", leaderElected);
+    Assert.assertTrue(
+        "A ready leader should be elected after step down so later tests can run", leaderReady);
   }
 
   @AfterClass
