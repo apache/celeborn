@@ -1911,11 +1911,7 @@ public class RatisMasterStatusSystemSuiteJ {
       for (HARaftServer server : Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3)) {
         if (server.isLeader()) {
           try {
-            if (server
-                .getServer()
-                .getDivision(server.getGroupId())
-                .getInfo()
-                .isLeaderReady()) {
+            if (server.getServer().getDivision(server.getGroupId()).getInfo().isLeaderReady()) {
               leaderReady = true;
               break;
             }
