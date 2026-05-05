@@ -163,7 +163,8 @@ class ApplicationHeartbeater(
       logInfo(s"Unregister Application $appId with response status: ${response.status}")
     } catch {
       case e: Exception =>
-        logWarning("AskSync unRegisterApplication failed.", e)
+        logWarning("AskSync unRegisterApplication failed during shutdown.")
+        logDebug("AskSync unRegisterApplication failed.", e)
     }
   }
 

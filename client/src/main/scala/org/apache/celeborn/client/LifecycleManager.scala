@@ -1807,7 +1807,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         classOf[PbUnregisterShuffleResponse])
     } catch {
       case e: Exception =>
-        logError(s"AskSync UnregisterShuffle for ${message.getShuffleId} failed.", e)
+        logWarning(
+          s"AskSync UnregisterShuffle for ${message.getShuffleId} failed; will retry later.")
+        logDebug(s"AskSync UnregisterShuffle for ${message.getShuffleId} failed.", e)
         UnregisterShuffleResponse(StatusCode.REQUEST_FAILED)
     }
   }
@@ -1821,7 +1823,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         classOf[PbBatchUnregisterShuffleResponse])
     } catch {
       case e: Exception =>
-        logError(s"AskSync BatchUnregisterShuffle for ${message.getShuffleIdsList} failed.", e)
+        logWarning(
+          s"AskSync BatchUnregisterShuffle for ${message.getShuffleIdsList} failed; " +
+            "will retry later.")
+        logDebug(s"AskSync BatchUnregisterShuffle for ${message.getShuffleIdsList} failed.", e)
         BatchUnregisterShuffleResponse(StatusCode.REQUEST_FAILED)
     }
   }

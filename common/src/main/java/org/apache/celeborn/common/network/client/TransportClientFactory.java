@@ -174,11 +174,12 @@ public class TransportClientFactory implements Closeable {
               ExceptionUtils.getRootCauseMessage(e));
         } else {
           logger.warn(
-              "Retry create client, times {}/{} with error: {}",
+              "Retry create client to {}:{}, times {}/{}. Enable DEBUG for stack trace.",
+              remoteHost,
+              remotePort,
               numTries,
-              maxClientConnectRetries,
-              e.getMessage(),
-              e);
+              maxClientConnectRetries);
+          logger.debug("Retry create client failed.", e);
         }
         if (numTries == maxClientConnectRetries) {
           throw e;
@@ -386,8 +387,13 @@ public class TransportClientFactory implements Closeable {
               Utils.nanoDurationToString(bootstrapTime),
               ExceptionUtils.getRootCauseMessage(e));
         } else {
-          logger.error(
-              "Exception while bootstrapping client after {}",
+          logger.warn(
+              "Client bootstrap to {} failed after {}. Enable DEBUG for stack trace.",
+              address,
+              Utils.nanoDurationToString(bootstrapTime));
+          logger.debug(
+              "Client bootstrap to {} failed after {}.",
+              address,
               Utils.nanoDurationToString(bootstrapTime),
               e);
         }

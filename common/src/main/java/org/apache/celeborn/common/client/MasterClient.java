@@ -118,7 +118,8 @@ public class MasterClient {
                   "Exception occurs while send one-way message: {}",
                   ExceptionUtils.getRootCauseMessage(e));
             } else {
-              LOG.warn("Exception occurs while send one-way message.", e);
+              LOG.warn("Failed to send one-way message. Enable DEBUG for stack trace.");
+              LOG.debug("Failed to send one-way message.", e);
             }
           }
         });
@@ -178,7 +179,11 @@ public class MasterClient {
           maxRetries,
           ExceptionUtils.getRootCauseMessage(throwable));
     } else {
-      LOG.error("Send rpc with failure, has tried {}, max try {}!", numTries, maxRetries, throwable);
+      LOG.warn(
+          "Send rpc failed after {} tries, max try {}. Enable DEBUG for stack trace.",
+          numTries,
+          maxRetries);
+      LOG.debug("Send rpc failed after {} tries, max try {}.", numTries, maxRetries, throwable);
     }
     throw throwable;
   }
