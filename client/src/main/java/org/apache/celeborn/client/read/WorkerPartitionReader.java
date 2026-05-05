@@ -61,6 +61,11 @@ public class WorkerPartitionReader implements PartitionReader {
   private int chunkIndex;
   private int startChunkIndex;
   private int endChunkIndex;
+  private int readerChunkCount;
+  private int chunkFetchRequestCount;
+  private int chunkFetchSuccessCount;
+  private int chunkFetchFailureCount;
+  private long partitionReaderWaitTimeMs;
 
   private int inflightRequestCount;
   private final LinkedBlockingQueue<Pair<Integer, ByteBuf>> results;
@@ -116,6 +121,8 @@ public class WorkerPartitionReader implements PartitionReader {
                 results.add(Pair.of(chunkIndex, buf));
               }
             }
+            chunkFetchSuccessCount++;
+            metricsCallback.incChunkFetchSuccessCount(1);
           }
 
           @Override
@@ -123,6 +130,8 @@ public class WorkerPartitionReader implements PartitionReader {
             String errorMsg =
                 String.format("Fetch chunk %d of shuffle key %s failed.", chunkIndex, shuffleKey);
             logger.error(errorMsg, e);
+            chunkFetchFailureCount++;
+            metricsCallback.incChunkFetchFailureCount(1);
             exception.set(new CelebornIOException(errorMsg, e));
           }
         };
@@ -134,6 +143,7 @@ public class WorkerPartitionReader implements PartitionReader {
     }
 
     if (pbStreamHandler == null) {
+      long openStreamStartTime = System.nanoTime();
       TransportMessage openStreamMsg =
           new TransportMessage(
               MessageType.OPEN_STREAM,
@@ -144,8 +154,13 @@ public class WorkerPartitionReader implements PartitionReader {
                   .setEndIndex(endMapIndex)
                   .build()
                   .toByteArray());
-      ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
-      this.streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
+      try {
+        ByteBuffer response = client.sendRpcSync(openStreamMsg.toByteBuffer(), fetchTimeoutMs);
+        this.streamHandler = TransportMessage.fromByteBuffer(response).getParsedPayload();
+      } finally {
+        metricsCallback.incOpenStreamTime(
+            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - openStreamStartTime));
+      }
     } else {
       this.streamHandler = pbStreamHandler;
     }
@@ -154,6 +169,8 @@ public class WorkerPartitionReader implements PartitionReader {
         endChunkIndex == -1
             ? streamHandler.getNumChunks() - 1
             : Math.min(streamHandler.getNumChunks() - 1, endChunkIndex);
+    readerChunkCount = Math.max(0, this.endChunkIndex - this.startChunkIndex + 1);
+    metricsCallback.incReaderChunkCount(readerChunkCount);
     this.chunkIndex = this.startChunkIndex;
     this.location = location;
     this.clientFactory = clientFactory;
@@ -201,7 +218,9 @@ public class WorkerPartitionReader implements PartitionReader {
         Long startFetchWait = System.nanoTime();
         chunk = results.poll(pollChunkWaitTime, TimeUnit.MILLISECONDS);
         long waitTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait);
+        partitionReaderWaitTimeMs += waitTimeMs;
         metricsCallback.incReadTime(waitTimeMs);
+        metricsCallback.incPartitionReaderWaitTime(waitTimeMs);
         totalWaitTimeMs += waitTimeMs;
         // Log when wait time exceeds another threshold since last log
         if (chunk == null && totalWaitTimeMs >= lastLogTimeMs + partitionReaderWaitLogThreshold) {
@@ -237,6 +256,17 @@ public class WorkerPartitionReader implements PartitionReader {
     synchronized (this) {
       closed = true;
     }
+    logger.info(
+        "Closing worker partition reader for shuffle {}, file {}, worker {}, chunks {}, "
+            + "chunk fetch requests {}, successes {}, failures {}, wait {}ms",
+        shuffleKey,
+        location.getFileName(),
+        location.hostAndPorts(),
+        readerChunkCount,
+        chunkFetchRequestCount,
+        chunkFetchSuccessCount,
+        chunkFetchFailureCount,
+        partitionReaderWaitTimeMs);
     if (results.size() > 0) {
       results.forEach(
           chunk -> {
@@ -309,6 +339,8 @@ public class WorkerPartitionReader implements PartitionReader {
               throw e;
             }
           }
+          chunkFetchRequestCount++;
+          metricsCallback.incChunkFetchRequestCount(1);
           client.fetchChunk(streamHandler.getStreamId(), chunkIndex, fetchTimeoutMs, callback);
           inflightRequestCount++;
           chunkIndex++;

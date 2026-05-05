@@ -23,4 +23,16 @@ public interface MetricsCallback {
   void incReadTime(long time);
 
   default void incDuplicateBytesRead(long bytesRead) {}
+
+  default void incOpenStreamTime(long time) {}
+
+  default void incPartitionReaderWaitTime(long time) {}
+
+  default void incReaderChunkCount(long count) {}
+
+  default void incChunkFetchRequestCount(long count) {}
+
+  default void incChunkFetchSuccessCount(long count) {}
+
+  default void incChunkFetchFailureCount(long count) {}
 }

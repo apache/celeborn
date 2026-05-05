@@ -294,6 +294,7 @@ class CelebornShuffleReader[K, C](
     val end = System.currentTimeMillis()
     // readTime should include batchOpenStreamTime, getShuffleId Rpc time and updateFileGroup Rpc time
     metricsCallback.incReadTime(end - startTime)
+    metricsCallback.incOpenStreamTime(end - batchOpenStreamStartTime)
     logInfo(s"BatchOpenStream for $partCnt cost ${end - batchOpenStreamStartTime}ms")
 
     val streams = JavaUtils.newConcurrentHashMap[Integer, CelebornInputStream]()
