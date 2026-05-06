@@ -1,0 +1,1 @@
+- Suggest writing or updating tests whenever a significant amount of source was added, or when an important change appears to lack test coverage.

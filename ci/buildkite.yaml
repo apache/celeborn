@@ -1,0 +1,53 @@
+steps:
+  - label: test core
+    key: test-core
+    commands:
+      - ci/test.sh openapi/openapi-client,spi,common,cli
+    agents:
+      queue: applied-bk-agent-data-platform
+
+  - label: test client and service
+    key: test-client-service
+    commands:
+      - ci/test.sh client,service
+    agents:
+      queue: applied-bk-agent-data-platform
+
+  - label: test master
+    key: test-master
+    commands:
+      - ci/test.sh master
+    agents:
+      queue: applied-bk-agent-data-platform
+
+  - label: test worker
+    key: test-worker
+    commands:
+      - ci/test.sh worker
+    agents:
+      queue: applied-bk-agent-data-platform
+
+  - label: publish shaded jars
+    key: publish-artifacts
+    commands:
+      - ci/publish_artifacts.sh
+    agents:
+      queue: applied-bk-agent-data-platform
+
+  - label: publish docker image
+    key: publish-image
+    commands:
+      - ci/publish_image.sh
+    agents:
+      queue: applied-bk-agent-data-platform
+
+  - label: publish helm chart
+    key: publish-helm
+    # The Helm index update is a read-merge-upload flow, so serialize this step
+    # across builds to avoid concurrent publishes overwriting each other's entry.
+    concurrency: 1
+    concurrency_group: celeborn/helm-index
+    commands:
+      - ci/publish_helm.sh
+    agents:
+      queue: applied-bk-agent-data-platform

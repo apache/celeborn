@@ -375,27 +375,20 @@ object CelebornCommonSettings {
     publishMavenStyle := true,
     publishArtifact := true,
     Test / publishArtifact := false,
-    credentials += {
-      val host = publishTo.value.map {
-        case repo: MavenRepo => scala.util.Try(new java.net.URL(repo.root)).map(_.getHost).getOrElse("repository.apache.org")
-        case _ => "repository.apache.org"
-      }.get
-
+    credentials ++= sys.env.get("ARTIFACTORY_TOKEN").map { token =>
       Credentials(
-        // Credentials matching is done using both: realm and host keys, sbt/sbt#2366 allows using
-        // credential without a realm by providing an empty string for realm.
-        "" /* realm */,
-        host,
-        sys.env.getOrElse("ASF_USERNAME", ""),
-        sys.env.getOrElse("ASF_PASSWORD", ""))
-    },
+        realm = "Artifactory Realm",
+        host = "artifactory.gateway.data-0.internal.api.openai.org",
+        userName = sys.env.getOrElse("ARTIFACTORY_USER", ""),
+        passwd = token)
+    }.toSeq,
     publishTo := {
-      if (isSnapshot.value) {
-        val publishUrl = sys.env.getOrElse("SONATYPE_SNAPSHOTS_URL", "https://repository.apache.org/content/repositories/snapshots")
-        Some(("snapshots" at publishUrl).withAllowInsecureProtocol(true))
+      val releaseVersion = version.value
+      val artifactoryBase = "https://artifactory.gateway.data-0.internal.api.openai.org/artifactory"
+      if (releaseVersion.endsWith("-SNAPSHOT")) {
+        Some("snapshots" at s"$artifactoryBase/libs-snapshot-local")
       } else {
-        val publishUrl = sys.env.getOrElse("SONATYPE_RELEASES_URL", "https://repository.apache.org/service/local/staging/deploy/maven2")
-        Some(("releases" at publishUrl).withAllowInsecureProtocol(true))
+        Some("releases" at s"$artifactoryBase/libs-release-local")
       }
     },
     licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")),

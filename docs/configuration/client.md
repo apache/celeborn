@@ -24,6 +24,7 @@ license: |
 | celeborn.client.application.info.provider | org.apache.celeborn.common.client.DefaultApplicationInfoProvider | false | ApplicationInfoProvider class name. Default class is `org.apache.celeborn.common.client.DefaultApplicationInfoProvider`. Optional values: org.apache.celeborn.common.identity.DefaultIdentityProvider user name and tenant id are default values or user-specific values. | 0.6.1 |  | 
 | celeborn.client.application.info.user-specific |  | false | User specific information for application registration, pattern is `<key1>=<value1>[,<key2>=<value2>]*`, e.g. `cluster=celeborn`. | 0.6.1 |  | 
 | celeborn.client.application.unregister.enabled | true | false | When true, Celeborn client will inform celeborn master the application is already shutdown during client exit, this allows the cluster to release resources immediately, resulting in resource savings. | 0.3.2 |  | 
+| celeborn.client.application.unregister.timeout | 10s | false | Max time to wait for application unregister during client shutdown before continuing exit. | 0.6.1 |  | 
 | celeborn.client.application.uuidSuffix.enabled | false | false | Whether to add UUID suffix for application id for unique. When `true`, add UUID suffix for unique application id. Currently, this only applies to Spark and MR. | 0.6.0 |  | 
 | celeborn.client.chunk.prefetch.enabled | false | false | Whether to enable chunk prefetch when creating CelebornInputStream. | 0.5.1 |  | 
 | celeborn.client.closeIdleConnections | true | false | Whether client will close idle connections. | 0.3.0 |  | 
@@ -52,7 +53,7 @@ license: |
 | celeborn.client.inputStream.creation.window | 16 | false | Window size that CelebornShuffleReader pre-creates CelebornInputStreams, for coalesced scenario where multiple Partitions are read | 0.5.1 |  | 
 | celeborn.client.mr.pushData.max | 32m | false | Max size for a push data sent from mr client. | 0.4.0 |  | 
 | celeborn.client.partition.reader.checkpoint.enabled | false | false | Whether or not checkpoint reads when re-creating a partition reader. Setting to true minimizes the amount of unnecessary reads during partition read retries | 0.6.0 |  | 
-| celeborn.client.partition.reader.waitLog.threshold | 60s | false | The threshold in milliseconds for logging partition read wait time. Log messages will be generated when wait time exceeds multiples of this threshold. | 0.6.2 |  |
+| celeborn.client.partition.reader.waitLog.threshold | 60s | false | The threshold in milliseconds for logging partition read wait time. Log messages will be generated when wait time exceeds multiples of this threshold. | 0.6.2 |  | 
 | celeborn.client.push.buffer.initial.size | 8k | false |  | 0.3.0 | celeborn.push.buffer.initial.size | 
 | celeborn.client.push.buffer.max.size | 64k | false | Max size of reducer partition buffer memory for shuffle hash writer. The pushed data will be buffered in memory before sending to Celeborn worker. For performance consideration keep this buffer size higher than 32K. Example: If reducer amount is 2000, buffer size is 64K, then each task will consume up to `64KiB * 2000 = 125MiB` heap memory. | 0.3.0 | celeborn.push.buffer.max.size | 
 | celeborn.client.push.excludeWorkerOnFailure.enabled | false | false | Whether to enable shuffle client-side push exclude workers on failures. | 0.3.0 |  | 

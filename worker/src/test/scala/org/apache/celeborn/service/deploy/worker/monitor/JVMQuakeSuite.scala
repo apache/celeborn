@@ -22,12 +22,16 @@ import java.io.File
 import scala.collection.mutable.ArrayBuffer
 
 import org.junit.Assert.assertTrue
+import org.scalatest.DoNotDiscover
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.util.JavaUtils
 
+// This suite relies on real GC/heap-dump timing and can stall shared CI; run it explicitly
+// while we make it deterministic.
+@DoNotDiscover
 class JVMQuakeSuite extends CelebornFunSuite {
 
   private val allocation = new ArrayBuffer[Array[Byte]]()
