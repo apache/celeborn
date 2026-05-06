@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
+import java.lang.reflect.Method
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
@@ -125,15 +126,7 @@ class CelebornShuffleReader[K, C](
       s"get shuffleId $shuffleId for appShuffleId ${handle.shuffleId} attemptNum ${context.stageAttemptNumber()}")
 
     // Update the context task metrics for each record read.
-    val metricsCallback = new MetricsCallback {
-      override def incBytesRead(bytesWritten: Long): Unit = {
-        metrics.incRemoteBytesRead(bytesWritten)
-        metrics.incRemoteBlocksFetched(1)
-      }
-
-      override def incReadTime(time: Long): Unit =
-        metrics.incFetchWaitTime(time)
-    }
+    val metricsCallback = CelebornShuffleReader.createMetricsCallback(metrics)
 
     if (streamCreatorPool == null) {
       CelebornShuffleReader.synchronized {
@@ -539,6 +532,82 @@ class CelebornShuffleReader[K, C](
 
 object CelebornShuffleReader {
   var streamCreatorPool: ThreadPoolExecutor = null
+
+  private val NOOP_METRIC_UPDATE: Long => Unit = _ => ()
+
+  private def optionalMetricUpdate(
+      metrics: ShuffleReadMetricsReporter,
+      methodName: String): Long => Unit = {
+    try {
+      val method = metrics.getClass.getMethod(methodName, java.lang.Long.TYPE)
+      method.setAccessible(true)
+      new OptionalMetricUpdate(metrics, method)
+    } catch {
+      case _: ReflectiveOperationException | _: RuntimeException =>
+        NOOP_METRIC_UPDATE
+    }
+  }
+
+  private class OptionalMetricUpdate(metrics: ShuffleReadMetricsReporter, method: Method)
+    extends (Long => Unit) {
+    @volatile private var enabled = true
+
+    override def apply(value: Long): Unit = {
+      if (enabled) {
+        try {
+          method.invoke(metrics, Long.box(value))
+        } catch {
+          case _: ReflectiveOperationException | _: RuntimeException =>
+            enabled = false
+        }
+      }
+    }
+  }
+
+  private[celeborn] def createMetricsCallback(
+      metrics: ShuffleReadMetricsReporter): MetricsCallback = {
+    val incCelebornOpenStreamTime =
+      optionalMetricUpdate(metrics, "incCelebornOpenStreamTime")
+    val incCelebornPartitionReaderWaitTime =
+      optionalMetricUpdate(metrics, "incCelebornPartitionReaderWaitTime")
+    val incCelebornReaderChunkCount =
+      optionalMetricUpdate(metrics, "incCelebornReaderChunkCount")
+    val incCelebornChunkFetchRequestCount =
+      optionalMetricUpdate(metrics, "incCelebornChunkFetchRequestCount")
+    val incCelebornChunkFetchSuccessCount =
+      optionalMetricUpdate(metrics, "incCelebornChunkFetchSuccessCount")
+    val incCelebornChunkFetchFailureCount =
+      optionalMetricUpdate(metrics, "incCelebornChunkFetchFailureCount")
+
+    new MetricsCallback {
+      override def incBytesRead(bytesWritten: Long): Unit = {
+        metrics.incRemoteBytesRead(bytesWritten)
+        metrics.incRemoteBlocksFetched(1)
+      }
+
+      override def incReadTime(time: Long): Unit =
+        metrics.incFetchWaitTime(time)
+
+      override def incOpenStreamTime(time: Long): Unit =
+        incCelebornOpenStreamTime(time)
+
+      override def incPartitionReaderWaitTime(time: Long): Unit =
+        incCelebornPartitionReaderWaitTime(time)
+
+      override def incReaderChunkCount(count: Long): Unit =
+        incCelebornReaderChunkCount(count)
+
+      override def incChunkFetchRequestCount(count: Long): Unit =
+        incCelebornChunkFetchRequestCount(count)
+
+      override def incChunkFetchSuccessCount(count: Long): Unit =
+        incCelebornChunkFetchSuccessCount(count)
+
+      override def incChunkFetchFailureCount(count: Long): Unit =
+        incCelebornChunkFetchFailureCount(count)
+    }
+  }
+
   // Register the deserializer for GetReducerFileGroupResponse broadcast
   ShuffleClient.registerDeserializeReducerFileGroupResponseFunction(new BiFunction[
     Integer,

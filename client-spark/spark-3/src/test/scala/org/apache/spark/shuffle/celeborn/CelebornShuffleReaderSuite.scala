@@ -34,6 +34,51 @@ import org.apache.celeborn.common.identity.UserIdentifier
 
 class CelebornShuffleReaderSuite extends AnyFunSuite {
 
+  private class BaseMetricsReporter extends ShuffleReadMetricsReporter {
+    override def incRemoteBlocksFetched(v: Long): Unit = {}
+    override def incLocalBlocksFetched(v: Long): Unit = {}
+    override def incRemoteBytesRead(v: Long): Unit = {}
+    override def incRemoteBytesReadToDisk(v: Long): Unit = {}
+    override def incLocalBytesRead(v: Long): Unit = {}
+    override def incFetchWaitTime(v: Long): Unit = {}
+    override def incRecordsRead(v: Long): Unit = {}
+    override def incCorruptMergedBlockChunks(v: Long): Unit = {}
+    override def incMergedFetchFallbackCount(v: Long): Unit = {}
+    override def incRemoteMergedBlocksFetched(v: Long): Unit = {}
+    override def incLocalMergedBlocksFetched(v: Long): Unit = {}
+    override def incRemoteMergedChunksFetched(v: Long): Unit = {}
+    override def incLocalMergedChunksFetched(v: Long): Unit = {}
+    override def incRemoteMergedBytesRead(v: Long): Unit = {}
+    override def incLocalMergedBytesRead(v: Long): Unit = {}
+    override def incRemoteReqsDuration(v: Long): Unit = {}
+    override def incRemoteMergedReqsDuration(v: Long): Unit = {}
+  }
+
+  private class CelebornMetricsReporter extends BaseMetricsReporter {
+    var openStreamTime = 0L
+    var partitionReaderWaitTime = 0L
+    var readerChunkCount = 0L
+    var chunkFetchRequestCount = 0L
+    var chunkFetchSuccessCount = 0L
+    var chunkFetchFailureCount = 0L
+
+    def incCelebornOpenStreamTime(v: Long): Unit = openStreamTime += v
+    def incCelebornPartitionReaderWaitTime(v: Long): Unit = partitionReaderWaitTime += v
+    def incCelebornReaderChunkCount(v: Long): Unit = readerChunkCount += v
+    def incCelebornChunkFetchRequestCount(v: Long): Unit = chunkFetchRequestCount += v
+    def incCelebornChunkFetchSuccessCount(v: Long): Unit = chunkFetchSuccessCount += v
+    def incCelebornChunkFetchFailureCount(v: Long): Unit = chunkFetchFailureCount += v
+  }
+
+  private class FailingCelebornMetricsReporter extends BaseMetricsReporter {
+    var openStreamAttempts = 0
+
+    def incCelebornOpenStreamTime(v: Long): Unit = {
+      openStreamAttempts += 1
+      throw new IllegalStateException("metric sink unavailable")
+    }
+  }
+
   /**
    * Due to spark limitations, spark local mode can not test speculation tasks ,
    * test the method `checkAndReportFetchFailureForUpdateFileGroupFailure`
@@ -91,5 +136,46 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
     assert(
       shuffleReader.shuffleClient.asInstanceOf[DummyShuffleClient].fetchFailureCount.get() === 2)
 
+  }
+
+  test("forward Celeborn shuffle read metrics when Spark exposes them") {
+    val metrics = new CelebornMetricsReporter
+    val metricsCallback = CelebornShuffleReader.createMetricsCallback(metrics)
+
+    metricsCallback.incOpenStreamTime(11L)
+    metricsCallback.incPartitionReaderWaitTime(12L)
+    metricsCallback.incReaderChunkCount(13L)
+    metricsCallback.incChunkFetchRequestCount(14L)
+    metricsCallback.incChunkFetchSuccessCount(15L)
+    metricsCallback.incChunkFetchFailureCount(16L)
+
+    assert(metrics.openStreamTime === 11L)
+    assert(metrics.partitionReaderWaitTime === 12L)
+    assert(metrics.readerChunkCount === 13L)
+    assert(metrics.chunkFetchRequestCount === 14L)
+    assert(metrics.chunkFetchSuccessCount === 15L)
+    assert(metrics.chunkFetchFailureCount === 16L)
+  }
+
+  test("ignore Celeborn shuffle read metrics when Spark does not expose them") {
+    val metricReporter = new BaseMetricsReporter
+    val metricsCallback = CelebornShuffleReader.createMetricsCallback(metricReporter)
+
+    metricsCallback.incOpenStreamTime(11L)
+    metricsCallback.incPartitionReaderWaitTime(12L)
+    metricsCallback.incReaderChunkCount(13L)
+    metricsCallback.incChunkFetchRequestCount(14L)
+    metricsCallback.incChunkFetchSuccessCount(15L)
+    metricsCallback.incChunkFetchFailureCount(16L)
+  }
+
+  test("disable Celeborn shuffle read metrics after reflective invocation failure") {
+    val metrics = new FailingCelebornMetricsReporter
+    val metricsCallback = CelebornShuffleReader.createMetricsCallback(metrics)
+
+    metricsCallback.incOpenStreamTime(11L)
+    metricsCallback.incOpenStreamTime(12L)
+
+    assert(metrics.openStreamAttempts === 1)
   }
 }
