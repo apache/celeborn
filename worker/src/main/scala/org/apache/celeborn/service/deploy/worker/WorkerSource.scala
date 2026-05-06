@@ -43,6 +43,8 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   addCounter(FETCH_CHUNK_SUCCESS_COUNT)
   addCounter(FETCH_CHUNK_FAIL_COUNT)
   addCounter(WRITE_DATA_HARD_SPLIT_COUNT)
+  addCounter(WRITE_DATA_DISK_FULL_SPLIT_COUNT)
+  addCounter(WRITE_DATA_SIZE_THRESHOLD_SPLIT_COUNT)
   addCounter(WRITE_DATA_SUCCESS_COUNT)
   addCounter(WRITE_DATA_FAIL_COUNT)
   addCounter(REPLICATE_DATA_FAIL_COUNT)
@@ -171,6 +173,8 @@ object WorkerSource {
   val PRIMARY_PUSH_DATA_TIME = "PrimaryPushDataTime"
   val REPLICA_PUSH_DATA_TIME = "ReplicaPushDataTime"
   val WRITE_DATA_HARD_SPLIT_COUNT = "WriteDataHardSplitCount"
+  val WRITE_DATA_DISK_FULL_SPLIT_COUNT = "WriteDataDiskFullSplitCount"
+  val WRITE_DATA_SIZE_THRESHOLD_SPLIT_COUNT = "WriteDataSizeThresholdSplitCount"
   val WRITE_DATA_SUCCESS_COUNT = "WriteDataSuccessCount"
   val WRITE_DATA_FAIL_COUNT = "WriteDataFailCount"
   val REPLICATE_DATA_FAIL_COUNT = "ReplicateDataFailCount"

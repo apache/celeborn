@@ -49,6 +49,14 @@ import org.apache.celeborn.service.deploy.worker.storage.{LocalFlusher, Partitio
 
 class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler with Logging {
 
+  private case class SplitDecision(statusCode: StatusCode, reason: Option[String])
+
+  private object SplitReason {
+    val DISK_FULL = "disk_full"
+    val SIZE_THRESHOLD = "size_threshold"
+    val MEMORY_STORAGE = "memory_storage"
+  }
+
   private var partitionLocationInfo: WorkerPartitionLocationInfo = _
   private var shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] = _
   private var shufflePartitionType: ConcurrentHashMap[String, PartitionType] = _
@@ -185,6 +193,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     // Fetch real batchId from body will add more cost and no meaning for replicate.
     val doReplicate = location != null && location.hasPeer && isPrimary
     var softSplit = false
+    var softSplitReason: Option[String] = None
 
     if (location == null) {
       val (mapId, attemptId) = getMapAttempt(body)
@@ -249,13 +258,15 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       return
     }
 
-    val splitStatus = checkDiskFullAndSplit(fileWriter, isPrimary)
-    if (splitStatus == StatusCode.HARD_SPLIT) {
+    val splitDecision = checkDiskFullAndSplit(fileWriter, isPrimary)
+    if (splitDecision.statusCode == StatusCode.HARD_SPLIT) {
+      recordSplitReason(splitDecision)
       workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
       callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
       return
-    } else if (splitStatus == StatusCode.SOFT_SPLIT) {
+    } else if (splitDecision.statusCode == StatusCode.SOFT_SPLIT) {
       softSplit = true
+      softSplitReason = splitDecision.reason
     }
 
     fileWriter.incrementPendingWrites()
@@ -311,6 +322,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                       // will fast stop pushing data to the worker, we won't return congest status. But
                       // in the long term, especially if this issue could frequently happen, we may need to return
                       // congest&softSplit status together
+                      recordSplitReason(softSplitReason)
                       callbackWithTimer.onSuccess(
                         ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
                     } else {
@@ -397,6 +409,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             callback.onSuccess(ByteBuffer.wrap(Array[Byte](result(0).getValue)))
           } else {
             if (softSplit) {
+              recordSplitReason(softSplitReason)
               callbackWithTimer.onSuccess(
                 ByteBuffer.wrap(Array[Byte](StatusCode.SOFT_SPLIT.getValue)))
             } else {
@@ -582,14 +595,21 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               s"length ${fileInfo.getFileLength}")
           pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.HARD_SPLIT)
         } else {
-          val splitStatus = checkDiskFullAndSplit(fileWriter, isPrimary)
-          if (splitStatus == StatusCode.HARD_SPLIT) {
+          val splitDecision = checkDiskFullAndSplit(fileWriter, isPrimary)
+          if (splitDecision.statusCode == StatusCode.HARD_SPLIT) {
             logWarning(
-              s"return hard split for disk full with shuffle $shuffleKey map $mapId attempt $attemptId")
+              s"return hard split reason=${splitDecision.reason.getOrElse("unknown")} " +
+                s"with shuffle $shuffleKey map $mapId attempt $attemptId")
             workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
-            pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.HARD_SPLIT)
-          } else if (splitStatus == StatusCode.SOFT_SPLIT) {
-            pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.SOFT_SPLIT)
+            pushMergedDataCallback.addSplitPartition(
+              fileWriterIndex,
+              StatusCode.HARD_SPLIT,
+              splitDecision.reason)
+          } else if (splitDecision.statusCode == StatusCode.SOFT_SPLIT) {
+            pushMergedDataCallback.addSplitPartition(
+              fileWriterIndex,
+              StatusCode.SOFT_SPLIT,
+              splitDecision.reason)
           }
         }
         if (!pushMergedDataCallback.isHardSplitPartition(fileWriterIndex)) {
@@ -894,14 +914,21 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   }
 
   class PushMergedDataCallback(callback: RpcResponseCallback, val shuffleKey: String) {
-    private val splitPartitionStatuses = new mutable.HashMap[Int, Byte]()
+    private case class SplitPartitionStatus(statusCode: Byte, reason: Option[String])
 
-    def addSplitPartition(index: Int, statusCode: StatusCode): Unit = {
-      splitPartitionStatuses.put(index, statusCode.getValue)
+    private val splitPartitionStatuses = new mutable.HashMap[Int, SplitPartitionStatus]()
+
+    def addSplitPartition(
+        index: Int,
+        statusCode: StatusCode,
+        reason: Option[String] = None): Unit = {
+      splitPartitionStatuses.put(index, SplitPartitionStatus(statusCode.getValue, reason))
     }
 
     def isHardSplitPartition(index: Int): Boolean = {
-      splitPartitionStatuses.getOrElse(index, -1) == StatusCode.HARD_SPLIT.getValue
+      splitPartitionStatuses
+        .get(index)
+        .exists(_.statusCode == StatusCode.HARD_SPLIT.getValue)
     }
 
     def unionReplicaSplitPartitions(
@@ -913,9 +940,13 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       }
       for (i <- 0 until replicaPartitionIndexes.size()) {
         val index = replicaPartitionIndexes.get(i)
+        val replicaStatusCode = replicaStatusCodes.get(i).byteValue()
         // The priority of HARD_SPLIT is higher than that of SOFT_SPLIT.
-        if (!isHardSplitPartition(index)) {
-          splitPartitionStatuses.put(index, replicaStatusCodes.get(i).byteValue())
+        if (!isHardSplitPartition(index) &&
+          !splitPartitionStatuses.get(index).exists(_.statusCode == replicaStatusCode)) {
+          splitPartitionStatuses.put(
+            index,
+            SplitPartitionStatus(replicaStatusCode, None))
         }
       }
     }
@@ -926,7 +957,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
      */
     def getHardSplitIndexes: Array[Int] = {
       splitPartitionStatuses.collect {
-        case (partitionIndex, statusCode) if statusCode == StatusCode.HARD_SPLIT.getValue =>
+        case (partitionIndex, splitPartitionStatus)
+            if splitPartitionStatus.statusCode == StatusCode.HARD_SPLIT.getValue =>
           partitionIndex
       }.toSeq.sorted.toArray
     }
@@ -937,7 +969,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       var hasHardSplit = false
 
       splitPartitionStatuses.foreach {
-        case (partitionIndex, statusCode) =>
+        case (partitionIndex, splitPartitionStatus) =>
+          val statusCode = splitPartitionStatus.statusCode
           splitPartitionIndexes.add(partitionIndex)
           statusCodes.add(statusCode)
           // check if there is any hard split partition
@@ -949,6 +982,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         callback.onSuccess(
           ByteBuffer.wrap(Array[Byte](status.getValue)))
       } else {
+        splitPartitionStatuses.values.foreach(splitPartitionStatus =>
+          recordSplitReason(splitPartitionStatus.reason))
         val pushMergedDataInfo = PbPushMergedDataSplitPartitionInfo.newBuilder()
           .addAllSplitPartitionIndexes(splitPartitionIndexes)
           .addAllStatusCodes(statusCodes)
@@ -1268,12 +1303,14 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     }
 
     if (checkSplit && (messageType == Type.REGION_START || messageType ==
-        Type.PUSH_DATA_HAND_SHAKE) && isPartitionSplitEnabled && checkDiskFullAndSplit(
-        fileWriter,
-        isPrimary) == StatusCode.HARD_SPLIT) {
-      workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
-      callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
-      return
+        Type.PUSH_DATA_HAND_SHAKE) && isPartitionSplitEnabled) {
+      val splitDecision = checkDiskFullAndSplit(fileWriter, isPrimary)
+      if (splitDecision.statusCode == StatusCode.HARD_SPLIT) {
+        recordSplitReason(splitDecision)
+        workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
+        callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+        return
+      }
     }
 
     try {
@@ -1456,11 +1493,11 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
   private def checkDiskFullAndSplit(
       fileWriter: PartitionDataWriter,
-      isPrimary: Boolean): StatusCode = {
+      isPrimary: Boolean): SplitDecision = {
     if (fileWriter.needHardSplitForMemoryShuffleStorage()) {
       logInfo(
         s"Do hardSplit for memory shuffle file fileLength:${fileWriter.getMemoryFileInfo.getFileLength}")
-      return StatusCode.HARD_SPLIT
+      return SplitDecision(StatusCode.HARD_SPLIT, Some(SplitReason.MEMORY_STORAGE))
     }
     val diskFull = checkDiskFull(fileWriter)
     logTrace(
@@ -1474,26 +1511,43 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
          |""".stripMargin)
     val diskFileInfo = fileWriter.getDiskFileInfo
     if (diskFileInfo != null) {
-      if (workerPartitionSplitEnabled && ((diskFull && diskFileInfo.getFileLength > partitionSplitMinimumSize) ||
-          (isPrimary && diskFileInfo.getFileLength > fileWriter.getSplitThreshold))) {
+      val splitReason =
+        if (diskFull && diskFileInfo.getFileLength > partitionSplitMinimumSize) {
+          Some(SplitReason.DISK_FULL)
+        } else if (isPrimary && diskFileInfo.getFileLength > fileWriter.getSplitThreshold) {
+          Some(SplitReason.SIZE_THRESHOLD)
+        } else {
+          None
+        }
+      if (workerPartitionSplitEnabled && splitReason.isDefined) {
         if (fileWriter.getSplitMode == PartitionSplitMode.SOFT &&
           (fileWriter.getDiskFileInfo.getFileLength < partitionSplitMaximumSize)) {
-          return StatusCode.SOFT_SPLIT
+          return SplitDecision(StatusCode.SOFT_SPLIT, splitReason)
         } else {
           logInfo(
-            s"""
-               |CheckDiskFullAndSplit hardSplit
-               |diskFull:$diskFull,
-               |partitionSplitMinimumSize:$partitionSplitMinimumSize,
-               |splitThreshold:${fileWriter.getSplitThreshold},
-               |fileLength:${diskFileInfo.getFileLength},
-               |fileName:${diskFileInfo.getFilePath}
-               |""".stripMargin)
-          return StatusCode.HARD_SPLIT
+            s"CheckDiskFullAndSplit hardSplit reason:${splitReason.get}, diskFull:$diskFull, " +
+              s"partitionSplitMinimumSize:$partitionSplitMinimumSize, " +
+              s"splitThreshold:${fileWriter.getSplitThreshold}, " +
+              s"fileLength:${diskFileInfo.getFileLength}, fileName:${diskFileInfo.getFilePath}")
+          return SplitDecision(StatusCode.HARD_SPLIT, splitReason)
         }
       }
     }
-    StatusCode.NO_SPLIT
+    SplitDecision(StatusCode.NO_SPLIT, None)
+  }
+
+  private def recordSplitReason(splitDecision: SplitDecision): Unit = {
+    recordSplitReason(splitDecision.reason)
+  }
+
+  private def recordSplitReason(splitReason: Option[String]): Unit = {
+    splitReason match {
+      case Some(SplitReason.DISK_FULL) =>
+        workerSource.incCounter(WorkerSource.WRITE_DATA_DISK_FULL_SPLIT_COUNT)
+      case Some(SplitReason.SIZE_THRESHOLD) =>
+        workerSource.incCounter(WorkerSource.WRITE_DATA_SIZE_THRESHOLD_SPLIT_COUNT)
+      case _ =>
+    }
   }
 
   private def getReplicateClient(host: String, port: Int, partitionId: Int): TransportClient = {

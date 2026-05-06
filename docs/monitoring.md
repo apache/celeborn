@@ -195,6 +195,8 @@ These metrics are exposed by Celeborn worker.
     | PrimarySegmentStartTime                | The time for a worker to handle a segmentStart RPC sent from a celeborn client.                                 |
     | ReplicaSegmentStartTime                | The time for a worker to handle a segmentStart RPC sent from a celeborn worker by replicating.                  |
     | WriteDataHardSplitCount                | The count of writing PushData or PushMergedData to HARD_SPLIT partition in current worker.                      |
+    | WriteDataDiskFullSplitCount            | The count of returned partition splits caused by high disk usage or no usable disk space.                       |
+    | WriteDataSizeThresholdSplitCount       | The count of returned partition splits caused by a primary partition exceeding its split threshold.             |
     | WriteDataSuccessCount                  | The count of writing PushData or PushMergedData succeed in current worker.                                      |
     | WriteDataFailCount                     | The count of writing PushData or PushMergedData failed in current worker.                                       |
     | ReplicateDataFailCount                 | The count of replicating PushData or PushMergedData failed in current worker.                                   |
