@@ -138,18 +138,26 @@ impl ShuffleClient {
     }
 
     /// Explicitly shut down the client. Preferred over relying on Drop.
+    ///
+    /// After calling `ffi::shutdown`, the underlying C++ handle is intentionally
+    /// leaked to avoid a SIGSEGV caused by folly's `EventBase` destruction race:
+    /// `TransportClient` destructor posts a callback to an `EventBase` that may
+    /// already be torn down by `IOThreadPoolExecutor::join()`.
     pub fn shutdown(mut self) -> Result<()> {
-        let mut handle = std::mem::replace(
-            &mut self.inner,
-            UniquePtr::<ffi::ShuffleClientHandle>::null(),
-        );
-        match handle.as_mut() {
-            Some(pinned) => {
-                ffi::shutdown(pinned)?;
-            }
-            None => {}
+        if let Some(pinned) = self.inner.as_mut() {
+            ffi::shutdown(pinned)?;
         }
+        // Leak the C++ handle to avoid folly EventBase use-after-free on destruction.
+        Self::leak_inner(&mut self.inner);
+        std::mem::forget(self);
         Ok(())
+    }
+
+    /// Leak the UniquePtr without running C++ destructors.
+    fn leak_inner(handle: &mut UniquePtr<ffi::ShuffleClientHandle>) {
+        let ptr = std::mem::replace(handle, UniquePtr::<ffi::ShuffleClientHandle>::null());
+        // into_raw consumes the UniquePtr without calling the C++ destructor.
+        cxx::UniquePtr::into_raw(ptr);
     }
 }
 
@@ -158,6 +166,7 @@ impl Drop for ShuffleClient {
         if self.inner.is_null() {
             return;
         }
+        // Best-effort shutdown; then leak to avoid folly SIGSEGV.
         if let Some(pinned) = self.inner.as_mut() {
             if let Err(e) = ffi::shutdown(pinned) {
                 log::error!(
@@ -166,5 +175,6 @@ impl Drop for ShuffleClient {
                 );
             }
         }
+        Self::leak_inner(&mut self.inner);
     }
 }
