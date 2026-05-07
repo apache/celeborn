@@ -106,7 +106,12 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
   public void doBootstrap(TransportClient client) throws RuntimeException {
     if (registrationInfo.getRegistrationState() == RegistrationInfo.RegistrationState.REGISTERED) {
       LOG.info("client has already registered, skip register.");
-      doSaslBootstrap(client);
+      try {
+        doSaslBootstrap(client);
+      } catch (RuntimeException e) {
+        registrationInfo.setRegistrationState(RegistrationInfo.RegistrationState.FAILED);
+        throw e;
+      }
       return;
     }
     try {

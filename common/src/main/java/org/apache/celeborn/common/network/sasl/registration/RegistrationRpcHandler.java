@@ -23,6 +23,7 @@ import static org.apache.celeborn.common.protocol.MessageType.*;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Objects;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -239,13 +240,20 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
 
   private void processRegisterApplicationRequest(
       PbRegisterApplicationRequest registerApplicationRequest, RpcResponseCallback callback) {
-    if (secretRegistry.isRegistered(registerApplicationRequest.getId())) {
-      // Re-registration is not allowed.
-      throw new IllegalStateException(
-          "Application is already registered " + registerApplicationRequest.getId());
+    String appId = registerApplicationRequest.getId();
+    String secret = registerApplicationRequest.getSecret();
+    synchronized (secretRegistry) {
+      if (secretRegistry.isRegistered(appId)) {
+        String registeredSecret = secretRegistry.getSecretKey(appId);
+        if (!Objects.equals(registeredSecret, secret)) {
+          throw new IllegalStateException(
+              "Application is already registered with a different secret " + appId);
+        }
+        LOG.info("Application {} is already registered with the same secret.", appId);
+      } else {
+        secretRegistry.register(appId, secret);
+      }
     }
-    secretRegistry.register(
-        registerApplicationRequest.getId(), registerApplicationRequest.getSecret());
     PbRegisterApplicationResponse response =
         PbRegisterApplicationResponse.newBuilder().setStatus(true).build();
     TransportMessage message =
