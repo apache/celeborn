@@ -135,9 +135,7 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
               "Error while invoking RpcHandler#receive() on RPC id " + rpcRequest.requestId, e);
         }
         registrationState = RegistrationState.FAILED;
-        client
-            .getChannel()
-            .writeAndFlush(new RpcFailure(rpcRequest.requestId, errorString));
+        client.getChannel().writeAndFlush(new RpcFailure(rpcRequest.requestId, errorString));
       }
     }
   }

@@ -28,8 +28,8 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.meta.WorkerInfo
-import org.apache.celeborn.common.protocol.message.ControlMessages.{ApplicationLost, ApplicationLostResponse, CheckQuotaResponse, HeartbeatFromApplication, HeartbeatFromApplicationResponse}
 import org.apache.celeborn.common.protocol.message.{Message, StatusCode}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{ApplicationLost, ApplicationLostResponse, CheckQuotaResponse, HeartbeatFromApplication, HeartbeatFromApplicationResponse}
 import org.apache.celeborn.common.rpc.RpcEnv
 
 class ApplicationHeartbeaterSuite extends CelebornFunSuite {
@@ -49,7 +49,8 @@ class ApplicationHeartbeaterSuite extends CelebornFunSuite {
       "application-1",
       conf,
       masterClient,
-      () => ((0L, 0L), (0L, 0L, Map.empty[String, java.lang.Long], Map.empty[String, java.lang.Long])),
+      () =>
+        ((0L, 0L), (0L, 0L, Map.empty[String, java.lang.Long], Map.empty[String, java.lang.Long])),
       workerStatusTracker,
       registeredShuffles,
       _ => ())

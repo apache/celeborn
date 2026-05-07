@@ -26,11 +26,7 @@ import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandlerShare
 
 public class TierWriterHelper {
   public static MultipartUploadHandlerSharedState getS3MultipartUploadHandlerSharedState(
-      FileSystem hadoopFs,
-      String bucketName,
-      int maxRetryies,
-      int baseDelay,
-      int maxBackoff) {
+      FileSystem hadoopFs, String bucketName, int maxRetryies, int baseDelay, int maxBackoff) {
     return DynMethods.builder("createSharedState")
         .impl(
             "org.apache.celeborn.S3MultipartUploadHandler",

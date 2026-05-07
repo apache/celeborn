@@ -18,7 +18,7 @@
 package org.apache.celeborn.client
 
 import java.util
-import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit, TimeoutException}
+import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeoutException, TimeUnit}
 import java.util.function.Consumer
 
 import scala.collection.JavaConverters._

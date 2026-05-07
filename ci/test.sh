@@ -8,7 +8,7 @@ source ci/setup.sh
 test_modules="${1:?Maven module list is required}"
 
 # Compile all modules once per shard so selected module tests can use local artifacts.
-build/mvn --no-transfer-progress -T 1C -DskipTests -Dspotless.check.skip=true install
+build/mvn --no-transfer-progress -T 1C -DskipTests install
 
 # Run tests for only the module group assigned by the Buildkite step.
 build/mvn --no-transfer-progress -T 1C --fail-at-end -pl "${test_modules}" test

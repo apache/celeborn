@@ -4522,7 +4522,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.application.unregister.timeout")
       .categories("client")
       .version("0.6.1")
-      .doc("Max time to wait for application unregister during client shutdown before continuing exit.")
+      .doc(
+        "Max time to wait for application unregister during client shutdown before continuing exit.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
 

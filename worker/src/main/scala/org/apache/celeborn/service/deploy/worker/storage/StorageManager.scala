@@ -502,12 +502,13 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val uri = s3HadoopFs.getUri
         val bucketName = uri.getHost
         logInfo(s"Creating shared S3 client for $uri, bucketName is $bucketName")
-        s3MultipartUploadHandlerSharedState = TierWriterHelper.getS3MultipartUploadHandlerSharedState(
-          s3HadoopFs,
-          bucketName,
-          conf.s3MultiplePartUploadMaxRetries,
-          conf.s3MultiplePartUploadBaseDelay,
-          conf.s3MultiplePartUploadMaxBackoff)
+        s3MultipartUploadHandlerSharedState =
+          TierWriterHelper.getS3MultipartUploadHandlerSharedState(
+            s3HadoopFs,
+            bucketName,
+            conf.s3MultiplePartUploadMaxRetries,
+            conf.s3MultiplePartUploadBaseDelay,
+            conf.s3MultiplePartUploadMaxBackoff)
       }
       s3MultipartUploadHandlerSharedState
     }

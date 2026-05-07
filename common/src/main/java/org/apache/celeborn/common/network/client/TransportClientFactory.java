@@ -363,9 +363,10 @@ public class TransportClientFactory implements Closeable {
     long preBootstrap = System.nanoTime();
     logger.debug("Running bootstraps for {} ...", address);
     for (TransportClientBootstrap clientBootstrap : clientBootstraps) {
+      // Catch non-RuntimeExceptions too as bootstrap may be written in Scala.
       try {
         clientBootstrap.doBootstrap(client);
-      } catch (Exception e) { // catch non-RuntimeExceptions too as bootstrap may be written in Scala
+      } catch (Exception e) {
         long bootstrapTime = System.nanoTime() - preBootstrap;
         MasterNotLeaderException notLeader = null;
         if (clientBootstrap instanceof RegistrationClientBootstrap) {

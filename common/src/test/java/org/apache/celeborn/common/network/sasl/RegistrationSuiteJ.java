@@ -103,8 +103,7 @@ public class RegistrationSuiteJ extends SaslTestBase {
     Throwable processed = RegistrationClientBootstrap.processMasterNotLeaderException(wrapper);
 
     assertTrue(processed instanceof MasterNotLeaderException);
-    assertEquals(
-        "host2:9097", ((MasterNotLeaderException) processed).getSuggestedLeaderAddress());
+    assertEquals("host2:9097", ((MasterNotLeaderException) processed).getSuggestedLeaderAddress());
   }
 
   @Test
