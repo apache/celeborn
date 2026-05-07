@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "celeborn-client-sys",
+    "celeborn-client",
+]
+resolver = "2"

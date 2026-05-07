@@ -1,0 +1,23 @@
+[package]
+name = "celeborn-client"
+version = "0.1.0"
+edition = "2021"
+description = "Rust-friendly wrapper around Apache Celeborn C++ client FFI"
+publish = false
+
+[dependencies]
+celeborn-client-sys = { path = "../celeborn-client-sys" }
+cxx = "1.0"
+thiserror = "1.0"
+log = "0.4"
+
+[dev-dependencies]
+env_logger = "0.11"
+
+[[example]]
+name = "data_sum_writer"
+path = "../examples/data_sum_writer.rs"
+
+[[example]]
+name = "data_sum_reader"
+path = "../examples/data_sum_reader.rs"
