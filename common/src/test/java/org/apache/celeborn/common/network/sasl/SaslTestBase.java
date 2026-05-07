@@ -59,7 +59,7 @@ public class SaslTestBase {
   static final String TEST_SECRET = "secret";
 
   @SuppressWarnings("Finally")
-  void authHelper(
+  public static void authHelper(
       TransportConf conf,
       TransportServerBootstrap serverBootstrap,
       TransportClientBootstrap clientBootstrap)
@@ -79,10 +79,14 @@ public class SaslTestBase {
 
     doReturn(true).when(rpcHandler).checkRegistered();
 
+    Throwable primaryError = null;
     try (SaslTestCtx ctx = new SaslTestCtx(conf, rpcHandler, serverBootstrap, clientBootstrap)) {
       ByteBuffer response =
           ctx.client.sendRpcSync(JavaUtils.stringToBytes("Ping"), TimeUnit.SECONDS.toMillis(10));
       assertEquals("Pong", JavaUtils.bytesToString(response));
+    } catch (Throwable t) {
+      primaryError = t;
+      throw t;
     } finally {
       // There should be 2 terminated events; one for the client, one for the server.
       Throwable error = null;
@@ -98,7 +102,11 @@ public class SaslTestBase {
         }
       }
       if (error != null) {
-        throw error;
+        if (primaryError != null) {
+          primaryError.addSuppressed(error);
+        } else {
+          throw error;
+        }
       }
     }
   }

@@ -57,8 +57,13 @@ public class MasterNotLeaderException extends IOException {
             currentPeer.equals(suggestedLeaderPeer._1)
                 ? StringUtils.EMPTY
                 : String.format(
-                    " Suggested leader is Master:%s (%s).",
-                    suggestedLeaderPeer, suggestedInternalLeaderPeer),
+                    // both (host and ip) point to the preferred address configured by bindPreferIp
+                    // preserve the earlier format of Tuple._2
+                    " Suggested leader is Master:(%s,%s) ((%s,%s)).",
+                    bindPreferIp ? suggestedLeaderPeer._1 : suggestedLeaderPeer._2,
+                    bindPreferIp ? suggestedLeaderPeer._1 : suggestedLeaderPeer._2,
+                    bindPreferIp ? suggestedInternalLeaderPeer._1 : suggestedInternalLeaderPeer._2,
+                    bindPreferIp ? suggestedInternalLeaderPeer._1 : suggestedInternalLeaderPeer._2),
             cause == null
                 ? StringUtils.EMPTY
                 : String.format(" Exception:%s.", cause.getMessage())),

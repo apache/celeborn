@@ -125,7 +125,9 @@ public class RegistrationClientBootstrap implements TransportClientBootstrap {
       registrationInfo.setRegistrationState(RegistrationInfo.RegistrationState.REGISTERED);
       client.setClientId(appId);
     } catch (IOException | CelebornException e) {
-      throw new RuntimeException(e);
+      // If RPC failure indicates MasterNotLeaderException was the cause, try to reverse engineer it
+      // from the exception thrown
+      throw new RuntimeException(processMasterNotLeaderException(e));
     } finally {
       if (registrationInfo.getRegistrationState()
           != RegistrationInfo.RegistrationState.REGISTERED) {
