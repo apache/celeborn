@@ -542,7 +542,7 @@ class CelebornShuffleReader[K, C](
     }
 
     val inputPartitionIdList =
-      if (useCoalescedRemoteRead) List(startPartition) else partitionIdList
+      if (useCoalescedRemoteRead) List(partitionIdList.head) else partitionIdList
     val inputStreamCreationWindow = conf.clientInputStreamCreationWindow
     (0 until Math.min(inputStreamCreationWindow, inputPartitionIdList.size)).foreach(listIndex => {
       streamCreatorPool.submit(new Runnable {

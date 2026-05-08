@@ -619,7 +619,14 @@ class FetchHandler(
           val shuffleKey = streamState.shuffleKey
           workerSource.recordAppActiveConnection(client, shuffleKey)
           streamState.fileNames.asScala.foreach { fileName =>
-            getRawFileInfo(shuffleKey, fileName).closeStream(streamId)
+            try {
+              getRawFileInfo(shuffleKey, fileName).closeStream(streamId)
+            } catch {
+              case e: Exception =>
+                logWarning(
+                  s"Failed to close stream $streamId for file $fileName in shuffle $shuffleKey.",
+                  e)
+            }
           }
         }
       case StreamType.CreditStream =>
