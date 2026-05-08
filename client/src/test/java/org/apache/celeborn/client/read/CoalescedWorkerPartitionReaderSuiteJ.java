@@ -221,6 +221,71 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
   }
 
   @Test
+  public void testReopenPreservesReducerSlicesWhenChunkSpansBoundaries() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    PartitionLocation location = mock(PartitionLocation.class);
+    when(location.getHost()).thenReturn("worker");
+    when(location.getFetchPort()).thenReturn(19098);
+    TransportClient client = mock(TransportClient.class);
+    when(client.isActive()).thenReturn(true);
+    when(client.sendRpcSync(
+            org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyLong()))
+        .thenReturn(
+            new TransportMessage(
+                    MessageType.COALESCED_STREAM_HANDLER,
+                    spanningBoundaryHandler(2L).toByteArray())
+                .toByteBuffer());
+    doAnswer(
+            invocation -> {
+              long streamId = invocation.getArgument(0);
+              ChunkReceivedCallback callback = invocation.getArgument(3);
+              if (streamId == 1L) {
+                callback.onFailure(0, new IOException("lost worker stream"));
+              } else {
+                callback.onSuccess(
+                    0,
+                    new NettyManagedBuffer(Unpooled.wrappedBuffer(new byte[] {1, 2, 3, 4})));
+              }
+              return null;
+            })
+        .when(client)
+        .fetchChunk(
+            org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.anyInt(),
+            org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.any());
+    TransportClientFactory clientFactory = mock(TransportClientFactory.class);
+    when(clientFactory.createClient("worker", 19098)).thenReturn(client);
+    SharedCoalescedStream stream =
+        new SharedCoalescedStream(
+            conf, "shuffle-key", location, openRequest(), spanningBoundaryHandler(1L), clientFactory);
+    try {
+      CoalescedWorkerPartitionReader firstReader =
+          new CoalescedWorkerPartitionReader(
+              location, stream, spanningBoundaryHandler(1L).getBoundaries(0), Optional.empty());
+      CoalescedWorkerPartitionReader secondReader =
+          new CoalescedWorkerPartitionReader(
+              location, stream, spanningBoundaryHandler(1L).getBoundaries(1), Optional.empty());
+
+      ByteBuf first = firstReader.next();
+      ByteBuf second = secondReader.next();
+      try {
+        byte[] firstBytes = new byte[first.readableBytes()];
+        first.readBytes(firstBytes);
+        byte[] secondBytes = new byte[second.readableBytes()];
+        second.readBytes(secondBytes);
+        assertArrayEquals(new byte[] {1, 2}, firstBytes);
+        assertArrayEquals(new byte[] {3, 4}, secondBytes);
+      } finally {
+        first.release();
+        second.release();
+      }
+    } finally {
+      stream.close();
+    }
+  }
+
+  @Test
   public void testSharedCoalescedStreamRejectsChangedLayoutOnReopen() throws Exception {
     CelebornConf conf = new CelebornConf();
     PartitionLocation location = mock(PartitionLocation.class);
@@ -277,6 +342,29 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
                 .setStartChunkOffset(0)
                 .setEndChunkIndex(0)
                 .setEndChunkOffset(1))
+        .build();
+  }
+
+  private static PbCoalescedStreamHandler spanningBoundaryHandler(long streamId) {
+    return PbCoalescedStreamHandler.newBuilder()
+        .setStreamId(streamId)
+        .setNumChunks(1)
+        .addBoundaries(
+            PbCoalescedChunkBoundary.newBuilder()
+                .setFileName("file-0")
+                .setReducerId(0)
+                .setStartChunkIndex(0)
+                .setStartChunkOffset(0)
+                .setEndChunkIndex(0)
+                .setEndChunkOffset(2))
+        .addBoundaries(
+            PbCoalescedChunkBoundary.newBuilder()
+                .setFileName("file-1")
+                .setReducerId(1)
+                .setStartChunkIndex(0)
+                .setStartChunkOffset(2)
+                .setEndChunkIndex(0)
+                .setEndChunkOffset(4))
         .build();
   }
 

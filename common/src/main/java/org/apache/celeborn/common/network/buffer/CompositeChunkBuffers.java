@@ -70,6 +70,9 @@ public class CompositeChunkBuffers extends ChunkBuffers {
 
     for (ChunkBuffers input : inputs) {
       long startOffset = totalBytes;
+      // Inputs remain separate logical reducer files. We only pack their physical chunks into a
+      // denser worker stream, then record each input's byte interval so the client can slice the
+      // original reducer boundaries back out later.
       for (int chunkIndex = 0; chunkIndex < input.numChunks(); chunkIndex++) {
         int chunkLength = Math.toIntExact(input.getChunkLength(chunkIndex));
         if (!currentChunk.isEmpty() && currentChunkBytes + chunkLength > maxChunkBytes) {
@@ -128,6 +131,8 @@ public class CompositeChunkBuffers extends ChunkBuffers {
       int segmentLength = Math.min(segment.length - offset, len);
       return segment.buffers.chunk(segment.chunkIndex, segment.offset + offset, segmentLength);
     }
+    // A packed chunk may straddle reducer-file boundaries. Materialize only that rare composite
+    // case; the single-segment path above preserves the original zero-copy buffer.
     int remainingOffset = offset;
     int remainingLength = Math.min(len, chunkSize - offset);
     ByteBuffer buffer = ByteBuffer.allocate(remainingLength);

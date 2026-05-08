@@ -219,6 +219,8 @@ class CelebornShuffleReader[K, C](
 
       conf.clientCoalescedRemoteReadEnabled &&
       partitionIdList.size > 1 &&
+      // Partial map-range reads and Celeborn's encoded skew-read mode can change the chunk layout
+      // per reducer. Start with full reducer reads so reopen can require exact layout equality.
       startMapIndex == 0 &&
       endMapIndex == Int.MaxValue &&
       !splitSkewPartitionWithoutMapRange &&
@@ -269,6 +271,9 @@ class CelebornShuffleReader[K, C](
                     .setMaxChunkBytes(conf.clientFetchBufferSize)))
             }
             val (_, locations, request) = workerRequests.get(hostPort)
+            // Keep request entries in the same order Spark will later consume reducers. One worker
+            // stream is shared across those reducer readers, so the client relies on monotonic chunk
+            // consumption through that stream.
             locations.add(location)
             request.addEntry(PbCoalescedStreamEntry.newBuilder()
               .setFileName(location.getFileName)
@@ -312,6 +317,8 @@ class CelebornShuffleReader[K, C](
           0 until handler.getBoundariesCount foreach { idx =>
             val boundary = handler.getBoundaries(idx)
             val location = locations.get(idx)
+            // The worker must describe the same ordered entry list we sent. Reducer readers keep
+            // these boundaries for their lifetime, including retries after a shared-stream reopen.
             if (boundary.getFileName != location.getFileName ||
               boundary.getReducerId != location.getId) {
               throw new CelebornIOException(
@@ -515,6 +522,9 @@ class CelebornShuffleReader[K, C](
     val recordIter = partitionIdList.iterator.map(partitionId => {
       if (handle.numMappers > 0) {
         if (useCoalescedFetch && streams.get(partitionId) == null) {
+          // Coalesced reducers share one worker stream per host, so create each input stream only
+          // when Spark reaches that reducer. This preserves the request order expected by
+          // SharedCoalescedStream's monotonic chunk consumption contract.
           createInputStream(partitionId)
         }
         val startFetchWait = System.nanoTime()

@@ -434,6 +434,9 @@ class FetchHandler(
           registeredFiles.add(fileInfo)
         }
         if (!originalFileRegistered) {
+          // `addStream` fails after a reduce file has already been sorted. In that case we reopen
+          // against the stable sorted view, which is still safe because this path only allows full
+          // reducer reads and the client verifies the returned layout on retry.
           fileInfo = partitionsSorter.getSortedFileInfo(
             shuffleKey,
             entry.getFileName,
@@ -465,6 +468,8 @@ class FetchHandler(
         throw e
     }
 
+    // Build one synthetic worker stream while preserving one returned boundary per request entry.
+    // The client will expose those boundaries as separate logical reducer readers.
     val composite = new CompositeChunkBuffers(chunkBuffers, request.getMaxChunkBytes)
     chunkStreamManager.registerStream(streamId, shuffleKey, composite, "coalesced", fileNames, null)
 

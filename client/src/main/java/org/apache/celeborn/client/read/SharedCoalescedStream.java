@@ -80,6 +80,8 @@ public class SharedCoalescedStream {
     if (closed) {
       throw new CelebornIOException("Coalesced stream is already closed");
     }
+    // One shared worker stream backs several reducer readers. Spark consumes those reducers in the
+    // same order used to build the coalesced request, so callers must only advance this stream.
     if (chunkIndex < currentChunkIndex) {
       throw new CelebornIOException(
           "Coalesced stream chunks must be consumed in order for " + shuffleKey);
@@ -162,8 +164,9 @@ public class SharedCoalescedStream {
       throw new CelebornIOException("Failed to reopen coalesced stream for " + shuffleKey, e);
     }
 
-    // Existing reducer readers keep the original boundaries. Reopen is only safe if the worker
-    // rebuilt the same composite layout for the same immutable reducer files.
+    // Existing reducer readers and checkpoints are expressed in the original composite layout.
+    // Reopen is only safe if the worker rebuilt that exact layout for the same immutable files.
+    // Otherwise there is no safe mid-stream path switch; the task must fail and restart.
     if (!hasSameLayout(handler, reopenedHandler)) {
       closeStream(reopenedHandler.getStreamId());
       throw new CelebornIOException(

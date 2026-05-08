@@ -44,6 +44,8 @@ public class CoalescedWorkerPartitionReader implements PartitionReader {
     this.stream = stream;
     this.boundary = boundary;
     this.checkpointMetadata = checkpointMetadata.orElseGet(PartitionReaderCheckpointMetadata::new);
+    // Checkpoints are in the shared coalesced-stream chunk space, not the original per-file chunk
+    // space. Retries must therefore stay on the coalesced path once reading has started.
     this.chunkIndex = boundary.getStartChunkIndex();
     this.chunkOffset = boundary.getStartChunkOffset();
     skipCheckpointedChunks();
@@ -66,6 +68,8 @@ public class CoalescedWorkerPartitionReader implements PartitionReader {
         chunkIndex == boundary.getEndChunkIndex()
             ? boundary.getEndChunkOffset()
             : chunk.readableBytes();
+    // Reducer boundaries may begin or end in the middle of a packed shared chunk. Return only the
+    // byte range owned by this logical reducer reader.
     ByteBuf slice = chunk.retainedSlice(chunkStart + chunkOffset, endOffset - chunkOffset);
     if (chunkIndex == boundary.getEndChunkIndex()) {
       chunkOffset = endOffset;
