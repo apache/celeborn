@@ -162,6 +162,64 @@ class CoalescedFetchSuite extends AnyFunSuite
             inputStream.close()
           }
         }
+
+        val replayResponse = dataClient.sendRpcSync(
+          new TransportMessage(MessageType.OPEN_COALESCED_STREAM, request.toByteArray).toByteBuffer,
+          clientConf.clientFetchTimeoutMs)
+        val replayHandler =
+          TransportMessage.fromByteBuffer(replayResponse).getParsedPayload[PbCoalescedStreamHandler]
+        val replayStream =
+          new SharedCoalescedStream(
+            clientConf,
+            shuffleKey,
+            location0,
+            replayHandler,
+            shuffleClient.getDataClientFactory)
+        try {
+          val sameReducerInfos = new util.HashMap[String, CoalescedPartitionInfo]()
+          sameReducerInfos.put(
+            location0.getUniqueId,
+            new CoalescedPartitionInfo(replayStream, replayHandler.getBoundaries(0)))
+          sameReducerInfos.put(
+            location1.getUniqueId,
+            new CoalescedPartitionInfo(replayStream, replayHandler.getBoundaries(1)))
+          val sameReducerLocations =
+            new util.ArrayList[org.apache.celeborn.common.protocol.PartitionLocation]()
+          sameReducerLocations.add(location0)
+          sameReducerLocations.add(location1)
+          val sameReducerInputStream = shuffleClient.readPartition(
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            Integer.MAX_VALUE,
+            null,
+            sameReducerLocations,
+            null,
+            fileGroups.pushFailedBatches,
+            null,
+            sameReducerInfos,
+            fileGroups.mapAttempts,
+            metricsCallback,
+            true)
+          try {
+            val output = new ByteArrayOutputStream()
+            var b = sameReducerInputStream.read()
+            while (b != -1) {
+              output.write(b)
+              b = sameReducerInputStream.read()
+            }
+            Assert.assertArrayEquals(
+              partition0Batch0 ++ partition0Batch1 ++ partition1Batch0 ++ partition1Batch1,
+              output.toByteArray)
+          } finally {
+            sameReducerInputStream.close()
+          }
+        } finally {
+          replayStream.close()
+        }
       } finally {
         sharedStream.close()
       }

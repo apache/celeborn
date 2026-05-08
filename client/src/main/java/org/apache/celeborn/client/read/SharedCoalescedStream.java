@@ -50,7 +50,7 @@ public class SharedCoalescedStream {
   private TransportClient client;
   private ByteBuf currentChunk;
   private int currentChunkIndex = -1;
-  private boolean closed;
+  private volatile boolean closed;
 
   public SharedCoalescedStream(
       CelebornConf conf,
@@ -95,7 +95,7 @@ public class SharedCoalescedStream {
           @Override
           public void onSuccess(int returnedChunkIndex, ManagedBuffer buffer) {
             ByteBuf buf = ((NettyManagedBuffer) buffer).getBuf();
-            synchronized (SharedCoalescedStream.this) {
+            synchronized (results) {
               if (!closed) {
                 buf.retain();
                 results.add(Pair.of(returnedChunkIndex, buf));
@@ -142,8 +142,10 @@ public class SharedCoalescedStream {
       currentChunk.release();
       currentChunk = null;
     }
-    results.forEach(chunk -> chunk.getRight().release());
-    results.clear();
+    synchronized (results) {
+      results.forEach(chunk -> chunk.getRight().release());
+      results.clear();
+    }
     if (client != null && client.isActive()) {
       TransportMessage bufferStreamEnd =
           new TransportMessage(
