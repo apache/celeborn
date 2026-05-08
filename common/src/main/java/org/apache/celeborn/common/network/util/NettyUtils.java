@@ -17,7 +17,8 @@
 
 package org.apache.celeborn.common.network.util;
 
-import java.nio.channels.spi.SelectorProvider;
+import static org.apache.celeborn.common.network.util.IOMode.NIO;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -31,16 +32,17 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.Channel;
-import io.netty.channel.DefaultSelectStrategyFactory;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.IoHandlerFactory;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.channel.ServerChannel;
-import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.epoll.EpollIoHandler;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.epoll.EpollSocketChannel;
-import io.netty.channel.kqueue.KQueueEventLoopGroup;
+import io.netty.channel.kqueue.KQueueIoHandler;
 import io.netty.channel.kqueue.KQueueServerSocketChannel;
 import io.netty.channel.kqueue.KQueueSocketChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -75,22 +77,28 @@ public class NettyUtils {
       IOMode mode, int numThreads, boolean conflictAvoidChooserEnable, String threadPrefix) {
     ThreadFactory threadFactory = createThreadFactory(threadPrefix);
 
+    IoHandlerFactory handlerFactory;
     switch (mode) {
       case NIO:
-        return conflictAvoidChooserEnable
-            ? new NioEventLoopGroup(
-                numThreads,
-                new ThreadPerTaskExecutor(threadFactory),
-                ConflictAvoidEventExecutorChooserFactory.INSTANCE,
-                SelectorProvider.provider(),
-                DefaultSelectStrategyFactory.INSTANCE)
-            : new NioEventLoopGroup(numThreads, threadFactory);
+        handlerFactory = NioIoHandler.newFactory();
+        break;
       case EPOLL:
-        return new EpollEventLoopGroup(numThreads, threadFactory);
+        handlerFactory = EpollIoHandler.newFactory();
+        break;
       case KQUEUE:
-        return new KQueueEventLoopGroup(numThreads, threadFactory);
+        handlerFactory = KQueueIoHandler.newFactory();
+        break;
       default:
         throw new IllegalArgumentException("Unknown io mode: " + mode);
+    }
+    if (mode == NIO && conflictAvoidChooserEnable) {
+      return new MultiThreadIoEventLoopGroup(
+          numThreads,
+          new ThreadPerTaskExecutor(threadFactory),
+          ConflictAvoidEventExecutorChooserFactory.INSTANCE,
+          handlerFactory);
+    } else {
+      return new MultiThreadIoEventLoopGroup(numThreads, threadFactory, handlerFactory);
     }
   }
 

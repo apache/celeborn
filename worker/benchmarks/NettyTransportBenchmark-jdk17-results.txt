@@ -6,9 +6,9 @@ OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.18.7-76061807-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 File-Backed Shuffle Fetch:                Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ------------------------------------------------------------------------------------------------------------------------
-NIO, sequential fetch                             10207          10316         131          0.0   102070276.3       1.0X
-NIO, parallel fetch (4 clients)                    5310           5320           9          0.0    53099106.5       1.9X
-EPOLL, sequential fetch                           10032          10061          32          0.0   100317608.1       1.0X
-EPOLL, parallel fetch (4 clients)                  5515           5606         115          0.0    55150042.8       1.9X
+NIO, sequential fetch                             10546          10568          25          0.0   105462185.1       1.0X
+NIO, parallel fetch (4 clients)                    5333           5349          15          0.0    53330277.2       2.0X
+EPOLL, sequential fetch                           10457          10526          65          0.0   104571647.3       1.0X
+EPOLL, parallel fetch (4 clients)                  5245           5260          22          0.0    52452328.1       2.0X
 
 

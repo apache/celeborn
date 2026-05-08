@@ -6,7 +6,7 @@ OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.18.7-76061807-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 RPC Latency (1 KB):                       Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ------------------------------------------------------------------------------------------------------------------------
-1 KB payload                                        524            533          16          0.0      104753.3       1.0X
+1 KB payload                                        542            543           2          0.0      108326.3       1.0X
 
 
 ================================================================================================
@@ -17,7 +17,7 @@ OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.18.7-76061807-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 RPC Latency (64 KB):                      Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ------------------------------------------------------------------------------------------------------------------------
-64 KB payload                                      2521           2532          10          0.0      504112.3       1.0X
+64 KB payload                                      2523           2532           9          0.0      504581.0       1.0X
 
 
 ================================================================================================
@@ -28,7 +28,7 @@ OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.18.7-76061807-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 RPC Latency (1 MB):                       Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ------------------------------------------------------------------------------------------------------------------------
-1 MB payload                                       6438           6451          13          0.0     6438320.7       1.0X
+1 MB payload                                       6319           6346          18          0.0     6319330.2       1.0X
 
 
 ================================================================================================
@@ -39,7 +39,7 @@ OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.18.7-76061807-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 RPC Latency (16 MB):                      Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ------------------------------------------------------------------------------------------------------------------------
-16 MB payload                                      9923          10034         103          0.0    99231610.5       1.0X
+16 MB payload                                      9935           9955          17          0.0    99354584.9       1.0X
 
 
 ================================================================================================
@@ -50,10 +50,10 @@ OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.18.7-76061807-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 Concurrent RPC Throughput:                Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ------------------------------------------------------------------------------------------------------------------------
-1 client(s)                                        2049           2097          50          0.0      102469.1       1.0X
-4 client(s)                                        1325           1355          30          0.0       66251.5       1.5X
-8 client(s)                                        1121           1142          18          0.0       56046.7       1.8X
-16 client(s)                                       1095           1106          10          0.0       54742.0       1.9X
+1 client(s)                                        2107           2126          19          0.0      105337.8       1.0X
+4 client(s)                                        1298           1311          21          0.0       64893.4       1.6X
+8 client(s)                                        1089           1090           1          0.0       54449.8       1.9X
+16 client(s)                                       1062           1071           8          0.0       53109.7       2.0X
 
 
 ================================================================================================
@@ -64,8 +64,8 @@ OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.18.7-76061807-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 IOMode Comparison:                        Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ------------------------------------------------------------------------------------------------------------------------
-NIO (8 clients)                                    5399           5459          83          0.0      269943.5       1.0X
-EPOLL (8 clients)                                  5288           5374          84          0.0      264393.7       1.0X
+NIO (8 clients)                                    5308           5350          37          0.0      265385.4       1.0X
+EPOLL (8 clients)                                  5274           5323          81          0.0      263709.2       1.0X
 
 
 ================================================================================================
@@ -76,11 +76,11 @@ OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.18.7-76061807-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 Server Thread Scaling:                    Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ------------------------------------------------------------------------------------------------------------------------
-2 server threads                                   1034           1044           9          0.0       51713.7       1.0X
-4 server threads                                   1059           1062           4          0.0       52962.1       1.0X
-8 server threads                                   1074           1076           3          0.0       53712.2       1.0X
-16 server threads                                  1090           1101          16          0.0       54503.7       0.9X
-32 server threads                                  1069           1145          68          0.0       53447.3       1.0X
+2 server threads                                   1026           1038          18          0.0       51319.9       1.0X
+4 server threads                                   1036           1055          22          0.0       51798.3       1.0X
+8 server threads                                   1055           1070          21          0.0       52728.9       1.0X
+16 server threads                                  1074           1092          16          0.0       53722.5       1.0X
+32 server threads                                  1063           1085          24          0.0       53163.1       1.0X
 
 
 ================================================================================================
@@ -91,9 +91,9 @@ OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.18.7-76061807-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 Multi-Connection Throughput:              Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ------------------------------------------------------------------------------------------------------------------------
-1 conn(s), 4 threads                              31793          32359         883          0.0     6358548.8       1.0X
-2 conn(s), 4 threads                              20196          20265          63          0.0     4039234.4       1.6X
-4 conn(s), 4 threads                              17268          17333          81          0.0     3453573.5       1.8X
+1 conn(s), 4 threads                              31614          31678          97          0.0     6322732.4       1.0X
+2 conn(s), 4 threads                              19714          19852         231          0.0     3942701.6       1.6X
+4 conn(s), 4 threads                              17548          17570          37          0.0     3509596.0       1.8X
 
 
 ================================================================================================
@@ -104,9 +104,9 @@ OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.18.7-76061807-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 Async Write Throughput:                   Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ------------------------------------------------------------------------------------------------------------------------
-1 KB async burst                                     73             74           1          0.1       14656.2       1.0X
-64 KB async burst                                  2247           2255          10          0.0      449355.7       0.0X
-1 MB async burst                                  31720          31831          98          0.0     6343939.2       0.0X
+1 KB async burst                                     73             73           0          0.1       14565.2       1.0X
+64 KB async burst                                  2236           2248          14          0.0      447104.2       0.0X
+1 MB async burst                                  31238          31611         328          0.0     6247618.2       0.0X
 
 
 ================================================================================================
@@ -117,7 +117,7 @@ OpenJDK 64-Bit Server VM 17.0.15+6-LTS on Linux 6.18.7-76061807-generic
 Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz
 16 MB Block Transfer:                     Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
 ------------------------------------------------------------------------------------------------------------------------
-Sequential sends                                  10197          10222          29          0.0   101965659.2       1.0X
-4-thread parallel sends                            5498           5508          16          0.0    54980188.1       1.9X
+Sequential sends                                  10005          10026          19          0.0   100045679.2       1.0X
+4-thread parallel sends                            5561           5603          42          0.0    55611823.9       1.8X
 
 

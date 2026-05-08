@@ -59,19 +59,30 @@ private[celeborn] class JavaSerializationStream(
   def close() { objOut.close() }
 }
 
-private[celeborn] class JavaDeserializationStream(in: InputStream, loader: ClassLoader)
+private[celeborn] class JavaDeserializationStream(
+    in: InputStream,
+    loader: ClassLoader,
+    filter: JavaDeserializerFilter)
   extends DeserializationStream {
 
-  private val objIn = new ObjectInputStream(in) {
-    override def resolveClass(desc: ObjectStreamClass): Class[_] =
-      try {
-        // scalastyle:off classforname
-        Class.forName(desc.getName, false, loader)
-        // scalastyle:on classforname
-      } catch {
-        case e: ClassNotFoundException =>
-          JavaDeserializationStream.primitiveMappings.getOrElse(desc.getName, throw e)
+  private val objIn: ObjectInputStream = {
+    if (filter != null) {
+      val validatingStream = filter.createValidatingInputStream(in, loader)
+      filter.apply(validatingStream)
+      validatingStream
+    } else {
+      new ObjectInputStream(in) {
+        override def resolveClass(desc: ObjectStreamClass): Class[_] =
+          try {
+            // scalastyle:off classforname
+            Class.forName(desc.getName, false, loader)
+            // scalastyle:on classforname
+          } catch {
+            case e: ClassNotFoundException =>
+              JavaDeserializationStream.primitiveMappings.getOrElse(desc.getName, throw e)
+          }
       }
+    }
   }
 
   def readObject[T: ClassTag](): T = objIn.readObject().asInstanceOf[T]
@@ -94,7 +105,8 @@ private object JavaDeserializationStream {
 private[celeborn] class JavaSerializerInstance(
     counterReset: Int,
     extraDebugInfo: Boolean,
-    defaultClassLoader: ClassLoader)
+    defaultClassLoader: ClassLoader,
+    deserializerFilter: JavaDeserializerFilter)
   extends SerializerInstance {
 
   override def serialize[T: ClassTag](t: T): ByteBuffer = {
@@ -152,11 +164,11 @@ private[celeborn] class JavaSerializerInstance(
   }
 
   override def deserializeStream(s: InputStream): DeserializationStream = {
-    new JavaDeserializationStream(s, defaultClassLoader)
+    new JavaDeserializationStream(s, defaultClassLoader, deserializerFilter)
   }
 
   def deserializeStream(s: InputStream, loader: ClassLoader): DeserializationStream = {
-    new JavaDeserializationStream(s, loader)
+    new JavaDeserializationStream(s, loader, deserializerFilter)
   }
 }
 
@@ -175,11 +187,24 @@ class JavaSerializer(conf: CelebornConf) extends Serializer with Externalizable 
   private var counterReset = conf.getInt("spark.serializer.objectStreamReset", 100)
   private var extraDebugInfo = conf.getBoolean("spark.serializer.extraDebugInfo", true)
 
+  @transient private val deserializerFilter: JavaDeserializerFilter = {
+    if (!conf.serializerDeserializationFilterEnabled) null
+    else {
+      JavaDeserializerFilter.create(
+        conf.serializerDeserializationFilterAllowedPackages
+          .split(",").map(_.trim).filter(_.nonEmpty),
+        conf.serializerDeserializationFilterMaxDepth,
+        conf.serializerDeserializationFilterMaxArrayLength,
+        conf.serializerDeserializationFilterMaxReferences,
+        conf.serializerDeserializationFilterMaxStreamBytes)
+    }
+  }
+
   protected def this() = this(new CelebornConf()) // For deserialization only
 
   override def newInstance(): SerializerInstance = {
     val classLoader = defaultClassLoader.getOrElse(Thread.currentThread.getContextClassLoader)
-    new JavaSerializerInstance(counterReset, extraDebugInfo, classLoader)
+    new JavaSerializerInstance(counterReset, extraDebugInfo, classLoader, deserializerFilter)
   }
 
   override def writeExternal(out: ObjectOutput): Unit = Utils.tryOrIOException {
