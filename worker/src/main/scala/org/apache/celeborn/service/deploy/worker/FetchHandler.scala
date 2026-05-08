@@ -425,6 +425,9 @@ class FetchHandler(
         childBuffers.add(new FileChunkBuffers(fileInfo.asInstanceOf[DiskFileInfo], transportConf))
       }
 
+      // The synthetic stream only concatenates existing file-backed chunks. It does not copy
+      // reducer data into memory; each child file remains pinned until BUFFER_STREAM_END removes
+      // this stream state and closes the child file stream pins.
       val managedBuffer = new CompositeChunkBuffers(childBuffers, conf.shuffleChunkSize)
       chunkStreamManager.registerStream(
         streamId,

@@ -207,6 +207,10 @@ class CelebornShuffleReader[K, C](
     val maxExpectedBytesPerWorker =
       if (expectedBytesByWorker.isEmpty) 0L
       else expectedBytesByWorker.values().asScala.map(_.longValue()).max
+    // Keep the first coalesced-read implementation on the simplest correctness surface:
+    // AQE coalesced full-reducer remote reads where every reducer partition is one final
+    // local-disk file on exactly one worker. More complex layouts need explicit segment
+    // planning before they can safely share this path.
     var useCoalescedRemoteRead =
       conf.clientCoalescedRemoteReadEnabled &&
       partitionIdList.size > 1 &&
@@ -314,6 +318,8 @@ class CelebornShuffleReader[K, C](
     if (useCoalescedRemoteRead) {
       val openedStreams = new ConcurrentHashMap[String, (PartitionLocation, PbStreamHandler)]()
       try {
+        // Open one worker-side synthetic stream per worker. Spark still reads one input
+        // stream, but that stream is backed by these per-worker preopened streams.
         val locationsByWorker = new JLinkedHashMap[String, JArrayList[PartitionLocation]]()
         partitionIdList.foreach { partitionId =>
           fileGroups.partitionGroups.get(partitionId).asScala.foreach { location =>

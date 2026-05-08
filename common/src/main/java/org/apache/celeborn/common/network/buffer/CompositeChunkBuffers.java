@@ -65,6 +65,8 @@ public class CompositeChunkBuffers extends ChunkBuffers {
     chunkOffsets.add(0L);
     long emittedOffset = 0L;
     long emittedChunkBytes = 0L;
+    // Repack child chunks into the configured stream chunk size without splitting a child chunk.
+    // This preserves the original child chunk boundaries used by FileChunkBuffers.
     for (ChunkBuffers child : children) {
       for (int chunkIndex = 0; chunkIndex < child.numChunks(); chunkIndex++) {
         long childChunkSize = child.offsets[chunkIndex + 1] - child.offsets[chunkIndex];

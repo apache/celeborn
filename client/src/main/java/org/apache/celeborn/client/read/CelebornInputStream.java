@@ -449,6 +449,9 @@ public abstract class CelebornInputStream extends InputStream {
       }
       currentReader = createReaderWithRetry(currentLocation._1, currentLocation._2);
       if (streamHandlers != null) {
+        // The PartitionReader now owns this preopened worker stream and will close it.
+        // Leaving it in the initial handler list would make constructor/setup cleanup
+        // send a duplicate BUFFER_STREAM_END for the active reader.
         streamHandlers.set(fileIndex, null);
       }
       fileIndex++;
@@ -461,6 +464,7 @@ public abstract class CelebornInputStream extends InputStream {
         }
         currentReader = createReaderWithRetry(currentLocation._1, currentLocation._2);
         if (streamHandlers != null) {
+          // Transfer ownership for the next readable preopened stream as well.
           streamHandlers.set(fileIndex, null);
         }
         fileIndex++;
