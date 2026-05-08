@@ -288,6 +288,27 @@ class CelebornShuffleReader[K, C](
       }
     }
 
+    def closeCoalescedStream(location: PartitionLocation, streamHandler: PbStreamHandler): Unit = {
+      try {
+        val client = shuffleClient.getDataClientFactory().createClient(
+          location.getHost,
+          location.getFetchPort)
+        client.sendRpc(new TransportMessage(
+          MessageType.BUFFER_STREAM_END,
+          PbBufferStreamEnd.newBuilder()
+            .setStreamType(StreamType.ChunkStream)
+            .setStreamId(streamHandler.getStreamId)
+            .build()
+            .toByteArray).toByteBuffer)
+      } catch {
+        case closeError: Exception =>
+          logDebug(
+            s"Failed to close unused coalesced stream ${streamHandler.getStreamId} " +
+              s"for ${location.hostAndFetchPort}.",
+            closeError)
+      }
+    }
+
     val coalescedLocations = new JArrayList[PartitionLocation]()
     val coalescedStreamHandlers = new JArrayList[PbStreamHandler]()
     if (useCoalescedRemoteRead) {
@@ -352,24 +373,7 @@ class CelebornShuffleReader[K, C](
               "Falling back to normal remote reads.",
             e)
           openedStreams.values().asScala.foreach { case (location, streamHandler) =>
-            try {
-              val client = shuffleClient.getDataClientFactory().createClient(
-                location.getHost,
-                location.getFetchPort)
-              client.sendRpc(new TransportMessage(
-                MessageType.BUFFER_STREAM_END,
-                PbBufferStreamEnd.newBuilder()
-                  .setStreamType(StreamType.ChunkStream)
-                  .setStreamId(streamHandler.getStreamId)
-                  .build()
-                  .toByteArray).toByteBuffer)
-            } catch {
-              case closeError: Exception =>
-                logDebug(
-                  s"Failed to close unused coalesced stream ${streamHandler.getStreamId} " +
-                    s"for ${location.hostAndFetchPort}.",
-                  closeError)
-            }
+            closeCoalescedStream(location, streamHandler)
           }
       }
     }
@@ -484,6 +488,13 @@ class CelebornShuffleReader[K, C](
           streams.put(partitionId, inputStream)
         } catch {
           case e: IOException =>
+            if (useCoalescedRemoteRead) {
+              locationList.asScala.zip(streamHandlers.asScala).foreach {
+                case (location, streamHandler) if streamHandler != null =>
+                  closeCoalescedStream(location, streamHandler)
+                case _ =>
+              }
+            }
             logError(s"Exception caught when readPartition $partitionId!", e)
             exceptionRef.compareAndSet(null, e)
           case e: Throwable =>
