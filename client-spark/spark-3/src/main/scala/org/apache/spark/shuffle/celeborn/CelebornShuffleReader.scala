@@ -308,15 +308,11 @@ class CelebornShuffleReader[K, C](
               throw new CelebornIOException(
                 s"Unexpected coalesced boundary at index $idx for $shuffleKey")
             }
-            if (!coalescedPartitionInfos.containsKey(boundary.getReducerId)) {
-              coalescedPartitionInfos.put(
-                boundary.getReducerId,
-                new JHashMap[String, CoalescedPartitionInfo]())
-            }
-            val byLocation = coalescedPartitionInfos.get(boundary.getReducerId)
-            byLocation.put(
-              location.getUniqueId,
-              new CoalescedPartitionInfo(sharedStream, boundary))
+            CelebornShuffleReader.addCoalescedPartitionInfo(
+              coalescedPartitionInfos,
+              location,
+              sharedStream,
+              boundary)
           }
         }
         context.addTaskCompletionListener[Unit](_ => coalescedStreams.asScala.foreach(_.close()))
@@ -689,6 +685,19 @@ object CelebornShuffleReader {
   var streamCreatorPool: ThreadPoolExecutor = null
 
   private val NOOP_METRIC_UPDATE: Long => Unit = _ => ()
+
+  private[celeborn] def addCoalescedPartitionInfo(
+      infos: JMap[Int, JMap[String, CoalescedPartitionInfo]],
+      location: PartitionLocation,
+      stream: SharedCoalescedStream,
+      boundary: PbCoalescedChunkBoundary): Unit = {
+    if (!infos.containsKey(boundary.getReducerId)) {
+      infos.put(boundary.getReducerId, new JHashMap[String, CoalescedPartitionInfo]())
+    }
+    infos.get(boundary.getReducerId).put(
+      location.getUniqueId,
+      new CoalescedPartitionInfo(stream, boundary))
+  }
 
   private def optionalMetricUpdate(
       metrics: ShuffleReadMetricsReporter,

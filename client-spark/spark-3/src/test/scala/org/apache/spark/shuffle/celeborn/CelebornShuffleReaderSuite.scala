@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.nio.file.Files
+import java.util.{HashMap => JHashMap, Map => JMap}
 import java.util.concurrent.TimeoutException
 
 import org.apache.spark.{Dependency, ShuffleDependency, TaskContext}
@@ -28,9 +29,11 @@ import org.mockito.Mockito._
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.{DummyShuffleClient, ShuffleClient}
+import org.apache.celeborn.client.read.{CoalescedPartitionInfo, SharedCoalescedStream}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.protocol.{PartitionLocation, PbCoalescedChunkBoundary}
 
 class CelebornShuffleReaderSuite extends AnyFunSuite {
 
@@ -177,5 +180,24 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
     metricsCallback.incOpenStreamTime(12L)
 
     assert(metrics.openStreamAttempts === 1)
+  }
+
+  test("preserve multiple coalesced locations for one reducer") {
+    val infos = new JHashMap[Int, JMap[String, CoalescedPartitionInfo]]()
+    val stream = Mockito.mock(classOf[SharedCoalescedStream])
+    val location0 = Mockito.mock(classOf[PartitionLocation])
+    val location1 = Mockito.mock(classOf[PartitionLocation])
+    when(location0.getUniqueId).thenReturn("7-0")
+    when(location1.getUniqueId).thenReturn("7-1")
+    val boundary0 = PbCoalescedChunkBoundary.newBuilder().setReducerId(7).build()
+    val boundary1 = PbCoalescedChunkBoundary.newBuilder().setReducerId(7).build()
+
+    CelebornShuffleReader.addCoalescedPartitionInfo(infos, location0, stream, boundary0)
+    CelebornShuffleReader.addCoalescedPartitionInfo(infos, location1, stream, boundary1)
+
+    assert(infos.size() === 1)
+    assert(infos.get(7).size() === 2)
+    assert(infos.get(7).get("7-0").boundary eq boundary0)
+    assert(infos.get(7).get("7-1").boundary eq boundary1)
   }
 }

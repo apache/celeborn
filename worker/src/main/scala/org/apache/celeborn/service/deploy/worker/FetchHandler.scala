@@ -385,6 +385,13 @@ class FetchHandler(
             new NioManagedBuffer(new TransportMessage(
               MessageType.COALESCED_STREAM_HANDLER,
               handler.toByteArray).toByteBuffer)))
+            .addListener(new GenericFutureListener[Future[_ >: Void]] {
+              override def operationComplete(future: Future[_ >: Void]): Unit = {
+                if (!future.isSuccess) {
+                  handleEndStreamFromClient(client, handler.getStreamId, StreamType.ChunkStream)
+                }
+              }
+            })
         }
       }
   }
