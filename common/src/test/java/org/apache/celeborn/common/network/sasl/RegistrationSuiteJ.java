@@ -33,14 +33,14 @@ import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterNotLeaderException;
-import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBootstrap;
-import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo;
-import org.apache.celeborn.common.network.sasl.registration.RegistrationRpcHandler;
-import org.apache.celeborn.common.network.sasl.registration.RegistrationServerBootstrap;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientBootstrap;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
+import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBootstrap;
+import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo;
+import org.apache.celeborn.common.network.sasl.registration.RegistrationRpcHandler;
+import org.apache.celeborn.common.network.sasl.registration.RegistrationServerBootstrap;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -119,7 +119,8 @@ public class RegistrationSuiteJ extends SaslTestBase {
         assertThrows(
             Throwable.class, () -> assertRoundTrip(conf, serverBootstrap, clientBootstrap));
     assertTrue(Throwables.getStackTraceAsString(t).contains("Registration information not found"));
-    assertEquals(RegistrationInfo.RegistrationState.FAILED, registrationInfo.getRegistrationState());
+    assertEquals(
+        RegistrationInfo.RegistrationState.FAILED, registrationInfo.getRegistrationState());
 
     RegistrationServerBootstrap retryServerBootstrap =
         new RegistrationServerBootstrap(conf, testSecretRegistry);
