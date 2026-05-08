@@ -208,15 +208,15 @@ class CelebornShuffleReader[K, C](
       if (expectedBytesByWorker.isEmpty) 0L
       else expectedBytesByWorker.values().asScala.map(_.longValue()).max
     // Keep the first coalesced-read implementation on the simplest correctness surface:
-    // AQE coalesced full-reducer remote reads where every reducer partition is one final
-    // local-disk file on exactly one worker. More complex layouts need explicit segment
-    // planning before they can safely share this path.
+    // AQE coalesced full-reducer remote reads where every reducer partition location is a
+    // final local-disk file. Split reducer epochs are fine here: the worker protocol already
+    // receives a list of files per worker and concatenates those files into one synthetic stream.
     //
     // The important invariants are:
     // - full map range: the worker can concatenate whole reduce files without preserving
     //   per-map subranges;
-    // - one location and no peer: retry remains at the normal-read fallback boundary instead
-    //   of needing per-partition replica recovery inside one coalesced stream;
+    // - no peer: retry remains at the normal-read fallback boundary instead of needing
+    //   per-partition replica recovery inside one coalesced stream;
     // - final HDD/SSD file: the worker can build FileChunkBuffers directly over stable local
     //   files and release file pins through the existing BUFFER_STREAM_END path;
     // - no ordering and no failed batches: Spark does not need per-partition repair or ordering
@@ -232,7 +232,7 @@ class CelebornShuffleReader[K, C](
       maxExpectedBytesPerWorker <= conf.clientCoalescedRemoteReadMaxBytes &&
       partitionIdList.forall { partitionId =>
         val locations = fileGroups.partitionGroups.get(partitionId)
-        locations.size() == 1 && locations.asScala.forall { location =>
+        locations.asScala.forall { location =>
           val storageInfo = location.getStorageInfo
           storageInfo.isFinalResult &&
           (storageInfo.getType.equals(StorageInfo.Type.HDD) ||
