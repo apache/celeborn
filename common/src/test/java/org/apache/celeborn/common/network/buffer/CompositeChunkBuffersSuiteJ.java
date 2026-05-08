@@ -45,8 +45,7 @@ public class CompositeChunkBuffersSuiteJ {
     assertArrayEquals(
         new byte[] {0, 1, 2, 3, 4}, toByteArray(buffers.chunk(0, 0, Integer.MAX_VALUE)));
     assertArrayEquals(
-        new byte[] {10, 11, 12, 13, 20, 21},
-        toByteArray(buffers.chunk(1, 0, Integer.MAX_VALUE)));
+        new byte[] {10, 11, 12, 13, 20, 21}, toByteArray(buffers.chunk(1, 0, Integer.MAX_VALUE)));
     assertArrayEquals(new byte[] {11, 12, 13, 20}, toByteArray(buffers.chunk(1, 1, 4)));
   }
 
@@ -77,8 +76,7 @@ public class CompositeChunkBuffersSuiteJ {
     public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
       scala.Tuple2<Long, Long> offsetLen = getChunkOffsetLength(chunkIndex, offset, len);
       return new NioManagedBuffer(
-          java.nio.ByteBuffer.wrap(
-              data, offsetLen._1().intValue(), offsetLen._2().intValue()));
+          java.nio.ByteBuffer.wrap(data, offsetLen._1().intValue(), offsetLen._2().intValue()));
     }
   }
 }
