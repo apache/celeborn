@@ -98,6 +98,7 @@ class StoragePolicyCase1 extends CelebornFunSuite {
       null)
 
   test("test create file order case1") {
+    MemoryManager.initialize(this.conf)
     when(mockedPartitionWriterContext.getPartitionLocation).thenAnswer(memoryHintPartitionLocation)
     when(mockedPartitionWriterContext.getPartitionType).thenAnswer(PartitionType.REDUCE)
     val conf = new CelebornConf()
