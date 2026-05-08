@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
@@ -46,6 +47,7 @@ import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.SerdeVersion;
@@ -56,6 +58,8 @@ import org.apache.celeborn.common.protocol.message.ControlMessages.RegisterShuff
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.rpc.RpcTimeoutException;
+import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.common.write.PushMetricsCallback;
 
 public class ShuffleClientSuiteJ {
 
@@ -127,6 +131,62 @@ public class ShuffleClientSuiteJ {
         assertEquals(compressedTotalSize + BATCH_HEADER_SIZE, pushDataLen);
       }
     }
+  }
+
+  @Test
+  public void testPushDataMetrics() throws IOException, InterruptedException {
+    setupEnv(CompressionCodec.NONE);
+    AtomicReference<Long> pushDataCount = new AtomicReference<>(0L);
+    AtomicReference<Long> pushDataRetryCount = new AtomicReference<>(0L);
+    AtomicReference<Long> pushDataTime = new AtomicReference<>(-1L);
+    AtomicReference<Long> inFlightWaitTime = new AtomicReference<>(0L);
+    shuffleClient
+        .getPushState(Utils.makeMapKey(TEST_SHUFFLE_ID, TEST_ATTEMPT_ID, TEST_ATTEMPT_ID))
+        .setMetricsCallback(
+            new PushMetricsCallback() {
+              @Override
+              public void incPushDataCount(long count) {
+                pushDataCount.updateAndGet(v -> v + count);
+              }
+
+              @Override
+              public void incPushDataRetryCount(long count) {
+                pushDataRetryCount.updateAndGet(v -> v + count);
+              }
+
+              @Override
+              public void incPushDataTime(long time) {
+                pushDataTime.set(time);
+              }
+
+              @Override
+              public void incInFlightWaitTime(long time) {
+                inFlightWaitTime.updateAndGet(v -> v + time);
+              }
+            });
+    when(client.pushData(any(), anyLong(), any()))
+        .thenAnswer(
+            invocation -> {
+              RpcResponseCallback callback = invocation.getArgument(2);
+              callback.onSuccess(ByteBuffer.allocate(0));
+              return null;
+            });
+
+    shuffleClient.pushData(
+        TEST_SHUFFLE_ID,
+        TEST_ATTEMPT_ID,
+        TEST_ATTEMPT_ID,
+        TEST_REDUCRE_ID,
+        TEST_BUF1,
+        0,
+        TEST_BUF1.length,
+        1,
+        1);
+
+    assertEquals(Long.valueOf(1L), pushDataCount.get());
+    assertEquals(Long.valueOf(0L), pushDataRetryCount.get());
+    assertTrue(pushDataTime.get() >= 0L);
+    assertEquals(Long.valueOf(0L), inFlightWaitTime.get());
   }
 
   @Test

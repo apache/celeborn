@@ -436,6 +436,9 @@ public abstract class CelebornInputStream extends InputStream {
           if (isExcluded(location)) {
             throw new CelebornIOException("Fetch data from excluded worker! " + location);
           }
+          if (fetchChunkRetryCnt > 0) {
+            callback.incRemoteReadRetryCount(1);
+          }
           PartitionReader reader =
               createReader(
                   location,

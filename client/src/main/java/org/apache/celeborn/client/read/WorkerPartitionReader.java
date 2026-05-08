@@ -141,7 +141,6 @@ public class WorkerPartitionReader implements PartitionReader {
       logger.error("PartitionReader thread interrupted while creating client.");
       throw ie;
     }
-
     if (pbStreamHandler == null) {
       long openStreamStartTime = System.nanoTime();
       TransportMessage openStreamMsg =
@@ -164,6 +163,8 @@ public class WorkerPartitionReader implements PartitionReader {
     } else {
       this.streamHandler = pbStreamHandler;
     }
+    metricsCallback.recordRemoteReadWorker(location.hostAndFetchPort());
+    metricsCallback.incRemoteWorkerStreamsRead(1);
     this.startChunkIndex = startChunkIndex == -1 ? 0 : startChunkIndex;
     this.endChunkIndex =
         endChunkIndex == -1

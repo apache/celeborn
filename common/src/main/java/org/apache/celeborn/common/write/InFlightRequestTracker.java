@@ -138,6 +138,7 @@ public class InFlightRequestTracker {
     Set<Integer> batchIdSet = getBatchIdSetByAddressPair(hostAndPushPort);
     LongAdder batchBytesSize = getBatchBytesSizeByAddressPair(hostAndPushPort);
     long times = waitInflightTimeoutMs / delta;
+    long waitStartTime = 0L;
     try {
       while (times > 0) {
         if (cleaned) {
@@ -154,12 +155,18 @@ public class InFlightRequestTracker {
           if (pushState.exception.get() != null) {
             throw pushState.exception.get();
           }
+          if (waitStartTime == 0L) {
+            waitStartTime = System.nanoTime();
+          }
           Thread.sleep(delta);
           times--;
         }
       }
     } catch (InterruptedException e) {
       pushState.exception.set(new CelebornIOException(e));
+    }
+    if (waitStartTime != 0L) {
+      pushState.incInFlightWaitTime(System.nanoTime() - waitStartTime);
     }
 
     if (times <= 0) {
