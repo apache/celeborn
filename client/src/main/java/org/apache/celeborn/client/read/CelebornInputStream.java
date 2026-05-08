@@ -425,11 +425,8 @@ public abstract class CelebornInputStream extends InputStream {
 
       fetchChunkRetryCnt = 0;
 
-      PbStreamHandler streamHandler = streamHandlers == null ? null : streamHandlers.get(fileIndex);
-      if (streamHandlers != null) {
-        streamHandlers.set(fileIndex, null);
-      }
-      return new Tuple2(currentLocation, streamHandler);
+      return new Tuple2(
+          currentLocation, streamHandlers == null ? null : streamHandlers.get(fileIndex));
     }
 
     private void moveToNextReader(boolean fetchChunk) throws IOException {
@@ -442,6 +439,9 @@ public abstract class CelebornInputStream extends InputStream {
         return;
       }
       currentReader = createReaderWithRetry(currentLocation._1, currentLocation._2);
+      if (streamHandlers != null) {
+        streamHandlers.set(fileIndex, null);
+      }
       fileIndex++;
       while (!currentReader.hasNext() || (fetchChunk && (currentChunk = getNextChunk()) == null)) {
         currentReader.close();
@@ -451,6 +451,9 @@ public abstract class CelebornInputStream extends InputStream {
           return;
         }
         currentReader = createReaderWithRetry(currentLocation._1, currentLocation._2);
+        if (streamHandlers != null) {
+          streamHandlers.set(fileIndex, null);
+        }
         fileIndex++;
       }
     }
