@@ -19,6 +19,8 @@ license: |
 <!--begin-include-->
 | Key | Default | isDynamic | Description | Since | Deprecated |
 | --- | ------- | --------- | ----------- | ----- | ---------- |
+| celeborn.client.coalescedRemoteRead.enabled | false | false | Whether to coalesce small remote reducer-range reads into one stream per worker. | 0.6.1 |  | 
+| celeborn.client.coalescedRemoteRead.maxBytes | 8m | false | Maximum bytes for one worker-side coalesced remote reducer-range stream. | 0.6.1 |  | 
 | celeborn.cluster.name | default | false | Celeborn cluster name. | 0.5.0 |  | 
 | celeborn.container.info.provider | org.apache.celeborn.server.common.container.DefaultContainerInfoProvider | false | ContainerInfoProvider class name. Default class is `org.apache.celeborn.server.common.container.DefaultContainerInfoProvider`.  | 0.6.0 |  | 
 | celeborn.dynamicConfig.refresh.interval | 120s | false | Interval for refreshing the corresponding dynamic config periodically. | 0.4.0 |  | 

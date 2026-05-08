@@ -19,7 +19,7 @@ package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
 import java.lang.reflect.Method
-import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, Set => JSet}
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap, LinkedHashMap => JLinkedHashMap, Map => JMap, Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.BiFunction
@@ -195,6 +195,38 @@ class CelebornShuffleReader[K, C](
     // filter empty partition
     val partitionIdList = List.range(startPartition, endPartition).filter(p =>
       fileGroups.partitionGroups.containsKey(p))
+    val isFullMapRangeRead = startMapIndex == 0 && endMapIndex == Int.MaxValue
+    val expectedBytesByWorker = new JHashMap[String, java.lang.Long]()
+    partitionIdList.foreach { partitionId =>
+      fileGroups.partitionGroups.get(partitionId).asScala.foreach { location =>
+        val hostPort = location.hostAndFetchPort
+        val current = Option(expectedBytesByWorker.get(hostPort)).map(_.longValue()).getOrElse(0L)
+        expectedBytesByWorker.put(hostPort, current + location.getStorageInfo.getFileSize)
+      }
+    }
+    val maxExpectedBytesPerWorker =
+      if (expectedBytesByWorker.isEmpty) 0L
+      else expectedBytesByWorker.values().asScala.map(_.longValue()).max
+    var useCoalescedRemoteRead =
+      conf.clientCoalescedRemoteReadEnabled &&
+      partitionIdList.size > 1 &&
+      isFullMapRangeRead &&
+      !splitSkewPartitionWithoutMapRange &&
+      dep.keyOrdering.isEmpty &&
+      Option(fileGroups.pushFailedBatches).forall(_.isEmpty) &&
+      maxExpectedBytesPerWorker > 0 &&
+      maxExpectedBytesPerWorker <= conf.clientCoalescedRemoteReadMaxBytes &&
+      partitionIdList.forall { partitionId =>
+        val locations = fileGroups.partitionGroups.get(partitionId)
+        locations.size() == 1 && locations.asScala.forall { location =>
+          val storageInfo = location.getStorageInfo
+          storageInfo.isFinalResult &&
+          (storageInfo.getType.equals(StorageInfo.Type.HDD) ||
+            storageInfo.getType.equals(StorageInfo.Type.SSD)) &&
+          !location.hasPeer &&
+          !location.getHost.equals(localHostAddress)
+        }
+      }
 
     def makeOpenStreamList(locations: JSet[PartitionLocation]): Unit = {
       locations.asScala.foreach { location =>
@@ -232,26 +264,117 @@ class CelebornShuffleReader[K, C](
       }
     }
 
-    partitionIdList.foreach { partitionId =>
-      if (fileGroups.partitionGroups.containsKey(partitionId)) {
-        var locations = fileGroups.partitionGroups.get(partitionId)
-        if (splitSkewPartitionWithoutMapRange) {
-          val partitionLocation2ChunkRange = CelebornPartitionUtil.splitSkewedPartitionLocations(
-            new JArrayList(locations),
-            startMapIndex,
-            endMapIndex)
-          partitionId2ChunkRange.put(partitionId, partitionLocation2ChunkRange)
-          // filter locations avoid OPEN_STREAM when split skew partition without map range
-          val filterLocations = locations.asScala
-            .filter { location =>
-              null != partitionLocation2ChunkRange &&
-              partitionLocation2ChunkRange.containsKey(location.getUniqueId)
-            }
-          locations = filterLocations.asJava
-          partitionId2PartitionLocations.put(partitionId, locations)
+    def makeNormalOpenStreamLists(): Unit = {
+      partitionIdList.foreach { partitionId =>
+        if (fileGroups.partitionGroups.containsKey(partitionId)) {
+          var locations = fileGroups.partitionGroups.get(partitionId)
+          if (splitSkewPartitionWithoutMapRange) {
+            val partitionLocation2ChunkRange = CelebornPartitionUtil.splitSkewedPartitionLocations(
+              new JArrayList(locations),
+              startMapIndex,
+              endMapIndex)
+            partitionId2ChunkRange.put(partitionId, partitionLocation2ChunkRange)
+            // filter locations avoid OPEN_STREAM when split skew partition without map range
+            val filterLocations = locations.asScala
+              .filter { location =>
+                null != partitionLocation2ChunkRange &&
+                partitionLocation2ChunkRange.containsKey(location.getUniqueId)
+              }
+            locations = filterLocations.asJava
+            partitionId2PartitionLocations.put(partitionId, locations)
+          }
+          makeOpenStreamList(locations)
         }
-        makeOpenStreamList(locations)
       }
+    }
+
+    val coalescedLocations = new JArrayList[PartitionLocation]()
+    val coalescedStreamHandlers = new JArrayList[PbStreamHandler]()
+    if (useCoalescedRemoteRead) {
+      val openedStreams = new ConcurrentHashMap[String, (PartitionLocation, PbStreamHandler)]()
+      try {
+        val locationsByWorker = new JLinkedHashMap[String, JArrayList[PartitionLocation]]()
+        partitionIdList.foreach { partitionId =>
+          fileGroups.partitionGroups.get(partitionId).asScala.foreach { location =>
+            val workerLocations = locationsByWorker.computeIfAbsent(
+              location.hostAndFetchPort,
+              _ => new JArrayList[PartitionLocation]())
+            workerLocations.add(location)
+          }
+        }
+        val coalescedOpenFutures = locationsByWorker.entrySet().asScala.map { entry =>
+          streamCreatorPool.submit(new Runnable {
+            override def run(): Unit = {
+              val locations = entry.getValue
+              val representative = locations.get(0)
+              val client = shuffleClient.getDataClientFactory().createClient(
+                representative.getHost,
+                representative.getFetchPort)
+              val request = PbCoalescedOpenStream.newBuilder().setShuffleKey(shuffleKey)
+              locations.asScala.foreach { location =>
+                request.addFileName(location.getFileName)
+                request.addStartIndex(startMapIndex)
+                request.addEndIndex(endMapIndex)
+              }
+              val msg = new TransportMessage(
+                MessageType.COALESCED_OPEN_STREAM,
+                request.build().toByteArray)
+              val response = client.sendRpcSync(msg.toByteBuffer, fetchTimeoutMs)
+              val streamHandlerOpt =
+                TransportMessage.fromByteBuffer(response).getParsedPayload[PbStreamHandlerOpt]
+              if (streamHandlerOpt.getStatus != StatusCode.SUCCESS.getValue) {
+                throw new IOException(streamHandlerOpt.getErrorMsg)
+              }
+              openedStreams.put(entry.getKey, (representative, streamHandlerOpt.getStreamHandler))
+            }
+          })
+        }.toList
+        var openFailure: Throwable = null
+        coalescedOpenFutures.foreach { future =>
+          try future.get()
+          catch {
+            case e: Throwable if openFailure == null => openFailure = e
+            case _: Throwable =>
+          }
+        }
+        if (openFailure != null) {
+          throw openFailure
+        }
+        openedStreams.values().asScala.foreach { case (location, streamHandler) =>
+          coalescedLocations.add(location)
+          coalescedStreamHandlers.add(streamHandler)
+        }
+      } catch {
+        case e: Exception =>
+          useCoalescedRemoteRead = false
+          logWarning(
+            s"Failed to open coalesced remote read for shuffle $shuffleKey. " +
+              "Falling back to normal remote reads.",
+            e)
+          openedStreams.values().asScala.foreach { case (location, streamHandler) =>
+            try {
+              val client = shuffleClient.getDataClientFactory().createClient(
+                location.getHost,
+                location.getFetchPort)
+              client.sendRpc(new TransportMessage(
+                MessageType.BUFFER_STREAM_END,
+                PbBufferStreamEnd.newBuilder()
+                  .setStreamType(StreamType.ChunkStream)
+                  .setStreamId(streamHandler.getStreamId)
+                  .build()
+                  .toByteArray).toByteBuffer)
+            } catch {
+              case closeError: Exception =>
+                logDebug(
+                  s"Failed to close unused coalesced stream ${streamHandler.getStreamId} " +
+                    s"for ${location.hostAndFetchPort}.",
+                  closeError)
+            }
+          }
+      }
+    }
+    if (!useCoalescedRemoteRead) {
+      makeNormalOpenStreamLists()
     }
 
     val locationStreamHandlerMap: ConcurrentHashMap[PartitionLocation, PbStreamHandler] =
@@ -294,7 +417,9 @@ class CelebornShuffleReader[K, C](
 
     def createInputStream(partitionId: Int): Unit = {
       val locations =
-        if (splitSkewPartitionWithoutMapRange) {
+        if (useCoalescedRemoteRead) {
+          coalescedLocations
+        } else if (splitSkewPartitionWithoutMapRange) {
           partitionId2PartitionLocations.get(partitionId)
         } else {
           fileGroups.partitionGroups.get(partitionId)
@@ -307,7 +432,9 @@ class CelebornShuffleReader[K, C](
           new JArrayList[PartitionLocation](locations)
         }
       val streamHandlers =
-        if (locations != null) {
+        if (useCoalescedRemoteRead) {
+          coalescedStreamHandlers
+        } else if (locations != null) {
           val streamHandlerArr = new JArrayList[PbStreamHandler](locationList.size)
           locationList.asScala.foreach { loc =>
             streamHandlerArr.add(locationStreamHandlerMap.get(loc))
@@ -316,23 +443,44 @@ class CelebornShuffleReader[K, C](
         } else null
       if (exceptionRef.get() == null) {
         try {
-          val inputStream = shuffleClient.readPartition(
-            shuffleId,
-            handle.shuffleId,
-            partitionId,
-            encodedAttemptId,
-            context.taskAttemptId(),
-            startMapIndex,
-            endMapIndex,
-            if (stageRerunEnabled) ExceptionMakerHelper.SHUFFLE_FETCH_FAILURE_EXCEPTION_MAKER
-            else null,
-            locationList,
-            streamHandlers,
-            fileGroups.pushFailedBatches,
-            partitionId2ChunkRange.get(partitionId),
-            fileGroups.mapAttempts,
-            metricsCallback,
-            needDecompress)
+          val inputStream =
+            if (useCoalescedRemoteRead) {
+              shuffleClient.readPreopenedPartitionWithoutRetry(
+                shuffleId,
+                handle.shuffleId,
+                partitionId,
+                encodedAttemptId,
+                context.taskAttemptId(),
+                startMapIndex,
+                endMapIndex,
+                if (stageRerunEnabled) ExceptionMakerHelper.SHUFFLE_FETCH_FAILURE_EXCEPTION_MAKER
+                else null,
+                locationList,
+                streamHandlers,
+                fileGroups.pushFailedBatches,
+                partitionId2ChunkRange.get(partitionId),
+                fileGroups.mapAttempts,
+                metricsCallback,
+                needDecompress)
+            } else {
+              shuffleClient.readPartition(
+                shuffleId,
+                handle.shuffleId,
+                partitionId,
+                encodedAttemptId,
+                context.taskAttemptId(),
+                startMapIndex,
+                endMapIndex,
+                if (stageRerunEnabled) ExceptionMakerHelper.SHUFFLE_FETCH_FAILURE_EXCEPTION_MAKER
+                else null,
+                locationList,
+                streamHandlers,
+                fileGroups.pushFailedBatches,
+                partitionId2ChunkRange.get(partitionId),
+                fileGroups.mapAttempts,
+                metricsCallback,
+                needDecompress)
+            }
           streams.put(partitionId, inputStream)
         } catch {
           case e: IOException =>
@@ -345,17 +493,19 @@ class CelebornShuffleReader[K, C](
       }
     }
 
+    val inputPartitionIdList =
+      if (useCoalescedRemoteRead) List(startPartition) else partitionIdList
     val inputStreamCreationWindow = conf.clientInputStreamCreationWindow
-    (0 until Math.min(inputStreamCreationWindow, partitionIdList.size)).foreach(listIndex => {
+    (0 until Math.min(inputStreamCreationWindow, inputPartitionIdList.size)).foreach(listIndex => {
       streamCreatorPool.submit(new Runnable {
         override def run(): Unit = {
-          createInputStream(partitionIdList(listIndex))
+          createInputStream(inputPartitionIdList(listIndex))
         }
       })
     })
 
     var curIndex = 0
-    val recordIter = partitionIdList.iterator.map(partitionId => {
+    val recordIter = inputPartitionIdList.iterator.map(partitionId => {
       if (handle.numMappers > 0) {
         val startFetchWait = System.nanoTime()
         var inputStream: CelebornInputStream = streams.get(partitionId)
@@ -385,8 +535,8 @@ class CelebornShuffleReader[K, C](
         context.addTaskCompletionListener[Unit](_ => inputStream.close())
 
         // Advance the input creation window
-        if (curIndex + inputStreamCreationWindow < partitionIdList.size) {
-          val nextPartitionId = partitionIdList(curIndex + inputStreamCreationWindow)
+        if (curIndex + inputStreamCreationWindow < inputPartitionIdList.size) {
+          val nextPartitionId = inputPartitionIdList(curIndex + inputStreamCreationWindow)
           streamCreatorPool.submit(new Runnable {
             override def run(): Unit = {
               createInputStream(nextPartitionId)

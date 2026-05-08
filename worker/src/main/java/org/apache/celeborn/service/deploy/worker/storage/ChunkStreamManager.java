@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.service.deploy.worker.storage;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,15 +51,21 @@ public class ChunkStreamManager {
     public final ChunkBuffers buffers;
     public final String shuffleKey;
     public final String fileName;
+    public final List<String> fileNames;
     public final TimeWindow fetchTimeMetric;
     // Used to keep track of the number of chunks being transferred and not finished yet.
     volatile long chunksBeingTransferred = 0L;
 
     StreamState(
-        String shuffleKey, ChunkBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
+        String shuffleKey,
+        ChunkBuffers buffers,
+        String fileName,
+        List<String> fileNames,
+        TimeWindow fetchTimeMetric) {
       this.buffers = buffers;
       this.shuffleKey = shuffleKey;
       this.fileName = fileName;
+      this.fileNames = fileNames;
       this.fetchTimeMetric = fetchTimeMetric;
     }
   }
@@ -155,7 +163,19 @@ public class ChunkStreamManager {
       ChunkBuffers buffers,
       String fileName,
       TimeWindow fetchTimeMetric) {
-    StreamState streamState = new StreamState(shuffleKey, buffers, fileName, fetchTimeMetric);
+    return registerStream(
+        streamId, shuffleKey, buffers, fileName, Collections.singletonList(fileName), fetchTimeMetric);
+  }
+
+  public long registerStream(
+      long streamId,
+      String shuffleKey,
+      ChunkBuffers buffers,
+      String fileName,
+      List<String> fileNames,
+      TimeWindow fetchTimeMetric) {
+    StreamState streamState =
+        new StreamState(shuffleKey, buffers, fileName, fileNames, fetchTimeMetric);
     streams.put(streamId, streamState);
     shuffleStreamIds.compute(
         shuffleKey,
@@ -197,7 +217,16 @@ public class ChunkStreamManager {
   }
 
   public StreamState removeStreamState(long streamId) {
-    return streams.remove(streamId);
+    StreamState streamState = streams.remove(streamId);
+    if (streamState != null) {
+      shuffleStreamIds.computeIfPresent(
+          streamState.shuffleKey,
+          (shuffleKey, streamIds) -> {
+            streamIds.remove(streamId);
+            return streamIds.isEmpty() ? null : streamIds;
+          });
+    }
+    return streamState;
   }
 
   public int getStreamsCount() {

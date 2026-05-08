@@ -75,6 +75,53 @@ public abstract class CelebornInputStream extends InputStream {
       MetricsCallback metricsCallback,
       boolean needDecompress)
       throws IOException {
+    return create(
+        conf,
+        clientFactory,
+        shuffleKey,
+        locations,
+        streamHandlers,
+        attempts,
+        failedBatchSetMap,
+        chunksRange,
+        attemptNumber,
+        taskId,
+        startMapIndex,
+        endMapIndex,
+        fetchExcludedWorkers,
+        shuffleClient,
+        appShuffleId,
+        shuffleId,
+        partitionId,
+        exceptionMaker,
+        metricsCallback,
+        needDecompress,
+        true);
+  }
+
+  public static CelebornInputStream create(
+      CelebornConf conf,
+      TransportClientFactory clientFactory,
+      String shuffleKey,
+      ArrayList<PartitionLocation> locations,
+      ArrayList<PbStreamHandler> streamHandlers,
+      int[] attempts,
+      Map<String, LocationPushFailedBatches> failedBatchSetMap,
+      Map<String, Pair<Integer, Integer>> chunksRange,
+      int attemptNumber,
+      long taskId,
+      int startMapIndex,
+      int endMapIndex,
+      ConcurrentHashMap<String, Long> fetchExcludedWorkers,
+      ShuffleClient shuffleClient,
+      int appShuffleId,
+      int shuffleId,
+      int partitionId,
+      ExceptionMaker exceptionMaker,
+      MetricsCallback metricsCallback,
+      boolean needDecompress,
+      boolean retryOnFailure)
+      throws IOException {
     if (locations == null || locations.isEmpty()) {
       return emptyInputStream;
     } else {
@@ -103,7 +150,8 @@ public abstract class CelebornInputStream extends InputStream {
             exceptionMaker,
             true,
             metricsCallback,
-            needDecompress);
+            needDecompress,
+            retryOnFailure);
       } else {
         return new CelebornInputStreamImpl(
             conf,
@@ -126,7 +174,8 @@ public abstract class CelebornInputStream extends InputStream {
             exceptionMaker,
             false,
             metricsCallback,
-            needDecompress);
+            needDecompress,
+            retryOnFailure);
       }
     }
   }
@@ -218,6 +267,7 @@ public abstract class CelebornInputStream extends InputStream {
     private boolean closed = false;
 
     private final boolean readSkewPartitionWithoutMapRange;
+    private final boolean retryOnFailure;
 
     CelebornInputStreamImpl(
         CelebornConf conf,
@@ -238,7 +288,8 @@ public abstract class CelebornInputStream extends InputStream {
         ExceptionMaker exceptionMaker,
         boolean splitSkewPartitionWithoutMapRange,
         MetricsCallback metricsCallback,
-        boolean needDecompress)
+        boolean needDecompress,
+        boolean retryOnFailure)
         throws IOException {
       this(
           conf,
@@ -261,7 +312,8 @@ public abstract class CelebornInputStream extends InputStream {
           exceptionMaker,
           splitSkewPartitionWithoutMapRange,
           metricsCallback,
-          needDecompress);
+          needDecompress,
+          retryOnFailure);
     }
 
     CelebornInputStreamImpl(
@@ -285,7 +337,8 @@ public abstract class CelebornInputStream extends InputStream {
         ExceptionMaker exceptionMaker,
         boolean readSkewPartitionWithoutMapRange,
         MetricsCallback metricsCallback,
-        boolean needDecompress)
+        boolean needDecompress,
+        boolean retryOnFailure)
         throws IOException {
       this.conf = conf;
       this.clientFactory = clientFactory;
@@ -308,6 +361,7 @@ public abstract class CelebornInputStream extends InputStream {
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
       this.failedBatches = failedBatchSet;
       this.readSkewPartitionWithoutMapRange = readSkewPartitionWithoutMapRange;
+      this.retryOnFailure = retryOnFailure;
       this.fetchExcludedWorkers = fetchExcludedWorkers;
 
       if (conf.clientPushReplicateEnabled()) {
@@ -446,6 +500,9 @@ public abstract class CelebornInputStream extends InputStream {
           return reader;
         } catch (Exception e) {
           lastException = e;
+          if (!retryOnFailure) {
+            throw new CelebornIOException("createPartitionReader failed! " + location, e);
+          }
           shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort(), e);
           fetchChunkRetryCnt++;
           if (location.hasPeer() && !readSkewPartitionWithoutMapRange) {
@@ -509,6 +566,11 @@ public abstract class CelebornInputStream extends InputStream {
           }
           return currentReader.next();
         } catch (Exception e) {
+          if (!retryOnFailure) {
+            currentReader.close();
+            throw new CelebornIOException(
+                "Fetch chunk failed for location " + currentReader.getLocation(), e);
+          }
           shuffleClient.excludeFailedFetchLocation(
               currentReader.getLocation().hostAndFetchPort(), e);
           fetchChunkRetryCnt++;
@@ -705,6 +767,7 @@ public abstract class CelebornInputStream extends InputStream {
           currentReader.close();
           currentReader = null;
         }
+        closeInitialStreamHandlers();
         if (containLocalRead) {
           ShuffleClient.printReadStats(logger);
         }
@@ -718,6 +781,38 @@ public abstract class CelebornInputStream extends InputStream {
         fetchExcludedWorkers = null;
 
         closed = true;
+      }
+    }
+
+    private void closeInitialStreamHandlers() {
+      if (streamHandlers == null) {
+        return;
+      }
+      for (int i = 0; i < streamHandlers.size(); i++) {
+        PbStreamHandler streamHandler = streamHandlers.get(i);
+        if (streamHandler == null) {
+          continue;
+        }
+        PartitionLocation location = locations.get(i);
+        try {
+          TransportClient client =
+              clientFactory.createClient(location.getHost(), location.getFetchPort());
+          TransportMessage bufferStreamEnd =
+              new TransportMessage(
+                  MessageType.BUFFER_STREAM_END,
+                  PbBufferStreamEnd.newBuilder()
+                      .setStreamType(StreamType.ChunkStream)
+                      .setStreamId(streamHandler.getStreamId())
+                      .build()
+                      .toByteArray());
+          client.sendRpc(bufferStreamEnd.toByteBuffer());
+        } catch (Exception e) {
+          logger.warn(
+              "Close unread stream {} for location {} failed.",
+              streamHandler.getStreamId(),
+              location,
+              e);
+        }
       }
     }
 

@@ -53,8 +53,7 @@ public class ChunkStreamManagerSuiteJ {
     Assert.assertEquals(manager.getStreamsCount(), manager.numShuffleSteams());
 
     // stream removed when buffer fully read
-    manager.streams.remove(stream3);
-    manager.shuffleStreamIds.get("shuffleKey3").remove(stream3);
+    manager.removeStreamState(stream3);
     Assert.assertEquals(0, manager.getStreamsCount());
     Assert.assertEquals(manager.getStreamsCount(), manager.numShuffleSteams());
 

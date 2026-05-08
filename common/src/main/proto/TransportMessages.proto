@@ -115,6 +115,8 @@ enum MessageType {
   GET_STAGE_END = 92;
   GET_STAGE_END_RESPONSE = 93;
   REGISTER_APPLICATION_INFO = 96;
+  COALESCED_OPEN_STREAM = 97;
+  COALESCED_OPEN_STREAM_RESPONSE = 98;
 }
 
 enum StreamType {
@@ -741,6 +743,13 @@ message PbStreamHandlerOpt {
 
 message PbOpenStreamListResponse {
   repeated PbStreamHandlerOpt streamHandlerOpt = 2;
+}
+
+message PbCoalescedOpenStream {
+  string shuffleKey = 1;
+  repeated string fileName = 2;
+  repeated int32 startIndex = 3;
+  repeated int32 endIndex = 4;
 }
 
 message PbPushDataHandShake {

@@ -1936,6 +1936,80 @@ public class ShuffleClientImpl extends ShuffleClient {
       MetricsCallback metricsCallback,
       boolean needDecompress)
       throws IOException {
+    return readPartitionInternal(
+        shuffleId,
+        appShuffleId,
+        partitionId,
+        attemptNumber,
+        taskId,
+        startMapIndex,
+        endMapIndex,
+        exceptionMaker,
+        locations,
+        streamHandlers,
+        failedBatchSetMap,
+        chunksRange,
+        mapAttempts,
+        metricsCallback,
+        needDecompress,
+        true);
+  }
+
+  @Override
+  public CelebornInputStream readPreopenedPartitionWithoutRetry(
+      int shuffleId,
+      int appShuffleId,
+      int partitionId,
+      int attemptNumber,
+      long taskId,
+      int startMapIndex,
+      int endMapIndex,
+      ExceptionMaker exceptionMaker,
+      ArrayList<PartitionLocation> locations,
+      ArrayList<PbStreamHandler> streamHandlers,
+      Map<String, LocationPushFailedBatches> failedBatchSetMap,
+      Map<String, Pair<Integer, Integer>> chunksRange,
+      int[] mapAttempts,
+      MetricsCallback metricsCallback,
+      boolean needDecompress)
+      throws IOException {
+    return readPartitionInternal(
+        shuffleId,
+        appShuffleId,
+        partitionId,
+        attemptNumber,
+        taskId,
+        startMapIndex,
+        endMapIndex,
+        exceptionMaker,
+        locations,
+        streamHandlers,
+        failedBatchSetMap,
+        chunksRange,
+        mapAttempts,
+        metricsCallback,
+        needDecompress,
+        false);
+  }
+
+  private CelebornInputStream readPartitionInternal(
+      int shuffleId,
+      int appShuffleId,
+      int partitionId,
+      int attemptNumber,
+      long taskId,
+      int startMapIndex,
+      int endMapIndex,
+      ExceptionMaker exceptionMaker,
+      ArrayList<PartitionLocation> locations,
+      ArrayList<PbStreamHandler> streamHandlers,
+      Map<String, LocationPushFailedBatches> failedBatchSetMap,
+      Map<String, Pair<Integer, Integer>> chunksRange,
+      int[] mapAttempts,
+      MetricsCallback metricsCallback,
+      boolean needDecompress,
+      boolean retryOnFailure)
+      throws IOException {
     if (shuffleId == Utils$.MODULE$.UNKNOWN_APP_SHUFFLE_ID()) {
       logger.warn("Shuffle data is empty for shuffle {}: UNKNOWN_APP_SHUFFLE_ID.", shuffleId);
       return CelebornInputStream.empty();
@@ -1978,7 +2052,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           partitionId,
           exceptionMaker,
           metricsCallback,
-          needDecompress);
+          needDecompress,
+          retryOnFailure);
     }
   }
 

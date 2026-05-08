@@ -119,6 +119,10 @@ public class TransportMessage implements Serializable {
         return (T) PbOpenStreamList.parseFrom(payload);
       case BATCH_OPEN_STREAM_RESPONSE_VALUE:
         return (T) PbOpenStreamListResponse.parseFrom(payload);
+      case COALESCED_OPEN_STREAM_VALUE:
+        return (T) PbCoalescedOpenStream.parseFrom(payload);
+      case COALESCED_OPEN_STREAM_RESPONSE_VALUE:
+        return (T) PbStreamHandlerOpt.parseFrom(payload);
       case SEGMENT_START_VALUE:
         return (T) PbSegmentStart.parseFrom(payload);
       case NOTIFY_REQUIRED_SEGMENT_VALUE:

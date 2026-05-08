@@ -1449,6 +1449,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(CLIENT_OPEN_STREAM_THREADS).getOrElse(Runtime.getRuntime.availableProcessors())
   def clientChunkPrefetchEnabled = get(CLIENT_CHUNK_PREFETCH_ENABLED)
   def clientInputStreamCreationWindow = get(CLIENT_INPUTSTREAM_CREATION_WINDOW)
+  def clientCoalescedRemoteReadEnabled = get(CLIENT_COALESCED_REMOTE_READ_ENABLED)
+  def clientCoalescedRemoteReadMaxBytes = get(CLIENT_COALESCED_REMOTE_READ_MAX_BYTES)
 
   def tagsEnabled: Boolean = get(TAGS_ENABLED)
   def tagsExpr: String = get(TAGS_EXPR)
@@ -4522,8 +4524,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.application.unregister.timeout")
       .categories("client")
       .version("0.6.1")
-      .doc(
-        "Max time to wait for application unregister during client shutdown before continuing exit.")
+      .doc("Max time to wait for application unregister during client shutdown before continuing exit.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("10s")
 
@@ -6089,6 +6090,24 @@ object CelebornConf extends Logging {
       .version("0.5.1")
       .intConf
       .createWithDefault(16)
+
+  val CLIENT_COALESCED_REMOTE_READ_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.coalescedRemoteRead.enabled")
+      .categories("client", "worker")
+      .doc("Whether to coalesce small remote reducer-range reads into one stream per worker.")
+      .version("0.6.1")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_COALESCED_REMOTE_READ_MAX_BYTES: ConfigEntry[Long] =
+    buildConf("celeborn.client.coalescedRemoteRead.maxBytes")
+      .categories("client", "worker")
+      .doc("Maximum bytes for one worker-side coalesced remote reducer-range stream.")
+      .version("0.6.1")
+      .bytesConf(ByteUnit.BYTE)
+      .checkValue(_ > 0, "Coalesced remote read max bytes must be positive.")
+      .checkValue(_ <= Int.MaxValue, "Coalesced remote read max bytes must fit in one ByteBuffer.")
+      .createWithDefaultString("8m")
 
   val MAX_DEFAULT_NETTY_THREADS: ConfigEntry[Int] =
     buildConf("celeborn.io.maxDefaultNettyThreads")
