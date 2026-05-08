@@ -114,6 +114,7 @@ class CoalescedFetchSuite extends AnyFunSuite
           clientConf,
           shuffleKey,
           location0,
+          request,
           handler,
           shuffleClient.getDataClientFactory)
 
@@ -173,6 +174,7 @@ class CoalescedFetchSuite extends AnyFunSuite
             clientConf,
             shuffleKey,
             location0,
+            request,
             replayHandler,
             shuffleClient.getDataClientFactory)
         try {

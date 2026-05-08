@@ -299,6 +299,7 @@ class CelebornShuffleReader[K, C](
                 conf,
                 shuffleKey,
                 locations.get(0),
+                request.build(),
                 handler,
                 shuffleClient.getDataClientFactory())
             } catch {

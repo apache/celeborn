@@ -20,6 +20,7 @@ package org.apache.celeborn.client.read;
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBuf;
@@ -36,17 +37,23 @@ import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
+import org.apache.celeborn.common.protocol.PbCoalescedChunkBoundary;
 import org.apache.celeborn.common.protocol.PbCoalescedStreamHandler;
+import org.apache.celeborn.common.protocol.PbOpenCoalescedStream;
 import org.apache.celeborn.common.protocol.StreamType;
 
 public class SharedCoalescedStream {
   private final String shuffleKey;
   private final PartitionLocation location;
-  private final PbCoalescedStreamHandler handler;
+  // Keep the exact worker request so a failed shared stream can be reopened without switching
+  // chunk coordinate systems underneath the per-reducer readers.
+  private final PbOpenCoalescedStream reopenRequest;
   private final long fetchTimeoutMs;
   private final TransportClientFactory clientFactory;
   private final LinkedBlockingQueue<Pair<Integer, ByteBuf>> results = new LinkedBlockingQueue<>();
   private final AtomicReference<IOException> exception = new AtomicReference<>();
+  private final AtomicLong generation = new AtomicLong();
+  private PbCoalescedStreamHandler handler;
   private TransportClient client;
   private ByteBuf currentChunk;
   private int currentChunkIndex = -1;
@@ -56,11 +63,13 @@ public class SharedCoalescedStream {
       CelebornConf conf,
       String shuffleKey,
       PartitionLocation location,
+      PbOpenCoalescedStream reopenRequest,
       PbCoalescedStreamHandler handler,
       TransportClientFactory clientFactory)
       throws IOException, InterruptedException {
     this.shuffleKey = shuffleKey;
     this.location = location;
+    this.reopenRequest = reopenRequest;
     this.handler = handler;
     this.fetchTimeoutMs = conf.clientFetchTimeoutMs();
     this.clientFactory = clientFactory;
@@ -86,17 +95,28 @@ public class SharedCoalescedStream {
   }
 
   private void fetchChunk(int chunkIndex) throws IOException, InterruptedException {
+    try {
+      fetchChunkOnce(chunkIndex);
+    } catch (IOException e) {
+      reopenStream();
+      fetchChunkOnce(chunkIndex);
+    }
+  }
+
+  private void fetchChunkOnce(int chunkIndex) throws IOException, InterruptedException {
     exception.set(null);
     if (!client.isActive()) {
       client = clientFactory.createClient(location.getHost(), location.getFetchPort());
     }
+    long fetchGeneration = generation.get();
     ChunkReceivedCallback callback =
         new ChunkReceivedCallback() {
           @Override
           public void onSuccess(int returnedChunkIndex, ManagedBuffer buffer) {
             ByteBuf buf = ((NettyManagedBuffer) buffer).getBuf();
             synchronized (results) {
-              if (!closed) {
+              // A late response from the old worker stream is no longer valid after reopen.
+              if (!closed && fetchGeneration == generation.get()) {
                 buf.retain();
                 results.add(Pair.of(returnedChunkIndex, buf));
               }
@@ -125,6 +145,74 @@ public class SharedCoalescedStream {
     }
   }
 
+  private void reopenStream() throws IOException, InterruptedException {
+    long oldStreamId = handler.getStreamId();
+    PbCoalescedStreamHandler reopenedHandler;
+    try {
+      if (!client.isActive()) {
+        client = clientFactory.createClient(location.getHost(), location.getFetchPort());
+      }
+      TransportMessage reopenMessage =
+          new TransportMessage(MessageType.OPEN_COALESCED_STREAM, reopenRequest.toByteArray());
+      reopenedHandler =
+          TransportMessage.fromByteBuffer(
+                  client.sendRpcSync(reopenMessage.toByteBuffer(), fetchTimeoutMs))
+              .getParsedPayload();
+    } catch (Exception e) {
+      throw new CelebornIOException("Failed to reopen coalesced stream for " + shuffleKey, e);
+    }
+
+    // Existing reducer readers keep the original boundaries. Reopen is only safe if the worker
+    // rebuilt the same composite layout for the same immutable reducer files.
+    if (!hasSameLayout(handler, reopenedHandler)) {
+      closeStream(reopenedHandler.getStreamId());
+      throw new CelebornIOException(
+          "Reopened coalesced stream layout changed for shuffle " + shuffleKey);
+    }
+
+    generation.incrementAndGet();
+    clearQueuedChunks();
+    handler = reopenedHandler;
+    closeStream(oldStreamId);
+  }
+
+  private boolean hasSameLayout(
+      PbCoalescedStreamHandler expected, PbCoalescedStreamHandler actual) {
+    if (expected.getNumChunks() != actual.getNumChunks()
+        || expected.getBoundariesCount() != actual.getBoundariesCount()) {
+      return false;
+    }
+    for (int idx = 0; idx < expected.getBoundariesCount(); idx++) {
+      PbCoalescedChunkBoundary expectedBoundary = expected.getBoundaries(idx);
+      PbCoalescedChunkBoundary actualBoundary = actual.getBoundaries(idx);
+      if (!expectedBoundary.equals(actualBoundary)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private void clearQueuedChunks() {
+    synchronized (results) {
+      results.forEach(chunk -> chunk.getRight().release());
+      results.clear();
+    }
+  }
+
+  private void closeStream(long streamId) {
+    if (client != null && client.isActive()) {
+      TransportMessage bufferStreamEnd =
+          new TransportMessage(
+              MessageType.BUFFER_STREAM_END,
+              PbBufferStreamEnd.newBuilder()
+                  .setStreamType(StreamType.ChunkStream)
+                  .setStreamId(streamId)
+                  .build()
+                  .toByteArray());
+      client.sendRpc(bufferStreamEnd.toByteBuffer());
+    }
+  }
+
   public synchronized void close() {
     if (closed) {
       return;
@@ -138,16 +226,6 @@ public class SharedCoalescedStream {
       results.forEach(chunk -> chunk.getRight().release());
       results.clear();
     }
-    if (client != null && client.isActive()) {
-      TransportMessage bufferStreamEnd =
-          new TransportMessage(
-              MessageType.BUFFER_STREAM_END,
-              PbBufferStreamEnd.newBuilder()
-                  .setStreamType(StreamType.ChunkStream)
-                  .setStreamId(handler.getStreamId())
-                  .build()
-                  .toByteArray());
-      client.sendRpc(bufferStreamEnd.toByteBuffer());
-    }
+    closeStream(handler.getStreamId());
   }
 }
