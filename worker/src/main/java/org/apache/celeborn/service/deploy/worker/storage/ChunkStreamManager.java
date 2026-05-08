@@ -164,7 +164,12 @@ public class ChunkStreamManager {
       String fileName,
       TimeWindow fetchTimeMetric) {
     return registerStream(
-        streamId, shuffleKey, buffers, fileName, Collections.singletonList(fileName), fetchTimeMetric);
+        streamId,
+        shuffleKey,
+        buffers,
+        fileName,
+        Collections.singletonList(fileName),
+        fetchTimeMetric);
   }
 
   public long registerStream(

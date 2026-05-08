@@ -480,7 +480,8 @@ public class FetchHandlerSuiteJ {
   }
 
   private PbStreamHandler openCoalescedStream(
-      TransportClient client, EmbeddedChannel channel, FetchHandler fetchHandler) throws IOException {
+      TransportClient client, EmbeddedChannel channel, FetchHandler fetchHandler)
+      throws IOException {
     PbStreamHandlerOpt streamHandlerOpt =
         openCoalescedStreamOpt(client, channel, fetchHandler, fileName + "-1", fileName + "-2");
     assertEquals(streamHandlerOpt.getErrorMsg(), 0, streamHandlerOpt.getStatus());
@@ -496,10 +497,7 @@ public class FetchHandlerSuiteJ {
     PbCoalescedOpenStream.Builder builder =
         PbCoalescedOpenStream.newBuilder().setShuffleKey(shuffleKey);
     for (String requestedFileName : fileNames) {
-      builder
-          .addFileName(requestedFileName)
-          .addStartIndex(0)
-          .addEndIndex(Integer.MAX_VALUE);
+      builder.addFileName(requestedFileName).addStartIndex(0).addEndIndex(Integer.MAX_VALUE);
     }
     ByteBuffer openStreamByteBuffer =
         new TransportMessage(MessageType.COALESCED_OPEN_STREAM, builder.build().toByteArray())
