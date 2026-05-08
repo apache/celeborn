@@ -293,12 +293,19 @@ class CelebornShuffleReader[K, C](
               s"Expected ${locations.size()} coalesced boundaries from $shuffleKey, " +
                 s"got ${handler.getBoundariesCount}")
           }
-          val sharedStream = new SharedCoalescedStream(
-            conf,
-            shuffleKey,
-            locations.get(0),
-            handler,
-            shuffleClient.getDataClientFactory())
+          val sharedStream =
+            try {
+              new SharedCoalescedStream(
+                conf,
+                shuffleKey,
+                locations.get(0),
+                handler,
+                shuffleClient.getDataClientFactory())
+            } catch {
+              case e: Exception =>
+                CelebornShuffleReader.closeChunkStream(client, handler.getStreamId)
+                throw e
+            }
           coalescedStreams.add(sharedStream)
           0 until handler.getBoundariesCount foreach { idx =>
             val boundary = handler.getBoundaries(idx)
@@ -697,6 +704,17 @@ object CelebornShuffleReader {
     infos.get(boundary.getReducerId).put(
       location.getUniqueId,
       new CoalescedPartitionInfo(stream, boundary))
+  }
+
+  private[celeborn] def closeChunkStream(client: TransportClient, streamId: Long): Unit = {
+    val bufferStreamEnd = new TransportMessage(
+      MessageType.BUFFER_STREAM_END,
+      PbBufferStreamEnd.newBuilder()
+        .setStreamType(StreamType.ChunkStream)
+        .setStreamId(streamId)
+        .build()
+        .toByteArray)
+    client.sendRpc(bufferStreamEnd.toByteBuffer)
   }
 
   private def optionalMetricUpdate(

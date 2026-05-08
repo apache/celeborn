@@ -112,20 +112,12 @@ public class SharedCoalescedStream {
           }
         };
     client.fetchChunk(handler.getStreamId(), chunkIndex, fetchTimeoutMs, callback);
-    long deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(fetchTimeoutMs);
     while (currentChunk == null) {
       IOException fetchException = exception.get();
       if (fetchException != null) {
         throw fetchException;
       }
-      long remainingNanos = deadlineNanos - System.nanoTime();
-      if (remainingNanos <= 0) {
-        throw new CelebornIOException(
-            "Timed out fetching coalesced chunk " + chunkIndex + " for " + shuffleKey);
-      }
-      Pair<Integer, ByteBuf> chunk =
-          results.poll(
-              Math.min(TimeUnit.NANOSECONDS.toMillis(remainingNanos), 500), TimeUnit.MILLISECONDS);
+      Pair<Integer, ByteBuf> chunk = results.poll(500, TimeUnit.MILLISECONDS);
       if (chunk != null) {
         currentChunkIndex = chunk.getLeft();
         currentChunk = chunk.getRight();

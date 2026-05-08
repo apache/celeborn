@@ -33,7 +33,9 @@ import org.apache.celeborn.client.read.{CoalescedPartitionInfo, SharedCoalescedS
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.protocol.{PartitionLocation, PbCoalescedChunkBoundary}
+import org.apache.celeborn.common.network.client.TransportClient
+import org.apache.celeborn.common.network.protocol.TransportMessage
+import org.apache.celeborn.common.protocol.{MessageType, PartitionLocation, PbCoalescedChunkBoundary, StreamType}
 
 class CelebornShuffleReaderSuite extends AnyFunSuite {
 
@@ -199,5 +201,19 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
     assert(infos.get(7).size() === 2)
     assert(infos.get(7).get("7-0").boundary eq boundary0)
     assert(infos.get(7).get("7-1").boundary eq boundary1)
+  }
+
+  test("close coalesced chunk stream") {
+    val client = Mockito.mock(classOf[TransportClient])
+
+    CelebornShuffleReader.closeChunkStream(client, 17L)
+
+    val captor = org.mockito.ArgumentCaptor.forClass(classOf[java.nio.ByteBuffer])
+    verify(client).sendRpc(captor.capture())
+    val message = TransportMessage.fromByteBuffer(captor.getValue)
+    assert(message.getMessageTypeValue === MessageType.BUFFER_STREAM_END.getNumber)
+    val payload = message.getParsedPayload[org.apache.celeborn.common.protocol.PbBufferStreamEnd]
+    assert(payload.getStreamId === 17L)
+    assert(payload.getStreamType === StreamType.ChunkStream)
   }
 }

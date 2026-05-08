@@ -21,6 +21,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -29,6 +30,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -36,9 +41,13 @@ import org.junit.Test;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
+import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
+import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbCoalescedChunkBoundary;
+import org.apache.celeborn.common.protocol.PbCoalescedStreamHandler;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 
@@ -177,6 +186,60 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
       assertEquals(-1, inputStream.read());
     } finally {
       inputStream.close();
+    }
+  }
+
+  @Test
+  public void testSharedCoalescedStreamWaitsForTransportCallback() throws Exception {
+    CelebornConf conf = new CelebornConf().set("celeborn.client.fetch.timeout", "1ms");
+    PartitionLocation location = mock(PartitionLocation.class);
+    when(location.getHost()).thenReturn("worker");
+    when(location.getFetchPort()).thenReturn(19098);
+    TransportClient client = mock(TransportClient.class);
+    when(client.isActive()).thenReturn(true);
+    TransportClientFactory clientFactory = mock(TransportClientFactory.class);
+    when(clientFactory.createClient("worker", 19098)).thenReturn(client);
+    doAnswer(
+            invocation -> {
+              ChunkReceivedCallback callback = invocation.getArgument(3);
+              new Thread(
+                      () -> {
+                        try {
+                          Thread.sleep(50);
+                        } catch (InterruptedException e) {
+                          Thread.currentThread().interrupt();
+                        }
+                        callback.onSuccess(
+                            0, new NettyManagedBuffer(Unpooled.wrappedBuffer(new byte[] {1, 2})));
+                      })
+                  .start();
+              return null;
+            })
+        .when(client)
+        .fetchChunk(
+            org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.anyInt(),
+            org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.any());
+    SharedCoalescedStream stream =
+        new SharedCoalescedStream(
+            conf,
+            "shuffle-key",
+            location,
+            PbCoalescedStreamHandler.newBuilder().setStreamId(1L).build(),
+            clientFactory);
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      Future<ByteBuf> future = executor.submit(() -> stream.getChunk(0));
+      ByteBuf chunk = future.get(1, TimeUnit.SECONDS);
+      try {
+        assertEquals(2, chunk.readableBytes());
+      } finally {
+        chunk.release();
+      }
+    } finally {
+      executor.shutdownNow();
+      stream.close();
     }
   }
 
