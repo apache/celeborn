@@ -20,6 +20,7 @@ package org.apache.celeborn.service.deploy.worker
 import java.io.{FileNotFoundException, IOException}
 import java.nio.charset.StandardCharsets
 import java.util
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
 
@@ -27,6 +28,7 @@ import scala.collection.JavaConverters._
 
 import com.google.common.base.Throwables
 import com.google.protobuf.GeneratedMessageV3
+import io.netty.channel.Channel
 import io.netty.util.concurrent.{Future, GenericFutureListener}
 
 import org.apache.celeborn.common.CelebornConf
@@ -52,6 +54,8 @@ class FetchHandler(
 
   val chunkStreamManager = new ChunkStreamManager()
   val maxChunkBeingTransferred: Option[Long] = conf.shuffleIoMaxChunksBeingTransferred
+  private val coalescedChunkStreamsByChannel =
+    new ConcurrentHashMap[Channel, util.Set[java.lang.Long]]()
 
   val creditStreamManager = new CreditStreamManager(
     conf.partitionReadBuffersMin,
@@ -443,6 +447,7 @@ class FetchHandler(
         files.get(0),
         new util.ArrayList[String](files),
         null)
+      trackCoalescedChunkStream(client.getChannel, streamId)
       workerSource.incCounter(WorkerSource.OPEN_STREAM_SUCCESS_COUNT)
       PbStreamHandlerOpt.newBuilder()
         .setStreamHandler(makeStreamHandler(streamId, managedBuffer.numChunks))
@@ -467,6 +472,30 @@ class FetchHandler(
       pinnedFiles: util.ArrayList[FileInfo]): Unit = {
     pinnedFiles.asScala.foreach(_.closeStream(streamId))
     pinnedFiles.clear()
+  }
+
+  private def trackCoalescedChunkStream(channel: Channel, streamId: Long): Unit = {
+    coalescedChunkStreamsByChannel
+      .computeIfAbsent(channel, _ => ConcurrentHashMap.newKeySet[java.lang.Long]())
+      .add(streamId)
+  }
+
+  private def untrackCoalescedChunkStream(streamId: Long): Unit = {
+    coalescedChunkStreamsByChannel.entrySet().asScala.foreach { entry =>
+      val streamIds = entry.getValue
+      if (streamIds.remove(streamId) && streamIds.isEmpty) {
+        coalescedChunkStreamsByChannel.remove(entry.getKey, streamIds)
+      }
+    }
+  }
+
+  private def closeCoalescedChunkStreamsForChannel(client: TransportClient): Unit = {
+    val streamIds = coalescedChunkStreamsByChannel.remove(client.getChannel)
+    if (streamIds != null) {
+      streamIds.asScala.foreach { streamId =>
+        handleEndStreamFromClient(client, streamId.longValue(), StreamType.ChunkStream)
+      }
+    }
   }
 
   private def readableBytes(meta: ReduceFileMeta): Long = {
@@ -614,6 +643,7 @@ class FetchHandler(
       streamType: StreamType): Unit = {
     streamType match {
       case StreamType.ChunkStream =>
+        untrackCoalescedChunkStream(streamId)
         val streamState = chunkStreamManager.removeStreamState(streamId)
         if (streamState != null) {
           val shuffleKey = streamState.shuffleKey
@@ -773,6 +803,7 @@ class FetchHandler(
 
   override def channelInactive(client: TransportClient): Unit = {
     workerSource.connectionInactive(client)
+    closeCoalescedChunkStreamsForChannel(client)
     creditStreamManager.connectionTerminated(client.getChannel)
     logDebug(s"channel inactive ${client.getSocketAddress}")
   }

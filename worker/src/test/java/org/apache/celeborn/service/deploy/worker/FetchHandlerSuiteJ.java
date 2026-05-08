@@ -335,6 +335,36 @@ public class FetchHandlerSuiteJ {
   }
 
   @Test
+  public void testCoalescedOpenStreamReleasesChildFilePinsOnChannelInactive() throws IOException {
+    FileInfo fileInfo1 = null;
+    FileInfo fileInfo2 = null;
+    try {
+      enableCoalescedRemoteReadForTest();
+      fileInfo1 = prepare(1);
+      fileInfo2 = prepare(1);
+
+      EmbeddedChannel channel = new EmbeddedChannel();
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+      Map<String, FileInfo> fileInfos = new HashMap<>();
+      fileInfos.put(fileName + "-1", fileInfo1);
+      fileInfos.put(fileName + "-2", fileInfo2);
+      FetchHandler fetchHandler = mockFetchHandler(fileInfos);
+
+      openCoalescedStream(client, channel, fetchHandler);
+      assertFalse(fileInfo1.isStreamsEmpty());
+      assertFalse(fileInfo2.isStreamsEmpty());
+
+      fetchHandler.channelInactive(client);
+      assertTrue(fileInfo1.isStreamsEmpty());
+      assertTrue(fileInfo2.isStreamsEmpty());
+    } finally {
+      disableCoalescedRemoteReadForTest();
+      cleanup(fileInfo1);
+      cleanup(fileInfo2);
+    }
+  }
+
+  @Test
   public void testCoalescedOpenStreamRejectsOversizedRequest() throws IOException {
     FileInfo fileInfo = null;
     try {
