@@ -20,15 +20,12 @@ package org.apache.celeborn.service.deploy.worker
 import java.io.{FileNotFoundException, IOException}
 import java.nio.charset.StandardCharsets
 import java.util
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.{CompletableFuture, Executor}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
 
-import scala.collection.JavaConverters._
-
 import com.google.common.base.Throwables
 import com.google.protobuf.GeneratedMessageV3
-import io.netty.channel.Channel
 import io.netty.util.concurrent.{Future, GenericFutureListener}
 
 import org.apache.celeborn.common.CelebornConf
@@ -41,7 +38,7 @@ import org.apache.celeborn.common.network.client.{RpcResponseCallback, Transport
 import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
-import org.apache.celeborn.common.protocol.{MessageType, PbBufferStreamEnd, PbChunkFetchRequest, PbCoalescedOpenStream, PbNotifyRequiredSegment, PbOpenStream, PbOpenStreamList, PbOpenStreamListResponse, PbReadAddCredit, PbStreamHandler, PbStreamHandlerOpt, StreamType}
+import org.apache.celeborn.common.protocol.{MessageType, PbBufferStreamEnd, PbChunkFetchRequest, PbCoalescedChunkBoundary, PbCoalescedStreamHandler, PbNotifyRequiredSegment, PbOpenCoalescedStream, PbOpenStream, PbOpenStreamList, PbOpenStreamListResponse, PbReadAddCredit, PbStreamHandler, PbStreamHandlerOpt, StreamType}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.util.{ExceptionUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.storage.{ChunkStreamManager, CreditStreamManager, PartitionFilesSorter, StorageManager}
@@ -54,8 +51,6 @@ class FetchHandler(
 
   val chunkStreamManager = new ChunkStreamManager()
   val maxChunkBeingTransferred: Option[Long] = conf.shuffleIoMaxChunksBeingTransferred
-  private val coalescedChunkStreamsByChannel =
-    new ConcurrentHashMap[Channel, util.Set[java.lang.Long]]()
 
   val creditStreamManager = new CreditStreamManager(
     conf.partitionReadBuffersMin,
@@ -65,6 +60,7 @@ class FetchHandler(
   var storageManager: StorageManager = _
   var partitionsSorter: PartitionFilesSorter = _
   var registered: Option[AtomicBoolean] = None
+  var asyncReplyExecutor: Executor = _
 
   def init(worker: Worker): Unit = {
     workerSource.addGauge(WorkerSource.ACTIVE_CHUNK_STREAM_COUNT) { () =>
@@ -82,6 +78,11 @@ class FetchHandler(
     this.storageManager = worker.storageManager
     this.partitionsSorter = worker.partitionsSorter
     this.registered = Some(worker.registered)
+    this.asyncReplyExecutor =
+      if (worker.asyncReplyPool != null) worker.asyncReplyPool
+      else new Executor {
+        override def execute(command: Runnable): Unit = command.run()
+      }
   }
 
   def getRawFileInfo(
@@ -179,29 +180,8 @@ class FetchHandler(
           new NioManagedBuffer(new TransportMessage(
             MessageType.BATCH_OPEN_STREAM_RESPONSE,
             pbOpenStreamListResponse.build().toByteArray).toByteBuffer)))
-      case coalescedOpenStream: PbCoalescedOpenStream =>
-        checkAuth(client, Utils.splitShuffleKey(coalescedOpenStream.getShuffleKey)._1)
-        val openStreamRequestId = Utils.makeOpenStreamRequestId(
-          coalescedOpenStream.getShuffleKey,
-          client.getChannel.id().toString,
-          rpcRequest.requestId)
-        workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, openStreamRequestId)
-        val pbStreamHandlerOpt =
-          try {
-            handleCoalescedOpenStreamInternal(
-              client,
-              coalescedOpenStream.getShuffleKey,
-              coalescedOpenStream.getFileNameList,
-              coalescedOpenStream.getStartIndexList,
-              coalescedOpenStream.getEndIndexList)
-          } finally {
-            workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, openStreamRequestId)
-          }
-        client.getChannel.writeAndFlush(new RpcResponse(
-          rpcRequest.requestId,
-          new NioManagedBuffer(new TransportMessage(
-            MessageType.COALESCED_OPEN_STREAM_RESPONSE,
-            pbStreamHandlerOpt.toByteArray).toByteBuffer)))
+      case openCoalescedStream: PbOpenCoalescedStream =>
+        handleOpenCoalescedStreamAsync(client, rpcRequest.requestId, openCoalescedStream, callback)
       case bufferStreamEnd: PbBufferStreamEnd =>
         handleEndStreamFromClient(
           client,
@@ -378,124 +358,126 @@ class FetchHandler(
     }
   }
 
-  private def handleCoalescedOpenStreamInternal(
+  private def handleOpenCoalescedStreamAsync(
       client: TransportClient,
-      shuffleKey: String,
-      files: util.List[String],
-      startIndices: util.List[Integer],
-      endIndices: util.List[Integer]): PbStreamHandlerOpt = {
-    val pinnedFiles = new util.ArrayList[FileInfo](files.size)
-    val streamId = chunkStreamManager.nextStreamId()
-    try {
-      // The Spark client only sends this request for full-reducer, single-local-file remote
-      // reads. Recheck the important assumptions here so an older or buggy client cannot open
-      // a synthetic stream over unsupported storage layouts.
-      if (!conf.clientCoalescedRemoteReadEnabled) {
-        throw new IOException("Coalesced remote read is disabled.")
+      rpcRequestId: Long,
+      request: PbOpenCoalescedStream,
+      callback: RpcResponseCallback): Unit = {
+    checkAuth(client, Utils.splitShuffleKey(request.getShuffleKey)._1)
+    workerSource.recordAppActiveConnection(client, request.getShuffleKey)
+    val requestId = Utils.makeOpenStreamRequestId(
+      request.getShuffleKey,
+      client.getChannel.id().toString,
+      rpcRequestId)
+    workerSource.startTimer(WorkerSource.OPEN_STREAM_TIME, requestId)
+    CompletableFuture
+      .supplyAsync(
+        () => handleOpenCoalescedStream(client, request),
+        asyncReplyExecutor)
+      .whenComplete { (handler, error) =>
+        workerSource.stopTimer(WorkerSource.OPEN_STREAM_TIME, requestId)
+        if (error != null) {
+          workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
+          callback.onFailure(new CelebornIOException("Open coalesced stream failed", error))
+        } else {
+          client.getChannel.writeAndFlush(new RpcResponse(
+            rpcRequestId,
+            new NioManagedBuffer(new TransportMessage(
+              MessageType.COALESCED_STREAM_HANDLER,
+              handler.toByteArray).toByteBuffer)))
+        }
       }
-      if (files.isEmpty || files.size != startIndices.size || files.size != endIndices.size) {
-        throw new IOException("Invalid coalesced stream request.")
-      }
+  }
 
-      val childBuffers = new util.ArrayList[ChunkBuffers](files.size)
-      var totalBytes = 0L
-      0 until files.size foreach { idx =>
-        val fileName = files.get(idx)
-        var fileInfo = getRawFileInfo(shuffleKey, fileName)
-        if (!fileInfo.isInstanceOf[DiskFileInfo]) {
-          throw new IOException("Coalesced remote read only supports local disk files.")
+  private def handleOpenCoalescedStream(
+      client: TransportClient,
+      request: PbOpenCoalescedStream): PbCoalescedStreamHandler = {
+    val shuffleKey = request.getShuffleKey
+    val entries = request.getEntryList
+    if (!conf.clientCoalescedRemoteReadEnabled) {
+      throw new CelebornIOException("Coalesced remote read is disabled")
+    }
+    if (entries.isEmpty) {
+      throw new CelebornIOException("Coalesced stream must contain at least one entry")
+    }
+    if (request.getMaxChunkBytes <= 0) {
+      throw new CelebornIOException("Coalesced stream maxChunkBytes must be positive")
+    }
+    val streamId = chunkStreamManager.nextStreamId()
+    val chunkBuffers = new util.ArrayList[ChunkBuffers](entries.size())
+    val fileNames = new util.ArrayList[String](entries.size())
+    val registeredFiles = new util.ArrayList[FileInfo](entries.size())
+    var totalBytes = 0L
+    try {
+      0 until entries.size() foreach { idx =>
+        val entry = entries.get(idx)
+        if (entry.getReadLocalShuffle) {
+          throw new CelebornIOException("Coalesced stream does not support local shuffle reads")
         }
-        val diskFileInfo = fileInfo.asInstanceOf[DiskFileInfo]
-        if (diskFileInfo.isDFS) {
-          throw new IOException("Coalesced remote read does not support DFS-backed files.")
+        var fileInfo = getRawFileInfo(shuffleKey, entry.getFileName)
+        if (!fileInfo.getFileMeta.isInstanceOf[ReduceFileMeta]) {
+          throw new CelebornIOException("Coalesced stream only supports reduce files")
         }
-        if (startIndices.get(idx) != 0 || endIndices.get(idx) != Int.MaxValue) {
-          throw new IOException("Coalesced remote read only supports full reducer reads.")
+        if (entry.getStartIndex != 0 || entry.getEndIndex != Int.MaxValue) {
+          throw new CelebornIOException("Coalesced stream only supports full reducer reads")
         }
-        // addStream pins the current local file for this stream. If the file is being sorted,
-        // fall back to the sorted-file lookup just like the normal open-stream path does.
-        if (!fileInfo.addStream(streamId)) {
+        val originalFileRegistered =
+          entry.getEndIndex == Int.MaxValue && fileInfo.addStream(streamId)
+        if (originalFileRegistered) {
+          registeredFiles.add(fileInfo)
+        }
+        if (!originalFileRegistered) {
           fileInfo = partitionsSorter.getSortedFileInfo(
             shuffleKey,
-            fileName,
+            entry.getFileName,
             fileInfo,
-            startIndices.get(idx),
-            endIndices.get(idx))
-        } else {
-          pinnedFiles.add(fileInfo)
+            entry.getStartIndex,
+            entry.getEndIndex)
+        }
+        fileInfo match {
+          case info: DiskFileInfo if info.isHdfs || info.isS3 || info.isOSS =>
+            throw new CelebornIOException(
+              "Coalesced stream does not support DFS-backed shuffle files")
+          case info: DiskFileInfo =>
+            chunkBuffers.add(new FileChunkBuffers(info, transportConf))
+          case _: MemoryFileInfo =>
+            throw new CelebornIOException("Coalesced stream only supports local disk files")
         }
         val meta = fileInfo.getReduceFileMeta
-        // Bound total bytes at stream-open time. The client uses the same config to decide
-        // eligibility, and this worker-side check protects against stale metadata or bad input.
         totalBytes += readableBytes(meta)
         if (totalBytes > conf.clientCoalescedRemoteReadMaxBytes) {
-          throw new IOException(
+          throw new CelebornIOException(
             s"Coalesced stream size $totalBytes exceeds " +
               s"${conf.clientCoalescedRemoteReadMaxBytes}.")
         }
-        childBuffers.add(new FileChunkBuffers(fileInfo.asInstanceOf[DiskFileInfo], transportConf))
+        fileNames.add(entry.getFileName)
       }
-
-      // The synthetic stream only concatenates existing file-backed chunks. It does not copy
-      // reducer data into memory; each child file remains pinned until BUFFER_STREAM_END removes
-      // this stream state and closes the child file stream pins.
-      val managedBuffer = new CompositeChunkBuffers(childBuffers, conf.shuffleChunkSize)
-      chunkStreamManager.registerStream(
-        streamId,
-        shuffleKey,
-        managedBuffer,
-        files.get(0),
-        new util.ArrayList[String](files),
-        null)
-      trackCoalescedChunkStream(client.getChannel, streamId)
-      workerSource.incCounter(WorkerSource.OPEN_STREAM_SUCCESS_COUNT)
-      PbStreamHandlerOpt.newBuilder()
-        .setStreamHandler(makeStreamHandler(streamId, managedBuffer.numChunks))
-        .setStatus(StatusCode.SUCCESS.getValue)
-        .build()
     } catch {
-      case e: Exception =>
-        // If anything fails before registerStream succeeds, no BUFFER_STREAM_END will arrive for
-        // this stream id, so release every file pin acquired above immediately.
-        closePinnedFiles(streamId, pinnedFiles)
-        workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
-        val msg =
-          s"Read coalesced stream for shuffleKey: $shuffleKey error from " +
-            s"${NettyUtils.getRemoteAddress(client.getChannel)}, Exception: ${e.getMessage}"
-        PbStreamHandlerOpt.newBuilder().setStatus(StatusCode.OPEN_STREAM_FAILED.getValue)
-          .setErrorMsg(msg).build()
+      case e: Throwable =>
+        registeredFiles.forEach(_.closeStream(streamId))
+        throw e
     }
-  }
 
-  private def closePinnedFiles(
-      streamId: Long,
-      pinnedFiles: util.ArrayList[FileInfo]): Unit = {
-    pinnedFiles.asScala.foreach(_.closeStream(streamId))
-    pinnedFiles.clear()
-  }
+    val composite = new CompositeChunkBuffers(chunkBuffers, request.getMaxChunkBytes)
+    chunkStreamManager.registerStream(streamId, shuffleKey, composite, "coalesced", fileNames, null)
 
-  private def trackCoalescedChunkStream(channel: Channel, streamId: Long): Unit = {
-    coalescedChunkStreamsByChannel
-      .computeIfAbsent(channel, _ => ConcurrentHashMap.newKeySet[java.lang.Long]())
-      .add(streamId)
-  }
-
-  private def untrackCoalescedChunkStream(streamId: Long): Unit = {
-    coalescedChunkStreamsByChannel.entrySet().asScala.foreach { entry =>
-      val streamIds = entry.getValue
-      if (streamIds.remove(streamId) && streamIds.isEmpty) {
-        coalescedChunkStreamsByChannel.remove(entry.getKey, streamIds)
-      }
+    val handler = PbCoalescedStreamHandler.newBuilder()
+      .setStreamId(streamId)
+      .setNumChunks(composite.numChunks())
+    val boundaries = composite.boundaries()
+    0 until entries.size() foreach { idx =>
+      val entry = entries.get(idx)
+      val boundary = boundaries.get(idx)
+      handler.addBoundaries(PbCoalescedChunkBoundary.newBuilder()
+        .setFileName(entry.getFileName)
+        .setReducerId(entry.getReducerId)
+        .setStartChunkIndex(boundary.startChunkIndex)
+        .setStartChunkOffset(boundary.startChunkOffset)
+        .setEndChunkIndex(boundary.endChunkIndex)
+        .setEndChunkOffset(boundary.endChunkOffset))
     }
-  }
-
-  private def closeCoalescedChunkStreamsForChannel(client: TransportClient): Unit = {
-    val streamIds = coalescedChunkStreamsByChannel.remove(client.getChannel)
-    if (streamIds != null) {
-      streamIds.asScala.foreach { streamId =>
-        handleEndStreamFromClient(client, streamId.longValue(), StreamType.ChunkStream)
-      }
-    }
+    workerSource.incCounter(WorkerSource.OPEN_STREAM_SUCCESS_COUNT)
+    handler.build()
   }
 
   private def readableBytes(meta: ReduceFileMeta): Long = {
@@ -643,12 +625,11 @@ class FetchHandler(
       streamType: StreamType): Unit = {
     streamType match {
       case StreamType.ChunkStream =>
-        untrackCoalescedChunkStream(streamId)
         val streamState = chunkStreamManager.removeStreamState(streamId)
         if (streamState != null) {
           val shuffleKey = streamState.shuffleKey
           workerSource.recordAppActiveConnection(client, shuffleKey)
-          streamState.fileNames.asScala.foreach { fileName =>
+          streamState.fileNames.forEach { fileName =>
             try {
               getRawFileInfo(shuffleKey, fileName).closeStream(streamId)
             } catch {
@@ -803,7 +784,6 @@ class FetchHandler(
 
   override def channelInactive(client: TransportClient): Unit = {
     workerSource.connectionInactive(client)
-    closeCoalescedChunkStreamsForChannel(client)
     creditStreamManager.connectionTerminated(client.getChannel)
     logDebug(s"channel inactive ${client.getSocketAddress}")
   }

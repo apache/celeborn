@@ -62,6 +62,7 @@ public abstract class CelebornInputStream extends InputStream {
       int[] attempts,
       Map<String, LocationPushFailedBatches> failedBatchSetMap,
       Map<String, Pair<Integer, Integer>> chunksRange,
+      Map<String, CoalescedPartitionInfo> coalescedPartitionInfos,
       int attemptNumber,
       long taskId,
       int startMapIndex,
@@ -74,53 +75,6 @@ public abstract class CelebornInputStream extends InputStream {
       ExceptionMaker exceptionMaker,
       MetricsCallback metricsCallback,
       boolean needDecompress)
-      throws IOException {
-    return create(
-        conf,
-        clientFactory,
-        shuffleKey,
-        locations,
-        streamHandlers,
-        attempts,
-        failedBatchSetMap,
-        chunksRange,
-        attemptNumber,
-        taskId,
-        startMapIndex,
-        endMapIndex,
-        fetchExcludedWorkers,
-        shuffleClient,
-        appShuffleId,
-        shuffleId,
-        partitionId,
-        exceptionMaker,
-        metricsCallback,
-        needDecompress,
-        true);
-  }
-
-  public static CelebornInputStream create(
-      CelebornConf conf,
-      TransportClientFactory clientFactory,
-      String shuffleKey,
-      ArrayList<PartitionLocation> locations,
-      ArrayList<PbStreamHandler> streamHandlers,
-      int[] attempts,
-      Map<String, LocationPushFailedBatches> failedBatchSetMap,
-      Map<String, Pair<Integer, Integer>> chunksRange,
-      int attemptNumber,
-      long taskId,
-      int startMapIndex,
-      int endMapIndex,
-      ConcurrentHashMap<String, Long> fetchExcludedWorkers,
-      ShuffleClient shuffleClient,
-      int appShuffleId,
-      int shuffleId,
-      int partitionId,
-      ExceptionMaker exceptionMaker,
-      MetricsCallback metricsCallback,
-      boolean needDecompress,
-      boolean retryOnFailure)
       throws IOException {
     if (locations == null || locations.isEmpty()) {
       return emptyInputStream;
@@ -142,6 +96,7 @@ public abstract class CelebornInputStream extends InputStream {
             attemptNumber,
             taskId,
             chunksRange,
+            coalescedPartitionInfos,
             fetchExcludedWorkers,
             shuffleClient,
             appShuffleId,
@@ -150,8 +105,7 @@ public abstract class CelebornInputStream extends InputStream {
             exceptionMaker,
             true,
             metricsCallback,
-            needDecompress,
-            retryOnFailure);
+            needDecompress);
       } else {
         return new CelebornInputStreamImpl(
             conf,
@@ -166,6 +120,7 @@ public abstract class CelebornInputStream extends InputStream {
             startMapIndex,
             endMapIndex,
             /*partitionLocationToChunkRange = */ null,
+            coalescedPartitionInfos,
             fetchExcludedWorkers,
             shuffleClient,
             appShuffleId,
@@ -174,8 +129,7 @@ public abstract class CelebornInputStream extends InputStream {
             exceptionMaker,
             false,
             metricsCallback,
-            needDecompress,
-            retryOnFailure);
+            needDecompress);
       }
     }
   }
@@ -225,6 +179,7 @@ public abstract class CelebornInputStream extends InputStream {
     private final int startMapIndex;
     private final int endMapIndex;
     private final Map<String, Pair<Integer, Integer>> partitionLocationToChunkRange;
+    private final Map<String, CoalescedPartitionInfo> coalescedPartitionInfos;
 
     private Map<Integer, Set<Integer>> batchesRead = new HashMap<>();
 
@@ -267,7 +222,6 @@ public abstract class CelebornInputStream extends InputStream {
     private boolean closed = false;
 
     private final boolean readSkewPartitionWithoutMapRange;
-    private final boolean retryOnFailure;
 
     CelebornInputStreamImpl(
         CelebornConf conf,
@@ -280,6 +234,7 @@ public abstract class CelebornInputStream extends InputStream {
         int attemptNumber,
         long taskId,
         Map<String, Pair<Integer, Integer>> partitionLocationToChunkRange,
+        Map<String, CoalescedPartitionInfo> coalescedPartitionInfos,
         ConcurrentHashMap<String, Long> fetchExcludedWorkers,
         ShuffleClient shuffleClient,
         int appShuffleId,
@@ -288,8 +243,7 @@ public abstract class CelebornInputStream extends InputStream {
         ExceptionMaker exceptionMaker,
         boolean splitSkewPartitionWithoutMapRange,
         MetricsCallback metricsCallback,
-        boolean needDecompress,
-        boolean retryOnFailure)
+        boolean needDecompress)
         throws IOException {
       this(
           conf,
@@ -304,6 +258,7 @@ public abstract class CelebornInputStream extends InputStream {
           /*startMapIndex = */ -1,
           /*endMapIndex = */ -1,
           partitionLocationToChunkRange,
+          coalescedPartitionInfos,
           fetchExcludedWorkers,
           shuffleClient,
           appShuffleId,
@@ -312,8 +267,7 @@ public abstract class CelebornInputStream extends InputStream {
           exceptionMaker,
           splitSkewPartitionWithoutMapRange,
           metricsCallback,
-          needDecompress,
-          retryOnFailure);
+          needDecompress);
     }
 
     CelebornInputStreamImpl(
@@ -329,6 +283,7 @@ public abstract class CelebornInputStream extends InputStream {
         int startMapIndex,
         int endMapIndex,
         Map<String, Pair<Integer, Integer>> partitionLocationToChunkRange,
+        Map<String, CoalescedPartitionInfo> coalescedPartitionInfos,
         ConcurrentHashMap<String, Long> fetchExcludedWorkers,
         ShuffleClient shuffleClient,
         int appShuffleId,
@@ -337,8 +292,7 @@ public abstract class CelebornInputStream extends InputStream {
         ExceptionMaker exceptionMaker,
         boolean readSkewPartitionWithoutMapRange,
         MetricsCallback metricsCallback,
-        boolean needDecompress,
-        boolean retryOnFailure)
+        boolean needDecompress)
         throws IOException {
       this.conf = conf;
       this.clientFactory = clientFactory;
@@ -353,6 +307,7 @@ public abstract class CelebornInputStream extends InputStream {
       this.startMapIndex = startMapIndex;
       this.endMapIndex = endMapIndex;
       this.partitionLocationToChunkRange = partitionLocationToChunkRange;
+      this.coalescedPartitionInfos = coalescedPartitionInfos;
       this.rangeReadFilter = conf.shuffleRangeReadFilterEnabled();
       this.enabledReadLocalShuffle = conf.enableReadLocalShuffleFile();
       this.localHostAddress = Utils.localHostName(conf);
@@ -361,7 +316,6 @@ public abstract class CelebornInputStream extends InputStream {
       this.fetchExcludedWorkerExpireTimeout = conf.clientFetchExcludedWorkerExpireTimeout();
       this.failedBatches = failedBatchSet;
       this.readSkewPartitionWithoutMapRange = readSkewPartitionWithoutMapRange;
-      this.retryOnFailure = retryOnFailure;
       this.fetchExcludedWorkers = fetchExcludedWorkers;
 
       if (conf.clientPushReplicateEnabled()) {
@@ -377,20 +331,11 @@ public abstract class CelebornInputStream extends InputStream {
       this.shuffleId = shuffleId;
       this.shuffleClient = shuffleClient;
 
-      try {
-        boolean chunkPrefetchEnabled = conf.clientChunkPrefetchEnabled();
-        moveToNextReader(chunkPrefetchEnabled);
-        if (chunkPrefetchEnabled) {
-          init();
-          firstChunk = false;
-        }
-      } catch (IOException | RuntimeException | Error e) {
-        try {
-          close();
-        } catch (Throwable closeFailure) {
-          e.addSuppressed(closeFailure);
-        }
-        throw e;
+      boolean chunkPrefetchEnabled = conf.clientChunkPrefetchEnabled();
+      moveToNextReader(chunkPrefetchEnabled);
+      if (chunkPrefetchEnabled) {
+        init();
+        firstChunk = false;
       }
     }
 
@@ -447,15 +392,7 @@ public abstract class CelebornInputStream extends InputStream {
       if (currentLocation == null) {
         return;
       }
-      // For coalesced remote reads, currentLocation._2 is a preopened worker stream. The
-      // normal path passes null here and lets the reader open the stream itself.
       currentReader = createReaderWithRetry(currentLocation._1, currentLocation._2);
-      if (streamHandlers != null) {
-        // The PartitionReader now owns this preopened worker stream and will close it.
-        // Leaving it in the initial handler list would make constructor/setup cleanup
-        // send a duplicate BUFFER_STREAM_END for the active reader.
-        streamHandlers.set(fileIndex, null);
-      }
       fileIndex++;
       while (!currentReader.hasNext() || (fetchChunk && (currentChunk = getNextChunk()) == null)) {
         currentReader.close();
@@ -464,13 +401,7 @@ public abstract class CelebornInputStream extends InputStream {
         if (currentLocation == null) {
           return;
         }
-        // Empty readers can appear after filtering skipped locations. Preserve the same
-        // ownership transfer rule for every replacement reader.
         currentReader = createReaderWithRetry(currentLocation._1, currentLocation._2);
-        if (streamHandlers != null) {
-          // Transfer ownership for the next readable preopened stream as well.
-          streamHandlers.set(fileIndex, null);
-        }
         fileIndex++;
       }
     }
@@ -523,9 +454,6 @@ public abstract class CelebornInputStream extends InputStream {
           return reader;
         } catch (Exception e) {
           lastException = e;
-          if (!retryOnFailure) {
-            throw new CelebornIOException("createPartitionReader failed! " + location, e);
-          }
           shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort(), e);
           fetchChunkRetryCnt++;
           if (location.hasPeer() && !readSkewPartitionWithoutMapRange) {
@@ -589,11 +517,6 @@ public abstract class CelebornInputStream extends InputStream {
           }
           return currentReader.next();
         } catch (Exception e) {
-          if (!retryOnFailure) {
-            currentReader.close();
-            throw new CelebornIOException(
-                "Fetch chunk failed for location " + currentReader.getLocation(), e);
-          }
           shuffleClient.excludeFailedFetchLocation(
               currentReader.getLocation().hostAndFetchPort(), e);
           fetchChunkRetryCnt++;
@@ -654,6 +577,13 @@ public abstract class CelebornInputStream extends InputStream {
         throws IOException, InterruptedException {
 
       StorageInfo storageInfo = location.getStorageInfo();
+      if (coalescedPartitionInfos != null) {
+        CoalescedPartitionInfo coalescedInfo = coalescedPartitionInfos.get(location.getUniqueId());
+        if (coalescedInfo != null) {
+          return new CoalescedWorkerPartitionReader(
+              location, coalescedInfo.stream, coalescedInfo.boundary, checkpointMetadata);
+        }
+      }
 
       int startChunkIndex = -1;
       int endChunkIndex = -1;
@@ -790,7 +720,6 @@ public abstract class CelebornInputStream extends InputStream {
           currentReader.close();
           currentReader = null;
         }
-        closeInitialStreamHandlers();
         if (containLocalRead) {
           ShuffleClient.printReadStats(logger);
         }
@@ -804,38 +733,6 @@ public abstract class CelebornInputStream extends InputStream {
         fetchExcludedWorkers = null;
 
         closed = true;
-      }
-    }
-
-    private void closeInitialStreamHandlers() {
-      if (streamHandlers == null) {
-        return;
-      }
-      for (int i = 0; i < streamHandlers.size(); i++) {
-        PbStreamHandler streamHandler = streamHandlers.get(i);
-        if (streamHandler == null) {
-          continue;
-        }
-        PartitionLocation location = locations.get(i);
-        try {
-          TransportClient client =
-              clientFactory.createClient(location.getHost(), location.getFetchPort());
-          TransportMessage bufferStreamEnd =
-              new TransportMessage(
-                  MessageType.BUFFER_STREAM_END,
-                  PbBufferStreamEnd.newBuilder()
-                      .setStreamType(StreamType.ChunkStream)
-                      .setStreamId(streamHandler.getStreamId())
-                      .build()
-                      .toByteArray());
-          client.sendRpc(bufferStreamEnd.toByteBuffer());
-        } catch (Exception e) {
-          logger.warn(
-              "Close unread stream {} for location {} failed.",
-              streamHandler.getStreamId(),
-              location,
-              e);
-        }
       }
     }
 

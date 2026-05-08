@@ -116,6 +116,7 @@ class ReadWriteTestWithFailures extends AnyFunSuite
       null,
       null,
       null,
+      null,
       metricsCallback,
       true)
 

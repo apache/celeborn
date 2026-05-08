@@ -17,102 +17,148 @@
 
 package org.apache.celeborn.common.network.buffer;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
-import scala.Tuple2;
-
-import org.apache.celeborn.common.meta.ReduceFileMeta;
-
 /**
- * Chunk buffers that concatenate source chunks without materializing the full stream at open time.
+ * Presents several reducer files as one chunked stream without requiring the serialized shuffle
+ * streams to become one logical reducer stream.
  */
 public class CompositeChunkBuffers extends ChunkBuffers {
-  private final List<Segment> segments;
+  public static class Boundary {
+    public final int startChunkIndex;
+    public final int startChunkOffset;
+    public final int endChunkIndex;
+    public final int endChunkOffset;
 
-  public CompositeChunkBuffers(List<ChunkBuffers> children, long chunkSize) {
-    super(new ReduceFileMeta(buildChunkOffsets(children, chunkSize), chunkSize));
-    this.segments = buildSegments(children);
+    Boundary(int startChunkIndex, int startChunkOffset, int endChunkIndex, int endChunkOffset) {
+      this.startChunkIndex = startChunkIndex;
+      this.startChunkOffset = startChunkOffset;
+      this.endChunkIndex = endChunkIndex;
+      this.endChunkOffset = endChunkOffset;
+    }
+  }
+
+  private static class Segment {
+    final ChunkBuffers buffers;
+    final int chunkIndex;
+    final int offset;
+    final int length;
+
+    Segment(ChunkBuffers buffers, int chunkIndex, int offset, int length) {
+      this.buffers = buffers;
+      this.chunkIndex = chunkIndex;
+      this.offset = offset;
+      this.length = length;
+    }
+  }
+
+  private final List<List<Segment>> chunks;
+  private final List<Boundary> boundaries;
+
+  public CompositeChunkBuffers(List<ChunkBuffers> inputs, int maxChunkBytes) {
+    super(0);
+    chunks = new ArrayList<>();
+    boundaries = new ArrayList<>();
+    List<Segment> currentChunk = new ArrayList<>();
+    int currentChunkBytes = 0;
+    long totalBytes = 0;
+    List<long[]> byteBoundaries = new ArrayList<>();
+
+    for (ChunkBuffers input : inputs) {
+      long startOffset = totalBytes;
+      for (int chunkIndex = 0; chunkIndex < input.numChunks(); chunkIndex++) {
+        int chunkLength = Math.toIntExact(input.getChunkLength(chunkIndex));
+        if (!currentChunk.isEmpty() && currentChunkBytes + chunkLength > maxChunkBytes) {
+          chunks.add(currentChunk);
+          currentChunk = new ArrayList<>();
+          currentChunkBytes = 0;
+        }
+        currentChunk.add(new Segment(input, chunkIndex, 0, chunkLength));
+        currentChunkBytes += chunkLength;
+        totalBytes += chunkLength;
+      }
+      byteBoundaries.add(new long[] {startOffset, totalBytes});
+    }
+
+    if (!currentChunk.isEmpty()) {
+      chunks.add(currentChunk);
+    }
+    numChunks = chunks.size();
+    offsets = new long[numChunks + 1];
+    for (int chunkIndex = 0; chunkIndex < numChunks; chunkIndex++) {
+      offsets[chunkIndex + 1] = offsets[chunkIndex] + chunkSize(chunks.get(chunkIndex));
+    }
+    for (long[] byteBoundary : byteBoundaries) {
+      boundaries.add(toBoundary(byteBoundary[0], byteBoundary[1]));
+    }
+  }
+
+  public List<Boundary> boundaries() {
+    return boundaries;
+  }
+
+  private Boundary toBoundary(long startOffset, long endOffset) {
+    int startChunkIndex = chunkIndexForOffset(startOffset);
+    int endChunkIndex = chunkIndexForOffset(endOffset);
+    return new Boundary(
+        startChunkIndex,
+        (int) (startOffset - offsets[startChunkIndex]),
+        endChunkIndex,
+        endChunkIndex == numChunks ? 0 : (int) (endOffset - offsets[endChunkIndex]));
+  }
+
+  private int chunkIndexForOffset(long offset) {
+    int exactIndex = Arrays.binarySearch(offsets, offset);
+    if (exactIndex >= 0) {
+      return exactIndex;
+    }
+    return -exactIndex - 2;
   }
 
   @Override
   public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
-    Tuple2<Long, Long> offsetLen = getChunkOffsetLength(chunkIndex, offset, len);
-    long start = offsetLen._1;
-    long end = start + offsetLen._2;
-    List<ManagedBuffer> buffers = new ArrayList<>();
-    // Translate the requested global coalesced chunk range back to the child chunk ranges
-    // that physically store the bytes. A coalesced chunk can span multiple children when
-    // several tiny reducer chunks fit under the configured stream chunk size.
+    List<Segment> segments = chunks.get(chunkIndex);
+    int chunkSize = chunkSize(segments);
+    if (segments.size() == 1) {
+      Segment segment = segments.get(0);
+      int segmentLength = Math.min(segment.length - offset, len);
+      return segment.buffers.chunk(segment.chunkIndex, segment.offset + offset, segmentLength);
+    }
+    int remainingOffset = offset;
+    int remainingLength = Math.min(len, chunkSize - offset);
+    ByteBuffer buffer = ByteBuffer.allocate(remainingLength);
     for (Segment segment : segments) {
-      if (segment.end <= start) {
-        continue;
-      }
-      if (segment.start >= end) {
+      if (remainingLength == 0) {
         break;
       }
-      long segmentStart = Math.max(start, segment.start);
-      long segmentEnd = Math.min(end, segment.end);
-      int childOffset = (int) (segmentStart - segment.start);
-      int childLength = (int) (segmentEnd - segmentStart);
-      buffers.add(segment.child.chunk(segment.chunkIndex, childOffset, childLength));
-    }
-    if (buffers.size() == 1) {
-      return buffers.get(0);
-    }
-    return new CompositeManagedBuffer(buffers);
-  }
-
-  private static List<Long> buildChunkOffsets(List<ChunkBuffers> children, long chunkSize) {
-    List<Long> chunkOffsets = new ArrayList<>();
-    chunkOffsets.add(0L);
-    long emittedOffset = 0L;
-    long emittedChunkBytes = 0L;
-    // Repack child chunks into the configured stream chunk size without splitting a child chunk.
-    // This preserves the original child chunk boundaries used by FileChunkBuffers.
-    for (ChunkBuffers child : children) {
-      for (int chunkIndex = 0; chunkIndex < child.numChunks(); chunkIndex++) {
-        long childChunkSize = child.offsets[chunkIndex + 1] - child.offsets[chunkIndex];
-        if (emittedChunkBytes > 0 && emittedChunkBytes + childChunkSize > chunkSize) {
-          chunkOffsets.add(emittedOffset);
-          emittedChunkBytes = 0L;
-        }
-        emittedOffset += childChunkSize;
-        emittedChunkBytes += childChunkSize;
+      if (remainingOffset >= segment.length) {
+        remainingOffset -= segment.length;
+        continue;
       }
-    }
-    if (chunkOffsets.get(chunkOffsets.size() - 1) != emittedOffset) {
-      chunkOffsets.add(emittedOffset);
-    }
-    return chunkOffsets;
-  }
-
-  private static List<Segment> buildSegments(List<ChunkBuffers> children) {
-    List<Segment> segments = new ArrayList<>();
-    long globalOffset = 0L;
-    // Segments are the lookup table from global coalesced-stream offsets to child chunk
-    // offsets. They are small metadata objects; reducer bytes stay in the child buffers.
-    for (ChunkBuffers child : children) {
-      for (int chunkIndex = 0; chunkIndex < child.numChunks(); chunkIndex++) {
-        long childChunkSize = child.offsets[chunkIndex + 1] - child.offsets[chunkIndex];
-        segments.add(new Segment(child, chunkIndex, globalOffset, childChunkSize));
-        globalOffset += childChunkSize;
+      int segmentOffset = segment.offset + remainingOffset;
+      int segmentLength = Math.min(segment.length - remainingOffset, remainingLength);
+      ManagedBuffer managedBuffer =
+          segment.buffers.chunk(segment.chunkIndex, segmentOffset, segmentLength);
+      try {
+        ByteBuffer data = managedBuffer.nioByteBuffer();
+        buffer.put(data);
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to materialize coalesced chunk", e);
+      } finally {
+        managedBuffer.release();
       }
+      remainingLength -= segmentLength;
+      remainingOffset = 0;
     }
-    return segments;
+    buffer.flip();
+    return new NioManagedBuffer(buffer);
   }
 
-  private static class Segment {
-    private final ChunkBuffers child;
-    private final int chunkIndex;
-    private final long start;
-    private final long end;
-
-    private Segment(ChunkBuffers child, int chunkIndex, long start, long length) {
-      this.child = child;
-      this.chunkIndex = chunkIndex;
-      this.start = start;
-      this.end = start + length;
-    }
+  private int chunkSize(List<Segment> segments) {
+    return segments.stream().mapToInt(segment -> segment.length).sum();
   }
 }

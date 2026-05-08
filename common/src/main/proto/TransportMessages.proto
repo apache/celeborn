@@ -114,9 +114,9 @@ enum MessageType {
   PUSH_MERGED_DATA_SPLIT_PARTITION_INFO = 91;
   GET_STAGE_END = 92;
   GET_STAGE_END_RESPONSE = 93;
+  OPEN_COALESCED_STREAM = 94;
+  COALESCED_STREAM_HANDLER = 95;
   REGISTER_APPLICATION_INFO = 96;
-  COALESCED_OPEN_STREAM = 97;
-  COALESCED_OPEN_STREAM_RESPONSE = 98;
 }
 
 enum StreamType {
@@ -745,11 +745,33 @@ message PbOpenStreamListResponse {
   repeated PbStreamHandlerOpt streamHandlerOpt = 2;
 }
 
-message PbCoalescedOpenStream {
+message PbOpenCoalescedStream {
   string shuffleKey = 1;
-  repeated string fileName = 2;
-  repeated int32 startIndex = 3;
-  repeated int32 endIndex = 4;
+  repeated PbCoalescedStreamEntry entry = 2;
+  int32 maxChunkBytes = 3;
+}
+
+message PbCoalescedStreamEntry {
+  string fileName = 1;
+  int32 reducerId = 2;
+  int32 startIndex = 3;
+  int32 endIndex = 4;
+  bool readLocalShuffle = 5;
+}
+
+message PbCoalescedChunkBoundary {
+  string fileName = 1;
+  int32 reducerId = 2;
+  int32 startChunkIndex = 3;
+  int32 startChunkOffset = 4;
+  int32 endChunkIndex = 5;
+  int32 endChunkOffset = 6;
+}
+
+message PbCoalescedStreamHandler {
+  int64 streamId = 1;
+  int32 numChunks = 2;
+  repeated PbCoalescedChunkBoundary boundaries = 3;
 }
 
 message PbPushDataHandShake {

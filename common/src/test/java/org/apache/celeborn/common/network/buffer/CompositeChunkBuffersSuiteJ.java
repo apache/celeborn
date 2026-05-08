@@ -19,64 +19,126 @@ package org.apache.celeborn.common.network.buffer;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.Test;
 
-import org.apache.celeborn.common.meta.ReduceFileMeta;
-
 public class CompositeChunkBuffersSuiteJ {
+  @Test
+  public void testManyTinyReducersUseFewerChunksAndKeepBoundaries() throws Exception {
+    List<ChunkBuffers> inputs = new ArrayList<>();
+    List<byte[]> expected = new ArrayList<>();
+    for (int reducerId = 0; reducerId < 1600; reducerId++) {
+      byte[] bytes =
+          new byte[] {
+            (byte) (reducerId & 0xff),
+            (byte) ((reducerId >> 8) & 0xff),
+            (byte) ((reducerId >> 16) & 0xff),
+            (byte) ((reducerId >> 24) & 0xff)
+          };
+      expected.add(bytes);
+      inputs.add(new ByteArrayChunkBuffers(bytes));
+    }
+
+    CompositeChunkBuffers composite = new CompositeChunkBuffers(inputs, 1024);
+    assertTrue(composite.numChunks() < inputs.size());
+
+    for (int reducerId = 0; reducerId < expected.size(); reducerId++) {
+      CompositeChunkBuffers.Boundary boundary = composite.boundaries().get(reducerId);
+      byte[] actual = readBoundary(composite, boundary);
+      assertArrayEquals(expected.get(reducerId), actual);
+    }
+  }
 
   @Test
-  public void compositeChunksPreserveChildChunkBoundariesAndOffsets() throws IOException {
-    CompositeChunkBuffers buffers =
+  public void testSingleSegmentChunkReusesUnderlyingBuffer() throws Exception {
+    byte[] bytes = new byte[] {1, 2, 3, 4};
+    CompositeChunkBuffers composite =
+        new CompositeChunkBuffers(Collections.singletonList(new ByteArrayChunkBuffers(bytes)), 8);
+
+    ByteBuffer chunk = composite.chunk(0, 1, 2).nioByteBuffer();
+    bytes[1] = 9;
+    assertArrayEquals(new byte[] {9, 3}, new byte[] {chunk.get(), chunk.get()});
+  }
+
+  @Test
+  public void testOriginalChunksAreNotSplit() {
+    CompositeChunkBuffers composite =
         new CompositeChunkBuffers(
-            Arrays.asList(
-                chunkBuffers(0, 5, 0L, 2L, 5L),
-                chunkBuffers(10, 4, 0L, 3L, 4L),
-                chunkBuffers(20, 2, 0L, 2L)),
-            6);
+            Collections.singletonList(new MultiChunkBuffers(new byte[][] {{1, 2, 3, 4}, {5, 6}})),
+            3);
 
-    assertEquals(2, buffers.numChunks());
-    assertArrayEquals(
-        new byte[] {0, 1, 2, 3, 4}, toByteArray(buffers.chunk(0, 0, Integer.MAX_VALUE)));
-    assertArrayEquals(
-        new byte[] {10, 11, 12, 13, 20, 21}, toByteArray(buffers.chunk(1, 0, Integer.MAX_VALUE)));
-    assertArrayEquals(new byte[] {11, 12, 13, 20}, toByteArray(buffers.chunk(1, 1, 4)));
+    assertEquals(2, composite.numChunks());
+    assertEquals(4, composite.getChunkLength(0));
+    assertEquals(2, composite.getChunkLength(1));
   }
 
-  private static ChunkBuffers chunkBuffers(int firstByte, int length, Long... offsets) {
-    byte[] data = new byte[length];
-    for (int i = 0; i < length; i++) {
-      data[i] = (byte) (firstByte + i);
+  private byte[] readBoundary(
+      CompositeChunkBuffers composite, CompositeChunkBuffers.Boundary boundary) throws Exception {
+    ByteBuffer result = ByteBuffer.allocate(4);
+    int chunkIndex = boundary.startChunkIndex;
+    int chunkOffset = boundary.startChunkOffset;
+    while (chunkIndex < boundary.endChunkIndex
+        || (chunkIndex == boundary.endChunkIndex && chunkOffset < boundary.endChunkOffset)) {
+      ByteBuffer chunk = composite.chunk(chunkIndex, 0, Integer.MAX_VALUE).nioByteBuffer();
+      int endOffset =
+          chunkIndex == boundary.endChunkIndex ? boundary.endChunkOffset : chunk.remaining();
+      chunk.position(chunkOffset);
+      chunk.limit(endOffset);
+      result.put(chunk);
+      if (chunkIndex == boundary.endChunkIndex) {
+        chunkOffset = endOffset;
+      } else {
+        chunkIndex++;
+        chunkOffset = 0;
+      }
     }
-    return new TestChunkBuffers(data, Arrays.asList(offsets));
+    return result.array();
   }
 
-  private static byte[] toByteArray(ManagedBuffer buffer) throws IOException {
-    ByteBuffer byteBuffer = buffer.nioByteBuffer();
-    byte[] data = new byte[byteBuffer.remaining()];
-    byteBuffer.get(data);
-    return data;
-  }
+  private static class ByteArrayChunkBuffers extends ChunkBuffers {
+    private final byte[] bytes;
 
-  private static final class TestChunkBuffers extends ChunkBuffers {
-    private final byte[] data;
+    ByteArrayChunkBuffers(byte[] bytes) {
+      super(1);
+      this.bytes = bytes;
+    }
 
-    private TestChunkBuffers(byte[] data, List<Long> offsets) {
-      super(new ReduceFileMeta(offsets, 8));
-      this.data = data;
+    @Override
+    public long getChunkLength(int chunkIndex) {
+      return bytes.length;
     }
 
     @Override
     public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
-      scala.Tuple2<Long, Long> offsetLen = getChunkOffsetLength(chunkIndex, offset, len);
-      return new NioManagedBuffer(
-          java.nio.ByteBuffer.wrap(data, offsetLen._1().intValue(), offsetLen._2().intValue()));
+      int length = Math.min(bytes.length - offset, len);
+      return new NioManagedBuffer(ByteBuffer.wrap(bytes, offset, length));
+    }
+  }
+
+  private static class MultiChunkBuffers extends ChunkBuffers {
+    private final byte[][] chunks;
+
+    MultiChunkBuffers(byte[][] chunks) {
+      super(chunks.length);
+      this.chunks = chunks;
+    }
+
+    @Override
+    public long getChunkLength(int chunkIndex) {
+      return chunks[chunkIndex].length;
+    }
+
+    @Override
+    public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
+      byte[] bytes = chunks[chunkIndex];
+      int length = Math.min(bytes.length - offset, len);
+      return new NioManagedBuffer(ByteBuffer.wrap(bytes, offset, length));
     }
   }
 }

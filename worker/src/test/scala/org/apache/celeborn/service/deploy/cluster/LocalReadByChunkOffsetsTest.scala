@@ -144,6 +144,7 @@ class LocalReadByChunkOffsetsTest extends AnyFunSuite
       Collections.emptyMap(), // failed batch could not be null
       subMap, // sub-partition chunk range
       null,
+      null,
       metricsCallback,
       true)
     val outputStream = new ByteArrayOutputStream()

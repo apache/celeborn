@@ -62,11 +62,14 @@ import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
-import org.apache.celeborn.common.protocol.PbCoalescedOpenStream;
+import org.apache.celeborn.common.protocol.PbCoalescedStreamEntry;
+import org.apache.celeborn.common.protocol.PbCoalescedStreamHandler;
+import org.apache.celeborn.common.protocol.PbOpenCoalescedStream;
 import org.apache.celeborn.common.protocol.PbOpenStream;
+import org.apache.celeborn.common.protocol.PbOpenStreamList;
+import org.apache.celeborn.common.protocol.PbOpenStreamListResponse;
 import org.apache.celeborn.common.protocol.PbStreamChunkSlice;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
-import org.apache.celeborn.common.protocol.PbStreamHandlerOpt;
 import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.unsafe.Platform;
@@ -136,6 +139,23 @@ public class FetchHandlerSuiteJ {
     }
     // update sorted fileInfo chunk offsets
     fileInfo.updateBytesFlushed(originFileLen);
+    return fileInfo;
+  }
+
+  public FileInfo prepareTiny(int payloadBytes) throws IOException {
+    byte[] batchHeader = new byte[16];
+    File shuffleFile = File.createTempFile("celeborn", UUID.randomUUID().toString());
+    DiskFileInfo fileInfo = new DiskFileInfo(shuffleFile, userIdentifier, conf);
+    try (FileOutputStream fileOutputStream = new FileOutputStream(shuffleFile);
+        FileChannel channel = fileOutputStream.getChannel()) {
+      Platform.putInt(batchHeader, Platform.BYTE_ARRAY_OFFSET, 0);
+      Platform.putInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 4, 0);
+      Platform.putInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 8, 0);
+      Platform.putInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 12, payloadBytes);
+      channel.write(ByteBuffer.wrap(batchHeader));
+      channel.write(ByteBuffer.wrap(new byte[payloadBytes]));
+      fileInfo.updateBytesFlushed(channel.size());
+    }
     return fileInfo;
   }
 
@@ -239,6 +259,271 @@ public class FetchHandlerSuiteJ {
   }
 
   @Test
+  public void testBatchOpenStreamKeepsOneLogicalStreamPerTinyReducer() throws IOException {
+    FileInfo fileInfo = null;
+    try {
+      fileInfo = prepareTiny(32);
+      EmbeddedChannel channel = new EmbeddedChannel();
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+      FetchHandler fetchHandler = mockFetchHandler(fileInfo);
+      PbOpenStreamList.Builder request = PbOpenStreamList.newBuilder().setShuffleKey(shuffleKey);
+      for (int reducerId = 0; reducerId < 1600; reducerId++) {
+        request
+            .addFileName(fileName + reducerId)
+            .addStartIndex(0)
+            .addEndIndex(Integer.MAX_VALUE)
+            .addReadLocalShuffle(false);
+      }
+      fetchHandler.receive(
+          client,
+          new RpcRequest(
+              dummyRequestId,
+              new NioManagedBuffer(
+                  new TransportMessage(MessageType.BATCH_OPEN_STREAM, request.build().toByteArray())
+                      .toByteBuffer())),
+          createRpcResponseCallback(channel));
+
+      RpcResponse result = channel.readOutbound();
+      PbOpenStreamListResponse response =
+          TransportMessage.fromByteBuffer(result.body().nioByteBuffer()).getParsedPayload();
+      assertEquals(1600, response.getStreamHandlerOptCount());
+      assertEquals(1600, fetchHandler.chunkStreamManager().numShuffleSteams());
+    } finally {
+      cleanup(fileInfo);
+    }
+  }
+
+  @Test
+  public void testOpenCoalescedStreamUsesOneLogicalStreamForManyTinyReducers() throws IOException {
+    FileInfo fileInfo = null;
+    try {
+      enableCoalescedRemoteReadForTest();
+      fileInfo = prepareTiny(32);
+      EmbeddedChannel channel = new EmbeddedChannel();
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+      FetchHandler fetchHandler = mockFetchHandler(fileInfo);
+      PbOpenCoalescedStream.Builder request =
+          PbOpenCoalescedStream.newBuilder().setShuffleKey(shuffleKey).setMaxChunkBytes(1024);
+      for (int reducerId = 0; reducerId < 1600; reducerId++) {
+        request.addEntry(
+            PbCoalescedStreamEntry.newBuilder()
+                .setFileName(fileName + reducerId)
+                .setReducerId(reducerId)
+                .setStartIndex(0)
+                .setEndIndex(Integer.MAX_VALUE)
+                .setReadLocalShuffle(false));
+      }
+      fetchHandler.receive(
+          client,
+          new RpcRequest(
+              dummyRequestId,
+              new NioManagedBuffer(
+                  new TransportMessage(
+                          MessageType.OPEN_COALESCED_STREAM, request.build().toByteArray())
+                      .toByteBuffer())),
+          createRpcResponseCallback(channel));
+
+      RpcResponse result = channel.readOutbound();
+      PbCoalescedStreamHandler handler =
+          TransportMessage.fromByteBuffer(result.body().nioByteBuffer()).getParsedPayload();
+      assertEquals(1, fetchHandler.chunkStreamManager().numShuffleSteams());
+      assertEquals(1600, handler.getBoundariesCount());
+      assertTrue(handler.getNumChunks() < 1600);
+    } finally {
+      disableCoalescedRemoteReadForTest();
+      cleanup(fileInfo);
+    }
+  }
+
+  @Test
+  public void testOpenCoalescedStreamPreservesDuplicateReducerBoundaries() throws IOException {
+    FileInfo fileInfo = null;
+    try {
+      enableCoalescedRemoteReadForTest();
+      fileInfo = prepareTiny(32);
+      EmbeddedChannel channel = new EmbeddedChannel();
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+      FetchHandler fetchHandler = mockFetchHandler(fileInfo);
+      PbOpenCoalescedStream request =
+          PbOpenCoalescedStream.newBuilder()
+              .setShuffleKey(shuffleKey)
+              .setMaxChunkBytes(1024)
+              .addEntry(
+                  PbCoalescedStreamEntry.newBuilder()
+                      .setFileName(fileName + "-epoch-0")
+                      .setReducerId(7)
+                      .setStartIndex(0)
+                      .setEndIndex(Integer.MAX_VALUE)
+                      .setReadLocalShuffle(false))
+              .addEntry(
+                  PbCoalescedStreamEntry.newBuilder()
+                      .setFileName(fileName + "-epoch-1")
+                      .setReducerId(7)
+                      .setStartIndex(0)
+                      .setEndIndex(Integer.MAX_VALUE)
+                      .setReadLocalShuffle(false))
+              .build();
+
+      fetchHandler.receive(
+          client,
+          new RpcRequest(
+              dummyRequestId,
+              new NioManagedBuffer(
+                  new TransportMessage(MessageType.OPEN_COALESCED_STREAM, request.toByteArray())
+                      .toByteBuffer())),
+          createRpcResponseCallback(channel));
+
+      RpcResponse result = channel.readOutbound();
+      PbCoalescedStreamHandler handler =
+          TransportMessage.fromByteBuffer(result.body().nioByteBuffer()).getParsedPayload();
+      assertEquals(2, handler.getBoundariesCount());
+      assertEquals(7, handler.getBoundaries(0).getReducerId());
+      assertEquals(7, handler.getBoundaries(1).getReducerId());
+    } finally {
+      disableCoalescedRemoteReadForTest();
+      cleanup(fileInfo);
+    }
+  }
+
+  @Test
+  public void testOpenCoalescedStreamRejectsEmptyRequests() throws IOException {
+    FileInfo fileInfo = null;
+    try {
+      enableCoalescedRemoteReadForTest();
+      fileInfo = prepareTiny(32);
+      EmbeddedChannel channel = new EmbeddedChannel();
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+      FetchHandler fetchHandler = mockFetchHandler(fileInfo);
+      PbOpenCoalescedStream request =
+          PbOpenCoalescedStream.newBuilder()
+              .setShuffleKey(shuffleKey)
+              .setMaxChunkBytes(1024)
+              .build();
+
+      fetchHandler.receive(
+          client,
+          new RpcRequest(
+              dummyRequestId,
+              new NioManagedBuffer(
+                  new TransportMessage(MessageType.OPEN_COALESCED_STREAM, request.toByteArray())
+                      .toByteBuffer())),
+          createRpcResponseCallback(channel));
+
+      assertTrue(channel.readOutbound() instanceof RpcFailure);
+      assertTrue(fileInfo.isStreamsEmpty());
+    } finally {
+      disableCoalescedRemoteReadForTest();
+      cleanup(fileInfo);
+    }
+  }
+
+  @Test
+  public void testOpenCoalescedStreamRejectsOversizedRequests() throws IOException {
+    FileInfo fileInfo = null;
+    try {
+      enableCoalescedRemoteReadForTest();
+      conf.set("celeborn.client.coalescedRemoteRead.maxBytes", "1b");
+      fileInfo = prepareTiny(32);
+      EmbeddedChannel channel = new EmbeddedChannel();
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+      FetchHandler fetchHandler = mockFetchHandler(fileInfo);
+      PbOpenCoalescedStream request =
+          PbOpenCoalescedStream.newBuilder()
+              .setShuffleKey(shuffleKey)
+              .setMaxChunkBytes(1024)
+              .addEntry(
+                  PbCoalescedStreamEntry.newBuilder()
+                      .setFileName(fileName)
+                      .setReducerId(0)
+                      .setStartIndex(0)
+                      .setEndIndex(Integer.MAX_VALUE)
+                      .setReadLocalShuffle(false))
+              .build();
+
+      fetchHandler.receive(
+          client,
+          new RpcRequest(
+              dummyRequestId,
+              new NioManagedBuffer(
+                  new TransportMessage(MessageType.OPEN_COALESCED_STREAM, request.toByteArray())
+                      .toByteBuffer())),
+          createRpcResponseCallback(channel));
+
+      assertTrue(channel.readOutbound() instanceof RpcFailure);
+      assertTrue(fileInfo.isStreamsEmpty());
+    } finally {
+      disableCoalescedRemoteReadForTest();
+      conf.unset("celeborn.client.coalescedRemoteRead.maxBytes");
+      cleanup(fileInfo);
+    }
+  }
+
+  @Test
+  public void testOpenCoalescedStreamCleansPartialRegistrationsOnFailure() throws IOException {
+    FileInfo fileInfo = null;
+    try {
+      enableCoalescedRemoteReadForTest();
+      fileInfo = prepareTiny(32);
+      FileInfo trackedFileInfo = fileInfo;
+      EmbeddedChannel channel = new EmbeddedChannel();
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+      FetchHandler fetchHandler = mockFetchHandler(fileInfo);
+      Mockito.doAnswer(
+              invocation -> {
+                String requestedFileName = invocation.getArgument(1);
+                if ("missing".equals(requestedFileName)) {
+                  throw new IOException("missing");
+                }
+                return trackedFileInfo;
+              })
+          .when(fetchHandler)
+          .getRawFileInfo(anyString(), anyString());
+      PbOpenCoalescedStream request =
+          PbOpenCoalescedStream.newBuilder()
+              .setShuffleKey(shuffleKey)
+              .setMaxChunkBytes(1024)
+              .addEntry(
+                  PbCoalescedStreamEntry.newBuilder()
+                      .setFileName(fileName)
+                      .setReducerId(0)
+                      .setStartIndex(0)
+                      .setEndIndex(Integer.MAX_VALUE)
+                      .setReadLocalShuffle(false))
+              .addEntry(
+                  PbCoalescedStreamEntry.newBuilder()
+                      .setFileName("missing")
+                      .setReducerId(1)
+                      .setStartIndex(0)
+                      .setEndIndex(Integer.MAX_VALUE)
+                      .setReadLocalShuffle(false))
+              .build();
+
+      fetchHandler.receive(
+          client,
+          new RpcRequest(
+              dummyRequestId,
+              new NioManagedBuffer(
+                  new TransportMessage(MessageType.OPEN_COALESCED_STREAM, request.toByteArray())
+                      .toByteBuffer())),
+          createRpcResponseCallback(channel));
+
+      assertTrue(channel.readOutbound() instanceof RpcFailure);
+      assertTrue(trackedFileInfo.isStreamsEmpty());
+    } finally {
+      disableCoalescedRemoteReadForTest();
+      cleanup(fileInfo);
+    }
+  }
+
+  private void enableCoalescedRemoteReadForTest() {
+    conf.set("celeborn.client.coalescedRemoteRead.enabled", "true");
+  }
+
+  private void disableCoalescedRemoteReadForTest() {
+    conf.unset("celeborn.client.coalescedRemoteRead.enabled");
+  }
+
+  @Test
   public void testLocalReadSortFileOnceOriginalFileBeDeleted() throws IOException {
     FileInfo fileInfo = null;
     try {
@@ -304,89 +589,6 @@ public class FetchHandlerSuiteJ {
     }
   }
 
-  @Test
-  public void testCoalescedOpenStreamReleasesChildFilePins() throws IOException {
-    FileInfo fileInfo1 = null;
-    FileInfo fileInfo2 = null;
-    try {
-      enableCoalescedRemoteReadForTest();
-      fileInfo1 = prepare(1);
-      fileInfo2 = prepare(1);
-
-      EmbeddedChannel channel = new EmbeddedChannel();
-      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
-      Map<String, FileInfo> fileInfos = new HashMap<>();
-      fileInfos.put(fileName + "-1", fileInfo1);
-      fileInfos.put(fileName + "-2", fileInfo2);
-      FetchHandler fetchHandler = mockFetchHandler(fileInfos);
-
-      PbStreamHandler streamHandler = openCoalescedStream(client, channel, fetchHandler);
-      assertFalse(fileInfo1.isStreamsEmpty());
-      assertFalse(fileInfo2.isStreamsEmpty());
-
-      bufferStreamEnd(client, fetchHandler, streamHandler.getStreamId());
-      assertTrue(fileInfo1.isStreamsEmpty());
-      assertTrue(fileInfo2.isStreamsEmpty());
-    } finally {
-      disableCoalescedRemoteReadForTest();
-      cleanup(fileInfo1);
-      cleanup(fileInfo2);
-    }
-  }
-
-  @Test
-  public void testCoalescedOpenStreamReleasesChildFilePinsOnChannelInactive() throws IOException {
-    FileInfo fileInfo1 = null;
-    FileInfo fileInfo2 = null;
-    try {
-      enableCoalescedRemoteReadForTest();
-      fileInfo1 = prepare(1);
-      fileInfo2 = prepare(1);
-
-      EmbeddedChannel channel = new EmbeddedChannel();
-      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
-      Map<String, FileInfo> fileInfos = new HashMap<>();
-      fileInfos.put(fileName + "-1", fileInfo1);
-      fileInfos.put(fileName + "-2", fileInfo2);
-      FetchHandler fetchHandler = mockFetchHandler(fileInfos);
-
-      openCoalescedStream(client, channel, fetchHandler);
-      assertFalse(fileInfo1.isStreamsEmpty());
-      assertFalse(fileInfo2.isStreamsEmpty());
-
-      fetchHandler.channelInactive(client);
-      assertTrue(fileInfo1.isStreamsEmpty());
-      assertTrue(fileInfo2.isStreamsEmpty());
-    } finally {
-      disableCoalescedRemoteReadForTest();
-      cleanup(fileInfo1);
-      cleanup(fileInfo2);
-    }
-  }
-
-  @Test
-  public void testCoalescedOpenStreamRejectsOversizedRequest() throws IOException {
-    FileInfo fileInfo = null;
-    try {
-      conf.set("celeborn.client.coalescedRemoteRead.enabled", "true");
-      conf.set("celeborn.client.coalescedRemoteRead.maxBytes", "1b");
-      fileInfo = prepare(1);
-      EmbeddedChannel channel = new EmbeddedChannel();
-      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
-      FetchHandler fetchHandler = mockFetchHandler(fileInfo);
-
-      PbStreamHandlerOpt streamHandlerOpt =
-          openCoalescedStreamOpt(client, channel, fetchHandler, fileName + "-1");
-      assertNotEquals(0, streamHandlerOpt.getStatus());
-      assertTrue(streamHandlerOpt.getErrorMsg().contains("exceeds"));
-      assertTrue(fileInfo.isStreamsEmpty());
-    } finally {
-      conf.unset("celeborn.client.coalescedRemoteRead.enabled");
-      conf.unset("celeborn.client.coalescedRemoteRead.maxBytes");
-      cleanup(fileInfo);
-    }
-  }
-
   private FetchHandler mockFetchHandler(FileInfo fileInfo) {
     WorkerSource workerSource = mock(WorkerSource.class);
     TransportConf transportConf =
@@ -403,37 +605,6 @@ public class FetchHandlerSuiteJ {
     fetchHandler0.init(worker);
     FetchHandler fetchHandler = spy(fetchHandler0);
     Mockito.doReturn(fileInfo).when(fetchHandler).getRawFileInfo(anyString(), anyString());
-    return fetchHandler;
-  }
-
-  private void enableCoalescedRemoteReadForTest() {
-    conf.set("celeborn.client.coalescedRemoteRead.enabled", "true");
-    conf.set("celeborn.client.coalescedRemoteRead.maxBytes", "512m");
-  }
-
-  private void disableCoalescedRemoteReadForTest() {
-    conf.unset("celeborn.client.coalescedRemoteRead.enabled");
-    conf.unset("celeborn.client.coalescedRemoteRead.maxBytes");
-  }
-
-  private FetchHandler mockFetchHandler(Map<String, FileInfo> fileInfos) {
-    WorkerSource workerSource = mock(WorkerSource.class);
-    TransportConf transportConf =
-        Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, 4);
-    FetchHandler fetchHandler0 = new FetchHandler(conf, transportConf, workerSource);
-    Worker worker = mock(Worker.class);
-    PartitionFilesSorter partitionFilesSorter =
-        new PartitionFilesSorter(MemoryManager.instance(), conf, workerSource);
-
-    StorageManager storageManager = mock(StorageManager.class);
-    Mockito.doReturn(storageManager).when(worker).storageManager();
-    Mockito.doReturn(workerSource).when(worker).workerSource();
-    Mockito.doReturn(partitionFilesSorter).when(worker).partitionsSorter();
-    fetchHandler0.init(worker);
-    FetchHandler fetchHandler = spy(fetchHandler0);
-    Mockito.doAnswer(invocation -> fileInfos.get(invocation.getArgument(1)))
-        .when(fetchHandler)
-        .getRawFileInfo(anyString(), anyString());
     return fetchHandler;
   }
 
@@ -507,37 +678,6 @@ public class FetchHandlerSuiteJ {
       assertEquals(endIndex - startIndex, streamHandler.getNumChunks());
     }
     return streamHandler;
-  }
-
-  private PbStreamHandler openCoalescedStream(
-      TransportClient client, EmbeddedChannel channel, FetchHandler fetchHandler)
-      throws IOException {
-    PbStreamHandlerOpt streamHandlerOpt =
-        openCoalescedStreamOpt(client, channel, fetchHandler, fileName + "-1", fileName + "-2");
-    assertEquals(streamHandlerOpt.getErrorMsg(), 0, streamHandlerOpt.getStatus());
-    return streamHandlerOpt.getStreamHandler();
-  }
-
-  private PbStreamHandlerOpt openCoalescedStreamOpt(
-      TransportClient client,
-      EmbeddedChannel channel,
-      FetchHandler fetchHandler,
-      String... fileNames)
-      throws IOException {
-    PbCoalescedOpenStream.Builder builder =
-        PbCoalescedOpenStream.newBuilder().setShuffleKey(shuffleKey);
-    for (String requestedFileName : fileNames) {
-      builder.addFileName(requestedFileName).addStartIndex(0).addEndIndex(Integer.MAX_VALUE);
-    }
-    ByteBuffer openStreamByteBuffer =
-        new TransportMessage(MessageType.COALESCED_OPEN_STREAM, builder.build().toByteArray())
-            .toByteBuffer();
-    fetchHandler.receive(
-        client,
-        new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamByteBuffer)),
-        createRpcResponseCallback(channel));
-    RpcResponse result = channel.readOutbound();
-    return TransportMessage.fromByteBuffer(result.body().nioByteBuffer()).getParsedPayload();
   }
 
   private void fetchChunkAndCheck(

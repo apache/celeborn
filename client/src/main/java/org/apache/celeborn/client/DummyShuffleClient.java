@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.read.CelebornInputStream;
+import org.apache.celeborn.client.read.CoalescedPartitionInfo;
 import org.apache.celeborn.client.read.MetricsCallback;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
@@ -150,6 +151,7 @@ public class DummyShuffleClient extends ShuffleClient {
       ArrayList<PbStreamHandler> streamHandlers,
       Map<String, LocationPushFailedBatches> failedBatchSetMap,
       Map<String, Pair<Integer, Integer>> chunksRange,
+      Map<String, CoalescedPartitionInfo> coalescedPartitionInfos,
       int[] mapAttempts,
       MetricsCallback metricsCallback,
       boolean needDecompress)

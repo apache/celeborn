@@ -46,12 +46,21 @@ public abstract class ChunkBuffers {
     }
   }
 
+  protected ChunkBuffers(int numChunks) {
+    this.numChunks = numChunks;
+    this.offsets = new long[] {0};
+  }
+
   public Tuple2<Long, Long> getChunkOffsetLength(int chunkIndex, int offset, int len) {
     final long chunkOffset = offsets[chunkIndex];
     final long chunkLength = offsets[chunkIndex + 1] - chunkOffset;
     Preconditions.checkArgument(offset < chunkLength);
     long length = Math.min(chunkLength - offset, len);
     return new Tuple2<>(chunkOffset + offset, length);
+  }
+
+  public long getChunkLength(int chunkIndex) {
+    return offsets[chunkIndex + 1] - offsets[chunkIndex];
   }
 
   public abstract ManagedBuffer chunk(int chunkIndex, int offset, int len);

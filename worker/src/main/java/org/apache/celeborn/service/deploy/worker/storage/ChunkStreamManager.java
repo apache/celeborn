@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker.storage;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -136,7 +135,8 @@ public class ChunkStreamManager {
    * stream is not properly closed, it will eventually be cleaned up by `cleanupExpiredShuffleKey`.
    */
   public long registerStream(long streamId, String shuffleKey, String fileName) {
-    return registerStream(streamId, shuffleKey, null, fileName, null);
+    return registerStream(
+        streamId, shuffleKey, null, fileName, java.util.Collections.singletonList(fileName), null);
   }
 
   /**
@@ -154,7 +154,13 @@ public class ChunkStreamManager {
   public long registerStream(
       String shuffleKey, ChunkBuffers buffers, String fileName, TimeWindow fetchTimeMetric) {
     long myStreamId = nextStreamId.getAndIncrement();
-    return registerStream(myStreamId, shuffleKey, buffers, fileName, fetchTimeMetric);
+    return registerStream(
+        myStreamId,
+        shuffleKey,
+        buffers,
+        fileName,
+        java.util.Collections.singletonList(fileName),
+        fetchTimeMetric);
   }
 
   public long registerStream(
@@ -168,7 +174,7 @@ public class ChunkStreamManager {
         shuffleKey,
         buffers,
         fileName,
-        Collections.singletonList(fileName),
+        java.util.Collections.singletonList(fileName),
         fetchTimeMetric);
   }
 
@@ -222,16 +228,7 @@ public class ChunkStreamManager {
   }
 
   public StreamState removeStreamState(long streamId) {
-    StreamState streamState = streams.remove(streamId);
-    if (streamState != null) {
-      shuffleStreamIds.computeIfPresent(
-          streamState.shuffleKey,
-          (shuffleKey, streamIds) -> {
-            streamIds.remove(streamId);
-            return streamIds.isEmpty() ? null : streamIds;
-          });
-    }
-    return streamState;
+    return streams.remove(streamId);
   }
 
   public int getStreamsCount() {

@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.read.CelebornInputStream;
+import org.apache.celeborn.client.read.CoalescedPartitionInfo;
 import org.apache.celeborn.client.read.MetricsCallback;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
@@ -256,6 +257,7 @@ public abstract class ShuffleClient {
         null,
         null,
         null,
+        null,
         metricsCallback,
         true);
   }
@@ -273,45 +275,11 @@ public abstract class ShuffleClient {
       ArrayList<PbStreamHandler> streamHandlers,
       Map<String, LocationPushFailedBatches> failedBatchSetMap,
       Map<String, Pair<Integer, Integer>> chunksRange,
+      Map<String, CoalescedPartitionInfo> coalescedPartitionInfos,
       int[] mapAttempts,
       MetricsCallback metricsCallback,
       boolean needDecompress)
       throws IOException;
-
-  public CelebornInputStream readPreopenedPartitionWithoutRetry(
-      int shuffleId,
-      int appShuffleId,
-      int partitionId,
-      int attemptNumber,
-      long taskId,
-      int startMapIndex,
-      int endMapIndex,
-      ExceptionMaker exceptionMaker,
-      ArrayList<PartitionLocation> locations,
-      ArrayList<PbStreamHandler> streamHandlers,
-      Map<String, LocationPushFailedBatches> failedBatchSetMap,
-      Map<String, Pair<Integer, Integer>> chunksRange,
-      int[] mapAttempts,
-      MetricsCallback metricsCallback,
-      boolean needDecompress)
-      throws IOException {
-    return readPartition(
-        shuffleId,
-        appShuffleId,
-        partitionId,
-        attemptNumber,
-        taskId,
-        startMapIndex,
-        endMapIndex,
-        exceptionMaker,
-        locations,
-        streamHandlers,
-        failedBatchSetMap,
-        chunksRange,
-        mapAttempts,
-        metricsCallback,
-        needDecompress);
-  }
 
   public abstract boolean cleanupShuffle(int shuffleId);
 
