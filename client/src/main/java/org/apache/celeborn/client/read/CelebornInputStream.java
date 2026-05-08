@@ -377,11 +377,20 @@ public abstract class CelebornInputStream extends InputStream {
       this.shuffleId = shuffleId;
       this.shuffleClient = shuffleClient;
 
-      boolean chunkPrefetchEnabled = conf.clientChunkPrefetchEnabled();
-      moveToNextReader(chunkPrefetchEnabled);
-      if (chunkPrefetchEnabled) {
-        init();
-        firstChunk = false;
+      try {
+        boolean chunkPrefetchEnabled = conf.clientChunkPrefetchEnabled();
+        moveToNextReader(chunkPrefetchEnabled);
+        if (chunkPrefetchEnabled) {
+          init();
+          firstChunk = false;
+        }
+      } catch (IOException | RuntimeException | Error e) {
+        try {
+          close();
+        } catch (Throwable closeFailure) {
+          e.addSuppressed(closeFailure);
+        }
+        throw e;
       }
     }
 

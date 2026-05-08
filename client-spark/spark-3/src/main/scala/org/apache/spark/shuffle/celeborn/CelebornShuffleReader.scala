@@ -419,6 +419,18 @@ class CelebornShuffleReader[K, C](
 
     val streams = JavaUtils.newConcurrentHashMap[Integer, CelebornInputStream]()
 
+    def closeUnusedCoalescedStreams(
+        locations: JArrayList[PartitionLocation],
+        streamHandlers: JArrayList[PbStreamHandler]): Unit = {
+      if (streamHandlers != null) {
+        locations.asScala.zip(streamHandlers.asScala).foreach {
+          case (location, streamHandler) if streamHandler != null =>
+            closeCoalescedStream(location, streamHandler)
+          case _ =>
+        }
+      }
+    }
+
     def createInputStream(partitionId: Int): Unit = {
       val locations =
         if (useCoalescedRemoteRead) {
@@ -489,15 +501,14 @@ class CelebornShuffleReader[K, C](
         } catch {
           case e: IOException =>
             if (useCoalescedRemoteRead) {
-              locationList.asScala.zip(streamHandlers.asScala).foreach {
-                case (location, streamHandler) if streamHandler != null =>
-                  closeCoalescedStream(location, streamHandler)
-                case _ =>
-              }
+              closeUnusedCoalescedStreams(locationList, streamHandlers)
             }
             logError(s"Exception caught when readPartition $partitionId!", e)
             exceptionRef.compareAndSet(null, e)
           case e: Throwable =>
+            if (useCoalescedRemoteRead) {
+              closeUnusedCoalescedStreams(locationList, streamHandlers)
+            }
             logError(s"Non IOException caught when readPartition $partitionId!", e)
             exceptionRef.compareAndSet(null, new CelebornIOException(e))
         }
