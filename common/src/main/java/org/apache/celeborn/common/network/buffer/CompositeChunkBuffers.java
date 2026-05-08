@@ -41,6 +41,9 @@ public class CompositeChunkBuffers extends ChunkBuffers {
     long start = offsetLen._1;
     long end = start + offsetLen._2;
     List<ManagedBuffer> buffers = new ArrayList<>();
+    // Translate the requested global coalesced chunk range back to the child chunk ranges
+    // that physically store the bytes. A coalesced chunk can span multiple children when
+    // several tiny reducer chunks fit under the configured stream chunk size.
     for (Segment segment : segments) {
       if (segment.end <= start) {
         continue;
@@ -87,6 +90,8 @@ public class CompositeChunkBuffers extends ChunkBuffers {
   private static List<Segment> buildSegments(List<ChunkBuffers> children) {
     List<Segment> segments = new ArrayList<>();
     long globalOffset = 0L;
+    // Segments are the lookup table from global coalesced-stream offsets to child chunk
+    // offsets. They are small metadata objects; reducer bytes stay in the child buffers.
     for (ChunkBuffers child : children) {
       for (int chunkIndex = 0; chunkIndex < child.numChunks(); chunkIndex++) {
         long childChunkSize = child.offsets[chunkIndex + 1] - child.offsets[chunkIndex];

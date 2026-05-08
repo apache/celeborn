@@ -383,6 +383,9 @@ class FetchHandler(
     val pinnedFiles = new util.ArrayList[FileInfo](files.size)
     val streamId = chunkStreamManager.nextStreamId()
     try {
+      // The Spark client only sends this request for full-reducer, single-local-file remote
+      // reads. Recheck the important assumptions here so an older or buggy client cannot open
+      // a synthetic stream over unsupported storage layouts.
       if (!conf.clientCoalescedRemoteReadEnabled) {
         throw new IOException("Coalesced remote read is disabled.")
       }
@@ -405,6 +408,8 @@ class FetchHandler(
         if (startIndices.get(idx) != 0 || endIndices.get(idx) != Int.MaxValue) {
           throw new IOException("Coalesced remote read only supports full reducer reads.")
         }
+        // addStream pins the current local file for this stream. If the file is being sorted,
+        // fall back to the sorted-file lookup just like the normal open-stream path does.
         if (!fileInfo.addStream(streamId)) {
           fileInfo = partitionsSorter.getSortedFileInfo(
             shuffleKey,
@@ -416,6 +421,8 @@ class FetchHandler(
           pinnedFiles.add(fileInfo)
         }
         val meta = fileInfo.getReduceFileMeta
+        // Bound total bytes at stream-open time. The client uses the same config to decide
+        // eligibility, and this worker-side check protects against stale metadata or bad input.
         totalBytes += readableBytes(meta)
         if (totalBytes > conf.clientCoalescedRemoteReadMaxBytes) {
           throw new IOException(
@@ -443,6 +450,8 @@ class FetchHandler(
         .build()
     } catch {
       case e: Exception =>
+        // If anything fails before registerStream succeeds, no BUFFER_STREAM_END will arrive for
+        // this stream id, so release every file pin acquired above immediately.
         closePinnedFiles(streamId, pinnedFiles)
         workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
         val msg =

@@ -211,6 +211,16 @@ class CelebornShuffleReader[K, C](
     // AQE coalesced full-reducer remote reads where every reducer partition is one final
     // local-disk file on exactly one worker. More complex layouts need explicit segment
     // planning before they can safely share this path.
+    //
+    // The important invariants are:
+    // - full map range: the worker can concatenate whole reduce files without preserving
+    //   per-map subranges;
+    // - one location and no peer: retry remains at the normal-read fallback boundary instead
+    //   of needing per-partition replica recovery inside one coalesced stream;
+    // - final HDD/SSD file: the worker can build FileChunkBuffers directly over stable local
+    //   files and release file pins through the existing BUFFER_STREAM_END path;
+    // - no ordering and no failed batches: Spark does not need per-partition repair or ordering
+    //   semantics while consuming the synthetic stream.
     var useCoalescedRemoteRead =
       conf.clientCoalescedRemoteReadEnabled &&
       partitionIdList.size > 1 &&
@@ -320,6 +330,9 @@ class CelebornShuffleReader[K, C](
       try {
         // Open one worker-side synthetic stream per worker. Spark still reads one input
         // stream, but that stream is backed by these per-worker preopened streams.
+        // Grouping by worker is the whole optimization: reducers assigned to the same remote
+        // worker pay one stream-open and one sequence of chunk fetches instead of one per
+        // reducer partition.
         val locationsByWorker = new JLinkedHashMap[String, JArrayList[PartitionLocation]]()
         partitionIdList.foreach { partitionId =>
           fileGroups.partitionGroups.get(partitionId).asScala.foreach { location =>
@@ -356,6 +369,8 @@ class CelebornShuffleReader[K, C](
             }
           })
         }.toList
+        // Wait for all open attempts before deciding whether to fall back. If any worker fails,
+        // close every worker stream that did open and rebuild the normal per-partition open lists.
         var openFailure: Throwable = null
         coalescedOpenFutures.foreach { future =>
           try future.get()
@@ -367,6 +382,9 @@ class CelebornShuffleReader[K, C](
         if (openFailure != null) {
           throw openFailure
         }
+        // Only one representative location is needed per worker because the worker stream
+        // already contains all reducer files from that worker. The representative host/port is
+        // used later by CelebornInputStream to connect to the preopened stream.
         openedStreams.values().asScala.foreach { case (location, streamHandler) =>
           coalescedLocations.add(location)
           coalescedStreamHandlers.add(streamHandler)
@@ -384,6 +402,8 @@ class CelebornShuffleReader[K, C](
       }
     }
     if (!useCoalescedRemoteRead) {
+      // Normal reads need one OPEN_STREAM_LIST entry per reducer partition location. Coalesced
+      // reads deliberately skip this and use the preopened worker streams above.
       makeNormalOpenStreamLists()
     }
 

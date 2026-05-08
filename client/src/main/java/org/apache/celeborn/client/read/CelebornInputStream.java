@@ -447,6 +447,8 @@ public abstract class CelebornInputStream extends InputStream {
       if (currentLocation == null) {
         return;
       }
+      // For coalesced remote reads, currentLocation._2 is a preopened worker stream. The
+      // normal path passes null here and lets the reader open the stream itself.
       currentReader = createReaderWithRetry(currentLocation._1, currentLocation._2);
       if (streamHandlers != null) {
         // The PartitionReader now owns this preopened worker stream and will close it.
@@ -462,6 +464,8 @@ public abstract class CelebornInputStream extends InputStream {
         if (currentLocation == null) {
           return;
         }
+        // Empty readers can appear after filtering skipped locations. Preserve the same
+        // ownership transfer rule for every replacement reader.
         currentReader = createReaderWithRetry(currentLocation._1, currentLocation._2);
         if (streamHandlers != null) {
           // Transfer ownership for the next readable preopened stream as well.
