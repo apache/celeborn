@@ -289,6 +289,7 @@ class CelebornShuffleReader[K, C](
           val handler = TransportMessage.fromByteBuffer(response)
             .getParsedPayload[PbCoalescedStreamHandler]
           if (handler.getBoundariesCount != locations.size()) {
+            CelebornShuffleReader.closeChunkStream(client, handler.getStreamId)
             throw new CelebornIOException(
               s"Expected ${locations.size()} coalesced boundaries from $shuffleKey, " +
                 s"got ${handler.getBoundariesCount}")

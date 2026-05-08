@@ -262,6 +262,42 @@ public abstract class ShuffleClient {
         true);
   }
 
+  public CelebornInputStream readPartition(
+      int shuffleId,
+      int appShuffleId,
+      int partitionId,
+      int attemptNumber,
+      long taskId,
+      int startMapIndex,
+      int endMapIndex,
+      ExceptionMaker exceptionMaker,
+      ArrayList<PartitionLocation> locations,
+      ArrayList<PbStreamHandler> streamHandlers,
+      Map<String, LocationPushFailedBatches> failedBatchSetMap,
+      Map<String, Pair<Integer, Integer>> chunksRange,
+      int[] mapAttempts,
+      MetricsCallback metricsCallback,
+      boolean needDecompress)
+      throws IOException {
+    return readPartition(
+        shuffleId,
+        appShuffleId,
+        partitionId,
+        attemptNumber,
+        taskId,
+        startMapIndex,
+        endMapIndex,
+        exceptionMaker,
+        locations,
+        streamHandlers,
+        failedBatchSetMap,
+        chunksRange,
+        null,
+        mapAttempts,
+        metricsCallback,
+        needDecompress);
+  }
+
   public abstract CelebornInputStream readPartition(
       int shuffleId,
       int appShuffleId,

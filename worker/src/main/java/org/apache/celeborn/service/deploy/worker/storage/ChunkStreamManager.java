@@ -228,7 +228,16 @@ public class ChunkStreamManager {
   }
 
   public StreamState removeStreamState(long streamId) {
-    return streams.remove(streamId);
+    StreamState streamState = streams.remove(streamId);
+    if (streamState != null) {
+      shuffleStreamIds.computeIfPresent(
+          streamState.shuffleKey,
+          (shuffleKey, streamIds) -> {
+            streamIds.remove(streamId);
+            return streamIds;
+          });
+    }
+    return streamState;
   }
 
   public int getStreamsCount() {
