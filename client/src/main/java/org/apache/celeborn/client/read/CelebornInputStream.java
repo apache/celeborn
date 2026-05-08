@@ -425,8 +425,11 @@ public abstract class CelebornInputStream extends InputStream {
 
       fetchChunkRetryCnt = 0;
 
-      return new Tuple2(
-          currentLocation, streamHandlers == null ? null : streamHandlers.get(fileIndex));
+      PbStreamHandler streamHandler = streamHandlers == null ? null : streamHandlers.get(fileIndex);
+      if (streamHandlers != null) {
+        streamHandlers.set(fileIndex, null);
+      }
+      return new Tuple2(currentLocation, streamHandler);
     }
 
     private void moveToNextReader(boolean fetchChunk) throws IOException {
