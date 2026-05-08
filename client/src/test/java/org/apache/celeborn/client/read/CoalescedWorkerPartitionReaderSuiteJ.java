@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
@@ -45,9 +46,13 @@ import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
+import org.apache.celeborn.common.network.protocol.TransportMessage;
+import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbCoalescedChunkBoundary;
 import org.apache.celeborn.common.protocol.PbCoalescedStreamHandler;
+import org.apache.celeborn.common.protocol.PbOpenStream;
+import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 
@@ -121,75 +126,6 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
   }
 
   @Test
-  public void testCelebornInputStreamRetriesCoalescedReader() throws Exception {
-    SharedCoalescedStream stream = mock(SharedCoalescedStream.class);
-    when(stream.getChunk(0)).thenReturn(batch(0, (byte) 1));
-    when(stream.getChunk(1))
-        .thenThrow(new IOException("transient failure"))
-        .thenReturn(batch(1, (byte) 2));
-
-    PbCoalescedChunkBoundary boundary =
-        PbCoalescedChunkBoundary.newBuilder()
-            .setStartChunkIndex(0)
-            .setStartChunkOffset(0)
-            .setEndChunkIndex(1)
-            .setEndChunkOffset(17)
-            .build();
-    PartitionLocation location = mock(PartitionLocation.class);
-    StorageInfo storageInfo = mock(StorageInfo.class);
-    when(location.getUniqueId()).thenReturn("location-0");
-    when(location.hostAndFetchPort()).thenReturn("worker:19098");
-    when(location.getStorageInfo()).thenReturn(storageInfo);
-    when(storageInfo.getType()).thenReturn(StorageInfo.Type.HDD);
-
-    ArrayList<PartitionLocation> locations = new ArrayList<>();
-    locations.add(location);
-    HashMap<String, CoalescedPartitionInfo> coalescedInfos = new HashMap<>();
-    coalescedInfos.put("location-0", new CoalescedPartitionInfo(stream, boundary));
-
-    CelebornConf conf =
-        new CelebornConf()
-            .set("celeborn.shuffle.compression.codec", "NONE")
-            .set("celeborn.data.io.retryWait", "0s");
-    CelebornInputStream inputStream =
-        CelebornInputStream.create(
-            conf,
-            mock(TransportClientFactory.class),
-            "shuffle-key",
-            locations,
-            null,
-            new int[] {0},
-            null,
-            null,
-            coalescedInfos,
-            0,
-            0L,
-            0,
-            Integer.MAX_VALUE,
-            new ConcurrentHashMap<>(),
-            mock(ShuffleClient.class),
-            0,
-            0,
-            0,
-            null,
-            new MetricsCallback() {
-              @Override
-              public void incBytesRead(long bytesWritten) {}
-
-              @Override
-              public void incReadTime(long time) {}
-            },
-            false);
-    try {
-      assertEquals(1, inputStream.read());
-      assertEquals(2, inputStream.read());
-      assertEquals(-1, inputStream.read());
-    } finally {
-      inputStream.close();
-    }
-  }
-
-  @Test
   public void testSharedCoalescedStreamWaitsForTransportCallback() throws Exception {
     CelebornConf conf = new CelebornConf().set("celeborn.client.fetch.timeout", "1ms");
     PartitionLocation location = mock(PartitionLocation.class);
@@ -240,6 +176,109 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
     } finally {
       executor.shutdownNow();
       stream.close();
+    }
+  }
+
+  @Test
+  public void testCelebornInputStreamFallsBackToNormalReaderAfterCoalescedFailure()
+      throws Exception {
+    SharedCoalescedStream stream = mock(SharedCoalescedStream.class);
+    when(stream.getChunk(0)).thenThrow(new IOException("lost shared stream"));
+
+    PbCoalescedChunkBoundary boundary =
+        PbCoalescedChunkBoundary.newBuilder()
+            .setStartChunkIndex(0)
+            .setStartChunkOffset(0)
+            .setEndChunkIndex(0)
+            .setEndChunkOffset(17)
+            .build();
+    PartitionLocation location = mock(PartitionLocation.class);
+    StorageInfo storageInfo = mock(StorageInfo.class);
+    when(location.getUniqueId()).thenReturn("location-0");
+    when(location.hostAndFetchPort()).thenReturn("worker:19098");
+    when(location.getStorageInfo()).thenReturn(storageInfo);
+    when(location.getHost()).thenReturn("worker");
+    when(location.getFetchPort()).thenReturn(19098);
+    when(location.getFileName()).thenReturn("file-0");
+    when(storageInfo.getType()).thenReturn(StorageInfo.Type.HDD);
+
+    TransportClient client = mock(TransportClient.class);
+    when(client.isActive()).thenReturn(true);
+    when(client.sendRpcSync(
+            org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyLong()))
+        .thenReturn(
+            new TransportMessage(
+                    MessageType.STREAM_HANDLER,
+                    PbStreamHandler.newBuilder()
+                        .setStreamId(2L)
+                        .setNumChunks(1)
+                        .build()
+                        .toByteArray())
+                .toByteBuffer());
+    doAnswer(
+            invocation -> {
+              ChunkReceivedCallback callback = invocation.getArgument(3);
+              callback.onSuccess(0, new NettyManagedBuffer(batch(0, (byte) 2)));
+              return null;
+            })
+        .when(client)
+        .fetchChunk(
+            org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.anyInt(),
+            org.mockito.ArgumentMatchers.anyLong(),
+            org.mockito.ArgumentMatchers.any());
+    TransportClientFactory clientFactory = mock(TransportClientFactory.class);
+    when(clientFactory.createClient("worker", 19098)).thenReturn(client);
+
+    ArrayList<PartitionLocation> locations = new ArrayList<>();
+    locations.add(location);
+    HashMap<String, CoalescedPartitionInfo> coalescedInfos = new HashMap<>();
+    coalescedInfos.put("location-0", new CoalescedPartitionInfo(stream, boundary));
+    CelebornConf conf =
+        new CelebornConf()
+            .set("celeborn.shuffle.compression.codec", "NONE")
+            .set("celeborn.data.io.retryWait", "0s");
+    CelebornInputStream inputStream =
+        CelebornInputStream.create(
+            conf,
+            clientFactory,
+            "shuffle-key",
+            locations,
+            null,
+            new int[] {0},
+            null,
+            null,
+            coalescedInfos,
+            0,
+            0L,
+            0,
+            Integer.MAX_VALUE,
+            new ConcurrentHashMap<>(),
+            mock(ShuffleClient.class),
+            0,
+            0,
+            0,
+            null,
+            new MetricsCallback() {
+              @Override
+              public void incBytesRead(long bytesWritten) {}
+
+              @Override
+              public void incReadTime(long time) {}
+            },
+            false);
+    try {
+      assertEquals(2, inputStream.read());
+      assertEquals(-1, inputStream.read());
+      assertTrue(coalescedInfos.isEmpty());
+      org.mockito.ArgumentCaptor<java.nio.ByteBuffer> request =
+          org.mockito.ArgumentCaptor.forClass(java.nio.ByteBuffer.class);
+      verify(client).sendRpcSync(request.capture(), org.mockito.ArgumentMatchers.anyLong());
+      PbOpenStream openStream =
+          TransportMessage.fromByteBuffer(request.getValue()).getParsedPayload();
+      assertEquals("file-0", openStream.getFileName());
+    } finally {
+      inputStream.close();
     }
   }
 

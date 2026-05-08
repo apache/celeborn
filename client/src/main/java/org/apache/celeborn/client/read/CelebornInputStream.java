@@ -553,6 +553,10 @@ public abstract class CelebornInputStream extends InputStream {
                   currentReader.getLocation(),
                   e);
               Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
+              if (coalescedPartitionInfos != null
+                  && currentReader instanceof CoalescedWorkerPartitionReader) {
+                coalescedPartitionInfos.remove(currentReader.getLocation().getUniqueId());
+              }
               // When reading from the same host again, it is possible to skip already read data
               // chunks,
               // improving read performance during retries.
