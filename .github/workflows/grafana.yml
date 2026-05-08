@@ -44,10 +44,13 @@ jobs:
         check-latest: true
     # See https://github.com/grafana/dashboard-linter
     - name: Install dashboard-linter
-      run: go install github.com/grafana/dashboard-linter@latest
+      run: |
+        git clone https://github.com/grafana/dashboard-linter.git
+        cd dashboard-linter
+        go build -o dashboard-linter
     - name: Lint Celeborn Dashboards
       run: |
         for dashboard in assets/grafana/*.json; do
           python3 dev/lint_grafana.py "$dashboard"
-          dashboard-linter lint "$dashboard" --config assets/grafana/.lint --strict
+          ./dashboard-linter/dashboard-linter lint "$dashboard" --config assets/grafana/.lint --strict
         done
