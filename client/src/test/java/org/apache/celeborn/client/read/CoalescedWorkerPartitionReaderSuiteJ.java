@@ -232,8 +232,7 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
             org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyLong()))
         .thenReturn(
             new TransportMessage(
-                    MessageType.COALESCED_STREAM_HANDLER,
-                    spanningBoundaryHandler(2L).toByteArray())
+                    MessageType.COALESCED_STREAM_HANDLER, spanningBoundaryHandler(2L).toByteArray())
                 .toByteBuffer());
     doAnswer(
             invocation -> {
@@ -243,8 +242,7 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
                 callback.onFailure(0, new IOException("lost worker stream"));
               } else {
                 callback.onSuccess(
-                    0,
-                    new NettyManagedBuffer(Unpooled.wrappedBuffer(new byte[] {1, 2, 3, 4})));
+                    0, new NettyManagedBuffer(Unpooled.wrappedBuffer(new byte[] {1, 2, 3, 4})));
               }
               return null;
             })
@@ -258,7 +256,12 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
     when(clientFactory.createClient("worker", 19098)).thenReturn(client);
     SharedCoalescedStream stream =
         new SharedCoalescedStream(
-            conf, "shuffle-key", location, openRequest(), spanningBoundaryHandler(1L), clientFactory);
+            conf,
+            "shuffle-key",
+            location,
+            openRequest(),
+            spanningBoundaryHandler(1L),
+            clientFactory);
     try {
       CoalescedWorkerPartitionReader firstReader =
           new CoalescedWorkerPartitionReader(
