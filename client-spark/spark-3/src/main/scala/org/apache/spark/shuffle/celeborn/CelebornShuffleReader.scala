@@ -389,25 +389,25 @@ class CelebornShuffleReader[K, C](
       }
     }
 
-    if (!useCoalescedFetch) {
-      partitionIdList.foreach { partitionId =>
-        if (fileGroups.partitionGroups.containsKey(partitionId)) {
-          var locations = fileGroups.partitionGroups.get(partitionId)
-          if (splitSkewPartitionWithoutMapRange) {
-            val partitionLocation2ChunkRange = CelebornPartitionUtil.splitSkewedPartitionLocations(
-              new JArrayList(locations),
-              startMapIndex,
-              endMapIndex)
-            partitionId2ChunkRange.put(partitionId, partitionLocation2ChunkRange)
-            // filter locations avoid OPEN_STREAM when split skew partition without map range
-            val filterLocations = locations.asScala
-              .filter { location =>
-                null != partitionLocation2ChunkRange &&
-                partitionLocation2ChunkRange.containsKey(location.getUniqueId)
-              }
-            locations = filterLocations.asJava
-            partitionId2PartitionLocations.put(partitionId, locations)
-          }
+    partitionIdList.foreach { partitionId =>
+      if (fileGroups.partitionGroups.containsKey(partitionId)) {
+        var locations = fileGroups.partitionGroups.get(partitionId)
+        if (splitSkewPartitionWithoutMapRange) {
+          val partitionLocation2ChunkRange = CelebornPartitionUtil.splitSkewedPartitionLocations(
+            new JArrayList(locations),
+            startMapIndex,
+            endMapIndex)
+          partitionId2ChunkRange.put(partitionId, partitionLocation2ChunkRange)
+          // filter locations avoid OPEN_STREAM when split skew partition without map range
+          val filterLocations = locations.asScala
+            .filter { location =>
+              null != partitionLocation2ChunkRange &&
+              partitionLocation2ChunkRange.containsKey(location.getUniqueId)
+            }
+          locations = filterLocations.asJava
+          partitionId2PartitionLocations.put(partitionId, locations)
+        }
+        if (!useCoalescedFetch) {
           makeOpenStreamList(locations)
         }
       }
@@ -416,37 +416,31 @@ class CelebornShuffleReader[K, C](
     val locationStreamHandlerMap: ConcurrentHashMap[PartitionLocation, PbStreamHandler] =
       JavaUtils.newConcurrentHashMap()
 
-    val futures: List[java.util.concurrent.Future[_]] =
-      if (useCoalescedFetch) {
-        List.empty[java.util.concurrent.Future[_]]
-      } else {
-        workerRequestMap.values().asScala.map { entry =>
-          streamCreatorPool.submit(new Runnable {
-            override def run(): Unit = {
-              val (client, locArr, pbOpenStreamListBuilder) = entry
-              val msg = new TransportMessage(
-                MessageType.BATCH_OPEN_STREAM,
-                pbOpenStreamListBuilder.build().toByteArray)
-              val pbOpenStreamListResponse =
-                try {
-                  val response = client.sendRpcSync(msg.toByteBuffer, fetchTimeoutMs)
-                  TransportMessage.fromByteBuffer(response).getParsedPayload[
-                    PbOpenStreamListResponse]
-                } catch {
-                  case _: Exception => null
-                }
-              if (pbOpenStreamListResponse != null) {
-                0 until locArr.size() foreach { idx =>
-                  val streamHandlerOpt = pbOpenStreamListResponse.getStreamHandlerOptList.get(idx)
-                  if (streamHandlerOpt.getStatus == StatusCode.SUCCESS.getValue) {
-                    locationStreamHandlerMap.put(locArr.get(idx), streamHandlerOpt.getStreamHandler)
-                  }
-                }
+    val futures = workerRequestMap.values().asScala.map { entry =>
+      streamCreatorPool.submit(new Runnable {
+        override def run(): Unit = {
+          val (client, locArr, pbOpenStreamListBuilder) = entry
+          val msg = new TransportMessage(
+            MessageType.BATCH_OPEN_STREAM,
+            pbOpenStreamListBuilder.build().toByteArray)
+          val pbOpenStreamListResponse =
+            try {
+              val response = client.sendRpcSync(msg.toByteBuffer, fetchTimeoutMs)
+              TransportMessage.fromByteBuffer(response).getParsedPayload[PbOpenStreamListResponse]
+            } catch {
+              case _: Exception => null
+            }
+          if (pbOpenStreamListResponse != null) {
+            0 until locArr.size() foreach { idx =>
+              val streamHandlerOpt = pbOpenStreamListResponse.getStreamHandlerOptList.get(idx)
+              if (streamHandlerOpt.getStatus == StatusCode.SUCCESS.getValue) {
+                locationStreamHandlerMap.put(locArr.get(idx), streamHandlerOpt.getStreamHandler)
               }
             }
-          })
-        }.toList
-      }
+          }
+        }
+      })
+    }.toList
     // wait for all futures to complete
     futures.foreach(f => f.get())
     val end = System.currentTimeMillis()
