@@ -196,11 +196,15 @@ class CelebornShuffleReader[K, C](
     val partitionIdList = List.range(startPartition, endPartition).filter(p =>
       fileGroups.partitionGroups.containsKey(p))
 
-    val coalescedPartitionInfos =
+    lazy val coalescedPartitionInfos =
       new JHashMap[Int, JMap[String, CoalescedPartitionInfo]]()
-    val coalescedStreams = new JArrayList[SharedCoalescedStream]()
+    lazy val coalescedStreams = new JArrayList[SharedCoalescedStream]()
 
     def canUseCoalescedFetch: Boolean = {
+      if (!conf.clientCoalescedRemoteReadEnabled) {
+        return false
+      }
+
       // Keep the initial rollout narrow even though the shared-stream representation can carry
       // richer layouts. The normal reader still owns per-reducer retry and failure attribution;
       // coalescing only changes how remote bytes are fetched underneath it.
@@ -223,7 +227,6 @@ class CelebornShuffleReader[K, C](
       //   - no ordering or failed-push recovery semantics depend on the normal reader path;
       //   - each worker-side shared stream is non-empty and remains under the configured cap;
       //   - every input is a final remote local-disk file with no replica path to switch to.
-      conf.clientCoalescedRemoteReadEnabled &&
       partitionIdList.size > 1 &&
       // Partial map-range reads and Celeborn's encoded skew-read mode can change the chunk layout
       // per reducer. Start with full reducer reads so reopen can require exact layout equality.
@@ -348,7 +351,8 @@ class CelebornShuffleReader[K, C](
       }
     }
 
-    val useCoalescedFetch = tryOpenCoalescedStreams()
+    val useCoalescedFetch =
+      conf.clientCoalescedRemoteReadEnabled && tryOpenCoalescedStreams()
     if (useCoalescedFetch) {
       partCnt = partitionIdList.size
     }
