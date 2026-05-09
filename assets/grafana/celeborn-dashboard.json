@@ -4063,6 +4063,98 @@
           ],
           "title": "metrics_PartitionFileSizeBytes_Max",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "description": "Cumulative count of metadata DB (RocksDB) operations performed by the worker, broken down by operation (read|write) and status (success|fail).",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 216
+          },
+          "id": 270,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "metrics_MetadataOperationStatusCount_Count{role=\"Worker\", instance=~\"${instance}\"}",
+              "legendFormat": "{{operation}}/{{status}} ${baseLegend}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "metrics_MetadataOperationStatusCount_Count",
+          "type": "timeseries"
         }
       ],
       "title": "Worker",
@@ -17797,22 +17889,28 @@
   "templating": {
     "list": [
       {
+        "allValue": ".+",
         "current": {
-          "text": "",
-          "value": ""
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": {
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "label_values(metrics_JVMCPUTime_Value, instance)",
+        "definition": "label_values({__name__=~\"metrics_(JVMCPUTime_Value|RegisteredShuffleCount_Value|WorkerCount_Value)\"}, instance)",
         "includeAll": true,
         "label": "instance",
         "multi": true,
         "name": "instance",
         "options": [],
         "query": {
-          "query": "label_values(metrics_JVMCPUTime_Value, instance)",
+          "query": "label_values({__name__=~\"metrics_(JVMCPUTime_Value|RegisteredShuffleCount_Value|WorkerCount_Value)\"}, instance)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,

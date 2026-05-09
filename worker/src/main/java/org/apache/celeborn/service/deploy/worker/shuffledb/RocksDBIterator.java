@@ -92,6 +92,11 @@ public class RocksDBIterator implements DBIterator {
 
   private Map.Entry<byte[], byte[]> loadNext() {
     if (!it.isValid()) {
+      metrics.onRead(
+          () -> {
+            it.status();
+            return null;
+          });
       return null;
     }
     return metrics.onRead(
