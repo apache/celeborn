@@ -66,16 +66,18 @@ public class DBProviderSuiteJ {
         createDirectory
             ? Utils.createDirectory(dbDir.getPath(), namePrefix)
             : new File(dbDir.getPath(), String.format("%s-%s", namePrefix, UUID.randomUUID()));
+    WorkerSource workerSource = new WorkerSource(new CelebornConf());
     try {
       StoreVersion v1 = new StoreVersion(1, 0);
-      DBProvider.initDB(dbBackend, dbFile, v1, new WorkerSource(new CelebornConf())).close();
+      DBProvider.initDB(dbBackend, dbFile, v1, workerSource).close();
       StoreVersion v2 = new StoreVersion(2, 0);
       IOException ioe =
           assertThrows(
               IOException.class,
-              () -> DBProvider.initDB(dbBackend, dbFile, v2, new WorkerSource(new CelebornConf())));
+              () -> DBProvider.initDB(dbBackend, dbFile, v2, workerSource));
       assertTrue(ioe.getMessage().contains("incompatible with current version StoreVersion[2.0]"));
     } finally {
+      workerSource.destroy();
       JavaUtils.deleteRecursively(dbDir);
     }
   }
