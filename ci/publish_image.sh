@@ -101,8 +101,8 @@ build_platform_image() {
     --build-arg java_image_tag=17-jdk-noble \
     --build-arg "DIST_PROFILES=${DIST_PROFILES}" \
     -f docker/Dockerfile \
-    -t "${ACR_IMAGE_REPOSITORY}:${VERSION}-${arch}" \
-    -t "${ECR_IMAGE_REPOSITORY}:${VERSION}-${arch}" \
+    -t "${ACR_IMAGE_REPOSITORY}:${IMAGE_VERSION}-${arch}" \
+    -t "${ECR_IMAGE_REPOSITORY}:${IMAGE_VERSION}-${arch}" \
     --push \
     .
 }
@@ -126,9 +126,9 @@ create_buildbox_context "build-box-arm64" "applied-build-pod-arm" "Engineering A
 build_platform_image "linux/amd64" "amd64" "build-box-amd64"
 build_platform_image "linux/arm64" "arm64" "build-box-arm64"
 
-publish_manifest "${ACR_IMAGE_REPOSITORY}:${VERSION}"
-publish_manifest "${ECR_IMAGE_REPOSITORY}:${VERSION}"
+publish_manifest "${ACR_IMAGE_REPOSITORY}:${IMAGE_VERSION}"
+publish_manifest "${ECR_IMAGE_REPOSITORY}:${IMAGE_VERSION}"
 
 echo "Published multi-arch images:"
-echo "  ${ACR_IMAGE_REPOSITORY}:${VERSION}"
-echo "  ${ECR_IMAGE_REPOSITORY}:${VERSION}"
+echo "  ${ACR_IMAGE_REPOSITORY}:${IMAGE_VERSION}"
+echo "  ${ECR_IMAGE_REPOSITORY}:${IMAGE_VERSION}"
