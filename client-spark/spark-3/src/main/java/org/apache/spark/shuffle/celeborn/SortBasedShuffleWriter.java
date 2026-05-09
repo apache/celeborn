@@ -60,6 +60,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final ShuffleDependency<K, V, C> dep;
   private final Partitioner partitioner;
   private final ShuffleWriteMetricsReporter writeMetrics;
+  private final CelebornShuffleWriterMetrics celebornWriteMetrics;
   private final int shuffleId;
   private final int mapId;
   private final int encodedAttemptId;
@@ -121,10 +122,14 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     SerializerInstance serializer = dep.serializer().newInstance();
     this.partitioner = dep.partitioner();
     this.writeMetrics = metrics;
+    this.celebornWriteMetrics = new CelebornShuffleWriterMetrics(metrics);
     this.taskContext = taskContext;
     this.numMappers = numMappers;
     this.numPartitions = dep.partitioner().numPartitions();
     this.shuffleClient = client;
+    this.shuffleClient
+        .getPushState(Utils.makeMapKey(shuffleId, mapId, encodedAttemptId))
+        .setMetricsCallback(celebornWriteMetrics);
     unsafeRowFastWrite = conf.clientPushUnsafeRowFastWrite();
 
     serBuffer = new OpenByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
@@ -150,7 +155,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
               numMappers,
               numPartitions,
               conf,
-              writeMetrics::incBytesWritten,
+              celebornWriteMetrics::recordPushData,
               mapStatusLengths,
               conf.clientPushSortMemoryThreshold(),
               sendBufferPool);
@@ -360,7 +365,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             numPartitions);
     long delta = System.nanoTime() - start;
     mapStatusLengths[partitionId].add(bytesWritten);
-    writeMetrics.incBytesWritten(bytesWritten);
+    celebornWriteMetrics.recordPushData(bytesWritten);
     writeMetrics.incWriteTime(delta);
   }
 

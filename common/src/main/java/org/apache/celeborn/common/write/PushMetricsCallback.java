@@ -15,30 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.client.read;
+package org.apache.celeborn.common.write;
 
-public interface MetricsCallback {
-  void incBytesRead(long bytesRead);
+public interface PushMetricsCallback {
+  PushMetricsCallback NOOP = new PushMetricsCallback() {};
 
-  void incReadTime(long time);
+  default void incPushDataCount(long count) {}
 
-  default void incDuplicateBytesRead(long bytesRead) {}
+  default void incPushDataRetryCount(long count) {}
 
-  default void incOpenStreamTime(long time) {}
+  default void incPushDataTime(long time) {}
 
-  default void incRemoteReadRetryCount(long count) {}
-
-  default void incPartitionReaderWaitTime(long time) {}
-
-  default void incReaderChunkCount(long count) {}
-
-  default void incChunkFetchRequestCount(long count) {}
-
-  default void incChunkFetchSuccessCount(long count) {}
-
-  default void incChunkFetchFailureCount(long count) {}
-
-  default void recordRemoteReadWorker(String hostAndFetchPort) {}
-
-  default void incRemoteWorkerStreamsRead(long count) {}
+  default void incInFlightWaitTime(long time) {}
 }

@@ -24,6 +24,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import scala.Tuple2;
 import scala.Tuple3;
@@ -297,6 +298,7 @@ public class ShuffleClientImpl extends ShuffleClient {
       PushDataRpcResponseCallback pushDataRpcResponseCallback,
       PushState pushState,
       ReviveRequest request,
+      AtomicBoolean pushDataSent,
       int remainReviveTimes,
       long dueTime) {
     int mapId = request.mapId;
@@ -361,6 +363,9 @@ public class ShuffleClientImpl extends ShuffleClient {
             String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
             PushData newPushData =
                 new PushData(PRIMARY_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
+            if (pushDataSent.getAndSet(true)) {
+              pushState.incPushDataRetryCount(1);
+            }
             client.pushData(newPushData, pushDataTimeout, pushDataRpcResponseCallback);
           } else {
             throw new RuntimeException(
@@ -1031,6 +1036,9 @@ public class ShuffleClientImpl extends ShuffleClient {
     System.arraycopy(data, offset, body, BATCH_HEADER_SIZE, length);
 
     if (doPush) {
+      final long pushDataStartTime = System.nanoTime();
+      final AtomicBoolean pushDataSent = new AtomicBoolean(false);
+
       // check limit
       limitMaxInFlight(mapKey, pushState, loc.hostAndPushPort());
 
@@ -1047,6 +1055,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           new RpcResponseCallback() {
             @Override
             public void onSuccess(ByteBuffer response) {
+              pushState.incPushDataCount(1);
+              pushState.incPushDataTime(System.nanoTime() - pushDataStartTime);
               if (response.remaining() > 0 && response.get() == StatusCode.MAP_ENDED.getValue()) {
                 mapperEndMap
                     .computeIfAbsent(shuffleId, (id) -> ConcurrentHashMap.newKeySet())
@@ -1064,6 +1074,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
             @Override
             public void onFailure(Throwable e) {
+              pushState.incPushDataCount(1);
+              pushState.incPushDataTime(System.nanoTime() - pushDataStartTime);
               String errorMsg =
                   String.format(
                       "Push data to %s failed for shuffle %d map %d attempt %d partition %d batch %d.",
@@ -1150,6 +1162,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                               this,
                               pushState,
                               reviveRequest,
+                              pushDataSent,
                               remainReviveTimes,
                               dueTime));
                 } else if (reason == StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue()) {
@@ -1196,6 +1209,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 pushState.recordFailedBatch(latest.getUniqueId(), mapId, attemptId, nextBatchId);
               }
               if (pushState.exception.get() != null) {
+                callback.onFailure(e);
                 return;
               }
               if (e instanceof InterruptedException) {
@@ -1242,6 +1256,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                             this,
                             pushState,
                             reviveRequest,
+                            pushDataSent,
                             remainReviveTimes,
                             dueTime));
               } else {
@@ -1266,6 +1281,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             assert dataClientFactory != null;
             TransportClient client =
                 dataClientFactory.createClient(loc.getHost(), loc.getPushPort(), partitionId);
+            pushDataSent.set(true);
             client.pushData(pushData, pushDataTimeout, wrappedCallback);
           } else {
             wrappedCallback.onFailure(

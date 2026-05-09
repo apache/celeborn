@@ -762,6 +762,10 @@ object CelebornShuffleReader {
       metrics: ShuffleReadMetricsReporter): MetricsCallback = {
     val incCelebornOpenStreamTime =
       optionalMetricUpdate(metrics, "incCelebornOpenStreamTime")
+    val incCelebornDuplicateBytesRead =
+      optionalMetricUpdate(metrics, "incCelebornDuplicateBytesRead")
+    val incCelebornRemoteReadRetryCount =
+      optionalMetricUpdate(metrics, "incCelebornRemoteReadRetryCount")
     val incCelebornPartitionReaderWaitTime =
       optionalMetricUpdate(metrics, "incCelebornPartitionReaderWaitTime")
     val incCelebornReaderChunkCount =
@@ -772,6 +776,11 @@ object CelebornShuffleReader {
       optionalMetricUpdate(metrics, "incCelebornChunkFetchSuccessCount")
     val incCelebornChunkFetchFailureCount =
       optionalMetricUpdate(metrics, "incCelebornChunkFetchFailureCount")
+    val incCelebornDistinctRemoteWorkersRead =
+      optionalMetricUpdate(metrics, "incCelebornDistinctRemoteWorkersRead")
+    val incCelebornRemoteWorkerStreamsRead =
+      optionalMetricUpdate(metrics, "incCelebornRemoteWorkerStreamsRead")
+    val remoteReadWorkers = ConcurrentHashMap.newKeySet[String]()
 
     new MetricsCallback {
       override def incBytesRead(bytesWritten: Long): Unit = {
@@ -782,8 +791,14 @@ object CelebornShuffleReader {
       override def incReadTime(time: Long): Unit =
         metrics.incFetchWaitTime(time)
 
+      override def incDuplicateBytesRead(bytesRead: Long): Unit =
+        incCelebornDuplicateBytesRead(bytesRead)
+
       override def incOpenStreamTime(time: Long): Unit =
         incCelebornOpenStreamTime(time)
+
+      override def incRemoteReadRetryCount(count: Long): Unit =
+        incCelebornRemoteReadRetryCount(count)
 
       override def incPartitionReaderWaitTime(time: Long): Unit =
         incCelebornPartitionReaderWaitTime(time)
@@ -799,6 +814,15 @@ object CelebornShuffleReader {
 
       override def incChunkFetchFailureCount(count: Long): Unit =
         incCelebornChunkFetchFailureCount(count)
+
+      override def recordRemoteReadWorker(hostAndFetchPort: String): Unit = {
+        if (hostAndFetchPort != null && remoteReadWorkers.add(hostAndFetchPort)) {
+          incCelebornDistinctRemoteWorkersRead(1)
+        }
+      }
+
+      override def incRemoteWorkerStreamsRead(count: Long): Unit =
+        incCelebornRemoteWorkerStreamsRead(count)
     }
   }
 

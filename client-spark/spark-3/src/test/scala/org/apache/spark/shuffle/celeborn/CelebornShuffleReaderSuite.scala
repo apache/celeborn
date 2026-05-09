@@ -61,18 +61,26 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
 
   private class CelebornMetricsReporter extends BaseMetricsReporter {
     var openStreamTime = 0L
+    var duplicateBytesRead = 0L
+    var remoteReadRetryCount = 0L
     var partitionReaderWaitTime = 0L
     var readerChunkCount = 0L
     var chunkFetchRequestCount = 0L
     var chunkFetchSuccessCount = 0L
     var chunkFetchFailureCount = 0L
+    var distinctRemoteWorkersRead = 0L
+    var remoteWorkerStreamsRead = 0L
 
     def incCelebornOpenStreamTime(v: Long): Unit = openStreamTime += v
+    def incCelebornDuplicateBytesRead(v: Long): Unit = duplicateBytesRead += v
+    def incCelebornRemoteReadRetryCount(v: Long): Unit = remoteReadRetryCount += v
     def incCelebornPartitionReaderWaitTime(v: Long): Unit = partitionReaderWaitTime += v
     def incCelebornReaderChunkCount(v: Long): Unit = readerChunkCount += v
     def incCelebornChunkFetchRequestCount(v: Long): Unit = chunkFetchRequestCount += v
     def incCelebornChunkFetchSuccessCount(v: Long): Unit = chunkFetchSuccessCount += v
     def incCelebornChunkFetchFailureCount(v: Long): Unit = chunkFetchFailureCount += v
+    def incCelebornDistinctRemoteWorkersRead(v: Long): Unit = distinctRemoteWorkersRead += v
+    def incCelebornRemoteWorkerStreamsRead(v: Long): Unit = remoteWorkerStreamsRead += v
   }
 
   private class FailingCelebornMetricsReporter extends BaseMetricsReporter {
@@ -148,18 +156,28 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
     val metricsCallback = CelebornShuffleReader.createMetricsCallback(metrics)
 
     metricsCallback.incOpenStreamTime(11L)
-    metricsCallback.incPartitionReaderWaitTime(12L)
-    metricsCallback.incReaderChunkCount(13L)
-    metricsCallback.incChunkFetchRequestCount(14L)
-    metricsCallback.incChunkFetchSuccessCount(15L)
-    metricsCallback.incChunkFetchFailureCount(16L)
+    metricsCallback.incDuplicateBytesRead(12L)
+    metricsCallback.incRemoteReadRetryCount(13L)
+    metricsCallback.incPartitionReaderWaitTime(14L)
+    metricsCallback.incReaderChunkCount(15L)
+    metricsCallback.incChunkFetchRequestCount(16L)
+    metricsCallback.incChunkFetchSuccessCount(17L)
+    metricsCallback.incChunkFetchFailureCount(18L)
+    metricsCallback.recordRemoteReadWorker("worker-1:19098")
+    metricsCallback.recordRemoteReadWorker("worker-1:19098")
+    metricsCallback.recordRemoteReadWorker("worker-2:19098")
+    metricsCallback.incRemoteWorkerStreamsRead(3L)
 
     assert(metrics.openStreamTime === 11L)
-    assert(metrics.partitionReaderWaitTime === 12L)
-    assert(metrics.readerChunkCount === 13L)
-    assert(metrics.chunkFetchRequestCount === 14L)
-    assert(metrics.chunkFetchSuccessCount === 15L)
-    assert(metrics.chunkFetchFailureCount === 16L)
+    assert(metrics.duplicateBytesRead === 12L)
+    assert(metrics.remoteReadRetryCount === 13L)
+    assert(metrics.partitionReaderWaitTime === 14L)
+    assert(metrics.readerChunkCount === 15L)
+    assert(metrics.chunkFetchRequestCount === 16L)
+    assert(metrics.chunkFetchSuccessCount === 17L)
+    assert(metrics.chunkFetchFailureCount === 18L)
+    assert(metrics.distinctRemoteWorkersRead === 2L)
+    assert(metrics.remoteWorkerStreamsRead === 3L)
   }
 
   test("ignore Celeborn shuffle read metrics when Spark does not expose them") {
@@ -167,11 +185,15 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
     val metricsCallback = CelebornShuffleReader.createMetricsCallback(metricReporter)
 
     metricsCallback.incOpenStreamTime(11L)
-    metricsCallback.incPartitionReaderWaitTime(12L)
-    metricsCallback.incReaderChunkCount(13L)
-    metricsCallback.incChunkFetchRequestCount(14L)
-    metricsCallback.incChunkFetchSuccessCount(15L)
-    metricsCallback.incChunkFetchFailureCount(16L)
+    metricsCallback.incDuplicateBytesRead(12L)
+    metricsCallback.incRemoteReadRetryCount(13L)
+    metricsCallback.incPartitionReaderWaitTime(14L)
+    metricsCallback.incReaderChunkCount(15L)
+    metricsCallback.incChunkFetchRequestCount(16L)
+    metricsCallback.incChunkFetchSuccessCount(17L)
+    metricsCallback.incChunkFetchFailureCount(18L)
+    metricsCallback.recordRemoteReadWorker("worker-1:19098")
+    metricsCallback.incRemoteWorkerStreamsRead(1L)
   }
 
   test("disable Celeborn shuffle read metrics after reflective invocation failure") {

@@ -33,6 +33,7 @@ public class PushState {
   private final int pushBufferMaxSize;
   public AtomicReference<IOException> exception = new AtomicReference<>();
   private final InFlightRequestTracker inFlightRequestTracker;
+  private volatile PushMetricsCallback metricsCallback = PushMetricsCallback.NOOP;
 
   private final Map<String, LocationPushFailedBatches> failedBatchMap;
 
@@ -44,6 +45,26 @@ public class PushState {
 
   public void cleanup() {
     inFlightRequestTracker.cleanup();
+  }
+
+  public void setMetricsCallback(PushMetricsCallback metricsCallback) {
+    this.metricsCallback = metricsCallback == null ? PushMetricsCallback.NOOP : metricsCallback;
+  }
+
+  public void incPushDataCount(long count) {
+    metricsCallback.incPushDataCount(count);
+  }
+
+  public void incPushDataRetryCount(long count) {
+    metricsCallback.incPushDataRetryCount(count);
+  }
+
+  public void incPushDataTime(long time) {
+    metricsCallback.incPushDataTime(time);
+  }
+
+  public void incInFlightWaitTime(long time) {
+    metricsCallback.incInFlightWaitTime(time);
   }
 
   // key: ${primary addr}, ${replica addr} value: list of data batch

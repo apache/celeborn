@@ -44,6 +44,9 @@ setup_version() {
   # Keep the SemVer numeric core as x.y.z, then put BUILDKITE_BUILD_NUMBER in the suffix.
   export VERSION="${base_version}-openai-${BUILDKITE_BUILD_NUMBER}.${BUILDKITE_COMMIT}${snapshot_suffix}"
   export HELM_CHART_VERSION="${chart_base_version}-openai-${BUILDKITE_BUILD_NUMBER}.${BUILDKITE_COMMIT}${snapshot_suffix}"
+  # Docker image tags are reused as Kubernetes label values during deploys, so keep
+  # them under the 63-character Kubernetes label limit by omitting -SNAPSHOT.
+  export IMAGE_VERSION="${base_version}-openai-${BUILDKITE_BUILD_NUMBER}.${BUILDKITE_COMMIT}"
 }
 
 # Set Maven defaults shared by CI steps.

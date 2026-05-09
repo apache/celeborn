@@ -105,6 +105,9 @@ master:
   # -- Number of Celeborn master replicas to deploy, should not less than 3.
   replicas: 3
 
+  # -- Number of seconds a restarted master should stay Ready before the StatefulSet rolls the next pod.
+  minReadySeconds: 60
+
   # -- Annotations for Celeborn master pods.
   annotations:
     # key1: value1
