@@ -24,6 +24,9 @@ metadata:
     {{- include "celeborn.master.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.master.replicas }}
+  {{- with .Values.master.minReadySeconds }}
+  minReadySeconds: {{ . }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "celeborn.master.selectorLabels" . | nindent 6 }}

@@ -102,6 +102,13 @@ tests:
           path: spec.replicas
           value: 10
 
+  - it: Should wait before rolling the next master by default
+    template: master/statefulset.yaml
+    asserts:
+      - equal:
+          path: spec.minReadySeconds
+          value: 60
+
   - it: Should add environment variables if `master.env` is set
     template: master/statefulset.yaml
     set:
