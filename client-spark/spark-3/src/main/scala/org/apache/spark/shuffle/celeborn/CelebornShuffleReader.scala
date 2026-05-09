@@ -217,6 +217,12 @@ class CelebornShuffleReader[K, C](
         if (expectedBytesByWorker.isEmpty) 0L
         else expectedBytesByWorker.values().asScala.map(_.longValue()).max
 
+      // Only use coalesced reads when the optimization is both useful and behaviorally simple:
+      //   - the feature is enabled and there is more than one non-empty reducer to coalesce;
+      //   - every retry can reopen the exact same full-reducer layout;
+      //   - no ordering or failed-push recovery semantics depend on the normal reader path;
+      //   - each worker-side shared stream is non-empty and remains under the configured cap;
+      //   - every input is a final remote local-disk file with no replica path to switch to.
       conf.clientCoalescedRemoteReadEnabled &&
       partitionIdList.size > 1 &&
       // Partial map-range reads and Celeborn's encoded skew-read mode can change the chunk layout
