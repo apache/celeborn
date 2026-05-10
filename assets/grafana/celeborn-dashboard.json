@@ -17889,28 +17889,22 @@
   "templating": {
     "list": [
       {
-        "allValue": ".+",
         "current": {
-          "selected": true,
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
+          "text": "",
+          "value": ""
         },
         "datasource": {
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "label_values({__name__=~\"metrics_(JVMCPUTime_Value|RegisteredShuffleCount_Value|WorkerCount_Value)\"}, instance)",
+        "definition": "label_values(metrics_JVMCPUTime_Value, instance)",
         "includeAll": true,
         "label": "instance",
         "multi": true,
         "name": "instance",
         "options": [],
         "query": {
-          "query": "label_values({__name__=~\"metrics_(JVMCPUTime_Value|RegisteredShuffleCount_Value|WorkerCount_Value)\"}, instance)",
+          "query": "label_values(metrics_JVMCPUTime_Value, instance)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
