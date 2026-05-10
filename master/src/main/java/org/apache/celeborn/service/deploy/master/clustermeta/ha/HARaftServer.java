@@ -647,6 +647,7 @@ public class HARaftServer {
   }
 
   boolean stepDown() {
+    long timeoutMs = conf.haMasterGracefulShutdownTimeoutMs();
     try {
       TransferLeadershipRequest request =
           new TransferLeadershipRequest(
@@ -655,7 +656,7 @@ public class HARaftServer {
               raftGroup.getGroupId(),
               CallId.getAndIncrement(),
               null,
-              REQUEST_TIMEOUT_MS);
+              timeoutMs);
       RaftClientReply reply = server.transferLeadership(request);
       if (reply.isSuccess()) {
         return true;

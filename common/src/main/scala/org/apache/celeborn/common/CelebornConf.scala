@@ -731,6 +731,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def haEnabled: Boolean = get(HA_ENABLED)
   def haMasterGracefulShutdownEnabled: Boolean = get(HA_MASTER_GRACEFUL_SHUTDOWN_ENABLED)
+  def haMasterGracefulShutdownTimeoutMs: Long = get(HA_MASTER_GRACEFUL_SHUTDOWN_TIMEOUT)
 
   def haMasterNodeId: Option[String] = get(HA_MASTER_NODE_ID)
 
@@ -2772,6 +2773,16 @@ object CelebornConf extends Logging {
         "where no leader is available.")
       .booleanConf
       .createWithDefault(false)
+
+  val HA_MASTER_GRACEFUL_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.ha.graceful.shutdown.timeout")
+      .categories("ha")
+      .version("0.7.0")
+      .doc("Timeout for the master graceful shutdown process including " +
+        "Raft leadership transfer. Used as the shutdown hook timeout " +
+        "and the transfer-leadership request timeout.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
 
   val HA_MASTER_NODE_ID: OptionalConfigEntry[String] =
     buildConf("celeborn.master.ha.node.id")

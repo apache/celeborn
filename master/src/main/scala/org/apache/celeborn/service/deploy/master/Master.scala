@@ -1566,7 +1566,9 @@ private[celeborn] class Master(
     super.initialize()
     logInfo("Master started.")
 
-    // Register a shutdown hook so that SIGTERM triggers a graceful stop.
+    // SIGTERM triggers leadership transfer (in stop()) then immediate HTTP/RPC teardown.
+    // EXIT_IMMEDIATELY is intentional: once Raft leadership is transferred and RPC is
+    // stopped, there is no need to drain HTTP connections.
     ShutdownHookManager.get().addShutdownHook(
       ThreadUtils.newThread(
         new Runnable {
@@ -1576,7 +1578,9 @@ private[celeborn] class Master(
           }
         },
         "master-shutdown-hook-thread"),
-      100)
+      100,
+      conf.haMasterGracefulShutdownTimeoutMs,
+      java.util.concurrent.TimeUnit.MILLISECONDS)
 
     rpcEnv.awaitTermination()
     if (conf.internalPortEnabled) {
