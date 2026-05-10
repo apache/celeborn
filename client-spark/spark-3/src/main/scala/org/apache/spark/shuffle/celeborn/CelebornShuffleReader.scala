@@ -221,18 +221,23 @@ class CelebornShuffleReader[K, C](
         if (expectedBytesByWorker.isEmpty) 0L
         else expectedBytesByWorker.values().asScala.map(_.longValue()).max
 
-      val allLocations = partitionIdList.flatMap { partitionId =>
-        Option(fileGroups.partitionGroups.get(partitionId)).toSeq.flatMap(_.asScala)
-      }
-      val hasMultiplePartitions = partitionIdList.size > 1
-      val hasFullMapRange = startMapIndex == 0 && endMapIndex == Int.MaxValue
-      val hasNoSkewSplit = !splitSkewPartitionWithoutMapRange
-      val hasNoKeyOrdering = dep.keyOrdering.isEmpty
-      val hasNoPushFailures = Option(fileGroups.pushFailedBatches).forall(_.isEmpty)
-      val hasBytesWithinLimit =
-        maxExpectedBytesPerWorker > 0 &&
-          maxExpectedBytesPerWorker <= conf.clientCoalescedRemoteReadMaxBytes
-      val allLocationsEligible = partitionIdList.forall { partitionId =>
+      // Only use coalesced reads when the optimization is both useful and behaviorally simple:
+      //   - the feature is enabled and there is more than one non-empty reducer to coalesce;
+      //   - every retry can reopen the exact same full-reducer layout;
+      //   - no ordering or failed-push recovery semantics depend on the normal reader path;
+      //   - each worker-side shared stream is non-empty and remains under the configured cap;
+      //   - every input is a final remote local-disk file with no replica path to switch to.
+      partitionIdList.size > 1 &&
+      // Partial map-range reads and Celeborn's encoded skew-read mode can change the chunk layout
+      // per reducer. Start with full reducer reads so reopen can require exact layout equality.
+      startMapIndex == 0 &&
+      endMapIndex == Int.MaxValue &&
+      !splitSkewPartitionWithoutMapRange &&
+      dep.keyOrdering.isEmpty &&
+      Option(fileGroups.pushFailedBatches).forall(_.isEmpty) &&
+      maxExpectedBytesPerWorker > 0 &&
+      maxExpectedBytesPerWorker <= conf.clientCoalescedRemoteReadMaxBytes &&
+      partitionIdList.forall { partitionId =>
         val locations = fileGroups.partitionGroups.get(partitionId)
         locations != null &&
         locations.asScala.forall { location =>
@@ -245,39 +250,6 @@ class CelebornShuffleReader[K, C](
           })
         }
       }
-
-      val eligible =
-        hasMultiplePartitions &&
-          // Partial map-range reads and Celeborn's encoded skew-read mode can change the chunk layout
-          // per reducer. Start with full reducer reads so reopen can require exact layout equality.
-          hasFullMapRange &&
-          hasNoSkewSplit &&
-          hasNoKeyOrdering &&
-          hasNoPushFailures &&
-          hasBytesWithinLimit &&
-          allLocationsEligible
-
-      logInfo(
-        s"CoalescedFetchEligibility shuffleKey=$shuffleKey eligible=$eligible " +
-          s"partitions=${partitionIdList.size} locations=${allLocations.size} " +
-          s"hasMultiplePartitions=$hasMultiplePartitions hasFullMapRange=$hasFullMapRange " +
-          s"hasNoSkewSplit=$hasNoSkewSplit hasNoKeyOrdering=$hasNoKeyOrdering " +
-          s"hasNoPushFailures=$hasNoPushFailures hasBytesWithinLimit=$hasBytesWithinLimit " +
-          s"maxExpectedBytesPerWorker=$maxExpectedBytesPerWorker " +
-          s"maxBytes=${conf.clientCoalescedRemoteReadMaxBytes} " +
-          s"nonFinalLocations=${allLocations.count(!_.getStorageInfo.isFinalResult)} " +
-          s"peerLocations=${allLocations.count(_.hasPeer)} " +
-          s"localShuffleReadLocations=${allLocations.count { location =>
-            localFetchEnabled && location.getHost.equals(localHostAddress)
-          }} " +
-          s"unsupportedStorageLocations=${allLocations.count { location =>
-            location.getStorageInfo.getType match {
-              case StorageInfo.Type.HDD | StorageInfo.Type.SSD => false
-              case _ => true
-            }
-          }}")
-
-      eligible
     }
 
     def tryOpenCoalescedStreams(): Boolean = {
