@@ -50,6 +50,7 @@ public class SharedCoalescedStream {
   private final PbOpenCoalescedStream reopenRequest;
   private final long fetchTimeoutMs;
   private final TransportClientFactory clientFactory;
+  private final MetricsCallback metricsCallback;
   private final LinkedBlockingQueue<Pair<Integer, ByteBuf>> results = new LinkedBlockingQueue<>();
   private final AtomicReference<IOException> exception = new AtomicReference<>();
   private final AtomicLong generation = new AtomicLong();
@@ -65,7 +66,8 @@ public class SharedCoalescedStream {
       PartitionLocation location,
       PbOpenCoalescedStream reopenRequest,
       PbCoalescedStreamHandler handler,
-      TransportClientFactory clientFactory)
+      TransportClientFactory clientFactory,
+      MetricsCallback metricsCallback)
       throws IOException, InterruptedException {
     this.shuffleKey = shuffleKey;
     this.location = location;
@@ -73,7 +75,10 @@ public class SharedCoalescedStream {
     this.handler = handler;
     this.fetchTimeoutMs = conf.clientFetchTimeoutMs();
     this.clientFactory = clientFactory;
+    this.metricsCallback = metricsCallback;
     this.client = clientFactory.createClient(location.getHost(), location.getFetchPort());
+    this.metricsCallback.recordRemoteReadWorker(location.hostAndFetchPort());
+    this.metricsCallback.incRemoteWorkerStreamsRead(1);
   }
 
   public synchronized ByteBuf getChunk(int chunkIndex) throws IOException, InterruptedException {
@@ -123,16 +128,19 @@ public class SharedCoalescedStream {
                 results.add(Pair.of(returnedChunkIndex, buf));
               }
             }
+            metricsCallback.incChunkFetchSuccessCount(1);
           }
 
           @Override
           public void onFailure(int returnedChunkIndex, Throwable e) {
+            metricsCallback.incChunkFetchFailureCount(1);
             exception.compareAndSet(
                 null,
                 new CelebornIOException(
                     "Fetch coalesced chunk " + returnedChunkIndex + " failed.", e));
           }
         };
+    metricsCallback.incChunkFetchRequestCount(1);
     client.fetchChunk(handler.getStreamId(), chunkIndex, fetchTimeoutMs, callback);
     while (currentChunk == null) {
       IOException fetchException = exception.get();

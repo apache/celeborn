@@ -123,10 +123,12 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
     PartitionLocation location = mock(PartitionLocation.class);
     when(location.getHost()).thenReturn("worker");
     when(location.getFetchPort()).thenReturn(19098);
+    when(location.hostAndFetchPort()).thenReturn("worker:19098");
     TransportClient client = mock(TransportClient.class);
     when(client.isActive()).thenReturn(true);
     TransportClientFactory clientFactory = mock(TransportClientFactory.class);
     when(clientFactory.createClient("worker", 19098)).thenReturn(client);
+    TestMetricsCallback metricsCallback = new TestMetricsCallback();
     doAnswer(
             invocation -> {
               ChunkReceivedCallback callback = invocation.getArgument(3);
@@ -156,19 +158,64 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
             location,
             openRequest(),
             PbCoalescedStreamHandler.newBuilder().setStreamId(1L).build(),
-            clientFactory);
+            clientFactory,
+            metricsCallback);
     ExecutorService executor = Executors.newSingleThreadExecutor();
     try {
       Future<ByteBuf> future = executor.submit(() -> stream.getChunk(0));
       ByteBuf chunk = future.get(1, TimeUnit.SECONDS);
       try {
         assertEquals(2, chunk.readableBytes());
+        assertEquals(1, metricsCallback.chunkFetchRequestCount);
+        assertEquals(1, metricsCallback.chunkFetchSuccessCount);
+        assertEquals(0, metricsCallback.chunkFetchFailureCount);
+        assertEquals(1, metricsCallback.remoteWorkerStreamsRead);
+        assertEquals("worker:19098", metricsCallback.remoteReadWorker);
       } finally {
         chunk.release();
       }
     } finally {
       executor.shutdownNow();
       stream.close();
+    }
+  }
+
+  private static final class TestMetricsCallback implements MetricsCallback {
+    private long chunkFetchRequestCount;
+    private long chunkFetchSuccessCount;
+    private long chunkFetchFailureCount;
+    private long remoteWorkerStreamsRead;
+    private String remoteReadWorker;
+
+    @Override
+    public void incBytesRead(long bytesWritten) {}
+
+    @Override
+    public void incReadTime(long time) {}
+
+    @Override
+    public void incChunkFetchRequestCount(long count) {
+      chunkFetchRequestCount += count;
+    }
+
+    @Override
+    public void incChunkFetchSuccessCount(long count) {
+      chunkFetchSuccessCount += count;
+    }
+
+    @Override
+    public void incChunkFetchFailureCount(long count) {
+      chunkFetchFailureCount += count;
+    }
+
+    @Override
+    public void recordRemoteReadWorker(String hostAndFetchPort) {
+      remoteReadWorker = hostAndFetchPort;
+    }
+
+    @Override
+    public void incRemoteWorkerStreamsRead(long count) {
+      remoteWorkerStreamsRead += count;
     }
   }
 
@@ -207,7 +254,13 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
     when(clientFactory.createClient("worker", 19098)).thenReturn(client);
     SharedCoalescedStream stream =
         new SharedCoalescedStream(
-            conf, "shuffle-key", location, openRequest(), handler(1L), clientFactory);
+            conf,
+            "shuffle-key",
+            location,
+            openRequest(),
+            handler(1L),
+            clientFactory,
+            noopMetricsCallback());
     try {
       ByteBuf chunk = stream.getChunk(0);
       try {
@@ -261,7 +314,8 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
             location,
             openRequest(),
             spanningBoundaryHandler(1L),
-            clientFactory);
+            clientFactory,
+            noopMetricsCallback());
     try {
       CoalescedWorkerPartitionReader firstReader =
           new CoalescedWorkerPartitionReader(
@@ -318,7 +372,13 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
     when(clientFactory.createClient("worker", 19098)).thenReturn(client);
     SharedCoalescedStream stream =
         new SharedCoalescedStream(
-            conf, "shuffle-key", location, openRequest(), handler(1L), clientFactory);
+            conf,
+            "shuffle-key",
+            location,
+            openRequest(),
+            handler(1L),
+            clientFactory,
+            noopMetricsCallback());
     try {
       assertThrows(IOException.class, () -> stream.getChunk(0));
     } finally {
@@ -331,6 +391,16 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
         .setShuffleKey("shuffle-key")
         .setMaxChunkBytes(1024)
         .build();
+  }
+
+  private static MetricsCallback noopMetricsCallback() {
+    return new MetricsCallback() {
+      @Override
+      public void incBytesRead(long bytesWritten) {}
+
+      @Override
+      public void incReadTime(long time) {}
+    };
   }
 
   private static PbCoalescedStreamHandler handler(long streamId) {

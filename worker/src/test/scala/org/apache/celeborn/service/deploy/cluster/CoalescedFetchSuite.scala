@@ -109,6 +109,10 @@ class CoalescedFetchSuite extends AnyFunSuite
         clientConf.clientFetchTimeoutMs)
       val handler =
         TransportMessage.fromByteBuffer(response).getParsedPayload[PbCoalescedStreamHandler]
+      val metricsCallback = new MetricsCallback {
+        override def incBytesRead(bytesWritten: Long): Unit = {}
+        override def incReadTime(time: Long): Unit = {}
+      }
       val sharedStream =
         new SharedCoalescedStream(
           clientConf,
@@ -116,13 +120,10 @@ class CoalescedFetchSuite extends AnyFunSuite
           location0,
           request,
           handler,
-          shuffleClient.getDataClientFactory)
+          shuffleClient.getDataClientFactory,
+          metricsCallback)
 
       try {
-        val metricsCallback = new MetricsCallback {
-          override def incBytesRead(bytesWritten: Long): Unit = {}
-          override def incReadTime(time: Long): Unit = {}
-        }
         val expected = Seq(
           partition0Batch0 ++ partition0Batch1,
           partition1Batch0 ++ partition1Batch1)
@@ -176,7 +177,8 @@ class CoalescedFetchSuite extends AnyFunSuite
             location0,
             request,
             replayHandler,
-            shuffleClient.getDataClientFactory)
+            shuffleClient.getDataClientFactory,
+            metricsCallback)
         try {
           val sameReducerInfos = new util.HashMap[String, CoalescedPartitionInfo]()
           sameReducerInfos.put(

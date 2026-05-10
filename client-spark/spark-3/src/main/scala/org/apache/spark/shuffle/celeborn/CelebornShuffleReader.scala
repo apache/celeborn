@@ -344,7 +344,8 @@ class CelebornShuffleReader[K, C](
                 locations.get(0),
                 request.build(),
                 handler,
-                shuffleClient.getDataClientFactory())
+                shuffleClient.getDataClientFactory(),
+                metricsCallback)
             } catch {
               case e: Exception =>
                 CelebornShuffleReader.closeChunkStream(client, handler.getStreamId)
