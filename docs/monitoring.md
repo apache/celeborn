@@ -98,7 +98,7 @@ reported in the list.
 These metrics are exposed by Celeborn master.
 
   - namespace=master
-
+    
     | Metric Name                  | Description                                                                               |
     |------------------------------|-------------------------------------------------------------------------------------------|
     | RegisteredShuffleCount       | The count of registered shuffle.                                                          |
@@ -145,7 +145,7 @@ These metrics are exposed by Celeborn master.
     - **notes:**
         - This metrics data is generated for each user and they are identified using a metric tag.
         - This metrics also include subResourceConsumptions generated for each application of user and they are identified using `applicationId` tag.
-
+    
     | Metric Name       | Description                                         |
     |-------------------|-----------------------------------------------------|
     | diskFileCount     | The count of disk files consumption by each user.   |
@@ -156,7 +156,7 @@ These metrics are exposed by Celeborn master.
   - namespace=ThreadPool
     - **notes:**
         - This metrics data is generated for each thread pool and they are identified using a metric tag by thread pool name.
-
+    
     | Metric Name                  | Description                                                                                                                 |
     |------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
     | active_thread_count          | The approximate number of threads that are actively executing tasks.                                                        |
@@ -176,7 +176,7 @@ These metrics are exposed by Celeborn master.
 These metrics are exposed by Celeborn worker.
 
   - namespace=worker
-
+    
     | Metric Name                            | Description                                                                                                     |
     |----------------------------------------|-----------------------------------------------------------------------------------------------------------------|
     | RegisteredShuffleCount                 | The count of registered shuffle.                                                                                |
@@ -262,7 +262,7 @@ These metrics are exposed by Celeborn worker.
     | UserProduceSpeed                       | The speed of user production for congestion control.                                                            |
     | WorkerConsumeSpeed                     | The speed of worker consumption for congestion control.                                                         |
     | IsDecommissioningWorker                | 1 means worker decommissioning, 0 means not decommissioning.                                                    |
-    | IsHighWorkload                         | 1 means worker high workload, 0 means not high workload.                                                        |
+    | IsHighWorkload                         | 1 means worker high workload, 0 means not high workload.                                                        | 
     | UnreleasedShuffleCount                 | Unreleased shuffle count when worker is decommissioning.                                                        |
     | UnreleasedPartitionLocationCount       | Unreleased partition location count when worker is shutting down.                                               |
     | MemoryStorageFileCount                 | The count of files in Memory Storage of a worker.                                                               |
@@ -359,7 +359,7 @@ These metrics are exposed by Celeborn worker.
     | fetch_numActiveBytes                   |                                                                                                                 |
 
   - namespace=CPU
-
+    
     | Metric Name  | Description               |
     |--------------|---------------------------|
     | JVMCPUTime   | The JVM costs cpu time.   |
@@ -380,7 +380,7 @@ These metrics are exposed by Celeborn worker.
     - **notes:**
         - This metrics data is generated for each user and they are identified using a metric tag.
         - This metrics also include subResourceConsumptions generated for each application of user and they are identified using `applicationId` tag.
-
+    
     | Metric Name       | Description                                         |
     |-------------------|-----------------------------------------------------|
     | diskFileCount     | The count of disk files consumption by each user.   |
@@ -391,7 +391,7 @@ These metrics are exposed by Celeborn worker.
   - namespace=ThreadPool
     - **notes:**
         - This metrics data is generated for each thread pool and they are identified using a metric tag by thread pool name.
-
+    
     | Metric Name            | Description                                                                                                                 |
     |------------------------|-----------------------------------------------------------------------------------------------------------------------------|
     | active_thread_count    | The approximate number of threads that are actively executing tasks.                                                        |
