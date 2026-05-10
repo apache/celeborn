@@ -238,7 +238,7 @@ class CelebornShuffleReader[K, C](
         locations.asScala.forall { location =>
           location.getStorageInfo.isFinalResult &&
           !location.hasPeer &&
-          !location.getHost.equals(localHostAddress) &&
+          !(localFetchEnabled && location.getHost.equals(localHostAddress)) &&
           (location.getStorageInfo.getType match {
             case StorageInfo.Type.HDD | StorageInfo.Type.SSD => true
             case _ => false
@@ -248,14 +248,14 @@ class CelebornShuffleReader[K, C](
 
       val eligible =
         hasMultiplePartitions &&
-      // Partial map-range reads and Celeborn's encoded skew-read mode can change the chunk layout
-      // per reducer. Start with full reducer reads so reopen can require exact layout equality.
-        hasFullMapRange &&
-        hasNoSkewSplit &&
-        hasNoKeyOrdering &&
-        hasNoPushFailures &&
-        hasBytesWithinLimit &&
-        allLocationsEligible
+          // Partial map-range reads and Celeborn's encoded skew-read mode can change the chunk layout
+          // per reducer. Start with full reducer reads so reopen can require exact layout equality.
+          hasFullMapRange &&
+          hasNoSkewSplit &&
+          hasNoKeyOrdering &&
+          hasNoPushFailures &&
+          hasBytesWithinLimit &&
+          allLocationsEligible
 
       logInfo(
         s"CoalescedFetchEligibility shuffleKey=$shuffleKey eligible=$eligible " +
@@ -267,13 +267,15 @@ class CelebornShuffleReader[K, C](
           s"maxBytes=${conf.clientCoalescedRemoteReadMaxBytes} " +
           s"nonFinalLocations=${allLocations.count(!_.getStorageInfo.isFinalResult)} " +
           s"peerLocations=${allLocations.count(_.hasPeer)} " +
-          s"localLocations=${allLocations.count(_.getHost.equals(localHostAddress))} " +
+          s"localShuffleReadLocations=${allLocations.count { location =>
+            localFetchEnabled && location.getHost.equals(localHostAddress)
+          }} " +
           s"unsupportedStorageLocations=${allLocations.count { location =>
-              location.getStorageInfo.getType match {
-                case StorageInfo.Type.HDD | StorageInfo.Type.SSD => false
-                case _ => true
-              }
-            }}")
+            location.getStorageInfo.getType match {
+              case StorageInfo.Type.HDD | StorageInfo.Type.SSD => false
+              case _ => true
+            }
+          }}")
 
       eligible
     }
