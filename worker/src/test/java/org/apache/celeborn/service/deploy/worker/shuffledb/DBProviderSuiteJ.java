@@ -73,8 +73,7 @@ public class DBProviderSuiteJ {
       StoreVersion v2 = new StoreVersion(2, 0);
       IOException ioe =
           assertThrows(
-              IOException.class,
-              () -> DBProvider.initDB(dbBackend, dbFile, v2, workerSource));
+              IOException.class, () -> DBProvider.initDB(dbBackend, dbFile, v2, workerSource));
       assertTrue(ioe.getMessage().contains("incompatible with current version StoreVersion[2.0]"));
     } finally {
       workerSource.destroy();
