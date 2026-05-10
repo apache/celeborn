@@ -18,6 +18,7 @@
 package org.apache.celeborn.service.deploy.worker
 
 import java.util
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
@@ -74,8 +75,12 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   addCounter(S3_FLUSH_COUNT)
   addCounter(S3_FLUSH_SIZE)
 
-  // Counters with the dbBackend label are registered lazily by MetadataMetrics once a DB is
-  // initialized, since the backend is selected from configuration and is not known here.
+  // dbBackendLabel normalizes the case, so we can pass the configured value as-is.
+  private val configuredDbBackend = conf.workerGracefulShutdownRecoverDbBackend
+  addCounter(METADATA_OPERATION_STATUS_COUNT, WRITE_FAIL_COUNT_LABELS(configuredDbBackend))
+  addCounter(METADATA_OPERATION_STATUS_COUNT, WRITE_SUCCESS_COUNT_LABELS(configuredDbBackend))
+  addCounter(METADATA_OPERATION_STATUS_COUNT, READ_FAIL_COUNT_LABELS(configuredDbBackend))
+  addCounter(METADATA_OPERATION_STATUS_COUNT, READ_SUCCESS_COUNT_LABELS(configuredDbBackend))
 
   // add timers
   addTimer(COMMIT_FILES_TIME)
@@ -303,7 +308,7 @@ object WorkerSource {
   val FAIL_STATUS_LABEL = Map("status" -> "fail")
 
   def dbBackendLabel(dbBackend: String): Map[String, String] =
-    Map("dbBackend" -> dbBackend)
+    Map("dbBackend" -> dbBackend.toLowerCase(Locale.ROOT))
 
   def WRITE_FAIL_COUNT_LABELS(dbBackend: String): Map[String, String] =
     WRITE_OPERATION_LABEL ++ FAIL_STATUS_LABEL ++ dbBackendLabel(dbBackend)

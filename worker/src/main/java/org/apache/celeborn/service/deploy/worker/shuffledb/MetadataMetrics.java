@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.service.deploy.worker.shuffledb;
 
-import java.util.Locale;
-
 import scala.collection.immutable.Map;
 
 import org.rocksdb.RocksDBException;
@@ -51,12 +49,11 @@ class MetadataMetrics {
   private final Map<String, String> readFailLabels;
 
   MetadataMetrics(AbstractSource source, DBBackend dbBackend) {
-    // A null source disables metrics but does not break DB operations: missing telemetry is
-    // strictly preferable to failing every read/write. When non-null, idempotently register
-    // the four label combinations so callers see the counters even before the first op
+    // Register the four label combinations so callers see the counters even before the first op
     // (addCounter is putIfAbsent, so the call is safe even if something else registered them).
     this.source = source;
-    String backend = dbBackend.name().toLowerCase(Locale.ROOT);
+    String backend = dbBackend.name();
+
     this.writeSuccessLabels = WorkerSource.WRITE_SUCCESS_COUNT_LABELS(backend);
     this.writeFailLabels = WorkerSource.WRITE_FAIL_COUNT_LABELS(backend);
     this.readSuccessLabels = WorkerSource.READ_SUCCESS_COUNT_LABELS(backend);
