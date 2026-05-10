@@ -1896,8 +1896,8 @@ public class RatisMasterStatusSystemSuiteJ {
         "Leader should step down without closing the shared server", leader.isLeader());
     Assert.assertNotEquals(
         "Raft server should remain available to the rest of the suite",
-        "CLOSED",
-        leader.getServer().getLifeCycleState().name());
+        org.apache.ratis.util.LifeCycle.State.CLOSED,
+        leader.getServer().getLifeCycleState());
 
     // Wait until the cluster has a ready leader again, so subsequent tests can proceed.
     // Any of the three peers may win the ensuing election (including the one that
