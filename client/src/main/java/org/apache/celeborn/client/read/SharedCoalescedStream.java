@@ -79,6 +79,7 @@ public class SharedCoalescedStream {
     this.client = clientFactory.createClient(location.getHost(), location.getFetchPort());
     this.metricsCallback.recordRemoteReadWorker(location.hostAndFetchPort());
     this.metricsCallback.incRemoteWorkerStreamsRead(1);
+    this.metricsCallback.incReaderChunkCount(handler.getNumChunks());
   }
 
   public synchronized ByteBuf getChunk(int chunkIndex) throws IOException, InterruptedException {

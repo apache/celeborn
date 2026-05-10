@@ -157,7 +157,7 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
             "shuffle-key",
             location,
             openRequest(),
-            PbCoalescedStreamHandler.newBuilder().setStreamId(1L).build(),
+            PbCoalescedStreamHandler.newBuilder().setStreamId(1L).setNumChunks(1).build(),
             clientFactory,
             metricsCallback);
     ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -169,6 +169,7 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
         assertEquals(1, metricsCallback.chunkFetchRequestCount);
         assertEquals(1, metricsCallback.chunkFetchSuccessCount);
         assertEquals(0, metricsCallback.chunkFetchFailureCount);
+        assertEquals(1, metricsCallback.readerChunkCount);
         assertEquals(1, metricsCallback.remoteWorkerStreamsRead);
         assertEquals("worker:19098", metricsCallback.remoteReadWorker);
       } finally {
@@ -184,6 +185,7 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
     private long chunkFetchRequestCount;
     private long chunkFetchSuccessCount;
     private long chunkFetchFailureCount;
+    private long readerChunkCount;
     private long remoteWorkerStreamsRead;
     private String remoteReadWorker;
 
@@ -206,6 +208,11 @@ public class CoalescedWorkerPartitionReaderSuiteJ {
     @Override
     public void incChunkFetchFailureCount(long count) {
       chunkFetchFailureCount += count;
+    }
+
+    @Override
+    public void incReaderChunkCount(long count) {
+      readerChunkCount += count;
     }
 
     @Override
