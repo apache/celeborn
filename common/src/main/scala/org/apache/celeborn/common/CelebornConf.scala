@@ -1451,6 +1451,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientInputStreamCreationWindow = get(CLIENT_INPUTSTREAM_CREATION_WINDOW)
   def clientCoalescedRemoteReadEnabled = get(CLIENT_COALESCED_REMOTE_READ_ENABLED)
   def clientCoalescedRemoteReadMaxBytes = get(CLIENT_COALESCED_REMOTE_READ_MAX_BYTES)
+  def clientCoalescedRemoteReadChunkSize = get(CLIENT_COALESCED_REMOTE_READ_CHUNK_SIZE).toInt
 
   def tagsEnabled: Boolean = get(TAGS_ENABLED)
   def tagsExpr: String = get(TAGS_EXPR)
@@ -6108,6 +6109,16 @@ object CelebornConf extends Logging {
       .bytesConf(ByteUnit.BYTE)
       .checkValue(_ > 0, "Coalesced remote read max bytes must be positive.")
       .checkValue(_ <= Int.MaxValue, "Coalesced remote read max bytes must fit in one ByteBuffer.")
+      .createWithDefaultString("8m")
+
+  val CLIENT_COALESCED_REMOTE_READ_CHUNK_SIZE: ConfigEntry[Long] =
+    buildConf("celeborn.client.coalescedRemoteRead.chunkSize")
+      .categories("client")
+      .doc("Target bytes per fetched chunk for coalesced remote reducer-range streams.")
+      .version("0.6.1")
+      .bytesConf(ByteUnit.BYTE)
+      .checkValue(_ > 0, "Coalesced remote read chunk size must be positive.")
+      .checkValue(_ <= Int.MaxValue, "Coalesced remote read chunk size must fit in one ByteBuffer.")
       .createWithDefaultString("8m")
 
   val MAX_DEFAULT_NETTY_THREADS: ConfigEntry[Int] =

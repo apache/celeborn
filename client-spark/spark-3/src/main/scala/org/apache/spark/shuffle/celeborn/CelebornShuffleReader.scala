@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 import com.google.common.annotations.VisibleForTesting
 import org.apache.commons.lang3.tuple.Pair
@@ -200,33 +201,16 @@ class CelebornShuffleReader[K, C](
       new JHashMap[Int, JMap[String, CoalescedPartitionInfo]]()
     lazy val coalescedStreams = new JArrayList[SharedCoalescedStream]()
 
-    def canUseCoalescedFetch: Boolean = {
-      if (!conf.clientCoalescedRemoteReadEnabled) {
-        return false
-      }
-
+    def canAttemptCoalescedFetch: Boolean = {
       // Keep the initial rollout narrow even though the shared-stream representation can carry
       // richer layouts. The normal reader still owns per-reducer retry and failure attribution;
       // coalescing only changes how remote bytes are fetched underneath it.
-      val expectedBytesByWorker = new JHashMap[String, java.lang.Long]()
-      partitionIdList.foreach { partitionId =>
-        fileGroups.partitionGroups.get(partitionId).asScala.foreach { location =>
-          val hostPort = location.hostAndFetchPort
-          val current =
-            Option(expectedBytesByWorker.get(hostPort)).map(_.longValue()).getOrElse(0L)
-          expectedBytesByWorker.put(hostPort, current + location.getStorageInfo.getFileSize)
-        }
-      }
-      val maxExpectedBytesPerWorker =
-        if (expectedBytesByWorker.isEmpty) 0L
-        else expectedBytesByWorker.values().asScala.map(_.longValue()).max
-
       // Only use coalesced reads when the optimization is both useful and behaviorally simple:
       //   - the feature is enabled and there is more than one non-empty reducer to coalesce;
       //   - every retry can reopen the exact same full-reducer layout;
       //   - no ordering or failed-push recovery semantics depend on the normal reader path;
-      //   - each worker-side shared stream is non-empty and remains under the configured cap;
-      //   - every input is a final remote local-disk file with no replica path to switch to.
+      //   - each worker that uses a shared stream is checked independently below.
+      conf.clientCoalescedRemoteReadEnabled &&
       partitionIdList.size > 1 &&
       // Partial map-range reads and Celeborn's encoded skew-read mode can change the chunk layout
       // per reducer. Start with full reducer reads so reopen can require exact layout equality.
@@ -234,67 +218,41 @@ class CelebornShuffleReader[K, C](
       endMapIndex == Int.MaxValue &&
       !splitSkewPartitionWithoutMapRange &&
       dep.keyOrdering.isEmpty &&
-      Option(fileGroups.pushFailedBatches).forall(_.isEmpty) &&
-      maxExpectedBytesPerWorker > 0 &&
-      maxExpectedBytesPerWorker <= conf.clientCoalescedRemoteReadMaxBytes &&
-      partitionIdList.forall { partitionId =>
-        val locations = fileGroups.partitionGroups.get(partitionId)
-        locations != null &&
-        locations.asScala.forall { location =>
-          location.getStorageInfo.isFinalResult &&
-          !location.hasPeer &&
-          !(localFetchEnabled && location.getHost.equals(localHostAddress)) &&
-          (location.getStorageInfo.getType match {
-            case StorageInfo.Type.HDD | StorageInfo.Type.SSD => true
-            case _ => false
-          })
-        }
-      }
+      Option(fileGroups.pushFailedBatches).forall(_.isEmpty)
     }
 
     def tryOpenCoalescedStreams(): Boolean = {
-      if (!canUseCoalescedFetch) {
+      if (!canAttemptCoalescedFetch) {
         return false
       }
-      val workerRequests = new JHashMap[
-        String,
-        (TransportClient, JArrayList[PartitionLocation], PbOpenCoalescedStream.Builder)]()
-      try {
-        // Build one worker request per host, but keep every reducer file as a separate entry.
-        // The worker returns the byte boundary for each entry so the client can keep one logical
-        // reader per reducer partition while sharing the remote stream underneath.
-        partitionIdList.foreach { partitionId =>
-          fileGroups.partitionGroups.get(partitionId).asScala.foreach { location =>
-            val hostPort = location.hostAndFetchPort
-            if (!workerRequests.containsKey(hostPort)) {
-              val client = shuffleClient.getDataClientFactory().createClient(
-                location.getHost,
-                location.getFetchPort)
-              workerRequests.put(
-                hostPort,
-                (
-                  client,
-                  new JArrayList[PartitionLocation],
-                  PbOpenCoalescedStream.newBuilder()
-                    .setShuffleKey(shuffleKey)
-                    .setMaxChunkBytes(conf.clientFetchBufferSize)))
-            }
-            val (_, locations, request) = workerRequests.get(hostPort)
+      val workers = CelebornShuffleReader.selectCoalescedWorkerReads(
+        partitionIdList,
+        fileGroups.partitionGroups,
+        conf.clientCoalescedRemoteReadMaxBytes,
+        localFetchEnabled,
+        localHostAddress)
+
+      workers.foreach { worker =>
+        var client: TransportClient = null
+        var streamId = -1L
+        try {
+          client = shuffleClient.getDataClientFactory().createClient(
+            worker.locations.head.getHost,
+            worker.locations.head.getFetchPort)
+          val request = PbOpenCoalescedStream.newBuilder()
+            .setShuffleKey(shuffleKey)
+            .setMaxChunkBytes(conf.clientCoalescedRemoteReadChunkSize)
+          worker.entries.foreach { entry =>
             // Keep request entries in the same order Spark will later consume reducers. One worker
             // stream is shared across those reducer readers, so the client relies on monotonic chunk
             // consumption through that stream.
-            locations.add(location)
             request.addEntry(PbCoalescedStreamEntry.newBuilder()
-              .setFileName(location.getFileName)
-              .setReducerId(partitionId)
+              .setFileName(entry.location.getFileName)
+              .setReducerId(entry.partitionId)
               .setStartIndex(startMapIndex)
               .setEndIndex(endMapIndex)
               .setReadLocalShuffle(false))
           }
-        }
-
-        workerRequests.values().asScala.foreach { entry =>
-          val (client, locations, request) = entry
           val response = client.sendRpcSync(
             new TransportMessage(
               MessageType.OPEN_COALESCED_STREAM,
@@ -302,64 +260,69 @@ class CelebornShuffleReader[K, C](
             fetchTimeoutMs)
           val handler = TransportMessage.fromByteBuffer(response)
             .getParsedPayload[PbCoalescedStreamHandler]
-          if (handler.getBoundariesCount != locations.size()) {
-            CelebornShuffleReader.closeChunkStream(client, handler.getStreamId)
+          streamId = handler.getStreamId
+          if (handler.getBoundariesCount != worker.entries.size) {
             throw new CelebornIOException(
-              s"Expected ${locations.size()} coalesced boundaries from $shuffleKey, " +
+              s"Expected ${worker.entries.size} coalesced boundaries from $shuffleKey, " +
                 s"got ${handler.getBoundariesCount}")
+          }
+          0 until handler.getBoundariesCount foreach { idx =>
+            val boundary = handler.getBoundaries(idx)
+            val entry = worker.entries(idx)
+            if (boundary.getFileName != entry.location.getFileName ||
+              boundary.getReducerId != entry.partitionId) {
+              throw new CelebornIOException(
+                s"Unexpected coalesced boundary at index $idx for $shuffleKey")
+            }
           }
           val sharedStream =
             try {
               new SharedCoalescedStream(
                 conf,
                 shuffleKey,
-                locations.get(0),
+                worker.locations.head,
                 request.build(),
                 handler,
                 shuffleClient.getDataClientFactory(),
                 metricsCallback)
             } catch {
               case e: Exception =>
-                CelebornShuffleReader.closeChunkStream(client, handler.getStreamId)
                 throw e
             }
           coalescedStreams.add(sharedStream)
           0 until handler.getBoundariesCount foreach { idx =>
             val boundary = handler.getBoundaries(idx)
-            val location = locations.get(idx)
-            // The worker must describe the same ordered entry list we sent. Reducer readers keep
-            // these boundaries for their lifetime, including retries after a shared-stream reopen.
-            if (boundary.getFileName != location.getFileName ||
-              boundary.getReducerId != location.getId) {
-              throw new CelebornIOException(
-                s"Unexpected coalesced boundary at index $idx for $shuffleKey")
-            }
+            val location = worker.entries(idx).location
             CelebornShuffleReader.addCoalescedPartitionInfo(
               coalescedPartitionInfos,
               location,
               sharedStream,
               boundary)
           }
+          partCnt += worker.entries.size
+        } catch {
+          case e: Exception =>
+            if (client != null && streamId >= 0) {
+              CelebornShuffleReader.closeChunkStream(client, streamId)
+            }
+            logInfo(
+              s"Falling back from coalesced fetch for $shuffleKey on worker ${worker.hostPort}",
+              e)
         }
-        context.addTaskCompletionListener[Unit](_ => coalescedStreams.asScala.foreach(_.close()))
-        true
-      } catch {
-        case e: Exception =>
-          logInfo(s"Falling back from coalesced fetch for $shuffleKey", e)
-          coalescedStreams.asScala.foreach(_.close())
-          coalescedPartitionInfos.clear()
-          false
       }
+      if (!coalescedStreams.isEmpty) {
+        context.addTaskCompletionListener[Unit](_ => coalescedStreams.asScala.foreach(_.close()))
+      }
+      !coalescedStreams.isEmpty
     }
 
-    val useCoalescedFetch =
-      conf.clientCoalescedRemoteReadEnabled && tryOpenCoalescedStreams()
-    if (useCoalescedFetch) {
-      partCnt = partitionIdList.size
-    }
+    val hasCoalescedFetch = tryOpenCoalescedStreams()
 
-    def makeOpenStreamList(locations: JSet[PartitionLocation]): Unit = {
-      locations.asScala.foreach { location =>
+    def hasCoalescedInfo(partitionId: Int, location: PartitionLocation): Boolean =
+      Option(coalescedPartitionInfos.get(partitionId)).exists(_.containsKey(location.getUniqueId))
+
+    def makeOpenStreamList(locations: Iterable[PartitionLocation]): Unit = {
+      locations.foreach { location =>
         partCnt += 1
         val hostPort = location.hostAndFetchPort
         if (!workerRequestMap.containsKey(hostPort)) {
@@ -412,9 +375,7 @@ class CelebornShuffleReader[K, C](
           locations = filterLocations.asJava
           partitionId2PartitionLocations.put(partitionId, locations)
         }
-        if (!useCoalescedFetch) {
-          makeOpenStreamList(locations)
-        }
+        makeOpenStreamList(locations.asScala.filterNot(hasCoalescedInfo(partitionId, _)))
       }
     }
 
@@ -471,9 +432,7 @@ class CelebornShuffleReader[K, C](
           new JArrayList[PartitionLocation](locations)
         }
       val streamHandlers =
-        if (useCoalescedFetch) {
-          null
-        } else if (locations != null) {
+        if (locations != null) {
           val streamHandlerArr = new JArrayList[PbStreamHandler](locationList.size)
           locationList.asScala.foreach { loc =>
             streamHandlerArr.add(locationStreamHandlerMap.get(loc))
@@ -496,7 +455,7 @@ class CelebornShuffleReader[K, C](
             streamHandlers,
             fileGroups.pushFailedBatches,
             partitionId2ChunkRange.get(partitionId),
-            if (useCoalescedFetch) coalescedPartitionInfos.get(partitionId) else null,
+            coalescedPartitionInfos.get(partitionId),
             fileGroups.mapAttempts,
             metricsCallback,
             needDecompress)
@@ -513,7 +472,7 @@ class CelebornShuffleReader[K, C](
     }
 
     val inputStreamCreationWindow = conf.clientInputStreamCreationWindow
-    if (!useCoalescedFetch) {
+    if (!hasCoalescedFetch) {
       (0 until Math.min(inputStreamCreationWindow, partitionIdList.size)).foreach(listIndex => {
         streamCreatorPool.submit(new Runnable {
           override def run(): Unit = {
@@ -526,7 +485,7 @@ class CelebornShuffleReader[K, C](
     var curIndex = 0
     val recordIter = partitionIdList.iterator.map(partitionId => {
       if (handle.numMappers > 0) {
-        if (useCoalescedFetch && streams.get(partitionId) == null) {
+        if (hasCoalescedFetch && streams.get(partitionId) == null) {
           // Coalesced reducers share one worker stream per host, so create each input stream only
           // when Spark reaches that reducer. This preserves the request order expected by
           // SharedCoalescedStream's monotonic chunk consumption contract.
@@ -560,7 +519,7 @@ class CelebornShuffleReader[K, C](
         context.addTaskCompletionListener[Unit](_ => inputStream.close())
 
         // Advance the input creation window
-        if (!useCoalescedFetch && curIndex + inputStreamCreationWindow < partitionIdList.size) {
+        if (!hasCoalescedFetch && curIndex + inputStreamCreationWindow < partitionIdList.size) {
           val nextPartitionId = partitionIdList(curIndex + inputStreamCreationWindow)
           streamCreatorPool.submit(new Runnable {
             override def run(): Unit = {
@@ -709,6 +668,62 @@ object CelebornShuffleReader {
   var streamCreatorPool: ThreadPoolExecutor = null
 
   private val NOOP_METRIC_UPDATE: Long => Unit = _ => ()
+
+  private[celeborn] case class CoalescedWorkerEntry(
+      partitionId: Int,
+      location: PartitionLocation)
+
+  private[celeborn] case class CoalescedWorkerRead(
+      hostPort: String,
+      entries: Seq[CoalescedWorkerEntry]) {
+    def locations: Seq[PartitionLocation] = entries.map(_.location)
+  }
+
+  private[celeborn] def selectCoalescedWorkerReads(
+      partitionIds: Seq[Int],
+      partitionGroups: JMap[Integer, JSet[PartitionLocation]],
+      maxBytesPerWorker: Long,
+      localFetchEnabled: Boolean,
+      localHostAddress: String): Seq[CoalescedWorkerRead] = {
+    val entriesByWorker =
+      mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[CoalescedWorkerEntry]]
+    partitionIds.foreach { partitionId =>
+      Option(partitionGroups.get(partitionId)).foreach { locations =>
+        locations.asScala.foreach { location =>
+          val entries = entriesByWorker.getOrElseUpdate(
+            location.hostAndFetchPort,
+            mutable.ArrayBuffer.empty[CoalescedWorkerEntry])
+          entries += CoalescedWorkerEntry(partitionId, location)
+        }
+      }
+    }
+
+    entriesByWorker.iterator.flatMap { case (hostPort, entries) =>
+      val totalBytes = entries.map(_.location.getStorageInfo.getFileSize).sum
+      if (entries.nonEmpty &&
+        totalBytes > 0 &&
+        totalBytes <= maxBytesPerWorker &&
+        entries.forall(entry =>
+          isCoalescedLocationEligible(entry.location, localFetchEnabled, localHostAddress))) {
+        Some(CoalescedWorkerRead(hostPort, entries.toSeq))
+      } else {
+        None
+      }
+    }.toSeq
+  }
+
+  private def isCoalescedLocationEligible(
+      location: PartitionLocation,
+      localFetchEnabled: Boolean,
+      localHostAddress: String): Boolean = {
+    location.getStorageInfo.isFinalResult &&
+    !location.hasPeer &&
+    !(localFetchEnabled && location.getHost.equals(localHostAddress)) &&
+    (location.getStorageInfo.getType match {
+      case StorageInfo.Type.HDD | StorageInfo.Type.SSD => true
+      case _ => false
+    })
+  }
 
   private[celeborn] def addCoalescedPartitionInfo(
       infos: JMap[Int, JMap[String, CoalescedPartitionInfo]],

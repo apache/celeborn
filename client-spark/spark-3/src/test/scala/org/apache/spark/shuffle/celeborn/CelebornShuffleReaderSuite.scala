@@ -18,7 +18,7 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.nio.file.Files
-import java.util.{HashMap => JHashMap, Map => JMap}
+import java.util.{HashMap => JHashMap, HashSet => JHashSet, Map => JMap, Set => JSet}
 import java.util.concurrent.TimeoutException
 
 import org.apache.spark.{Dependency, ShuffleDependency, TaskContext}
@@ -35,7 +35,7 @@ import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.network.protocol.TransportMessage
-import org.apache.celeborn.common.protocol.{MessageType, PartitionLocation, PbCoalescedChunkBoundary, StreamType}
+import org.apache.celeborn.common.protocol.{MessageType, PartitionLocation, PbCoalescedChunkBoundary, StorageInfo, StreamType}
 
 class CelebornShuffleReaderSuite extends AnyFunSuite {
 
@@ -237,5 +237,73 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
     val payload = message.getParsedPayload[org.apache.celeborn.common.protocol.PbBufferStreamEnd]
     assert(payload.getStreamId === 17L)
     assert(payload.getStreamType === StreamType.ChunkStream)
+  }
+
+  test("select coalesced worker reads independently per worker") {
+    val worker0Partition0 = newLocation(0, "worker-0", 19098, 10L)
+    val worker0Partition1 = newLocation(1, "worker-0", 19098, 20L)
+    val worker1Partition0 = newLocation(0, "worker-1", 19098, 100L)
+    val worker1Partition1 = newLocation(1, "worker-1", 19098, 101L)
+    val partitionGroups = new JHashMap[Integer, JSet[PartitionLocation]]()
+    partitionGroups.put(0, newLocationSet(worker0Partition0, worker1Partition0))
+    partitionGroups.put(1, newLocationSet(worker0Partition1, worker1Partition1))
+
+    val workers = CelebornShuffleReader.selectCoalescedWorkerReads(
+      Seq(0, 1),
+      partitionGroups,
+      maxBytesPerWorker = 100L,
+      localFetchEnabled = false,
+      localHostAddress = "reducer-host")
+
+    assert(workers.map(_.hostPort) === Seq("worker-0:19098"))
+    assert(workers.head.entries.map(_.partitionId) === Seq(0, 1))
+    assert(workers.head.locations === Seq(worker0Partition0, worker0Partition1))
+  }
+
+  test("skip one worker without disabling coalesced reads for other workers") {
+    val eligible = newLocation(0, "worker-0", 19098, 10L)
+    val ineligible = newLocation(0, "reducer-host", 19098, 10L)
+    val partitionGroups = new JHashMap[Integer, JSet[PartitionLocation]]()
+    partitionGroups.put(0, newLocationSet(eligible, ineligible))
+
+    val workers = CelebornShuffleReader.selectCoalescedWorkerReads(
+      Seq(0),
+      partitionGroups,
+      maxBytesPerWorker = 100L,
+      localFetchEnabled = true,
+      localHostAddress = "reducer-host")
+
+    assert(workers.map(_.hostPort) === Seq("worker-0:19098"))
+  }
+
+  private def newLocation(
+      id: Int,
+      host: String,
+      fetchPort: Int,
+      fileSize: Long): PartitionLocation = {
+    val location = new PartitionLocation(
+      id,
+      0,
+      host,
+      0,
+      0,
+      fetchPort,
+      0,
+      PartitionLocation.Mode.PRIMARY)
+    location.setStorageInfo(new StorageInfo(
+      StorageInfo.Type.HDD,
+      "",
+      true,
+      s"/tmp/$host-$id",
+      StorageInfo.LOCAL_DISK_MASK,
+      fileSize,
+      null))
+    location
+  }
+
+  private def newLocationSet(locations: PartitionLocation*): JSet[PartitionLocation] = {
+    val set = new JHashSet[PartitionLocation]()
+    locations.foreach(set.add)
+    set
   }
 }
