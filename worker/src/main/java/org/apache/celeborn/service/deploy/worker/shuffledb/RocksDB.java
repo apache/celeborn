@@ -33,9 +33,9 @@ public class RocksDB implements DB {
   private final WriteOptions SYNC_WRITE_OPTIONS = new WriteOptions().setSync(true);
   private final MetadataMetrics metrics;
 
-  public RocksDB(org.rocksdb.RocksDB db, AbstractSource source) {
+  public RocksDB(org.rocksdb.RocksDB db, AbstractSource source, DBBackend dbBackend) {
     this.db = db;
-    this.metrics = new MetadataMetrics(source);
+    this.metrics = new MetadataMetrics(source, dbBackend);
   }
 
   @Override

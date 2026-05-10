@@ -41,6 +41,7 @@ import org.apache.celeborn.service.deploy.worker.WorkerSource;
 public class MetadataMetricsSuiteJ {
 
   private static final String METRIC = WorkerSource.METADATA_OPERATION_STATUS_COUNT();
+  private static final String BACKEND = "rocksdb";
 
   private WorkerSource mockSource;
 
@@ -51,12 +52,12 @@ public class MetadataMetricsSuiteJ {
 
   @Test
   public void nullSourceConstructorDoesNotThrow() {
-    new MetadataMetrics(null);
+    new MetadataMetrics(null, DBBackend.ROCKSDB);
   }
 
   @Test
   public void nullSourceOnWriteStillExecutesAction() {
-    MetadataMetrics metrics = new MetadataMetrics(null);
+    MetadataMetrics metrics = new MetadataMetrics(null, DBBackend.ROCKSDB);
     AtomicInteger invocations = new AtomicInteger();
 
     metrics.onWrite(invocations::incrementAndGet);
@@ -66,7 +67,7 @@ public class MetadataMetricsSuiteJ {
 
   @Test
   public void nullSourceOnReadSupplierStillReturnsValue() {
-    MetadataMetrics metrics = new MetadataMetrics(null);
+    MetadataMetrics metrics = new MetadataMetrics(null, DBBackend.ROCKSDB);
 
     byte[] result = metrics.onRead((MetadataMetrics.ThrowingSupplier<byte[]>) () -> new byte[] {7});
 
@@ -75,7 +76,7 @@ public class MetadataMetricsSuiteJ {
 
   @Test
   public void nullSourceFailureStillRethrows() {
-    MetadataMetrics metrics = new MetadataMetrics(null);
+    MetadataMetrics metrics = new MetadataMetrics(null, DBBackend.ROCKSDB);
     RocksDBException cause = new RocksDBException("test");
 
     RuntimeException thrown =
@@ -92,29 +93,40 @@ public class MetadataMetricsSuiteJ {
 
   @Test
   public void constructorRegistersAllFourLabelCombinations() {
-    new MetadataMetrics(mockSource);
+    new MetadataMetrics(mockSource, DBBackend.ROCKSDB);
 
-    verify(mockSource).addCounter(METRIC, WorkerSource.WRITE_SUCCESS_COUNT_LABELS());
-    verify(mockSource).addCounter(METRIC, WorkerSource.WRITE_FAIL_COUNT_LABELS());
-    verify(mockSource).addCounter(METRIC, WorkerSource.READ_SUCCESS_COUNT_LABELS());
-    verify(mockSource).addCounter(METRIC, WorkerSource.READ_FAIL_COUNT_LABELS());
+    verify(mockSource).addCounter(METRIC, WorkerSource.WRITE_SUCCESS_COUNT_LABELS(BACKEND));
+    verify(mockSource).addCounter(METRIC, WorkerSource.WRITE_FAIL_COUNT_LABELS(BACKEND));
+    verify(mockSource).addCounter(METRIC, WorkerSource.READ_SUCCESS_COUNT_LABELS(BACKEND));
+    verify(mockSource).addCounter(METRIC, WorkerSource.READ_FAIL_COUNT_LABELS(BACKEND));
+  }
+
+  @Test
+  public void constructorUsesProvidedBackendForLabelValue() {
+    new MetadataMetrics(mockSource, DBBackend.LEVELDB);
+
+    verify(mockSource).addCounter(METRIC, WorkerSource.WRITE_SUCCESS_COUNT_LABELS("leveldb"));
+    verify(mockSource).addCounter(METRIC, WorkerSource.WRITE_FAIL_COUNT_LABELS("leveldb"));
+    verify(mockSource).addCounter(METRIC, WorkerSource.READ_SUCCESS_COUNT_LABELS("leveldb"));
+    verify(mockSource).addCounter(METRIC, WorkerSource.READ_FAIL_COUNT_LABELS("leveldb"));
   }
 
   @Test
   public void onWriteRunnableSuccessIncrementsWriteSuccessCounter() {
-    MetadataMetrics metrics = new MetadataMetrics(mockSource);
+    MetadataMetrics metrics = new MetadataMetrics(mockSource, DBBackend.ROCKSDB);
     AtomicInteger invocations = new AtomicInteger();
 
     metrics.onWrite(invocations::incrementAndGet);
 
     assertEquals(1, invocations.get());
-    verify(mockSource).incCounter(METRIC, 1L, WorkerSource.WRITE_SUCCESS_COUNT_LABELS());
-    verify(mockSource, never()).incCounter(METRIC, 1L, WorkerSource.WRITE_FAIL_COUNT_LABELS());
+    verify(mockSource).incCounter(METRIC, 1L, WorkerSource.WRITE_SUCCESS_COUNT_LABELS(BACKEND));
+    verify(mockSource, never())
+        .incCounter(METRIC, 1L, WorkerSource.WRITE_FAIL_COUNT_LABELS(BACKEND));
   }
 
   @Test
   public void onWriteRunnableRocksDBExceptionIsWrappedAndFailCounted() {
-    MetadataMetrics metrics = new MetadataMetrics(mockSource);
+    MetadataMetrics metrics = new MetadataMetrics(mockSource, DBBackend.ROCKSDB);
     RocksDBException cause = new RocksDBException("test");
 
     RuntimeException thrown =
@@ -127,13 +139,14 @@ public class MetadataMetricsSuiteJ {
                     }));
 
     assertSame(cause, thrown.getCause());
-    verify(mockSource).incCounter(METRIC, 1L, WorkerSource.WRITE_FAIL_COUNT_LABELS());
-    verify(mockSource, never()).incCounter(METRIC, 1L, WorkerSource.WRITE_SUCCESS_COUNT_LABELS());
+    verify(mockSource).incCounter(METRIC, 1L, WorkerSource.WRITE_FAIL_COUNT_LABELS(BACKEND));
+    verify(mockSource, never())
+        .incCounter(METRIC, 1L, WorkerSource.WRITE_SUCCESS_COUNT_LABELS(BACKEND));
   }
 
   @Test
   public void onWriteRunnableRuntimeExceptionPropagatesUnwrapped() {
-    MetadataMetrics metrics = new MetadataMetrics(mockSource);
+    MetadataMetrics metrics = new MetadataMetrics(mockSource, DBBackend.ROCKSDB);
     IllegalStateException original = new IllegalStateException("test");
 
     IllegalStateException thrown =
@@ -146,21 +159,21 @@ public class MetadataMetricsSuiteJ {
                     }));
 
     assertSame(original, thrown);
-    verify(mockSource).incCounter(METRIC, 1L, WorkerSource.WRITE_FAIL_COUNT_LABELS());
+    verify(mockSource).incCounter(METRIC, 1L, WorkerSource.WRITE_FAIL_COUNT_LABELS(BACKEND));
   }
 
   @Test
   public void onReadRunnableSuccessIncrementsReadSuccessCounter() {
-    MetadataMetrics metrics = new MetadataMetrics(mockSource);
+    MetadataMetrics metrics = new MetadataMetrics(mockSource, DBBackend.ROCKSDB);
 
     metrics.onRead((MetadataMetrics.ThrowingRunnable) () -> {});
 
-    verify(mockSource).incCounter(METRIC, 1L, WorkerSource.READ_SUCCESS_COUNT_LABELS());
+    verify(mockSource).incCounter(METRIC, 1L, WorkerSource.READ_SUCCESS_COUNT_LABELS(BACKEND));
   }
 
   @Test
   public void onReadRunnableFailureIncrementsReadFailCounter() {
-    MetadataMetrics metrics = new MetadataMetrics(mockSource);
+    MetadataMetrics metrics = new MetadataMetrics(mockSource, DBBackend.ROCKSDB);
     RocksDBException cause = new RocksDBException("test");
 
     RuntimeException thrown =
@@ -174,23 +187,23 @@ public class MetadataMetricsSuiteJ {
                         }));
 
     assertSame(cause, thrown.getCause());
-    verify(mockSource).incCounter(METRIC, 1L, WorkerSource.READ_FAIL_COUNT_LABELS());
+    verify(mockSource).incCounter(METRIC, 1L, WorkerSource.READ_FAIL_COUNT_LABELS(BACKEND));
   }
 
   @Test
   public void onReadSupplierReturnsValueOnSuccess() {
-    MetadataMetrics metrics = new MetadataMetrics(mockSource);
+    MetadataMetrics metrics = new MetadataMetrics(mockSource, DBBackend.ROCKSDB);
     byte[] expected = new byte[] {1, 2, 3};
 
     byte[] result = metrics.onRead((MetadataMetrics.ThrowingSupplier<byte[]>) () -> expected);
 
     assertSame(expected, result);
-    verify(mockSource).incCounter(METRIC, 1L, WorkerSource.READ_SUCCESS_COUNT_LABELS());
+    verify(mockSource).incCounter(METRIC, 1L, WorkerSource.READ_SUCCESS_COUNT_LABELS(BACKEND));
   }
 
   @Test
   public void onReadSupplierFailureIncrementsReadFailCounter() {
-    MetadataMetrics metrics = new MetadataMetrics(mockSource);
+    MetadataMetrics metrics = new MetadataMetrics(mockSource, DBBackend.ROCKSDB);
     RocksDBException cause = new RocksDBException("test");
 
     RuntimeException thrown =
@@ -204,19 +217,21 @@ public class MetadataMetricsSuiteJ {
                         }));
 
     assertSame(cause, thrown.getCause());
-    verify(mockSource).incCounter(METRIC, 1L, WorkerSource.READ_FAIL_COUNT_LABELS());
+    verify(mockSource).incCounter(METRIC, 1L, WorkerSource.READ_FAIL_COUNT_LABELS(BACKEND));
   }
 
   @Test
   public void multipleOpsAccumulateCounterIncrements() {
-    MetadataMetrics metrics = new MetadataMetrics(mockSource);
+    MetadataMetrics metrics = new MetadataMetrics(mockSource, DBBackend.ROCKSDB);
 
     metrics.onWrite(() -> {});
     metrics.onWrite(() -> {});
     metrics.onRead((MetadataMetrics.ThrowingRunnable) () -> {});
 
-    verify(mockSource, times(2)).incCounter(METRIC, 1L, WorkerSource.WRITE_SUCCESS_COUNT_LABELS());
-    verify(mockSource, times(1)).incCounter(METRIC, 1L, WorkerSource.READ_SUCCESS_COUNT_LABELS());
+    verify(mockSource, times(2))
+        .incCounter(METRIC, 1L, WorkerSource.WRITE_SUCCESS_COUNT_LABELS(BACKEND));
+    verify(mockSource, times(1))
+        .incCounter(METRIC, 1L, WorkerSource.READ_SUCCESS_COUNT_LABELS(BACKEND));
   }
 
   /**
@@ -227,7 +242,7 @@ public class MetadataMetricsSuiteJ {
   public void endToEndRealWorkerSourceTracksCounts() {
     WorkerSource source = new WorkerSource(new CelebornConf());
     try {
-      MetadataMetrics metrics = new MetadataMetrics(source);
+      MetadataMetrics metrics = new MetadataMetrics(source, DBBackend.ROCKSDB);
 
       metrics.onWrite(() -> {});
       metrics.onWrite(() -> {});
@@ -240,10 +255,10 @@ public class MetadataMetricsSuiteJ {
                     throw new RocksDBException("fail");
                   }));
 
-      assertEquals(2L, counterCount(source, WorkerSource.WRITE_SUCCESS_COUNT_LABELS()));
-      assertEquals(1L, counterCount(source, WorkerSource.WRITE_FAIL_COUNT_LABELS()));
-      assertEquals(1L, counterCount(source, WorkerSource.READ_SUCCESS_COUNT_LABELS()));
-      assertEquals(0L, counterCount(source, WorkerSource.READ_FAIL_COUNT_LABELS()));
+      assertEquals(2L, counterCount(source, WorkerSource.WRITE_SUCCESS_COUNT_LABELS(BACKEND)));
+      assertEquals(1L, counterCount(source, WorkerSource.WRITE_FAIL_COUNT_LABELS(BACKEND)));
+      assertEquals(1L, counterCount(source, WorkerSource.READ_SUCCESS_COUNT_LABELS(BACKEND)));
+      assertEquals(0L, counterCount(source, WorkerSource.READ_FAIL_COUNT_LABELS(BACKEND)));
     } finally {
       source.destroy();
     }

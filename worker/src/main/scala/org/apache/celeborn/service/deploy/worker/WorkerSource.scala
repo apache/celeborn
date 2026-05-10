@@ -74,10 +74,8 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   addCounter(S3_FLUSH_COUNT)
   addCounter(S3_FLUSH_SIZE)
 
-  addCounter(METADATA_OPERATION_STATUS_COUNT, WRITE_FAIL_COUNT_LABELS)
-  addCounter(METADATA_OPERATION_STATUS_COUNT, WRITE_SUCCESS_COUNT_LABELS)
-  addCounter(METADATA_OPERATION_STATUS_COUNT, READ_FAIL_COUNT_LABELS)
-  addCounter(METADATA_OPERATION_STATUS_COUNT, READ_SUCCESS_COUNT_LABELS)
+  // Counters with the dbBackend label are registered lazily by MetadataMetrics once a DB is
+  // initialized, since the backend is selected from configuration and is not known here.
 
   // add timers
   addTimer(COMMIT_FILES_TIME)
@@ -303,14 +301,16 @@ object WorkerSource {
 
   val SUCCESS_STATUS_LABEL = Map("status" -> "success")
   val FAIL_STATUS_LABEL = Map("status" -> "fail")
-  val ROCKSDB_BACKEND_LABEL = Map("dbBackend" -> "rocksdb")
 
-  val WRITE_FAIL_COUNT_LABELS =
-    WRITE_OPERATION_LABEL ++ FAIL_STATUS_LABEL ++ ROCKSDB_BACKEND_LABEL
-  val WRITE_SUCCESS_COUNT_LABELS =
-    WRITE_OPERATION_LABEL ++ SUCCESS_STATUS_LABEL ++ ROCKSDB_BACKEND_LABEL
-  val READ_FAIL_COUNT_LABELS =
-    READ_OPERATION_LABEL ++ FAIL_STATUS_LABEL ++ ROCKSDB_BACKEND_LABEL
-  val READ_SUCCESS_COUNT_LABELS =
-    READ_OPERATION_LABEL ++ SUCCESS_STATUS_LABEL ++ ROCKSDB_BACKEND_LABEL
+  def dbBackendLabel(dbBackend: String): Map[String, String] =
+    Map("dbBackend" -> dbBackend)
+
+  def WRITE_FAIL_COUNT_LABELS(dbBackend: String): Map[String, String] =
+    WRITE_OPERATION_LABEL ++ FAIL_STATUS_LABEL ++ dbBackendLabel(dbBackend)
+  def WRITE_SUCCESS_COUNT_LABELS(dbBackend: String): Map[String, String] =
+    WRITE_OPERATION_LABEL ++ SUCCESS_STATUS_LABEL ++ dbBackendLabel(dbBackend)
+  def READ_FAIL_COUNT_LABELS(dbBackend: String): Map[String, String] =
+    READ_OPERATION_LABEL ++ FAIL_STATUS_LABEL ++ dbBackendLabel(dbBackend)
+  def READ_SUCCESS_COUNT_LABELS(dbBackend: String): Map[String, String] =
+    READ_OPERATION_LABEL ++ SUCCESS_STATUS_LABEL ++ dbBackendLabel(dbBackend)
 }

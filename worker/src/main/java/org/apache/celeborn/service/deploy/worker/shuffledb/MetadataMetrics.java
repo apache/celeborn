@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.service.deploy.worker.shuffledb;
 
+import java.util.Locale;
+
 import scala.collection.immutable.Map;
 
 import org.rocksdb.RocksDBException;
@@ -43,20 +45,28 @@ class MetadataMetrics {
   }
 
   private final AbstractSource source;
+  private final Map<String, String> writeSuccessLabels;
+  private final Map<String, String> writeFailLabels;
+  private final Map<String, String> readSuccessLabels;
+  private final Map<String, String> readFailLabels;
 
-  MetadataMetrics(AbstractSource source) {
+  MetadataMetrics(AbstractSource source, DBBackend dbBackend) {
     // A null source disables metrics but does not break DB operations: missing telemetry is
     // strictly preferable to failing every read/write. When non-null, idempotently register
-    // the four label combinations so callers that have not pre-registered these counters do
-    // not log a "Metric not found!" warning on every op (addCounter is putIfAbsent, so it is
-    // safe to call even when WorkerSource has already registered them).
+    // the four label combinations so callers see the counters even before the first op
+    // (addCounter is putIfAbsent, so the call is safe even if something else registered them).
     this.source = source;
+    String backend = dbBackend.name().toLowerCase(Locale.ROOT);
+    this.writeSuccessLabels = WorkerSource.WRITE_SUCCESS_COUNT_LABELS(backend);
+    this.writeFailLabels = WorkerSource.WRITE_FAIL_COUNT_LABELS(backend);
+    this.readSuccessLabels = WorkerSource.READ_SUCCESS_COUNT_LABELS(backend);
+    this.readFailLabels = WorkerSource.READ_FAIL_COUNT_LABELS(backend);
     if (source != null) {
       String name = WorkerSource.METADATA_OPERATION_STATUS_COUNT();
-      source.addCounter(name, WorkerSource.WRITE_SUCCESS_COUNT_LABELS());
-      source.addCounter(name, WorkerSource.WRITE_FAIL_COUNT_LABELS());
-      source.addCounter(name, WorkerSource.READ_SUCCESS_COUNT_LABELS());
-      source.addCounter(name, WorkerSource.READ_FAIL_COUNT_LABELS());
+      source.addCounter(name, writeSuccessLabels);
+      source.addCounter(name, writeFailLabels);
+      source.addCounter(name, readSuccessLabels);
+      source.addCounter(name, readFailLabels);
     }
   }
 
@@ -66,8 +76,8 @@ class MetadataMetrics {
           action.run();
           return null;
         },
-        WorkerSource.WRITE_SUCCESS_COUNT_LABELS(),
-        WorkerSource.WRITE_FAIL_COUNT_LABELS());
+        writeSuccessLabels,
+        writeFailLabels);
   }
 
   void onRead(ThrowingRunnable action) {
@@ -76,13 +86,12 @@ class MetadataMetrics {
           action.run();
           return null;
         },
-        WorkerSource.READ_SUCCESS_COUNT_LABELS(),
-        WorkerSource.READ_FAIL_COUNT_LABELS());
+        readSuccessLabels,
+        readFailLabels);
   }
 
   <T> T onRead(ThrowingSupplier<T> action) {
-    return record(
-        action, WorkerSource.READ_SUCCESS_COUNT_LABELS(), WorkerSource.READ_FAIL_COUNT_LABELS());
+    return record(action, readSuccessLabels, readFailLabels);
   }
 
   private <T> T record(
