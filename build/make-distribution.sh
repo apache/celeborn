@@ -146,7 +146,7 @@ function build_service {
   # Store the command as an array because $MVN variable might have spaces in it.
   # Normal quoting tricks don't work.
   # See: http://mywiki.wooledge.org/BashFAQ/050
-  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl master,worker,cli -am $@)
+  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl master,worker,cli,lifecycle-manager -am $@)
 
   # Actually build the jar
   echo -e "\nBuilding with..."
@@ -158,6 +158,7 @@ function build_service {
   mkdir -p "$DIST_DIR/master-jars"
   mkdir -p "$DIST_DIR/worker-jars"
   mkdir -p "$DIST_DIR/cli-jars"
+  mkdir -p "$DIST_DIR/lifecycle-manager-jars"
 
   ## Copy master jars
   cp "$PROJECT_DIR"/master/target/celeborn-master_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/master-jars/"
@@ -176,6 +177,11 @@ function build_service {
   cp "$PROJECT_DIR"/cli/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
   for jar in $(ls "$PROJECT_DIR/cli/target/scala-$SCALA_VERSION/jars"); do
     (cd $DIST_DIR/cli-jars; ln -snf "../jars/$jar" .)
+  done
+  ## Copy lifecycle-manager jars
+  cp "$PROJECT_DIR"/lifecycle-manager/target/celeborn-lifecycle-manager_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/lifecycle-manager-jars/"
+  for jar in $(ls "$DIST_DIR/jars"); do
+    (cd $DIST_DIR/lifecycle-manager-jars; ln -snf "../jars/$jar" .)
   done
 }
 
@@ -304,12 +310,13 @@ function sbt_build_service {
 
   "${BUILD_COMMAND[@]}"
 
-  $SBT "celeborn-master/copyJars;celeborn-worker/copyJars;celeborn-cli/copyJars"
+  $SBT "celeborn-master/copyJars;celeborn-worker/copyJars;celeborn-cli/copyJars;celeborn-lifecycle-manager/copyJars"
 
   mkdir -p "$DIST_DIR/jars"
   mkdir -p "$DIST_DIR/master-jars"
   mkdir -p "$DIST_DIR/worker-jars"
   mkdir -p "$DIST_DIR/cli-jars"
+  mkdir -p "$DIST_DIR/lifecycle-manager-jars"
 
   ## Copy master jars
   cp "$PROJECT_DIR"/master/target/scala-$SCALA_VERSION/celeborn-master_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/master-jars/"
@@ -328,6 +335,12 @@ function sbt_build_service {
   cp "$PROJECT_DIR"/cli/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
   for jar in $(ls "$PROJECT_DIR/cli/target/scala-$SCALA_VERSION/jars"); do
     (cd $DIST_DIR/cli-jars; ln -snf "../jars/$jar" .)
+  done
+  ## Copy lifecycle-manager jars
+  cp "$PROJECT_DIR"/lifecycle-manager/target/scala-$SCALA_VERSION/celeborn-lifecycle-manager_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/lifecycle-manager-jars/"
+  cp "$PROJECT_DIR"/lifecycle-manager/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
+  for jar in $(ls "$PROJECT_DIR/lifecycle-manager/target/scala-$SCALA_VERSION/jars"); do
+    (cd $DIST_DIR/lifecycle-manager-jars; ln -snf "../jars/$jar" .)
   done
 }
 
