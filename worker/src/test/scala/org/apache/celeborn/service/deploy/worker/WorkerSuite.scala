@@ -326,9 +326,9 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
     val mockedMasterClient = mockConstruction(classOf[MasterClient], mockInitializer)
     val argCaptor = ArgumentCaptor.forClass(classOf[PbRegisterWorker])
     val workerConf: Map[String, String] = Map(
-      CelebornConf.ACTIVE_STORAGE_TYPES.key -> "S3",
-      CelebornConf.S3_DIR.key -> "s3a://test-bucket-for-celeborn/",
-      CelebornConf.S3_ENDPOINT_REGION.key -> "test-region")
+      CelebornConf.ACTIVE_STORAGE_TYPES.key -> "HDFS",
+      CelebornConf.HDFS_DIR.key -> "file:///"
+    )
     setupMiniClusterWithRandomPorts(workerNum = 1, workerConf = workerConf);
 
     try {
@@ -341,7 +341,7 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
       Assert.assertEquals(2, registrationMessage.getDisksCount)
       val maybeS3DiskInfo = registrationMessage
         .getDisksList.asScala
-        .find(diskInfo => diskInfo.getStorageType == StorageInfo.Type.S3.getValue)
+        .find(diskInfo => diskInfo.getStorageType == StorageInfo.Type.HDFS.getValue)
       assert(maybeS3DiskInfo.nonEmpty)
     } catch {
       case e: Throwable => throw e;
