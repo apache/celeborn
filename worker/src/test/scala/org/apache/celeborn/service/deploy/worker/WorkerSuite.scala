@@ -327,8 +327,7 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
     val argCaptor = ArgumentCaptor.forClass(classOf[PbRegisterWorker])
     val workerConf: Map[String, String] = Map(
       CelebornConf.ACTIVE_STORAGE_TYPES.key -> "HDFS",
-      CelebornConf.HDFS_DIR.key -> "file:///"
-    )
+      CelebornConf.HDFS_DIR.key -> "file:///")
     setupMiniClusterWithRandomPorts(workerNum = 1, workerConf = workerConf);
 
     try {
