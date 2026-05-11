@@ -743,7 +743,6 @@ object CelebornClient {
 object CelebornService {
   lazy val service = Project("celeborn-service", file("service"))
     .dependsOn(CelebornCommon.common % "test->test;compile->compile")
-    .dependsOn(CelebornClient.client)
     .dependsOn(CelebornOpenApi.openApiClient)
     .settings (
       commonSettings,
