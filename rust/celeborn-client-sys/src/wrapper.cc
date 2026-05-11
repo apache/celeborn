@@ -4,6 +4,22 @@
 #include <string>
 #include <vector>
 
+// Access rust::Vec<T>::set_len which is private in cxx 1.x.
+// Uses the well-known C++ explicit-instantiation access technique (ISO 14882 §14.7.2)
+// to obtain a pointer-to-member for the private method, then invokes it.
+// This avoids per-byte push_back overhead when bulk-copying data into rust::Vec.
+namespace detail {
+using SetLenFn = void (rust::Vec<uint8_t>::*)(size_t);
+template <SetLenFn Fn> struct VecSetLenAccessor {
+  friend void vec_unsafe_set_len(rust::Vec<uint8_t>& v, size_t len) {
+    (v.*Fn)(len);
+  }
+};
+// The explicit instantiation is granted access to all members per the standard.
+template struct VecSetLenAccessor<&rust::Vec<uint8_t>::set_len>;
+void vec_unsafe_set_len(rust::Vec<uint8_t>& v, size_t len);
+} // namespace detail
+
 namespace celeborn_ffi {
 
 std::unique_ptr<ShuffleClientHandle> create_client(
@@ -136,10 +152,10 @@ rust::Vec<uint8_t> read_partition_full(
 
     rust::Vec<uint8_t> out;
     out.reserve(accumulated.size());
+    // SAFETY: reserve() allocated at least accumulated.size() bytes.
+    // memcpy writes into that region, then set_len makes them visible.
     std::memcpy(out.data(), accumulated.data(), accumulated.size());
-    // SAFETY: we just wrote exactly accumulated.size() bytes into the
-    // reserved-but-uninitialized region via memcpy above.
-    out.set_len(accumulated.size());
+    detail::vec_unsafe_set_len(out, accumulated.size());
     return out;
   } catch (const std::exception& e) {
     throw std::runtime_error(std::string("celeborn-ffi: ") + e.what());
