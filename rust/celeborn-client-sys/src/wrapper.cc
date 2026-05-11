@@ -1,4 +1,5 @@
 #include "wrapper.h"
+#include <cstring>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -112,9 +113,13 @@ rust::Vec<uint8_t> read_partition_full(
     auto stream = handle.client->readPartition(
         shuffle_id, partition_id, attempt_number, start_map_index, end_map_index);
 
-    rust::Vec<uint8_t> out;
-    out.reserve(64 * 1024);
-    std::vector<uint8_t> buf(64 * 1024);
+    // Accumulate into std::vector (memcpy-based insert) to avoid per-byte
+    // push_back overhead on rust::Vec during the read loop, then bulk-copy
+    // into rust::Vec via reserve_total + memcpy + set_len.
+    constexpr size_t kReadBufSize = 64 * 1024;
+    std::vector<uint8_t> accumulated;
+    accumulated.reserve(kReadBufSize);
+    std::vector<uint8_t> buf(kReadBufSize);
 
     while (true) {
       int n = stream->read(buf.data(), 0, buf.size());
@@ -126,10 +131,15 @@ rust::Vec<uint8_t> read_partition_full(
             "celeborn-ffi: CelebornInputStream::read returned unexpected non-positive " +
             std::to_string(n));
       }
-      for (int i = 0; i < n; ++i) {
-        out.push_back(buf[i]);
-      }
+      accumulated.insert(accumulated.end(), buf.data(), buf.data() + n);
     }
+
+    rust::Vec<uint8_t> out;
+    out.reserve(accumulated.size());
+    std::memcpy(out.data(), accumulated.data(), accumulated.size());
+    // SAFETY: we just wrote exactly accumulated.size() bytes into the
+    // reserved-but-uninitialized region via memcpy above.
+    out.set_len(accumulated.size());
     return out;
   } catch (const std::exception& e) {
     throw std::runtime_error(std::string("celeborn-ffi: ") + e.what());

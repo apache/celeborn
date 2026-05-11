@@ -143,14 +143,20 @@ impl ShuffleClient {
     /// leaked to avoid a SIGSEGV caused by folly's `EventBase` destruction race:
     /// `TransportClient` destructor posts a callback to an `EventBase` that may
     /// already be torn down by `IOThreadPoolExecutor::join()`.
+    ///
+    /// The handle is leaked **before** propagating any error so that `Drop`
+    /// cannot call `ffi::shutdown` a second time.
     pub fn shutdown(mut self) -> Result<()> {
-        if let Some(pinned) = self.inner.as_mut() {
-            ffi::shutdown(pinned)?;
-        }
-        // Leak the C++ handle to avoid folly EventBase use-after-free on destruction.
+        let result = match self.inner.as_mut() {
+            Some(pinned) => ffi::shutdown(pinned).map_err(Error::from),
+            None => Ok(()),
+        };
+        // Leak the C++ handle regardless of success/failure to avoid
+        // folly EventBase use-after-free on destruction and prevent
+        // Drop from calling ffi::shutdown a second time.
         Self::leak_inner(&mut self.inner);
         std::mem::forget(self);
-        Ok(())
+        result
     }
 
     /// Leak the UniquePtr without running C++ destructors.

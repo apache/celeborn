@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.lifecyclemanager
+package org.apache.celeborn.server.lifecyclemanager
 
 import scala.annotation.tailrec
 
@@ -29,6 +29,8 @@ private[lifecyclemanager] case class LifecycleManagerDaemonArguments(
     propertiesFile: Option[String])
 
 private[lifecyclemanager] object LifecycleManagerDaemonArguments {
+
+  private val MIN_USER_PORT = 1024
 
   def parse(args: Array[String]): LifecycleManagerDaemonArguments = {
     var appId: Option[String] = None
@@ -47,18 +49,11 @@ private[lifecyclemanager] object LifecycleManagerDaemonArguments {
         masterEndpoints = Some(value)
         doParse(tail)
 
-      case "--port" :: IntParam(value) :: tail =>
-        if (value < 1024) {
-          // scalastyle:off println
-          System.err.println(s"Error: --port must be >= 1024, got $value")
-          System.err.println(usage)
-          // scalastyle:on println
-          sys.exit(1)
-        }
+      case ("--port" | "-p") :: IntParam(value) :: tail =>
         port = Some(value)
         doParse(tail)
 
-      case "--host" :: value :: tail =>
+      case ("--host" | "-h") :: value :: tail =>
         host = Some(value)
         doParse(tail)
 
@@ -76,7 +71,7 @@ private[lifecyclemanager] object LifecycleManagerDaemonArguments {
 
       case unknown :: _ =>
         // scalastyle:off println
-        System.err.println(s"Error: Unknown argument '$unknown'")
+        System.err.println(s"Unknown argument: $unknown")
         System.err.println(usage)
         // scalastyle:on println
         sys.exit(1)
@@ -84,9 +79,30 @@ private[lifecyclemanager] object LifecycleManagerDaemonArguments {
 
     doParse(args.toList)
 
-    if (appId.isEmpty || masterEndpoints.isEmpty || port.isEmpty) {
+    if (appId.isEmpty) {
       // scalastyle:off println
-      System.err.println("Error: --app-id, --master-endpoints, and --port are required.")
+      System.err.println("Error: --app-id is required.")
+      System.err.println(usage)
+      // scalastyle:on println
+      sys.exit(1)
+    }
+    if (masterEndpoints.isEmpty) {
+      // scalastyle:off println
+      System.err.println("Error: --master-endpoints is required.")
+      System.err.println(usage)
+      // scalastyle:on println
+      sys.exit(1)
+    }
+    if (port.isEmpty) {
+      // scalastyle:off println
+      System.err.println("Error: --port is required.")
+      System.err.println(usage)
+      // scalastyle:on println
+      sys.exit(1)
+    }
+    if (port.get < MIN_USER_PORT) {
+      // scalastyle:off println
+      System.err.println(s"Error: --port must be >= $MIN_USER_PORT, got ${port.get}.")
       System.err.println(usage)
       // scalastyle:on println
       sys.exit(1)
@@ -104,10 +120,11 @@ private[lifecyclemanager] object LifecycleManagerDaemonArguments {
     """Usage: LifecycleManagerDaemon [options]
       |
       |Options:
-      |  --app-id ID              REQUIRED  Unique application id
-      |  --master-endpoints EPS   REQUIRED  Comma-separated host:port of Celeborn Masters
-      |  --port PORT              REQUIRED  Fixed RPC port to bind (must be >= 1024)
-      |  --host HOST              OPTIONAL  Bind host (default: local hostname)
-      |  --properties-file FILE   OPTIONAL  Path to celeborn-defaults.conf
+      |  --app-id ID                  Application unique identifier (required)
+      |  --master-endpoints ENDPOINTS Comma-separated master host:port list (required)
+      |  -p PORT, --port PORT         Port for LifecycleManager to listen on (required, >= 1024)
+      |  -h HOST, --host HOST         Hostname to bind (optional, default: auto-detect)
+      |  --properties-file FILE       Path to a custom Celeborn properties file,
+      |                               default is conf/celeborn-defaults.conf
       |""".stripMargin
 }

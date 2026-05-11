@@ -109,12 +109,13 @@ fi
 # Build classpath: conf + service jars + client jars + common jars
 CLASSPATH="${CELEBORN_CONF_DIR}"
 for dir in \
+  "${CELEBORN_HOME}/lifecycle-manager/target/"*.jar \
   "${CELEBORN_HOME}/service/target/"*.jar \
   "${CELEBORN_HOME}/client/target/"*.jar \
   "${CELEBORN_HOME}/common/target/"*.jar \
   "${CELEBORN_HOME}/spi/target/"*.jar \
   "${CELEBORN_HOME}/jars/"*.jar \
-  "${CELEBORN_HOME}/master-jars/"*.jar \
+  "${CELEBORN_HOME}/lifecycle-manager-jars/"*.jar \
   "${CELEBORN_HOME}/service-jars/"*.jar \
   "${CELEBORN_HOME}/client-jars/"*.jar; do
   if [ -e "$dir" ]; then
@@ -128,7 +129,7 @@ if [ -f "${CELEBORN_CONF_DIR}/log4j2.xml" ]; then
   CELEBORN_JAVA_OPTS="${CELEBORN_JAVA_OPTS} -Dlog4j2.configurationFile=file:${CELEBORN_CONF_DIR}/log4j2.xml"
 fi
 
-MAIN_CLASS="org.apache.celeborn.service.deploy.lifecyclemanager.LifecycleManagerDaemon"
+MAIN_CLASS="org.apache.celeborn.server.lifecyclemanager.LifecycleManagerDaemon"
 
 # --- Background execution ---
 LOG_DIR="${CELEBORN_HOME}/logs"
