@@ -21,22 +21,25 @@ import java.io.IOException;
 
 import org.iq80.leveldb.WriteOptions;
 
+import org.apache.celeborn.common.metrics.source.AbstractSource;
+
 /** Note: code copied from Apache Spark. */
-public class LevelDB implements DB {
+public class LevelDB extends DB {
   private final org.iq80.leveldb.DB db;
   private final WriteOptions SYNC_WRITE_OPTIONS = new WriteOptions().sync(true);
 
-  public LevelDB(org.iq80.leveldb.DB db) {
+  public LevelDB(org.iq80.leveldb.DB db, AbstractSource source, DBBackend dbBackend) {
+    super(source, dbBackend);
     this.db = db;
   }
 
   @Override
-  public void put(byte[] key, byte[] value) {
+  protected void putInternal(byte[] key, byte[] value) {
     db.put(key, value);
   }
 
   @Override
-  public void put(byte[] key, byte[] value, boolean sync) {
+  protected void putInternal(byte[] key, byte[] value, boolean sync) {
     if (sync) {
       db.put(key, value, SYNC_WRITE_OPTIONS);
     } else {
@@ -45,22 +48,22 @@ public class LevelDB implements DB {
   }
 
   @Override
-  public byte[] get(byte[] key) {
+  protected byte[] getInternal(byte[] key) {
     return db.get(key);
   }
 
   @Override
-  public void delete(byte[] key) {
+  protected void deleteInternal(byte[] key) {
     db.delete(key);
+  }
+
+  @Override
+  protected DBIterator newIterator(MetadataMetrics metrics) {
+    return new LevelDBIterator(db.iterator(), metrics);
   }
 
   @Override
   public void close() throws IOException {
     db.close();
-  }
-
-  @Override
-  public DBIterator iterator() {
-    return new LevelDBIterator(db.iterator());
   }
 }

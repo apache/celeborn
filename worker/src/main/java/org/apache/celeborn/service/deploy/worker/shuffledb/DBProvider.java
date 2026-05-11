@@ -37,7 +37,7 @@ public class DBProvider {
         case LEVELDB:
           org.iq80.leveldb.DB levelDB = LevelDBProvider.initLevelDB(dbFile, version);
           logger.warn("The LEVELDB is deprecated. Please use ROCKSDB instead.");
-          return levelDB != null ? new LevelDB(levelDB) : null;
+          return levelDB != null ? new LevelDB(levelDB, source, dbBackend) : null;
         case ROCKSDB:
           org.rocksdb.RocksDB rocksDB = RocksDBProvider.initRockDB(dbFile, version);
           return rocksDB != null ? new RocksDB(rocksDB, source, dbBackend) : null;

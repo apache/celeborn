@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.worker.shuffledb;
 
 import java.io.IOException;
 
+import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
 
 import org.apache.celeborn.common.metrics.source.AbstractSource;
@@ -28,45 +29,41 @@ import org.apache.celeborn.common.metrics.source.AbstractSource;
  *
  * <p>Note: code copied from Apache Spark.
  */
-public class RocksDB implements DB {
+public class RocksDB extends DB {
   private final org.rocksdb.RocksDB db;
   private final WriteOptions SYNC_WRITE_OPTIONS = new WriteOptions().setSync(true);
-  private final MetadataMetrics metrics;
 
   public RocksDB(org.rocksdb.RocksDB db, AbstractSource source, DBBackend dbBackend) {
+    super(source, dbBackend);
     this.db = db;
-    this.metrics = new MetadataMetrics(source, dbBackend);
   }
 
   @Override
-  public void put(byte[] key, byte[] value) {
-    metrics.onWrite(() -> db.put(key, value));
+  protected void putInternal(byte[] key, byte[] value) throws RocksDBException {
+    db.put(key, value);
   }
 
   @Override
-  public void put(byte[] key, byte[] value, boolean sync) {
-    metrics.onWrite(
-        () -> {
-          if (sync) {
-            db.put(SYNC_WRITE_OPTIONS, key, value);
-          } else {
-            db.put(key, value);
-          }
-        });
+  protected void putInternal(byte[] key, byte[] value, boolean sync) throws RocksDBException {
+    if (sync) {
+      db.put(SYNC_WRITE_OPTIONS, key, value);
+    } else {
+      db.put(key, value);
+    }
   }
 
   @Override
-  public byte[] get(byte[] key) {
-    return metrics.onRead(() -> db.get(key));
+  protected byte[] getInternal(byte[] key) throws RocksDBException {
+    return db.get(key);
   }
 
   @Override
-  public void delete(byte[] key) {
-    metrics.onWrite(() -> db.delete(key));
+  protected void deleteInternal(byte[] key) throws RocksDBException {
+    db.delete(key);
   }
 
   @Override
-  public DBIterator iterator() {
+  protected DBIterator newIterator(MetadataMetrics metrics) {
     return new RocksDBIterator(db.newIterator(), metrics);
   }
 

@@ -19,8 +19,6 @@ package org.apache.celeborn.service.deploy.worker.shuffledb;
 
 import scala.collection.immutable.Map;
 
-import org.rocksdb.RocksDBException;
-
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 
@@ -29,17 +27,21 @@ import org.apache.celeborn.service.deploy.worker.WorkerSource;
  *
  * <p>Callers express the operation kind (read or write) and the action; the recorder owns the
  * metric name, label selection, and the try/catch ceremony.
+ *
+ * <p>The functional interfaces declare {@code throws Exception} so that any backend (RocksDB,
+ * LevelDB, ...) can hand off its raw operation without leaking backend-specific exception types
+ * into this class.
  */
 class MetadataMetrics {
 
   @FunctionalInterface
   interface ThrowingRunnable {
-    void run() throws RocksDBException;
+    void run() throws Exception;
   }
 
   @FunctionalInterface
   interface ThrowingSupplier<T> {
-    T get() throws RocksDBException;
+    T get() throws Exception;
   }
 
   private final AbstractSource source;
@@ -99,7 +101,7 @@ class MetadataMetrics {
       T result = action.get();
       incCounter(successLabels);
       return result;
-    } catch (RocksDBException | RuntimeException e) {
+    } catch (Exception e) {
       incCounter(failLabels);
       if (e instanceof RuntimeException) {
         throw (RuntimeException) e;
