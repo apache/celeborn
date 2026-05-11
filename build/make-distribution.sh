@@ -179,6 +179,18 @@ function build_service {
     (cd $DIST_DIR/cli-jars; ln -snf "../jars/$jar" .)
   done
   ## Copy lifecycle-manager jars
+  # lifecycle-manager depends on celeborn-client which is not a dependency of master/worker,
+  # so we need to explicitly copy its dependencies into jars/ and lifecycle-manager-jars/.
+  "$MVN" dependency:copy-dependencies -pl lifecycle-manager \
+    -DoutputDirectory="$PROJECT_DIR/lifecycle-manager/target/dependency" \
+    -DincludeScope=runtime -DskipTests $@ -q
+  # Copy any new dependency jars (not already in jars/) into the shared jars directory
+  for jar in "$PROJECT_DIR"/lifecycle-manager/target/dependency/*.jar; do
+    jarname=$(basename "$jar")
+    if [ ! -f "$DIST_DIR/jars/$jarname" ]; then
+      cp "$jar" "$DIST_DIR/jars/"
+    fi
+  done
   cp "$PROJECT_DIR"/lifecycle-manager/target/celeborn-lifecycle-manager_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/lifecycle-manager-jars/"
   for jar in $(ls "$DIST_DIR/jars"); do
     (cd $DIST_DIR/lifecycle-manager-jars; ln -snf "../jars/$jar" .)
