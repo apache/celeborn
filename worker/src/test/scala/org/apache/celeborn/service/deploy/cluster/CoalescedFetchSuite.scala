@@ -153,13 +153,7 @@ class CoalescedFetchSuite extends AnyFunSuite
             metricsCallback,
             true)
           try {
-            val output = new ByteArrayOutputStream()
-            var b = inputStream.read()
-            while (b != -1) {
-              output.write(b)
-              b = inputStream.read()
-            }
-            Assert.assertArrayEquals(expected(partitionId), output.toByteArray)
+            Assert.assertArrayEquals(expected(partitionId), readAll(inputStream))
           } finally {
             inputStream.close()
           }
@@ -209,20 +203,68 @@ class CoalescedFetchSuite extends AnyFunSuite
             metricsCallback,
             true)
           try {
-            val output = new ByteArrayOutputStream()
-            var b = sameReducerInputStream.read()
-            while (b != -1) {
-              output.write(b)
-              b = sameReducerInputStream.read()
-            }
             Assert.assertArrayEquals(
               partition0Batch0 ++ partition0Batch1 ++ partition1Batch0 ++ partition1Batch1,
-              output.toByteArray)
+              readAll(sameReducerInputStream))
           } finally {
             sameReducerInputStream.close()
           }
         } finally {
           replayStream.close()
+        }
+
+        val mixedResponse = dataClient.sendRpcSync(
+          new TransportMessage(MessageType.OPEN_COALESCED_STREAM, request.toByteArray).toByteBuffer,
+          clientConf.clientFetchTimeoutMs)
+        val mixedHandler =
+          TransportMessage.fromByteBuffer(mixedResponse).getParsedPayload[PbCoalescedStreamHandler]
+        val mixedStream =
+          new SharedCoalescedStream(
+            clientConf,
+            shuffleKey,
+            location0,
+            request,
+            mixedHandler,
+            shuffleClient.getDataClientFactory,
+            metricsCallback)
+        try {
+          // This is the state produced when one worker uses coalesced fetch and another worker
+          // stays on the normal path, including the per-worker fallback case after a coalesced
+          // open failure. Only locations with coalesced metadata use the shared stream.
+          val mixedInfos = new util.HashMap[String, CoalescedPartitionInfo]()
+          mixedInfos.put(
+            location0.getUniqueId,
+            new CoalescedPartitionInfo(mixedStream, mixedHandler.getBoundaries(0)))
+          val mixedLocations =
+            new util.ArrayList[org.apache.celeborn.common.protocol.PartitionLocation]()
+          mixedLocations.add(location0)
+          mixedLocations.add(location1)
+          val mixedInputStream = shuffleClient.readPartition(
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            Integer.MAX_VALUE,
+            null,
+            mixedLocations,
+            null,
+            fileGroups.pushFailedBatches,
+            null,
+            mixedInfos,
+            fileGroups.mapAttempts,
+            metricsCallback,
+            true)
+          try {
+            Assert.assertArrayEquals(
+              partition0Batch0 ++ partition0Batch1 ++ partition1Batch0 ++ partition1Batch1,
+              readAll(mixedInputStream))
+          } finally {
+            mixedInputStream.close()
+          }
+        } finally {
+          mixedStream.close()
         }
       } finally {
         sharedStream.close()
@@ -231,5 +273,15 @@ class CoalescedFetchSuite extends AnyFunSuite
       shuffleClient.shutdown()
       lifecycleManager.rpcEnv.shutdown()
     }
+  }
+
+  private def readAll(inputStream: java.io.InputStream): Array[Byte] = {
+    val output = new ByteArrayOutputStream()
+    var b = inputStream.read()
+    while (b != -1) {
+      output.write(b)
+      b = inputStream.read()
+    }
+    output.toByteArray
   }
 }
