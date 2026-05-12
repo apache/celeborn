@@ -25,6 +25,15 @@ import org.apache.celeborn.common.protocol.StorageInfo
 
 class CelebornConfSuite extends CelebornFunSuite {
 
+  test("JVMQuake thresholds should preserve configured time units") {
+    val conf = new CelebornConf()
+      .set(WORKER_JVM_QUAKE_DUMP_THRESHOLD.key, "30s")
+      .set(WORKER_JVM_QUAKE_KILL_THRESHOLD.key, "60s")
+
+    assert(conf.workerJvmQuakeDumpThreshold.toMillis == 30000L)
+    assert(conf.workerJvmQuakeKillThreshold.toMillis == 60000L)
+  }
+
   test("celeborn.master.endpoints support multi nodes") {
     val conf = new CelebornConf()
       .set(CelebornConf.MASTER_ENDPOINTS.key, "localhost1:9097,localhost2:9097")

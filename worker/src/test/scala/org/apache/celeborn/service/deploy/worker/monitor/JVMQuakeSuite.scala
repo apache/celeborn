@@ -37,6 +37,17 @@ class JVMQuakeSuite extends CelebornFunSuite {
     System.gc()
   }
 
+  test("Convert JVMStat timer ticks to nanoseconds") {
+    assert(JVMQuake.ticksToNanos(1L, 1000000000L) === 1L)
+    assert(JVMQuake.ticksToNanos(1000L, 1000L) === 1000000000L)
+    assert(JVMQuake.ticksToNanos(1500L, 1000L) === 1500000000L)
+    assert(JVMQuake.ticksToNanos(-1000L, 1000L) === -1000000000L)
+
+    intercept[IllegalArgumentException] {
+      JVMQuake.ticksToNanos(1L, 0L)
+    }
+  }
+
   test("[CELEBORN-1092] Introduce JVM monitoring in Celeborn Worker using JVMQuake") {
     val quake = new JVMQuake(new CelebornConf().set(WORKER_JVM_QUAKE_ENABLED.key, "true")
       .set(WORKER_JVM_QUAKE_RUNTIME_WEIGHT.key, "1")
