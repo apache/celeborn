@@ -42,6 +42,11 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   addCounter(OPEN_STREAM_FAIL_COUNT)
   addCounter(FETCH_CHUNK_SUCCESS_COUNT)
   addCounter(FETCH_CHUNK_FAIL_COUNT)
+  addCounter(FETCH_MEMORY_CHUNK_SUCCESS_COUNT)
+  addCounter(FETCH_LOCAL_CHUNK_SUCCESS_COUNT)
+  addCounter(FETCH_MEMORY_CHUNK_FAIL_COUNT)
+  addCounter(FETCH_LOCAL_CHUNK_FAIL_COUNT)
+  addCounter(FETCH_DIRECT_FILE_REGION_COUNT)
   addCounter(WRITE_DATA_HARD_SPLIT_COUNT)
   addCounter(WRITE_DATA_DISK_FULL_SPLIT_COUNT)
   addCounter(WRITE_DATA_SIZE_THRESHOLD_SPLIT_COUNT)
@@ -91,6 +96,8 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   addTimer(REPLICA_SEGMENT_START_TIME)
 
   addTimer(FETCH_CHUNK_TIME)
+  addTimer(FETCH_MEMORY_CHUNK_TIME)
+  addTimer(FETCH_LOCAL_CHUNK_TIME)
   addTimer(OPEN_STREAM_TIME)
   addTimer(TAKE_BUFFER_TIME)
   addTimer(SORT_TIME)
@@ -99,6 +106,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   addTimer(CLEAN_EXPIRED_SHUFFLE_KEYS_TIME)
 
   addHistogram(FETCH_CHUNK_TRANSFER_SIZE)
+  addHistogram(FETCH_DIRECT_FILE_REGION_SIZE)
   addHistogram(PARTITION_FILE_SIZE)
 
   def getCounterCount(metricsName: String): Long = {
@@ -161,13 +169,22 @@ object WorkerSource {
   // fetch data
   val OPEN_STREAM_TIME = "OpenStreamTime"
   val FETCH_CHUNK_TIME = "FetchChunkTime"
+  val FETCH_MEMORY_CHUNK_TIME = "FetchMemoryChunkTime"
+  val FETCH_LOCAL_CHUNK_TIME = "FetchLocalChunkTime"
   val ACTIVE_CHUNK_STREAM_COUNT = "ActiveChunkStreamCount"
+  val CHUNKS_BEING_TRANSFERRED = "ChunksBeingTransferred"
   val OPEN_STREAM_SUCCESS_COUNT = "OpenStreamSuccessCount"
   val OPEN_STREAM_FAIL_COUNT = "OpenStreamFailCount"
   val FETCH_CHUNK_SUCCESS_COUNT = "FetchChunkSuccessCount"
   val FETCH_CHUNK_FAIL_COUNT = "FetchChunkFailCount"
+  val FETCH_MEMORY_CHUNK_SUCCESS_COUNT = "FetchMemoryChunkSuccessCount"
+  val FETCH_LOCAL_CHUNK_SUCCESS_COUNT = "FetchLocalChunkSuccessCount"
+  val FETCH_MEMORY_CHUNK_FAIL_COUNT = "FetchMemoryChunkFailCount"
+  val FETCH_LOCAL_CHUNK_FAIL_COUNT = "FetchLocalChunkFailCount"
   val FETCH_CHUNK_TRANSFER_SIZE = "FetchChunkTransferSize"
   val FETCH_CHUNK_TRANSFER_TIME = "FetchChunkTransferTime"
+  val FETCH_DIRECT_FILE_REGION_COUNT = "FetchDirectFileRegionCount"
+  val FETCH_DIRECT_FILE_REGION_SIZE = "FetchDirectFileRegionSize"
 
   // push data
   val PRIMARY_PUSH_DATA_TIME = "PrimaryPushDataTime"

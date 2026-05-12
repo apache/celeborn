@@ -67,6 +67,10 @@ class FetchHandler(
       chunkStreamManager.getStreamsCount
     }
 
+    workerSource.addGauge(WorkerSource.CHUNKS_BEING_TRANSFERRED) { () =>
+      chunkStreamManager.chunksBeingTransferred
+    }
+
     workerSource.addGauge(WorkerSource.ACTIVE_CREDIT_STREAM_COUNT) { () =>
       creditStreamManager.getStreamsCount
     }
@@ -723,6 +727,20 @@ class FetchHandler(
       return
     }
 
+    val storageMetrics = streamState.buffers match {
+      case _: FileChunkBuffers =>
+        Some((
+          WorkerSource.FETCH_LOCAL_CHUNK_TIME,
+          WorkerSource.FETCH_LOCAL_CHUNK_SUCCESS_COUNT,
+          WorkerSource.FETCH_LOCAL_CHUNK_FAIL_COUNT))
+      case _: MemoryChunkBuffers =>
+        Some((
+          WorkerSource.FETCH_MEMORY_CHUNK_TIME,
+          WorkerSource.FETCH_MEMORY_CHUNK_SUCCESS_COUNT,
+          WorkerSource.FETCH_MEMORY_CHUNK_FAIL_COUNT))
+      case _ => None
+    }
+
     maxChunkBeingTransferred.foreach { threshold =>
       val chunksBeingTransferred = chunkStreamManager.chunksBeingTransferred // take high cpu usage
       if (chunksBeingTransferred > threshold) {
@@ -731,6 +749,9 @@ class FetchHandler(
           s"${Utils.bytesToString(threshold)}."
         logError(message)
         workerSource.incCounter(WorkerSource.FETCH_CHUNK_FAIL_COUNT)
+        storageMetrics.foreach { case (_, _, failCountMetric) =>
+          workerSource.incCounter(failCountMetric)
+        }
         client.getChannel.writeAndFlush(new ChunkFetchFailure(streamChunkSlice, message))
         return
       }
@@ -740,6 +761,9 @@ class FetchHandler(
 
     val reqStr = req.toString
     workerSource.startTimer(WorkerSource.FETCH_CHUNK_TIME, reqStr)
+    storageMetrics.foreach { case (timeMetric, _, _) =>
+      workerSource.startTimer(timeMetric, reqStr)
+    }
     val fetchTimeMetric = chunkStreamManager.getFetchTimeMetric(streamChunkSlice.streamId)
     val fetchBeginTime = System.nanoTime()
     try {
@@ -758,17 +782,26 @@ class FetchHandler(
                   s"Sending ChunkFetchSuccess to $remoteAddr succeeded, chunk $streamChunkSlice")
               }
               workerSource.incCounter(WorkerSource.FETCH_CHUNK_SUCCESS_COUNT)
+              storageMetrics.foreach { case (_, successCountMetric, _) =>
+                workerSource.incCounter(successCountMetric)
+              }
             } else {
               logWarning(
                 s"Sending ChunkFetchSuccess to $remoteAddr failed, chunk $streamChunkSlice",
                 future.cause())
               workerSource.incCounter(WorkerSource.FETCH_CHUNK_FAIL_COUNT)
+              storageMetrics.foreach { case (_, _, failCountMetric) =>
+                workerSource.incCounter(failCountMetric)
+              }
             }
             chunkStreamManager.chunkSent(streamChunkSlice.streamId)
             if (fetchTimeMetric != null) {
               fetchTimeMetric.update(System.nanoTime() - fetchBeginTime)
             }
             workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, reqStr)
+            storageMetrics.foreach { case (timeMetric, _, _) =>
+              workerSource.stopTimer(timeMetric, reqStr)
+            }
           }
         })
     } catch {
@@ -778,10 +811,16 @@ class FetchHandler(
             NettyUtils.getRemoteAddress(client.getChannel),
           e)
         workerSource.incCounter(WorkerSource.FETCH_CHUNK_FAIL_COUNT)
+        storageMetrics.foreach { case (_, _, failCountMetric) =>
+          workerSource.incCounter(failCountMetric)
+        }
         client.getChannel.writeAndFlush(new ChunkFetchFailure(
           streamChunkSlice,
           Throwables.getStackTraceAsString(e)))
         workerSource.stopTimer(WorkerSource.FETCH_CHUNK_TIME, reqStr)
+        storageMetrics.foreach { case (timeMetric, _, _) =>
+          workerSource.stopTimer(timeMetric, reqStr)
+        }
     }
   }
 

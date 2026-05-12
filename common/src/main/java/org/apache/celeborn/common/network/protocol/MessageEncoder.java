@@ -99,6 +99,10 @@ public final class MessageEncoder extends MessageToMessageEncoder<Message> {
         // This split is only safe when the ManagedBuffer is FileSegmentManagedBuffer,
         // whose release() is a no-op. Other ManagedBuffer types perform resource cleanup in
         // release() that must be tied to the write lifecycle via MessageWithHeader.deallocate().
+        if (source != null) {
+          source.incCounter("FetchDirectFileRegionCount");
+          source.updateHistogram("FetchDirectFileRegionSize", bodyLength);
+        }
         out.add(header);
         out.add(body);
       } else {
