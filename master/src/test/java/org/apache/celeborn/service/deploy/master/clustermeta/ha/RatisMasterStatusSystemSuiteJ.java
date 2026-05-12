@@ -1872,6 +1872,66 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(STATUSSYSTEM3.registeredShuffleCount(), 8);
   }
 
+  @Test
+  public void testLeaderStepDownOnLogFailed() {
+    // Identify the current leader
+    HARaftServer leader = null;
+    for (HARaftServer server : Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3)) {
+      if (server.isLeader()) {
+        leader = server;
+        break;
+      }
+    }
+    Assert.assertNotNull("A leader should exist before the test", leader);
+    Assert.assertTrue("Leader node should report isLeader=true", leader.isLeader());
+
+    // Do not stop() the shared static server used by the suite, since that permanently
+    // closes one of RATISSERVER1/2/3 and can break later tests depending on execution order.
+    // Instead, trigger the leader to step down without closing the underlying server.
+    leader
+        .getMasterStateMachine()
+        .notifyLogFailed(new Exception("test leader graceful step down"), null);
+
+    Assert.assertFalse(
+        "Leader should step down without closing the shared server", leader.isLeader());
+    Assert.assertNotEquals(
+        "Raft server should remain available to the rest of the suite",
+        org.apache.ratis.util.LifeCycle.State.CLOSED,
+        leader.getServer().getLifeCycleState());
+
+    // Wait until the cluster has a ready leader again, so subsequent tests can proceed.
+    // Any of the three peers may win the ensuing election (including the one that
+    // just stepped down, since TransferLeadershipRequest with a null target just
+    // demotes the leader to follower and lets the normal election protocol run).
+    // We require isLeaderReady(), not just isLeader(): a newly elected leader rejects
+    // writes with LeaderNotReadyException until its no-op log entry for the new term
+    // has been committed.
+    boolean leaderReady = false;
+    for (int i = 0; i < 60; i++) {
+      for (HARaftServer server : Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3)) {
+        if (server.isLeader()) {
+          try {
+            if (server.getServer().getDivision(server.getGroupId()).getInfo().isLeaderReady()) {
+              leaderReady = true;
+              break;
+            }
+          } catch (IOException e) {
+            // Division not available yet; keep polling.
+          }
+        }
+      }
+      if (leaderReady) break;
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
+      }
+    }
+    Assert.assertTrue(
+        "A ready leader should be elected after step down so later tests can run", leaderReady);
+  }
+
   @AfterClass
   public static void testNotifyLogFailed() {
     List<HARaftServer> list = Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3);

@@ -728,6 +728,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def masterHttpIdleTimeout: Long = get(MASTER_HTTP_IDLE_TIMEOUT)
 
   def haEnabled: Boolean = get(HA_ENABLED)
+  def haMasterGracefulShutdownEnabled: Boolean = get(HA_MASTER_GRACEFUL_SHUTDOWN_ENABLED)
+  def haMasterGracefulShutdownTimeoutMs: Long = get(HA_MASTER_GRACEFUL_SHUTDOWN_TIMEOUT)
 
   def haMasterNodeId: Option[String] = get(HA_MASTER_NODE_ID)
 
@@ -2778,6 +2780,27 @@ object CelebornConf extends Logging {
       .doc("When true, master nodes run as Raft cluster mode.")
       .booleanConf
       .createWithDefault(false)
+
+  val HA_MASTER_GRACEFUL_SHUTDOWN_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.master.ha.graceful.shutdown.enabled")
+      .categories("ha")
+      .version("0.7.0")
+      .doc("When true, the master will transfer Raft leadership " +
+        "before shutting down gracefully. This reduces chances of " +
+        "client side failures by avoiding the Raft election window " +
+        "where no leader is available.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val HA_MASTER_GRACEFUL_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
+    buildConf("celeborn.master.ha.graceful.shutdown.timeout")
+      .categories("ha")
+      .version("0.7.0")
+      .doc("Timeout for the master graceful shutdown process including " +
+        "Raft leadership transfer. Used as the shutdown hook timeout " +
+        "and the transfer-leadership request timeout.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
 
   val HA_MASTER_NODE_ID: OptionalConfigEntry[String] =
     buildConf("celeborn.master.ha.node.id")
