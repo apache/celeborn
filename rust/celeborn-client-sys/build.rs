@@ -1,6 +1,138 @@
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+/// Resolve the Celeborn C++ install prefix.
+///
+/// - If the environment variable `CELEBORN_CPP_PREFIX` is set, use that path
+///   directly (pre-built library workflow).
+/// - Otherwise, locate the in-repo `cpp/` source tree relative to this crate
+///   and drive a full cmake configure → build → install cycle, installing into
+///   `$OUT_DIR/celeborn-cpp-install`.  This mirrors the approach used by
+///   `openssl-sys` / `libz-sys` and friends.
+fn resolve_cpp_prefix() -> PathBuf {
+    if let Ok(prefix) = std::env::var("CELEBORN_CPP_PREFIX") {
+        let path = PathBuf::from(&prefix);
+        if !path.exists() {
+            panic!(
+                "CELEBORN_CPP_PREFIX is set to '{prefix}' but the directory does not exist. \
+                 Please check the path."
+            );
+        }
+        eprintln!("cargo:warning=Using pre-built Celeborn C++ libraries from {prefix}");
+        return path;
+    }
+
+    // Fall back to building from the in-repo cpp/ source tree.
+    let manifest_dir =
+        PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
+    let cpp_source_dir = manifest_dir.join("../../cpp").canonicalize().unwrap_or_else(|_| {
+        panic!(
+            "CELEBORN_CPP_PREFIX is not set and the in-repo cpp/ directory \
+             could not be found relative to {manifest_dir:?}. \
+             Either set CELEBORN_CPP_PREFIX or run from within the Celeborn \
+             source tree."
+        );
+    });
+
+    eprintln!(
+        "cargo:warning=CELEBORN_CPP_PREFIX not set – building Celeborn C++ \
+         from source at {}",
+        cpp_source_dir.display()
+    );
+
+    cmake_build_cpp(&cpp_source_dir)
+}
+
+/// Run cmake configure + build + install for the Celeborn C++ project.
+///
+/// Returns the install prefix (i.e. the directory that contains `include/` and
+/// `lib/`).
+fn cmake_build_cpp(source_dir: &Path) -> PathBuf {
+    let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
+    let build_dir = out_dir.join("celeborn-cpp-build");
+    let install_dir = out_dir.join("celeborn-cpp-install");
+
+    std::fs::create_dir_all(&build_dir).expect("failed to create cmake build directory");
+    std::fs::create_dir_all(&install_dir).expect("failed to create cmake install directory");
+
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+
+    // ── cmake configure ────────────────────────────────────────────────
+    let mut configure_cmd = Command::new("cmake");
+    configure_cmd
+        .current_dir(&build_dir)
+        .arg(source_dir)
+        .arg(format!("-DCMAKE_INSTALL_PREFIX={}", install_dir.display()))
+        .arg("-DCMAKE_BUILD_TYPE=Release")
+        .arg("-DCELEBORN_BUILD_TESTS=OFF");
+
+    // On macOS, help cmake find Homebrew-installed dependencies.
+    // We pass CMAKE_PREFIX_PATH as a single path to avoid a known issue in the
+    // upstream CMakeLists.txt where `if(EXISTS ${CMAKE_PREFIX_PATH}/lib64)`
+    // breaks when CMAKE_PREFIX_PATH contains multiple semicolon-separated
+    // entries.  Homebrew's default prefix is already on cmake's search path,
+    // so we only need to add the keg-only OpenSSL prefix explicitly.
+    if target_os == "macos" {
+        let homebrew_prefix = std::env::var("HOMEBREW_PREFIX")
+            .unwrap_or_else(|_| "/opt/homebrew".to_string());
+        configure_cmd.arg(format!(
+            "-DCMAKE_PREFIX_PATH={homebrew_prefix}"
+        ));
+        // OpenSSL is keg-only on Homebrew.  The upstream CMakeLists.txt
+        // overwrites the cmake-level OPENSSL_ROOT_DIR variable with a
+        // `set()` call, so passing `-DOPENSSL_ROOT_DIR` is not enough.
+        // Instead we set the *environment* variable which FindOpenSSL
+        // also inspects, and which cannot be shadowed by a cmake `set()`.
+        configure_cmd.env(
+            "OPENSSL_ROOT_DIR",
+            format!("{homebrew_prefix}/opt/openssl@3"),
+        );
+    }
+
+    let configure_status = configure_cmd
+        .status()
+        .expect("failed to execute `cmake` – is cmake installed?");
+    if !configure_status.success() {
+        panic!("cmake configure step failed (exit code: {configure_status})");
+    }
+
+    // ── cmake build ────────────────────────────────────────────────────
+    let num_jobs = std::env::var("NUM_JOBS").unwrap_or_else(|_| num_cpus().to_string());
+
+    let build_status = Command::new("cmake")
+        .current_dir(&build_dir)
+        .args(["--build", "."])
+        .args(["--config", "Release"])
+        .args(["--parallel", &num_jobs])
+        .status()
+        .expect("failed to execute cmake --build");
+    if !build_status.success() {
+        panic!("cmake build step failed (exit code: {build_status})");
+    }
+
+    // ── cmake install ──────────────────────────────────────────────────
+    let install_status = Command::new("cmake")
+        .current_dir(&build_dir)
+        .args(["--install", "."])
+        .status()
+        .expect("failed to execute cmake --install");
+    if !install_status.success() {
+        panic!("cmake install step failed (exit code: {install_status})");
+    }
+
+    install_dir
+}
+
+/// Best-effort CPU count for parallel builds (mirrors `cargo`'s own heuristic).
+fn num_cpus() -> usize {
+    std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+}
+
 fn main() {
-    let prefix = std::env::var("CELEBORN_CPP_PREFIX")
-        .expect("set CELEBORN_CPP_PREFIX to cpp/build/installed first");
+    let prefix = resolve_cpp_prefix();
+    let prefix = prefix.display();
 
     let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
