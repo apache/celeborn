@@ -459,6 +459,103 @@ private[deploy] class Controller(
     }
   }
 
+  /**
+   * Proactively commits all uncommitted partitions during graceful shutdown.
+   *
+   * <p>Commit results are tracked per-shuffle because uniqueId ({@code partitionId-epoch})
+   * is not namespaced by shuffleKey — different shuffles can share the same uniqueId.
+   *
+   * <p>Only successfully committed or empty-file partitions are removed and their slots
+   * released. Failed or in-flight (timed-out) partitions are retained for the passive
+   * LifecycleManager CommitFiles retry path.
+   */
+  private[worker] def commitUncommittedPartitions(): Unit = {
+    val (primarySnapshot, replicaSnapshot) = partitionLocationInfo.snapshotUncommittedUniqueIds
+    if (primarySnapshot.isEmpty && replicaSnapshot.isEmpty) {
+      logInfo("No uncommitted partitions.")
+      return
+    }
+    val shuffleKeys = primarySnapshot.keySet ++ replicaSnapshot.keySet
+    val primaryTotal = primarySnapshot.values.map(_.size()).sum
+    val replicaTotal = replicaSnapshot.values.map(_.size()).sum
+    logInfo(s"Committing uncommitted partitions across ${shuffleKeys.size} shuffles ($primaryTotal primary, $replicaTotal replica).")
+    val emptyIds = java.util.Collections.emptyList[String]()
+    val futures = ArrayBuffer[CompletableFuture[Void]]()
+    val tasks = ArrayBuffer[CompletableFuture[Void]]()
+    val committedPerShuffle = JavaUtils.newConcurrentHashMap[String, jSet[String]]()
+    val emptyPerShuffle = JavaUtils.newConcurrentHashMap[String, jSet[String]]()
+    for (shuffleKey <- shuffleKeys) {
+      val committedIds = ConcurrentHashMap.newKeySet[String]()
+      val emptyFileIds = ConcurrentHashMap.newKeySet[String]()
+      val failedIds = ConcurrentHashMap.newKeySet[String]()
+      val storageInfos = JavaUtils.newConcurrentHashMap[String, StorageInfo]()
+      val mapIdBitMap = JavaUtils.newConcurrentHashMap[String, RoaringBitmap]()
+      val partitionSizes = new LinkedBlockingQueue[Long]()
+      committedPerShuffle.put(shuffleKey, committedIds)
+      emptyPerShuffle.put(shuffleKey, emptyFileIds)
+      val primaryIds = primarySnapshot.getOrElse(shuffleKey, emptyIds)
+      val replicaIds = replicaSnapshot.getOrElse(shuffleKey, emptyIds)
+      val (primaryFuture, primaryTasks) = commitFiles(
+        shuffleKey,
+        primaryIds,
+        committedIds,
+        emptyFileIds,
+        failedIds,
+        storageInfos,
+        mapIdBitMap,
+        partitionSizes)
+      val (replicaFuture, replicaTasks) = commitFiles(
+        shuffleKey,
+        replicaIds,
+        committedIds,
+        emptyFileIds,
+        failedIds,
+        storageInfos,
+        mapIdBitMap,
+        partitionSizes,
+        isPrimary = false)
+      if (primaryFuture != null) { futures += primaryFuture }
+      if (replicaFuture != null) { futures += replicaFuture }
+      tasks ++= primaryTasks
+      tasks ++= replicaTasks
+    }
+    if (futures.nonEmpty) {
+      try {
+        CompletableFuture.allOf(futures.toArray: _*).get(
+          shuffleCommitTimeout,
+          TimeUnit.MILLISECONDS)
+      } catch {
+        case e: Exception =>
+          futures.foreach(_.cancel(true))
+          tasks.foreach(_.cancel(true))
+          logWarning(
+            s"Commit timed out after ${shuffleCommitTimeout}ms across ${shuffleKeys.size} shuffles: ${shuffleKeys.mkString(", ")}",
+            e)
+      }
+    }
+    var primaryCommitted = 0
+    var replicaCommitted = 0
+    for (shuffleKey <- shuffleKeys) {
+      val committed = committedPerShuffle.get(shuffleKey)
+      val empty = emptyPerShuffle.get(shuffleKey)
+      def isCommitted(id: String): Boolean = committed.contains(id) || empty.contains(id)
+      val primaryToRemove = primarySnapshot.getOrElse(shuffleKey, emptyIds)
+        .asScala.filter(isCommitted).asJava
+      val replicaToRemove = replicaSnapshot.getOrElse(shuffleKey, emptyIds)
+        .asScala.filter(isCommitted).asJava
+      val (primarySlots, _) =
+        partitionLocationInfo.removePrimaryPartitions(shuffleKey, primaryToRemove)
+      val (replicaSlots, _) =
+        partitionLocationInfo.removeReplicaPartitions(shuffleKey, replicaToRemove)
+      workerInfo.releaseSlots(shuffleKey, primarySlots)
+      workerInfo.releaseSlots(shuffleKey, replicaSlots)
+      primaryCommitted += primaryToRemove.size()
+      replicaCommitted += replicaToRemove.size()
+    }
+    logInfo(
+      s"Committed ${primaryCommitted + replicaCommitted} partitions ($primaryCommitted primary, $replicaCommitted replica) across ${shuffleKeys.size} shuffles.")
+  }
+
   private def handleCommitFiles(
       context: RpcCallContext,
       shuffleKey: String,
