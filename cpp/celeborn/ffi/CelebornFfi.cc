@@ -33,8 +33,7 @@ inline ClientImpl* as_impl(celeborn_ffi_handle* h) {
   return reinterpret_cast<ClientImpl*>(h);
 }
 
-inline PartitionReaderImpl* as_reader_impl(
-    celeborn_ffi_partition_reader* r) {
+inline PartitionReaderImpl* as_reader_impl(celeborn_ffi_partition_reader* r) {
   return reinterpret_cast<PartitionReaderImpl*>(r);
 }
 
@@ -68,7 +67,7 @@ celeborn_ffi_status guarded(char** err_out, Fn&& fn) {
   }
 }
 
-}  // namespace
+} // namespace
 
 extern "C" {
 
@@ -126,13 +125,13 @@ celeborn_ffi_status celeborn_ffi_setup_lifecycle_manager(
   return guarded(err_out, [&] {
     auto* impl = as_impl(handle);
     impl->lifecycle_manager_host.assign(host, host_len);
-    impl->client->setupLifecycleManagerRef(
-        impl->lifecycle_manager_host, port);
+    impl->client->setupLifecycleManagerRef(impl->lifecycle_manager_host, port);
   });
 }
 
 celeborn_ffi_status celeborn_ffi_shutdown(
-    celeborn_ffi_handle* handle, char** err_out) {
+    celeborn_ffi_handle* handle,
+    char** err_out) {
   return guarded(err_out, [&] { as_impl(handle)->client->shutdown(); });
 }
 
@@ -175,7 +174,9 @@ celeborn_ffi_status celeborn_ffi_mapper_end(
 }
 
 celeborn_ffi_status celeborn_ffi_update_reducer_file_group(
-    celeborn_ffi_handle* handle, int32_t shuffle_id, char** err_out) {
+    celeborn_ffi_handle* handle,
+    int32_t shuffle_id,
+    char** err_out) {
   return guarded(err_out, [&] {
     as_impl(handle)->client->updateReducerFileGroup(shuffle_id);
   });
@@ -277,4 +278,4 @@ void celeborn_ffi_close_partition_reader(
   delete as_reader_impl(reader);
 }
 
-}  // extern "C"
+} // extern "C"

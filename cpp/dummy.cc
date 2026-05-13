@@ -7,4 +7,4 @@ namespace celeborn_ffi {
 extern "C" const char* celeborn_client_build_tag() {
   return "celeborn-client-shared";
 }
-}  // namespace celeborn_ffi
+} // namespace celeborn_ffi
