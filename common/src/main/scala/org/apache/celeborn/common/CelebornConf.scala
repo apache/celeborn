@@ -896,11 +896,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerJvmQuakeDumpThreshold: Duration =
     getTimeAsMs(
       WORKER_JVM_QUAKE_DUMP_THRESHOLD.key,
-      WORKER_JVM_QUAKE_DUMP_THRESHOLD.defaultValueString).microsecond
+      WORKER_JVM_QUAKE_DUMP_THRESHOLD.defaultValueString).millisecond
   def workerJvmQuakeKillThreshold: Duration =
     getTimeAsMs(
       WORKER_JVM_QUAKE_KILL_THRESHOLD.key,
-      WORKER_JVM_QUAKE_KILL_THRESHOLD.defaultValueString).microsecond
+      WORKER_JVM_QUAKE_KILL_THRESHOLD.defaultValueString).millisecond
   def workerJvmQuakeExitCode: Int = get(WORKER_JVM_QUAKE_EXIT_CODE)
 
   // //////////////////////////////////////////////////////
