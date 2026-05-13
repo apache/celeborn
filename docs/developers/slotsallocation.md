@@ -33,6 +33,7 @@ celeborn.master.slot.assign.loadAware.numDiskGroups 5
 celeborn.master.slot.assign.loadAware.diskGroupGradient 0.1
 celeborn.master.slot.assign.loadAware.flushTimeWeight 0
 celeborn.master.slot.assign.loadAware.fetchTimeWeight 1
+celeborn.master.slot.assign.loadAware.activeSlotsWeight 0
 [spark.client.]celeborn.storage.availableTypes HDD,SSD
 ```
 ### Detail
@@ -44,7 +45,7 @@ Load-aware slots allocation will take following elements into consideration.
 - disk's used slot 
 
 Slots allocator will find out all worker involved in this allocation and sort their disks by 
-`disk's average flushtime * flush time weight + disk's average fetch time * fetch time weight`.
+`disk's average flushtime * flush time weight + disk's average fetch time * fetch time weight + disk's active slots * active slots weight`.
 After getting the sorted disks list, Celeborn will split the disks into
 `celeborn.master.slot.assign.loadAware.numDiskGroups` groups. The slots number to be placed into a disk group 
 is controlled by the `celeborn.master.slot.assign.loadAware.diskGroupGradient` which means that a group's 

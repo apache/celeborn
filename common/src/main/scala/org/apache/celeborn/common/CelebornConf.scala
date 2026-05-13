@@ -679,6 +679,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(MASTER_SLOT_ASSIGN_LOADAWARE_FLUSHTIME_WEIGHT)
   def masterSlotAssignLoadAwareFetchTimeWeight: Double =
     get(MASTER_SLOT_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT)
+  def masterSlotAssignLoadAwareActiveSlotsWeight: Double =
+    get(MASTER_SLOT_ASSIGN_LOADAWARE_ACTIVE_SLOTS_WEIGHT)
   def masterSlotAssignExtraSlots: Int = get(MASTER_SLOT_ASSIGN_EXTRA_SLOTS)
   def masterSlotAssignMaxWorkers: Int = get(MASTER_SLOT_ASSIGN_MAX_WORKERS)
   def masterSlotAssignMinWorkers: Int = get(MASTER_SLOT_ASSIGN_MIN_WORKERS)
@@ -3153,6 +3155,16 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doubleConf
       .createWithDefault(1)
+
+  val MASTER_SLOT_ASSIGN_LOADAWARE_ACTIVE_SLOTS_WEIGHT: ConfigEntry[Double] =
+    buildConf("celeborn.master.slot.assign.loadAware.activeSlotsWeight")
+      .withAlternative("celeborn.slots.assign.loadAware.activeSlotsWeight")
+      .categories("master")
+      .doc(
+        "Weight of active slots when calculating ordering in load-aware assignment strategy")
+      .version("0.7.0")
+      .doubleConf
+      .createWithDefault(0)
 
   val MASTER_SLOT_ASSIGN_EXTRA_SLOTS: ConfigEntry[Int] =
     buildConf("celeborn.master.slot.assign.extraSlots")

@@ -212,6 +212,7 @@ private[celeborn] class Master(
     conf.masterSlotAssignLoadAwareDiskGroupGradient
   private val loadAwareFlushTimeWeight = conf.masterSlotAssignLoadAwareFlushTimeWeight
   private val loadAwareFetchTimeWeight = conf.masterSlotAssignLoadAwareFetchTimeWeight
+  private val loadAwareActiveSlotsWeight = conf.masterSlotAssignLoadAwareActiveSlotsWeight
 
   private val estimatedPartitionSizeUpdaterInitialDelay =
     conf.estimatedPartitionSizeUpdaterInitialDelay
@@ -981,6 +982,7 @@ private[celeborn] class Master(
               slotsAssignLoadAwareDiskGroupGradient,
               loadAwareFlushTimeWeight,
               loadAwareFetchTimeWeight,
+              loadAwareActiveSlotsWeight,
               requestSlots.availableStorageTypes,
               slotsAssignInterruptionAware,
               slotsAssignInterruptionAwareThreshold)

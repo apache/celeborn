@@ -124,6 +124,7 @@ public class SlotsAllocator {
           double diskGroupGradient,
           double flushTimeWeight,
           double fetchTimeWeight,
+          double activeSlotsWeight,
           int availableStorageTypes,
           boolean interruptionAware,
           int interruptionAwareThreshold) {
@@ -193,7 +194,8 @@ public class SlotsAllocator {
 
     Map<WorkerInfo, List<UsableDiskInfo>> slotsRestrictions =
         getSlotsRestrictionsByLoadAwareAlgorithm(
-            placeDisksToGroups(usableDisks, diskGroupCount, flushTimeWeight, fetchTimeWeight),
+            placeDisksToGroups(
+                usableDisks, diskGroupCount, flushTimeWeight, fetchTimeWeight, activeSlotsWeight),
             diskToWorkerMap,
             shouldReplicate ? partitionIds.size() * 2 : partitionIds.size());
     return locateSlots(
@@ -685,13 +687,17 @@ public class SlotsAllocator {
       List<DiskInfo> usableDisks,
       int diskGroupCount,
       double flushTimeWeight,
-      double fetchTimeWeight) {
+      double fetchTimeWeight,
+      double activeSlotsWeight) {
     List<List<DiskInfo>> diskGroups = new ArrayList<>();
     usableDisks.sort(
         (o1, o2) -> {
           double delta =
               (o1.avgFlushTime() * flushTimeWeight + o1.avgFetchTime() * fetchTimeWeight)
-                  - (o2.avgFlushTime() * flushTimeWeight + o2.avgFetchTime() * fetchTimeWeight);
+                  + o1.activeSlots() * activeSlotsWeight
+                  - (o2.avgFlushTime() * flushTimeWeight
+                      + o2.avgFetchTime() * fetchTimeWeight
+                      + o2.activeSlots() * activeSlotsWeight);
           return delta < 0 ? -1 : (delta > 0 ? 1 : 0);
         });
     int diskCount = usableDisks.size();
