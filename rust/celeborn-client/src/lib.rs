@@ -15,6 +15,8 @@
 
 //! Rust-friendly wrapper around `celeborn-client-sys`.
 
+use std::marker::PhantomData;
+
 use celeborn_client_sys::ffi;
 use cxx::UniquePtr;
 
@@ -152,6 +154,48 @@ impl ShuffleClient {
         self.read_partition(shuffle_id, partition_id, 0, 0, num_mappers)
     }
 
+    /// Open a streaming reader for a partition. The returned `PartitionReader`
+    /// implements [`std::io::Read`], so the caller can wrap it in a
+    /// [`std::io::BufReader`] and process bytes without materializing the
+    /// whole partition in memory.
+    ///
+    /// The reader borrows `&mut self`, so the `ShuffleClient` cannot be
+    /// shut down (and no other partition can be read in parallel) while the
+    /// reader is alive — this matches the constraint imposed by
+    /// [`Self::read_partition`].
+    pub fn open_partition(
+        &mut self,
+        shuffle_id: i32,
+        partition_id: i32,
+        attempt_number: i32,
+        start_map_index: i32,
+        end_map_index: i32,
+    ) -> Result<PartitionReader<'_>> {
+        let inner = ffi::open_partition_reader(
+            self.inner.pin_mut(),
+            shuffle_id,
+            partition_id,
+            attempt_number,
+            start_map_index,
+            end_map_index,
+        )?;
+        Ok(PartitionReader {
+            inner,
+            _client: PhantomData,
+        })
+    }
+
+    /// Convenience: stream all map outputs for a partition.
+    #[inline]
+    pub fn open_partition_all(
+        &mut self,
+        shuffle_id: i32,
+        partition_id: i32,
+        num_mappers: i32,
+    ) -> Result<PartitionReader<'_>> {
+        self.open_partition(shuffle_id, partition_id, 0, 0, num_mappers)
+    }
+
     /// Explicitly shut down the client. Preferred over relying on Drop.
     ///
     /// After calling `ffi::shutdown`, the underlying C++ handle is intentionally
@@ -179,6 +223,21 @@ impl ShuffleClient {
         let ptr = std::mem::replace(handle, UniquePtr::<ffi::ShuffleClientHandle>::null());
         // into_raw consumes the UniquePtr without calling the C++ destructor.
         cxx::UniquePtr::into_raw(ptr);
+    }
+}
+
+/// Streaming reader for a single partition, returned by
+/// [`ShuffleClient::open_partition`]. Implements [`std::io::Read`]; use a
+/// [`std::io::BufReader`] around it to avoid one FFI call per byte.
+pub struct PartitionReader<'client> {
+    inner: UniquePtr<ffi::PartitionReaderHandle>,
+    _client: PhantomData<&'client mut ShuffleClient>,
+}
+
+impl<'client> std::io::Read for PartitionReader<'client> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        ffi::read_partition_chunk(self.inner.pin_mut(), buf)
+            .map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 

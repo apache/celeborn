@@ -22,7 +22,7 @@
 use celeborn_client::{Config, ShuffleClient};
 use std::env;
 use std::fs::File;
-use std::io::Write;
+use std::io::{BufReader, Read, Write};
 
 fn main() {
     env_logger::init();
@@ -67,15 +67,21 @@ fn main() {
     let mut result = vec![0i64; num_partitions as usize];
 
     for partition_id in 0..num_partitions {
-        let data = client
-            .read_partition(shuffle_id, partition_id, attempt_id, 0, num_mappers)
-            .expect("read_partition failed");
+        let reader = client
+            .open_partition(shuffle_id, partition_id, attempt_id, 0, num_mappers)
+            .expect("open_partition failed");
+        let mut buf_reader = BufReader::with_capacity(64 * 1024, reader);
 
         let mut current_number: i64 = 0;
         let mut data_count: usize = 0;
+        let mut byte = [0u8; 1];
 
-        for &byte in &data {
-            let c = byte as char;
+        loop {
+            let n = buf_reader.read(&mut byte).expect("read failed");
+            if n == 0 {
+                break;
+            }
+            let c = byte[0] as char;
             match c {
                 '-' => {
                     result[partition_id as usize] += current_number;

@@ -181,4 +181,46 @@ rust::Vec<uint8_t> read_partition_full(
   }
 }
 
+std::unique_ptr<PartitionReaderHandle> open_partition_reader(
+    ShuffleClientHandle& handle,
+    int32_t shuffle_id,
+    int32_t partition_id,
+    int32_t attempt_number,
+    int32_t start_map_index,
+    int32_t end_map_index) {
+  try {
+    auto reader = std::make_unique<PartitionReaderHandle>();
+    reader->stream = handle.client->readPartition(
+        shuffle_id, partition_id, attempt_number, start_map_index, end_map_index);
+    return reader;
+  } catch (const std::exception& e) {
+    throw std::runtime_error(std::string("celeborn-ffi: ") + e.what());
+  } catch (...) {
+    throw std::runtime_error("celeborn-ffi: unknown C++ exception");
+  }
+}
+
+size_t read_partition_chunk(
+    PartitionReaderHandle& reader, rust::Slice<uint8_t> out) {
+  try {
+    if (out.size() == 0) {
+      return 0;
+    }
+    int n = reader.stream->read(out.data(), 0, out.size());
+    if (n == -1) {
+      return 0;  // EOF, std::io::Read semantics
+    }
+    if (n < 0) {
+      throw std::runtime_error(
+          "celeborn-ffi: CelebornInputStream::read returned unexpected negative " +
+          std::to_string(n));
+    }
+    return static_cast<size_t>(n);
+  } catch (const std::exception& e) {
+    throw std::runtime_error(std::string("celeborn-ffi: ") + e.what());
+  } catch (...) {
+    throw std::runtime_error("celeborn-ffi: unknown C++ exception");
+  }
+}
+
 }  // namespace celeborn_ffi

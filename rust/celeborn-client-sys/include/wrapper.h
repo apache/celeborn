@@ -21,6 +21,7 @@
 #include <vector>
 #include "rust/cxx.h"
 #include "celeborn/client/ShuffleClient.h"
+#include "celeborn/client/reader/CelebornInputStream.h"
 #include "celeborn/conf/CelebornConf.h"
 
 namespace celeborn_ffi {
@@ -31,6 +32,13 @@ struct ShuffleClientHandle {
   std::shared_ptr<celeborn::client::ShuffleClientImpl> client;
   std::string app_id;
   std::string lifecycle_manager_host;
+};
+
+// Opaque handle wrapping a single CelebornInputStream so each reader can be
+// dropped independently. The underlying stream holds a raw ShuffleClient*,
+// so the owning ShuffleClientHandle must outlive every PartitionReaderHandle.
+struct PartitionReaderHandle {
+  std::unique_ptr<celeborn::client::CelebornInputStream> stream;
 };
 
 std::unique_ptr<ShuffleClientHandle> create_client(
@@ -62,5 +70,18 @@ rust::Vec<uint8_t> read_partition_full(
     int32_t attempt_number,
     int32_t start_map_index,
     int32_t end_map_index);
+
+std::unique_ptr<PartitionReaderHandle> open_partition_reader(
+    ShuffleClientHandle& handle,
+    int32_t shuffle_id,
+    int32_t partition_id,
+    int32_t attempt_number,
+    int32_t start_map_index,
+    int32_t end_map_index);
+
+// Fills `out` with the next chunk of partition bytes.
+// Returns the number of bytes written; 0 means EOF (std::io::Read semantics).
+size_t read_partition_chunk(
+    PartitionReaderHandle& reader, rust::Slice<uint8_t> out);
 
 }  // namespace celeborn_ffi

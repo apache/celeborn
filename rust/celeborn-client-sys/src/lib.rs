@@ -19,6 +19,7 @@ pub mod ffi {
         include!("wrapper.h");
 
         type ShuffleClientHandle;
+        type PartitionReaderHandle;
 
         fn create_client(
             app_id: &CxxString,
@@ -66,5 +67,19 @@ pub mod ffi {
             start_map_index: i32,
             end_map_index: i32,
         ) -> Result<Vec<u8>>;
+
+        fn open_partition_reader(
+            handle: Pin<&mut ShuffleClientHandle>,
+            shuffle_id: i32,
+            partition_id: i32,
+            attempt_number: i32,
+            start_map_index: i32,
+            end_map_index: i32,
+        ) -> Result<UniquePtr<PartitionReaderHandle>>;
+
+        fn read_partition_chunk(
+            reader: Pin<&mut PartitionReaderHandle>,
+            out: &mut [u8],
+        ) -> Result<usize>;
     }
 }
