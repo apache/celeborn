@@ -21,6 +21,7 @@ import java.io.ByteArrayInputStream
 
 import io.netty.buffer.{ByteBufAllocator, CompositeByteBuf, UnpooledByteBufAllocator}
 import org.apache.commons.io.IOUtils
+import org.apache.hadoop.fs.{FSDataOutputStream, Path}
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchersSugar.eqTo
 import org.mockito.MockitoSugar.{verify, _}
@@ -82,6 +83,64 @@ class FlushTaskSuite extends CelebornFunSuite {
         verify(mockSource).incCounter(WorkerSource.S3_FLUSH_COUNT)
         verify(mockSource).incCounter(WorkerSource.S3_FLUSH_SIZE, expectedLength)
       })
+  }
+
+  test("HdfsFlushTask flush should work with buffers of various sizes") {
+    val bytes = "another test data".getBytes("UTF-8")
+    val len = bytes.length
+
+    // Define the scenarios: (scenario name, size to allocate)
+    val scenarios = Table(
+      ("description", "allocatedSize"),
+      ("provider buffer is the same size as the buffer", len),
+      ("provider buffer is bigger", len + 10),
+      ("provider buffer smaller", len - 5))
+
+    forAll(scenarios) { (description, bufferSize) =>
+      val mockBuffer = spy(ALLOCATOR.compositeBuffer())
+      mockBuffer.writeBytes(bytes)
+      val mockNotifier = mock[FlushNotifier]
+      val mockSource = mock[AbstractSource]
+      val mockHdfsStream = mock[FSDataOutputStream]
+      val mockPath = mock[Path]
+
+      val flushTask = new HdfsFlushTask(
+        mockBuffer,
+        mockHdfsStream,
+        mockPath,
+        mockNotifier,
+        false, // keepBuffer
+        mockSource)
+
+      // Pre-fill the provider buffer with a sentinel so that the buggy path
+      // (writing the full array instead of size bytes) is detectable: any
+      // trailing bytes that leak through would still be the sentinel.
+      val copyBytesArray = Array.fill[Byte](bufferSize)(0xFF.toByte)
+      flushTask.flush(copyBytesArray)
+
+      // buffer position is not moved
+      assert(mockBuffer.readableBytes() == bytes.length)
+
+      val bytesCaptor = ArgumentCaptor.forClass(classOf[Array[Byte]])
+      val offsetCaptor = ArgumentCaptor.forClass(classOf[Integer])
+      val lengthCaptor = ArgumentCaptor.forClass(classOf[Integer])
+      verify(mockHdfsStream).write(
+        bytesCaptor.capture(),
+        offsetCaptor.capture(),
+        lengthCaptor.capture())
+      verify(mockSource).incCounter(WorkerSource.HDFS_FLUSH_COUNT)
+      verify(mockSource).incCounter(WorkerSource.HDFS_FLUSH_SIZE, bytes.length)
+
+      assert(offsetCaptor.getValue == 0, s"Offset mismatch on: $description")
+      assert(
+        lengthCaptor.getValue == bytes.length,
+        s"Length mismatch on: $description")
+      val capturedBytes = bytesCaptor.getValue
+        .slice(offsetCaptor.getValue, offsetCaptor.getValue + lengthCaptor.getValue)
+      assert(capturedBytes sameElements bytes, s"Content mismatch on: $description")
+
+      mockBuffer.release()
+    }
   }
 
   def runTest(
