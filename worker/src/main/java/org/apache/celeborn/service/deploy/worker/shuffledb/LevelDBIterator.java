@@ -26,14 +26,17 @@ public class LevelDBIterator implements DBIterator {
 
   private final org.iq80.leveldb.DBIterator it;
 
+  private final MetadataMetrics metrics;
+
   private boolean checkedNext;
 
   private boolean closed;
 
   private Map.Entry<byte[], byte[]> next;
 
-  public LevelDBIterator(org.iq80.leveldb.DBIterator it) {
+  public LevelDBIterator(org.iq80.leveldb.DBIterator it, MetadataMetrics metrics) {
     this.it = it;
+    this.metrics = metrics;
   }
 
   @Override
@@ -74,14 +77,16 @@ public class LevelDBIterator implements DBIterator {
 
   @Override
   public void seek(byte[] key) {
-    it.seek(key);
+    metrics.onRead(() -> it.seek(key));
   }
 
   private Map.Entry<byte[], byte[]> loadNext() {
-    boolean hasNext = it.hasNext();
-    if (!hasNext) {
-      return null;
-    }
-    return it.next();
+    return metrics.onRead(
+        () -> {
+          if (!it.hasNext()) {
+            return null;
+          }
+          return it.next();
+        });
   }
 }

@@ -281,6 +281,7 @@ These metrics are exposed by Celeborn worker.
     | OssFlushSize                           | The size of data flushed to OSS.                                                                                |
     | S3FlushCount                           | The amount of data flushed to S3.                                                                               |
     | S3FlushSize                            | The size of data flushed to S3.                                                                                 |
+    | MetadataOperationStatusCount           | The count of metadata DB operations performed by the worker |
     | push_usedHeapMemory                    |                                                                                                                 |
     | push_usedDirectMemory                  |                                                                                                                 |
     | push_numHeapArenas                     |                                                                                                                 |

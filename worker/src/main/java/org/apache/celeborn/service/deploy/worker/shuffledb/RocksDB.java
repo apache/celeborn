@@ -22,66 +22,58 @@ import java.io.IOException;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
 
+import org.apache.celeborn.common.metrics.source.AbstractSource;
+
 /**
  * RocksDB implementation of the local KV storage used to persist the shuffle state.
  *
  * <p>Note: code copied from Apache Spark.
  */
-public class RocksDB implements DB {
+public class RocksDB extends DB {
   private final org.rocksdb.RocksDB db;
   private final WriteOptions SYNC_WRITE_OPTIONS = new WriteOptions().setSync(true);
 
-  public RocksDB(org.rocksdb.RocksDB db) {
+  public RocksDB(org.rocksdb.RocksDB db, AbstractSource source, DBBackend dbBackend) {
+    super(source, dbBackend);
     this.db = db;
   }
 
   @Override
-  public void put(byte[] key, byte[] value) {
-    try {
+  protected void putInternal(byte[] key, byte[] value) throws RocksDBException {
+    db.put(key, value);
+  }
+
+  @Override
+  protected void putInternal(byte[] key, byte[] value, boolean sync) throws RocksDBException {
+    if (sync) {
+      db.put(SYNC_WRITE_OPTIONS, key, value);
+    } else {
       db.put(key, value);
-    } catch (RocksDBException e) {
-      throw new RuntimeException(e);
     }
   }
 
   @Override
-  public void put(byte[] key, byte[] value, boolean sync) {
-    try {
-      if (sync) {
-        db.put(SYNC_WRITE_OPTIONS, key, value);
-      } else {
-        db.put(key, value);
-      }
-    } catch (RocksDBException e) {
-      throw new RuntimeException(e);
-    }
+  protected byte[] getInternal(byte[] key) throws RocksDBException {
+    return db.get(key);
   }
 
   @Override
-  public byte[] get(byte[] key) {
-    try {
-      return db.get(key);
-    } catch (RocksDBException e) {
-      throw new RuntimeException(e);
-    }
+  protected void deleteInternal(byte[] key) throws RocksDBException {
+    db.delete(key);
   }
 
   @Override
-  public void delete(byte[] key) {
-    try {
-      db.delete(key);
-    } catch (RocksDBException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  @Override
-  public DBIterator iterator() {
-    return new RocksDBIterator(db.newIterator());
+  protected DBIterator newIterator(MetadataMetrics metrics) {
+    return new RocksDBIterator(db.newIterator(), metrics);
   }
 
   @Override
   public void close() throws IOException {
-    db.close();
+    try {
+      db.close();
+    } finally {
+      // WriteOptions is a native handle; release it even if db.close() throws.
+      SYNC_WRITE_OPTIONS.close();
+    }
   }
 }

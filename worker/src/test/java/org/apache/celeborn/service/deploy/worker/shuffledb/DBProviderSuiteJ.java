@@ -34,8 +34,10 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.service.deploy.worker.WorkerSource;
 
 @RunWith(Parameterized.class)
 public class DBProviderSuiteJ {
@@ -64,14 +66,17 @@ public class DBProviderSuiteJ {
         createDirectory
             ? Utils.createDirectory(dbDir.getPath(), namePrefix)
             : new File(dbDir.getPath(), String.format("%s-%s", namePrefix, UUID.randomUUID()));
+    WorkerSource workerSource = new WorkerSource(new CelebornConf());
     try {
       StoreVersion v1 = new StoreVersion(1, 0);
-      DBProvider.initDB(dbBackend, dbFile, v1).close();
+      DBProvider.initDB(dbBackend, dbFile, v1, workerSource).close();
       StoreVersion v2 = new StoreVersion(2, 0);
       IOException ioe =
-          assertThrows(IOException.class, () -> DBProvider.initDB(dbBackend, dbFile, v2));
+          assertThrows(
+              IOException.class, () -> DBProvider.initDB(dbBackend, dbFile, v2, workerSource));
       assertTrue(ioe.getMessage().contains("incompatible with current version StoreVersion[2.0]"));
     } finally {
+      workerSource.destroy();
       JavaUtils.deleteRecursively(dbDir);
     }
   }
