@@ -20,6 +20,7 @@ package org.apache.celeborn.common.meta
 import java.util
 
 import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.protocol.StorageInfo
 
 class DeviceInfoSuite extends CelebornFunSuite {
 
@@ -37,5 +38,31 @@ class DeviceInfoSuite extends CelebornFunSuite {
     assert(DeviceInfo.getMountPoint("/data", mountPoints) === "/data")
     assert(DeviceInfo.getMountPoint("/data/data", mountPoints) === "/data")
     assert(DeviceInfo.getMountPoint("/data1/data", mountPoints) === "/")
+  }
+
+  test("Test diskInfo usableSpace accounting") {
+    val usableSpace = 1000L
+    val diskInfo = new DiskInfo(
+      "SSD",
+      usableSpace,
+      Integer.MAX_VALUE,
+      Integer.MAX_VALUE,
+      Integer.MAX_VALUE,
+      StorageInfo.Type.SSD)
+
+    assert(diskInfo.actualUsableSpace === usableSpace)
+    assert(diskInfo.getTransientAvailableBytes === usableSpace)
+    assert(diskInfo.acquireBytesFlushed(100L), "Should be able to acquire 100 bytes")
+    assert(diskInfo.getTransientAvailableBytes === usableSpace - 100L)
+
+    assert(!diskInfo.acquireBytesFlushed(901L), "Should not be able to acquire 900 bytes")
+    assert(
+      diskInfo.getTransientAvailableBytes === usableSpace - 100L,
+      "Usable space should not change after failed acquire")
+
+    diskInfo.setUsableSpace(800L)
+    assert(
+      diskInfo.getTransientAvailableBytes === 800L,
+      "Usable space should reflect the new usable space")
   }
 }
