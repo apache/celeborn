@@ -383,6 +383,11 @@ public class SparkUtils {
               .hiddenImpl(TaskSetManager.class, "taskInfos")
               .defaultAlwaysNull()
               .build();
+  private static final DynFields.UnboundField<int[]> TASK_FAILURES =
+      DynFields.builder()
+          .hiddenImpl(TaskSetManager.class, "numFailures")
+          .defaultAlwaysNull()
+          .build();
 
   /**
    * TaskSetManager - it is not designed to be used outside the spark scheduler. Please be careful.
@@ -418,6 +423,39 @@ public class SparkUtils {
       LOG.error("Can not get TaskSetManager for taskId: {}", taskId);
       return null;
     }
+  }
+
+  /**
+   * Gets the number of task attempts that have already failed for the given task index. Note: This
+   * count does NOT include the current failure. To get the total failure count including the
+   * current attempt, you need to add 1 to the returned value.
+   *
+   * @param taskSetManager the TaskSetManager to query
+   * @param index the task index
+   * @return the number of previous failed attempts, or -1 if an error occurs
+   */
+  @VisibleForTesting
+  protected static int getTaskFailureCount(TaskSetManager taskSetManager, int index) {
+    if (taskSetManager == null) {
+      LOG.error("TaskSetManager is null for task index: {}", index);
+      return -1;
+    }
+
+    int[] numFailures = TASK_FAILURES.bind(taskSetManager).get();
+    if (numFailures == null) {
+      LOG.error("Failed to get numFailures array from TaskSetManager for task index: {}", index);
+      return -1;
+    }
+
+    if (index < 0 || index >= numFailures.length) {
+      LOG.error(
+          "Task index {} is out of bounds for numFailures array (length: {})",
+          index,
+          numFailures.length);
+      return -1;
+    }
+
+    return numFailures[index];
   }
 
   protected static Map<String, Set<Long>> reportedStageShuffleFetchFailureTaskIds =
@@ -480,7 +518,6 @@ public class SparkUtils {
         if (taskAttempts == null) return true;
 
         TaskInfo taskInfo = taskAttempts._1();
-        int failedTaskAttempts = 1;
         boolean hasRunningAttempt = false;
         for (TaskInfo ti : taskAttempts._2()) {
           if (ti.taskId() != taskId) {
@@ -492,7 +529,6 @@ public class SparkUtils {
                   taskId,
                   taskInfo.attemptNumber(),
                   ti.attemptNumber());
-              failedTaskAttempts += 1;
             } else if (ti.successful()) {
               LOG.info(
                   "StageId={} index={} taskId={} attempt={} another attempt {} is successful.",
@@ -511,36 +547,55 @@ public class SparkUtils {
                   taskInfo.attemptNumber(),
                   ti.attemptNumber());
               hasRunningAttempt = true;
-            } else if ("FAILED".equals(ti.status()) || "UNKNOWN".equals(ti.status())) {
-              // For KILLED state task, Spark does not count the number of failures
-              // For UNKNOWN state task, Spark does count the number of failures
-              // For FAILED state task, Spark decides whether to count the failure based on the
-              // different failure reasons. Since we cannot obtain the failure
-              // reason here, we will count all tasks in FAILED state.
-              LOG.info(
-                  "StageId={} index={} taskId={} attempt={} another attempt {} status={}.",
-                  stageId,
-                  taskInfo.index(),
-                  taskId,
-                  taskInfo.attemptNumber(),
-                  ti.attemptNumber(),
-                  ti.status());
-              failedTaskAttempts += 1;
             }
           }
         }
         // The following situations should trigger a FetchFailed exception:
-        //  1. If failedTaskAttempts >= maxTaskFails
-        //  2. If no other taskAttempts are running
-        if (failedTaskAttempts >= maxTaskFails || !hasRunningAttempt) {
+        //  1. If total failures (previous failures + current failure) >= maxTaskFails
+        //  2. If no other taskAttempts are running, trigger a FetchFailed exception
+        //  to keep the same behavior as Spark.
+        // Note: previousFailureCount does NOT include the current failure,
+        //       so (previousFailureCount + 1) represents the total failure count.
+        int previousFailureCount = getTaskFailureCount(taskSetManager, taskInfo.index());
+        // If failure count cannot be determined, fall back to attempt status based
+        // behavior instead of aggressively reporting FetchFailed. This avoids
+        // premature stage reruns when reflective access to failure counts is
+        // unavailable, while still reporting the failure when no other attempt is
+        // running.
+        if (previousFailureCount < 0) {
+          if (!hasRunningAttempt) {
+            LOG.warn(
+                "StageId={}, index={}, taskId={}, attemptNumber={}: Unable to determine "
+                    + "previous failure count, and no other running attempt exists. "
+                    + "Reporting shuffle fetch failure.",
+                stageId,
+                taskInfo.index(),
+                taskId,
+                taskInfo.attemptNumber());
+            return true;
+          } else {
+            LOG.warn(
+                "StageId={}, index={}, taskId={}, attemptNumber={}: Unable to determine "
+                    + "previous failure count, but another attempt is still running. "
+                    + "Deferring shuffle fetch failure report.",
+                stageId,
+                taskInfo.index(),
+                taskId,
+                taskInfo.attemptNumber());
+            return false;
+          }
+        }
+        if (previousFailureCount + 1 >= maxTaskFails || !hasRunningAttempt) {
           LOG.warn(
-              "StageId={}, index={}, taskId={}, attemptNumber={}: Task failure count {} reached "
-                  + "maximum allowed failures {} or no running attempt exists.",
+              "StageId={}, index={}, taskId={}, attemptNumber={}: Previous failure count {} "
+                  + "(total with current: {}) reached maximum allowed failures {} "
+                  + "or no running attempt exists.",
               stageId,
               taskInfo.index(),
               taskId,
               taskInfo.attemptNumber(),
-              failedTaskAttempts,
+              previousFailureCount,
+              previousFailureCount + 1,
               maxTaskFails);
           return true;
         } else {
