@@ -387,6 +387,54 @@ public class MasterClientSuiteJ {
     assertEquals(mockResponse, response);
   }
 
+  @Test
+  public void testSuggestedLeaderConnectionFailureRetriesConfiguredMasterInHA() {
+    final CelebornConf conf = prepareForCelebornConfWithHA();
+
+    final RpcEndpointRef master1 = Mockito.mock(RpcEndpointRef.class);
+    final RpcEndpointRef master3 = Mockito.mock(RpcEndpointRef.class);
+
+    Mockito.doReturn(
+            Future$.MODULE$.failed(new MasterNotLeaderException("host1:9097", "host2:9097", null)))
+        .when(master1)
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
+    Mockito.doReturn(Future$.MODULE$.successful(mockResponse))
+        .when(master3)
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
+
+    Mockito.doAnswer(
+            invocation -> {
+              RpcAddress address = invocation.getArgument(0, RpcAddress.class);
+              switch (address.host()) {
+                case "host1":
+                  return master1;
+                case "host2":
+                  throw new IOException("test");
+                case "host3":
+                  return master3;
+                default:
+                  fail(
+                      "Should use master host1/host2/host3:" + masterPort + ", but use " + address);
+              }
+              return null;
+            })
+        .when(rpcEnv)
+        .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
+
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
+    HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
+
+    HeartbeatFromWorkerResponse response = null;
+    try {
+      response = client.askSync(message, HeartbeatFromWorkerResponse.class);
+    } catch (Throwable t) {
+      LOG.error("It should retry another configured master if suggested leader setup fails.", t);
+      fail("It should retry another configured master if suggested leader setup fails.");
+    }
+
+    assertEquals(mockResponse, response);
+  }
+
   private void checkOneMasterDownInHA(Exception causedByException) {
     final CelebornConf conf = prepareForCelebornConfWithHA();
 

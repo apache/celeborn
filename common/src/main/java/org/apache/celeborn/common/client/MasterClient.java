@@ -178,7 +178,9 @@ public class MasterClient {
               ? exception.getSuggestedInternalLeaderAddress()
               : exception.getSuggestedLeaderAddress();
       if (!leaderAddr.equals(MasterNotLeaderException.LEADER_NOT_PRESENTED)) {
-        setRpcEndpointRef(leaderAddr);
+        if (!setRpcEndpointRef(leaderAddr)) {
+          resetRpcEndpointRef(oldRef);
+        }
       } else {
         LOG.warn("Master leader is not present currently, please check masters' status!");
         resetRpcEndpointRef(oldRef);
@@ -203,7 +205,7 @@ public class MasterClient {
     return null;
   }
 
-  private void setRpcEndpointRef(String masterEndpoint) {
+  private boolean setRpcEndpointRef(String masterEndpoint) {
     // This method should never care newer or old value, we just set the suggested master endpoint.
     // If an error occurs when setting the suggested Master, it means that the Master may be down.
     // At this time, we just set `rpcEndpointRef` to null. Then next time, we will re-select the
@@ -212,9 +214,13 @@ public class MasterClient {
     int redirectTries = 0;
     while (redirectTries++ <= maxRetries) {
       try {
-        rpcEndpointRef.set(setupEndpointRef(nextMasterEndpoint));
-        LOG.info("Fail over to master {}.", nextMasterEndpoint);
-        return;
+        RpcEndpointRef endpointRef = setupEndpointRef(nextMasterEndpoint);
+        if (endpointRef != null) {
+          rpcEndpointRef.set(endpointRef);
+          LOG.info("Fail over to master {}.", nextMasterEndpoint);
+          return true;
+        }
+        break;
       } catch (RuntimeException e) {
         MasterNotLeaderException exception = findMasterNotLeaderException(e);
         if (exception == null) {
@@ -235,6 +241,7 @@ public class MasterClient {
     LOG.info(
         "Fail over to master {} failed during endpoint setup; will retry with another master.",
         masterEndpoint);
+    return false;
   }
 
   private void resetRpcEndpointRef(@Nullable RpcEndpointRef oldRef) {
