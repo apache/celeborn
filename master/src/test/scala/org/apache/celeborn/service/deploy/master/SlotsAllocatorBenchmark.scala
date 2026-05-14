@@ -94,18 +94,28 @@ object SlotsAllocatorBenchmark extends BenchmarkBase {
   override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
     benchmarkRoundRobin(
       "200 workers, 10K partitions, no replication",
-      200, 10000, shouldReplicate = false)
+      200,
+      10000,
+      shouldReplicate = false)
     benchmarkRoundRobin(
       "200 workers, 100K partitions, no replication",
-      200, 100000, shouldReplicate = false)
+      200,
+      100000,
+      shouldReplicate = false)
     benchmarkRoundRobin(
       "500 workers, 100K partitions, with replication",
-      500, 100000, shouldReplicate = true)
+      500,
+      100000,
+      shouldReplicate = true)
     benchmarkRoundRobin(
       "500 workers, 2M partitions, no replication",
-      500, 2000000, shouldReplicate = false)
+      500,
+      2000000,
+      shouldReplicate = false)
     benchmarkRoundRobin(
       "1000 workers, 500K partitions, with replication",
-      1000, 500000, shouldReplicate = true)
+      1000,
+      500000,
+      shouldReplicate = true)
   }
 }
