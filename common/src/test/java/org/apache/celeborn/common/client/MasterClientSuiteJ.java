@@ -359,7 +359,8 @@ public class MasterClientSuiteJ {
                 case "host3":
                   return master3;
                 default:
-                  fail("Should use master host1/host2/host3:" + masterPort + ", but use " + address);
+                  fail(
+                      "Should use master host1/host2/host3:" + masterPort + ", but use " + address);
               }
               return null;
             })
