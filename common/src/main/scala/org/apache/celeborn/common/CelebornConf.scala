@@ -6997,4 +6997,44 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
+  val QUOTA_APP_DISK_BYTES_WRITTEN: ConfigEntry[Long] =
+    buildConf("celeborn.quota.app.diskBytesWritten")
+      .categories("quota")
+      .dynamic
+      .doc("App level quota for written disk bytes. Only enforced when a higher-level " +
+        "quota (user/tenant/cluster) is already exceeded, to identify the app that " +
+        "should be throttled first.")
+      .version("0.7.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_APP_DISK_FILE_COUNT: ConfigEntry[Long] =
+    buildConf("celeborn.quota.app.diskFileCount")
+      .categories("quota")
+      .dynamic
+      .doc("App level quota for written disk file count. Only enforced when a higher-level " +
+        "quota (user/tenant/cluster) is already exceeded.")
+      .version("0.7.0")
+      .longConf
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_APP_HDFS_BYTES_WRITTEN: ConfigEntry[Long] =
+    buildConf("celeborn.quota.app.hdfsBytesWritten")
+      .categories("quota")
+      .dynamic
+      .doc("App level quota for written HDFS bytes. Only enforced when a higher-level " +
+        "quota (user/tenant/cluster) is already exceeded.")
+      .version("0.7.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(Long.MaxValue)
+
+  val QUOTA_APP_HDFS_FILE_COUNT: ConfigEntry[Long] =
+    buildConf("celeborn.quota.app.hdfsFileCount")
+      .categories("quota")
+      .dynamic
+      .doc("App level quota for written HDFS file count. Only enforced when a higher-level " +
+        "quota (user/tenant/cluster) is already exceeded.")
+      .version("0.7.0")
+      .longConf
+      .createWithDefault(Long.MaxValue)
 }
