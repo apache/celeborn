@@ -43,6 +43,8 @@ import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
+import org.apache.spark.TaskContext$;
+import org.apache.spark.TaskKilledException;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.memory.TaskMemoryManager;
@@ -145,6 +147,7 @@ public abstract class CelebornShuffleWriterSuiteBase {
 
     Mockito.doReturn(metrics).when(taskContext).taskMetrics();
     Mockito.doReturn(taskMemoryManager).when(taskContext).taskMemoryManager();
+    Mockito.doReturn(None$.MODULE$).when(taskContext).getKillReason();
 
     Mockito.doReturn(bmId).when(blockManager).shuffleServerId();
     Mockito.doReturn(blockManager).when(env).blockManager();
@@ -212,6 +215,24 @@ public abstract class CelebornShuffleWriterSuiteBase {
     final CelebornConf conf =
         new CelebornConf().set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "128");
     check(2 << 30, conf, serializer);
+  }
+
+  @Test
+  public void testAssertIteratorFullyConsumed() {
+    SparkUtils.assertIteratorFullyConsumed(false);
+  }
+
+  @Test
+  public void testAssertIteratorFullyConsumedThrows() {
+    TaskContext$.MODULE$.setTaskContext(taskContext);
+    try {
+      SparkUtils.assertIteratorFullyConsumed(true);
+      fail("Expected TaskKilledException when iterator is not fully consumed");
+    } catch (TaskKilledException e) {
+      assertTrue(e.reason().contains("not fully consumed"));
+    } finally {
+      TaskContext$.MODULE$.setTaskContext(null);
+    }
   }
 
   private void check(

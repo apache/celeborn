@@ -543,4 +543,11 @@ public class SparkUtils {
           return null;
         });
   }
+
+  public static void assertIteratorFullyConsumed(boolean iteratorHasNext) {
+    if (iteratorHasNext) {
+      TaskInterruptedHelper.throwTaskKillException(
+          "Shuffle write task finished but iterator was not fully consumed.");
+    }
+  }
 }
