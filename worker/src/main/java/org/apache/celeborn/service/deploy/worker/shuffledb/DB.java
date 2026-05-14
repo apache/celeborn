@@ -19,23 +19,62 @@ package org.apache.celeborn.service.deploy.worker.shuffledb;
 
 import java.io.Closeable;
 
-/** Note: code copied from Apache Spark. */
-public interface DB extends Closeable {
-  /** Set the DB entry for "key" to "value". */
-  void put(byte[] key, byte[] value);
+import org.apache.celeborn.common.metrics.source.AbstractSource;
 
-  /** Set the DB entry for "key" to "value". Support Sync option */
-  void put(byte[] key, byte[] value, boolean sync);
+/**
+ * Common base class for the metadata KV store.
+ *
+ * <p>This class owns the {@link MetadataMetrics} recorder so that every backend (RocksDB, LevelDB,
+ * ...) gets read/write success/fail counters for free, without having to repeat the metric plumbing
+ * in each implementation. Subclasses only implement the raw backend-specific primitives ({@code
+ * putInternal}, {@code getInternal}, {@code deleteInternal}, {@code newIterator}); the public API
+ * methods below are {@code final} and wrap those primitives with the metric recording.
+ *
+ * <p>Note: code copied from Apache Spark.
+ */
+public abstract class DB implements Closeable {
+
+  private final MetadataMetrics metrics;
+
+  protected DB(AbstractSource source, DBBackend dbBackend) {
+    this.metrics = new MetadataMetrics(source, dbBackend);
+  }
+
+  /** Set the DB entry for "key" to "value". */
+  public final void put(byte[] key, byte[] value) {
+    metrics.onWrite(() -> putInternal(key, value));
+  }
+
+  /** Set the DB entry for "key" to "value". Support Sync option. */
+  public final void put(byte[] key, byte[] value, boolean sync) {
+    metrics.onWrite(() -> putInternal(key, value, sync));
+  }
 
   /**
    * Get which returns a new byte array storing the value associated with the specified input key if
    * any.
    */
-  byte[] get(byte[] key);
+  public final byte[] get(byte[] key) {
+    return metrics.onRead(() -> getInternal(key));
+  }
 
   /** Delete the DB entry (if any) for "key". */
-  void delete(byte[] key);
+  public final void delete(byte[] key) {
+    metrics.onWrite(() -> deleteInternal(key));
+  }
 
   /** Return an iterator over the contents of the DB. */
-  DBIterator iterator();
+  public final DBIterator iterator() {
+    return newIterator(metrics);
+  }
+
+  protected abstract void putInternal(byte[] key, byte[] value) throws Exception;
+
+  protected abstract void putInternal(byte[] key, byte[] value, boolean sync) throws Exception;
+
+  protected abstract byte[] getInternal(byte[] key) throws Exception;
+
+  protected abstract void deleteInternal(byte[] key) throws Exception;
+
+  protected abstract DBIterator newIterator(MetadataMetrics metrics);
 }

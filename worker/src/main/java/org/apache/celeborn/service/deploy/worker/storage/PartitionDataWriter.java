@@ -122,13 +122,23 @@ public class PartitionDataWriter implements DeviceObserver {
     currentTierWriter.flush(false, false);
   }
 
-  public synchronized boolean needHardSplitForMemoryShuffleStorage() {
-    if (!(currentTierWriter instanceof MemoryTierWriter)) {
+  public boolean needHardSplitForMemoryShuffleStorage() {
+    // Disk-backed writers never need this memory-only split check. Avoid contending with writes and
+    // evictions on the hot push path for the common case.
+    TierWriterBase tierWriter = currentTierWriter;
+    if (!(tierWriter instanceof MemoryTierWriter)) {
       return false;
     }
-    return !storageManager.localOrDfsStorageAvailable()
-        && (currentTierWriter.fileInfo().getFileLength() > memoryFileStorageMaxFileSize
-            || !MemoryManager.instance().memoryFileStorageAvailable());
+
+    synchronized (this) {
+      tierWriter = currentTierWriter;
+      if (!(tierWriter instanceof MemoryTierWriter)) {
+        return false;
+      }
+      return !storageManager.localOrDfsStorageAvailable()
+          && (tierWriter.fileInfo().getFileLength() > memoryFileStorageMaxFileSize
+              || !MemoryManager.instance().memoryFileStorageAvailable());
+    }
   }
 
   public synchronized void write(ByteBuf data) throws IOException {

@@ -125,7 +125,7 @@ private[worker] class HdfsFlushTask(
       hdfsStream: FSDataOutputStream,
       bytes: Array[Byte],
       size: Int): Unit = {
-    hdfsStream.write(bytes)
+    hdfsStream.write(bytes, 0, size)
     source.incCounter(WorkerSource.HDFS_FLUSH_COUNT)
     source.incCounter(WorkerSource.HDFS_FLUSH_SIZE, size)
   }

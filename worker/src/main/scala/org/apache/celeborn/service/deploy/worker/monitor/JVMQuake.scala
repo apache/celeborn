@@ -87,11 +87,15 @@ class JVMQuake(conf: CelebornConf, uniqueId: String = UUID.randomUUID().toString
   private def run(): Unit = {
     val currentExitTime = getLastExitTime
     val currentGCTime = getLastGCTime
-    val gcTime = currentGCTime - lastGCTime
-    val runTime = currentExitTime - lastExitTime - gcTime
+    val gcTimeTicks = currentGCTime - lastGCTime
+    val runTimeTicks = currentExitTime - lastExitTime - gcTimeTicks
+    // JVMStat time monitors are reported in ticks. Convert deltas to nanos before comparing
+    // them against JVMQuake thresholds, which are stored as nanos.
+    val gcTime = ticksToNanos(gcTimeTicks)
+    val runTime = ticksToNanos(runTimeTicks)
 
-    bucket = Math.max(0, bucket + gcTime - BigDecimal(runTime * runtimeWeight).toLong)
-    logDebug(s"Time: (gc time: ${Utils.msDurationToString(gcTime)}, execution time: ${Utils.msDurationToString(runTime)})")
+    bucket = Math.max(0, bucket + gcTime - (BigDecimal(runTime) * BigDecimal(runtimeWeight)).toLong)
+    logDebug(s"Time: (gc time: ${Utils.nanoDurationToString(gcTime)}, execution time: ${Utils.nanoDurationToString(runTime)})")
     logDebug(
       s"Capacity: (bucket: $bucket, dump threshold: $dumpThreshold, kill threshold: $killThreshold)")
 
@@ -161,6 +165,8 @@ class JVMQuake(conf: CelebornConf, uniqueId: String = UUID.randomUUID().toString
 
 object JVMQuake {
 
+  private[this] val NANOS_PER_SECOND = 1000000000L
+
   private[this] var quake: JVMQuake = _
 
   def create(conf: CelebornConf, uniqueId: String): JVMQuake = {
@@ -187,6 +193,8 @@ object JVMQuake {
     monitoredVm.findByName("sun.gc.collector.1.lastExitTime")
   private[this] lazy val ygcTimeMonitor: Monitor = monitoredVm.findByName("sun.gc.collector.0.time")
   private[this] lazy val fgcTimeMonitor: Monitor = monitoredVm.findByName("sun.gc.collector.1.time")
+  private[this] lazy val hrtFrequencyMonitor: Monitor =
+    monitoredVm.findByName("sun.os.hrt.frequency")
 
   private def getLastExitTime: Long = Math.max(
     ygcExitTimeMonitor.getValue.asInstanceOf[Long],
@@ -194,4 +202,13 @@ object JVMQuake {
 
   private def getLastGCTime: Long =
     ygcTimeMonitor.getValue.asInstanceOf[Long] + fgcTimeMonitor.getValue.asInstanceOf[Long]
+
+  private def hrtFrequency: Long = hrtFrequencyMonitor.getValue.asInstanceOf[Long]
+
+  private[monitor] def ticksToNanos(ticks: Long): Long = ticksToNanos(ticks, hrtFrequency)
+
+  private[monitor] def ticksToNanos(ticks: Long, frequency: Long): Long = {
+    require(frequency > 0, s"Invalid JVMStat high-resolution timer frequency: $frequency")
+    ((BigInt(ticks) * BigInt(NANOS_PER_SECOND)) / BigInt(frequency)).toLong
+  }
 }
