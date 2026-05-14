@@ -334,7 +334,11 @@ public class MasterClientSuiteJ {
 
   @Test
   public void testSuggestedLeaderSetupFailureRetriesAnotherMasterInHA() {
-    final CelebornConf conf = prepareForCelebornConfWithHA();
+    final CelebornConf conf =
+        conf()
+            .set(CelebornConf.HA_ENABLED().key(), "true")
+            .set(CelebornConf.MASTER_ENDPOINTS().key(), "host1:9097,host4:9097")
+            .set(CelebornConf.MASTER_CLIENT_MAX_RETRIES().key(), "5");
 
     final RpcEndpointRef master1 = Mockito.mock(RpcEndpointRef.class);
     final RpcEndpointRef master3 = Mockito.mock(RpcEndpointRef.class);
@@ -358,6 +362,8 @@ public class MasterClientSuiteJ {
                       new MasterNotLeaderException("host2:9097", "host3:9097", null));
                 case "host3":
                   return master3;
+                case "host4":
+                  throw new AssertionError("Should follow chained suggested leaders before host4.");
                 default:
                   fail(
                       "Should use master host1/host2/host3:" + masterPort + ", but use " + address);
