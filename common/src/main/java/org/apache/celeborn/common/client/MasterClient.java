@@ -211,8 +211,8 @@ public class MasterClient {
     // At this time, we just set `rpcEndpointRef` to null. Then next time, we will re-select the
     // Master and get the correct leader.
     String nextMasterEndpoint = masterEndpoint;
-    int redirectTries = 0;
-    while (redirectTries++ <= maxRetries) {
+    Set<String> triedMasterEndpoints = new HashSet<>();
+    while (triedMasterEndpoints.add(nextMasterEndpoint)) {
       try {
         RpcEndpointRef endpointRef = setupEndpointRef(nextMasterEndpoint);
         if (endpointRef != null) {
@@ -285,7 +285,13 @@ public class MasterClient {
     if (endpointRef == null) {
       int index = currentIndex.get();
       do {
-        RpcEndpointRef tempEndpointRef = setupEndpointRef(activeMasterEndpoints.get(index));
+        RpcEndpointRef tempEndpointRef;
+        try {
+          tempEndpointRef = setupEndpointRef(activeMasterEndpoints.get(index));
+        } catch (RuntimeException e) {
+          currentIndex.set((index + 1) % activeMasterEndpoints.size());
+          throw e;
+        }
         if (rpcEndpointRef.compareAndSet(null, tempEndpointRef)) {
           index = (index + 1) % activeMasterEndpoints.size();
         }
