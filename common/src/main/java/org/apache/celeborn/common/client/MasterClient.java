@@ -171,8 +171,8 @@ public class MasterClient {
   private boolean shouldRetry(@Nullable RpcEndpointRef oldRef, Throwable e) {
     // It will always throw celeborn exception , so we need to get the cause
     // 'CelebornException: Exception thrown in awaitResult'
-    if (e.getCause() instanceof MasterNotLeaderException) {
-      MasterNotLeaderException exception = (MasterNotLeaderException) e.getCause();
+    MasterNotLeaderException exception = findMasterNotLeaderException(e);
+    if (exception != null) {
       String leaderAddr =
           isWorker
               ? exception.getSuggestedInternalLeaderAddress()
@@ -191,13 +191,32 @@ public class MasterClient {
     return false;
   }
 
+  @Nullable
+  private MasterNotLeaderException findMasterNotLeaderException(Throwable throwable) {
+    Throwable current = throwable;
+    while (current != null) {
+      if (current instanceof MasterNotLeaderException) {
+        return (MasterNotLeaderException) current;
+      }
+      current = current.getCause();
+    }
+    return null;
+  }
+
   private void setRpcEndpointRef(String masterEndpoint) {
     // This method should never care newer or old value, we just set the suggested master endpoint.
     // If an error occurs when setting the suggested Master, it means that the Master may be down.
     // At this time, we just set `rpcEndpointRef` to null. Then next time, we will re-select the
     // Master and get the correct leader.
-    rpcEndpointRef.set(setupEndpointRef(masterEndpoint));
-    LOG.info("Fail over to master {}.", masterEndpoint);
+    try {
+      rpcEndpointRef.set(setupEndpointRef(masterEndpoint));
+      LOG.info("Fail over to master {}.", masterEndpoint);
+    } catch (RuntimeException e) {
+      rpcEndpointRef.set(null);
+      LOG.info(
+          "Fail over to master {} failed during endpoint setup; will retry with another master.",
+          masterEndpoint);
+    }
   }
 
   private void resetRpcEndpointRef(@Nullable RpcEndpointRef oldRef) {
@@ -269,6 +288,14 @@ public class MasterClient {
           rpcEnv.setupEndpointRef(
               RpcAddress.fromHostAndPort(endpoint), masterEndpointResolver.masterEndpointName());
     } catch (Exception e) {
+      MasterNotLeaderException exception = findMasterNotLeaderException(e);
+      if (exception != null
+          && !MasterNotLeaderException.LEADER_NOT_PRESENTED.equals(
+              isWorker
+                  ? exception.getSuggestedInternalLeaderAddress()
+                  : exception.getSuggestedLeaderAddress())) {
+        throw new RuntimeException(e);
+      }
       // Catch all exceptions. Because we don't care whether this exception is IOException or
       // TimeoutException or other exceptions, so we just try to connect to host:port, if fail,
       // we try next address.
