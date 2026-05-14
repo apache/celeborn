@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
@@ -77,6 +78,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private final ConcurrentHashMap<String, Set<String>> sortedShuffleFiles =
       JavaUtils.newConcurrentHashMap();
   private final ConcurrentHashMap<String, Set<String>> sortingShuffleFiles =
+      JavaUtils.newConcurrentHashMap();
+  private final ConcurrentHashMap<String, List<FileResolvedCallback>> pendingSortCallbacks =
       JavaUtils.newConcurrentHashMap();
   private final Cache<String, Map<Integer, List<ShuffleBlockInfo>>> indexCache;
   private final Map<String, Set<String>> indexCacheNames = JavaUtils.newConcurrentHashMap();
@@ -205,7 +208,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
   // 3. If the sorted file is generated, it returns the sorted FileInfo.
   // This method will generate temporary file info for this shuffle read
   public FileInfo getSortedFileInfo(
-      String shuffleKey, String fileName, FileInfo fileInfo, int startMapIndex, int endMapIndex)
+      String shuffleKey,
+      String fileName,
+      FileInfo fileInfo,
+      int startMapIndex,
+      int endMapIndex,
+      FileResolvedCallback fileResolvedCallback)
       throws IOException {
     if (fileInfo instanceof MemoryFileInfo) {
       MemoryFileInfo memoryFileInfo = ((MemoryFileInfo) fileInfo);
@@ -227,11 +235,13 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           memoryFileInfo.getSortedBuffer(),
           targetBuffer,
           shuffleChunkSize);
-      return new MemoryFileInfo(
-          memoryFileInfo.getUserIdentifier(),
-          memoryFileInfo.isPartitionSplitEnabled(),
-          reduceFileMeta,
-          targetBuffer);
+      FileInfo sortedFileInfo =
+          new MemoryFileInfo(
+              memoryFileInfo.getUserIdentifier(),
+              memoryFileInfo.isPartitionSplitEnabled(),
+              reduceFileMeta,
+              targetBuffer);
+      fileResolvedCallback.onSuccess(sortedFileInfo);
     } else {
       DiskFileInfo diskFileInfo = ((DiskFileInfo) fileInfo);
       String fileId = shuffleKey + "-" + fileName;
@@ -243,13 +253,87 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
       String sortedFilePath = Utils.getSortedFilePath(diskFileInfo.getFilePath());
       String indexFilePath = Utils.getIndexFilePath(diskFileInfo.getFilePath());
-      boolean fileSorting = true;
       synchronized (sorting) {
         if (sorted.contains(fileId)) {
-          fileSorting = false;
-        } else if (!sorting.contains(fileId)) {
           try {
-            FileSorter fileSorter = new FileSorter(diskFileInfo, fileId, shuffleKey);
+            FileInfo sortedFileInfo =
+                resolve(
+                    shuffleKey,
+                    fileId,
+                    userIdentifier,
+                    sortedFilePath,
+                    indexFilePath,
+                    startMapIndex,
+                    endMapIndex);
+            fileResolvedCallback.onSuccess(sortedFileInfo);
+          } catch (Throwable e) {
+            fileResolvedCallback.onFailure(e);
+          }
+          return null;
+        } else if (sorting.contains(fileId)) {
+          FileResolvedCallback pendingCallback =
+              new FileResolvedCallback() {
+                @Override
+                public void onSuccess(FileInfo ignored) {
+                  try {
+                    FileInfo sortedFileInfo =
+                        resolve(
+                            shuffleKey,
+                            fileId,
+                            userIdentifier,
+                            sortedFilePath,
+                            indexFilePath,
+                            startMapIndex,
+                            endMapIndex);
+                    fileResolvedCallback.onSuccess(sortedFileInfo);
+                  } catch (Throwable e) {
+                    fileResolvedCallback.onFailure(e);
+                  }
+                }
+
+                @Override
+                public void onFailure(Throwable e) {
+                  fileResolvedCallback.onFailure(e);
+                }
+              };
+          pendingSortCallbacks
+              .computeIfAbsent(fileId, k -> new CopyOnWriteArrayList<>())
+              .add(pendingCallback);
+        } else {
+          FileSortedCallback fileSortedCallback =
+              new FileSortedCallback() {
+                @Override
+                public void onSuccess() {
+                  try {
+                    FileInfo sortedFileInfo =
+                        resolve(
+                            shuffleKey,
+                            fileId,
+                            userIdentifier,
+                            sortedFilePath,
+                            indexFilePath,
+                            startMapIndex,
+                            endMapIndex);
+                    fileResolvedCallback.onSuccess(sortedFileInfo);
+                  } catch (Throwable e) {
+                    fileResolvedCallback.onFailure(e);
+                  } finally {
+                    notifyPendingSortCallbacks(fileId, null);
+                  }
+                }
+
+                @Override
+                public void onFailure(Throwable e) {
+                  try {
+                    fileResolvedCallback.onFailure(e);
+                  } finally {
+                    notifyPendingSortCallbacks(fileId, e);
+                  }
+                }
+              };
+          try {
+            FileSorter fileSorter =
+                new FileSorter(diskFileInfo, fileId, shuffleKey, fileSortedCallback);
             sorting.add(fileId);
             logger.debug(
                 "Adding sorter to sort queue shuffle key {}, file name {}", shuffleKey, fileName);
@@ -257,59 +341,33 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           } catch (InterruptedException e) {
             logger.error(
                 "Sorter scheduler thread is interrupted means worker is shutting down.", e);
-            throw new IOException(
-                "Sort scheduler thread is interrupted means worker is shutting down.", e);
+            fileResolvedCallback.onFailure(
+                new IOException(
+                    "Sort scheduler thread is interrupted means worker is shutting down.", e));
           } catch (IOException e) {
             logger.error("File sorter access DFS failed.", e);
-            throw new IOException("File sorter access DFS failed.", e);
+            fileResolvedCallback.onFailure(new IOException("File sorter access DFS failed.", e));
           }
         }
       }
+    }
+    return null;
+  }
 
-      if (fileSorting) {
-        long sortStartTime = System.currentTimeMillis();
-        while (!sorted.contains(fileId)) {
-          if (sorting.contains(fileId)) {
-            try {
-              Thread.sleep(50);
-              if (System.currentTimeMillis() - sortStartTime > sortTimeout) {
-                String msg =
-                    String.format(
-                        "Sorting file %s path %s length %s timeout after %dms",
-                        fileId,
-                        diskFileInfo.getFilePath(),
-                        diskFileInfo.getFileLength(),
-                        sortTimeout);
-                logger.error(msg);
-                throw new IOException(msg);
-              }
-            } catch (InterruptedException e) {
-              logger.error(
-                  "Sorter scheduler thread is interrupted means worker is shutting down.", e);
-              throw new IOException(
-                  "Sorter scheduler thread is interrupted means worker is shutting down.", e);
-            }
+  private void notifyPendingSortCallbacks(String fileId, Throwable error) {
+    List<FileResolvedCallback> callbacks = pendingSortCallbacks.remove(fileId);
+    if (callbacks != null) {
+      for (FileResolvedCallback cb : callbacks) {
+        try {
+          if (error != null) {
+            cb.onFailure(error);
           } else {
-            logger.debug(
-                "Sorting shuffle file for {} {} failed.", shuffleKey, diskFileInfo.getFilePath());
-            throw new IOException(
-                "Sorting shuffle file for "
-                    + shuffleKey
-                    + " "
-                    + diskFileInfo.getFilePath()
-                    + " failed.");
+            cb.onSuccess(null);
           }
+        } catch (Exception e) {
+          logger.error("Error notifying pending sort callback for {}", fileId, e);
         }
       }
-
-      return resolve(
-          shuffleKey,
-          fileId,
-          userIdentifier,
-          sortedFilePath,
-          indexFilePath,
-          startMapIndex,
-          endMapIndex);
     }
   }
 
@@ -686,8 +744,14 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     private FileChannel originFileChannel = null;
     private FileChannel sortedFileChannel = null;
     private FileSystem hadoopFs;
+    private FileSortedCallback fileSortedCallback;
 
-    FileSorter(DiskFileInfo fileInfo, String fileId, String shuffleKey) throws IOException {
+    FileSorter(
+        DiskFileInfo fileInfo,
+        String fileId,
+        String shuffleKey,
+        FileSortedCallback fileSortedCallback)
+        throws IOException {
       this.originFileInfo = fileInfo;
       this.originFilePath = fileInfo.getFilePath();
       this.sortedFilePath = Utils.getSortedFilePath(originFilePath);
@@ -700,6 +764,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       this.fileId = fileId;
       this.shuffleKey = shuffleKey;
       this.indexFilePath = Utils.getIndexFilePath(originFilePath);
+      this.fileSortedCallback = fileSortedCallback;
       if (!isDfs) {
         File sortedFile = new File(this.sortedFilePath);
         if (sortedFile.exists()) {
@@ -728,6 +793,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
 
     public void sort() {
       source.startTimer(WorkerSource.SORT_TIME(), fileId);
+      boolean success = true;
       long sortStartTime = -1;
       if (sortTimeLogThreshold > 0) {
         sortStartTime = System.nanoTime();
@@ -804,12 +870,17 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       } catch (Exception e) {
         logger.error(
             "Sorting shuffle file for " + fileId + " " + originFilePath + " failed, detail: ", e);
+        success = false;
+        fileSortedCallback.onFailure(e);
       } finally {
         closeFiles();
         Set<String> sorting = sortingShuffleFiles.get(shuffleKey);
         synchronized (sorting) {
           sorting.remove(fileId);
         }
+      }
+      if (success) {
+        fileSortedCallback.onSuccess();
       }
       if (sortTimeLogThreshold > 0) {
         long sortDuration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sortStartTime);
@@ -999,4 +1070,10 @@ class PartitionFilesCleaner {
     fileSorters.clear();
     cleaner.shutdownNow();
   }
+}
+
+interface FileSortedCallback {
+  void onSuccess();
+
+  void onFailure(Throwable e);
 }
