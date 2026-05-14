@@ -1,0 +1,12 @@
+[package]
+name = "celeborn-client-sys"
+version = "0.1.0"
+edition = "2021"
+description = "Low-level FFI bindings to Apache Celeborn C++ client via cxx"
+publish = false
+
+[dependencies]
+cxx = "1.0"
+
+[build-dependencies]
+cxx-build = "1.0"
