@@ -124,7 +124,7 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
     diskInfo.setUsableSpace(-1L)
     // Should fail even if the status is HEALTHY
     diskInfo.setStatus(DiskStatus.HEALTHY)
-    doReturn(List(diskInfo)).when(spyStorageManager).disksSnapshot()
+    doReturn(List(diskInfo)).when(spyStorageManager).localDisksSnapshot()
 
     val partitionLocation = genPartitionLocation(0, Array(0L))
 
