@@ -21,7 +21,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -186,6 +188,10 @@ public class ShuffleClientImpl extends ShuffleClient {
   // key: shuffleId
   protected final Map<Integer, Tuple3<ReduceFileGroups, String, Exception>> reduceFileGroupsMap =
       JavaUtils.newConcurrentHashMap();
+
+  // key: shuffleId
+  private final Map<Integer, CompletableFuture<Tuple3<ReduceFileGroups, String, Exception>>>
+      reduceFileGroupsInFlight = JavaUtils.newConcurrentHashMap();
 
   private final TransportMessagesHelper messagesHelper = new TransportMessagesHelper();
 
@@ -1797,7 +1803,15 @@ public class ShuffleClientImpl extends ShuffleClient {
   public boolean cleanupShuffle(int shuffleId) {
     // clear status
     reducePartitionMap.remove(shuffleId);
-    reduceFileGroupsMap.remove(shuffleId);
+    CompletableFuture<Tuple3<ReduceFileGroups, String, Exception>> inFlightLoad =
+        reduceFileGroupsInFlight.remove(shuffleId);
+    if (inFlightLoad == null) {
+      reduceFileGroupsMap.remove(shuffleId);
+    } else {
+      synchronized (inFlightLoad) {
+        reduceFileGroupsMap.remove(shuffleId);
+      }
+    }
     mapperEndMap.remove(shuffleId);
     stageEndShuffleSet.remove(shuffleId);
     splitting.remove(shuffleId);
@@ -1909,21 +1923,55 @@ public class ShuffleClientImpl extends ShuffleClient {
       int shuffleId, int partitionId, boolean isSegmentGranularityVisible)
       throws CelebornIOException {
     Tuple3<ReduceFileGroups, String, Exception> fileGroupTuple =
-        reduceFileGroupsMap.compute(
-            shuffleId,
-            (id, existsTuple) -> {
-              if (existsTuple == null || existsTuple._1() == null) {
-                return loadFileGroupInternal(shuffleId, isSegmentGranularityVisible);
-              } else {
-                return existsTuple;
-              }
-            });
+        loadFileGroup(shuffleId, isSegmentGranularityVisible);
     if (fileGroupTuple._1() == null) {
       throw new CelebornIOException(
           loadFileGroupException(shuffleId, partitionId, (fileGroupTuple._2())),
           fileGroupTuple._3());
     } else {
       return fileGroupTuple._1();
+    }
+  }
+
+  private Tuple3<ReduceFileGroups, String, Exception> loadFileGroup(
+      int shuffleId, boolean isSegmentGranularityVisible) {
+    Tuple3<ReduceFileGroups, String, Exception> existingTuple = reduceFileGroupsMap.get(shuffleId);
+    if (existingTuple != null && existingTuple._1() != null) {
+      return existingTuple;
+    }
+
+    CompletableFuture<Tuple3<ReduceFileGroups, String, Exception>> newLoad =
+        new CompletableFuture<>();
+    CompletableFuture<Tuple3<ReduceFileGroups, String, Exception>> inFlightLoad =
+        reduceFileGroupsInFlight.putIfAbsent(shuffleId, newLoad);
+    if (inFlightLoad == null) {
+      try {
+        Tuple3<ReduceFileGroups, String, Exception> loadedTuple =
+            loadFileGroupInternal(shuffleId, isSegmentGranularityVisible);
+        synchronized (newLoad) {
+          if (reduceFileGroupsInFlight.remove(shuffleId, newLoad)) {
+            reduceFileGroupsMap.put(shuffleId, loadedTuple);
+          }
+        }
+        newLoad.complete(loadedTuple);
+        return loadedTuple;
+      } catch (RuntimeException e) {
+        reduceFileGroupsInFlight.remove(shuffleId, newLoad);
+        newLoad.completeExceptionally(e);
+        throw e;
+      }
+    }
+
+    try {
+      return inFlightLoad.get();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return Tuple3.apply(null, e.getMessage(), e);
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause();
+      Exception exception =
+          cause instanceof Exception ? (Exception) cause : new RuntimeException(cause);
+      return Tuple3.apply(null, exception.getMessage(), exception);
     }
   }
 

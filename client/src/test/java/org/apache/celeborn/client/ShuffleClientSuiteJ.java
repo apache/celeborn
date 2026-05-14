@@ -31,8 +31,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.channel.Channel;
@@ -680,5 +682,77 @@ public class ShuffleClientSuiteJ {
 
     Exception exception = exceptionRef.get();
     Assert.assertTrue(exception.getCause() instanceof TimeoutException);
+  }
+
+  @Test
+  public void testUpdateReducerFileGroupConcurrentLoadsShareSingleRpc() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    Map<Integer, Set<PartitionLocation>> locations = new HashMap<>();
+    CountDownLatch rpcStarted = new CountDownLatch(1);
+    CountDownLatch releaseRpc = new CountDownLatch(1);
+    AtomicInteger rpcCalls = new AtomicInteger();
+
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            invocation -> {
+              rpcCalls.incrementAndGet();
+              rpcStarted.countDown();
+              releaseRpc.await(10, TimeUnit.SECONDS);
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SUCCESS,
+                  locations,
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap(),
+                  new byte[0],
+                  SerdeVersion.V1);
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    AtomicReference<ShuffleClientImpl.ReduceFileGroups> firstResult = new AtomicReference<>();
+    AtomicReference<ShuffleClientImpl.ReduceFileGroups> secondResult = new AtomicReference<>();
+    AtomicReference<Exception> firstException = new AtomicReference<>();
+    AtomicReference<Exception> secondException = new AtomicReference<>();
+
+    Thread firstThread =
+        new Thread(
+            () -> {
+              try {
+                firstResult.set(shuffleClient.updateFileGroup(0, 0));
+              } catch (Exception e) {
+                firstException.set(e);
+              }
+            });
+    Thread secondThread =
+        new Thread(
+            () -> {
+              try {
+                secondResult.set(shuffleClient.updateFileGroup(0, 0));
+              } catch (Exception e) {
+                secondException.set(e);
+              }
+            });
+
+    firstThread.start();
+    Assert.assertTrue(rpcStarted.await(10, TimeUnit.SECONDS));
+    secondThread.start();
+    Thread.sleep(200);
+
+    Assert.assertEquals(1, rpcCalls.get());
+
+    releaseRpc.countDown();
+    firstThread.join(10 * 1000);
+    secondThread.join(10 * 1000);
+
+    Assert.assertFalse(firstThread.isAlive());
+    Assert.assertFalse(secondThread.isAlive());
+    Assert.assertNull(firstException.get());
+    Assert.assertNull(secondException.get());
+    Assert.assertNotNull(firstResult.get());
+    Assert.assertNotNull(secondResult.get());
+    Assert.assertSame(firstResult.get(), secondResult.get());
   }
 }
