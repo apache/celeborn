@@ -100,7 +100,7 @@ public class ChunkFetchIntegrationSuiteJ {
     fileChunk = new FileSegmentManagedBuffer(conf, testFile, 10, testFile.length() - 25);
 
     chunkStreamManager =
-        new ChunkStreamManager() {
+        new ChunkStreamManager(new CelebornConf()) {
           @Override
           public ManagedBuffer getChunk(long streamId, int chunkIndex, int offset, int len) {
             assertEquals(STREAM_ID, streamId);

@@ -26,11 +26,13 @@ import org.apache.celeborn.common.network.util.TransportConf;
 
 public class FileChunkBuffers extends ChunkBuffers {
   private final File file;
+  private final boolean isSortedFileInfo;
   private final TransportConf conf;
 
   public FileChunkBuffers(DiskFileInfo fileInfo, TransportConf conf) {
     super(fileInfo.getReduceFileMeta());
     file = fileInfo.getFile();
+    isSortedFileInfo = fileInfo.isSortedDiskFileInfo();
     this.conf = conf;
   }
 
@@ -38,5 +40,9 @@ public class FileChunkBuffers extends ChunkBuffers {
   public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
     Tuple2<Long, Long> offsetLen = getChunkOffsetLength(chunkIndex, offset, len);
     return new FileSegmentManagedBuffer(conf, file, offsetLen._1, offsetLen._2);
+  }
+
+  public boolean isSortedFileInfo() {
+    return isSortedFileInfo;
   }
 }

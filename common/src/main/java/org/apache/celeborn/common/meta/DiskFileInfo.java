@@ -39,6 +39,7 @@ public class DiskFileInfo extends FileInfo {
   private static final Logger logger = LoggerFactory.getLogger(DiskFileInfo.class);
   private final String filePath;
   private final StorageInfo.Type storageType;
+  private final boolean isSortedDiskFileInfo;
 
   public DiskFileInfo(
       UserIdentifier userIdentifier,
@@ -49,6 +50,7 @@ public class DiskFileInfo extends FileInfo {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
     this.filePath = filePath;
     this.storageType = storageType;
+    this.isSortedDiskFileInfo = false;
   }
 
   // only called when restore from pb or in UT
@@ -67,6 +69,7 @@ public class DiskFileInfo extends FileInfo {
       this.storageType = StorageInfo.Type.HDD;
     }
     this.bytesFlushed = bytesFlushed;
+    this.isSortedDiskFileInfo = false;
   }
 
   @VisibleForTesting
@@ -79,10 +82,11 @@ public class DiskFileInfo extends FileInfo {
         StorageInfo.Type.HDD);
   }
 
-  public DiskFileInfo(UserIdentifier userIdentifier, FileMeta fileMeta, String filePath) {
+  public DiskFileInfo(UserIdentifier userIdentifier, FileMeta fileMeta, String filePath, boolean isSortedDiskFileInfo) {
     super(userIdentifier, true, fileMeta);
     this.filePath = filePath;
     this.storageType = StorageInfo.Type.HDD;
+    this.isSortedDiskFileInfo = isSortedDiskFileInfo;
   }
 
   public File getFile() {
@@ -174,5 +178,9 @@ public class DiskFileInfo extends FileInfo {
 
   public StorageInfo.Type getStorageType() {
     return storageType;
+  }
+
+  public boolean isSortedDiskFileInfo() {
+      return isSortedDiskFileInfo;
   }
 }
