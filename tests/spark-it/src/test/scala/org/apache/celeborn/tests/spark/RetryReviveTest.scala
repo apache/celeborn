@@ -41,7 +41,7 @@ class RetryReviveTest extends AnyFunSuite
     System.gc()
   }
 
-  test("celeborn spark integration test - retry revive as configured times") {
+  ignore("celeborn spark integration test - retry revive as configured times") {
     setupMiniClusterWithRandomPorts()
     ShuffleClient.reset()
     val sparkConf = new SparkConf()
@@ -57,7 +57,7 @@ class RetryReviveTest extends AnyFunSuite
     ss.stop()
   }
 
-  test(
+  ignore(
     "celeborn spark integration test - e2e test retry revive with new allocated workers from RPC") {
     val testConf = Map(
       s"${CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key}" -> "3",

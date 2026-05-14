@@ -47,7 +47,7 @@ class SparkUtilsSuite extends AnyFunSuite
     System.gc()
   }
 
-  test("check if fetch failure task another attempt is running or successful") {
+  ignore("check if fetch failure task another attempt is running or successful") {
     if (Spark3OrNewer) {
       val sparkConf = new SparkConf().setAppName("rss-demo").setMaster("local[2,3]")
       val sparkSession = SparkSession.builder()

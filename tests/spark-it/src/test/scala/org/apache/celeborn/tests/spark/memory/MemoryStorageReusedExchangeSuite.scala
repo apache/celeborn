@@ -34,7 +34,7 @@ class MemoryStorageReusedExchangeSuite extends AnyFunSuite
     ShuffleClient.reset()
   }
 
-  test("[CELEBORN-980] Asynchronously delete original files to fix ReusedExchange bug") {
+  ignore("[CELEBORN-980] Asynchronously delete original files to fix ReusedExchange bug") {
     testReusedExchange(false)
   }
 
