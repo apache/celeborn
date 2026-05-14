@@ -47,6 +47,7 @@ import org.mockito.ArgumentCaptor;
 
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.CommitMetadata;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -61,6 +62,8 @@ import org.apache.celeborn.common.protocol.message.ControlMessages.RegisterShuff
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.rpc.RpcTimeoutException;
+import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.common.write.PushState;
 
 public class ShuffleClientSuiteJ {
 
@@ -708,5 +711,44 @@ public class ShuffleClientSuiteJ {
     assertEquals(endMapIndex, capturedRequest.getEndMapIndex());
     assertEquals(crc32, capturedRequest.getCrc32());
     assertEquals(bytesWritten, capturedRequest.getBytesWritten());
+  }
+
+  @Test
+  public void testComputeBatchCRCAccumulatesCorrectly() {
+    CelebornConf conf = new CelebornConf();
+    conf.set("celeborn.client.shuffle.integrityCheck.enabled", "true");
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    byte[] batch0 = "hello world".getBytes(StandardCharsets.UTF_8);
+    byte[] batch1a = "foo".getBytes(StandardCharsets.UTF_8);
+    byte[] batch1b = "bar".getBytes(StandardCharsets.UTF_8);
+
+    shuffleClient.computeBatchCRC(
+        TEST_SHUFFLE_ID, TEST_MAP_ID, TEST_ATTEMPT_ID, 0, batch0, 0, batch0.length);
+    shuffleClient.computeBatchCRC(
+        TEST_SHUFFLE_ID, TEST_MAP_ID, TEST_ATTEMPT_ID, 1, batch1a, 0, batch1a.length);
+    shuffleClient.computeBatchCRC(
+        TEST_SHUFFLE_ID, TEST_MAP_ID, TEST_ATTEMPT_ID, 1, batch1b, 0, batch1b.length);
+
+    PushState pushState =
+        shuffleClient.getPushState(Utils.makeMapKey(TEST_SHUFFLE_ID, TEST_MAP_ID, TEST_ATTEMPT_ID));
+
+    int numPartitions = 2;
+    int[] crcPerPartition = pushState.getCRC32PerPartition(true, numPartitions);
+    long[] bytesPerPartition = pushState.getBytesWrittenPerPartition(true, numPartitions);
+
+    // compute expected values via CommitMetadata — same code path as production
+    CommitMetadata expected0 = new CommitMetadata();
+    expected0.addDataWithOffsetAndLength(batch0, 0, batch0.length);
+    assertEquals(expected0.getChecksum(), crcPerPartition[0]);
+    assertEquals(expected0.getBytes(), bytesPerPartition[0]);
+
+    CommitMetadata expected1 = new CommitMetadata();
+    expected1.addDataWithOffsetAndLength(batch1a, 0, batch1a.length);
+    expected1.addDataWithOffsetAndLength(batch1b, 0, batch1b.length);
+    assertEquals(expected1.getChecksum(), crcPerPartition[1]);
+    assertEquals(expected1.getBytes(), bytesPerPartition[1]);
   }
 }

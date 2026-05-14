@@ -278,6 +278,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   protected void pushGiantRecord(int partitionId, byte[] buffer, int numBytes) throws IOException {
     logger.debug("Push giant record, size {}.", numBytes);
     long start = System.nanoTime();
+    shuffleClient.computeBatchCRC(
+        shuffleId, mapId, encodedAttemptId, partitionId, buffer, 0, numBytes);
     int bytesWritten =
         shuffleClient.pushData(
             shuffleId,
@@ -321,6 +323,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       throws IOException, InterruptedException {
     long start = System.nanoTime();
     if (logger.isDebugEnabled()) logger.debug("Flush buffer, size {}.", Utils.bytesToString(size));
+    shuffleClient.computeBatchCRC(shuffleId, mapId, encodedAttemptId, partitionId, buffer, 0, size);
     dataPusher.addTask(partitionId, buffer, size);
     writeMetrics.incWriteTime(System.nanoTime() - start);
   }
@@ -332,6 +335,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     for (int i = 0; i < numPartitions; i++) {
       final int size = sendOffsets[i];
       if (size > 0) {
+        shuffleClient.computeBatchCRC(
+            shuffleId, mapId, encodedAttemptId, i, sendBuffers[i], 0, size);
         mergeData(i, sendBuffers[i], 0, size);
       }
     }

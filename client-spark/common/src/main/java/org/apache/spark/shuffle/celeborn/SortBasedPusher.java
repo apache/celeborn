@@ -221,6 +221,8 @@ public class SortBasedPusher extends MemoryConsumer {
         if (currentPartition == -1) {
           currentPartition = partition;
         } else {
+          shuffleClient.computeBatchCRC(
+              shuffleId, mapId, attemptNumber, currentPartition, dataBuf, 0, offSet);
           int bytesWritten =
               shuffleClient.mergeData(
                   shuffleId,
@@ -246,6 +248,8 @@ public class SortBasedPusher extends MemoryConsumer {
 
       if (offSet + recordSize > dataBuf.length) {
         try {
+          shuffleClient.computeBatchCRC(
+              shuffleId, mapId, attemptNumber, partition, dataBuf, 0, offSet);
           dataPusher.addTask(partition, dataBuf, offSet);
           memoryThresholdManager.updateStats(offSet, true);
         } catch (InterruptedException e) {
@@ -261,6 +265,8 @@ public class SortBasedPusher extends MemoryConsumer {
     }
     if (offSet > 0) {
       try {
+        shuffleClient.computeBatchCRC(
+            shuffleId, mapId, attemptNumber, currentPartition, dataBuf, 0, offSet);
         dataPusher.addTask(currentPartition, dataBuf, offSet);
         memoryThresholdManager.updateStats(offSet, offSet == pushBufferMaxSize);
       } catch (InterruptedException e) {

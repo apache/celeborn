@@ -188,6 +188,20 @@ public abstract class ShuffleClient {
       int numPartitions)
       throws IOException;
 
+  /**
+   * Pre-compute CRC for a batch immediately after assembly in the writer, before the data enters
+   * the async push pipeline. This is the sole CRC accumulation path when shuffle integrity check is
+   * enabled; {@link #pushOrMergeData} does not perform CRC computation.
+   */
+  public abstract void computeBatchCRC(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      byte[] data,
+      int offset,
+      int length);
+
   public abstract int mergeData(
       int shuffleId,
       int mapId,
