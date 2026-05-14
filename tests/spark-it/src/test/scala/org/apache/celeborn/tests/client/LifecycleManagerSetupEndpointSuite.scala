@@ -17,8 +17,6 @@
 
 package org.apache.celeborn.tests.client
 
-import java.util
-
 import scala.collection.JavaConverters._
 
 import org.apache.celeborn.client.{LifecycleManager, WithShuffleClientSuite}
@@ -45,9 +43,7 @@ class LifecycleManagerSetupEndpointSuite extends WithShuffleClientSuite with Min
 
   test("test setup endpoints with all workers good") {
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
-    val ids = new util.ArrayList[Integer](100)
-    0 until 100 foreach { ids.add(_) }
-    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(0, ids)
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(0, 100)
     assert(res.status == StatusCode.SUCCESS)
     assert(res.workerResource.keySet().size() == 3)
 
@@ -60,11 +56,7 @@ class LifecycleManagerSetupEndpointSuite extends WithShuffleClientSuite with Min
 
   test("test setup endpoints with one worker down") {
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, celebornConf)
-    val ids = new util.ArrayList[Integer](100)
-    0 until 100 foreach {
-      ids.add(_)
-    }
-    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(0, ids)
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(0, 100)
     assert(res.status == StatusCode.SUCCESS)
     assert(res.workerResource.keySet().size() == 3)
 

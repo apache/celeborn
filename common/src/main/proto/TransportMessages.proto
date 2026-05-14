@@ -117,6 +117,8 @@ enum MessageType {
   READ_REDUCER_PARTITION_END = 94;
   READ_REDUCER_PARTITION_END_RESPONSE = 95;
   REGISTER_APPLICATION_INFO = 96;
+
+  REQUEST_SLOTS_V2 = 97;
 }
 
 enum StreamType {
@@ -323,6 +325,22 @@ message PbRequestSlots {
   repeated PbWorkerInfo excludedWorkerSet = 12;
   bool packed = 13;
   string tagsExpr = 14;
+}
+
+message PbRequestSlotsV2 {
+  string applicationId = 1;
+  int32 shuffleId = 2;
+  int32 numPartitions = 3;
+  string hostname = 4;
+  bool shouldReplicate = 5;
+  string requestId = 6;
+  PbUserIdentifier userIdentifier = 7;
+  bool shouldRackAware = 8;
+  int32 maxWorkers = 9;
+  int32 availableStorageTypes = 10;
+  repeated PbWorkerInfo excludedWorkerSet = 11;
+  bool packed = 12;
+  string tagsExpr = 13;
 }
 
 message PbSlotInfo {
