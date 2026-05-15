@@ -3158,7 +3158,6 @@ object CelebornConf extends Logging {
 
   val MASTER_SLOT_ASSIGN_LOADAWARE_ACTIVE_SLOTS_WEIGHT: ConfigEntry[Double] =
     buildConf("celeborn.master.slot.assign.loadAware.activeSlotsWeight")
-      .withAlternative("celeborn.slots.assign.loadAware.activeSlotsWeight")
       .categories("master")
       .doc(
         "Weight of active slots when calculating ordering in load-aware assignment strategy")

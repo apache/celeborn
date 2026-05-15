@@ -46,6 +46,11 @@ Load-aware slots allocation will take following elements into consideration.
 
 Slots allocator will find out all worker involved in this allocation and sort their disks by 
 `disk's average flushtime * flush time weight + disk's average fetch time * fetch time weight + disk's active slots * active slots weight`.
+The average flush/fetch times are measured in nanoseconds, while active slots is a slot count, so
+`activeSlotsWeight` is effectively a nanoseconds-per-slot conversion factor. For example, if the
+average fetch time is around `100 ms` (`10^8` ns) and a disk has about `1000` active slots,
+`activeSlotsWeight=10^5` makes the active-slot term contribute about `10^8`, comparable to the
+fetch-time term.
 After getting the sorted disks list, Celeborn will split the disks into
 `celeborn.master.slot.assign.loadAware.numDiskGroups` groups. The slots number to be placed into a disk group 
 is controlled by the `celeborn.master.slot.assign.loadAware.diskGroupGradient` which means that a group's 
