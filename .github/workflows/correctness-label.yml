@@ -42,7 +42,7 @@ jobs:
             found && /^###/ && !/Does this PR resolve/ { exit }
             found { print }
           ')
-          if printf '%s' "$section" | grep -qE -- '- \[[xX]\] Yes'; then
+          if printf '%s' "$section" | grep -iqE -- '^\s*-\s*\[[xX]\]\s+yes'; then
             gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "correctness"
           else
             gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "correctness" 2>/dev/null || true
