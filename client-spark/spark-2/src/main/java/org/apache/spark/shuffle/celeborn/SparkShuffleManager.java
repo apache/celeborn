@@ -208,7 +208,8 @@ public class SparkShuffleManager implements ShuffleManager {
                 h.lifecycleManagerPort(),
                 celebornConf,
                 h.userIdentifier(),
-                h.extension());
+                h.extension(),
+                SparkCommonUtils.getCryptoHandler(conf));
         if (h.stageRerunEnabled()) {
           SparkUtils.addFailureListenerIfBarrierTask(client, context, h);
         }
@@ -260,7 +261,8 @@ public class SparkShuffleManager implements ShuffleManager {
           Int.MaxValue(),
           context,
           celebornConf,
-          shuffleIdTracker);
+          shuffleIdTracker,
+          SparkCommonUtils.getCryptoHandler(conf));
     }
     checkUserClassPathFirst(handle);
     return _sortShuffleManager.getReader(handle, startPartition, endPartition, context);

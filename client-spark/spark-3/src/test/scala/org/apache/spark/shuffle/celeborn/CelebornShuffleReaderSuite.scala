@@ -55,7 +55,7 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
 
     val tmpFile = Files.createTempFile("test", ".tmp").toFile
     mockStatic(classOf[ShuffleClient]).when(() =>
-      ShuffleClient.get(any(), any(), any(), any(), any(), any())).thenReturn(
+      ShuffleClient.get(any(), any(), any(), any(), any(), any(), any())).thenReturn(
       new DummyShuffleClient(conf, tmpFile))
 
     val shuffleReader =

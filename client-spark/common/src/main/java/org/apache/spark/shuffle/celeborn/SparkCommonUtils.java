@@ -19,11 +19,17 @@ package org.apache.spark.shuffle.celeborn;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
+
+import scala.Option;
 
 import org.apache.spark.SparkConf;
+import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
+import org.apache.spark.internal.config.package$;
 import org.apache.spark.memory.SparkOutOfMemoryError;
 
+import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.reflect.DynConstructors;
 import org.apache.celeborn.reflect.DynMethods;
 
@@ -95,5 +101,20 @@ public class SparkCommonUtils {
                 + "corresponding communities or vendors, and provide the full stack trace.");
       }
     }
+  }
+
+  public static Optional<CryptoHandler> getCryptoHandler(SparkConf conf) {
+    if (!(Boolean) conf.get(package$.MODULE$.IO_ENCRYPTION_ENABLED())) {
+      return Optional.empty();
+    }
+    SparkEnv env = SparkEnv.get();
+    if (env == null) {
+      return Optional.empty();
+    }
+    Option<byte[]> key = env.securityManager().getIOEncryptionKey();
+    if (!key.isDefined()) {
+      return Optional.empty();
+    }
+    return Optional.of(new SparkCryptoHandler(conf, key.get()));
   }
 }
