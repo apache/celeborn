@@ -16,7 +16,8 @@ Thanks for sending a pull request!  Here are some tips for you:
 
 ### Does this PR resolve a correctness bug?
 
-<!-- Yes/No. (Note: If yes, committer will add `correctness` label to current pull request). -->
+<!-- Check if yes. The `correctness` label will be added/removed automatically. -->
+- [ ] Yes
 
 ### Does this PR introduce _any_ user-facing change?
 
