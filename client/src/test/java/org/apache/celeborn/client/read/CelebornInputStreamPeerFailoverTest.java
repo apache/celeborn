@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -39,6 +40,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -174,7 +176,8 @@ public class CelebornInputStreamPeerFailoverTest {
         0,
         null,
         new TestMetricsCallback(),
-        false);
+        false,
+        Optional.<CryptoHandler>empty());
   }
 
   private void createInputStream(String primaryHost, String replicaHost) throws IOException {
@@ -209,7 +212,8 @@ public class CelebornInputStreamPeerFailoverTest {
         0,
         null,
         new TestMetricsCallback(),
-        false);
+        false,
+        Optional.<CryptoHandler>empty());
   }
 
   /**

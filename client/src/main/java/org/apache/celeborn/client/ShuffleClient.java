@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.client.read.MetricsCallback;
+import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
@@ -90,6 +91,18 @@ public abstract class ShuffleClient {
       CelebornConf conf,
       UserIdentifier userIdentifier,
       byte[] extension) {
+    return ShuffleClient.get(
+        appUniqueId, driverHost, port, conf, userIdentifier, extension, Optional.empty());
+  }
+
+  public static ShuffleClient get(
+      String appUniqueId,
+      String driverHost,
+      int port,
+      CelebornConf conf,
+      UserIdentifier userIdentifier,
+      byte[] extension,
+      Optional<CryptoHandler> cryptoHandler) {
     if (null == _instance || !initialized) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {
@@ -102,12 +115,14 @@ public abstract class ShuffleClient {
           _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
           _instance.setupLifecycleManagerRef(driverHost, port);
           _instance.setExtension(extension);
+          _instance.setupCryptoHandler(cryptoHandler);
           initialized = true;
         } else if (!initialized) {
           _instance.shutdown();
           _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
           _instance.setupLifecycleManagerRef(driverHost, port);
           _instance.setExtension(extension);
+          _instance.setupCryptoHandler(cryptoHandler);
           initialized = true;
         }
       }
@@ -149,6 +164,8 @@ public abstract class ShuffleClient {
         totalReadCount,
         String.format("%.2f", (localReadCount * 1.0d / totalReadCount) * 100));
   }
+
+  public abstract void setupCryptoHandler(Optional<CryptoHandler> cryptoHandler);
 
   public abstract void setupLifecycleManagerRef(String host, int port);
 

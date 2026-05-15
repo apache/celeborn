@@ -39,6 +39,7 @@ import org.apache.celeborn.client.ClientUtils;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.compress.Decompressor;
 import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
+import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.CommitMetadata;
 import org.apache.celeborn.common.exception.CelebornIOException;
@@ -74,7 +75,8 @@ public abstract class CelebornInputStream extends InputStream {
       int partitionId,
       ExceptionMaker exceptionMaker,
       MetricsCallback metricsCallback,
-      boolean needDecompress)
+      boolean needDecompress,
+      Optional<CryptoHandler> cryptoHandler)
       throws IOException {
     if (locations == null || locations.isEmpty()) {
       return emptyInputStream;
@@ -106,7 +108,8 @@ public abstract class CelebornInputStream extends InputStream {
             metricsCallback,
             needDecompress,
             startMapIndex,
-            endMapIndex);
+            endMapIndex,
+            cryptoHandler);
       } else {
         return new CelebornInputStreamImpl(
             conf,
@@ -131,7 +134,8 @@ public abstract class CelebornInputStream extends InputStream {
             metricsCallback,
             needDecompress,
             -1,
-            -1);
+            -1,
+            cryptoHandler);
       }
     }
   }
@@ -188,6 +192,7 @@ public abstract class CelebornInputStream extends InputStream {
 
     private final Map<String, LocationPushFailedBatches> failedBatches;
 
+    private byte[] encryptedBuf;
     private byte[] compressedBuf;
     private byte[] rawDataBuf;
     private Decompressor decompressor;
@@ -223,6 +228,7 @@ public abstract class CelebornInputStream extends InputStream {
     private int shuffleId;
     private int partitionId;
     private ExceptionMaker exceptionMaker;
+    private Optional<CryptoHandler> cryptoHandler;
     private boolean closed = false;
     private boolean integrityChecked = false;
     private final CommitMetadata aggregatedActualCommitMetadata = new CommitMetadata();
@@ -250,7 +256,8 @@ public abstract class CelebornInputStream extends InputStream {
         MetricsCallback metricsCallback,
         boolean needDecompress,
         int numberOfSubPartitions,
-        int currentIndexOfSubPartition)
+        int currentIndexOfSubPartition,
+        Optional<CryptoHandler> cryptoHandler)
         throws IOException {
       this(
           conf,
@@ -275,7 +282,8 @@ public abstract class CelebornInputStream extends InputStream {
           metricsCallback,
           needDecompress,
           numberOfSubPartitions,
-          currentIndexOfSubPartition);
+          currentIndexOfSubPartition,
+          cryptoHandler);
     }
 
     CelebornInputStreamImpl(
@@ -301,7 +309,8 @@ public abstract class CelebornInputStream extends InputStream {
         MetricsCallback metricsCallback,
         boolean needDecompress,
         int numberOfSubPartitions,
-        int currentIndexOfSubPartition)
+        int currentIndexOfSubPartition,
+        Optional<CryptoHandler> cryptoHandler)
         throws IOException {
       this.conf = conf;
       this.clientFactory = clientFactory;
@@ -337,6 +346,7 @@ public abstract class CelebornInputStream extends InputStream {
       this.retryWaitMs = conf.networkIoRetryWaitMs(TransportModuleConstants.DATA_MODULE);
       this.callback = metricsCallback;
       this.exceptionMaker = exceptionMaker;
+      this.cryptoHandler = cryptoHandler;
       this.partitionId = partitionId;
       this.appShuffleId = appShuffleId;
       this.shuffleId = shuffleId;
@@ -791,6 +801,9 @@ public abstract class CelebornInputStream extends InputStream {
     private void init() {
       int bufferSize = conf.clientFetchBufferSize();
 
+      if (cryptoHandler.isPresent()) {
+        encryptedBuf = new byte[bufferSize];
+      }
       if (shouldDecompress) {
         int headerLen = Decompressor.getCompressionHeaderLength(conf);
         bufferSize += headerLen;
@@ -823,17 +836,34 @@ public abstract class CelebornInputStream extends InputStream {
           int batchId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 8);
           int size = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 12);
 
-          if (shouldDecompress) {
+          // Read and optionally decrypt data into the appropriate buffer
+          if (cryptoHandler.isPresent()) {
+            if (size > encryptedBuf.length) {
+              encryptedBuf = new byte[size];
+            }
+            currentChunk.readBytes(encryptedBuf, 0, size);
+            byte[] decrypted = cryptoHandler.get().decrypt(encryptedBuf, 0, size);
+            logger.debug(
+                "Decrypted shuffle data for shuffle {} partition {}: {} bytes -> {} bytes.",
+                shuffleId,
+                partitionId,
+                size,
+                decrypted.length);
+            size = decrypted.length;
+            if (shouldDecompress) {
+              compressedBuf = decrypted;
+            } else {
+              rawDataBuf = decrypted;
+            }
+          } else if (shouldDecompress) {
             if (size > compressedBuf.length) {
               compressedBuf = new byte[size];
             }
-
             currentChunk.readBytes(compressedBuf, 0, size);
           } else {
             if (size > rawDataBuf.length) {
               rawDataBuf = new byte[size];
             }
-
             currentChunk.readBytes(rawDataBuf, 0, size);
           }
 

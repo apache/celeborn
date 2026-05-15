@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -39,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.client.read.MetricsCallback;
+import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
@@ -66,6 +68,9 @@ public class DummyShuffleClient extends ShuffleClient {
     this.os = new BufferedOutputStream(new FileOutputStream(file));
     this.conf = conf;
   }
+
+  @Override
+  public void setupCryptoHandler(Optional<CryptoHandler> cryptoHandler) {}
 
   @Override
   public void setupLifecycleManagerRef(String host, int port) {}

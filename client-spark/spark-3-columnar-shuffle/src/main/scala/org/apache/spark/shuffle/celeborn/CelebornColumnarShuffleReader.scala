@@ -17,12 +17,15 @@
 
 package org.apache.spark.shuffle.celeborn
 
+import java.util.Optional
+
 import org.apache.spark.{ShuffleDependency, TaskContext}
 import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.shuffle.ShuffleReadMetricsReporter
 import org.apache.spark.sql.execution.UnsafeRowSerializer
 import org.apache.spark.sql.execution.columnar.{CelebornBatchBuilder, CelebornColumnarBatchSerializer}
 
+import org.apache.celeborn.client.security.CryptoHandler
 import org.apache.celeborn.common.CelebornConf
 
 class CelebornColumnarShuffleReader[K, C](
@@ -34,7 +37,8 @@ class CelebornColumnarShuffleReader[K, C](
     context: TaskContext,
     conf: CelebornConf,
     metrics: ShuffleReadMetricsReporter,
-    shuffleIdTracker: ExecutorShuffleIdTracker)
+    shuffleIdTracker: ExecutorShuffleIdTracker,
+    cryptoHandler: Optional[CryptoHandler] = Optional.empty())
   extends CelebornShuffleReader[K, C](
     handle,
     startPartition,
@@ -44,7 +48,8 @@ class CelebornColumnarShuffleReader[K, C](
     context,
     conf,
     metrics,
-    shuffleIdTracker) {
+    shuffleIdTracker,
+    cryptoHandler) {
 
   override def newSerializerInstance(dep: ShuffleDependency[K, _, C]): SerializerInstance = {
     val schema = CustomShuffleDependencyUtils.getSchema(dep)

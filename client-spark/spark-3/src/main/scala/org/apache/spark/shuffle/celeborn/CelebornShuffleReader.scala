@@ -18,7 +18,7 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
-import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, Set => JSet}
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, Optional, Set => JSet}
 import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.BiFunction
@@ -39,6 +39,7 @@ import org.apache.spark.util.collection.ExternalSorter
 import org.apache.celeborn.client.{ClientUtils, ShuffleClient}
 import org.apache.celeborn.client.ShuffleClientImpl.ReduceFileGroups
 import org.apache.celeborn.client.read.{CelebornInputStream, MetricsCallback}
+import org.apache.celeborn.client.security.CryptoHandler
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.{CelebornBroadcastException, CelebornIOException, CelebornRuntimeException, PartitionUnRetryAbleException}
 import org.apache.celeborn.common.network.client.TransportClient
@@ -58,7 +59,8 @@ class CelebornShuffleReader[K, C](
     conf: CelebornConf,
     metrics: ShuffleReadMetricsReporter,
     shuffleIdTracker: ExecutorShuffleIdTracker,
-    needDecompress: Boolean)
+    needDecompress: Boolean,
+    cryptoHandler: Optional[CryptoHandler])
   extends ShuffleReader[K, C] with Logging {
 
   def this(
@@ -80,7 +82,31 @@ class CelebornShuffleReader[K, C](
     conf,
     metrics,
     shuffleIdTracker,
-    true)
+    true,
+    Optional.empty())
+
+  def this(
+      handle: CelebornShuffleHandle[K, _, C],
+      startPartition: Int,
+      endPartition: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      context: TaskContext,
+      conf: CelebornConf,
+      metrics: ShuffleReadMetricsReporter,
+      shuffleIdTracker: ExecutorShuffleIdTracker,
+      cryptoHandler: Optional[CryptoHandler]) = this(
+    handle,
+    startPartition,
+    endPartition,
+    startMapIndex,
+    endMapIndex,
+    context,
+    conf,
+    metrics,
+    shuffleIdTracker,
+    true,
+    cryptoHandler)
 
   private val dep = handle.dependency
 
@@ -91,7 +117,8 @@ class CelebornShuffleReader[K, C](
     handle.lifecycleManagerPort,
     conf,
     handle.userIdentifier,
-    handle.extension)
+    handle.extension,
+    cryptoHandler)
 
   private val exceptionRef = new AtomicReference[IOException]
   private val stageRerunEnabled = handle.stageRerunEnabled

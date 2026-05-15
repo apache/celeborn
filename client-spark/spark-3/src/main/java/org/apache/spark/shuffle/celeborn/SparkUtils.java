@@ -23,6 +23,7 @@ import java.io.ObjectOutputStream;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -65,6 +66,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
@@ -280,7 +282,8 @@ public class SparkUtils {
                 TaskContext.class,
                 CelebornConf.class,
                 ShuffleReadMetricsReporter.class,
-                ExecutorShuffleIdTracker.class)
+                ExecutorShuffleIdTracker.class,
+                Optional.class)
             .build();
   }
 
@@ -293,7 +296,8 @@ public class SparkUtils {
       TaskContext context,
       CelebornConf conf,
       ShuffleReadMetricsReporter metrics,
-      ExecutorShuffleIdTracker shuffleIdTracker) {
+      ExecutorShuffleIdTracker shuffleIdTracker,
+      Optional<CryptoHandler> cryptoHandler) {
     return ColumnarShuffleReaderConstructorHolder.INSTANCE.invoke(
         null,
         handle,
@@ -304,7 +308,8 @@ public class SparkUtils {
         context,
         conf,
         metrics,
-        shuffleIdTracker);
+        shuffleIdTracker,
+        cryptoHandler);
   }
 
   // Added in SPARK-32920, for Spark 3.2 and above
