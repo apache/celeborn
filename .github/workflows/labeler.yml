@@ -18,7 +18,8 @@
 #
 name: Pull Request Labeler
 on:
-  - pull_request_target
+  pull_request_target:
+    types: [opened, edited, synchronize, labeled, unlabeled, reopened]
 
 jobs:
   labeler:
@@ -31,3 +32,29 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           sync-labels: true
+
+  correctness-label:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Apply or remove correctness label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Extract only the correctness section (up to the next ### heading).
+          # PR_BODY is passed via env so it never touches the shell command string.
+          section=$(printf '%s' "$PR_BODY" | awk '
+            /Does this PR resolve a correctness bug/ { found=1 }
+            found && /^###/ && !/Does this PR resolve/ { exit }
+            found { print }
+          ')
+          if printf '%s' "$section" | grep -iqE -- '^\s*-\s*\[\s*[xX]\s*\]\s*yes\s*$'; then
+            gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "correctness"
+          else
+            gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "correctness" 2>/dev/null || true
+          fi
