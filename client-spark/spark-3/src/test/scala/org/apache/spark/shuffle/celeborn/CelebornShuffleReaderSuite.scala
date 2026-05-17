@@ -17,8 +17,9 @@
 
 package org.apache.spark.shuffle.celeborn
 
+import java.io.IOException
 import java.nio.file.Files
-import java.util.concurrent.TimeoutException
+import java.util.concurrent.{CountDownLatch, TimeoutException, TimeUnit}
 
 import org.apache.spark.{Dependency, ShuffleDependency, TaskContext}
 import org.apache.spark.shuffle.ShuffleReadMetricsReporter
@@ -31,6 +32,9 @@ import org.apache.celeborn.client.{DummyShuffleClient, ShuffleClient}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.network.client.TransportClient
+import org.apache.celeborn.common.protocol.PartitionLocation
+import org.apache.celeborn.common.util.ThreadUtils
 
 class CelebornShuffleReaderSuite extends AnyFunSuite {
 
@@ -92,4 +96,73 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
       shuffleReader.shuffleClient.asInstanceOf[DummyShuffleClient].fetchFailureCount.get() === 2)
 
   }
+
+  test("create batch open stream clients in parallel per worker") {
+    val worker0 = newLocation(0, "worker-0", 19098)
+    val worker1 = newLocation(0, "worker-1", 19098)
+    val worker0Client = Mockito.mock(classOf[TransportClient])
+    val worker1Client = Mockito.mock(classOf[TransportClient])
+    val streamCreatorPool = ThreadUtils.newDaemonCachedThreadPool("test-create-client", 2, 60)
+    val started = new CountDownLatch(2)
+    val release = new CountDownLatch(1)
+
+    try {
+      val clientsFuture = scala.concurrent.Future {
+        CelebornShuffleReader.createClientsInParallel(
+          Seq(
+            worker0.hostAndFetchPort -> worker0,
+            worker1.hostAndFetchPort -> worker1),
+          streamCreatorPool,
+          location => {
+            started.countDown()
+            assert(started.await(5, TimeUnit.SECONDS))
+            assert(release.await(5, TimeUnit.SECONDS))
+            if (location eq worker0) worker0Client else worker1Client
+          },
+          (_, _, ex) => fail("Unexpected client creation failure", ex))
+      }(scala.concurrent.ExecutionContext.global)
+
+      assert(started.await(5, TimeUnit.SECONDS))
+      release.countDown()
+      val clients =
+        scala.concurrent.Await.result(
+          clientsFuture,
+          scala.concurrent.duration.Duration(5, "seconds"))
+
+      assert(clients(worker0.hostAndFetchPort) eq worker0Client)
+      assert(clients(worker1.hostAndFetchPort) eq worker1Client)
+    } finally {
+      streamCreatorPool.shutdownNow()
+    }
+  }
+
+  test("skip failed batch open stream client creation while keeping healthy workers") {
+    val failedWorker = newLocation(0, "worker-0", 19098)
+    val healthyWorker = newLocation(0, "worker-1", 19098)
+    val healthyClient = Mockito.mock(classOf[TransportClient])
+    val streamCreatorPool = ThreadUtils.newDaemonCachedThreadPool("test-create-client", 2, 60)
+    var failedHostPort: String = null
+
+    try {
+      val clients = CelebornShuffleReader.createClientsInParallel(
+        Seq(
+          failedWorker.hostAndFetchPort -> failedWorker,
+          healthyWorker.hostAndFetchPort -> healthyWorker),
+        streamCreatorPool,
+        location => {
+          if (location eq failedWorker) throw new IOException("boom")
+          healthyClient
+        },
+        (hostPort, _, _) => failedHostPort = hostPort)
+
+      assert(failedHostPort === failedWorker.hostAndFetchPort)
+      assert(!clients.contains(failedWorker.hostAndFetchPort))
+      assert(clients(healthyWorker.hostAndFetchPort) eq healthyClient)
+    } finally {
+      streamCreatorPool.shutdownNow()
+    }
+  }
+
+  private def newLocation(id: Int, host: String, fetchPort: Int): PartitionLocation =
+    new PartitionLocation(id, 0, host, 0, 0, fetchPort, 0, PartitionLocation.Mode.PRIMARY)
 }
