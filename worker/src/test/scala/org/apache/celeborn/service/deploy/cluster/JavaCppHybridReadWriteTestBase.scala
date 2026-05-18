@@ -18,7 +18,9 @@
 package org.apache.celeborn.service.deploy.cluster
 
 import java.io.File
+import java.nio.file.Files
 import java.util
+import java.util.UUID
 
 import scala.io.Source
 import scala.util.Random
@@ -62,7 +64,7 @@ trait JavaCppHybridReadWriteTestBase extends AnyFunSuite
   }
 
   def runJavaWriteCppRead(codec: CompressionCodec): Unit = {
-    val appUniqueId = "test-app"
+    val appUniqueId = s"test-app-${UUID.randomUUID()}"
     val shuffleId = 0
     val attemptId = 0
 
@@ -81,76 +83,87 @@ trait JavaCppHybridReadWriteTestBase extends AnyFunSuite
       new ShuffleClientImpl(appUniqueId, clientConf, UserIdentifier("mock", "mock"))
     shuffleClient.setupLifecycleManagerRef(lifecycleManager.self)
 
-    // Generate random data, write with shuffleClient and calculate result.
-    val numMappers = 2
-    val numPartitions = 2
-    val maxData = 1000000
-    val numData = 1000
-    var sums = new util.ArrayList[Long](numPartitions)
-    val rand = new Random()
-    var prefix = "-"
-    if (codec != CompressionCodec.NONE) {
-      // Add duplicate strings to make the compressed length shorter than the original length.
-      // Will be dropped in cpp test client.
-      prefix = prefix ++ "++++++++++"
-    }
-    for (mapId <- 0 until numMappers) {
-      for (partitionId <- 0 until numPartitions) {
-        sums.add(0)
-        for (i <- 0 until numData) {
-          val data = rand.nextInt(maxData)
-          sums.set(partitionId, sums.get(partitionId) + data)
-          val dataStr = prefix + data.toString
-          shuffleClient.pushOrMergeData(
-            shuffleId,
-            mapId,
-            attemptId,
-            partitionId,
-            dataStr.getBytes,
-            0,
-            dataStr.length,
-            numMappers,
-            numPartitions,
-            false,
-            false)
-        }
-      }
-      shuffleClient.pushMergedData(shuffleId, mapId, attemptId)
-      shuffleClient.mapperEnd(shuffleId, mapId, attemptId, numMappers, numPartitions)
-    }
-
-    // Launch cpp reader to read data, calculate result and write to specific result file.
-    val cppResultFile = "/tmp/celeborn-cpp-result.txt"
-    val lifecycleManagerHost = lifecycleManager.getHost
-    val lifecycleManagerPort = lifecycleManager.getPort
-    val projectDirectory = new File(new File(".").getAbsolutePath)
-    val cppBinRelativeDirectory = "cpp/build/celeborn/tests/"
-    val cppBinFileName = "cppDataSumWithReaderClient"
-    val cppBinFilePath = s"$projectDirectory/$cppBinRelativeDirectory/$cppBinFileName"
-    val cppCodec = codec.name()
-    // Execution command: $exec lifecycleManagerHost lifecycleManagerPort appUniqueId shuffleId attemptId numPartitions cppResultFile cppCodec
-    val command = {
-      s"$cppBinFilePath $lifecycleManagerHost $lifecycleManagerPort $appUniqueId $shuffleId $attemptId $numPartitions $cppResultFile $cppCodec"
-    }
-    println(s"run command: $command")
-    val commandOutput = runCommand(command)
-    println(s"command output: $commandOutput")
-
-    // Verify the sum result.
-    var lineCount = 0
-    val source = Source.fromFile(cppResultFile, "utf-8")
+    val cppResultFile = Files.createTempFile("celeborn-cpp-result-", ".txt")
     try {
-      for (line <- source.getLines.toList) {
-        val data = line.toLong
-        Assert.assertEquals(data, sums.get(lineCount))
-        lineCount += 1
+      // Generate random data, write with shuffleClient and calculate result.
+      val numMappers = 2
+      val numPartitions = 2
+      val maxData = 1000000
+      val numData = 1000
+      var sums = new util.ArrayList[Long](numPartitions)
+      val rand = new Random()
+      var prefix = "-"
+      if (codec != CompressionCodec.NONE) {
+        // Add duplicate strings to make the compressed length shorter than the original length.
+        // Will be dropped in cpp test client.
+        prefix = prefix ++ "++++++++++"
       }
+      for (mapId <- 0 until numMappers) {
+        for (partitionId <- 0 until numPartitions) {
+          sums.add(0)
+          for (i <- 0 until numData) {
+            val data = rand.nextInt(maxData)
+            sums.set(partitionId, sums.get(partitionId) + data)
+            val dataStr = prefix + data.toString
+            shuffleClient.pushOrMergeData(
+              shuffleId,
+              mapId,
+              attemptId,
+              partitionId,
+              dataStr.getBytes,
+              0,
+              dataStr.length,
+              numMappers,
+              numPartitions,
+              false,
+              false)
+          }
+        }
+        shuffleClient.pushMergedData(shuffleId, mapId, attemptId)
+        shuffleClient.mapperEnd(shuffleId, mapId, attemptId, numMappers, numPartitions)
+      }
+
+      // Launch cpp reader to read data, calculate result and write to specific result file.
+      val lifecycleManagerHost = lifecycleManager.getHost
+      val lifecycleManagerPort = lifecycleManager.getPort
+      val projectDirectory = new File(new File(".").getAbsolutePath)
+      val cppBinRelativeDirectory = "cpp/build/celeborn/tests/"
+      val cppBinFileName = "cppDataSumWithReaderClient"
+      val cppBinFilePath = s"$projectDirectory/$cppBinRelativeDirectory/$cppBinFileName"
+      val cppCodec = codec.name()
+      // Execution command: $exec lifecycleManagerHost lifecycleManagerPort appUniqueId shuffleId attemptId numPartitions cppResultFile cppCodec
+      val command = Seq(
+        cppBinFilePath,
+        lifecycleManagerHost,
+        lifecycleManagerPort.toString,
+        appUniqueId,
+        shuffleId.toString,
+        attemptId.toString,
+        numPartitions.toString,
+        cppResultFile.toString,
+        cppCodec)
+      println(s"run command: ${command.mkString(" ")}")
+      val commandOutput = runCommand(command)
+      println(s"command output: $commandOutput")
+
+      // Verify the sum result.
+      var lineCount = 0
+      val source = Source.fromFile(cppResultFile.toFile, "utf-8")
+      try {
+        for (line <- source.getLines()) {
+          val data = line.toLong
+          Assert.assertEquals(data, sums.get(lineCount))
+          lineCount += 1
+        }
+      } finally {
+        source.close()
+      }
+      Assert.assertEquals(lineCount, numPartitions)
     } finally {
-      source.close()
+      lifecycleManager.stop()
+      shuffleClient.shutdown()
+      Files.deleteIfExists(cppResultFile)
     }
-    Assert.assertEquals(lineCount, numPartitions)
-    lifecycleManager.stop()
-    shuffleClient.shutdown()
   }
 
   def testCppWriteJavaRead(codec: CompressionCodec): Unit = {
@@ -163,7 +176,7 @@ trait JavaCppHybridReadWriteTestBase extends AnyFunSuite
   }
 
   def runCppWriteJavaRead(codec: CompressionCodec): Unit = {
-    val appUniqueId = "test-app"
+    val appUniqueId = s"test-app-${UUID.randomUUID()}"
     val shuffleId = 0
     val attemptId = 0
 
@@ -182,80 +195,92 @@ trait JavaCppHybridReadWriteTestBase extends AnyFunSuite
       new ShuffleClientImpl(appUniqueId, clientConf, UserIdentifier("mock", "mock"))
     shuffleClient.setupLifecycleManagerRef(lifecycleManager.self)
 
-    val numMappers = 2
-    val numPartitions = 2
-
-    // Launch cpp writer to write data, calculate result and write to specific result file.
-    val cppResultFile = "/tmp/celeborn-cpp-writer-result.txt"
-    val lifecycleManagerHost = lifecycleManager.getHost
-    val lifecycleManagerPort = lifecycleManager.getPort
-    val projectDirectory = new File(new File(".").getAbsolutePath)
-    val cppBinRelativeDirectory = "cpp/build/celeborn/tests/"
-    val cppBinFileName = "cppDataSumWithWriterClient"
-    val cppBinFilePath = s"$projectDirectory/$cppBinRelativeDirectory/$cppBinFileName"
-    val cppCodec = codec.name()
-    // Execution command: $exec lifecycleManagerHost lifecycleManagerPort appUniqueId shuffleId attemptId numMappers numPartitions cppResultFile cppCodec
-    val command = {
-      s"$cppBinFilePath $lifecycleManagerHost $lifecycleManagerPort $appUniqueId $shuffleId $attemptId $numMappers $numPartitions $cppResultFile $cppCodec"
-    }
-    println(s"run command: $command")
-    val commandOutput = runCommand(command)
-    println(s"command output: $commandOutput")
-
-    val metricsCallback = new MetricsCallback {
-      override def incBytesRead(bytesWritten: Long): Unit = {}
-      override def incReadTime(time: Long): Unit = {}
-    }
-
-    var sums = new util.ArrayList[Long](numPartitions)
-    for (partitionId <- 0 until numPartitions) {
-      sums.add(0)
-      val inputStream = shuffleClient.readPartition(
-        shuffleId,
-        partitionId,
-        attemptId,
-        0,
-        0,
-        Integer.MAX_VALUE,
-        metricsCallback)
-      try {
-        var c = inputStream.read()
-        var data: Long = 0
-        var dataCnt = 0
-        while (c != -1) {
-          if (c == '-') {
-            sums.set(partitionId, sums.get(partitionId) + data)
-            data = 0
-            dataCnt += 1
-          } else {
-            assert(c >= '0' && c <= '9')
-            data *= 10
-            data += c - '0'
-          }
-          c = inputStream.read()
-        }
-        sums.set(partitionId, sums.get(partitionId) + data)
-        println(s"partition $partitionId sum result = ${sums.get(partitionId)}, dataCnt = $dataCnt")
-      } finally {
-        inputStream.close()
-      }
-    }
-
-    // Verify the sum result.
-    var lineCount = 0
-    val source = Source.fromFile(cppResultFile, "utf-8")
+    val cppResultFile = Files.createTempFile("celeborn-cpp-writer-result-", ".txt")
     try {
-      for (line <- source.getLines.toList) {
-        val data = line.toLong
-        Assert.assertEquals(data, sums.get(lineCount))
-        lineCount += 1
+      val numMappers = 2
+      val numPartitions = 2
+
+      // Launch cpp writer to write data, calculate result and write to specific result file.
+      val lifecycleManagerHost = lifecycleManager.getHost
+      val lifecycleManagerPort = lifecycleManager.getPort
+      val projectDirectory = new File(new File(".").getAbsolutePath)
+      val cppBinRelativeDirectory = "cpp/build/celeborn/tests/"
+      val cppBinFileName = "cppDataSumWithWriterClient"
+      val cppBinFilePath = s"$projectDirectory/$cppBinRelativeDirectory/$cppBinFileName"
+      val cppCodec = codec.name()
+      // Execution command: $exec lifecycleManagerHost lifecycleManagerPort appUniqueId shuffleId attemptId numMappers numPartitions cppResultFile cppCodec
+      val command = Seq(
+        cppBinFilePath,
+        lifecycleManagerHost,
+        lifecycleManagerPort.toString,
+        appUniqueId,
+        shuffleId.toString,
+        attemptId.toString,
+        numMappers.toString,
+        numPartitions.toString,
+        cppResultFile.toString,
+        cppCodec)
+      println(s"run command: ${command.mkString(" ")}")
+      val commandOutput = runCommand(command)
+      println(s"command output: $commandOutput")
+
+      val metricsCallback = new MetricsCallback {
+        override def incBytesRead(bytesWritten: Long): Unit = {}
+        override def incReadTime(time: Long): Unit = {}
       }
+
+      var sums = new util.ArrayList[Long](numPartitions)
+      for (partitionId <- 0 until numPartitions) {
+        sums.add(0)
+        val inputStream = shuffleClient.readPartition(
+          shuffleId,
+          partitionId,
+          attemptId,
+          0,
+          0,
+          Integer.MAX_VALUE,
+          metricsCallback)
+        try {
+          var c = inputStream.read()
+          var data: Long = 0
+          var dataCnt = 0
+          while (c != -1) {
+            if (c == '-') {
+              sums.set(partitionId, sums.get(partitionId) + data)
+              data = 0
+              dataCnt += 1
+            } else {
+              assert(c >= '0' && c <= '9')
+              data *= 10
+              data += c - '0'
+            }
+            c = inputStream.read()
+          }
+          sums.set(partitionId, sums.get(partitionId) + data)
+          println(s"partition $partitionId sum result = ${sums.get(partitionId)}, dataCnt = $dataCnt")
+        } finally {
+          inputStream.close()
+        }
+      }
+
+      // Verify the sum result.
+      var lineCount = 0
+      val source = Source.fromFile(cppResultFile.toFile, "utf-8")
+      try {
+        for (line <- source.getLines()) {
+          val data = line.toLong
+          Assert.assertEquals(data, sums.get(lineCount))
+          lineCount += 1
+        }
+      } finally {
+        source.close()
+      }
+      Assert.assertEquals(lineCount, numPartitions)
     } finally {
-      source.close()
+      lifecycleManager.stop()
+      shuffleClient.shutdown()
+      Files.deleteIfExists(cppResultFile)
     }
-    Assert.assertEquals(lineCount, numPartitions)
-    lifecycleManager.stop()
-    shuffleClient.shutdown()
   }
 
   def testCppMergeWriteJavaRead(codec: CompressionCodec): Unit = {
@@ -268,7 +293,7 @@ trait JavaCppHybridReadWriteTestBase extends AnyFunSuite
   }
 
   def runCppMergeWriteJavaRead(codec: CompressionCodec): Unit = {
-    val appUniqueId = "test-app"
+    val appUniqueId = s"test-app-${UUID.randomUUID()}"
     val shuffleId = 0
     val attemptId = 0
 
@@ -285,77 +310,89 @@ trait JavaCppHybridReadWriteTestBase extends AnyFunSuite
       new ShuffleClientImpl(appUniqueId, clientConf, UserIdentifier("mock", "mock"))
     shuffleClient.setupLifecycleManagerRef(lifecycleManager.self)
 
-    val numMappers = 2
-    val numPartitions = 2
-
-    val cppResultFile = "/tmp/celeborn-cpp-merge-writer-result.txt"
-    val lifecycleManagerHost = lifecycleManager.getHost
-    val lifecycleManagerPort = lifecycleManager.getPort
-    val projectDirectory = new File(new File(".").getAbsolutePath)
-    val cppBinRelativeDirectory = "cpp/build/celeborn/tests/"
-    val cppBinFileName = "cppDataSumWithMergeWriterClient"
-    val cppBinFilePath = s"$projectDirectory/$cppBinRelativeDirectory/$cppBinFileName"
-    val cppCodec = codec.name()
-    val command = {
-      s"$cppBinFilePath $lifecycleManagerHost $lifecycleManagerPort $appUniqueId $shuffleId $attemptId $numMappers $numPartitions $cppResultFile $cppCodec"
-    }
-    println(s"run command: $command")
-    val commandOutput = runCommand(command)
-    println(s"command output: $commandOutput")
-
-    val metricsCallback = new MetricsCallback {
-      override def incBytesRead(bytesWritten: Long): Unit = {}
-      override def incReadTime(time: Long): Unit = {}
-    }
-
-    var sums = new util.ArrayList[Long](numPartitions)
-    for (partitionId <- 0 until numPartitions) {
-      sums.add(0)
-      val inputStream = shuffleClient.readPartition(
-        shuffleId,
-        partitionId,
-        attemptId,
-        0,
-        0,
-        Integer.MAX_VALUE,
-        metricsCallback)
-      try {
-        var c = inputStream.read()
-        var data: Long = 0
-        var dataCnt = 0
-        while (c != -1) {
-          if (c == '-') {
-            sums.set(partitionId, sums.get(partitionId) + data)
-            data = 0
-            dataCnt += 1
-          } else {
-            assert(c >= '0' && c <= '9')
-            data *= 10
-            data += c - '0'
-          }
-          c = inputStream.read()
-        }
-        sums.set(partitionId, sums.get(partitionId) + data)
-        println(s"partition $partitionId sum result = ${sums.get(partitionId)}, dataCnt = $dataCnt")
-      } finally {
-        inputStream.close()
-      }
-    }
-
-    var lineCount = 0
-    val source = Source.fromFile(cppResultFile, "utf-8")
+    val cppResultFile = Files.createTempFile("celeborn-cpp-merge-writer-result-", ".txt")
     try {
-      for (line <- source.getLines.toList) {
-        val data = line.toLong
-        Assert.assertEquals(data, sums.get(lineCount))
-        lineCount += 1
+      val numMappers = 2
+      val numPartitions = 2
+
+      val lifecycleManagerHost = lifecycleManager.getHost
+      val lifecycleManagerPort = lifecycleManager.getPort
+      val projectDirectory = new File(new File(".").getAbsolutePath)
+      val cppBinRelativeDirectory = "cpp/build/celeborn/tests/"
+      val cppBinFileName = "cppDataSumWithMergeWriterClient"
+      val cppBinFilePath = s"$projectDirectory/$cppBinRelativeDirectory/$cppBinFileName"
+      val cppCodec = codec.name()
+      val command = Seq(
+        cppBinFilePath,
+        lifecycleManagerHost,
+        lifecycleManagerPort.toString,
+        appUniqueId,
+        shuffleId.toString,
+        attemptId.toString,
+        numMappers.toString,
+        numPartitions.toString,
+        cppResultFile.toString,
+        cppCodec)
+      println(s"run command: ${command.mkString(" ")}")
+      val commandOutput = runCommand(command)
+      println(s"command output: $commandOutput")
+
+      val metricsCallback = new MetricsCallback {
+        override def incBytesRead(bytesWritten: Long): Unit = {}
+        override def incReadTime(time: Long): Unit = {}
       }
+
+      var sums = new util.ArrayList[Long](numPartitions)
+      for (partitionId <- 0 until numPartitions) {
+        sums.add(0)
+        val inputStream = shuffleClient.readPartition(
+          shuffleId,
+          partitionId,
+          attemptId,
+          0,
+          0,
+          Integer.MAX_VALUE,
+          metricsCallback)
+        try {
+          var c = inputStream.read()
+          var data: Long = 0
+          var dataCnt = 0
+          while (c != -1) {
+            if (c == '-') {
+              sums.set(partitionId, sums.get(partitionId) + data)
+              data = 0
+              dataCnt += 1
+            } else {
+              assert(c >= '0' && c <= '9')
+              data *= 10
+              data += c - '0'
+            }
+            c = inputStream.read()
+          }
+          sums.set(partitionId, sums.get(partitionId) + data)
+          println(s"partition $partitionId sum result = ${sums.get(partitionId)}, dataCnt = $dataCnt")
+        } finally {
+          inputStream.close()
+        }
+      }
+
+      var lineCount = 0
+      val source = Source.fromFile(cppResultFile.toFile, "utf-8")
+      try {
+        for (line <- source.getLines()) {
+          val data = line.toLong
+          Assert.assertEquals(data, sums.get(lineCount))
+          lineCount += 1
+        }
+      } finally {
+        source.close()
+      }
+      Assert.assertEquals(lineCount, numPartitions)
     } finally {
-      source.close()
+      lifecycleManager.stop()
+      shuffleClient.shutdown()
+      Files.deleteIfExists(cppResultFile)
     }
-    Assert.assertEquals(lineCount, numPartitions)
-    lifecycleManager.stop()
-    shuffleClient.shutdown()
   }
 
 }
