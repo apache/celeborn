@@ -38,3 +38,5 @@ build/sbt-config/**
 **/benchmarks/**
 **/node_modules/**
 cpp/cmake/FindSodium.cmake
+cpp/build/**
+rust/Cargo.lock

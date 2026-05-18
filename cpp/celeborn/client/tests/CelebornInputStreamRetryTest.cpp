@@ -301,9 +301,10 @@ class SequencedMockClientFactory : public TransportClientFactory {
 
 // Verifies that createReaderWithRetry exhausts all retries and throws.
 TEST(CelebornInputStreamRetryTest, allRetriesExhaustedThrows) {
-  auto client = std::make_shared<FailingTransportClient>(
-      std::make_exception_ptr(std::system_error(
-          std::make_error_code(std::errc::connection_refused))));
+  auto client =
+      std::make_shared<FailingTransportClient>(std::make_exception_ptr(
+          std::system_error(
+              std::make_error_code(std::errc::connection_refused))));
   auto factory = std::make_shared<TrackingTransportClientFactory>(client);
   auto conf = makeTestConf();
   auto excludedWorkers =
@@ -333,9 +334,10 @@ TEST(CelebornInputStreamRetryTest, allRetriesExhaustedThrows) {
 
 // Verifies that on failure, the retry logic switches from primary to replica.
 TEST(CelebornInputStreamRetryTest, switchesToPeerOnFailure) {
-  auto client = std::make_shared<FailingTransportClient>(
-      std::make_exception_ptr(std::system_error(
-          std::make_error_code(std::errc::connection_refused))));
+  auto client =
+      std::make_shared<FailingTransportClient>(std::make_exception_ptr(
+          std::system_error(
+              std::make_error_code(std::errc::connection_refused))));
   auto factory = std::make_shared<TrackingTransportClientFactory>(client);
   auto conf = makeTestConf();
   auto excludedWorkers =
@@ -374,9 +376,10 @@ TEST(CelebornInputStreamRetryTest, switchesToPeerOnFailure) {
 // Verifies that critical failures cause workers to be added to the
 // exclusion list.
 TEST(CelebornInputStreamRetryTest, excludesCriticalFailures) {
-  auto client = std::make_shared<FailingTransportClient>(
-      std::make_exception_ptr(std::system_error(
-          std::make_error_code(std::errc::connection_refused))));
+  auto client =
+      std::make_shared<FailingTransportClient>(std::make_exception_ptr(
+          std::system_error(
+              std::make_error_code(std::errc::connection_refused))));
   auto factory = std::make_shared<TrackingTransportClientFactory>(client);
   auto conf = makeTestConf(true);
   auto excludedWorkers =
@@ -448,9 +451,10 @@ TEST(CelebornInputStreamRetryTest, doesNotExcludeNonCriticalFailures) {
 
 // Verifies that without a peer, all retries target the same location.
 TEST(CelebornInputStreamRetryTest, noPeerRetriesSameLocation) {
-  auto client = std::make_shared<FailingTransportClient>(
-      std::make_exception_ptr(std::system_error(
-          std::make_error_code(std::errc::connection_refused))));
+  auto client =
+      std::make_shared<FailingTransportClient>(std::make_exception_ptr(
+          std::system_error(
+              std::make_error_code(std::errc::connection_refused))));
   auto factory = std::make_shared<TrackingTransportClientFactory>(client);
   // Replication disabled: maxRetry = 2
   auto conf = makeTestConf(false);
@@ -489,9 +493,10 @@ TEST(CelebornInputStreamRetryTest, noPeerRetriesSameLocation) {
 
 // Verifies that with replication enabled, maxRetry is doubled.
 TEST(CelebornInputStreamRetryTest, replicationDoublesMaxRetries) {
-  auto client = std::make_shared<FailingTransportClient>(
-      std::make_exception_ptr(std::system_error(
-          std::make_error_code(std::errc::connection_refused))));
+  auto client =
+      std::make_shared<FailingTransportClient>(std::make_exception_ptr(
+          std::system_error(
+              std::make_error_code(std::errc::connection_refused))));
   auto factory = std::make_shared<TrackingTransportClientFactory>(client);
   // Replication enabled: maxRetry = 2 * 2 = 4
   auto conf = makeTestConf(true);

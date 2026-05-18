@@ -137,8 +137,9 @@ class ShuffleClientImpl
 
   void setupLifecycleManagerRef(std::string& host, int port) override;
 
-  void setupLifecycleManagerRef(std::shared_ptr<network::NettyRpcEndpointRef>&
-                                    lifecycleManagerRef) override;
+  void setupLifecycleManagerRef(
+      std::shared_ptr<network::NettyRpcEndpointRef>& lifecycleManagerRef)
+      override;
 
   std::shared_ptr<utils::ConcurrentHashMap<
       int,
