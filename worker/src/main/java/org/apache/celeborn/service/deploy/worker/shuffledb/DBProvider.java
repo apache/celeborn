@@ -40,7 +40,7 @@ public class DBProvider {
           return levelDB != null ? new LevelDB(levelDB, source, dbBackend) : null;
         case ROCKSDB:
           org.rocksdb.RocksDB rocksDB = RocksDBProvider.initRockDB(dbFile, version);
-          return rocksDB != null ? new RocksDB(rocksDB, source, dbBackend) : null;
+          return rocksDB != null ? new RocksDB(rocksDB, source, dbBackend, dbFile, version) : null;
         default:
           throw new IllegalArgumentException("Unsupported DBBackend: " + dbBackend);
       }
