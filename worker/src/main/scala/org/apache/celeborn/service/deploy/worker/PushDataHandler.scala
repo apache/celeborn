@@ -989,9 +989,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       shuffleKey: String,
       handler: () => Unit,
       callback: RpcResponseCallback): Unit = {
-    val applicationId = Utils.splitShuffleKey(shuffleKey)._1
-    Utils.validateAppId(applicationId)
-    checkAuth(client, applicationId)
+    checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
     try {
       handler()
     } catch {
