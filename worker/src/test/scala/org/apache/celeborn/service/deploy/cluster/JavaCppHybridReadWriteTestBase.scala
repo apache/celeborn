@@ -257,7 +257,8 @@ trait JavaCppHybridReadWriteTestBase extends AnyFunSuite
             c = inputStream.read()
           }
           sums.set(partitionId, sums.get(partitionId) + data)
-          println(s"partition $partitionId sum result = ${sums.get(partitionId)}, dataCnt = $dataCnt")
+          println(
+            s"partition $partitionId sum result = ${sums.get(partitionId)}, dataCnt = $dataCnt")
         } finally {
           inputStream.close()
         }
@@ -370,7 +371,8 @@ trait JavaCppHybridReadWriteTestBase extends AnyFunSuite
             c = inputStream.read()
           }
           sums.set(partitionId, sums.get(partitionId) + data)
-          println(s"partition $partitionId sum result = ${sums.get(partitionId)}, dataCnt = $dataCnt")
+          println(
+            s"partition $partitionId sum result = ${sums.get(partitionId)}, dataCnt = $dataCnt")
         } finally {
           inputStream.close()
         }
