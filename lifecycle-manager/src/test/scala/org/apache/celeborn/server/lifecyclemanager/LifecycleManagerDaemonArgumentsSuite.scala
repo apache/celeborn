@@ -25,9 +25,12 @@ class LifecycleManagerDaemonArgumentsSuite extends AnyFunSuite with Logging {
 
   test("parse all required arguments") {
     val args = Array(
-      "--app-id", "test-app-1",
-      "--master-endpoints", "host1:9097,host2:9097",
-      "--port", "39099")
+      "--app-id",
+      "test-app-1",
+      "--master-endpoints",
+      "host1:9097,host2:9097",
+      "--port",
+      "39099")
     val parsed = LifecycleManagerDaemonArguments.parse(args)
     assert(parsed.appId === "test-app-1")
     assert(parsed.masterEndpoints === "host1:9097,host2:9097")
@@ -38,11 +41,16 @@ class LifecycleManagerDaemonArgumentsSuite extends AnyFunSuite with Logging {
 
   test("parse all arguments including optional ones") {
     val args = Array(
-      "--app-id", "my-app",
-      "--master-endpoints", "localhost:9097",
-      "--port", "40000",
-      "--host", "my-host",
-      "--properties-file", "/tmp/celeborn.conf")
+      "--app-id",
+      "my-app",
+      "--master-endpoints",
+      "localhost:9097",
+      "--port",
+      "40000",
+      "--host",
+      "my-host",
+      "--properties-file",
+      "/tmp/celeborn.conf")
     val parsed = LifecycleManagerDaemonArguments.parse(args)
     assert(parsed.appId === "my-app")
     assert(parsed.masterEndpoints === "localhost:9097")
@@ -53,10 +61,14 @@ class LifecycleManagerDaemonArgumentsSuite extends AnyFunSuite with Logging {
 
   test("parse with short flags") {
     val args = Array(
-      "--app-id", "short-app",
-      "--master-endpoints", "host:9097",
-      "-p", "2048",
-      "-h", "short-host")
+      "--app-id",
+      "short-app",
+      "--master-endpoints",
+      "host:9097",
+      "-p",
+      "2048",
+      "-h",
+      "short-host")
     val parsed = LifecycleManagerDaemonArguments.parse(args)
     assert(parsed.appId === "short-app")
     assert(parsed.port === 2048)
@@ -65,9 +77,12 @@ class LifecycleManagerDaemonArgumentsSuite extends AnyFunSuite with Logging {
 
   test("parse minimum valid port 1024") {
     val args = Array(
-      "--app-id", "app",
-      "--master-endpoints", "host:9097",
-      "--port", "1024")
+      "--app-id",
+      "app",
+      "--master-endpoints",
+      "host:9097",
+      "--port",
+      "1024")
     val parsed = LifecycleManagerDaemonArguments.parse(args)
     assert(parsed.port === 1024)
   }
