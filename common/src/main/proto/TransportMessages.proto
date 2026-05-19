@@ -553,6 +553,7 @@ message PbReserveSlots {
   int32 availableStorageTypes = 12;
   PbPackedPartitionLocationsPair partitionLocationsPair = 13;
   bool isSegmentGranularityVisible = 14;
+  bool isChunkCompressionEnabled = 15;
 }
 
 message PbReserveSlotsResponse {

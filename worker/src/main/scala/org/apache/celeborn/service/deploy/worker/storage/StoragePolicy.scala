@@ -135,6 +135,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                 partitionDataWriterContext.getUserIdentifier,
                 partitionDataWriterContext.getPartitionType,
                 partitionDataWriterContext.isPartitionSplitEnabled,
+                partitionDataWriterContext.isChunkCompressionEnabled,
                 overrideType // this is different from location type, in case of eviction
               )
               partitionDataWriterContext.setWorkingDir(workingDir)

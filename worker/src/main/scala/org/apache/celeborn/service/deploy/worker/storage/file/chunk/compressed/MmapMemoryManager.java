@@ -1,0 +1,120 @@
+package org.apache.celeborn.service.deploy.worker.storage.file.chunk.compressed;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.UUID;
+
+public class MmapMemoryManager {
+    private static MmapMemoryManager INSTANCE;
+    private static final long DEFAULT_FILE_LENGTH = 512 * 1024 * 1024L;
+    private final String _dirPathName;
+    // _availableOffset has the starting offset for the next allocation in _currentBuffer. When _currentBuffer
+    // is created, it is 0. After we allocate a buffer of size x, it is x. And if we allocate another buffer of size
+    // y, then it becomes x+y, etc. We try to fulfil as many allocate() calls as possible on the same _currentBuffer
+    // until the _currentBuffer cannot hold the new object anymore, and then we create a new _currentBuffer.
+    private long _availableOffset = DEFAULT_FILE_LENGTH; // Available offset in this file.
+    private long _curFileLen = -1;
+    private final List<String> _paths = new LinkedList<>();
+    private final List<ByteBuffer> _memMappedBuffers = new LinkedList<>();
+    ByteBuffer _currentBuffer;
+
+
+    public static MmapMemoryManager getInstance() {
+        if (INSTANCE == null) {
+            synchronized (MmapMemoryManager.class) {
+                if (INSTANCE == null) {
+                    INSTANCE = createInstance();
+                }
+            }
+        }
+
+        return INSTANCE;
+    }
+
+    private static MmapMemoryManager createInstance() {
+        String tmpDir = System.getProperty("java.io.tmpdir");
+        String dirPathName = tmpDir + "/celeborn-mmap-memory-manager";
+        File dirFile = new File(dirPathName);
+        if (!dirFile.exists()) {
+            if (!dirFile.mkdirs()) {
+                throw new RuntimeException("Unable to create directory: " + dirFile);
+            }
+        }
+        return new MmapMemoryManager(dirPathName);
+    }
+
+    private MmapMemoryManager(String dirPathName) {
+        _dirPathName = dirPathName;
+    }
+
+    private String getFilePrefix() {
+        return UUID.randomUUID() + ".";
+    }
+
+    private void addFileIfNecessary(long len) {
+        if (len + _availableOffset <= _curFileLen) {
+            return;
+        }
+        String thisContext = getFilePrefix();
+        String filePath;
+        filePath = _dirPathName + "/" + thisContext;
+        final File file = new File(filePath);
+        if (file.exists()) {
+            throw new RuntimeException("File " + filePath + " already exists");
+        }
+        file.deleteOnExit();
+        RandomAccessFile raf;
+        try {
+            raf = new RandomAccessFile(filePath, "rw");
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        long fileLen = Math.max(DEFAULT_FILE_LENGTH, len);
+        try {
+            raf.setLength(fileLen);
+            raf.close();
+
+            try (FileChannel fileChannel = new RandomAccessFile(file, "rw").getChannel()) {
+                _currentBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, fileLen);
+            }
+            _memMappedBuffers.add(_currentBuffer);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        _paths.add(filePath);
+        _availableOffset = 0;
+        _curFileLen = fileLen;
+    }
+
+    public synchronized ByteBuffer allocateBuffer(long size) {
+        addFileIfNecessary(size);
+        ByteBuffer buffer = _currentBuffer.duplicate();
+        buffer.position((int) _availableOffset);
+        buffer.limit((int) (_availableOffset + size));
+        _availableOffset += size;
+        return buffer;
+    }
+
+    protected void close()
+            throws IOException {
+        for (ByteBuffer buffer : _memMappedBuffers) {
+            buffer.clear();
+        }
+        for (String path : _paths) {
+            try {
+                File file = new File(path);
+                if (!file.delete()) {
+                    throw new RuntimeException("Unable to delete file: " + file);
+                }
+            } catch (Exception e) {
+                // Log
+            }
+        }
+    }
+}

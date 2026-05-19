@@ -39,16 +39,19 @@ public class DiskFileInfo extends FileInfo {
   private static final Logger logger = LoggerFactory.getLogger(DiskFileInfo.class);
   private final String filePath;
   private final StorageInfo.Type storageType;
+  private final boolean isChunkCompressionEnabled;
 
   public DiskFileInfo(
       UserIdentifier userIdentifier,
       boolean partitionSplitEnabled,
       FileMeta fileMeta,
       String filePath,
-      StorageInfo.Type storageType) {
+      StorageInfo.Type storageType,
+      boolean isChunkCompressionEnabled) {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
     this.filePath = filePath;
     this.storageType = storageType;
+    this.isChunkCompressionEnabled = isChunkCompressionEnabled;
   }
 
   // only called when restore from pb or in UT
@@ -58,9 +61,11 @@ public class DiskFileInfo extends FileInfo {
       FileMeta fileMeta,
       String filePath,
       StorageInfo.Type storageType,
-      long bytesFlushed) {
+      long bytesFlushed,
+      boolean isChunkCompressionEnabled) {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
     this.filePath = filePath;
+    this.isChunkCompressionEnabled = isChunkCompressionEnabled;
     if (storageType != null) {
       this.storageType = storageType;
     } else {
@@ -76,13 +81,15 @@ public class DiskFileInfo extends FileInfo {
         true,
         new ReduceFileMeta(new ArrayList<>(Arrays.asList(0L)), conf.shuffleChunkSize()),
         file.getAbsolutePath(),
-        StorageInfo.Type.HDD);
+        StorageInfo.Type.HDD,false);
   }
 
+  // User only by the sorted
   public DiskFileInfo(UserIdentifier userIdentifier, FileMeta fileMeta, String filePath) {
     super(userIdentifier, true, fileMeta);
     this.filePath = filePath;
     this.storageType = StorageInfo.Type.HDD;
+    this.isChunkCompressionEnabled = false;
   }
 
   public File getFile() {
@@ -174,5 +181,9 @@ public class DiskFileInfo extends FileInfo {
 
   public StorageInfo.Type getStorageType() {
     return storageType;
+  }
+
+  public boolean isChunkCompressionEnabled() {
+    return isChunkCompressionEnabled;
   }
 }

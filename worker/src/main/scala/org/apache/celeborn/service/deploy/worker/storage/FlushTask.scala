@@ -19,15 +19,14 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.{ByteArrayInputStream, Closeable, IOException}
 import java.nio.channels.FileChannel
-
 import io.netty.buffer.{ByteBufUtil, CompositeByteBuf}
 import org.apache.hadoop.fs.{FSDataOutputStream, Path}
-
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler
 import org.apache.celeborn.service.deploy.worker.WorkerSource
+import org.apache.celeborn.service.deploy.worker.storage.file.FileChannelWriter
 
 abstract private[worker] class FlushTask(
     val buffer: CompositeByteBuf,
@@ -51,27 +50,14 @@ abstract private[worker] class FlushTask(
 
 private[worker] class LocalFlushTask(
     buffer: CompositeByteBuf,
-    fileChannel: FileChannel,
+    fileChannelWriter: FileChannelWriter,
     notifier: FlushNotifier,
     keepBuffer: Boolean,
     source: AbstractSource,
     gatherApiEnabled: Boolean) extends FlushTask(buffer, notifier, keepBuffer, source) {
   override def flush(copyBytes: Array[Byte]): Unit = {
     val readableBytes = buffer.readableBytes()
-    val buffers = buffer.nioBuffers()
-    if (gatherApiEnabled) {
-      val readableBytes = buffer.readableBytes()
-      var written = 0L
-      do {
-        written = fileChannel.write(buffers) + written
-      } while (written != readableBytes)
-    } else {
-      for (buffer <- buffers) {
-        while (buffer.hasRemaining) {
-          fileChannel.write(buffer)
-        }
-      }
-    }
+    fileChannelWriter.write(buffer, gatherApiEnabled)
     source.incCounter(WorkerSource.LOCAL_FLUSH_COUNT)
     source.incCounter(WorkerSource.LOCAL_FLUSH_SIZE, readableBytes)
     // TODO: force flush file channel in scenarios where the upstream task writes and the downstream task reads simultaneously, such as flink hybrid shuffle.

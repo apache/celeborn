@@ -1095,6 +1095,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientRpcMaxRetries: Int = get(CLIENT_RPC_MAX_RETIRES)
   def clientRpcRetryWait: Long = get(CLIENT_RPC_RETRY_WAIT)
   def pushDataTimeoutMs: Long = get(CLIENT_PUSH_DATA_TIMEOUT)
+  def isChunkCompressionEnabled: Boolean = get(CHUNK_COMPRESSION_ENABLED)
   def clientPushLimitStrategy: String = get(CLIENT_PUSH_LIMIT_STRATEGY)
   def clientPushSlowStartInitialSleepTime: Long = get(CLIENT_PUSH_SLOW_START_INITIAL_SLEEP_TIME)
   def clientSlotAssignMaxWorkers: Int = get(CLIENT_SLOT_ASSIGN_MAX_WORKERS)
@@ -5015,6 +5016,15 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .checkValue(_ > 0, "Value must be positive!")
       .createWithDefaultString("120s")
+
+  val CHUNK_COMPRESSION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.chunk.compression.enabled")
+      .categories("client")
+      .version("0.3.0")
+      .doc("Whether to enable chunk compression for shuffle data. If true, shuffle data will be compressed at a" +
+        " chunk level worker side and decompressed client side.")
+      .booleanConf
+      .createWithDefault(false)
 
   val TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT: ConfigEntry[Boolean] =
     buildConf("celeborn.test.worker.pushPrimaryDataTimeout")

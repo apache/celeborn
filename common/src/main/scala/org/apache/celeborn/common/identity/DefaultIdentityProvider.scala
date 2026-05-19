@@ -22,7 +22,7 @@ import org.apache.celeborn.common.CelebornConf
 class DefaultIdentityProvider(conf: CelebornConf) extends IdentityProvider(conf) {
   override def provide(): UserIdentifier = {
     UserIdentifier(
-      conf.userSpecificTenant,
+      conf.userSpecificTenant + "zone",
       conf.userSpecificUserName)
   }
 }

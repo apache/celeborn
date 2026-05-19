@@ -37,6 +37,7 @@ public class PartitionDataWriterContext {
   private final String shuffleKey;
   private final PartitionType partitionType;
   private final boolean isSegmentGranularityVisible;
+  private final boolean isChunkCompressionEnabled;
 
   private File workingDir;
   private PartitionDataWriter partitionDataWriter;
@@ -52,7 +53,8 @@ public class PartitionDataWriterContext {
       UserIdentifier userIdentifier,
       PartitionType partitionType,
       boolean partitionSplitEnabled,
-      boolean isSegmentGranularityVisible) {
+      boolean isSegmentGranularityVisible,
+      boolean isChunkCompressionEnabled) {
     this.splitThreshold = splitThreshold;
     this.partitionSplitMode = partitionSplitMode;
     this.rangeReadFilter = rangeReadFilter;
@@ -64,6 +66,7 @@ public class PartitionDataWriterContext {
     this.partitionType = partitionType;
     this.shuffleKey = Utils.makeShuffleKey(appId, shuffleId);
     this.isSegmentGranularityVisible = isSegmentGranularityVisible;
+    this.isChunkCompressionEnabled = isChunkCompressionEnabled;
   }
 
   public long getSplitThreshold() {
@@ -96,6 +99,10 @@ public class PartitionDataWriterContext {
 
   public boolean isPartitionSplitEnabled() {
     return partitionSplitEnabled;
+  }
+
+  public boolean isChunkCompressionEnabled() {
+    return isChunkCompressionEnabled;
   }
 
   public String getShuffleKey() {

@@ -526,6 +526,7 @@ public abstract class CelebornInputStream extends InputStream {
           if (!currentReader.hasNext()) {
             return null;
           }
+          // Decompress here
           return currentReader.next();
         } catch (Exception e) {
           shuffleClient.excludeFailedFetchLocation(

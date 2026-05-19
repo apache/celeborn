@@ -114,7 +114,8 @@ private[deploy] class Controller(
           userIdentifier,
           pushDataTimeout,
           partitionSplitEnabled,
-          isSegmentGranularityVisible) =>
+          isSegmentGranularityVisible,
+          isChunkCompressionEnabled) =>
       checkAuth(context, applicationId)
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.RESERVE_SLOTS_TIME, shuffleKey) {
@@ -134,7 +135,8 @@ private[deploy] class Controller(
           userIdentifier,
           pushDataTimeout,
           partitionSplitEnabled,
-          isSegmentGranularityVisible)
+          isSegmentGranularityVisible,
+          isChunkCompressionEnabled)
         logDebug(s"ReserveSlots for $shuffleKey finished.")
       }
 
@@ -181,7 +183,8 @@ private[deploy] class Controller(
       userIdentifier: UserIdentifier,
       pushDataTimeout: Long,
       partitionSplitEnabled: Boolean,
-      isSegmentGranularityVisible: Boolean): Unit = {
+      isSegmentGranularityVisible: Boolean,
+      isChunkCompressionEnabled: Boolean): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (shutdown.get()) {
       val msg = "Current worker is shutting down!"
@@ -213,7 +216,8 @@ private[deploy] class Controller(
       userIdentifier,
       partitionSplitEnabled,
       isSegmentGranularityVisible,
-      isPrimary = true)
+      isPrimary = true,
+      isChunkCompressionEnabled)
     if (primaryLocs.size() < requestPrimaryLocs.size()) {
       val msg = s"Not all primary partition satisfied for $shuffleKey"
       logWarning(s"[handleReserveSlots] $msg, will destroy writers.")
@@ -234,7 +238,8 @@ private[deploy] class Controller(
       userIdentifier,
       partitionSplitEnabled,
       isSegmentGranularityVisible,
-      isPrimary = false)
+      isPrimary = false,
+      isChunkCompressionEnabled)
     if (replicaLocs.size() < requestReplicaLocs.size()) {
       val msg = s"Not all replica partition satisfied for $shuffleKey"
       logWarning(s"[handleReserveSlots] $msg, destroy writers.")
@@ -277,7 +282,8 @@ private[deploy] class Controller(
       userIdentifier: UserIdentifier,
       partitionSplitEnabled: Boolean,
       isSegmentGranularityVisible: Boolean,
-      isPrimary: Boolean): jList[PartitionLocation] = {
+      isPrimary: Boolean,
+      isChunkCompressionEnabled: Boolean): jList[PartitionLocation] = {
     val partitionLocations = new jArrayList[PartitionLocation]()
     try {
       def createWriter(partitionLocation: PartitionLocation): PartitionLocation = {
@@ -293,7 +299,8 @@ private[deploy] class Controller(
           userIdentifier,
           partitionSplitEnabled,
           isSegmentGranularityVisible,
-          isPrimary)
+          isPrimary,
+          isChunkCompressionEnabled)
       }
       if (createWriterThreadPool == null) {
         partitionLocations.addAll(requestLocs.asScala.map(createWriter).asJava)
@@ -323,7 +330,8 @@ private[deploy] class Controller(
       userIdentifier: UserIdentifier,
       partitionSplitEnabled: Boolean,
       isSegmentGranularityVisible: Boolean,
-      isPrimary: Boolean): PartitionLocation = {
+      isPrimary: Boolean,
+      isChunkCompressionEnabled: Boolean): PartitionLocation = {
     try {
       var location =
         if (isPrimary) {
@@ -347,7 +355,8 @@ private[deploy] class Controller(
           rangeReadFilter,
           userIdentifier,
           partitionSplitEnabled,
-          isSegmentGranularityVisible)
+          isSegmentGranularityVisible,
+          isChunkCompressionEnabled)
         new WorkingPartition(location, writer)
       } else {
         location

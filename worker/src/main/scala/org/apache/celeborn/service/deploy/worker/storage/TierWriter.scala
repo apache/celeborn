@@ -22,12 +22,9 @@ import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
-
 import scala.collection.JavaConverters.asScalaBufferConverter
-
 import io.netty.buffer.{ByteBuf, CompositeByteBuf}
-import org.apache.hadoop.fs.{FileSystem, FSDataOutputStream}
-
+import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.AlreadyClosedException
 import org.apache.celeborn.common.internal.Logging
@@ -41,6 +38,7 @@ import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 import org.apache.celeborn.service.deploy.worker.congestcontrol.{CongestionController, UserCongestionControlContext}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
+import org.apache.celeborn.service.deploy.worker.storage.file.{FileChannelWriter, FileChannelWriterFactory, FileWriterType}
 
 abstract class TierWriterBase(
     val conf: CelebornConf,
@@ -414,8 +412,8 @@ class LocalTierWriter(
     partitionDataWriterContext.getWorkingDir,
     fileInfo.asInstanceOf[DiskFileInfo])
 
-  private lazy val channel: FileChannel =
-    FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath)
+  private lazy val fileChannelWriter: FileChannelWriter =
+    FileChannelWriterFactory.getFileChannelWriter(diskFileInfo)
 
   val gatherApiEnabled: Boolean = conf.workerFlusherLocalGatherAPIEnabled
   val commitFilesFsync: Boolean = conf.workerCommitFilesFsync
@@ -426,7 +424,7 @@ class LocalTierWriter(
 
   override def genFlushTask(finalFlush: Boolean, keepBuffer: Boolean): FlushTask = {
     notifier.numPendingFlushes.incrementAndGet()
-    new LocalFlushTask(flushBuffer, channel, notifier, true, source, gatherApiEnabled)
+    new LocalFlushTask(flushBuffer, fileChannelWriter, notifier, true, source, gatherApiEnabled)
   }
 
   override def writeInternal(buf: ByteBuf): Unit = {
@@ -459,14 +457,9 @@ class LocalTierWriter(
   }
 
   override def closeStreams(): Unit = {
-    if (channel != null) {
-      try {
-        if (commitFilesFsync) {
-          channel.force(false)
-        }
-      } finally {
-        channel.close()
-      }
+    if (fileChannelWriter != null) {
+      // Closing with / without sync here
+      fileChannelWriter.close(commitFilesFsync)
     }
   }
 
@@ -474,7 +467,7 @@ class LocalTierWriter(
     storageManager.notifyFileInfoCommitted(shuffleKey, filename, diskFileInfo)
 
   override def closeResource(): Unit = {
-    try if (channel != null) channel.close()
+    try if (fileChannelWriter != null) fileChannelWriter.close(false)
     catch {
       case e: IOException =>
         logWarning(

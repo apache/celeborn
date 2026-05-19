@@ -482,7 +482,8 @@ object ControlMessages extends Logging {
       userIdentifier: UserIdentifier,
       pushDataTimeout: Long,
       partitionSplitEnabled: Boolean = false,
-      isSegmentGranularityVisible: Boolean = false)
+      isSegmentGranularityVisible: Boolean = false,
+      isChunkCompressionEnabled: Boolean = false)
     extends WorkerMessage
 
   case class ReserveSlotsResponse(
@@ -961,7 +962,8 @@ object ControlMessages extends Logging {
           userIdentifier,
           pushDataTimeout,
           partitionSplitEnabled,
-          isSegmentGranularityVisible) =>
+          isSegmentGranularityVisible,
+          isChunkCompressionEnabled) =>
       val payload = PbReserveSlots.newBuilder()
         .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
@@ -975,6 +977,7 @@ object ControlMessages extends Logging {
         .setPushDataTimeout(pushDataTimeout)
         .setPartitionSplitEnabled(partitionSplitEnabled)
         .setIsSegmentGranularityVisible(isSegmentGranularityVisible)
+        .setIsChunkCompressionEnabled(isChunkCompressionEnabled)
         .build().toByteArray
       new TransportMessage(MessageType.RESERVE_SLOTS, payload)
 
@@ -1439,7 +1442,8 @@ object ControlMessages extends Logging {
           userIdentifier,
           pbReserveSlots.getPushDataTimeout,
           pbReserveSlots.getPartitionSplitEnabled,
-          pbReserveSlots.getIsSegmentGranularityVisible)
+          pbReserveSlots.getIsSegmentGranularityVisible,
+          pbReserveSlots.getIsChunkCompressionEnabled)
 
       case RESERVE_SLOTS_RESPONSE_VALUE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)
