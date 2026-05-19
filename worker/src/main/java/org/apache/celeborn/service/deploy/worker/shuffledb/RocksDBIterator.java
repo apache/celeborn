@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.AbstractMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.rocksdb.RocksIterator;
 
@@ -33,6 +34,8 @@ public class RocksDBIterator implements DBIterator {
 
   private final RocksIterator it;
   private final MetadataMetrics metrics;
+  private final AtomicLong dbGeneration;
+  private final long creationGeneration;
 
   private boolean checkedNext;
 
@@ -40,13 +43,23 @@ public class RocksDBIterator implements DBIterator {
 
   private Map.Entry<byte[], byte[]> next;
 
-  public RocksDBIterator(RocksIterator it, MetadataMetrics metrics) {
+  public RocksDBIterator(
+      RocksIterator it, MetadataMetrics metrics, AtomicLong dbGeneration, long creationGeneration) {
     this.it = it;
     this.metrics = metrics;
+    this.dbGeneration = dbGeneration;
+    this.creationGeneration = creationGeneration;
+  }
+
+  private void checkGeneration() {
+    if (dbGeneration.get() != creationGeneration) {
+      throw new IllegalStateException("DB instance was recreated, iterator is stale");
+    }
   }
 
   @Override
   public boolean hasNext() {
+    checkGeneration();
     if (!checkedNext && !closed) {
       next = loadNext();
       checkedNext = true;
@@ -63,6 +76,7 @@ public class RocksDBIterator implements DBIterator {
 
   @Override
   public Map.Entry<byte[], byte[]> next() {
+    checkGeneration();
     if (!hasNext()) {
       throw new NoSuchElementException();
     }
@@ -83,6 +97,7 @@ public class RocksDBIterator implements DBIterator {
 
   @Override
   public void seek(byte[] key) {
+    checkGeneration();
     metrics.onRead(
         () -> {
           it.seek(key);

@@ -48,26 +48,48 @@ public class RocksDBProvider {
 
   private static final Logger logger = LoggerFactory.getLogger(RocksDBProvider.class);
 
+  private static Options createDBOptions() {
+    BloomFilter fullFilter = new BloomFilter(10.0D /* BloomFilter.DEFAULT_BITS_PER_KEY */, false);
+    BlockBasedTableConfig tableFormatConfig =
+        new BlockBasedTableConfig()
+            .setFilterPolicy(fullFilter)
+            .setEnableIndexCompression(false)
+            .setIndexBlockRestartInterval(8)
+            .setFormatVersion(5);
+
+    Options dbOptions = new Options();
+    RocksDBLogger rocksDBLogger = new RocksDBLogger(dbOptions);
+
+    dbOptions.setCreateIfMissing(false);
+    dbOptions.setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION);
+    dbOptions.setCompressionType(CompressionType.LZ4_COMPRESSION);
+    dbOptions.setTableFormatConfig(tableFormatConfig);
+    dbOptions.setLogger(rocksDBLogger);
+
+    return dbOptions;
+  }
+
+  /**
+   * Reopen an existing RocksDB without the delete-and-recreate fallback. Use this for recovery from
+   * transient errors.
+   */
+  public static org.rocksdb.RocksDB reopenRocksDB(File dbFile) throws IOException {
+    if (dbFile == null || !dbFile.exists()) {
+      throw new IOException("RocksDB path does not exist: " + dbFile);
+    }
+    Options dbOptions = createDBOptions();
+    try {
+      return org.rocksdb.RocksDB.open(dbOptions, dbFile.toString());
+    } catch (RocksDBException e) {
+      throw new IOException("Failed to reopen RocksDB at " + dbFile, e);
+    }
+  }
+
   public static org.rocksdb.RocksDB initRockDB(File dbFile, StoreVersion version)
       throws IOException {
     org.rocksdb.RocksDB tmpDb = null;
     if (dbFile != null) {
-      BloomFilter fullFilter = new BloomFilter(10.0D /* BloomFilter.DEFAULT_BITS_PER_KEY */, false);
-      BlockBasedTableConfig tableFormatConfig =
-          new BlockBasedTableConfig()
-              .setFilterPolicy(fullFilter)
-              .setEnableIndexCompression(false)
-              .setIndexBlockRestartInterval(8)
-              .setFormatVersion(5);
-
-      Options dbOptions = new Options();
-      RocksDBLogger rocksDBLogger = new RocksDBLogger(dbOptions);
-
-      dbOptions.setCreateIfMissing(false);
-      dbOptions.setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION);
-      dbOptions.setCompressionType(CompressionType.LZ4_COMPRESSION);
-      dbOptions.setTableFormatConfig(tableFormatConfig);
-      dbOptions.setLogger(rocksDBLogger);
+      Options dbOptions = createDBOptions();
 
       try {
         tmpDb = org.rocksdb.RocksDB.open(dbOptions, dbFile.toString());

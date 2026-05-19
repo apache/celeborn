@@ -1364,6 +1364,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerGracefulShutdownRecoverPath: String = get(WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH)
   def workerGracefulShutdownRecoverDbBackend: String =
     get(WORKER_GRACEFUL_SHUTDOWN_RECOVER_DB_BACKEND)
+  def metadataAutoRecoveryEnabled: Boolean =
+    get(WORKER_RECOVER_DB_AUTO_RECOVERY)
   def workerGracefulShutdownPartitionSorterCloseAwaitTimeMs: Long =
     get(WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT)
   def workerGracefulShutdownFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
@@ -4519,6 +4521,17 @@ object CelebornConf extends Logging {
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set("LEVELDB", "ROCKSDB"))
       .createWithDefault("ROCKSDB")
+
+  val WORKER_RECOVER_DB_AUTO_RECOVERY: ConfigEntry[Boolean] =
+    buildConf("celeborn.metadata.autoRecovery.enabled")
+      .categories("worker")
+      .doc("If true, the metadata DB will automatically attempt to recover from RocksDBException " +
+        "errors during put/get/delete operations. Recovery first tries a safe reopen; if that " +
+        "fails, recreates the DB." +
+        "If false, RocksDBException errors are propagated directly to the caller.")
+      .version("0.7.0")
+      .booleanConf
+      .createWithDefault(false)
 
   val WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.graceful.shutdown.partitionSorter.shutdownTimeout")
