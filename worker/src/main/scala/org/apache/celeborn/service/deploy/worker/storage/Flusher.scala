@@ -73,29 +73,38 @@ abstract private[worker] class Flusher(
             copyBytes = new Array[Byte](maxTaskSize.toInt)
           }
           while (!stopFlag.get()) {
-            val task = workingQueues(index).take()
-            val key = s"Flusher-$this-${Random.nextInt()}"
-            workerSource.sample(getFlushTimeMetric(), key) {
-              if (!task.notifier.hasException) {
-                try {
-                  val flushBeginTime = System.nanoTime()
-                  lastBeginFlushTime.set(index, flushBeginTime)
-                  task.flush(copyBytes)
-                  if (flushTimeMetric != null) {
-                    val delta = System.nanoTime() - flushBeginTime
-                    flushTimeMetric.update(delta)
+            val task = workingQueues(index).poll(1000, TimeUnit.MILLISECONDS)
+            if (task != null) {
+              val key = s"Flusher-$this-${Random.nextInt()}"
+              workerSource.sample(getFlushTimeMetric(), key) {
+                if (!task.notifier.hasException) {
+                  try {
+                    val flushBeginTime = System.nanoTime()
+                    lastBeginFlushTime.set(index, flushBeginTime)
+                    task.flush(copyBytes)
+                    if (flushTimeMetric != null) {
+                      val delta = System.nanoTime() - flushBeginTime
+                      flushTimeMetric.update(delta)
+                    }
+                  } catch {
+                    case t: Throwable =>
+                      val e = ExceptionUtils.wrapThrowableToIOException(t)
+                      task.notifier.setException(e)
+                      processIOException(e, DiskStatus.READ_OR_WRITE_FAILURE)
+                      logWarning(s"Flusher-$this-thread-$index encounter exception.", t)
                   }
-                } catch {
-                  case t: Throwable =>
-                    val e = ExceptionUtils.wrapThrowableToIOException(t)
-                    task.notifier.setException(e)
-                    processIOException(e, DiskStatus.READ_OR_WRITE_FAILURE)
-                    logWarning(s"Flusher-$this-thread-$index encounter exception.", t)
+                  lastBeginFlushTime.set(index, -1)
                 }
-                lastBeginFlushTime.set(index, -1)
+                Utils.tryLogNonFatalError(returnBuffer(task.buffer, task.keepBuffer))
+                task.notifier.numPendingFlushes.decrementAndGet()
               }
-              Utils.tryLogNonFatalError(returnBuffer(task.buffer, task.keepBuffer))
-              task.notifier.numPendingFlushes.decrementAndGet()
+            } else {
+              allocator match {
+                case alloc: PooledByteBufAllocator =>
+                  // Free buffer pool memory to main direct memory when flush thread is idle.
+                  alloc.trimCurrentThreadCache
+                case _ =>
+              }
             }
           }
         }
