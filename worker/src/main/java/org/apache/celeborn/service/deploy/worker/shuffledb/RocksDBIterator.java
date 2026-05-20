@@ -51,8 +51,16 @@ public class RocksDBIterator implements DBIterator {
     this.creationGeneration = creationGeneration;
   }
 
+  // Fail fast on a stale iterator rather than transparently re-acquiring on the recovered DB:
+  // a mid-iteration recovery means the underlying data was unhealthy enough to force a reopen,
+  // and silently restarting iteration would hide that signal from the caller (and risk skipping
+  // or duplicating entries depending on what mutations were in flight).
   private void checkGeneration() {
     if (dbGeneration.get() != creationGeneration) {
+      if (!closed) {
+        it.close();
+        closed = true;
+      }
       throw new IllegalStateException("DB instance was recreated, iterator is stale");
     }
   }

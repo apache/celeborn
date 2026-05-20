@@ -26,6 +26,13 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.After;
 import org.junit.Before;
@@ -39,33 +46,31 @@ public class RocksDBRecoverySuiteJ {
 
   private File dbDir;
   private File dbFile;
+  private CelebornConf defaultConf;
+  private CelebornConf confWithRecovery;
   private WorkerSource workerSource;
-  private WorkerSource workerSourceWithRecovery;
   private StoreVersion version;
 
   @Before
   public void setUp() throws IOException {
     dbDir = Files.createTempDirectory("rocksdb-recovery-test").toFile();
     dbFile = new File(dbDir, "test-db");
-    workerSource = new WorkerSource(new CelebornConf());
-
-    CelebornConf confWithRecovery = new CelebornConf();
+    defaultConf = new CelebornConf();
+    confWithRecovery = new CelebornConf();
     confWithRecovery.set("celeborn.metadata.autoRecovery.enabled", "true");
-    workerSourceWithRecovery = new WorkerSource(confWithRecovery);
-
+    workerSource = new WorkerSource(defaultConf);
     version = new StoreVersion(1, 0);
   }
 
   @After
   public void tearDown() throws IOException {
     workerSource.destroy();
-    workerSourceWithRecovery.destroy();
     JavaUtils.deleteRecursively(dbDir);
   }
 
   @Test
   public void testRecoveryAfterCorruption() throws Exception {
-    DB db = DBProvider.initDB(DBBackend.ROCKSDB, dbFile, version, workerSource);
+    DB db = DBProvider.initDB(DBBackend.ROCKSDB, dbFile, version, workerSource, defaultConf);
     assertNotNull(db);
 
     byte[] key = "test-key".getBytes(StandardCharsets.UTF_8);
@@ -82,7 +87,7 @@ public class RocksDBRecoverySuiteJ {
     corruptDbFiles(dbFile);
 
     // Reopen — initRockDB will wipe and recreate since files are corrupt
-    db = DBProvider.initDB(DBBackend.ROCKSDB, dbFile, version, workerSource);
+    db = DBProvider.initDB(DBBackend.ROCKSDB, dbFile, version, workerSource, defaultConf);
     assertNotNull(db);
 
     // Data is gone after wipe-and-recreate, but DB is functional
@@ -98,7 +103,7 @@ public class RocksDBRecoverySuiteJ {
 
   @Test
   public void testConcurrentRecoveryOnlyRecreatesOnce() throws Exception {
-    DB db = DBProvider.initDB(DBBackend.ROCKSDB, dbFile, version, workerSource);
+    DB db = DBProvider.initDB(DBBackend.ROCKSDB, dbFile, version, workerSource, confWithRecovery);
     assertNotNull(db);
 
     byte[] key = "key".getBytes(StandardCharsets.UTF_8);
@@ -106,25 +111,55 @@ public class RocksDBRecoverySuiteJ {
     db.put(key, value);
 
     RocksDB rocksDB = (RocksDB) db;
-
-    // Close and reopen to get a working DB, then verify generation tracking
-    db.close();
-    db = DBProvider.initDB(DBBackend.ROCKSDB, dbFile, version, workerSource);
-    assertNotNull(db);
-    rocksDB = (RocksDB) db;
-
     assertEquals(0, rocksDB.getDbGeneration());
 
+    int threadCount = 8;
+    CyclicBarrier barrier = new CyclicBarrier(threadCount);
+    ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+    AtomicInteger recoveryCount = new AtomicInteger(0);
+
+    // Force a recovery to simulate a RocksDBException scenario
+    rocksDB.forceRecovery();
+    long genAfterFirstRecovery = rocksDB.getDbGeneration();
+    assertEquals(1, genAfterFirstRecovery);
+
+    // Now launch concurrent threads that all try to trigger recovery at the same generation
+    List<Future<?>> futures = new ArrayList<>();
+    for (int i = 0; i < threadCount; i++) {
+      futures.add(
+          executor.submit(
+              () -> {
+                try {
+                  barrier.await();
+                  rocksDB.forceRecovery();
+                  recoveryCount.incrementAndGet();
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              }));
+    }
+
+    for (Future<?> f : futures) {
+      f.get();
+    }
+    executor.shutdown();
+
+    // Generation should have incremented exactly once more (all threads saw the same generation
+    // and only one wins the write lock to perform the actual recovery)
+    assertEquals(genAfterFirstRecovery + 1, rocksDB.getDbGeneration());
+
+    // DB should still be usable
     db.put(key, value);
     byte[] result = db.get(key);
     assertNotNull(result);
+    assertEquals("value", new String(result, StandardCharsets.UTF_8));
 
     db.close();
   }
 
   @Test
   public void testOperationsAfterCloseDoNotResurrect() throws Exception {
-    DB db = DBProvider.initDB(DBBackend.ROCKSDB, dbFile, version, workerSourceWithRecovery);
+    DB db = DBProvider.initDB(DBBackend.ROCKSDB, dbFile, version, workerSource, confWithRecovery);
     assertNotNull(db);
 
     byte[] key = "key".getBytes(StandardCharsets.UTF_8);
@@ -145,7 +180,7 @@ public class RocksDBRecoverySuiteJ {
 
   @Test
   public void testIteratorInvalidatedAfterRecovery() throws Exception {
-    DB db = DBProvider.initDB(DBBackend.ROCKSDB, dbFile, version, workerSourceWithRecovery);
+    DB db = DBProvider.initDB(DBBackend.ROCKSDB, dbFile, version, workerSource, confWithRecovery);
     assertNotNull(db);
 
     byte[] key = "key".getBytes(StandardCharsets.UTF_8);
@@ -155,10 +190,24 @@ public class RocksDBRecoverySuiteJ {
     // Get an iterator at generation 0
     DBIterator iter = db.iterator();
     iter.seek(key);
-
-    // Verify iterator works before any recovery
     assertTrue(iter.hasNext());
-    iter.close();
+
+    // Force a recovery so the generation increments
+    RocksDB rocksDB = (RocksDB) db;
+    assertEquals(0, rocksDB.getDbGeneration());
+    rocksDB.forceRecovery();
+    assertEquals(1, rocksDB.getDbGeneration());
+
+    // The stale iterator should throw on hasNext, next, and seek
+    assertThrows(IllegalStateException.class, iter::hasNext);
+    assertThrows(IllegalStateException.class, iter::next);
+    assertThrows(IllegalStateException.class, () -> iter.seek(key));
+
+    // A new iterator should work fine
+    DBIterator newIter = db.iterator();
+    newIter.seek(key);
+    assertTrue(newIter.hasNext());
+    newIter.close();
 
     db.close();
   }

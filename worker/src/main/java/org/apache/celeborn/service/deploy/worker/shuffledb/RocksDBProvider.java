@@ -81,6 +81,7 @@ public class RocksDBProvider {
     try {
       return org.rocksdb.RocksDB.open(dbOptions, dbFile.toString());
     } catch (RocksDBException e) {
+      dbOptions.close();
       throw new IOException("Failed to reopen RocksDB at " + dbFile, e);
     }
   }

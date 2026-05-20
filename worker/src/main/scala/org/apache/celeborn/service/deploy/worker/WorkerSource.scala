@@ -33,8 +33,6 @@ import org.apache.celeborn.common.util.{JavaUtils, Utils}
 class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER) {
   override val sourceName = "worker"
 
-  val metadataAutoRecoveryEnabled: Boolean = conf.metadataAutoRecoveryEnabled
-
   val appActiveConnections: ConcurrentHashMap[String, util.Set[String]] =
     JavaUtils.newConcurrentHashMap[String, util.Set[String]]
   private val metricsAppLevelEnabled = conf.metricsWorkerAppLevelEnabled

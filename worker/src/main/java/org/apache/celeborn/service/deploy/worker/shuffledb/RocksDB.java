@@ -28,17 +28,17 @@ import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
-import org.apache.celeborn.service.deploy.worker.WorkerSource;
 
 /**
  * RocksDB implementation of the local KV storage used to persist the shuffle state.
  *
  * <p>This class supports automatic recovery from RocksDB failures when {@code autoRecoveryEnabled}
  * is set to {@code true}. When a put/get/delete operation encounters a {@link RocksDBException},
- * the DB instance is closed and reopened. Recovery first attempts a safe reopen; if that fails, it
- * falls back to recreating the DB. When {@code autoRecoveryEnabled} is {@code false} (the default),
- * exceptions are propagated directly without any recovery attempt.
+ * the DB instance is closed and reopened. If the safe reopen fails, the exception is propagated.
+ * When {@code autoRecoveryEnabled} is {@code false}, exceptions are propagated directly without any
+ * recovery attempt.
  *
  * <p>Iterators obtained via {@link #iterator()} are invalidated after a recovery event and will
  * throw {@link IllegalStateException} on subsequent use.
@@ -53,7 +53,6 @@ public class RocksDB extends DB {
   private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
   private final AtomicLong dbGeneration = new AtomicLong(0);
   private final File dbFile;
-  private final StoreVersion version;
   private final boolean autoRecoveryEnabled;
   private volatile boolean closed = false;
 
@@ -62,16 +61,15 @@ public class RocksDB extends DB {
       AbstractSource source,
       DBBackend dbBackend,
       File dbFile,
-      StoreVersion version) {
+      CelebornConf conf) {
     super(source, dbBackend);
     this.db = db;
     this.dbFile = dbFile;
-    this.version = version;
-    this.autoRecoveryEnabled =
-        (source instanceof WorkerSource) && ((WorkerSource) source).metadataAutoRecoveryEnabled();
+    this.autoRecoveryEnabled = conf.metadataAutoRecoveryEnabled();
   }
 
-  private void recreateDBInstance(long failedGeneration) {
+  /** Attempts to recover the DB by closing and safely reopening it. */
+  private void tryRecoverDBInstance(long failedGeneration) {
     if (isClosed()) {
       return;
     }
@@ -98,24 +96,12 @@ public class RocksDB extends DB {
         logger.warn("Failed to close RocksDB instance", e);
       }
 
-      // Phase 1: try safe reopen
       try {
         db = RocksDBProvider.reopenRocksDB(dbFile);
         dbGeneration.incrementAndGet();
-        logger.info("RocksDB instance recovered {}", dbFile);
-        return;
+        logger.info("RocksDB instance recovered at {}", dbFile);
       } catch (IOException e) {
-        logger.warn("Safe reopen failed for RocksDB at {}", dbFile, e);
-      }
-
-      // Phase 2: recreate
-      try {
-        db = RocksDBProvider.initRockDB(dbFile, version);
-        dbGeneration.incrementAndGet();
-        logger.error("RocksDB {} was recreated.", dbFile);
-      } catch (IOException e) {
-        dbGeneration.incrementAndGet();
-        logger.error("Failed to recreate RocksDB instance at {}. ", dbFile, e);
+        logger.error("Safe reopen failed for RocksDB at {}. ", dbFile, e);
       }
     } finally {
       rwLock.writeLock().unlock();
@@ -144,22 +130,23 @@ public class RocksDB extends DB {
 
   private <T> T withRecovery(CheckedSupplier<T> operation) throws RocksDBException {
     checkState();
-    rwLock.readLock().lock();
-    boolean unlocked = false;
-    long generation = dbGeneration.get();
+    long generation = 0;
     try {
-      return operation.get();
-    } catch (RocksDBException e) {
-      rwLock.readLock().unlock();
-      unlocked = true;
-      if (autoRecoveryEnabled) {
-        recreateDBInstance(generation);
-      }
-      throw e;
-    } finally {
-      if (!unlocked) {
+      rwLock.readLock().lock();
+      try {
+        if (isClosed()) {
+          throw new IllegalStateException("DB is closed");
+        }
+        generation = dbGeneration.get();
+        return operation.get();
+      } finally {
         rwLock.readLock().unlock();
       }
+    } catch (RocksDBException e) {
+      if (autoRecoveryEnabled) {
+        tryRecoverDBInstance(generation);
+      }
+      throw e;
     }
   }
 
@@ -202,8 +189,11 @@ public class RocksDB extends DB {
   protected DBIterator newIterator(MetadataMetrics metrics) {
     checkState();
     rwLock.readLock().lock();
-    long generation = dbGeneration.get();
     try {
+      if (isClosed()) {
+        throw new IllegalStateException("DB is closed");
+      }
+      long generation = dbGeneration.get();
       return new RocksDBIterator(db.newIterator(), metrics, dbGeneration, generation);
     } finally {
       rwLock.readLock().unlock();
@@ -225,5 +215,11 @@ public class RocksDB extends DB {
   // Visible for testing
   long getDbGeneration() {
     return dbGeneration.get();
+  }
+
+  // Visible for testing
+  void forceRecovery() {
+    long generation = dbGeneration.get();
+    tryRecoverDBInstance(generation);
   }
 }
