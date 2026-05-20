@@ -382,13 +382,18 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     logger.info("Memory used {}", Utils.bytesToString(pusher.getUsed()));
     long pushStartTime = System.nanoTime();
     pusher.pushData(false);
+
+    // The check must come BEFORE mapperEnd so a partial map output is never committed to the
+    // shuffle service.
+    // Check BEFORE pusher.close() so if we throw here the outer finally block will handle the
+    // closing thing.
+    SparkUtils.assertIteratorFullyConsumed(iteratorHasNext);
+
     pusher.close(true);
 
     shuffleClient.pushMergedData(shuffleId, mapId, encodedAttemptId);
     writeMetrics.incWriteTime(System.nanoTime() - pushStartTime);
     writeMetrics.incRecordsWritten(tmpRecordsWritten);
-
-    SparkUtils.assertIteratorFullyConsumed(iteratorHasNext);
 
     long waitStartTime = System.nanoTime();
     shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers, numPartitions);

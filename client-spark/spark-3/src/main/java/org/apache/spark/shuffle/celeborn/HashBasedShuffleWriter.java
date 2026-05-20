@@ -384,13 +384,15 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     writeMetrics.incWriteTime(System.nanoTime() - pushMergedDataTime);
     updateRecordsWrittenMetrics();
 
+    // The check must come before mapperEnd so a partial map output is never committed to the
+    // shuffle service.
+    // Check BEFORE releasing buffers and draining the pusher(the outer finally block will handle
+    // that).
+    SparkUtils.assertIteratorFullyConsumed(iteratorHasNext);
+
     long waitStartTime = System.nanoTime();
     dataPusher.waitOnTermination();
     sendBufferPool.returnPushTaskQueue(dataPusher.getAndResetIdleQueue());
-    // Check after draining the pusher so that the TaskKilledException thrown here does not leak
-    // the push task queue. The check must still come before mapperEnd so a partial map output
-    // is never committed to the shuffle service.
-    SparkUtils.assertIteratorFullyConsumed(iteratorHasNext);
     shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers, numPartitions);
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
 
