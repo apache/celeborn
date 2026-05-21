@@ -78,7 +78,8 @@ public class RocksDB extends DB {
     try {
       if (dbGeneration.get() != failedGeneration) {
         logger.info(
-            "RocksDB instance already recovered by another thread (generation {} -> {})",
+            "Recovery already attempted by another thread (generation {} -> {}); "
+                + "if DB is still unhealthy, the next operation will retry",
             failedGeneration,
             dbGeneration.get());
         return;
@@ -96,9 +97,10 @@ public class RocksDB extends DB {
         logger.warn("Failed to close RocksDB instance", e);
       }
 
+      dbGeneration.incrementAndGet();
+
       try {
         db = RocksDBProvider.reopenRocksDB(dbFile);
-        dbGeneration.incrementAndGet();
         logger.info("RocksDB instance recovered at {}", dbFile);
       } catch (IOException e) {
         logger.error("Safe reopen failed for RocksDB at {}. ", dbFile, e);

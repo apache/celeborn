@@ -4526,8 +4526,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.metadata.autoRecovery.enabled")
       .categories("worker")
       .doc("If true, the metadata DB will automatically attempt to recover from RocksDBException " +
-        "errors during put/get/delete operations. Recovery tries a safe reopen; if that " +
-        "fails, the exception is propagated. If false, RocksDBException errors are propagated directly to the caller.")
+        "errors during put/get/delete operations. Recovery tries a safe reopen. " +
+        "If false, RocksDBException errors are propagated directly to the caller.")
       .version("0.7.0")
       .booleanConf
       .createWithDefault(false)
