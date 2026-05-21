@@ -269,6 +269,8 @@ public class MasterClient {
    * @param currentIndex current attempt master address index.
    * @throws IllegalStateException If after several attempts, the non-empty RpcEndpointRef still
    *     cannot be obtained.
+   * @throws RuntimeException If endpoint setup receives a leader redirect that should be retried
+   *     by the outer send loop.
    * @return non-empty RpcEndpointRef.
    */
   private RpcEndpointRef getOrSetupRpcEndpointRef(AtomicInteger currentIndex) {
