@@ -256,7 +256,7 @@ class CelebornShuffleReader[K, C](
 
     val clientsByHostPort = CelebornShuffleReader.createClientsInParallel(
       locationsByHostPort.map { case (hostPort, locations) =>
-        (hostPort, locations.get(0))
+        (hostPort, locations.asScala.toSeq)
       }.toSeq,
       streamCreatorPool,
       location =>
@@ -559,20 +559,24 @@ object CelebornShuffleReader {
 
   @VisibleForTesting
   private[celeborn] def createClientsInParallel(
-      locationsByHostPort: Seq[(String, PartitionLocation)],
+      locationsByHostPort: Seq[(String, Seq[PartitionLocation])],
       streamCreatorPool: ThreadPoolExecutor,
       createClient: PartitionLocation => TransportClient,
       onClientCreateFailure: (String, PartitionLocation, Exception) => Unit)
       : Map[String, TransportClient] = {
     val clientsByHostPort = JavaUtils.newConcurrentHashMap[String, TransportClient]()
-    val futures = locationsByHostPort.map { case (hostPort, location) =>
+    val futures = locationsByHostPort.map { case (hostPort, locations) =>
       streamCreatorPool.submit(new Runnable {
         override def run(): Unit = {
-          try {
-            clientsByHostPort.put(hostPort, createClient(location))
-          } catch {
-            case ex: Exception =>
-              onClientCreateFailure(hostPort, location, ex)
+          locations.find { location =>
+            try {
+              clientsByHostPort.put(hostPort, createClient(location))
+              true
+            } catch {
+              case ex: Exception =>
+                onClientCreateFailure(hostPort, location, ex)
+                false
+            }
           }
         }
       })

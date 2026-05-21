@@ -110,8 +110,8 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
       val clientsFuture = scala.concurrent.Future {
         CelebornShuffleReader.createClientsInParallel(
           Seq(
-            worker0.hostAndFetchPort -> worker0,
-            worker1.hostAndFetchPort -> worker1),
+            worker0.hostAndFetchPort -> Seq(worker0),
+            worker1.hostAndFetchPort -> Seq(worker1)),
           streamCreatorPool,
           location => {
             started.countDown()
@@ -146,8 +146,8 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
     try {
       val clients = CelebornShuffleReader.createClientsInParallel(
         Seq(
-          failedWorker.hostAndFetchPort -> failedWorker,
-          healthyWorker.hostAndFetchPort -> healthyWorker),
+          failedWorker.hostAndFetchPort -> Seq(failedWorker),
+          healthyWorker.hostAndFetchPort -> Seq(healthyWorker)),
         streamCreatorPool,
         location => {
           if (location eq failedWorker) throw new IOException("boom")
@@ -158,6 +158,30 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
       assert(failedHostPort === failedWorker.hostAndFetchPort)
       assert(!clients.contains(failedWorker.hostAndFetchPort))
       assert(clients(healthyWorker.hostAndFetchPort) eq healthyClient)
+    } finally {
+      streamCreatorPool.shutdownNow()
+    }
+  }
+
+  test("retry failed batch open stream client creation for the same worker") {
+    val failedLocation = newLocation(0, "worker-0", 19098)
+    val retryLocation = newLocation(1, "worker-0", 19098)
+    val client = Mockito.mock(classOf[TransportClient])
+    val streamCreatorPool = ThreadUtils.newDaemonCachedThreadPool("test-create-client", 1, 60)
+    var failureCount = 0
+
+    try {
+      val clients = CelebornShuffleReader.createClientsInParallel(
+        Seq(failedLocation.hostAndFetchPort -> Seq(failedLocation, retryLocation)),
+        streamCreatorPool,
+        location => {
+          if (location eq failedLocation) throw new IOException("boom")
+          client
+        },
+        (_, _, _) => failureCount += 1)
+
+      assert(failureCount === 1)
+      assert(clients(failedLocation.hostAndFetchPort) eq client)
     } finally {
       streamCreatorPool.shutdownNow()
     }
