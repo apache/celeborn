@@ -107,7 +107,7 @@ private[worker] class HdfsFlushTask(
     val hadoopFs = StorageManager.hadoopFs.get(Type.HDFS)
     val hdfsStream = hadoopFs.append(path, 256 * 1024)
     flush(hdfsStream) {
-      hdfsStream.write(convertBufferToBytes(buffer, copyBytes, readableBytes))
+      hdfsStream.write(convertBufferToBytes(buffer, copyBytes, readableBytes), 0, readableBytes)
       source.incCounter(WorkerSource.HDFS_FLUSH_COUNT)
       source.incCounter(WorkerSource.HDFS_FLUSH_SIZE, readableBytes)
     }
