@@ -221,7 +221,11 @@ public class RocksDB extends DB {
 
   // Visible for testing
   void forceRecovery() {
-    long generation = dbGeneration.get();
-    tryRecoverDBInstance(generation);
+    tryRecoverDBInstance(dbGeneration.get());
+  }
+
+  // Visible for testing
+  void forceRecovery(long atGeneration) {
+    tryRecoverDBInstance(atGeneration);
   }
 }

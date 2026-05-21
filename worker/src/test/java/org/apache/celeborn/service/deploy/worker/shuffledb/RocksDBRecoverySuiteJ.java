@@ -121,7 +121,9 @@ public class RocksDBRecoverySuiteJ {
     long genAfterFirstRecovery = rocksDB.getDbGeneration();
     assertEquals(1, genAfterFirstRecovery);
 
-    // Now launch concurrent threads that all try to trigger recovery at the same generation
+    // Now launch concurrent threads that all try to trigger recovery at the same generation.
+    // genAfterFirstRecovery is captured once so every thread calls forceRecovery with the
+    // same stale-generation value; only one can win the write-lock check and actually reopen.
     List<Future<?>> futures = new ArrayList<>();
     for (int i = 0; i < threadCount; i++) {
       futures.add(
@@ -129,7 +131,7 @@ public class RocksDBRecoverySuiteJ {
               () -> {
                 try {
                   barrier.await();
-                  rocksDB.forceRecovery();
+                  rocksDB.forceRecovery(genAfterFirstRecovery);
                 } catch (Exception e) {
                   throw new RuntimeException(e);
                 }
