@@ -48,7 +48,7 @@ public class RocksDBProvider {
 
   private static final Logger logger = LoggerFactory.getLogger(RocksDBProvider.class);
 
-  private static Options createDBOptions() {
+  private static ManagedRocksDB createDBOptions() {
     BloomFilter fullFilter = new BloomFilter(10.0D /* BloomFilter.DEFAULT_BITS_PER_KEY */, false);
     BlockBasedTableConfig tableFormatConfig =
         new BlockBasedTableConfig()
@@ -66,31 +66,34 @@ public class RocksDBProvider {
     dbOptions.setTableFormatConfig(tableFormatConfig);
     dbOptions.setLogger(rocksDBLogger);
 
-    return dbOptions;
+    return new ManagedRocksDB(dbOptions, fullFilter, rocksDBLogger);
   }
 
   /**
    * Reopen an existing RocksDB without the delete-and-recreate fallback. Use this for recovery from
-   * transient errors.
+   * transient errors. The returned {@link ManagedRocksDB} owns the DB plus its open-time native
+   * resources; the caller must close it to release them.
    */
-  public static org.rocksdb.RocksDB reopenRocksDB(File dbFile) throws IOException {
+  public static ManagedRocksDB reopenRocksDB(File dbFile) throws IOException {
     if (dbFile == null || !dbFile.exists()) {
       throw new IOException("RocksDB path does not exist: " + dbFile);
     }
-    Options dbOptions = createDBOptions();
+    ManagedRocksDB managedDb = createDBOptions();
     try {
-      return org.rocksdb.RocksDB.open(dbOptions, dbFile.toString());
+      managedDb.setDb(org.rocksdb.RocksDB.open(managedDb.options(), dbFile.toString()));
+      return managedDb;
     } catch (RocksDBException e) {
-      dbOptions.close();
+      managedDb.close();
       throw new IOException("Failed to reopen RocksDB at " + dbFile, e);
     }
   }
 
-  public static org.rocksdb.RocksDB initRockDB(File dbFile, StoreVersion version)
-      throws IOException {
-    org.rocksdb.RocksDB tmpDb = null;
+  public static ManagedRocksDB initRockDB(File dbFile, StoreVersion version) throws IOException {
+    ManagedRocksDB managedDb = null;
     if (dbFile != null) {
-      Options dbOptions = createDBOptions();
+      managedDb = createDBOptions();
+      Options dbOptions = managedDb.options();
+      org.rocksdb.RocksDB tmpDb = null;
 
       try {
         tmpDb = org.rocksdb.RocksDB.open(dbOptions, dbFile.toString());
@@ -101,6 +104,7 @@ public class RocksDBProvider {
           try {
             tmpDb = org.rocksdb.RocksDB.open(dbOptions, dbFile.toString());
           } catch (RocksDBException dbExc) {
+            managedDb.close();
             throw new IOException("Unable to create state store", dbExc);
           }
         } else {
@@ -125,23 +129,25 @@ public class RocksDBProvider {
           try {
             tmpDb = org.rocksdb.RocksDB.open(dbOptions, dbFile.toString());
           } catch (RocksDBException dbExc) {
+            managedDb.close();
             throw new IOException("Unable to create state store", dbExc);
           }
         }
       }
+      managedDb.setDb(tmpDb);
       try {
         // if there is a version mismatch, we throw an exception, which means the service
         // is unusable
         checkVersion(tmpDb, version);
       } catch (RocksDBException e) {
-        tmpDb.close();
+        managedDb.close();
         throw new IOException(e.getMessage(), e);
       } catch (IOException ioe) {
-        tmpDb.close();
+        managedDb.close();
         throw ioe;
       }
     }
-    return tmpDb;
+    return managedDb;
   }
 
   private static void createIfMissing(Options dbOptions, File dbFile) {

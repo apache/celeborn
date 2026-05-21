@@ -48,7 +48,7 @@ import org.apache.celeborn.common.metrics.source.AbstractSource;
 public class RocksDB extends DB {
   private static final Logger logger = LoggerFactory.getLogger(RocksDB.class);
 
-  private volatile org.rocksdb.RocksDB db;
+  private volatile ManagedRocksDB db;
   private final WriteOptions SYNC_WRITE_OPTIONS = new WriteOptions().setSync(true);
   private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
   private final AtomicLong dbGeneration = new AtomicLong(0);
@@ -57,7 +57,7 @@ public class RocksDB extends DB {
   private volatile boolean closed = false;
 
   public RocksDB(
-      org.rocksdb.RocksDB db,
+      ManagedRocksDB db,
       AbstractSource source,
       DBBackend dbBackend,
       File dbFile,

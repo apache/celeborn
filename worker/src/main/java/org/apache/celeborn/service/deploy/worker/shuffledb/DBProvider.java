@@ -44,7 +44,7 @@ public class DBProvider {
           logger.warn("The LEVELDB is deprecated. Please use ROCKSDB instead.");
           return levelDB != null ? new LevelDB(levelDB, source, dbBackend) : null;
         case ROCKSDB:
-          org.rocksdb.RocksDB rocksDB = RocksDBProvider.initRockDB(dbFile, version);
+          ManagedRocksDB rocksDB = RocksDBProvider.initRockDB(dbFile, version);
           return rocksDB != null ? new RocksDB(rocksDB, source, dbBackend, dbFile, conf) : null;
         default:
           throw new IllegalArgumentException("Unsupported DBBackend: " + dbBackend);

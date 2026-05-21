@@ -32,7 +32,6 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.After;
 import org.junit.Before;
@@ -102,7 +101,7 @@ public class RocksDBRecoverySuiteJ {
   }
 
   @Test
-  public void testConcurrentRecoveryOnlyRecreatesOnce() throws Exception {
+  public void testConcurrentRecoveryOnlyReopensOnce() throws Exception {
     DB db = DBProvider.initDB(DBBackend.ROCKSDB, dbFile, version, workerSource, confWithRecovery);
     assertNotNull(db);
 
@@ -116,7 +115,6 @@ public class RocksDBRecoverySuiteJ {
     int threadCount = 8;
     CyclicBarrier barrier = new CyclicBarrier(threadCount);
     ExecutorService executor = Executors.newFixedThreadPool(threadCount);
-    AtomicInteger recoveryCount = new AtomicInteger(0);
 
     // Force a recovery to simulate a RocksDBException scenario
     rocksDB.forceRecovery();
@@ -132,7 +130,6 @@ public class RocksDBRecoverySuiteJ {
                 try {
                   barrier.await();
                   rocksDB.forceRecovery();
-                  recoveryCount.incrementAndGet();
                 } catch (Exception e) {
                   throw new RuntimeException(e);
                 }
@@ -145,7 +142,8 @@ public class RocksDBRecoverySuiteJ {
     executor.shutdown();
 
     // Generation should have incremented exactly once more (all threads saw the same generation
-    // and only one wins the write lock to perform the actual recovery)
+    // and only one wins the write lock to perform the actual reopen; the rest observe the
+    // advanced generation and bail without reopening)
     assertEquals(genAfterFirstRecovery + 1, rocksDB.getDbGeneration());
 
     // DB should still be usable
