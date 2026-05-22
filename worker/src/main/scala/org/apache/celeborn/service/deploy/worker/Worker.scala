@@ -1081,6 +1081,9 @@ private[celeborn] class Worker(
             case WorkerEventType.Graceful =>
               shutdownGracefully()
             case WorkerEventType.Decommission =>
+              ShutdownHookManager.get().updateTimeout(
+                conf.workerDecommissionForceExitTimeout,
+                TimeUnit.MILLISECONDS)
               decommissionWorker()
             case _ =>
               exitImmediately()

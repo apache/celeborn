@@ -1357,7 +1357,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
   // //////////////////////////////////////////////////////
-  def workerGracefulShutdown: Boolean = get(WORKER_GRACEFUL_SHUTDOWN_ENABLED)
+  def workerDecommissionShutdown: Boolean = get(WORKER_DECOMMISSION_SHUTDOWN_ENABLED)
+  def workerGracefulShutdown: Boolean =
+    get(WORKER_GRACEFUL_SHUTDOWN_ENABLED) && !workerDecommissionShutdown
   def workerGracefulShutdownTimeoutMs: Long = get(WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
   def workerGracefulShutdownCheckSlotsFinishedInterval: Long =
     get(WORKER_CHECK_SLOTS_FINISHED_INTERVAL)
@@ -4476,6 +4478,20 @@ object CelebornConf extends Logging {
       .version("0.4.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("6h")
+
+  val WORKER_DECOMMISSION_SHUTDOWN_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.decommission.shutdown.enabled")
+      .categories("worker")
+      .doc("When true, the worker will decommission on shutdown signal (e.g. SIGTERM), " +
+        "waiting for all shuffle data to be consumed or expired before exiting. " +
+        "This is suitable for permanent scale-down scenarios where the worker will not restart. " +
+        "When enabled, this overrides celeborn.worker.graceful.shutdown.enabled " +
+        "(recovery state will not be saved since the worker is not expected to come back). " +
+        "Operators should align celeborn.worker.decommission.forceExitTimeout with the pod's " +
+        "terminationGracePeriodSeconds.")
+      .version("0.6.0")
+      .booleanConf
+      .createWithDefault(false)
 
   val WORKER_GRACEFUL_SHUTDOWN_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.graceful.shutdown.enabled")
