@@ -1,7 +1,6 @@
 package org.apache.celeborn.service.deploy.worker.storage.file.chunk.compressed;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -9,8 +8,10 @@ import java.nio.channels.FileChannel;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 public class MmapMemoryManager {
+    private static final Logger LOG = Logger.getLogger(MmapMemoryManager.class.getName());
     private static MmapMemoryManager INSTANCE;
     private static final long DEFAULT_FILE_LENGTH = 512 * 1024 * 1024L;
     private final String _dirPathName;
@@ -61,28 +62,17 @@ public class MmapMemoryManager {
         if (len + _availableOffset <= _curFileLen) {
             return;
         }
-        String thisContext = getFilePrefix();
-        String filePath;
-        filePath = _dirPathName + "/" + thisContext;
+        String filePath = _dirPathName + "/" + getFilePrefix();
         final File file = new File(filePath);
         if (file.exists()) {
             throw new RuntimeException("File " + filePath + " already exists");
         }
         file.deleteOnExit();
-        RandomAccessFile raf;
-        try {
-            raf = new RandomAccessFile(filePath, "rw");
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
         long fileLen = Math.max(DEFAULT_FILE_LENGTH, len);
-        try {
+        try (RandomAccessFile raf = new RandomAccessFile(filePath, "rw");
+             FileChannel fileChannel = raf.getChannel()) {
             raf.setLength(fileLen);
-            raf.close();
-
-            try (FileChannel fileChannel = new RandomAccessFile(file, "rw").getChannel()) {
-                _currentBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, fileLen);
-            }
+            _currentBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, fileLen);
             _memMappedBuffers.add(_currentBuffer);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -98,23 +88,21 @@ public class MmapMemoryManager {
         buffer.position((int) _availableOffset);
         buffer.limit((int) (_availableOffset + size));
         _availableOffset += size;
-        return buffer;
+        return buffer.slice();
     }
 
-    protected void close()
-            throws IOException {
-        for (ByteBuffer buffer : _memMappedBuffers) {
-            buffer.clear();
-        }
+    protected void close() {
+        // MappedByteBuffers cannot be explicitly unmapped in Java; GC handles the unmap.
+        // We clear the internal state and delete the backing files so disk space is reclaimed.
+        _memMappedBuffers.clear();
         for (String path : _paths) {
-            try {
-                File file = new File(path);
-                if (!file.delete()) {
-                    throw new RuntimeException("Unable to delete file: " + file);
-                }
-            } catch (Exception e) {
-                // Log
+            File file = new File(path);
+            if (!file.delete()) {
+                LOG.warning("Unable to delete mmap backing file: " + file);
             }
         }
+        _paths.clear();
+        _curFileLen = -1;
+        _availableOffset = DEFAULT_FILE_LENGTH;
     }
 }

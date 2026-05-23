@@ -1180,7 +1180,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           partitionSplitEnabled,
           getFileMeta(partitionType, s"hdfs", conf.shuffleChunkSize),
           hdfsFilePath,
-          StorageInfo.Type.HDFS)
+          StorageInfo.Type.HDFS,
+          false)
         diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
           fileName,
           hdfsFileInfo)
@@ -1195,7 +1196,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           partitionSplitEnabled,
           new ReduceFileMeta(conf.shuffleChunkSize),
           s3FilePath,
-          StorageInfo.Type.S3)
+          StorageInfo.Type.S3,
+          false)
         diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
           fileName,
           s3FileInfo)
@@ -1213,7 +1215,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           partitionSplitEnabled,
           new ReduceFileMeta(conf.shuffleChunkSize),
           ossFilePath,
-          StorageInfo.Type.OSS)
+          StorageInfo.Type.OSS,
+          false)
         diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
           fileName,
           ossFileInfo)

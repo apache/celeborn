@@ -133,6 +133,7 @@ public class DiskMapPartitionDataWriterSuiteJ {
             userIdentifier,
             PartitionType.MAP,
             false,
+            false,
             false);
     PartitionDataWriter fileWriter =
         new PartitionDataWriter(

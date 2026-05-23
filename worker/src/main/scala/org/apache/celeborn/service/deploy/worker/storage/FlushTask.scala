@@ -19,8 +19,10 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.{ByteArrayInputStream, Closeable, IOException}
 import java.nio.channels.FileChannel
+
 import io.netty.buffer.{ByteBufUtil, CompositeByteBuf}
 import org.apache.hadoop.fs.{FSDataOutputStream, Path}
+
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.StorageInfo.Type

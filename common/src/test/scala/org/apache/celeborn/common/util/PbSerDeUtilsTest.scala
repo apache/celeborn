@@ -81,42 +81,48 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     new ReduceFileMeta(chunkOffsets1, 123),
     file1.getAbsolutePath,
     StorageInfo.Type.HDD,
-    3000L)
+    3000L,
+    false)
   val fileInfo2 = new DiskFileInfo(
     userIdentifier2,
     true,
     new ReduceFileMeta(chunkOffsets2, 123),
     file2.getAbsolutePath,
     StorageInfo.Type.SSD,
-    6000L)
+    6000L,
+    false)
   val fileInfo3 = new DiskFileInfo(
     userIdentifier3,
     true,
     new ReduceFileMeta(chunkOffsets3, 123),
     file3,
     StorageInfo.Type.HDFS,
-    6000L)
+    6000L,
+    false)
   val fileInfo4 = new DiskFileInfo(
     userIdentifier3,
     true,
     new ReduceFileMeta(chunkOffsets3, 123),
     file4,
     StorageInfo.Type.OSS,
-    6000L)
+    6000L,
+    false)
   val fileInfo5 = new DiskFileInfo(
     userIdentifier3,
     true,
     new ReduceFileMeta(chunkOffsets3, 123),
     file5,
     StorageInfo.Type.S3,
-    6000L)
+    6000L,
+    false)
   val fileInfo6 = new DiskFileInfo(
     userIdentifier3,
     true,
     new ReduceFileMeta(chunkOffsets3, 123),
     file6,
     StorageInfo.Type.S3,
-    6000L)
+    6000L,
+    false)
 
   val mapFileInfo1 = new DiskFileInfo(
     userIdentifier1,
@@ -124,14 +130,16 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     new MapFileMeta(1024, 10),
     file1.getAbsolutePath,
     StorageInfo.Type.HDD,
-    6000L)
+    6000L,
+    false)
   val mapFileInfo2 = new DiskFileInfo(
     userIdentifier2,
     true,
     new MapFileMeta(1024, 10),
     file2.getAbsolutePath,
     StorageInfo.Type.SSD,
-    6000L)
+    6000L,
+    false)
   val fileInfoMap = JavaUtils.newConcurrentHashMap[String, DiskFileInfo]()
   mapFileInfo1.setMountPoint("/mnt")
   mapFileInfo2.setMountPoint("/mnt")

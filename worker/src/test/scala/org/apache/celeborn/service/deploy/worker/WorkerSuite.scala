@@ -79,7 +79,8 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
       PartitionSplitMode.SOFT,
       PartitionType.REDUCE,
       true,
-      new UserIdentifier("1", "2"))
+      new UserIdentifier("1", "2"),
+      false)
     worker.storageManager.createPartitionDataWriter(
       "2",
       2,
@@ -88,7 +89,8 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
       PartitionSplitMode.SOFT,
       PartitionType.REDUCE,
       true,
-      new UserIdentifier("1", "2"))
+      new UserIdentifier("1", "2"),
+      false)
 
     Assert.assertEquals(1, worker.storageManager.workingDirWriters.values().size())
     val expiredShuffleKeys = new JHashSet[String]()

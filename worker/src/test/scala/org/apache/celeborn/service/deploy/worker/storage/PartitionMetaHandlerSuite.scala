@@ -43,7 +43,8 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
       true,
       fileMeta,
       tmpFilePath.toString,
-      StorageInfo.Type.HDD)
+      StorageInfo.Type.HDD,
+      false)
 
     val mapMetaHandler = new MapPartitionMetaHandler(diskFileInfo, notifier)
     val pbPushDataHandShake =
@@ -108,7 +109,8 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
       true,
       fileMeta,
       tmpFilePath.toString,
-      StorageInfo.Type.HDD)
+      StorageInfo.Type.HDD,
+      false)
 
     val handler1 = new ReducePartitionMetaHandler(true, diskFileInfo)
     handler1.beforeWrite(generateSparkFormatData(byteBufAllocator, 0))
@@ -153,7 +155,8 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
       true,
       fileMeta,
       tmpFilePath.toString,
-      StorageInfo.Type.HDD)
+      StorageInfo.Type.HDD,
+      false)
 
     val mapMetaHandler = new SegmentMapPartitionMetaHandler(diskFileInfo, notifier)
     val pbPushDataHandShake =

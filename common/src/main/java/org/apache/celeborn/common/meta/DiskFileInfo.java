@@ -81,7 +81,8 @@ public class DiskFileInfo extends FileInfo {
         true,
         new ReduceFileMeta(new ArrayList<>(Arrays.asList(0L)), conf.shuffleChunkSize()),
         file.getAbsolutePath(),
-        StorageInfo.Type.HDD,false);
+        StorageInfo.Type.HDD,
+        false);
   }
 
   // User only by the sorted

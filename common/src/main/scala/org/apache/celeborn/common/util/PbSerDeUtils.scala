@@ -132,7 +132,8 @@ object PbSerDeUtils {
       meta,
       pbFileInfo.getFilePath,
       storageType,
-      pbFileInfo.getBytesFlushed)
+      pbFileInfo.getBytesFlushed,
+      pbFileInfo.getIsChunkCompressionEnabled)
   }
 
   private def fromPbSegmentIndexList(
@@ -155,6 +156,7 @@ object PbSerDeUtils {
       .setBytesFlushed(fileInfo.getFileLength)
       .setPartitionSplitEnabled(fileInfo.isPartitionSplitEnabled)
       .setStorageType(fileInfo.getStorageType.getValue)
+      .setIsChunkCompressionEnabled(fileInfo.isChunkCompressionEnabled)
     if (fileInfo.getFileMeta.isInstanceOf[MapFileMeta]) {
       val mapFileMeta = fileInfo.getFileMeta.asInstanceOf[MapFileMeta]
       builder.setPartitionType(PartitionType.MAP.getValue)

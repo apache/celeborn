@@ -663,6 +663,7 @@ message PbFileInfo {
   map<int32, int32> partitionWritingSegment = 10;
   repeated PbSegmentIndex segmentIndex = 11;
   int32 storageType = 12;
+  bool isChunkCompressionEnabled = 13;
 }
 
 message PbSegmentIndex {

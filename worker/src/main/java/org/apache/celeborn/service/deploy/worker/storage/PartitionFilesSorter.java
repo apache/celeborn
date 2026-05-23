@@ -234,6 +234,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
           targetBuffer);
     } else {
       DiskFileInfo diskFileInfo = ((DiskFileInfo) fileInfo);
+      if (diskFileInfo.isChunkCompressionEnabled()) {
+        // TODO this is yet to be implemented
+        throw new UnsupportedOperationException(
+            "Chunk compressed shuffle file is not supported to sort, file path: "
+                + diskFileInfo.getFilePath());
+      }
       String fileId = shuffleKey + "-" + fileName;
       UserIdentifier userIdentifier = diskFileInfo.getUserIdentifier();
       Set<String> sorted =

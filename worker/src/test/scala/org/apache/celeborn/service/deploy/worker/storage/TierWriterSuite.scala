@@ -69,6 +69,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
       userIdentifier,
       PartitionType.REDUCE,
       false,
+      false,
       false)
 
     val source = new WorkerSource(celebornConf)
@@ -184,7 +185,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
     val userIdentifier = UserIdentifier("`aa`.`bb`")
     val tmpFile = Files.createTempFile("celeborn", "local-test").toString
     val diskFileInfo =
-      new DiskFileInfo(userIdentifier, false, reduceFileMeta, tmpFile, StorageInfo.Type.HDD)
+      new DiskFileInfo(userIdentifier, false, reduceFileMeta, tmpFile, StorageInfo.Type.HDD, false)
     val numPendingWriters = new AtomicInteger()
     val flushNotifier = new FlushNotifier()
     val source = new WorkerSource(celebornConf)
@@ -207,6 +208,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
       1,
       userIdentifier,
       PartitionType.REDUCE,
+      false,
       false,
       false)
 

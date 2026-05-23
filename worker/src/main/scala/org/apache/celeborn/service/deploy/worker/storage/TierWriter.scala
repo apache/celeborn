@@ -22,9 +22,12 @@ import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+
 import scala.collection.JavaConverters.asScalaBufferConverter
+
 import io.netty.buffer.{ByteBuf, CompositeByteBuf}
-import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem}
+import org.apache.hadoop.fs.{FileSystem, FSDataOutputStream}
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.AlreadyClosedException
 import org.apache.celeborn.common.internal.Logging
@@ -413,7 +416,7 @@ class LocalTierWriter(
     fileInfo.asInstanceOf[DiskFileInfo])
 
   private lazy val fileChannelWriter: FileChannelWriter =
-    FileChannelWriterFactory.getFileChannelWriter(diskFileInfo)
+    FileChannelWriterFactory.getFileChannelWriter(diskFileInfo, conf.shuffleChunkSize)
 
   val gatherApiEnabled: Boolean = conf.workerFlusherLocalGatherAPIEnabled
   val commitFilesFsync: Boolean = conf.workerCommitFilesFsync
