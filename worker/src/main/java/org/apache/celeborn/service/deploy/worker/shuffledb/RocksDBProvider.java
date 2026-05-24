@@ -33,6 +33,7 @@ import org.rocksdb.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 
 /**
@@ -48,8 +49,9 @@ public class RocksDBProvider {
 
   private static final Logger logger = LoggerFactory.getLogger(RocksDBProvider.class);
 
-  private static ManagedRocksDB createDBOptions() {
-    BloomFilter fullFilter = new BloomFilter(10.0D /* BloomFilter.DEFAULT_BITS_PER_KEY */, false);
+  private static ManagedRocksDB createDBOptions(CelebornConf conf) {
+    BloomFilter fullFilter =
+        new BloomFilter(conf.workerRecoverDbRocksDBBloomFilterBitsPerKey(), false);
     BlockBasedTableConfig tableFormatConfig =
         new BlockBasedTableConfig()
             .setFilterPolicy(fullFilter)
@@ -61,8 +63,9 @@ public class RocksDBProvider {
     RocksDBLogger rocksDBLogger = new RocksDBLogger(dbOptions);
 
     dbOptions.setCreateIfMissing(false);
-    dbOptions.setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION);
-    dbOptions.setCompressionType(CompressionType.LZ4_COMPRESSION);
+    dbOptions.setBottommostCompressionType(
+        CompressionType.valueOf(conf.workerRecoverDbRocksDBBottommostCompression()));
+    dbOptions.setCompressionType(CompressionType.valueOf(conf.workerRecoverDbRocksDBCompression()));
     dbOptions.setTableFormatConfig(tableFormatConfig);
     dbOptions.setLogger(rocksDBLogger);
 
@@ -74,11 +77,11 @@ public class RocksDBProvider {
    * transient errors. The returned {@link ManagedRocksDB} owns the DB plus its open-time native
    * resources; the caller must close it to release them.
    */
-  public static ManagedRocksDB reopenRocksDB(File dbFile) throws IOException {
+  public static ManagedRocksDB reopenRocksDB(File dbFile, CelebornConf conf) throws IOException {
     if (dbFile == null || !dbFile.exists()) {
       throw new IOException("RocksDB path does not exist: " + dbFile);
     }
-    ManagedRocksDB managedDb = createDBOptions();
+    ManagedRocksDB managedDb = createDBOptions(conf);
     try {
       managedDb.setDb(org.rocksdb.RocksDB.open(managedDb.options(), dbFile.toString()));
       return managedDb;
@@ -88,10 +91,11 @@ public class RocksDBProvider {
     }
   }
 
-  public static ManagedRocksDB initRockDB(File dbFile, StoreVersion version) throws IOException {
+  public static ManagedRocksDB initRockDB(File dbFile, StoreVersion version, CelebornConf conf)
+      throws IOException {
     ManagedRocksDB managedDb = null;
     if (dbFile != null) {
-      managedDb = createDBOptions();
+      managedDb = createDBOptions(conf);
       Options dbOptions = managedDb.options();
       org.rocksdb.RocksDB tmpDb = null;
 

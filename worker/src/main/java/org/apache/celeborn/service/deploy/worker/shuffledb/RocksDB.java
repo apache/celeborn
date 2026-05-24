@@ -54,6 +54,7 @@ public class RocksDB extends DB {
   private final AtomicLong dbGeneration = new AtomicLong(0);
   private final File dbFile;
   private final boolean autoRecoveryEnabled;
+  private final CelebornConf conf;
   private volatile boolean closed = false;
 
   public RocksDB(
@@ -66,6 +67,7 @@ public class RocksDB extends DB {
     this.db = db;
     this.dbFile = dbFile;
     this.autoRecoveryEnabled = conf.metadataAutoRecoveryEnabled();
+    this.conf = conf;
   }
 
   /** Attempts to recover the DB by closing and safely reopening it. */
@@ -100,7 +102,7 @@ public class RocksDB extends DB {
       dbGeneration.incrementAndGet();
 
       try {
-        db = RocksDBProvider.reopenRocksDB(dbFile);
+        db = RocksDBProvider.reopenRocksDB(dbFile, conf);
         logger.info("RocksDB instance recovered at {}", dbFile);
       } catch (IOException e) {
         logger.error("Safe reopen failed for RocksDB at {}. ", dbFile, e);

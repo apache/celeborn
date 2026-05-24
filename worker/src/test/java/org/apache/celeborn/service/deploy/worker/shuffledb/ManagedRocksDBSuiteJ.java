@@ -18,6 +18,7 @@
 package org.apache.celeborn.service.deploy.worker.shuffledb;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -32,10 +33,12 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.rocksdb.BloomFilter;
+import org.rocksdb.CompressionType;
 import org.rocksdb.InfoLogLevel;
 import org.rocksdb.Options;
 import org.rocksdb.RocksIterator;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.JavaUtils;
 
 public class ManagedRocksDBSuiteJ {
@@ -49,12 +52,14 @@ public class ManagedRocksDBSuiteJ {
   private File dbDir;
   private File dbFile;
   private StoreVersion version;
+  private CelebornConf conf;
 
   @Before
   public void setUp() throws IOException {
     dbDir = Files.createTempDirectory("managed-rocksdb-test").toFile();
     dbFile = new File(dbDir, "test-db");
     version = new StoreVersion(1, 0);
+    conf = new CelebornConf();
   }
 
   @After
@@ -64,7 +69,7 @@ public class ManagedRocksDBSuiteJ {
 
   @Test
   public void testForwardingPutGetDeleteDelegateToUnderlyingDb() throws Exception {
-    ManagedRocksDB managedDb = RocksDBProvider.initRockDB(dbFile, version);
+    ManagedRocksDB managedDb = RocksDBProvider.initRockDB(dbFile, version, conf);
     try {
       byte[] key = "key".getBytes(StandardCharsets.UTF_8);
       byte[] value = "value".getBytes(StandardCharsets.UTF_8);
@@ -81,7 +86,7 @@ public class ManagedRocksDBSuiteJ {
 
   @Test
   public void testNewIteratorReturnsUsableIterator() throws Exception {
-    ManagedRocksDB managedDb = RocksDBProvider.initRockDB(dbFile, version);
+    ManagedRocksDB managedDb = RocksDBProvider.initRockDB(dbFile, version, conf);
     try {
       managedDb.put("a".getBytes(StandardCharsets.UTF_8), "1".getBytes(StandardCharsets.UTF_8));
       managedDb.put("b".getBytes(StandardCharsets.UTF_8), "2".getBytes(StandardCharsets.UTF_8));
@@ -100,7 +105,7 @@ public class ManagedRocksDBSuiteJ {
 
   @Test
   public void testCloseReleasesUnderlyingNativeHandles() throws Exception {
-    ManagedRocksDB managedDb = RocksDBProvider.initRockDB(dbFile, version);
+    ManagedRocksDB managedDb = RocksDBProvider.initRockDB(dbFile, version, conf);
     org.rocksdb.RocksDB underlyingDb = managedDb.db();
     Options underlyingOptions = managedDb.options();
     assertNotNull(underlyingDb);
@@ -121,7 +126,7 @@ public class ManagedRocksDBSuiteJ {
 
   @Test
   public void testCloseIsIdempotent() throws Exception {
-    ManagedRocksDB managedDb = RocksDBProvider.initRockDB(dbFile, version);
+    ManagedRocksDB managedDb = RocksDBProvider.initRockDB(dbFile, version, conf);
     managedDb.close();
     // A second close must not throw. The recovery path can race with explicit close in production,
     // so this safety is load-bearing.
@@ -158,5 +163,62 @@ public class ManagedRocksDBSuiteJ {
         bloomFilter.isOwningHandle());
     assertFalse(
         "Logger must be released even when db was never attached", rocksDBLogger.isOwningHandle());
+  }
+
+  @Test
+  public void testDefaultCompressionMatchesPreviousHardcodedValues() throws Exception {
+    ManagedRocksDB managedDb = RocksDBProvider.initRockDB(dbFile, version, conf);
+    try {
+      assertEquals(CompressionType.LZ4_COMPRESSION, managedDb.options().compressionType());
+      assertEquals(
+          CompressionType.ZSTD_COMPRESSION, managedDb.options().bottommostCompressionType());
+    } finally {
+      managedDb.close();
+    }
+  }
+
+  @Test
+  public void testCustomCompressionTypeFromConf() throws Exception {
+    conf.set("celeborn.worker.graceful.shutdown.recoverDb.rocksdb.compression", "NO_COMPRESSION");
+    conf.set(
+        "celeborn.worker.graceful.shutdown.recoverDb.rocksdb.bottommostCompression",
+        "SNAPPY_COMPRESSION");
+    ManagedRocksDB managedDb = RocksDBProvider.initRockDB(dbFile, version, conf);
+    try {
+      assertEquals(CompressionType.NO_COMPRESSION, managedDb.options().compressionType());
+      assertEquals(
+          CompressionType.SNAPPY_COMPRESSION, managedDb.options().bottommostCompressionType());
+    } finally {
+      managedDb.close();
+    }
+  }
+
+  @Test
+  public void testCompressionTypeIsCaseInsensitive() throws Exception {
+    conf.set("celeborn.worker.graceful.shutdown.recoverDb.rocksdb.compression", "zstd_compression");
+    ManagedRocksDB managedDb = RocksDBProvider.initRockDB(dbFile, version, conf);
+    try {
+      assertEquals(CompressionType.ZSTD_COMPRESSION, managedDb.options().compressionType());
+    } finally {
+      managedDb.close();
+    }
+  }
+
+  @Test
+  public void testCustomBloomFilterBitsPerKeyOpensCleanly() throws Exception {
+    // Bloom filter bits-per-key is wrapped inside BlockBasedTableConfig and not directly
+    // readable back via the RocksDB Java API, so the practical assertion is that the DB
+    // builds and opens without throwing when a non-default value is supplied.
+    conf.set("celeborn.worker.graceful.shutdown.recoverDb.rocksdb.bloomFilter.bitsPerKey", "15.0");
+    ManagedRocksDB managedDb = RocksDBProvider.initRockDB(dbFile, version, conf);
+    try {
+      assertNotNull(managedDb.db());
+      byte[] key = "k".getBytes(StandardCharsets.UTF_8);
+      byte[] value = "v".getBytes(StandardCharsets.UTF_8);
+      managedDb.put(key, value);
+      assertArrayEquals(value, managedDb.get(key));
+    } finally {
+      managedDb.close();
+    }
   }
 }

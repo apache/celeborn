@@ -39,6 +39,7 @@ import org.junit.Test;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 
 public class RocksDBRecoverySuiteJ {
@@ -138,10 +139,13 @@ public class RocksDBRecoverySuiteJ {
               }));
     }
 
-    for (Future<?> f : futures) {
-      f.get();
+    try {
+      for (Future<?> f : futures) {
+        f.get();
+      }
+    } finally {
+      ThreadUtils.shutdown(executor);
     }
-    executor.shutdown();
 
     // Generation should have incremented exactly once more (all threads saw the same generation
     // and only one wins the write lock to perform the actual reopen; the rest observe the

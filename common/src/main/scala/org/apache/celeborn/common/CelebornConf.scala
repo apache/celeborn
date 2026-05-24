@@ -1366,6 +1366,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_GRACEFUL_SHUTDOWN_RECOVER_DB_BACKEND)
   def metadataAutoRecoveryEnabled: Boolean =
     get(WORKER_RECOVER_DB_AUTO_RECOVERY)
+  def workerRecoverDbRocksDBCompression: String =
+    get(WORKER_RECOVER_DB_ROCKSDB_COMPRESSION)
+  def workerRecoverDbRocksDBBottommostCompression: String =
+    get(WORKER_RECOVER_DB_ROCKSDB_BOTTOMMOST_COMPRESSION)
+  def workerRecoverDbRocksDBBloomFilterBitsPerKey: Double =
+    get(WORKER_RECOVER_DB_ROCKSDB_BLOOM_FILTER_BITS_PER_KEY)
   def workerGracefulShutdownPartitionSorterCloseAwaitTimeMs: Long =
     get(WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT)
   def workerGracefulShutdownFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
@@ -4531,6 +4537,52 @@ object CelebornConf extends Logging {
       .version("0.7.0")
       .booleanConf
       .createWithDefault(false)
+
+  private val rocksDBCompressionTypes: Set[String] = Set(
+    "NO_COMPRESSION",
+    "SNAPPY_COMPRESSION",
+    "ZLIB_COMPRESSION",
+    "BZLIB2_COMPRESSION",
+    "LZ4_COMPRESSION",
+    "LZ4HC_COMPRESSION",
+    "XPRESS_COMPRESSION",
+    "ZSTD_COMPRESSION",
+    "DISABLE_COMPRESSION_OPTION")
+
+  val WORKER_RECOVER_DB_ROCKSDB_COMPRESSION: ConfigEntry[String] =
+    buildConf("celeborn.worker.graceful.shutdown.recoverDb.rocksdb.compression")
+      .categories("worker")
+      .doc("Compression type for the recover DB RocksDB upper levels. " +
+        "Must be a valid org.rocksdb.CompressionType value, e.g. LZ4_COMPRESSION, " +
+        "ZSTD_COMPRESSION, SNAPPY_COMPRESSION, NO_COMPRESSION.")
+      .version("0.7.0")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(rocksDBCompressionTypes)
+      .createWithDefault("LZ4_COMPRESSION")
+
+  val WORKER_RECOVER_DB_ROCKSDB_BOTTOMMOST_COMPRESSION: ConfigEntry[String] =
+    buildConf("celeborn.worker.graceful.shutdown.recoverDb.rocksdb.bottommostCompression")
+      .categories("worker")
+      .doc("Compression type for the recover DB RocksDB bottommost level. " +
+        "Higher-ratio codecs (e.g. ZSTD_COMPRESSION) trade CPU for disk space and " +
+        "are typically a good fit since the bottommost level holds the most data. " +
+        "Must be a valid org.rocksdb.CompressionType value.")
+      .version("0.7.0")
+      .stringConf
+      .transform(_.toUpperCase(Locale.ROOT))
+      .checkValues(rocksDBCompressionTypes)
+      .createWithDefault("ZSTD_COMPRESSION")
+
+  val WORKER_RECOVER_DB_ROCKSDB_BLOOM_FILTER_BITS_PER_KEY: ConfigEntry[Double] =
+    buildConf("celeborn.worker.graceful.shutdown.recoverDb.rocksdb.bloomFilter.bitsPerKey")
+      .categories("worker")
+      .doc("Bits per key for the bloom filter used by the recover DB RocksDB. " +
+        "Higher values reduce false positives (fewer wasted disk reads) at the cost " +
+        "of more memory per key.")
+      .version("0.7.0")
+      .doubleConf
+      .createWithDefault(10.0)
 
   val WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.worker.graceful.shutdown.partitionSorter.shutdownTimeout")
