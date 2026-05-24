@@ -136,7 +136,8 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
         "myFile",
         new UserIdentifier("t1", "u1"),
         PartitionType.REDUCE,
-        partitionSplitEnabled = false)
+        partitionSplitEnabled = false,
+        isChunkCompressionEnabled = false)
       fail("Should throw IOException when disks are full")
     } catch {
       case e: IOException =>

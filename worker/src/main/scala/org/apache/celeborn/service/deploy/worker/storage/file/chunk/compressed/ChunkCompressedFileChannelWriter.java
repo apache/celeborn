@@ -3,6 +3,7 @@ package org.apache.celeborn.service.deploy.worker.storage.file.chunk.compressed;
 import com.google.common.annotations.VisibleForTesting;
 import com.github.luben.zstd.Zstd;
 import com.github.luben.zstd.ZstdCompressCtx;
+import com.github.luben.zstd.ZstdOutputStream;
 import io.netty.buffer.CompositeByteBuf;
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.ReduceFileMeta;
@@ -10,6 +11,7 @@ import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.service.deploy.worker.storage.file.FileChannelWriter;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
@@ -42,12 +44,14 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
     @Override
     public void write(CompositeByteBuf buffer, boolean gatherApiEnabled) throws IOException {
         if (buffer.readableBytes() > chunkSize) {
-            // Flush large record, uncompressed
-            flushLargeRecord(buffer, gatherApiEnabled);
+            // Flush any pending accumulated data before writing the large record so file offsets
+            // remain consistent.
+            compressAndFlush();
+            flushLargeRecord(buffer);
             return;
         }
 
-        if (buffer.readableBytes() > chunkBuffer.capacity()) {
+        if (buffer.readableBytes() > chunkBuffer.remaining()) {
             compressAndFlush();
         }
 
@@ -59,31 +63,43 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
         }
     }
 
-    private void flushLargeRecord(CompositeByteBuf buffer, boolean gatherApiEnabled) throws IOException {
-        ByteBuffer[] buffers = buffer.nioBuffers();
-        long size = buffer.readableBytes();
-        if (gatherApiEnabled) {
-            int readableBytes = buffer.readableBytes();
-            long written = 0L;
-            do {
-                written = channel.write(buffers) + written;
-            } while (written != readableBytes);
-        } else {
-            for (ByteBuffer byteBuffer : buffers) {
-                while (byteBuffer.hasRemaining()) {
-                    channel.write(byteBuffer);
+    /**
+     * Compresses the entire buffer as a single chunk and writes it to the channel.
+     * Uses ZstdOutputStream for streaming compression without an intermediate compressed buffer.
+     * The OutputStream wrapper prevents ZstdOutputStream.close() from closing the FileChannel.
+     */
+    private void flushLargeRecord(CompositeByteBuf buffer) throws IOException {
+        OutputStream channelOut = new OutputStream() {
+            @Override
+            public void write(byte[] b, int off, int len) throws IOException {
+                ByteBuffer buf = ByteBuffer.wrap(b, off, len);
+                while (buf.hasRemaining()) {
+                    channel.write(buf);
                 }
             }
-        }
-        chunkOffsets.add(chunkOffsets.get(chunkOffsets.size() - 1) + size);
+
+            @Override
+            public void write(int b) throws IOException {
+                channel.write(ByteBuffer.wrap(new byte[]{(byte) b}));
+            }
+        };
+
+        try (ZstdOutputStream zstdOut = new ZstdOutputStream(channelOut, ZSTD_COMPRESSION_LEVEL)) {
+            byte[] buf = new byte[8192];
+            while (buffer.isReadable()) {
+                int toRead = Math.min(buffer.readableBytes(), buf.length);
+                buffer.readBytes(buf, 0, toRead);
+                zstdOut.write(buf, 0, toRead);
+            }
+        } // close() finalizes the ZSTD frame and flushes all bytes to the channel
+
+        chunkOffsets.add(channel.position());
     }
 
     @VisibleForTesting
     void compressAndFlush() throws IOException {
-        // Compress the data in chunkBuffer and write to channel, and also update chunkOffsets
-        // Then clear chunkBuffer and make it ready for the new data of size newDataSize
-        // Note that we may need to call this method multiple times if newDataSize is larger than chunkBuffer.capacity()
         int size = chunkBuffer.position();
+        if (size == 0) return;
         chunkBuffer.position(0);
         chunkBuffer.limit(size);
         compressedChunkBuffer.clear();
@@ -113,8 +129,6 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
 
     @Override
     public void close(boolean commitFilesFsync) {
-        // Update offsets etc for diskFileInfo
-        // Also set a new ReduceFileMeta with updated chunkOffsets
         try {
             compressAndFlush();
             if (commitFilesFsync) {
