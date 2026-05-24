@@ -236,6 +236,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       DiskFileInfo diskFileInfo = ((DiskFileInfo) fileInfo);
       if (diskFileInfo.isChunkCompressionEnabled()) {
         // TODO this is yet to be implemented
+        //  We can read the file one chunk at a time and store chunkid + uncompressed offsets before
+        // writing
         throw new UnsupportedOperationException(
             "Chunk compressed shuffle file is not supported to sort, file path: "
                 + diskFileInfo.getFilePath());

@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.celeborn.service.deploy.worker.storage.file.chunk.compressed;
 
 import static org.junit.Assert.*;
@@ -124,9 +141,7 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
     writer.close(true);
 
     assertEquals(1, diskFileInfo.getReduceFileMeta().getNumChunks());
-    assertArrayEquals(
-        "hello worldfoobar!".getBytes(StandardCharsets.UTF_8),
-        readAll());
+    assertArrayEquals("hello worldfoobar!".getBytes(StandardCharsets.UTF_8), readAll());
   }
 
   // ── Test 2: many small buffers accumulate until overflow forces a new chunk ─
@@ -147,7 +162,7 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
     assertEquals(2, diskFileInfo.getReduceFileMeta().getNumChunks());
     List<byte[]> chunks = readChunks();
-    assertArrayEquals(first,  chunks.get(0));
+    assertArrayEquals(first, chunks.get(0));
     assertArrayEquals(second, chunks.get(1));
   }
 
@@ -158,9 +173,9 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
     ChunkCompressedFileChannelWriter writer =
         new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
 
-    byte[] a = repeat("A", CHUNK_SIZE - 5);   // nearly fills chunk 1
-    byte[] b = repeat("B", CHUNK_SIZE - 5);   // overflows → chunk 1 = a, b nearly fills chunk 2
-    byte[] c = repeat("C", 20);               // overflows chunk 2 → chunk 2 = b, c is chunk 3
+    byte[] a = repeat("A", CHUNK_SIZE - 5); // nearly fills chunk 1
+    byte[] b = repeat("B", CHUNK_SIZE - 5); // overflows → chunk 1 = a, b nearly fills chunk 2
+    byte[] c = repeat("C", 20); // overflows chunk 2 → chunk 2 = b, c is chunk 3
 
     writer.write(compositeOf(a), true);
     writer.write(compositeOf(b), true);
@@ -181,17 +196,17 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
     ChunkCompressedFileChannelWriter writer =
         new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
 
-    byte[] exact = repeat("E", CHUNK_SIZE);            // fills chunkBuffer to the brim
-    byte[] more  = "trailing".getBytes(StandardCharsets.UTF_8);
+    byte[] exact = repeat("E", CHUNK_SIZE); // fills chunkBuffer to the brim
+    byte[] more = "trailing".getBytes(StandardCharsets.UTF_8);
 
-    writer.write(compositeOf(exact), true);  // no flush yet — buffer is full but not overflowed
-    writer.write(compositeOf(more), true);   // triggers flush of exact; more accumulates
-    writer.close(true);                      // flushes more
+    writer.write(compositeOf(exact), true); // no flush yet — buffer is full but not overflowed
+    writer.write(compositeOf(more), true); // triggers flush of exact; more accumulates
+    writer.close(true); // flushes more
 
     assertEquals(2, diskFileInfo.getReduceFileMeta().getNumChunks());
     List<byte[]> chunks = readChunks();
     assertArrayEquals(exact, chunks.get(0));
-    assertArrayEquals(more,  chunks.get(1));
+    assertArrayEquals(more, chunks.get(1));
   }
 
   // ── Test 5: large record with no preceding data ─────────────────────────────
@@ -235,8 +250,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
     byte[] small = "pending".getBytes(StandardCharsets.UTF_8);
     byte[] large = repeat("L", CHUNK_SIZE * 2);
 
-    writer.write(compositeOf(small), true);  // accumulates in chunkBuffer
-    writer.write(compositeOf(large), true);  // flushes pending small → chunk 1; large → chunk 2
+    writer.write(compositeOf(small), true); // accumulates in chunkBuffer
+    writer.write(compositeOf(large), true); // flushes pending small → chunk 1; large → chunk 2
     writer.close(true);
 
     assertEquals(2, diskFileInfo.getReduceFileMeta().getNumChunks());
@@ -273,18 +288,18 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
         new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
 
     byte[] small1 = "before".getBytes(StandardCharsets.UTF_8);
-    byte[] large  = repeat("M", CHUNK_SIZE * 2);
+    byte[] large = repeat("M", CHUNK_SIZE * 2);
     byte[] small2 = "after".getBytes(StandardCharsets.UTF_8);
 
-    writer.write(compositeOf(small1), true);  // accumulates → pending
-    writer.write(compositeOf(large), true);   // flushes small1 as chunk 1; large → chunk 2
-    writer.write(compositeOf(small2), true);  // accumulates
-    writer.close(true);                       // flushes small2 as chunk 3
+    writer.write(compositeOf(small1), true); // accumulates → pending
+    writer.write(compositeOf(large), true); // flushes small1 as chunk 1; large → chunk 2
+    writer.write(compositeOf(small2), true); // accumulates
+    writer.close(true); // flushes small2 as chunk 3
 
     assertEquals(3, diskFileInfo.getReduceFileMeta().getNumChunks());
     List<byte[]> chunks = readChunks();
     assertArrayEquals(small1, chunks.get(0));
-    assertArrayEquals(large,  chunks.get(1));
+    assertArrayEquals(large, chunks.get(1));
     assertArrayEquals(small2, chunks.get(2));
   }
 
@@ -298,9 +313,9 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
     byte[] large = repeat("R", CHUNK_SIZE * 2);
     byte[] small = "tail".getBytes(StandardCharsets.UTF_8);
 
-    writer.write(compositeOf(large), true);  // large → chunk 1
-    writer.write(compositeOf(small), true);  // accumulates
-    writer.close(true);                      // flushes small → chunk 2
+    writer.write(compositeOf(large), true); // large → chunk 1
+    writer.write(compositeOf(small), true); // accumulates
+    writer.close(true); // flushes small → chunk 2
 
     assertEquals(2, diskFileInfo.getReduceFileMeta().getNumChunks());
     List<byte[]> chunks = readChunks();
@@ -331,9 +346,9 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
     byte[] part2 = "second part".getBytes(StandardCharsets.UTF_8);
 
     writer.write(compositeOf(part1), true);
-    writer.compressAndFlush();   // explicitly close chunk 1
+    writer.compressAndFlush(); // explicitly close chunk 1
     writer.write(compositeOf(part2), true);
-    writer.close(true);          // closes chunk 2
+    writer.close(true); // closes chunk 2
 
     assertEquals(2, diskFileInfo.getReduceFileMeta().getNumChunks());
     List<byte[]> chunks = readChunks();
@@ -348,11 +363,11 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
     ChunkCompressedFileChannelWriter writer =
         new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
 
-    writer.compressAndFlush();   // empty — should not add a chunk
-    writer.compressAndFlush();   // again
+    writer.compressAndFlush(); // empty — should not add a chunk
+    writer.compressAndFlush(); // again
     writer.write(composite("data"), true);
-    writer.compressAndFlush();   // flushes "data" as chunk 1
-    writer.compressAndFlush();   // empty again — should not add a chunk
+    writer.compressAndFlush(); // flushes "data" as chunk 1
+    writer.compressAndFlush(); // empty again — should not add a chunk
     writer.close(true);
 
     assertEquals(1, diskFileInfo.getReduceFileMeta().getNumChunks());
@@ -398,7 +413,7 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
         new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
 
     writer.write(compositeOf(repeat("A", CHUNK_SIZE - 10)), true);
-    writer.write(compositeOf(repeat("B", 50)), true);   // triggers chunk 1 flush
+    writer.write(compositeOf(repeat("B", 50)), true); // triggers chunk 1 flush
     writer.write(compositeOf(repeat("C", CHUNK_SIZE * 2)), true); // large → chunk 3
     writer.close(true);
 

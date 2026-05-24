@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.celeborn.service.deploy.worker.storage.file.chunk.compressed;
 
 import static org.junit.Assert.*;
@@ -92,10 +109,12 @@ public class ChunkBufferPoolSuiteJ {
 
     ChunkBufferPool.BufferPair reacquired = pool().acquire(SIZE_4);
     try {
-      assertEquals("chunkBuffer position should be 0 after reacquire",
-          0, reacquired.chunkBuffer.position());
-      assertEquals("compressedBuffer position should be 0 after reacquire",
-          0, reacquired.compressedBuffer.position());
+      assertEquals(
+          "chunkBuffer position should be 0 after reacquire", 0, reacquired.chunkBuffer.position());
+      assertEquals(
+          "compressedBuffer position should be 0 after reacquire",
+          0,
+          reacquired.compressedBuffer.position());
       assertEquals((int) SIZE_4, reacquired.chunkBuffer.limit());
       assertEquals((int) SIZE_4, reacquired.compressedBuffer.limit());
     } finally {
@@ -148,7 +167,7 @@ public class ChunkBufferPoolSuiteJ {
 
   @Test
   public void testPoolIsLifo() {
-    ChunkBufferPool.BufferPair first  = pool().acquire(SIZE_8);
+    ChunkBufferPool.BufferPair first = pool().acquire(SIZE_8);
     ChunkBufferPool.BufferPair second = pool().acquire(SIZE_8);
 
     // Release first, then second — second is now at the head of the deque.
@@ -159,7 +178,7 @@ public class ChunkBufferPoolSuiteJ {
     ChunkBufferPool.BufferPair got2 = pool().acquire(SIZE_8);
     try {
       assertSame("LIFO: second released should be first reacquired", second, got1);
-      assertSame("LIFO: first released should be second reacquired", first,  got2);
+      assertSame("LIFO: first released should be second reacquired", first, got2);
     } finally {
       pool().release(got1);
       pool().release(got2);
@@ -229,22 +248,24 @@ public class ChunkBufferPoolSuiteJ {
     List<Future<?>> futures = new ArrayList<>(threads);
 
     for (int t = 0; t < threads; t++) {
-      futures.add(executor.submit(() -> {
-        for (int i = 0; i < iterationsPerThread; i++) {
-          ChunkBufferPool.BufferPair pair = null;
-          try {
-            pair = pool().acquire(size);
-            // Verify invariants under concurrent load.
-            if (pair.chunkBuffer.position() != 0)     errors.incrementAndGet();
-            if (pair.compressedBuffer.position() != 0) errors.incrementAndGet();
-            if (pair.chunkBuffer.capacity() != (int) size) errors.incrementAndGet();
-            // Simulate work: advance position.
-            pair.chunkBuffer.put((byte) i);
-          } finally {
-            if (pair != null) pool().release(pair);
-          }
-        }
-      }));
+      futures.add(
+          executor.submit(
+              () -> {
+                for (int i = 0; i < iterationsPerThread; i++) {
+                  ChunkBufferPool.BufferPair pair = null;
+                  try {
+                    pair = pool().acquire(size);
+                    // Verify invariants under concurrent load.
+                    if (pair.chunkBuffer.position() != 0) errors.incrementAndGet();
+                    if (pair.compressedBuffer.position() != 0) errors.incrementAndGet();
+                    if (pair.chunkBuffer.capacity() != (int) size) errors.incrementAndGet();
+                    // Simulate work: advance position.
+                    pair.chunkBuffer.put((byte) i);
+                  } finally {
+                    if (pair != null) pool().release(pair);
+                  }
+                }
+              }));
     }
 
     executor.shutdown();
@@ -283,8 +304,8 @@ public class ChunkBufferPoolSuiteJ {
     for (int i = 0; i < count; i++) reacquired.add(pool().acquire(size));
     try {
       for (ChunkBufferPool.BufferPair r : reacquired) {
-        assertTrue("Reacquired pair should be one of the originally released pairs",
-            pairs.contains(r));
+        assertTrue(
+            "Reacquired pair should be one of the originally released pairs", pairs.contains(r));
       }
     } finally {
       for (ChunkBufferPool.BufferPair r : reacquired) pool().release(r);
