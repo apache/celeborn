@@ -20,6 +20,7 @@ package org.apache.spark.shuffle.celeborn
 import java.io.IOException
 import java.nio.file.Files
 import java.util.concurrent.{CountDownLatch, TimeoutException, TimeUnit}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 import org.apache.spark.{Dependency, ShuffleDependency, TaskContext}
 import org.apache.spark.shuffle.ShuffleReadMetricsReporter
@@ -184,6 +185,73 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
       assert(clients(failedLocation.hostAndFetchPort) eq client)
     } finally {
       streamCreatorPool.shutdownNow()
+    }
+  }
+
+  test("cancel batch open stream client creation when waiting thread is interrupted") {
+    val blockedLocation = newLocation(0, "worker-0", 19098)
+    val retryLocation = newLocation(1, "worker-0", 19098)
+    val retryClient = Mockito.mock(classOf[TransportClient])
+    val streamCreatorPool = ThreadUtils.newDaemonCachedThreadPool("test-create-client", 1, 60)
+    val clientStarted = new CountDownLatch(1)
+    val releaseClient = new CountDownLatch(1)
+    val clientInterrupted = new CountDownLatch(1)
+    val retried = new AtomicBoolean(false)
+    val failureReported = new AtomicBoolean(false)
+    val callerInterrupted = new AtomicBoolean(false)
+    val callerFailure = new AtomicReference[Throwable]()
+
+    val caller = new Thread(new Runnable {
+      override def run(): Unit = {
+        try {
+          CelebornShuffleReader.createClientsInParallel(
+            Seq(blockedLocation.hostAndFetchPort -> Seq(blockedLocation, retryLocation)),
+            streamCreatorPool,
+            location => {
+              if (location eq blockedLocation) {
+                clientStarted.countDown()
+                try {
+                  releaseClient.await()
+                  retryClient
+                } catch {
+                  case ex: InterruptedException =>
+                    clientInterrupted.countDown()
+                    throw ex
+                }
+              } else {
+                retried.set(true)
+                retryClient
+              }
+            },
+            (_, _, _) => failureReported.set(true))
+          callerFailure.set(new AssertionError("Expected waiting thread to be interrupted"))
+        } catch {
+          case _: InterruptedException =>
+            callerInterrupted.set(Thread.currentThread().isInterrupted)
+          case ex: Throwable =>
+            callerFailure.set(ex)
+        }
+      }
+    })
+
+    try {
+      caller.start()
+      assert(clientStarted.await(5, TimeUnit.SECONDS))
+      caller.interrupt()
+      caller.join(TimeUnit.SECONDS.toMillis(5))
+      assert(!caller.isAlive)
+      assert(clientInterrupted.await(5, TimeUnit.SECONDS))
+      streamCreatorPool.shutdown()
+      assert(streamCreatorPool.awaitTermination(5, TimeUnit.SECONDS))
+      assert(callerFailure.get() == null)
+      assert(callerInterrupted.get())
+      assert(!retried.get())
+      assert(!failureReported.get())
+    } finally {
+      releaseClient.countDown()
+      streamCreatorPool.shutdownNow()
+      caller.interrupt()
+      caller.join(TimeUnit.SECONDS.toMillis(5))
     }
   }
 

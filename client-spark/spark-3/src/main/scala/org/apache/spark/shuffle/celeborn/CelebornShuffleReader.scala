@@ -568,20 +568,37 @@ object CelebornShuffleReader {
     val futures = locationsByHostPort.map { case (hostPort, locations) =>
       streamCreatorPool.submit(new Runnable {
         override def run(): Unit = {
-          locations.find { location =>
+          val locationsIterator = locations.iterator
+          var clientCreated = false
+          while (!clientCreated && locationsIterator.hasNext) {
+            val location = locationsIterator.next()
             try {
               clientsByHostPort.put(hostPort, createClient(location))
-              true
+              clientCreated = true
             } catch {
+              case ex: InterruptedException =>
+                Thread.currentThread().interrupt()
+                throw ex
               case ex: Exception =>
                 onClientCreateFailure(hostPort, location, ex)
-                false
             }
           }
         }
       })
     }
-    futures.foreach(_.get())
+    var waitCompleted = false
+    try {
+      futures.foreach(_.get())
+      waitCompleted = true
+    } catch {
+      case ex: InterruptedException =>
+        Thread.currentThread().interrupt()
+        throw ex
+    } finally {
+      if (!waitCompleted) {
+        futures.foreach(_.cancel(true))
+      }
+    }
     clientsByHostPort.asScala.toMap
   }
 
