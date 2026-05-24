@@ -169,8 +169,8 @@ public class MasterClient {
   }
 
   private boolean shouldRetry(@Nullable RpcEndpointRef oldRef, Throwable e) {
-    // It will always throw celeborn exception , so we need to get the cause
-    // 'CelebornException: Exception thrown in awaitResult'
+    // A redirect can arrive wrapped by awaitResult or by endpoint setup during bootstrap.
+    // Search the full cause chain so both paths can retry against the suggested leader.
     MasterNotLeaderException exception = findMasterNotLeaderException(e);
     if (exception != null) {
       String leaderAddr =
