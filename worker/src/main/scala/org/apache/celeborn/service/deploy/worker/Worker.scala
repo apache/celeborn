@@ -626,7 +626,8 @@ private[celeborn] class Worker(
         jvmQuake.stop()
       }
       if (sendHeartbeatTask != null) {
-        if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+        if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN ||
+          exitKind == CelebornExitKind.WORKER_DECOMMISSION) {
           sendHeartbeatTask.cancel(false)
         } else {
           sendHeartbeatTask.cancel(true)
@@ -634,14 +635,16 @@ private[celeborn] class Worker(
         sendHeartbeatTask = null
       }
       if (checkFastFailTask != null) {
-        if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+        if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN ||
+          exitKind == CelebornExitKind.WORKER_DECOMMISSION) {
           checkFastFailTask.cancel(false)
         } else {
           checkFastFailTask.cancel(true)
         }
         checkFastFailTask = null
       }
-      if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+      if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN ||
+        exitKind == CelebornExitKind.WORKER_DECOMMISSION) {
         forwardMessageScheduler.shutdown()
         replicateThreadPool.shutdown()
         commitThreadPool.shutdown()
