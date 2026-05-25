@@ -1072,11 +1072,12 @@ private[celeborn] class Worker(
     workerStatusManager.transitionState(State.Exit)
   }
 
-  private val shutdownHookTimeout = if (conf.workerDecommissionShutdown) {
-    conf.workerDecommissionForceExitTimeout
-  } else {
-    conf.workerGracefulShutdownTimeoutMs
-  }
+  private val shutdownHookTimeout =
+    if (conf.workerDecommissionShutdown) {
+      conf.workerDecommissionForceExitTimeout
+    } else {
+      conf.workerGracefulShutdownTimeoutMs
+    }
 
   ShutdownHookManager.get().addShutdownHook(
     ThreadUtils.newThread(
