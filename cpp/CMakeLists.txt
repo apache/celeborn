@@ -23,6 +23,13 @@ enable_testing()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+# All internal static libs are whole-archived into the shared library
+# `celeborn_client`, which on Linux/ELF requires every contained object
+# to be position-independent. Without this, `ld` complains:
+#   relocation R_X86_64_TPOFF32 against hidden symbol ... can not be used
+#   when making a shared object
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 message("Appending CMAKE_CXX_FLAGS with ${SCRIPT_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SCRIPT_CXX_FLAGS}")
 if ("${TREAT_WARNINGS_AS_ERRORS}")
@@ -102,7 +109,12 @@ if (APPLE)
     # Homebrew and only shared library is installed.
     find_package(gflags REQUIRED COMPONENTS shared)
 else ()
-    find_package(gflags REQUIRED COMPONENTS static)
+    # We build celeborn_client as a SHARED library (whole-archives every
+    # internal .a). Ubuntu's libgflags.a from apt is not compiled with
+    # -fPIC, so it cannot be linked into a .so. The shared gflags
+    # (libgflags.so) is PIC and works for both standalone executables and
+    # the aggregated shared library.
+    find_package(gflags REQUIRED COMPONENTS shared)
 endif ()
 
 find_package(glog REQUIRED)
@@ -177,9 +189,101 @@ endif()
 add_subdirectory(celeborn)
 
 # ---------------------------------------------------------------------------
-# Install rules — headers + static libraries
+# Aggregate SHARED library — bundles all internal static libs (including
+# the C ABI shim `celeborn_ffi`) into a single libceleborn_client.{so,dylib}.
+# Downstream language bindings (Rust / ctypes / etc.) link only this file
+# and never see folly / protobuf / glog / abseil.
 # ---------------------------------------------------------------------------
-# Install all public headers preserving directory structure.
+add_library(celeborn_client SHARED dummy.cc)
+
+# Internal targets propagate plain library names like "xxhash" / "fmt" via
+# their link interface. Those need an actual search path on macOS where the
+# Homebrew prefix is not on ld's default path.
+if(APPLE)
+  target_link_directories(celeborn_client PRIVATE
+    /opt/homebrew/lib
+    /opt/homebrew/opt/openssl@3/lib)
+endif()
+
+set(_CELEBORN_INTERNAL_LIBS
+        celeborn_ffi client protocol network proto memory conf utils)
+
+if(APPLE)
+  # ld64: -force_load pulls every object out of each .a so no symbol gets
+  # stripped by the linker before it ships in the .dylib. Wrapping the
+  # target file path in a generator expression does not register a
+  # build-order dependency on those targets, so add it explicitly.
+  add_dependencies(celeborn_client ${_CELEBORN_INTERNAL_LIBS})
+  foreach(_lib IN LISTS _CELEBORN_INTERNAL_LIBS)
+    target_link_libraries(celeborn_client PRIVATE
+      "-Wl,-force_load" "$<TARGET_FILE:${_lib}>")
+  endforeach()
+else()
+  target_link_libraries(celeborn_client PRIVATE
+    -Wl,--whole-archive
+    ${_CELEBORN_INTERNAL_LIBS}
+    -Wl,--no-whole-archive)
+endif()
+
+# Third-party deps remain NEEDED entries inside the produced .so/.dylib and
+# resolve at runtime from the system loader path.
+target_link_libraries(celeborn_client PRIVATE
+  ${WANGLE} ${FIZZ}
+  ${LIBSODIUM_LIBRARY}
+  ${FOLLY_WITH_DEPENDENCIES}
+  ${LZ4_WITH_DEPENDENCIES}
+  ${GLOG} ${GFLAGS_LIBRARIES}
+  ${RE2}
+  protobuf::libprotobuf
+  OpenSSL::SSL OpenSSL::Crypto)
+
+# protobuf v28+ pulls in dozens of absl_* sub-libraries. Discover them via
+# the homebrew prefix instead of hard-coding the full list (which would
+# inevitably drift as abseil releases new components).
+if(APPLE)
+  set(_ABSEIL_LIB_DIR "/opt/homebrew/lib")
+  set(_ABSEIL_LIB_EXT "dylib")
+elseif(EXISTS /usr/local/lib)
+  set(_ABSEIL_LIB_DIR "/usr/local/lib")
+  set(_ABSEIL_LIB_EXT "so")
+else()
+  set(_ABSEIL_LIB_DIR "/usr/lib/x86_64-linux-gnu")
+  set(_ABSEIL_LIB_EXT "so")
+endif()
+file(GLOB _ABSEIL_LIBS "${_ABSEIL_LIB_DIR}/libabsl_*.${_ABSEIL_LIB_EXT}")
+if(_ABSEIL_LIBS)
+  target_link_libraries(celeborn_client PRIVATE ${_ABSEIL_LIBS})
+else()
+  message(WARNING
+    "No libabsl_*.${_ABSEIL_LIB_EXT} found in ${_ABSEIL_LIB_DIR}; \
+     celeborn_client may fail to link if protobuf depends on absl.")
+endif()
+
+# Hide every non-celeborn symbol so the dylib does not collide with the
+# host process's own protobuf / abseil / folly runtimes.
+set_target_properties(celeborn_client PROPERTIES
+  CXX_VISIBILITY_PRESET hidden
+  VISIBILITY_INLINES_HIDDEN ON)
+
+if(APPLE)
+  target_link_options(celeborn_client PRIVATE
+    "-Wl,-exported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/exports.txt")
+  set_target_properties(celeborn_client PROPERTIES
+    INSTALL_RPATH "@loader_path;/opt/homebrew/lib;/opt/homebrew/opt/openssl@3/lib"
+    BUILD_WITH_INSTALL_RPATH TRUE)
+else()
+  target_link_options(celeborn_client PRIVATE
+    "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map"
+    "-Wl,--exclude-libs,ALL")
+  set_target_properties(celeborn_client PROPERTIES
+    INSTALL_RPATH "$ORIGIN"
+    BUILD_WITH_INSTALL_RPATH TRUE)
+endif()
+
+# ---------------------------------------------------------------------------
+# Install rules — headers + the aggregated shared library.
+# Static libraries are still installed to keep the legacy build path working.
+# ---------------------------------------------------------------------------
 install(
   DIRECTORY celeborn/
   DESTINATION include/celeborn
@@ -187,15 +291,14 @@ install(
   PATTERN "tests" EXCLUDE
 )
 
-# Install the generated proto header.
 install(
   FILES ${ProtoGenHeader}
   DESTINATION include/celeborn/proto
 )
 
-# Install static libraries.
 install(
-  TARGETS client conf memory network proto protocol utils
+  TARGETS celeborn_client celeborn_ffi client conf memory network proto protocol utils
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
 )

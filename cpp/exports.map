@@ -1,0 +1,10 @@
+{
+  global:
+    extern "C++" {
+      celeborn::*;
+    };
+    celeborn_*;
+    celeborn_ffi_*;
+  local:
+    *;
+};

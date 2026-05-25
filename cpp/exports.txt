@@ -1,0 +1,6 @@
+# macOS ld64 -exported_symbols_list patterns. Mangled C++ names of
+# celeborn::* symbols contain the substring "celeborn", and the C ABI
+# shim exports celeborn_ffi_* symbols as plain C (which on Mach-O become
+# _celeborn_ffi_*). The leading-glob pattern below matches both.
+*celeborn*
+*celeborn_ffi*

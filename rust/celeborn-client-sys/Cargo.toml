@@ -17,11 +17,6 @@
 name = "celeborn-client-sys"
 version = "0.1.0"
 edition = "2021"
-description = "Low-level FFI bindings to Apache Celeborn C++ client via cxx"
+description = "Raw FFI bindings to libceleborn_client (single-dylib C ABI)"
 publish = false
-
-[dependencies]
-cxx = "1.0"
-
-[build-dependencies]
-cxx-build = "1.0"
+links = "celeborn_client"

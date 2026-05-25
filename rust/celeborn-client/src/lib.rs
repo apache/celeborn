@@ -1,34 +1,32 @@
-// Licensed to the Apache Software Foundation (ASF) under one or more
-// contributor license agreements.  See the NOTICE file distributed with
-// this work for additional information regarding copyright ownership.
-// The ASF licenses this file to You under the Apache License, Version 2.0
-// (the "License"); you may not use this file except in compliance with
-// the License.  You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-//! Rust-friendly wrapper around `celeborn-client-sys`.
+//! Rust-friendly wrapper around `celeborn-client-sys` (raw C ABI bindings
+//! to `libceleborn_client.{so,dylib}`).
 
 use std::marker::PhantomData;
+use std::os::raw::c_char;
+use std::ptr;
 
-use celeborn_client_sys::ffi;
-use cxx::UniquePtr;
+use celeborn_client_sys as sys;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("celeborn ffi error: {0}")]
-    Ffi(#[from] cxx::Exception),
+    Ffi(String),
     #[error("invalid argument: {0}")]
     InvalidArg(&'static str),
+    #[error("celeborn ffi returned a null handle")]
+    NullHandle,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+/// Build an [`Error::Ffi`] from a C error pointer (consumes the heap
+/// allocation). Returns a generic message if the pointer is null.
+unsafe fn ffi_error(err: *mut c_char) -> Error {
+    Error::Ffi(
+        sys::take_error(err)
+            .unwrap_or_else(|| "celeborn ffi returned no error message".to_string()),
+    )
+}
 
 /// Configuration for connecting to a Celeborn LifecycleManager.
 pub struct Config {
@@ -50,9 +48,19 @@ impl Config {
 }
 
 /// A Rust-friendly Celeborn shuffle client backed by the C++ implementation.
+///
+/// The handle is intentionally leaked on `Drop` (after a best-effort
+/// shutdown) to work around a folly `EventBase` use-after-free that
+/// triggers when `TransportClient` is destroyed concurrently with
+/// `IOThreadPoolExecutor::join()`. Use `shutdown()` for explicit teardown.
 pub struct ShuffleClient {
-    inner: UniquePtr<ffi::ShuffleClientHandle>,
+    handle: *mut sys::celeborn_ffi_handle,
 }
+
+// The underlying C++ object owns its own thread pool and synchronizes
+// internally. The Rust handle is a raw pointer with no aliasing concerns
+// at the type level (all methods take `&mut self`).
+unsafe impl Send for ShuffleClient {}
 
 impl ShuffleClient {
     /// Connect to a running LifecycleManager at `lm_host:lm_port`.
@@ -70,15 +78,38 @@ impl ShuffleClient {
             ));
         }
 
-        cxx::let_cxx_string!(app_id_cxx = &config.app_id);
-        cxx::let_cxx_string!(codec_cxx = &config.shuffle_compression_codec);
-        let mut handle =
-            ffi::create_client(&app_id_cxx, config.push_buffer_max_size, &codec_cxx)?;
+        let mut err: *mut c_char = ptr::null_mut();
+        let handle = unsafe {
+            sys::celeborn_ffi_create_client(
+                config.app_id.as_ptr() as *const c_char,
+                config.app_id.len(),
+                config.push_buffer_max_size,
+                config.shuffle_compression_codec.as_ptr() as *const c_char,
+                config.shuffle_compression_codec.len(),
+                &mut err,
+            )
+        };
+        if handle.is_null() {
+            return Err(unsafe { ffi_error(err) });
+        }
 
-        cxx::let_cxx_string!(host_cxx = lm_host);
-        ffi::setup_lifecycle_manager(handle.pin_mut(), &host_cxx, lm_port)?;
+        let mut err: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            sys::celeborn_ffi_setup_lifecycle_manager(
+                handle,
+                lm_host.as_ptr() as *const c_char,
+                lm_host.len(),
+                lm_port,
+                &mut err,
+            )
+        };
+        if status != sys::CELEBORN_FFI_OK {
+            // Intentional leak of `handle`: do not call any destructor that
+            // would tear down the folly EventBase state.
+            return Err(unsafe { ffi_error(err) });
+        }
 
-        Ok(Self { inner: handle })
+        Ok(Self { handle })
     }
 
     /// Push data for a specific partition.
@@ -92,17 +123,26 @@ impl ShuffleClient {
         num_mappers: i32,
         num_partitions: i32,
     ) -> Result<()> {
-        ffi::push_data(
-            self.inner.pin_mut(),
-            shuffle_id,
-            map_id,
-            attempt_id,
-            partition_id,
-            data,
-            num_mappers,
-            num_partitions,
-        )?;
-        Ok(())
+        let mut err: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            sys::celeborn_ffi_push_data(
+                self.handle,
+                shuffle_id,
+                map_id,
+                attempt_id,
+                partition_id,
+                data.as_ptr(),
+                data.len(),
+                num_mappers,
+                num_partitions,
+                &mut err,
+            )
+        };
+        if status == sys::CELEBORN_FFI_OK {
+            Ok(())
+        } else {
+            Err(unsafe { ffi_error(err) })
+        }
     }
 
     /// Signal that a mapper has finished writing all its partitions.
@@ -113,14 +153,35 @@ impl ShuffleClient {
         attempt_id: i32,
         num_mappers: i32,
     ) -> Result<()> {
-        ffi::mapper_end(self.inner.pin_mut(), shuffle_id, map_id, attempt_id, num_mappers)?;
-        Ok(())
+        let mut err: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            sys::celeborn_ffi_mapper_end(
+                self.handle,
+                shuffle_id,
+                map_id,
+                attempt_id,
+                num_mappers,
+                &mut err,
+            )
+        };
+        if status == sys::CELEBORN_FFI_OK {
+            Ok(())
+        } else {
+            Err(unsafe { ffi_error(err) })
+        }
     }
 
     /// Update reducer file group metadata for a given shuffle.
     pub fn update_reducer_file_group(&mut self, shuffle_id: i32) -> Result<()> {
-        ffi::update_reducer_file_group(self.inner.pin_mut(), shuffle_id)?;
-        Ok(())
+        let mut err: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            sys::celeborn_ffi_update_reducer_file_group(self.handle, shuffle_id, &mut err)
+        };
+        if status == sys::CELEBORN_FFI_OK {
+            Ok(())
+        } else {
+            Err(unsafe { ffi_error(err) })
+        }
     }
 
     /// Read all data for a partition with full control over parameters.
@@ -132,15 +193,30 @@ impl ShuffleClient {
         start_map_index: i32,
         end_map_index: i32,
     ) -> Result<Vec<u8>> {
-        let data = ffi::read_partition_full(
-            self.inner.pin_mut(),
-            shuffle_id,
-            partition_id,
-            attempt_number,
-            start_map_index,
-            end_map_index,
-        )?;
-        Ok(data)
+        let mut data_out: *mut u8 = ptr::null_mut();
+        let mut len_out: usize = 0;
+        let mut err: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            sys::celeborn_ffi_read_partition_full(
+                self.handle,
+                shuffle_id,
+                partition_id,
+                attempt_number,
+                start_map_index,
+                end_map_index,
+                &mut data_out,
+                &mut len_out,
+                &mut err,
+            )
+        };
+        if status != sys::CELEBORN_FFI_OK {
+            return Err(unsafe { ffi_error(err) });
+        }
+        // Copy the C-allocated buffer into a Rust-owned Vec, then release
+        // the C buffer with the matching deallocator.
+        let out = unsafe { std::slice::from_raw_parts(data_out, len_out).to_vec() };
+        unsafe { sys::celeborn_ffi_free_buffer(data_out) };
+        Ok(out)
     }
 
     /// Convenience: read all map outputs for a partition.
@@ -154,7 +230,7 @@ impl ShuffleClient {
         self.read_partition(shuffle_id, partition_id, 0, 0, num_mappers)
     }
 
-    /// Open a streaming reader for a partition. The returned `PartitionReader`
+    /// Open a streaming reader for a partition. The returned [`PartitionReader`]
     /// implements [`std::io::Read`], so the caller can wrap it in a
     /// [`std::io::BufReader`] and process bytes without materializing the
     /// whole partition in memory.
@@ -171,16 +247,28 @@ impl ShuffleClient {
         start_map_index: i32,
         end_map_index: i32,
     ) -> Result<PartitionReader<'_>> {
-        let inner = ffi::open_partition_reader(
-            self.inner.pin_mut(),
-            shuffle_id,
-            partition_id,
-            attempt_number,
-            start_map_index,
-            end_map_index,
-        )?;
+        let mut reader_out: *mut sys::celeborn_ffi_partition_reader = ptr::null_mut();
+        let mut err: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            sys::celeborn_ffi_open_partition_reader(
+                self.handle,
+                shuffle_id,
+                partition_id,
+                attempt_number,
+                start_map_index,
+                end_map_index,
+                &mut reader_out,
+                &mut err,
+            )
+        };
+        if status != sys::CELEBORN_FFI_OK {
+            return Err(unsafe { ffi_error(err) });
+        }
+        if reader_out.is_null() {
+            return Err(Error::NullHandle);
+        }
         Ok(PartitionReader {
-            inner,
+            inner: reader_out,
             _client: PhantomData,
         })
     }
@@ -198,63 +286,81 @@ impl ShuffleClient {
 
     /// Explicitly shut down the client. Preferred over relying on Drop.
     ///
-    /// After calling `ffi::shutdown`, the underlying C++ handle is intentionally
-    /// leaked to avoid a SIGSEGV caused by folly's `EventBase` destruction race:
-    /// `TransportClient` destructor posts a callback to an `EventBase` that may
-    /// already be torn down by `IOThreadPoolExecutor::join()`.
-    ///
-    /// The handle is leaked **before** propagating any error so that `Drop`
-    /// cannot call `ffi::shutdown` a second time.
+    /// After calling `celeborn_ffi_shutdown`, the underlying C++ handle is
+    /// intentionally leaked (see the type-level docs).
     pub fn shutdown(mut self) -> Result<()> {
-        let result = match self.inner.as_mut() {
-            Some(pinned) => ffi::shutdown(pinned).map_err(Error::from),
-            None => Ok(()),
-        };
-        // Leak the C++ handle regardless of success/failure to avoid
-        // folly EventBase use-after-free on destruction and prevent
-        // Drop from calling ffi::shutdown a second time.
-        Self::leak_inner(&mut self.inner);
-        std::mem::forget(self);
-        result
-    }
-
-    /// Leak the UniquePtr without running C++ destructors.
-    fn leak_inner(handle: &mut UniquePtr<ffi::ShuffleClientHandle>) {
-        let ptr = std::mem::replace(handle, UniquePtr::<ffi::ShuffleClientHandle>::null());
-        // into_raw consumes the UniquePtr without calling the C++ destructor.
-        cxx::UniquePtr::into_raw(ptr);
-    }
-}
-
-/// Streaming reader for a single partition, returned by
-/// [`ShuffleClient::open_partition`]. Implements [`std::io::Read`]; use a
-/// [`std::io::BufReader`] around it to avoid one FFI call per byte.
-pub struct PartitionReader<'client> {
-    inner: UniquePtr<ffi::PartitionReaderHandle>,
-    _client: PhantomData<&'client mut ShuffleClient>,
-}
-
-impl<'client> std::io::Read for PartitionReader<'client> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        ffi::read_partition_chunk(self.inner.pin_mut(), buf)
-            .map_err(|e| std::io::Error::other(e.to_string()))
+        let mut err: *mut c_char = ptr::null_mut();
+        let status =
+            unsafe { sys::celeborn_ffi_shutdown(self.handle, &mut err) };
+        // Null the handle so Drop does not call shutdown a second time.
+        self.handle = ptr::null_mut();
+        if status == sys::CELEBORN_FFI_OK {
+            Ok(())
+        } else {
+            Err(unsafe { ffi_error(err) })
+        }
     }
 }
 
 impl Drop for ShuffleClient {
     fn drop(&mut self) {
-        if self.inner.is_null() {
+        if self.handle.is_null() {
             return;
         }
-        // Best-effort shutdown; then leak to avoid folly SIGSEGV.
-        if let Some(pinned) = self.inner.as_mut() {
-            if let Err(e) = ffi::shutdown(pinned) {
-                log::error!(
-                    "ffi::shutdown failed during Drop: {e}; \
-                     caller should explicitly call ShuffleClient::shutdown() before drop"
-                );
-            }
+        let mut err: *mut c_char = ptr::null_mut();
+        let status = unsafe { sys::celeborn_ffi_shutdown(self.handle, &mut err) };
+        if status != sys::CELEBORN_FFI_OK {
+            let msg = unsafe { sys::take_error(err) }
+                .unwrap_or_else(|| "no error message".to_string());
+            log::error!(
+                "celeborn_ffi_shutdown failed during Drop: {msg}; \
+                 caller should explicitly call ShuffleClient::shutdown() before drop"
+            );
         }
-        Self::leak_inner(&mut self.inner);
+        // Intentional leak — no celeborn_ffi_destroy call. See type docs.
+        self.handle = ptr::null_mut();
+    }
+}
+
+/// Streaming reader for a single partition, returned by
+/// [`ShuffleClient::open_partition`]. Implements [`std::io::Read`]; wrap in
+/// a [`std::io::BufReader`] to avoid one FFI call per byte.
+pub struct PartitionReader<'client> {
+    inner: *mut sys::celeborn_ffi_partition_reader,
+    _client: PhantomData<&'client mut ShuffleClient>,
+}
+
+// The underlying C++ stream is owned exclusively by this reader and is
+// only touched through &mut self, mirroring ShuffleClient's Send story.
+unsafe impl<'client> Send for PartitionReader<'client> {}
+
+impl<'client> std::io::Read for PartitionReader<'client> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let mut bytes_read: usize = 0;
+        let mut err: *mut c_char = ptr::null_mut();
+        let status = unsafe {
+            sys::celeborn_ffi_read_partition_chunk(
+                self.inner,
+                buf.as_mut_ptr(),
+                buf.len(),
+                &mut bytes_read,
+                &mut err,
+            )
+        };
+        if status != sys::CELEBORN_FFI_OK {
+            let msg = unsafe { sys::take_error(err) }
+                .unwrap_or_else(|| "no error message".to_string());
+            return Err(std::io::Error::other(msg));
+        }
+        Ok(bytes_read)
+    }
+}
+
+impl<'client> Drop for PartitionReader<'client> {
+    fn drop(&mut self) {
+        if !self.inner.is_null() {
+            unsafe { sys::celeborn_ffi_close_partition_reader(self.inner) };
+            self.inner = ptr::null_mut();
+        }
     }
 }

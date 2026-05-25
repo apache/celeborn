@@ -22,7 +22,6 @@ publish = false
 
 [dependencies]
 celeborn-client-sys = { path = "../celeborn-client-sys" }
-cxx = "1.0"
 thiserror = "1.0"
 log = "0.4"
 
