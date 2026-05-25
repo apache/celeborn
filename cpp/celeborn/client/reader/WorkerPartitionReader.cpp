@@ -17,8 +17,22 @@
 
 #include "celeborn/client/reader/WorkerPartitionReader.h"
 
+#include <folly/executors/CPUThreadPoolExecutor.h>
+
 namespace celeborn {
 namespace client {
+namespace {
+// Off-IO-thread executor for releasing the last shared_ptr to a
+// WorkerPartitionReader. The fetch callbacks run on the
+// embedded TransportClient's IOThreadPoolExecutor, and dropping the final
+// reference inline would have that executor pthread_join its own thread.
+// A directly constructed CPUThreadPoolExecutor avoids the folly singleton
+// vault and so does not require folly::init() to have been called.
+folly::CPUThreadPoolExecutor& destructionExecutor() {
+  static folly::CPUThreadPoolExecutor instance{1};
+  return instance;
+}
+} // namespace
 std::shared_ptr<WorkerPartitionReader> WorkerPartitionReader::create(
     const std::shared_ptr<const conf::CelebornConf>& conf,
     const std::string& shuffleKey,
@@ -122,6 +136,8 @@ void WorkerPartitionReader::initAndCheck() {
       shared_this->chunkQueue_.enqueue(std::move(chunk));
       VLOG(1) << "WorkerPartitionReader::onSuccess: "
               << streamChunkSlice.toString();
+      destructionExecutor().add(
+          [s = std::move(shared_this)]() mutable { s.reset(); });
     };
 
     onFailure_ = [weak_this = weak_from_this()](
@@ -138,6 +154,8 @@ void WorkerPartitionReader::initAndCheck() {
         auto exp = shared_this->exception_.wlock();
         *exp = std::move(exception);
       }
+      destructionExecutor().add(
+          [s = std::move(shared_this)]() mutable { s.reset(); });
     };
   }
 
