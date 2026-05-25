@@ -39,8 +39,8 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
   private var worker: Worker = _
   private var shutdown: AtomicBoolean = _
   private var storageManager: StorageManager = _
-  private val decommissionShutdown = conf.workerDecommissionShutdown
-  private val gracefulShutdown = conf.workerGracefulShutdown
+  private val decommissionShutdown = conf.workerDecommissionShutdownEnabled
+  private val gracefulShutdown = conf.workerGracefulShutdownEnabled
   if (decommissionShutdown) {
     exitEventType = WorkerEventType.Decommission
     logInfo("Decommission shutdown enabled, worker will decommission on SIGTERM" +

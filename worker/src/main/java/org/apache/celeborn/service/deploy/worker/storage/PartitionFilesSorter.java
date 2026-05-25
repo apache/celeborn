@@ -113,7 +113,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     long indexCacheMaxWeight = conf.workerPartitionSorterIndexCacheMaxWeight();
     this.source = source;
     this.cleaner = new PartitionFilesCleaner(this);
-    boolean gracefulShutdown = conf.workerGracefulShutdown();
+    boolean gracefulShutdown = conf.workerGracefulShutdownEnabled();
     // Assume a chunk won't be larger than 2GB
     // ShuffleClient can fetch shuffle data from a restarted worker only
     // when the worker's fetching port is stable and enables graceful shutdown.

@@ -156,7 +156,7 @@ private[celeborn] class Worker(
 
   private val WORKER_SHUTDOWN_PRIORITY = 100
   val shutdown = new AtomicBoolean(false)
-  private val gracefulShutdown = conf.workerGracefulShutdown
+  private val gracefulShutdown = conf.workerGracefulShutdownEnabled
   if (gracefulShutdown) {
     var checkPortMap = Map(
       WORKER_RPC_PORT -> conf.workerRpcPort,
@@ -1075,41 +1075,42 @@ private[celeborn] class Worker(
     workerStatusManager.transitionState(State.Exit)
   }
 
-  private val shutdownHookTimeout =
-    if (conf.workerDecommissionShutdown) {
-      conf.workerDecommissionForceExitTimeout + conf.workerDecommissionCheckInterval
-    } else {
-      conf.workerGracefulShutdownTimeoutMs
-    }
-
-  ShutdownHookManager.get().addShutdownHook(
-    ThreadUtils.newThread(
-      new Runnable {
-        override def run(): Unit = {
-          logInfo("Shutdown hook called.")
-          workerStatusManager.exitEventType match {
-            case WorkerEventType.Graceful =>
-              shutdownGracefully()
-            case WorkerEventType.Decommission =>
-              decommissionWorker()
-            case _ =>
-              exitImmediately()
-          }
-
-          workerStatusManager.exitEventType match {
-            case WorkerEventType.Graceful =>
-              stop(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
-            case WorkerEventType.Decommission =>
-              stop(CelebornExitKind.WORKER_DECOMMISSION)
-            case _ =>
-              stop(CelebornExitKind.EXIT_IMMEDIATELY)
-          }
+  private val shutdownHookThread = ThreadUtils.newThread(
+    new Runnable {
+      override def run(): Unit = {
+        logInfo("Shutdown hook called.")
+        workerStatusManager.exitEventType match {
+          case WorkerEventType.Graceful =>
+            shutdownGracefully()
+          case WorkerEventType.Decommission =>
+            decommissionWorker()
+          case _ =>
+            exitImmediately()
         }
-      },
-      "worker-shutdown-hook-thread"),
-    WORKER_SHUTDOWN_PRIORITY,
-    shutdownHookTimeout,
-    TimeUnit.MILLISECONDS)
+
+        workerStatusManager.exitEventType match {
+          case WorkerEventType.Graceful =>
+            stop(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
+          case WorkerEventType.Decommission =>
+            stop(CelebornExitKind.WORKER_DECOMMISSION)
+          case _ =>
+            stop(CelebornExitKind.EXIT_IMMEDIATELY)
+        }
+      }
+    },
+    "worker-shutdown-hook-thread")
+
+  if (conf.workerDecommissionShutdownEnabled) {
+    ShutdownHookManager.get().addShutdownHook(
+      shutdownHookThread,
+      WORKER_SHUTDOWN_PRIORITY,
+      conf.workerDecommissionForceExitTimeout + conf.workerDecommissionCheckInterval,
+      TimeUnit.MILLISECONDS)
+  } else {
+    ShutdownHookManager.get().addShutdownHook(
+      shutdownHookThread,
+      WORKER_SHUTDOWN_PRIORITY)
+  }
 
   @VisibleForTesting
   def getPushFetchServerPort: (Int, Int) = (pushPort, fetchPort)
