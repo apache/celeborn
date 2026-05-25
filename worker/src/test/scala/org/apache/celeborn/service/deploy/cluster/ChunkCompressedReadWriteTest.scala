@@ -139,9 +139,21 @@ class ChunkCompressedReadWriteTest extends AnyFunSuite
       }
 
       val inputStream = shuffleClient.readPartition(
-        1, 1, 0, 0, 0, 0, Integer.MAX_VALUE,
-        null, null, null, null, null, null,
-        metricsCallback, true)
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        Integer.MAX_VALUE,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        metricsCallback,
+        true)
 
       val outputStream = new ByteArrayOutputStream()
       var b = inputStream.read()
@@ -285,9 +297,21 @@ class ChunkCompressedReadWriteTest extends AnyFunSuite
       }
 
       val inputStream = shuffleClient.readPartition(
-        1, 1, 0, 0, 0, 0, Integer.MAX_VALUE,
-        null, null, null, null, null, null,
-        metricsCallback, true)
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        Integer.MAX_VALUE,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        metricsCallback,
+        true)
 
       val outputStream = new ByteArrayOutputStream()
       var b = inputStream.read()

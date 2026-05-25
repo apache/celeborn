@@ -462,9 +462,9 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
     // Phase 1: several small writes that accumulate together into chunk 1.
     // Total = 6+6+1011 = 1023 bytes — just under CHUNK_SIZE (1024).
-    byte[] s1 = "alpha-".getBytes(StandardCharsets.UTF_8);  // 6 bytes
-    byte[] s2 = "beta--".getBytes(StandardCharsets.UTF_8);  // 6 bytes
-    byte[] s3 = repeat("C", CHUNK_SIZE - 13);               // 1011 bytes
+    byte[] s1 = "alpha-".getBytes(StandardCharsets.UTF_8); // 6 bytes
+    byte[] s2 = "beta--".getBytes(StandardCharsets.UTF_8); // 6 bytes
+    byte[] s3 = repeat("C", CHUNK_SIZE - 13); // 1011 bytes
 
     // Phase 2: large record (3× chunkSize).
     // Arriving here triggers compressAndFlush() for the pending smalls (chunk 1),
@@ -472,9 +472,9 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
     byte[] large = repeat("L", CHUNK_SIZE * 3);
 
     // Phase 3: a few more small writes that accumulate into chunk 3.
-    byte[] s4 = "delta-".getBytes(StandardCharsets.UTF_8);  // 6 bytes
-    byte[] s5 = repeat("E", CHUNK_SIZE / 2);                // 512 bytes
-    byte[] s6 = "zeta--".getBytes(StandardCharsets.UTF_8);  // 6 bytes
+    byte[] s4 = "delta-".getBytes(StandardCharsets.UTF_8); // 6 bytes
+    byte[] s5 = repeat("E", CHUNK_SIZE / 2); // 512 bytes
+    byte[] s6 = "zeta--".getBytes(StandardCharsets.UTF_8); // 6 bytes
 
     writer.write(compositeOf(s1), true);
     writer.write(compositeOf(s2), true);
@@ -494,7 +494,10 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
     expectedChunk1.write(s1);
     expectedChunk1.write(s2);
     expectedChunk1.write(s3);
-    assertArrayEquals("chunk 1 must contain all leading small writes", expectedChunk1.toByteArray(), chunks.get(0));
+    assertArrayEquals(
+        "chunk 1 must contain all leading small writes",
+        expectedChunk1.toByteArray(),
+        chunks.get(0));
 
     assertArrayEquals("chunk 2 must contain the large record verbatim", large, chunks.get(1));
 
@@ -502,13 +505,21 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
     expectedChunk3.write(s4);
     expectedChunk3.write(s5);
     expectedChunk3.write(s6);
-    assertArrayEquals("chunk 3 must contain all trailing small writes", expectedChunk3.toByteArray(), chunks.get(2));
+    assertArrayEquals(
+        "chunk 3 must contain all trailing small writes",
+        expectedChunk3.toByteArray(),
+        chunks.get(2));
 
     // Verify the flat concatenation across all chunks matches the original write order.
     ByteArrayOutputStream all = new ByteArrayOutputStream();
-    all.write(s1); all.write(s2); all.write(s3);
+    all.write(s1);
+    all.write(s2);
+    all.write(s3);
     all.write(large);
-    all.write(s4); all.write(s5); all.write(s6);
-    assertArrayEquals("readAll() must reproduce all data in write order", all.toByteArray(), readAll());
+    all.write(s4);
+    all.write(s5);
+    all.write(s6);
+    assertArrayEquals(
+        "readAll() must reproduce all data in write order", all.toByteArray(), readAll());
   }
 }
