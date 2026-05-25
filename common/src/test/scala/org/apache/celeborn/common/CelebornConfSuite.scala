@@ -492,4 +492,13 @@ class CelebornConfSuite extends CelebornFunSuite {
     }
   }
 
+  test("parallel Spark batch open stream client creation can be disabled") {
+    val conf = new CelebornConf()
+
+    assert(conf.batchOpenStreamParallelClientCreationEnabled)
+
+    conf.set(CLIENT_SPARK_BATCH_OPEN_STREAM_PARALLEL_CLIENT_CREATION_ENABLED.key, "false")
+    assert(!conf.batchOpenStreamParallelClientCreationEnabled)
+  }
+
 }

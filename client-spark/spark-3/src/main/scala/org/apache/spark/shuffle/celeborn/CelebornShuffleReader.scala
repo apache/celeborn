@@ -206,8 +206,45 @@ class CelebornShuffleReader[K, C](
     val partitionIdList = List.range(startPartition, endPartition).filter(p =>
       fileGroups.partitionGroups.containsKey(p))
 
+    val parallelClientCreationEnabled = conf.batchOpenStreamParallelClientCreationEnabled
     val locationsByHostPort =
       new mutable.LinkedHashMap[String, JArrayList[PartitionLocation]]()
+
+    def makeOpenStreamList(locations: JSet[PartitionLocation]): Unit = {
+      locations.asScala.foreach { location =>
+        partCnt += 1
+        val hostPort = location.hostAndFetchPort
+        if (!workerRequestMap.containsKey(hostPort)) {
+          try {
+            val client = shuffleClient.getDataClientFactory().createClient(
+              location.getHost,
+              location.getFetchPort)
+            val pbOpenStreamList = PbOpenStreamList.newBuilder()
+            pbOpenStreamList.setShuffleKey(shuffleKey)
+            workerRequestMap.put(
+              hostPort,
+              (client, new JArrayList[PartitionLocation], pbOpenStreamList))
+          } catch {
+            case ex: Exception =>
+              shuffleClient.excludeFailedFetchLocation(hostPort, ex)
+              logWarning(
+                s"Failed to create client for $shuffleKey-${location.getId} from host: ${hostPort}. " +
+                  s"Shuffle reader will try its replica if exists.")
+          }
+        }
+        workerRequestMap.get(hostPort) match {
+          case (_, locArr, pbOpenStreamListBuilder) =>
+            locArr.add(location)
+            pbOpenStreamListBuilder.addFileName(location.getFileName)
+              .addStartIndex(startMapIndex)
+              .addEndIndex(endMapIndex)
+            pbOpenStreamListBuilder.addReadLocalShuffle(
+              localFetchEnabled && location.getHost.equals(localHostAddress))
+          case _ =>
+            logDebug(s"Empty client for host ${hostPort}")
+        }
+      }
+    }
 
     def groupOpenStreamLocations(locations: JSet[PartitionLocation]): Unit = {
       locations.asScala.foreach { location =>
@@ -250,38 +287,44 @@ class CelebornShuffleReader[K, C](
           locations = filterLocations.asJava
         }
         partitionId2PartitionLocations.put(partitionId, locations)
-        groupOpenStreamLocations(locations)
+        if (parallelClientCreationEnabled) {
+          groupOpenStreamLocations(locations)
+        } else {
+          makeOpenStreamList(locations)
+        }
       }
     }
 
-    val clientsByHostPort = CelebornShuffleReader.createClientsInParallel(
-      locationsByHostPort.map { case (hostPort, locations) =>
-        (hostPort, locations.asScala.toSeq)
-      }.toSeq,
-      streamCreatorPool,
-      location =>
-        shuffleClient.getDataClientFactory().createClient(
-          location.getHost,
-          location.getFetchPort),
-      (hostPort, location, ex) => {
-        shuffleClient.excludeFailedFetchLocation(hostPort, ex)
-        logWarning(
-          s"Failed to create client for $shuffleKey-${location.getId} from host: ${hostPort}. " +
-            s"Shuffle reader will try its replica if exists.")
-      })
+    if (parallelClientCreationEnabled) {
+      val clientsByHostPort = CelebornShuffleReader.createClientsInParallel(
+        locationsByHostPort.map { case (hostPort, locations) =>
+          (hostPort, locations.asScala.toSeq)
+        }.toSeq,
+        streamCreatorPool,
+        location =>
+          shuffleClient.getDataClientFactory().createClient(
+            location.getHost,
+            location.getFetchPort),
+        (hostPort, location, ex) => {
+          shuffleClient.excludeFailedFetchLocation(hostPort, ex)
+          logWarning(
+            s"Failed to create client for $shuffleKey-${location.getId} from host: ${hostPort}. " +
+              s"Shuffle reader will try its replica if exists.")
+        })
 
-    clientsByHostPort.foreach { case (hostPort, client) =>
-      val locArr = locationsByHostPort(hostPort)
-      val pbOpenStreamList = PbOpenStreamList.newBuilder()
-      pbOpenStreamList.setShuffleKey(shuffleKey)
-      locArr.asScala.foreach { location =>
-        pbOpenStreamList.addFileName(location.getFileName)
-          .addStartIndex(startMapIndex)
-          .addEndIndex(endMapIndex)
-        pbOpenStreamList.addReadLocalShuffle(
-          localFetchEnabled && location.getHost.equals(localHostAddress))
+      clientsByHostPort.foreach { case (hostPort, client) =>
+        val locArr = locationsByHostPort(hostPort)
+        val pbOpenStreamList = PbOpenStreamList.newBuilder()
+        pbOpenStreamList.setShuffleKey(shuffleKey)
+        locArr.asScala.foreach { location =>
+          pbOpenStreamList.addFileName(location.getFileName)
+            .addStartIndex(startMapIndex)
+            .addEndIndex(endMapIndex)
+          pbOpenStreamList.addReadLocalShuffle(
+            localFetchEnabled && location.getHost.equals(localHostAddress))
+        }
+        workerRequestMap.put(hostPort, (client, locArr, pbOpenStreamList))
       }
-      workerRequestMap.put(hostPort, (client, locArr, pbOpenStreamList))
     }
 
     val locationStreamHandlerMap: ConcurrentHashMap[PartitionLocation, PbStreamHandler] =

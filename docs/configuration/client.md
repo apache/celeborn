@@ -124,6 +124,7 @@ license: |
 | celeborn.client.shuffle.reviseLostShuffles.enabled | false | false | Whether to revise lost shuffles. | 0.6.0 |  | 
 | celeborn.client.shuffleDataLostOnUnknownWorker.enabled | false | false | Whether to mark shuffle data lost when unknown worker is detected. | 0.6.3 |  | 
 | celeborn.client.slot.assign.maxWorkers | 10000 | false | Max workers that slots of one shuffle can be allocated on. Will choose the smaller positive one from Master side and Client side, see `celeborn.master.slot.assign.maxWorkers`. | 0.3.1 |  | 
+| celeborn.client.spark.batch.openStream.parallelClientCreation.enabled | true | false | Whether to create data clients in parallel before sending Spark batch open-stream requests. When false, data clients are created serially. | 0.6.3 |  | 
 | celeborn.client.spark.fetch.cleanFailedShuffle | false | false | whether to clean those disk space occupied by shuffles which cannot be fetched | 0.6.0 |  | 
 | celeborn.client.spark.fetch.cleanFailedShuffleInterval | 1s | false | the interval to clean the failed-to-fetch shuffle files, only valid when celeborn.client.spark.fetch.cleanFailedShuffle is enabled | 0.6.0 |  | 
 | celeborn.client.spark.push.dynamicWriteMode.enabled | false | false | Whether to dynamically switch push write mode based on conditions.If true, shuffle mode will be only determined by partition count | 0.5.0 |  | 
