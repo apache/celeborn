@@ -27,11 +27,10 @@ namespace client {
 ShuffleClientEndpoint::ShuffleClientEndpoint(
     const std::shared_ptr<const conf::CelebornConf>& conf)
     : conf_(conf),
-      pushDataRetryPool_(
-          std::make_shared<folly::IOThreadPoolExecutor>(
-              conf_->clientPushRetryThreads(),
-              std::make_shared<folly::NamedThreadFactory>(
-                  "client-pushdata-retrier"))),
+      pushDataRetryPool_(std::make_shared<folly::IOThreadPoolExecutor>(
+          conf_->clientPushRetryThreads(),
+          std::make_shared<folly::NamedThreadFactory>(
+              "client-pushdata-retrier"))),
       clientFactory_(std::make_shared<network::TransportClientFactory>(conf_)) {
 }
 
@@ -154,11 +153,10 @@ int ShuffleClientImpl::pushData(
             -1,
             nullptr,
             protocol::StatusCode::PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
-      CELEBORN_FAIL(
-          fmt::format(
-              "Revive for shuffleId {} partitionId {} failed.",
-              shuffleId,
-              partitionId));
+      CELEBORN_FAIL(fmt::format(
+          "Revive for shuffleId {} partitionId {} failed.",
+          shuffleId,
+          partitionId));
     }
     partitionLocationOptional = partitionLocationMap->get(partitionId);
   }
@@ -300,11 +298,10 @@ int ShuffleClientImpl::mergeData(
             -1,
             nullptr,
             protocol::StatusCode::PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
-      CELEBORN_FAIL(
-          fmt::format(
-              "Revive for shuffleId {} partitionId {} failed.",
-              shuffleId,
-              partitionId));
+      CELEBORN_FAIL(fmt::format(
+          "Revive for shuffleId {} partitionId {} failed.",
+          shuffleId,
+          partitionId));
     }
     partitionLocationOptional = partitionLocationMap->get(partitionId);
   }
@@ -783,9 +780,8 @@ std::unique_ptr<CelebornInputStream> ShuffleClientImpl::readPartition(
   std::vector<std::shared_ptr<const protocol::PartitionLocation>> locations;
   if (!reducerFileGroupInfo->fileGroups.empty() &&
       reducerFileGroupInfo->fileGroups.count(partitionId)) {
-    locations = std::move(
-        utils::toVector(
-            reducerFileGroupInfo->fileGroups.find(partitionId)->second));
+    locations = std::move(utils::toVector(
+        reducerFileGroupInfo->fileGroups.find(partitionId)->second));
   }
   return std::make_unique<CelebornInputStream>(
       shuffleKey,
@@ -930,28 +926,26 @@ void ShuffleClientImpl::registerShuffle(
         }
       }
     } catch (std::exception& e) {
-      CELEBORN_FAIL(
-          fmt::format(
-              "registerShuffle encounters error after {} tries, "
-              "shuffleId {} numMappers {} numPartitions {}, errorMsg: {}",
-              numRetries,
-              shuffleId,
-              numMappers,
-              numPartitions,
-              e.what()));
+      CELEBORN_FAIL(fmt::format(
+          "registerShuffle encounters error after {} tries, "
+          "shuffleId {} numMappers {} numPartitions {}, errorMsg: {}",
+          numRetries,
+          shuffleId,
+          numMappers,
+          numPartitions,
+          e.what()));
       break;
     }
     std::this_thread::sleep_for(conf_->clientRegisterShuffleRetryWait());
   }
   partitionLocationMaps_.set(shuffleId, nullptr);
-  CELEBORN_FAIL(
-      fmt::format(
-          "registerShuffle failed after {} tries, "
-          "shuffleId {} numMappers {} numPartitions {}",
-          maxRetries,
-          shuffleId,
-          numMappers,
-          numPartitions));
+  CELEBORN_FAIL(fmt::format(
+      "registerShuffle failed after {} tries, "
+      "shuffleId {} numMappers {} numPartitions {}",
+      maxRetries,
+      shuffleId,
+      numMappers,
+      numPartitions));
 }
 
 void ShuffleClientImpl::submitRetryPushData(

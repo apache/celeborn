@@ -19,10 +19,10 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "rust/cxx.h"
 #include "celeborn/client/ShuffleClient.h"
 #include "celeborn/client/reader/CelebornInputStream.h"
 #include "celeborn/conf/CelebornConf.h"
+#include "rust/cxx.h"
 
 namespace celeborn_ffi {
 
@@ -82,6 +82,7 @@ std::unique_ptr<PartitionReaderHandle> open_partition_reader(
 // Fills `out` with the next chunk of partition bytes.
 // Returns the number of bytes written; 0 means EOF (std::io::Read semantics).
 size_t read_partition_chunk(
-    PartitionReaderHandle& reader, rust::Slice<uint8_t> out);
+    PartitionReaderHandle& reader,
+    rust::Slice<uint8_t> out);
 
 }  // namespace celeborn_ffi

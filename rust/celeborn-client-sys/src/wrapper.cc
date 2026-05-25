@@ -191,7 +191,11 @@ std::unique_ptr<PartitionReaderHandle> open_partition_reader(
   try {
     auto reader = std::make_unique<PartitionReaderHandle>();
     reader->stream = handle.client->readPartition(
-        shuffle_id, partition_id, attempt_number, start_map_index, end_map_index);
+        shuffle_id,
+        partition_id,
+        attempt_number,
+        start_map_index,
+        end_map_index);
     return reader;
   } catch (const std::exception& e) {
     throw std::runtime_error(std::string("celeborn-ffi: ") + e.what());
@@ -201,14 +205,15 @@ std::unique_ptr<PartitionReaderHandle> open_partition_reader(
 }
 
 size_t read_partition_chunk(
-    PartitionReaderHandle& reader, rust::Slice<uint8_t> out) {
+    PartitionReaderHandle& reader,
+    rust::Slice<uint8_t> out) {
   try {
     if (out.size() == 0) {
       return 0;
     }
     int n = reader.stream->read(out.data(), 0, out.size());
     if (n == -1) {
-      return 0;  // EOF, std::io::Read semantics
+      return 0; // EOF, std::io::Read semantics
     }
     if (n < 0) {
       throw std::runtime_error(
