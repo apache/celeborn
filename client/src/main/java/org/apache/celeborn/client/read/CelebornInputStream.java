@@ -848,7 +848,10 @@ public abstract class CelebornInputStream extends InputStream {
           close();
           return false;
         }
-        setupCurrentStream();
+
+        if (currentStream == null) {
+          setupCurrentStream();
+        }
 
         LocationPushFailedBatches failedBatch = new LocationPushFailedBatches();
         boolean hasData = false;

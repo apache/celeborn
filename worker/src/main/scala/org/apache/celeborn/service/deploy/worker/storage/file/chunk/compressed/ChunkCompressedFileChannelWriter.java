@@ -36,6 +36,7 @@ import java.util.List;
 
 public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
     private static final int ZSTD_COMPRESSION_LEVEL = Zstd.defaultCompressionLevel();
+    private static final int LARGE_RECORD_STAGING_BUF_SIZE = 8192;
 
     private final FileChannel channel;
     private final DiskFileInfo diskFileInfo;
@@ -45,6 +46,9 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
     private ByteBuffer compressedChunkBuffer;
     private final List<Long> chunkOffsets;
     private final long chunkSize;
+    // Reused across flushLargeRecord calls to avoid per-call allocation.
+    private final OutputStream channelOut;
+    private final byte[] largeRecordStagingBuf;
 
     public ChunkCompressedFileChannelWriter(DiskFileInfo diskFileInfo, long chunkSize) throws IOException {
         this.diskFileInfo = diskFileInfo;
@@ -56,6 +60,20 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
         compressedChunkBuffer = bufferPair.compressedBuffer;
         chunkOffsets = new ArrayList<>();
         chunkOffsets.add(0L);
+        channelOut = new OutputStream() {
+            @Override
+            public void write(byte[] b, int off, int len) throws IOException {
+                ByteBuffer buf = ByteBuffer.wrap(b, off, len);
+                while (buf.hasRemaining()) {
+                    channel.write(buf);
+                }
+            }
+            @Override
+            public void write(int b) throws IOException {
+                channel.write(ByteBuffer.wrap(new byte[]{(byte) b}));
+            }
+        };
+        largeRecordStagingBuf = new byte[LARGE_RECORD_STAGING_BUF_SIZE];
     }
 
     @Override
@@ -83,30 +101,16 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
     /**
      * Compresses the entire buffer as a single chunk and writes it to the channel.
      * Uses ZstdOutputStream for streaming compression without an intermediate compressed buffer.
-     * The OutputStream wrapper prevents ZstdOutputStream.close() from closing the FileChannel.
+     * channelOut and largeRecordStagingBuf are reused fields to avoid per-call allocation;
+     * ZstdOutputStream (native ZSTD context) is still created per call as it cannot be safely
+     * reused across frames without risking a spurious empty-frame write on close.
      */
     private void flushLargeRecord(CompositeByteBuf buffer) throws IOException {
-        OutputStream channelOut = new OutputStream() {
-            @Override
-            public void write(byte[] b, int off, int len) throws IOException {
-                ByteBuffer buf = ByteBuffer.wrap(b, off, len);
-                while (buf.hasRemaining()) {
-                    channel.write(buf);
-                }
-            }
-
-            @Override
-            public void write(int b) throws IOException {
-                channel.write(ByteBuffer.wrap(new byte[]{(byte) b}));
-            }
-        };
-
         try (ZstdOutputStream zstdOut = new ZstdOutputStream(channelOut, ZSTD_COMPRESSION_LEVEL)) {
-            byte[] buf = new byte[8192];
             while (buffer.isReadable()) {
-                int toRead = Math.min(buffer.readableBytes(), buf.length);
-                buffer.readBytes(buf, 0, toRead);
-                zstdOut.write(buf, 0, toRead);
+                int toRead = Math.min(buffer.readableBytes(), largeRecordStagingBuf.length);
+                buffer.readBytes(largeRecordStagingBuf, 0, toRead);
+                zstdOut.write(largeRecordStagingBuf, 0, toRead);
             }
         } // close() finalizes the ZSTD frame and flushes all bytes to the channel
 
