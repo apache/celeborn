@@ -245,6 +245,257 @@ public class MasterClientSuiteJ {
     checkOneMasterAskFailedInHA(new RpcTimeoutException("test", new TimeoutException("test")));
   }
 
+  @Test
+  public void testBootstrapMasterNotLeaderRedirectsToSuggestedLeaderInHA() {
+    final CelebornConf conf =
+        conf()
+            .set(CelebornConf.HA_ENABLED().key(), "true")
+            .set(CelebornConf.MASTER_ENDPOINTS().key(), "host1:9097,host3:9097")
+            .set(CelebornConf.MASTER_CLIENT_MAX_RETRIES().key(), "5");
+
+    final RpcEndpointRef master2 = Mockito.mock(RpcEndpointRef.class);
+    Mockito.doReturn(Future$.MODULE$.successful(mockResponse))
+        .when(master2)
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
+
+    Mockito.doAnswer(
+            invocation -> {
+              RpcAddress address = invocation.getArgument(0, RpcAddress.class);
+              switch (address.host()) {
+                case "host1":
+                  throw new RuntimeException(
+                      new MasterNotLeaderException("host1:9097", "host2:9097", null));
+                case "host2":
+                  return master2;
+                case "host3":
+                  throw new AssertionError("Should follow the suggested leader before host3.");
+                default:
+                  fail("Should use master host1/host2:" + masterPort + ", but use " + address);
+              }
+              return null;
+            })
+        .when(rpcEnv)
+        .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
+
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
+    HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
+
+    HeartbeatFromWorkerResponse response = null;
+    try {
+      response = client.askSync(message, HeartbeatFromWorkerResponse.class);
+    } catch (Throwable t) {
+      LOG.error("It should redirect to the suggested leader during bootstrap.", t);
+      fail("It should redirect to the suggested leader during bootstrap.");
+    }
+
+    assertEquals(mockResponse, response);
+  }
+
+  @Test
+  public void testBootstrapMasterNotLeaderWithoutLeaderContinuesToOtherConfiguredMastersInHA() {
+    final CelebornConf conf = prepareForCelebornConfWithHA();
+
+    final RpcEndpointRef master2 = Mockito.mock(RpcEndpointRef.class);
+    Mockito.doReturn(Future$.MODULE$.successful(mockResponse))
+        .when(master2)
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
+
+    Mockito.doAnswer(
+            invocation -> {
+              RpcAddress address = invocation.getArgument(0, RpcAddress.class);
+              switch (address.host()) {
+                case "host1":
+                  throw new RuntimeException(
+                      new MasterNotLeaderException(
+                          "host1:9097", MasterNotLeaderException.LEADER_NOT_PRESENTED, null));
+                case "host2":
+                  return master2;
+                default:
+                  fail("Should use master host1/host2:" + masterPort + ", but use " + address);
+              }
+              return null;
+            })
+        .when(rpcEnv)
+        .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
+
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
+    HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
+
+    HeartbeatFromWorkerResponse response = null;
+    try {
+      response = client.askSync(message, HeartbeatFromWorkerResponse.class);
+    } catch (Throwable t) {
+      LOG.error("It should continue to another configured master during bootstrap.", t);
+      fail("It should continue to another configured master during bootstrap.");
+    }
+
+    assertEquals(mockResponse, response);
+  }
+
+  @Test
+  public void testSuggestedLeaderSetupFailureRetriesAnotherMasterInHA() {
+    final CelebornConf conf =
+        conf()
+            .set(CelebornConf.HA_ENABLED().key(), "true")
+            .set(CelebornConf.MASTER_ENDPOINTS().key(), "host1:9097,host4:9097")
+            .set(CelebornConf.MASTER_CLIENT_MAX_RETRIES().key(), "5");
+
+    final RpcEndpointRef master1 = Mockito.mock(RpcEndpointRef.class);
+    final RpcEndpointRef master3 = Mockito.mock(RpcEndpointRef.class);
+
+    Mockito.doReturn(
+            Future$.MODULE$.failed(new MasterNotLeaderException("host1:9097", "host2:9097", null)))
+        .when(master1)
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
+    Mockito.doReturn(Future$.MODULE$.successful(mockResponse))
+        .when(master3)
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
+
+    Mockito.doAnswer(
+            invocation -> {
+              RpcAddress address = invocation.getArgument(0, RpcAddress.class);
+              switch (address.host()) {
+                case "host1":
+                  return master1;
+                case "host2":
+                  throw new RuntimeException(
+                      new MasterNotLeaderException("host2:9097", "host3:9097", null));
+                case "host3":
+                  return master3;
+                case "host4":
+                  throw new AssertionError("Should follow chained suggested leaders before host4.");
+                default:
+                  fail(
+                      "Should use master host1/host2/host3:" + masterPort + ", but use " + address);
+              }
+              return null;
+            })
+        .when(rpcEnv)
+        .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
+
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
+    HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
+
+    HeartbeatFromWorkerResponse response = null;
+    try {
+      response = client.askSync(message, HeartbeatFromWorkerResponse.class);
+    } catch (Throwable t) {
+      LOG.error("It should retry with another master when suggested leader setup races.", t);
+      fail("It should retry with another master when suggested leader setup races.");
+    }
+
+    assertEquals(mockResponse, response);
+  }
+
+  @Test
+  public void testSuggestedLeaderRedirectCycleRetriesConfiguredMasterInHA() {
+    final CelebornConf conf =
+        conf()
+            .set(CelebornConf.HA_ENABLED().key(), "true")
+            .set(CelebornConf.MASTER_ENDPOINTS().key(), "host1:9097,host4:9097")
+            .set(CelebornConf.MASTER_CLIENT_MAX_RETRIES().key(), "5");
+
+    final RpcEndpointRef master1 = Mockito.mock(RpcEndpointRef.class);
+    final RpcEndpointRef master4 = Mockito.mock(RpcEndpointRef.class);
+
+    Mockito.doReturn(
+            Future$.MODULE$.failed(new MasterNotLeaderException("host1:9097", "host2:9097", null)))
+        .when(master1)
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
+    Mockito.doReturn(Future$.MODULE$.successful(mockResponse))
+        .when(master4)
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
+
+    Mockito.doAnswer(
+            invocation -> {
+              RpcAddress address = invocation.getArgument(0, RpcAddress.class);
+              switch (address.host()) {
+                case "host1":
+                  return master1;
+                case "host2":
+                  throw new RuntimeException(
+                      new MasterNotLeaderException("host2:9097", "host3:9097", null));
+                case "host3":
+                  throw new RuntimeException(
+                      new MasterNotLeaderException("host3:9097", "host2:9097", null));
+                case "host4":
+                  return master4;
+                default:
+                  fail(
+                      "Should use master host1/host2/host3/host4:"
+                          + masterPort
+                          + ", but use "
+                          + address);
+              }
+              return null;
+            })
+        .when(rpcEnv)
+        .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
+
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
+    HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
+
+    HeartbeatFromWorkerResponse response = null;
+    try {
+      response = client.askSync(message, HeartbeatFromWorkerResponse.class);
+    } catch (Throwable t) {
+      LOG.error("It should retry another configured master after a redirect cycle.", t);
+      fail("It should retry another configured master after a redirect cycle.");
+    }
+
+    assertEquals(mockResponse, response);
+    Mockito.verify(rpcEnv, Mockito.times(1))
+        .setupEndpointRef(
+            Mockito.eq(RpcAddress.fromHostAndPort("host2:9097")), Mockito.anyString());
+    Mockito.verify(rpcEnv, Mockito.times(1))
+        .setupEndpointRef(
+            Mockito.eq(RpcAddress.fromHostAndPort("host3:9097")), Mockito.anyString());
+  }
+
+  @Test
+  public void testBootstrapSuggestedLeaderConnectionFailureRetriesConfiguredMasterInHA() {
+    final CelebornConf conf = prepareForCelebornConfWithHA();
+
+    final RpcEndpointRef master3 = Mockito.mock(RpcEndpointRef.class);
+
+    Mockito.doReturn(Future$.MODULE$.successful(mockResponse))
+        .when(master3)
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
+
+    Mockito.doAnswer(
+            invocation -> {
+              RpcAddress address = invocation.getArgument(0, RpcAddress.class);
+              switch (address.host()) {
+                case "host1":
+                  throw new RuntimeException(
+                      new MasterNotLeaderException("host1:9097", "host2:9097", null));
+                case "host2":
+                  throw new IOException("test");
+                case "host3":
+                  return master3;
+                default:
+                  fail(
+                      "Should use master host1/host2/host3:" + masterPort + ", but use " + address);
+              }
+              return null;
+            })
+        .when(rpcEnv)
+        .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
+
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
+    HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
+
+    HeartbeatFromWorkerResponse response = null;
+    try {
+      response = client.askSync(message, HeartbeatFromWorkerResponse.class);
+    } catch (Throwable t) {
+      LOG.error("It should retry another configured master after bootstrap redirect fails.", t);
+      fail("It should retry another configured master after bootstrap redirect fails.");
+    }
+
+    assertEquals(mockResponse, response);
+  }
+
   private void checkOneMasterDownInHA(Exception causedByException) {
     final CelebornConf conf = prepareForCelebornConfWithHA();
 
@@ -440,15 +691,19 @@ public class MasterClientSuiteJ {
   }
 
   private CelebornConf prepareForCelebornConfWithoutHA() {
-    return conf.clone()
+    return conf()
         .set(CelebornConf.HA_ENABLED().key(), "false")
         .set(CelebornConf.MASTER_ENDPOINTS().key(), masterHost + ":" + masterPort);
   }
 
   private CelebornConf prepareForCelebornConfWithHA() {
-    return conf.clone()
+    return conf()
         .set(CelebornConf.HA_ENABLED().key(), "true")
         .set(CelebornConf.MASTER_ENDPOINTS().key(), "host1:9097,host2:9097,host3:9097")
         .set(CelebornConf.MASTER_CLIENT_MAX_RETRIES().key(), "5");
+  }
+
+  private CelebornConf conf() {
+    return conf.clone();
   }
 }
