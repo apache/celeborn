@@ -57,25 +57,25 @@ class WorkerStatusManagerSuite extends AnyFunSuite {
     statusManager.init(worker)
 
     statusManager.doTransition(WorkerEventType.DecommissionThenIdle)
-    Assert.assertEquals(statusManager.getWorkerState(), PbWorkerStatus.State.InDecommissionThenIdle)
+    Assert.assertEquals(PbWorkerStatus.State.InDecommissionThenIdle, statusManager.getWorkerState())
     Assert.assertEquals(
-      worker.workerInfo.getWorkerStatus().getStateValue,
-      PbWorkerStatus.State.InDecommissionThenIdle.getNumber)
+      PbWorkerStatus.State.InDecommissionThenIdle.getNumber,
+      worker.workerInfo.getWorkerStatus().getStateValue)
 
     // Rerun state Transition
     statusManager.doTransition(WorkerEventType.DecommissionThenIdle)
-    Assert.assertEquals(statusManager.getWorkerState(), PbWorkerStatus.State.InDecommissionThenIdle)
+    Assert.assertEquals(PbWorkerStatus.State.InDecommissionThenIdle, statusManager.getWorkerState())
 
     // Reset shuffleKeys
     shuffleKeys.clear()
     statusManager.doTransition(WorkerEventType.DecommissionThenIdle)
-    Assert.assertEquals(statusManager.getWorkerState(), PbWorkerStatus.State.Idle)
+    Assert.assertEquals(PbWorkerStatus.State.Idle, statusManager.getWorkerState())
 
     statusManager.doTransition(WorkerEventType.Recommission)
-    Assert.assertEquals(statusManager.getWorkerState(), PbWorkerStatus.State.Normal)
+    Assert.assertEquals(PbWorkerStatus.State.Normal, statusManager.getWorkerState())
 
     statusManager.doTransition(WorkerEventType.Recommission)
-    Assert.assertEquals(statusManager.getWorkerState(), PbWorkerStatus.State.Normal)
+    Assert.assertEquals(PbWorkerStatus.State.Normal, statusManager.getWorkerState())
   }
 
   test("Test exitEventType initialization based on config") {

@@ -1074,7 +1074,7 @@ private[celeborn] class Worker(
 
   private val shutdownHookTimeout =
     if (conf.workerDecommissionShutdown) {
-      conf.workerDecommissionForceExitTimeout
+      conf.workerDecommissionForceExitTimeout + conf.workerDecommissionCheckInterval
     } else {
       conf.workerGracefulShutdownTimeoutMs
     }
@@ -1093,10 +1093,13 @@ private[celeborn] class Worker(
               exitImmediately()
           }
 
-          if (workerStatusManager.exitEventType == WorkerEventType.Graceful) {
-            stop(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
-          } else {
-            stop(CelebornExitKind.EXIT_IMMEDIATELY)
+          workerStatusManager.exitEventType match {
+            case WorkerEventType.Graceful =>
+              stop(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
+            case WorkerEventType.Decommission =>
+              stop(CelebornExitKind.WORKER_DECOMMISSION)
+            case _ =>
+              stop(CelebornExitKind.EXIT_IMMEDIATELY)
           }
         }
       },
