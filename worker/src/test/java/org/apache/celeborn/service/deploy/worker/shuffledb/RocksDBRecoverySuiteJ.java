@@ -21,9 +21,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -36,6 +40,7 @@ import java.util.concurrent.Future;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.rocksdb.RocksDBException;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -117,7 +122,7 @@ public class RocksDBRecoverySuiteJ {
     CyclicBarrier barrier = new CyclicBarrier(threadCount);
     ExecutorService executor = Executors.newFixedThreadPool(threadCount);
 
-    // Force a recovery to simulate a RocksDBException scenario
+    // Trigger recovery directly to verify concurrent recovery deduplication
     rocksDB.forceRecovery();
     long genAfterFirstRecovery = rocksDB.getDbGeneration();
     assertEquals(1, genAfterFirstRecovery);
@@ -216,6 +221,51 @@ public class RocksDBRecoverySuiteJ {
     db.close();
   }
 
+  @Test
+  public void testWithRecoveryTriggeredByRocksDBException() throws Exception {
+    DB db = DBProvider.initDB(DBBackend.ROCKSDB, dbFile, version, workerSource, confWithRecovery);
+    assertNotNull(db);
+
+    byte[] key = "key".getBytes(StandardCharsets.UTF_8);
+    byte[] value = "value".getBytes(StandardCharsets.UTF_8);
+    db.put(key, value);
+    assertEquals("value", new String(db.get(key), StandardCharsets.UTF_8));
+
+    RocksDB rocksDB = (RocksDB) db;
+    assertEquals(0, rocksDB.getDbGeneration());
+
+    // Swap the internal ManagedRocksDB with a Mockito spy that throws on the first put.
+    // Recovery will replace this spy with a fresh instance, so subsequent puts succeed normally.
+    Field dbField = RocksDB.class.getDeclaredField("db");
+    dbField.setAccessible(true);
+    ManagedRocksDB original = (ManagedRocksDB) dbField.get(rocksDB);
+    ManagedRocksDB spied = spy(original);
+    doThrow(new RocksDBException("injected failure"))
+        .doCallRealMethod()
+        .when(spied)
+        .put(any(byte[].class), any(byte[].class));
+    dbField.set(rocksDB, spied);
+
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class,
+            () ->
+                db.put(
+                    "k2".getBytes(StandardCharsets.UTF_8), "v2".getBytes(StandardCharsets.UTF_8)));
+    assertTrue(thrown.getCause() instanceof RocksDBException);
+
+    // Recovery should have incremented the generation
+    assertEquals(1, rocksDB.getDbGeneration());
+
+    // Subsequent operations should succeed on the recovered DB
+    byte[] newKey = "after-recovery".getBytes(StandardCharsets.UTF_8);
+    byte[] newValue = "works".getBytes(StandardCharsets.UTF_8);
+    db.put(newKey, newValue);
+    assertEquals("works", new String(db.get(newKey), StandardCharsets.UTF_8));
+
+    db.close();
+  }
+
   private void corruptDbFiles(File dir) throws IOException {
     if (dir.isDirectory()) {
       File[] files = dir.listFiles();
@@ -223,7 +273,7 @@ public class RocksDBRecoverySuiteJ {
         for (File f : files) {
           if (f.isFile()
               && (f.getName().endsWith(".sst")
-                  || f.getName().equals("MANIFEST-000001")
+                  || f.getName().startsWith("MANIFEST-")
                   || f.getName().equals("CURRENT"))) {
             Files.write(f.toPath(), "corrupted-data".getBytes(StandardCharsets.UTF_8));
           }

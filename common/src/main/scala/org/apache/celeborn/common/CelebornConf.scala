@@ -4538,16 +4538,8 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  private val rocksDBCompressionTypes: Set[String] = Set(
-    "NO_COMPRESSION",
-    "SNAPPY_COMPRESSION",
-    "ZLIB_COMPRESSION",
-    "BZLIB2_COMPRESSION",
-    "LZ4_COMPRESSION",
-    "LZ4HC_COMPRESSION",
-    "XPRESS_COMPRESSION",
-    "ZSTD_COMPRESSION",
-    "DISABLE_COMPRESSION_OPTION")
+  private val rocksDBCompressionTypes: Set[String] =
+    RocksDBCompressionType.values().map(_.name()).toSet
 
   val WORKER_RECOVER_DB_ROCKSDB_COMPRESSION: ConfigEntry[String] =
     buildConf("celeborn.worker.graceful.shutdown.recoverDb.rocksdb.compression")
@@ -4559,7 +4551,7 @@ object CelebornConf extends Logging {
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(rocksDBCompressionTypes)
-      .createWithDefault("LZ4_COMPRESSION")
+      .createWithDefault(RocksDBCompressionType.LZ4_COMPRESSION.name())
 
   val WORKER_RECOVER_DB_ROCKSDB_BOTTOMMOST_COMPRESSION: ConfigEntry[String] =
     buildConf("celeborn.worker.graceful.shutdown.recoverDb.rocksdb.bottommostCompression")
@@ -4572,7 +4564,7 @@ object CelebornConf extends Logging {
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(rocksDBCompressionTypes)
-      .createWithDefault("ZSTD_COMPRESSION")
+      .createWithDefault(RocksDBCompressionType.ZSTD_COMPRESSION.name())
 
   val WORKER_RECOVER_DB_ROCKSDB_BLOOM_FILTER_BITS_PER_KEY: ConfigEntry[Double] =
     buildConf("celeborn.worker.graceful.shutdown.recoverDb.rocksdb.bloomFilter.bitsPerKey")
