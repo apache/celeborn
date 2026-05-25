@@ -1072,6 +1072,12 @@ private[celeborn] class Worker(
     workerStatusManager.transitionState(State.Exit)
   }
 
+  private val shutdownHookTimeout = if (conf.workerDecommissionShutdown) {
+    conf.workerDecommissionForceExitTimeout
+  } else {
+    conf.workerGracefulShutdownTimeoutMs
+  }
+
   ShutdownHookManager.get().addShutdownHook(
     ThreadUtils.newThread(
       new Runnable {
@@ -1081,9 +1087,6 @@ private[celeborn] class Worker(
             case WorkerEventType.Graceful =>
               shutdownGracefully()
             case WorkerEventType.Decommission =>
-              ShutdownHookManager.get().updateTimeout(
-                conf.workerDecommissionForceExitTimeout,
-                TimeUnit.MILLISECONDS)
               decommissionWorker()
             case _ =>
               exitImmediately()
@@ -1097,7 +1100,9 @@ private[celeborn] class Worker(
         }
       },
       "worker-shutdown-hook-thread"),
-    WORKER_SHUTDOWN_PRIORITY)
+    WORKER_SHUTDOWN_PRIORITY,
+    shutdownHookTimeout,
+    TimeUnit.MILLISECONDS)
 
   @VisibleForTesting
   def getPushFetchServerPort: (Int, Int) = (pushPort, fetchPort)

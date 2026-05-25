@@ -77,4 +77,30 @@ class WorkerStatusManagerSuite extends AnyFunSuite {
     statusManager.doTransition(WorkerEventType.Recommission)
     Assert.assertEquals(statusManager.getWorkerState(), PbWorkerStatus.State.Normal)
   }
+
+  test("Test exitEventType initialization based on config") {
+    // Default: neither graceful nor decommission → Immediately
+    val conf1 = new CelebornConf()
+    val mgr1 = new WorkerStatusManager(conf1)
+    Assert.assertEquals(WorkerEventType.Immediately, mgr1.exitEventType)
+
+    // Graceful shutdown only → Graceful
+    val conf2 = new CelebornConf()
+    conf2.set("celeborn.worker.graceful.shutdown.enabled", "true")
+    val mgr2 = new WorkerStatusManager(conf2)
+    Assert.assertEquals(WorkerEventType.Graceful, mgr2.exitEventType)
+
+    // Decommission shutdown only → Decommission
+    val conf3 = new CelebornConf()
+    conf3.set("celeborn.worker.decommission.shutdown.enabled", "true")
+    val mgr3 = new WorkerStatusManager(conf3)
+    Assert.assertEquals(WorkerEventType.Decommission, mgr3.exitEventType)
+
+    // Both enabled → Decommission overrides graceful
+    val conf4 = new CelebornConf()
+    conf4.set("celeborn.worker.graceful.shutdown.enabled", "true")
+    conf4.set("celeborn.worker.decommission.shutdown.enabled", "true")
+    val mgr4 = new WorkerStatusManager(conf4)
+    Assert.assertEquals(WorkerEventType.Decommission, mgr4.exitEventType)
+  }
 }
