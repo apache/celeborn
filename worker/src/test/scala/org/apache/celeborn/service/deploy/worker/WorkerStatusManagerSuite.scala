@@ -102,5 +102,7 @@ class WorkerStatusManagerSuite extends AnyFunSuite {
     conf4.set("celeborn.worker.decommission.shutdown.enabled", "true")
     val mgr4 = new WorkerStatusManager(conf4)
     Assert.assertEquals(WorkerEventType.Decommission, mgr4.exitEventType)
+    Assert.assertFalse(conf4.workerGracefulShutdownEnabled)
+    Assert.assertTrue(conf4.workerDecommissionShutdownEnabled)
   }
 }
