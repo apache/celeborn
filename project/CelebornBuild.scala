@@ -58,7 +58,7 @@ object Dependencies {
   // don't forget update `junitInterfaceVersion` when we upgrade junit
   val junitVersion = "4.13.2"
   val leveldbJniVersion = "1.8"
-  val log4j2Version = "2.24.3"
+  val log4j2Version = "2.25.4"
   val disruptorVersion = "3.4.4"
   val jdkToolsVersion = "0.1"
   val metricsVersion = "4.2.25"
