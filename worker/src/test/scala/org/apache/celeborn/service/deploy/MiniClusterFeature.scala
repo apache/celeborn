@@ -213,29 +213,38 @@ trait MiniClusterFeature extends Logging {
     val workers = new Array[Worker](workerNum)
     val flagUpdateLock = new ReentrantLock()
     val threads = (1 to workerNum).map { i =>
-      val worker = createWorker(workerConf)
       val workerThread = new RunnerWrap({
         var workerStartRetry = 0
         var workerStarted = false
         while (!workerStarted) {
+          // Create a fresh Worker per attempt: ports are picked in createWorker, and
+          // Worker#initialize is not idempotent (e.g. MetricsSystem.start fails the second time).
+          val worker = createWorker(workerConf)
           try {
             flagUpdateLock.lock()
-            workers(i - 1) = worker
-            flagUpdateLock.unlock()
-            workerStarted = true
+            try {
+              workers(i - 1) = worker
+            } finally {
+              flagUpdateLock.unlock()
+            }
             worker.initialize()
+            workerStarted = true
           } catch {
             case ex: Exception =>
-              if (workers(i - 1) != null) {
-                workers(i - 1).shutdownGracefully()
+              // Use stop() rather than shutdownGracefully() so MetricsSystem and bound ports
+              // are released before the next attempt.
+              try {
+                worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
+              } catch {
+                case _: Throwable => // swallow cleanup errors
               }
-              workerStarted = false
               workerStartRetry += 1
               logError(s"cannot start worker $i, retrying: ", ex)
               if (workerStartRetry == maxRetries) {
                 logError(s"cannot start worker $i, reached to max retrying", ex)
                 throw ex
               }
+              TimeUnit.SECONDS.sleep(Math.pow(2, workerStartRetry).toLong)
           }
         }
       })
