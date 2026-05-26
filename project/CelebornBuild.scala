@@ -1802,8 +1802,7 @@ object CelebornOpenApi {
             name.startsWith("httpclient5-") ||
             name.startsWith("httpcore5-") ||
             name.startsWith("httpcore5-h2-") ||
-            name.startsWith("jackson-databind-nullable-") ||
-            name.startsWith("slf4j-api-"))
+            name.startsWith("jackson-databind-nullable-"))
         }
       },
 
@@ -1814,8 +1813,7 @@ object CelebornOpenApi {
         ShadeRule.rename("jakarta.validation.**" -> "org.apache.celeborn.shaded.jakarta.validation.@1").inAll,
         ShadeRule.rename("javax.validation.**" -> "org.apache.celeborn.shaded.javax.validation.@1").inAll,
         ShadeRule.rename("javax.ws.rs.ext.**" -> "org.apache.celeborn.shaded.javax.ws.rs.ext.@1").inAll,
-        ShadeRule.rename("org.apache.hc.**" -> "org.apache.celeborn.shaded.org.apache.hc.@1").inAll,
-        ShadeRule.rename("org.slf4j.**" -> "org.apache.celeborn.shaded.org.slf4j.@1").inAll
+        ShadeRule.rename("org.apache.hc.**" -> "org.apache.celeborn.shaded.org.apache.hc.@1").inAll
     ),
 
     (assembly / assemblyMergeStrategy) := {
