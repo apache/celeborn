@@ -40,7 +40,11 @@ EOF
   exit 1
 }
 
-# Stop a single instance by its PID file
+# Stop a single instance by its PID file.
+# Returns:
+#   0  successfully stopped (or nothing to do — empty/stale PID file cleaned up)
+#   1  PID file missing entirely (caller decides whether to warn)
+#   2  the process is alive but we failed to kill it
 stop_by_pid_file() {
   local pid_file="$1"
   local pid
@@ -54,12 +58,15 @@ stop_by_pid_file() {
   if [ -z "${pid}" ]; then
     echo "PID file is empty: ${pid_file}, removing." >&2
     rm -f "${pid_file}"
-    return 1
+    return 0
   fi
 
   if kill -0 "${pid}" 2>/dev/null; then
     echo "Stopping LifecycleManager (PID: ${pid}) with SIGTERM ..."
-    kill -TERM "${pid}"
+    if ! kill -TERM "${pid}" 2>/dev/null; then
+      echo "Failed to send SIGTERM to PID ${pid}." >&2
+      return 2
+    fi
 
     # Wait for graceful shutdown
     local waited=0
@@ -79,13 +86,19 @@ stop_by_pid_file() {
     echo "LifecycleManager (PID: ${pid}) did not stop after ${GRACEFUL_TIMEOUT}s, sending SIGKILL ..."
     kill -9 "${pid}" 2>/dev/null || true
     sleep 1
+    if kill -0 "${pid}" 2>/dev/null; then
+      echo "LifecycleManager (PID: ${pid}) is still alive after SIGKILL." >&2
+      return 2
+    fi
     rm -f "${pid_file}"
     rm -f "${LOG_DIR}/lifecyclemanager-${pid}.env"
     echo "LifecycleManager (PID: ${pid}) killed."
+    return 0
   else
     echo "LifecycleManager (PID: ${pid}) is not running. Cleaning up stale PID file."
     rm -f "${pid_file}"
     rm -f "${LOG_DIR}/lifecyclemanager-${pid}.env"
+    return 0
   fi
 }
 
@@ -130,15 +143,23 @@ case "${MODE}" in
     ;;
   all)
     found=0
+    failed=0
     for pid_file in "${LOG_DIR}"/lifecyclemanager-*.pid; do
       [ -f "${pid_file}" ] || continue
       found=1
-      if ! stop_by_pid_file "${pid_file}"; then
-        echo "Warning: failed to stop instance referenced by ${pid_file}" >&2
+      # Capture the return code without letting `set -e` abort the loop on
+      # the first non-zero exit (e.g. a stale PID file we cleaned up, or a
+      # single instance we failed to kill — we still want to try the rest).
+      rc=0
+      stop_by_pid_file "${pid_file}" || rc=$?
+      if [ "${rc}" -ne 0 ]; then
+        echo "Warning: stop_by_pid_file exited ${rc} for ${pid_file}" >&2
+        failed=1
       fi
     done
     if [ "${found}" -eq 0 ]; then
       echo "No running LifecycleManager instances found."
     fi
+    exit "${failed}"
     ;;
 esac

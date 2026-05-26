@@ -38,6 +38,30 @@ EOF
   exit 1
 }
 
+# Probe whether `port` is currently bound on ANY local interface.
+# Returns 0 when the port appears free, non-zero when something is listening.
+# Prefer lsof / ss / netstat (cover every interface, IPv4 and IPv6) and only
+# fall back to /dev/tcp loopback probing — the latter misses listeners bound
+# to a specific non-loopback interface, which would let us hand out a port
+# the daemon cannot actually bind.
+port_is_free() {
+  local port="$1"
+  if command -v lsof >/dev/null 2>&1; then
+    ! lsof -nP -iTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1
+    return
+  fi
+  if command -v ss >/dev/null 2>&1; then
+    ! ss -ltn "sport = :${port}" 2>/dev/null | awk 'NR>1 {found=1} END {exit !found}'
+    return
+  fi
+  if command -v netstat >/dev/null 2>&1; then
+    ! netstat -anL 2>/dev/null | awk -v p=":${port}" '$1 ~ /^tcp/ && $4 ~ p"$" {found=1} END {exit !found}'
+    return
+  fi
+  # Last-resort loopback probe (incomplete — see note above).
+  ! (echo >/dev/tcp/127.0.0.1/"${port}") 2>/dev/null
+}
+
 # Find a random available port in range [30000, 50000]
 find_available_port() {
   local port
@@ -45,8 +69,7 @@ find_available_port() {
   local attempt=0
   while [ "$attempt" -lt "$max_attempts" ]; do
     port=$(( RANDOM % 20001 + 30000 ))
-    # Check if the port is available (not in use)
-    if ! (echo >/dev/tcp/127.0.0.1/"$port") 2>/dev/null; then
+    if port_is_free "$port"; then
       echo "$port"
       return 0
     fi

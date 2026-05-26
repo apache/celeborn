@@ -67,6 +67,17 @@ celeborn_ffi_status guarded(char** err_out, Fn&& fn) {
   }
 }
 
+// Reject null pointers at the FFI boundary so that misuse from non-Rust
+// callers surfaces as CELEBORN_FFI_ERROR with a descriptive message rather
+// than a SIGSEGV inside the C++ implementation.
+#define CELEBORN_FFI_REQUIRE_NON_NULL(ptr, err_out)                     \
+  do {                                                                  \
+    if ((ptr) == nullptr) {                                             \
+      set_error((err_out), "null pointer for argument '" #ptr "'");     \
+      return CELEBORN_FFI_ERROR;                                        \
+    }                                                                   \
+  } while (0)
+
 } // namespace
 
 extern "C" {
@@ -86,9 +97,19 @@ celeborn_ffi_handle* celeborn_ffi_create_client(
     const char* codec,
     size_t codec_len,
     char** err_out) {
+  if (app_id == nullptr && app_id_len > 0) {
+    set_error(err_out, "null pointer for argument 'app_id'");
+    return nullptr;
+  }
+  if (codec == nullptr && codec_len > 0) {
+    set_error(err_out, "null pointer for argument 'codec'");
+    return nullptr;
+  }
   try {
     auto impl = std::make_unique<ClientImpl>();
-    impl->app_id.assign(app_id, app_id_len);
+    if (app_id_len > 0) {
+      impl->app_id.assign(app_id, app_id_len);
+    }
     impl->conf = std::make_shared<celeborn::conf::CelebornConf>();
 
     if (push_buffer_max_size > 0) {
@@ -122,9 +143,18 @@ celeborn_ffi_status celeborn_ffi_setup_lifecycle_manager(
     size_t host_len,
     int32_t port,
     char** err_out) {
+  CELEBORN_FFI_REQUIRE_NON_NULL(handle, err_out);
+  if (host == nullptr && host_len > 0) {
+    set_error(err_out, "null pointer for argument 'host'");
+    return CELEBORN_FFI_ERROR;
+  }
   return guarded(err_out, [&] {
     auto* impl = as_impl(handle);
-    impl->lifecycle_manager_host.assign(host, host_len);
+    if (host_len > 0) {
+      impl->lifecycle_manager_host.assign(host, host_len);
+    } else {
+      impl->lifecycle_manager_host.clear();
+    }
     impl->client->setupLifecycleManagerRef(impl->lifecycle_manager_host, port);
   });
 }
@@ -132,6 +162,7 @@ celeborn_ffi_status celeborn_ffi_setup_lifecycle_manager(
 celeborn_ffi_status celeborn_ffi_shutdown(
     celeborn_ffi_handle* handle,
     char** err_out) {
+  CELEBORN_FFI_REQUIRE_NON_NULL(handle, err_out);
   return guarded(err_out, [&] { as_impl(handle)->client->shutdown(); });
 }
 
@@ -146,6 +177,11 @@ celeborn_ffi_status celeborn_ffi_push_data(
     int32_t num_mappers,
     int32_t num_partitions,
     char** err_out) {
+  CELEBORN_FFI_REQUIRE_NON_NULL(handle, err_out);
+  if (data == nullptr && data_len > 0) {
+    set_error(err_out, "null pointer for argument 'data'");
+    return CELEBORN_FFI_ERROR;
+  }
   return guarded(err_out, [&] {
     as_impl(handle)->client->pushData(
         shuffle_id,
@@ -167,6 +203,7 @@ celeborn_ffi_status celeborn_ffi_mapper_end(
     int32_t attempt_id,
     int32_t num_mappers,
     char** err_out) {
+  CELEBORN_FFI_REQUIRE_NON_NULL(handle, err_out);
   return guarded(err_out, [&] {
     as_impl(handle)->client->mapperEnd(
         shuffle_id, map_id, attempt_id, num_mappers);
@@ -177,6 +214,7 @@ celeborn_ffi_status celeborn_ffi_update_reducer_file_group(
     celeborn_ffi_handle* handle,
     int32_t shuffle_id,
     char** err_out) {
+  CELEBORN_FFI_REQUIRE_NON_NULL(handle, err_out);
   return guarded(err_out, [&] {
     as_impl(handle)->client->updateReducerFileGroup(shuffle_id);
   });
@@ -192,6 +230,9 @@ celeborn_ffi_status celeborn_ffi_read_partition_full(
     uint8_t** data_out,
     size_t* len_out,
     char** err_out) {
+  CELEBORN_FFI_REQUIRE_NON_NULL(handle, err_out);
+  CELEBORN_FFI_REQUIRE_NON_NULL(data_out, err_out);
+  CELEBORN_FFI_REQUIRE_NON_NULL(len_out, err_out);
   return guarded(err_out, [&] {
     auto stream = as_impl(handle)->client->readPartition(
         shuffle_id,
@@ -234,6 +275,8 @@ celeborn_ffi_status celeborn_ffi_open_partition_reader(
     int32_t end_map_index,
     celeborn_ffi_partition_reader** reader_out,
     char** err_out) {
+  CELEBORN_FFI_REQUIRE_NON_NULL(handle, err_out);
+  CELEBORN_FFI_REQUIRE_NON_NULL(reader_out, err_out);
   return guarded(err_out, [&] {
     auto reader = std::make_unique<PartitionReaderImpl>();
     reader->stream = as_impl(handle)->client->readPartition(
@@ -253,6 +296,12 @@ celeborn_ffi_status celeborn_ffi_read_partition_chunk(
     size_t buf_len,
     size_t* bytes_read,
     char** err_out) {
+  CELEBORN_FFI_REQUIRE_NON_NULL(reader, err_out);
+  CELEBORN_FFI_REQUIRE_NON_NULL(bytes_read, err_out);
+  if (buf == nullptr && buf_len > 0) {
+    set_error(err_out, "null pointer for argument 'buf'");
+    return CELEBORN_FFI_ERROR;
+  }
   return guarded(err_out, [&] {
     if (buf_len == 0) {
       *bytes_read = 0;

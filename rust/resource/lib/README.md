@@ -19,7 +19,7 @@ prints from `rustc -vV` (`host:` line) or accepts in `cargo build --target`:
 
 | Platform         | Triple                       | Filename                  |
 |------------------|------------------------------|---------------------------|
-| macOS Apple Si   | `aarch64-apple-darwin`       | `libceleborn_client.dylib`|
+| macOS Apple Silicon | `aarch64-apple-darwin`    | `libceleborn_client.dylib`|
 | macOS Intel      | `x86_64-apple-darwin`        | `libceleborn_client.dylib`|
 | Linux x86_64     | `x86_64-unknown-linux-gnu`   | `libceleborn_client.so`   |
 | Linux aarch64    | `aarch64-unknown-linux-gnu`  | `libceleborn_client.so`   |

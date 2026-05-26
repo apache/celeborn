@@ -23,8 +23,8 @@ use std::process::Command;
 ///    custom installs.
 /// 2. In-repo prebuilt artifact at
 ///    `rust/resource/lib/<target-triple>/libceleborn_client.{so,dylib}`.
-///    This mirrors how `alake_rust_pangu_lightsdk` ships its native blob:
-///    drop the file in, no env var needed.
+///    Drop the matching dylib in and `cargo build` picks it up with no
+///    extra environment variable.
 /// 3. Fall back to driving `cmake` against the in-repo `cpp/` source tree
 ///    and installing into `$OUT_DIR/celeborn-cpp-install/lib`.
 fn resolve_lib_dir() -> PathBuf {
@@ -171,4 +171,16 @@ fn main() {
     println!("cargo:rerun-if-env-changed=CELEBORN_CPP_PREFIX");
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     println!("cargo:rerun-if-changed={manifest_dir}/../resource/lib");
+
+    // When we fall back to building cpp/ from source (option 3 in
+    // resolve_lib_dir), edits under cpp/ must trigger a rebuild of the
+    // dylib. Declare the dependency unconditionally so that toggling
+    // between prebuilt and from-source modes does not require touching
+    // the build script.
+    let cpp_dir = PathBuf::from(&manifest_dir).join("../../cpp");
+    if cpp_dir.exists() {
+        let cpp_dir_str = cpp_dir.display();
+        println!("cargo:rerun-if-changed={cpp_dir_str}/CMakeLists.txt");
+        println!("cargo:rerun-if-changed={cpp_dir_str}/celeborn");
+    }
 }
