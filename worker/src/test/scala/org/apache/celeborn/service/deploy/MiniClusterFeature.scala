@@ -213,13 +213,16 @@ trait MiniClusterFeature extends Logging {
     val workers = new Array[Worker](workerNum)
     val flagUpdateLock = new ReentrantLock()
     val threads = (1 to workerNum).map { i =>
+      // The first createWorker happens on the calling thread so Mockito's mockConstruction
+      // (which is thread-scoped in Mockito 4.x) can intercept the MasterClient construction
+      // inside `new Worker(...)`. Subsequent attempts (retries after a BindException etc.)
+      // construct on the worker starter thread, which is acceptable since no test mocks
+      // construction across retries.
+      var worker = createWorker(workerConf)
       val workerThread = new RunnerWrap({
         var workerStartRetry = 0
         var workerStarted = false
         while (!workerStarted) {
-          // Create a fresh Worker per attempt: ports are picked in createWorker, and
-          // Worker#initialize is not idempotent (e.g. MetricsSystem.start fails the second time).
-          val worker = createWorker(workerConf)
           try {
             flagUpdateLock.lock()
             try {
@@ -245,6 +248,9 @@ trait MiniClusterFeature extends Logging {
                 throw ex
               }
               TimeUnit.SECONDS.sleep(Math.pow(2, workerStartRetry).toLong)
+              // Worker#initialize is not idempotent (e.g. MetricsSystem.start fails the second
+              // time), so retry with a fresh Worker (and fresh ports).
+              worker = createWorker(workerConf)
           }
         }
       })
