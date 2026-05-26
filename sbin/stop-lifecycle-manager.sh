@@ -133,7 +133,9 @@ case "${MODE}" in
     for pid_file in "${LOG_DIR}"/lifecyclemanager-*.pid; do
       [ -f "${pid_file}" ] || continue
       found=1
-      stop_by_pid_file "${pid_file}"
+      if ! stop_by_pid_file "${pid_file}"; then
+        echo "Warning: failed to stop instance referenced by ${pid_file}" >&2
+      fi
     done
     if [ "${found}" -eq 0 ]; then
       echo "No running LifecycleManager instances found."
