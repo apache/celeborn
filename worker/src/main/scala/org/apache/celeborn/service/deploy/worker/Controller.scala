@@ -705,18 +705,46 @@ private[deploy] class Controller(
                 case throwable: Throwable =>
                   logError(s"$errMsg, an unexpected exception occurred.", throwable)
               }
+              // Preserve any partitions that did commit successfully before
+              // the future was cancelled/timed out. The driver handles
+              // PARTIAL_SUCCESS via the existing CommitHandler retry loop, so
+              // reporting partial work lets the shuffle's reducer tasks read
+              // the committed partitions and only re-run the genuinely-failed
+              // ones. The legacy COMMIT_FILE_EXCEPTION behaviour is preserved
+              // when nothing committed.
+              val response =
+                if (committedPrimaryIds.isEmpty && committedReplicaIds.isEmpty) {
+                  CommitFilesResponse(
+                    StatusCode.COMMIT_FILE_EXCEPTION,
+                    List.empty.asJava,
+                    List.empty.asJava,
+                    primaryIds,
+                    replicaIds)
+                } else {
+                  CommitFilesResponse(
+                    StatusCode.PARTIAL_SUCCESS,
+                    new jArrayList[String](committedPrimaryIds),
+                    new jArrayList[String](committedReplicaIds),
+                    new jArrayList[String](failedPrimaryIds),
+                    new jArrayList[String](failedReplicaIds),
+                    new jHashMap[String, StorageInfo](committedPrimaryStorageInfos),
+                    new jHashMap[String, StorageInfo](committedReplicaStorageInfos),
+                    new jHashMap[String, RoaringBitmap](committedMapIdBitMap),
+                    partitionSizeList.asScala.sum,
+                    partitionSizeList.size())
+                }
               commitInfo.synchronized {
-                commitInfo.response = CommitFilesResponse(
-                  StatusCode.COMMIT_FILE_EXCEPTION,
-                  List.empty.asJava,
-                  List.empty.asJava,
-                  primaryIds,
-                  replicaIds)
-
+                commitInfo.response = response
                 commitInfo.status = CommitInfo.COMMIT_FINISHED
               }
+              // Reply to the originating commit RPC. Without this the driver
+              // waits the full `rpc.commitFiles.askTimeout` for a reply that
+              // never comes, even though the worker has already determined
+              // the outcome.
+              context.reply(response)
 
               workerSource.incCounter(WorkerSource.COMMIT_FILES_FAIL_COUNT)
+              workerSource.stopTimer(WorkerSource.COMMIT_FILES_TIME, shuffleKey)
             } else {
               // finish, cancel timeout job first.
               timeout.cancel()
