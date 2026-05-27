@@ -95,9 +95,9 @@ abstract private[worker] class Flusher(
                   }
                   lastBeginFlushTime.set(index, -1)
                 }
-                Utils.tryLogNonFatalError(returnBuffer(task.buffer, task.keepBuffer))
-                task.notifier.numPendingFlushes.decrementAndGet()
               }
+              Utils.tryLogNonFatalError(returnBuffer(task.buffer, task.keepBuffer))
+              task.notifier.numPendingFlushes.decrementAndGet()
             } else {
               allocator match {
                 case alloc: PooledByteBufAllocator =>
