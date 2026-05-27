@@ -699,18 +699,35 @@ private[deploy] class Controller(
                 case throwable: Throwable =>
                   logError(s"$errMsg, an unexpected exception occurred.", throwable)
               }
+              val response =
+                if (committedPrimaryIds.isEmpty && committedReplicaIds.isEmpty) {
+                  CommitFilesResponse(
+                    StatusCode.COMMIT_FILE_EXCEPTION,
+                    List.empty.asJava,
+                    List.empty.asJava,
+                    primaryIds,
+                    replicaIds)
+                } else {
+                  CommitFilesResponse(
+                    StatusCode.PARTIAL_SUCCESS,
+                    new jArrayList[String](committedPrimaryIds),
+                    new jArrayList[String](committedReplicaIds),
+                    new jArrayList[String](failedPrimaryIds),
+                    new jArrayList[String](failedReplicaIds),
+                    new jHashMap[String, StorageInfo](committedPrimaryStorageInfos),
+                    new jHashMap[String, StorageInfo](committedReplicaStorageInfos),
+                    new jHashMap[String, RoaringBitmap](committedMapIdBitMap),
+                    partitionSizeList.asScala.sum,
+                    partitionSizeList.size())
+                }
               commitInfo.synchronized {
-                commitInfo.response = CommitFilesResponse(
-                  StatusCode.COMMIT_FILE_EXCEPTION,
-                  List.empty.asJava,
-                  List.empty.asJava,
-                  primaryIds,
-                  replicaIds)
-
+                commitInfo.response = response
                 commitInfo.status = CommitInfo.COMMIT_FINISHED
               }
+              context.reply(response)
 
               workerSource.incCounter(WorkerSource.COMMIT_FILES_FAIL_COUNT)
+              workerSource.stopTimer(WorkerSource.COMMIT_FILES_TIME, shuffleKey)
             } else {
               // finish, cancel timeout job first.
               timeout.cancel()
