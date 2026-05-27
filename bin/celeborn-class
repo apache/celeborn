@@ -76,6 +76,8 @@ if [ ! -d "$CELEBORN_JARS_DIR" ]; then
   echo "Failed to find CELEBORN jars directory ($CELEBORN_JARS_DIR)." 1>&2
   echo "You need to build CELEBORN with the target \"package\" before running this program." 1>&2
   exit 1
+elif [ -z "$JAVA_TOOLS_JAR" ]; then
+  CELEBORN_CLASSPATH="$CELEBORN_CONF_DIR:$HADOOP_CONF_DIR:$CELEBORN_JARS_DIR/*"
 else
   CELEBORN_CLASSPATH="$CELEBORN_CONF_DIR:$HADOOP_CONF_DIR:$CELEBORN_JARS_DIR/*:$JAVA_TOOLS_JAR"
 fi
