@@ -88,4 +88,32 @@ class ApiWorkerResource extends ApiRequestContext {
   def exit(@FormParam("type") exitType: String): String = {
     httpService.exit(normalizeParam(exitType))
   }
+
+  @Path("/servingState")
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.TEXT_PLAIN)),
+    description =
+      "Show the current serving state and whether a manual override is active.")
+  @GET
+  def getServingState(): String = httpService.getServingState()
+
+  @Path("/servingState")
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_FORM_URLENCODED)),
+    description =
+      "Force the worker serving state. " +
+        "Legal values for 'state' are 'PUSH_AND_REPLICATE_PAUSED', 'PUSH_PAUSED' and 'NONE_PAUSED'," +
+        " or empty to clear the override. " +
+        "Optional 'timeoutMs' auto-clears the override after the given duration; omit to hold indefinitely.")
+  @POST
+  def setServingState(
+      @FormParam("state") state: String,
+      @FormParam("timeout") timeoutStr: String): String = {
+    httpService.setServingState(normalizeParam(state), normalizeParam(timeoutStr))
+  }
+
 }
