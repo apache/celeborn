@@ -36,7 +36,7 @@ Celeborn does not eagerly consider `Worker` lost when push data fails, instead i
 unavailable, and asks for another (pair of) `PartitionLocation`(s) on different `Worker`(s) to continue pushing.
 The process is called `Revive`:
 
-![Revive](../../assets/img/revive.svg)
+![Revive](../assets/img/revive.svg)
 
 Handling [PushMergedData](../../developers/shuffleclient#push-or-merge) failure is similar but more complex. Currently,
 `PushMergedData` is in all-or-nothing fashion, meaning either all data batches in the request succeed or all fail.
@@ -57,7 +57,7 @@ When a `Worker` is down, all `PartitionLocation`s on the `Worker` will be revive
 to `LifecycleManager`. To alleviate this, `ShuffleClient` batches all `Revive` requests before sending to
 `LifecycleManager`:
 
-![BatchRevive](../../assets/img/batchrevive.svg)
+![BatchRevive](../assets/img/batchrevive.svg)
 
 ## Handle Fetch Failure
 As [ReducePartition](../../developers/storage#reducepartition) describes, data file consists of chunks, `ShuffleClient`
