@@ -256,7 +256,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     val splitStatus = checkDiskFullAndSplit(fileWriter, isPrimary)
     if (splitStatus == StatusCode.HARD_SPLIT) {
       workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
-      callback.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+      callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
       return
     } else if (splitStatus == StatusCode.SOFT_SPLIT) {
       softSplit = true
@@ -303,7 +303,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
               Try(Await.result(writePromise.future, Duration.Inf)) match {
                 case Success(result) =>
                   if (result(0) != StatusCode.SUCCESS) {
-                    callback.onSuccess(ByteBuffer.wrap(Array[Byte](result(0).getValue)))
+                    callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](result(0).getValue)))
                   } else {
                     if (response.remaining() > 0) {
                       val resp = ByteBuffer.allocate(response.remaining())
@@ -398,7 +398,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       Try(Await.result(writePromise.future, Duration.Inf)) match {
         case Success(result) =>
           if (result(0) != StatusCode.SUCCESS) {
-            callback.onSuccess(ByteBuffer.wrap(Array[Byte](result(0).getValue)))
+            callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](result(0).getValue)))
           } else {
             if (softSplit) {
               callbackWithTimer.onSuccess(
