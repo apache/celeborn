@@ -49,10 +49,17 @@ class JVMQuakeSuite extends CelebornFunSuite {
   }
 
   test("[CELEBORN-1092] Introduce JVM monitoring in Celeborn Worker using JVMQuake") {
+    // Use millisecond-scale thresholds so the test completes quickly.  With the
+    // fix for CELEBORN-2324 thresholds are now correctly parsed as milliseconds
+    // (instead of accidentally being wrapped as microseconds), so "1s" would
+    // require ~1s of accumulated GC time which can take effectively forever in
+    // this tight allocation loop because runtimeWeight=1 causes the bucket to
+    // decay when gcTime < runTime.
     val quake = new JVMQuake(new CelebornConf().set(WORKER_JVM_QUAKE_ENABLED.key, "true")
-      .set(WORKER_JVM_QUAKE_RUNTIME_WEIGHT.key, "1")
-      .set(WORKER_JVM_QUAKE_DUMP_THRESHOLD.key, "1s")
-      .set(WORKER_JVM_QUAKE_KILL_THRESHOLD.key, "2s"))
+      .set(WORKER_JVM_QUAKE_RUNTIME_WEIGHT.key, "0")
+      .set(WORKER_JVM_QUAKE_CHECK_INTERVAL.key, "10ms")
+      .set(WORKER_JVM_QUAKE_DUMP_THRESHOLD.key, "1ms")
+      .set(WORKER_JVM_QUAKE_KILL_THRESHOLD.key, "1h"))
     quake.start()
     allocateMemory(quake)
     quake.stop()

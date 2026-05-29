@@ -36,6 +36,9 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
   celebornConf
     .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "true")
     .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
+    // Speed up the delayed-unregister path so the tests don't consistently
+    // wait the full 120s eventually timeout.
+    .set(CelebornConf.SHUFFLE_EXPIRED_CHECK_INTERVAL.key, "1s")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
