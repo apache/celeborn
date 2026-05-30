@@ -213,11 +213,11 @@ trait MiniClusterFeature extends Logging {
     val workers = new Array[Worker](workerNum)
     val flagUpdateLock = new ReentrantLock()
     val threads = (1 to workerNum).map { i =>
+      val worker = createWorker(workerConf)
       val workerThread = new RunnerWrap({
         var workerStartRetry = 0
         var workerStarted = false
         while (!workerStarted) {
-          val worker = createWorker(workerConf)
           try {
             flagUpdateLock.lock()
             workers(i - 1) = worker
@@ -228,6 +228,7 @@ trait MiniClusterFeature extends Logging {
             case ex: Exception =>
               if (workers(i - 1) != null) {
                 workers(i - 1).shutdownGracefully()
+                workers(i - 1).metricsSystem.stop()
               }
               workerStarted = false
               workerStartRetry += 1
