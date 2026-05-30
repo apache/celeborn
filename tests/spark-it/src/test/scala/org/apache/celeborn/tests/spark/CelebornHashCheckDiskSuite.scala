@@ -35,7 +35,7 @@ class CelebornHashCheckDiskSuite extends SparkTestBase {
   override def beforeAll(): Unit = {
     logInfo("celebornHashCheckDiskSuite test initialized , setup Celeborn mini cluster")
     val masterConf = Map(
-      CelebornConf.APPLICATION_HEARTBEAT_TIMEOUT.key -> "10s")
+      CelebornConf.APPLICATION_HEARTBEAT_TIMEOUT.key -> "120s")
     val workerConf = Map(
       CelebornConf.WORKER_STORAGE_DIRS.key -> "/tmp:capacity=1000",
       CelebornConf.WORKER_DISK_RESERVE_SIZE.key -> "0G")
