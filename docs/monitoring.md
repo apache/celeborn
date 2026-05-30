@@ -122,6 +122,7 @@ These metrics are exposed by Celeborn master.
     | RatisApplyCompletedIndexDiff | The difference value of ApplyCompletedIndex of the master nodes in HA mode.               |
     | PartitionSize                | The size of estimated shuffle partition.                                                  |
     | OfferSlotsTime               | The time for masters to handle `RequestSlots` request when registering shuffle.           |
+    | RequestSlotsFailed           | The count of failed `RequestSlots` requests, labeled by the failure status.                |
 
   - namespace=CPU
 
