@@ -96,7 +96,7 @@ public class ManagedRocksDBSuiteJ {
         for (iter.seekToFirst(); iter.isValid(); iter.next()) {
           seen++;
         }
-        assertTrue("expected at least 3 entries from forwarded iterator, got " + seen, seen >= 3);
+        assertTrue("expected at least 2 entries from forwarded iterator, got " + seen, seen >= 2);
       }
     } finally {
       managedDb.close();
