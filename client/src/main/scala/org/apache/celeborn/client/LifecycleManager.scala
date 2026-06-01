@@ -118,6 +118,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val rpcCacheConcurrencyLevel = conf.clientRpcCacheConcurrencyLevel
   private val rpcCacheExpireTime = conf.clientRpcCacheExpireTime
   private val rpcMaxRetires = conf.clientRpcMaxRetries
+  private val rpcAskTimeoutMs = conf.rpcAskTimeout.duration.toMillis
 
   private val batchRemoveExpiredShufflesEnabled = conf.batchHandleRemoveExpiredShufflesEnabled
 
@@ -575,7 +576,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       futures.add((future, workerInfo))
     }
 
-    var timeout = conf.rpcAskTimeout.duration.toMillis
+    var timeout = rpcAskTimeoutMs
     val delta = 50
     while (timeout > 0 && !futures.isEmpty) {
       val iter = futures.iterator
@@ -1334,7 +1335,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val futureSeq = Future.sequence(outFutures)(cbf, ec)
     awaitResult(futureSeq, Duration.Inf)
 
-    var timeout = conf.rpcAskTimeout.duration.toMillis
+    var timeout = rpcAskTimeoutMs
     val delta = 50
     while (timeout >= 0 && !futures.isEmpty) {
       val iter = futures.iterator()
@@ -1721,7 +1722,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         futures.add(DestroyFutureWithStatus(future, destroy, workerInfo.endpoint, 1, startTime))
     }
 
-    val timeout = conf.rpcAskTimeout.duration.toMillis
+    val timeout = rpcAskTimeoutMs
     var remainingTime = timeout * rpcMaxRetires
     val delta = 50
     while (remainingTime > 0 && !futures.isEmpty) {
