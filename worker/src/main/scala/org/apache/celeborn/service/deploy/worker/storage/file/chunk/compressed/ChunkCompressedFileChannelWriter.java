@@ -20,7 +20,6 @@ package org.apache.celeborn.service.deploy.worker.storage.file.chunk.compressed;
 import com.google.common.annotations.VisibleForTesting;
 import com.github.luben.zstd.Zstd;
 import com.github.luben.zstd.ZstdCompressCtx;
-import com.github.luben.zstd.ZstdOutputStream;
 import io.netty.buffer.CompositeByteBuf;
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.ReduceFileMeta;
@@ -28,7 +27,6 @@ import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.service.deploy.worker.storage.file.FileChannelWriter;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
@@ -36,7 +34,6 @@ import java.util.List;
 
 public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
     private static final int ZSTD_COMPRESSION_LEVEL = 1;
-    private static final int LARGE_RECORD_STAGING_BUF_SIZE = 8192;
 
     private final FileChannel channel;
     private final DiskFileInfo diskFileInfo;
@@ -46,9 +43,10 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
     private ByteBuffer compressedChunkBuffer;
     private final List<Long> chunkOffsets;
     private final long chunkSize;
-    // Reused across flushLargeRecord calls to avoid per-call allocation.
-    private final OutputStream channelOut;
-    private final byte[] largeRecordStagingBuf;
+    // Reusable direct buffers for the flushLargeRecord path; lazily allocated and grown on
+    // demand, retained for the lifetime of the writer to amortize allocation across records.
+    private ByteBuffer largeInputDirect;
+    private ByteBuffer largeOutputDirect;
 
     public ChunkCompressedFileChannelWriter(DiskFileInfo diskFileInfo, long chunkSize) throws IOException {
         this.diskFileInfo = diskFileInfo;
@@ -61,20 +59,6 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
         compressedChunkBuffer = bufferPair.compressedBuffer;
         chunkOffsets = new ArrayList<>();
         chunkOffsets.add(0L);
-        channelOut = new OutputStream() {
-            @Override
-            public void write(byte[] b, int off, int len) throws IOException {
-                ByteBuffer buf = ByteBuffer.wrap(b, off, len);
-                while (buf.hasRemaining()) {
-                    channel.write(buf);
-                }
-            }
-            @Override
-            public void write(int b) throws IOException {
-                channel.write(ByteBuffer.wrap(new byte[]{(byte) b}));
-            }
-        };
-        largeRecordStagingBuf = new byte[LARGE_RECORD_STAGING_BUF_SIZE];
     }
 
     @Override
@@ -100,22 +84,78 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
     }
 
     /**
-     * Compresses the entire buffer as a single chunk and writes it to the channel.
-     * Uses ZstdOutputStream for streaming compression without an intermediate compressed buffer.
-     * channelOut and largeRecordStagingBuf are reused fields to avoid per-call allocation;
-     * ZstdOutputStream (native ZSTD context) is still created per call as it cannot be safely
-     * reused across frames without risking a spurious empty-frame write on close.
+     * Compresses the whole large record as a single ZSTD frame in one JNI call using the
+     * writer's owned {@link ZstdCompressCtx}, then writes the compressed bytes to the channel.
+     *
+     * If the source {@link CompositeByteBuf} is already backed by a single direct
+     * {@link ByteBuffer}, that buffer is fed to ZSTD with zero copy. Otherwise the data is
+     * consolidated into a reusable direct staging buffer first. The output direct buffer is
+     * also reused across calls and grown on demand.
      */
     private void flushLargeRecord(CompositeByteBuf buffer) throws IOException {
-        try (ZstdOutputStream zstdOut = new ZstdOutputStream(channelOut, ZSTD_COMPRESSION_LEVEL)) {
-            while (buffer.isReadable()) {
-                int toRead = Math.min(buffer.readableBytes(), largeRecordStagingBuf.length);
-                buffer.readBytes(largeRecordStagingBuf, 0, toRead);
-                zstdOut.write(largeRecordStagingBuf, 0, toRead);
+        int srcLen = buffer.readableBytes();
+
+        ByteBuffer src;
+        int srcPos;
+        if (buffer.nioBufferCount() == 1) {
+            ByteBuffer single = buffer.nioBuffer();
+            if (single.isDirect()) {
+                src = single;
+                srcPos = src.position();
+            } else {
+                src = consolidateIntoDirectInput(buffer, srcLen);
+                srcPos = 0;
             }
-        } // close() finalizes the ZSTD frame and flushes all bytes to the channel
+        } else {
+            src = consolidateIntoDirectInput(buffer, srcLen);
+            srcPos = 0;
+        }
+
+        int boundLen = (int) Zstd.compressBound(srcLen);
+        ByteBuffer dst = ensureLargeOutputCapacity(boundLen);
+
+        int compressedSize;
+        try {
+            compressedSize = (int) zstdCtx.compressDirectByteBuffer(
+                dst, 0, boundLen,
+                src, srcPos, srcLen);
+        } catch (RuntimeException e) {
+            throw new IOException("Failed to compress large record with ZSTD.", e);
+        }
+
+        dst.position(0).limit(compressedSize);
+        while (dst.hasRemaining()) {
+            channel.write(dst);
+        }
 
         chunkOffsets.add(channel.position());
+    }
+
+    private ByteBuffer consolidateIntoDirectInput(CompositeByteBuf buffer, int srcLen) {
+        ByteBuffer dst = ensureLargeInputCapacity(srcLen);
+        for (ByteBuffer component : buffer.nioBuffers()) {
+            dst.put(component);
+        }
+        dst.flip();
+        return dst;
+    }
+
+    private ByteBuffer ensureLargeInputCapacity(int n) {
+        if (largeInputDirect == null || largeInputDirect.capacity() < n) {
+            largeInputDirect = ByteBuffer.allocateDirect(n);
+        } else {
+            largeInputDirect.clear();
+        }
+        return largeInputDirect;
+    }
+
+    private ByteBuffer ensureLargeOutputCapacity(int n) {
+        if (largeOutputDirect == null || largeOutputDirect.capacity() < n) {
+            largeOutputDirect = ByteBuffer.allocateDirect(n);
+        } else {
+            largeOutputDirect.clear();
+        }
+        return largeOutputDirect;
     }
 
     @VisibleForTesting
