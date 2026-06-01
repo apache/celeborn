@@ -692,7 +692,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   private Pair<Boolean, Long> isExceedingUnhealthyThreshold(Map<String, DiskInfo> diskMap) {
     long unhealthyCount =
-        diskMap.values().stream().filter(disk -> !disk.status().equals(DiskStatus.HEALTHY)).count();
+        diskMap.values().stream().filter(disk -> !disk.isHealthy()).count();
     return new ImmutablePair<>(
         unhealthyCount * 1.0 / diskMap.size() >= unhealthyDiskRatioThreshold, unhealthyCount);
   }
