@@ -44,7 +44,6 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.ApplicationInfo;
 import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
-import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.WorkerEventInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
@@ -691,8 +690,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   private Pair<Boolean, Long> isExceedingUnhealthyThreshold(Map<String, DiskInfo> diskMap) {
-    long unhealthyCount =
-        diskMap.values().stream().filter(disk -> !disk.isHealthy()).count();
+    long unhealthyCount = diskMap.values().stream().filter(disk -> !disk.isHealthy()).count();
     return new ImmutablePair<>(
         unhealthyCount * 1.0 / diskMap.size() >= unhealthyDiskRatioThreshold, unhealthyCount);
   }
