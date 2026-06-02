@@ -35,7 +35,9 @@ class MasterSource(conf: CelebornConf) extends AbstractSource(conf, Role.MASTER)
   startCleaner()
 
   def incRequestSlotsFailed(status: StatusCode): Unit = {
-    incCounter(REQUEST_SLOTS_FAILED_COUNT, 1, Map(STATUS_LABEL -> status.name()))
+    if (RequestSlotsFailureStatuses.contains(status)) {
+      incCounter(REQUEST_SLOTS_FAILED_COUNT, 1, Map(STATUS_LABEL -> status.name()))
+    }
   }
 }
 

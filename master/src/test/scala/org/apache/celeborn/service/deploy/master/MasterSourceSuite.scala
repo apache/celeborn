@@ -30,13 +30,14 @@ class MasterSourceSuite extends CelebornFunSuite {
 
     source.incRequestSlotsFailed(StatusCode.SLOT_NOT_AVAILABLE)
     source.incRequestSlotsFailed(StatusCode.WORKER_EXCLUDED)
+    source.incRequestSlotsFailed(StatusCode.SUCCESS)
 
     val metrics = source.getMetrics
+    val instance = source.instanceLabel("instance")
     assert(metrics.contains(
-      """metrics_RequestSlotsFailed_Count{instance="""))
+      s"""metrics_RequestSlotsFailed_Count{instance="$instance",role="Master",status="SLOT_NOT_AVAILABLE"} 1"""))
     assert(metrics.contains(
-      """role="Master",status="SLOT_NOT_AVAILABLE"} 1"""))
-    assert(metrics.contains(
-      """role="Master",status="WORKER_EXCLUDED"} 1"""))
+      s"""metrics_RequestSlotsFailed_Count{instance="$instance",role="Master",status="WORKER_EXCLUDED"} 1"""))
+    assert(!metrics.contains("""status="SUCCESS""""))
   }
 }
