@@ -164,7 +164,7 @@ class ApplicationHeartbeater(
   }
 
   private def checkQuotaExceeds(response: CheckQuotaResponse): Unit = {
-    if (conf.quotaInterruptShuffleEnabled && !response.isAvailable && response.reason.nonEmpty) {
+    if (conf.quotaInterruptShuffleEnabled && !response.isAvailable) {
       cancelAllActiveStages(
         s"Application interrupted caused by storage quota exceeded, reason: ${response.reason}")
     }
