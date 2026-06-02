@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <folly/init/Init.h>
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -24,25 +25,26 @@
 #include <celeborn/client/ShuffleClient.h>
 
 int main(int argc, char** argv) {
-  // Read the configs.
-  assert(argc == 9);
+  folly::init(&argc, &argv, false);
+  assert(argc == 10);
   std::string lifecycleManagerHost = argv[1];
   int lifecycleManagerPort = std::atoi(argv[2]);
   std::string appUniqueId = argv[3];
   int shuffleId = std::atoi(argv[4]);
   int attemptId = std::atoi(argv[5]);
-  int numPartitions = std::atoi(argv[6]);
-  std::string resultFile = argv[7];
-  std::string compressCodec = argv[8];
+  int numMappers = std::atoi(argv[6]);
+  int numPartitions = std::atoi(argv[7]);
+  std::string resultFile = argv[8];
+  std::string compressCodec = argv[9];
   std::cout << "lifecycleManagerHost = " << lifecycleManagerHost
             << ", lifecycleManagerPort = " << lifecycleManagerPort
             << ", appUniqueId = " << appUniqueId
             << ", shuffleId = " << shuffleId << ", attemptId = " << attemptId
+            << ", numMappers = " << numMappers
             << ", numPartitions = " << numPartitions
-            << ", resultFile = " << resultFile << std::endl
+            << ", resultFile = " << resultFile
             << ", compressCodec = " << compressCodec << std::endl;
 
-  // Create shuffleClient and setup.
   auto conf = std::make_shared<celeborn::conf::CelebornConf>();
   conf->registerProperty(
       celeborn::conf::CelebornConf::kShuffleCompressionCodec, compressCodec);
@@ -53,36 +55,38 @@ int main(int argc, char** argv) {
   shuffleClient->setupLifecycleManagerRef(
       lifecycleManagerHost, lifecycleManagerPort);
 
-  // Read data, parse data and sum up.
+  long maxData = 1000000;
+  size_t numData = 1000;
   std::vector<long> result(numPartitions, 0);
-  shuffleClient->updateReducerFileGroup(shuffleId);
-  for (int partitionId = 0; partitionId < numPartitions; partitionId++) {
-    auto inputStream = shuffleClient->readPartition(
-        shuffleId, partitionId, attemptId, 0, INT_MAX);
-    char c;
-    long data = 0;
-    int dataCnt = 0;
-    while (inputStream->read((uint8_t*)&c, 0, 1) > 0) {
-      if (c == '-') {
+  std::vector<size_t> dataCnt(numPartitions, 0);
+  for (int mapId = 0; mapId < numMappers; mapId++) {
+    for (int partitionId = 0; partitionId < numPartitions; partitionId++) {
+      for (size_t i = 0; i < numData; i++) {
+        int data = std::rand() % maxData;
         result[partitionId] += data;
-        data = 0;
-        dataCnt++;
-        continue;
+        dataCnt[partitionId]++;
+        std::string dataStr = "-" + std::to_string(data);
+        shuffleClient->mergeData(
+            shuffleId,
+            mapId,
+            attemptId,
+            partitionId,
+            reinterpret_cast<const uint8_t*>(dataStr.c_str()),
+            0,
+            dataStr.size(),
+            numMappers,
+            numPartitions);
       }
-      if (c == '+') {
-        continue;
-      }
-      assert(c >= '0' && c <= '9');
-      data *= 10;
-      data += c - '0';
     }
-    result[partitionId] += data;
+    shuffleClient->pushMergedData(shuffleId, mapId, attemptId);
+    shuffleClient->mapperEnd(shuffleId, mapId, attemptId, numMappers);
+  }
+  for (int partitionId = 0; partitionId < numPartitions; partitionId++) {
     std::cout << "partition " << partitionId
               << " sum result = " << result[partitionId]
-              << ", dataCnt = " << dataCnt << std::endl;
+              << ", dataCnt = " << dataCnt[partitionId] << std::endl;
   }
 
-  // Write result to resultFile.
   remove(resultFile.c_str());
   std::ofstream of(resultFile);
   for (int partitionId = 0; partitionId < numPartitions; partitionId++) {
