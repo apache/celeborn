@@ -1364,12 +1364,13 @@ object ControlMessages extends Logging {
       case HEARTBEAT_FROM_APPLICATION_RESPONSE_VALUE =>
         val pbHeartbeatFromApplicationResponse =
           PbHeartbeatFromApplicationResponse.parseFrom(message.getPayload)
-        val checkQuotaResponse = if (pbHeartbeatFromApplicationResponse.hasCheckQuotaResponse) {
-          val pbCheckQuotaResponse = pbHeartbeatFromApplicationResponse.getCheckQuotaResponse
-          CheckQuotaResponse(pbCheckQuotaResponse.getAvailable, pbCheckQuotaResponse.getReason)
-        } else {
-          CheckQuotaResponse(isAvailable = true, "")
-        }
+        val checkQuotaResponse =
+          if (pbHeartbeatFromApplicationResponse.hasCheckQuotaResponse) {
+            val pbCheckQuotaResponse = pbHeartbeatFromApplicationResponse.getCheckQuotaResponse
+            CheckQuotaResponse(pbCheckQuotaResponse.getAvailable, pbCheckQuotaResponse.getReason)
+          } else {
+            CheckQuotaResponse(isAvailable = true, "")
+          }
         HeartbeatFromApplicationResponse(
           StatusCode.fromValue(pbHeartbeatFromApplicationResponse.getStatus),
           pbHeartbeatFromApplicationResponse.getExcludedWorkersList.asScala

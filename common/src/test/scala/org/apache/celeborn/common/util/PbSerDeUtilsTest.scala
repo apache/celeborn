@@ -31,10 +31,11 @@ import org.apache.hadoop.shaded.org.apache.commons.lang3.RandomStringUtils
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta._
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, PbFileInfo, PbPackedWorkerResource, PbWorkerResource, StorageInfo}
+import org.apache.celeborn.common.network.protocol.TransportMessage
+import org.apache.celeborn.common.protocol.{MessageType, PartitionLocation, PartitionType, PbFileInfo, PbHeartbeatFromApplicationResponse, PbPackedWorkerResource, PbWorkerResource, StorageInfo}
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
-import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, WorkerResource}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{CheckQuotaResponse, GetReducerFileGroupResponse, HeartbeatFromApplicationResponse, WorkerResource}
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.PbSerDeUtils.{fromPbPackedPartitionLocationsPair, toPbPackedPartitionLocationsPair, toPbUserIdentifier}
 import org.apache.celeborn.common.write.LocationPushFailedBatches
@@ -806,4 +807,52 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     assert(restoredFailedBatch.equals(failedBatch))
   }
 
+  test("fromAndToHeartbeatFromApplicationResponse") {
+    val heartbeatFromApplicationResponse = HeartbeatFromApplicationResponse(
+      StatusCode.SUCCESS,
+      mockWorkers("host0").toList.asJava,
+      mockWorkers("host1").toList.asJava,
+      mockWorkers("host2").toList.asJava,
+      Array(Integer.valueOf(1)).toList.asJava,
+      CheckQuotaResponse(isAvailable = false, "test_reason"))
+    val toTransportHeartbeatFromApplicationResponse =
+      ControlMessages.toTransportMessage(heartbeatFromApplicationResponse)
+    val fromTransportHeartbeatFromApplicationResponse =
+      ControlMessages.fromTransportMessage(toTransportHeartbeatFromApplicationResponse)
+        .asInstanceOf[HeartbeatFromApplicationResponse]
+
+    assert(fromTransportHeartbeatFromApplicationResponse.equals(heartbeatFromApplicationResponse))
+  }
+
+  test("HeartbeatFromApplicationResponse backward compatibility without checkQuotaResponse") {
+    val payload = PbHeartbeatFromApplicationResponse.newBuilder()
+      .setStatus(StatusCode.SUCCESS.getValue)
+      .addAllExcludedWorkers(
+        mockWorkers("host0").map(PbSerDeUtils.toPbWorkerInfo(
+          _,
+          true,
+          true)).toList.asJava)
+      .addAllUnknownWorkers(
+        mockWorkers("host1").map(PbSerDeUtils.toPbWorkerInfo(
+          _,
+          true,
+          true)).toList.asJava)
+      .addAllShuttingWorkers(
+        mockWorkers("host2").map(PbSerDeUtils.toPbWorkerInfo(
+          _,
+          true,
+          true)).toList.asJava)
+      .addAllRegisteredShuffles(Array(Integer.valueOf(1)).toList.asJava)
+      .build().toByteArray
+    val fromTransportHeartbeatFromApplicationResponse = ControlMessages.fromTransportMessage(
+      new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION_RESPONSE, payload))
+      .asInstanceOf[HeartbeatFromApplicationResponse]
+    assert(
+      fromTransportHeartbeatFromApplicationResponse.checkQuotaResponse.isAvailable.equals(true))
+    assert(fromTransportHeartbeatFromApplicationResponse.checkQuotaResponse.reason.equals(""))
+  }
+
+  def mockWorkers(host: String): Array[WorkerInfo] = {
+    Array(new WorkerInfo(host, -1, -1, -1, -1))
+  }
 }
