@@ -17,6 +17,11 @@
 //! Usage: data_sum_writer <lm_host> <lm_port> <app_id> <shuffle_id> <attempt_id>
 //!        <num_mappers> <num_partitions> <result_file> <compress_codec>
 //!
+//! Concurrency: a single `Arc<ShuffleClient>` is shared across `num_mappers`
+//! threads. Each thread owns one map task, pushes all of its partitions, and
+//! issues `mapper_end`, all in parallel — exercising the `&self` push path that
+//! makes the client safe to share for concurrent writes.
+//!
 //! Requires env_logger initialized for diagnostic output from celeborn-client Drop path.
 //! Set RUST_LOG=info (or debug) for verbose output.
 
@@ -24,6 +29,9 @@ use celeborn_client::{Config, ShuffleClient};
 use std::env;
 use std::fs::File;
 use std::io::Write;
+use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::Arc;
+use std::thread;
 
 fn main() {
     env_logger::init();
@@ -58,40 +66,58 @@ fn main() {
     let mut config = Config::new(app_id);
     config.shuffle_compression_codec = compress_codec;
 
-    let mut client =
-        ShuffleClient::connect(config, lm_host, lm_port).expect("Failed to connect to LM");
+    let client =
+        Arc::new(ShuffleClient::connect(config, lm_host, lm_port).expect("Failed to connect to LM"));
 
     let max_data: i64 = 1_000_000;
     let num_data: usize = 1000;
-    let mut result = vec![0i64; num_partitions as usize];
 
-    for map_id in 0..num_mappers {
-        for partition_id in 0..num_partitions {
-            let mut partition_data = String::new();
-            for _ in 0..num_data {
-                let data = rand_simple(max_data);
-                result[partition_id as usize] += data;
-                partition_data.push('-');
-                partition_data.push_str(&data.to_string());
-            }
+    // Shared per-partition sums; multiple mapper threads accumulate concurrently.
+    let result: Arc<Vec<AtomicI64>> =
+        Arc::new((0..num_partitions).map(|_| AtomicI64::new(0)).collect());
 
-            client
-                .push_data(
-                    shuffle_id,
-                    map_id,
-                    attempt_id,
-                    partition_id,
-                    partition_data.as_bytes(),
-                    num_mappers,
-                    num_partitions,
-                )
-                .expect("push_data failed");
-        }
-        client
-            .mapper_end(shuffle_id, map_id, attempt_id, num_mappers)
-            .expect("mapper_end failed");
+    // Spawn one thread per map task. All threads share a single
+    // `Arc<ShuffleClient>` and push concurrently via the `&self` API.
+    let handles: Vec<_> = (0..num_mappers)
+        .map(|map_id| {
+            let client = Arc::clone(&client);
+            let result = Arc::clone(&result);
+            thread::spawn(move || {
+                for partition_id in 0..num_partitions {
+                    let mut partition_data = String::new();
+                    let mut partition_sum: i64 = 0;
+                    for _ in 0..num_data {
+                        let data = rand_simple(max_data);
+                        partition_sum += data;
+                        partition_data.push('-');
+                        partition_data.push_str(&data.to_string());
+                    }
+                    result[partition_id as usize].fetch_add(partition_sum, Ordering::Relaxed);
+
+                    client
+                        .push_data(
+                            shuffle_id,
+                            map_id,
+                            attempt_id,
+                            partition_id,
+                            partition_data.as_bytes(),
+                            num_mappers,
+                            num_partitions,
+                        )
+                        .expect("push_data failed");
+                }
+                client
+                    .mapper_end(shuffle_id, map_id, attempt_id, num_mappers)
+                    .expect("mapper_end failed");
+            })
+        })
+        .collect();
+
+    for handle in handles {
+        handle.join().expect("mapper thread panicked");
     }
 
+    let result: Vec<i64> = result.iter().map(|v| v.load(Ordering::Relaxed)).collect();
     for (partition_id, sum) in result.iter().enumerate() {
         println!("partition {partition_id} sum result = {sum}");
     }
@@ -101,6 +127,9 @@ fn main() {
         writeln!(file, "{sum}").expect("Failed to write result");
     }
 
+    // All mapper threads have joined, so this is the only remaining Arc handle.
+    let client = Arc::try_unwrap(client)
+        .unwrap_or_else(|_| panic!("ShuffleClient still has other Arc references"));
     client.shutdown().expect("shutdown failed");
     println!("Writer completed successfully.");
 }

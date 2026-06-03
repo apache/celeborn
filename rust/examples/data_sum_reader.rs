@@ -17,12 +17,19 @@
 //! Usage: data_sum_reader <lm_host> <lm_port> <app_id> <shuffle_id> <attempt_id>
 //!        <num_mappers> <num_partitions> <result_file> <compress_codec>
 //!
+//! Concurrency: a single `Arc<ShuffleClient>` is shared across `num_partitions`
+//! threads. Each thread opens and drains its own partition reader in parallel —
+//! exercising the `&self` `open_partition` path. Each `PartitionReader` itself
+//! stays single-threaded (its `Read` impl takes `&mut self`).
+//!
 //! Set RUST_LOG=info for diagnostic output.
 
 use celeborn_client::{Config, ShuffleClient};
 use std::env;
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
+use std::sync::Arc;
+use std::thread;
 
 fn main() {
     env_logger::init();
@@ -57,53 +64,64 @@ fn main() {
     let mut config = Config::new(app_id);
     config.shuffle_compression_codec = compress_codec;
 
-    let mut client =
-        ShuffleClient::connect(config, lm_host, lm_port).expect("Failed to connect to LM");
+    let client =
+        Arc::new(ShuffleClient::connect(config, lm_host, lm_port).expect("Failed to connect to LM"));
 
     client
         .update_reducer_file_group(shuffle_id)
         .expect("update_reducer_file_group failed");
 
+    // Spawn one thread per partition. All threads share a single
+    // `Arc<ShuffleClient>` and open their readers concurrently via the `&self`
+    // API. Each thread returns its (partition_id, sum, data_count).
+    let handles: Vec<_> = (0..num_partitions)
+        .map(|partition_id| {
+            let client = Arc::clone(&client);
+            thread::spawn(move || {
+                let reader = client
+                    .open_partition(shuffle_id, partition_id, attempt_id, 0, num_mappers)
+                    .expect("open_partition failed");
+                let mut buf_reader = BufReader::with_capacity(64 * 1024, reader);
+
+                let mut sum: i64 = 0;
+                let mut current_number: i64 = 0;
+                let mut data_count: usize = 0;
+                let mut byte = [0u8; 1];
+
+                loop {
+                    let n = buf_reader.read(&mut byte).expect("read failed");
+                    if n == 0 {
+                        break;
+                    }
+                    let c = byte[0] as char;
+                    match c {
+                        '-' => {
+                            sum += current_number;
+                            current_number = 0;
+                            data_count += 1;
+                        }
+                        '+' => {}
+                        '0'..='9' => {
+                            current_number = current_number * 10 + (c as i64 - '0' as i64);
+                        }
+                        _ => {
+                            panic!("Unexpected character in partition data: '{c}'");
+                        }
+                    }
+                }
+                // Add the last number (data after last '-')
+                sum += current_number;
+
+                (partition_id, sum, data_count)
+            })
+        })
+        .collect();
+
     let mut result = vec![0i64; num_partitions as usize];
-
-    for partition_id in 0..num_partitions {
-        let reader = client
-            .open_partition(shuffle_id, partition_id, attempt_id, 0, num_mappers)
-            .expect("open_partition failed");
-        let mut buf_reader = BufReader::with_capacity(64 * 1024, reader);
-
-        let mut current_number: i64 = 0;
-        let mut data_count: usize = 0;
-        let mut byte = [0u8; 1];
-
-        loop {
-            let n = buf_reader.read(&mut byte).expect("read failed");
-            if n == 0 {
-                break;
-            }
-            let c = byte[0] as char;
-            match c {
-                '-' => {
-                    result[partition_id as usize] += current_number;
-                    current_number = 0;
-                    data_count += 1;
-                }
-                '+' => {}
-                '0'..='9' => {
-                    current_number = current_number * 10 + (c as i64 - '0' as i64);
-                }
-                _ => {
-                    panic!("Unexpected character in partition data: '{c}'");
-                }
-            }
-        }
-        // Add the last number (data after last '-')
-        result[partition_id as usize] += current_number;
-
-        println!(
-            "partition {partition_id} sum result = {}, dataCnt = {data_count}",
-            result[partition_id as usize]
-        );
+    for handle in handles {
+        let (partition_id, sum, data_count) = handle.join().expect("reader thread panicked");
+        result[partition_id as usize] = sum;
+        println!("partition {partition_id} sum result = {sum}, dataCnt = {data_count}");
     }
 
     let mut file = File::create(result_file).expect("Failed to create result file");
@@ -111,6 +129,9 @@ fn main() {
         writeln!(file, "{sum}").expect("Failed to write result");
     }
 
+    // All reader threads have joined, so this is the only remaining Arc handle.
+    let client = Arc::try_unwrap(client)
+        .unwrap_or_else(|_| panic!("ShuffleClient still has other Arc references"));
     client.shutdown().expect("shutdown failed");
     println!("Reader completed successfully.");
 }
