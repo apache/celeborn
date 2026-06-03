@@ -33,8 +33,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
-    private static final int ZSTD_COMPRESSION_LEVEL = 1;
-
     private final FileChannel channel;
     private final DiskFileInfo diskFileInfo;
     private final ZstdCompressCtx zstdCtx;
@@ -48,12 +46,12 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
     private ByteBuffer largeInputDirect;
     private ByteBuffer largeOutputDirect;
 
-    public ChunkCompressedFileChannelWriter(DiskFileInfo diskFileInfo, long chunkSize) throws IOException {
+    public ChunkCompressedFileChannelWriter(DiskFileInfo diskFileInfo, long chunkSize, int compressionLevel) throws IOException {
         this.diskFileInfo = diskFileInfo;
         this.chunkSize = chunkSize;
         channel = FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath());
         zstdCtx = new ZstdCompressCtx();
-        zstdCtx.setLevel(ZSTD_COMPRESSION_LEVEL);
+        zstdCtx.setLevel(compressionLevel);
         bufferPair = ChunkBufferPool.getInstance().acquire(chunkSize);
         chunkBuffer = bufferPair.chunkBuffer;
         compressedChunkBuffer = bufferPair.compressedBuffer;

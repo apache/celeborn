@@ -23,11 +23,13 @@ import org.apache.celeborn.service.deploy.worker.storage.file.chunk.compressed.C
 import java.io.IOException;
 
 public class FileChannelWriterFactory {
-    public static FileChannelWriter getFileChannelWriter(DiskFileInfo diskFileInfo, long chunkSize) throws IOException {
-        if (diskFileInfo.isChunkCompressionEnabled()) {
-            return new ChunkCompressedFileChannelWriter(diskFileInfo, chunkSize);
-        } else {
-            return new BypassFileChannelWriter(diskFileInfo);
-        }
+  public static FileChannelWriter getFileChannelWriter(DiskFileInfo diskFileInfo, long chunkSize)
+      throws IOException {
+    if (diskFileInfo.isChunkCompressionEnabled()) {
+      return new ChunkCompressedFileChannelWriter(
+          diskFileInfo, chunkSize, diskFileInfo.getChunkCompressionLevel());
+    } else {
+      return new BypassFileChannelWriter(diskFileInfo);
     }
+  }
 }

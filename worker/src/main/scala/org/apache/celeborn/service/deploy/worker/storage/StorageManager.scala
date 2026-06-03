@@ -36,6 +36,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.compression.ChunkCompressionContext
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -429,7 +430,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier,
-      isChunkCompressionEnabled: Boolean): PartitionDataWriter = {
+      chunkCompressionContext: ChunkCompressionContext): PartitionDataWriter = {
     createPartitionDataWriter(
       appId,
       shuffleId,
@@ -441,7 +442,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       userIdentifier,
       true,
       isSegmentGranularityVisible = false,
-      isChunkCompressionEnabled)
+      chunkCompressionContext)
   }
 
   def ensureS3MultipartUploaderSharedState(): Unit = this.synchronized {
@@ -495,7 +496,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       userIdentifier: UserIdentifier,
       partitionSplitEnabled: Boolean,
       isSegmentGranularityVisible: Boolean,
-      isChunkCompressionEnabled: Boolean): PartitionDataWriter = {
+      chunkCompressionContext: ChunkCompressionContext): PartitionDataWriter = {
     if (healthyLocalWorkingDirs().isEmpty && remoteStorageDirs.isEmpty) {
       throw new IOException("No available working dirs!")
     }
@@ -510,7 +511,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType,
       partitionSplitEnabled,
       isSegmentGranularityVisible,
-      isChunkCompressionEnabled)
+      chunkCompressionContext)
 
     val writer =
       try {
@@ -1090,7 +1091,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         partitionDataWriterContext.getUserIdentifier,
         partitionDataWriterContext.getPartitionType,
         partitionDataWriterContext.isPartitionSplitEnabled,
-        partitionDataWriterContext.isChunkCompressionEnabled)
+        partitionDataWriterContext.getChunkCompressionContext)
       (null, createDiskFileResult._1, createDiskFileResult._2, createDiskFileResult._3)
     } else {
       (null, null, null, null)
@@ -1134,7 +1135,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       userIdentifier: UserIdentifier,
       partitionType: PartitionType,
       partitionSplitEnabled: Boolean,
-      isChunkCompressionEnabled: Boolean,
+      chunkCompressionContext: ChunkCompressionContext,
       overrideStorageType: StorageInfo.Type = null): (Flusher, DiskFileInfo, File) = {
     val suggestedMountPoint = location.getStorageInfo.getMountPoint
 
@@ -1181,7 +1182,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           getFileMeta(partitionType, s"hdfs", conf.shuffleChunkSize),
           hdfsFilePath,
           StorageInfo.Type.HDFS,
-          false)
+          ChunkCompressionContext.disabled())
         diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
           fileName,
           hdfsFileInfo)
@@ -1247,7 +1248,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             fileMeta,
             filePath,
             storageType,
-            isChunkCompressionEnabled)
+            chunkCompressionContext)
           logInfo(s"created file at $filePath")
           diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
             fileName,

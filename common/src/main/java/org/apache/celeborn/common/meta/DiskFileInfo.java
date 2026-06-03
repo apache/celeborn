@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.compression.ChunkCompressionContext;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.util.Utils;
@@ -39,7 +40,7 @@ public class DiskFileInfo extends FileInfo {
   private static final Logger logger = LoggerFactory.getLogger(DiskFileInfo.class);
   private final String filePath;
   private final StorageInfo.Type storageType;
-  private final boolean isChunkCompressionEnabled;
+  private final ChunkCompressionContext chunkCompressionContext;
 
   public DiskFileInfo(
       UserIdentifier userIdentifier,
@@ -47,11 +48,11 @@ public class DiskFileInfo extends FileInfo {
       FileMeta fileMeta,
       String filePath,
       StorageInfo.Type storageType,
-      boolean isChunkCompressionEnabled) {
+      ChunkCompressionContext chunkCompressionContext) {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
     this.filePath = filePath;
     this.storageType = storageType;
-    this.isChunkCompressionEnabled = isChunkCompressionEnabled;
+    this.chunkCompressionContext = chunkCompressionContext;
   }
 
   // only called when restore from pb or in UT
@@ -62,10 +63,10 @@ public class DiskFileInfo extends FileInfo {
       String filePath,
       StorageInfo.Type storageType,
       long bytesFlushed,
-      boolean isChunkCompressionEnabled) {
+      ChunkCompressionContext chunkCompressionContext) {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
     this.filePath = filePath;
-    this.isChunkCompressionEnabled = isChunkCompressionEnabled;
+    this.chunkCompressionContext = chunkCompressionContext;
     if (storageType != null) {
       this.storageType = storageType;
     } else {
@@ -82,7 +83,7 @@ public class DiskFileInfo extends FileInfo {
         new ReduceFileMeta(new ArrayList<>(Arrays.asList(0L)), conf.shuffleChunkSize()),
         file.getAbsolutePath(),
         StorageInfo.Type.HDD,
-        false);
+        ChunkCompressionContext.disabled());
   }
 
   // User only by the sorted
@@ -90,7 +91,7 @@ public class DiskFileInfo extends FileInfo {
     super(userIdentifier, true, fileMeta);
     this.filePath = filePath;
     this.storageType = StorageInfo.Type.HDD;
-    this.isChunkCompressionEnabled = false;
+    this.chunkCompressionContext = ChunkCompressionContext.disabled();
   }
 
   public File getFile() {
@@ -185,6 +186,14 @@ public class DiskFileInfo extends FileInfo {
   }
 
   public boolean isChunkCompressionEnabled() {
-    return isChunkCompressionEnabled;
+    return chunkCompressionContext.isEnabled();
+  }
+
+  public int getChunkCompressionLevel() {
+    return chunkCompressionContext.getCompressionLevel();
+  }
+
+  public ChunkCompressionContext getChunkCompressionContext() {
+    return chunkCompressionContext;
   }
 }

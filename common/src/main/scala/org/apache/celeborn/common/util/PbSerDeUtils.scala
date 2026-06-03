@@ -24,6 +24,7 @@ import scala.collection.JavaConverters._
 
 import com.google.protobuf.InvalidProtocolBufferException
 
+import org.apache.celeborn.common.compression.ChunkCompressionContext
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{ApplicationInfo, ApplicationMeta, DeviceInfo, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.meta.MapFileMeta.SegmentIndex
@@ -133,7 +134,9 @@ object PbSerDeUtils {
       pbFileInfo.getFilePath,
       storageType,
       pbFileInfo.getBytesFlushed,
-      pbFileInfo.getIsChunkCompressionEnabled)
+      new ChunkCompressionContext(
+        pbFileInfo.getChunkCompressionConfig.getEnabled,
+        pbFileInfo.getChunkCompressionConfig.getLevel))
   }
 
   private def fromPbSegmentIndexList(
@@ -156,7 +159,10 @@ object PbSerDeUtils {
       .setBytesFlushed(fileInfo.getFileLength)
       .setPartitionSplitEnabled(fileInfo.isPartitionSplitEnabled)
       .setStorageType(fileInfo.getStorageType.getValue)
-      .setIsChunkCompressionEnabled(fileInfo.isChunkCompressionEnabled)
+      .setChunkCompressionConfig(PbChunkCompressionConfig.newBuilder()
+        .setEnabled(fileInfo.isChunkCompressionEnabled)
+        .setLevel(fileInfo.getChunkCompressionLevel)
+        .build())
     if (fileInfo.getFileMeta.isInstanceOf[MapFileMeta]) {
       val mapFileMeta = fileInfo.getFileMeta.asInstanceOf[MapFileMeta]
       builder.setPartitionType(PartitionType.MAP.getValue)

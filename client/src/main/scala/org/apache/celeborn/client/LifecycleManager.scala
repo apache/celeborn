@@ -40,9 +40,11 @@ import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.client.listener.WorkerStatusListener
+import org.apache.celeborn.client.m3metrics.M3Metrics
 import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.CelebornConf.ACTIVE_STORAGE_TYPES
 import org.apache.celeborn.common.client.{ApplicationInfoProvider, MasterClient}
+import org.apache.celeborn.common.compression.ChunkCompressionContext
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ApplicationMeta, ShufflePartitionLocationInfo, WorkerInfo}
@@ -1325,7 +1327,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             conf.pushDataTimeoutMs,
             partitionSplitEnabled = true,
             isSegmentGranularityVisible = isSegmentGranularityVisible,
-            isChunkCompressionEnabled = conf.isChunkCompressionEnabled))
+            chunkCompressionContext = new ChunkCompressionContext(
+              conf.isChunkCompressionEnabled, conf.chunkCompressionLevel)))
         futures.add((future, workerInfo))
       }(ec)
     }

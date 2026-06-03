@@ -991,10 +991,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleDecompressionLz4XXHashInstance: Option[String] =
     get(SHUFFLE_DECOMPRESSION_LZ4_XXHASH_INSTANCE)
   def shuffleCompressionZstdCompressLevel: Int = get(SHUFFLE_COMPRESSION_ZSTD_LEVEL)
-
-  // //////////////////////////////////////////////////////
-  //                Shuffle Client RPC                   //
-  // //////////////////////////////////////////////////////
+  def isChunkCompressionEnabled: Boolean = get(CHUNK_COMPRESSION_ENABLED)
+  def chunkCompressionLevel: Int = get(CHUNK_COMPRESSION_LEVEL)
   def clientRpcCacheSize: Int = get(CLIENT_RPC_CACHE_SIZE)
   def clientRpcCacheConcurrencyLevel: Int = get(CLIENT_RPC_CACHE_CONCURRENCY_LEVEL)
   def clientRpcReserveSlotsRpcTimeout: RpcTimeout =
@@ -1095,7 +1093,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientRpcMaxRetries: Int = get(CLIENT_RPC_MAX_RETIRES)
   def clientRpcRetryWait: Long = get(CLIENT_RPC_RETRY_WAIT)
   def pushDataTimeoutMs: Long = get(CLIENT_PUSH_DATA_TIMEOUT)
-  def isChunkCompressionEnabled: Boolean = get(CHUNK_COMPRESSION_ENABLED)
   def clientPushLimitStrategy: String = get(CLIENT_PUSH_LIMIT_STRATEGY)
   def clientPushSlowStartInitialSleepTime: Long = get(CLIENT_PUSH_SLOW_START_INITIAL_SLEEP_TIME)
   def clientSlotAssignMaxWorkers: Int = get(CLIENT_SLOT_ASSIGN_MAX_WORKERS)
@@ -5290,6 +5287,17 @@ object CelebornConf extends Logging {
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set(PartitionSplitMode.SOFT.name, PartitionSplitMode.HARD.name))
       .createWithDefault(PartitionSplitMode.SOFT.name)
+
+  val CHUNK_COMPRESSION_LEVEL: ConfigEntry[Int] =
+    buildConf("celeborn.chunk.compression.level")
+      .categories("client")
+      .doc(
+        "ZSTD compression level to use for chunk-level compression " +
+          "(celeborn.chunk.compression.enabled must be true). " +
+          "Valid range is 1–22; the default (3) matches the ZSTD library default.")
+      .version("0.6.0")
+      .intConf
+      .createWithDefault(3)
 
   val SHUFFLE_COMPRESSION_CODEC: ConfigEntry[String] =
     buildConf("celeborn.client.shuffle.compression.codec")
