@@ -25,7 +25,7 @@ class MasterSourceSuite extends CelebornFunSuite {
 
   test("test request slots failed metrics") {
     val conf = new CelebornConf()
-    conf.set(CelebornConf.METRICS_EXTRA_LABELS.key, "status=prod")
+    conf.set(CelebornConf.METRICS_EXTRA_LABELS.key, "statusCode=prod")
     val source = new MasterSource(conf)
 
     source.incRequestSlotsFailed(StatusCode.SLOT_NOT_AVAILABLE)
@@ -35,9 +35,9 @@ class MasterSourceSuite extends CelebornFunSuite {
     val metrics = source.getMetrics
     val instance = source.instanceLabel("instance")
     assert(metrics.contains(
-      s"""metrics_RequestSlotsFailed_Count{instance="$instance",role="Master",status="SLOT_NOT_AVAILABLE"} 1"""))
+      s"""metrics_RequestSlotsFailed_Count{instance="$instance",role="Master",statusCode="SLOT_NOT_AVAILABLE"} 1"""))
     assert(metrics.contains(
-      s"""metrics_RequestSlotsFailed_Count{instance="$instance",role="Master",status="WORKER_EXCLUDED"} 1"""))
-    assert(!metrics.contains("""status="SUCCESS""""))
+      s"""metrics_RequestSlotsFailed_Count{instance="$instance",role="Master",statusCode="WORKER_EXCLUDED"} 1"""))
+    assert(!metrics.contains("""statusCode="SUCCESS""""))
   }
 }

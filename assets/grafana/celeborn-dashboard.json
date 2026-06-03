@@ -2186,7 +2186,7 @@
               },
               "editorMode": "code",
               "expr": "increase(metrics_RequestSlotsFailed_Count{role=\"Master\", instance=~\"${instance}\"}[1h])",
-              "legendFormat": "{{status}} ${baseLegend}",
+              "legendFormat": "{{statusCode}} ${baseLegend}",
               "range": true,
               "refId": "A"
             }

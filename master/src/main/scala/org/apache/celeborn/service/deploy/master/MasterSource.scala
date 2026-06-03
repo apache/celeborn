@@ -26,7 +26,7 @@ class MasterSource(conf: CelebornConf) extends AbstractSource(conf, Role.MASTER)
 
   import MasterSource._
   RequestSlotsFailureStatuses.foreach { status =>
-    addCounter(REQUEST_SLOTS_FAILED_COUNT, Map(STATUS_LABEL -> status.name()))
+    addCounter(REQUEST_SLOTS_FAILED_COUNT, Map(STATUS_CODE_LABEL -> status.name()))
   }
   // add timers
   addTimer(OFFER_SLOTS_TIME)
@@ -36,13 +36,13 @@ class MasterSource(conf: CelebornConf) extends AbstractSource(conf, Role.MASTER)
 
   def incRequestSlotsFailed(status: StatusCode): Unit = {
     if (RequestSlotsFailureStatuses.contains(status)) {
-      incCounter(REQUEST_SLOTS_FAILED_COUNT, 1, Map(STATUS_LABEL -> status.name()))
+      incCounter(REQUEST_SLOTS_FAILED_COUNT, 1, Map(STATUS_CODE_LABEL -> status.name()))
     }
   }
 }
 
 object MasterSource {
-  val STATUS_LABEL = "status"
+  val STATUS_CODE_LABEL = "statusCode"
 
   val WORKER_COUNT = "WorkerCount"
 
