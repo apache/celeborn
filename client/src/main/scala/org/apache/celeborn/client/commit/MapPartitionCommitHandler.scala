@@ -76,6 +76,19 @@ class MapPartitionCommitHandler(
   // shuffleId -> boolean, records whether the shuffle is visible at the segment level, facilitating future optimization of worker read and write processes
   private val shuffleIsSegmentGranularityVisible = JavaUtils.newConcurrentHashMap[Int, Boolean]
 
+  private val shuffleIntegrityCheckEnabled = conf.clientShuffleIntegrityCheckEnabled
+
+  // Write-side per-subpartition checksums of one finished map partition (indexed by subpartition).
+  private case class MapPartitionWriteMetadata(crc32: Array[Int], bytesWritten: Array[Long]) {
+    require(
+      crc32.length == bytesWritten.length,
+      s"crc32 length ${crc32.length} != bytesWritten length ${bytesWritten.length}")
+  }
+
+  // shuffleId -> (mapPartitionId -> write-side metadata).
+  private val commitMetadataForMapPartition =
+    JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Int, MapPartitionWriteMetadata]]()
+
   override def getPartitionType(): PartitionType = {
     PartitionType.MAP
   }
@@ -133,6 +146,7 @@ class MapPartitionCommitHandler(
     inProcessMapPartitionEndIds.remove(shuffleId)
     shuffleSucceedPartitionIds.remove(shuffleId)
     shuffleIsSegmentGranularityVisible.remove(shuffleId)
+    commitMetadataForMapPartition.remove(shuffleId)
     super.removeExpiredShuffle(shuffleId)
   }
 
@@ -231,9 +245,44 @@ class MapPartitionCommitHandler(
           shuffleId,
           (k: Int) => ConcurrentHashMap.newKeySet[Integer]())
       resultPartitions.add(partitionId)
+
+      if (shuffleIntegrityCheckEnabled) {
+        recordMapPartitionCommitMetadata(
+          shuffleId,
+          partitionId,
+          numPartitions,
+          crc32PerPartition,
+          bytesWrittenPerPartition)
+      }
     }
 
     (dataCommitSuccess, false)
+  }
+
+  /**
+   * Records a finished mapper's per-subpartition write-side checksums, keyed by (shuffleId,
+   * mapPartitionId), for later validation in [[finishPartition]]. A retried/duplicate attempt
+   * overwrites the prior record (last write wins), which is intentional: the reader validates
+   * against the last committed attempt. Visible for testing.
+   */
+  private[commit] def recordMapPartitionCommitMetadata(
+      shuffleId: Int,
+      mapPartitionId: Int,
+      numPartitions: Int,
+      crc32PerPartition: Array[Int],
+      bytesWrittenPerPartition: Array[Long]): Unit = {
+    if (crc32PerPartition == null || crc32PerPartition.length != numPartitions ||
+      bytesWrittenPerPartition == null || bytesWrittenPerPartition.length != numPartitions) {
+      logWarning(
+        s"Skip recording commit metadata for shuffle $shuffleId map partition $mapPartitionId " +
+          s"because reported checksum arrays do not match numPartitions $numPartitions.")
+      return
+    }
+    commitMetadataForMapPartition
+      .computeIfAbsent(
+        shuffleId,
+        (_: Int) => JavaUtils.newConcurrentHashMap[Int, MapPartitionWriteMetadata]())
+      .put(mapPartitionId, MapPartitionWriteMetadata(crc32PerPartition, bytesWrittenPerPartition))
   }
 
   override def registerShuffle(
@@ -243,19 +292,69 @@ class MapPartitionCommitHandler(
       numPartitions: Int): Unit = {
     super.registerShuffle(shuffleId, numMappers, isSegmentGranularityVisible, numPartitions)
     shuffleIsSegmentGranularityVisible.put(shuffleId, isSegmentGranularityVisible)
+    // The outer metadata map is created lazily by recordMapPartitionCommitMetadata.
   }
 
   override def isSegmentGranularityVisible(shuffleId: Int): Boolean = {
     shuffleIsSegmentGranularityVisible.get(shuffleId)
   }
 
+  /**
+   * Validates a map partition read over the consumed `[startSubIndex, endSubIndex]` range against
+   * the order-independent combination of the write-side checksums over that range. The params
+   * rename the trait's reducer-oriented signature (partitionId/startMapIndex/endMapIndex) to map
+   * semantics. A reader reaches stream end only after commit, so the write-side metadata is already
+   * recorded; missing metadata fails closed.
+   */
   override def finishPartition(
       shuffleId: Int,
-      partitionId: Int,
-      startMapIndex: Int,
-      endMapIndex: Int,
+      mapPartitionId: Int,
+      startSubIndex: Int,
+      endSubIndex: Int,
       actualCommitMetadata: CommitMetadata): (Boolean, String) = {
-    throw new UnsupportedOperationException()
+    if (!shuffleIntegrityCheckEnabled) {
+      return (true, "")
+    }
+    val perMapPartition = commitMetadataForMapPartition.get(shuffleId)
+    if (perMapPartition == null) {
+      return (
+        false,
+        s"No write-side commit metadata recorded for shuffle $shuffleId when validating " +
+          s"map partition $mapPartitionId subpartitions [$startSubIndex, $endSubIndex].")
+    }
+    val subPartitionMetadata = perMapPartition.get(mapPartitionId)
+    if (subPartitionMetadata == null) {
+      return (
+        false,
+        s"No write-side commit metadata recorded for shuffle $shuffleId map partition " +
+          s"$mapPartitionId when validating subpartitions [$startSubIndex, $endSubIndex].")
+    }
+    val crc32PerSubPartition = subPartitionMetadata.crc32
+    val bytesPerSubPartition = subPartitionMetadata.bytesWritten
+    if (startSubIndex < 0 || endSubIndex >= crc32PerSubPartition.length ||
+      startSubIndex > endSubIndex) {
+      return (
+        false,
+        s"Invalid subpartition range [$startSubIndex, $endSubIndex] for shuffle $shuffleId " +
+          s"map partition $mapPartitionId with ${crc32PerSubPartition.length} subpartitions.")
+    }
+    val expectedCommitMetadata = new CommitMetadata()
+    var subIndex = startSubIndex
+    while (subIndex <= endSubIndex) {
+      expectedCommitMetadata.addCommitData(
+        crc32PerSubPartition(subIndex),
+        bytesPerSubPartition(subIndex))
+      subIndex += 1
+    }
+    if (CommitMetadata.checkCommitMetadata(expectedCommitMetadata, actualCommitMetadata)) {
+      (true, "")
+    } else {
+      (
+        false,
+        s"Integrity check failed for shuffle $shuffleId map partition $mapPartitionId " +
+          s"subpartitions [$startSubIndex, $endSubIndex], expected $expectedCommitMetadata " +
+          s"but read $actualCommitMetadata.")
+    }
   }
 
   override def handleGetReducerFileGroup(

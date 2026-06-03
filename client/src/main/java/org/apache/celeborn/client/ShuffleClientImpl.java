@@ -120,7 +120,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   private final boolean pushExcludeWorkerOnFailureEnabled;
   private final boolean shuffleCompressionEnabled;
-  private final boolean shuffleIntegrityCheckEnabled;
+  protected final boolean shuffleIntegrityCheckEnabled;
 
   private final Set<String> pushExcludedWorkers = ConcurrentHashMap.newKeySet();
   private final ConcurrentHashMap<String, Long> fetchExcludedWorkers =

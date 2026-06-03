@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common;
 
+import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.CRC32;
@@ -45,6 +46,19 @@ public class CelebornCRC32 {
     return (int) hashFunction.getValue();
   }
 
+  static int compute(ByteBuffer buffer) {
+    CRC32 hashFunction = new CRC32();
+    hashFunction.update(buffer);
+    return (int) hashFunction.getValue();
+  }
+
+  static int compute(ByteBuffer first, ByteBuffer second) {
+    CRC32 hashFunction = new CRC32();
+    hashFunction.update(first);
+    hashFunction.update(second);
+    return (int) hashFunction.getValue();
+  }
+
   static int combine(int first, int second) {
     first =
         (((byte) second + (byte) first) & 0xFF)
@@ -66,6 +80,14 @@ public class CelebornCRC32 {
 
   void addData(byte[] bytes, int offset, int length) {
     addChecksum(compute(bytes, offset, length));
+  }
+
+  void addData(ByteBuffer buffer) {
+    addChecksum(compute(buffer));
+  }
+
+  void addData(ByteBuffer first, ByteBuffer second) {
+    addChecksum(compute(first, second));
   }
 
   int get() {

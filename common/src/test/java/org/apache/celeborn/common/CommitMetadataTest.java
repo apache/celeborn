@@ -18,6 +18,10 @@
 package org.apache.celeborn.common;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+import java.nio.ByteBuffer;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -50,6 +54,89 @@ public class CommitMetadataTest {
     assertEquals(
         CelebornCRC32.combine(CelebornCRC32.compute(data1), CelebornCRC32.compute(data2)),
         metadata1.getChecksum());
+  }
+
+  @Test
+  public void testAddDataByteBuffer() {
+    byte[] data = "testdata".getBytes();
+    // The ByteBuffer overload (read path) must match the byte[] overload (write path).
+    CommitMetadata fromBuffer = new CommitMetadata();
+    fromBuffer.addData(ByteBuffer.wrap(data));
+    CommitMetadata fromBytes = new CommitMetadata();
+    fromBytes.addDataWithOffsetAndLength(data, 0, data.length);
+    assertEquals(fromBytes.getBytes(), fromBuffer.getBytes());
+    assertEquals(fromBytes.getChecksum(), fromBuffer.getChecksum());
+  }
+
+  @Test
+  public void testAddDataTwoByteBuffers() {
+    byte[] header = "test".getBytes();
+    byte[] body = "data".getBytes();
+    // A split header/data buffer must hash equal to its concatenation.
+    CommitMetadata fromTwoBuffers = new CommitMetadata();
+    fromTwoBuffers.addData(ByteBuffer.wrap(header), ByteBuffer.wrap(body));
+    CommitMetadata fromConcatenation = new CommitMetadata();
+    fromConcatenation.addData(ByteBuffer.wrap("testdata".getBytes()));
+    assertEquals(fromConcatenation.getBytes(), fromTwoBuffers.getBytes());
+    assertEquals(fromConcatenation.getChecksum(), fromTwoBuffers.getChecksum());
+  }
+
+  @Test
+  public void testRangeCombineDetectsCorruption() {
+    // Mirror the map-partition flow: per-subpartition write checksums combined vs read bytes
+    // served.
+    byte[][] perSubpartition = {
+      "sub-0-bytes".getBytes(), "sub-1-bytes".getBytes(), "sub-2-bytes".getBytes()
+    };
+    int startSubIndex = 0;
+    int endSubIndex = 1;
+
+    CommitMetadata expected = new CommitMetadata();
+    for (int i = startSubIndex; i <= endSubIndex; i++) {
+      CommitMetadata writeSide = new CommitMetadata();
+      writeSide.addDataWithOffsetAndLength(perSubpartition[i], 0, perSubpartition[i].length);
+      expected.addCommitData(writeSide.getChecksum(), writeSide.getBytes());
+    }
+
+    // A faithful read over the same range matches.
+    CommitMetadata cleanRead = new CommitMetadata();
+    for (int i = startSubIndex; i <= endSubIndex; i++) {
+      cleanRead.addData(ByteBuffer.wrap(perSubpartition[i]));
+    }
+    assertTrue(CommitMetadata.checkCommitMetadata(expected, cleanRead));
+
+    // A single flipped byte on the read path is detected.
+    byte[] corrupted = perSubpartition[endSubIndex].clone();
+    corrupted[0] ^= 0x01;
+    CommitMetadata corruptedRead = new CommitMetadata();
+    corruptedRead.addData(ByteBuffer.wrap(perSubpartition[startSubIndex]));
+    corruptedRead.addData(ByteBuffer.wrap(corrupted));
+    assertFalse(CommitMetadata.checkCommitMetadata(expected, corruptedRead));
+  }
+
+  @Test
+  public void testRangeCombineIsOrderIndependent() {
+    // Tiered reads accumulate interleaved buffers while the driver combines per-subpartition
+    // checksums in order; the combine must be order-independent for the two to match.
+    byte[][] perSubpartition = {
+      "sub-0-bytes".getBytes(), "sub-1-bytes".getBytes(), "sub-2-bytes".getBytes()
+    };
+
+    CommitMetadata expected = new CommitMetadata();
+    for (byte[] payload : perSubpartition) {
+      CommitMetadata writeSide = new CommitMetadata();
+      writeSide.addDataWithOffsetAndLength(payload, 0, payload.length);
+      expected.addCommitData(writeSide.getChecksum(), writeSide.getBytes());
+    }
+
+    // Read side accumulates the same bytes in reverse order; the result must be identical.
+    CommitMetadata reversedRead = new CommitMetadata();
+    for (int i = perSubpartition.length - 1; i >= 0; i--) {
+      reversedRead.addData(ByteBuffer.wrap(perSubpartition[i]));
+    }
+    assertEquals(expected.getChecksum(), reversedRead.getChecksum());
+    assertEquals(expected.getBytes(), reversedRead.getBytes());
+    assertTrue(CommitMetadata.checkCommitMetadata(expected, reversedRead));
   }
 
   @Test

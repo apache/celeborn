@@ -135,6 +135,8 @@ public class RemoteShuffleInputGateDelegation {
 
   private final ShuffleIOMetricGroup shuffleIOMetricGroup;
 
+  private final boolean shuffleIntegrityCheckEnabled;
+
   public RemoteShuffleInputGateDelegation(
       CelebornConf celebornConf,
       ShuffleIOOwnerContext ownerContext,
@@ -194,6 +196,7 @@ public class RemoteShuffleInputGateDelegation {
     this.numConcurrentReading = numConcurrentReading;
     this.availabilityHelper = availabilityHelper;
     this.partitionConnectionExceptionEnabled = celebornConf.partitionConnectionExceptionEnabled();
+    this.shuffleIntegrityCheckEnabled = celebornConf.clientShuffleIntegrityCheckEnabled();
     LOG.debug("Initial input gate with numConcurrentReading {}", this.numConcurrentReading);
   }
 
@@ -223,7 +226,8 @@ public class RemoteShuffleInputGateDelegation {
               endSubIndex,
               transferBufferPool,
               getDataListener(descriptor.getLeft(), shuffleIOMetricGroup),
-              getFailureListener(remoteDescriptor.getResultPartitionID()));
+              getFailureListener(remoteDescriptor.getResultPartitionID()),
+              shuffleIntegrityCheckEnabled);
 
       bufferReaders.add(reader);
       numSubPartitionsNotConsumed[descriptor.getLeft()] = numSubpartitionsPerChannel;
