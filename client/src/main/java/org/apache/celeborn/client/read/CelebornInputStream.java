@@ -195,6 +195,7 @@ public abstract class CelebornInputStream extends InputStream {
     private Decompressor decompressor;
 
     private ByteBuf currentChunk;
+    private boolean currentChunkCompressed = true;
     private boolean firstChunk = true;
     private PartitionReader currentReader;
     private final int fetchChunkMaxRetry;
@@ -531,8 +532,9 @@ public abstract class CelebornInputStream extends InputStream {
           if (!currentReader.hasNext()) {
             return null;
           }
-          // Decompress here
-          return currentReader.next();
+          Pair<ByteBuf, Boolean> result = currentReader.next();
+          currentChunkCompressed = result.getRight();
+          return result.getLeft();
         } catch (Exception e) {
           shuffleClient.excludeFailedFetchLocation(
               currentReader.getLocation().hostAndFetchPort(), e);
@@ -821,7 +823,8 @@ public abstract class CelebornInputStream extends InputStream {
       closeCurrentStream();
       if (currentChunk == null) return;
       InputStream base = new ByteBufInputStream(currentChunk);
-      currentStream = chunkCompressed ? new ZstdInputStream(base) : base;
+      currentStream =
+          (chunkCompressed && currentChunkCompressed) ? new ZstdInputStream(base) : base;
     }
 
     /** Reads exactly len bytes; returns total read (< len only on EOF). */

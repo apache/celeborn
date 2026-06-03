@@ -20,6 +20,7 @@ package org.apache.celeborn.client.read;
 import java.util.Optional;
 
 import io.netty.buffer.ByteBuf;
+import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
 import org.apache.celeborn.common.protocol.PartitionLocation;
@@ -27,7 +28,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 public interface PartitionReader {
   boolean hasNext();
 
-  ByteBuf next() throws Exception;
+  Pair<ByteBuf, Boolean> next() throws Exception;
 
   void close();
 

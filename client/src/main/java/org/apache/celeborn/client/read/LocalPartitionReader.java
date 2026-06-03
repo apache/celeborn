@@ -31,6 +31,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCounted;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -214,7 +215,7 @@ public class LocalPartitionReader implements PartitionReader {
   }
 
   @Override
-  public ByteBuf next() throws IOException, InterruptedException {
+  public Pair<ByteBuf, Boolean> next() throws Exception {
     checkException();
     if (chunkIndex <= endChunkIndex) {
       fetchChunks();
@@ -254,8 +255,12 @@ public class LocalPartitionReader implements PartitionReader {
       logger.error("PartitionReader thread interrupted while fetching data.");
       throw e;
     }
+    int chunkIdx = returnedChunks;
     returnedChunks++;
-    return chunk;
+    // If no per-chunk list was sent (old worker), treat as compressed to honour the global flag.
+    boolean compressed =
+        streamHandler.getChunkCompressedCount() == 0 || streamHandler.getChunkCompressed(chunkIdx);
+    return Pair.of(chunk, compressed);
   }
 
   private void checkException() throws IOException {

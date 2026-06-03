@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ReduceFileMeta implements FileMeta {
   private final AtomicBoolean sorted = new AtomicBoolean(false);
   private final List<Long> chunkOffsets;
+  private List<Boolean> chunkCompressed;
   private long chunkSize;
   private long nextBoundary;
 
@@ -43,12 +44,26 @@ public class ReduceFileMeta implements FileMeta {
     this.chunkSize = chunkSize;
   }
 
+  public ReduceFileMeta(List<Long> chunkOffsets, List<Boolean> chunkCompressed, long chunkSize) {
+    this.chunkOffsets = chunkOffsets;
+    this.chunkCompressed = chunkCompressed;
+    nextBoundary = chunkSize;
+    if (!chunkOffsets.isEmpty()) {
+      nextBoundary += chunkOffsets.get(chunkOffsets.size() - 1);
+    }
+    this.chunkSize = chunkSize;
+  }
+
   public ReduceFileMeta(List<Long> chunkOffsets) {
     this.chunkOffsets = chunkOffsets;
   }
 
   public synchronized List<Long> getChunkOffsets() {
     return chunkOffsets;
+  }
+
+  public synchronized List<Boolean> getChunkCompressed() {
+    return chunkCompressed;
   }
 
   public synchronized void addChunkOffset(long offset) {

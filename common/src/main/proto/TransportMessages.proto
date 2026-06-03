@@ -759,6 +759,7 @@ message PbStreamHandler {
   int32 numChunks = 2;
   repeated int64 chunkOffsets = 3;
   string fullPath = 4;
+  repeated bool chunkCompressed = 5;
 }
 
 message PbOpenStreamList {
