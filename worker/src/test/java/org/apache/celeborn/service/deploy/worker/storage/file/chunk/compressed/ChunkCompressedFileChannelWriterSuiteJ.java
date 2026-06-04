@@ -108,17 +108,19 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   /**
    * Reads every chunk from the file (using the updated ReduceFileMeta written by close()),
-   * decompresses each one, and returns the list in chunk order.
+   * decompresses compressed chunks and returns raw bytes for uncompressed ones (large records).
    */
   private List<byte[]> readChunks() throws Exception {
     FileChunkBuffers buffers = new FileChunkBuffers(diskFileInfo, transportConf);
     int numChunks = buffers.numChunks();
+    List<Boolean> chunkCompressed = diskFileInfo.getReduceFileMeta().getChunkCompressed();
     List<byte[]> result = new ArrayList<>(numChunks);
     for (int i = 0; i < numChunks; i++) {
       ByteBuffer buf = buffers.chunk(i, 0, Integer.MAX_VALUE).nioByteBuffer();
-      byte[] compressed = new byte[buf.remaining()];
-      buf.get(compressed);
-      result.add(decompress(compressed));
+      byte[] data = new byte[buf.remaining()];
+      buf.get(data);
+      boolean isCompressed = chunkCompressed != null && chunkCompressed.get(i);
+      result.add(isCompressed ? decompress(data) : data);
     }
     return result;
   }

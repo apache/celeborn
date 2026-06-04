@@ -96,7 +96,7 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
     }
 
     @VisibleForTesting
-    void compressAndFlush() throws IOException {
+    public void compressAndFlush() throws IOException {
         int size = chunkBuffer.position();
         if (size == 0) return;
         chunkBuffer.position(0);
