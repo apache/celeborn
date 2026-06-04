@@ -23,7 +23,7 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.github.luben.zstd.ZstdCompressCtx;
+import com.github.luben.zstd.Zstd;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.CompositeByteBuf;
 
@@ -35,7 +35,7 @@ import org.apache.celeborn.service.deploy.worker.file.FileChannelWriter;
 public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
   private final FileChannel channel;
   private final DiskFileInfo diskFileInfo;
-  private final ZstdCompressCtx zstdCtx;
+  private final int compressionLevel;
   private final ChunkBufferPool.BufferPair bufferPair;
   private ByteBuffer chunkBuffer;
   private ByteBuffer compressedChunkBuffer;
@@ -48,7 +48,7 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
     this.diskFileInfo = diskFileInfo;
     this.chunkSize = chunkSize;
     channel = FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath());
-    zstdCtx = new ZstdCompressCtx().setLevel(compressionLevel);
+    this.compressionLevel = compressionLevel;
     bufferPair = ChunkBufferPool.getInstance().acquire(chunkSize);
     chunkBuffer = bufferPair.chunkBuffer;
     compressedChunkBuffer = bufferPair.compressedBuffer;
@@ -105,8 +105,15 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
     int compressedSize;
     try {
       compressedSize =
-          zstdCtx.compressDirectByteBuffer(
-              compressedChunkBuffer, 0, compressedChunkBuffer.capacity(), chunkBuffer, 0, size);
+          (int)
+              Zstd.compressDirectByteBuffer(
+                  compressedChunkBuffer,
+                  0,
+                  compressedChunkBuffer.capacity(),
+                  chunkBuffer,
+                  0,
+                  size,
+                  compressionLevel);
     } catch (RuntimeException e) {
       throw new IOException("Failed to compress chunk with ZSTD.", e);
     }
@@ -137,7 +144,6 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
       } catch (IOException e) {
         // log and ignore
       }
-      zstdCtx.close();
     }
 
     diskFileInfo.setBytesFlushed(chunkOffsets.get(chunkOffsets.size() - 1));
