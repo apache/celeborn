@@ -28,6 +28,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.compression.ChunkCompressionContext
 import org.apache.celeborn.common.exception.AlreadyClosedException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{DiskFileInfo, MemoryFileInfo, ReduceFileMeta}
@@ -70,7 +71,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
       PartitionType.REDUCE,
       false,
       false,
-      false)
+      ChunkCompressionContext.disabled())
 
     val source = new WorkerSource(celebornConf)
 
@@ -185,7 +186,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
     val userIdentifier = UserIdentifier("`aa`.`bb`")
     val tmpFile = Files.createTempFile("celeborn", "local-test").toString
     val diskFileInfo =
-      new DiskFileInfo(userIdentifier, false, reduceFileMeta, tmpFile, StorageInfo.Type.HDD, false)
+      new DiskFileInfo(userIdentifier, false, reduceFileMeta, tmpFile, StorageInfo.Type.HDD, ChunkCompressionContext.disabled())
     val numPendingWriters = new AtomicInteger()
     val flushNotifier = new FlushNotifier()
     val source = new WorkerSource(celebornConf)
@@ -210,7 +211,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
       PartitionType.REDUCE,
       false,
       false,
-      false)
+      ChunkCompressionContext.disabled())
 
     val flusher = new LocalFlusher(
       source,

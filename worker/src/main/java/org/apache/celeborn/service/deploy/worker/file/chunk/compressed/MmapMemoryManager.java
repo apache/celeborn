@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker.storage.file.chunk.compressed;
+package org.apache.celeborn.service.deploy.worker.file.chunk.compressed;
 
 import java.io.File;
 import java.io.IOException;
@@ -108,7 +108,7 @@ public class MmapMemoryManager {
         return buffer.slice();
     }
 
-    protected void close() {
+    public void close() {
         // MappedByteBuffers cannot be explicitly unmapped in Java; GC handles the unmap.
         // We clear the internal state and delete the backing files so disk space is reclaimed.
         _memMappedBuffers.clear();

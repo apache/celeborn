@@ -27,6 +27,7 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{DiskFileInfo, MapFileMeta, ReduceFileMeta}
 import org.apache.celeborn.common.protocol._
+import org.apache.celeborn.common.compression.ChunkCompressionContext
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.service.deploy.worker.storage.WriterUtils.{generateFlinkFormatData, generateSparkFormatData}
 
@@ -44,7 +45,7 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
       fileMeta,
       tmpFilePath.toString,
       StorageInfo.Type.HDD,
-      false)
+      ChunkCompressionContext.disabled())
 
     val mapMetaHandler = new MapPartitionMetaHandler(diskFileInfo, notifier)
     val pbPushDataHandShake =
@@ -110,7 +111,7 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
       fileMeta,
       tmpFilePath.toString,
       StorageInfo.Type.HDD,
-      false)
+      ChunkCompressionContext.disabled())
 
     val handler1 = new ReducePartitionMetaHandler(true, diskFileInfo)
     handler1.beforeWrite(generateSparkFormatData(byteBufAllocator, 0))
@@ -156,7 +157,7 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
       fileMeta,
       tmpFilePath.toString,
       StorageInfo.Type.HDD,
-      false)
+      ChunkCompressionContext.disabled())
 
     val mapMetaHandler = new SegmentMapPartitionMetaHandler(diskFileInfo, notifier)
     val pbPushDataHandShake =

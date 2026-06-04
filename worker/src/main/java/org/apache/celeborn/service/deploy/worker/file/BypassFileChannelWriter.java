@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker.storage.file;
+package org.apache.celeborn.service.deploy.worker.file;
 
 import io.netty.buffer.CompositeByteBuf;
 import org.apache.celeborn.common.meta.DiskFileInfo;

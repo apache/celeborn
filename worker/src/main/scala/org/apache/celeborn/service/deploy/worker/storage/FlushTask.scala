@@ -18,7 +18,6 @@
 package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.{ByteArrayInputStream, Closeable, IOException}
-import java.nio.channels.FileChannel
 
 import io.netty.buffer.{ByteBufUtil, CompositeByteBuf}
 import org.apache.hadoop.fs.{FSDataOutputStream, Path}
@@ -28,7 +27,7 @@ import org.apache.celeborn.common.metrics.source.AbstractSource
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler
 import org.apache.celeborn.service.deploy.worker.WorkerSource
-import org.apache.celeborn.service.deploy.worker.storage.file.FileChannelWriter
+import org.apache.celeborn.service.deploy.worker.file.FileChannelWriter
 
 abstract private[worker] class FlushTask(
     val buffer: CompositeByteBuf,

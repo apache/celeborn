@@ -27,6 +27,7 @@ import java.util.*;
 
 import com.github.luben.zstd.ZstdInputStream;
 import io.netty.buffer.*;
+import org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter;
 import org.junit.*;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
@@ -35,6 +36,7 @@ import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.network.buffer.FileChunkBuffers;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.common.compression.ChunkCompressionContext;
 
 public class ChunkCompressedFileChannelWriterSuiteJ {
 
@@ -67,7 +69,7 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
         new ReduceFileMeta(new ArrayList<>(Collections.singletonList(0L)), CHUNK_SIZE),
         file.getAbsolutePath(),
         StorageInfo.Type.HDD,
-        true);
+        new ChunkCompressionContext(true, 1));
   }
 
   /** Wraps one or more strings as a CompositeByteBuf (one component per string). */
@@ -132,8 +134,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testMultipleSmallBuffersProduceOneChunk() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
 
     writer.write(composite("hello", " ", "world"), true);
     writer.write(composite("foo", "bar"), true);
@@ -148,8 +150,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testSmallBuffersOverflowIntoSecondChunk() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
 
     // First write nearly fills the chunk buffer (CHUNK_SIZE - 10 bytes).
     byte[] first = repeat("A", CHUNK_SIZE - 10);
@@ -170,8 +172,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testThreeSmallWritesThreeChunks() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
 
     byte[] a = repeat("A", CHUNK_SIZE - 5); // nearly fills chunk 1
     byte[] b = repeat("B", CHUNK_SIZE - 5); // overflows → chunk 1 = a, b nearly fills chunk 2
@@ -193,8 +195,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testWriteExactlyChunkSizeThenMore() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
 
     byte[] exact = repeat("E", CHUNK_SIZE); // fills chunkBuffer to the brim
     byte[] more = "trailing".getBytes(StandardCharsets.UTF_8);
@@ -213,8 +215,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testLargeRecordAlone() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
 
     // 3× chunkSize — well over the large-record threshold.
     byte[] large = repeat("X", CHUNK_SIZE * 3);
@@ -229,8 +231,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testLargeRecordBoundary() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
 
     byte[] boundary = repeat("B", CHUNK_SIZE + 1);
     writer.write(compositeOf(boundary), true);
@@ -244,8 +246,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testPendingSmallFlushedBeforeLargeRecord() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
 
     byte[] small = "pending".getBytes(StandardCharsets.UTF_8);
     byte[] large = repeat("L", CHUNK_SIZE * 2);
@@ -264,8 +266,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testTwoLargeRecords() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
 
     byte[] large1 = repeat("P", CHUNK_SIZE * 2);
     byte[] large2 = repeat("Q", CHUNK_SIZE * 3);
@@ -284,8 +286,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testSmallLargeSmallProducesThreeChunks() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
 
     byte[] small1 = "before".getBytes(StandardCharsets.UTF_8);
     byte[] large = repeat("M", CHUNK_SIZE * 2);
@@ -307,8 +309,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testLargeRecordThenSmallWrites() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
 
     byte[] large = repeat("R", CHUNK_SIZE * 2);
     byte[] small = "tail".getBytes(StandardCharsets.UTF_8);
@@ -327,8 +329,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testNoWritesProducesZeroChunks() throws IOException {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
     writer.close(true);
 
     assertEquals(0, diskFileInfo.getReduceFileMeta().getNumChunks());
@@ -339,8 +341,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testExplicitCompressAndFlushSplitsChunks() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
 
     byte[] part1 = "first part".getBytes(StandardCharsets.UTF_8);
     byte[] part2 = "second part".getBytes(StandardCharsets.UTF_8);
@@ -360,8 +362,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testCompressAndFlushOnEmptyBufferIsNoop() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
 
     writer.compressAndFlush(); // empty — should not add a chunk
     writer.compressAndFlush(); // again
@@ -378,8 +380,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testFileLengthMatchesActualFileSize() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
 
     writer.write(composite("hello", " ", "world"), true);
     writer.write(compositeOf(repeat("Z", CHUNK_SIZE * 2)), true);
@@ -393,8 +395,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testCompositeBufferWithManyComponents() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
 
     String[] words = {"alpha", " ", "beta", " ", "gamma", " ", "delta", " ", "epsilon"};
     writer.write(composite(words), true);
@@ -409,8 +411,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testChunkOffsetsAreStrictlyIncreasing() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
 
     writer.write(compositeOf(repeat("A", CHUNK_SIZE - 10)), true);
     writer.write(compositeOf(repeat("B", 50)), true); // triggers chunk 1 flush
@@ -433,8 +435,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testLargeRecordHighEntropyData() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, ChunkCompressionContext.DEFAULT_COMPRESSION_LEVEL);
 
     // Pseudo-random high-entropy payload: harder to compress, exercises ZSTD's full path.
     byte[] highEntropy = new byte[CHUNK_SIZE * 4];
@@ -457,8 +459,8 @@ public class ChunkCompressedFileChannelWriterSuiteJ {
 
   @Test
   public void testMultipleSmallsLargeMultipleSmallsRoundTrip() throws Exception {
-    ChunkCompressedFileChannelWriter writer =
-        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE);
+    org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter writer =
+        new ChunkCompressedFileChannelWriter(diskFileInfo, CHUNK_SIZE, 3);
 
     // Phase 1: several small writes that accumulate together into chunk 1.
     // Total = 6+6+1011 = 1023 bytes — just under CHUNK_SIZE (1024).

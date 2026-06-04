@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker.storage.file.chunk.compressed;
+package org.apache.celeborn.service.deploy.worker.file.chunk.compressed;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.github.luben.zstd.Zstd;
@@ -24,7 +24,7 @@ import io.netty.buffer.CompositeByteBuf;
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.util.FileChannelUtils;
-import org.apache.celeborn.service.deploy.worker.storage.file.FileChannelWriter;
+import org.apache.celeborn.service.deploy.worker.file.FileChannelWriter;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -157,7 +157,7 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
     }
 
     @VisibleForTesting
-    void compressAndFlush() throws IOException {
+    public void compressAndFlush() throws IOException {
         int size = chunkBuffer.position();
         if (size == 0) return;
         chunkBuffer.position(0);

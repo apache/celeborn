@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker.storage.file;
+package org.apache.celeborn.service.deploy.worker.file;
 
 import org.apache.celeborn.common.meta.DiskFileInfo;
-import org.apache.celeborn.service.deploy.worker.storage.file.chunk.compressed.ChunkCompressedFileChannelWriter;
+import org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter;
 
 import java.io.IOException;
 

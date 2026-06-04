@@ -1198,7 +1198,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           new ReduceFileMeta(conf.shuffleChunkSize),
           s3FilePath,
           StorageInfo.Type.S3,
-          false)
+          ChunkCompressionContext.disabled())
         diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
           fileName,
           s3FileInfo)
@@ -1217,7 +1217,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           new ReduceFileMeta(conf.shuffleChunkSize),
           ossFilePath,
           StorageInfo.Type.OSS,
-          false)
+          ChunkCompressionContext.disabled())
         diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
           fileName,
           ossFileInfo)

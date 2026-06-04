@@ -28,6 +28,7 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.{WORKER_DISK_RESERVE_SIZE, WORKER_GRACEFUL_SHUTDOWN_ENABLED, WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH, WORKER_STORAGE_DIRS}
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.compression.ChunkCompressionContext
 import org.apache.celeborn.common.meta.{DiskInfo, DiskStatus}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, StorageInfo}
 import org.apache.celeborn.common.util.Utils
@@ -137,7 +138,7 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
         new UserIdentifier("t1", "u1"),
         PartitionType.REDUCE,
         partitionSplitEnabled = false,
-        isChunkCompressionEnabled = false)
+        chunkCompressionContext = ChunkCompressionContext.disabled())
       fail("Should throw IOException when disks are full")
     } catch {
       case e: IOException =>

@@ -48,6 +48,7 @@ import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 import org.apache.celeborn.service.deploy.worker.storage.*;
+import org.apache.celeborn.common.compression.ChunkCompressionContext;
 
 public class DiskMapPartitionDataWriterSuiteJ {
 
@@ -134,7 +135,7 @@ public class DiskMapPartitionDataWriterSuiteJ {
             PartitionType.MAP,
             false,
             false,
-            false);
+            ChunkCompressionContext.disabled());
     PartitionDataWriter fileWriter =
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(

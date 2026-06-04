@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.worker.storage.file.chunk.compressed;
+package org.apache.celeborn.service.deploy.worker.file.chunk.compressed;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,11 +28,11 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 public class ChunkBufferPool {
 
     public static class BufferPair {
-        final ByteBuffer chunkBuffer;
-        final ByteBuffer compressedBuffer;
-        final long chunkSize;
+        public final ByteBuffer chunkBuffer;
+        public final ByteBuffer compressedBuffer;
+        public final long chunkSize;
 
-        BufferPair(ByteBuffer chunkBuffer, ByteBuffer compressedBuffer, long chunkSize) {
+        public BufferPair(ByteBuffer chunkBuffer, ByteBuffer compressedBuffer, long chunkSize) {
             this.chunkBuffer = chunkBuffer;
             this.compressedBuffer = compressedBuffer;
             this.chunkSize = chunkSize;

@@ -60,6 +60,7 @@ import org.apache.celeborn.service.deploy.worker.FetchHandler;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 import org.apache.celeborn.service.deploy.worker.storage.*;
+import org.apache.celeborn.common.compression.ChunkCompressionContext;
 
 public class MemoryReducePartitionDataWriterSuiteJ {
 
@@ -296,7 +297,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             PartitionType.REDUCE,
             false,
             false,
-            false);
+            ChunkCompressionContext.disabled());
 
     PartitionDataWriter partitionDataWriter =
         new PartitionDataWriter(
@@ -352,7 +353,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             PartitionType.REDUCE,
             false,
             false,
-            false);
+            ChunkCompressionContext.disabled());
     PartitionDataWriter partitionDataWriter =
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
@@ -409,7 +410,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             PartitionType.REDUCE,
             false,
             false,
-            false);
+            ChunkCompressionContext.disabled());
     PartitionDataWriter partitionDataWriter =
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryEvictEnvironment(
@@ -471,7 +472,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             PartitionType.REDUCE,
             false,
             false,
-            false);
+            ChunkCompressionContext.disabled());
     PartitionDataWriter partitionDataWriter =
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryEvictEnvironment(
@@ -560,7 +561,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             PartitionType.REDUCE,
             false,
             false,
-            false);
+            ChunkCompressionContext.disabled());
     PartitionDataWriter partitionDataWriter =
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryEvictEnvironment(
@@ -691,7 +692,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             PartitionType.REDUCE,
             false,
             false,
-            false);
+            ChunkCompressionContext.disabled());
     PartitionDataWriter partitionDataWriter =
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
@@ -724,7 +725,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             PartitionType.REDUCE,
             false,
             false,
-            false);
+            ChunkCompressionContext.disabled());
     partitionDataWriter =
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
@@ -757,7 +758,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             PartitionType.REDUCE,
             false,
             false,
-            false);
+            ChunkCompressionContext.disabled());
     partitionDataWriter =
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
@@ -789,7 +790,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             PartitionType.REDUCE,
             false,
             false,
-            false);
+            ChunkCompressionContext.disabled());
     partitionDataWriter =
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
@@ -823,7 +824,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             PartitionType.REDUCE,
             false,
             false,
-            false);
+            ChunkCompressionContext.disabled());
     partitionDataWriter =
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
@@ -856,7 +857,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             PartitionType.REDUCE,
             false,
             false,
-            false);
+            ChunkCompressionContext.disabled());
     partitionDataWriter =
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
@@ -891,7 +892,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             PartitionType.REDUCE,
             false,
             false,
-            false);
+            ChunkCompressionContext.disabled());
     partitionDataWriter =
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
@@ -925,7 +926,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             PartitionType.REDUCE,
             false,
             false,
-            false);
+            ChunkCompressionContext.disabled());
     partitionDataWriter =
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(
@@ -960,7 +961,7 @@ public class MemoryReducePartitionDataWriterSuiteJ {
             PartitionType.REDUCE,
             false,
             false,
-            false);
+            ChunkCompressionContext.disabled());
     partitionDataWriter =
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareMemoryFileTestEnvironment(

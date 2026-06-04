@@ -29,6 +29,7 @@ import com.google.common.collect.Lists
 import org.apache.hadoop.shaded.org.apache.commons.lang3.RandomStringUtils
 
 import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.compression.ChunkCompressionContext
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta._
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, PbFileInfo, PbPackedWorkerResource, PbWorkerResource, StorageInfo}
@@ -82,7 +83,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     file1.getAbsolutePath,
     StorageInfo.Type.HDD,
     3000L,
-    false)
+    ChunkCompressionContext.disabled())
   val fileInfo2 = new DiskFileInfo(
     userIdentifier2,
     true,
@@ -90,7 +91,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     file2.getAbsolutePath,
     StorageInfo.Type.SSD,
     6000L,
-    false)
+    ChunkCompressionContext.disabled())
   val fileInfo3 = new DiskFileInfo(
     userIdentifier3,
     true,
@@ -98,7 +99,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     file3,
     StorageInfo.Type.HDFS,
     6000L,
-    false)
+    ChunkCompressionContext.disabled())
   val fileInfo4 = new DiskFileInfo(
     userIdentifier3,
     true,
@@ -106,7 +107,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     file4,
     StorageInfo.Type.OSS,
     6000L,
-    false)
+    ChunkCompressionContext.disabled())
   val fileInfo5 = new DiskFileInfo(
     userIdentifier3,
     true,
@@ -114,7 +115,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     file5,
     StorageInfo.Type.S3,
     6000L,
-    false)
+    ChunkCompressionContext.disabled())
   val fileInfo6 = new DiskFileInfo(
     userIdentifier3,
     true,
@@ -122,7 +123,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     file6,
     StorageInfo.Type.S3,
     6000L,
-    false)
+    ChunkCompressionContext.disabled())
 
   val mapFileInfo1 = new DiskFileInfo(
     userIdentifier1,
@@ -131,7 +132,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     file1.getAbsolutePath,
     StorageInfo.Type.HDD,
     6000L,
-    false)
+    ChunkCompressionContext.disabled())
   val mapFileInfo2 = new DiskFileInfo(
     userIdentifier2,
     true,
@@ -139,7 +140,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     file2.getAbsolutePath,
     StorageInfo.Type.SSD,
     6000L,
-    false)
+    ChunkCompressionContext.disabled())
   val fileInfoMap = JavaUtils.newConcurrentHashMap[String, DiskFileInfo]()
   mapFileInfo1.setMountPoint("/mnt")
   mapFileInfo2.setMountPoint("/mnt")

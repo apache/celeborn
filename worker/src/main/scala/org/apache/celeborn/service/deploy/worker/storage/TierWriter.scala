@@ -40,8 +40,8 @@ import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.server.common.service.mpu.MultipartUploadHandler
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 import org.apache.celeborn.service.deploy.worker.congestcontrol.{CongestionController, UserCongestionControlContext}
+import org.apache.celeborn.service.deploy.worker.file.{FileChannelWriter, FileChannelWriterFactory, FileWriterType}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
-import org.apache.celeborn.service.deploy.worker.storage.file.{FileChannelWriter, FileChannelWriterFactory, FileWriterType}
 
 abstract class TierWriterBase(
     val conf: CelebornConf,
