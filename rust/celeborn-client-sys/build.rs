@@ -166,7 +166,7 @@ fn main() {
     // it up via DEP_CELEBORN_CLIENT_LIB_DIR and embed an rpath in its
     // examples / tests / binaries. (`cargo:rustc-link-arg` does not
     // propagate from a sys crate to dependent crates' artifacts.)
-    println!("cargo:lib_dir={lib_dir_str}");
+    println!("cargo:metadata=lib_dir={lib_dir_str}");
 
     println!("cargo:rerun-if-env-changed=CELEBORN_CPP_PREFIX");
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
