@@ -33,115 +33,115 @@ import org.apache.celeborn.common.util.FileChannelUtils;
 import org.apache.celeborn.service.deploy.worker.file.FileChannelWriter;
 
 public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
-    private final FileChannel channel;
-    private final DiskFileInfo diskFileInfo;
-    private final ZstdCompressCtx zstdCtx;
-    private final ChunkBufferPool.BufferPair bufferPair;
-    private ByteBuffer chunkBuffer;
-    private ByteBuffer compressedChunkBuffer;
-    private final List<Long> chunkOffsets;
-    private final List<Boolean> chunkCompressed;
-    private final long chunkSize;
+  private final FileChannel channel;
+  private final DiskFileInfo diskFileInfo;
+  private final ZstdCompressCtx zstdCtx;
+  private final ChunkBufferPool.BufferPair bufferPair;
+  private ByteBuffer chunkBuffer;
+  private ByteBuffer compressedChunkBuffer;
+  private final List<Long> chunkOffsets;
+  private final List<Boolean> chunkCompressed;
+  private final long chunkSize;
 
-    public ChunkCompressedFileChannelWriter(
-            DiskFileInfo diskFileInfo, long chunkSize, int compressionLevel) throws IOException {
-        this.diskFileInfo = diskFileInfo;
-        this.chunkSize = chunkSize;
-        channel = FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath());
-        zstdCtx = new ZstdCompressCtx().setLevel(compressionLevel);
-        bufferPair = ChunkBufferPool.getInstance().acquire(chunkSize);
-        chunkBuffer = bufferPair.chunkBuffer;
-        compressedChunkBuffer = bufferPair.compressedBuffer;
-        chunkOffsets = new ArrayList<>();
-        chunkOffsets.add(0L);
-        chunkCompressed = new ArrayList<>();
+  public ChunkCompressedFileChannelWriter(
+      DiskFileInfo diskFileInfo, long chunkSize, int compressionLevel) throws IOException {
+    this.diskFileInfo = diskFileInfo;
+    this.chunkSize = chunkSize;
+    channel = FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath());
+    zstdCtx = new ZstdCompressCtx().setLevel(compressionLevel);
+    bufferPair = ChunkBufferPool.getInstance().acquire(chunkSize);
+    chunkBuffer = bufferPair.chunkBuffer;
+    compressedChunkBuffer = bufferPair.compressedBuffer;
+    chunkOffsets = new ArrayList<>();
+    chunkOffsets.add(0L);
+    chunkCompressed = new ArrayList<>();
+  }
+
+  @Override
+  public void write(CompositeByteBuf buffer, boolean gatherApiEnabled) throws IOException {
+    if (buffer.readableBytes() > chunkSize) {
+      // Flush any pending accumulated data before writing the large record so file offsets
+      // remain consistent.
+      compressAndFlush();
+      flushLargeRecord(buffer);
+      return;
     }
 
-    @Override
-    public void write(CompositeByteBuf buffer, boolean gatherApiEnabled) throws IOException {
-        if (buffer.readableBytes() > chunkSize) {
-            // Flush any pending accumulated data before writing the large record so file offsets
-            // remain consistent.
-            compressAndFlush();
-            flushLargeRecord(buffer);
-            return;
-        }
-
-        if (buffer.readableBytes() > chunkBuffer.remaining()) {
-            compressAndFlush();
-        }
-
-        ByteBuffer[] buffers = buffer.nioBuffers();
-        for (ByteBuffer byteBuffer : buffers) {
-            while (byteBuffer.hasRemaining()) {
-                chunkBuffer.put(byteBuffer);
-            }
-        }
+    if (buffer.readableBytes() > chunkBuffer.remaining()) {
+      compressAndFlush();
     }
 
-    /**
-     * Writes the large record directly to the channel without compression. Large records span a full
-     * chunk on their own, so the decompression overhead would be paid all at once anyway; skipping
-     * compression avoids the ZstdOutputStream frame overhead and simplifies the write path.
-     */
-    private void flushLargeRecord(CompositeByteBuf buffer) throws IOException {
-        ByteBuffer[] buffers = buffer.nioBuffers();
-        for (ByteBuffer buf : buffers) {
-            while (buf.hasRemaining()) {
-                channel.write(buf);
-            }
-        }
-        chunkCompressed.add(false);
-        chunkOffsets.add(channel.position());
+    ByteBuffer[] buffers = buffer.nioBuffers();
+    for (ByteBuffer byteBuffer : buffers) {
+      while (byteBuffer.hasRemaining()) {
+        chunkBuffer.put(byteBuffer);
+      }
+    }
+  }
+
+  /**
+   * Writes the large record directly to the channel without compression. Large records span a full
+   * chunk on their own, so the decompression overhead would be paid all at once anyway; skipping
+   * compression avoids the ZstdOutputStream frame overhead and simplifies the write path.
+   */
+  private void flushLargeRecord(CompositeByteBuf buffer) throws IOException {
+    ByteBuffer[] buffers = buffer.nioBuffers();
+    for (ByteBuffer buf : buffers) {
+      while (buf.hasRemaining()) {
+        channel.write(buf);
+      }
+    }
+    chunkCompressed.add(false);
+    chunkOffsets.add(channel.position());
+  }
+
+  @VisibleForTesting
+  public void compressAndFlush() throws IOException {
+    int size = chunkBuffer.position();
+    if (size == 0) return;
+    chunkBuffer.position(0);
+    chunkBuffer.limit(size);
+    compressedChunkBuffer.clear();
+    int compressedSize;
+    try {
+      compressedSize =
+          zstdCtx.compressDirectByteBuffer(
+              compressedChunkBuffer, 0, compressedChunkBuffer.capacity(), chunkBuffer, 0, size);
+    } catch (RuntimeException e) {
+      throw new IOException("Failed to compress chunk with ZSTD.", e);
+    }
+    compressedChunkBuffer.position(0);
+    compressedChunkBuffer.limit(compressedSize);
+
+    long written = 0L;
+    while (written < compressedSize) {
+      written += channel.write(compressedChunkBuffer);
+    }
+    chunkCompressed.add(true);
+    chunkOffsets.add((chunkOffsets.get(chunkOffsets.size() - 1) + written));
+    chunkBuffer.clear();
+  }
+
+  @Override
+  public void close(boolean commitFilesFsync) {
+    try {
+      compressAndFlush();
+      if (commitFilesFsync) {
+        channel.force(false);
+      }
+    } catch (IOException e) {
+      // log and ignore
+    } finally {
+      try {
+        channel.close();
+      } catch (IOException e) {
+        // log and ignore
+      }
+      zstdCtx.close();
     }
 
-    @VisibleForTesting
-    public void compressAndFlush() throws IOException {
-        int size = chunkBuffer.position();
-        if (size == 0) return;
-        chunkBuffer.position(0);
-        chunkBuffer.limit(size);
-        compressedChunkBuffer.clear();
-        int compressedSize;
-        try {
-            compressedSize =
-                    zstdCtx.compressDirectByteBuffer(
-                            compressedChunkBuffer, 0, compressedChunkBuffer.capacity(), chunkBuffer, 0, size);
-        } catch (RuntimeException e) {
-            throw new IOException("Failed to compress chunk with ZSTD.", e);
-        }
-        compressedChunkBuffer.position(0);
-        compressedChunkBuffer.limit(compressedSize);
-
-        long written = 0L;
-        while (written < compressedSize) {
-            written += channel.write(compressedChunkBuffer);
-        }
-        chunkCompressed.add(true);
-        chunkOffsets.add((chunkOffsets.get(chunkOffsets.size() - 1) + written));
-        chunkBuffer.clear();
-    }
-
-    @Override
-    public void close(boolean commitFilesFsync) {
-        try {
-            compressAndFlush();
-            if (commitFilesFsync) {
-                channel.force(false);
-            }
-        } catch (IOException e) {
-            // log and ignore
-        } finally {
-            try {
-                channel.close();
-            } catch (IOException e) {
-                // log and ignore
-            }
-            zstdCtx.close();
-        }
-
-        diskFileInfo.setBytesFlushed(chunkOffsets.get(chunkOffsets.size() - 1));
-        diskFileInfo.replaceFileMeta(new ReduceFileMeta(chunkOffsets, chunkCompressed, chunkSize));
-        ChunkBufferPool.getInstance().release(bufferPair);
-    }
+    diskFileInfo.setBytesFlushed(chunkOffsets.get(chunkOffsets.size() - 1));
+    diskFileInfo.replaceFileMeta(new ReduceFileMeta(chunkOffsets, chunkCompressed, chunkSize));
+    ChunkBufferPool.getInstance().release(bufferPair);
+  }
 }

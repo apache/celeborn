@@ -186,7 +186,13 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
     val userIdentifier = UserIdentifier("`aa`.`bb`")
     val tmpFile = Files.createTempFile("celeborn", "local-test").toString
     val diskFileInfo =
-      new DiskFileInfo(userIdentifier, false, reduceFileMeta, tmpFile, StorageInfo.Type.HDD, ChunkCompressionContext.disabled())
+      new DiskFileInfo(
+        userIdentifier,
+        false,
+        reduceFileMeta,
+        tmpFile,
+        StorageInfo.Type.HDD,
+        ChunkCompressionContext.disabled())
     val numPendingWriters = new AtomicInteger()
     val flushNotifier = new FlushNotifier()
     val source = new WorkerSource(celebornConf)

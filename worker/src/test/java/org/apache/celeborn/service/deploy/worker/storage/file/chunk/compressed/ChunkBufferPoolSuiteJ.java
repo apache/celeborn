@@ -24,8 +24,9 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkBufferPool;
 import org.junit.Test;
+
+import org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkBufferPool;
 
 public class ChunkBufferPoolSuiteJ {
 

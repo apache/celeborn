@@ -24,10 +24,10 @@ import java.nio.file.Files
 import io.netty.buffer.{ByteBuf, UnpooledByteBufAllocator}
 
 import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.compression.ChunkCompressionContext
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{DiskFileInfo, MapFileMeta, ReduceFileMeta}
 import org.apache.celeborn.common.protocol._
-import org.apache.celeborn.common.compression.ChunkCompressionContext
 import org.apache.celeborn.common.unsafe.Platform
 import org.apache.celeborn.service.deploy.worker.storage.WriterUtils.{generateFlinkFormatData, generateSparkFormatData}
 

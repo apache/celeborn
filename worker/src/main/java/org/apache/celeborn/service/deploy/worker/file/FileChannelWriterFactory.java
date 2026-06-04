@@ -17,10 +17,10 @@
 
 package org.apache.celeborn.service.deploy.worker.file;
 
+import java.io.IOException;
+
 import org.apache.celeborn.common.meta.DiskFileInfo;
 import org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter;
-
-import java.io.IOException;
 
 public class FileChannelWriterFactory {
   public static FileChannelWriter getFileChannelWriter(DiskFileInfo diskFileInfo, long chunkSize)

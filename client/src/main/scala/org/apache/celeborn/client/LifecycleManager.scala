@@ -1327,7 +1327,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             partitionSplitEnabled = true,
             isSegmentGranularityVisible = isSegmentGranularityVisible,
             chunkCompressionContext = new ChunkCompressionContext(
-              conf.isChunkCompressionEnabled, conf.chunkCompressionLevel)))
+              conf.isChunkCompressionEnabled,
+              conf.chunkCompressionLevel)))
         futures.add((future, workerInfo))
       }(ec)
     }

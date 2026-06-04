@@ -18,6 +18,6 @@
 package org.apache.celeborn.service.deploy.worker.file;
 
 public enum FileWriterType {
-    CHUNK_COMPRESSED,
-    BYPASS
+  CHUNK_COMPRESSED,
+  BYPASS
 }

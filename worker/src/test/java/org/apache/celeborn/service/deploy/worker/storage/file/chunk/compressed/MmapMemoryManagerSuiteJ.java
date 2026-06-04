@@ -26,8 +26,9 @@ import java.util.Random;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.celeborn.service.deploy.worker.file.chunk.compressed.MmapMemoryManager;
 import org.junit.Test;
+
+import org.apache.celeborn.service.deploy.worker.file.chunk.compressed.MmapMemoryManager;
 
 public class MmapMemoryManagerSuiteJ {
 
