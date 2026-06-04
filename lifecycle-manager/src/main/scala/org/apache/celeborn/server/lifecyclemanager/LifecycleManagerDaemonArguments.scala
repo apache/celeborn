@@ -28,10 +28,27 @@ private[lifecyclemanager] case class LifecycleManagerDaemonArguments(
     host: Option[String],
     propertiesFile: Option[String])
 
+/**
+ * Signals that argument parsing requested termination. Carries the intended
+ * process exit code so callers (e.g. `main`) can exit, while unit tests can
+ * assert on the code and message without the JVM actually shutting down.
+ *
+ * `exitCode == 0` denotes a successful, user-requested `--help`.
+ */
+private[lifecyclemanager] class ArgumentParseException(
+    val exitCode: Int,
+    message: String) extends RuntimeException(message)
+
 private[lifecyclemanager] object LifecycleManagerDaemonArguments {
 
   private val MIN_USER_PORT = 1024
 
+  /**
+   * Pure parser: validates `args` and either returns the parsed arguments or
+   * throws [[ArgumentParseException]]. It performs no I/O and never calls
+   * `sys.exit`, so every branch (help / unknown / missing-arg / bad-port) is
+   * unit-testable. Use [[parseOrExit]] for the process entry point.
+   */
   def parse(args: Array[String]): LifecycleManagerDaemonArguments = {
     var appId: Option[String] = None
     var masterEndpoints: Option[String] = None
@@ -53,7 +70,9 @@ private[lifecyclemanager] object LifecycleManagerDaemonArguments {
         port = Some(value)
         doParse(tail)
 
-      case ("--host" | "-h") :: value :: tail =>
+      // Only the long form is accepted for host: `-h` conventionally means
+      // help, so reserving it for --host would be surprising.
+      case "--host" :: value :: tail =>
         host = Some(value)
         doParse(tail)
 
@@ -61,51 +80,30 @@ private[lifecyclemanager] object LifecycleManagerDaemonArguments {
         propertiesFile = Some(value)
         doParse(tail)
 
-      case "--help" :: _ =>
-        // scalastyle:off println
-        System.err.println(usage)
-        // scalastyle:on println
-        sys.exit(0)
+      case ("--help" | "-h") :: _ =>
+        throw new ArgumentParseException(0, usage)
 
       case Nil => // done
 
       case unknown :: _ =>
-        // scalastyle:off println
-        System.err.println(s"Unknown argument: $unknown")
-        System.err.println(usage)
-        // scalastyle:on println
-        sys.exit(1)
+        throw new ArgumentParseException(1, s"Unknown argument: $unknown\n$usage")
     }
 
     doParse(args.toList)
 
     if (appId.isEmpty) {
-      // scalastyle:off println
-      System.err.println("Error: --app-id is required.")
-      System.err.println(usage)
-      // scalastyle:on println
-      sys.exit(1)
+      throw new ArgumentParseException(1, s"Error: --app-id is required.\n$usage")
     }
     if (masterEndpoints.isEmpty) {
-      // scalastyle:off println
-      System.err.println("Error: --master-endpoints is required.")
-      System.err.println(usage)
-      // scalastyle:on println
-      sys.exit(1)
+      throw new ArgumentParseException(1, s"Error: --master-endpoints is required.\n$usage")
     }
     if (port.isEmpty) {
-      // scalastyle:off println
-      System.err.println("Error: --port is required.")
-      System.err.println(usage)
-      // scalastyle:on println
-      sys.exit(1)
+      throw new ArgumentParseException(1, s"Error: --port is required.\n$usage")
     }
     if (port.get < MIN_USER_PORT) {
-      // scalastyle:off println
-      System.err.println(s"Error: --port must be >= $MIN_USER_PORT, got ${port.get}.")
-      System.err.println(usage)
-      // scalastyle:on println
-      sys.exit(1)
+      throw new ArgumentParseException(
+        1,
+        s"Error: --port must be >= $MIN_USER_PORT, got ${port.get}.\n$usage")
     }
 
     LifecycleManagerDaemonArguments(
@@ -116,6 +114,22 @@ private[lifecyclemanager] object LifecycleManagerDaemonArguments {
       propertiesFile = propertiesFile)
   }
 
+  /**
+   * Process entry point wrapper around [[parse]]: prints the message carried by
+   * an [[ArgumentParseException]] and exits with its code.
+   */
+  def parseOrExit(args: Array[String]): LifecycleManagerDaemonArguments = {
+    try {
+      parse(args)
+    } catch {
+      case e: ArgumentParseException =>
+        // scalastyle:off println
+        System.err.println(e.getMessage)
+        // scalastyle:on println
+        sys.exit(e.exitCode)
+    }
+  }
+
   val usage: String =
     """Usage: LifecycleManagerDaemon [options]
       |
@@ -123,8 +137,9 @@ private[lifecyclemanager] object LifecycleManagerDaemonArguments {
       |  --app-id ID                  Application unique identifier (required)
       |  --master-endpoints ENDPOINTS Comma-separated master host:port list (required)
       |  -p PORT, --port PORT         Port for LifecycleManager to listen on (required, >= 1024)
-      |  -h HOST, --host HOST         Hostname to bind (optional, default: auto-detect)
+      |  --host HOST                  Hostname to bind (optional, default: auto-detect)
       |  --properties-file FILE       Path to a custom Celeborn properties file,
       |                               default is conf/celeborn-defaults.conf
+      |  -h, --help                   Print this help message
       |""".stripMargin
 }

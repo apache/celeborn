@@ -167,9 +167,28 @@ nohup "${JAVA}" -cp "${CLASSPATH}" ${CELEBORN_JAVA_OPTS} "${MAIN_CLASS}" "$@" \
 CELEBORN_LM_PID=$!
 echo "${CELEBORN_LM_PID}" > "${PID_FILE}"
 
-# Wait briefly and verify the process is still alive
-sleep 2
-if kill -0 "${CELEBORN_LM_PID}" 2>/dev/null; then
+# Wait until the daemon either binds its RPC port or dies. A fixed `sleep`
+# would report success while the JVM is still starting and the port is not yet
+# bound; poll the port (reusing port_is_free) so we only declare success once
+# the RPC endpoint is actually accepting connections.
+startup_ok=0
+max_wait_secs=30
+waited=0
+while [ "$waited" -lt "$max_wait_secs" ]; do
+  if ! kill -0 "${CELEBORN_LM_PID}" 2>/dev/null; then
+    # Process exited during startup.
+    break
+  fi
+  if ! port_is_free "${CELEBORN_LM_PORT}"; then
+    # Something (our daemon) is now listening on the port.
+    startup_ok=1
+    break
+  fi
+  sleep 1
+  waited=$(( waited + 1 ))
+done
+
+if [ "$startup_ok" -eq 1 ]; then
   export CELEBORN_LM_PORT
   export CELEBORN_LM_PID
 

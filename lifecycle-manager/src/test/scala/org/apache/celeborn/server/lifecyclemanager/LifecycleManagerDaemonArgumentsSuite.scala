@@ -19,6 +19,7 @@ package org.apache.celeborn.server.lifecyclemanager
 
 import org.scalatest.funsuite.AnyFunSuite
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 
 class LifecycleManagerDaemonArgumentsSuite extends AnyFunSuite with Logging {
@@ -59,20 +60,106 @@ class LifecycleManagerDaemonArgumentsSuite extends AnyFunSuite with Logging {
     assert(parsed.propertiesFile === Some("/tmp/celeborn.conf"))
   }
 
-  test("parse with short flags") {
+  test("parse with short port flag -p") {
     val args = Array(
       "--app-id",
       "short-app",
       "--master-endpoints",
       "host:9097",
       "-p",
-      "2048",
-      "-h",
-      "short-host")
+      "2048")
     val parsed = LifecycleManagerDaemonArguments.parse(args)
     assert(parsed.appId === "short-app")
     assert(parsed.port === 2048)
-    assert(parsed.host === Some("short-host"))
+    assert(parsed.host.isEmpty)
+  }
+
+  test("-h is treated as help, not host") {
+    val args = Array("-h")
+    val ex = intercept[ArgumentParseException] {
+      LifecycleManagerDaemonArguments.parse(args)
+    }
+    assert(ex.exitCode === 0)
+    assert(ex.getMessage.contains("Usage"))
+  }
+
+  test("--help requests help with exit code 0") {
+    val ex = intercept[ArgumentParseException] {
+      LifecycleManagerDaemonArguments.parse(Array("--help"))
+    }
+    assert(ex.exitCode === 0)
+    assert(ex.getMessage.contains("Usage"))
+  }
+
+  test("unknown argument fails with exit code 1") {
+    val args = Array(
+      "--app-id",
+      "app",
+      "--master-endpoints",
+      "host:9097",
+      "--port",
+      "39099",
+      "--bogus")
+    val ex = intercept[ArgumentParseException] {
+      LifecycleManagerDaemonArguments.parse(args)
+    }
+    assert(ex.exitCode === 1)
+    assert(ex.getMessage.contains("Unknown argument: --bogus"))
+  }
+
+  test("missing --app-id fails with exit code 1") {
+    val args = Array("--master-endpoints", "host:9097", "--port", "39099")
+    val ex = intercept[ArgumentParseException] {
+      LifecycleManagerDaemonArguments.parse(args)
+    }
+    assert(ex.exitCode === 1)
+    assert(ex.getMessage.contains("--app-id is required"))
+  }
+
+  test("missing --master-endpoints fails with exit code 1") {
+    val args = Array("--app-id", "app", "--port", "39099")
+    val ex = intercept[ArgumentParseException] {
+      LifecycleManagerDaemonArguments.parse(args)
+    }
+    assert(ex.exitCode === 1)
+    assert(ex.getMessage.contains("--master-endpoints is required"))
+  }
+
+  test("missing --port fails with exit code 1") {
+    val args = Array("--app-id", "app", "--master-endpoints", "host:9097")
+    val ex = intercept[ArgumentParseException] {
+      LifecycleManagerDaemonArguments.parse(args)
+    }
+    assert(ex.exitCode === 1)
+    assert(ex.getMessage.contains("--port is required"))
+  }
+
+  test("port below 1024 fails with exit code 1") {
+    val args = Array(
+      "--app-id",
+      "app",
+      "--master-endpoints",
+      "host:9097",
+      "--port",
+      "1023")
+    val ex = intercept[ArgumentParseException] {
+      LifecycleManagerDaemonArguments.parse(args)
+    }
+    assert(ex.exitCode === 1)
+    assert(ex.getMessage.contains("must be >= 1024"))
+  }
+
+  test("applyArgsToConf sets master endpoints and shuffle manager port") {
+    val parsed = LifecycleManagerDaemonArguments(
+      appId = "app",
+      masterEndpoints = "host1:9097,host2:9097",
+      port = 39099,
+      host = None,
+      propertiesFile = None)
+    val conf = new CelebornConf()
+    LifecycleManagerDaemon.applyArgsToConf(parsed, conf)
+    assert(conf.get(CelebornConf.MASTER_ENDPOINTS.key) === "host1:9097,host2:9097")
+    assert(conf.get(CelebornConf.CLIENT_SHUFFLE_MANAGER_PORT.key) === "39099")
   }
 
   test("parse minimum valid port 1024") {

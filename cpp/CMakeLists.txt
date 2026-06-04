@@ -37,7 +37,33 @@ if ("${TREAT_WARNINGS_AS_ERRORS}")
 endif ()
 
 # Avoid folly::f14::detail::F14LinkCheck problem on x86-64 platform.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
+# -msse4.2 is an x86-only flag; emitting it on aarch64 (Apple Silicon or
+# aarch64 Linux) makes the compiler error out, so guard it by architecture.
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
+endif ()
+
+# Resolve the Homebrew prefix on macOS instead of hard-coding the
+# Apple-Silicon path. Intel Macs install under /usr/local while Apple
+# Silicon uses /opt/homebrew; `brew --prefix` reports whichever applies.
+if (APPLE)
+    if (DEFINED ENV{HOMEBREW_PREFIX})
+        set(HOMEBREW_PREFIX "$ENV{HOMEBREW_PREFIX}")
+    else ()
+        find_program(BREW_EXECUTABLE brew)
+        if (BREW_EXECUTABLE)
+            execute_process(
+                COMMAND ${BREW_EXECUTABLE} --prefix
+                OUTPUT_VARIABLE HOMEBREW_PREFIX
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+        elseif (EXISTS /opt/homebrew)
+            set(HOMEBREW_PREFIX "/opt/homebrew")
+        else ()
+            set(HOMEBREW_PREFIX "/usr/local")
+        endif ()
+    endif ()
+    message(STATUS "Using HOMEBREW_PREFIX=${HOMEBREW_PREFIX}")
+endif ()
 
 # Set CMAKE_BUILD_TYPE to 'Release' if it is not specified.
 if (NOT CMAKE_BUILD_TYPE)
@@ -201,8 +227,8 @@ add_library(celeborn_client SHARED dummy.cc)
 # Homebrew prefix is not on ld's default path.
 if(APPLE)
   target_link_directories(celeborn_client PRIVATE
-    /opt/homebrew/lib
-    /opt/homebrew/opt/openssl@3/lib)
+    ${HOMEBREW_PREFIX}/lib
+    ${HOMEBREW_PREFIX}/opt/openssl@3/lib)
 endif()
 
 set(_CELEBORN_INTERNAL_LIBS
@@ -237,26 +263,65 @@ target_link_libraries(celeborn_client PRIVATE
   protobuf::libprotobuf
   OpenSSL::SSL OpenSSL::Crypto)
 
-# protobuf v28+ pulls in dozens of absl_* sub-libraries. Discover them via
-# the homebrew prefix instead of hard-coding the full list (which would
-# inevitably drift as abseil releases new components).
-if(APPLE)
-  set(_ABSEIL_LIB_DIR "/opt/homebrew/lib")
-  set(_ABSEIL_LIB_EXT "dylib")
-elseif(EXISTS /usr/local/lib)
-  set(_ABSEIL_LIB_DIR "/usr/local/lib")
-  set(_ABSEIL_LIB_EXT "so")
+# protobuf v28+ pulls in dozens of absl_* sub-libraries. Prefer the CMake
+# package config / pkg-config exported by abseil, which provides the correct
+# imported targets regardless of where the distribution installs them. This
+# is portable across Apple Silicon, Intel macOS, x86_64 Linux and aarch64
+# Linux (whose multiarch dir is /usr/lib/aarch64-linux-gnu, not covered by
+# any hard-coded path).
+find_package(absl CONFIG QUIET)
+if(absl_FOUND)
+  # Link the umbrella target if present, otherwise the common building blocks
+  # that protobuf actually depends on.
+  if(TARGET absl::absl)
+    target_link_libraries(celeborn_client PRIVATE absl::absl)
+  else()
+    target_link_libraries(celeborn_client PRIVATE
+      absl::base absl::strings absl::status absl::statusor
+      absl::synchronization absl::time absl::log absl::log_internal_check_op)
+  endif()
 else()
-  set(_ABSEIL_LIB_DIR "/usr/lib/x86_64-linux-gnu")
-  set(_ABSEIL_LIB_EXT "so")
-endif()
-file(GLOB _ABSEIL_LIBS "${_ABSEIL_LIB_DIR}/libabsl_*.${_ABSEIL_LIB_EXT}")
-if(_ABSEIL_LIBS)
-  target_link_libraries(celeborn_client PRIVATE ${_ABSEIL_LIBS})
-else()
-  message(WARNING
-    "No libabsl_*.${_ABSEIL_LIB_EXT} found in ${_ABSEIL_LIB_DIR}; \
-     celeborn_client may fail to link if protobuf depends on absl.")
+  # No CMake config — fall back to globbing the platform library directory.
+  if(APPLE)
+    set(_ABSEIL_LIB_DIR "${HOMEBREW_PREFIX}/lib")
+    set(_ABSEIL_LIB_EXT "dylib")
+  else()
+    set(_ABSEIL_LIB_EXT "so")
+    # Derive the GNU multiarch library directory from the toolchain triplet
+    # (e.g. x86_64-linux-gnu, aarch64-linux-gnu) so non-x86_64 Linux targets
+    # advertised by the README actually resolve absl.
+    execute_process(
+      COMMAND ${CMAKE_CXX_COMPILER} -dumpmachine
+      OUTPUT_VARIABLE _MULTIARCH_TRIPLET
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      ERROR_QUIET)
+    set(_ABSEIL_SEARCH_DIRS
+      "/usr/lib/${_MULTIARCH_TRIPLET}"
+      "/usr/local/lib"
+      "/usr/lib64"
+      "/usr/lib")
+    set(_ABSEIL_LIB_DIR "")
+    foreach(_dir IN LISTS _ABSEIL_SEARCH_DIRS)
+      file(GLOB _probe "${_dir}/libabsl_*.${_ABSEIL_LIB_EXT}")
+      if(_probe)
+        set(_ABSEIL_LIB_DIR "${_dir}")
+        break()
+      endif()
+    endforeach()
+  endif()
+
+  file(GLOB _ABSEIL_LIBS "${_ABSEIL_LIB_DIR}/libabsl_*.${_ABSEIL_LIB_EXT}")
+  if(_ABSEIL_LIBS)
+    message(STATUS "Found abseil libraries in ${_ABSEIL_LIB_DIR}")
+    target_link_libraries(celeborn_client PRIVATE ${_ABSEIL_LIBS})
+  else()
+    # protobuf almost always depends on absl; a missing absl is a hard link
+    # failure rather than a warning to silently ignore.
+    message(FATAL_ERROR
+      "Could not locate libabsl_*.${_ABSEIL_LIB_EXT}. protobuf depends on "
+      "abseil; install abseil-cpp (providing absl CMake config or "
+      "libabsl_*.${_ABSEIL_LIB_EXT}) or point CMAKE_PREFIX_PATH at it.")
+  endif()
 endif()
 
 # Hide every non-celeborn symbol so the dylib does not collide with the
@@ -269,7 +334,7 @@ if(APPLE)
   target_link_options(celeborn_client PRIVATE
     "-Wl,-exported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/exports.txt")
   set_target_properties(celeborn_client PROPERTIES
-    INSTALL_RPATH "@loader_path;/opt/homebrew/lib;/opt/homebrew/opt/openssl@3/lib"
+    INSTALL_RPATH "@loader_path;${HOMEBREW_PREFIX}/lib;${HOMEBREW_PREFIX}/opt/openssl@3/lib"
     BUILD_WITH_INSTALL_RPATH TRUE)
 else()
   target_link_options(celeborn_client PRIVATE

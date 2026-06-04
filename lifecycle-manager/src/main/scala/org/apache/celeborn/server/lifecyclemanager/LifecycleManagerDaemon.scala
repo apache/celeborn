@@ -38,7 +38,7 @@ object LifecycleManagerDaemon extends Logging {
   def main(args: Array[String]): Unit = {
     SignalUtils.registerLogger(log)
 
-    val parsedArgs = LifecycleManagerDaemonArguments.parse(args)
+    val parsedArgs = LifecycleManagerDaemonArguments.parseOrExit(args)
     val conf = new CelebornConf()
 
     // Load properties file before applying CLI args
@@ -46,7 +46,14 @@ object LifecycleManagerDaemon extends Logging {
 
     applyArgsToConf(parsedArgs, conf)
 
-    // Auth check: standalone LM does not support auth (cpp/Rust client lacks SASL)
+    // Auth check: standalone LM does not support auth (cpp/Rust client lacks SASL).
+    //
+    // DEPLOYMENT WARNING: with auth disabled, this daemon exposes shuffle
+    // registration and slot allocation to anything that can reach its RPC port.
+    // It performs no authentication of incoming clients. Operators MUST bind it
+    // to a trusted network only (e.g. set --host to a private interface and
+    // restrict the RPC port via firewall / security groups / network policy);
+    // never expose the port on an untrusted or public network.
     if (conf.authEnabledOnClient) {
       logError(
         "Standalone LifecycleManager does not support auth " +
@@ -54,6 +61,11 @@ object LifecycleManagerDaemon extends Logging {
       exitFn(1)
       return
     }
+
+    logWarning(
+      "Standalone LifecycleManager runs WITHOUT authentication. Ensure its RPC " +
+        "port is reachable only from trusted networks (bind to a private " +
+        "interface and restrict access via firewall / network policy).")
 
     // Propagate --host to Utils so LifecycleManager binds to the requested hostname
     parsedArgs.host.foreach { host =>
@@ -76,18 +88,16 @@ object LifecycleManagerDaemon extends Logging {
 
       logInfo("shutdown hook installed; press Ctrl-C to stop.")
 
+      // Block until the shutdown hook fires (Ctrl-C / SIGTERM) and counts the
+      // latch down. The hook is what drives the actual JVM exit, so there is no
+      // need for an explicit exitFn(0) here — calling System.exit again from the
+      // main thread while a shutdown hook is already running is redundant.
       shutdownLatch.await()
-      exitFn(0)
     } catch {
       case e: Exception =>
         logError("Failed to start LifecycleManager", e)
         exitFn(1)
     }
-  }
-
-  private[lifecyclemanager] def runUntilStopped(lm: LifecycleManager): Unit = {
-    currentInstance.set(lm)
-    shutdownLatch.await()
   }
 
   private[lifecyclemanager] def applyArgsToConf(
@@ -105,11 +115,15 @@ object LifecycleManagerDaemon extends Logging {
       override def run(): Unit = {
         try {
           Thread.sleep(shutdownTimeoutMs)
-          logError(s"Shutdown exceeded ${shutdownTimeoutMs}ms, forcing halt")
-          Runtime.getRuntime.halt(2)
         } catch {
-          case _: InterruptedException => // normal exit, watchdog no longer needed
+          // Nothing interrupts this watchdog today, but if some future caller
+          // ever does, treat the interruption itself as a sign that shutdown is
+          // wedged and force a halt rather than silently exiting.
+          case _: InterruptedException =>
+            Thread.currentThread().interrupt()
         }
+        logError(s"Shutdown exceeded ${shutdownTimeoutMs}ms, forcing halt")
+        Runtime.getRuntime.halt(2)
       }
     }
     watchdog.setDaemon(true)

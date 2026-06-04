@@ -83,11 +83,16 @@ fn main() {
             let client = Arc::clone(&client);
             let result = Arc::clone(&result);
             thread::spawn(move || {
+                // Seed the RNG per map task so every mapper thread produces a
+                // DISTINCT byte stream. A shared/fixed seed would make all
+                // threads push identical data, which masks data races in the
+                // concurrent `&self` push path this example is meant to stress.
+                let mut rng_state: u64 = 0x9E37_79B9_7F4A_7C15 ^ (map_id as u64).wrapping_add(1);
                 for partition_id in 0..num_partitions {
                     let mut partition_data = String::new();
                     let mut partition_sum: i64 = 0;
                     for _ in 0..num_data {
-                        let data = rand_simple(max_data);
+                        let data = rand_simple(&mut rng_state, max_data);
                         partition_sum += data;
                         partition_data.push('-');
                         partition_data.push_str(&data.to_string());
@@ -134,18 +139,16 @@ fn main() {
     println!("Writer completed successfully.");
 }
 
-/// Simple pseudo-random number generator (deterministic per process, good enough for testing).
-fn rand_simple(max_val: i64) -> i64 {
-    use std::cell::Cell;
-    thread_local! {
-        static STATE: Cell<u64> = Cell::new(12345);
-    }
-    STATE.with(|s| {
-        let mut x = s.get();
-        x ^= x << 13;
-        x ^= x >> 7;
-        x ^= x << 17;
-        s.set(x);
-        ((x >> 1) as i64) % max_val
-    })
+/// Simple xorshift pseudo-random number generator. The caller owns the
+/// `state`, so each mapper thread can seed it independently and generate a
+/// distinct byte stream — necessary for the concurrency stress this example
+/// performs (a shared/fixed seed would make all threads emit identical data
+/// and hide races in the `&self` push path).
+fn rand_simple(state: &mut u64, max_val: i64) -> i64 {
+    let mut x = *state;
+    x ^= x << 13;
+    x ^= x >> 7;
+    x ^= x << 17;
+    *state = x;
+    ((x >> 1) as i64) % max_val
 }

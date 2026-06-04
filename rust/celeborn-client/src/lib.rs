@@ -53,6 +53,20 @@ impl Config {
 /// shutdown) to work around a folly `EventBase` use-after-free that
 /// triggers when `TransportClient` is destroyed concurrently with
 /// `IOThreadPoolExecutor::join()`. Use `shutdown()` for explicit teardown.
+///
+/// # Per-process client assumption (IMPORTANT)
+///
+/// Because the underlying C++ `ClientImpl` is **never freed** — neither
+/// `shutdown()` nor `Drop` deletes it, and `connect()` leaks it entirely if
+/// `setup_lifecycle_manager` fails — each call to [`ShuffleClient::connect`]
+/// permanently leaks the client's config, endpoint, native client and its
+/// thread pool. This is acceptable for one-shot processes (the typical mapper
+/// / writer use case) but means a long-lived process that creates **many**
+/// clients will steadily leak memory and threads.
+///
+/// Treat this type as a **per-process singleton**: create one client for the
+/// lifetime of the process and reuse it (share via `Arc<ShuffleClient>` across
+/// threads) rather than repeatedly constructing and dropping clients.
 pub struct ShuffleClient {
     handle: *mut sys::celeborn_ffi_handle,
 }
@@ -80,21 +94,28 @@ pub struct ShuffleClient {
 unsafe impl Send for ShuffleClient {}
 unsafe impl Sync for ShuffleClient {}
 
+/// Pure validation of [`ShuffleClient::connect`] inputs, separated from any
+/// FFI so it can be unit-tested without a live cluster.
+fn validate_connect_args(config: &Config, lm_port: i32) -> Result<()> {
+    if config.app_id.is_empty() {
+        return Err(Error::InvalidArg("app_id is empty"));
+    }
+    if lm_port <= 0 {
+        return Err(Error::InvalidArg("lm_port must be > 0"));
+    }
+    let valid_codecs = ["NONE", "LZ4", "ZSTD"];
+    if !valid_codecs.contains(&config.shuffle_compression_codec.as_str()) {
+        return Err(Error::InvalidArg(
+            "shuffle_compression_codec must be NONE, LZ4, or ZSTD",
+        ));
+    }
+    Ok(())
+}
+
 impl ShuffleClient {
     /// Connect to a running LifecycleManager at `lm_host:lm_port`.
     pub fn connect(config: Config, lm_host: &str, lm_port: i32) -> Result<Self> {
-        if config.app_id.is_empty() {
-            return Err(Error::InvalidArg("app_id is empty"));
-        }
-        if lm_port <= 0 {
-            return Err(Error::InvalidArg("lm_port must be > 0"));
-        }
-        let valid_codecs = ["NONE", "LZ4", "ZSTD"];
-        if !valid_codecs.contains(&config.shuffle_compression_codec.as_str()) {
-            return Err(Error::InvalidArg(
-                "shuffle_compression_codec must be NONE, LZ4, or ZSTD",
-            ));
-        }
+        validate_connect_args(&config, lm_port)?;
 
         let mut err: *mut c_char = ptr::null_mut();
         let handle = unsafe {
@@ -390,5 +411,53 @@ impl<'client> Drop for PartitionReader<'client> {
             unsafe { sys::celeborn_ffi_close_partition_reader(self.inner) };
             self.inner = ptr::null_mut();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config_with(app_id: &str, codec: &str) -> Config {
+        let mut config = Config::new(app_id.to_string());
+        config.shuffle_compression_codec = codec.to_string();
+        config
+    }
+
+    #[test]
+    fn validate_accepts_supported_codecs() {
+        for codec in ["NONE", "LZ4", "ZSTD"] {
+            let config = config_with("app", codec);
+            assert!(validate_connect_args(&config, 39099).is_ok());
+        }
+    }
+
+    #[test]
+    fn validate_rejects_empty_app_id() {
+        let config = config_with("", "NONE");
+        let err = validate_connect_args(&config, 39099).unwrap_err();
+        assert!(matches!(err, Error::InvalidArg("app_id is empty")));
+    }
+
+    #[test]
+    fn validate_rejects_non_positive_port() {
+        let config = config_with("app", "NONE");
+        assert!(matches!(
+            validate_connect_args(&config, 0).unwrap_err(),
+            Error::InvalidArg("lm_port must be > 0")
+        ));
+        assert!(matches!(
+            validate_connect_args(&config, -1).unwrap_err(),
+            Error::InvalidArg("lm_port must be > 0")
+        ));
+    }
+
+    #[test]
+    fn validate_rejects_unknown_codec() {
+        let config = config_with("app", "GZIP");
+        assert!(matches!(
+            validate_connect_args(&config, 39099).unwrap_err(),
+            Error::InvalidArg(_)
+        ));
     }
 }
