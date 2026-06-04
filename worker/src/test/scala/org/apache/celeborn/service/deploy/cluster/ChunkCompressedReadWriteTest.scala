@@ -19,14 +19,11 @@ package org.apache.celeborn.service.deploy.cluster
 
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
-
 import scala.collection.mutable
-
 import org.apache.commons.lang3.RandomStringUtils
 import org.junit.Assert
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
-
 import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
 import org.apache.celeborn.client.read.MetricsCallback
 import org.apache.celeborn.common.CelebornConf
@@ -34,6 +31,8 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.CompressionCodec
 import org.apache.celeborn.service.deploy.MiniClusterFeature
+
+import java.util.UUID
 
 /**
  * End-to-end read/write tests with chunk-level compression enabled
@@ -78,7 +77,7 @@ class ChunkCompressedReadWriteTest extends AnyFunSuite
       readLocal: Boolean = false,
       shuffleChunkSz: String = "8m"): Unit = {
 
-    val APP = s"app-chunk-${codec.name}-local$readLocal"
+    val APP = s"app-chunk-${codec.name}-local$readLocal" + UUID.randomUUID()
 
     val clientConf = new CelebornConf()
       .set(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$masterPort")
