@@ -39,4 +39,7 @@ build/sbt-config/**
 **/node_modules/**
 cpp/cmake/FindSodium.cmake
 cpp/build/**
+cpp/build_static/**
+cpp/thirdparty/**
 rust/Cargo.lock
+rust/.gitignore
