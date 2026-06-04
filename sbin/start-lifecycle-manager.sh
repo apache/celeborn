@@ -55,7 +55,7 @@ port_is_free() {
     return
   fi
   if command -v netstat >/dev/null 2>&1; then
-    ! netstat -anL 2>/dev/null | awk -v p=":${port}" '$1 ~ /^tcp/ && $4 ~ p"$" {found=1} END {exit !found}'
+    ! netstat -an 2>/dev/null | awk -v p=":${port}$" '$1 ~ /^tcp/ && $0 ~ /LISTEN/ && $4 ~ p {found=1} END {exit !found}'
     return
   fi
   # Last-resort loopback probe (incomplete — see note above).
