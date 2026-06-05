@@ -434,7 +434,8 @@ public class CelebornTierConsumerAgent implements TierConsumerAgent {
             subPartitionIdSet.getStartIndex(),
             subPartitionIdSet.getEndIndex(),
             getDataListener(partitionId),
-            getFailureListener(partitionId));
+            getFailureListener(partitionId),
+            conf.clientShuffleIntegrityCheckEnabled());
 
     for (int id = subPartitionIdSet.getStartIndex(); id <= subPartitionIdSet.getEndIndex(); id++) {
       TieredStorageSubpartitionId subPartitionId = new TieredStorageSubpartitionId(id);

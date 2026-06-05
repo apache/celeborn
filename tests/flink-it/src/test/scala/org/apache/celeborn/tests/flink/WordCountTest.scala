@@ -127,6 +127,13 @@ class WordCountTest extends WordCountTestBase {
   override protected def getWorkerConf: Map[String, String] = Map()
 }
 
+class WordCountTestWithIntegrityCheck extends WordCountTestBase {
+  override protected def getMasterConf: Map[String, String] = Map()
+  override protected def getWorkerConf: Map[String, String] = Map()
+  override protected def getClientConf: Map[String, String] =
+    Map(CelebornConf.CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED.key -> "true")
+}
+
 class WordCountTestWithAuthentication extends WordCountTestBase {
 
   private val authConfig = Map(

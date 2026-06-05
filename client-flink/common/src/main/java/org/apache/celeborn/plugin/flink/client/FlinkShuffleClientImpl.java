@@ -72,6 +72,7 @@ import org.apache.celeborn.common.write.PushState;
 import org.apache.celeborn.plugin.flink.network.FlinkTransportClientFactory;
 import org.apache.celeborn.plugin.flink.network.ReadClientHandler;
 import org.apache.celeborn.plugin.flink.network.TransportFrameDecoderWithBufferSupplier;
+import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 
 public class FlinkShuffleClientImpl extends ShuffleClientImpl {
   public static final Logger logger = LoggerFactory.getLogger(FlinkShuffleClientImpl.class);
@@ -179,6 +180,16 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       UserIdentifier userIdentifier,
       int bufferSizeBytes) {
     super(appUniqueId, conf, userIdentifier);
+    // The integrity check is only correct while the write-side BATCH_HEADER_SIZE and read-side
+    // BufferUtils.HEADER_LENGTH_PREFIX stay equal, so fail fast if they ever diverge.
+    if (BATCH_HEADER_SIZE != BufferUtils.HEADER_LENGTH_PREFIX) {
+      throw new IllegalStateException(
+          String.format(
+              "Batch header size mismatch: write-side BATCH_HEADER_SIZE %d != read-side "
+                  + "BufferUtils.HEADER_LENGTH_PREFIX %d; the Flink shuffle integrity check would "
+                  + "produce false mismatches.",
+              BATCH_HEADER_SIZE, BufferUtils.HEADER_LENGTH_PREFIX));
+    }
     this.bufferSizeBytes = bufferSizeBytes;
     String module = TransportModuleConstants.DATA_MODULE;
     TransportConf dataTransportConf =
@@ -339,6 +350,12 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     data.writeInt(nextBatchId);
     data.writeInt(totalLength - BATCH_HEADER_SIZE);
     data.resetWriterIndex();
+    // Hash the payload after the header via a zero-copy ByteBuffer view; the reader strips the same
+    // count (asserted equal in the constructor).
+    if (shuffleIntegrityCheckEnabled) {
+      int payloadLength = totalLength - BATCH_HEADER_SIZE;
+      pushState.addData(partitionId, data.nioBuffer(BATCH_HEADER_SIZE, payloadLength));
+    }
     logger.debug(
         "Do push data byteBuf size {} for app {} shuffle {} map {} attempt {} reduce {} batch {}.",
         totalLength,

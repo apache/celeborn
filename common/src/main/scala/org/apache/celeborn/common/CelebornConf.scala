@@ -5712,7 +5712,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.shuffle.integrityCheck.enabled")
       .categories("client")
       .version("0.6.1")
-      .doc("When `true`, enables end-to-end integrity checks for Spark workloads.")
+      .doc("When `true`, enables end-to-end integrity checks for Spark and Flink workloads.")
       .booleanConf
       .createWithDefault(false)
 

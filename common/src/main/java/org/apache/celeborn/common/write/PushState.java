@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.write;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
@@ -135,5 +136,11 @@ public class PushState {
     CommitMetadata commitMetadata =
         commitMetadataMap.computeIfAbsent(partitionId, id -> new CommitMetadata());
     commitMetadata.addDataWithOffsetAndLength(data, offset, length);
+  }
+
+  public void addData(int partitionId, ByteBuffer data) {
+    CommitMetadata commitMetadata =
+        commitMetadataMap.computeIfAbsent(partitionId, id -> new CommitMetadata());
+    commitMetadata.addData(data);
   }
 }

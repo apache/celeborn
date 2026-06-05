@@ -466,6 +466,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             attemptId,
             partitionId,
             numMappers,
+            numPartitions,
+            crc32PerPartition,
+            bytesWrittenPerPartition,
             serdeVersion)
         case _ =>
           throw new UnsupportedOperationException(s"Not support $partitionType yet")
@@ -474,7 +477,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     case pb: ReadReducerPartitionEnd =>
       val partitionType = getPartitionType(pb.shuffleId)
       partitionType match {
-        case PartitionType.REDUCE =>
+        // Map partitions reuse this reducer-named RPC/handler; for MAP, partitionId is the map
+        // partition id and [startMapIndex, endMapIndex] is the consumed subpartition range.
+        case PartitionType.REDUCE | PartitionType.MAP =>
           handleReducerPartitionEnd(
             context,
             pb.shuffleId,
@@ -559,7 +564,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           StatusCode.SUCCESS.getValue).build()
     } else {
       response = PbReadReducerPartitionEndResponse.newBuilder().setStatus(
-        +StatusCode.READ_REDUCER_PARTITION_END_FAILED.getValue).setErrorMsg(errorMessage).build()
+        StatusCode.READ_REDUCER_PARTITION_END_FAILED.getValue).setErrorMsg(errorMessage).build()
     }
     context.reply(response)
   }
@@ -1227,6 +1232,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       attemptId: Int,
       partitionId: Int,
       numMappers: Int,
+      numPartitions: Int,
+      crc32PerPartition: Array[Int],
+      bytesWrittenPerPartition: Array[Long],
       serdeVersion: SerdeVersion): Unit = {
     def reply(result: Boolean): Unit = {
       val message =
@@ -1243,7 +1251,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
 
     val (mapperAttemptFinishedSuccess, _) =
-      commitManager.finishMapperAttempt(shuffleId, mapId, attemptId, numMappers, partitionId)
+      commitManager.finishMapperAttempt(
+        shuffleId,
+        mapId,
+        attemptId,
+        numMappers,
+        partitionId,
+        numPartitions = numPartitions,
+        crc32PerPartition = crc32PerPartition,
+        bytesWrittenPerPartition = bytesWrittenPerPartition)
     reply(mapperAttemptFinishedSuccess)
   }
 

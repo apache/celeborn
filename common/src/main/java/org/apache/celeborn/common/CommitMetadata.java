@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.common;
 
+import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -38,6 +39,23 @@ public class CommitMetadata {
   public void addDataWithOffsetAndLength(byte[] rawDataBuf, int offset, int length) {
     this.bytes.addAndGet(length);
     this.crc.addData(rawDataBuf, offset, length);
+  }
+
+  /**
+   * Accumulates checksum and byte count over the remaining bytes of {@code buffer} (a transient
+   * {@code nioBuffer} view, so no copy), advancing its position to the limit.
+   */
+  public void addData(ByteBuffer buffer) {
+    this.bytes.addAndGet(buffer.remaining());
+    this.crc.addData(buffer);
+  }
+
+  /**
+   * Like {@link #addData(ByteBuffer)} but over two concatenated buffers (e.g. a split header/data).
+   */
+  public void addData(ByteBuffer first, ByteBuffer second) {
+    this.bytes.addAndGet((long) first.remaining() + second.remaining());
+    this.crc.addData(first, second);
   }
 
   public void addCommitData(CommitMetadata commitMetadata) {

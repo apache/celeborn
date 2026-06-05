@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.worker.Worker
@@ -62,10 +63,21 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
     testLocalEnv()
   }
 
+  test("Celeborn Flink Hybrid Shuffle Integration test(Local) with integrity check - word count") {
+    assumeFlinkVersion()
+    testLocalEnv(integrityCheckEnabled = true)
+  }
+
   test(
     "Celeborn Flink Hybrid Shuffle Integration test(Flink mini cluster) single tier - word count") {
     assumeFlinkVersion()
     testInMiniCluster()
+  }
+
+  test(
+    "Celeborn Flink Hybrid Shuffle Integration test(Flink mini cluster) single tier with integrity check - word count") {
+    assumeFlinkVersion()
+    testInMiniCluster(integrityCheckEnabled = true)
   }
 
   private def assumeFlinkVersion(): Unit = {
@@ -77,7 +89,7 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
         FlinkVersion.v1_20))
   }
 
-  private def testLocalEnv(): Unit = {
+  private def testLocalEnv(integrityCheckEnabled: Boolean = false): Unit = {
     // set up execution environment
     val configuration = new Configuration
     val parallelism = NUM_PARALLELISM
@@ -88,6 +100,9 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
       "taskmanager.network.hybrid-shuffle.external-remote-tier-factory.class",
       "org.apache.celeborn.plugin.flink.tiered.CelebornTierFactory")
     configuration.setString("celeborn.master.endpoints", "localhost:9097")
+    if (integrityCheckEnabled) {
+      configuration.setString(CelebornConf.CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED.key, "true")
+    }
     configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
     configuration.setString(
       "execution.batch-shuffle-mode",
@@ -115,7 +130,7 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
     checkFlushingFileLength()
   }
 
-  private def testInMiniCluster(): Unit = {
+  private def testInMiniCluster(integrityCheckEnabled: Boolean = false): Unit = {
     // set up execution environment
     val configuration = new Configuration
     val parallelism = NUM_PARALLELISM
@@ -126,6 +141,9 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
       "taskmanager.network.hybrid-shuffle.external-remote-tier-factory.class",
       "org.apache.celeborn.plugin.flink.tiered.CelebornTierFactory")
     configuration.setString("celeborn.master.endpoints", "localhost:9097")
+    if (integrityCheckEnabled) {
+      configuration.setString(CelebornConf.CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED.key, "true")
+    }
     configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
     configuration.setString(
       "execution.batch-shuffle-mode",
