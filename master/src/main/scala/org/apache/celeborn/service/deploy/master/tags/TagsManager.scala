@@ -72,7 +72,7 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
     val storeTags = tagStore.map(_.asScala.collect {
       case (tag, workerIds) if workerIds.contains(worker.toUniqueId) => tag
     }.toSet).getOrElse(Set.empty)
-    storeTags ++ worker.tags
+    storeTags ++ worker.tags.asScala
   }
 
   def getTagsForCluster: Set[String] = {
