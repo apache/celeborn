@@ -300,6 +300,10 @@ private[celeborn] class Worker(
       diskInfos,
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption])
 
+  // Tags this worker advertises to the master at registration.
+  private val workerTags = conf.workerTags.toSet
+  workerInfo.tags = workerTags.asJava
+
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)
   val shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] =
@@ -705,6 +709,7 @@ private[celeborn] class Worker(
               // StorageManager have update the disk info.
               workerInfo.diskInfos.asScala.toMap,
               handleResourceConsumption().asScala.toMap,
+              workerTags,
               MasterClient.genRequestId()),
             classOf[PbRegisterWorkerResponse])
         } catch {
