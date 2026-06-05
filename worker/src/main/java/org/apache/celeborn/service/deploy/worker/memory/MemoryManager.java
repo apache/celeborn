@@ -435,7 +435,8 @@ public class MemoryManager {
 
   public boolean sortMemoryReady() {
     return maxSortMemory == 0
-        || (servingState == ServingState.NONE_PAUSED && sortMemoryCounter.get() < maxSortMemory);
+        || (servingState != ServingState.PUSH_AND_REPLICATE_PAUSED
+            && sortMemoryCounter.get() < maxSortMemory);
   }
 
   public void releaseSortMemory(long size) {
