@@ -89,7 +89,7 @@ license: |
 | celeborn.client.reserveSlots.rackaware.enabled | false | false | Whether need to place different replicates on different racks when allocating slots. | 0.3.1 | celeborn.client.reserveSlots.rackware.enabled | 
 | celeborn.client.reserveSlots.retryWait | 3s | false | Wait time before next retry if reserve slots failed. | 0.3.0 | celeborn.slots.reserve.retryWait | 
 | celeborn.client.rpc.cache.concurrencyLevel | 32 | false | The number of write locks to update rpc cache. | 0.3.0 | celeborn.rpc.cache.concurrencyLevel | 
-| celeborn.client.rpc.cache.expireTime | 15s | false | The time before a cache item is removed. | 0.3.0 | celeborn.rpc.cache.expireTime | 
+| celeborn.client.rpc.cache.expireTime | 15s | false | The idle time before a cache item is removed. | 0.3.0 | celeborn.rpc.cache.expireTime | 
 | celeborn.client.rpc.cache.size | 256 | false | The max cache items count for rpc cache. | 0.3.0 | celeborn.rpc.cache.size | 
 | celeborn.client.rpc.commitFiles.askTimeout | &lt;value of celeborn.rpc.askTimeout&gt; | false | Timeout for CommitHandler commit files. | 0.4.1 |  | 
 | celeborn.client.rpc.getReducerFileGroup.askTimeout | &lt;value of celeborn.rpc.askTimeout&gt; | false | Timeout for ask operations during getting reducer file group information. During this process, there are `celeborn.client.requestCommitFiles.maxRetries` times for retry opportunities for committing files and 1 times for releasing slots request. User can customize this value according to your setting. | 0.2.0 |  | 

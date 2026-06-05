@@ -5620,7 +5620,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.rpc.cache.expireTime")
       .categories("client")
       .version("0.3.0")
-      .doc("The time before a cache item is removed.")
+      .doc("The idle time before a cache item is removed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
 
