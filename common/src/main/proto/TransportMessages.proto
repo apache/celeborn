@@ -189,6 +189,7 @@ message PbWorkerInfo {
   int32 internalPort = 8;
   string networkLocation = 9;
   int64 nextInterruptionNotice = 10; // Unix timestamp when disruption is expected to be initiated
+  repeated string tags = 11;
 }
 
 message PbFileGroup {
@@ -207,6 +208,7 @@ message PbRegisterWorker {
   map<string, PbResourceConsumption> userResourceConsumption = 8;
   int32 internalPort = 10;
   string networkLocation = 11;
+  repeated string tags = 12;
 }
 
 message PbMetaRegisterWorkerRequest {
@@ -219,6 +221,7 @@ message PbMetaRegisterWorkerRequest {
   map<string, PbResourceConsumption> userResourceConsumption = 7;
   int32 internalPort = 8;
   string networkLocation = 9;
+  repeated string tags = 12;
 }
 
 message PbHeartbeatFromWorker {

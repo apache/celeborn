@@ -19,112 +19,63 @@ package org.apache.celeborn.service.deploy.master.tags
 
 import java.util
 import java.util.{Collections, Set => JSet}
-import java.util.concurrent.ConcurrentHashMap
 import java.util.function.Predicate
 import java.util.stream.Collectors
 
-import scala.collection.JavaConverters.{asScalaIteratorConverter, mapAsScalaConcurrentMapConverter}
+import scala.collection.JavaConverters._
 
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerInfo
-import org.apache.celeborn.common.util.JavaUtils
 import org.apache.celeborn.server.common.service.config.ConfigService
 
 class TagsManager(configService: Option[ConfigService]) extends Logging {
-  private val defaultTagStore = JavaUtils.newConcurrentHashMap[String, JSet[String]]()
 
-  private val addNewTagFunc =
-    new util.function.Function[String, ConcurrentHashMap.KeySetView[String, java.lang.Boolean]]() {
-      override def apply(t: String): ConcurrentHashMap.KeySetView[String, java.lang.Boolean] =
-        ConcurrentHashMap.newKeySet[String]()
-    }
-
-  private def getTagStore: ConcurrentHashMap[String, JSet[String]] = {
+  private def tagStore: Option[util.Map[String, JSet[String]]] = {
     configService match {
-      case Some(cs) =>
-        // TODO: Make configStore.getTags return ConcurrentMap
-        JavaUtils.newConcurrentHashMap(cs.getSystemConfigFromCache.getTags)
-      case _ =>
-        defaultTagStore
+      case Some(cs) => Option(cs.getSystemConfigFromCache.getTags)
+      case _ => None
     }
   }
+
+  private def resolveTagsExpr(userIdentifier: UserIdentifier, clientTagsExpr: String): String =
+    configService.map { cs =>
+      val tagsMeta = cs
+        .getTenantUserConfigFromCache(userIdentifier.tenantId, userIdentifier.name)
+        .getWorkerTagsMeta
+      if (tagsMeta.preferClientTagExpr) clientTagsExpr else tagsMeta.tagsExpr
+    }.getOrElse(clientTagsExpr)
 
   def getTaggedWorkers(
       userIdentifier: UserIdentifier,
       clientTagsExpr: String,
       workers: util.List[WorkerInfo]): util.List[WorkerInfo] = {
 
-    val tagsExpr = configService.flatMap { cs =>
-      val config = cs.getTenantUserConfigFromCache(userIdentifier.tenantId, userIdentifier.name)
-      val tagsMeta = config.getWorkerTagsMeta
-      if (tagsMeta.preferClientTagExpr) {
-        Some(clientTagsExpr)
-      } else {
-        Some(tagsMeta.tagsExpr)
-      }
-    }.getOrElse(clientTagsExpr)
+    val tags = resolveTagsExpr(userIdentifier, clientTagsExpr)
+      .split(",").map(_.trim).filter(_.nonEmpty)
 
-    if (tagsExpr.isEmpty) {
-      logWarning("No tags provided")
+    if (tags.isEmpty) {
+      logDebug("No tags provided, returning all workers")
       return workers
     }
 
-    val tags = tagsExpr.split(",").map(_.trim)
-
-    var workersForTags: Option[JSet[String]] = None
-    tags.foreach { tag =>
-      val taggedWorkers = getTagStore.getOrDefault(tag, Collections.emptySet())
-      workersForTags match {
-        case Some(w) =>
-          w.retainAll(taggedWorkers)
-        case _ =>
-          workersForTags = Some(new util.HashSet[String](taggedWorkers))
-      }
-    }
-
-    if (workersForTags.isEmpty) {
-      logWarning(s"No workers for tags: $tagsExpr found in cluster")
-      return Collections.emptyList()
-    }
-
     val workerTagsPredicate = new Predicate[WorkerInfo] {
-      override def test(w: WorkerInfo): Boolean = workersForTags.get.contains(w.toUniqueId)
+      override def test(w: WorkerInfo): Boolean = tags.forall { tag =>
+        w.tags.contains(tag) ||
+        tagStore.exists(_.getOrDefault(tag, Collections.emptySet()).contains(w.toUniqueId))
+      }
     }
     workers.stream().filter(workerTagsPredicate).collect(Collectors.toList())
   }
 
-  def addTagToWorker(tag: String, workerId: String): Unit = {
-    val workers = defaultTagStore.computeIfAbsent(tag, addNewTagFunc)
-    logInfo(s"Adding Tag $tag to worker $workerId")
-    workers.add(workerId)
-  }
-
-  def removeTagFromWorker(tag: String, workerId: String): Unit = {
-    val workers = defaultTagStore.get(tag)
-
-    if (workers != null && workers.contains(workerId)) {
-      logInfo(s"Removing Tag $tag from worker $workerId")
-      workers.remove(workerId)
-    } else {
-      logWarning(s"Tag $tag not found for worker $workerId")
-    }
-  }
-
   def getTagsForWorker(worker: WorkerInfo): Set[String] = {
-    defaultTagStore.asScala.filter(_._2.contains(worker.toUniqueId)).keySet.toSet
-  }
-
-  def removeTagFromCluster(tag: String): Unit = {
-    val workers = defaultTagStore.remove(tag)
-    if (workers != null) {
-      logInfo(s"Removed Tag $tag from cluster with workers ${workers.toArray.mkString(", ")}")
-    } else {
-      logWarning(s"Tag $tag not found in cluster and thus can not be removed")
-    }
+    val storeTags = tagStore.map(_.asScala.collect {
+      case (tag, workerIds) if workerIds.contains(worker.toUniqueId) => tag
+    }.toSet).getOrElse(Set.empty)
+    storeTags ++ worker.tags
   }
 
   def getTagsForCluster: Set[String] = {
-    defaultTagStore.keySet().iterator().asScala.toSet
+    tagStore.map(_.keySet.asScala.toSet).getOrElse(Set.empty)
   }
 }

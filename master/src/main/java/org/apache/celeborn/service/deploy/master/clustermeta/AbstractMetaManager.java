@@ -357,7 +357,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int replicatePort,
       int internalPort,
       String networkLocation,
-      Map<String, DiskInfo> disks) {
+      Map<String, DiskInfo> disks,
+      Set<String> tags) {
     WorkerInfo workerInfo =
         new WorkerInfo(
             host,
@@ -369,6 +370,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             disks,
             new HashMap<>());
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
+    workerInfo.tags_$eq(new HashSet<>(tags));
     if (networkLocation != null
         && !networkLocation.isEmpty()
         && !NetworkTopology.DEFAULT_RACK.equals(networkLocation)) {
