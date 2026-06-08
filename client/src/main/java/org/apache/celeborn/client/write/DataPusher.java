@@ -153,6 +153,7 @@ public class DataPusher {
 
   public void addTask(int partitionId, byte[] buffer, int size)
       throws IOException, InterruptedException {
+    client.computeBatchCRC(shuffleId, mapId, attemptId, partitionId, buffer, 0, size);
     try {
       PushTask task = null;
       while (task == null) {
@@ -208,6 +209,8 @@ public class DataPusher {
   }
 
   protected void pushData(PushTask task) throws IOException {
+    // CRC was already recorded in addTask() on the writer thread before the buffer was enqueued.
+    // Use the bare pushData here to avoid double-counting the same batch into CommitMetadata.
     int bytesWritten =
         client.pushData(
             shuffleId,

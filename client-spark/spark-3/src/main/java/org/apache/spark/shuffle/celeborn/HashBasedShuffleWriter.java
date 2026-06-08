@@ -279,7 +279,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     logger.debug("Push giant record, size {}.", numBytes);
     long start = System.nanoTime();
     int bytesWritten =
-        shuffleClient.pushData(
+        shuffleClient.pushDataWithCRC(
             shuffleId,
             mapId,
             encodedAttemptId,
@@ -343,7 +343,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   protected void mergeData(int partitionId, byte[] buffer, int offset, int length)
       throws IOException {
     int bytesWritten =
-        shuffleClient.mergeData(
+        shuffleClient.mergeDataWithCRC(
             shuffleId,
             mapId,
             encodedAttemptId,
