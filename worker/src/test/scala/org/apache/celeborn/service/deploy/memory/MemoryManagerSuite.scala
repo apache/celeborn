@@ -346,6 +346,82 @@ class MemoryManagerSuite extends CelebornFunSuite {
     MemoryManager.reset()
   }
 
+  test("sortMemoryReady allows sorting in PUSH_PAUSED but blocks in PUSH_AND_REPLICATE_PAUSED") {
+    val conf = new CelebornConf()
+    // Disable the automatic check thread so we drive state transitions manually
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL.key, "300s")
+    conf.set(CelebornConf.WORKER_PINNED_MEMORY_CHECK_INTERVAL.key, "0")
+    conf.set(CelebornConf.WORKER_PINNED_MEMORY_CHECK_ENABLED.key, "false")
+    val memoryManager = MockitoSugar.spy(MemoryManager.initialize(conf))
+    val maxDirectMemory = memoryManager.maxDirectMemory
+    val pushThreshold =
+      (conf.workerDirectMemoryRatioToPauseReceive * maxDirectMemory).longValue()
+    val replicateThreshold =
+      (conf.workerDirectMemoryRatioToPauseReplicate * maxDirectMemory).longValue()
+    val maxSortMemory =
+      (conf.workerPartitionSorterDirectMemoryRatioThreshold * maxDirectMemory).longValue()
+    val sortMemoryCounter = memoryManager.getSortMemoryCounter
+
+    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(0L)
+
+    // NONE_PAUSED: sort is allowed
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(0L)
+    memoryManager.switchServingState()
+    assert(memoryManager.servingState == ServingState.NONE_PAUSED)
+    sortMemoryCounter.set(0)
+    assert(memoryManager.sortMemoryReady())
+
+    // PUSH_PAUSED: sort must be allowed so that fetch reads can proceed while push is
+    // back-pressured. Before Fix 1 this incorrectly returned false.
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(pushThreshold + 1)
+    memoryManager.switchServingState()
+    assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
+    sortMemoryCounter.set(0)
+    assert(
+      memoryManager.sortMemoryReady(),
+      "sortMemoryReady must return true in PUSH_PAUSED: fetch reads of already-written " +
+        "data should not be blocked by push back-pressure")
+
+    // PUSH_PAUSED but sort budget exhausted: sort must be blocked
+    sortMemoryCounter.set(maxSortMemory)
+    assert(!memoryManager.sortMemoryReady())
+
+    // PUSH_AND_REPLICATE_PAUSED: sort must be blocked regardless of sort budget
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(replicateThreshold + 1)
+    memoryManager.switchServingState()
+    assert(memoryManager.servingState == ServingState.PUSH_AND_REPLICATE_PAUSED)
+    sortMemoryCounter.set(0)
+    assert(
+      !memoryManager.sortMemoryReady(),
+      "sortMemoryReady must return false in PUSH_AND_REPLICATE_PAUSED")
+    MemoryManager.reset()
+  }
+
+  test("sortMemoryReady always returns true when sort memory threshold is disabled") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL.key, "300s")
+    conf.set(CelebornConf.WORKER_PINNED_MEMORY_CHECK_INTERVAL.key, "0")
+    conf.set(CelebornConf.WORKER_PINNED_MEMORY_CHECK_ENABLED.key, "false")
+    conf.set(
+      CelebornConf.WORKER_PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD.key,
+      "0")
+    val memoryManager = MockitoSugar.spy(MemoryManager.initialize(conf))
+    val maxDirectMemory = memoryManager.maxDirectMemory
+    val replicateThreshold =
+      (conf.workerDirectMemoryRatioToPauseReplicate * maxDirectMemory).longValue()
+
+    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(0L)
+
+    // Even in PUSH_AND_REPLICATE_PAUSED, threshold=0 means skip all checks
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(replicateThreshold + 1)
+    memoryManager.switchServingState()
+    assert(memoryManager.servingState == ServingState.PUSH_AND_REPLICATE_PAUSED)
+    assert(
+      memoryManager.sortMemoryReady(),
+      "sortMemoryReady must return true when threshold is 0 regardless of serving state")
+    MemoryManager.reset()
+  }
+
   class MockMemoryPressureListener(
       val belongModuleName: String,
       var isPause: Boolean = false) extends MemoryPressureListener {
