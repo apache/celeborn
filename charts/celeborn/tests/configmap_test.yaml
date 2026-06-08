@@ -47,4 +47,13 @@ tests:
     asserts:
       - matchRegex:
           path: data["celeborn-defaults.conf"]
-          pattern: "(?m)^\\s*celeborn\\.master\\.internal\\.endpoints\\s*=.*"
+          pattern: "(?m)^\\s*celeborn\\.master\\.internal\\.endpoints=.*"
+
+  - it: Should render master endpoints keys with consistent key=value spacing
+    asserts:
+      - matchRegex:
+          path: data["celeborn-defaults.conf"]
+          pattern: "(?m)^\\s*celeborn\\.master\\.endpoints=.*"
+      - matchRegex:
+          path: data["celeborn-defaults.conf"]
+          pattern: "(?m)^\\s*celeborn\\.master\\.internal\\.endpoints=.*"
