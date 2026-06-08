@@ -65,10 +65,11 @@ public class DummyShuffleClient extends ShuffleClient {
       new HashMap<>();
 
   // Tracking for CRC verification in tests
-  private final Map<String, PushState> pushStateMap = new ConcurrentHashMap<>();
-  private final Map<String, Map<Integer, List<byte[]>>> crcDataByMapKey = new ConcurrentHashMap<>();
+  private final Map<String, PushState> pushStateMap = JavaUtils.newConcurrentHashMap();
+  private final Map<String, Map<Integer, List<byte[]>>> crcDataByMapKey =
+      JavaUtils.newConcurrentHashMap();
   private final Map<String, Map<Integer, List<byte[]>>> pushDataByMapKey =
-      new ConcurrentHashMap<>();
+      JavaUtils.newConcurrentHashMap();
 
   public AtomicInteger fetchFailureCount = new AtomicInteger();
 
@@ -101,7 +102,7 @@ public class DummyShuffleClient extends ShuffleClient {
       throws IOException {
     String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     Map<Integer, List<byte[]>> partitionData =
-        pushDataByMapKey.computeIfAbsent(mapKey, k -> new ConcurrentHashMap<>());
+        pushDataByMapKey.computeIfAbsent(mapKey, k -> JavaUtils.newConcurrentHashMap());
     partitionData
         .computeIfAbsent(partitionId, k -> Collections.synchronizedList(new ArrayList<>()))
         .add(Arrays.copyOfRange(data, offset, offset + length));
@@ -127,7 +128,7 @@ public class DummyShuffleClient extends ShuffleClient {
     pushState.addDataWithOffsetAndLength(partitionId, data, offset, length);
 
     Map<Integer, List<byte[]>> partitionData =
-        crcDataByMapKey.computeIfAbsent(mapKey, k -> new ConcurrentHashMap<>());
+        crcDataByMapKey.computeIfAbsent(mapKey, k -> JavaUtils.newConcurrentHashMap());
     partitionData
         .computeIfAbsent(partitionId, k -> Collections.synchronizedList(new ArrayList<>()))
         .add(Arrays.copyOfRange(data, offset, offset + length));
@@ -147,7 +148,7 @@ public class DummyShuffleClient extends ShuffleClient {
       throws IOException {
     String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     Map<Integer, List<byte[]>> partitionData =
-        pushDataByMapKey.computeIfAbsent(mapKey, k -> new ConcurrentHashMap<>());
+        pushDataByMapKey.computeIfAbsent(mapKey, k -> JavaUtils.newConcurrentHashMap());
     partitionData
         .computeIfAbsent(partitionId, k -> Collections.synchronizedList(new ArrayList<>()))
         .add(Arrays.copyOfRange(data, offset, offset + length));
