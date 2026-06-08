@@ -848,7 +848,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION_RESPONSE, payload))
       .asInstanceOf[HeartbeatFromApplicationResponse]
     assert(
-      fromTransportHeartbeatFromApplicationResponse.checkQuotaResponse.isAvailable.equals(true))
+      fromTransportHeartbeatFromApplicationResponse.checkQuotaResponse.isAvailable)
     assert(fromTransportHeartbeatFromApplicationResponse.checkQuotaResponse.reason.equals(""))
   }
 
