@@ -156,7 +156,7 @@ private[celeborn] class Worker(
 
   private val WORKER_SHUTDOWN_PRIORITY = 100
   val shutdown = new AtomicBoolean(false)
-  private val gracefulShutdown = conf.workerGracefulShutdownEnabled
+  private val gracefulShutdown = conf.workerGracefulShutdown && !conf.workerDecommissionShutdown
   if (gracefulShutdown) {
     var checkPortMap = Map(
       WORKER_RPC_PORT -> conf.workerRpcPort,
@@ -1100,7 +1100,7 @@ private[celeborn] class Worker(
     },
     "worker-shutdown-hook-thread")
 
-  if (conf.workerDecommissionShutdownEnabled) {
+  if (conf.workerDecommissionShutdown) {
     ShutdownHookManager.get().addShutdownHook(
       shutdownHookThread,
       WORKER_SHUTDOWN_PRIORITY,

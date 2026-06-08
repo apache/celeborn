@@ -295,7 +295,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, DiskFileInfo]]()
   // ShuffleClient can fetch data from a restarted worker only
   // when the worker's fetching port is stable.
-  val workerGracefulShutdown = conf.workerGracefulShutdownEnabled
+  val workerGracefulShutdown = conf.workerGracefulShutdown && !conf.workerDecommissionShutdown
   if (workerGracefulShutdown) {
     try {
       val dbBackend = DBBackend.byName(conf.workerGracefulShutdownRecoverDbBackend)

@@ -1357,9 +1357,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
   // //////////////////////////////////////////////////////
-  def workerDecommissionShutdownEnabled: Boolean = get(WORKER_DECOMMISSION_SHUTDOWN_ENABLED)
-  def workerGracefulShutdownEnabled: Boolean =
-    get(WORKER_GRACEFUL_SHUTDOWN_ENABLED) && !workerDecommissionShutdownEnabled
+  def workerDecommissionShutdown: Boolean = get(WORKER_DECOMMISSION_SHUTDOWN_ENABLED)
+  def workerGracefulShutdown: Boolean = get(WORKER_GRACEFUL_SHUTDOWN_ENABLED)
   def workerGracefulShutdownTimeoutMs: Long = get(WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
   def workerGracefulShutdownCheckSlotsFinishedInterval: Long =
     get(WORKER_CHECK_SLOTS_FINISHED_INTERVAL)
