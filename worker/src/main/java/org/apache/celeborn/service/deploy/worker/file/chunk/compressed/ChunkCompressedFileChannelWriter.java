@@ -154,6 +154,7 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
     } catch (IOException e) {
       failure = e;
     } finally {
+      chunkBufferPool.release(bufferPair);
       try {
         channel.close();
       } catch (IOException e) {
@@ -168,6 +169,5 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
     }
     diskFileInfo.setBytesFlushed(chunkOffsets.get(chunkOffsets.size() - 1));
     diskFileInfo.replaceFileMeta(new ReduceFileMeta(chunkOffsets, chunkCompressed));
-    chunkBufferPool.release(bufferPair);
   }
 }

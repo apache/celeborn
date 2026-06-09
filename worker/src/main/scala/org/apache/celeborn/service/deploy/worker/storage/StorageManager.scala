@@ -83,8 +83,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val diskReserveRatio = conf.workerDiskReserveRatio
   var s3MultipartUploadHandlerSharedState: AutoCloseable = _
 
-  val chunkBufferPool: ChunkBufferPool =
-    if (conf.isChunkCompressionEnabled) new ChunkBufferPool(conf) else null
+  val chunkBufferPool: ChunkBufferPool = new ChunkBufferPool(conf)
 
   // (deviceName -> deviceInfo) and (mount point -> diskInfo)
   val (deviceInfos, diskInfos) = {
@@ -908,8 +907,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     if (s3MultipartUploadHandlerSharedState != null)
       s3MultipartUploadHandlerSharedState.close()
 
-    if (chunkBufferPool != null)
-      chunkBufferPool.close()
+    chunkBufferPool.close()
   }
 
   private def flushFileWriters(): Unit = {

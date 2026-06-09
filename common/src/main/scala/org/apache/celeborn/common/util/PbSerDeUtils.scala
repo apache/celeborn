@@ -165,6 +165,11 @@ object PbSerDeUtils {
       .setBytesFlushed(fileInfo.getFileLength)
       .setPartitionSplitEnabled(fileInfo.isPartitionSplitEnabled)
       .setStorageType(fileInfo.getStorageType.getValue)
+      .setChunkCompressionConfig(
+        PbChunkCompressionConfig.newBuilder()
+          .setEnabled(fileInfo.isChunkCompressionEnabled)
+          .setLevel(fileInfo.getChunkCompressionLevel)
+      )
     if (fileInfo.getFileMeta.isInstanceOf[MapFileMeta]) {
       val mapFileMeta = fileInfo.getFileMeta.asInstanceOf[MapFileMeta]
       builder.setPartitionType(PartitionType.MAP.getValue)

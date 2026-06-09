@@ -94,7 +94,7 @@ public class MmapMemoryManager {
     return buffer.slice();
   }
 
-  public void close() {
+  public synchronized void close() {
     // MappedByteBuffers cannot be explicitly unmapped in Java; GC handles the unmap.
     // We clear the internal state and delete the backing files so disk space is reclaimed.
     _memMappedBuffers.clear();
