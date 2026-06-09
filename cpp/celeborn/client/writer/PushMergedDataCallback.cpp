@@ -123,9 +123,8 @@ void PushMergedDataCallback::onSuccess(
             response->readToReadOnlyBuffer(response->remainingSize()));
         PbPushMergedDataSplitPartitionInfo partitionInfo;
         if (!partitionInfo.ParseFromString(transportMsg->payload())) {
-          pushState_->setException(
-              std::make_unique<std::runtime_error>(
-                  "Failed to parse PbPushMergedDataSplitPartitionInfo"));
+          pushState_->setException(std::make_unique<std::runtime_error>(
+              "Failed to parse PbPushMergedDataSplitPartitionInfo"));
           return;
         }
 
