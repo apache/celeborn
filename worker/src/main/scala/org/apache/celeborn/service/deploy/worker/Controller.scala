@@ -932,8 +932,12 @@ private[deploy] object Controller {
     failedReplicaIds.removeAll(emptyFileReplicaIds)
     // COMMIT_FILE_EXCEPTION only when nothing committed and nothing empty; empty files are a
     // successful terminal state and must not be reported as failed.
+    val committedPrimaryIdList = new jArrayList[String](committedPrimaryIds)
+    val committedReplicaIdList = new jArrayList[String](committedReplicaIds)
+    // COMMIT_FILE_EXCEPTION only when nothing committed and nothing empty; empty files are a
+    // successful terminal state and must not be reported as failed.
     val status =
-      if (committedPrimaryIds.isEmpty && committedReplicaIds.isEmpty &&
+      if (committedPrimaryIdList.isEmpty && committedReplicaIdList.isEmpty &&
         emptyFilePrimaryIds.isEmpty && emptyFileReplicaIds.isEmpty) {
         StatusCode.COMMIT_FILE_EXCEPTION
       } else {
@@ -941,8 +945,8 @@ private[deploy] object Controller {
       }
     CommitFilesResponse(
       status,
-      new jArrayList[String](committedPrimaryIds),
-      new jArrayList[String](committedReplicaIds),
+      committedPrimaryIdList,
+      committedReplicaIdList,
       failedPrimaryIds,
       failedReplicaIds,
       new jHashMap[String, StorageInfo](committedPrimaryStorageInfos),
