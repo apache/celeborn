@@ -50,6 +50,8 @@ public class RemoteBufferStreamReader extends CreditListener {
   private CelebornBufferStream bufferStream;
   private volatile boolean closed = false;
   private Consumer<RequestMessage> messageConsumer;
+  // Reports the read CRC32/bytes at stream end; disabled lazily on unexpected composite buffers.
+  private final ReadIntegrityTracker integrityTracker;
 
   public RemoteBufferStreamReader(
       FlinkShuffleClientImpl client,
@@ -58,7 +60,8 @@ public class RemoteBufferStreamReader extends CreditListener {
       int endSubIdx,
       TransferBufferPool bufferPool,
       Consumer<ByteBuf> dataListener,
-      Consumer<Throwable> failureListener) {
+      Consumer<Throwable> failureListener,
+      boolean integrityCheckEnabled) {
     this.client = client;
     this.shuffleId = shuffleDescriptor.getShuffleId();
     this.partitionId = shuffleDescriptor.getPartitionId();
@@ -67,6 +70,14 @@ public class RemoteBufferStreamReader extends CreditListener {
     this.subPartitionIndexEnd = endSubIdx;
     this.dataListener = dataListener;
     this.failureListener = failureListener;
+    this.integrityTracker =
+        new ReadIntegrityTracker(
+            client,
+            this.shuffleId,
+            this.partitionId,
+            subPartitionIndexStart,
+            subPartitionIndexEnd,
+            integrityCheckEnabled);
     this.messageConsumer =
         requestMessage -> {
           if (requestMessage instanceof ReadData) {
@@ -148,16 +159,28 @@ public class RemoteBufferStreamReader extends CreditListener {
   }
 
   public void dataReceived(ReadData readData) {
+    ByteBuf flinkBuffer = readData.getFlinkBuffer();
     logger.debug(
         "Remote buffer stream reader get stream id {} received readable bytes {}.",
         readData.getStreamId(),
-        readData.getFlinkBuffer().readableBytes());
-    dataListener.accept(readData.getFlinkBuffer());
+        flinkBuffer.readableBytes());
+    integrityTracker.accumulateRegularBuffer(flinkBuffer);
+    dataListener.accept(flinkBuffer);
   }
 
   public void onStreamEnd(BufferStreamEnd streamEnd) {
     long streamId = streamEnd.getStreamId();
     logger.debug("Buffer stream reader get stream end for {}", streamId);
+    // Check before the move, which would otherwise advance the location index.
+    boolean lastPartition = !bufferStream.hasRemainingPartitions();
     bufferStream.moveToNextPartitionIfPossible(streamId, null, false);
+    if (lastPartition) {
+      integrityTracker.report(
+          e -> {
+            if (!closed) {
+              failureListener.accept(e);
+            }
+          });
+    }
   }
 }

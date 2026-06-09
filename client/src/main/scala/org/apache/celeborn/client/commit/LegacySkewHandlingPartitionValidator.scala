@@ -125,8 +125,13 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
           return (false, errorMessage)
         }
 
-        // Process new range
-        subRangeToCommitMetadataMap.put(rangeKey, actualCommitMetadata)
+        // Process new range.
+        // Store a defensive copy so that subsequent merges into currentCommitMetadataForReducer
+        // (which mutate the CommitMetadata object in-place via addCommitData) do not corrupt
+        // the per-range value kept in subRangeToCommitMetadataMap.
+        subRangeToCommitMetadataMap.put(
+          rangeKey,
+          new CommitMetadata(actualCommitMetadata.getChecksum, actualCommitMetadata.getBytes))
         currentCommitMetadataForReducer.merge(
           partitionId,
           actualCommitMetadata,

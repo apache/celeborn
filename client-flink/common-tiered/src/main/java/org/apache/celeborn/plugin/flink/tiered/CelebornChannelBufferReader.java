@@ -43,10 +43,12 @@ import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.PbNotifyRequiredSegment;
 import org.apache.celeborn.common.protocol.PbReadAddCredit;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.plugin.flink.ReadIntegrityTracker;
 import org.apache.celeborn.plugin.flink.ShuffleResourceDescriptor;
 import org.apache.celeborn.plugin.flink.client.CelebornBufferStream;
 import org.apache.celeborn.plugin.flink.client.FlinkShuffleClientImpl;
 import org.apache.celeborn.plugin.flink.protocol.SubPartitionReadData;
+import org.apache.celeborn.plugin.flink.utils.BufferUtils;
 
 /** Wrap the {@link CelebornBufferStream}, used in flink hybrid shuffle integration strategy now. */
 public class CelebornChannelBufferReader {
@@ -80,6 +82,9 @@ public class CelebornChannelBufferReader {
 
   private volatile ConcurrentHashMap<Integer, Integer> subPartitionRequiredSegmentIds;
 
+  // Reports the read CRC32/bytes over the data payload at stream end.
+  private final ReadIntegrityTracker integrityTracker;
+
   /** Note this field is to record the number of backlog before the read is set up. */
   private int numBackLog = 0;
 
@@ -90,7 +95,8 @@ public class CelebornChannelBufferReader {
       int startSubIdx,
       int endSubIdx,
       BiConsumer<ByteBuf, TieredStorageSubpartitionId> dataListener,
-      BiConsumer<Throwable, TieredStorageSubpartitionId> failureListener) {
+      BiConsumer<Throwable, TieredStorageSubpartitionId> failureListener,
+      boolean integrityCheckEnabled) {
     this.client = client;
     this.shuffleId = shuffleDescriptor.getShuffleId();
     this.partitionId = shuffleDescriptor.getPartitionId();
@@ -99,6 +105,14 @@ public class CelebornChannelBufferReader {
     this.subPartitionIndexEnd = endSubIdx;
     this.dataListener = dataListener;
     this.failureListener = failureListener;
+    this.integrityTracker =
+        new ReadIntegrityTracker(
+            client,
+            this.shuffleId,
+            this.partitionId,
+            subPartitionIndexStart,
+            subPartitionIndexEnd,
+            integrityCheckEnabled);
     this.subPartitionRequiredSegmentIds = JavaUtils.newConcurrentHashMap();
     for (int subPartitionId = subPartitionIndexStart;
         subPartitionId <= subPartitionIndexEnd;
@@ -292,17 +306,18 @@ public class CelebornChannelBufferReader {
   }
 
   public void dataReceived(SubPartitionReadData readData) {
+    ByteBuf flinkBuffer = readData.getFlinkBuffer();
     LOG.debug(
         "Remote buffer stream reader get stream id {} subPartitionId {} received readable bytes {}.",
         readData.getStreamId(),
         readData.getSubPartitionId(),
-        readData.getFlinkBuffer().readableBytes());
+        flinkBuffer.readableBytes());
     checkState(
         readData.getSubPartitionId() >= subPartitionIndexStart
             && readData.getSubPartitionId() <= subPartitionIndexEnd,
         "Wrong sub partition id: " + readData.getSubPartitionId());
-    dataListener.accept(
-        readData.getFlinkBuffer(), new TieredStorageSubpartitionId(readData.getSubPartitionId()));
+    integrityTracker.accumulateTieredBuffer(flinkBuffer, BufferUtils.HEADER_LENGTH_PREFIX);
+    dataListener.accept(flinkBuffer, new TieredStorageSubpartitionId(readData.getSubPartitionId()));
     int numRequested = bufferManager.tryRequestBuffersIfNeeded();
     if (numRequested > 0) {
       bufferManager.decreaseRequiredCredits(numRequested);
@@ -314,7 +329,21 @@ public class CelebornChannelBufferReader {
     long streamId = streamEnd.getStreamId();
     LOG.debug("Buffer stream reader get stream end for {}", streamId);
     if (!closed && !CelebornBufferStream.isEmptyStream(bufferStream)) {
+      // Check before the move, which would otherwise advance the location index.
+      boolean lastPartition = !bufferStream.hasRemainingPartitions();
       bufferStream.moveToNextPartitionIfPossible(streamId, this::sendRequireSegmentId, true);
+      if (lastPartition) {
+        integrityTracker.report(
+            e -> {
+              if (!closed) {
+                for (int subPartitionId = subPartitionIndexStart;
+                    subPartitionId <= subPartitionIndexEnd;
+                    subPartitionId++) {
+                  failureListener.accept(e, new TieredStorageSubpartitionId(subPartitionId));
+                }
+              }
+            });
+      }
     }
   }
 

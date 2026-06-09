@@ -12,12 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-add_library(
-        dataSumWithReaderClient
-        DataSumWithReaderClient.cpp)
-
-target_link_libraries(
-        dataSumWithReaderClient
+set(DATA_SUM_CLIENT_DEPS
         memory
         utils
         conf
@@ -30,34 +25,13 @@ target_link_libraries(
         ${LIBSODIUM_LIBRARY}
         ${FOLLY_WITH_DEPENDENCIES}
         ${GLOG}
-        ${GFLAGS_LIBRARIES}
-)
+        ${GFLAGS_LIBRARIES})
 
 add_executable(cppDataSumWithReaderClient DataSumWithReaderClient.cpp)
-
-target_link_libraries(cppDataSumWithReaderClient dataSumWithReaderClient)
-
-add_library(
-        dataSumWithWriterClient
-        DataSumWithWriterClient.cpp)
-
-target_link_libraries(
-        dataSumWithWriterClient
-        memory
-        utils
-        conf
-        proto
-        network
-        protocol
-        client
-        ${WANGLE}
-        ${FIZZ}
-        ${LIBSODIUM_LIBRARY}
-        ${FOLLY_WITH_DEPENDENCIES}
-        ${GLOG}
-        ${GFLAGS_LIBRARIES}
-)
+target_link_libraries(cppDataSumWithReaderClient ${DATA_SUM_CLIENT_DEPS})
 
 add_executable(cppDataSumWithWriterClient DataSumWithWriterClient.cpp)
+target_link_libraries(cppDataSumWithWriterClient ${DATA_SUM_CLIENT_DEPS})
 
-target_link_libraries(cppDataSumWithWriterClient dataSumWithWriterClient)
+add_executable(cppDataSumWithMergeWriterClient DataSumWithMergeWriterClient.cpp)
+target_link_libraries(cppDataSumWithMergeWriterClient ${DATA_SUM_CLIENT_DEPS})

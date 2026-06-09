@@ -432,7 +432,9 @@ abstract class CommitHandler(
   }
 
   /**
-   * Invoked when a reduce partition finishes reading data to perform end to end integrity check validation
+   * Invoked when a partition (reduce or map) finishes reading data to perform end to end integrity
+   * check validation. See `MapPartitionCommitHandler.finishPartition` for the map-partition
+   * semantics of the parameters.
    */
   def finishPartition(
       shuffleId: Int,

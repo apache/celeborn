@@ -834,6 +834,11 @@ object Utils extends Logging {
     readProcessStdout(process)
   }
 
+  def runCommand(cmd: Seq[String]): String = {
+    val process = Runtime.getRuntime.exec(cmd.toArray)
+    readProcessStdout(process)
+  }
+
   def runCommandComplex(cmd: String): String = {
     val cmds = Array("/bin/sh", "-c", cmd)
     val process = Runtime.getRuntime.exec(cmds)

@@ -89,7 +89,7 @@
     <guava.version>33.1.0-jre</guava.version>
     <junit.version>4.13.2</junit.version>
     <leveldb.version>1.8</leveldb.version>
-    <log4j2.version>2.24.3</log4j2.version>
+    <log4j2.version>2.25.4</log4j2.version>
     <disruptor.version>3.4.4</disruptor.version>
     <lz4-java.group>at.yawk.lz4</lz4-java.group>
     <lz4-java.version>1.10.4</lz4-java.version>
@@ -1697,7 +1697,7 @@
         <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.13.17</scala.version>
         <scala.binary.version>2.13</scala.binary.version>
-        <spark.version>4.1.1</spark.version>
+        <spark.version>4.1.2</spark.version>
         <zstd-jni.version>1.5.7-6</zstd-jni.version>
       </properties>
     </profile>
@@ -2010,7 +2010,7 @@
         <module>tests/flink-it</module>
       </modules>
       <properties>
-        <flink.version>2.2.0</flink.version>
+        <flink.version>2.2.1</flink.version>
         <flink.binary.version>2.2</flink.binary.version>
         <scala.binary.version>2.12</scala.binary.version>
         <celeborn.flink.plugin.artifact>celeborn-client-flink-2.2_${scala.binary.version}</celeborn.flink.plugin.artifact>

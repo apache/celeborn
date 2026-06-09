@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 import com.google.common.annotations.VisibleForTesting
 import org.apache.commons.lang3.tuple.Pair
@@ -232,6 +233,10 @@ class CelebornShuffleReader[K, C](
     val partitionIdList = List.range(startPartition, endPartition).filter(p =>
       fileGroups.partitionGroups.containsKey(p))
 
+    val parallelClientCreationEnabled = conf.batchOpenStreamParallelClientCreationEnabled
+    val locationsByHostPort =
+      new mutable.LinkedHashMap[String, JArrayList[PartitionLocation]]()
+
     def makeOpenStreamList(locations: JSet[PartitionLocation]): Unit = {
       locations.asScala.foreach { location =>
         partCnt += 1
@@ -268,6 +273,16 @@ class CelebornShuffleReader[K, C](
       }
     }
 
+    def groupOpenStreamLocations(locations: JSet[PartitionLocation]): Unit = {
+      locations.asScala.foreach { location =>
+        partCnt += 1
+        val hostPort = location.hostAndFetchPort
+        locationsByHostPort
+          .getOrElseUpdate(hostPort, new JArrayList[PartitionLocation]())
+          .add(location)
+      }
+    }
+
     partitionIdList.foreach { partitionId =>
       if (fileGroups.partitionGroups.containsKey(partitionId)) {
         // CELEBORN-2032. For the first time of open stream and
@@ -299,7 +314,43 @@ class CelebornShuffleReader[K, C](
           locations = filterLocations.asJava
         }
         partitionId2PartitionLocations.put(partitionId, locations)
-        makeOpenStreamList(locations)
+        if (parallelClientCreationEnabled) {
+          groupOpenStreamLocations(locations)
+        } else {
+          makeOpenStreamList(locations)
+        }
+      }
+    }
+
+    if (parallelClientCreationEnabled) {
+      val clientsByHostPort = CelebornShuffleReader.createClientsInParallel(
+        locationsByHostPort.map { case (hostPort, locations) =>
+          (hostPort, locations.asScala.toSeq)
+        }.toSeq,
+        streamCreatorPool,
+        location =>
+          shuffleClient.getDataClientFactory().createClient(
+            location.getHost,
+            location.getFetchPort),
+        (hostPort, location, ex) => {
+          shuffleClient.excludeFailedFetchLocation(hostPort, ex)
+          logWarning(
+            s"Failed to create client for $shuffleKey-${location.getId} from host: ${hostPort}. " +
+              s"Shuffle reader will try its replica if exists.")
+        })
+
+      clientsByHostPort.foreach { case (hostPort, client) =>
+        val locArr = locationsByHostPort(hostPort)
+        val pbOpenStreamList = PbOpenStreamList.newBuilder()
+        pbOpenStreamList.setShuffleKey(shuffleKey)
+        locArr.asScala.foreach { location =>
+          pbOpenStreamList.addFileName(location.getFileName)
+            .addStartIndex(startMapIndex)
+            .addEndIndex(endMapIndex)
+          pbOpenStreamList.addReadLocalShuffle(
+            localFetchEnabled && location.getHost.equals(localHostAddress))
+        }
+        workerRequestMap.put(hostPort, (client, locArr, pbOpenStreamList))
       }
     }
 
@@ -575,6 +626,52 @@ class CelebornShuffleReader[K, C](
 
 object CelebornShuffleReader {
   var streamCreatorPool: ThreadPoolExecutor = null
+
+  @VisibleForTesting
+  private[celeborn] def createClientsInParallel(
+      locationsByHostPort: Seq[(String, Seq[PartitionLocation])],
+      streamCreatorPool: ThreadPoolExecutor,
+      createClient: PartitionLocation => TransportClient,
+      onClientCreateFailure: (String, PartitionLocation, Exception) => Unit)
+      : Map[String, TransportClient] = {
+    val clientsByHostPort = JavaUtils.newConcurrentHashMap[String, TransportClient]()
+    val futures = locationsByHostPort.map { case (hostPort, locations) =>
+      streamCreatorPool.submit(new Runnable {
+        override def run(): Unit = {
+          val locationsIterator = locations.iterator
+          var clientCreated = false
+          while (!clientCreated && locationsIterator.hasNext) {
+            val location = locationsIterator.next()
+            try {
+              clientsByHostPort.put(hostPort, createClient(location))
+              clientCreated = true
+            } catch {
+              case ex: InterruptedException =>
+                Thread.currentThread().interrupt()
+                throw ex
+              case ex: Exception =>
+                onClientCreateFailure(hostPort, location, ex)
+            }
+          }
+        }
+      })
+    }
+    var waitCompleted = false
+    try {
+      futures.foreach(_.get())
+      waitCompleted = true
+    } catch {
+      case ex: InterruptedException =>
+        Thread.currentThread().interrupt()
+        throw ex
+    } finally {
+      if (!waitCompleted) {
+        futures.foreach(_.cancel(true))
+      }
+    }
+    clientsByHostPort.asScala.toMap
+  }
+
   // Register the deserializer for GetReducerFileGroupResponse broadcast
   ShuffleClient.registerDeserializeReducerFileGroupResponseFunction(new BiFunction[
     Integer,

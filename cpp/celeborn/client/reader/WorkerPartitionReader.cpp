@@ -17,8 +17,29 @@
 
 #include "celeborn/client/reader/WorkerPartitionReader.h"
 
+#include <folly/executors/CPUThreadPoolExecutor.h>
+
 namespace celeborn {
 namespace client {
+namespace {
+// Off-IO-thread executor for releasing the last shared_ptr to a
+// WorkerPartitionReader. The fetch callbacks run on the
+// embedded TransportClient's IOThreadPoolExecutor, and dropping the final
+// reference inline would have that executor pthread_join its own thread.
+// A directly constructed CPUThreadPoolExecutor avoids the folly singleton
+// vault and so does not require folly::init() to have been called.
+//
+// TODO: this posts a task on every fetch callback, even when the reader is
+// still owned elsewhere and no off thread destruction is needed. Optimize to
+// hand off only when this drop would actually destroy the reader, but do it
+// race free (drain in-flight fetches before the owner releases, so the
+// reader is always destroyed on the consumer thread). A use_count() based
+// "last ref" guard is NOT a valid optimization here -- see the call sites.
+folly::CPUThreadPoolExecutor& destructionExecutor() {
+  static folly::CPUThreadPoolExecutor instance{1};
+  return instance;
+}
+} // namespace
 std::shared_ptr<WorkerPartitionReader> WorkerPartitionReader::create(
     const std::shared_ptr<const conf::CelebornConf>& conf,
     const std::string& shuffleKey,
@@ -122,6 +143,15 @@ void WorkerPartitionReader::initAndCheck() {
       shared_this->chunkQueue_.enqueue(std::move(chunk));
       VLOG(1) << "WorkerPartitionReader::onSuccess: "
               << streamChunkSlice.toString();
+      // Always hand the final reference off, unconditionally. A
+      // use_count()-based "only offload if last ref" check is NOT safe here.
+      // This callback always runs on the IO thread, and use_count() is a stale
+      // snapshot. The owner (CelebornInputStream::currReader_) can drop its
+      // reference on another thread right after the check, leaving this
+      // callback to destroy the reader inline on the IO thread and re-trigger
+      // the EDEADLK self-join error.
+      destructionExecutor().add(
+          [s = std::move(shared_this)]() mutable { s.reset(); });
     };
 
     onFailure_ = [weak_this = weak_from_this()](
@@ -138,6 +168,11 @@ void WorkerPartitionReader::initAndCheck() {
         auto exp = shared_this->exception_.wlock();
         *exp = std::move(exception);
       }
+      // See onSuccess_ above. The off thread handoff is unconditional on
+      // purpose. A use_count() "last ref" guard would be racy and could
+      // re-trigger the EDEADLK self-join error.
+      destructionExecutor().add(
+          [s = std::move(shared_this)]() mutable { s.reset(); });
     };
   }
 

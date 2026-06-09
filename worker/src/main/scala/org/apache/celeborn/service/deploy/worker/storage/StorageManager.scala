@@ -115,7 +115,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def healthyLocalWorkingDirs(): List[File] =
-    localDisksSnapshot().filter(_.status == DiskStatus.HEALTHY).flatMap(_.dirs)
+    localDisksSnapshot().filter(_.isHealthy).flatMap(_.dirs)
 
   private val diskOperators: ConcurrentHashMap[String, ThreadPoolExecutor] = {
     val cleaners = JavaUtils.newConcurrentHashMap[String, ThreadPoolExecutor]()
@@ -1143,11 +1143,14 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     while (retryCount < conf.workerCreateWriterMaxAttempts) {
       val diskInfo = diskInfos.get(suggestedMountPoint)
       val dirs =
-        if (diskInfo != null && diskInfo.status.equals(DiskStatus.HEALTHY)) {
+        if (diskInfo != null && diskInfo.isHealthy) {
           diskInfo.dirs
         } else {
           if (suggestedMountPoint.isEmpty) {
             logDebug(s"Location suggestedMountPoint is not set, return all healthy working dirs.")
+          } else if (diskInfo == null) {
+            logInfo(s"Disk info not found for suggestedMountPoint $suggestedMountPoint, return all healthy " +
+              s"working dirs.")
           } else {
             logInfo(s"Disk(${diskInfo.mountPoint}) unavailable for $suggestedMountPoint, return all healthy" +
               s" working dirs.")

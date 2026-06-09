@@ -212,6 +212,7 @@ private[celeborn] class Master(
     conf.masterSlotAssignLoadAwareDiskGroupGradient
   private val loadAwareFlushTimeWeight = conf.masterSlotAssignLoadAwareFlushTimeWeight
   private val loadAwareFetchTimeWeight = conf.masterSlotAssignLoadAwareFetchTimeWeight
+  private val loadAwareActiveSlotsWeight = conf.masterSlotAssignLoadAwareActiveSlotsWeight
 
   private val estimatedPartitionSizeUpdaterInitialDelay =
     conf.estimatedPartitionSizeUpdaterInitialDelay
@@ -946,6 +947,7 @@ private[celeborn] class Master(
 
     if (numAvailableWorkers == 0) {
       logError(s"Offer slots for $shuffleKey failed due to all workers are excluded!")
+      masterSource.incRequestSlotsFailed(StatusCode.WORKER_EXCLUDED)
       context.reply(
         RequestSlotsResponse(StatusCode.WORKER_EXCLUDED, new WorkerResource(), requestSlots.packed))
       return
@@ -981,6 +983,7 @@ private[celeborn] class Master(
               slotsAssignLoadAwareDiskGroupGradient,
               loadAwareFlushTimeWeight,
               loadAwareFetchTimeWeight,
+              loadAwareActiveSlotsWeight,
               requestSlots.availableStorageTypes,
               slotsAssignInterruptionAware,
               slotsAssignInterruptionAwareThreshold)
@@ -1007,6 +1010,7 @@ private[celeborn] class Master(
     // reply false if offer slots failed
     if (slots == null || slots.isEmpty) {
       logError(s"Offer slots for $numReducers reducers of $shuffleKey failed!")
+      masterSource.incRequestSlotsFailed(StatusCode.SLOT_NOT_AVAILABLE)
       context.reply(RequestSlotsResponse(
         StatusCode.SLOT_NOT_AVAILABLE,
         new WorkerResource(),

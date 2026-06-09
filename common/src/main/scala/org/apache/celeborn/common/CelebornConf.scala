@@ -679,6 +679,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(MASTER_SLOT_ASSIGN_LOADAWARE_FLUSHTIME_WEIGHT)
   def masterSlotAssignLoadAwareFetchTimeWeight: Double =
     get(MASTER_SLOT_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT)
+  def masterSlotAssignLoadAwareActiveSlotsWeight: Double =
+    get(MASTER_SLOT_ASSIGN_LOADAWARE_ACTIVE_SLOTS_WEIGHT)
   def masterSlotAssignExtraSlots: Int = get(MASTER_SLOT_ASSIGN_EXTRA_SLOTS)
   def masterSlotAssignMaxWorkers: Int = get(MASTER_SLOT_ASSIGN_MAX_WORKERS)
   def masterSlotAssignMinWorkers: Int = get(MASTER_SLOT_ASSIGN_MIN_WORKERS)
@@ -1172,6 +1174,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def enableReadLocalShuffleFile: Boolean = get(READ_LOCAL_SHUFFLE_FILE)
   def readLocalShuffleThreads: Int = get(READ_LOCAL_SHUFFLE_THREADS)
   def readStreamCreatorPoolThreads: Int = get(READ_STREAM_CREATOR_POOL_THREADS)
+  def batchOpenStreamParallelClientCreationEnabled: Boolean =
+    get(CLIENT_SPARK_BATCH_OPEN_STREAM_PARALLEL_CLIENT_CREATION_ENABLED)
 
   def registerShuffleFilterExcludedWorkerEnabled: Boolean =
     get(REGISTER_SHUFFLE_FILTER_EXCLUDED_WORKER_ENABLED)
@@ -3153,6 +3157,15 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doubleConf
       .createWithDefault(1)
+
+  val MASTER_SLOT_ASSIGN_LOADAWARE_ACTIVE_SLOTS_WEIGHT: ConfigEntry[Double] =
+    buildConf("celeborn.master.slot.assign.loadAware.activeSlotsWeight")
+      .categories("master")
+      .doc(
+        "Weight of active slots when calculating ordering in load-aware assignment strategy")
+      .version("0.7.0")
+      .doubleConf
+      .createWithDefault(0)
 
   val MASTER_SLOT_ASSIGN_EXTRA_SLOTS: ConfigEntry[Int] =
     buildConf("celeborn.master.slot.assign.extraSlots")
@@ -5607,7 +5620,7 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.rpc.cache.expireTime")
       .categories("client")
       .version("0.3.0")
-      .doc("The time before a cache item is removed.")
+      .doc("The idle time before a cache item is removed.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("15s")
 
@@ -5699,7 +5712,7 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.shuffle.integrityCheck.enabled")
       .categories("client")
       .version("0.6.1")
-      .doc("When `true`, enables end-to-end integrity checks for Spark workloads.")
+      .doc("When `true`, enables end-to-end integrity checks for Spark and Flink workloads.")
       .booleanConf
       .createWithDefault(false)
 
@@ -6323,6 +6336,15 @@ object CelebornConf extends Logging {
       .doc("Threads count for streamCreatorPool in CelebornShuffleReader.")
       .intConf
       .createWithDefault(32)
+
+  val CLIENT_SPARK_BATCH_OPEN_STREAM_PARALLEL_CLIENT_CREATION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.batch.openStream.parallelClientCreation.enabled")
+      .categories("client")
+      .version("0.6.3")
+      .doc("Whether to create data clients in parallel before sending Spark batch open-stream requests. " +
+        "When false, data clients are created serially.")
+      .booleanConf
+      .createWithDefault(true)
 
   val CLIENT_CHUNK_PREFETCH_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.chunk.prefetch.enabled")

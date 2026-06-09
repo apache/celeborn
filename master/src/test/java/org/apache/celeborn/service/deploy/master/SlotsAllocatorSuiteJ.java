@@ -144,6 +144,41 @@ public class SlotsAllocatorSuiteJ {
     check(workers, partitionIds, shouldReplicate, true, true, false, 0);
   }
 
+  @Test
+  public void testLoadAwarePrefersLowerActiveSlotsWhenConfigured() {
+    final List<WorkerInfo> workers =
+        basePrepareWorkers(
+            2,
+            true,
+            ImmutableMap.of("/mnt/disk1", 100 * 1024 * 1024 * 1024L),
+            64 * 1024 * 1024L,
+            1,
+            false,
+            new Random(0));
+    final DiskInfo overloadedDisk = workers.get(0).diskInfos().get("/mnt/disk1");
+    final DiskInfo lightlyReservedDisk = workers.get(1).diskInfos().get("/mnt/disk1");
+    overloadedDisk.activeSlots_$eq(1000);
+    lightlyReservedDisk.activeSlots_$eq(0);
+
+    final Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
+        SlotsAllocator.offerSlotsLoadAware(
+            workers,
+            Collections.singletonList(0),
+            false,
+            false,
+            2,
+            1,
+            0,
+            0,
+            1,
+            StorageInfo.ALL_TYPES_AVAILABLE_MASK,
+            false,
+            0);
+
+    assertTrue(slots.containsKey(workers.get(1)));
+    assertFalse(slots.containsKey(workers.get(0)));
+  }
+
   private void check(
       List<WorkerInfo> workers,
       List<Integer> partitionIds,
@@ -186,6 +221,7 @@ public class SlotsAllocatorSuiteJ {
               conf.masterSlotAssignLoadAwareDiskGroupGradient(),
               conf.masterSlotAssignLoadAwareFlushTimeWeight(),
               conf.masterSlotAssignLoadAwareFetchTimeWeight(),
+              conf.masterSlotAssignLoadAwareActiveSlotsWeight(),
               StorageInfo.ALL_TYPES_AVAILABLE_MASK,
               interruptionAware,
               interruptionAwareThreshold);
@@ -298,6 +334,7 @@ public class SlotsAllocatorSuiteJ {
               0.1,
               0,
               1,
+              0,
               StorageInfo.LOCAL_DISK_MASK | availableStorageTypes,
               false,
               0);

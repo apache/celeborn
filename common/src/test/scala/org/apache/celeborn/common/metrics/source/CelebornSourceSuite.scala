@@ -115,4 +115,22 @@ class CelebornSourceSuite extends CelebornFunSuite {
     createAbstractSourceAndCheck(conf, extraLabels3)
 
   }
+
+  test("test customized labels override extra labels") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.METRICS_EXTRA_LABELS.key, "user=extra,role=extra,instance=extra")
+    val source = new AbstractSource(conf, Role.MASTER) {
+      override def sourceName: String = "mockSource"
+    }
+    val labels = Map("user" -> "metric")
+    source.addCounter("Counter", labels)
+    source.incCounter("Counter", 1, labels)
+    conf.set(CelebornConf.METRICS_EXTRA_LABELS.key, "user=changed")
+    source.incCounter("Counter", 1, labels)
+
+    val metrics = source.getMetrics
+    val instance = source.instanceLabel("instance")
+    assert(metrics.contains(
+      s"""metrics_Counter_Count{instance="$instance",role="Master",user="metric"} 2"""))
+  }
 }
