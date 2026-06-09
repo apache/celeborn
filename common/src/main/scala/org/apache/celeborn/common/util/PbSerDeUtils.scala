@@ -168,8 +168,7 @@ object PbSerDeUtils {
       .setChunkCompressionConfig(
         PbChunkCompressionConfig.newBuilder()
           .setEnabled(fileInfo.isChunkCompressionEnabled)
-          .setLevel(fileInfo.getChunkCompressionLevel)
-      )
+          .setLevel(fileInfo.getChunkCompressionLevel))
     if (fileInfo.getFileMeta.isInstanceOf[MapFileMeta]) {
       val mapFileMeta = fileInfo.getFileMeta.asInstanceOf[MapFileMeta]
       builder.setPartitionType(PartitionType.MAP.getValue)
