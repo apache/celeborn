@@ -263,65 +263,65 @@ target_link_libraries(celeborn_client PRIVATE
   protobuf::libprotobuf
   OpenSSL::SSL OpenSSL::Crypto)
 
-# protobuf v28+ pulls in dozens of absl_* sub-libraries. Prefer the CMake
-# package config / pkg-config exported by abseil, which provides the correct
-# imported targets regardless of where the distribution installs them. This
-# is portable across Apple Silicon, Intel macOS, x86_64 Linux and aarch64
-# Linux (whose multiarch dir is /usr/lib/aarch64-linux-gnu, not covered by
-# any hard-coded path).
-find_package(absl CONFIG QUIET)
-if(absl_FOUND)
-  # Link the umbrella target if present, otherwise the common building blocks
-  # that protobuf actually depends on.
-  if(TARGET absl::absl)
-    target_link_libraries(celeborn_client PRIVATE absl::absl)
+# protobuf v22+ (a.k.a. 4.22.0+) switched to an abseil-based implementation and
+# pulls in dozens of absl_* sub-libraries at link time.  Older versions
+# (3.x / v21 and below) are self-contained and do not need abseil at all.
+#
+# Protobuf_VERSION is reported as the *library* version (e.g. "3.21.7"), while
+# the "v22" release corresponds to library version 4.22.0.  We therefore check
+# whether the major version is >= 4 (i.e. protobuf v22+).
+if(Protobuf_VERSION VERSION_GREATER_EQUAL "4.0.0")
+  message(STATUS "Protobuf ${Protobuf_VERSION} requires abseil — searching …")
+  find_package(absl CONFIG QUIET)
+  if(absl_FOUND)
+    if(TARGET absl::absl)
+      target_link_libraries(celeborn_client PRIVATE absl::absl)
+    else()
+      target_link_libraries(celeborn_client PRIVATE
+        absl::base absl::strings absl::status absl::statusor
+        absl::synchronization absl::time absl::log absl::log_internal_check_op)
+    endif()
   else()
-    target_link_libraries(celeborn_client PRIVATE
-      absl::base absl::strings absl::status absl::statusor
-      absl::synchronization absl::time absl::log absl::log_internal_check_op)
+    # No CMake config — fall back to globbing the platform library directory.
+    if(APPLE)
+      set(_ABSEIL_LIB_DIR "${HOMEBREW_PREFIX}/lib")
+      set(_ABSEIL_LIB_EXT "dylib")
+    else()
+      set(_ABSEIL_LIB_EXT "so")
+      execute_process(
+        COMMAND ${CMAKE_CXX_COMPILER} -dumpmachine
+        OUTPUT_VARIABLE _MULTIARCH_TRIPLET
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET)
+      set(_ABSEIL_SEARCH_DIRS
+        "/usr/lib/${_MULTIARCH_TRIPLET}"
+        "/usr/local/lib"
+        "/usr/lib64"
+        "/usr/lib")
+      set(_ABSEIL_LIB_DIR "")
+      foreach(_dir IN LISTS _ABSEIL_SEARCH_DIRS)
+        file(GLOB _probe "${_dir}/libabsl_*.${_ABSEIL_LIB_EXT}")
+        if(_probe)
+          set(_ABSEIL_LIB_DIR "${_dir}")
+          break()
+        endif()
+      endforeach()
+    endif()
+
+    file(GLOB _ABSEIL_LIBS "${_ABSEIL_LIB_DIR}/libabsl_*.${_ABSEIL_LIB_EXT}")
+    if(_ABSEIL_LIBS)
+      message(STATUS "Found abseil libraries in ${_ABSEIL_LIB_DIR}")
+      target_link_libraries(celeborn_client PRIVATE ${_ABSEIL_LIBS})
+    else()
+      message(FATAL_ERROR
+        "Could not locate libabsl_*.${_ABSEIL_LIB_EXT}. Protobuf "
+        "${Protobuf_VERSION} depends on abseil; install abseil-cpp "
+        "(providing absl CMake config or libabsl_*.${_ABSEIL_LIB_EXT}) "
+        "or point CMAKE_PREFIX_PATH at it.")
+    endif()
   endif()
 else()
-  # No CMake config — fall back to globbing the platform library directory.
-  if(APPLE)
-    set(_ABSEIL_LIB_DIR "${HOMEBREW_PREFIX}/lib")
-    set(_ABSEIL_LIB_EXT "dylib")
-  else()
-    set(_ABSEIL_LIB_EXT "so")
-    # Derive the GNU multiarch library directory from the toolchain triplet
-    # (e.g. x86_64-linux-gnu, aarch64-linux-gnu) so non-x86_64 Linux targets
-    # advertised by the README actually resolve absl.
-    execute_process(
-      COMMAND ${CMAKE_CXX_COMPILER} -dumpmachine
-      OUTPUT_VARIABLE _MULTIARCH_TRIPLET
-      OUTPUT_STRIP_TRAILING_WHITESPACE
-      ERROR_QUIET)
-    set(_ABSEIL_SEARCH_DIRS
-      "/usr/lib/${_MULTIARCH_TRIPLET}"
-      "/usr/local/lib"
-      "/usr/lib64"
-      "/usr/lib")
-    set(_ABSEIL_LIB_DIR "")
-    foreach(_dir IN LISTS _ABSEIL_SEARCH_DIRS)
-      file(GLOB _probe "${_dir}/libabsl_*.${_ABSEIL_LIB_EXT}")
-      if(_probe)
-        set(_ABSEIL_LIB_DIR "${_dir}")
-        break()
-      endif()
-    endforeach()
-  endif()
-
-  file(GLOB _ABSEIL_LIBS "${_ABSEIL_LIB_DIR}/libabsl_*.${_ABSEIL_LIB_EXT}")
-  if(_ABSEIL_LIBS)
-    message(STATUS "Found abseil libraries in ${_ABSEIL_LIB_DIR}")
-    target_link_libraries(celeborn_client PRIVATE ${_ABSEIL_LIBS})
-  else()
-    # protobuf almost always depends on absl; a missing absl is a hard link
-    # failure rather than a warning to silently ignore.
-    message(FATAL_ERROR
-      "Could not locate libabsl_*.${_ABSEIL_LIB_EXT}. protobuf depends on "
-      "abseil; install abseil-cpp (providing absl CMake config or "
-      "libabsl_*.${_ABSEIL_LIB_EXT}) or point CMAKE_PREFIX_PATH at it.")
-  endif()
+  message(STATUS "Protobuf ${Protobuf_VERSION} does not require abseil — skipping absl search")
 endif()
 
 # Hide every non-celeborn symbol so the dylib does not collide with the
