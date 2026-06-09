@@ -258,7 +258,8 @@ public class LocalPartitionReader implements PartitionReader {
     int chunkIdx = startChunkIndex + returnedChunks;
     returnedChunks++;
     boolean compressed =
-        streamHandler.getChunkCompressedCount() > chunkIdx && streamHandler.getChunkCompressed(chunkIdx);
+        streamHandler.getChunkCompressedCount() > chunkIdx
+            && streamHandler.getChunkCompressed(chunkIdx);
     return Pair.of(chunk, compressed);
   }
 

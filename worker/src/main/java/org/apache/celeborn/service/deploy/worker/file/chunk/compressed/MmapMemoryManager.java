@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory;
 
 public class MmapMemoryManager {
   private static final Logger LOG = LoggerFactory.getLogger(MmapMemoryManager.class);
-  private static MmapMemoryManager INSTANCE;
   private static final long DEFAULT_FILE_LENGTH = 512 * 1024 * 1024L;
   private final String _dirPathName;
   // _availableOffset has the starting offset for the next allocation in _currentBuffer. When
@@ -48,31 +47,13 @@ public class MmapMemoryManager {
   private final List<ByteBuffer> _memMappedBuffers = new LinkedList<>();
   ByteBuffer _currentBuffer;
 
-  public static MmapMemoryManager getInstance() {
-    if (INSTANCE == null) {
-      synchronized (MmapMemoryManager.class) {
-        if (INSTANCE == null) {
-          INSTANCE = createInstance();
-        }
-      }
-    }
-
-    return INSTANCE;
-  }
-
-  private static MmapMemoryManager createInstance() {
-    String tmpDir = System.getProperty("java.io.tmpdir");
-    String dirPathName = tmpDir + "/celeborn-mmap-memory-manager";
+  public MmapMemoryManager(String dirPathName) {
     File dirFile = new File(dirPathName);
     if (!dirFile.exists()) {
       if (!dirFile.mkdirs()) {
         throw new RuntimeException("Unable to create directory: " + dirFile);
       }
     }
-    return new MmapMemoryManager(dirPathName);
-  }
-
-  private MmapMemoryManager(String dirPathName) {
     _dirPathName = dirPathName;
   }
 

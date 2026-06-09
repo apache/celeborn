@@ -231,7 +231,8 @@ public class WorkerPartitionReader implements PartitionReader {
     lastReturnedChunkId = chunk.getLeft();
     int chunkIdx = chunk.getLeft();
     boolean compressed =
-        streamHandler.getChunkCompressedCount() > chunkIdx && streamHandler.getChunkCompressed(chunkIdx);
+        streamHandler.getChunkCompressedCount() > chunkIdx
+            && streamHandler.getChunkCompressed(chunkIdx);
     return Pair.of(chunk.getRight(), compressed);
   }
 

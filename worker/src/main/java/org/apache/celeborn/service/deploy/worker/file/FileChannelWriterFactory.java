@@ -20,14 +20,16 @@ package org.apache.celeborn.service.deploy.worker.file;
 import java.io.IOException;
 
 import org.apache.celeborn.common.meta.DiskFileInfo;
+import org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkBufferPool;
 import org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkCompressedFileChannelWriter;
 
 public class FileChannelWriterFactory {
-  public static FileChannelWriter getFileChannelWriter(DiskFileInfo diskFileInfo, long chunkSize)
+  public static FileChannelWriter getFileChannelWriter(
+      DiskFileInfo diskFileInfo, long chunkSize, ChunkBufferPool chunkBufferPool)
       throws IOException {
     if (diskFileInfo.isChunkCompressionEnabled()) {
       return new ChunkCompressedFileChannelWriter(
-          diskFileInfo, chunkSize, diskFileInfo.getChunkCompressionLevel());
+          diskFileInfo, chunkSize, diskFileInfo.getChunkCompressionLevel(), chunkBufferPool);
     } else {
       return new BypassFileChannelWriter(diskFileInfo);
     }

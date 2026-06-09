@@ -48,6 +48,7 @@ import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, CollectionUtils, DiskUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
+import org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkBufferPool
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.service.deploy.worker.shuffledb.{DB, DBBackend, DBProvider}
@@ -81,6 +82,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val diskReserveSize = conf.workerDiskReserveSize
   val diskReserveRatio = conf.workerDiskReserveRatio
   var s3MultipartUploadHandlerSharedState: AutoCloseable = _
+
+  val chunkBufferPool: ChunkBufferPool =
+    if (conf.isChunkCompressionEnabled) new ChunkBufferPool(conf) else null
 
   // (deviceName -> deviceInfo) and (mount point -> diskInfo)
   val (deviceInfos, diskInfos) = {
@@ -903,6 +907,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
     if (s3MultipartUploadHandlerSharedState != null)
       s3MultipartUploadHandlerSharedState.close()
+
+    if (chunkBufferPool != null)
+      chunkBufferPool.close()
   }
 
   private def flushFileWriters(): Unit = {

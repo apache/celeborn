@@ -36,6 +36,7 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
   private final FileChannel channel;
   private final DiskFileInfo diskFileInfo;
   private final int compressionLevel;
+  private final ChunkBufferPool chunkBufferPool;
   private final ChunkBufferPool.BufferPair bufferPair;
   private ByteBuffer chunkBuffer;
   private ByteBuffer compressedChunkBuffer;
@@ -45,12 +46,17 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
   private boolean closed = false;
 
   public ChunkCompressedFileChannelWriter(
-      DiskFileInfo diskFileInfo, long chunkSize, int compressionLevel) throws IOException {
+      DiskFileInfo diskFileInfo,
+      long chunkSize,
+      int compressionLevel,
+      ChunkBufferPool chunkBufferPool)
+      throws IOException {
     this.diskFileInfo = diskFileInfo;
     this.chunkSize = chunkSize;
     channel = FileChannelUtils.createWritableFileChannel(diskFileInfo.getFilePath());
     this.compressionLevel = compressionLevel;
-    bufferPair = ChunkBufferPool.getInstance().acquire(chunkSize);
+    this.chunkBufferPool = chunkBufferPool;
+    bufferPair = chunkBufferPool.acquire(chunkSize);
     chunkBuffer = bufferPair.chunkBuffer;
     compressedChunkBuffer = bufferPair.compressedBuffer;
     chunkOffsets = new ArrayList<>();
@@ -162,6 +168,6 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
     }
     diskFileInfo.setBytesFlushed(chunkOffsets.get(chunkOffsets.size() - 1));
     diskFileInfo.replaceFileMeta(new ReduceFileMeta(chunkOffsets, chunkCompressed));
-    ChunkBufferPool.getInstance().release(bufferPair);
+    chunkBufferPool.release(bufferPair);
   }
 }

@@ -417,7 +417,10 @@ class LocalTierWriter(
     fileInfo.asInstanceOf[DiskFileInfo])
 
   private lazy val fileChannelWriter: FileChannelWriter =
-    FileChannelWriterFactory.getFileChannelWriter(diskFileInfo, conf.shuffleChunkSize)
+    FileChannelWriterFactory.getFileChannelWriter(
+      diskFileInfo,
+      conf.shuffleChunkSize,
+      storageManager.chunkBufferPool)
 
   val gatherApiEnabled: Boolean = conf.workerFlusherLocalGatherAPIEnabled
   val commitFilesFsync: Boolean = conf.workerCommitFilesFsync

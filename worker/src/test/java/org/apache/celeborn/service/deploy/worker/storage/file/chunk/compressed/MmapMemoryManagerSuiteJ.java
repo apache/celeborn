@@ -26,31 +26,40 @@ import java.util.Random;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.apache.celeborn.service.deploy.worker.file.chunk.compressed.MmapMemoryManager;
 
 public class MmapMemoryManagerSuiteJ {
 
+  private static MmapMemoryManager MANAGER;
+
+  @BeforeClass
+  public static void setUpClass() {
+    MANAGER = new MmapMemoryManager(System.getProperty("java.io.tmpdir") + "/celeborn-mmap-test");
+  }
+
+  @AfterClass
+  public static void tearDownClass() {
+    if (MANAGER != null) {
+      MANAGER.close();
+    }
+  }
+
   private MmapMemoryManager manager() {
-    return MmapMemoryManager.getInstance();
+    return MANAGER;
   }
 
-  // ── Test 1: singleton always returns the same instance ─────────────────────
-
-  @Test
-  public void testSingletonIdentity() {
-    assertSame(manager(), manager());
-  }
-
-  // ── Test 2: returned buffer is a direct ByteBuffer ─────────────────────────
+  // ── Test 1: returned buffer is a direct ByteBuffer ─────────────────────────
 
   @Test
   public void testAllocatedBufferIsDirect() {
     assertTrue(manager().allocateBuffer(128).isDirect());
   }
 
-  // ── Test 3: capacity equals the requested size ─────────────────────────────
+  // ── Test 2: capacity equals the requested size ─────────────────────────────
 
   @Test
   public void testAllocatedBufferCapacityMatchesRequestedSize() {
@@ -61,7 +70,7 @@ public class MmapMemoryManagerSuiteJ {
     }
   }
 
-  // ── Test 4: slice starts at position=0, limit=capacity ─────────────────────
+  // ── Test 3: slice starts at position=0, limit=capacity ─────────────────────
 
   @Test
   public void testAllocatedBufferIsInClearState() {
@@ -72,7 +81,7 @@ public class MmapMemoryManagerSuiteJ {
     assertEquals(size, buf.remaining());
   }
 
-  // ── Test 5: buffer is writable — put advances position ──────────────────────
+  // ── Test 4: buffer is writable — put advances position ──────────────────────
 
   @Test
   public void testAllocatedBufferIsWritable() {
@@ -82,7 +91,7 @@ public class MmapMemoryManagerSuiteJ {
     assertEquals(2, buf.position());
   }
 
-  // ── Test 6: data round-trips correctly through the buffer ──────────────────
+  // ── Test 5: data round-trips correctly through the buffer ──────────────────
 
   @Test
   public void testDataRoundTrips() {
@@ -100,7 +109,7 @@ public class MmapMemoryManagerSuiteJ {
     assertArrayEquals(data, readBack);
   }
 
-  // ── Test 7: consecutive allocations do not overlap ─────────────────────────
+  // ── Test 6: consecutive allocations do not overlap ─────────────────────────
   // Write distinct patterns to two buffers and verify neither corrupts the other.
 
   @Test
@@ -119,7 +128,7 @@ public class MmapMemoryManagerSuiteJ {
     while (buf2.hasRemaining()) assertEquals((byte) 0xBB, buf2.get());
   }
 
-  // ── Test 8: adjacent writes don't spill into the neighboring allocation ─────
+  // ── Test 7: adjacent writes don't spill into the neighboring allocation ─────
 
   @Test
   public void testWriteToOneBufferDoesNotSpillIntoAdjacentBuffer() {
@@ -140,7 +149,7 @@ public class MmapMemoryManagerSuiteJ {
     }
   }
 
-  // ── Test 9: buffer can be filled to exactly its capacity without overflow ───
+  // ── Test 8: buffer can be filled to exactly its capacity without overflow ───
 
   @Test
   public void testBufferCanBeFilledToCapacity() {
@@ -153,7 +162,7 @@ public class MmapMemoryManagerSuiteJ {
     assertEquals(0, buf.remaining()); // buffer is exactly full
   }
 
-  // ── Test 10: many allocations of varying sizes all have correct properties ──
+  // ── Test 9: many allocations of varying sizes all have correct properties ──
 
   @Test
   public void testManyAllocationsOfVariousSizes() {
@@ -167,7 +176,7 @@ public class MmapMemoryManagerSuiteJ {
     }
   }
 
-  // ── Test 11: sequential pattern survives put/get round-trip ────────────────
+  // ── Test 10: sequential pattern survives put/get round-trip ────────────────
 
   @Test
   public void testSequentialPatternSurvivesRoundTrip() {
@@ -182,7 +191,7 @@ public class MmapMemoryManagerSuiteJ {
     }
   }
 
-  // ── Test 12: concurrent allocations are thread-safe ────────────────────────
+  // ── Test 11: concurrent allocations are thread-safe ────────────────────────
 
   @Test
   public void testConcurrentAllocationsAreSafe() throws Exception {
@@ -218,7 +227,7 @@ public class MmapMemoryManagerSuiteJ {
     assertEquals("no invariant violations under concurrent load", 0, violations.get());
   }
 
-  // ── Test 13: concurrent writes to different buffers don't corrupt each other ─
+  // ── Test 12: concurrent writes to different buffers don't corrupt each other ─
 
   @Test
   public void testConcurrentWritesToDistinctBuffersAreIsolated() throws Exception {
@@ -254,28 +263,31 @@ public class MmapMemoryManagerSuiteJ {
     }
   }
 
-  // ── Test 14: close() resets state; subsequent allocations succeed ────────────
-  // Named with 'z' prefix so it sorts last alphabetically and runs after all others.
+  // ── Test 13: close() resets state; subsequent allocations succeed ────────────
 
   @Test
-  public void zTestCloseResetsStateAndNewAllocationsSucceed() {
-    // Allocate something to ensure an active backing file exists.
-    ByteBuffer before = manager().allocateBuffer(64);
-    assertNotNull(before);
+  public void testCloseResetsStateAndNewAllocationsSucceed() {
+    MmapMemoryManager local =
+        new MmapMemoryManager(System.getProperty("java.io.tmpdir") + "/celeborn-mmap-test-close");
+    try {
+      ByteBuffer before = local.allocateBuffer(64);
+      assertNotNull(before);
 
-    manager().close();
+      local.close();
 
-    // After close, the next allocation must create a new backing file and succeed.
-    ByteBuffer after = manager().allocateBuffer(256);
-    assertNotNull(after);
-    assertEquals(256, after.capacity());
-    assertEquals(0, after.position());
-    assertEquals(256, after.limit());
-    assertTrue(after.isDirect());
+      // After close, the next allocation must create a new backing file and succeed.
+      ByteBuffer after = local.allocateBuffer(256);
+      assertNotNull(after);
+      assertEquals(256, after.capacity());
+      assertEquals(0, after.position());
+      assertEquals(256, after.limit());
+      assertTrue(after.isDirect());
 
-    // The buffer must be writable.
-    after.put((byte) 0x42);
-    after.flip();
-    assertEquals((byte) 0x42, after.get());
+      after.put((byte) 0x42);
+      after.flip();
+      assertEquals((byte) 0x42, after.get());
+    } finally {
+      local.close();
+    }
   }
 }

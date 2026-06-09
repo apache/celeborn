@@ -25,14 +25,17 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.github.luben.zstd.Zstd;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkBufferPool;
 
 public class ChunkBufferPoolSuiteJ {
 
   // Use distinct prime-ish sizes per test so different tests never share a bucket.
-  // The singleton pool is shared across tests; unique sizes prevent cross-test contamination.
+  // The pool instance is shared across tests; unique sizes prevent cross-test contamination.
   private static final long SIZE_1 = 1009;
   private static final long SIZE_2 = 2003;
   private static final long SIZE_3 = 4001;
@@ -42,15 +45,22 @@ public class ChunkBufferPoolSuiteJ {
   private static final long SIZE_7 = 64007;
   private static final long SIZE_8 = 128021;
 
-  private ChunkBufferPool pool() {
-    return ChunkBufferPool.getInstance();
+  private static ChunkBufferPool POOL;
+
+  @BeforeClass
+  public static void setUpClass() {
+    POOL = new ChunkBufferPool(new CelebornConf());
   }
 
-  // ── Test 1: singleton always returns the same instance ─────────────────────
+  @AfterClass
+  public static void tearDownClass() {
+    if (POOL != null) {
+      POOL.close();
+    }
+  }
 
-  @Test
-  public void testSingletonIdentity() {
-    assertSame(ChunkBufferPool.getInstance(), ChunkBufferPool.getInstance());
+  private ChunkBufferPool pool() {
+    return POOL;
   }
 
   // ── Test 2: fresh acquire allocates buffers with correct capacities ─────────

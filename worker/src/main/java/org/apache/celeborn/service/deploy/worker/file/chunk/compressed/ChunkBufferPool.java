@@ -23,9 +23,14 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 
 import com.github.luben.zstd.Zstd;
 
+import org.apache.celeborn.common.CelebornConf;
+
 /**
  * Pool of reusable (chunkBuffer, compressedBuffer) pairs for ChunkCompressedFileChannelWriter,
  * bucketed by chunkSize so every acquired pair is exactly the right capacity.
+ *
+ * <p>Owns and manages the lifecycle of its internal {@link MmapMemoryManager}. Call {@link #close}
+ * when the pool is no longer needed to release the mmap backing files.
  */
 public class ChunkBufferPool {
 
@@ -41,15 +46,12 @@ public class ChunkBufferPool {
     }
   }
 
-  private static final ChunkBufferPool INSTANCE = new ChunkBufferPool();
-
+  private final MmapMemoryManager mmapMemoryManager;
   private final ConcurrentHashMap<Long, ConcurrentLinkedDeque<BufferPair>> poolMap =
       new ConcurrentHashMap<>();
 
-  private ChunkBufferPool() {}
-
-  public static ChunkBufferPool getInstance() {
-    return INSTANCE;
+  public ChunkBufferPool(CelebornConf conf) {
+    this.mmapMemoryManager = new MmapMemoryManager(conf.chunkCompressionMmapTmpDir());
   }
 
   public BufferPair acquire(long chunkSize) {
@@ -63,8 +65,8 @@ public class ChunkBufferPool {
     }
     int chunkBufSize = Math.toIntExact(chunkSize);
     int compressedBufSize = Math.toIntExact(Zstd.compressBound(chunkSize));
-    ByteBuffer chunkBuf = MmapMemoryManager.getInstance().allocateBuffer(chunkBufSize);
-    ByteBuffer compressedBuf = MmapMemoryManager.getInstance().allocateBuffer(compressedBufSize);
+    ByteBuffer chunkBuf = mmapMemoryManager.allocateBuffer(chunkBufSize);
+    ByteBuffer compressedBuf = mmapMemoryManager.allocateBuffer(compressedBufSize);
     return new BufferPair(chunkBuf, compressedBuf, chunkSize);
   }
 
@@ -73,5 +75,10 @@ public class ChunkBufferPool {
     pair.chunkBuffer.clear();
     pair.compressedBuffer.clear();
     poolMap.computeIfAbsent(pair.chunkSize, k -> new ConcurrentLinkedDeque<>()).offerFirst(pair);
+  }
+
+  public void close() {
+    poolMap.clear();
+    mmapMemoryManager.close();
   }
 }
