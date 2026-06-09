@@ -284,6 +284,18 @@ public class SparkUtils {
                 ShuffleReadMetricsReporter.class,
                 ExecutorShuffleIdTracker.class,
                 Optional.class)
+            // Fallback for older columnar-shuffle modules that don't have the cryptoHandler param
+            .impl(
+                COLUMNAR_SHUFFLE_READER_CLASS,
+                CelebornShuffleHandle.class,
+                int.class,
+                int.class,
+                int.class,
+                int.class,
+                TaskContext.class,
+                CelebornConf.class,
+                ShuffleReadMetricsReporter.class,
+                ExecutorShuffleIdTracker.class)
             .build();
   }
 

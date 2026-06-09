@@ -2124,8 +2124,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   @Override
   public void setupCryptoHandler(Optional<CryptoHandler> cryptoHandler) {
-    this.cryptoHandler = cryptoHandler;
-    if (cryptoHandler.isPresent()) {
+    this.cryptoHandler = cryptoHandler != null ? cryptoHandler : Optional.empty();
+    if (this.cryptoHandler.isPresent()) {
       logger.info("IO encryption enabled for shuffle data (encryption at rest).");
     }
   }

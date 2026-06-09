@@ -54,7 +54,10 @@ public class SparkCryptoHandler implements CryptoHandler {
     ByteArrayInputStream bais = new ByteArrayInputStream(input, offset, length);
     DataInputStream dis = new DataInputStream(bais);
     int decryptedLength = dis.readInt();
-    if (decryptedLength < 0) {
+    // The encrypted payload format is: [4-byte plaintext length][ciphertext...].
+    // So the maximum valid decrypted length is length - 4 (the ciphertext portion).
+    // A value outside this range indicates corruption or a wrong key.
+    if (decryptedLength < 0 || decryptedLength > length - 4) {
       throw new IOException(
           "Invalid decrypted length: " + decryptedLength + ", encrypted length: " + length);
     }

@@ -83,9 +83,11 @@ public class SparkCryptoHandlerSuiteJ {
   @Test
   public void testEncryptWithOffset() throws IOException {
     byte[] actual = "offset test data".getBytes();
-    byte[] padded = Arrays.copyOf(actual, actual.length + 20);
+    int offset = 10;
+    byte[] padded = new byte[offset + actual.length + 20];
+    System.arraycopy(actual, 0, padded, offset, actual.length);
 
-    byte[] encrypted = handler.encrypt(padded, 0, actual.length);
+    byte[] encrypted = handler.encrypt(padded, offset, actual.length);
     byte[] decrypted = handler.decrypt(encrypted, 0, encrypted.length);
 
     assertArrayEquals(actual, decrypted);

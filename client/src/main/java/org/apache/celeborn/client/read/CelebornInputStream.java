@@ -836,7 +836,11 @@ public abstract class CelebornInputStream extends InputStream {
           int batchId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 8);
           int size = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 12);
 
-          // Read and optionally decrypt data into the appropriate buffer
+          // Read and optionally decrypt data into the appropriate buffer.
+          // encryptedSize tracks the on-wire (encrypted) byte count for metrics; size is
+          // reassigned to the decrypted length so downstream decompression and limit logic
+          // operate on the correct plaintext size.
+          int encryptedSize = size;
           if (cryptoHandler.isPresent()) {
             if (size > encryptedBuf.length) {
               encryptedBuf = new byte[size];
@@ -886,7 +890,7 @@ public abstract class CelebornInputStream extends InputStream {
             Set<Integer> batchSet = batchesRead.computeIfAbsent(mapId, k -> new HashSet<>());
             if (!batchSet.contains(batchId)) {
               batchSet.add(batchId);
-              callback.incBytesRead(BATCH_HEADER_SIZE + size);
+              callback.incBytesRead(BATCH_HEADER_SIZE + encryptedSize);
               if (shouldDecompress) {
                 // decompress data
                 int originalLength = decompressor.getOriginalLen(compressedBuf);
@@ -904,7 +908,7 @@ public abstract class CelebornInputStream extends InputStream {
               hasData = true;
               break;
             } else {
-              callback.incDuplicateBytesRead(BATCH_HEADER_SIZE + size);
+              callback.incDuplicateBytesRead(BATCH_HEADER_SIZE + encryptedSize);
               logger.debug(
                   "Skip duplicated batch: mapId {}, attemptId {}, batchId {}.",
                   mapId,
