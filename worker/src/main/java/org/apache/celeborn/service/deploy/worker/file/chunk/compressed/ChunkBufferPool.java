@@ -21,6 +21,8 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
+import com.github.luben.zstd.Zstd;
+
 /**
  * Pool of reusable (chunkBuffer, compressedBuffer) pairs for ChunkCompressedFileChannelWriter,
  * bucketed by chunkSize so every acquired pair is exactly the right capacity.
@@ -59,12 +61,10 @@ public class ChunkBufferPool {
       pair.compressedBuffer.clear();
       return pair;
     }
-    ByteBuffer chunkBuf = MmapMemoryManager.getInstance().allocateBuffer((int) chunkSize);
-    // allocateDirect, NOT MmapMemoryManager: mmap duplicates share one backing region, so
-    // after clear() both chunkBuf and a mmap-backed compressedBuf would have position=0
-    // pointing to the same physical address. ZSTD would then write its frame header to
-    // mmap[0..N] before reading mmap[0..N] as input, silently corrupting the source.
-    ByteBuffer compressedBuf = MmapMemoryManager.getInstance().allocateBuffer((int) chunkSize);
+    int chunkBufSize = Math.toIntExact(chunkSize);
+    int compressedBufSize = Math.toIntExact(Zstd.compressBound(chunkSize));
+    ByteBuffer chunkBuf = MmapMemoryManager.getInstance().allocateBuffer(chunkBufSize);
+    ByteBuffer compressedBuf = MmapMemoryManager.getInstance().allocateBuffer(compressedBufSize);
     return new BufferPair(chunkBuf, compressedBuf, chunkSize);
   }
 

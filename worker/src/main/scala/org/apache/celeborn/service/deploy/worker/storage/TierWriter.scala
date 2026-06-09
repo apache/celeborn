@@ -116,6 +116,7 @@ abstract class TierWriterBase(
       } catch {
         case e: IOException =>
           logWarning(s"close file writer $this failed", e)
+          throw e
       }
     }
     notifyFileCommitted()

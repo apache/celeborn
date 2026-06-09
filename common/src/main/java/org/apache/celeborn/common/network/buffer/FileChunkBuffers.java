@@ -38,8 +38,11 @@ public class FileChunkBuffers extends ChunkBuffers {
 
   @Override
   public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
-    // sliced reads unsupported for chunkCompressed files
-    assert (!isChunkCompressed || (offset == 0 && len == Integer.MAX_VALUE));
+    if (isChunkCompressed && (offset != 0 || len != Integer.MAX_VALUE)) {
+      throw new IllegalArgumentException(
+          "Sliced reads (offset=" + offset + ", len=" + len
+              + ") are not supported for chunk-compressed files");
+    }
     Tuple2<Long, Long> offsetLen = getChunkOffsetLength(chunkIndex, offset, len);
     return new FileSegmentManagedBuffer(conf, file, offsetLen._1, offsetLen._2);
   }

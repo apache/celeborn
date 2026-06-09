@@ -42,6 +42,7 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
   private final List<Long> chunkOffsets;
   private final List<Boolean> chunkCompressed;
   private final long chunkSize;
+  private boolean closed = false;
 
   public ChunkCompressedFileChannelWriter(
       DiskFileInfo diskFileInfo, long chunkSize, int compressionLevel) throws IOException {
@@ -117,6 +118,9 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
     } catch (RuntimeException e) {
       throw new IOException("Failed to compress chunk with ZSTD.", e);
     }
+    if (Zstd.isError(compressedSize)) {
+      throw new IOException("ZSTD compression failed: " + Zstd.getErrorName(compressedSize));
+    }
     compressedChunkBuffer.position(0);
     compressedChunkBuffer.limit(compressedSize);
 
@@ -130,24 +134,34 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
   }
 
   @Override
-  public void close(boolean commitFilesFsync) {
+  public void close(boolean commitFilesFsync) throws IOException {
+    if (closed) {
+      return;
+    }
+    closed = true;
+    IOException failure = null;
     try {
       compressAndFlush();
       if (commitFilesFsync) {
         channel.force(false);
       }
     } catch (IOException e) {
-      // log and ignore
+      failure = e;
     } finally {
       try {
         channel.close();
       } catch (IOException e) {
-        // log and ignore
+        if (failure == null) {
+          failure = e;
+        }
       }
     }
 
+    if (failure != null) {
+      throw failure;
+    }
     diskFileInfo.setBytesFlushed(chunkOffsets.get(chunkOffsets.size() - 1));
-    diskFileInfo.replaceFileMeta(new ReduceFileMeta(chunkOffsets, chunkCompressed, chunkSize));
+    diskFileInfo.replaceFileMeta(new ReduceFileMeta(chunkOffsets, chunkCompressed));
     ChunkBufferPool.getInstance().release(bufferPair);
   }
 }

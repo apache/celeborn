@@ -25,10 +25,12 @@ import java.nio.channels.FileChannel;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
-import java.util.logging.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MmapMemoryManager {
-  private static final Logger LOG = Logger.getLogger(MmapMemoryManager.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(MmapMemoryManager.class);
   private static MmapMemoryManager INSTANCE;
   private static final long DEFAULT_FILE_LENGTH = 512 * 1024 * 1024L;
   private final String _dirPathName;
@@ -118,7 +120,7 @@ public class MmapMemoryManager {
     for (String path : _paths) {
       File file = new File(path);
       if (!file.delete()) {
-        LOG.warning("Unable to delete mmap backing file: " + file);
+        LOG.warn("Unable to delete mmap backing file: {}", file);
       }
     }
     _paths.clear();

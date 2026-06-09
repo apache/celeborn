@@ -230,9 +230,8 @@ public class WorkerPartitionReader implements PartitionReader {
     inflightRequestCount--;
     lastReturnedChunkId = chunk.getLeft();
     int chunkIdx = chunk.getLeft();
-    // If no per-chunk list was sent (old worker), treat as compressed to honour the global flag.
     boolean compressed =
-        streamHandler.getChunkCompressedCount() == 0 || streamHandler.getChunkCompressed(chunkIdx);
+        streamHandler.getChunkCompressedCount() > chunkIdx && streamHandler.getChunkCompressed(chunkIdx);
     return Pair.of(chunk.getRight(), compressed);
   }
 

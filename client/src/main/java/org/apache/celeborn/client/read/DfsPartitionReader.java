@@ -328,7 +328,7 @@ public class DfsPartitionReader implements PartitionReader {
     }
     returnedChunks++;
     lastReturnedChunkId = chunk.getLeft();
-    return Pair.of(chunk.getRight(), true);
+    return Pair.of(chunk.getRight(), false);
   }
 
   private void checkException() throws Exception {

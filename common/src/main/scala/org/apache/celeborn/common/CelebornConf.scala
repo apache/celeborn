@@ -5297,6 +5297,9 @@ object CelebornConf extends Logging {
           "Valid range is 1–22; the default (3) matches the ZSTD library default.")
       .version("0.6.0")
       .intConf
+      .checkValue(
+        value => value >= -5 && value <= 22,
+        s"Compression level for Zstd compression codec should be an integer between -5 and 22.")
       .createWithDefault(3)
 
   val SHUFFLE_COMPRESSION_CODEC: ConfigEntry[String] =

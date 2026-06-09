@@ -669,6 +669,7 @@ message PbFileInfo {
   repeated PbSegmentIndex segmentIndex = 11;
   int32 storageType = 12;
   PbChunkCompressionConfig chunkCompressionConfig = 13;
+  repeated bool chunkCompressed = 14;
 }
 
 message PbSegmentIndex {

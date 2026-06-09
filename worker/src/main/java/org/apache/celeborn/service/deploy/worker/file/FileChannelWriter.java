@@ -24,5 +24,5 @@ import io.netty.buffer.CompositeByteBuf;
 public abstract class FileChannelWriter {
   public abstract void write(CompositeByteBuf buffer, boolean gatherApiEnabled) throws IOException;
 
-  public abstract void close(boolean commitFilesFsync);
+  public abstract void close(boolean commitFilesFsync) throws IOException;
 }

@@ -52,19 +52,13 @@ public class BypassFileChannelWriter extends FileChannelWriter {
   }
 
   @Override
-  public void close(boolean commitFilesFsync) {
+  public void close(boolean commitFilesFsync) throws IOException {
     try {
       if (commitFilesFsync) {
         channel.force(false);
       }
-    } catch (IOException e) {
-      // log and ignore
     } finally {
-      try {
-        channel.close();
-      } catch (IOException e) {
-        // log and ignore
-      }
+      channel.close();
     }
   }
 }

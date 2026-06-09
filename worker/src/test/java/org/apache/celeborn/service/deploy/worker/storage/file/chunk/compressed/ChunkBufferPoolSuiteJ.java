@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.github.luben.zstd.Zstd;
 import org.junit.Test;
 
 import org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkBufferPool;
@@ -61,7 +62,7 @@ public class ChunkBufferPoolSuiteJ {
       assertNotNull(pair.chunkBuffer);
       assertNotNull(pair.compressedBuffer);
       assertEquals(SIZE_1, pair.chunkBuffer.capacity());
-      assertEquals(SIZE_1, pair.compressedBuffer.capacity());
+      assertEquals((int) Zstd.compressBound(SIZE_1), pair.compressedBuffer.capacity());
       assertEquals(SIZE_1, pair.chunkSize);
     } finally {
       pool().release(pair);
@@ -77,7 +78,7 @@ public class ChunkBufferPoolSuiteJ {
       assertEquals(0, pair.chunkBuffer.position());
       assertEquals((int) SIZE_2, pair.chunkBuffer.limit());
       assertEquals(0, pair.compressedBuffer.position());
-      assertEquals((int) SIZE_2, pair.compressedBuffer.limit());
+      assertEquals((int) Zstd.compressBound(SIZE_2), pair.compressedBuffer.limit());
     } finally {
       pool().release(pair);
     }
@@ -118,7 +119,7 @@ public class ChunkBufferPoolSuiteJ {
           0,
           reacquired.compressedBuffer.position());
       assertEquals((int) SIZE_4, reacquired.chunkBuffer.limit());
-      assertEquals((int) SIZE_4, reacquired.compressedBuffer.limit());
+      assertEquals((int) Zstd.compressBound(SIZE_4), reacquired.compressedBuffer.limit());
     } finally {
       pool().release(reacquired);
     }
