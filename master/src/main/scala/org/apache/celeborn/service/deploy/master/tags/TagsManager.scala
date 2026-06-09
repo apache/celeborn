@@ -52,17 +52,18 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
       workers: util.List[WorkerInfo]): util.List[WorkerInfo] = {
 
     val tags = resolveTagsExpr(userIdentifier, clientTagsExpr)
-      .split(",").map(_.trim).filter(_.nonEmpty)
+      .split(',').map(_.trim).filter(_.nonEmpty)
 
     if (tags.isEmpty) {
       logDebug("No tags provided, returning all workers")
       return workers
     }
 
+    val store = tagStore
     val workerTagsPredicate = new Predicate[WorkerInfo] {
       override def test(w: WorkerInfo): Boolean = tags.forall { tag =>
         w.tags.contains(tag) ||
-        tagStore.exists(_.getOrDefault(tag, Collections.emptySet()).contains(w.toUniqueId))
+          store.flatMap(s => Option(s.get(tag))).exists(_.contains(w.toUniqueId))
       }
     }
     workers.stream().filter(workerTagsPredicate).collect(Collectors.toList())
