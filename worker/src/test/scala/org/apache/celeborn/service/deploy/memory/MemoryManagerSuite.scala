@@ -372,8 +372,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
     assert(memoryManager.sortMemoryReady())
 
     // PUSH_PAUSED: sort must be allowed so that fetch reads can proceed while push is
-    // back-pressured. Before Fix 1 this incorrectly returned false.
-    Mockito.when(memoryManager.getMemoryUsage).thenReturn(pushThreshold + 1)
+    // back-pressured (previously sorting was also blocked in this state).
     memoryManager.switchServingState()
     assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
     sortMemoryCounter.set(0)
@@ -397,7 +396,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
     MemoryManager.reset()
   }
 
-  test("sortMemoryReady always returns true when sort memory threshold is disabled") {
+  test("sortMemoryReady returns true when sort memory threshold is disabled") {
     val conf = new CelebornConf()
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL.key, "300s")
     conf.set(CelebornConf.WORKER_PINNED_MEMORY_CHECK_INTERVAL.key, "0")
