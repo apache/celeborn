@@ -239,9 +239,9 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         //  We can read the file one chunk at a time and store chunkid + uncompressed offsets before
         //  writing
         throw new IOException(
-            "Chunk compressed shuffle file is not supported to sort, file path: "
+            "Chunk compressed shuffle file is not supported for sorting, file path: "
                 + diskFileInfo.getFilePath()
-                + ". Disable celeborn.chunk.compression.enabled when using with AQE skew join enabled");
+                + ". Set celeborn.chunk.compression.enabled=false or disable Spark AQE splits");
       }
       String fileId = shuffleKey + "-" + fileName;
       UserIdentifier userIdentifier = diskFileInfo.getUserIdentifier();

@@ -49,6 +49,16 @@ public class ReduceFileMeta implements FileMeta {
     this.chunkCompressed = chunkCompressed;
   }
 
+  public ReduceFileMeta(List<Long> chunkOffsets, List<Boolean> chunkCompressed, long chunkSize) {
+    this.chunkOffsets = chunkOffsets;
+    this.chunkCompressed = chunkCompressed;
+    this.chunkSize = chunkSize;
+    nextBoundary = chunkSize;
+    if (!chunkOffsets.isEmpty()) {
+      nextBoundary += chunkOffsets.get(chunkOffsets.size() - 1);
+    }
+  }
+
   public ReduceFileMeta(List<Long> chunkOffsets) {
     this.chunkOffsets = chunkOffsets;
   }

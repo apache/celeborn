@@ -168,6 +168,6 @@ public class ChunkCompressedFileChannelWriter extends FileChannelWriter {
       throw failure;
     }
     diskFileInfo.setBytesFlushed(chunkOffsets.get(chunkOffsets.size() - 1));
-    diskFileInfo.replaceFileMeta(new ReduceFileMeta(chunkOffsets, chunkCompressed));
+    diskFileInfo.replaceFileMeta(new ReduceFileMeta(chunkOffsets, chunkCompressed, chunkSize));
   }
 }
