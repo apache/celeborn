@@ -986,7 +986,7 @@ private[celeborn] class Worker(
     shutdown.set(true)
     val interval = conf.workerGracefulShutdownCheckSlotsFinishedInterval
     val timeout = conf.workerGracefulShutdownCheckSlotsFinishedTimeoutMs
-    var waitTimes = 0
+    var waitTimes = 1
 
     def waitTime: Long = waitTimes * interval
 
@@ -1027,7 +1027,7 @@ private[celeborn] class Worker(
     shutdown.set(true)
     val interval = conf.workerDecommissionCheckInterval
     val timeout = conf.workerDecommissionForceExitTimeout
-    var waitTimes = 0
+    var waitTimes = 1
 
     def waitTime: Long = waitTimes * interval
 
