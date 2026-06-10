@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 
 public class MmapMemoryManager {
   private static final Logger LOG = LoggerFactory.getLogger(MmapMemoryManager.class);
-  private static final long DEFAULT_FILE_LENGTH = 512 * 1024 * 1024L;
+  private static final int DEFAULT_FILE_LENGTH = 512 * 1024 * 1024;
   private final String _dirPathName;
   // _availableOffset has the starting offset for the next allocation in _currentBuffer. When
   // _currentBuffer
@@ -41,8 +41,8 @@ public class MmapMemoryManager {
   // _currentBuffer
   // until the _currentBuffer cannot hold the new object anymore, and then we create a new
   // _currentBuffer.
-  private long _availableOffset = DEFAULT_FILE_LENGTH; // Available offset in this file.
-  private long _curFileLen = -1;
+  private int _availableOffset = DEFAULT_FILE_LENGTH; // Available offset in this file.
+  private int _curFileLen = -1;
   private final List<String> _paths = new LinkedList<>();
   private final List<ByteBuffer> _memMappedBuffers = new LinkedList<>();
   ByteBuffer _currentBuffer;
@@ -61,7 +61,7 @@ public class MmapMemoryManager {
     return UUID.randomUUID() + ".";
   }
 
-  private void addFileIfNecessary(long len) {
+  private void addFileIfNecessary(int len) {
     if (len + _availableOffset <= _curFileLen) {
       return;
     }
@@ -71,7 +71,7 @@ public class MmapMemoryManager {
       throw new RuntimeException("File " + filePath + " already exists");
     }
     file.deleteOnExit();
-    long fileLen = Math.max(DEFAULT_FILE_LENGTH, len);
+    int fileLen = Math.max(DEFAULT_FILE_LENGTH, len);
     try (RandomAccessFile raf = new RandomAccessFile(filePath, "rw");
         FileChannel fileChannel = raf.getChannel()) {
       raf.setLength(fileLen);
@@ -85,11 +85,11 @@ public class MmapMemoryManager {
     _curFileLen = fileLen;
   }
 
-  public synchronized ByteBuffer allocateBuffer(long size) {
+  public synchronized ByteBuffer allocateBuffer(int size) {
     addFileIfNecessary(size);
     ByteBuffer buffer = _currentBuffer.duplicate();
-    buffer.position((int) _availableOffset);
-    buffer.limit((int) (_availableOffset + size));
+    buffer.position(_availableOffset);
+    buffer.limit(_availableOffset + size);
     _availableOffset += size;
     return buffer.slice();
   }

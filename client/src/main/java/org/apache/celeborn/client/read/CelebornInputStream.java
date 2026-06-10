@@ -195,7 +195,7 @@ public abstract class CelebornInputStream extends InputStream {
     private Decompressor decompressor;
 
     private ByteBuf currentChunk;
-    private boolean currentChunkCompressed = true;
+    private boolean currentChunkCompressed = false;
     private boolean firstChunk = true;
     private PartitionReader currentReader;
     private final int fetchChunkMaxRetry;

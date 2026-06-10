@@ -19,7 +19,7 @@ license: |
 <!--begin-include-->
 | Key | Default | isDynamic | Description | Since | Deprecated |
 | --- | ------- | --------- | ----------- | ----- | ---------- |
-| celeborn.chunk.compression.mmap.tmpDir | &lt;tmp&gt;/celeborn-mmap-memory-manager | false | Directory used to create memory-mapped backing files for the mmap memory manager used by chunk-level compression. Defaults to a subdirectory of the JVM temporary directory (<tmp>/celeborn-mmap-memory-manager). | 0.6.4 |  | 
+| celeborn.chunk.compression.mmap.tmpDir | TMP_DIR/celeborn-mmap-memory-manager | false | Directory used to create memory-mapped backing files for the mmap memory manager used by chunk-level compression. Defaults to a subdirectory of the JVM temporary directory (<tmp>/celeborn-mmap-memory-manager). | 0.6.4 |  | 
 | celeborn.cluster.name | default | false | Celeborn cluster name. | 0.5.0 |  | 
 | celeborn.container.info.provider | org.apache.celeborn.server.common.container.DefaultContainerInfoProvider | false | ContainerInfoProvider class name. Default class is `org.apache.celeborn.server.common.container.DefaultContainerInfoProvider`.  | 0.6.0 |  | 
 | celeborn.dynamicConfig.refresh.interval | 120s | false | Interval for refreshing the corresponding dynamic config periodically. | 0.4.0 |  | 

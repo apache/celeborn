@@ -5312,8 +5312,8 @@ object CelebornConf extends Logging {
           "directory (<tmp>/celeborn-mmap-memory-manager).")
       .version("0.6.4")
       .stringConf
-      .transform(_.replace("<tmp>", System.getProperty("java.io.tmpdir")))
-      .createWithDefault("<tmp>/celeborn-mmap-memory-manager")
+      .transform(_.replace("TMP_DIR", System.getProperty("java.io.tmpdir")))
+      .createWithDefault("TMP_DIR/celeborn-mmap-memory-manager")
 
   val SHUFFLE_COMPRESSION_CODEC: ConfigEntry[String] =
     buildConf("celeborn.client.shuffle.compression.codec")
