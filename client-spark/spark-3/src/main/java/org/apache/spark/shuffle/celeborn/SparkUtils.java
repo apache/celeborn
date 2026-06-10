@@ -324,6 +324,30 @@ public class SparkUtils {
         cryptoHandler);
   }
 
+  /** Overload for callers that do not use encryption at rest. */
+  public static <K, C> CelebornShuffleReader<K, C> createColumnarShuffleReader(
+      CelebornShuffleHandle<K, ?, C> handle,
+      int startPartition,
+      int endPartition,
+      int startMapIndex,
+      int endMapIndex,
+      TaskContext context,
+      CelebornConf conf,
+      ShuffleReadMetricsReporter metrics,
+      ExecutorShuffleIdTracker shuffleIdTracker) {
+    return createColumnarShuffleReader(
+        handle,
+        startPartition,
+        endPartition,
+        startMapIndex,
+        endMapIndex,
+        context,
+        conf,
+        metrics,
+        shuffleIdTracker,
+        Optional.empty());
+  }
+
   // Added in SPARK-32920, for Spark 3.2 and above
   private static final DynMethods.UnboundMethod UnregisterAllMapAndMergeOutput_METHOD =
       DynMethods.builder("unregisterAllMapAndMergeOutput")
