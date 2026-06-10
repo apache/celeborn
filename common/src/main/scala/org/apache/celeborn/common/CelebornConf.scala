@@ -6998,7 +6998,11 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.shuffleDataLostOnUnknownWorker.enabled")
       .categories("client")
       .version("0.6.3")
-      .doc("Whether to mark shuffle data lost when unknown worker is detected.")
+      .doc("When enabled, any shuffle that had partitions on the (crashed) " +
+        "unknown worker is immediately marked as data lost. " +
+        "On the write flow revive/commit request for that shuffle will fast fail. " +
+        "GetReducerFileGroup requests are replied with SHUFFLE_DATA_LOST. " +
+        "This has no effect when ${CLIENT_PUSH_REPLICATE_ENABLED.key}=true")
       .booleanConf
       .createWithDefault(true)
 

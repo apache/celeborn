@@ -23,9 +23,9 @@ import scala.concurrent.{Await, Promise}
 import scala.concurrent.duration._
 
 import org.apache.celeborn.CelebornFunSuite
-import org.apache.celeborn.client.WorkerStatusTracker
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.ShuffleAllocatedWorkers
+import org.apache.celeborn.client.WorkerStatusTracker
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
@@ -76,7 +76,11 @@ class ReducePartitionCommitHandlerSuite extends CelebornFunSuite {
   test("markShuffleDataLost replies SHUFFLE_DATA_LOST to GetReducerFileGroup contexts") {
     val handler = newHandler()
     val shuffleId = 1
-    handler.registerShuffle(shuffleId, numMappers = 2, isSegmentGranularityVisible = false, numPartitions = 4)
+    handler.registerShuffle(
+      shuffleId,
+      numMappers = 2,
+      isSegmentGranularityVisible = false,
+      numPartitions = 4)
 
     val (ctx1, p1) = pendingContext()
     handler.handleGetReducerFileGroup(ctx1, shuffleId, SerdeVersion.V1)
@@ -97,10 +101,15 @@ class ReducePartitionCommitHandlerSuite extends CelebornFunSuite {
     }
   }
 
-  test("markShuffleDataLost marks data lost even when stage already ended (worker crash after commit)") {
+  test(
+    "markShuffleDataLost marks data lost even when stage already ended (worker crash after commit)") {
     val handler = newHandler()
     val shuffleId = 1
-    handler.registerShuffle(shuffleId, numMappers = 1, isSegmentGranularityVisible = false, numPartitions = 2)
+    handler.registerShuffle(
+      shuffleId,
+      numMappers = 1,
+      isSegmentGranularityVisible = false,
+      numPartitions = 2)
 
     // Clean stage-end
     handler.setStageEnd(shuffleId)

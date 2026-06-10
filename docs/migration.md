@@ -37,6 +37,8 @@ license: |
 
 - Since 0.7.0, Celeborn changed the default value of `celeborn.port.maxRetries` from `1` to `16`.
 
+- Since 0.7.0, Celeborn change the default value of `celeborn.client.shuffleDataLostOnUnknownWorker.enabled` from `false` to `true`, which means Celeborn will treat shuffle data lost when unknown worker is detected at default.
+
 # Upgrading from 0.5 to 0.6
 
 - Since 0.6.0, Celeborn deprecate `celeborn.client.spark.fetch.throwsFetchFailure`. Please use `celeborn.client.spark.stageRerun.enabled` instead.

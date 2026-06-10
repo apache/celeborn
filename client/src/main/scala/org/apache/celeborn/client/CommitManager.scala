@@ -372,7 +372,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
   }
 
   private class UnknownWorkerListener extends WorkerStatusListener {
-    private val shuffleDataLostOnUnknownWorkerEnabled = conf.clientShuffleDataLostOnUnknownWorkerEnabled
+    private val shuffleDataLostOnUnknownWorkerEnabled =
+      conf.clientShuffleDataLostOnUnknownWorkerEnabled
     private val pushReplicateEnabled = conf.clientPushReplicateEnabled
 
     override def notifyChangedWorkersStatus(workersStatus: WorkersStatus): Unit = {

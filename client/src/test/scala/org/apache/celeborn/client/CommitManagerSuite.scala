@@ -33,18 +33,11 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.client.LifecycleManager.ShuffleAllocatedWorkers
 import org.apache.celeborn.client.listener.WorkerStatusListener
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.{
-  CLIENT_BATCH_HANDLE_COMMIT_PARTITION_ENABLED,
-  CLIENT_PUSH_REPLICATE_ENABLED,
-  CLIENT_SHUFFLE_DATA_LOST_ON_UNKNOWN_WORKER_ENABLED
-}
+import org.apache.celeborn.common.CelebornConf.{CLIENT_BATCH_HANDLE_COMMIT_PARTITION_ENABLED, CLIENT_PUSH_REPLICATE_ENABLED, CLIENT_SHUFFLE_DATA_LOST_ON_UNKNOWN_WORKER_ENABLED}
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.PartitionType
-import org.apache.celeborn.common.protocol.message.ControlMessages.{
-  GetReducerFileGroupResponse,
-  HeartbeatFromApplicationResponse
-}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, HeartbeatFromApplicationResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcAddress
 import org.apache.celeborn.common.rpc.netty.LocalNettyRpcCallContext
