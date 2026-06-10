@@ -63,7 +63,7 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
     val workerTagsPredicate = new Predicate[WorkerInfo] {
       override def test(w: WorkerInfo): Boolean = tags.forall { tag =>
         w.tags.contains(tag) ||
-          store.flatMap(s => Option(s.get(tag))).exists(_.contains(w.toUniqueId))
+        store.flatMap(s => Option(s.get(tag))).exists(_.contains(w.toUniqueId))
       }
     }
     workers.stream().filter(workerTagsPredicate).collect(Collectors.toList())
