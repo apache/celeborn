@@ -241,7 +241,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         throw new IOException(
             "Chunk compressed shuffle file is not supported for sorting, file path: "
                 + diskFileInfo.getFilePath()
-                + ". Set celeborn.chunk.compression.enabled=false or disable Spark AQE splits");
+                + ". Set celeborn.chunk.compression.enabled=false or disable range reads");
       }
       String fileId = shuffleKey + "-" + fileName;
       UserIdentifier userIdentifier = diskFileInfo.getUserIdentifier();
