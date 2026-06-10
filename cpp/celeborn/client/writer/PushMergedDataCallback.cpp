@@ -81,6 +81,25 @@ PushMergedDataCallback::PushMergedDataCallback(
       weakClient_(weakClient),
       remainingReviveTimes_(remainingReviveTimes) {}
 
+void PushMergedDataCallback::releaseInFlightBatch() {
+  pushState_->onSuccess(hostAndPushPort_);
+  pushState_->removeBatch(groupedBatchId_, hostAndPushPort_);
+}
+
+void PushMergedDataCallback::releaseInFlightBatchOnCongestion() {
+  pushState_->onCongestControl(hostAndPushPort_);
+  pushState_->removeBatch(groupedBatchId_, hostAndPushPort_);
+}
+
+void PushMergedDataCallback::maybeRecordResubmittedBatch(
+    const ShuffleClientImpl& client,
+    const DataBatch& batch) {
+  if (client.dataPushFailureTrackingEnabled_ && client.pushReplicateEnabled_) {
+    pushState_->recordFailedBatch(
+        batch.loc->uniqueId(), mapId_, attemptId_, batch.batchId);
+  }
+}
+
 void PushMergedDataCallback::onSuccess(
     std::unique_ptr<memory::ReadOnlyByteBuffer> response) {
   auto sharedClient = weakClient_.lock();
@@ -93,8 +112,7 @@ void PushMergedDataCallback::onSuccess(
   }
 
   if (response->remainingSize() <= 0) {
-    pushState_->onSuccess(hostAndPushPort_);
-    pushState_->removeBatch(groupedBatchId_, hostAndPushPort_);
+    releaseInFlightBatch();
     return;
   }
 
@@ -106,8 +124,7 @@ void PushMergedDataCallback::onSuccess(
           shuffleId_,
           []() { return std::make_shared<utils::ConcurrentHashSet<int>>(); });
       mapperEndSet->insert(mapId_);
-      pushState_->onSuccess(hostAndPushPort_);
-      pushState_->removeBatch(groupedBatchId_, hostAndPushPort_);
+      releaseInFlightBatch();
       break;
     }
     case protocol::StatusCode::HARD_SPLIT:
@@ -118,41 +135,69 @@ void PushMergedDataCallback::onSuccess(
               << groupedBatchId_ << ".";
 
       if (response->remainingSize() > 0) {
-        // Parse PbPushMergedDataSplitPartitionInfo from TransportMessage
-        auto transportMsg = std::make_unique<protocol::TransportMessage>(
-            response->readToReadOnlyBuffer(response->remainingSize()));
-        PbPushMergedDataSplitPartitionInfo partitionInfo;
-        if (!partitionInfo.ParseFromString(transportMsg->payload())) {
-          pushState_->setException(std::make_unique<std::runtime_error>(
-              "Failed to parse PbPushMergedDataSplitPartitionInfo"));
-          return;
-        }
+        try {
+          // Parse PbPushMergedDataSplitPartitionInfo from TransportMessage
+          auto transportMsg = std::make_unique<protocol::TransportMessage>(
+              response->readToReadOnlyBuffer(response->remainingSize()));
+          PbPushMergedDataSplitPartitionInfo partitionInfo;
+          if (!partitionInfo.ParseFromString(transportMsg->payload())) {
+            pushState_->setException(std::make_unique<std::runtime_error>(
+                "Failed to parse PbPushMergedDataSplitPartitionInfo"));
+            return;
+          }
 
-        CELEBORN_CHECK_EQ(
-            partitionInfo.statuscodes_size(),
-            partitionInfo.splitpartitionindexes_size(),
-            "Mismatched sizes: statuscodes {} vs splitpartitionindexes {}",
-            partitionInfo.statuscodes_size(),
-            partitionInfo.splitpartitionindexes_size());
-        const int numBatches = static_cast<int>(batches_.size());
-        for (int i = 0; i < partitionInfo.splitpartitionindexes_size(); i++) {
-          int partitionIndex = partitionInfo.splitpartitionindexes(i);
-          CELEBORN_CHECK_GE(partitionIndex, 0);
-          CELEBORN_CHECK_LT(
-              partitionIndex,
-              numBatches,
-              "Partition index {} out of range [0, {})",
-              partitionIndex,
-              numBatches);
-          int statusCode = partitionInfo.statuscodes(i);
+          CELEBORN_CHECK_EQ(
+              partitionInfo.statuscodes_size(),
+              partitionInfo.splitpartitionindexes_size(),
+              "Mismatched sizes: statuscodes {} vs splitpartitionindexes {}",
+              partitionInfo.statuscodes_size(),
+              partitionInfo.splitpartitionindexes_size());
+          const int numBatches = static_cast<int>(batches_.size());
+          for (int i = 0; i < partitionInfo.splitpartitionindexes_size(); i++) {
+            int partitionIndex = partitionInfo.splitpartitionindexes(i);
+            CELEBORN_CHECK_GE(partitionIndex, 0);
+            CELEBORN_CHECK_LT(
+                partitionIndex,
+                numBatches,
+                "Partition index {} out of range [0, {})",
+                partitionIndex,
+                numBatches);
+            int statusCode = partitionInfo.statuscodes(i);
 
-          if (statusCode ==
-              static_cast<int>(protocol::StatusCode::SOFT_SPLIT)) {
-            int partitionId = partitionIds_[partitionIndex];
-            if (!ShuffleClientImpl::newerPartitionLocationExists(
-                    sharedClient->getPartitionLocationMap(shuffleId_).value(),
+            if (statusCode ==
+                static_cast<int>(protocol::StatusCode::SOFT_SPLIT)) {
+              int partitionId = partitionIds_[partitionIndex];
+              if (!ShuffleClientImpl::newerPartitionLocationExists(
+                      sharedClient->getPartitionLocationMap(shuffleId_).value(),
+                      partitionId,
+                      batches_[partitionIndex].loc->epoch)) {
+                auto reviveRequest = std::make_shared<protocol::ReviveRequest>(
+                    shuffleId_,
+                    mapId_,
+                    attemptId_,
                     partitionId,
-                    batches_[partitionIndex].loc->epoch)) {
+                    batches_[partitionIndex].loc->epoch,
+                    batches_[partitionIndex].loc,
+                    protocol::StatusCode::SOFT_SPLIT);
+                sharedClient->addRequestToReviveManager(reviveRequest);
+              }
+            }
+          }
+
+          // For any HARD_SPLIT partitions, need to resubmit
+          std::vector<DataBatch> batchesToRetry;
+          std::vector<std::shared_ptr<protocol::ReviveRequest>> reviveRequests;
+          for (int i = 0; i < partitionInfo.splitpartitionindexes_size(); i++) {
+            int partitionIndex = partitionInfo.splitpartitionindexes(i);
+            CELEBORN_DCHECK_GE(partitionIndex, 0);
+            CELEBORN_DCHECK_LT(partitionIndex, numBatches);
+            int statusCode = partitionInfo.statuscodes(i);
+            if (statusCode ==
+                static_cast<int>(protocol::StatusCode::HARD_SPLIT)) {
+              int partitionId = partitionIds_[partitionIndex];
+              // Record before the batch is moved into batchesToRetry.
+              maybeRecordResubmittedBatch(
+                  *sharedClient, batches_[partitionIndex]);
               auto reviveRequest = std::make_shared<protocol::ReviveRequest>(
                   shuffleId_,
                   mapId_,
@@ -160,67 +205,50 @@ void PushMergedDataCallback::onSuccess(
                   partitionId,
                   batches_[partitionIndex].loc->epoch,
                   batches_[partitionIndex].loc,
-                  protocol::StatusCode::SOFT_SPLIT);
+                  protocol::StatusCode::HARD_SPLIT);
               sharedClient->addRequestToReviveManager(reviveRequest);
+              reviveRequests.push_back(reviveRequest);
+              batchesToRetry.push_back(std::move(batches_[partitionIndex]));
             }
           }
-        }
 
-        // For any HARD_SPLIT partitions, need to resubmit
-        std::vector<DataBatch> batchesToRetry;
-        std::vector<std::shared_ptr<protocol::ReviveRequest>> reviveRequests;
-        for (int i = 0; i < partitionInfo.splitpartitionindexes_size(); i++) {
-          int partitionIndex = partitionInfo.splitpartitionindexes(i);
-          CELEBORN_DCHECK_GE(partitionIndex, 0);
-          CELEBORN_DCHECK_LT(partitionIndex, numBatches);
-          int statusCode = partitionInfo.statuscodes(i);
-          if (statusCode ==
-              static_cast<int>(protocol::StatusCode::HARD_SPLIT)) {
-            int partitionId = partitionIds_[partitionIndex];
-            auto reviveRequest = std::make_shared<protocol::ReviveRequest>(
+          if (!batchesToRetry.empty()) {
+            long dueTimeMs = utils::currentTimeMillis() +
+                sharedClient->conf_
+                        ->clientRpcRequestPartitionLocationRpcAskTimeout() /
+                    utils::MS(1);
+            sharedClient->submitRetryPushMergedData(
                 shuffleId_,
                 mapId_,
                 attemptId_,
-                partitionId,
-                batches_[partitionIndex].loc->epoch,
-                batches_[partitionIndex].loc,
-                protocol::StatusCode::HARD_SPLIT);
-            sharedClient->addRequestToReviveManager(reviveRequest);
-            reviveRequests.push_back(reviveRequest);
-            batchesToRetry.push_back(std::move(batches_[partitionIndex]));
+                numMappers_,
+                numPartitions_,
+                mapKey_,
+                std::move(batchesToRetry),
+                std::move(reviveRequests),
+                protocol::StatusCode::HARD_SPLIT,
+                groupedBatchId_,
+                pushState_,
+                remainingReviveTimes_,
+                dueTimeMs);
+          } else {
+            releaseInFlightBatch();
           }
-        }
-
-        // TODO: when dataPushFailureTrackingEnabled and pushReplicateEnabled,
-        // call pushState_->recordFailedBatch() for each batch in
-        // batchesToRetry to support adaptive skewed partition
-        // read optimization.
-        if (!batchesToRetry.empty()) {
-          long dueTimeMs = utils::currentTimeMillis() +
-              sharedClient->conf_
-                      ->clientRpcRequestPartitionLocationRpcAskTimeout() /
-                  utils::MS(1);
-          sharedClient->submitRetryPushMergedData(
-              shuffleId_,
-              mapId_,
-              attemptId_,
-              numMappers_,
-              numPartitions_,
-              mapKey_,
-              std::move(batchesToRetry),
-              std::move(reviveRequests),
-              groupedBatchId_,
-              pushState_,
-              remainingReviveTimes_,
-              dueTimeMs);
-        } else {
-          pushState_->onSuccess(hostAndPushPort_);
-          pushState_->removeBatch(groupedBatchId_, hostAndPushPort_);
+        } catch (const std::exception& e) {
+          // A malformed/incompatible response must not escape onSuccess and
+          // leave the batch in flight; fail terminally (like the Java client).
+          pushState_->setException(std::make_unique<std::runtime_error>(
+              std::string("parse pushMergedData response failed: ") +
+              e.what()));
+          return;
         }
       } else {
-        // Old worker without per-partition split info: revive all batches
+        // Old worker without per-partition split info: resubmit ALL batches,
+        // reviving with HARD_SPLIT (like the Java client) whether the bare
+        // status byte was SOFT_SPLIT or HARD_SPLIT.
         std::vector<std::shared_ptr<protocol::ReviveRequest>> reviveRequests;
         for (size_t i = 0; i < batches_.size(); i++) {
+          maybeRecordResubmittedBatch(*sharedClient, batches_[i]);
           auto reviveRequest = std::make_shared<protocol::ReviveRequest>(
               shuffleId_,
               mapId_,
@@ -228,7 +256,7 @@ void PushMergedDataCallback::onSuccess(
               partitionIds_[i],
               batches_[i].loc->epoch,
               batches_[i].loc,
-              reason);
+              protocol::StatusCode::HARD_SPLIT);
           sharedClient->addRequestToReviveManager(reviveRequest);
           reviveRequests.push_back(reviveRequest);
         }
@@ -246,6 +274,7 @@ void PushMergedDataCallback::onSuccess(
             mapKey_,
             std::move(batches_),
             std::move(reviveRequests),
+            protocol::StatusCode::HARD_SPLIT,
             groupedBatchId_,
             pushState_,
             remainingReviveTimes_,
@@ -258,8 +287,7 @@ void PushMergedDataCallback::onSuccess(
               << " primary congestion for shuffle " << shuffleId_ << " map "
               << mapId_ << " attempt " << attemptId_ << " groupedBatch "
               << groupedBatchId_ << ".";
-      pushState_->onCongestControl(hostAndPushPort_);
-      pushState_->removeBatch(groupedBatchId_, hostAndPushPort_);
+      releaseInFlightBatchOnCongestion();
       break;
     }
     case protocol::StatusCode::PUSH_DATA_SUCCESS_REPLICA_CONGESTED: {
@@ -267,19 +295,16 @@ void PushMergedDataCallback::onSuccess(
               << " replicate congestion for shuffle " << shuffleId_ << " map "
               << mapId_ << " attempt " << attemptId_ << " groupedBatch "
               << groupedBatchId_ << ".";
-      pushState_->onCongestControl(hostAndPushPort_);
-      pushState_->removeBatch(groupedBatchId_, hostAndPushPort_);
+      releaseInFlightBatchOnCongestion();
       break;
     }
     case protocol::StatusCode::SUCCESS: {
-      pushState_->onSuccess(hostAndPushPort_);
-      pushState_->removeBatch(groupedBatchId_, hostAndPushPort_);
+      releaseInFlightBatch();
       break;
     }
     default: {
       LOG(WARNING) << "unhandled PushMergedData success StatusCode: " << reason;
-      pushState_->onSuccess(hostAndPushPort_);
-      pushState_->removeBatch(groupedBatchId_, hostAndPushPort_);
+      releaseInFlightBatch();
     }
   }
 }
@@ -294,23 +319,37 @@ void PushMergedDataCallback::onFailure(
                  << " groupedBatch " << groupedBatchId_ << ".";
     return;
   }
-  // TODO: When dataPushFailureTrackingEnabled, call
-  // pushState_->recordFailedBatch() for each batch (using
-  // partitionUniqueIds[i], mapId_, attemptId_, batchIds[i]) to support
-  // adaptive skewed read optimization
+  const std::string errorMsg = exception ? exception->what() : "";
+
+  // Record the failed batches for the adaptive skewed-partition read
+  // optimization, like the Java client (regardless of cause when enabled).
+  if (sharedClient->dataPushFailureTrackingEnabled_) {
+    for (size_t i = 0; i < batches_.size(); i++) {
+      pushState_->recordFailedBatch(
+          batches_[i].loc->uniqueId(), mapId_, attemptId_, batches_[i].batchId);
+    }
+  }
+
   if (pushState_->exceptionExists()) {
     return;
   }
 
+  // Classify the failure; with no revive attempts left this sets the terminal
+  // exception and stops here (like the Java client).
+  const auto causeOpt = ShuffleClientImpl::classifyPushFailure(
+      errorMsg, remainingReviveTimes_, *pushState_);
+  if (!causeOpt) {
+    return;
+  }
+  const protocol::StatusCode cause = *causeOpt;
+
+  // Logged only on the retry path, like the Java client (suppressed once
+  // revive attempts are exhausted).
   LOG(ERROR) << "Push merged data to " << hostAndPushPort_
              << " failed for shuffle " << shuffleId_ << " map " << mapId_
              << " attempt " << attemptId_ << " groupedBatch " << groupedBatchId_
-             << ", remain revive times " << remainingReviveTimes_;
-
-  if (remainingReviveTimes_ <= 0) {
-    pushState_->setException(std::move(exception));
-    return;
-  }
+             << ", remain revive times " << remainingReviveTimes_
+             << ", errorMsg " << errorMsg;
 
   if (sharedClient->mapperEnded(shuffleId_, mapId_)) {
     pushState_->removeBatch(groupedBatchId_, hostAndPushPort_);
@@ -320,9 +359,6 @@ void PushMergedDataCallback::onFailure(
               << " groupedBatch " << groupedBatchId_ << ".";
     return;
   }
-
-  protocol::StatusCode cause =
-      protocol::StatusCode::PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY;
 
   std::vector<std::shared_ptr<protocol::ReviveRequest>> reviveRequests;
   for (size_t i = 0; i < batches_.size(); i++) {
@@ -350,6 +386,7 @@ void PushMergedDataCallback::onFailure(
       mapKey_,
       std::move(batches_),
       std::move(reviveRequests),
+      cause,
       groupedBatchId_,
       pushState_,
       remainingReviveTimes_ - 1,

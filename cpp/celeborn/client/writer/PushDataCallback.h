@@ -77,6 +77,15 @@ class PushDataCallback : public network::RpcResponseCallback,
       ShuffleClientImpl& shuffleClient,
       protocol::StatusCode cause);
 
+  // Releases the in-flight batch after a success-like response (Java's
+  // success/removeBatch path). Every success-like branch of onSuccess must end
+  // in one of these, else limitZeroInFlight at mapperEnd never reaches zero.
+  void releaseInFlightBatch();
+
+  // Same release, but reports congestion to the push strategy instead of a
+  // plain success.
+  void releaseInFlightBatchOnCongestion();
+
   const int shuffleId_;
   const int mapId_;
   const int attemptId_;

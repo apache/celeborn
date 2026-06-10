@@ -57,6 +57,11 @@ std::string makeShuffleKey(const std::string& appId, int shuffleId);
 
 std::string makeMapKey(int shuffleId, int mapId, int attemptId);
 
+// Groups push-failed batches by map attempt: "<mapId>-<attemptId>". Mirrors
+// Java Utils#makeAttemptKey so the write (recording) and read (dedup) sides
+// agree.
+std::string makeAttemptKey(int mapId, int attemptId);
+
 void writeUTF(memory::WriteOnlyByteBuffer& buffer, const std::string& msg);
 
 void writeRpcAddress(

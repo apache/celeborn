@@ -217,6 +217,31 @@ std::unique_ptr<ReadOnlyByteBuffer> makeChunkBuffer(
   return ByteBuffer::toReadOnly(std::move(buffer));
 }
 
+// One batch (header + payload) of a multi-batch chunk.
+struct TestBatch {
+  int mapId;
+  int attemptId;
+  int batchId;
+  std::string payload;
+};
+
+std::unique_ptr<ReadOnlyByteBuffer> makeMultiBatchChunkBuffer(
+    const std::vector<TestBatch>& batches) {
+  size_t totalSize = 0;
+  for (const auto& batch : batches) {
+    totalSize += 4 * sizeof(int) + batch.payload.size();
+  }
+  auto buffer = ByteBuffer::createWriteOnly(totalSize, false);
+  for (const auto& batch : batches) {
+    buffer->writeLE<int>(batch.mapId);
+    buffer->writeLE<int>(batch.attemptId);
+    buffer->writeLE<int>(batch.batchId);
+    buffer->writeLE<int>(static_cast<int>(batch.payload.size()));
+    buffer->writeFromString(batch.payload);
+  }
+  return ByteBuffer::toReadOnly(std::move(buffer));
+}
+
 // A TransportClient whose sendRpcRequestSync always returns a valid
 // stream handler, and whose fetchChunkAsync walks through a pre-configured
 // sequence of success/failure behaviors. Used to exercise the getNextChunk()
@@ -614,6 +639,133 @@ TEST(CelebornInputStreamRetryTest, fetchChunkRetryExhaustsAllRetries) {
   for (size_t i = 1; i < hosts.size(); i++) {
     EXPECT_EQ(hosts[i], "replica-host");
   }
+}
+
+// Read-side dedup: with the skewed-partition read optimization enabled
+// (startMapIndex > endMapIndex), a batch recorded in pushFailedBatches is
+// skipped exactly once and the stream stays aligned on the following batch.
+TEST(CelebornInputStreamRetryTest, skipsPushFailedBatchAndStaysAligned) {
+  auto mockClient = std::make_shared<SequencedMockTransportClient>();
+  mockClient->addFetchSuccess(makeMultiBatchChunkBuffer({
+      {0, 0, /*batchId=*/0, "aaaa"},
+      {0, 0, /*batchId=*/1, "bbbb"}, // recorded as push-failed -> skipped
+      {0, 0, /*batchId=*/2, "cccc"},
+  }));
+
+  auto factory = std::make_shared<SequencedMockClientFactory>(mockClient);
+  auto conf = makeTestConf(false);
+  conf->registerProperty(
+      CelebornConf::kClientAdaptiveOptimizeSkewedPartitionReadEnabled, "true");
+  auto excludedWorkers =
+      std::make_shared<CelebornInputStream::FetchExcludedWorkers>();
+  StubShuffleClient shuffleClient(conf, excludedWorkers);
+
+  auto location = makeLocationWithoutPeer();
+  const auto partitionUniqueId = location->uniqueId();
+  std::vector<std::shared_ptr<const PartitionLocation>> locations;
+  locations.push_back(std::move(location));
+  std::vector<int> attempts = {0};
+
+  auto pushFailedBatches = std::make_shared<PartitionPushFailedBatches>();
+  (*pushFailedBatches)[partitionUniqueId][utils::makeAttemptKey(0, 0)].insert(
+      1);
+
+  CelebornInputStream stream(
+      "test-shuffle-key",
+      conf,
+      factory,
+      std::move(locations),
+      attempts,
+      0,
+      /*startMapIndex=*/2,
+      /*endMapIndex=*/1,
+      false,
+      excludedWorkers,
+      &shuffleClient,
+      pushFailedBatches);
+
+  std::vector<uint8_t> buffer(8);
+  EXPECT_EQ(stream.read(buffer.data(), 0, 8), 8);
+  EXPECT_EQ(std::string(buffer.begin(), buffer.end()), "aaaacccc");
+}
+
+// A batch from a losing (stale) map attempt is dropped, and its body is still
+// consumed so the following batch header parses correctly.
+TEST(CelebornInputStreamRetryTest, skipsStaleAttemptBatchAndStaysAligned) {
+  auto mockClient = std::make_shared<SequencedMockTransportClient>();
+  mockClient->addFetchSuccess(makeMultiBatchChunkBuffer({
+      {0, /*attemptId=*/0, /*batchId=*/0, "stale!"},
+      {0, /*attemptId=*/1, /*batchId=*/1, "fresh!"},
+  }));
+
+  auto factory = std::make_shared<SequencedMockClientFactory>(mockClient);
+  auto conf = makeTestConf(false);
+  auto excludedWorkers =
+      std::make_shared<CelebornInputStream::FetchExcludedWorkers>();
+  StubShuffleClient shuffleClient(conf, excludedWorkers);
+
+  auto location = makeLocationWithoutPeer();
+  std::vector<std::shared_ptr<const PartitionLocation>> locations;
+  locations.push_back(std::move(location));
+  // Attempt 1 won, so the attempt-0 batch is stale.
+  std::vector<int> attempts = {1};
+
+  CelebornInputStream stream(
+      "test-shuffle-key",
+      conf,
+      factory,
+      std::move(locations),
+      attempts,
+      0,
+      0,
+      100,
+      false,
+      excludedWorkers,
+      &shuffleClient);
+
+  std::vector<uint8_t> buffer(6);
+  EXPECT_EQ(stream.read(buffer.data(), 0, 6), 6);
+  EXPECT_EQ(std::string(buffer.begin(), buffer.end()), "fresh!");
+}
+
+// A batchId that arrives twice (e.g. a retried push where the first attempt
+// actually landed) is returned once, and the stream stays aligned on the
+// batches after the duplicate.
+TEST(CelebornInputStreamRetryTest, skipsDuplicateBatchAndStaysAligned) {
+  auto mockClient = std::make_shared<SequencedMockTransportClient>();
+  mockClient->addFetchSuccess(makeMultiBatchChunkBuffer({
+      {0, 0, /*batchId=*/0, "aaaa"},
+      {0, 0, /*batchId=*/0, "aaaa"}, // duplicate -> skipped
+      {0, 0, /*batchId=*/1, "zzzz"},
+  }));
+
+  auto factory = std::make_shared<SequencedMockClientFactory>(mockClient);
+  auto conf = makeTestConf(false);
+  auto excludedWorkers =
+      std::make_shared<CelebornInputStream::FetchExcludedWorkers>();
+  StubShuffleClient shuffleClient(conf, excludedWorkers);
+
+  auto location = makeLocationWithoutPeer();
+  std::vector<std::shared_ptr<const PartitionLocation>> locations;
+  locations.push_back(std::move(location));
+  std::vector<int> attempts = {0};
+
+  CelebornInputStream stream(
+      "test-shuffle-key",
+      conf,
+      factory,
+      std::move(locations),
+      attempts,
+      0,
+      0,
+      100,
+      false,
+      excludedWorkers,
+      &shuffleClient);
+
+  std::vector<uint8_t> buffer(8);
+  EXPECT_EQ(stream.read(buffer.data(), 0, 8), 8);
+  EXPECT_EQ(std::string(buffer.begin(), buffer.end()), "aaaazzzz");
 }
 
 // Verifies that without a peer, getNextChunk() retries the same location

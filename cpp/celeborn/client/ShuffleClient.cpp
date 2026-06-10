@@ -16,6 +16,7 @@
  */
 
 #include "celeborn/client/ShuffleClient.h"
+#include <array>
 #include <limits>
 
 #include "celeborn/client/writer/PushMergedDataCallback.h"
@@ -72,7 +73,11 @@ ShuffleClientImpl::ShuffleClientImpl(
       pushReplicateEnabled_(conf->clientPushReplicateEnabled()),
       fetchExcludeWorkerOnFailureEnabled_(
           conf->clientFetchExcludeWorkerOnFailureEnabled()),
-      fetchExcludedWorkers_(std::make_shared<FetchExcludedWorkers>()) {
+      fetchExcludedWorkers_(std::make_shared<FetchExcludedWorkers>()),
+      pushExcludeWorkerOnFailureEnabled_(
+          conf->clientPushExcludeWorkerOnFailureEnabled()),
+      dataPushFailureTrackingEnabled_(
+          conf->clientAdaptiveOptimizeSkewedPartitionReadEnabled()) {
   CELEBORN_CHECK_NOT_NULL(clientFactory_);
   CELEBORN_CHECK_NOT_NULL(pushDataRetryPool_);
 }
@@ -125,7 +130,7 @@ ShuffleClientImpl::getPartitionLocation(
   return partitionLocationMap;
 }
 
-int ShuffleClientImpl::pushData(
+std::optional<ShuffleClientImpl::PreparedBatch> ShuffleClientImpl::prepareBatch(
     int shuffleId,
     int mapId,
     int attemptId,
@@ -137,7 +142,7 @@ int ShuffleClientImpl::pushData(
     int numPartitions) {
   const auto mapKey = utils::makeMapKey(shuffleId, mapId, attemptId);
   if (checkMapperEnded(shuffleId, mapId, mapKey)) {
-    return 0;
+    return std::nullopt;
   }
 
   auto partitionLocationMap =
@@ -161,7 +166,7 @@ int ShuffleClientImpl::pushData(
     partitionLocationOptional = partitionLocationMap->get(partitionId);
   }
   if (checkMapperEnded(shuffleId, mapId, mapKey)) {
-    return 0;
+    return std::nullopt;
   }
 
   CELEBORN_CHECK(partitionLocationOptional.has_value());
@@ -169,8 +174,7 @@ int ShuffleClientImpl::pushData(
   auto pushState = getPushState(mapKey);
   const int nextBatchId = pushState->nextBatchId();
 
-  // Validate input size fits in 32-bit int since it is required by compressor
-  // API and wire protocol
+  // Input size must fit in 32-bit int (compressor API and wire protocol).
   CELEBORN_CHECK(
       length <= static_cast<size_t>(std::numeric_limits<int>::max()),
       fmt::format(
@@ -178,42 +182,34 @@ int ShuffleClientImpl::pushData(
           length,
           std::numeric_limits<int>::max()));
 
-  // Compression support: compress data if compression is enabled
   const uint8_t* dataToWrite = data + offset;
   int lengthToWrite = static_cast<int>(length);
   std::unique_ptr<uint8_t[]> compressedBuffer;
-
   if (shuffleCompressionEnabled_ && compressorFactory_) {
-    // Create a new compressor instance for thread-safety
+    // Create a new compressor instance for thread-safety.
     auto compressor = compressorFactory_();
-    // Allocate buffer for compressed data
     const size_t compressedCapacity =
         compressor->getDstCapacity(static_cast<int>(length));
     compressedBuffer = std::make_unique<uint8_t[]>(compressedCapacity);
-
-    // Compress the data
     const size_t compressedSize = compressor->compress(
         dataToWrite, 0, static_cast<int>(length), compressedBuffer.get(), 0);
-
     CELEBORN_CHECK(
         compressedSize <= static_cast<size_t>(std::numeric_limits<int>::max()),
         fmt::format(
             "Compressed size {} exceeds maximum supported size {}",
             compressedSize,
             std::numeric_limits<int>::max()));
-
     lengthToWrite = static_cast<int>(compressedSize);
     dataToWrite = compressedBuffer.get();
   }
 
-  // Validate final buffer size fits in size_t and int
-  CELEBORN_CHECK(
-      static_cast<size_t>(lengthToWrite) <=
-          std::numeric_limits<size_t>::max() - kBatchHeaderSize,
-      fmt::format(
-          "Buffer size {} + header {} would overflow",
-          lengthToWrite,
-          kBatchHeaderSize));
+  // Framed batch size (header + payload) must fit in int.
+  CELEBORN_CHECK_LE(
+      lengthToWrite,
+      std::numeric_limits<int>::max() - static_cast<int>(kBatchHeaderSize),
+      "Batch bytes size {} + header {} would overflow int",
+      lengthToWrite,
+      kBatchHeaderSize);
 
   auto writeBuffer = memory::ByteBuffer::createWriteOnly(
       kBatchHeaderSize + static_cast<size_t>(lengthToWrite));
@@ -226,21 +222,76 @@ int ShuffleClientImpl::pushData(
   writeBuffer->writeFromBuffer(
       dataToWrite, 0, static_cast<size_t>(lengthToWrite));
 
+  return PreparedBatch{
+      mapKey,
+      partitionLocation,
+      pushState,
+      nextBatchId,
+      memory::ByteBuffer::toReadOnly(std::move(writeBuffer))};
+}
+
+template <typename DoPush, typename LogContext>
+void ShuffleClientImpl::pushWithFailureRouting(
+    const protocol::PartitionLocation& location,
+    network::RpcResponseCallback& callback,
+    DoPush&& doPush,
+    LogContext&& logContext) {
+  if (auto excludeCause = getPushTargetWorkerExcludeCause(location)) {
+    callback.onFailure(std::make_unique<std::runtime_error>(
+        protocol::toString(*excludeCause)));
+    return;
+  }
+  try {
+    doPush();
+  } catch (const std::exception& e) {
+    LOG(ERROR) << "Exception raised while " << logContext() << ", errorMsg "
+               << e.what() << ".";
+    callback.onFailure(std::make_unique<std::runtime_error>(fmt::format(
+        "{}: {}",
+        protocol::toString(
+            protocol::StatusCode::PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY),
+        e.what())));
+  }
+}
+
+int ShuffleClientImpl::pushData(
+    int shuffleId,
+    int mapId,
+    int attemptId,
+    int partitionId,
+    const uint8_t* data,
+    size_t offset,
+    size_t length,
+    int numMappers,
+    int numPartitions) {
+  auto prepared = prepareBatch(
+      shuffleId,
+      mapId,
+      attemptId,
+      partitionId,
+      data,
+      offset,
+      length,
+      numMappers,
+      numPartitions);
+  if (!prepared.has_value()) {
+    return 0;
+  }
+  auto mapKey = std::move(prepared->mapKey);
+  auto partitionLocation = prepared->partitionLocation;
+  auto pushState = prepared->pushState;
+  const int nextBatchId = prepared->batchId;
+  auto body = std::move(prepared->body);
+  // prepareBatch validated that header + payload fits in int.
+  const int batchBytesSize = static_cast<int>(body->remainingSize());
+
   auto hostAndPushPort = partitionLocation->hostAndPushPort();
   // Check limit.
   limitMaxInFlight(mapKey, *pushState, hostAndPushPort);
   // Add inFlight requests.
-  CELEBORN_CHECK(
-      lengthToWrite <= std::numeric_limits<int>::max() - kBatchHeaderSize,
-      fmt::format(
-          "Batch bytes size {} + header {} would overflow int",
-          lengthToWrite,
-          kBatchHeaderSize));
-  const int batchBytesSize = lengthToWrite + kBatchHeaderSize;
   pushState->addBatch(nextBatchId, batchBytesSize, hostAndPushPort);
   // Build pushData request.
   const auto shuffleKey = utils::makeShuffleKey(appUniqueId_, shuffleId);
-  auto body = memory::ByteBuffer::toReadOnly(std::move(writeBuffer));
   network::PushData pushData(
       network::Message::nextRequestId(),
       protocol::PartitionLocation::Mode::PRIMARY,
@@ -263,11 +314,27 @@ int ShuffleClientImpl::pushData(
       conf_->clientPushMaxReviveTimes(),
       partitionLocation);
   // Do push data.
-  auto client = clientFactory_->createClient(
-      partitionLocation->host, partitionLocation->pushPort, partitionId);
-  client->pushDataAsync(
-      pushData, conf_->clientPushDataTimeout(), pushDataCallback);
-  return body->remainingSize();
+  pushWithFailureRouting(
+      *partitionLocation,
+      *pushDataCallback,
+      [&]() {
+        auto client = clientFactory_->createClient(
+            partitionLocation->host, partitionLocation->pushPort, partitionId);
+        client->pushDataAsync(
+            pushData, conf_->clientPushDataTimeout(), pushDataCallback);
+      },
+      [&]() {
+        return fmt::format(
+            "pushing data for shuffle {} map {} attempt {} partition {} "
+            "batch {} location hostAndPushPort {}",
+            shuffleId,
+            mapId,
+            attemptId,
+            partitionId,
+            nextBatchId,
+            hostAndPushPort);
+      });
+  return batchBytesSize;
 }
 
 int ShuffleClientImpl::mergeData(
@@ -280,97 +347,40 @@ int ShuffleClientImpl::mergeData(
     size_t length,
     int numMappers,
     int numPartitions) {
-  const auto mapKey = utils::makeMapKey(shuffleId, mapId, attemptId);
-  if (checkMapperEnded(shuffleId, mapId, mapKey)) {
+  auto prepared = prepareBatch(
+      shuffleId,
+      mapId,
+      attemptId,
+      partitionId,
+      data,
+      offset,
+      length,
+      numMappers,
+      numPartitions);
+  if (!prepared.has_value()) {
     return 0;
   }
+  auto mapKey = std::move(prepared->mapKey);
+  auto partitionLocation = prepared->partitionLocation;
+  auto pushState = prepared->pushState;
+  const int nextBatchId = prepared->batchId;
+  auto body = std::move(prepared->body);
+  // prepareBatch validated that header + payload fits in int.
+  const int batchBytesSize = static_cast<int>(body->remainingSize());
 
-  auto partitionLocationMap =
-      getPartitionLocation(shuffleId, numMappers, numPartitions);
-  CELEBORN_CHECK_NOT_NULL(partitionLocationMap);
-  auto partitionLocationOptional = partitionLocationMap->get(partitionId);
-  if (!partitionLocationOptional.has_value()) {
-    if (!revive(
-            shuffleId,
-            mapId,
-            attemptId,
-            partitionId,
-            -1,
-            nullptr,
-            protocol::StatusCode::PUSH_DATA_FAIL_NON_CRITICAL_CAUSE)) {
-      CELEBORN_FAIL(fmt::format(
-          "Revive for shuffleId {} partitionId {} failed.",
-          shuffleId,
-          partitionId));
-    }
-    partitionLocationOptional = partitionLocationMap->get(partitionId);
-  }
-  if (checkMapperEnded(shuffleId, mapId, mapKey)) {
-    return 0;
-  }
-
-  CELEBORN_CHECK(partitionLocationOptional.has_value());
-  auto partitionLocation = partitionLocationOptional.value();
-  auto pushState = getPushState(mapKey);
-  const int nextBatchId = pushState->nextBatchId();
-
-  CELEBORN_CHECK(
-      length <= static_cast<size_t>(std::numeric_limits<int>::max()),
-      fmt::format(
-          "Data length {} exceeds maximum supported size {}",
-          length,
-          std::numeric_limits<int>::max()));
-
-  const uint8_t* dataToWrite = data + offset;
-  int lengthToWrite = static_cast<int>(length);
-  std::unique_ptr<uint8_t[]> compressedBuffer;
-
-  if (shuffleCompressionEnabled_ && compressorFactory_) {
-    auto compressor = compressorFactory_();
-    const size_t compressedCapacity =
-        compressor->getDstCapacity(static_cast<int>(length));
-    compressedBuffer = std::make_unique<uint8_t[]>(compressedCapacity);
-    const size_t compressedSize = compressor->compress(
-        dataToWrite, 0, static_cast<int>(length), compressedBuffer.get(), 0);
-
-    CELEBORN_CHECK(
-        compressedSize <= static_cast<size_t>(std::numeric_limits<int>::max()),
-        fmt::format(
-            "Compressed size {} exceeds maximum supported size {}",
-            compressedSize,
-            std::numeric_limits<int>::max()));
-
-    lengthToWrite = static_cast<int>(compressedSize);
-    dataToWrite = compressedBuffer.get();
-  }
-
-  CELEBORN_CHECK(
-      static_cast<size_t>(lengthToWrite) <=
-          std::numeric_limits<size_t>::max() - kBatchHeaderSize,
-      fmt::format(
-          "Buffer size {} + header {} would overflow",
-          lengthToWrite,
-          kBatchHeaderSize));
-
-  auto writeBuffer = memory::ByteBuffer::createWriteOnly(
-      kBatchHeaderSize + static_cast<size_t>(lengthToWrite));
-  writeBuffer->writeLE<int>(mapId);
-  writeBuffer->writeLE<int>(attemptId);
-  writeBuffer->writeLE<int>(nextBatchId);
-  writeBuffer->writeLE<int>(lengthToWrite);
-  writeBuffer->writeFromBuffer(
-      dataToWrite, 0, static_cast<size_t>(lengthToWrite));
-
-  auto body = memory::ByteBuffer::toReadOnly(std::move(writeBuffer));
+  VLOG(1) << "Merge batch " << nextBatchId << ".";
   auto addressPairKey = genAddressPairKey(*partitionLocation);
 
   bool shouldPush = pushState->addBatchData(
       addressPairKey, partitionLocation, nextBatchId, std::move(body));
 
   if (shouldPush) {
+    auto hostAndPushPort = partitionLocation->hostAndPushPort();
+    // Throttle before flushing, like the Java client: the caller does it, not
+    // doPushMergedData.
+    limitMaxInFlight(mapKey, *pushState, hostAndPushPort);
     auto dataBatches = pushState->takeDataBatches(addressPairKey);
     if (dataBatches) {
-      auto hostAndPushPort = partitionLocation->hostAndPushPort();
       doPushMergedData(
           hostAndPushPort,
           shuffleId,
@@ -385,13 +395,7 @@ int ShuffleClientImpl::mergeData(
     }
   }
 
-  CELEBORN_CHECK_LE(
-      lengthToWrite,
-      std::numeric_limits<int>::max() - static_cast<int>(kBatchHeaderSize),
-      "Batch bytes size {} + header {} would overflow int",
-      lengthToWrite,
-      kBatchHeaderSize);
-  return static_cast<int>(kBatchHeaderSize) + lengthToWrite;
+  return batchBytesSize;
 }
 
 void ShuffleClientImpl::pushMergedData(
@@ -420,6 +424,9 @@ void ShuffleClientImpl::pushMergedData(
         break;
       }
       auto hostAndPushPort = batches.front().loc->hostAndPushPort();
+      // Throttle on the initial push, like the Java client's pushMergedData
+      // (not inside doPushMergedData).
+      limitMaxInFlight(mapKey, *pushState, hostAndPushPort);
       doPushMergedData(
           hostAndPushPort,
           shuffleId,
@@ -468,7 +475,9 @@ void ShuffleClientImpl::doPushMergedData(
     groupedBatchBytesSize += bodySize;
   }
 
-  limitMaxInFlight(mapKey, *pushState, hostAndPushPort);
+  // Not throttled here: callers throttle before the initial push (like Java).
+  // The retry path (submitRetryPushMergedData) must not re-throttle, else a
+  // limit timeout throws out of the retry pool instead of via pushState.
   pushState->addBatch(groupedBatchId, groupedBatchBytesSize, hostAndPushPort);
 
   const int numBatches = static_cast<int>(batches.size());
@@ -534,9 +543,24 @@ void ShuffleClientImpl::doPushMergedData(
   const auto& host = firstLoc.host;
   auto port = static_cast<uint16_t>(firstLoc.pushPort);
 
-  auto client = clientFactory_->createClient(host, port);
-  client->pushMergedDataAsync(
-      pushMergedData, conf_->clientPushDataTimeout(), callback);
+  pushWithFailureRouting(
+      firstLoc,
+      *callback,
+      [&]() {
+        auto client = clientFactory_->createClient(host, port);
+        client->pushMergedDataAsync(
+            pushMergedData, conf_->clientPushDataTimeout(), callback);
+      },
+      [&]() {
+        return fmt::format(
+            "pushing merged data for shuffle {} map {} attempt {} "
+            "groupedBatch {} location {}",
+            shuffleId,
+            mapId,
+            attemptId,
+            groupedBatchId,
+            hostAndPushPort);
+      });
 }
 
 void ShuffleClientImpl::submitRetryPushMergedData(
@@ -548,6 +572,7 @@ void ShuffleClientImpl::submitRetryPushMergedData(
     const std::string& mapKey,
     std::vector<DataBatch> batches,
     std::vector<std::shared_ptr<protocol::ReviveRequest>> reviveRequests,
+    protocol::StatusCode cause,
     int oldGroupedBatchId,
     std::shared_ptr<PushState> pushState,
     int remainReviveTimes,
@@ -564,6 +589,7 @@ void ShuffleClientImpl::submitRetryPushMergedData(
                         reviveRequests = std::make_shared<std::vector<
                             std::shared_ptr<protocol::ReviveRequest>>>(
                             std::move(reviveRequests)),
+                        cause,
                         oldGroupedBatchId,
                         pushState,
                         remainReviveTimes,
@@ -574,6 +600,12 @@ void ShuffleClientImpl::submitRetryPushMergedData(
           << "ShuffleClientImpl has expired in submitRetryPushMergedData.";
       return;
     }
+
+    // The old grouped batch was registered under the original location;
+    // capture that key now, before the loop reassigns/moves batch.loc, so the
+    // in-flight batch can be released later.
+    CELEBORN_CHECK(!batches->empty());
+    const auto oldHostAndPushPort = (*batches)[0].loc->hostAndPushPort();
 
     long reviveWaitTimeMs =
         reviveResponseDueTimeMs - utils::currentTimeMillis();
@@ -593,7 +625,6 @@ void ShuffleClientImpl::submitRetryPushMergedData(
     // Group successful batches by new address pair
     std::unordered_map<std::string, std::vector<DataBatch>> newBatchesByAddress;
     std::vector<DataBatch> failedBatches;
-    std::vector<std::shared_ptr<protocol::ReviveRequest>> failedRequests;
 
     for (size_t i = 0; i < reviveRequests->size(); i++) {
       auto& request = (*reviveRequests)[i];
@@ -626,17 +657,22 @@ void ShuffleClientImpl::submitRetryPushMergedData(
 
       if (remainReviveTimes > 0) {
         failedBatches.push_back(std::move(batch));
-        failedRequests.push_back(request);
       } else {
+        // Terminal: annotate with the original cause and the revive status,
+        // mirroring the Java client, then stop (do not push regrouped batches).
         auto errorMsg = fmt::format(
             "Revive failed while pushing merged data for shuffle {} map {} "
-            "attempt {} partition {} groupedBatch {}.",
+            "attempt {} partition {} groupedBatch {}, {} then revive but {}.",
             shuffleId,
             mapId,
             attemptId,
             request->partitionId,
-            oldGroupedBatchId);
+            oldGroupedBatchId,
+            protocol::toString(cause),
+            protocol::toString(static_cast<protocol::StatusCode>(
+                request->reviveStatus.load())));
         pushState->setException(std::make_unique<std::runtime_error>(errorMsg));
+        return;
       }
     }
 
@@ -657,15 +693,14 @@ void ShuffleClientImpl::submitRetryPushMergedData(
     }
 
     if (failedBatches.empty()) {
-      if (!batches->empty() && (*batches)[0].loc) {
-        pushState->removeBatch(
-            oldGroupedBatchId, (*batches)[0].loc->hostAndPushPort());
-      }
+      // All batches were re-pushed (under fresh groupedBatchIds) or dropped as
+      // mapper-ended; release the old grouped batch unconditionally like the
+      // Java client, else limitZeroInFlight at mapperEnd never reaches zero.
+      pushState->removeBatch(oldGroupedBatchId, oldHostAndPushPort);
     } else {
-      // Re-submit failed batches with new revive requests
+      // Re-submit failed batches with new revive requests, carrying the
+      // original failure cause (matching the Java client).
       std::vector<std::shared_ptr<protocol::ReviveRequest>> newReviveRequests;
-      protocol::StatusCode cause =
-          protocol::StatusCode::PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY;
       for (size_t i = 0; i < failedBatches.size(); i++) {
         auto reviveRequest = std::make_shared<protocol::ReviveRequest>(
             shuffleId,
@@ -692,6 +727,7 @@ void ShuffleClientImpl::submitRetryPushMergedData(
           mapKey,
           std::move(failedBatches),
           std::move(newReviveRequests),
+          cause,
           oldGroupedBatchId,
           pushState,
           remainReviveTimes - 1,
@@ -729,11 +765,17 @@ void ShuffleClientImpl::mapPartitionMapperEnd(
   try {
     limitZeroInFlight(mapKey, *pushState);
 
+    protocol::MapperEnd mapperEnd{
+        shuffleId, mapId, attemptId, numMappers, partitionId};
+    if (dataPushFailureTrackingEnabled_) {
+      // Move the batches out (no deep copy): the PushState is discarded
+      // right after mapperEnd.
+      mapperEnd.pushFailedBatches = pushState->takeFailedBatches();
+    }
     auto mapperEndResponse =
         lifecycleManagerRef_
             ->askSync<protocol::MapperEnd, protocol::MapperEndResponse>(
-                protocol::MapperEnd{
-                    shuffleId, mapId, attemptId, numMappers, partitionId});
+                mapperEnd);
     if (mapperEndResponse->status != protocol::StatusCode::SUCCESS) {
       CELEBORN_FAIL(
           "MapperEnd failed. protocol::StatusCode " +
@@ -794,7 +836,11 @@ std::unique_ptr<CelebornInputStream> ShuffleClientImpl::readPartition(
       endMapIndex,
       needCompression,
       fetchExcludedWorkers_,
-      this);
+      this,
+      // Aliasing shared_ptr: points at the cached response's pushFailedBatches
+      // without deep-copying the (potentially large) map per partition read.
+      std::shared_ptr<const protocol::PartitionPushFailedBatches>(
+          reducerFileGroupInfo, &reducerFileGroupInfo->pushFailedBatches));
 }
 
 void ShuffleClientImpl::excludeFailedFetchLocation(
@@ -858,6 +904,12 @@ bool ShuffleClientImpl::cleanupShuffle(int shuffleId) {
   return true;
 }
 
+void ShuffleClientImpl::shutdown() {
+  // Worker exclusion is client-wide, not per-shuffle: entries are dropped by a
+  // successful revive or fresh assignment, and only wholesale here (like Java).
+  pushExcludedWorkers_.clear();
+}
+
 std::shared_ptr<PushState> ShuffleClientImpl::getPushState(
     const std::string& mapKey) {
   return pushStates_.computeIfAbsent(
@@ -910,6 +962,16 @@ void ShuffleClientImpl::registerShuffle(
               registerShuffleResponse->partitionLocations;
           for (auto i = 0; i < partitionLocations.size(); i++) {
             auto id = partitionLocations[i]->id;
+            // The master just assigned these workers, so lift any stale push
+            // exclusion on them (or their peers), like the Java client.
+            if (pushExcludeWorkerOnFailureEnabled_) {
+              auto& location = *partitionLocations[i];
+              pushExcludedWorkers_.erase(location.hostAndPushPort());
+              if (location.hasPeer()) {
+                pushExcludedWorkers_.erase(
+                    location.getPeer()->hostAndPushPort());
+              }
+            }
             partitionLocationMap->set(id, std::move(partitionLocations[i]));
           }
           partitionLocationMaps_.set(
@@ -985,8 +1047,16 @@ void ShuffleClientImpl::submitRetryPushData(
     return;
   }
   if (request->reviveStatus.load() != protocol::StatusCode::SUCCESS) {
-    // TODO: the exception message here should be assembled.
-    pushDataCallback->onFailure(std::make_unique<std::exception>());
+    auto reviveStatus =
+        static_cast<protocol::StatusCode>(request->reviveStatus.load());
+    pushDataCallback->onFailure(
+        std::make_unique<std::runtime_error>(fmt::format(
+            "{} then revive but {}, revive status {}({}), old location: {}",
+            protocol::toString(request->cause),
+            protocol::toString(protocol::StatusCode::REVIVE_FAILED),
+            request->reviveStatus.load(),
+            protocol::toString(reviveStatus),
+            request->loc ? request->loc->hostAndPushPort() : "null")));
     return;
   }
   auto locationMapOptional = partitionLocationMaps_.get(shuffleId);
@@ -1002,28 +1072,35 @@ void ShuffleClientImpl::submitRetryPushData(
             << newLocation->hostAndPushPort() << ".";
   pushDataCallback->updateLatestLocation(newLocation);
 
-  try {
-    CELEBORN_CHECK_GT(remainReviveTimes, 0, "no remainReviveTime left");
-    network::PushData pushData(
-        network::Message::nextRequestId(),
-        protocol::PartitionLocation::Mode::PRIMARY,
-        utils::makeShuffleKey(appUniqueId_, shuffleId),
-        newLocation->uniqueId(),
-        std::move(body));
-    auto client = clientFactory_->createClient(
-        newLocation->host, newLocation->pushPort, request->partitionId);
-    client->pushDataAsync(
-        pushData, conf_->clientPushDataTimeout(), pushDataCallback);
-  } catch (const std::exception& e) {
-    LOG(ERROR) << "Exception raised while pushing data for shuffle "
-               << shuffleId << " map " << request->mapId << " attempt "
-               << request->attemptId << " partition " << request->partitionId
-               << " batch " << batchId << " location hostAndPushPort "
-               << newLocation->hostAndPushPort() << " errorMsg " << e.what()
-               << ".";
-    // TODO: The failure should be treated better.
-    pushDataCallback->onFailure(std::make_unique<std::exception>(e));
-  }
+  // If the revived location targets an excluded worker, fail immediately; the
+  // callback's failure path will revive/retry again.
+  pushWithFailureRouting(
+      *newLocation,
+      *pushDataCallback,
+      [&]() {
+        CELEBORN_CHECK_GT(remainReviveTimes, 0, "no remainReviveTime left");
+        network::PushData pushData(
+            network::Message::nextRequestId(),
+            protocol::PartitionLocation::Mode::PRIMARY,
+            utils::makeShuffleKey(appUniqueId_, shuffleId),
+            newLocation->uniqueId(),
+            std::move(body));
+        auto client = clientFactory_->createClient(
+            newLocation->host, newLocation->pushPort, request->partitionId);
+        client->pushDataAsync(
+            pushData, conf_->clientPushDataTimeout(), pushDataCallback);
+      },
+      [&]() {
+        return fmt::format(
+            "retrying push data for shuffle {} map {} attempt {} partition {} "
+            "batch {} location hostAndPushPort {}",
+            shuffleId,
+            request->mapId,
+            request->attemptId,
+            request->partitionId,
+            batchId,
+            newLocation->hostAndPushPort());
+      });
 }
 
 bool ShuffleClientImpl::checkMapperEnded(
@@ -1061,6 +1138,7 @@ bool ShuffleClientImpl::stageEnded(int shuffleId) {
 
 void ShuffleClientImpl::addRequestToReviveManager(
     std::shared_ptr<protocol::ReviveRequest> reviveRequest) {
+  excludeWorkerByCause(reviveRequest->cause, reviveRequest->loc);
   reviveManager_->addRequest(std::move(reviveRequest));
 }
 
@@ -1096,6 +1174,22 @@ std::optional<std::unordered_map<int, int>> ShuffleClientImpl::reviveBatch(
         case protocol::StatusCode::SUCCESS: {
           partitionLocationMap->set(
               partitionInfo.partitionId, partitionInfo.partition);
+          // Revive moved this partition off the failed worker(s); drop the
+          // push exclusion on both the old and new locations.
+          if (pushExcludeWorkerOnFailureEnabled_) {
+            if (auto oldIter = oldLocationMap.find(partitionInfo.partitionId);
+                oldIter != oldLocationMap.end() && oldIter->second) {
+              pushExcludedWorkers_.erase(oldIter->second->hostAndPushPort());
+            }
+            if (partitionInfo.partition) {
+              pushExcludedWorkers_.erase(
+                  partitionInfo.partition->hostAndPushPort());
+              if (partitionInfo.partition->hasPeer()) {
+                pushExcludedWorkers_.erase(
+                    partitionInfo.partition->getPeer()->hostAndPushPort());
+              }
+            }
+          }
           break;
         }
         case protocol::StatusCode::STAGE_ENDED: {
@@ -1143,6 +1237,116 @@ bool ShuffleClientImpl::revive(
         result[partitionId] == protocol::StatusCode::SUCCESS;
   }
   return false;
+}
+
+namespace {
+// Mirrors org.apache.celeborn.common.util.ExceptionUtils#connectFail.
+bool connectFail(const std::string& message) {
+  return (message.find("Connection from ") != std::string::npos &&
+          message.find(" closed") != std::string::npos) ||
+      message.find("Connection reset by peer") != std::string::npos ||
+      message.find("Failed to send request ") != std::string::npos;
+}
+} // namespace
+
+protocol::StatusCode ShuffleClientImpl::getPushDataFailCause(
+    const std::string& message) {
+  VLOG(1) << "Push data failed cause message: " << message;
+  if (message.empty()) {
+    LOG(ERROR) << "Push data throw unexpected exception";
+    return protocol::StatusCode::PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
+  }
+  // The transport wraps the worker's error, so match the StatusCode name as a
+  // substring (via protocol::toString) rather than a prefix. Order follows the
+  // Java client so more specific causes win.
+  static constexpr std::array<protocol::StatusCode, 13> kCandidateCauses = {
+      protocol::StatusCode::PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA,
+      protocol::StatusCode::PUSH_DATA_WRITE_FAIL_REPLICA,
+      protocol::StatusCode::PUSH_DATA_WRITE_FAIL_PRIMARY,
+      protocol::StatusCode::PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY,
+      protocol::StatusCode::PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA,
+      protocol::StatusCode::PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY,
+      protocol::StatusCode::PUSH_DATA_CONNECTION_EXCEPTION_REPLICA,
+      protocol::StatusCode::PUSH_DATA_TIMEOUT_PRIMARY,
+      protocol::StatusCode::PUSH_DATA_TIMEOUT_REPLICA,
+      protocol::StatusCode::REPLICATE_DATA_FAILED,
+      protocol::StatusCode::PUSH_DATA_PRIMARY_WORKER_EXCLUDED,
+      protocol::StatusCode::PUSH_DATA_REPLICA_WORKER_EXCLUDED,
+      protocol::StatusCode::PUSH_DATA_FAIL_PARTITION_NOT_FOUND,
+  };
+  for (auto cause : kCandidateCauses) {
+    if (message.find(protocol::toString(cause)) != std::string::npos) {
+      return cause;
+    }
+  }
+  if (message.find("Timed out") != std::string::npos) {
+    // A client-side push timeout surfaces as a folly FutureTimeout ("Timed
+    // out") with no StatusCode token; classify it as a push timeout so worker
+    // exclusion engages like the Java client.
+    return protocol::StatusCode::PUSH_DATA_TIMEOUT_PRIMARY;
+  }
+  if (connectFail(message)) {
+    // Thrown when push to primary worker connection fails.
+    return protocol::StatusCode::PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY;
+  }
+  return protocol::StatusCode::PUSH_DATA_FAIL_NON_CRITICAL_CAUSE;
+}
+
+std::optional<protocol::StatusCode> ShuffleClientImpl::classifyPushFailure(
+    const std::string& errorMsg,
+    int remainingReviveTimes,
+    PushState& pushState) {
+  const protocol::StatusCode cause = getPushDataFailCause(errorMsg);
+  if (remainingReviveTimes <= 0) {
+    // Out of revive attempts: surface a terminal failure annotated with the
+    // cause, like Java's `new CelebornIOException(cause, e)`.
+    pushState.setException(std::make_unique<std::runtime_error>(
+        protocol::toString(cause) + ": " + errorMsg));
+    return std::nullopt;
+  }
+  return cause;
+}
+
+void ShuffleClientImpl::excludeWorkerByCause(
+    protocol::StatusCode cause,
+    const std::shared_ptr<const protocol::PartitionLocation>& oldLocation) {
+  if (!pushExcludeWorkerOnFailureEnabled_ || !oldLocation) {
+    return;
+  }
+  switch (cause) {
+    case protocol::StatusCode::PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY:
+    case protocol::StatusCode::PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY:
+    case protocol::StatusCode::PUSH_DATA_TIMEOUT_PRIMARY:
+      pushExcludedWorkers_.insert(oldLocation->hostAndPushPort());
+      break;
+    case protocol::StatusCode::PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA:
+    case protocol::StatusCode::PUSH_DATA_CONNECTION_EXCEPTION_REPLICA:
+    case protocol::StatusCode::PUSH_DATA_TIMEOUT_REPLICA:
+      if (oldLocation->hasPeer()) {
+        pushExcludedWorkers_.insert(oldLocation->getPeer()->hostAndPushPort());
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+std::optional<protocol::StatusCode>
+ShuffleClientImpl::getPushTargetWorkerExcludeCause(
+    const protocol::PartitionLocation& location) {
+  // When off, pushExcludedWorkers_ is always empty; skip the mutex-guarded
+  // lookups on this per-push hot path.
+  if (!pushExcludeWorkerOnFailureEnabled_) {
+    return std::nullopt;
+  }
+  if (pushExcludedWorkers_.contains(location.hostAndPushPort())) {
+    return protocol::StatusCode::PUSH_DATA_PRIMARY_WORKER_EXCLUDED;
+  } else if (
+      location.hasPeer() &&
+      pushExcludedWorkers_.contains(location.getPeer()->hostAndPushPort())) {
+    return protocol::StatusCode::PUSH_DATA_REPLICA_WORKER_EXCLUDED;
+  }
+  return std::nullopt;
 }
 
 void ShuffleClientImpl::limitMaxInFlight(

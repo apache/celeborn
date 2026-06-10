@@ -138,6 +138,9 @@ class CelebornConf : public BaseConf {
   static constexpr std::string_view kClientPushReplicateEnabled{
       "celeborn.client.push.replicate.enabled"};
 
+  static constexpr std::string_view kClientPushExcludeWorkerOnFailureEnabled{
+      "celeborn.client.push.excludeWorkerOnFailure.enabled"};
+
   static constexpr std::string_view kClientFetchExcludeWorkerOnFailureEnabled{
       "celeborn.client.fetch.excludeWorkerOnFailure.enabled"};
 
@@ -221,6 +224,8 @@ class CelebornConf : public BaseConf {
   Timeout networkIoRetryWait() const;
 
   bool clientPushReplicateEnabled() const;
+
+  bool clientPushExcludeWorkerOnFailureEnabled() const;
 
   bool clientFetchExcludeWorkerOnFailureEnabled() const;
 

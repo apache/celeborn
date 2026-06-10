@@ -80,6 +80,18 @@ PushDataCallback::PushDataCallback(
       remainingReviveTimes_(remainingReviveTimes),
       latestLocation_(latestLocation) {}
 
+void PushDataCallback::releaseInFlightBatch() {
+  const auto hostAndPushPort = latestLocation_->hostAndPushPort();
+  pushState_->onSuccess(hostAndPushPort);
+  pushState_->removeBatch(batchId_, hostAndPushPort);
+}
+
+void PushDataCallback::releaseInFlightBatchOnCongestion() {
+  const auto hostAndPushPort = latestLocation_->hostAndPushPort();
+  pushState_->onCongestControl(hostAndPushPort);
+  pushState_->removeBatch(batchId_, hostAndPushPort);
+}
+
 void PushDataCallback::onSuccess(
     std::unique_ptr<memory::ReadOnlyByteBuffer> response) {
   auto sharedClient = weakClient_.lock();
@@ -92,8 +104,7 @@ void PushDataCallback::onSuccess(
     return;
   }
   if (response->remainingSize() <= 0) {
-    pushState_->onSuccess(latestLocation_->hostAndPushPort());
-    pushState_->removeBatch(batchId_, latestLocation_->hostAndPushPort());
+    releaseInFlightBatch();
     return;
   }
   protocol::StatusCode reason =
@@ -104,6 +115,8 @@ void PushDataCallback::onSuccess(
           shuffleId_,
           []() { return std::make_shared<utils::ConcurrentHashSet<int>>(); });
       mapperEndSet->insert(mapId_);
+      // The push succeeded, so release the in-flight batch too.
+      releaseInFlightBatch();
       break;
     }
     case protocol::StatusCode::SOFT_SPLIT: {
@@ -125,8 +138,7 @@ void PushDataCallback::onSuccess(
             protocol::StatusCode::SOFT_SPLIT);
         sharedClient->addRequestToReviveManager(reviveRequest);
       }
-      pushState_->onSuccess(latestLocation_->hostAndPushPort());
-      pushState_->removeBatch(batchId_, latestLocation_->hostAndPushPort());
+      releaseInFlightBatch();
       break;
     }
     case protocol::StatusCode::HARD_SPLIT: {
@@ -134,6 +146,11 @@ void PushDataCallback::onSuccess(
               << " hard split required for shuffle " << shuffleId_ << " map "
               << mapId_ << " attempt " << attemptId_ << " partition "
               << partitionId_ << " batch " << batchId_ << ".";
+      if (sharedClient->dataPushFailureTrackingEnabled_ &&
+          sharedClient->pushReplicateEnabled_) {
+        pushState_->recordFailedBatch(
+            latestLocation_->uniqueId(), mapId_, attemptId_, batchId_);
+      }
       reviveAndRetryPushData(*sharedClient, protocol::StatusCode::HARD_SPLIT);
       break;
     }
@@ -142,8 +159,7 @@ void PushDataCallback::onSuccess(
               << " primary congestion required for shuffle " << shuffleId_
               << " map " << mapId_ << " attempt " << attemptId_ << " partition "
               << partitionId_ << " batch " << batchId_ << ".";
-      pushState_->onCongestControl(latestLocation_->hostAndPushPort());
-      pushState_->removeBatch(batchId_, latestLocation_->hostAndPushPort());
+      releaseInFlightBatchOnCongestion();
       break;
     }
     case protocol::StatusCode::PUSH_DATA_SUCCESS_REPLICA_CONGESTED: {
@@ -151,14 +167,15 @@ void PushDataCallback::onSuccess(
               << " replicate congestion required for shuffle " << shuffleId_
               << " map " << mapId_ << " attempt " << attemptId_ << " partition "
               << partitionId_ << " batch " << batchId_ << ".";
-      pushState_->onCongestControl(latestLocation_->hostAndPushPort());
-      pushState_->removeBatch(batchId_, latestLocation_->hostAndPushPort());
+      releaseInFlightBatchOnCongestion();
       break;
     }
     default: {
-      // This is treated as success.
+      // Treated as success (e.g. StageEnd), matching the Java client's final
+      // else branch.
       LOG(WARNING) << "unhandled PushData success protocol::StatusCode: "
                    << reason;
+      releaseInFlightBatch();
     }
   }
 }
@@ -173,21 +190,35 @@ void PushDataCallback::onFailure(std::unique_ptr<std::exception> exception) {
                  << ".";
     return;
   }
+  const std::string errorMsg = exception ? exception->what() : "";
+
+  // Record the failed batch for the adaptive skewed-partition read
+  // optimization, like the Java client (regardless of cause when enabled).
+  if (sharedClient->dataPushFailureTrackingEnabled_) {
+    pushState_->recordFailedBatch(
+        latestLocation_->uniqueId(), mapId_, attemptId_, batchId_);
+  }
+
   if (pushState_->exceptionExists()) {
     return;
   }
 
+  // Classify the failure; with no revive attempts left this sets the terminal
+  // exception and stops here (like the Java client).
+  const auto causeOpt = ShuffleClientImpl::classifyPushFailure(
+      errorMsg, remainingReviveTimes_, *pushState_);
+  if (!causeOpt) {
+    return;
+  }
+  const protocol::StatusCode cause = *causeOpt;
+
+  // Logged only on the retry path, like the Java client (suppressed once
+  // revive attempts are exhausted).
   LOG(ERROR) << "Push data to " << latestLocation_->hostAndPushPort()
              << " failed for shuffle " << shuffleId_ << " map " << mapId_
              << " attempt " << attemptId_ << " partition " << partitionId_
              << " batch " << batchId_ << ", remain revive times "
-             << remainingReviveTimes_;
-
-  if (remainingReviveTimes_ <= 0) {
-    // TODO: set more specific exception.
-    pushState_->setException(std::move(exception));
-    return;
-  }
+             << remainingReviveTimes_ << ", errorMsg " << errorMsg;
 
   if (sharedClient->mapperEnded(shuffleId_, mapId_)) {
     pushState_->removeBatch(batchId_, latestLocation_->hostAndPushPort());
@@ -199,11 +230,6 @@ void PushDataCallback::onFailure(std::unique_ptr<std::exception> exception) {
     return;
   }
   remainingReviveTimes_--;
-  // TODO: we use PRIMARY exception as the dummy value here, but the cause
-  //  should be extracted from error msg. Especially, the cause should tell if
-  //  the exception is from PRIMARY or REPLICATE.
-  protocol::StatusCode cause =
-      protocol::StatusCode::PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY;
   reviveAndRetryPushData(*sharedClient, cause);
 }
 
