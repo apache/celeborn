@@ -151,7 +151,9 @@ class ReducePartitionCommitHandler(
   override def markShuffleDataLost(shuffleId: Int): Unit = {
     logWarning(s"Marking shuffle $shuffleId data as lost due to unknown/crashed worker.")
     dataLostShuffleSet.add(shuffleId)
-    setStageEnd(shuffleId) // unblocks all pending GetReducerFileGroup waiters immediately
+    if (!isStageEnd(shuffleId)) {
+      setStageEnd(shuffleId)
+    }
   }
 
   override def isPartitionInProcess(shuffleId: Int, partitionId: Int): Boolean = {
