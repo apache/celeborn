@@ -373,6 +373,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
 
     // PUSH_PAUSED: sort must be allowed so that fetch reads can proceed while push is
     // back-pressured (previously sorting was also blocked in this state).
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(pushThreshold + 1)
     memoryManager.switchServingState()
     assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
     sortMemoryCounter.set(0)
@@ -396,7 +397,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
     MemoryManager.reset()
   }
 
-  test("sortMemoryReady returns true when sort memory threshold is disabled") {
+  test("sortMemoryReady always returns true when sort memory threshold is disabled") {
     val conf = new CelebornConf()
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL.key, "300s")
     conf.set(CelebornConf.WORKER_PINNED_MEMORY_CHECK_INTERVAL.key, "0")
@@ -406,12 +407,30 @@ class MemoryManagerSuite extends CelebornFunSuite {
       "0")
     val memoryManager = MockitoSugar.spy(MemoryManager.initialize(conf))
     val maxDirectMemory = memoryManager.maxDirectMemory
+    val pushThreshold =
+      (conf.workerDirectMemoryRatioToPauseReceive * maxDirectMemory).longValue()
     val replicateThreshold =
       (conf.workerDirectMemoryRatioToPauseReplicate * maxDirectMemory).longValue()
 
     Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(0L)
 
-    // Even in PUSH_AND_REPLICATE_PAUSED, threshold=0 means skip all checks
+    // PUSH_PAUSED, threshold=0 means skip all checks
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(0L)
+    memoryManager.switchServingState()
+    assert(memoryManager.servingState == ServingState.NONE_PAUSED)
+    assert(
+      memoryManager.sortMemoryReady(),
+      "sortMemoryReady must return true when threshold is 0 regardless of serving state")
+
+    // PUSH_PAUSED, threshold=0 means skip all checks
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(pushThreshold + 1)
+    memoryManager.switchServingState()
+    assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
+    assert(
+      memoryManager.sortMemoryReady(),
+      "sortMemoryReady must return true when threshold is 0 regardless of serving state")
+
+    // PUSH_AND_REPLICATE_PAUSED, threshold=0 means skip all checks
     Mockito.when(memoryManager.getMemoryUsage).thenReturn(replicateThreshold + 1)
     memoryManager.switchServingState()
     assert(memoryManager.servingState == ServingState.PUSH_AND_REPLICATE_PAUSED)
