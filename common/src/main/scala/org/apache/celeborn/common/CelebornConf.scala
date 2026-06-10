@@ -7000,7 +7000,7 @@ object CelebornConf extends Logging {
       .version("0.6.3")
       .doc("Whether to mark shuffle data lost when unknown worker is detected.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val ENDPOINT_VERIFIER_SEPARATE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.rpc.RpcEndpointVerifier.separate.enabled")

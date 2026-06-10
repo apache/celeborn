@@ -86,6 +86,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val pushRackAwareEnabled = conf.clientReserveSlotsRackAwareEnabled
   private val partitionSplitThreshold = conf.shufflePartitionSplitThreshold
   private val partitionSplitMode = conf.shufflePartitionSplitMode
+  private val shuffleDataLostOnUnknownWorkerEnabled =
+    conf.clientShuffleDataLostOnUnknownWorkerEnabled
   // shuffle id -> partition type
   private val shufflePartitionType = JavaUtils.newConcurrentHashMap[Int, PartitionType]()
   private val rangeReadFilter = conf.shuffleRangeReadFilterEnabled
