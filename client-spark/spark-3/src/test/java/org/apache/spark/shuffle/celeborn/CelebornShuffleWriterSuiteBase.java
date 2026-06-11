@@ -311,7 +311,7 @@ public abstract class CelebornShuffleWriterSuiteBase {
   }
 
   @Test
-  public void testAssertIteratorFullyConsumed() {
+  public void testAssertIteratorFullyConsumed() throws IOException {
     // Test that assertIteratorFullyConsumed does not throw when iterator is empty
     SparkUtils.assertIteratorFullyConsumed(false);
   }
