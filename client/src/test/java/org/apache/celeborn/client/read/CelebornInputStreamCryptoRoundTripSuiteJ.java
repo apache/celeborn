@@ -49,10 +49,9 @@ import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.unsafe.Platform;
 
 /**
- * Integration-style round-trip tests for EAR (Encryption At Rest) wiring in
- * {@link CelebornInputStream}. These tests verify that the encrypt-on-write /
- * decrypt-on-read path works end-to-end, including interactions with compression
- * and the shuffle integrity check.
+ * Integration-style round-trip tests for EAR (Encryption At Rest) wiring in {@link
+ * CelebornInputStream}. These tests verify that the encrypt-on-write / decrypt-on-read path works
+ * end-to-end, including interactions with compression and the shuffle integrity check.
  */
 public class CelebornInputStreamCryptoRoundTripSuiteJ {
 
@@ -60,10 +59,9 @@ public class CelebornInputStreamCryptoRoundTripSuiteJ {
   private static final String SHUFFLE_KEY = "app-1-1";
 
   /**
-   * A minimal CryptoHandler for testing: the encrypted format is
-   * [4-byte plaintext length (int)][XOR-encrypted payload].
-   * This matches the structural contract of SparkCryptoHandler so the
-   * bounds check (decryptedLength > length - 4) is also exercised.
+   * A minimal CryptoHandler for testing: the encrypted format is [4-byte plaintext length
+   * (int)][XOR-encrypted payload]. This matches the structural contract of SparkCryptoHandler so
+   * the bounds check (decryptedLength > length - 4) is also exercised.
    */
   static class XorCryptoHandler implements CryptoHandler {
     private final byte key;
@@ -101,14 +99,11 @@ public class CelebornInputStreamCryptoRoundTripSuiteJ {
   }
 
   /**
-   * Build a single batch ByteBuf as ShuffleClientImpl.pushOrMergeData does:
-   * optionally compress, optionally encrypt, then prepend the 16-byte batch header.
+   * Build a single batch ByteBuf as ShuffleClientImpl.pushOrMergeData does: optionally compress,
+   * optionally encrypt, then prepend the 16-byte batch header.
    */
   private ByteBuf buildBatch(
-      byte[] plaintext,
-      boolean compress,
-      CryptoHandler cryptoHandler,
-      CelebornConf conf)
+      byte[] plaintext, boolean compress, CryptoHandler cryptoHandler, CelebornConf conf)
       throws IOException {
     byte[] data = plaintext;
     int offset = 0;
@@ -132,17 +127,17 @@ public class CelebornInputStreamCryptoRoundTripSuiteJ {
 
     // Step 3: prepend the 16-byte batch header [mapId|attemptId|batchId|payloadLen]
     byte[] body = new byte[BATCH_HEADER_SIZE + length];
-    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET, 0);        // mapId
-    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 4, 0);    // attemptId
-    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 8, 0);    // batchId
+    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET, 0); // mapId
+    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 4, 0); // attemptId
+    Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 8, 0); // batchId
     Platform.putInt(body, Platform.BYTE_ARRAY_OFFSET + 12, length); // payload length
     System.arraycopy(data, offset, body, BATCH_HEADER_SIZE, length);
     return Unpooled.wrappedBuffer(body);
   }
 
   /**
-   * Create a CelebornInputStream backed by a mock TransportClient that serves
-   * the given batchBuf as a single chunk.
+   * Create a CelebornInputStream backed by a mock TransportClient that serves the given batchBuf as
+   * a single chunk.
    */
   private CelebornInputStream createStream(
       ByteBuf batchBuf,
@@ -232,8 +227,7 @@ public class CelebornInputStreamCryptoRoundTripSuiteJ {
 
     // Build an encrypted batch and read it back through CelebornInputStream
     ByteBuf batchBuf = buildBatch(plaintext, false, handler, conf);
-    try (CelebornInputStream stream =
-        createStream(batchBuf, false, Optional.of(handler), conf)) {
+    try (CelebornInputStream stream = createStream(batchBuf, false, Optional.of(handler), conf)) {
       assertArrayEquals(plaintext, readAll(stream));
     }
   }
