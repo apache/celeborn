@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -13,33 +12,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
-**/.*/**
-**/*.json
-**/*.prefs
-**/*.log
-**/*.md
-**/*.iml
-**/*.svg
-**/target/**
-**/out/**
-**/spark-warehouse/**
-**/metastore_db/**
-**/licenses/LICENSE*
-**/licenses-binary/LICENSE*
-**/dependency-reduced-pom.xml
-**/scalastyle-output.xml
-NOTICE*
-assets/**
-build/apache-maven-*/**
-build/scala-*/**
-build/sbt-config/**
-**/benchmarks/**
-**/node_modules/**
-cpp/cmake/FindSodium.cmake
-cpp/build/**
-cpp/build_static/**
-cpp/thirdparty/**
-rust/Cargo.lock
-rust/.gitignore
+# C ABI shim that wraps celeborn::client::ShuffleClient* in pure-C entry
+# points. Built as a STATIC archive that is whole-archived into the
+# aggregated libceleborn_client.{so,dylib} (see top-level CMakeLists.txt).
+add_library(
+        celeborn_ffi
+        STATIC
+        CelebornFfi.cc)
+
+target_include_directories(celeborn_ffi PUBLIC
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_BINARY_DIR})
+
+target_link_libraries(
+        celeborn_ffi
+        client
+        conf
+        ${FOLLY_WITH_DEPENDENCIES}
+        ${GLOG}
+        ${GFLAGS_LIBRARIES})

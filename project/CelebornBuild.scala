@@ -471,6 +471,7 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornService.service,
       CelebornWorker.worker,
       CelebornMaster.master,
+      CelebornLifecycleManager.lifecycleManager,
       CelebornCli.cli
     ) ++ maybeSparkClientModules ++
       maybeFlinkClientModules ++
@@ -596,6 +597,19 @@ object Utils {
       }
     }).transform(node).head
   }
+}
+
+object CelebornLifecycleManager {
+  lazy val lifecycleManager = Project("celeborn-lifecycle-manager", file("lifecycle-manager"))
+    .dependsOn(CelebornService.service % "test->test;compile->compile")
+    .dependsOn(CelebornClient.client % "test->test;compile->compile")
+    .dependsOn(CelebornCommon.common % "test->test;compile->compile")
+    .settings (
+      commonSettings,
+      libraryDependencies ++= Seq(
+        Dependencies.scalatestMockito % "test"
+      ) ++ commonUnitTestDependencies
+    )
 }
 
 object CelebornCli {
