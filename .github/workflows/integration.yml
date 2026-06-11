@@ -30,6 +30,10 @@ env:
   MINIKUBE_VERSION: v1.33.1
   KUBERNETES_VERSION: v1.30.0
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   celeborn_integration_test:
     runs-on: ubuntu-22.04
