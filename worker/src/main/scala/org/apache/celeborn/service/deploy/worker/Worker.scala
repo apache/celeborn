@@ -986,11 +986,11 @@ private[celeborn] class Worker(
     shutdown.set(true)
     val interval = conf.workerGracefulShutdownCheckSlotsFinishedInterval
     val timeout = conf.workerGracefulShutdownCheckSlotsFinishedTimeoutMs
-    var waitTimes = 1
+    var waitTimes = 0
 
     def waitTime: Long = waitTimes * interval
 
-    while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
+    while (!partitionLocationInfo.isEmpty && waitTime + interval < timeout) {
       Thread.sleep(interval)
       waitTimes += 1
       logWarning(
@@ -1027,11 +1027,11 @@ private[celeborn] class Worker(
     shutdown.set(true)
     val interval = conf.workerDecommissionCheckInterval
     val timeout = conf.workerDecommissionForceExitTimeout
-    var waitTimes = 1
+    var waitTimes = 0
 
     def waitTime: Long = waitTimes * interval
 
-    while (!storageManager.shuffleKeySet().isEmpty && waitTime < timeout) {
+    while (!storageManager.shuffleKeySet().isEmpty && waitTime + interval < timeout) {
       Thread.sleep(interval)
       waitTimes += 1
     }
