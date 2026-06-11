@@ -66,6 +66,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse;
@@ -719,14 +720,14 @@ public class SparkUtils {
 
   /**
    * Asserts that the shuffle writer's iterator has been fully consumed. Only call this when the
-   * shuffle writer finishes writing records. If records remain in the iterator, the task will be
-   * killed.
+   * shuffle writer finishes writing records. If records remain in the iterator, the task will fail
+   * with an IOException.
    *
    * @param iteratorHasNext true if the iterator still has records remaining
    */
-  public static void assertIteratorFullyConsumed(boolean iteratorHasNext) {
+  public static void assertIteratorFullyConsumed(boolean iteratorHasNext) throws IOException {
     if (iteratorHasNext) {
-      TaskInterruptedHelper.throwTaskKillException(
+      throw new CelebornIOException(
           "Shuffle write task finished but iterator was not fully consumed.");
     }
   }

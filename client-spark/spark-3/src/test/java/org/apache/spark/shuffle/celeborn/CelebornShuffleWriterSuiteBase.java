@@ -47,7 +47,6 @@ import org.apache.spark.SparkEnv;
 import org.apache.spark.SparkVersionUtil;
 import org.apache.spark.TaskContext;
 import org.apache.spark.TaskContext$;
-import org.apache.spark.TaskKilledException;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.memory.TaskMemoryManager;
@@ -322,9 +321,9 @@ public abstract class CelebornShuffleWriterSuiteBase {
     TaskContext$.MODULE$.setTaskContext(taskContext);
     try {
       SparkUtils.assertIteratorFullyConsumed(true);
-      fail("Expected TaskKilledException when iterator is not fully consumed");
-    } catch (TaskKilledException e) {
-      assertTrue(e.reason().contains("not fully consumed"));
+      fail("Expected IOException when iterator is not fully consumed");
+    } catch (IOException e) {
+      assertTrue(e.getMessage().contains("not fully consumed"));
     } finally {
       TaskContext$.MODULE$.setTaskContext(null);
     }
