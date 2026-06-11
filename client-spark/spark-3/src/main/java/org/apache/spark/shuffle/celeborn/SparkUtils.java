@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle.celeborn;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.HashSet;
