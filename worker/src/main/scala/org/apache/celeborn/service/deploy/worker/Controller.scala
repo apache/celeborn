@@ -705,6 +705,18 @@ private[deploy] class Controller(
                 case throwable: Throwable =>
                   logError(s"$errMsg, an unexpected exception occurred.", throwable)
               }
+              // Release slots and remove partition locations before reply, mirroring reply().
+              // Unlike reply(), commit tasks may still be running here (cancel(true) does not
+              // interrupt them): a task that has not yet fetched its location will then find it
+              // removed and mark the partition failed, which is harmless -- the response below
+              // already reports every not-committed-and-not-empty partition as failed, and the
+              // shuffle-expiry cleanup that previously reclaimed these slots is idempotent.
+              val releasePrimaryLocations =
+                partitionLocationInfo.removePrimaryPartitions(shuffleKey, primaryIds)
+              val releaseReplicaLocations =
+                partitionLocationInfo.removeReplicaPartitions(shuffleKey, replicaIds)
+              workerInfo.releaseSlots(shuffleKey, releasePrimaryLocations._1)
+              workerInfo.releaseSlots(shuffleKey, releaseReplicaLocations._1)
               val response = Controller.buildCommitFilesResponseOnCancel(
                 primaryIds,
                 replicaIds,
@@ -930,14 +942,19 @@ private[deploy] object Controller {
     val failedReplicaIds = new jArrayList[String](replicaIds)
     failedReplicaIds.removeAll(committedReplicaIds)
     failedReplicaIds.removeAll(emptyFileReplicaIds)
-    // COMMIT_FILE_EXCEPTION only when nothing committed and nothing empty; empty files are a
-    // successful terminal state and must not be reported as failed.
     val committedPrimaryIdList = new jArrayList[String](committedPrimaryIds)
     val committedReplicaIdList = new jArrayList[String](committedReplicaIds)
-    // COMMIT_FILE_EXCEPTION only when nothing committed and nothing empty; empty files are a
-    // successful terminal state and must not be reported as failed.
+    // Derive status from the failed lists returned in this response. Empty failed lists mean
+    // every requested partition reached a terminal good state before the snapshot (committed
+    // or empty -- both sets are append-only), which is the normal path's SUCCESS condition;
+    // replying PARTIAL_SUCCESS would needlessly land this worker in the client's
+    // commitFilesFailedWorkers. Empty files are a successful terminal state and must not be
+    // reported as failed, so COMMIT_FILE_EXCEPTION is returned only when nothing committed
+    // and nothing is empty.
     val status =
-      if (committedPrimaryIdList.isEmpty && committedReplicaIdList.isEmpty &&
+      if (failedPrimaryIds.isEmpty && failedReplicaIds.isEmpty) {
+        StatusCode.SUCCESS
+      } else if (committedPrimaryIdList.isEmpty && committedReplicaIdList.isEmpty &&
         emptyFilePrimaryIds.isEmpty && emptyFileReplicaIds.isEmpty) {
         StatusCode.COMMIT_FILE_EXCEPTION
       } else {

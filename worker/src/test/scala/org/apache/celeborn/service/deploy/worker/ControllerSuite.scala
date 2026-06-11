@@ -98,8 +98,8 @@ class ControllerSuite extends AnyFunSuite {
     assert(response.failedPrimaryIds.asScala.toSet == Set("p2", "p3"))
   }
 
-  test("CELEBORN-2341: all partitions empty (none committed, none in-flight) reports no " +
-    "failures, so the driver does not recompute") {
+  test("CELEBORN-2341: all partitions empty (none committed, none in-flight) is SUCCESS " +
+    "with no failures, so the driver neither recomputes nor records a failed worker") {
     val response = Controller.buildCommitFilesResponseOnCancel(
       primaryIds = ids("p0", "p1"),
       replicaIds = ids(),
@@ -112,6 +112,29 @@ class ControllerSuite extends AnyFunSuite {
       committedMapIdBitMap = emptyBitMaps,
       partitionSizeList = emptySizes)
 
+    assert(response.status == StatusCode.SUCCESS)
+    assert(response.failedPrimaryIds.isEmpty)
+    assert(response.failedReplicaIds.isEmpty)
+  }
+
+  test("CELEBORN-2341: every requested partition committed or empty before the snapshot " +
+    "(cancellation raced with completion) is SUCCESS, not PARTIAL_SUCCESS, so the worker " +
+    "is not recorded in commitFilesFailedWorkers") {
+    val response = Controller.buildCommitFilesResponseOnCancel(
+      primaryIds = ids("p0", "p1", "p2"),
+      replicaIds = ids("r0"),
+      committedPrimaryIds = set("p0", "p1"),
+      committedReplicaIds = set("r0"),
+      emptyFilePrimaryIds = set("p2"),
+      emptyFileReplicaIds = set(),
+      committedPrimaryStorageInfos = emptyStorageInfos,
+      committedReplicaStorageInfos = emptyStorageInfos,
+      committedMapIdBitMap = emptyBitMaps,
+      partitionSizeList = emptySizes)
+
+    assert(response.status == StatusCode.SUCCESS)
+    assert(response.committedPrimaryIds.asScala.toSet == Set("p0", "p1"))
+    assert(response.committedReplicaIds.asScala.toSet == Set("r0"))
     assert(response.failedPrimaryIds.isEmpty)
     assert(response.failedReplicaIds.isEmpty)
   }
