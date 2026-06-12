@@ -77,6 +77,14 @@ class CelebornConf : public BaseConf {
 
   static constexpr std::string_view kSimplePushStrategy{"SIMPLE"};
 
+  static constexpr std::string_view kSlowStartPushStrategy{"SLOWSTART"};
+
+  static constexpr std::string_view kClientPushSlowStartInitialSleepTime{
+      "celeborn.client.push.slowStart.initialSleepTime"};
+
+  static constexpr std::string_view kClientPushSlowStartMaxSleepTime{
+      "celeborn.client.push.slowStart.maxSleepTime"};
+
   static constexpr std::string_view kClientPushMaxReqsInFlightPerWorker{
       "celeborn.client.push.maxReqsInFlight.perWorker"};
 
@@ -138,6 +146,9 @@ class CelebornConf : public BaseConf {
   static constexpr std::string_view kClientPushReplicateEnabled{
       "celeborn.client.push.replicate.enabled"};
 
+  static constexpr std::string_view kClientPushExcludeWorkerOnFailureEnabled{
+      "celeborn.client.push.excludeWorkerOnFailure.enabled"};
+
   static constexpr std::string_view kClientFetchExcludeWorkerOnFailureEnabled{
       "celeborn.client.fetch.excludeWorkerOnFailure.enabled"};
 
@@ -181,6 +192,10 @@ class CelebornConf : public BaseConf {
   int clientPushMaxReviveTimes() const;
 
   std::string clientPushLimitStrategy() const;
+
+  long clientPushSlowStartInitialSleepTime() const;
+
+  long clientPushSlowStartMaxSleepMills() const;
 
   int clientPushMaxReqsInFlightPerWorker() const;
 

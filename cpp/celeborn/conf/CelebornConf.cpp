@@ -147,6 +147,8 @@ CelebornConf::defaultProperties() {
           NUM_PROP(kClientPushReviveBatchSize, 2048),
           NUM_PROP(kClientPushMaxReviveTimes, 5),
           STR_PROP(kClientPushLimitStrategy, kSimplePushStrategy),
+          STR_PROP(kClientPushSlowStartInitialSleepTime, "500ms"),
+          STR_PROP(kClientPushSlowStartMaxSleepTime, "2s"),
           NUM_PROP(kClientPushMaxReqsInFlightPerWorker, 32),
           NUM_PROP(kClientPushMaxReqsInFlightTotal, 256),
           NUM_PROP(kClientPushLimitInFlightTimeoutMs, 240000),
@@ -255,6 +257,20 @@ int CelebornConf::clientPushMaxReviveTimes() const {
 
 std::string CelebornConf::clientPushLimitStrategy() const {
   return optionalProperty(kClientPushLimitStrategy).value();
+}
+
+long CelebornConf::clientPushSlowStartInitialSleepTime() const {
+  return utils::toTimeout(
+             toDuration(optionalProperty(kClientPushSlowStartInitialSleepTime)
+                            .value()))
+      .count();
+}
+
+long CelebornConf::clientPushSlowStartMaxSleepMills() const {
+  return utils::toTimeout(
+             toDuration(
+                 optionalProperty(kClientPushSlowStartMaxSleepTime).value()))
+      .count();
 }
 
 int CelebornConf::clientPushMaxReqsInFlightPerWorker() const {

@@ -19,6 +19,7 @@ add_executable(
         PushDataCallbackTest.cpp
         CelebornInputStreamRetryTest.cpp
         PushStateTest.cpp
+        PushStrategyTest.cpp
         ReviveManagerTest.cpp
         Lz4DecompressorTest.cpp
         ZstdDecompressorTest.cpp
