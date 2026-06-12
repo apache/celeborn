@@ -49,11 +49,11 @@ tests:
           path: data["celeborn-defaults.conf"]
           pattern: "(?m)^\\s*celeborn\\.master\\.internal\\.endpoints=.*"
 
-  - it: Should render master endpoints keys with consistent key=value spacing
+  - it: Should render config entries without spaces before the key-value separator
     asserts:
       - matchRegex:
           path: data["celeborn-defaults.conf"]
           pattern: "(?m)^\\s*celeborn\\.master\\.endpoints=.*"
-      - matchRegex:
+      - notMatchRegex:
           path: data["celeborn-defaults.conf"]
-          pattern: "(?m)^\\s*celeborn\\.master\\.internal\\.endpoints=.*"
+          pattern: "(?m)^\\s*[^#\\s][^=\\n]*\\s+=.*"

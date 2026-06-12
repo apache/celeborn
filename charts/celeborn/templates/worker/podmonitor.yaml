@@ -15,8 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */ -}}
 
-{{- if .Values.podMonitor.enable }}
-{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/PodMonitor" -}}
+{{- if and .Values.podMonitor.enable (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1/PodMonitor") -}}
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
@@ -37,5 +36,4 @@ spec:
   selector:
     matchLabels:
       {{- include "celeborn.worker.selectorLabels" . | nindent 6 }}
-{{- end }}
 {{- end }}
