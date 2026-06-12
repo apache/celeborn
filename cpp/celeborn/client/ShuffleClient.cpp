@@ -907,7 +907,9 @@ bool ShuffleClientImpl::cleanupShuffle(int shuffleId) {
 void ShuffleClientImpl::shutdown() {
   // Worker exclusion is client-wide, not per-shuffle: entries are dropped by a
   // successful revive or fresh assignment, and only wholesale here (like Java).
+  // Pools/managers are freed by the destructor (RAII).
   pushExcludedWorkers_.clear();
+  fetchExcludedWorkers_->clear();
 }
 
 std::shared_ptr<PushState> ShuffleClientImpl::getPushState(

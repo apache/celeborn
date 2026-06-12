@@ -184,7 +184,8 @@ void PushMergedDataCallback::onSuccess(
             }
           }
 
-          // For any HARD_SPLIT partitions, need to resubmit
+          // Any partition that is not SOFT_SPLIT needs to be resubmitted
+          // (mirrors Java's else branch), reviving with HARD_SPLIT.
           std::vector<DataBatch> batchesToRetry;
           std::vector<std::shared_ptr<protocol::ReviveRequest>> reviveRequests;
           for (int i = 0; i < partitionInfo.splitpartitionindexes_size(); i++) {
@@ -192,8 +193,8 @@ void PushMergedDataCallback::onSuccess(
             CELEBORN_DCHECK_GE(partitionIndex, 0);
             CELEBORN_DCHECK_LT(partitionIndex, numBatches);
             int statusCode = partitionInfo.statuscodes(i);
-            if (statusCode ==
-                static_cast<int>(protocol::StatusCode::HARD_SPLIT)) {
+            if (statusCode !=
+                static_cast<int>(protocol::StatusCode::SOFT_SPLIT)) {
               int partitionId = partitionIds_[partitionIndex];
               // Record before the batch is moved into batchesToRetry.
               maybeRecordResubmittedBatch(
