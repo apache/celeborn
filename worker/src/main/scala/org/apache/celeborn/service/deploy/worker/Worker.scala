@@ -156,7 +156,7 @@ private[celeborn] class Worker(
 
   private val WORKER_SHUTDOWN_PRIORITY = 100
   val shutdown = new AtomicBoolean(false)
-  private val gracefulShutdown = conf.workerGracefulShutdown && !conf.workerDecommissionShutdown
+  private val gracefulShutdown = conf.effectiveWorkerGracefulShutdown
   if (gracefulShutdown) {
     var checkPortMap = Map(
       WORKER_RPC_PORT -> conf.workerRpcPort,
@@ -619,6 +619,11 @@ private[celeborn] class Worker(
     if (!stopped) {
       logInfo("Stopping Worker.")
 
+      // Both graceful shutdown and decommission have drained data, so in-flight
+      // tasks are allowed to finish instead of being force-cancelled.
+      val drainBeforeExit = exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN ||
+        exitKind == CelebornExitKind.WORKER_DECOMMISSION
+
       if (jvmProfiler != null) {
         jvmProfiler.stop()
       }
@@ -626,8 +631,7 @@ private[celeborn] class Worker(
         jvmQuake.stop()
       }
       if (sendHeartbeatTask != null) {
-        if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN ||
-          exitKind == CelebornExitKind.WORKER_DECOMMISSION) {
+        if (drainBeforeExit) {
           sendHeartbeatTask.cancel(false)
         } else {
           sendHeartbeatTask.cancel(true)
@@ -635,16 +639,14 @@ private[celeborn] class Worker(
         sendHeartbeatTask = null
       }
       if (checkFastFailTask != null) {
-        if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN ||
-          exitKind == CelebornExitKind.WORKER_DECOMMISSION) {
+        if (drainBeforeExit) {
           checkFastFailTask.cancel(false)
         } else {
           checkFastFailTask.cancel(true)
         }
         checkFastFailTask = null
       }
-      if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN ||
-        exitKind == CelebornExitKind.WORKER_DECOMMISSION) {
+      if (drainBeforeExit) {
         forwardMessageScheduler.shutdown()
         replicateThreadPool.shutdown()
         commitThreadPool.shutdown()
@@ -953,7 +955,7 @@ private[celeborn] class Worker(
     exitType.toUpperCase(Locale.ROOT) match {
       case "DECOMMISSION" =>
         ShutdownHookManager.get().updateTimeout(
-          conf.workerDecommissionForceExitTimeout,
+          conf.workerDecommissionForceExitTimeout + conf.workerDecommissionCheckInterval,
           TimeUnit.MILLISECONDS)
         workerStatusManager.doTransition(WorkerEventType.Decommission)
       case "GRACEFUL" =>
@@ -1034,7 +1036,9 @@ private[celeborn] class Worker(
 
     def waitTime: Long = waitTimes * interval
 
-    while (!storageManager.shuffleKeySet().isEmpty && waitTime < timeout) {
+    // Bound the total wait strictly by the timeout so that the remaining shutdown hook
+    // budget is left for stop(WORKER_DECOMMISSION) to clean up resources.
+    while (!storageManager.shuffleKeySet().isEmpty && waitTime + interval <= timeout) {
       Thread.sleep(interval)
       waitTimes += 1
     }
@@ -1075,41 +1079,34 @@ private[celeborn] class Worker(
     workerStatusManager.transitionState(State.Exit)
   }
 
-  private val shutdownHookThread = ThreadUtils.newThread(
-    new Runnable {
-      override def run(): Unit = {
-        logInfo("Shutdown hook called.")
-        workerStatusManager.exitEventType match {
-          case WorkerEventType.Graceful =>
-            shutdownGracefully()
-          case WorkerEventType.Decommission =>
-            decommissionWorker()
-          case _ =>
-            exitImmediately()
+  ShutdownHookManager.get().addShutdownHook(
+    ThreadUtils.newThread(
+      new Runnable {
+        override def run(): Unit = {
+          logInfo("Shutdown hook called.")
+          workerStatusManager.exitEventType match {
+            case WorkerEventType.Graceful =>
+              shutdownGracefully()
+              stop(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
+            case WorkerEventType.Decommission =>
+              decommissionWorker()
+              stop(CelebornExitKind.WORKER_DECOMMISSION)
+            case _ =>
+              exitImmediately()
+              stop(CelebornExitKind.EXIT_IMMEDIATELY)
+          }
         }
-
-        workerStatusManager.exitEventType match {
-          case WorkerEventType.Graceful =>
-            stop(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
-          case WorkerEventType.Decommission =>
-            stop(CelebornExitKind.WORKER_DECOMMISSION)
-          case _ =>
-            stop(CelebornExitKind.EXIT_IMMEDIATELY)
-        }
-      }
-    },
-    "worker-shutdown-hook-thread")
+      },
+      "worker-shutdown-hook-thread"),
+    WORKER_SHUTDOWN_PRIORITY)
 
   if (conf.workerDecommissionShutdown) {
-    ShutdownHookManager.get().addShutdownHook(
-      shutdownHookThread,
-      WORKER_SHUTDOWN_PRIORITY,
+    // The wait loop in decommissionWorker() is bounded by forceExitTimeout, so the extra
+    // checkInterval reserves headroom for stop(WORKER_DECOMMISSION) to finish cleanup
+    // before the hook is cancelled.
+    ShutdownHookManager.get().updateTimeout(
       conf.workerDecommissionForceExitTimeout + conf.workerDecommissionCheckInterval,
       TimeUnit.MILLISECONDS)
-  } else {
-    ShutdownHookManager.get().addShutdownHook(
-      shutdownHookThread,
-      WORKER_SHUTDOWN_PRIORITY)
   }
 
   @VisibleForTesting

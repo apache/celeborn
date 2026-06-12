@@ -79,8 +79,11 @@ class WorkerStatusManagerSuite extends AnyFunSuite {
   }
 
   test("Test exitEventType initialization based on config") {
-    // Default: neither graceful nor decommission → Immediately
+    // Neither graceful nor decommission → Immediately. Set both keys explicitly so the
+    // assertion does not depend on system properties leaked from other tests.
     val conf1 = new CelebornConf()
+    conf1.set("celeborn.worker.graceful.shutdown.enabled", "false")
+    conf1.set("celeborn.worker.decommission.shutdown.enabled", "false")
     val mgr1 = new WorkerStatusManager(conf1)
     Assert.assertEquals(WorkerEventType.Immediately, mgr1.exitEventType)
 

@@ -1359,6 +1359,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def workerDecommissionShutdown: Boolean = get(WORKER_DECOMMISSION_SHUTDOWN_ENABLED)
   def workerGracefulShutdown: Boolean = get(WORKER_GRACEFUL_SHUTDOWN_ENABLED)
+  // Decommission shutdown overrides graceful shutdown: a decommissioned worker will not
+  // restart, so recovery state (recovery DB, sorter state) should not be persisted.
+  def effectiveWorkerGracefulShutdown: Boolean =
+    workerGracefulShutdown && !workerDecommissionShutdown
   def workerGracefulShutdownTimeoutMs: Long = get(WORKER_GRACEFUL_SHUTDOWN_TIMEOUT)
   def workerGracefulShutdownCheckSlotsFinishedInterval: Long =
     get(WORKER_CHECK_SLOTS_FINISHED_INTERVAL)
@@ -4486,10 +4490,11 @@ object CelebornConf extends Logging {
         "This is suitable for permanent scale-down scenarios where the worker will not restart. " +
         "When enabled, this overrides celeborn.worker.graceful.shutdown.enabled " +
         "(recovery state will not be saved since the worker is not expected to come back). " +
-        "Operators should set the pod's terminationGracePeriodSeconds to at least " +
+        "Operators should set the pod's terminationGracePeriodSeconds to " +
         "celeborn.worker.decommission.forceExitTimeout + " +
-        "celeborn.worker.decommission.checkInterval to ensure the shutdown hook " +
-        "has enough time to complete.")
+        "celeborn.worker.decommission.checkInterval plus a small buffer, to ensure " +
+        "the shutdown hook has enough time to complete resource cleanup before " +
+        "being killed.")
       .version("0.7.0")
       .booleanConf
       .createWithDefault(false)
