@@ -1161,6 +1161,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
       }
 
+      // NOTE: the DFS branches below (HDFS/S3/OSS) also build "$appId/$shuffleId"
+      // paths but rely solely on the upstream Utils.validateAppId guard at the RPC
+      // entry points
       if (storageType == Type.HDFS && location.getStorageInfo.HDFSAvailable()) {
         val shuffleDir =
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")

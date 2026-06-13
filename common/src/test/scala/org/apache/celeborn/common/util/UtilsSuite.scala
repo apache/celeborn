@@ -306,6 +306,8 @@ class UtilsSuite extends CelebornFunSuite {
       "app/id",
       "app\\id",
       "app id",
+      "app\n",
+      "valid_app\n",
       "",
       null).foreach { id =>
       intercept[IllegalArgumentException] {

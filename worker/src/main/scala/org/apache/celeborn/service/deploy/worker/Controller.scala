@@ -115,7 +115,6 @@ private[deploy] class Controller(
           pushDataTimeout,
           partitionSplitEnabled,
           isSegmentGranularityVisible) =>
-      Utils.validateAppId(applicationId)
       checkAuth(context, applicationId)
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.RESERVE_SLOTS_TIME, shuffleKey) {
@@ -147,7 +146,6 @@ private[deploy] class Controller(
           mapAttempts,
           epoch,
           mockFailure) =>
-      Utils.validateAppId(applicationId)
       checkAuth(context, applicationId)
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       logDebug(s"Received CommitFiles request, $shuffleKey, primary files" +
@@ -166,9 +164,7 @@ private[deploy] class Controller(
         s"$commitFilesTimeMs ms.")
 
     case DestroyWorkerSlots(shuffleKey, primaryLocations, replicaLocations, mockFailure) =>
-      val applicationId = Utils.splitShuffleKey(shuffleKey)._1
-      Utils.validateAppId(applicationId)
-      checkAuth(context, applicationId)
+      checkAuth(context, Utils.splitShuffleKey(shuffleKey)._1)
       handleDestroy(context, shuffleKey, primaryLocations, replicaLocations, mockFailure)
   }
 
