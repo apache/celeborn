@@ -557,6 +557,14 @@ class FetchHandler(
       s" to fetch block $streamChunkSlice")
 
     val streamState = chunkStreamManager.getStreamState(streamChunkSlice.streamId)
+    if (streamState == null) {
+      val message = s"Stream ${streamChunkSlice.streamId} is not registered with worker. " +
+        "This can happen if the worker was restarted recently."
+      logError(message)
+      workerSource.incCounter(storageMetrics._3)
+      client.getChannel.writeAndFlush(new ChunkFetchFailure(streamChunkSlice, message))
+      return
+    }
     val storageMetrics = streamState.buffers match {
       case _: FileChunkBuffers => (
           WorkerSource.FETCH_LOCAL_CHUNK_TIME,
@@ -566,14 +574,6 @@ class FetchHandler(
           WorkerSource.FETCH_MEMORY_CHUNK_TIME,
           WorkerSource.FETCH_MEMORY_CHUNK_SUCCESS_COUNT,
           WorkerSource.FETCH_MEMORY_CHUNK_FAIL_COUNT)
-    }
-    if (streamState == null) {
-      val message = s"Stream ${streamChunkSlice.streamId} is not registered with worker. " +
-        "This can happen if the worker was restart recently."
-      logError(message)
-      workerSource.incCounter(storageMetrics._3)
-      client.getChannel.writeAndFlush(new ChunkFetchFailure(streamChunkSlice, message))
-      return
     }
 
     maxChunkBeingTransferred.foreach { threshold =>
