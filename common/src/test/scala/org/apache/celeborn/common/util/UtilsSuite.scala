@@ -20,6 +20,7 @@ package org.apache.celeborn.common.util
 import java.util
 import java.util.Collections
 
+import org.roaringbitmap.RoaringBitmap
 import org.scalatest.matchers.must.Matchers.contain
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
@@ -257,6 +258,37 @@ class UtilsSuite extends CelebornFunSuite {
     val set =
       (response.fileGroup.values().toArray diff responseTrans.fileGroup.values().toArray).toSet
     assert(set.size == 0)
+  }
+
+  test("CommitFilesResponse with empty map-id bitmap survives transport round-trip") {
+    // Regression test: a worker serializes an empty RoaringBitmap as
+    // ByteString.EMPTY, which byteStringToRoaringBitmap deserializes back to null.
+    // That null must not end up in committedMapIdBitMap, otherwise putAll into the
+    // ConcurrentHashMap in CommitHandler.processResponse throws NPE and stage-end hangs.
+    val committedMapIdBitMap = new util.HashMap[String, RoaringBitmap]()
+    committedMapIdBitMap.put("0-0", new RoaringBitmap()) // empty bitmap
+    val nonEmpty = RoaringBitmap.bitmapOf(1, 2, 3)
+    committedMapIdBitMap.put("0-1", nonEmpty)
+
+    val response = CommitFilesResponse(
+      StatusCode.SUCCESS,
+      Collections.emptyList[String](),
+      Collections.emptyList[String](),
+      Collections.emptyList[String](),
+      Collections.emptyList[String](),
+      committedMapIdBitMap = committedMapIdBitMap)
+    val responseTrans = Utils.fromTransportMessage(Utils.toTransportMessage(response))
+      .asInstanceOf[CommitFilesResponse]
+
+    // The empty bitmap entry is dropped (not present as a null value), and merging into
+    // a ConcurrentHashMap must not throw.
+    assert(!responseTrans.committedMapIdBitMap.containsValue(null))
+    assert(!responseTrans.committedMapIdBitMap.containsKey("0-0"))
+    assert(responseTrans.committedMapIdBitMap.get("0-1") == nonEmpty)
+
+    val concurrent = new java.util.concurrent.ConcurrentHashMap[String, RoaringBitmap]()
+    concurrent.putAll(responseTrans.committedMapIdBitMap)
+    assert(concurrent.size() == 1)
   }
 
   test("validate number of client/server netty threads") {
