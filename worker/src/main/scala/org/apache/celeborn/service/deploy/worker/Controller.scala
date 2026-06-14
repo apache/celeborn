@@ -690,6 +690,10 @@ private[deploy] class Controller(
         new BiFunction[Void, Throwable, Unit] {
           override def apply(v: Void, t: Throwable): Unit = {
             if (null != t) {
+              // Cancel the timeout task even on the exceptional path: otherwise, when the
+              // future fails for a reason other than the timer firing, the task fires later
+              // and logs a misleading "cancel all commit file jobs" warning.
+              timeout.cancel()
               val errMsg = s"Exception while handling commitFiles for shuffleId: $shuffleKey"
               t match {
                 case _: CancellationException =>
@@ -944,6 +948,9 @@ private[deploy] object Controller {
     failedReplicaIds.removeAll(emptyFileReplicaIds)
     val committedPrimaryIdList = new jArrayList[String](committedPrimaryIds)
     val committedReplicaIdList = new jArrayList[String](committedReplicaIds)
+    // Snapshot once: tasks may still be adding, so deriving totalWritten and fileCount from a
+    // single traversal keeps the two fields mutually consistent.
+    val partitionSizes = partitionSizeList.asScala.toVector
     // Derive status from the failed lists returned in this response. Empty failed lists mean
     // every requested partition reached a terminal good state before the snapshot (committed
     // or empty -- both sets are append-only), which is the normal path's SUCCESS condition;
@@ -969,7 +976,7 @@ private[deploy] object Controller {
       new jHashMap[String, StorageInfo](committedPrimaryStorageInfos),
       new jHashMap[String, StorageInfo](committedReplicaStorageInfos),
       new jHashMap[String, RoaringBitmap](committedMapIdBitMap),
-      partitionSizeList.asScala.sum,
-      partitionSizeList.size())
+      partitionSizes.sum,
+      partitionSizes.size)
   }
 }
