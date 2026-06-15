@@ -179,7 +179,8 @@ class ApplicationHeartbeater(
     if (!gcOnOverloadEnabled || !shouldTriggerGc) return
     val now = System.currentTimeMillis()
     if (now - lastGcTriggerTimeMs >= gcOnOverloadMinIntervalMs) {
-      logInfo("Cluster is overloaded; triggering System.gc() to release stale shuffle dependencies.")
+      logInfo(
+        "Cluster is overloaded; triggering System.gc() to release stale shuffle dependencies.")
       lastGcTriggerTimeMs = now
       System.gc()
     } else {

@@ -27,6 +27,8 @@ license: |
 | celeborn.client.application.uuidSuffix.enabled | false | false | Whether to add UUID suffix for application id for unique. When `true`, add UUID suffix for unique application id. Currently, this only applies to Spark and MR. | 0.6.0 |  | 
 | celeborn.client.chunk.prefetch.enabled | false | false | Whether to enable chunk prefetch when creating CelebornInputStream. | 0.5.1 |  | 
 | celeborn.client.closeIdleConnections | true | false | Whether client will close idle connections. | 0.3.0 |  | 
+| celeborn.client.clusterOverload.gc.enabled | true | false | When true, the client will trigger System.gc() upon receiving a GC signal from the master indicating cluster storage is overloaded. Disable to ignore the signal. | 0.7.0 |  | 
+| celeborn.client.clusterOverload.gc.minInterval | 5m | false | Minimum time that must elapse between consecutive GC triggers on the client side in response to master GC signals. This prevents excessive GC pressure when the cluster remains overloaded across multiple heartbeat intervals. | 0.7.0 |  | 
 | celeborn.client.commitFiles.ignoreExcludedWorker | false | false | When true, LifecycleManager will skip workers which are in the excluded list. | 0.3.0 |  | 
 | celeborn.client.eagerlyCreateInputStream.threads | 32 | false | Threads count for streamCreatorPool in CelebornShuffleReader. | 0.3.1 |  | 
 | celeborn.client.excludePeerWorkerOnFailure.enabled | true | false | When true, Celeborn will exclude partition's peer worker on failure when push data to replica failed. | 0.3.0 |  | 
