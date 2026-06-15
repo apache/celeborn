@@ -27,7 +27,9 @@ import org.apache.flink.runtime.jobgraph.JobType
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.concurrent.Eventually._
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.time.SpanSugar._
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
@@ -186,12 +188,18 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
   }
 
   private def checkFlushingFileLength(): Unit = {
-    workers.map(worker => {
-      worker.storageManager.workingDirWriters.values().asScala.map(writers => {
-        writers.forEach((fileName, fileWriter) => {
-          assert(new File(fileName).length() == fileWriter.getDiskFileInfo.getFileLength)
+    // getDiskFileInfo.getFileLength is the logical byte count accounted as data is written, while
+    // the physical file is grown asynchronously by the LocalFlusher. Right after the job finishes
+    // the flusher may not have drained the last buffers yet, so the on-disk length can lag (briefly
+    // even 0). Wait for the flush to catch up before asserting equality instead of reading mid-flush.
+    eventually(timeout(30.seconds), interval(500.milliseconds)) {
+      workers.map(worker => {
+        worker.storageManager.workingDirWriters.values().asScala.map(writers => {
+          writers.forEach((fileName, fileWriter) => {
+            assert(new File(fileName).length() == fileWriter.getDiskFileInfo.getFileLength)
+          })
         })
       })
-    })
+    }
   }
 }
