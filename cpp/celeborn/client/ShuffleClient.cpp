@@ -1172,24 +1172,25 @@ std::optional<std::unordered_map<int, int>> ShuffleClientImpl::reviveBatch(
       mapperEndSet->insert(endedMapId);
     }
     for (auto& partitionInfo : response->partitionInfos) {
+      // Mirror Java reviveBatch: clear the old location's push exclusion for
+      // every revive status, not only SUCCESS.
+      if (pushExcludeWorkerOnFailureEnabled_) {
+        if (auto oldIter = oldLocationMap.find(partitionInfo.partitionId);
+            oldIter != oldLocationMap.end() && oldIter->second) {
+          pushExcludedWorkers_.erase(oldIter->second->hostAndPushPort());
+        }
+      }
       switch (partitionInfo.status) {
         case protocol::StatusCode::SUCCESS: {
           partitionLocationMap->set(
               partitionInfo.partitionId, partitionInfo.partition);
-          // Revive moved this partition off the failed worker(s); drop the
-          // push exclusion on both the old and new locations.
-          if (pushExcludeWorkerOnFailureEnabled_) {
-            if (auto oldIter = oldLocationMap.find(partitionInfo.partitionId);
-                oldIter != oldLocationMap.end() && oldIter->second) {
-              pushExcludedWorkers_.erase(oldIter->second->hostAndPushPort());
-            }
-            if (partitionInfo.partition) {
+          // Also clear exclusion on the new location and its peer.
+          if (pushExcludeWorkerOnFailureEnabled_ && partitionInfo.partition) {
+            pushExcludedWorkers_.erase(
+                partitionInfo.partition->hostAndPushPort());
+            if (partitionInfo.partition->hasPeer()) {
               pushExcludedWorkers_.erase(
-                  partitionInfo.partition->hostAndPushPort());
-              if (partitionInfo.partition->hasPeer()) {
-                pushExcludedWorkers_.erase(
-                    partitionInfo.partition->getPeer()->hostAndPushPort());
-              }
+                  partitionInfo.partition->getPeer()->hostAndPushPort());
             }
           }
           break;
