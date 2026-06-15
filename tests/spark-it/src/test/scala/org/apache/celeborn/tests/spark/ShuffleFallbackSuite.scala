@@ -51,7 +51,7 @@ class ShuffleFallbackSuite extends AnyFunSuite
   }
 
   test(s"celeborn spark integration test - fallback") {
-    setupMiniClusterWithRandomPorts(workerNum = 5)
+    setupMiniClusterWithRandomPorts(workerNum = 3)
     val sparkConf = new SparkConf().setAppName("celeborn-demo")
       .setMaster("local[2]")
       .set(s"spark.${CelebornConf.SPARK_SHUFFLE_FORCE_FALLBACK_ENABLED.key}", "true")

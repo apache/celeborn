@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
@@ -58,6 +59,7 @@ public abstract class ShuffleClient {
   private static Logger logger = LoggerFactory.getLogger(ShuffleClient.class);
   private static volatile ShuffleClient _instance;
   private static volatile boolean initialized = false;
+  private static volatile String _appUniqueId;
   private static volatile Map<StorageInfo.Type, FileSystem> hadoopFs;
   private static LongAdder totalReadCounter = new LongAdder();
   private static LongAdder localShuffleReadCounter = new LongAdder();
@@ -70,6 +72,7 @@ public abstract class ShuffleClient {
   public static void reset() {
     _instance = null;
     initialized = false;
+    _appUniqueId = null;
     hadoopFs = null;
   }
 
@@ -103,7 +106,7 @@ public abstract class ShuffleClient {
       UserIdentifier userIdentifier,
       byte[] extension,
       Optional<CryptoHandler> cryptoHandler) {
-    if (null == _instance || !initialized) {
+    if (null == _instance || !initialized || !Objects.equals(appUniqueId, _appUniqueId)) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {
           // During the execution of Spark tasks, each task may be interrupted due to speculative
@@ -116,6 +119,7 @@ public abstract class ShuffleClient {
           _instance.setupLifecycleManagerRef(driverHost, port);
           _instance.setExtension(extension);
           _instance.setupCryptoHandler(cryptoHandler);
+          _appUniqueId = appUniqueId;
           initialized = true;
         } else if (!initialized) {
           _instance.shutdown();
@@ -123,8 +127,26 @@ public abstract class ShuffleClient {
           _instance.setupLifecycleManagerRef(driverHost, port);
           _instance.setExtension(extension);
           _instance.setupCryptoHandler(cryptoHandler);
+          _appUniqueId = appUniqueId;
+          initialized = true;
+        } else if (!Objects.equals(appUniqueId, _appUniqueId)) {
+          // Do NOT shutdown() the old _instance. Callers cache the reference returned by get(),
+          // and shutdown() is an immediate teardown that would terminate the RpcEnv/pools still in
+          // use, causing RejectedExecutionException. Teardown is owned by stop()->shutdown(). The
+          // orphan is bounded (one per appUniqueId) and unreachable in normal single-app JVMs.
+          // The spark-it suite runs multiple apps in one reused JVM with overlapping lifecycles, so
+          // a shutdown() here tears down an instance still in use by the previous app and fails.
+          ShuffleClientImpl newInstance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
+          newInstance.setupLifecycleManagerRef(driverHost, port);
+          newInstance.setExtension(extension);
+          // Publish _instance before _appUniqueId. The outer guard reads both volatiles without
+          // holding the lock, so writing _appUniqueId first would let another thread observe the
+          // new id while _instance is still stale and return the old instance.
+          _instance = newInstance;
+          _appUniqueId = appUniqueId;
           initialized = true;
         }
+        return _instance;
       }
     }
     // Apply the crypto handler even when the singleton is already initialized. This handles

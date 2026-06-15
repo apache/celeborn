@@ -34,7 +34,7 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
 
   protected val celebornConf: CelebornConf = new CelebornConf()
 
-  protected val APP = "app-1"
+  protected var APP: String = _
   protected val userIdentifier: UserIdentifier = UserIdentifier("mock", "mock")
   private val numMappers = 8
   private val mapId = 1
@@ -47,6 +47,11 @@ trait WithShuffleClientSuite extends CelebornFunSuite {
   def nextShuffleId: Int = {
     _shuffleId += 1
     _shuffleId
+  }
+
+  override protected def beforeEach(): Unit = {
+    super.beforeEach()
+    APP = s"app-${java.util.UUID.randomUUID()}"
   }
 
   override protected def afterEach() {

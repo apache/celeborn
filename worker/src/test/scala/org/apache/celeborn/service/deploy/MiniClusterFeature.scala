@@ -63,8 +63,9 @@ trait MiniClusterFeature extends Logging {
       socket.close()
     }
   }
+  // Ports are drawn below the ephemeral floor to avoid binding races.
   def selectRandomPort(): Int = synchronized {
-    val port = Utils.selectRandomInt(1024, 65535)
+    val port = Utils.selectRandomPort()
     val portUsed = usedPorts.contains(port) || portBounded(port)
     usedPorts.add(port)
     if (portUsed) {
@@ -213,7 +214,7 @@ trait MiniClusterFeature extends Logging {
     val workers = new Array[Worker](workerNum)
     val flagUpdateLock = new ReentrantLock()
     val threads = (1 to workerNum).map { i =>
-      val worker = createWorker(workerConf)
+      var worker = createWorker(workerConf)
       val workerThread = new RunnerWrap({
         var workerStartRetry = 0
         var workerStarted = false
@@ -225,10 +226,15 @@ trait MiniClusterFeature extends Logging {
             workerStarted = true
             worker.initialize()
           } catch {
+            case ie: InterruptedException =>
+              Utils.tryLogNonFatalError(worker.stop(CelebornExitKind.EXIT_IMMEDIATELY))
+              Utils.tryLogNonFatalError(worker.rpcEnv.shutdown())
+              Thread.currentThread().interrupt()
+              throw ie
             case ex: Exception =>
-              if (workers(i - 1) != null) {
-                workers(i - 1).shutdownGracefully()
-              }
+              Utils.tryLogNonFatalError(worker.exitImmediately())
+              Utils.tryLogNonFatalError(worker.stop(CelebornExitKind.EXIT_IMMEDIATELY))
+              Utils.tryLogNonFatalError(worker.rpcEnv.shutdown())
               workerStarted = false
               workerStartRetry += 1
               logError(s"cannot start worker $i, retrying: ", ex)
@@ -236,6 +242,14 @@ trait MiniClusterFeature extends Logging {
                 logError(s"cannot start worker $i, reached to max retrying", ex)
                 throw ex
               }
+              try {
+                TimeUnit.SECONDS.sleep(Math.pow(2, workerStartRetry).toLong)
+              } catch {
+                case ie: InterruptedException =>
+                  Thread.currentThread().interrupt()
+                  throw ie
+              }
+              worker = createWorker(workerConf)
           }
         }
       })

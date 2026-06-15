@@ -18,8 +18,7 @@
 package org.apache.celeborn.service.deploy.worker.monitor
 
 import java.io.File
-
-import scala.collection.mutable.ArrayBuffer
+import java.util.concurrent.TimeUnit
 
 import org.junit.Assert.assertTrue
 
@@ -29,13 +28,6 @@ import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.util.JavaUtils
 
 class JVMQuakeSuite extends CelebornFunSuite {
-
-  private val allocation = new ArrayBuffer[Array[Byte]]()
-
-  override def afterEach(): Unit = {
-    allocation.clear()
-    System.gc()
-  }
 
   test("Convert JVMStat timer ticks to nanoseconds") {
     assert(JVMQuake.ticksToNanos(1L, 1000000000L) === 1L)
@@ -53,9 +45,14 @@ class JVMQuakeSuite extends CelebornFunSuite {
       .set(WORKER_JVM_QUAKE_RUNTIME_WEIGHT.key, "1")
       .set(WORKER_JVM_QUAKE_DUMP_THRESHOLD.key, "1s")
       .set(WORKER_JVM_QUAKE_KILL_THRESHOLD.key, "2s"))
-    quake.start()
-    allocateMemory(quake)
-    quake.stop()
+
+    // Drive the GC "deficit" bucket deterministically rather than inducing real GC pressure:
+    // feed a GC-time delta above the 1s dump threshold with no offsetting execution time, so the
+    // heap dump is triggered exactly once. The previous version spun until real GC happened to
+    // trip the threshold, which could (and did) hang indefinitely when the runner had enough
+    // headroom that GC pauses never dominated runtime.
+    assert(!quake.heapDumped)
+    quake.checkAndDump(TimeUnit.SECONDS.toNanos(2), 0L)
 
     assertTrue(quake.heapDumped)
     val heapDump = new File(s"${quake.getHeapDumpSavePath}/${quake.dumpFile}")
@@ -64,17 +61,10 @@ class JVMQuakeSuite extends CelebornFunSuite {
     JavaUtils.deleteRecursively(new File(quake.getHeapDumpLinkPath))
   }
 
-  def allocateMemory(quake: JVMQuake): Unit = {
-    val capacity = 1024 * 100
-    while (allocation.size * capacity < Runtime.getRuntime.maxMemory / 4) {
-      val bytes = new Array[Byte](capacity)
-      allocation.append(bytes)
-    }
-    while (quake.shouldHeapDump) {
-      for (index <- allocation.indices) {
-        val bytes = new Array[Byte](capacity)
-        allocation(index) = bytes
-      }
-    }
+  test("start() schedules monitoring and stop() tears it down without dumping") {
+    val quake = new JVMQuake(new CelebornConf().set(WORKER_JVM_QUAKE_ENABLED.key, "true"))
+    quake.start()
+    quake.stop()
+    assert(!quake.heapDumped)
   }
 }
