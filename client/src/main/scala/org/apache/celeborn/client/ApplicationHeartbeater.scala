@@ -49,7 +49,7 @@ class ApplicationHeartbeater(
 
   private val gcOnOverloadEnabled = conf.clientGcOnOverloadEnabled
   private val gcOnOverloadMinIntervalMs = conf.clientGcOnOverloadMinIntervalMs
-  @volatile private var lastGcTriggerTimeMs = 0L
+  @volatile private[client] var lastGcTriggerTimeMs = 0L
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
@@ -175,7 +175,7 @@ class ApplicationHeartbeater(
     }
   }
 
-  private def handleGcSignal(shouldTriggerGc: Boolean): Unit = {
+  private[client] def handleGcSignal(shouldTriggerGc: Boolean): Unit = {
     if (!gcOnOverloadEnabled || !shouldTriggerGc) return
     val now = System.currentTimeMillis()
     if (now - lastGcTriggerTimeMs >= gcOnOverloadMinIntervalMs) {

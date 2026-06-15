@@ -1262,15 +1262,11 @@ private[celeborn] class Master(
     }
   }
 
-  private def shouldTriggerGcForApp(): Boolean = {
-    if (!conf.clusterOverloadGcEnabled) return false
-    val totalCapacity = statusSystem.workersMap.values().asScala.map(_.totalSpace()).sum
-    if (totalCapacity <= 0) return false
-    val freeCapacity =
-      statusSystem.availableWorkers.asScala.toList.map(_.totalActualUsableSpace()).sum
-    val usedFraction = 1.0 - freeCapacity.toDouble / totalCapacity.toDouble
-    usedFraction >= conf.clusterOverloadGcThreshold
-  }
+  private[master] def shouldTriggerGcForApp(): Boolean =
+    Master.isClusterOverloaded(
+      conf,
+      statusSystem.workersMap,
+      statusSystem.availableWorkers)
 
   private def handleRemoveWorkersUnavailableInfos(
       context: RpcCallContext,
@@ -1646,5 +1642,17 @@ private[deploy] object Master extends Logging {
         logError("Initialize master failed.", e)
         System.exit(-1)
     }
+  }
+
+  private[master] def isClusterOverloaded(
+      conf: CelebornConf,
+      workersMap: java.util.Map[String, WorkerInfo],
+      availableWorkers: java.util.Set[WorkerInfo]): Boolean = {
+    if (!conf.clusterOverloadGcEnabled) return false
+    val totalCapacity = workersMap.values().asScala.map(_.totalSpace()).sum
+    if (totalCapacity <= 0) return false
+    val freeCapacity = availableWorkers.asScala.toList.map(_.totalActualUsableSpace()).sum
+    val usedFraction = 1.0 - freeCapacity.toDouble / totalCapacity.toDouble
+    usedFraction >= conf.clusterOverloadGcThreshold
   }
 }
