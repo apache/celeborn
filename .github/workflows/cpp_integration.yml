@@ -27,6 +27,10 @@ on:
       - main
       - branch-*
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   celeborn_cpp_check_lint:
     runs-on: ubuntu-22.04
