@@ -57,6 +57,7 @@ public abstract class ShuffleClient {
   private static Logger logger = LoggerFactory.getLogger(ShuffleClient.class);
   private static volatile ShuffleClient _instance;
   private static volatile boolean initialized = false;
+  private static volatile String _appUniqueId;
   private static volatile Map<StorageInfo.Type, FileSystem> hadoopFs;
   private static LongAdder totalReadCounter = new LongAdder();
   private static LongAdder localShuffleReadCounter = new LongAdder();
@@ -69,6 +70,7 @@ public abstract class ShuffleClient {
   public static void reset() {
     _instance = null;
     initialized = false;
+    _appUniqueId = null;
     hadoopFs = null;
   }
 
@@ -90,7 +92,7 @@ public abstract class ShuffleClient {
       CelebornConf conf,
       UserIdentifier userIdentifier,
       byte[] extension) {
-    if (null == _instance || !initialized) {
+    if (null == _instance || !initialized || !appUniqueId.equals(_appUniqueId)) {
       synchronized (ShuffleClient.class) {
         if (null == _instance) {
           // During the execution of Spark tasks, each task may be interrupted due to speculative
@@ -102,12 +104,21 @@ public abstract class ShuffleClient {
           _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
           _instance.setupLifecycleManagerRef(driverHost, port);
           _instance.setExtension(extension);
+          _appUniqueId = appUniqueId;
           initialized = true;
         } else if (!initialized) {
           _instance.shutdown();
           _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
           _instance.setupLifecycleManagerRef(driverHost, port);
           _instance.setExtension(extension);
+          _appUniqueId = appUniqueId;
+          initialized = true;
+        } else if (!appUniqueId.equals(_appUniqueId)) {
+          ShuffleClientImpl newInstance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
+          newInstance.setupLifecycleManagerRef(driverHost, port);
+          newInstance.setExtension(extension);
+          _appUniqueId = appUniqueId;
+          _instance = newInstance;
           initialized = true;
         }
       }

@@ -35,7 +35,10 @@ trait MemorySparkTestBase extends AnyFunSuite
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup Celeborn mini cluster")
     val workerConfs = Map("celeborn.worker.directMemoryRatioForMemoryFileStorage" -> "0.2")
-    setupMiniClusterWithRandomPorts(workerConf = workerConfs, workerNum = 5)
+    // 3 workers (the MiniClusterFeature default) instead of 5: these memory-storage suites run in
+    // the same shared, serial spark-it JVM, so trimming the per-suite worker footprint reduces the
+    // CPU contention that otherwise starves a worker's fetch handler past the 240s network timeout.
+    setupMiniClusterWithRandomPorts(workerConf = workerConfs, workerNum = 3)
   }
 
   override def afterAll(): Unit = {

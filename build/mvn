@@ -38,6 +38,7 @@ install_app() {
   local remote_tarball="$1/$2$4"
   local local_tarball="${_DIR}/$2"
   local binary="${_DIR}/$3"
+  local max_attempts=3
 
   # setup `curl` and `wget` silent options if we're running on Jenkins
   local curl_opts="-L"
@@ -46,23 +47,44 @@ install_app() {
   wget_opts="--progress=bar:force ${wget_opts}"
 
   if [ -z "$3" -o ! -f "$binary" ]; then
-    # check if we already have the tarball
-    # check if we have curl installed
-    # download application
-    [ ! -f "${local_tarball}" ] && [ $(command -v curl) ] && \
-      echo "exec: curl ${curl_opts} ${remote_tarball}" 1>&2 && \
-      curl ${curl_opts} "${remote_tarball}" > "${local_tarball}"
-    # if the file still doesn't exist, lets try `wget` and cross our fingers
-    [ ! -f "${local_tarball}" ] && [ $(command -v wget) ] && \
-      echo "exec: wget ${wget_opts} ${remote_tarball}" 1>&2 && \
-      wget ${wget_opts} -O "${local_tarball}" "${remote_tarball}"
-    # if both were unsuccessful, exit
-    [ ! -f "${local_tarball}" ] && \
-      echo -n "ERROR: Cannot download $2 with cURL or wget; " && \
-      echo "please install manually and try again." && \
-      exit 2
-    cd "${_DIR}" && tar -xzf "$2"
-    rm -rf "$local_tarball"
+    local attempt=1
+    while [ "${attempt}" -le "${max_attempts}" ]; do
+      # remove any partial/corrupt download left over from a previous attempt
+      rm -f "${local_tarball}"
+
+      # download application with `curl`, falling back to `wget`
+      if [ $(command -v curl) ]; then
+        echo "exec: curl ${curl_opts} ${remote_tarball}" 1>&2
+        curl ${curl_opts} "${remote_tarball}" > "${local_tarball}"
+      elif [ $(command -v wget) ]; then
+        echo "exec: wget ${wget_opts} ${remote_tarball}" 1>&2
+        wget ${wget_opts} -O "${local_tarball}" "${remote_tarball}"
+      else
+        echo "ERROR: Cannot download $2: neither cURL nor wget is installed." 1>&2
+        exit 2
+      fi
+
+      # Validate the download before trusting it. A flaky Apache mirror can
+      # return an HTML page (mirror chooser / error) with HTTP 200, which is
+      # not a gzip tarball; extracting it later would fail with a confusing
+      # exit code. `tar -tzf` lists the archive without extracting and
+      # exits non-zero on a non-tarball body.
+      if [ -f "${local_tarball}" ] && tar -tzf "${local_tarball}" >/dev/null 2>&1; then
+        cd "${_DIR}" && tar -xzf "$2"
+        rm -rf "${local_tarball}"
+        return 0
+      fi
+
+      echo "WARN: Download of $2 from $1 was not a valid tarball" \
+        "(attempt ${attempt}/${max_attempts}); retrying..." 1>&2
+      attempt=$((attempt + 1))
+      sleep 3
+    done
+
+    rm -f "${local_tarball}"
+    echo "ERROR: Failed to download a valid $2 from $1 after ${max_attempts} attempts;" \
+      "please install manually and try again." 1>&2
+    exit 2
   fi
 }
 
@@ -77,19 +99,20 @@ install_mvn() {
   # See simple version normalization: http://stackoverflow.com/questions/16989598/bash-comparing-version-numbers
   function version { echo "$@" | awk -F. '{ printf("%03d%03d%03d\n", $1,$2,$3); }'; }
   if [ $(version $MVN_DETECTED_VERSION) -ne $(version $MVN_VERSION) ]; then
-    local APACHE_MIRROR=${APACHE_MIRROR:-'https://www.apache.org/dyn/closer.lua'}
-    local MIRROR_URL_QUERY="?action=download"
+    # Default to archive.apache.org: it serves the exact tarball
+    # deterministically, avoiding the closer.lua mirror redirector which
+    # intermittently routes to a mirror that returns an HTML page instead of
+    # the binary. Override with APACHE_MIRROR to use a closer mirror.
+    local APACHE_MIRROR=${APACHE_MIRROR:-'https://archive.apache.org/dist'}
     local MVN_TARBALL="apache-maven-${MVN_VERSION}-bin.tar.gz"
     local FILE_PATH="maven/maven-3/${MVN_VERSION}/binaries"
 
-    if [ $(command -v curl) ]; then
-      if ! curl -L --output /dev/null --silent --head --fail "${APACHE_MIRROR}/${FILE_PATH}/${MVN_TARBALL}${MIRROR_URL_QUERY}" ; then
-        # Fall back to archive.apache.org for older Maven
-        echo "Falling back to archive.apache.org to download Maven"
-        APACHE_MIRROR="https://archive.apache.org/dist"
-        MIRROR_URL_QUERY=""
-      fi
-    fi
+    # closer.lua needs the ?action=download query to redirect to a mirror;
+    # archive.apache.org and most plain mirrors serve the file directly.
+    local MIRROR_URL_QUERY=""
+    case "${APACHE_MIRROR}" in
+      *closer.lua*) MIRROR_URL_QUERY="?action=download" ;;
+    esac
 
     install_app \
       "${APACHE_MIRROR}/${FILE_PATH}" \

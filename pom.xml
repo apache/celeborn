@@ -1326,6 +1326,24 @@
               <goals>
                 <goal>prepare-agent</goal>
               </goals>
+              <configuration>
+                <!--
+                  Netty 4.2 fires JFR events (e.g. io.netty.buffer.FreeBufferEvent,
+                  FreeChunkEvent) by lazily loading event classes that extend
+                  jdk.jfr.Event. Those classes are already bytecode-enhanced, so
+                  JaCoCo's on-the-fly agent rejects them with
+                  "Cannot process instrumented class ..." and throws an
+                  IllegalClassFormatException from defineClass. When this happens on
+                  a Netty I/O thread mid-write (e.g. during buffer deallocation while
+                  the worker streams shuffle data to the Flink read client), the
+                  channel is torn down and the client sees "Client is lost", flaking
+                  the Flink integration tests. Netty is a third-party dependency we do
+                  not measure coverage for, so exclude it from instrumentation.
+                -->
+                <excludes>
+                  <exclude>io/netty/**</exclude>
+                </excludes>
+              </configuration>
             </execution>
             <execution>
               <id>report</id>

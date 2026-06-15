@@ -43,11 +43,19 @@ class CelebornHashCheckDiskSuite extends SparkTestBase {
   }
 
   override def beforeEach(): Unit = {
-    ShuffleClient.reset()
+    resetSparkState()
   }
 
   override def afterEach(): Unit = {
+    resetSparkState()
     System.gc()
+  }
+
+  private def resetSparkState(): Unit = {
+    SparkSession.getActiveSession.orElse(SparkSession.getDefaultSession).foreach(_.stop())
+    SparkSession.clearActiveSession()
+    SparkSession.clearDefaultSession()
+    ShuffleClient.reset()
   }
 
   test("celeborn spark integration test - hash-checkDiskFull") {
@@ -59,7 +67,7 @@ class CelebornHashCheckDiskSuite extends SparkTestBase {
     val combineResult = combine(sparkSession)
     val groupByResult = groupBy(sparkSession)
     val repartitionResult = repartition(sparkSession)
-    sparkSession.stop()
+    resetSparkState()
 
     val sparkSessionEnableCeleborn = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
