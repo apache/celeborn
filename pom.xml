@@ -67,7 +67,7 @@
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.version>3.9.14</maven.version>
 
-    <flink.version>1.20.1</flink.version>
+    <flink.version>1.20.5</flink.version>
     <spark.version>3.3.4</spark.version>
 
     <!-- use hadoop-3 as default  -->
@@ -1951,7 +1951,7 @@
         <module>tests/flink-it</module>
       </modules>
       <properties>
-        <flink.version>1.20.3</flink.version>
+        <flink.version>1.20.5</flink.version>
         <flink.binary.version>1.20</flink.binary.version>
         <scala.binary.version>2.12</scala.binary.version>
         <celeborn.flink.plugin.artifact>celeborn-client-flink-1.20_${scala.binary.version}</celeborn.flink.plugin.artifact>
@@ -1971,7 +1971,7 @@
         <module>tests/flink-it</module>
       </modules>
       <properties>
-        <flink.version>2.0.1</flink.version>
+        <flink.version>2.0.2</flink.version>
         <flink.binary.version>2.0</flink.binary.version>
         <scala.binary.version>2.12</scala.binary.version>
         <celeborn.flink.plugin.artifact>celeborn-client-flink-2.0_${scala.binary.version}</celeborn.flink.plugin.artifact>
@@ -1991,7 +1991,7 @@
         <module>tests/flink-it</module>
       </modules>
       <properties>
-        <flink.version>2.1.1</flink.version>
+        <flink.version>2.1.3</flink.version>
         <flink.binary.version>2.1</flink.binary.version>
         <scala.binary.version>2.12</scala.binary.version>
         <celeborn.flink.plugin.artifact>celeborn-client-flink-2.1_${scala.binary.version}</celeborn.flink.plugin.artifact>
