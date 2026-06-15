@@ -102,7 +102,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   protected byte[] extension;
 
-  private Optional<CryptoHandler> cryptoHandler = Optional.empty();
+  private volatile Optional<CryptoHandler> cryptoHandler = Optional.empty();
 
   // key: appShuffleIdentifier, value: shuffleId
   protected Map<String, Tuple2<Integer, Boolean>> shuffleIdCache = JavaUtils.newConcurrentHashMap();
