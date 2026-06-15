@@ -62,7 +62,8 @@ public class RocksDBRecoverySuiteJ {
     dbFile = new File(dbDir, "test-db");
     defaultConf = new CelebornConf();
     confWithRecovery = new CelebornConf();
-    confWithRecovery.set("celeborn.metadata.autoRecovery.enabled", "true");
+    confWithRecovery.set(
+        "celeborn.worker.graceful.shutdown.recoverDb.rocksdb.autoRecovery.enabled", "true");
     workerSource = new WorkerSource(defaultConf);
     version = new StoreVersion(1, 0);
   }

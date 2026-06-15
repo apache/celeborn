@@ -4529,7 +4529,7 @@ object CelebornConf extends Logging {
       .createWithDefault("ROCKSDB")
 
   val WORKER_RECOVER_DB_AUTO_RECOVERY: ConfigEntry[Boolean] =
-    buildConf("celeborn.metadata.autoRecovery.enabled")
+    buildConf("celeborn.worker.graceful.shutdown.recoverDb.rocksdb.autoRecovery.enabled")
       .categories("worker")
       .doc("If true, the metadata DB will automatically attempt to recover from RocksDBException " +
         "errors during put/get/delete operations. Recovery tries a safe reopen. " +
