@@ -1255,10 +1255,21 @@ private[celeborn] class Master(
         new util.ArrayList[WorkerInfo](
           (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava),
         new util.ArrayList(appRelatedShuffles),
-        quotaManager.checkApplicationQuotaStatus(appId)))
+        quotaManager.checkApplicationQuotaStatus(appId),
+        shouldTriggerGcForApp()))
     } else {
       context.reply(OneWayMessageResponse)
     }
+  }
+
+  private def shouldTriggerGcForApp(): Boolean = {
+    if (!conf.clusterOverloadGcEnabled) return false
+    val totalCapacity = statusSystem.workersMap.values().asScala.map(_.totalSpace()).sum
+    if (totalCapacity <= 0) return false
+    val freeCapacity =
+      statusSystem.availableWorkers.asScala.toList.map(_.totalActualUsableSpace()).sum
+    val usedFraction = 1.0 - freeCapacity.toDouble / totalCapacity.toDouble
+    usedFraction >= conf.clusterOverloadGcThreshold
   }
 
   private def handleRemoveWorkersUnavailableInfos(
