@@ -29,8 +29,9 @@ import org.apache.celeborn.common.client.{MasterEndpointResolver, StaticMasterEn
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.DefaultIdentityProvider
 import org.apache.celeborn.common.network.protocol.SerdeVersion
+import org.apache.celeborn.common.metrics.{ClientMetric, MetricType}
 import org.apache.celeborn.common.protocol.{PartitionLocation, TransportModuleConstants}
-import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, MapperEnd}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, HeartbeatFromApplication, MapperEnd}
 import org.apache.celeborn.common.protocol.message.StatusCode
 
 class UtilsSuite extends CelebornFunSuite {
@@ -242,6 +243,29 @@ class UtilsSuite extends CelebornFunSuite {
     val set =
       (response.fileGroup.values().toArray diff responseTrans.fileGroup.values().toArray).toSet
     assert(set.size == 0)
+  }
+
+  test("HeartbeatFromApplication carries client metrics through pb serde") {
+    val clientMetrics = new util.HashMap[String, ClientMetric]()
+    clientMetrics.put("ClientRegisterShuffleCount", ClientMetric(5L, MetricType.Counter))
+    clientMetrics.put("ClientExcludedWorkerCount", ClientMetric(2L, MetricType.Gauge))
+
+    val heartbeat = HeartbeatFromApplication(
+      "app-1",
+      100L,
+      10L,
+      3L,
+      1L,
+      new util.HashMap[String, java.lang.Long](),
+      new util.HashMap[String, java.lang.Long](),
+      new util.ArrayList(),
+      shouldResponse = true,
+      clientMetrics = clientMetrics)
+
+    val heartbeatTrans = Utils.fromTransportMessage(Utils.toTransportMessage(heartbeat))
+      .asInstanceOf[HeartbeatFromApplication]
+
+    assert(heartbeatTrans.clientMetrics == clientMetrics)
   }
 
   test("validate number of client/server netty threads") {
