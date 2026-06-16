@@ -1364,14 +1364,14 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerGracefulShutdownRecoverPath: String = get(WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH)
   def workerGracefulShutdownRecoverDbBackend: String =
     get(WORKER_GRACEFUL_SHUTDOWN_RECOVER_DB_BACKEND)
-  def metadataAutoRecoveryEnabled: Boolean =
-    get(WORKER_RECOVER_DB_AUTO_RECOVERY)
+  def workerRecoverDbRocksDBAutoRecoveryEnabled: Boolean =
+    get(WORKER_RECOVERDB_ROCKSDB_AUTORECOVERY_ENABLED)
   def workerRecoverDbRocksDBCompression: String =
-    get(WORKER_RECOVER_DB_ROCKSDB_COMPRESSION)
+    get(WORKER_RECOVERDB_ROCKSDB_COMPRESSION)
   def workerRecoverDbRocksDBBottommostCompression: String =
-    get(WORKER_RECOVER_DB_ROCKSDB_BOTTOMMOST_COMPRESSION)
+    get(WORKER_RECOVERDB_ROCKSDB_BOTTOMMOST_COMPRESSION)
   def workerRecoverDbRocksDBBloomFilterBitsPerKey: Double =
-    get(WORKER_RECOVER_DB_ROCKSDB_BLOOM_FILTER_BITS_PER_KEY)
+    get(WORKER_RECOVERDB_ROCKSDB_BLOOMFILTER_BITSPERKEY)
   def workerGracefulShutdownPartitionSorterCloseAwaitTimeMs: Long =
     get(WORKER_PARTITION_SORTER_SHUTDOWN_TIMEOUT)
   def workerGracefulShutdownFlusherShutdownTimeoutMs: Long = get(WORKER_FLUSHER_SHUTDOWN_TIMEOUT)
@@ -4528,7 +4528,7 @@ object CelebornConf extends Logging {
       .checkValues(Set("LEVELDB", "ROCKSDB"))
       .createWithDefault("ROCKSDB")
 
-  val WORKER_RECOVER_DB_AUTO_RECOVERY: ConfigEntry[Boolean] =
+  val WORKER_RECOVERDB_ROCKSDB_AUTORECOVERY_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.graceful.shutdown.recoverDb.rocksdb.autoRecovery.enabled")
       .categories("worker")
       .doc("If true, the metadata DB will automatically attempt to recover from RocksDBException " +
@@ -4541,7 +4541,7 @@ object CelebornConf extends Logging {
   private val rocksDBCompressionTypes: Set[String] =
     RocksDBCompressionType.values().map(_.name()).toSet
 
-  val WORKER_RECOVER_DB_ROCKSDB_COMPRESSION: ConfigEntry[String] =
+  val WORKER_RECOVERDB_ROCKSDB_COMPRESSION: ConfigEntry[String] =
     buildConf("celeborn.worker.graceful.shutdown.recoverDb.rocksdb.compression")
       .categories("worker")
       .doc("Compression type for the recover DB RocksDB upper levels. " +
@@ -4553,7 +4553,7 @@ object CelebornConf extends Logging {
       .checkValues(rocksDBCompressionTypes)
       .createWithDefault(RocksDBCompressionType.LZ4_COMPRESSION.name())
 
-  val WORKER_RECOVER_DB_ROCKSDB_BOTTOMMOST_COMPRESSION: ConfigEntry[String] =
+  val WORKER_RECOVERDB_ROCKSDB_BOTTOMMOST_COMPRESSION: ConfigEntry[String] =
     buildConf("celeborn.worker.graceful.shutdown.recoverDb.rocksdb.bottommostCompression")
       .categories("worker")
       .doc("Compression type for the recover DB RocksDB bottommost level. " +
@@ -4566,7 +4566,7 @@ object CelebornConf extends Logging {
       .checkValues(rocksDBCompressionTypes)
       .createWithDefault(RocksDBCompressionType.ZSTD_COMPRESSION.name())
 
-  val WORKER_RECOVER_DB_ROCKSDB_BLOOM_FILTER_BITS_PER_KEY: ConfigEntry[Double] =
+  val WORKER_RECOVERDB_ROCKSDB_BLOOMFILTER_BITSPERKEY: ConfigEntry[Double] =
     buildConf("celeborn.worker.graceful.shutdown.recoverDb.rocksdb.bloomFilter.bitsPerKey")
       .categories("worker")
       .doc("Bits per key for the bloom filter used by the recover DB RocksDB. " +

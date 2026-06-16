@@ -66,7 +66,7 @@ public class RocksDB extends DB {
     super(source, dbBackend);
     this.db = db;
     this.dbFile = dbFile;
-    this.autoRecoveryEnabled = conf.metadataAutoRecoveryEnabled();
+    this.autoRecoveryEnabled = conf.workerRecoverDbRocksDBAutoRecoveryEnabled();
     this.conf = conf;
   }
 
