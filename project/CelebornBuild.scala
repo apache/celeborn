@@ -58,7 +58,7 @@ object Dependencies {
   // don't forget update `junitInterfaceVersion` when we upgrade junit
   val junitVersion = "4.13.2"
   val leveldbJniVersion = "1.8"
-  val log4j2Version = "2.24.3"
+  val log4j2Version = "2.25.4"
   val disruptorVersion = "3.4.4"
   val jdkToolsVersion = "0.1"
   val metricsVersion = "4.2.25"
@@ -471,6 +471,7 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornService.service,
       CelebornWorker.worker,
       CelebornMaster.master,
+      CelebornLifecycleManager.lifecycleManager,
       CelebornCli.cli
     ) ++ maybeSparkClientModules ++
       maybeFlinkClientModules ++
@@ -596,6 +597,19 @@ object Utils {
       }
     }).transform(node).head
   }
+}
+
+object CelebornLifecycleManager {
+  lazy val lifecycleManager = Project("celeborn-lifecycle-manager", file("lifecycle-manager"))
+    .dependsOn(CelebornService.service % "test->test;compile->compile")
+    .dependsOn(CelebornClient.client % "test->test;compile->compile")
+    .dependsOn(CelebornCommon.common % "test->test;compile->compile")
+    .settings (
+      commonSettings,
+      libraryDependencies ++= Seq(
+        Dependencies.scalatestMockito % "test"
+      ) ++ commonUnitTestDependencies
+    )
 }
 
 object CelebornCli {
@@ -1004,7 +1018,7 @@ object Spark41 extends SparkClientProjects {
   val lz4JavaVersion = "1.8.0"
   val sparkProjectScalaVersion = "2.13.17"
 
-  val sparkVersion = "4.1.1"
+  val sparkVersion = "4.1.2"
   val zstdJniVersion = "1.5.7-6"
   val scalaBinaryVersion = "2.13"
 
@@ -1274,7 +1288,7 @@ object Flink119 extends FlinkClientProjects {
 }
 
 object Flink120 extends FlinkClientProjects {
-  val flinkVersion = "1.20.3"
+  val flinkVersion = "1.20.5"
 
   // note that SBT does not allow using the period symbol (.) in project names.
   val flinkClientProjectPath = "client-flink/flink-1.20"
@@ -1284,7 +1298,7 @@ object Flink120 extends FlinkClientProjects {
 }
 
 object Flink20 extends FlinkClientProjects {
-  val flinkVersion = "2.0.1"
+  val flinkVersion = "2.0.2"
 
   // note that SBT does not allow using the period symbol (.) in project names.
   val flinkClientProjectPath = "client-flink/flink-2.0"
@@ -1294,7 +1308,7 @@ object Flink20 extends FlinkClientProjects {
 }
 
 object Flink21 extends FlinkClientProjects {
-  val flinkVersion = "2.1.1"
+  val flinkVersion = "2.1.3"
 
   // note that SBT does not allow using the period symbol (.) in project names.
   val flinkClientProjectPath = "client-flink/flink-2.1"
@@ -1802,8 +1816,7 @@ object CelebornOpenApi {
             name.startsWith("httpclient5-") ||
             name.startsWith("httpcore5-") ||
             name.startsWith("httpcore5-h2-") ||
-            name.startsWith("jackson-databind-nullable-") ||
-            name.startsWith("slf4j-api-"))
+            name.startsWith("jackson-databind-nullable-"))
         }
       },
 
@@ -1814,8 +1827,7 @@ object CelebornOpenApi {
         ShadeRule.rename("jakarta.validation.**" -> "org.apache.celeborn.shaded.jakarta.validation.@1").inAll,
         ShadeRule.rename("javax.validation.**" -> "org.apache.celeborn.shaded.javax.validation.@1").inAll,
         ShadeRule.rename("javax.ws.rs.ext.**" -> "org.apache.celeborn.shaded.javax.ws.rs.ext.@1").inAll,
-        ShadeRule.rename("org.apache.hc.**" -> "org.apache.celeborn.shaded.org.apache.hc.@1").inAll,
-        ShadeRule.rename("org.slf4j.**" -> "org.apache.celeborn.shaded.org.slf4j.@1").inAll
+        ShadeRule.rename("org.apache.hc.**" -> "org.apache.celeborn.shaded.org.apache.hc.@1").inAll
     ),
 
     (assembly / assemblyMergeStrategy) := {

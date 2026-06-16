@@ -19,19 +19,31 @@ package org.apache.celeborn.service.deploy.master
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.source.{AbstractSource, Role}
+import org.apache.celeborn.common.protocol.message.StatusCode
 
 class MasterSource(conf: CelebornConf) extends AbstractSource(conf, Role.MASTER) {
   override val sourceName = "master"
 
   import MasterSource._
+  RequestSlotsFailureStatuses.foreach { status =>
+    addCounter(REQUEST_SLOTS_FAILED_COUNT, Map(STATUS_CODE_LABEL -> status.name()))
+  }
   // add timers
   addTimer(OFFER_SLOTS_TIME)
   addTimer(UPDATE_RESOURCE_CONSUMPTION_TIME)
   // start cleaner
   startCleaner()
+
+  def incRequestSlotsFailed(status: StatusCode): Unit = {
+    if (RequestSlotsFailureStatuses.contains(status)) {
+      incCounter(REQUEST_SLOTS_FAILED_COUNT, 1, Map(STATUS_CODE_LABEL -> status.name()))
+    }
+  }
 }
 
 object MasterSource {
+  val STATUS_CODE_LABEL = "statusCode"
+
   val WORKER_COUNT = "WorkerCount"
 
   val LOST_WORKER_COUNT = "LostWorkerCount"
@@ -63,6 +75,7 @@ object MasterSource {
   val ACTIVE_SHUFFLE_FILE_COUNT = "ActiveShuffleFileCount"
 
   val OFFER_SLOTS_TIME = "OfferSlotsTime"
+  val REQUEST_SLOTS_FAILED_COUNT = "RequestSlotsFailed"
 
   val RATIS_APPLY_COMPLETED_INDEX = "RatisApplyCompletedIndex"
 
@@ -71,4 +84,7 @@ object MasterSource {
   val DEVICE_CELEBORN_TOTAL_CAPACITY = "DeviceCelebornTotalBytes"
 
   val UPDATE_RESOURCE_CONSUMPTION_TIME = "UpdateResourceConsumptionTime"
+
+  private val RequestSlotsFailureStatuses =
+    Seq(StatusCode.SLOT_NOT_AVAILABLE, StatusCode.WORKER_EXCLUDED)
 }

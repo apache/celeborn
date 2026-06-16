@@ -212,17 +212,24 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     return peakMemoryUsedBytes;
   }
 
-  void doWrite(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
+  // Returns true if the iterator still has records (i.e., not fully consumed)
+  @VisibleForTesting
+  boolean doWrite(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
     if (canUseFastWrite()) {
       fastWrite0(records);
+      return records.hasNext();
     } else if (dep.mapSideCombine()) {
       if (dep.aggregator().isEmpty()) {
         throw new UnsupportedOperationException(
             "When using map side combine, an aggregator must be specified.");
       }
-      write0(dep.aggregator().get().combineValuesByKey(records, taskContext));
+      scala.collection.Iterator<?> combinedIterator =
+          dep.aggregator().get().combineValuesByKey(records, taskContext);
+      write0(combinedIterator);
+      return combinedIterator.hasNext();
     } else {
       write0(records);
+      return records.hasNext();
     }
   }
 
@@ -230,8 +237,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
     boolean needCleanupPusher = true;
     try {
-      doWrite(records);
-      close();
+      boolean iteratorHasNext = doWrite(records);
+      close(iteratorHasNext);
       needCleanupPusher = false;
     } finally {
       if (needCleanupPusher) {
@@ -349,7 +356,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       logger.debug("Push giant record, size {}.", Utils.bytesToString(numBytes));
     long start = System.nanoTime();
     int bytesWritten =
-        shuffleClient.pushData(
+        shuffleClient.pushDataWithCRC(
             shuffleId,
             mapId,
             encodedAttemptId,
@@ -371,10 +378,17 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
   }
 
-  private void close() throws IOException {
+  private void close(boolean iteratorHasNext) throws IOException {
     logger.info("Memory used {}", Utils.bytesToString(pusher.getUsed()));
     long pushStartTime = System.nanoTime();
     pusher.pushData(false);
+
+    // The check must come BEFORE mapperEnd so a partial map output is never committed to the
+    // shuffle service.
+    // Check BEFORE pusher.close() so if we throw here the outer finally block will handle the
+    // closing thing.
+    SparkUtils.assertIteratorFullyConsumed(iteratorHasNext);
+
     pusher.close(true);
 
     shuffleClient.pushMergedData(shuffleId, mapId, encodedAttemptId);

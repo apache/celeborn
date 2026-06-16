@@ -162,18 +162,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   public void write(scala.collection.Iterator<Product2<K, V>> records) throws IOException {
     boolean needCleanupPusher = true;
     try {
-      if (canUseFastWrite()) {
-        fastWrite0(records);
-      } else if (dep.mapSideCombine()) {
-        if (dep.aggregator().isEmpty()) {
-          throw new UnsupportedOperationException(
-              "When using map side combine, an aggregator must be specified.");
-        }
-        write0(dep.aggregator().get().combineValuesByKey(records, taskContext));
-      } else {
-        write0(records);
-      }
-      close();
+      boolean iteratorHasNext = doWrite(records);
+      close(iteratorHasNext);
       needCleanupPusher = false;
     } catch (InterruptedException e) {
       TaskInterruptedHelper.throwTaskKillException();
@@ -181,6 +171,26 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       if (needCleanupPusher) {
         cleanupPusher();
       }
+    }
+  }
+
+  boolean doWrite(scala.collection.Iterator<Product2<K, V>> records)
+      throws IOException, InterruptedException {
+    if (canUseFastWrite()) {
+      fastWrite0(records);
+      return records.hasNext();
+    } else if (dep.mapSideCombine()) {
+      if (dep.aggregator().isEmpty()) {
+        throw new UnsupportedOperationException(
+            "When using map side combine, an aggregator must be specified.");
+      }
+      scala.collection.Iterator<?> combinedIterator =
+          dep.aggregator().get().combineValuesByKey(records, taskContext);
+      write0(combinedIterator);
+      return combinedIterator.hasNext();
+    } else {
+      write0(records);
+      return records.hasNext();
     }
   }
 
@@ -279,7 +289,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     logger.debug("Push giant record, size {}.", numBytes);
     long start = System.nanoTime();
     int bytesWritten =
-        shuffleClient.pushData(
+        shuffleClient.pushDataWithCRC(
             shuffleId,
             mapId,
             encodedAttemptId,
@@ -343,7 +353,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   protected void mergeData(int partitionId, byte[] buffer, int offset, int length)
       throws IOException {
     int bytesWritten =
-        shuffleClient.mergeData(
+        shuffleClient.mergeDataWithCRC(
             shuffleId,
             mapId,
             encodedAttemptId,
@@ -366,13 +376,19 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
   }
 
-  private void close() throws IOException, InterruptedException {
+  private void close(boolean iteratorHasNext) throws IOException, InterruptedException {
     // Send the remaining data in sendBuffer
     long pushMergedDataTime = System.nanoTime();
     closeWrite();
     shuffleClient.pushMergedData(shuffleId, mapId, encodedAttemptId);
     writeMetrics.incWriteTime(System.nanoTime() - pushMergedDataTime);
     updateRecordsWrittenMetrics();
+
+    // The check must come before mapperEnd so a partial map output is never committed to the
+    // shuffle service.
+    // Check BEFORE releasing buffers and draining the pusher(the outer finally block will handle
+    // that).
+    SparkUtils.assertIteratorFullyConsumed(iteratorHasNext);
 
     long waitStartTime = System.nanoTime();
     dataPusher.waitOnTermination();

@@ -72,7 +72,7 @@ public class MemoryManager {
   private final AtomicLong diskBufferCounter = new AtomicLong(0);
   private final LongAdder pausePushDataCounter = new LongAdder();
   private final LongAdder pausePushDataAndReplicateCounter = new LongAdder();
-  public ServingState servingState = ServingState.NONE_PAUSED;
+  public volatile ServingState servingState = ServingState.NONE_PAUSED;
   private long pausePushDataStartTime = -1L;
   private long pausePushDataTime = 0L;
   private long pausePushDataAndReplicateStartTime = -1L;
@@ -435,7 +435,8 @@ public class MemoryManager {
 
   public boolean sortMemoryReady() {
     return maxSortMemory == 0
-        || (servingState == ServingState.NONE_PAUSED && sortMemoryCounter.get() < maxSortMemory);
+        || (servingState != ServingState.PUSH_AND_REPLICATE_PAUSED
+            && sortMemoryCounter.get() < maxSortMemory);
   }
 
   public void releaseSortMemory(long size) {

@@ -1002,7 +1002,7 @@ private[celeborn] class Worker(
 
     def waitTime: Long = waitTimes * interval
 
-    while (!partitionLocationInfo.isEmpty && waitTime < timeout) {
+    while (!partitionLocationInfo.isEmpty && waitTime + interval < timeout) {
       Thread.sleep(interval)
       waitTimes += 1
       logWarning(

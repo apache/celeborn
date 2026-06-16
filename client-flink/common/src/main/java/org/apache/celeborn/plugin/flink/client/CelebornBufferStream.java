@@ -28,6 +28,7 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -157,6 +158,21 @@ public class CelebornBufferStream {
 
   public long getStreamId() {
     return streamId;
+  }
+
+  /** Returns whether this stream still has partition locations left to read. */
+  public boolean hasRemainingPartitions() {
+    return currentLocationIndex.get() < locations.length;
+  }
+
+  /**
+   * Sets the current location index. {@code openStreamInternal} advances it via the network stack,
+   * which a unit test cannot drive, so tests poke it directly to reach the boundary readers rely
+   * on.
+   */
+  @VisibleForTesting
+  void setCurrentLocationIndex(int index) {
+    currentLocationIndex.set(index);
   }
 
   public static CelebornBufferStream create(

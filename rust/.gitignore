@@ -1,0 +1,7 @@
+target/
+Cargo.lock
+
+# Prebuilt celeborn-client shared libraries — built by cpp/, not tracked.
+resource/lib/**/*.so
+resource/lib/**/*.dylib
+resource/lib/**/*.dll

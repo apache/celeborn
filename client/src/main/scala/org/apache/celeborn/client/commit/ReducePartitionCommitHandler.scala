@@ -103,7 +103,7 @@ class ReducePartitionCommitHandler(
   // noinspection UnstableApiUsage
   private val getReducerFileGroupRpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()
     .concurrencyLevel(rpcCacheConcurrencyLevel)
-    .expireAfterWrite(rpcCacheExpireTime, TimeUnit.MILLISECONDS)
+    .expireAfterAccess(rpcCacheExpireTime, TimeUnit.MILLISECONDS)
     .maximumSize(rpcCacheSize)
     .build().asInstanceOf[Cache[Int, ByteBuffer]]
 
@@ -189,6 +189,7 @@ class ReducePartitionCommitHandler(
     shuffleIdLocks.remove(shuffleId)
     commitMetadataForReducer.remove(shuffleId)
     skewPartitionCompletenessValidator.remove(shuffleId)
+    getReducerFileGroupRpcCache.invalidate(shuffleId)
     super.removeExpiredShuffle(shuffleId)
   }
 

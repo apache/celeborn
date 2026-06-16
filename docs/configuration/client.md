@@ -89,7 +89,7 @@ license: |
 | celeborn.client.reserveSlots.rackaware.enabled | false | false | Whether need to place different replicates on different racks when allocating slots. | 0.3.1 | celeborn.client.reserveSlots.rackware.enabled | 
 | celeborn.client.reserveSlots.retryWait | 3s | false | Wait time before next retry if reserve slots failed. | 0.3.0 | celeborn.slots.reserve.retryWait | 
 | celeborn.client.rpc.cache.concurrencyLevel | 32 | false | The number of write locks to update rpc cache. | 0.3.0 | celeborn.rpc.cache.concurrencyLevel | 
-| celeborn.client.rpc.cache.expireTime | 15s | false | The time before a cache item is removed. | 0.3.0 | celeborn.rpc.cache.expireTime | 
+| celeborn.client.rpc.cache.expireTime | 15s | false | The idle time before a cache item is removed. | 0.3.0 | celeborn.rpc.cache.expireTime | 
 | celeborn.client.rpc.cache.size | 256 | false | The max cache items count for rpc cache. | 0.3.0 | celeborn.rpc.cache.size | 
 | celeborn.client.rpc.commitFiles.askTimeout | &lt;value of celeborn.rpc.askTimeout&gt; | false | Timeout for CommitHandler commit files. | 0.4.1 |  | 
 | celeborn.client.rpc.getReducerFileGroup.askTimeout | &lt;value of celeborn.rpc.askTimeout&gt; | false | Timeout for ask operations during getting reducer file group information. During this process, there are `celeborn.client.requestCommitFiles.maxRetries` times for retry opportunities for committing files and 1 times for releasing slots request. User can customize this value according to your setting. | 0.2.0 |  | 
@@ -114,7 +114,7 @@ license: |
 | celeborn.client.shuffle.dynamicResourceEnabled | false | false | When enabled, the ChangePartitionManager will obtain candidate workers from the availableWorkers pool during heartbeats when worker resource change. | 0.6.0 |  | 
 | celeborn.client.shuffle.dynamicResourceFactor | 0.5 | false | The ChangePartitionManager will check whether (unavailable workers / shuffle allocated workers) is more than the factor before obtaining candidate workers from the requestSlots RPC response when `celeborn.client.shuffle.dynamicResourceEnabled` set true | 0.6.0 |  | 
 | celeborn.client.shuffle.expired.checkInterval | 60s | false | Interval for client to check expired shuffles. | 0.3.0 | celeborn.shuffle.expired.checkInterval | 
-| celeborn.client.shuffle.integrityCheck.enabled | false | false | When `true`, enables end-to-end integrity checks for Spark workloads. | 0.6.1 |  | 
+| celeborn.client.shuffle.integrityCheck.enabled | false | false | When `true`, enables end-to-end integrity checks for Spark and Flink workloads. | 0.6.1 |  | 
 | celeborn.client.shuffle.manager.port | 0 | false | Port used by the LifecycleManager on the Driver. | 0.3.0 | celeborn.shuffle.manager.port | 
 | celeborn.client.shuffle.partition.type | REDUCE | false | Type of shuffle's partition. | 0.3.0 | celeborn.shuffle.partition.type | 
 | celeborn.client.shuffle.partitionSplit.mode | SOFT | false | soft: the shuffle file size might be larger than split threshold. hard: the shuffle file size will be limited to split threshold. | 0.3.0 | celeborn.shuffle.partitionSplit.mode | 
@@ -124,6 +124,7 @@ license: |
 | celeborn.client.shuffle.reviseLostShuffles.enabled | false | false | Whether to revise lost shuffles. | 0.6.0 |  | 
 | celeborn.client.shuffleDataLostOnUnknownWorker.enabled | false | false | Whether to mark shuffle data lost when unknown worker is detected. | 0.6.3 |  | 
 | celeborn.client.slot.assign.maxWorkers | 10000 | false | Max workers that slots of one shuffle can be allocated on. Will choose the smaller positive one from Master side and Client side, see `celeborn.master.slot.assign.maxWorkers`. | 0.3.1 |  | 
+| celeborn.client.spark.batch.openStream.parallelClientCreation.enabled | true | false | Whether to create data clients in parallel before sending Spark batch open-stream requests. When false, data clients are created serially. | 0.6.3 |  | 
 | celeborn.client.spark.fetch.cleanFailedShuffle | false | false | whether to clean those disk space occupied by shuffles which cannot be fetched | 0.6.0 |  | 
 | celeborn.client.spark.fetch.cleanFailedShuffleInterval | 1s | false | the interval to clean the failed-to-fetch shuffle files, only valid when celeborn.client.spark.fetch.cleanFailedShuffle is enabled | 0.6.0 |  | 
 | celeborn.client.spark.push.dynamicWriteMode.enabled | false | false | Whether to dynamically switch push write mode based on conditions.If true, shuffle mode will be only determined by partition count | 0.5.0 |  | 

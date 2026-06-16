@@ -51,14 +51,17 @@ else
   fi
 fi
 
-# Find the java tools.jar
-if [ -f "${JAVA_HOME}/lib/tools.jar" ]; then
-  export JAVA_TOOLS_JAR="${JAVA_HOME}/lib/tools.jar"
-else
-  if [ -f "${JAVA_HOME}/../lib/tools.jar" ]; then
-    export JAVA_TOOLS_JAR="${JAVA_HOME}/../lib/tools.jar"
+JAVA_VERSION=$("$JAVA" -version 2>&1 | awk -F '"' '/version/ {print $2}')
+if [[ "$JAVA_VERSION" = 1.8.* ]]; then
+  # Find the java tools.jar when using Java 8
+  if [ -f "${JAVA_HOME}/lib/tools.jar" ]; then
+    export JAVA_TOOLS_JAR="${JAVA_HOME}/lib/tools.jar"
   else
-    echo "WARNING: cannot locate tools.jar. Expected to find it in either ${JAVA_HOME}/lib/tools.jar or ${JAVA_HOME}/../lib/tools.jar"
+    if [ -f "${JAVA_HOME}/../lib/tools.jar" ]; then
+      export JAVA_TOOLS_JAR="${JAVA_HOME}/../lib/tools.jar"
+    else
+      echo "WARNING: cannot locate tools.jar. Expected to find it in either ${JAVA_HOME}/lib/tools.jar or ${JAVA_HOME}/../lib/tools.jar"
+    fi
   fi
 fi
 

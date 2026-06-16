@@ -222,7 +222,7 @@ public class SortBasedPusher extends MemoryConsumer {
           currentPartition = partition;
         } else {
           int bytesWritten =
-              shuffleClient.mergeData(
+              shuffleClient.mergeDataWithCRC(
                   shuffleId,
                   mapId,
                   attemptNumber,

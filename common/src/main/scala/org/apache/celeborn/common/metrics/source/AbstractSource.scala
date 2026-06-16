@@ -68,6 +68,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-metrics-cleaner")
 
   val roleLabel: (String, String) = "role" -> role
+  val metricsExtraLabels: Map[String, String] = conf.metricsExtraLabels
   val instanceLabel: Map[String, String] = role match {
     case Role.MASTER =>
       Map("instance" -> s"${Utils.localHostName(conf)}:${conf.masterHttpPort}")
@@ -75,7 +76,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       Map("instance" -> s"${Utils.localHostName(conf)}:${conf.workerHttpPort}")
     case _ => Map.empty
   }
-  val staticLabels: Map[String, String] = conf.metricsExtraLabels + roleLabel ++ instanceLabel
+  val staticLabels: Map[String, String] = labelsWithCustomizedLabels(Map.empty)
   val staticLabelsString: String = MetricLabels.labelString(staticLabels)
 
   val applicationLabel = "applicationId"
@@ -110,7 +111,9 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     // filter out non-number type gauges
     if (gauge.getValue.isInstanceOf[Number]) {
       val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
-      namedGauges.putIfAbsent(metricNameWithLabel, NamedGauge(name, gauge, labels ++ staticLabels))
+      namedGauges.putIfAbsent(
+        metricNameWithLabel,
+        NamedGauge(name, gauge, labelsWithCustomizedLabels(labels)))
       metricRegistry.synchronized({
         if (!metricRegistry.getMetrics.containsKey(metricNameWithLabel)) {
           metricRegistry.register(metricNameWithLabel, gauge)
@@ -146,7 +149,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       meter: Meter): Unit = {
     namedMeters.putIfAbsent(
       metricNameWithCustomizedLabels(name, labels),
-      NamedMeter(name, meter, labels ++ staticLabels))
+      NamedMeter(name, meter, labelsWithCustomizedLabels(labels)))
   }
 
   def addMeter(
@@ -177,7 +180,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
         val namedTimer = NamedTimer(
           name,
           metricRegistry.timer(metricNameWithLabel, timerSupplier),
-          labels ++ staticLabels)
+          labelsWithCustomizedLabels(labels))
         val values = JavaUtils.newConcurrentHashMap[String, Long]()
         (namedTimer, values)
       })
@@ -189,7 +192,10 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
     namedCounters.putIfAbsent(
       metricNameWithLabel,
-      NamedCounter(name, metricRegistry.counter(metricNameWithLabel), labels ++ staticLabels))
+      NamedCounter(
+        name,
+        metricRegistry.counter(metricNameWithLabel),
+        labelsWithCustomizedLabels(labels)))
   }
 
   def addHistogram(name: String): Unit = {
@@ -203,7 +209,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       NamedHistogram(
         name,
         metricRegistry.histogram(name, histogramSupplier),
-        labels ++ staticLabels))
+        labelsWithCustomizedLabels(labels)))
   }
 
   def counters(): List[NamedCounter] = {
@@ -708,8 +714,12 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     if (labels.isEmpty) {
       metricsName + staticLabelsString
     } else {
-      metricsName + MetricLabels.labelString(labels ++ staticLabels)
+      metricsName + MetricLabels.labelString(labelsWithCustomizedLabels(labels))
     }
+  }
+
+  protected def labelsWithCustomizedLabels(labels: Map[String, String]): Map[String, String] = {
+    metricsExtraLabels ++ labels + roleLabel ++ instanceLabel
   }
 }
 

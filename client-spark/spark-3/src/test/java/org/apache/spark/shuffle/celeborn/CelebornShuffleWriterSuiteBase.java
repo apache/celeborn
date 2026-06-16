@@ -26,6 +26,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -44,6 +46,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.SparkVersionUtil;
 import org.apache.spark.TaskContext;
+import org.apache.spark.TaskContext$;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.memory.TaskMemoryManager;
@@ -78,9 +81,11 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.DummyShuffleClient;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.CommitMetadata;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.common.write.PushState;
 import org.apache.celeborn.reflect.DynConstructors;
 
 public abstract class CelebornShuffleWriterSuiteBase {
@@ -144,10 +149,13 @@ public abstract class CelebornShuffleWriterSuiteBase {
 
     Mockito.doReturn(metrics).when(taskContext).taskMetrics();
     Mockito.doReturn(taskMemoryManager).when(taskContext).taskMemoryManager();
+    Mockito.doReturn(None$.MODULE$).when(taskContext).getKillReason();
 
     Mockito.doReturn(bmId).when(blockManager).shuffleServerId();
     Mockito.doReturn(blockManager).when(env).blockManager();
     Mockito.doReturn(sparkConf).when(env).conf();
+    Mockito.doReturn(false).when(dependency).mapSideCombine();
+    Mockito.doReturn(Option.empty()).when(dependency).aggregator();
     SparkEnv.set(env);
   }
 
@@ -211,6 +219,114 @@ public abstract class CelebornShuffleWriterSuiteBase {
     final CelebornConf conf =
         new CelebornConf().set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "128");
     check(2 << 30, conf, serializer);
+  }
+
+  @Test
+  public void testIntegrityCheckAccumulation() throws Exception {
+    final KryoSerializer serializer = new KryoSerializer(sparkConf);
+    final CelebornConf conf =
+        new CelebornConf()
+            .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "128")
+            .set("celeborn.client.shuffle.integrityCheck.enabled", "true");
+    checkWithIntegrity(10000, conf, serializer);
+  }
+
+  @Test
+  public void testIntegrityCheckAccumulationWithFastWrite() throws Exception {
+    final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
+    final CelebornConf conf =
+        new CelebornConf()
+            .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "128")
+            .set("celeborn.client.shuffle.integrityCheck.enabled", "true");
+    checkWithIntegrity(10000, conf, serializer);
+  }
+
+  private void checkWithIntegrity(
+      final int approximateSize, final CelebornConf conf, final Serializer serializer)
+      throws Exception {
+    final boolean useUnsafe = serializer instanceof UnsafeRowSerializer;
+
+    String partitionIdPassthroughClazz;
+    if (SparkVersionUtil.isGreaterThan(3, 3)) {
+      partitionIdPassthroughClazz = "org.apache.spark.PartitionIdPassthrough";
+    } else {
+      partitionIdPassthroughClazz = "org.apache.spark.sql.execution.PartitionIdPassthrough";
+    }
+    DynConstructors.Ctor<Partitioner> partitionIdPassthroughCtor =
+        DynConstructors.builder().impl(partitionIdPassthroughClazz, int.class).build();
+    final Partitioner partitioner =
+        useUnsafe
+            ? partitionIdPassthroughCtor.newInstance(numPartitions)
+            : new HashPartitioner(numPartitions);
+    Mockito.doReturn(partitioner).when(dependency).partitioner();
+    Mockito.doReturn(serializer).when(dependency).serializer();
+
+    final File tempFile = new File(tempDir, UUID.randomUUID().toString());
+    final DummyShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    client.initReducePartitionMap(shuffleId, numPartitions, 1);
+
+    final CelebornShuffleHandle<Integer, String, String> handle =
+        new CelebornShuffleHandle<>(
+            appId, host, port, userIdentifier, shuffleId, false, numMaps, dependency);
+    final ShuffleWriter<Integer, String> writer =
+        createShuffleWriter(handle, taskContext, conf, client, metrics.shuffleWriteMetrics());
+
+    AtomicInteger total = new AtomicInteger(0);
+    // Use mix=true to exercise both giant and normal record paths.
+    Iterator iterator = getIterator(approximateSize, total, useUnsafe, true);
+
+    writer.write(iterator);
+    Option<MapStatus> status = writer.stop(true);
+
+    assertNotNull(status);
+    assertTrue(status.isDefined());
+
+    // mapId=0 and attemptId=0 from the mock TaskContext.
+    String mapKey = Utils.makeMapKey(shuffleId, 0, 0);
+    PushState pushState = client.getPushState(mapKey);
+
+    int[] crcPerPartition = pushState.getCRC32PerPartition(true, numPartitions);
+    long[] bytesPerPartition = pushState.getBytesWrittenPerPartition(true, numPartitions);
+
+    Map<Integer, List<byte[]>> crcData = client.getCrcDataByPartition(mapKey);
+    Map<Integer, List<byte[]>> pushData = client.getPushDataByPartition(mapKey);
+
+    for (int i = 0; i < numPartitions; i++) {
+      List<byte[]> crcBatches = crcData.getOrDefault(i, Collections.emptyList());
+      long expectedBytes = 0;
+      CommitMetadata expected = new CommitMetadata();
+      for (byte[] batch : crcBatches) {
+        expected.addDataWithOffsetAndLength(batch, 0, batch.length);
+        expectedBytes += batch.length;
+      }
+      assertEquals("Partition " + i + " bytes mismatch", expectedBytes, bytesPerPartition[i]);
+      assertEquals("Partition " + i + " CRC mismatch", expected.getChecksum(), crcPerPartition[i]);
+
+      int pushCalls = pushData.getOrDefault(i, Collections.emptyList()).size();
+      assertEquals(
+          "Partition " + i + " CRC/push call count mismatch", pushCalls, crcBatches.size());
+    }
+
+    client.shutdown();
+  }
+
+  @Test
+  public void testAssertIteratorFullyConsumed() throws IOException {
+    // Test that assertIteratorFullyConsumed does not throw when iterator is empty
+    SparkUtils.assertIteratorFullyConsumed(false);
+  }
+
+  @Test
+  public void testAssertIteratorFullyConsumedThrows() {
+    TaskContext$.MODULE$.setTaskContext(taskContext);
+    try {
+      SparkUtils.assertIteratorFullyConsumed(true);
+      fail("Expected IOException when iterator is not fully consumed");
+    } catch (IOException e) {
+      assertTrue(e.getMessage().contains("not fully consumed"));
+    } finally {
+      TaskContext$.MODULE$.setTaskContext(null);
+    }
   }
 
   private void check(

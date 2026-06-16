@@ -63,6 +63,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse;
@@ -542,5 +543,12 @@ public class SparkUtils {
           }
           return null;
         });
+  }
+
+  public static void assertIteratorFullyConsumed(boolean iteratorHasNext) throws IOException {
+    if (iteratorHasNext) {
+      throw new CelebornIOException(
+          "Shuffle write task finished but iterator was not fully consumed.");
+    }
   }
 }

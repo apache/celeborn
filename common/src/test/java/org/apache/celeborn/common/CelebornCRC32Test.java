@@ -20,6 +20,8 @@ package org.apache.celeborn.common;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
+import java.nio.ByteBuffer;
+
 import org.junit.Test;
 
 // Test data is generated from https://crccalc.com/ using "CRC-32/ISO-HDLC".
@@ -61,6 +63,48 @@ public class CelebornCRC32Test {
     byte[] data = "testdata".getBytes();
     crc.addData(data, 4, 4);
     assertEquals(2918445923L, crc.get() & 0xFFFFFFFFL);
+  }
+
+  @Test
+  public void testComputeByteBuffer() {
+    byte[] data = "testdata".getBytes();
+    // A ByteBuffer view must hash to the same value as the byte[] overload.
+    assertEquals(CelebornCRC32.compute(data), CelebornCRC32.compute(ByteBuffer.wrap(data)));
+    // A sliced view (offset 4, length 4) must match the offset/length overload.
+    assertEquals(
+        CelebornCRC32.compute(data, 4, 4), CelebornCRC32.compute(ByteBuffer.wrap(data, 4, 4)));
+  }
+
+  @Test
+  public void testComputeTwoByteBuffers() {
+    byte[] first = "test".getBytes();
+    byte[] second = "data".getBytes();
+    byte[] concatenated = "testdata".getBytes();
+    // Hashing two buffers must equal hashing their concatenation.
+    assertEquals(
+        CelebornCRC32.compute(concatenated),
+        CelebornCRC32.compute(ByteBuffer.wrap(first), ByteBuffer.wrap(second)));
+  }
+
+  @Test
+  public void testAddDataByteBuffer() {
+    byte[] data = "testdata".getBytes();
+    CelebornCRC32 fromBuffer = new CelebornCRC32();
+    fromBuffer.addData(ByteBuffer.wrap(data, 4, 4));
+    CelebornCRC32 fromBytes = new CelebornCRC32();
+    fromBytes.addData(data, 4, 4);
+    assertEquals(fromBytes.get(), fromBuffer.get());
+  }
+
+  @Test
+  public void testAddDataTwoByteBuffers() {
+    byte[] first = "test".getBytes();
+    byte[] second = "data".getBytes();
+    CelebornCRC32 fromTwoBuffers = new CelebornCRC32();
+    fromTwoBuffers.addData(ByteBuffer.wrap(first), ByteBuffer.wrap(second));
+    CelebornCRC32 fromConcatenation = new CelebornCRC32();
+    fromConcatenation.addData("testdata".getBytes(), 0, 8);
+    assertEquals(fromConcatenation.get(), fromTwoBuffers.get());
   }
 
   @Test
