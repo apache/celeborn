@@ -4490,11 +4490,13 @@ object CelebornConf extends Logging {
         "This is suitable for permanent scale-down scenarios where the worker will not restart. " +
         "When enabled, this overrides celeborn.worker.graceful.shutdown.enabled " +
         "(recovery state will not be saved since the worker is not expected to come back). " +
-        "Operators should set the pod's terminationGracePeriodSeconds to " +
+        "Operators should set the pod's terminationGracePeriodSeconds to at least " +
         "celeborn.worker.decommission.forceExitTimeout + " +
-        "celeborn.worker.decommission.checkInterval plus a small buffer, to ensure " +
-        "the shutdown hook has enough time to complete resource cleanup before " +
-        "being killed.")
+        "celeborn.worker.decommission.checkInterval, plus additional headroom for final " +
+        "resource cleanup. The drain wait is bounded by forceExitTimeout, but the " +
+        "subsequent stop() runs within the same budget and deletes any still-unreleased " +
+        "shuffle, whose cost grows with the amount of undrained data; size the extra " +
+        "headroom for that worst case so the pod is not force-killed mid-cleanup.")
       .version("0.7.0")
       .booleanConf
       .createWithDefault(false)

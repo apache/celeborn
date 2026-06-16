@@ -87,14 +87,18 @@ class WorkerStatusManagerSuite extends AnyFunSuite {
     val mgr1 = new WorkerStatusManager(conf1)
     Assert.assertEquals(WorkerEventType.Immediately, mgr1.exitEventType)
 
-    // Graceful shutdown only → Graceful
+    // Graceful shutdown only → Graceful. Set both keys explicitly so a leaked
+    // decommission.shutdown.enabled system property cannot flip the result.
     val conf2 = new CelebornConf()
     conf2.set("celeborn.worker.graceful.shutdown.enabled", "true")
+    conf2.set("celeborn.worker.decommission.shutdown.enabled", "false")
     val mgr2 = new WorkerStatusManager(conf2)
     Assert.assertEquals(WorkerEventType.Graceful, mgr2.exitEventType)
 
-    // Decommission shutdown only → Decommission
+    // Decommission shutdown only → Decommission. Set both keys explicitly so a leaked
+    // graceful.shutdown.enabled system property cannot affect the result.
     val conf3 = new CelebornConf()
+    conf3.set("celeborn.worker.graceful.shutdown.enabled", "false")
     conf3.set("celeborn.worker.decommission.shutdown.enabled", "true")
     val mgr3 = new WorkerStatusManager(conf3)
     Assert.assertEquals(WorkerEventType.Decommission, mgr3.exitEventType)
