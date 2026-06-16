@@ -17,13 +17,14 @@
 
 #include <gtest/gtest.h>
 
+#include "celeborn/client/tests/ShuffleClientTestUtils.h"
 #include "celeborn/client/writer/PushDataCallback.h"
 
 using namespace celeborn;
 using namespace celeborn::client;
 
 namespace {
-class MockShuffleClient : public ShuffleClientImpl {
+class MockShuffleClient : public TestShuffleClientBase {
  public:
   friend class PushDataCallback;
 
@@ -40,8 +41,11 @@ class MockShuffleClient : public ShuffleClientImpl {
       std::function<void(std::shared_ptr<protocol::ReviveRequest>)>;
   using FuncOnAddPushDataRetryTask = std::function<void(folly::Func&&)>;
 
-  static std::shared_ptr<MockShuffleClient> create() {
-    return std::shared_ptr<MockShuffleClient>(new MockShuffleClient());
+  static std::shared_ptr<MockShuffleClient> create(
+      std::shared_ptr<const conf::CelebornConf> conf =
+          std::make_shared<conf::CelebornConf>()) {
+    return std::shared_ptr<MockShuffleClient>(
+        new MockShuffleClient(std::move(conf)));
   }
 
   virtual ~MockShuffleClient() = default;
@@ -102,13 +106,8 @@ class MockShuffleClient : public ShuffleClientImpl {
   }
 
  private:
-  MockShuffleClient()
-      : ShuffleClientImpl(
-            "mock",
-            std::make_shared<conf::CelebornConf>(),
-            dummyEndpoint()) {}
-
-  static const ShuffleClientEndpoint& dummyEndpoint();
+  explicit MockShuffleClient(std::shared_ptr<const conf::CelebornConf> conf)
+      : TestShuffleClientBase(std::move(conf)) {}
 
   FuncOnSubmitRetryPushData onSubmitRetryPushData_ =
       [](int,
@@ -127,19 +126,6 @@ class MockShuffleClient : public ShuffleClientImpl {
     CELEBORN_UNREACHABLE("not expected to call this");
   };
 };
-
-const ShuffleClientEndpoint& MockShuffleClient::dummyEndpoint() {
-  static auto conf = std::make_shared<conf::CelebornConf>();
-  static auto dummy = ShuffleClientEndpoint(conf);
-  return dummy;
-}
-
-std::unique_ptr<memory::ReadOnlyByteBuffer> createReadOnlyByteBuffer(
-    uint8_t code) {
-  auto writeBuffer = memory::ByteBuffer::createWriteOnly(1);
-  writeBuffer->write<uint8_t>(code);
-  return std::move(memory::ByteBuffer::toReadOnly(std::move(writeBuffer)));
-}
 } // namespace
 
 const int testPushReviveIntervalMs = 100;
@@ -197,7 +183,7 @@ TEST(PushDataCallbackTest, onSuccessAndMapEnd) {
       1,
       testLastestLocation);
 
-  auto response = createReadOnlyByteBuffer(protocol::StatusCode::MAP_ENDED);
+  auto response = createStatusResponse(protocol::StatusCode::MAP_ENDED);
   pushDataCallback->onSuccess(std::move(response));
   auto& mapperEndSets = mockClient->mapperEndSets();
   EXPECT_TRUE(mapperEndSets.containsKey(testShuffleId));
@@ -238,7 +224,7 @@ TEST(PushDataCallbackTest, onSuccessAndSoftSplit) {
       1,
       testLastestLocation);
 
-  auto response = createReadOnlyByteBuffer(protocol::StatusCode::SOFT_SPLIT);
+  auto response = createStatusResponse(protocol::StatusCode::SOFT_SPLIT);
   pushDataCallback->onSuccess(std::move(response));
   EXPECT_GT(addRequestCalledTimes, 0);
 }
@@ -300,7 +286,7 @@ TEST(PushDataCallbackTest, onSuccessAndHardSplit) {
       testRemainingReviveTimes,
       testLastestLocation);
 
-  auto response = createReadOnlyByteBuffer(protocol::StatusCode::HARD_SPLIT);
+  auto response = createStatusResponse(protocol::StatusCode::HARD_SPLIT);
   pushDataCallback->onSuccess(std::move(response));
   EXPECT_GT(addRequestCalledTimes, 0);
   EXPECT_GT(addRetryTaskCalledTimes, 0);
@@ -394,4 +380,232 @@ TEST(PushDataCallbackTest, onFailureAndNoRevive) {
   auto exception = std::make_unique<std::runtime_error>("test");
   pushDataCallback->onFailure(std::move(exception));
   EXPECT_TRUE(pushState->exceptionExists());
+}
+
+TEST(PushDataCallbackTest, onFailureCauseFromMessage) {
+  const auto celebornConf = conf::CelebornConf();
+  auto pushState = std::make_shared<PushState>(celebornConf);
+  const int testRemainingReviveTimes = 1;
+  auto mockClient = MockShuffleClient::create();
+
+  // Capture the cause propagated into the revive request; it must be derived
+  // from the failure message rather than a hardcoded value.
+  protocol::StatusCode capturedCause = protocol::StatusCode::SUCCESS;
+  mockClient->setOnAddRequestToReviveManager(
+      [&capturedCause](std::shared_ptr<protocol::ReviveRequest> request) {
+        capturedCause = request->cause;
+      });
+  mockClient->setOnAddPushDataRetryTask([](folly::Func&& task) { task(); });
+  mockClient->setOnSubmitRetryPushData(
+      [](int,
+         std::unique_ptr<memory::ReadOnlyByteBuffer>,
+         int,
+         std::shared_ptr<PushDataCallback>,
+         std::shared_ptr<PushState>,
+         ShuffleClientImpl::PtrReviveRequest,
+         int,
+         long) {});
+
+  auto pushDataCallback = PushDataCallback::create(
+      testShuffleId,
+      testMapId,
+      testAttemptId,
+      testPartitionId,
+      testNumMappers,
+      testNumPartitions,
+      testMapKey,
+      testBatchId,
+      memory::ReadOnlyByteBuffer::createEmptyBuffer(),
+      pushState,
+      mockClient->weak_from_this(),
+      testRemainingReviveTimes,
+      testLastestLocation);
+
+  auto exception = std::make_unique<std::runtime_error>(
+      "PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY: connection refused");
+  pushDataCallback->onFailure(std::move(exception));
+  EXPECT_EQ(
+      capturedCause,
+      protocol::StatusCode::PUSH_DATA_CONNECTION_EXCEPTION_PRIMARY);
+}
+
+namespace {
+std::shared_ptr<PushDataCallback> createCallback(
+    std::shared_ptr<PushState> pushState,
+    std::shared_ptr<MockShuffleClient> mockClient) {
+  return PushDataCallback::create(
+      testShuffleId,
+      testMapId,
+      testAttemptId,
+      testPartitionId,
+      testNumMappers,
+      testNumPartitions,
+      testMapKey,
+      testBatchId,
+      memory::ReadOnlyByteBuffer::createEmptyBuffer(),
+      pushState,
+      mockClient->weak_from_this(),
+      1,
+      testLastestLocation);
+}
+} // namespace
+
+// MAP_ENDED is a successful push: the mapper-end is recorded AND the in-flight
+// batch must be released (mirrors the Java client). Otherwise a trailing
+// limitZeroInFlight at mapperEnd would never reach zero.
+TEST(PushDataCallbackTest, onSuccessMapEndedReleasesInflight) {
+  auto pushState = makeShortTimeoutPushState();
+  auto mockClient = MockShuffleClient::create();
+  const auto host = testLastestLocation->hostAndPushPort();
+
+  // Simulate pushData registering the batch as in-flight before send.
+  pushState->addBatch(testBatchId, /*batchBytesSize=*/16, host);
+  auto pushDataCallback = createCallback(pushState, mockClient);
+
+  pushDataCallback->onSuccess(
+      createStatusResponse(protocol::StatusCode::MAP_ENDED));
+
+  // Mapper end is recorded.
+  ASSERT_TRUE(mockClient->mapperEndSets().containsKey(testShuffleId));
+  EXPECT_TRUE(mockClient->mapperEndSets()
+                  .get(testShuffleId)
+                  .value()
+                  ->contains(testMapId));
+  // In-flight returned to zero (false == reached zero without timing out).
+  EXPECT_FALSE(pushState->limitZeroInFlight());
+}
+
+// An unhandled success status (e.g. STAGE_ENDED) is treated as success and must
+// also release the in-flight batch, like the Java client's final else branch.
+TEST(PushDataCallbackTest, onSuccessUnknownStatusReleasesInflight) {
+  auto pushState = makeShortTimeoutPushState();
+  auto mockClient = MockShuffleClient::create();
+  const auto host = testLastestLocation->hostAndPushPort();
+
+  pushState->addBatch(testBatchId, /*batchBytesSize=*/16, host);
+  auto pushDataCallback = createCallback(pushState, mockClient);
+
+  pushDataCallback->onSuccess(
+      createStatusResponse(protocol::StatusCode::STAGE_ENDED));
+
+  EXPECT_FALSE(pushState->limitZeroInFlight());
+}
+
+namespace {
+std::shared_ptr<const conf::CelebornConf> makeTrackingConf(
+    bool replicateEnabled) {
+  auto conf = std::make_shared<conf::CelebornConf>();
+  conf->registerProperty(
+      conf::CelebornConf::kClientAdaptiveOptimizeSkewedPartitionReadEnabled,
+      "true");
+  conf->registerProperty(
+      conf::CelebornConf::kClientPushReplicateEnabled,
+      replicateEnabled ? "true" : "false");
+  return conf;
+}
+
+std::shared_ptr<const protocol::PartitionLocation> makeTrackedLocation() {
+  auto loc = std::make_shared<protocol::PartitionLocation>();
+  loc->id = 7;
+  loc->epoch = 2;
+  loc->host = "track-host";
+  loc->pushPort = 9100;
+  loc->mode = protocol::PartitionLocation::PRIMARY;
+  return loc;
+}
+
+bool failedBatchRecorded(
+    const protocol::PartitionPushFailedBatches& failedBatches,
+    const std::string& partitionUniqueId,
+    int mapId,
+    int attemptId,
+    int batchId) {
+  auto locationIt = failedBatches.find(partitionUniqueId);
+  if (locationIt == failedBatches.end()) {
+    return false;
+  }
+  auto attemptIt =
+      locationIt->second.find(utils::makeAttemptKey(mapId, attemptId));
+  return attemptIt != locationIt->second.end() &&
+      attemptIt->second.count(batchId) > 0;
+}
+} // namespace
+
+// With failure tracking enabled, onFailure records the batch (regardless of
+// cause) so the reader of a skewed partition can skip the possible duplicate.
+TEST(PushDataCallbackTest, onFailureRecordsFailedBatchWhenTrackingEnabled) {
+  auto conf = makeTrackingConf(/*replicateEnabled=*/false);
+  auto pushState = std::make_shared<PushState>(*conf);
+  auto mockClient = MockShuffleClient::create(conf);
+  auto location = makeTrackedLocation();
+
+  // remainingReviveTimes = 0: records, then surfaces the terminal exception.
+  auto pushDataCallback = PushDataCallback::create(
+      testShuffleId,
+      testMapId,
+      testAttemptId,
+      testPartitionId,
+      testNumMappers,
+      testNumPartitions,
+      testMapKey,
+      testBatchId,
+      memory::ReadOnlyByteBuffer::createEmptyBuffer(),
+      pushState,
+      mockClient->weak_from_this(),
+      /*remainingReviveTimes=*/0,
+      location);
+
+  pushDataCallback->onFailure(std::make_unique<std::runtime_error>("boom"));
+
+  EXPECT_TRUE(failedBatchRecorded(
+      pushState->getFailedBatches(),
+      location->uniqueId(),
+      testMapId,
+      testAttemptId,
+      testBatchId));
+}
+
+// HARD_SPLIT records the resubmitted batch only when replication is also
+// enabled (the gating the Java client applies), since without a replica the
+// original worker cannot have committed a duplicate.
+TEST(
+    PushDataCallbackTest,
+    onSuccessHardSplitRecordsFailedBatchGatedOnReplicate) {
+  for (bool replicateEnabled : {true, false}) {
+    auto conf = makeTrackingConf(replicateEnabled);
+    auto pushState = std::make_shared<PushState>(*conf);
+    auto mockClient = MockShuffleClient::create(conf);
+    auto location = makeTrackedLocation();
+    mockClient->setOnAddRequestToReviveManager(
+        [](std::shared_ptr<protocol::ReviveRequest>) {});
+    mockClient->setOnAddPushDataRetryTask([](folly::Func&&) {});
+
+    auto pushDataCallback = PushDataCallback::create(
+        testShuffleId,
+        testMapId,
+        testAttemptId,
+        testPartitionId,
+        testNumMappers,
+        testNumPartitions,
+        testMapKey,
+        testBatchId,
+        memory::ReadOnlyByteBuffer::createEmptyBuffer(),
+        pushState,
+        mockClient->weak_from_this(),
+        /*remainingReviveTimes=*/1,
+        location);
+
+    pushDataCallback->onSuccess(
+        createStatusResponse(protocol::StatusCode::HARD_SPLIT));
+
+    EXPECT_EQ(
+        failedBatchRecorded(
+            pushState->getFailedBatches(),
+            location->uniqueId(),
+            testMapId,
+            testAttemptId,
+            testBatchId),
+        replicateEnabled)
+        << "replicateEnabled: " << replicateEnabled;
+  }
 }

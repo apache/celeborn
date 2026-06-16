@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <string>
+
 namespace celeborn::protocol {
 enum StatusCode {
   // 1/0 Status
@@ -92,4 +94,9 @@ enum StatusCode {
 };
 
 StatusCode toStatusCode(int32_t code);
+
+// Canonical name of the StatusCode, matching the Java enum names so that
+// locally-generated failure messages can be parsed back via
+// ShuffleClientImpl::getPushDataFailCause.
+std::string toString(StatusCode code);
 } // namespace celeborn::protocol

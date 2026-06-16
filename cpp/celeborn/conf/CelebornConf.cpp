@@ -169,6 +169,7 @@ CelebornConf::defaultProperties() {
           NUM_PROP(kClientFetchMaxRetriesForEachReplica, 3),
           STR_PROP(kNetworkIoRetryWait, "5s"),
           BOOL_PROP(kClientPushReplicateEnabled, false),
+          BOOL_PROP(kClientPushExcludeWorkerOnFailureEnabled, false),
           BOOL_PROP(kClientFetchExcludeWorkerOnFailureEnabled, false),
           STR_PROP(kClientFetchExcludedWorkerExpireTimeout, "60s"),
           BOOL_PROP(kClientAdaptiveOptimizeSkewedPartitionReadEnabled, false),
@@ -366,6 +367,11 @@ Timeout CelebornConf::networkIoRetryWait() const {
 
 bool CelebornConf::clientPushReplicateEnabled() const {
   return folly::to<bool>(optionalProperty(kClientPushReplicateEnabled).value());
+}
+
+bool CelebornConf::clientPushExcludeWorkerOnFailureEnabled() const {
+  return folly::to<bool>(
+      optionalProperty(kClientPushExcludeWorkerOnFailureEnabled).value());
 }
 
 bool CelebornConf::clientFetchExcludeWorkerOnFailureEnabled() const {

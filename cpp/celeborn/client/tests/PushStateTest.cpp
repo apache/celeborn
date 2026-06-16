@@ -256,3 +256,33 @@ TEST_F(PushStateBytesSizeTest, cleanupClearsBytesSizeTracking) {
 
   EXPECT_FALSE(pushState_->limitMaxInFlight(hostAndPushPort));
 }
+
+TEST_F(PushStateTest, recordFailedBatch) {
+  EXPECT_TRUE(pushState_->getFailedBatches().empty());
+
+  // partitionUniqueId, mapId, attemptId, batchId
+  pushState_->recordFailedBatch("7-0", 1001, 1002, 3);
+  pushState_->recordFailedBatch("7-0", 1001, 1002, 5);
+  pushState_->recordFailedBatch("8-1", 2001, 2002, 9);
+
+  auto failed = pushState_->getFailedBatches();
+  ASSERT_EQ(failed.size(), 2);
+
+  ASSERT_EQ(failed.count("7-0"), 1);
+  const auto& attempts70 = failed.at("7-0");
+  ASSERT_EQ(attempts70.count("1001-1002"), 1);
+  const auto& batchIds70 = attempts70.at("1001-1002");
+  EXPECT_EQ(batchIds70.size(), 2);
+  EXPECT_EQ(batchIds70.count(3), 1);
+  EXPECT_EQ(batchIds70.count(5), 1);
+
+  ASSERT_EQ(failed.count("8-1"), 1);
+  EXPECT_EQ(failed.at("8-1").at("2001-2002").count(9), 1);
+
+  // cleanup() keeps failed batches like Java; takeFailedBatches() drains them.
+  pushState_->cleanup();
+  EXPECT_EQ(pushState_->getFailedBatches().size(), 2);
+
+  EXPECT_EQ(pushState_->takeFailedBatches().size(), 2);
+  EXPECT_TRUE(pushState_->getFailedBatches().empty());
+}

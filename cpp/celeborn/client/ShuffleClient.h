@@ -204,7 +204,7 @@ class ShuffleClientImpl
 
   bool cleanupShuffle(int shuffleId) override;
 
-  void shutdown() override {}
+  void shutdown() override;
 
  protected:
   // The constructor is hidden to ensure that functionality of
@@ -252,13 +252,82 @@ class ShuffleClientImpl
       const std::string& mapKey,
       std::vector<DataBatch> batches,
       std::vector<std::shared_ptr<protocol::ReviveRequest>> reviveRequests,
+      // Failure cause carried through retries so re-revive and worker
+      // exclusion behave like the Java client.
+      protocol::StatusCode cause,
       int oldGroupedBatchId,
       std::shared_ptr<PushState> pushState,
       int remainReviveTimes,
       long reviveResponseDueTimeMs);
 
+  // These push-failure / worker-exclusion helpers are pure logic, kept
+  // protected so a subclass can unit-test them.
+
+  // Derive a specific push-data failure StatusCode from the transport error
+  // message (mirrors the Java getPushDataFailCause). Defaults to
+  // PUSH_DATA_FAIL_NON_CRITICAL_CAUSE (primary) when unknown.
+  static protocol::StatusCode getPushDataFailCause(const std::string& message);
+
+  // Shared onFailure tail for the push callbacks: classifies errorMsg into a
+  // cause. With no revive attempts left, sets the terminal exception on
+  // pushState ("<cause>: <errorMsg>", like Java) and returns std::nullopt;
+  // otherwise returns the cause for the revive/retry.
+  static std::optional<protocol::StatusCode> classifyPushFailure(
+      const std::string& errorMsg,
+      int remainingReviveTimes,
+      PushState& pushState);
+
+  // Exclude the worker owning oldLocation on a connection/timeout cause when
+  // clientPushExcludeWorkerOnFailureEnabled is on. No-op otherwise.
+  void excludeWorkerByCause(
+      protocol::StatusCode cause,
+      const std::shared_ptr<const protocol::PartitionLocation>& oldLocation);
+
+  // If location (or its peer) targets an excluded worker, returns the matching
+  // PUSH_DATA_*_WORKER_EXCLUDED cause, else std::nullopt (always std::nullopt
+  // when clientPushExcludeWorkerOnFailureEnabled is off).
+  std::optional<protocol::StatusCode> getPushTargetWorkerExcludeCause(
+      const protocol::PartitionLocation& location);
+
  private:
   std::shared_ptr<PushState> getPushState(const std::string& mapKey);
+
+  // Result of the shared pushData/mergeData prologue. The batch size is
+  // body->remainingSize() (16-byte header + payload), validated to fit in int.
+  struct PreparedBatch {
+    std::string mapKey;
+    std::shared_ptr<const protocol::PartitionLocation> partitionLocation;
+    std::shared_ptr<PushState> pushState;
+    int batchId;
+    std::unique_ptr<memory::ReadOnlyByteBuffer> body;
+  };
+
+  // Runs the prologue shared by pushData and mergeData: short-circuits ended
+  // mappers, resolves (reviving if needed) the partition location, allocates
+  // the batchId, compresses the payload, and frames the batch body (16-byte
+  // header + data). Returns std::nullopt when the mapper already ended (the
+  // caller then returns 0).
+  std::optional<PreparedBatch> prepareBatch(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int partitionId,
+      const uint8_t* data,
+      size_t offset,
+      size_t length,
+      int numMappers,
+      int numPartitions);
+
+  // Shared by pushData/doPushMergedData/submitRetryPushData: if the target
+  // worker (or its peer) is excluded, fails `callback` with that cause;
+  // otherwise runs `doPush` under a try/catch so a synchronous failure routes
+  // through the callback's failure path, not leaking the in-flight batch.
+  template <typename DoPush, typename LogContext>
+  void pushWithFailureRouting(
+      const protocol::PartitionLocation& location,
+      network::RpcResponseCallback& callback,
+      DoPush&& doPush,
+      LogContext&& logContext);
 
   void initReviveManagerLocked();
 
@@ -341,7 +410,15 @@ class ShuffleClientImpl
   bool fetchExcludeWorkerOnFailureEnabled_;
   std::shared_ptr<FetchExcludedWorkers> fetchExcludedWorkers_;
 
-  // TODO: pushExcludedWorker is not supported yet
+  // Exclude workers on push failure (connection/timeout causes) and skip them
+  // on later pushes until a successful revive moves away.
+  const bool pushExcludeWorkerOnFailureEnabled_;
+  // Track failed batches and report them at mapperEnd for the adaptive
+  // skewed-partition read optimization (Java's dataPushFailureTrackingEnabled).
+  const bool dataPushFailureTrackingEnabled_;
+  // hostAndPushPort of push-excluded workers. Empty when
+  // pushExcludeWorkerOnFailureEnabled_ is false.
+  utils::ConcurrentHashSet<std::string> pushExcludedWorkers_;
 };
 } // namespace client
 } // namespace celeborn

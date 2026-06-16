@@ -17,6 +17,8 @@
 
 #include "celeborn/client/writer/PushState.h"
 
+#include <utility>
+
 namespace celeborn {
 namespace client {
 
@@ -229,6 +231,8 @@ void PushState::cleanup() {
   totalInflightReqs_ = 0;
   pushStrategy_->clear();
   batchesMap_.clear();
+  // Keep failedBatches_ (like Java): they must survive the mapper-ended fast
+  // path (checkMapperEnded -> cleanup) so mapperEnd can still report them.
 
   if (maxInFlightBytesSizeEnabled_) {
     inflightBytesSizePerAddress_.clear();
@@ -260,6 +264,24 @@ std::shared_ptr<DataBatches> PushState::takeDataBatches(
 utils::ConcurrentHashMap<std::string, std::shared_ptr<DataBatches>>&
 PushState::getBatchesMap() {
   return batchesMap_;
+}
+
+void PushState::recordFailedBatch(
+    const std::string& partitionUniqueId,
+    int mapId,
+    int attemptId,
+    int batchId) {
+  auto attemptKey = utils::makeAttemptKey(mapId, attemptId);
+  auto locked = failedBatches_.wlock();
+  (*locked)[partitionUniqueId][attemptKey].insert(batchId);
+}
+
+protocol::PartitionPushFailedBatches PushState::getFailedBatches() const {
+  return *failedBatches_.rlock();
+}
+
+protocol::PartitionPushFailedBatches PushState::takeFailedBatches() {
+  return std::exchange(*failedBatches_.wlock(), {});
 }
 
 void PushState::throwIfExceptionExists() {

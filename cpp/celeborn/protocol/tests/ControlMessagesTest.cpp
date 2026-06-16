@@ -131,6 +131,86 @@ TEST(ControlMessagesTest, mapperEnd) {
   EXPECT_EQ(pbMapperEnd->partitionid(), mapperEnd->partitionId);
 }
 
+TEST(ControlMessagesTest, statusCodeToString) {
+  EXPECT_EQ(toString(StatusCode::SUCCESS), "SUCCESS");
+  EXPECT_EQ(
+      toString(StatusCode::PUSH_DATA_PRIMARY_WORKER_EXCLUDED),
+      "PUSH_DATA_PRIMARY_WORKER_EXCLUDED");
+  EXPECT_EQ(
+      toString(StatusCode::PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY),
+      "PUSH_DATA_CREATE_CONNECTION_FAIL_PRIMARY");
+  // Wire value 17 maps to the Java enum name (PUSH_DATA_FAIL_NON_CRITICAL...).
+  EXPECT_EQ(
+      toString(StatusCode::PUSH_DATA_FAIL_NON_CRITICAL_CAUSE),
+      "PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_PRIMARY");
+}
+
+TEST(ControlMessagesTest, mapperEndWithPushFailedBatches) {
+  auto mapperEnd = std::make_unique<MapperEnd>();
+  mapperEnd->shuffleId = 1000;
+  mapperEnd->mapId = 1001;
+  mapperEnd->attemptId = 1002;
+  mapperEnd->numMappers = 1003;
+  mapperEnd->partitionId = 1004;
+  // partitionUniqueId -> "<mapId>-<attemptId>" -> batchIds
+  mapperEnd->pushFailedBatches["7-0"]["1001-1002"] = {3, 5};
+  mapperEnd->pushFailedBatches["8-1"]["1001-1002"] = {9};
+
+  auto transportMessage = mapperEnd->toTransportMessage();
+  auto payload = transportMessage.payload();
+  auto pbMapperEnd = utils::parseProto<PbMapperEnd>(
+      reinterpret_cast<const uint8_t*>(payload.c_str()), payload.size());
+
+  const auto& pb = pbMapperEnd->pushfailurebatches();
+  EXPECT_EQ(pb.size(), 2);
+
+  auto it70 = pb.find("7-0");
+  ASSERT_TRUE(it70 != pb.end());
+  auto attemptIt70 = it70->second.failedbatches().find("1001-1002");
+  ASSERT_TRUE(attemptIt70 != it70->second.failedbatches().end());
+  const auto& batches70 = attemptIt70->second.failedbatches();
+  ASSERT_EQ(batches70.size(), 2);
+  // std::set is ordered, so serialization order is deterministic.
+  EXPECT_EQ(batches70[0], 3);
+  EXPECT_EQ(batches70[1], 5);
+
+  auto it81 = pb.find("8-1");
+  ASSERT_TRUE(it81 != pb.end());
+  auto attemptIt81 = it81->second.failedbatches().find("1001-1002");
+  ASSERT_TRUE(attemptIt81 != it81->second.failedbatches().end());
+  const auto& batches81 = attemptIt81->second.failedbatches();
+  ASSERT_EQ(batches81.size(), 1);
+  EXPECT_EQ(batches81[0], 9);
+}
+
+TEST(ControlMessagesTest, getReducerFileGroupResponsePushFailedBatches) {
+  PbGetReducerFileGroupResponse pbGetReducerFileGroupResponse;
+  pbGetReducerFileGroupResponse.set_status(1);
+
+  auto* pushFailed = pbGetReducerFileGroupResponse.mutable_pushfailedbatches();
+  PbLocationPushFailedBatches pbLocationBatches;
+  PbFailedBatches pbFailedBatches;
+  pbFailedBatches.add_failedbatches(3);
+  pbFailedBatches.add_failedbatches(5);
+  (*pbLocationBatches.mutable_failedbatches())["1001-1002"] = pbFailedBatches;
+  (*pushFailed)["7-0"] = pbLocationBatches;
+
+  TransportMessage transportMessage(
+      GET_REDUCER_FILE_GROUP_RESPONSE,
+      pbGetReducerFileGroupResponse.SerializeAsString());
+  auto response =
+      GetReducerFileGroupResponse::fromTransportMessage(transportMessage);
+
+  ASSERT_EQ(response->pushFailedBatches.size(), 1);
+  ASSERT_EQ(response->pushFailedBatches.count("7-0"), 1);
+  const auto& attempts = response->pushFailedBatches.at("7-0");
+  ASSERT_EQ(attempts.count("1001-1002"), 1);
+  const auto& batchIds = attempts.at("1001-1002");
+  EXPECT_EQ(batchIds.size(), 2);
+  EXPECT_EQ(batchIds.count(3), 1);
+  EXPECT_EQ(batchIds.count(5), 1);
+}
+
 TEST(ControlMessagesTest, mapperEndResponse) {
   PbMapperEndResponse pbMapperEndResponse;
   pbMapperEndResponse.set_status(1);

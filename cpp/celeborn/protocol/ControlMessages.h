@@ -21,6 +21,7 @@
 #include <set>
 
 #include "celeborn/protocol/PartitionLocation.h"
+#include "celeborn/protocol/PushFailedBatches.h"
 #include "celeborn/protocol/StatusCode.h"
 #include "celeborn/protocol/TransportMessage.h"
 
@@ -49,6 +50,10 @@ struct MapperEnd {
   int attemptId;
   int numMappers;
   int partitionId;
+  // partitionUniqueId -> "<mapId>-<attemptId>" -> failed batchIds. Populated
+  // only when the adaptive skewed-partition read optimization is on; serialized
+  // into PbMapperEnd.pushFailureBatches.
+  PartitionPushFailedBatches pushFailedBatches;
 
   TransportMessage toTransportMessage() const;
 };
@@ -114,6 +119,10 @@ struct GetReducerFileGroupResponse {
   std::map<int, std::set<std::shared_ptr<const PartitionLocation>>> fileGroups;
   std::vector<int> attempts;
   std::set<int> partitionIds;
+  // partitionUniqueId ("<id>-<epoch>") -> "<mapId>-<attemptId>" -> failed
+  // batchIds. Used by the reader to dedup batches that were pushed, failed,
+  // and retried elsewhere (adaptive skewed-partition read optimization).
+  PartitionPushFailedBatches pushFailedBatches;
 
   static std::unique_ptr<GetReducerFileGroupResponse> fromTransportMessage(
       const TransportMessage& transportMessage);
