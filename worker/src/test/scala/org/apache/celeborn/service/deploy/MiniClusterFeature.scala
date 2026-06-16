@@ -252,7 +252,13 @@ trait MiniClusterFeature extends Logging {
                 logError(s"cannot start worker $i, reached to max retrying", ex)
                 throw ex
               }
-              TimeUnit.SECONDS.sleep(Math.pow(2, workerStartRetry).toLong)
+              try {
+                TimeUnit.SECONDS.sleep(Math.pow(2, workerStartRetry).toLong)
+              } catch {
+                case ie: InterruptedException =>
+                  Thread.currentThread().interrupt()
+                  throw ie
+              }
               worker = createWorker(workerConf)
           }
         }
