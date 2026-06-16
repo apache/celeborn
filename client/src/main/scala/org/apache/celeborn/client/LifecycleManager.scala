@@ -224,7 +224,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   private val masterClient = new MasterClient(masterRpcEnvInUse, conf, false)
   val clientSource = new CelebornClientSource(conf)
-  private val clientMetricsEnabled = conf.metricsSystemEnable && conf.clientMetricsEnabled
+  private[client] val clientMetricsEnabled = conf.metricsSystemEnable && conf.clientMetricsEnabled
   val commitManager = new CommitManager(appUniqueId, conf, this)
   val workerStatusTracker = new WorkerStatusTracker(conf, this)
   if (clientMetricsEnabled) {
@@ -916,7 +916,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     val contextWrapper =
       ChangeLocationsCallContext(context, partitionIds.size(), serdeVersion)
     if (clientMetricsEnabled) {
-      clientSource.incCounter(CelebornClientSource.REVIVE_REQUEST_COUNT)
+      clientSource.incCounter(CelebornClientSource.REVIVE_REQUEST_COUNT, partitionIds.size())
     }
     // If shuffle not registered, reply ShuffleNotRegistered and return
     if (!registeredShuffle.contains(shuffleId)) {
@@ -1306,9 +1306,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   def unregisterShuffle(shuffleId: Int): Unit = {
-    if (clientMetricsEnabled) {
-      clientSource.incCounter(CelebornClientSource.UNREGISTER_SHUFFLE_COUNT)
-    }
     if (getPartitionType(shuffleId) == PartitionType.REDUCE) {
       // if StageEnd has not been handled, trigger StageEnd
       if (!commitManager.isStageEnd(shuffleId)) {
@@ -1878,6 +1875,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           // if unregister shuffle not success, wait next turn
           if (StatusCode.SUCCESS == StatusCode.fromValue(unregisterShuffleResponse.getStatus)) {
             unregisterShuffleTime.remove(shuffleId)
+            if (clientMetricsEnabled) {
+              clientSource.incCounter(CelebornClientSource.UNREGISTER_SHUFFLE_COUNT)
+            }
           }
         }
       } else {
@@ -1889,6 +1889,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         if (StatusCode.SUCCESS == StatusCode.fromValue(unregisterShuffleResponse.getStatus)) {
           shuffleIdsToRemove.foreach { shuffleId: Integer =>
             unregisterShuffleTime.remove(shuffleId)
+            if (clientMetricsEnabled) {
+              clientSource.incCounter(CelebornClientSource.UNREGISTER_SHUFFLE_COUNT)
+            }
           }
         }
       }

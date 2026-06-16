@@ -29,7 +29,7 @@ import com.google.common.base.Preconditions.checkState
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.google.common.collect.Sets
 
-import org.apache.celeborn.client.{ClientUtils, LifecycleManager, ShuffleCommittedInfo, WorkerStatusTracker}
+import org.apache.celeborn.client.{CelebornClientSource, ClientUtils, LifecycleManager, ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
@@ -222,6 +222,9 @@ class ReducePartitionCommitHandler(
     } else {
       logError(s"Failed to handle stageEnd for $shuffleId, lost file!")
       dataLostShuffleSet.add(shuffleId)
+      if (conf.metricsSystemEnable && conf.clientMetricsEnabled) {
+        lifecycleManager.clientSource.incCounter(CelebornClientSource.SHUFFLE_DATA_LOST_COUNT)
+      }
       // record in stageEndShuffleSet
       setStageEnd(shuffleId)
     }
