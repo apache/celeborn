@@ -117,8 +117,11 @@ public abstract class ShuffleClient {
           ShuffleClientImpl newInstance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
           newInstance.setupLifecycleManagerRef(driverHost, port);
           newInstance.setExtension(extension);
-          _appUniqueId = appUniqueId;
+          // Publish _instance before _appUniqueId. The outer guard reads both volatiles without
+          // holding the lock, so writing _appUniqueId first would let another thread observe the
+          // new id while _instance is still stale and return the old instance.
           _instance = newInstance;
+          _appUniqueId = appUniqueId;
           initialized = true;
         }
       }

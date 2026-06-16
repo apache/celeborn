@@ -53,10 +53,10 @@ install_app() {
       rm -f "${local_tarball}"
 
       # download application with `curl`, falling back to `wget`
-      if [ $(command -v curl) ]; then
+      if command -v curl >/dev/null 2>&1; then
         echo "exec: curl ${curl_opts} ${remote_tarball}" 1>&2
         curl ${curl_opts} "${remote_tarball}" > "${local_tarball}"
-      elif [ $(command -v wget) ]; then
+      elif command -v wget >/dev/null 2>&1; then
         echo "exec: wget ${wget_opts} ${remote_tarball}" 1>&2
         wget ${wget_opts} -O "${local_tarball}" "${remote_tarball}"
       else
@@ -70,9 +70,10 @@ install_app() {
       # exit code. `tar -tzf` lists the archive without extracting and
       # exits non-zero on a non-tarball body.
       if [ -f "${local_tarball}" ] && tar -tzf "${local_tarball}" >/dev/null 2>&1; then
-        cd "${_DIR}" && tar -xzf "$2"
-        rm -rf "${local_tarball}"
-        return 0
+        if cd "${_DIR}" && tar -xzf "$2"; then
+          rm -rf "${local_tarball}"
+          return 0
+        fi
       fi
 
       echo "WARN: Download of $2 from $1 was not a valid tarball" \
