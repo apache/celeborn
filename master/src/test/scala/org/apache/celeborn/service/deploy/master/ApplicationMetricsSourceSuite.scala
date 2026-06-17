@@ -21,12 +21,13 @@ import java.util.{HashMap => JHashMap}
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.metrics.{ClientMetric, MetricType}
 
 class ApplicationMetricsSourceSuite extends CelebornFunSuite {
 
-  private def metricsOf(app: String, value: Long): JHashMap[String, java.lang.Long] = {
-    val map = new JHashMap[String, java.lang.Long]()
-    map.put("ClientRegisterShuffleCount", java.lang.Long.valueOf(value))
+  private def metricsOf(app: String, value: Long): JHashMap[String, ClientMetric] = {
+    val map = new JHashMap[String, ClientMetric]()
+    map.put("ClientRegisterShuffleCount", ClientMetric(value, MetricType.Gauge))
     map
   }
 
@@ -58,7 +59,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
 
   test("empty metrics map registers nothing") {
     val source = new ApplicationMetricsSource(new CelebornConf())
-    source.updateApplicationMetrics("app-1", new JHashMap[String, java.lang.Long]())
+    source.updateApplicationMetrics("app-1", new JHashMap[String, ClientMetric]())
     assert(source.gauges().isEmpty)
   }
 }
