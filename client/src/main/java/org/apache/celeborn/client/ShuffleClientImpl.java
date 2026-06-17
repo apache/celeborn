@@ -1057,8 +1057,10 @@ public class ShuffleClientImpl extends ShuffleClient {
       length = compressor.getCompressedTotalSize();
     }
 
-    if (cryptoHandler.isPresent()) {
-      byte[] encrypted = cryptoHandler.get().encrypt(data, offset, length);
+    // Snapshot volatile field once to avoid a TOCTOU race between isPresent() and get().
+    Optional<CryptoHandler> handler = cryptoHandler;
+    if (handler.isPresent()) {
+      byte[] encrypted = handler.get().encrypt(data, offset, length);
       logger.debug(
           "Encrypted shuffle data for shuffle {} map {} partition {}: {} bytes -> {} bytes.",
           shuffleId,

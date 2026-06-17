@@ -83,6 +83,10 @@ public class CelebornInputStreamCryptoRoundTripSuiteJ {
 
     @Override
     public byte[] decrypt(byte[] input, int offset, int length) throws IOException {
+      // Validate the buffer is large enough to hold the 4-byte length prefix
+      if (length < 4) {
+        throw new IOException("Encrypted buffer too short: " + length);
+      }
       // Read the plaintext length from the 4-byte prefix
       int decryptedLength = Platform.getInt(input, Platform.BYTE_ARRAY_OFFSET + offset);
       // Validate bounds: the 4-byte prefix must fit inside the encrypted buffer
@@ -156,8 +160,10 @@ public class CelebornInputStreamCryptoRoundTripSuiteJ {
     doAnswer(
             invocation -> {
               ChunkReceivedCallback cb = invocation.getArgument(3);
-              // Serve the pre-built batch buffer immediately as chunk 0
-              cb.onSuccess(0, new NettyManagedBuffer(batchBuf.duplicate().retain()));
+              // Serve the pre-built batch buffer immediately as chunk 0; duplicate() shares
+              // the underlying data without incrementing the ref count, so the stream's
+              // single release correctly frees the buffer.
+              cb.onSuccess(0, new NettyManagedBuffer(batchBuf.duplicate()));
               return null;
             })
         .when(client)

@@ -804,8 +804,8 @@ public abstract class CelebornInputStream extends InputStream {
       int headerLen = shouldDecompress ? Decompressor.getCompressionHeaderLength(conf) : 0;
 
       if (cryptoHandler.isPresent()) {
-        // The encrypted payload is: IV(16) + ciphertext(compressedSize), where
-        // compressedSize can reach bufferSize + headerLen, so match the same headroom.
+        // Size to match compressedBuf/rawDataBuf headroom; exact overhead depends on the
+        // CryptoHandler implementation (e.g. SparkCryptoHandler prepends a 4-byte length).
         encryptedBuf = new byte[bufferSize + headerLen];
       }
       if (shouldDecompress) {
