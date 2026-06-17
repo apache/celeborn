@@ -162,6 +162,8 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
 
   test("recordWorkerFailure increments client worker-excluded counter and gauge") {
     val celebornConf = new CelebornConf()
+    celebornConf.set(CelebornConf.METRICS_ENABLED.key, "true")
+    celebornConf.set(CelebornConf.CLIENT_METRICS_ENABLED.key, "true")
     val lifecycleManager = new LifecycleManager("app-metrics-test", celebornConf)
     try {
       val statusTracker = lifecycleManager.workerStatusTracker
