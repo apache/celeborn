@@ -25,41 +25,206 @@ import org.apache.celeborn.common.metrics.{ClientMetric, MetricType}
 
 class ApplicationMetricsSourceSuite extends CelebornFunSuite {
 
-  private def metricsOf(app: String, value: Long): JHashMap[String, ClientMetric] = {
+  private def enabledConf(): CelebornConf = {
+    val c = new CelebornConf()
+    c.set(CelebornConf.MASTER_CLIENT_METRICS_ENABLED, true)
+    c
+  }
+
+  private def gaugeMetrics(value: Long): JHashMap[String, ClientMetric] = {
     val map = new JHashMap[String, ClientMetric]()
     map.put("ClientRegisterShuffleCount", ClientMetric(value, MetricType.Gauge))
     map
   }
 
-  test("client metrics are emitted as gauges labeled by applicationId") {
+  private def counterMetrics(value: Long): JHashMap[String, ClientMetric] = {
+    val map = new JHashMap[String, ClientMetric]()
+    map.put("ClientRegisterShuffleCount", ClientMetric(value, MetricType.Counter))
+    map
+  }
+
+  private def update(
+      source: ApplicationMetricsSource,
+      metrics: JHashMap[String, ClientMetric],
+      labels: Map[String, String] = Map.empty,
+      appId: String = "app-1"): Unit =
+    source.updateApplicationMetrics(appId, labels, metrics)
+
+  private def gaugeValue(
+      source: ApplicationMetricsSource,
+      labels: Map[String, String],
+      name: String = "ClientRegisterShuffleCount"): Option[Long] =
+    source.gauges()
+      .find(g => g.name == name && hasLabels(g.labels, labels))
+      .map(_.gauge.getValue.asInstanceOf[Number].longValue())
+
+  private def counterValue(
+      source: ApplicationMetricsSource,
+      labels: Map[String, String],
+      name: String = "ClientRegisterShuffleCount"): Option[Long] =
+    source.counters()
+      .find(c => c.name == name && hasLabels(c.labels, labels))
+      .map(_.counter.getCount)
+
+  private def hasLabels(
+      actual: Map[String, String],
+      expected: Map[String, String]): Boolean =
+    expected.forall { case (key, value) => actual.get(key).contains(value) }
+
+  test("masterClientMetrics disabled: updateApplicationMetrics is a no-op") {
     val source = new ApplicationMetricsSource(new CelebornConf())
 
-    source.updateApplicationMetrics("app-1", metricsOf("app-1", 3))
-    source.updateApplicationMetrics("app-2", metricsOf("app-2", 7))
+    update(source, gaugeMetrics(5), Map("team" -> "data-eng"))
+
+    assert(source.gauges().isEmpty)
+    assert(source.counters().isEmpty)
+  }
+
+  test("no custom labels: metrics are not reported") {
+    val source = new ApplicationMetricsSource(enabledConf())
+
+    update(source, gaugeMetrics(3))
+
+    assert(source.gauges().isEmpty)
+    assert(source.counters().isEmpty)
+  }
+
+  test("client labels are used as metric labels") {
+    val source = new ApplicationMetricsSource(enabledConf())
+
+    update(source, gaugeMetrics(5), Map("team" -> "data-eng"))
 
     val metrics = source.getMetrics
-    assert(metrics.contains("metrics_ClientRegisterShuffleCount_Value"))
-    assert(metrics.contains("""applicationId="app-1""""))
-    assert(metrics.contains("""applicationId="app-2""""))
-    assert(metrics.contains("""role="Master""""))
+    assert(metrics.contains("""team="data-eng""""))
   }
 
-  test("latest reported value is reflected and removed on application lost") {
-    val source = new ApplicationMetricsSource(new CelebornConf())
+  test("gauge is updated to the latest reported value") {
+    val source = new ApplicationMetricsSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
 
-    source.updateApplicationMetrics("app-1", metricsOf("app-1", 1))
-    source.updateApplicationMetrics("app-1", metricsOf("app-1", 42))
-    assert(source.gauges().exists(g =>
-      g.labels.get("applicationId").contains("app-1") &&
-        g.gauge.getValue.asInstanceOf[Number].longValue() == 42L))
+    update(source, gaugeMetrics(1), labels)
+    update(source, gaugeMetrics(42), labels)
+
+    assert(gaugeValue(source, labels).contains(42L))
+  }
+
+  test("gauge for a label set is updated by whichever app heartbeats last") {
+    val source = new ApplicationMetricsSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+
+    update(source, gaugeMetrics(3), labels, "app-1")
+    update(source, gaugeMetrics(7), labels, "app-2")
+
+    assert(gaugeValue(source, labels).contains(7L))
+  }
+
+  test("counter accumulates deltas from heartbeats") {
+    val source = new ApplicationMetricsSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+
+    update(source, counterMetrics(10), labels)
+    update(source, counterMetrics(15), labels)
+
+    assert(counterValue(source, labels).contains(25L))
+  }
+
+  test("zero or negative counter delta is ignored") {
+    val source = new ApplicationMetricsSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+
+    update(source, counterMetrics(10), labels)
+    update(source, counterMetrics(0), labels)
+    update(source, counterMetrics(-5), labels)
+
+    assert(counterValue(source, labels).contains(10L))
+  }
+
+  test("counters from apps sharing a label set accumulate") {
+    val source = new ApplicationMetricsSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+
+    update(source, counterMetrics(10), labels, "app-1")
+    update(source, counterMetrics(5), labels, "app-2")
+
+    assert(counterValue(source, labels).contains(15L))
+  }
+
+  test("counter deltas accumulate across sequential heartbeats") {
+    val source = new ApplicationMetricsSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+
+    update(source, counterMetrics(10), labels)
+    update(source, counterMetrics(20), labels)
+    update(source, counterMetrics(35), labels)
+
+    assert(counterValue(source, labels).contains(65L))
+  }
+
+  test("counter labels appear in prometheus output") {
+    val source = new ApplicationMetricsSource(enabledConf())
+
+    update(source, counterMetrics(10), Map("team" -> "infra"))
+
+    val metrics = source.getMetrics
+    assert(metrics.contains("""team="infra""""))
+  }
+
+  test("mixed gauge and counter in a single heartbeat") {
+    val source = new ApplicationMetricsSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+    val map = new JHashMap[String, ClientMetric]()
+    map.put("ActiveShuffleCount", ClientMetric(3, MetricType.Gauge))
+    map.put("RegisterShuffleCount", ClientMetric(10, MetricType.Counter))
+
+    source.updateApplicationMetrics("app-1", labels, map)
+
+    assert(gaugeValue(source, labels, "ActiveShuffleCount").contains(3L))
+    assert(counterValue(source, labels, "RegisterShuffleCount").contains(10L))
+  }
+
+  test("removing one app keeps metrics registered while another app still contributes") {
+    val source = new ApplicationMetricsSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+
+    update(source, gaugeMetrics(3), labels, "app-1")
+    update(source, gaugeMetrics(7), labels, "app-2")
+    update(source, counterMetrics(10), labels, "app-1")
+    update(source, counterMetrics(5), labels, "app-2")
 
     source.removeApplicationMetrics("app-1")
-    assert(!source.gauges().exists(_.labels.get("applicationId").contains("app-1")))
+
+    assert(gaugeValue(source, labels).contains(7L))
+    assert(counterValue(source, labels).contains(15L))
   }
 
-  test("empty metrics map registers nothing") {
-    val source = new ApplicationMetricsSource(new CelebornConf())
-    source.updateApplicationMetrics("app-1", new JHashMap[String, ClientMetric]())
-    assert(source.gauges().isEmpty)
+  test("removing the last contributing app deregisters tracked metrics") {
+    val source = new ApplicationMetricsSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+
+    update(source, gaugeMetrics(3), labels, "app-1")
+    update(source, gaugeMetrics(7), labels, "app-2")
+    update(source, counterMetrics(10), labels, "app-1")
+    update(source, counterMetrics(5), labels, "app-2")
+
+    source.removeApplicationMetrics("app-1")
+
+    assert(gaugeValue(source, labels).contains(7L))
+    assert(counterValue(source, labels).contains(15L))
+
+    source.removeApplicationMetrics("app-2")
+
+    assert(gaugeValue(source, labels).isEmpty)
+    assert(counterValue(source, labels).isEmpty)
+  }
+
+  test("late heartbeats for removed apps are ignored") {
+    val source = new ApplicationMetricsSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+
+    update(source, gaugeMetrics(3), labels, "app-1")
+    source.removeApplicationMetrics("app-1")
+    update(source, gaugeMetrics(9), labels, "app-1")
+
+    assert(gaugeValue(source, labels).isEmpty)
   }
 }

@@ -480,7 +480,8 @@ private[celeborn] class Master(
           needCheckedWorkerList,
           requestId,
           shouldResponse,
-          clientMetrics) =>
+          clientMetrics,
+          metricLabels) =>
       logDebug(s"Received heartbeat from app $appId")
       checkAuth(context, appId)
       executeWithLeaderChecker(
@@ -497,7 +498,8 @@ private[celeborn] class Master(
           needCheckedWorkerList,
           requestId,
           shouldResponse,
-          clientMetrics))
+          clientMetrics,
+          metricLabels))
 
     case pbRegisterWorker: PbRegisterWorker =>
       val requestId = pbRegisterWorker.getRequestId
@@ -1302,7 +1304,8 @@ private[celeborn] class Master(
       needCheckedWorkerList: util.List[WorkerInfo],
       requestId: String,
       shouldResponse: Boolean,
-      clientMetrics: util.Map[String, ClientMetric]): Unit = {
+      clientMetrics: util.Map[String, ClientMetric],
+      metricLabels: util.Map[String, String]): Unit = {
     statusSystem.handleAppHeartbeat(
       appId,
       totalWritten,
@@ -1313,7 +1316,10 @@ private[celeborn] class Master(
       applicationFallbackCounts,
       System.currentTimeMillis(),
       requestId)
-    applicationMetricsSource.updateApplicationMetrics(appId, clientMetrics)
+    applicationMetricsSource.updateApplicationMetrics(
+      appId,
+      metricLabels.asScala.toMap,
+      clientMetrics)
     gaugeShuffleFallbackCounts()
     val unknownWorkers = needCheckedWorkerList.asScala.filterNot(w =>
       statusSystem.workersMap.containsKey(w.toUniqueId)).asJava
