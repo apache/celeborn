@@ -50,7 +50,7 @@ trait MasterClusterFeature extends Logging {
     }
   }
   def selectRandomPort(): Int = synchronized {
-    val port = Utils.selectRandomInt(1024, 65535)
+    val port = Utils.selectRandomInt(1024, 32768)
     val portUsed = usedPorts.contains(port) || portBounded(port)
     usedPorts.add(port)
     if (portUsed) {
