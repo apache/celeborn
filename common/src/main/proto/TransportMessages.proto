@@ -502,6 +502,7 @@ message PbHeartbeatFromApplication {
   map<string, int64> applicationFallbackCounts = 10;
   PbHeartbeatInfo heartbeatInfo = 11;
   map<string, PbClientMetric> clientMetrics = 12;
+  map<string, string> metricLabels = 13;
 }
 
 enum PbMetricType {

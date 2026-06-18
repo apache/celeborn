@@ -391,7 +391,8 @@ object ControlMessages extends Logging {
       needCheckedWorkerList: util.List[WorkerInfo],
       override var requestId: String = ZERO_UUID,
       shouldResponse: Boolean = false,
-      clientMetrics: util.Map[String, ClientMetric] = new util.HashMap[String, ClientMetric]())
+      clientMetrics: util.Map[String, ClientMetric] = new util.HashMap[String, ClientMetric](),
+      metricLabels: util.Map[String, String] = new util.HashMap[String, String]())
     extends MasterRequestMessage
 
   case class HeartbeatFromApplicationResponse(
@@ -872,7 +873,8 @@ object ControlMessages extends Logging {
           needCheckedWorkerList,
           requestId,
           shouldResponse,
-          clientMetrics) =>
+          clientMetrics,
+          metricLabels) =>
       val payload = PbHeartbeatFromApplication.newBuilder()
         .setAppId(appId)
         .setRequestId(requestId)
@@ -892,6 +894,7 @@ object ControlMessages extends Logging {
           }
           name -> PbClientMetric.newBuilder().setValue(metric.value).setType(pbType).build()
         }.asJava)
+        .putAllMetricLabels(metricLabels)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION, payload)
 
@@ -1378,13 +1381,19 @@ object ControlMessages extends Logging {
           pbHeartbeatFromApplication.getRequestId,
           pbHeartbeatFromApplication.getShouldResponse,
           new util.HashMap[String, ClientMetric](
-            pbHeartbeatFromApplication.getClientMetricsMap.asScala.map { case (name, pbMetric) =>
-              val metricType = pbMetric.getType match {
-                case PbMetricType.COUNTER => MetricType.Counter
-                case _ => MetricType.Gauge
-              }
-              name -> ClientMetric(pbMetric.getValue, metricType)
-            }.asJava))
+            pbHeartbeatFromApplication.getClientMetricsMap.asScala.flatMap {
+              case (name, pbMetric) =>
+                pbMetric.getType match {
+                  case PbMetricType.COUNTER =>
+                    Some(name -> ClientMetric(pbMetric.getValue, MetricType.Counter))
+                  case PbMetricType.GAUGE =>
+                    Some(name -> ClientMetric(pbMetric.getValue, MetricType.Gauge))
+                  case unknown =>
+                    logWarning(s"Unknown PbMetricType $unknown for metric $name, skipping")
+                    None
+                }
+            }.asJava),
+          new util.HashMap[String, String](pbHeartbeatFromApplication.getMetricLabelsMap))
 
       case HEARTBEAT_FROM_APPLICATION_RESPONSE_VALUE =>
         val pbHeartbeatFromApplicationResponse =

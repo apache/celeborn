@@ -18,7 +18,7 @@
 package org.apache.celeborn.service.deploy.master
 
 import java.util.{Map => JMap}
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 
@@ -26,81 +26,55 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.{ClientMetric, MetricType}
 import org.apache.celeborn.common.metrics.source.{AbstractSource, Role}
-import org.apache.celeborn.common.util.JavaUtils
+import org.apache.celeborn.common.util.{JavaUtils, Utils}
 
-/**
- * Holds the client-side metrics that applications report in their heartbeat and re-exposes them on
- * the master's Prometheus endpoint, labeled by `applicationId`. Both the registrations and any
- * cached state are dropped when the application is terminated.
- */
 class ApplicationMetricsSource(conf: CelebornConf)
   extends AbstractSource(conf, Role.MASTER) with Logging {
   override val sourceName = "application"
 
-  // applicationId -> (metricName -> latest reported gauge value)
-  private val appGaugeCache =
-    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, java.lang.Long]]()
+  private val masterClientMetricsEnabled = conf.masterClientMetricsEnabled
+  private val removedAppRetentionMs = conf.masterClientMetricsRemovedAppRetentionMs
 
-  // applicationId -> (metricName -> last reported counter value, used to compute deltas)
-  private val appCounterPrev =
-    JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, java.lang.Long]]()
+  // Tracking applications that have been terminated
+  private val removedAppIds =
+    JavaUtils.newConcurrentHashMap[String, java.lang.Long]()
 
-  startCleaner()
+  startRemovedAppCleaner()
 
-  def updateApplicationMetrics(appId: String, metrics: JMap[String, ClientMetric]): Unit = {
-    if (metrics.isEmpty) return
+  private def startRemovedAppCleaner(): Unit = {
+    val cleanTask: Runnable = new Runnable {
+      override def run(): Unit = Utils.tryLogNonFatalError {
+        val cutoff = System.currentTimeMillis() - removedAppRetentionMs
+        removedAppIds.entrySet().asScala.foreach { entry =>
+          if (entry.getValue < cutoff) {
+            removedAppIds.remove(entry.getKey, entry.getValue)
+          }
+        }
+      }
+    }
+    metricsCleaner.scheduleWithFixedDelay(cleanTask, 10, 10, TimeUnit.MINUTES)
+  }
+
+  def updateApplicationMetrics(
+      appId: String,
+      metricLabels: Map[String, String],
+      metrics: JMap[String, ClientMetric]): Unit = {
+    if (!masterClientMetricsEnabled || metricLabels.isEmpty || removedAppIds.containsKey(appId)) {
+      return
+    }
+
     metrics.asScala.foreach { case (name, metric) =>
-      val labels = Map(applicationLabel -> appId)
       metric.metricType match {
-        case MetricType.Gauge => updateGauge(appId, name, labels, metric.value)
-        case MetricType.Counter => updateCounter(appId, name, labels, metric.value)
+        case MetricType.Gauge =>
+          addOrUpdateGaugeForApp(name, metricLabels, appId, metric.value)
+        case MetricType.Counter =>
+          addOrUpdateCounterForApp(name, metricLabels, appId, metric.value)
       }
     }
-  }
-
-  private def updateGauge(
-      appId: String,
-      name: String,
-      labels: Map[String, String],
-      value: Long): Unit = {
-    val cache = appGaugeCache.computeIfAbsent(appId, _ => JavaUtils.newConcurrentHashMap())
-    cache.put(name, value)
-    if (!gaugeExists(name, labels)) {
-      addGauge(name, labels) { () =>
-        Option(appGaugeCache.get(appId))
-          .flatMap(m => Option(m.get(name)))
-          .map(_.longValue())
-          .getOrElse(0L)
-      }
-    }
-  }
-
-  private def updateCounter(
-      appId: String,
-      name: String,
-      labels: Map[String, String],
-      newValue: Long): Unit = {
-    val prev = appCounterPrev.computeIfAbsent(appId, _ => JavaUtils.newConcurrentHashMap())
-    if (!counterExists(name, labels)) {
-      addCounter(name, labels)
-    }
-    val prevValue = prev.getOrDefault(name, 0L)
-    val delta = newValue - prevValue
-    if (delta > 0) {
-      incCounter(name, delta, labels)
-    }
-    prev.put(name, newValue)
   }
 
   def removeApplicationMetrics(appId: String): Unit = {
-    val labels = Map(applicationLabel -> appId)
-    val gaugeCache = appGaugeCache.remove(appId)
-    if (gaugeCache != null) {
-      gaugeCache.keySet().asScala.foreach(name => removeGauge(name, labels))
-    }
-    val counterPrev = appCounterPrev.remove(appId)
-    if (counterPrev != null) {
-      counterPrev.keySet().asScala.foreach(name => removeCounter(name, labels))
-    }
+    removedAppIds.put(appId, System.currentTimeMillis())
+    removeAppFromMetrics(appId)
   }
 }

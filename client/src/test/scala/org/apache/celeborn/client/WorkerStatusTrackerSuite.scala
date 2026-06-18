@@ -167,7 +167,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
     val lifecycleManager = new LifecycleManager("app-metrics-test", celebornConf)
     try {
       val statusTracker = lifecycleManager.workerStatusTracker
-      val source = lifecycleManager.clientSource
+      val source = lifecycleManager.clientSource.get
 
       val failed = new ShuffleFailedWorkers()
       val now = System.currentTimeMillis()
