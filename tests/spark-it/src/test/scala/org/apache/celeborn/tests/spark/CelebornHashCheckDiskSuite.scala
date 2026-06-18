@@ -24,7 +24,6 @@ import org.apache.spark.sql.SparkSession
 import org.scalatest.concurrent.Eventually._
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
-import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.service.deploy.worker.Worker
@@ -43,19 +42,12 @@ class CelebornHashCheckDiskSuite extends SparkTestBase {
   }
 
   override def beforeEach(): Unit = {
-    resetSparkState()
+    stopActiveSparkSessions()
   }
 
   override def afterEach(): Unit = {
-    resetSparkState()
+    stopActiveSparkSessions()
     System.gc()
-  }
-
-  private def resetSparkState(): Unit = {
-    SparkSession.getActiveSession.orElse(SparkSession.getDefaultSession).foreach(_.stop())
-    SparkSession.clearActiveSession()
-    SparkSession.clearDefaultSession()
-    ShuffleClient.reset()
   }
 
   test("celeborn spark integration test - hash-checkDiskFull") {
@@ -67,7 +59,7 @@ class CelebornHashCheckDiskSuite extends SparkTestBase {
     val combineResult = combine(sparkSession)
     val groupByResult = groupBy(sparkSession)
     val repartitionResult = repartition(sparkSession)
-    resetSparkState()
+    stopActiveSparkSessions()
 
     val sparkSessionEnableCeleborn = SparkSession.builder()
       .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
