@@ -222,9 +222,7 @@ class ReducePartitionCommitHandler(
     } else {
       logError(s"Failed to handle stageEnd for $shuffleId, lost file!")
       dataLostShuffleSet.add(shuffleId)
-      if (conf.metricsSystemEnable && conf.clientMetricsEnabled) {
-        lifecycleManager.clientSource.incCounter(CelebornClientSource.SHUFFLE_DATA_LOST_COUNT)
-      }
+      lifecycleManager.incClientMetric(CelebornClientSource.SHUFFLE_DATA_LOST_COUNT)
       // record in stageEndShuffleSet
       setStageEnd(shuffleId)
     }

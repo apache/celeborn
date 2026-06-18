@@ -49,6 +49,8 @@ class ApplicationHeartbeater(
 
   private var stopped = false
   private val reviseLostShuffles = conf.reviseLostShufflesEnabled
+  private val appMetricLabels: util.Map[String, String] =
+    conf.clientMetricsAppLabels.asJava
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
@@ -89,7 +91,9 @@ class ApplicationHeartbeater(
                 workerStatusTracker.getNeedCheckedWorkers().toList.asJava,
                 ZERO_UUID,
                 true,
-                clientMetrics())
+                if (appMetricLabels.isEmpty) new util.HashMap[String, ClientMetric]()
+                else clientMetrics(),
+                appMetricLabels)
             val response = requestHeartbeat(appHeartbeat)
             if (response.statusCode == StatusCode.SUCCESS) {
               logDebug("Successfully send app heartbeat.")

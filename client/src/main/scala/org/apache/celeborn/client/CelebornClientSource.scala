@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.client
 
+import java.util.concurrent.ConcurrentHashMap
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.{ClientMetric, MetricType}
 import org.apache.celeborn.common.metrics.source.{AbstractSource, Role}
@@ -29,6 +31,9 @@ class CelebornClientSource(conf: CelebornConf) extends AbstractSource(conf, Role
 
   import CelebornClientSource._
 
+  // Tracks previous counter values so we can send deltas to the master.
+  private val counterPrev = new ConcurrentHashMap[String, java.lang.Long]()
+
   addCounter(REGISTER_SHUFFLE_COUNT)
   addCounter(REGISTER_SHUFFLE_FAIL_COUNT)
   addCounter(UNREGISTER_SHUFFLE_COUNT)
@@ -39,34 +44,35 @@ class CelebornClientSource(conf: CelebornConf) extends AbstractSource(conf, Role
   addCounter(SHUFFLE_DATA_LOST_COUNT)
 
   def getMetricsSnapshot(): Map[String, ClientMetric] = {
-    val counterMetrics = counters().map(c =>
-      c.name -> ClientMetric(c.counter.getCount, MetricType.Counter))
+    // Counters: compute delta since last snapshot
+    val counterMetrics = counters().flatMap { c =>
+      val current = c.counter.getCount
+      val prev = Option(counterPrev.put(c.name, current)).map(_.longValue()).getOrElse(0L)
+      val delta = current - prev
+      if (delta > 0) Some(c.name -> ClientMetric(delta, MetricType.Counter))
+      else None
+    }
+    // Gauges: send the latest value as-is.
     val gaugeMetrics = gauges().map(g =>
       g.name -> ClientMetric(g.gauge.getValue.asInstanceOf[Number].longValue(), MetricType.Gauge))
     (counterMetrics ++ gaugeMetrics).toMap
   }
 
-  // start cleaner thread
-  startCleaner()
+  def start(): Unit = startCleaner()
+
+  def stop(): Unit = metricsCleaner.shutdown()
 }
 
 object CelebornClientSource {
-  // worker health
   val EXCLUDED_WORKER_COUNT = "ClientExcludedWorkerCount"
   val SHUTTING_WORKER_COUNT = "ClientShuttingWorkerCount"
-
-  // shuffle lifecycle
   val ACTIVE_SHUFFLE_COUNT = "ClientActiveShuffleCount"
   val REGISTER_SHUFFLE_COUNT = "ClientRegisterShuffleCount"
   val REGISTER_SHUFFLE_FAIL_COUNT = "ClientRegisterShuffleFailCount"
   val UNREGISTER_SHUFFLE_COUNT = "ClientUnregisterShuffleCount"
-
-  // write path
   val REVIVE_REQUEST_COUNT = "ClientReviveRequestCount"
   val REVIVE_FAIL_COUNT = "ClientReviveFailCount"
   val SLOT_RESERVATION_FAIL_COUNT = "ClientSlotReservationFailCount"
-
-  // data integrity
   val SHUFFLE_FETCH_FAILURE_COUNT = "ClientShuffleFetchFailureCount"
   val SHUFFLE_DATA_LOST_COUNT = "ClientShuffleDataLostCount"
 }

@@ -19,6 +19,7 @@ package org.apache.celeborn.common.metrics.source
 
 import java.util.{Map => JMap}
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, ScheduledExecutorService, TimeUnit}
+import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -47,6 +48,12 @@ case class NamedHistogram(name: String, histogram: Histogram, labels: Map[String
   extends MetricLabels
 
 case class NamedTimer(name: String, timer: Timer, labels: Map[String, String]) extends MetricLabels
+
+case class AppMetricDetails[T](
+    name: String,
+    handle: T,
+    originalLabels: Map[String, String],
+    additionalDetails: java.util.Set[String])
 
 abstract class AbstractSource(conf: CelebornConf, role: String)
   extends Source with Logging {
@@ -100,6 +107,12 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   protected val namedHistogram: ConcurrentHashMap[String, NamedHistogram] =
     JavaUtils.newConcurrentHashMap[String, NamedHistogram]()
+
+  protected val namedGaugesWithDetails: ConcurrentHashMap[String, AppMetricDetails[AtomicLong]] =
+    JavaUtils.newConcurrentHashMap[String, AppMetricDetails[AtomicLong]]()
+
+  protected val namedCountersWithDetails: ConcurrentHashMap[String, AppMetricDetails[Counter]] =
+    JavaUtils.newConcurrentHashMap[String, AppMetricDetails[Counter]]()
 
   def addTimerMetrics(namedTimer: NamedTimer): Unit = {
     val timerMetricsString = getTimerMetrics(namedTimer)
@@ -214,6 +227,45 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
         labelsWithCustomizedLabels(labels)))
   }
 
+  protected def addOrUpdateGaugeForApp(
+      name: String,
+      labels: Map[String, String],
+      appId: String,
+      value: Long): Unit = {
+    val details = namedGaugesWithDetails.computeIfAbsent(
+      metricNameWithCustomizedLabels(name, labels),
+      (_: String) => {
+        val holder = new AtomicLong()
+        addGauge(name, labels)(() => holder.get())
+        AppMetricDetails(name, holder, labels, ConcurrentHashMap.newKeySet[String]())
+      })
+    details.additionalDetails.add(appId)
+    details.handle.set(value)
+  }
+
+  protected def addOrUpdateCounterForApp(
+      name: String,
+      labels: Map[String, String],
+      appId: String,
+      delta: Long): Unit = {
+    if (delta <= 0) {
+      return
+    }
+    val metricKey = metricNameWithCustomizedLabels(name, labels)
+    val details = namedCountersWithDetails.computeIfAbsent(
+      metricKey,
+      (_: String) => {
+        addCounter(name, labels)
+        AppMetricDetails(
+          name,
+          namedCounters.get(metricKey).counter,
+          labels,
+          ConcurrentHashMap.newKeySet[String]())
+      })
+    details.additionalDetails.add(appId)
+    details.handle.inc(delta)
+  }
+
   def counters(): List[NamedCounter] = {
     namedCounters.values().asScala.toList
   }
@@ -281,6 +333,26 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
     metricRegistry.remove(metricNameWithLabel)
     metricNameWithLabel
+  }
+
+  protected def removeAppFromMetrics(appId: String): Unit = {
+    removeAppFromTracked(namedGaugesWithDetails, appId)(d => removeGauge(d.name, d.originalLabels))
+    removeAppFromTracked(namedCountersWithDetails, appId)(d =>
+      removeCounter(d.name, d.originalLabels))
+  }
+
+  private def removeAppFromTracked[T](
+      tracked: ConcurrentHashMap[String, AppMetricDetails[T]],
+      appId: String)(deregister: AppMetricDetails[T] => Unit): Unit = {
+    val iter = tracked.entrySet().iterator()
+    while (iter.hasNext) {
+      val details = iter.next().getValue
+      details.additionalDetails.remove(appId)
+      if (details.additionalDetails.isEmpty) {
+        iter.remove()
+        deregister(details)
+      }
+    }
   }
 
   override def sample[T](metricsName: String, key: String)(f: => T): T = {
@@ -697,6 +769,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     metricsCleaner.shutdown()
     namedCounters.clear()
     namedGauges.clear()
+    namedGaugesWithDetails.clear()
+    namedCountersWithDetails.clear()
     namedMeters.clear()
     namedTimers.clear()
     timerMetrics.clear()
