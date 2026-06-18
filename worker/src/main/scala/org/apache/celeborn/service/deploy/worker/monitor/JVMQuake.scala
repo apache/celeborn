@@ -91,9 +91,19 @@ class JVMQuake(conf: CelebornConf, uniqueId: String = UUID.randomUUID().toString
     val runTimeTicks = currentExitTime - lastExitTime - gcTimeTicks
     // JVMStat time monitors are reported in ticks. Convert deltas to nanos before comparing
     // them against JVMQuake thresholds, which are stored as nanos.
-    val gcTime = ticksToNanos(gcTimeTicks)
-    val runTime = ticksToNanos(runTimeTicks)
+    checkAndDump(ticksToNanos(gcTimeTicks), ticksToNanos(runTimeTicks))
+    lastExitTime = currentExitTime
+    lastGCTime = currentGCTime
+  }
 
+  /**
+   * Updates the GC "deficit" bucket with the latest GC and execution time deltas (in nanos) and
+   * heap dumps or kills the JVM once the configured thresholds are crossed. Separated from the
+   * jvmstat counter reads in [[run]] so the threshold logic can be exercised deterministically
+   * without inducing real GC pressure.
+   */
+  @VisibleForTesting
+  private[monitor] def checkAndDump(gcTime: Long, runTime: Long): Unit = {
     bucket = Math.max(0, bucket + gcTime - (BigDecimal(runTime) * BigDecimal(runtimeWeight)).toLong)
     logDebug(s"Time: (gc time: ${Utils.nanoDurationToString(gcTime)}, execution time: ${Utils.nanoDurationToString(runTime)})")
     logDebug(
@@ -110,8 +120,6 @@ class JVMQuake(conf: CelebornConf, uniqueId: String = UUID.randomUUID().toString
         System.exit(exitCode)
       }
     }
-    lastExitTime = currentExitTime
-    lastGCTime = currentGCTime
   }
 
   def shouldHeapDump: Boolean = {
