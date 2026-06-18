@@ -83,9 +83,8 @@ install_app() {
     done
 
     rm -f "${local_tarball}"
-    echo "ERROR: Failed to download a valid $2 from $1 after ${max_attempts} attempts;" \
-      "please install manually and try again." 1>&2
-    exit 2
+    echo "WARN: Failed to download a valid $2 from $1 after ${max_attempts} attempts." 1>&2
+    return 1
   fi
 }
 
@@ -115,11 +114,26 @@ install_mvn() {
       *closer.lua*) MIRROR_URL_QUERY="?action=download" ;;
     esac
 
-    install_app \
+    if ! install_app \
       "${APACHE_MIRROR}/${FILE_PATH}" \
       "${MVN_TARBALL}" \
       "apache-maven-${MVN_VERSION}/bin/mvn" \
-      "${MIRROR_URL_QUERY}"
+      "${MIRROR_URL_QUERY}"; then
+      # Last resort: fall back to archive.apache.org, which serves the exact
+      # tarball deterministically. Skip if it was already the chosen mirror.
+      local ARCHIVE_MIRROR="https://archive.apache.org/dist"
+      if [ "${APACHE_MIRROR%/}" != "${ARCHIVE_MIRROR}" ]; then
+        echo "WARN: falling back to ${ARCHIVE_MIRROR} to download Maven" 1>&2
+        install_app \
+          "${ARCHIVE_MIRROR}/${FILE_PATH}" \
+          "${MVN_TARBALL}" \
+          "apache-maven-${MVN_VERSION}/bin/mvn" \
+          "" || { echo "ERROR: Failed to download Maven; please install manually." 1>&2; exit 2; }
+      else
+        echo "ERROR: Failed to download Maven; please install manually." 1>&2
+        exit 2
+      fi
+    fi
 
     MVN_BIN="${_DIR}/apache-maven-${MVN_VERSION}/bin/mvn"
   fi
