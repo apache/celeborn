@@ -140,7 +140,7 @@ public class RatisMasterStatusSystemSuiteJ {
         String id2 = UUID.randomUUID().toString();
         String id3 = UUID.randomUUID().toString();
 
-        int ratisPort1 = Utils$.MODULE$.selectRandomInt(1024, 65535);
+        int ratisPort1 = Utils$.MODULE$.selectRandomInt(1024, 32766);
         int ratisPort2 = ratisPort1 + 1;
         int ratisPort3 = ratisPort2 + 1;
 
