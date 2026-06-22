@@ -23,6 +23,7 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 
 /** Note: code copied from Apache Spark. */
@@ -30,7 +31,11 @@ public class DBProvider {
   private static final Logger logger = LoggerFactory.getLogger(DBProvider.class);
 
   public static DB initDB(
-      DBBackend dbBackend, File dbFile, StoreVersion version, AbstractSource source)
+      DBBackend dbBackend,
+      File dbFile,
+      StoreVersion version,
+      AbstractSource source,
+      CelebornConf conf)
       throws IOException {
     if (dbFile != null) {
       switch (dbBackend) {
@@ -39,8 +44,8 @@ public class DBProvider {
           logger.warn("The LEVELDB is deprecated. Please use ROCKSDB instead.");
           return levelDB != null ? new LevelDB(levelDB, source, dbBackend) : null;
         case ROCKSDB:
-          org.rocksdb.RocksDB rocksDB = RocksDBProvider.initRockDB(dbFile, version);
-          return rocksDB != null ? new RocksDB(rocksDB, source, dbBackend) : null;
+          ManagedRocksDB rocksDB = RocksDBProvider.initRockDB(dbFile, version, conf);
+          return rocksDB != null ? new RocksDB(rocksDB, source, dbBackend, dbFile, conf) : null;
         default:
           throw new IllegalArgumentException("Unsupported DBBackend: " + dbBackend);
       }

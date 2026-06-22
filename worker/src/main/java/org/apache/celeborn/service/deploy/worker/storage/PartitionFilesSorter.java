@@ -124,7 +124,8 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         String recoverySortedFilesFileName =
             dbBackend.fileName(RECOVERY_SORTED_FILES_FILE_NAME_PREFIX);
         this.recoverFile = new File(recoverPath, recoverySortedFilesFileName);
-        this.sortedFilesDb = DBProvider.initDB(dbBackend, recoverFile, CURRENT_VERSION, source);
+        this.sortedFilesDb =
+            DBProvider.initDB(dbBackend, recoverFile, CURRENT_VERSION, source, conf);
         reloadAndCleanSortedShuffleFiles(this.sortedFilesDb);
       } catch (Exception e) {
         throw new IllegalStateException(
