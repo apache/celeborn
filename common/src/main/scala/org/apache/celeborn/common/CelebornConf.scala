@@ -910,6 +910,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def metricsConf: Option[String] = get(METRICS_CONF)
   def metricsSystemEnable: Boolean = get(METRICS_ENABLED)
+  def clientMetricsEnabled: Boolean = get(CLIENT_METRICS_ENABLED)
   def metricsSampleRate: Double = get(METRICS_SAMPLE_RATE)
   def metricsSlidingWindowSize: Int = get(METRICS_SLIDING_WINDOW_SIZE)
   def metricsCollectCriticalEnabled: Boolean = get(METRICS_COLLECT_CRITICAL_ENABLED)
@@ -5964,6 +5965,15 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .booleanConf
       .createWithDefault(true)
+
+  val CLIENT_METRICS_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.metrics.enabled")
+      .categories("metrics")
+      .doc("When true, the LifecycleManager collects client-side metrics. " +
+        "Requires `celeborn.metrics.enabled` to also be true.")
+      .version("0.7.0")
+      .booleanConf
+      .createWithDefault(false)
 
   val METRICS_SAMPLE_RATE: ConfigEntry[Double] =
     buildConf("celeborn.metrics.sample.rate")

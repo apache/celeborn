@@ -29,6 +29,7 @@ import org.roaringbitmap.RoaringBitmap
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.metrics.{ClientMetric, MetricType}
 import org.apache.celeborn.common.network.protocol.{SerdeVersion, TransportMessage}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.MessageType._
@@ -389,7 +390,9 @@ object ControlMessages extends Logging {
       applicationFallbackCounts: util.Map[String, java.lang.Long],
       needCheckedWorkerList: util.List[WorkerInfo],
       override var requestId: String = ZERO_UUID,
-      shouldResponse: Boolean = false) extends MasterRequestMessage
+      shouldResponse: Boolean = false,
+      clientMetrics: util.Map[String, ClientMetric] = new util.HashMap[String, ClientMetric]())
+    extends MasterRequestMessage
 
   case class HeartbeatFromApplicationResponse(
       statusCode: StatusCode,
@@ -868,7 +871,8 @@ object ControlMessages extends Logging {
           applicationFallbackCounts,
           needCheckedWorkerList,
           requestId,
-          shouldResponse) =>
+          shouldResponse,
+          clientMetrics) =>
       val payload = PbHeartbeatFromApplication.newBuilder()
         .setAppId(appId)
         .setRequestId(requestId)
@@ -881,6 +885,13 @@ object ControlMessages extends Logging {
         .addAllNeedCheckedWorkerList(needCheckedWorkerList.asScala.map(
           PbSerDeUtils.toPbWorkerInfo(_, true, true)).toList.asJava)
         .setShouldResponse(shouldResponse)
+        .putAllClientMetrics(clientMetrics.asScala.map { case (name, metric) =>
+          val pbType = metric.metricType match {
+            case MetricType.Counter => PbMetricType.COUNTER
+            case MetricType.Gauge => PbMetricType.GAUGE
+          }
+          name -> PbClientMetric.newBuilder().setValue(metric.value).setType(pbType).build()
+        }.asJava)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION, payload)
 
@@ -1359,7 +1370,15 @@ object ControlMessages extends Logging {
             pbHeartbeatFromApplication.getNeedCheckedWorkerListList.asScala
               .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava),
           pbHeartbeatFromApplication.getRequestId,
-          pbHeartbeatFromApplication.getShouldResponse)
+          pbHeartbeatFromApplication.getShouldResponse,
+          new util.HashMap[String, ClientMetric](
+            pbHeartbeatFromApplication.getClientMetricsMap.asScala.map { case (name, pbMetric) =>
+              val metricType = pbMetric.getType match {
+                case PbMetricType.COUNTER => MetricType.Counter
+                case _ => MetricType.Gauge
+              }
+              name -> ClientMetric(pbMetric.getValue, metricType)
+            }.asJava))
 
       case HEARTBEAT_FROM_APPLICATION_RESPONSE_VALUE =>
         val pbHeartbeatFromApplicationResponse =

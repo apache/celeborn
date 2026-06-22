@@ -282,6 +282,11 @@ class ChangePartitionManager(
             None,
             lifecycleManager.workerStatusTracker.workerAvailableByLocation(req.oldPartition))))
       }
+      if (lifecycleManager.clientMetricsEnabled) {
+        lifecycleManager.clientSource.incCounter(
+          CelebornClientSource.REVIVE_FAIL_COUNT,
+          changePartitions.size)
+      }
     }
 
     val candidates = new util.HashSet[WorkerInfo]()

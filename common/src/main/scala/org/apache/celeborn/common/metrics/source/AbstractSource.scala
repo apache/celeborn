@@ -74,6 +74,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       Map("instance" -> s"${Utils.localHostName(conf)}:${conf.masterHttpPort}")
     case Role.WORKER =>
       Map("instance" -> s"${Utils.localHostName(conf)}:${conf.workerHttpPort}")
+    case Role.CLIENT =>
+      Map("instance" -> Utils.localHostName(conf))
     case _ => Map.empty
   }
   val staticLabels: Map[String, String] = labelsWithCustomizedLabels(Map.empty)
@@ -246,6 +248,10 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def gaugeExists(name: String, labels: Map[String, String]): Boolean = {
     namedGauges.containsKey(metricNameWithCustomizedLabels(name, labels))
+  }
+
+  def counterExists(name: String, labels: Map[String, String]): Boolean = {
+    namedCounters.containsKey(metricNameWithCustomizedLabels(name, labels))
   }
 
   def needSample(): Boolean = {
