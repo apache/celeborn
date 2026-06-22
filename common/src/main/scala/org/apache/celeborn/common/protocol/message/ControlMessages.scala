@@ -1474,7 +1474,14 @@ object ControlMessages extends Logging {
         pbCommitFilesResponse.getCommittedReplicaStorageInfosMap.asScala.foreach(entry =>
           committedReplicaStorageInfos.put(entry._1, StorageInfo.fromPb(entry._2)))
         pbCommitFilesResponse.getMapIdBitmapMap.asScala.foreach { entry =>
-          committedBitMap.put(entry._1, Utils.byteStringToRoaringBitmap(entry._2))
+          // byteStringToRoaringBitmap returns null for an empty bytestring (an empty
+          // RoaringBitmap is serialized as ByteString.EMPTY by the worker). Skip such
+          // entries so the null value does not propagate into the committedMapIdBitMap,
+          // where it would later throw NPE when merged into a ConcurrentHashMap via putAll.
+          val bitmap = Utils.byteStringToRoaringBitmap(entry._2)
+          if (bitmap != null) {
+            committedBitMap.put(entry._1, bitmap)
+          }
         }
         CommitFilesResponse(
           StatusCode.fromValue(pbCommitFilesResponse.getStatus),
