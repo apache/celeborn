@@ -40,7 +40,8 @@ tests:
           apiVersion: scheduling.k8s.io/v1
           kind: PriorityClass
           name: celeborn-master-priority-class
-          namespace: celeborn
+      - notExists:
+          path: metadata.namespace
 
   - it: Should use the specified priority class value
     set:
