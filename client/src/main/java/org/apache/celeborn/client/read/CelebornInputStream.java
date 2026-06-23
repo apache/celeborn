@@ -39,6 +39,7 @@ import org.apache.celeborn.client.ClientUtils;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.compress.Decompressor;
 import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
+import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.CommitMetadata;
 import org.apache.celeborn.common.exception.CelebornIOException;
@@ -74,7 +75,8 @@ public abstract class CelebornInputStream extends InputStream {
       int partitionId,
       ExceptionMaker exceptionMaker,
       MetricsCallback metricsCallback,
-      boolean needDecompress)
+      boolean needDecompress,
+      Optional<CryptoHandler> cryptoHandler)
       throws IOException {
     if (locations == null || locations.isEmpty()) {
       return emptyInputStream;
@@ -106,7 +108,8 @@ public abstract class CelebornInputStream extends InputStream {
             metricsCallback,
             needDecompress,
             startMapIndex,
-            endMapIndex);
+            endMapIndex,
+            cryptoHandler);
       } else {
         return new CelebornInputStreamImpl(
             conf,
@@ -131,7 +134,8 @@ public abstract class CelebornInputStream extends InputStream {
             metricsCallback,
             needDecompress,
             -1,
-            -1);
+            -1,
+            cryptoHandler);
       }
     }
   }
@@ -188,6 +192,7 @@ public abstract class CelebornInputStream extends InputStream {
 
     private final Map<String, LocationPushFailedBatches> failedBatches;
 
+    private byte[] encryptedBuf;
     private byte[] compressedBuf;
     private byte[] rawDataBuf;
     private Decompressor decompressor;
@@ -223,6 +228,7 @@ public abstract class CelebornInputStream extends InputStream {
     private int shuffleId;
     private int partitionId;
     private ExceptionMaker exceptionMaker;
+    private Optional<CryptoHandler> cryptoHandler;
     private boolean closed = false;
     private boolean integrityChecked = false;
     private final CommitMetadata aggregatedActualCommitMetadata = new CommitMetadata();
@@ -250,7 +256,8 @@ public abstract class CelebornInputStream extends InputStream {
         MetricsCallback metricsCallback,
         boolean needDecompress,
         int numberOfSubPartitions,
-        int currentIndexOfSubPartition)
+        int currentIndexOfSubPartition,
+        Optional<CryptoHandler> cryptoHandler)
         throws IOException {
       this(
           conf,
@@ -275,7 +282,8 @@ public abstract class CelebornInputStream extends InputStream {
           metricsCallback,
           needDecompress,
           numberOfSubPartitions,
-          currentIndexOfSubPartition);
+          currentIndexOfSubPartition,
+          cryptoHandler);
     }
 
     CelebornInputStreamImpl(
@@ -301,7 +309,8 @@ public abstract class CelebornInputStream extends InputStream {
         MetricsCallback metricsCallback,
         boolean needDecompress,
         int numberOfSubPartitions,
-        int currentIndexOfSubPartition)
+        int currentIndexOfSubPartition,
+        Optional<CryptoHandler> cryptoHandler)
         throws IOException {
       this.conf = conf;
       this.clientFactory = clientFactory;
@@ -337,6 +346,7 @@ public abstract class CelebornInputStream extends InputStream {
       this.retryWaitMs = conf.networkIoRetryWaitMs(TransportModuleConstants.DATA_MODULE);
       this.callback = metricsCallback;
       this.exceptionMaker = exceptionMaker;
+      this.cryptoHandler = cryptoHandler;
       this.partitionId = partitionId;
       this.appShuffleId = appShuffleId;
       this.shuffleId = shuffleId;
@@ -730,6 +740,7 @@ public abstract class CelebornInputStream extends InputStream {
 
         compressedBuf = null;
         rawDataBuf = null;
+        encryptedBuf = null;
         batchesRead = null;
         locations = null;
         attempts = null;
@@ -790,9 +801,14 @@ public abstract class CelebornInputStream extends InputStream {
 
     private void init() {
       int bufferSize = conf.clientFetchBufferSize();
+      int headerLen = shouldDecompress ? Decompressor.getCompressionHeaderLength(conf) : 0;
 
+      if (cryptoHandler.isPresent()) {
+        // Size to match compressedBuf/rawDataBuf headroom; exact overhead depends on the
+        // CryptoHandler implementation (e.g. SparkCryptoHandler prepends a 4-byte length).
+        encryptedBuf = new byte[bufferSize + headerLen];
+      }
       if (shouldDecompress) {
-        int headerLen = Decompressor.getCompressionHeaderLength(conf);
         bufferSize += headerLen;
         compressedBuf = new byte[bufferSize];
         decompressor = Decompressor.getDecompressor(conf);
@@ -823,65 +839,94 @@ public abstract class CelebornInputStream extends InputStream {
           int batchId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 8);
           int size = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 12);
 
-          if (shouldDecompress) {
+          // encryptedSize is the on-wire byte count (used for metrics); size will be
+          // reassigned to the decrypted length after decryption.
+          int encryptedSize = size;
+
+          // Perform dedup/stale-attempt checks before decrypting to avoid paying the
+          // crypto cost for batches that will be discarded anyway.
+          if (attemptId != attempts[mapId]) {
+            currentChunk.skipBytes(size);
+            continue;
+          }
+          if (readSkewPartitionWithoutMapRange) {
+            LocationPushFailedBatches locationPushFailedBatches =
+                this.failedBatches.get(currentReader.getLocation().getUniqueId());
+            if (null != locationPushFailedBatches) {
+              if (locationPushFailedBatches.contains(mapId, attemptId, batchId)) {
+                logger.warn(
+                    "Skip duplicated batch: mapId={}, attemptId={}, batchId={}",
+                    mapId,
+                    attemptId,
+                    batchId);
+                currentChunk.skipBytes(size);
+                continue;
+              }
+            }
+          }
+          Set<Integer> batchSet = batchesRead.computeIfAbsent(mapId, k -> new HashSet<>());
+          if (batchSet.contains(batchId)) {
+            callback.incDuplicateBytesRead(BATCH_HEADER_SIZE + encryptedSize);
+            logger.debug(
+                "Skip duplicated batch: mapId {}, attemptId {}, batchId {}.",
+                mapId,
+                attemptId,
+                batchId);
+            currentChunk.skipBytes(size);
+            continue;
+          }
+
+          // Batch is unique and from the correct attempt — now read and optionally decrypt.
+          if (cryptoHandler.isPresent()) {
+            if (size > encryptedBuf.length) {
+              encryptedBuf = new byte[size];
+            }
+            currentChunk.readBytes(encryptedBuf, 0, size);
+            byte[] decrypted = cryptoHandler.get().decrypt(encryptedBuf, 0, size);
+            if (logger.isDebugEnabled()) {
+              logger.debug(
+                  "Decrypted shuffle data for shuffle {} partition {}: {} bytes -> {} bytes.",
+                  shuffleId,
+                  partitionId,
+                  size,
+                  decrypted.length);
+            }
+            size = decrypted.length;
+            if (shouldDecompress) {
+              compressedBuf = decrypted;
+            } else {
+              rawDataBuf = decrypted;
+            }
+          } else if (shouldDecompress) {
             if (size > compressedBuf.length) {
               compressedBuf = new byte[size];
             }
-
             currentChunk.readBytes(compressedBuf, 0, size);
           } else {
             if (size > rawDataBuf.length) {
               rawDataBuf = new byte[size];
             }
-
             currentChunk.readBytes(rawDataBuf, 0, size);
           }
 
-          // de-duplicate
-          if (attemptId == attempts[mapId]) {
-            if (readSkewPartitionWithoutMapRange) {
-              LocationPushFailedBatches locationPushFailedBatches =
-                  this.failedBatches.get(currentReader.getLocation().getUniqueId());
-              if (null != locationPushFailedBatches) {
-                if (locationPushFailedBatches.contains(mapId, attemptId, batchId)) {
-                  logger.warn(
-                      "Skip duplicated batch: mapId={}, attemptId={}, batchId={}",
-                      mapId,
-                      attemptId,
-                      batchId);
-                  continue;
-                }
-              }
+          batchSet.add(batchId);
+          callback.incBytesRead(BATCH_HEADER_SIZE + encryptedSize);
+          if (shouldDecompress) {
+            // decompress data
+            int originalLength = decompressor.getOriginalLen(compressedBuf);
+            if (rawDataBuf.length < originalLength) {
+              rawDataBuf = new byte[originalLength];
             }
-            Set<Integer> batchSet = batchesRead.computeIfAbsent(mapId, k -> new HashSet<>());
-            if (!batchSet.contains(batchId)) {
-              batchSet.add(batchId);
-              callback.incBytesRead(BATCH_HEADER_SIZE + size);
-              if (shouldDecompress) {
-                // decompress data
-                int originalLength = decompressor.getOriginalLen(compressedBuf);
-                if (rawDataBuf.length < originalLength) {
-                  rawDataBuf = new byte[originalLength];
-                }
-                limit = decompressor.decompress(compressedBuf, rawDataBuf, 0);
-              } else {
-                limit = size;
-              }
-              if (shuffleIntegrityCheckEnabled) {
-                aggregatedActualCommitMetadata.addDataWithOffsetAndLength(rawDataBuf, 0, limit);
-              }
-              position = 0;
-              hasData = true;
-              break;
-            } else {
-              callback.incDuplicateBytesRead(BATCH_HEADER_SIZE + size);
-              logger.debug(
-                  "Skip duplicated batch: mapId {}, attemptId {}, batchId {}.",
-                  mapId,
-                  attemptId,
-                  batchId);
-            }
+            limit = decompressor.decompress(compressedBuf, rawDataBuf, 0);
+          } else {
+            limit = size;
           }
+          if (shuffleIntegrityCheckEnabled) {
+            aggregatedActualCommitMetadata.addDataWithOffsetAndLength(rawDataBuf, 0, limit);
+          }
+          position = 0;
+          hasData = true;
+          break;
         }
 
         if (!hasData) {

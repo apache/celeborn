@@ -19,6 +19,7 @@ package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import scala.Int;
@@ -35,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.celeborn.reflect.DynMethods;
@@ -64,6 +66,17 @@ public class SparkShuffleManager implements ShuffleManager {
   private long sendBufferPoolExpireTimeout;
 
   private ExecutorShuffleIdTracker shuffleIdTracker = new ExecutorShuffleIdTracker();
+
+  // The IO encryption key is fixed for the app lifetime. Lazily initialized on first
+  // writer/reader call (not in the constructor) to ensure SparkEnv is available.
+  private volatile Optional<CryptoHandler> cryptoHandler = null;
+
+  private Optional<CryptoHandler> getCryptoHandler() {
+    if (cryptoHandler == null) {
+      cryptoHandler = SparkCommonUtils.getCryptoHandler(conf);
+    }
+    return cryptoHandler;
+  }
 
   public SparkShuffleManager(SparkConf conf, boolean isDriver) {
     SparkCommonUtils.validateAttemptConfig(conf);
@@ -208,7 +221,8 @@ public class SparkShuffleManager implements ShuffleManager {
                 h.lifecycleManagerPort(),
                 celebornConf,
                 h.userIdentifier(),
-                h.extension());
+                h.extension(),
+                getCryptoHandler());
         if (h.stageRerunEnabled()) {
           SparkUtils.addFailureListenerIfBarrierTask(client, context, h);
         }
@@ -260,7 +274,8 @@ public class SparkShuffleManager implements ShuffleManager {
           Int.MaxValue(),
           context,
           celebornConf,
-          shuffleIdTracker);
+          shuffleIdTracker,
+          getCryptoHandler());
     }
     checkUserClassPathFirst(handle);
     return _sortShuffleManager.getReader(handle, startPartition, endPartition, context);

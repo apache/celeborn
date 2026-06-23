@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
+import java.util.Optional
 import java.util.concurrent.{ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.BiFunction
@@ -32,6 +33,7 @@ import org.apache.spark.util.collection.ExternalSorter
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.client.read.CelebornInputStream
 import org.apache.celeborn.client.read.MetricsCallback
+import org.apache.celeborn.client.security.CryptoHandler
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.{CelebornBroadcastException, CelebornIOException, CelebornRuntimeException, PartitionUnRetryAbleException}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
@@ -45,7 +47,8 @@ class CelebornShuffleReader[K, C](
     endMapIndex: Int = Int.MaxValue,
     context: TaskContext,
     conf: CelebornConf,
-    shuffleIdTracker: ExecutorShuffleIdTracker)
+    shuffleIdTracker: ExecutorShuffleIdTracker,
+    cryptoHandler: Optional[CryptoHandler] = Optional.empty())
   extends ShuffleReader[K, C] with Logging {
 
   private val dep = handle.dependency
@@ -55,7 +58,8 @@ class CelebornShuffleReader[K, C](
     handle.lifecycleManagerPort,
     conf,
     handle.userIdentifier,
-    handle.extension)
+    handle.extension,
+    cryptoHandler)
 
   private val exceptionRef = new AtomicReference[IOException]
   private val encodedAttemptId = SparkCommonUtils.getEncodedAttemptNumber(context)
