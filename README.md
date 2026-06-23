@@ -41,12 +41,12 @@ Celeborn Worker's slot count is decided by `total usable disk size / average shu
 Celeborn worker's slot count decreases when a partition is allocated and increments when a partition is freed.
 
 ## Build
-1. Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3/3.4/3.5/4.0, Flink 1.16/1.17/1.18/1.19/1.20 and Hadoop MapReduce 2/3.
+1. Celeborn supports Spark 2.4/3.0/3.1/3.2/3.3/3.4/3.5/4.0, Flink 1.18/1.19/1.20/2.0/2.1/2.2 and Hadoop MapReduce 2/3.
 2. Celeborn tested under Scala 2.11/2.12/2.13 and Java 8/11/17 environment.
 
 Build Celeborn via `make-distribution.sh`:
 ```shell
-./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pspark-3.4/-Pspark-3.5/-Pspark-4.0/-Pspark-4.1/-Pflink-1.16/-Pflink-1.17/-Pflink-1.18/-Pflink-1.19/-Pflink-1.20/-Pflink-2.0/-Pflink-2.1/-Pflink-2.2/-Pmr
+./build/make-distribution.sh -Pspark-2.4/-Pspark-3.0/-Pspark-3.1/-Pspark-3.2/-Pspark-3.3/-Pspark-3.4/-Pspark-3.5/-Pspark-4.0/-Pspark-4.1/-Pflink-1.18/-Pflink-1.19/-Pflink-1.20/-Pflink-2.0/-Pflink-2.1/-Pflink-2.2/-Pmr
 ```
 
 Package `apache-celeborn-${project.version}-bin.tgz` will be generated.
@@ -64,8 +64,6 @@ Package `apache-celeborn-${project.version}-bin.tgz` will be generated.
 | Spark 3.5  | &#x274C;          | &#10004;          | &#10004;           | &#10004;           | &#10004;          | &#10004;           | &#10004;           |
 | Spark 4.0  | &#x274C;          | &#x274C;          | &#x274C;           | &#x274C;           | &#x274C;          | &#x274C;           | &#10004;           |
 | Spark 4.1  | &#x274C;          | &#x274C;          | &#x274C;           | &#x274C;           | &#x274C;          | &#x274C;           | &#10004;           |
-| Flink 1.16 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
-| Flink 1.17 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.18 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.19 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.20 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
@@ -135,7 +133,6 @@ Celeborn server is compatible with all clients inside various engines.
 However, Celeborn clients must be consistent with the version of the specified engine.
 For example, if you are running Spark 2.4, you must compile Celeborn client with -Pspark-2.4;
 if you are running Spark 3.2, you must compile Celeborn client with -Pspark-3.2; 
-if you are running flink 1.16, you must compile Celeborn client with -Pflink-1.16.
 
 ## Usage
 Celeborn cluster composes of Master and Worker nodes, the Master supports both single and HA mode(Raft-based) deployments.
