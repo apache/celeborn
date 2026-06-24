@@ -138,7 +138,7 @@ jobs:
           # Spark 3.4
           - spark: '3.4'
             scala-binary: '2.12'
-            scala: '2.12.18'
+            scala: '2.12.17'
           - spark: '3.4'
             scala-binary: '2.13'
             scala: '2.13.8'
