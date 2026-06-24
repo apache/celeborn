@@ -1184,17 +1184,6 @@
               </goals>
               <phase>process-test-resources</phase>
             </execution>
-            <!--
-              CELEBORN-161: we must disable scaladocs to recover building for Spark 2.4
-              `build/mvn clean install -DskipTests -Pspark-2.4`
-            <execution>
-              <id>attach-scaladocs</id>
-              <goals>
-                <goal>doc-jar</goal>
-              </goals>
-              <phase>verify</phase>
-            </execution>
-            -->
           </executions>
         </plugin>
 
@@ -1521,23 +1510,6 @@
       </modules>
       <properties>
         <aliyun-deps>true</aliyun-deps>
-      </properties>
-    </profile>
-    <profile>
-      <id>spark-2.4</id>
-      <modules>
-        <module>client-spark/common</module>
-        <module>client-spark/spark-2</module>
-        <module>client-spark/spark-2-shaded</module>
-        <module>tests/spark-it</module>
-      </modules>
-      <properties>
-        <lz4-java.group>org.lz4</lz4-java.group>
-        <lz4-java.version>1.4.0</lz4-java.version>
-        <scala.version>2.11.12</scala.version>
-        <scala.binary.version>2.11</scala.binary.version>
-        <spark.version>2.4.8</spark.version>
-        <zstd-jni.version>1.4.4-3</zstd-jni.version>
       </properties>
     </profile>
 
