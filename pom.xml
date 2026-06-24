@@ -79,7 +79,7 @@
     the link to metrics.dropwizard.io in docs/monitoring.md.
     -->
     <codahale.metrics.version>4.2.25</codahale.metrics.version>
-    <commons-lang3.version>3.17.0</commons-lang3.version>
+    <commons-lang3.version>3.20.0</commons-lang3.version>
     <commons-io.version>2.17.0</commons-io.version>
     <commons-crypto.version>1.0.0</commons-crypto.version>
     <!-- last version to support compilation in java 8. See https://errorprone.info/docs/installation#:~:text=you%20are%20using.-,JDK%208,-Error%20Prone%202.10.0 -->
@@ -1512,6 +1512,24 @@
         <aliyun-deps>true</aliyun-deps>
       </properties>
     </profile>
+    <profile>
+      <id>spark-2.4</id>
+      <modules>
+        <module>client-spark/common</module>
+        <module>client-spark/spark-2</module>
+        <module>client-spark/spark-2-shaded</module>
+        <module>tests/spark-it</module>
+      </modules>
+      <properties>
+        <lz4-java.group>org.lz4</lz4-java.group>
+        <lz4-java.version>1.4.0</lz4-java.version>
+        <scala.version>2.11.12</scala.version>
+        <scala.binary.version>2.11</scala.binary.version>
+        <spark.version>2.4.8</spark.version>
+        <zstd-jni.version>1.4.4-3</zstd-jni.version>
+        <commons-lang3.version>3.17.0</commons-lang3.version>
+      </properties>
+    </profile>
 
     <profile>
       <id>spark-3.0</id>
@@ -1531,6 +1549,7 @@
         <spark.version>3.0.3</spark.version>
         <zstd-jni.version>1.4.4-3</zstd-jni.version>
         <maven.plugin.silencer.version>1.6.0</maven.plugin.silencer.version>
+        <commons-lang3.version>3.17.0</commons-lang3.version>
       </properties>
     </profile>
 
@@ -1552,6 +1571,7 @@
         <spark.version>3.1.3</spark.version>
         <zstd-jni.version>1.4.8-1</zstd-jni.version>
         <maven.plugin.silencer.version>1.6.0</maven.plugin.silencer.version>
+        <commons-lang3.version>3.17.0</commons-lang3.version>
       </properties>
     </profile>
 
@@ -1572,6 +1592,7 @@
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.2.4</spark.version>
         <zstd-jni.version>1.5.0-4</zstd-jni.version>
+        <commons-lang3.version>3.17.0</commons-lang3.version>
       </properties>
     </profile>
 
@@ -1592,6 +1613,7 @@
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.3.4</spark.version>
         <zstd-jni.version>1.5.2-1</zstd-jni.version>
+        <commons-lang3.version>3.17.0</commons-lang3.version>
       </properties>
     </profile>
 
@@ -1612,6 +1634,7 @@
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.4.4</spark.version>
         <zstd-jni.version>1.5.2-5</zstd-jni.version>
+        <commons-lang3.version>3.17.0</commons-lang3.version>
       </properties>
     </profile>
 
@@ -1632,7 +1655,6 @@
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.5.8</spark.version>
         <zstd-jni.version>1.5.5-4</zstd-jni.version>
-        <commons-lang3.version>3.20.0</commons-lang3.version>
       </properties>
     </profile>
 
@@ -1653,7 +1675,6 @@
         <scala.binary.version>2.13</scala.binary.version>
         <spark.version>4.0.3</spark.version>
         <zstd-jni.version>1.5.6-9</zstd-jni.version>
-        <commons-lang3.version>3.20.0</commons-lang3.version>
       </properties>
     </profile>
 
@@ -1674,7 +1695,6 @@
         <scala.binary.version>2.13</scala.binary.version>
         <spark.version>4.1.2</spark.version>
         <zstd-jni.version>1.5.7-6</zstd-jni.version>
-        <commons-lang3.version>3.20.0</commons-lang3.version>
       </properties>
     </profile>
 
