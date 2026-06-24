@@ -47,7 +47,7 @@ object Dependencies {
   val commonsCryptoVersion = "1.0.0"
   val commonsIoVersion = "2.17.0"
   val commonsLoggingVersion = "1.1.3"
-  val commonsLang3Version = "3.20.0"
+  val commonsLang3Version = sparkClientProjects.map(_.commonsLang3Version).getOrElse("3.17.0")
   val commonsCollectionsVersion = "3.2.2"
   val findbugsVersion = "1.3.9"
   val guavaVersion = "33.1.0-jre"
@@ -966,6 +966,7 @@ object Spark35 extends SparkClientProjects {
   val sparkVersion = "3.5.8"
   val zstdJniVersion = "1.5.5-4"
 
+  override val commonsLang3Version: String = "3.20.0"
   override val sparkColumnarShuffleVersion: String = "3.5"
 }
 
@@ -983,6 +984,7 @@ object Spark40 extends SparkClientProjects {
   val zstdJniVersion = "1.5.6-9"
   val scalaBinaryVersion = "2.13"
 
+  override val commonsLang3Version: String = "3.20.0"
   override val sparkColumnarShuffleVersion: String = "4"
 }
 
@@ -1000,6 +1002,7 @@ object Spark41 extends SparkClientProjects {
   val zstdJniVersion = "1.5.7-6"
   val scalaBinaryVersion = "2.13"
 
+  override val commonsLang3Version: String = "3.20.0"
   override val sparkColumnarShuffleVersion: String = "4"
 }
 
@@ -1015,6 +1018,7 @@ trait SparkClientProjects {
   val sparkProjectScalaVersion: String
   val sparkVersion: String
   val zstdJniVersion: String
+  val commonsLang3Version: String = "3.17.0"
 
   val includeColumnarShuffle: Boolean = true
 
