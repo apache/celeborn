@@ -47,6 +47,7 @@ import org.apache.celeborn.common.protocol.message.ControlMessages.OneWayMessage
 import org.apache.celeborn.common.rpc.RpcAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.rpc.RpcEnv;
+import org.apache.celeborn.common.rpc.RpcEnvStoppedException;
 import org.apache.celeborn.common.rpc.RpcTimeoutException;
 
 public class MasterClientSuiteJ {
@@ -243,6 +244,100 @@ public class MasterClientSuiteJ {
   @Test
   public void testOneMasterTimeoutInHA() {
     checkOneMasterAskFailedInHA(new RpcTimeoutException("test", new TimeoutException("test")));
+  }
+
+  @Test
+  public void testStoppedOutboxFailureReconnectsToAnotherMasterInHA() {
+    final CelebornConf conf = prepareForCelebornConfWithHA();
+
+    final RpcEndpointRef master1 = Mockito.mock(RpcEndpointRef.class);
+    final RpcEndpointRef master2 = Mockito.mock(RpcEndpointRef.class);
+    final AtomicInteger master1Attempts = new AtomicInteger(0);
+
+    Mockito.doAnswer(
+            invocation -> {
+              assertEquals(0, master1Attempts.getAndIncrement());
+              return Future$.MODULE$.failed(
+                  new CelebornException("Message is dropped because Outbox is stopped"));
+            })
+        .when(master1)
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
+    Mockito.doReturn(Future$.MODULE$.successful(mockResponse))
+        .when(master2)
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
+
+    Mockito.doAnswer(
+            invocation -> {
+              RpcAddress address = invocation.getArgument(0, RpcAddress.class);
+              switch (address.host()) {
+                case "host1":
+                  return master1;
+                case "host2":
+                  return master2;
+                default:
+                  fail(
+                      "Should reconnect from host1 to host2:"
+                          + masterPort
+                          + ", but use "
+                          + address);
+              }
+              return null;
+            })
+        .when(rpcEnv)
+        .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
+
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
+    HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
+
+    HeartbeatFromWorkerResponse response = null;
+    try {
+      response = client.askSync(message, HeartbeatFromWorkerResponse.class);
+    } catch (Throwable t) {
+      LOG.error("It should reconnect after a stopped outbox failure.", t);
+      fail("It should reconnect after a stopped outbox failure.");
+    }
+
+    assertEquals(mockResponse, response);
+    assertEquals(1, master1Attempts.get());
+    Mockito.verify(rpcEnv, Mockito.times(1))
+        .setupEndpointRef(
+            Mockito.eq(RpcAddress.fromHostAndPort("host1:9097")), Mockito.anyString());
+    Mockito.verify(rpcEnv, Mockito.times(1))
+        .setupEndpointRef(
+            Mockito.eq(RpcAddress.fromHostAndPort("host2:9097")), Mockito.anyString());
+  }
+
+  @Test
+  public void testStoppedRpcEnvFailureDoesNotReconnectInHA() {
+    final CelebornConf conf = prepareForCelebornConfWithHA();
+    final RpcEndpointRef master1 = Mockito.mock(RpcEndpointRef.class);
+
+    Mockito.doReturn(Future$.MODULE$.failed(new RpcEnvStoppedException()))
+        .when(master1)
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
+    Mockito.doAnswer(
+            invocation -> {
+              RpcAddress address = invocation.getArgument(0, RpcAddress.class);
+              if ("host1".equals(address.host())) {
+                return master1;
+              }
+              fail("Should not reconnect through a stopped RpcEnv: " + address);
+              return null;
+            })
+        .when(rpcEnv)
+        .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
+
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
+    HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
+
+    CelebornException thrown =
+        assertThrows(
+            CelebornException.class,
+            () -> client.askSync(message, HeartbeatFromWorkerResponse.class));
+    assertTrue(thrown.getCause() instanceof RpcEnvStoppedException);
+    Mockito.verify(rpcEnv, Mockito.times(1))
+        .setupEndpointRef(
+            Mockito.eq(RpcAddress.fromHostAndPort("host1:9097")), Mockito.anyString());
   }
 
   @Test

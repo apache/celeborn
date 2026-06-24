@@ -65,6 +65,30 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
     assert(e.getCause.getMessage.contains(uri))
   }
 
+  test("ask through a stopped RPC environment fails immediately") {
+    val endpointName = "stopped-rpc-env"
+    env.setupEndpoint(
+      endpointName,
+      new RpcEndpoint {
+        override val rpcEnv: RpcEnv = env
+        override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
+          case message => context.reply(message)
+        }
+      })
+    val clientEnv = createRpcEnv(createCelebornConf(), "stopped-client", 0, clientMode = true)
+    val endpointRef = clientEnv.setupEndpointRef(env.address, endpointName)
+
+    clientEnv.shutdown()
+    clientEnv.awaitTermination()
+
+    failAfter(5.seconds) {
+      val e = intercept[CelebornException] {
+        endpointRef.askSync[String]("hello")
+      }
+      assert(e.getCause.isInstanceOf[RpcEnvStoppedException])
+    }
+  }
+
   test("advertise address different from bind address") {
     val celebornConf = createCelebornConf()
     val config = RpcEnvConfig(

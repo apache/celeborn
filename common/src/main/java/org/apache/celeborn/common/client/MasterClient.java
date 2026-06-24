@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornException;
 import org.apache.celeborn.common.protocol.message.ControlMessages.OneWayMessageResponse$;
 import org.apache.celeborn.common.protocol.message.MasterRequestMessage;
 import org.apache.celeborn.common.protocol.message.Message;
@@ -74,6 +75,8 @@ public class MasterClient {
   }
 
   private static final String SPLITTER = "#";
+  private static final String OUTBOX_STOPPED_MESSAGE =
+      "Message is dropped because Outbox is stopped";
   private static final AtomicLong CALL_ID_COUNTER = new AtomicLong();
 
   static long nextCallId() {
@@ -186,9 +189,24 @@ public class MasterClient {
         resetRpcEndpointRef(oldRef);
       }
       return true;
-    } else if (e.getCause() instanceof IOException || e instanceof RpcTimeoutException) {
+    } else if (isRetryableRpcFailure(e)) {
       resetRpcEndpointRef(oldRef);
       return true;
+    }
+    return false;
+  }
+
+  private boolean isRetryableRpcFailure(Throwable throwable) {
+    Throwable current = throwable;
+    while (current != null) {
+      if (current instanceof IOException || current instanceof RpcTimeoutException) {
+        return true;
+      }
+      if (current instanceof CelebornException
+          && OUTBOX_STOPPED_MESSAGE.equals(current.getMessage())) {
+        return true;
+      }
+      current = current.getCause();
     }
     return false;
   }

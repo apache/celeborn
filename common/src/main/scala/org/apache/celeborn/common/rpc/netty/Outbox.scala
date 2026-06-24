@@ -104,6 +104,9 @@ private[celeborn] class Outbox(nettyEnv: NettyRpcEnv, val address: RpcAddress) {
   @GuardedBy("this")
   private var stopped = false
 
+  @GuardedBy("this")
+  private var stopCause: Throwable = null
+
   /**
    * If there is any thread draining the message queue
    */
@@ -112,19 +115,20 @@ private[celeborn] class Outbox(nettyEnv: NettyRpcEnv, val address: RpcAddress) {
 
   /**
    * Send a message. If there is no active connection, cache it and launch a new connection. If
-   * [[Outbox]] is stopped, the sender will be notified with a [[CelebornException]].
+   * [[Outbox]] is stopped, the sender will be notified with the cause that stopped it.
    */
   def send(message: OutboxMessage): Unit = {
-    val dropped = synchronized {
+    val failure = synchronized {
       if (stopped) {
-        true
+        assert(stopCause != null)
+        stopCause
       } else {
         messages.add(message)
-        false
+        null
       }
     }
-    if (dropped) {
-      message.onFailure(new CelebornException("Message is dropped because Outbox is stopped"))
+    if (failure != null) {
+      message.onFailure(failure)
     } else {
       drainOutbox()
     }
@@ -225,6 +229,7 @@ private[celeborn] class Outbox(nettyEnv: NettyRpcEnv, val address: RpcAddress) {
         return
       }
       stopped = true
+      stopCause = e
       closeClient()
     }
     // Remove this Outbox from nettyEnv so that the further messages will create a new Outbox along
@@ -248,16 +253,20 @@ private[celeborn] class Outbox(nettyEnv: NettyRpcEnv, val address: RpcAddress) {
     client = null
   }
 
-  /**
-   * Stop [[Outbox]]. The remaining messages in the [[Outbox]] will be notified with a
-   * [[CelebornException]].
-   */
-  def stop(): Unit = {
+  /** Stop [[Outbox]] using a terminal cause when its owning RPC environment is shutting down. */
+  def stop(): Unit =
+    stop(
+      if (nettyEnv.isStopped) new RpcEnvStoppedException()
+      else new CelebornException("Message is dropped because Outbox is stopped"))
+
+  /** Stop [[Outbox]] and notify the remaining messages with the supplied cause. */
+  def stop(cause: Throwable): Unit = {
     synchronized {
       if (stopped) {
         return
       }
       stopped = true
+      stopCause = cause
       if (connectFuture != null) {
         connectFuture.cancel(true)
       }
@@ -268,7 +277,7 @@ private[celeborn] class Outbox(nettyEnv: NettyRpcEnv, val address: RpcAddress) {
     // update messages and it's safe to just drain the queue.
     var message = messages.poll()
     while (message != null) {
-      message.onFailure(new CelebornException("Message is dropped because Outbox is stopped"))
+      message.onFailure(cause)
       message = messages.poll()
     }
   }
