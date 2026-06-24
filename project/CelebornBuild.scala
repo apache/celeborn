@@ -993,6 +993,7 @@ object Spark35 extends SparkClientProjects {
 
   val sparkVersion = "3.5.8"
   val zstdJniVersion = "1.5.5-4"
+  override val commonsLang3Version: String = "3.17.0"
 
   override val sparkColumnarShuffleVersion: String = "3.5"
 }
