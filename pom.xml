@@ -79,7 +79,7 @@
     the link to metrics.dropwizard.io in docs/monitoring.md.
     -->
     <codahale.metrics.version>4.2.25</codahale.metrics.version>
-    <commons-lang3.version>3.20.0</commons-lang3.version>
+    <commons-lang3.version>3.17.0</commons-lang3.version>
     <commons-io.version>2.17.0</commons-io.version>
     <commons-crypto.version>1.0.0</commons-crypto.version>
     <!-- last version to support compilation in java 8. See https://errorprone.info/docs/installation#:~:text=you%20are%20using.-,JDK%208,-Error%20Prone%202.10.0 -->
@@ -1597,6 +1597,7 @@
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.5.8</spark.version>
         <zstd-jni.version>1.5.5-4</zstd-jni.version>
+        <commons-lang3.version>3.20.0</commons-lang3.version>
       </properties>
     </profile>
 
@@ -1617,6 +1618,7 @@
         <scala.binary.version>2.13</scala.binary.version>
         <spark.version>4.0.3</spark.version>
         <zstd-jni.version>1.5.6-9</zstd-jni.version>
+        <commons-lang3.version>3.20.0</commons-lang3.version>
       </properties>
     </profile>
 
@@ -1637,6 +1639,7 @@
         <scala.binary.version>2.13</scala.binary.version>
         <spark.version>4.1.2</spark.version>
         <zstd-jni.version>1.5.7-6</zstd-jni.version>
+        <commons-lang3.version>3.20.0</commons-lang3.version>
       </properties>
     </profile>
 
