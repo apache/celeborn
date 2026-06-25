@@ -495,10 +495,24 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     case GetReducerFileGroup(
           shuffleId: Int,
           isSegmentGranularityVisible: Boolean,
-          serdeVersion: SerdeVersion) =>
+          serdeVersion: SerdeVersion,
+          startPartition: Int,
+          endPartition: Int,
+          hasPartitionRange: Boolean,
+          omitMapAttempts: Boolean) =>
       logDebug(
-        s"Received GetShuffleFileGroup request for shuffleId $shuffleId, isSegmentGranularityVisible $isSegmentGranularityVisible")
-      handleGetReducerFileGroup(context, shuffleId, isSegmentGranularityVisible, serdeVersion)
+        s"Received GetShuffleFileGroup request for shuffleId $shuffleId, " +
+          s"isSegmentGranularityVisible $isSegmentGranularityVisible, " +
+          s"partitionRange ${if (hasPartitionRange) s"[$startPartition, $endPartition)" else "all"}")
+      handleGetReducerFileGroup(
+        context,
+        shuffleId,
+        isSegmentGranularityVisible,
+        startPartition,
+        endPartition,
+        hasPartitionRange,
+        omitMapAttempts,
+        serdeVersion)
 
     case pb: PbGetStageEnd =>
       val shuffleId = pb.getShuffleId
@@ -967,7 +981,19 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       context: RpcCallContext,
       shuffleId: Int,
       isSegmentGranularityVisible: Boolean,
+      startPartition: Int,
+      endPartition: Int,
+      hasPartitionRange: Boolean,
+      omitMapAttempts: Boolean,
       serdeVersion: SerdeVersion): Unit = {
+    if (hasPartitionRange && (startPartition < 0 || endPartition <= startPartition)) {
+      logWarning(
+        s"Reject invalid reducer file group partition range [$startPartition, $endPartition) " +
+          s"for shuffle $shuffleId")
+      context.reply(
+        GetReducerFileGroupResponse(StatusCode.REQUEST_FAILED, serdeVersion = serdeVersion))
+      return
+    }
     // If isSegmentGranularityVisible is set to true, the downstream reduce task may start early than upstream map task, e.g. flink hybrid shuffle.
     // Under these circumstances, there's a possibility that the shuffle might not yet be registered when the downstream reduce task send GetReduceFileGroup request,
     // so we shouldn't send a SHUFFLE_NOT_REGISTERED response directly, should enqueue this request to pending list, and response to the downstream reduce task the ReduceFileGroup when the upstream map task register shuffle done
@@ -980,7 +1006,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         serdeVersion = serdeVersion))
       return
     }
-    commitManager.handleGetReducerFileGroup(context, shuffleId, serdeVersion)
+    commitManager.handleGetReducerFileGroup(
+      context,
+      shuffleId,
+      startPartition,
+      endPartition,
+      hasPartitionRange,
+      omitMapAttempts,
+      serdeVersion)
   }
 
   private def handleGetStageEnd(context: RpcCallContext, shuffleId: Int): Unit = {

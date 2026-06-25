@@ -394,6 +394,10 @@ message PbMapperEndResponse {
 message PbGetReducerFileGroup {
   int32 shuffleId = 1;
   bool isSegmentGranularityVisible = 2;
+  int32 startPartition = 3;
+  int32 endPartition = 4;
+  bool hasPartitionRange = 5;
+  bool omitMapAttempts = 6;
 }
 
 message PbGetReducerFileGroupResponse {
@@ -410,6 +414,10 @@ message PbGetReducerFileGroupResponse {
   map<string, PbLocationPushFailedBatches> pushFailedBatches = 5;
 
   bytes broadcast = 6;
+
+  int32 startPartition = 7;
+  int32 endPartition = 8;
+  bool hasPartitionRange = 9;
 }
 
 message PbGetShuffleId {

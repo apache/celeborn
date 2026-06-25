@@ -360,6 +360,10 @@ class MapPartitionCommitHandler(
   override def handleGetReducerFileGroup(
       context: RpcCallContext,
       shuffleId: Int,
+      startPartition: Int,
+      endPartition: Int,
+      hasPartitionRange: Boolean,
+      omitMapAttempts: Boolean,
       serdeVersion: SerdeVersion): Unit = {
     // TODO: if support the downstream map task start early before the upstream reduce task, it should
     //  waiting the upstream task register shuffle, then reply these GetReducerFileGroup.
@@ -368,14 +372,28 @@ class MapPartitionCommitHandler(
     // we need obtain the last succeed partitionIds
     val lastSucceedPartitionIds =
       shuffleSucceedPartitionIds.getOrDefault(shuffleId, new util.HashSet[Integer]())
-    val succeedPartitionIds = new util.HashSet[Integer](lastSucceedPartitionIds)
+    val allFileGroups =
+      reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap())
+    val fileGroups = ReducerFileGroupFilter.fileGroupsForRange(
+      allFileGroups,
+      startPartition,
+      endPartition,
+      hasPartitionRange)
+    val succeedPartitionIds = ReducerFileGroupFilter.partitionIdsForRange(
+      lastSucceedPartitionIds,
+      startPartition,
+      endPartition,
+      hasPartitionRange)
 
     context.reply(GetReducerFileGroupResponse(
       StatusCode.SUCCESS,
-      reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
-      getMapperAttempts(shuffleId),
+      fileGroups,
+      if (omitMapAttempts) Array.emptyIntArray else getMapperAttempts(shuffleId),
       succeedPartitionIds,
-      serdeVersion = serdeVersion))
+      serdeVersion = serdeVersion,
+      startPartition = startPartition,
+      endPartition = endPartition,
+      hasPartitionRange = hasPartitionRange))
   }
 
   override def releasePartitionResource(shuffleId: Int, partitionId: Int): Unit = {

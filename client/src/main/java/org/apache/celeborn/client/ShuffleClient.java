@@ -390,6 +390,37 @@ public abstract class ShuffleClient {
   public abstract ShuffleClientImpl.ReduceFileGroups updateFileGroup(int shuffleId, int partitionId)
       throws CelebornIOException;
 
+  public ShuffleClientImpl.ReduceFileGroups updateFileGroup(
+      int shuffleId, int startPartition, int endPartition) throws CelebornIOException {
+    if (startPartition < 0 || endPartition < startPartition) {
+      throw new IllegalArgumentException(
+          String.format("Invalid reducer file group range [%d, %d)", startPartition, endPartition));
+    }
+
+    ShuffleClientImpl.ReduceFileGroups merged =
+        new ShuffleClientImpl.ReduceFileGroups(
+            new ConcurrentHashMap<>(),
+            null,
+            ConcurrentHashMap.newKeySet(),
+            new ConcurrentHashMap<>());
+    for (int partitionId = startPartition; partitionId < endPartition; partitionId++) {
+      ShuffleClientImpl.ReduceFileGroups current = updateFileGroup(shuffleId, partitionId);
+      if (current.partitionGroups != null) {
+        merged.partitionGroups.putAll(current.partitionGroups);
+      }
+      if (current.partitionIds != null) {
+        merged.partitionIds.addAll(current.partitionIds);
+      }
+      if (current.pushFailedBatches != null) {
+        merged.pushFailedBatches.putAll(current.pushFailedBatches);
+      }
+      if (merged.mapAttempts == null) {
+        merged.mapAttempts = current.mapAttempts;
+      }
+    }
+    return merged;
+  }
+
   public abstract boolean isShuffleStageEnd(int shuffleId) throws Exception;
 
   // Reduce side read partition which is deduplicated by mapperId+mapperAttemptNum+batchId, batchId

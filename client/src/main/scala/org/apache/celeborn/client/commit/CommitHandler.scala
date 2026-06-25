@@ -184,6 +184,10 @@ abstract class CommitHandler(
   def handleGetReducerFileGroup(
       context: RpcCallContext,
       shuffleId: Int,
+      startPartition: Int,
+      endPartition: Int,
+      hasPartitionRange: Boolean,
+      omitMapAttempts: Boolean,
       serdeVersion: SerdeVersion): Unit
 
   /**
