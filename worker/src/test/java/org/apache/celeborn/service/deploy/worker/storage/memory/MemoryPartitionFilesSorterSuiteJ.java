@@ -19,11 +19,13 @@ package org.apache.celeborn.service.deploy.worker.storage.memory;
 
 import static org.mockito.Mockito.when;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
@@ -41,6 +43,7 @@ import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
+import org.apache.celeborn.service.deploy.worker.storage.FileResolvedCallback;
 import org.apache.celeborn.service.deploy.worker.storage.PartitionDataWriter;
 import org.apache.celeborn.service.deploy.worker.storage.PartitionFilesSorter;
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager;
@@ -123,19 +126,40 @@ public class MemoryPartitionFilesSorterSuiteJ {
     return partitionSize;
   }
 
-  private void check(int mapCount, int startMapIndex, int endMapIndex) throws IOException {
+  private void check(int mapCount, int startMapIndex, int endMapIndex) throws Exception {
     long[] partitionSize = prepare(mapCount);
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.SHUFFLE_CHUNK_SIZE().key(), "8m");
     PartitionFilesSorter partitionFilesSorter =
         new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
-    FileInfo info =
-        partitionFilesSorter.getSortedFileInfo(
-            "application-1",
-            "",
-            partitionDataWriter.getMemoryFileInfo(),
-            startMapIndex,
-            endMapIndex);
+
+    CountDownLatch latch = new CountDownLatch(1);
+    AtomicReference<FileInfo> resultRef = new AtomicReference<>();
+    AtomicReference<Throwable> errorRef = new AtomicReference<>();
+    partitionFilesSorter.getSortedFileInfo(
+        "application-1",
+        "",
+        partitionDataWriter.getMemoryFileInfo(),
+        startMapIndex,
+        endMapIndex,
+        new FileResolvedCallback() {
+          @Override
+          public void onSuccess(FileInfo sortedFileInfo) {
+            resultRef.set(sortedFileInfo);
+            latch.countDown();
+          }
+
+          @Override
+          public void onFailure(Throwable e) {
+            errorRef.set(e);
+            latch.countDown();
+          }
+        });
+
+    Assert.assertTrue("Sort timed out", latch.await(60, TimeUnit.SECONDS));
+    Assert.assertNull("Sort failed: " + errorRef.get(), errorRef.get());
+    FileInfo info = resultRef.get();
+
     long totalSizeToFetch = 0;
     for (int i = startMapIndex; i < endMapIndex; i++) {
       totalSizeToFetch += partitionSize[i];
@@ -152,7 +176,7 @@ public class MemoryPartitionFilesSorterSuiteJ {
   }
 
   @Test
-  public void testSortMemoryShuffleFile() throws IOException {
+  public void testSortMemoryShuffleFile() throws Exception {
     int startMapIndex = random.nextInt(5);
     int endMapIndex = startMapIndex + random.nextInt(5) + 5;
     check(1000, startMapIndex, endMapIndex);
