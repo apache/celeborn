@@ -782,9 +782,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
 
     // First, request to get allocated slots from Primary
-    val ids = new util.ArrayList[Integer](numPartitions)
-    (0 until numPartitions).foreach(idx => ids.add(Integer.valueOf(idx)))
-    val res = requestMasterRequestSlotsWithRetry(shuffleId, ids)
+    val res = requestMasterRequestSlotsWithRetry(shuffleId, numPartitions)
 
     res.status match {
       case StatusCode.REQUEST_FAILED =>
@@ -1849,7 +1847,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   def requestMasterRequestSlotsWithRetry(
       shuffleId: Int,
-      ids: util.ArrayList[Integer]): RequestSlotsResponse = {
+      numPartitions: Int): RequestSlotsResponse = {
     val excludedWorkerSet =
       if (excludedWorkersFilter) {
         workerStatusTracker.excludedWorkers.asScala.keys.toSet
@@ -1862,7 +1860,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       RequestSlots(
         appUniqueId,
         shuffleId,
-        ids,
+        numPartitions,
         lifecycleHost,
         pushReplicateEnabled,
         pushRackAwareEnabled,
