@@ -69,7 +69,13 @@ class ReducePartitionCommitHandler(
     commitRetryScheduler)
   with Logging {
 
-  class MultiSerdeVersionRpcContext(val ctx: RpcCallContext, val serdeVersion: SerdeVersion) {}
+  class MultiSerdeVersionRpcContext(
+      val ctx: RpcCallContext,
+      val serdeVersion: SerdeVersion,
+      val startPartition: Int,
+      val endPartition: Int,
+      val hasPartitionRange: Boolean,
+      val omitMapAttempts: Boolean) {}
 
   private val getReducerFileGroupRequest =
     JavaUtils.newConcurrentHashMap[Int, util.Set[MultiSerdeVersionRpcContext]]()
@@ -456,12 +462,65 @@ class ReducePartitionCommitHandler(
   private def replyGetReducerFileGroup(
       context: MultiSerdeVersionRpcContext,
       shuffleId: Int): Unit = {
-    replyGetReducerFileGroup(context.ctx, shuffleId, context.serdeVersion)
+    replyGetReducerFileGroup(
+      context.ctx,
+      shuffleId,
+      context.startPartition,
+      context.endPartition,
+      context.hasPartitionRange,
+      context.omitMapAttempts,
+      context.serdeVersion)
+  }
+
+  private def buildGetReducerFileGroupResponse(
+      shuffleId: Int,
+      startPartition: Int,
+      endPartition: Int,
+      hasPartitionRange: Boolean,
+      omitMapAttempts: Boolean,
+      serdeVersion: SerdeVersion): GetReducerFileGroupResponse = {
+    val allFileGroups =
+      reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap())
+    val allPushFailedBatches = shufflePushFailedBatches.getOrDefault(
+      shuffleId,
+      new util.HashMap[String, LocationPushFailedBatches]())
+
+    if (!hasPartitionRange) {
+      return GetReducerFileGroupResponse(
+        StatusCode.SUCCESS,
+        allFileGroups,
+        getMapperAttempts(shuffleId),
+        pushFailedBatches = allPushFailedBatches,
+        serdeVersion = serdeVersion)
+    }
+
+    val fileGroups = ReducerFileGroupFilter.fileGroupsForRange(
+      allFileGroups,
+      startPartition,
+      endPartition,
+      hasPartitionRange)
+    val pushFailedBatches = ReducerFileGroupFilter.pushFailedBatchesForFileGroups(
+      fileGroups,
+      allPushFailedBatches)
+
+    GetReducerFileGroupResponse(
+      StatusCode.SUCCESS,
+      fileGroups,
+      if (omitMapAttempts) Array.emptyIntArray else getMapperAttempts(shuffleId),
+      pushFailedBatches = pushFailedBatches,
+      serdeVersion = serdeVersion,
+      startPartition = startPartition,
+      endPartition = endPartition,
+      hasPartitionRange = hasPartitionRange)
   }
 
   private def replyGetReducerFileGroup(
       context: RpcCallContext,
       shuffleId: Int,
+      startPartition: Int,
+      endPartition: Int,
+      hasPartitionRange: Boolean,
+      omitMapAttempts: Boolean,
       serdeVersion: SerdeVersion): Unit = {
     if (isStageDataLost(shuffleId)) {
       context.reply(
@@ -469,36 +528,51 @@ class ReducePartitionCommitHandler(
           StatusCode.SHUFFLE_DATA_LOST,
           JavaUtils.newConcurrentHashMap(),
           Array.empty,
-          new util.HashSet[Integer]()))
+          new util.HashSet[Integer](),
+          serdeVersion = serdeVersion))
     } else {
       // LocalNettyRpcCallContext is for the UTs
       if (context.isInstanceOf[LocalNettyRpcCallContext]) {
-        var response = GetReducerFileGroupResponse(
-          StatusCode.SUCCESS,
-          reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
-          getMapperAttempts(shuffleId),
-          serdeVersion = serdeVersion)
+        var response = buildGetReducerFileGroupResponse(
+          shuffleId,
+          startPartition,
+          endPartition,
+          hasPartitionRange,
+          omitMapAttempts,
+          serdeVersion)
 
         // only check whether broadcast enabled for the UTs
-        if (getReducerFileGroupResponseBroadcastEnabled) {
+        if (getReducerFileGroupResponseBroadcastEnabled && !hasPartitionRange) {
           response = broadcastGetReducerFileGroup(shuffleId, response)
         }
 
         context.reply(response)
+      } else if (hasPartitionRange) {
+        val returnedMsg = buildGetReducerFileGroupResponse(
+          shuffleId,
+          startPartition,
+          endPartition,
+          hasPartitionRange,
+          omitMapAttempts,
+          serdeVersion)
+        val serializedMsg =
+          context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
+        logDebug(
+          s"Shuffle $shuffleId reducer range [$startPartition, $endPartition) " +
+            s"GetReducerFileGroupResponse size ${serializedMsg.capacity()}")
+        context.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(serializedMsg)
       } else {
         val cachedMsg = getReducerFileGroupRpcCache.get(
           shuffleId,
           new Callable[ByteBuffer]() {
             override def call(): ByteBuffer = {
-              val returnedMsg = GetReducerFileGroupResponse(
-                StatusCode.SUCCESS,
-                reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
-                getMapperAttempts(shuffleId),
-                pushFailedBatches =
-                  shufflePushFailedBatches.getOrDefault(
-                    shuffleId,
-                    new util.HashMap[String, LocationPushFailedBatches]()),
-                serdeVersion = serdeVersion)
+              val returnedMsg = buildGetReducerFileGroupResponse(
+                shuffleId,
+                startPartition,
+                endPartition,
+                hasPartitionRange,
+                omitMapAttempts,
+                serdeVersion)
 
               val serializedMsg =
                 context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
@@ -545,19 +619,41 @@ class ReducePartitionCommitHandler(
   override def handleGetReducerFileGroup(
       context: RpcCallContext,
       shuffleId: Int,
+      startPartition: Int,
+      endPartition: Int,
+      hasPartitionRange: Boolean,
+      omitMapAttempts: Boolean,
       serdeVersion: SerdeVersion): Unit = {
     // Quick return for ended stage, avoid occupy sync lock.
     if (isStageEnd(shuffleId)) {
-      replyGetReducerFileGroup(context, shuffleId, serdeVersion)
+      replyGetReducerFileGroup(
+        context,
+        shuffleId,
+        startPartition,
+        endPartition,
+        hasPartitionRange,
+        omitMapAttempts,
+        serdeVersion)
     } else {
       getReducerFileGroupRequest.synchronized {
         // If setStageEnd() called after isStageEnd and before got lock, should reply here.
         if (isStageEnd(shuffleId)) {
-          replyGetReducerFileGroup(context, shuffleId, serdeVersion)
+          replyGetReducerFileGroup(
+            context,
+            shuffleId,
+            startPartition,
+            endPartition,
+            hasPartitionRange,
+            omitMapAttempts,
+            serdeVersion)
         } else {
           getReducerFileGroupRequest.get(shuffleId).add(new MultiSerdeVersionRpcContext(
             context,
-            serdeVersion))
+            serdeVersion,
+            startPartition,
+            endPartition,
+            hasPartitionRange,
+            omitMapAttempts))
         }
       }
     }
