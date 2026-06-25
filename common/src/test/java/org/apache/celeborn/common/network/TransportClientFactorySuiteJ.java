@@ -260,4 +260,27 @@ public class TransportClientFactorySuiteJ {
         factory.retryCreateClient("xxx", 10, 1, TransportFrameDecoder::new);
     Assert.assertEquals(transportClient, client);
   }
+
+  @Test
+  public void doNotRetryCreateClientWhenInterruptedExceptionIsWrapped() throws Exception {
+    TransportClientFactory factory = Mockito.spy(context.createClientFactory());
+    InterruptedException interruptedException = new InterruptedException("test");
+    Mockito.doThrow(new IOException("wrapped", interruptedException))
+        .when(factory)
+        .createClient(anyString(), anyInt(), anyInt(), any());
+
+    try {
+      InterruptedException thrown =
+          assertThrows(
+              InterruptedException.class,
+              () -> factory.retryCreateClient("xxx", 10, 1, TransportFrameDecoder::new));
+
+      assertSame(interruptedException, thrown);
+      assertTrue(Thread.currentThread().isInterrupted());
+      Mockito.verify(factory, Mockito.times(1))
+          .createClient(anyString(), anyInt(), anyInt(), any());
+    } finally {
+      Thread.interrupted();
+    }
+  }
 }
