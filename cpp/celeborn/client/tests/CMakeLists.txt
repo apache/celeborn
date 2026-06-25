@@ -19,6 +19,7 @@ add_executable(
         PushDataCallbackTest.cpp
         PushMergedDataCallbackTest.cpp
         ShuffleClientImplTest.cpp
+        CelebornInputStreamTest.cpp
         CelebornInputStreamRetryTest.cpp
         PushStateTest.cpp
         ReviveManagerTest.cpp

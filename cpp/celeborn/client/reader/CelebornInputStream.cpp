@@ -77,6 +77,26 @@ CelebornInputStream::CelebornInputStream(
   moveToNextReader();
 }
 
+CelebornInputStream::CelebornInputStream()
+    : attemptNumber_(0),
+      startMapIndex_(0),
+      endMapIndex_(0),
+      shouldDecompress_(false),
+      currLocationIndex_(0),
+      currBatchPos_(0),
+      currBatchSize_(0),
+      fetchChunkRetryCnt_(0),
+      fetchChunkMaxRetry_(0),
+      retryWait_(utils::MS::zero()),
+      fetchExcludedWorkerExpireTimeoutMs_(0),
+      readSkewPartitionWithoutMapRange_(false),
+      shuffleClient_(nullptr) {}
+
+std::unique_ptr<CelebornInputStream> CelebornInputStream::empty() {
+  // Private constructor: not reachable via make_unique.
+  return std::unique_ptr<CelebornInputStream>(new CelebornInputStream());
+}
+
 int CelebornInputStream::read(uint8_t* buffer, size_t offset, size_t len) {
   CELEBORN_CHECK_NOT_NULL(buffer);
   uint8_t* buf = buffer + offset;

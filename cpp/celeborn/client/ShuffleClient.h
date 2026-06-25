@@ -289,6 +289,14 @@ class ShuffleClientImpl
   std::optional<protocol::StatusCode> getPushTargetWorkerExcludeCause(
       const protocol::PartitionLocation& location);
 
+  // @VisibleForTesting. Seeds the cached file-group response so readPartition
+  // runs without an RPC: getReducerFileGroupInfo then hits the cache.
+  void setReducerFileGroupInfoForTest(
+      int shuffleId,
+      std::shared_ptr<protocol::GetReducerFileGroupResponse> info) {
+    reducerFileGroupInfos_.set(shuffleId, std::move(info));
+  }
+
  private:
   std::shared_ptr<PushState> getPushState(const std::string& mapKey);
 
