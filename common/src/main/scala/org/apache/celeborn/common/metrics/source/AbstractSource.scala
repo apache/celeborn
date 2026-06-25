@@ -60,6 +60,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   val metricsCapacity: Int = conf.metricsCapacity
 
+  val metricsPrefix: String = conf.metricsPrefix
+
   val timerSupplier = new TimerSupplier(metricsSlidingWindowSize)
 
   val histogramSupplier = new HistogramSupplier(metricsSlidingWindowSize)
@@ -701,7 +703,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   protected def normalizeKey(key: String): String = {
-    s"metrics_${key.replaceAll("[^a-zA-Z0-9]", "_")}_"
+    s"${metricsPrefix}_${key.replaceAll("[^a-zA-Z0-9]", "_")}_"
   }
 
   def reportNanosAsMills(value: Double): Double = {

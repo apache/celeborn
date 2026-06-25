@@ -38,6 +38,24 @@ class CelebornSourceSuite extends CelebornFunSuite {
     assert(res.contains("metrics_abc_Count"))
   }
 
+  test("test customized metrics prefix") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.METRICS_PREFIX.key, "celeborn")
+
+    val mockSource = new AbstractSource(conf, Role.WORKER) {
+      override def sourceName: String = "mockSource"
+    }
+    val histogram = "abc"
+    mockSource.addHistogram(histogram)
+    for (i <- 1 to 100) {
+      mockSource.updateHistogram(histogram, 10)
+    }
+    val res = mockSource.getMetrics
+
+    assert(res.contains("celeborn_abc_Count"))
+    assert(!res.contains("metrics_abc_Count"))
+  }
+
   test("test getMetrics with customized label") {
     val conf = new CelebornConf()
     createAbstractSourceAndCheck(conf, "", Role.MASTER)
