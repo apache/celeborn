@@ -518,7 +518,6 @@ object Utils {
   val SPARK_VERSION = profiles.filter(_.startsWith("spark")).headOption
 
   lazy val sparkClientProjects = SPARK_VERSION match {
-    case Some("spark-2.4") => Some(Spark24)
     case Some("spark-3.0") => Some(Spark30)
     case Some("spark-3.1") => Some(Spark31)
     case Some("spark-3.2") => Some(Spark32)
@@ -880,25 +879,6 @@ object CelebornWorker {
 ////////////////////////////////////////////////////////
 //                   Spark Client                     //
 ////////////////////////////////////////////////////////
-
-object Spark24 extends SparkClientProjects {
-
-  val sparkClientProjectPath = "client-spark/spark-2"
-  val sparkClientProjectName = "celeborn-client-spark-2"
-  val sparkClientShadedProjectPath = "client-spark/spark-2-shaded"
-  val sparkClientShadedProjectName = "celeborn-client-spark-2-shaded"
-
-  // val jacksonVersion = "2.5.7"
-  // val jacksonDatabindVersion = "2.6.7.3"
-  val lz4JavaVersion = "1.4.0"
-  val sparkProjectScalaVersion = "2.11.12"
-  // scalaBinaryVersion
-  // val scalaBinaryVersion = "2.11"
-  val sparkVersion = "2.4.8"
-  val zstdJniVersion = "1.4.4-3"
-
-  override val includeColumnarShuffle: Boolean = false
-}
 
 object Spark30 extends SparkClientProjects {
 

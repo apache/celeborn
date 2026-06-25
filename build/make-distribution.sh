@@ -374,7 +374,6 @@ if [ "$SBT_ENABLED" == "true" ]; then
   sbt_build_service "$@"
   if [ "$RELEASE" == "true" ]; then
     export JAVA_HOME=$JAVA8_HOME
-    sbt_build_client -Pspark-2.4
     sbt_build_client -Pspark-3.4
     sbt_build_client -Pspark-3.5
     export JAVA_HOME=$JAVA17_HOME
@@ -416,7 +415,6 @@ else
   if [ "$RELEASE" == "true" ]; then
     build_service
     export JAVA_HOME=$JAVA8_HOME
-    build_spark_client -Pspark-2.4
     build_spark_client -Pspark-3.4
     build_spark_client -Pspark-3.5
     export JAVA_HOME=$JAVA17_HOME

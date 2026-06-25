@@ -41,7 +41,6 @@ jobs:
       matrix:
         module:
           - 'service'
-          - 'spark-2.4'
           - 'spark-3.0'
           - 'spark-3.1'
           - 'spark-3.2'
@@ -71,7 +70,6 @@ jobs:
       matrix:
         module:
           - 'service'
-          - 'spark-2.4'
           - 'spark-3.0'
           - 'spark-3.1'
           - 'spark-3.2'

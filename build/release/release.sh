@@ -104,9 +104,6 @@ upload_svn_staging() {
 upload_nexus_staging() {
   export JAVA_HOME=$JAVA8_HOME
 
-  echo "Deploying celeborn-client-spark-2-shaded_2.11"
-  ${PROJECT_DIR}/build/sbt -Pspark-2.4 "clean;celeborn-client-spark-2-shaded/publishSigned"
-
   echo "Deploying celeborn-client-spark-3-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pspark-3.4 "clean;celeborn-client-spark-3-shaded/publishSigned"
 

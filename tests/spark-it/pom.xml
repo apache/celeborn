@@ -190,24 +190,6 @@
   </dependencies>
   <profiles>
     <profile>
-      <id>spark-2.4</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-client-spark-2_${scala.binary.version}</artifactId>
-          <version>${project.version}</version>
-          <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.celeborn</groupId>
-          <artifactId>celeborn-client-spark-2_${scala.binary.version}</artifactId>
-          <version>${project.version}</version>
-          <type>test-jar</type>
-          <scope>test</scope>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
       <id>spark-3.0</id>
       <dependencies>
         <dependency>
