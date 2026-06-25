@@ -217,6 +217,30 @@ public abstract class DynamicConfig {
             ConfigType.STRING));
   }
 
+  public StorageQuota getAppStorageQuota() {
+    return new StorageQuota(
+        getValue(
+            CelebornConf.QUOTA_APP_DISK_BYTES_WRITTEN().key(),
+            CelebornConf.QUOTA_APP_DISK_BYTES_WRITTEN(),
+            Long.TYPE,
+            ConfigType.BYTES),
+        getValue(
+            CelebornConf.QUOTA_APP_DISK_FILE_COUNT().key(),
+            CelebornConf.QUOTA_APP_DISK_FILE_COUNT(),
+            Long.TYPE,
+            ConfigType.STRING),
+        getValue(
+            CelebornConf.QUOTA_APP_HDFS_BYTES_WRITTEN().key(),
+            CelebornConf.QUOTA_APP_HDFS_BYTES_WRITTEN(),
+            Long.TYPE,
+            ConfigType.BYTES),
+        getValue(
+            CelebornConf.QUOTA_APP_HDFS_FILE_COUNT().key(),
+            CelebornConf.QUOTA_APP_HDFS_FILE_COUNT(),
+            Long.TYPE,
+            ConfigType.STRING));
+  }
+
   public boolean interruptShuffleEnabled() {
     return getValue(
         CelebornConf.QUOTA_INTERRUPT_SHUFFLE_ENABLED().key(),
