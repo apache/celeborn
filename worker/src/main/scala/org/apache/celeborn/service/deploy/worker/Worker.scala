@@ -156,7 +156,7 @@ private[celeborn] class Worker(
 
   private val WORKER_SHUTDOWN_PRIORITY = 100
   val shutdown = new AtomicBoolean(false)
-  private val gracefulShutdown = conf.workerGracefulShutdown
+  private val gracefulShutdown = conf.effectiveWorkerGracefulShutdown
   if (gracefulShutdown) {
     var checkPortMap = Map(
       WORKER_RPC_PORT -> conf.workerRpcPort,
@@ -619,6 +619,14 @@ private[celeborn] class Worker(
     if (!stopped) {
       logInfo("Stopping Worker.")
 
+      // Both graceful shutdown and decommission have drained data, so the periodic
+      // thread pools below are allowed to finish in-flight work instead of being
+      // force-cancelled. Note this does not extend to partitionsSorter.close(), which
+      // only awaits termination on graceful shutdown; on decommission an in-flight
+      // on-demand sort is still force-cancelled (see PartitionFilesSorter.close).
+      val drainBeforeExit = exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN ||
+        exitKind == CelebornExitKind.WORKER_DECOMMISSION
+
       if (jvmProfiler != null) {
         jvmProfiler.stop()
       }
@@ -626,7 +634,7 @@ private[celeborn] class Worker(
         jvmQuake.stop()
       }
       if (sendHeartbeatTask != null) {
-        if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+        if (drainBeforeExit) {
           sendHeartbeatTask.cancel(false)
         } else {
           sendHeartbeatTask.cancel(true)
@@ -634,14 +642,14 @@ private[celeborn] class Worker(
         sendHeartbeatTask = null
       }
       if (checkFastFailTask != null) {
-        if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+        if (drainBeforeExit) {
           checkFastFailTask.cancel(false)
         } else {
           checkFastFailTask.cancel(true)
         }
         checkFastFailTask = null
       }
-      if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
+      if (drainBeforeExit) {
         forwardMessageScheduler.shutdown()
         replicateThreadPool.shutdown()
         commitThreadPool.shutdown()
@@ -949,8 +957,12 @@ private[celeborn] class Worker(
   override def exit(exitType: String): String = {
     exitType.toUpperCase(Locale.ROOT) match {
       case "DECOMMISSION" =>
+        // A runtime REST decommission can target a worker not configured for
+        // decommission-on-shutdown, whose hook was registered with the default timeout.
+        // updateTimeout is the only API to extend an already-registered hook, so it is
+        // used here despite being process-wide.
         ShutdownHookManager.get().updateTimeout(
-          conf.workerDecommissionForceExitTimeout,
+          decommissionHookTimeoutMs,
           TimeUnit.MILLISECONDS)
         workerStatusManager.doTransition(WorkerEventType.Decommission)
       case "GRACEFUL" =>
@@ -1022,25 +1034,34 @@ private[celeborn] class Worker(
 
   def decommissionWorker(): Unit = {
     logInfo("Worker start to decommission")
-    workerStatusManager.transitionState(State.InDecommission)
+    // A runtime REST exit("DECOMMISSION") already moved the state to InDecommission before
+    // triggering the shutdown hook; skip the re-transition in that case to avoid a spurious
+    // "transition not allowed" warning. The master report still runs on both paths.
+    if (workerStatusManager.getWorkerState() != State.InDecommission) {
+      workerStatusManager.transitionState(State.InDecommission)
+    }
     sendWorkerDecommissionToMaster()
     shutdown.set(true)
     val interval = conf.workerDecommissionCheckInterval
     val timeout = conf.workerDecommissionForceExitTimeout
-    var waitTimes = 0
+    var waited = 0L
 
-    def waitTime: Long = waitTimes * interval
-
-    while (!storageManager.shuffleKeySet().isEmpty && waitTime + interval < timeout) {
-      Thread.sleep(interval)
-      waitTimes += 1
+    // Bound the total wait strictly by the timeout so that the remaining shutdown hook
+    // budget is left for stop(WORKER_DECOMMISSION) to clean up resources. Clamp the sleep
+    // to the remaining budget so that a forceExitTimeout smaller than checkInterval still
+    // drains (bounded by timeout) instead of skipping the wait entirely and deleting shuffle
+    // data that consumers still need.
+    while (!storageManager.shuffleKeySet().isEmpty && waited < timeout) {
+      val sleepMs = Math.min(interval, timeout - waited)
+      Thread.sleep(sleepMs)
+      waited += sleepMs
     }
 
     val unreleasedShuffleKeys = storageManager.shuffleKeySet()
     if (unreleasedShuffleKeys.isEmpty) {
-      logInfo(s"Waiting for all shuffle expired cost ${waitTime}ms.")
+      logInfo(s"Waiting for all shuffle expired cost ${waited}ms.")
     } else {
-      logWarning(s"Waiting for all shuffle expired cost ${waitTime}ms, " +
+      logWarning(s"Waiting for all shuffle expired cost ${waited}ms, " +
         s"unreleased shuffle: \n${unreleasedShuffleKeys.asScala.mkString("[", ", ", "]")}")
     }
     workerStatusManager.transitionState(State.Exit)
@@ -1072,29 +1093,44 @@ private[celeborn] class Worker(
     workerStatusManager.transitionState(State.Exit)
   }
 
-  ShutdownHookManager.get().addShutdownHook(
-    ThreadUtils.newThread(
-      new Runnable {
-        override def run(): Unit = {
-          logInfo("Shutdown hook called.")
-          workerStatusManager.exitEventType match {
-            case WorkerEventType.Graceful =>
-              shutdownGracefully()
-            case WorkerEventType.Decommission =>
-              decommissionWorker()
-            case _ =>
-              exitImmediately()
-          }
+  // Total shutdown-hook budget for the decommission path: the bounded drain wait in
+  // decommissionWorker() (forceExitTimeout) plus checkInterval of headroom for
+  // stop(WORKER_DECOMMISSION) to finish cleanup before the hook is cancelled. Shared by the
+  // SIGTERM registration below and the runtime REST decommission path so they cannot drift.
+  private def decommissionHookTimeoutMs: Long =
+    conf.workerDecommissionForceExitTimeout + conf.workerDecommissionCheckInterval
 
-          if (workerStatusManager.exitEventType == WorkerEventType.Graceful) {
+  private val workerShutdownHook = ThreadUtils.newThread(
+    new Runnable {
+      override def run(): Unit = {
+        logInfo("Shutdown hook called.")
+        workerStatusManager.exitEventType match {
+          case WorkerEventType.Graceful =>
+            shutdownGracefully()
             stop(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
-          } else {
+          case WorkerEventType.Decommission =>
+            decommissionWorker()
+            stop(CelebornExitKind.WORKER_DECOMMISSION)
+          case _ =>
+            exitImmediately()
             stop(CelebornExitKind.EXIT_IMMEDIATELY)
-          }
         }
-      },
-      "worker-shutdown-hook-thread"),
-    WORKER_SHUTDOWN_PRIORITY)
+      }
+    },
+    "worker-shutdown-hook-thread")
+
+  if (conf.workerDecommissionShutdown) {
+    // Register the worker hook with an explicit extended timeout so that only this hook
+    // gets the longer budget, instead of process-wide updateTimeout which would also extend
+    // unrelated hooks.
+    ShutdownHookManager.get().addShutdownHook(
+      workerShutdownHook,
+      WORKER_SHUTDOWN_PRIORITY,
+      decommissionHookTimeoutMs,
+      TimeUnit.MILLISECONDS)
+  } else {
+    ShutdownHookManager.get().addShutdownHook(workerShutdownHook, WORKER_SHUTDOWN_PRIORITY)
+  }
 
   @VisibleForTesting
   def getPushFetchServerPort: (Int, Int) = (pushPort, fetchPort)

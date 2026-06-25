@@ -57,24 +57,59 @@ class WorkerStatusManagerSuite extends AnyFunSuite {
     statusManager.init(worker)
 
     statusManager.doTransition(WorkerEventType.DecommissionThenIdle)
-    Assert.assertEquals(statusManager.getWorkerState(), PbWorkerStatus.State.InDecommissionThenIdle)
+    Assert.assertEquals(PbWorkerStatus.State.InDecommissionThenIdle, statusManager.getWorkerState())
     Assert.assertEquals(
-      worker.workerInfo.getWorkerStatus().getStateValue,
-      PbWorkerStatus.State.InDecommissionThenIdle.getNumber)
+      PbWorkerStatus.State.InDecommissionThenIdle.getNumber,
+      worker.workerInfo.getWorkerStatus().getStateValue)
 
     // Rerun state Transition
     statusManager.doTransition(WorkerEventType.DecommissionThenIdle)
-    Assert.assertEquals(statusManager.getWorkerState(), PbWorkerStatus.State.InDecommissionThenIdle)
+    Assert.assertEquals(PbWorkerStatus.State.InDecommissionThenIdle, statusManager.getWorkerState())
 
     // Reset shuffleKeys
     shuffleKeys.clear()
     statusManager.doTransition(WorkerEventType.DecommissionThenIdle)
-    Assert.assertEquals(statusManager.getWorkerState(), PbWorkerStatus.State.Idle)
+    Assert.assertEquals(PbWorkerStatus.State.Idle, statusManager.getWorkerState())
 
     statusManager.doTransition(WorkerEventType.Recommission)
-    Assert.assertEquals(statusManager.getWorkerState(), PbWorkerStatus.State.Normal)
+    Assert.assertEquals(PbWorkerStatus.State.Normal, statusManager.getWorkerState())
 
     statusManager.doTransition(WorkerEventType.Recommission)
-    Assert.assertEquals(statusManager.getWorkerState(), PbWorkerStatus.State.Normal)
+    Assert.assertEquals(PbWorkerStatus.State.Normal, statusManager.getWorkerState())
+  }
+
+  test("Test exitEventType initialization based on config") {
+    // Neither graceful nor decommission → Immediately. Set both keys explicitly so the
+    // assertion does not depend on system properties leaked from other tests.
+    val conf1 = new CelebornConf()
+    conf1.set("celeborn.worker.graceful.shutdown.enabled", "false")
+    conf1.set("celeborn.worker.decommission.shutdown.enabled", "false")
+    val mgr1 = new WorkerStatusManager(conf1)
+    Assert.assertEquals(WorkerEventType.Immediately, mgr1.exitEventType)
+
+    // Graceful shutdown only → Graceful. Set both keys explicitly so a leaked
+    // decommission.shutdown.enabled system property cannot flip the result.
+    val conf2 = new CelebornConf()
+    conf2.set("celeborn.worker.graceful.shutdown.enabled", "true")
+    conf2.set("celeborn.worker.decommission.shutdown.enabled", "false")
+    val mgr2 = new WorkerStatusManager(conf2)
+    Assert.assertEquals(WorkerEventType.Graceful, mgr2.exitEventType)
+
+    // Decommission shutdown only → Decommission. Set both keys explicitly so a leaked
+    // graceful.shutdown.enabled system property cannot affect the result.
+    val conf3 = new CelebornConf()
+    conf3.set("celeborn.worker.graceful.shutdown.enabled", "false")
+    conf3.set("celeborn.worker.decommission.shutdown.enabled", "true")
+    val mgr3 = new WorkerStatusManager(conf3)
+    Assert.assertEquals(WorkerEventType.Decommission, mgr3.exitEventType)
+
+    // Both enabled → Decommission overrides graceful
+    val conf4 = new CelebornConf()
+    conf4.set("celeborn.worker.graceful.shutdown.enabled", "true")
+    conf4.set("celeborn.worker.decommission.shutdown.enabled", "true")
+    val mgr4 = new WorkerStatusManager(conf4)
+    Assert.assertEquals(WorkerEventType.Decommission, mgr4.exitEventType)
+    Assert.assertTrue(conf4.workerGracefulShutdown)
+    Assert.assertTrue(conf4.workerDecommissionShutdown)
   }
 }
