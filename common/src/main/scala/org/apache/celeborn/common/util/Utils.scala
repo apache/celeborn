@@ -700,6 +700,18 @@ object Utils extends Logging {
     (appId, shuffleId)
   }
 
+  private val appIdPattern = "[A-Za-z0-9_-]+".r.pattern
+
+  def validateAppId(applicationId: String): Unit = {
+    // matches() anchors the whole input, so a trailing newline (which `$` would
+    // otherwise tolerate) is rejected along with any other traversal character.
+    if (applicationId == null || !appIdPattern.matcher(applicationId).matches()) {
+      throw new IllegalArgumentException(
+        s"Invalid application id: '$applicationId'. " +
+          "Application id must be non-empty and match [A-Za-z0-9_-]+.")
+    }
+  }
+
   def splitPartitionLocationUniqueId(uniqueId: String): (Int, Int) = {
     val splits = uniqueId.split("-")
     val partitionId = splits.dropRight(1).mkString("-").toInt

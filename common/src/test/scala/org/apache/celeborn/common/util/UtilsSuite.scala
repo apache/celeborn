@@ -304,4 +304,30 @@ class UtilsSuite extends CelebornFunSuite {
       celebornConf)
     assert(testInstance.isInstanceOf[DefaultIdentityProvider])
   }
+
+  test("validateAppId rejects path traversal and accepts valid ids") {
+    Seq(
+      "application_1234567890123_0001",
+      "local-1234567890123",
+      "app1",
+      "my-app-id",
+      "app_with_underscores").foreach { id =>
+      Utils.validateAppId(id)
+    }
+
+    Seq(
+      "../etc/passwd",
+      "app/../secret",
+      "app/id",
+      "app\\id",
+      "app id",
+      "app\n",
+      "valid_app\n",
+      "",
+      null).foreach { id =>
+      intercept[IllegalArgumentException] {
+        Utils.validateAppId(id)
+      }
+    }
+  }
 }
