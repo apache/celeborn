@@ -15,10 +15,15 @@
  * limitations under the License.
  */
 
+#include <climits>
+#include <cstdint>
+#include <vector>
+
 #include <gtest/gtest.h>
 
 #include "celeborn/client/ShuffleClient.h"
 #include "celeborn/client/tests/ShuffleClientTestUtils.h"
+#include "celeborn/protocol/ControlMessages.h"
 
 using namespace celeborn;
 using namespace celeborn::client;
@@ -48,6 +53,12 @@ class TestableShuffleClient : public TestShuffleClientBase {
   std::optional<protocol::StatusCode> callGetPushTargetWorkerExcludeCause(
       const protocol::PartitionLocation& location) {
     return getPushTargetWorkerExcludeCause(location);
+  }
+
+  void seedReducerFileGroupInfo(
+      int shuffleId,
+      std::shared_ptr<protocol::GetReducerFileGroupResponse> info) {
+    setReducerFileGroupInfoForTest(shuffleId, std::move(info));
   }
 
  private:
@@ -267,4 +278,47 @@ TEST(ShuffleClientImplTest, shutdownClearsExcludedWorkers) {
   client->shutdown();
 
   EXPECT_FALSE(client->callGetPushTargetWorkerExcludeCause(*loc).has_value());
+}
+
+// Asserts the stream reports EOF immediately, i.e. it carries no data.
+static void expectEmptyStream(
+    const std::unique_ptr<CelebornInputStream>& stream) {
+  ASSERT_NE(stream, nullptr);
+  std::vector<uint8_t> buffer(8, 0);
+  EXPECT_EQ(stream->read(buffer.data(), 0, buffer.size()), -1);
+}
+
+// readPartition returns an empty (EOF) stream when the shuffle's file groups
+// hold no locations for the partition. The seeded cache makes
+// getReducerFileGroupInfo hit, so no RPC is attempted.
+TEST(ShuffleClientImplTest, readPartitionEmptyWhenFileGroupsEmpty) {
+  auto client = TestableShuffleClient::create(makeConf(/*enabled=*/false));
+  auto info = std::make_shared<protocol::GetReducerFileGroupResponse>();
+  info->status = protocol::StatusCode::SUCCESS;
+  client->seedReducerFileGroupInfo(/*shuffleId=*/1, info);
+
+  expectEmptyStream(client->readPartition(
+      /*shuffleId=*/1,
+      /*partitionId=*/0,
+      /*attemptNumber=*/0,
+      /*startMapIndex=*/0,
+      /*endMapIndex=*/INT_MAX));
+}
+
+// Same empty-stream result when the file-group map is populated but has no
+// entry for the requested partition.
+TEST(ShuffleClientImplTest, readPartitionEmptyWhenPartitionMissing) {
+  auto client = TestableShuffleClient::create(makeConf(/*enabled=*/false));
+  auto info = std::make_shared<protocol::GetReducerFileGroupResponse>();
+  info->status = protocol::StatusCode::SUCCESS;
+  info->fileGroups[7].insert(makeLocation(7, 0, "host-7", 9007));
+  client->seedReducerFileGroupInfo(/*shuffleId=*/2, info);
+
+  // Partition 0 is absent (only partition 7 has locations).
+  expectEmptyStream(client->readPartition(
+      /*shuffleId=*/2,
+      /*partitionId=*/0,
+      /*attemptNumber=*/0,
+      /*startMapIndex=*/0,
+      /*endMapIndex=*/INT_MAX));
 }
