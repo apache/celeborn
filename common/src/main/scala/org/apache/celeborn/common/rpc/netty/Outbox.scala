@@ -23,10 +23,9 @@ import javax.annotation.concurrent.GuardedBy
 
 import scala.util.control.NonFatal
 
-import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
-import org.apache.celeborn.common.rpc.{RpcAddress, RpcEnvStoppedException}
+import org.apache.celeborn.common.rpc.{OutboxStoppedException, RpcAddress, RpcEnvStoppedException}
 
 sealed private[celeborn] trait OutboxMessage {
 
@@ -257,7 +256,7 @@ private[celeborn] class Outbox(nettyEnv: NettyRpcEnv, val address: RpcAddress) {
   def stop(): Unit =
     stop(
       if (nettyEnv.isStopped) new RpcEnvStoppedException()
-      else new CelebornException("Message is dropped because Outbox is stopped"))
+      else new OutboxStoppedException())
 
   /** Stop [[Outbox]] and notify the remaining messages with the supplied cause. */
   def stop(cause: Throwable): Unit = {

@@ -24,8 +24,7 @@ import java.util.concurrent.atomic.AtomicReference
 import org.mockito.Mockito.{mock, when}
 
 import org.apache.celeborn.CelebornFunSuite
-import org.apache.celeborn.common.exception.CelebornException
-import org.apache.celeborn.common.rpc.{RpcAddress, RpcEnvStoppedException}
+import org.apache.celeborn.common.rpc.{OutboxStoppedException, RpcAddress, RpcEnvStoppedException}
 
 class OutboxSuite extends CelebornFunSuite {
 
@@ -62,8 +61,8 @@ class OutboxSuite extends CelebornFunSuite {
     outbox.send(failureMessage(failure, failed))
 
     assert(failed.await(10, TimeUnit.SECONDS))
-    assert(failure.get().isInstanceOf[CelebornException])
-    assert(failure.get().getMessage === "Message is dropped because Outbox is stopped")
+    assert(failure.get().isInstanceOf[OutboxStoppedException])
+    assert(failure.get().getMessage === OutboxStoppedException.MESSAGE)
   }
 
   test("default stop after RPC environment shutdown uses the terminal cause") {
