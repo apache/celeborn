@@ -20,7 +20,7 @@ package org.apache.spark.shuffle.celeborn
 import java.io.IOException
 import java.nio.file.Files
 import java.util.concurrent.{CountDownLatch, TimeoutException, TimeUnit}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 
 import org.apache.spark.{Dependency, ShuffleDependency, TaskContext}
 import org.apache.spark.shuffle.ShuffleReadMetricsReporter
@@ -188,6 +188,30 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
     }
   }
 
+  test("bound failed batch open stream client creation attempts per worker") {
+    val locations = (0 until 100).map(id => newLocation(id, "worker-0", 19098))
+    val streamCreatorPool = ThreadUtils.newDaemonCachedThreadPool("test-create-client", 1, 60)
+    val attempts = new AtomicInteger()
+    val failures = new AtomicInteger()
+
+    try {
+      val clients = CelebornShuffleReader.createClientsInParallel(
+        Seq(locations.head.hostAndFetchPort -> locations),
+        streamCreatorPool,
+        _ => {
+          attempts.incrementAndGet()
+          throw new IOException("boom")
+        },
+        (_, _, _) => failures.incrementAndGet())
+
+      assert(clients.isEmpty)
+      assert(attempts.get() === 2)
+      assert(failures.get() === 2)
+    } finally {
+      streamCreatorPool.shutdownNow()
+    }
+  }
+
   test("cancel batch open stream client creation when waiting thread is interrupted") {
     val blockedLocation = newLocation(0, "worker-0", 19098)
     val retryLocation = newLocation(1, "worker-0", 19098)
@@ -249,6 +273,69 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
       assert(!failureReported.get())
     } finally {
       releaseClient.countDown()
+      streamCreatorPool.shutdownNow()
+      caller.interrupt()
+      caller.join(TimeUnit.SECONDS.toMillis(5))
+    }
+  }
+
+  test("do not retry client creation after cancellation during failure callback") {
+    val failedLocation = newLocation(0, "worker-0", 19098)
+    val retryLocation = newLocation(1, "worker-0", 19098)
+    val retryClient = Mockito.mock(classOf[TransportClient])
+    val streamCreatorPool = ThreadUtils.newDaemonCachedThreadPool("test-create-client", 1, 60)
+    val failureCallbackStarted = new CountDownLatch(1)
+    val releaseFailureCallback = new CountDownLatch(1)
+    val failureCallbackInterrupted = new CountDownLatch(1)
+    val retried = new AtomicBoolean(false)
+    val callerInterrupted = new AtomicBoolean(false)
+    val callerFailure = new AtomicReference[Throwable]()
+
+    val caller = new Thread(new Runnable {
+      override def run(): Unit = {
+        try {
+          CelebornShuffleReader.createClientsInParallel(
+            Seq(failedLocation.hostAndFetchPort -> Seq(failedLocation, retryLocation)),
+            streamCreatorPool,
+            location => {
+              if (location eq failedLocation) throw new IOException("boom")
+              retried.set(true)
+              retryClient
+            },
+            (_, _, _) => {
+              failureCallbackStarted.countDown()
+              try {
+                releaseFailureCallback.await()
+              } catch {
+                case _: InterruptedException =>
+                  Thread.currentThread().interrupt()
+                  failureCallbackInterrupted.countDown()
+              }
+            })
+          callerFailure.set(new AssertionError("Expected waiting thread to be interrupted"))
+        } catch {
+          case _: InterruptedException =>
+            callerInterrupted.set(Thread.currentThread().isInterrupted)
+          case ex: Throwable =>
+            callerFailure.set(ex)
+        }
+      }
+    })
+
+    try {
+      caller.start()
+      assert(failureCallbackStarted.await(5, TimeUnit.SECONDS))
+      caller.interrupt()
+      caller.join(TimeUnit.SECONDS.toMillis(5))
+      assert(!caller.isAlive)
+      assert(failureCallbackInterrupted.await(5, TimeUnit.SECONDS))
+      streamCreatorPool.shutdown()
+      assert(streamCreatorPool.awaitTermination(5, TimeUnit.SECONDS))
+      assert(callerFailure.get() == null)
+      assert(callerInterrupted.get())
+      assert(!retried.get())
+    } finally {
+      releaseFailureCallback.countDown()
       streamCreatorPool.shutdownNow()
       caller.interrupt()
       caller.join(TimeUnit.SECONDS.toMillis(5))

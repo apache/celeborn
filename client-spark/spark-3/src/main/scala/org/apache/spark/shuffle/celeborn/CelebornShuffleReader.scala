@@ -627,6 +627,9 @@ class CelebornShuffleReader[K, C](
 object CelebornShuffleReader {
   var streamCreatorPool: ThreadPoolExecutor = null
 
+  // TransportClientFactory already retries each attempt; allow one extra pooled-client attempt.
+  private val MAX_CLIENT_CREATION_ATTEMPTS_PER_HOST = 2
+
   @VisibleForTesting
   private[celeborn] def createClientsInParallel(
       locationsByHostPort: Seq[(String, Seq[PartitionLocation])],
@@ -638,9 +641,12 @@ object CelebornShuffleReader {
     val futures = locationsByHostPort.map { case (hostPort, locations) =>
       streamCreatorPool.submit(new Runnable {
         override def run(): Unit = {
-          val locationsIterator = locations.iterator
+          val locationsIterator = locations.iterator.take(MAX_CLIENT_CREATION_ATTEMPTS_PER_HOST)
           var clientCreated = false
           while (!clientCreated && locationsIterator.hasNext) {
+            if (Thread.currentThread().isInterrupted) {
+              throw new InterruptedException("Client creation interrupted")
+            }
             val location = locationsIterator.next()
             try {
               clientsByHostPort.put(hostPort, createClient(location))
