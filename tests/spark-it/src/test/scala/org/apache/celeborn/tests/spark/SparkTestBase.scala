@@ -26,6 +26,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
+import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.internal.Logging
@@ -48,12 +49,33 @@ trait SparkTestBase extends AnyFunSuite
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup Celeborn mini cluster")
-    setupMiniClusterWithRandomPorts(workerNum = 5)
+    // Use 3 workers (the MiniClusterFeature default) rather than 5. The spark-it suites run
+    // serially in a single JVM (scalatest forkMode=once), so every extra worker multiplies the
+    // long-lived thread/CPU footprint across the whole module. Under CPU contention on CI runners
+    // that surplus starves RPC handlers long enough to blow the 240s network timeout, which then
+    // amplifies through read retries and Spark stage reattempts into multi-minute hangs. 3 workers
+    // still exercises replication and slot spreading while cutting that footprint.
+    setupMiniClusterWithRandomPorts(workerNum = 3)
   }
 
   override def afterAll(): Unit = {
     logInfo("all test complete , stop Celeborn mini cluster")
+    // Tear down any SparkSession/SparkContext still alive in this JVM before the next suite runs.
+    // Spark integration suites run sequentially (parallelExecution = false), but a context that is
+    // not stopped keeps its LifecycleManager and the process-wide static ShuffleClient alive. A
+    // straggler task from such a leaked context can then bind to a later suite's LifecycleManager
+    // through the shared client and corrupt celebornShuffleId 0 (ArrayIndexOutOfBoundsException or
+    // CommitMetadata CRC mismatch). Stopping the context here triggers SparkShuffleManager.stop(),
+    // which shuts the client down and stops the LifecycleManager.
+    stopActiveSparkSessions()
     shutdownMiniCluster()
+  }
+
+  protected def stopActiveSparkSessions(): Unit = {
+    SparkSession.getActiveSession.orElse(SparkSession.getDefaultSession).foreach(_.stop())
+    SparkSession.clearActiveSession()
+    SparkSession.clearDefaultSession()
+    ShuffleClient.reset()
   }
 
   var workerDirs: Seq[String] = Seq.empty
