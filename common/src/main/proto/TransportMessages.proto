@@ -221,7 +221,6 @@ message PbMetaRegisterWorkerRequest {
   map<string, PbResourceConsumption> userResourceConsumption = 7;
   int32 internalPort = 8;
   string networkLocation = 9;
-  repeated string tags = 12;
 }
 
 message PbHeartbeatFromWorker {
