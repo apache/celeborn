@@ -380,7 +380,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
     workerInfo.updateDiskSlots(estimatedPartitionSize);
     synchronized (workersMap) {
-      workersMap.putIfAbsent(workerInfo.toUniqueId(), workerInfo);
+      WorkerInfo existingWorkerInfo = workersMap.putIfAbsent(workerInfo.toUniqueId(), workerInfo);
+      if (existingWorkerInfo != null) {
+        existingWorkerInfo.tags_$eq(new HashSet<>(tags));
+      }
       shutdownWorkers.remove(workerInfo);
       lostWorkers.remove(workerInfo);
       excludedWorkers.remove(workerInfo);
