@@ -397,7 +397,8 @@ object ControlMessages extends Logging {
       unknownWorkers: util.List[WorkerInfo],
       shuttingWorkers: util.List[WorkerInfo],
       registeredShuffles: util.List[Integer],
-      checkQuotaResponse: CheckQuotaResponse) extends Message
+      checkQuotaResponse: CheckQuotaResponse,
+      shouldTriggerGc: Boolean = false) extends Message
 
   case class CheckQuota(userIdentifier: UserIdentifier) extends Message
 
@@ -890,7 +891,8 @@ object ControlMessages extends Logging {
           unknownWorkers,
           shuttingWorkers,
           registeredShuffles,
-          checkQuotaResponse) =>
+          checkQuotaResponse,
+          shouldTriggerGc) =>
       val pbCheckQuotaResponse = PbCheckQuotaResponse.newBuilder().setAvailable(
         checkQuotaResponse.isAvailable).setReason(checkQuotaResponse.reason)
       val payload = PbHeartbeatFromApplicationResponse.newBuilder()
@@ -903,6 +905,7 @@ object ControlMessages extends Logging {
           shuttingWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true, true)).toList.asJava)
         .addAllRegisteredShuffles(registeredShuffles)
         .setCheckQuotaResponse(pbCheckQuotaResponse)
+        .setShouldTriggerGc(shouldTriggerGc)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION_RESPONSE, payload)
 
@@ -1386,7 +1389,8 @@ object ControlMessages extends Logging {
           pbHeartbeatFromApplicationResponse.getShuttingWorkersList.asScala
             .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava,
           pbHeartbeatFromApplicationResponse.getRegisteredShufflesList,
-          checkQuotaResponse)
+          checkQuotaResponse,
+          pbHeartbeatFromApplicationResponse.getShouldTriggerGc)
 
       case CHECK_QUOTA_VALUE =>
         val pbCheckAvailable = PbCheckQuota.parseFrom(message.getPayload)
