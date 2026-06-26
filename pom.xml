@@ -1512,24 +1512,6 @@
         <aliyun-deps>true</aliyun-deps>
       </properties>
     </profile>
-    <profile>
-      <id>spark-2.4</id>
-      <modules>
-        <module>client-spark/common</module>
-        <module>client-spark/spark-2</module>
-        <module>client-spark/spark-2-shaded</module>
-        <module>tests/spark-it</module>
-      </modules>
-      <properties>
-        <lz4-java.group>org.lz4</lz4-java.group>
-        <lz4-java.version>1.4.0</lz4-java.version>
-        <scala.version>2.11.12</scala.version>
-        <scala.binary.version>2.11</scala.binary.version>
-        <spark.version>2.4.8</spark.version>
-        <zstd-jni.version>1.4.4-3</zstd-jni.version>
-        <commons-lang3.version>3.17.0</commons-lang3.version>
-      </properties>
-    </profile>
 
     <profile>
       <id>spark-3.0</id>
