@@ -98,6 +98,7 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
 
   def start(): Unit = {
     lifecycleManager.registerWorkerStatusListener(new ShutdownWorkerListener)
+    lifecycleManager.registerWorkerStatusListener(new UnknownWorkerListener)
 
     batchHandleCommitPartition = batchHandleCommitPartitionSchedulerThread.map {
       _.scheduleWithFixedDelay(
@@ -286,6 +287,10 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
     getCommitHandler(shuffleId).setStageEnd(shuffleId)
   }
 
+  def markShuffleDataLost(shuffleId: Int): Unit = {
+    getCommitHandler(shuffleId).markShuffleDataLost(shuffleId)
+  }
+
   def waitStageEnd(shuffleId: Int): (Boolean, Long) = {
     getCommitHandler(shuffleId).waitStageEnd(shuffleId)
   }
@@ -337,10 +342,9 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
       (totalWritten + written, totalFileCount + fileCount)
   }
 
-  class ShutdownWorkerListener extends WorkerStatusListener {
-
+  private class ShutdownWorkerListener extends WorkerStatusListener {
     override def notifyChangedWorkersStatus(workersStatus: WorkersStatus): Unit = {
-      if (workersStatus.shutdownWorkers != null) {
+      if (workersStatus.shutdownWorkers != null && !workersStatus.shutdownWorkers.isEmpty) {
         lifecycleManager.shuffleAllocatedWorkers.asScala.foreach {
           case (shuffleId, workerIdToPartitionLocationInfos) =>
             if (!isStageEndOrInProcess(shuffleId)) {
@@ -362,6 +366,31 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
                   needCommitPartitionLocations)
               }
             }
+        }
+      }
+    }
+  }
+
+  private class UnknownWorkerListener extends WorkerStatusListener {
+    private val shuffleDataLostOnUnknownWorkerEnabled =
+      conf.clientShuffleDataLostOnUnknownWorkerEnabled
+    private val pushReplicateEnabled = conf.clientPushReplicateEnabled
+
+    override def notifyChangedWorkersStatus(workersStatus: WorkersStatus): Unit = {
+      if (shuffleDataLostOnUnknownWorkerEnabled && !pushReplicateEnabled) {
+        if (workersStatus.unknownWorkers != null && !workersStatus.unknownWorkers.isEmpty) {
+          lifecycleManager.shuffleAllocatedWorkers.asScala.foreach {
+            case (shuffleId, workerIdToPartitionLocationInfos) =>
+              val hasDataOnLostWorker = workersStatus.unknownWorkers.asScala.exists { worker =>
+                workerIdToPartitionLocationInfos.containsKey(worker.toUniqueId)
+              }
+              if (hasDataOnLostWorker) {
+                logWarning(s"Shuffle $shuffleId has data on lost worker(s) " +
+                  s"${workersStatus.unknownWorkers.asScala.map(_.toUniqueId).mkString("[", ",", "]")}," +
+                  s" marking data as lost immediately.")
+                markShuffleDataLost(shuffleId)
+              }
+          }
         }
       }
     }

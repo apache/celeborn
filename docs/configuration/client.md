@@ -122,7 +122,7 @@ license: |
 | celeborn.client.shuffle.rangeReadFilter.enabled | false | false | If a spark application have skewed partition, this value can set to true to improve performance. | 0.2.0 | celeborn.shuffle.rangeReadFilter.enabled | 
 | celeborn.client.shuffle.register.filterExcludedWorker.enabled | false | false | Whether to filter excluded worker when register shuffle. | 0.4.0 |  | 
 | celeborn.client.shuffle.reviseLostShuffles.enabled | false | false | Whether to revise lost shuffles. | 0.6.0 |  | 
-| celeborn.client.shuffleDataLostOnUnknownWorker.enabled | false | false | Whether to mark shuffle data lost when unknown worker is detected. | 0.6.3 |  | 
+| celeborn.client.shuffleDataLostOnUnknownWorker.enabled | true | false | When enabled, any shuffle that had partitions on the (crashed) unknown worker is immediately marked as data lost. On the write flow revive/commit request for that shuffle will fast fail. GetReducerFileGroup requests are replied with SHUFFLE_DATA_LOST. This has no effect when ${CLIENT_PUSH_REPLICATE_ENABLED.key}=true | 0.6.3 |  | 
 | celeborn.client.slot.assign.maxWorkers | 10000 | false | Max workers that slots of one shuffle can be allocated on. Will choose the smaller positive one from Master side and Client side, see `celeborn.master.slot.assign.maxWorkers`. | 0.3.1 |  | 
 | celeborn.client.spark.batch.openStream.parallelClientCreation.enabled | true | false | Whether to create data clients in parallel before sending Spark batch open-stream requests. When false, data clients are created serially. | 0.6.3 |  | 
 | celeborn.client.spark.fetch.cleanFailedShuffle | false | false | whether to clean those disk space occupied by shuffles which cannot be fetched | 0.6.0 |  | 

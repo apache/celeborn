@@ -95,6 +95,8 @@ abstract class CommitHandler(
 
   def isStageDataLost(shuffleId: Int): Boolean = false
 
+  def markShuffleDataLost(shuffleId: Int): Unit = {}
+
   def setStageEnd(shuffleId: Int): Unit = {
     throw new UnsupportedOperationException(
       "Failed when do setStageEnd Operation, MapPartition shuffleType don't " +
