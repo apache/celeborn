@@ -867,6 +867,7 @@ object CelebornWorker {
         Dependencies.log4jSlf4jImpl,
         Dependencies.disruptor,
         Dependencies.leveldbJniAll,
+        Dependencies.zstdJni,
         Dependencies.roaringBitmap,
         Dependencies.rocksdbJni,
         Dependencies.scalatestMockito % "test",

@@ -991,10 +991,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shuffleDecompressionLz4XXHashInstance: Option[String] =
     get(SHUFFLE_DECOMPRESSION_LZ4_XXHASH_INSTANCE)
   def shuffleCompressionZstdCompressLevel: Int = get(SHUFFLE_COMPRESSION_ZSTD_LEVEL)
-
-  // //////////////////////////////////////////////////////
-  //                Shuffle Client RPC                   //
-  // //////////////////////////////////////////////////////
+  def isChunkCompressionEnabled: Boolean = get(CHUNK_COMPRESSION_ENABLED)
+  def chunkCompressionLevel: Int = get(CHUNK_COMPRESSION_LEVEL)
+  def chunkCompressionMmapTmpDir: String = get(CHUNK_COMPRESSION_MMAP_TMPDIR)
   def clientRpcCacheSize: Int = get(CLIENT_RPC_CACHE_SIZE)
   def clientRpcCacheConcurrencyLevel: Int = get(CLIENT_RPC_CACHE_CONCURRENCY_LEVEL)
   def clientRpcReserveSlotsRpcTimeout: RpcTimeout =
@@ -5074,6 +5073,15 @@ object CelebornConf extends Logging {
       .checkValue(_ > 0, "Value must be positive!")
       .createWithDefaultString("120s")
 
+  val CHUNK_COMPRESSION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.chunk.compression.enabled")
+      .categories("client")
+      .version("0.6.4")
+      .doc("Whether to enable chunk compression for shuffle data. If true, shuffle data will be compressed at a" +
+        " chunk level worker side and decompressed client side.")
+      .booleanConf
+      .createWithDefault(false)
+
   val TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT: ConfigEntry[Boolean] =
     buildConf("celeborn.test.worker.pushPrimaryDataTimeout")
       .withAlternative("celeborn.test.pushMasterDataTimeout")
@@ -5338,6 +5346,32 @@ object CelebornConf extends Logging {
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set(PartitionSplitMode.SOFT.name, PartitionSplitMode.HARD.name))
       .createWithDefault(PartitionSplitMode.SOFT.name)
+
+  val CHUNK_COMPRESSION_LEVEL: ConfigEntry[Int] =
+    buildConf("celeborn.chunk.compression.level")
+      .categories("client")
+      .doc(
+        "ZSTD compression level to use for chunk-level compression " +
+          "(celeborn.chunk.compression.enabled must be true). " +
+          "Valid range is between -5 and 22; the default (3) matches the ZSTD library default.")
+      .version("0.6.4")
+      .intConf
+      .checkValue(
+        value => value >= -5 && value <= 22,
+        s"Compression level for Zstd compression codec should be an integer between -5 and 22.")
+      .createWithDefault(3)
+
+  val CHUNK_COMPRESSION_MMAP_TMPDIR: ConfigEntry[String] =
+    buildConf("celeborn.chunk.compression.mmap.tmpDir")
+      .categories("worker")
+      .doc(
+        "Directory used to create memory-mapped backing files for the mmap memory manager " +
+          "used by chunk-level compression. Defaults to a subdirectory of the JVM temporary " +
+          "directory (<tmp>/celeborn-mmap-memory-manager).")
+      .version("0.6.4")
+      .stringConf
+      .transform(_.replace("TMP_DIR", System.getProperty("java.io.tmpdir")))
+      .createWithDefault("TMP_DIR/celeborn-mmap-memory-manager")
 
   val SHUFFLE_COMPRESSION_CODEC: ConfigEntry[String] =
     buildConf("celeborn.client.shuffle.compression.codec")

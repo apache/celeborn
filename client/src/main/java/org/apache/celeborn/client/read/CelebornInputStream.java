@@ -27,8 +27,10 @@ import java.util.concurrent.atomic.LongAdder;
 import scala.Tuple2;
 
 import com.github.luben.zstd.ZstdException;
+import com.github.luben.zstd.ZstdInputStream;
 import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufInputStream;
 import net.jpountz.lz4.LZ4Exception;
 import org.apache.commons.lang3.tuple.Pair;
 import org.roaringbitmap.RoaringBitmap;
@@ -193,6 +195,7 @@ public abstract class CelebornInputStream extends InputStream {
     private Decompressor decompressor;
 
     private ByteBuf currentChunk;
+    private boolean currentChunkCompressed = false;
     private boolean firstChunk = true;
     private PartitionReader currentReader;
     private final int fetchChunkMaxRetry;
@@ -213,6 +216,7 @@ public abstract class CelebornInputStream extends InputStream {
     private final String localHostAddress;
 
     private boolean shouldDecompress;
+    private InputStream currentStream;
     private boolean shuffleIntegrityCheckEnabled;
     private long fetchExcludedWorkerExpireTimeout;
     private ConcurrentHashMap<String, Long> fetchExcludedWorkers;
@@ -526,7 +530,9 @@ public abstract class CelebornInputStream extends InputStream {
           if (!currentReader.hasNext()) {
             return null;
           }
-          return currentReader.next();
+          Pair<ByteBuf, Boolean> result = currentReader.next();
+          currentChunkCompressed = result.getRight();
+          return result.getLeft();
         } catch (Exception e) {
           shuffleClient.excludeFailedFetchLocation(
               currentReader.getLocation().hostAndFetchPort(), e);
@@ -730,6 +736,7 @@ public abstract class CelebornInputStream extends InputStream {
 
         compressedBuf = null;
         rawDataBuf = null;
+        closeCurrentStream();
         batchesRead = null;
         locations = null;
         attempts = null;
@@ -800,6 +807,34 @@ public abstract class CelebornInputStream extends InputStream {
       rawDataBuf = new byte[bufferSize];
     }
 
+    private void closeCurrentStream() {
+      if (currentStream != null) {
+        try {
+          currentStream.close();
+        } catch (IOException ignored) {
+        }
+        currentStream = null;
+      }
+    }
+
+    private void setupCurrentStream() throws IOException {
+      closeCurrentStream();
+      if (currentChunk == null) return;
+      InputStream base = new ByteBufInputStream(currentChunk);
+      currentStream = currentChunkCompressed ? new ZstdInputStream(base) : base;
+    }
+
+    /** Reads exactly len bytes; returns total read (< len only on EOF). */
+    private static int readFully(InputStream in, byte[] buf, int off, int len) throws IOException {
+      int total = 0;
+      while (total < len) {
+        int n = in.read(buf, off + total, len - total);
+        if (n == -1) break;
+        total += n;
+      }
+      return total;
+    }
+
     private boolean fillBuffer() throws IOException {
       try {
         if (firstChunk && currentReader != null) {
@@ -814,10 +849,23 @@ public abstract class CelebornInputStream extends InputStream {
           return false;
         }
 
+        if (currentStream == null) {
+          setupCurrentStream();
+        }
+
         LocationPushFailedBatches failedBatch = new LocationPushFailedBatches();
         boolean hasData = false;
-        while (currentChunk.isReadable() || moveToNextChunk()) {
-          currentChunk.readBytes(sizeBuf);
+        while (true) {
+          int headerRead = readFully(currentStream, sizeBuf, 0, BATCH_HEADER_SIZE);
+          if (headerRead == 0) {
+            closeCurrentStream();
+            if (!moveToNextChunk()) break;
+            setupCurrentStream();
+            continue;
+          } else if (headerRead != BATCH_HEADER_SIZE) {
+            throw new IOException("Invalid EOF detected");
+          }
+
           int mapId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET);
           int attemptId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 4);
           int batchId = Platform.getInt(sizeBuf, Platform.BYTE_ARRAY_OFFSET + 8);
@@ -827,14 +875,16 @@ public abstract class CelebornInputStream extends InputStream {
             if (size > compressedBuf.length) {
               compressedBuf = new byte[size];
             }
-
-            currentChunk.readBytes(compressedBuf, 0, size);
+            if (readFully(currentStream, compressedBuf, 0, size) != size) {
+              throw new IOException("Invalid EOF detected");
+            }
           } else {
             if (size > rawDataBuf.length) {
               rawDataBuf = new byte[size];
             }
-
-            currentChunk.readBytes(rawDataBuf, 0, size);
+            if (readFully(currentStream, rawDataBuf, 0, size) != size) {
+              throw new IOException("Invalid EOF detected");
+            }
           }
 
           // de-duplicate

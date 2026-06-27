@@ -238,7 +238,7 @@ public class DfsPartitionReader implements PartitionReader {
   }
 
   @Override
-  public ByteBuf next() throws Exception {
+  public Pair<ByteBuf, Boolean> next() throws Exception {
     Pair<Integer, ByteBuf> chunk = null;
     checkpoint();
     if (!fetchThreadStarted) {
@@ -328,7 +328,7 @@ public class DfsPartitionReader implements PartitionReader {
     }
     returnedChunks++;
     lastReturnedChunkId = chunk.getLeft();
-    return chunk.getRight();
+    return Pair.of(chunk.getRight(), false);
   }
 
   private void checkException() throws Exception {

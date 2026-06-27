@@ -43,6 +43,7 @@ import org.apache.celeborn.client.listener.WorkerStatusListener
 import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.CelebornConf.ACTIVE_STORAGE_TYPES
 import org.apache.celeborn.common.client.{ApplicationInfoProvider, MasterClient}
+import org.apache.celeborn.common.compression.ChunkCompressionContext
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ApplicationMeta, ShufflePartitionLocationInfo, WorkerInfo}
@@ -1341,7 +1342,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             userIdentifier,
             conf.pushDataTimeoutMs,
             partitionSplitEnabled = true,
-            isSegmentGranularityVisible = isSegmentGranularityVisible))
+            isSegmentGranularityVisible = isSegmentGranularityVisible,
+            chunkCompressionContext = new ChunkCompressionContext(
+              conf.isChunkCompressionEnabled,
+              conf.chunkCompressionLevel)))
         futures.add((future, workerInfo))
       }(ec)
     }
