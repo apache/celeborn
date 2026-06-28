@@ -1442,59 +1442,6 @@
       </dependencies>
     </profile>
     <profile>
-      <id>hadoop-2</id>
-      <activation>
-        <property>
-          <name>hadoop.version</name>
-          <value>/^2\..*$/</value>
-        </property>
-      </activation>
-      <properties>
-        <hadoop-2-deps>true</hadoop-2-deps>
-      </properties>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-client</artifactId>
-          <version>${hadoop.version}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>org.apache.hadoop</groupId>
-              <artifactId>hadoop-annotations</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.apache.hadoop</groupId>
-              <artifactId>hadoop-mapreduce-client-app</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.apache.hadoop</groupId>
-              <artifactId>hadoop-mapreduce-client-core</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.apache.hadoop</groupId>
-              <artifactId>hadoop-mapreduce-client-jobclient</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.apache.hadoop</groupId>
-              <artifactId>hadoop-yarn-client</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.apache.hadoop</groupId>
-              <artifactId>hadoop-yarn-registry</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.apache.hadoop</groupId>
-              <artifactId>hadoop-yarn-server-common</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.fusesource.leveldbjni</groupId>
-              <artifactId>leveldbjni-all</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
       <id>aws</id>
       <modules>
         <module>multipart-uploader/multipart-uploader-s3</module>
