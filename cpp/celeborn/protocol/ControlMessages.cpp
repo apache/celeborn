@@ -106,6 +106,19 @@ TransportMessage MapperEnd::toTransportMessage() const {
   pb.set_attemptid(attemptId);
   pb.set_nummappers(numMappers);
   pb.set_partitionid(partitionId);
+  auto* pbPushFailureBatches = pb.mutable_pushfailurebatches();
+  for (const auto& [partitionUniqueId, attemptBatches] : pushFailedBatches) {
+    PbLocationPushFailedBatches pbLocationBatches;
+    auto* pbFailedBatchesMap = pbLocationBatches.mutable_failedbatches();
+    for (const auto& [attemptKey, batchIds] : attemptBatches) {
+      PbFailedBatches pbFailedBatches;
+      for (int batchId : batchIds) {
+        pbFailedBatches.add_failedbatches(batchId);
+      }
+      (*pbFailedBatchesMap)[attemptKey] = std::move(pbFailedBatches);
+    }
+    (*pbPushFailureBatches)[partitionUniqueId] = std::move(pbLocationBatches);
+  }
   std::string payload = pb.SerializeAsString();
   return TransportMessage(type, std::move(payload));
 }
@@ -233,6 +246,17 @@ GetReducerFileGroupResponse::fromTransportMessage(
   auto partitionIds = pbGetReducerFileGroupResponse->partitionids();
   for (auto partitionId : partitionIds) {
     response->partitionIds.insert(partitionId);
+  }
+  const auto& pushFailedBatches =
+      pbGetReducerFileGroupResponse->pushfailedbatches();
+  for (const auto& locationEntry : pushFailedBatches) {
+    auto& attemptBatches = response->pushFailedBatches[locationEntry.first];
+    for (const auto& attemptEntry : locationEntry.second.failedbatches()) {
+      auto& batchIds = attemptBatches[attemptEntry.first];
+      for (int batchId : attemptEntry.second.failedbatches()) {
+        batchIds.insert(batchId);
+      }
+    }
   }
   return std::move(response);
 }

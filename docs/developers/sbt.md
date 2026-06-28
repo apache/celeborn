@@ -28,7 +28,6 @@ The following table indicates the compatibility of Celeborn Spark and Flink clie
 
 |            | Java 8/Scala 2.11 | Java 8/Scala 2.12 | Java 11/Scala 2.12 | Java 17/Scala 2.12 | Java 8/Scala 2.13 | Java 11/Scala 2.13 | Java 17/Scala 2.13 |
 |------------|-------------------|-------------------|--------------------|--------------------|-------------------|--------------------|--------------------|
-| Spark 2.4  | &#10004;          | &#10004;          | &#x274C;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Spark 3.0  | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Spark 3.1  | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Spark 3.2  | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#10004;          | &#10004;           | &#x274C;           |
@@ -37,8 +36,6 @@ The following table indicates the compatibility of Celeborn Spark and Flink clie
 | Spark 3.5  | &#x274C;          | &#10004;          | &#10004;           | &#10004;           | &#10004;          | &#10004;           | &#10004;           |
 | Spark 4.0  | &#x274C;          | &#x274C;          | &#x274C;           | &#x274C;           | &#x274C;          | &#x274C;           | &#10004;           |
 | Spark 4.1  | &#x274C;          | &#x274C;          | &#x274C;           | &#x274C;           | &#x274C;          | &#x274C;           | &#10004;           |
-| Flink 1.16 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
-| Flink 1.17 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.18 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.19 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
 | Flink 1.20 | &#x274C;          | &#10004;          | &#10004;           | &#x274C;           | &#x274C;          | &#x274C;           | &#x274C;           |
@@ -84,17 +81,17 @@ We have adopted the Maven-style profile management for our Client module. For ex
 [info]     celeborn-worker
 ```
 
-To enable the Flink 1.16 client module, add `-Pflink-1.16`:
+To enable the Flink 1.18 client module, add `-Pflink-1.18`:
 
 ```
-# ./build/sbt -Pflink-1.16 projects
+# ./build/sbt -Pflink-1.18 projects
 
 [info] set current project to celeborn (in build file:/root/celeborn/)
 [info] In file:/root/celeborn/
 [info]   * celeborn
 [info]     celeborn-client
-[info]     celeborn-client-flink-1_16
-[info]     celeborn-client-flink-1_16-shaded
+[info]     celeborn-client-flink-1_18
+[info]     celeborn-client-flink-1_18-shaded
 [info]     celeborn-common
 [info]     celeborn-flink-common
 [info]     celeborn-flink-group
@@ -119,15 +116,15 @@ $ # Or, you can use sbt directly with the `-Pspark-3.3` profile:
 $ ./build/sbt -Pspark-3.3 celeborn-client-spark-3-shaded/assembly
 ```
 
-Similarly, you can build the Flink 1.16 client assembly jar using the following commands:
+Similarly, you can build the Flink 1.18 client assembly jar using the following commands:
 
 ```shell
-$ ./build/sbt -Pflink-1.16
-> project celeborn-client-flink-1_16-shaded
+$ ./build/sbt -Pflink-1.18
+> project celeborn-client-flink-1_18-shaded
 > assembly
 
-$ # Or, you can use sbt directly with the `-Pflink-1.16` profile:
-$ ./build/sbt -Pflink-1.16 celeborn-client-flink-1_16-shaded/assembly
+$ # Or, you can use sbt directly with the `-Pflink-1.18` profile:
+$ ./build/sbt -Pflink-1.18 celeborn-client-flink-1_18-shaded/assembly
 ```
 
 By executing these commands, you will create assembly jar files for the respective Spark and Flink client modules. The assembly jar bundles all the dependencies, allowing the client module to be used independently with all required dependencies included.
@@ -165,13 +162,13 @@ $ # only run spark client related modules tests
 $ ./build/sbt -Pspark-3.3 celeborn-spark-group/test
 ```
 
-Similarly, to run the test cases for the Flink 1.16 client, use the following command:
+Similarly, to run the test cases for the Flink 1.18 client, use the following command:
 
 ```shell
-$ ./build/sbt -Pflink-1.16 test
+$ ./build/sbt -Pflink-1.18 test
 
 $ # only run flink client related modules tests
-$ ./build/sbt -Pflink-1.16 celeborn-flink-group/test
+$ ./build/sbt -Pflink-1.18 celeborn-flink-group/test
 ```
 
 ### Running Individual Tests

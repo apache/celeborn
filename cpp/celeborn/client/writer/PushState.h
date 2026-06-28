@@ -18,11 +18,15 @@
 #pragma once
 
 #include <atomic>
+#include <map>
 #include <optional>
+#include <set>
+#include <string>
 
 #include "celeborn/client/writer/DataBatches.h"
 #include "celeborn/client/writer/PushStrategy.h"
 #include "celeborn/conf/CelebornConf.h"
+#include "celeborn/protocol/PushFailedBatches.h"
 #include "celeborn/utils/CelebornUtils.h"
 
 namespace celeborn {
@@ -85,6 +89,22 @@ class PushState {
   utils::ConcurrentHashMap<std::string, std::shared_ptr<DataBatches>>&
   getBatchesMap();
 
+  // Record a failed push batch for the adaptive skewed-partition read
+  // optimization (Java PushState#recordFailedBatch). Keyed by
+  // partitionUniqueId -> "<mapId>-<attemptId>" -> set of batchIds.
+  void recordFailedBatch(
+      const std::string& partitionUniqueId,
+      int mapId,
+      int attemptId,
+      int batchId);
+
+  // Snapshot of the recorded failed batches.
+  protocol::PartitionPushFailedBatches getFailedBatches() const;
+
+  // Moves the recorded failed batches out (no deep copy under the lock). Used
+  // at mapperEnd, after which this PushState is discarded.
+  protocol::PartitionPushFailedBatches takeFailedBatches();
+
  private:
   void throwIfExceptionExists();
 
@@ -108,6 +128,8 @@ class PushState {
   utils::ConcurrentHashMap<int, int> inflightBatchBytesSizes_;
   utils::ConcurrentHashMap<std::string, std::shared_ptr<DataBatches>>
       batchesMap_;
+  // partitionUniqueId -> "<mapId>-<attemptId>" -> failed batchIds.
+  folly::Synchronized<protocol::PartitionPushFailedBatches> failedBatches_;
   folly::Synchronized<std::unique_ptr<std::exception>> exception_;
   std::atomic<bool> cleaned_{false};
 };

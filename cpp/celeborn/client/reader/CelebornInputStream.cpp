@@ -36,7 +36,9 @@ CelebornInputStream::CelebornInputStream(
     int endMapIndex,
     bool needCompression,
     const std::shared_ptr<FetchExcludedWorkers>& fetchExcludedWorkers,
-    ShuffleClient* shuffleClient)
+    ShuffleClient* shuffleClient,
+    std::shared_ptr<const protocol::PartitionPushFailedBatches>
+        pushFailedBatches)
     : shuffleKey_(shuffleKey),
       conf_(conf),
       clientFactory_(clientFactory),
@@ -66,6 +68,7 @@ CelebornInputStream::CelebornInputStream(
       readSkewPartitionWithoutMapRange_(
           conf_->clientAdaptiveOptimizeSkewedPartitionReadEnabled() &&
           startMapIndex > endMapIndex),
+      pushFailedBatches_(std::move(pushFailedBatches)),
       shuffleClient_(shuffleClient) {
   if (shouldDecompress_) {
     decompressor_ = compress::Decompressor::createDecompressor(
@@ -115,38 +118,57 @@ bool CelebornInputStream::fillBuffer() {
     CELEBORN_CHECK_GE(currChunk_->remainingSize(), size);
     CELEBORN_CHECK_LT(mapId, attempts_.size());
 
+    // Consume the body once, before any skip decision, so the cursor always
+    // lands on the next batch header (like the Java reader, which `continue`s
+    // on skipped batches).
+    std::unique_ptr<memory::ReadOnlyByteBuffer> rawBatch;
     if (shouldDecompress_) {
       if (size > compressedBuf_.size()) {
         compressedBuf_.resize(size);
       }
       currChunk_->readToBuffer(compressedBuf_.data(), size);
+    } else {
+      rawBatch = currChunk_->readToReadOnlyBuffer(size);
     }
 
-    if (attemptId == attempts_[mapId]) {
-      auto& batchRecord = getBatchRecord(mapId);
-      if (batchRecord.count(batchId) <= 0) {
-        batchRecord.insert(batchId);
-        if (shouldDecompress_) {
-          const auto originalLength =
-              decompressor_->getOriginalLen(compressedBuf_.data());
-          std::unique_ptr<folly::IOBuf> decompressedBuf_ =
-              folly::IOBuf::createCombined(originalLength);
-          decompressedBuf_->append(originalLength);
-          currBatchSize_ = decompressor_->decompress(
-              compressedBuf_.data(), decompressedBuf_->writableData(), 0);
-          decompressedChunk_ = memory::ByteBuffer::createReadOnly(
-              std::move(decompressedBuf_), false);
-        } else {
-          currBatchSize_ = size;
-          decompressedChunk_ = currChunk_->readToReadOnlyBuffer(size);
-        }
-        currBatchPos_ = 0;
-        hasData = true;
-        break;
-      } else {
-        currChunk_->skip(size);
-      }
+    // Drop a batch from a stale (non-winning) map attempt.
+    if (attemptId != attempts_[mapId]) {
+      continue;
     }
+    // Skip batches pushed, failed, then retried on another worker, to avoid
+    // duplicates (like the Java reader); only for a skew partition without a
+    // map range. The emptiness check keeps uniqueId() off the common path.
+    if (readSkewPartitionWithoutMapRange_ && pushFailedBatches_ &&
+        !pushFailedBatches_->empty() &&
+        isPushFailedBatch(
+            currReader_->getLocation().uniqueId(), mapId, attemptId, batchId)) {
+      LOG(WARNING) << "Skip duplicated batch: mapId=" << mapId
+                   << ", attemptId=" << attemptId << ", batchId=" << batchId
+                   << ".";
+      continue;
+    }
+    auto& batchRecord = getBatchRecord(mapId);
+    if (batchRecord.count(batchId) > 0) {
+      continue;
+    }
+    batchRecord.insert(batchId);
+    if (shouldDecompress_) {
+      const auto originalLength =
+          decompressor_->getOriginalLen(compressedBuf_.data());
+      std::unique_ptr<folly::IOBuf> decompressedBuf_ =
+          folly::IOBuf::createCombined(originalLength);
+      decompressedBuf_->append(originalLength);
+      currBatchSize_ = decompressor_->decompress(
+          compressedBuf_.data(), decompressedBuf_->writableData(), 0);
+      decompressedChunk_ = memory::ByteBuffer::createReadOnly(
+          std::move(decompressedBuf_), false);
+    } else {
+      currBatchSize_ = size;
+      decompressedChunk_ = std::move(rawBatch);
+    }
+    currBatchPos_ = 0;
+    hasData = true;
+    break;
   }
 
   return hasData;
@@ -361,6 +383,24 @@ std::unordered_set<int>& CelebornInputStream::getBatchRecord(int mapId) {
     batchRecords_[mapId] = std::make_unique<std::unordered_set<int>>();
   }
   return *batchRecords_[mapId];
+}
+
+bool CelebornInputStream::isPushFailedBatch(
+    const std::string& partitionUniqueId,
+    int mapId,
+    int attemptId,
+    int batchId) const {
+  if (!pushFailedBatches_) {
+    return false;
+  }
+  auto locationIt = pushFailedBatches_->find(partitionUniqueId);
+  if (locationIt == pushFailedBatches_->end()) {
+    return false;
+  }
+  auto attemptIt =
+      locationIt->second.find(utils::makeAttemptKey(mapId, attemptId));
+  return attemptIt != locationIt->second.end() &&
+      attemptIt->second.count(batchId) > 0;
 }
 
 bool CelebornInputStream::isExcluded(

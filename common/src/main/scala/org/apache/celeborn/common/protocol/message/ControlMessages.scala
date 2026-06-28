@@ -1331,6 +1331,12 @@ object ControlMessages extends Logging {
       case BATCH_UNREGISTER_SHUFFLES_VALUE =>
         PbBatchUnregisterShuffles.parseFrom(message.getPayload)
 
+      case REVISE_LOST_SHUFFLES_VALUE =>
+        PbReviseLostShuffles.parseFrom(message.getPayload)
+
+      case REVISE_LOST_SHUFFLES_RESPONSE_VALUE =>
+        PbReviseLostShufflesResponse.parseFrom(message.getPayload)
+
       case UNREGISTER_SHUFFLE_RESPONSE_VALUE =>
         PbUnregisterShuffleResponse.parseFrom(message.getPayload)
 

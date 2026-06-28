@@ -33,6 +33,7 @@ import org.rocksdb.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 
 /**
@@ -48,26 +49,55 @@ public class RocksDBProvider {
 
   private static final Logger logger = LoggerFactory.getLogger(RocksDBProvider.class);
 
-  public static org.rocksdb.RocksDB initRockDB(File dbFile, StoreVersion version)
+  private static ManagedRocksDB createDBOptions(CelebornConf conf) {
+    BloomFilter fullFilter =
+        new BloomFilter(conf.workerRecoverDbRocksDBBloomFilterBitsPerKey(), false);
+    BlockBasedTableConfig tableFormatConfig =
+        new BlockBasedTableConfig()
+            .setFilterPolicy(fullFilter)
+            .setEnableIndexCompression(false)
+            .setIndexBlockRestartInterval(8)
+            .setFormatVersion(5);
+
+    Options dbOptions = new Options();
+    RocksDBLogger rocksDBLogger = new RocksDBLogger(dbOptions);
+
+    dbOptions.setCreateIfMissing(false);
+    dbOptions.setBottommostCompressionType(
+        CompressionType.valueOf(conf.workerRecoverDbRocksDBBottommostCompression()));
+    dbOptions.setCompressionType(CompressionType.valueOf(conf.workerRecoverDbRocksDBCompression()));
+    dbOptions.setTableFormatConfig(tableFormatConfig);
+    dbOptions.setLogger(rocksDBLogger);
+
+    return new ManagedRocksDB(dbOptions, fullFilter, rocksDBLogger);
+  }
+
+  /**
+   * Reopen an existing RocksDB without the delete-and-recreate fallback. Use this for recovery from
+   * transient errors. The returned {@link ManagedRocksDB} owns the DB plus its open-time native
+   * resources; the caller must close it to release them.
+   */
+  public static ManagedRocksDB reopenRocksDB(File dbFile, CelebornConf conf) throws IOException {
+    if (dbFile == null || !dbFile.exists()) {
+      throw new IOException("RocksDB path does not exist: " + dbFile);
+    }
+    ManagedRocksDB managedDb = createDBOptions(conf);
+    try {
+      managedDb.setDb(org.rocksdb.RocksDB.open(managedDb.options(), dbFile.toString()));
+      return managedDb;
+    } catch (RocksDBException e) {
+      managedDb.close();
+      throw new IOException("Failed to reopen RocksDB at " + dbFile, e);
+    }
+  }
+
+  public static ManagedRocksDB initRockDB(File dbFile, StoreVersion version, CelebornConf conf)
       throws IOException {
-    org.rocksdb.RocksDB tmpDb = null;
+    ManagedRocksDB managedDb = null;
     if (dbFile != null) {
-      BloomFilter fullFilter = new BloomFilter(10.0D /* BloomFilter.DEFAULT_BITS_PER_KEY */, false);
-      BlockBasedTableConfig tableFormatConfig =
-          new BlockBasedTableConfig()
-              .setFilterPolicy(fullFilter)
-              .setEnableIndexCompression(false)
-              .setIndexBlockRestartInterval(8)
-              .setFormatVersion(5);
-
-      Options dbOptions = new Options();
-      RocksDBLogger rocksDBLogger = new RocksDBLogger(dbOptions);
-
-      dbOptions.setCreateIfMissing(false);
-      dbOptions.setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION);
-      dbOptions.setCompressionType(CompressionType.LZ4_COMPRESSION);
-      dbOptions.setTableFormatConfig(tableFormatConfig);
-      dbOptions.setLogger(rocksDBLogger);
+      managedDb = createDBOptions(conf);
+      Options dbOptions = managedDb.options();
+      org.rocksdb.RocksDB tmpDb = null;
 
       try {
         tmpDb = org.rocksdb.RocksDB.open(dbOptions, dbFile.toString());
@@ -78,6 +108,7 @@ public class RocksDBProvider {
           try {
             tmpDb = org.rocksdb.RocksDB.open(dbOptions, dbFile.toString());
           } catch (RocksDBException dbExc) {
+            managedDb.close();
             throw new IOException("Unable to create state store", dbExc);
           }
         } else {
@@ -102,23 +133,25 @@ public class RocksDBProvider {
           try {
             tmpDb = org.rocksdb.RocksDB.open(dbOptions, dbFile.toString());
           } catch (RocksDBException dbExc) {
+            managedDb.close();
             throw new IOException("Unable to create state store", dbExc);
           }
         }
       }
+      managedDb.setDb(tmpDb);
       try {
         // if there is a version mismatch, we throw an exception, which means the service
         // is unusable
         checkVersion(tmpDb, version);
       } catch (RocksDBException e) {
-        tmpDb.close();
+        managedDb.close();
         throw new IOException(e.getMessage(), e);
       } catch (IOException ioe) {
-        tmpDb.close();
+        managedDb.close();
         throw ioe;
       }
     }
-    return tmpDb;
+    return managedDb;
   }
 
   private static void createIfMissing(Options dbOptions, File dbFile) {

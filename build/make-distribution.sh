@@ -146,7 +146,7 @@ function build_service {
   # Store the command as an array because $MVN variable might have spaces in it.
   # Normal quoting tricks don't work.
   # See: http://mywiki.wooledge.org/BashFAQ/050
-  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl master,worker,cli -am $@)
+  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl master,worker,cli,lifecycle-manager -am $@)
 
   # Actually build the jar
   echo -e "\nBuilding with..."
@@ -158,6 +158,7 @@ function build_service {
   mkdir -p "$DIST_DIR/master-jars"
   mkdir -p "$DIST_DIR/worker-jars"
   mkdir -p "$DIST_DIR/cli-jars"
+  mkdir -p "$DIST_DIR/lifecycle-manager-jars"
 
   ## Copy master jars
   cp "$PROJECT_DIR"/master/target/celeborn-master_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/master-jars/"
@@ -176,6 +177,21 @@ function build_service {
   cp "$PROJECT_DIR"/cli/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
   for jar in $(ls "$PROJECT_DIR/cli/target/scala-$SCALA_VERSION/jars"); do
     (cd $DIST_DIR/cli-jars; ln -snf "../jars/$jar" .)
+  done
+  ## Copy lifecycle-manager jars
+  # lifecycle-manager depends on celeborn-client which is not a dependency of master/worker,
+  # so we copy its project-internal dependency jars that are missing from jars/.
+  for module_jar in \
+    "$PROJECT_DIR/lifecycle-manager/target/celeborn-lifecycle-manager_$SCALA_VERSION-$VERSION.jar" \
+    "$PROJECT_DIR/client/target/celeborn-client_$SCALA_VERSION-$VERSION.jar"; do
+    jarname=$(basename "$module_jar")
+    if [ ! -f "$DIST_DIR/jars/$jarname" ]; then
+      cp "$module_jar" "$DIST_DIR/jars/"
+    fi
+  done
+  cp "$PROJECT_DIR"/lifecycle-manager/target/celeborn-lifecycle-manager_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/lifecycle-manager-jars/"
+  for jar in $(ls "$DIST_DIR/jars"); do
+    (cd $DIST_DIR/lifecycle-manager-jars; ln -snf "../jars/$jar" .)
   done
 }
 
@@ -304,12 +320,13 @@ function sbt_build_service {
 
   "${BUILD_COMMAND[@]}"
 
-  $SBT "celeborn-master/copyJars;celeborn-worker/copyJars;celeborn-cli/copyJars"
+  $SBT "celeborn-master/copyJars;celeborn-worker/copyJars;celeborn-cli/copyJars;celeborn-lifecycle-manager/copyJars"
 
   mkdir -p "$DIST_DIR/jars"
   mkdir -p "$DIST_DIR/master-jars"
   mkdir -p "$DIST_DIR/worker-jars"
   mkdir -p "$DIST_DIR/cli-jars"
+  mkdir -p "$DIST_DIR/lifecycle-manager-jars"
 
   ## Copy master jars
   cp "$PROJECT_DIR"/master/target/scala-$SCALA_VERSION/celeborn-master_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/master-jars/"
@@ -328,6 +345,12 @@ function sbt_build_service {
   cp "$PROJECT_DIR"/cli/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
   for jar in $(ls "$PROJECT_DIR/cli/target/scala-$SCALA_VERSION/jars"); do
     (cd $DIST_DIR/cli-jars; ln -snf "../jars/$jar" .)
+  done
+  ## Copy lifecycle-manager jars
+  cp "$PROJECT_DIR"/lifecycle-manager/target/scala-$SCALA_VERSION/celeborn-lifecycle-manager_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/lifecycle-manager-jars/"
+  cp "$PROJECT_DIR"/lifecycle-manager/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
+  for jar in $(ls "$PROJECT_DIR/lifecycle-manager/target/scala-$SCALA_VERSION/jars"); do
+    (cd $DIST_DIR/lifecycle-manager-jars; ln -snf "../jars/$jar" .)
   done
 }
 
@@ -351,15 +374,12 @@ if [ "$SBT_ENABLED" == "true" ]; then
   sbt_build_service "$@"
   if [ "$RELEASE" == "true" ]; then
     export JAVA_HOME=$JAVA8_HOME
-    sbt_build_client -Pspark-2.4
     sbt_build_client -Pspark-3.4
     sbt_build_client -Pspark-3.5
     export JAVA_HOME=$JAVA17_HOME
     sbt_build_client -Pspark-4.0
     sbt_build_client -Pspark-4.1
     export JAVA_HOME=$JAVA8_HOME
-    sbt_build_client -Pflink-1.16
-    sbt_build_client -Pflink-1.17
     sbt_build_client -Pflink-1.18
     sbt_build_client -Pflink-1.19
     sbt_build_client -Pflink-1.20
@@ -395,15 +415,12 @@ else
   if [ "$RELEASE" == "true" ]; then
     build_service
     export JAVA_HOME=$JAVA8_HOME
-    build_spark_client -Pspark-2.4
     build_spark_client -Pspark-3.4
     build_spark_client -Pspark-3.5
     export JAVA_HOME=$JAVA17_HOME
     build_spark_client -Pspark-4.0
     build_spark_client -Pspark-4.1
     export JAVA_HOME=$JAVA8_HOME
-    build_flink_client -Pflink-1.16
-    build_flink_client -Pflink-1.17
     build_flink_client -Pflink-1.18
     build_flink_client -Pflink-1.19
     build_flink_client -Pflink-1.20

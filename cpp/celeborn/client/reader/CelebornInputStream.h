@@ -17,9 +17,14 @@
 
 #pragma once
 
+#include <map>
+#include <set>
+#include <string>
+
 #include "celeborn/client/compress/Decompressor.h"
 #include "celeborn/client/reader/WorkerPartitionReader.h"
 #include "celeborn/conf/CelebornConf.h"
+#include "celeborn/protocol/PushFailedBatches.h"
 #include "celeborn/utils/CelebornUtils.h"
 
 namespace celeborn {
@@ -42,7 +47,12 @@ class CelebornInputStream {
       int endMapIndex,
       bool needCompression,
       const std::shared_ptr<FetchExcludedWorkers>& fetchExcludedWorkers,
-      ShuffleClient* shuffleClient);
+      ShuffleClient* shuffleClient,
+      // partitionUniqueId ("<id>-<epoch>") -> "<mapId>-<attemptId>" -> failed
+      // batchIds, shared with the cached GetReducerFileGroupResponse.
+      // Defaults to null (no read-side dedup).
+      std::shared_ptr<const protocol::PartitionPushFailedBatches>
+          pushFailedBatches = nullptr);
 
   int read(uint8_t* buffer, size_t offset, size_t len);
 
@@ -68,6 +78,14 @@ class CelebornInputStream {
   std::shared_ptr<const protocol::PartitionLocation> nextReadableLocation();
 
   std::unordered_set<int>& getBatchRecord(int mapId);
+
+  // True if (mapId, attemptId, batchId) was reported push-failed for this
+  // partition location, i.e. a possible duplicate to skip while reading.
+  bool isPushFailedBatch(
+      const std::string& partitionUniqueId,
+      int mapId,
+      int attemptId,
+      int batchId) const;
 
   void cleanupReader();
 
@@ -97,6 +115,10 @@ class CelebornInputStream {
   std::shared_ptr<FetchExcludedWorkers> fetchExcludedWorkers_;
   int64_t fetchExcludedWorkerExpireTimeoutMs_;
   bool readSkewPartitionWithoutMapRange_;
+  // partitionUniqueId -> "<mapId>-<attemptId>" -> failed batchIds. May be
+  // null when read-side dedup is not in play.
+  std::shared_ptr<const protocol::PartitionPushFailedBatches>
+      pushFailedBatches_;
   ShuffleClient* shuffleClient_;
 };
 } // namespace client

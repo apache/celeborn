@@ -69,6 +69,23 @@ class PushMergedDataCallback
       std::weak_ptr<ShuffleClientImpl> weakClient,
       int remainingReviveTimes);
 
+  // Releases the in-flight grouped batch after a success-like response (Java's
+  // success/removeBatch path). Every success-like branch of onSuccess must end
+  // in one of these, else limitZeroInFlight at mapperEnd never reaches zero.
+  void releaseInFlightBatch();
+
+  // Same release, but reports congestion to the push strategy instead of a
+  // plain success.
+  void releaseInFlightBatchOnCongestion();
+
+  // Records a batch resubmitted after HARD_SPLIT for the adaptive
+  // skewed-partition read optimization, when failure tracking and replication
+  // are both on (like the Java client). Covers both the per-partition
+  // split-info branch and the legacy bare-status branch.
+  void maybeRecordResubmittedBatch(
+      const ShuffleClientImpl& client,
+      const DataBatch& batch);
+
   const int shuffleId_;
   const int mapId_;
   const int attemptId_;

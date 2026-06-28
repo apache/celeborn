@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle.celeborn;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.HashSet;
@@ -68,6 +69,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse;
@@ -720,5 +722,19 @@ public class SparkUtils {
   public static boolean isLocalMaster(SparkConf conf) {
     String master = conf.get("spark.master", "");
     return master.equals("local") || master.startsWith("local[");
+  }
+
+  /**
+   * Asserts that the shuffle writer's iterator has been fully consumed. Only call this when the
+   * shuffle writer finishes writing records. If records remain in the iterator, the task will fail
+   * with an IOException.
+   *
+   * @param iteratorHasNext true if the iterator still has records remaining
+   */
+  public static void assertIteratorFullyConsumed(boolean iteratorHasNext) throws IOException {
+    if (iteratorHasNext) {
+      throw new CelebornIOException(
+          "Shuffle write task finished but iterator was not fully consumed.");
+    }
   }
 }

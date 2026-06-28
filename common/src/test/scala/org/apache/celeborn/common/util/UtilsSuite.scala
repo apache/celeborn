@@ -29,8 +29,8 @@ import org.apache.celeborn.common.client.{MasterEndpointResolver, StaticMasterEn
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.DefaultIdentityProvider
 import org.apache.celeborn.common.network.protocol.SerdeVersion
-import org.apache.celeborn.common.protocol.{PartitionLocation, TransportModuleConstants}
-import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, MapperEnd}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PbReviseLostShuffles, PbReviseLostShufflesResponse, TransportModuleConstants}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, MapperEnd, ReviseLostShuffles, ReviseLostShufflesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 
 class UtilsSuite extends CelebornFunSuite {
@@ -172,6 +172,21 @@ class UtilsSuite extends CelebornFunSuite {
     assert(mapperEnd.numPartitions == mapperEndTrans.numPartitions)
     mapperEnd.crc32PerPartition.array should contain theSameElementsInOrderAs mapperEndTrans.crc32PerPartition
     mapperEnd.bytesWrittenPerPartition.array should contain theSameElementsInOrderAs mapperEndTrans.bytesWrittenPerPartition
+  }
+
+  test("ReviseLostShuffles class convert with pb") {
+    val req = ReviseLostShuffles("app-1", util.Arrays.asList[Integer](1, 2, 3), "req-1")
+    val reqTrans = Utils.fromTransportMessage(Utils.toTransportMessage(req))
+      .asInstanceOf[PbReviseLostShuffles]
+    assert(req.getAppId == reqTrans.getAppId)
+    assert(req.getLostShufflesList == reqTrans.getLostShufflesList)
+    assert(req.getRequestId == reqTrans.getRequestId)
+
+    val resp = ReviseLostShufflesResponse(true, "ok")
+    val respTrans = Utils.fromTransportMessage(Utils.toTransportMessage(resp))
+      .asInstanceOf[PbReviseLostShufflesResponse]
+    assert(resp.getSuccess == respTrans.getSuccess)
+    assert(resp.getMessage == respTrans.getMessage)
   }
 
   test("validate HDFS compatible fs path") {
