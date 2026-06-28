@@ -73,7 +73,13 @@ public class SparkShuffleManager implements ShuffleManager {
 
   private Optional<CryptoHandler> getCryptoHandler() {
     if (cryptoHandler == null) {
-      cryptoHandler = SparkCommonUtils.getCryptoHandler(conf);
+      // Only cache when SparkEnv is ready. If it is transiently null (e.g. called before
+      // the executor env is initialized), return empty without caching so the next call retries.
+      if (SparkEnv.get() != null) {
+        cryptoHandler = SparkCommonUtils.getCryptoHandler(conf);
+      } else {
+        return Optional.empty();
+      }
     }
     return cryptoHandler;
   }

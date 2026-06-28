@@ -1061,13 +1061,15 @@ public class ShuffleClientImpl extends ShuffleClient {
     Optional<CryptoHandler> handler = cryptoHandler;
     if (handler.isPresent()) {
       byte[] encrypted = handler.get().encrypt(data, offset, length);
-      logger.debug(
-          "Encrypted shuffle data for shuffle {} map {} partition {}: {} bytes -> {} bytes.",
-          shuffleId,
-          mapId,
-          partitionId,
-          length,
-          encrypted.length);
+      if (logger.isDebugEnabled()) {
+        logger.debug(
+            "Encrypted shuffle data for shuffle {} map {} partition {}: {} bytes -> {} bytes.",
+            shuffleId,
+            mapId,
+            partitionId,
+            length,
+            encrypted.length);
+      }
       data = encrypted;
       offset = 0;
       length = encrypted.length;

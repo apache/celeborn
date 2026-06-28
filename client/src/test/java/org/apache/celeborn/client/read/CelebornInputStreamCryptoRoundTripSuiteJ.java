@@ -32,11 +32,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.CommitMetadata;
 import org.apache.celeborn.common.network.buffer.NettyManagedBuffer;
 import org.apache.celeborn.common.network.client.ChunkReceivedCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
@@ -149,6 +151,21 @@ public class CelebornInputStreamCryptoRoundTripSuiteJ {
       Optional<CryptoHandler> cryptoHandler,
       CelebornConf conf)
       throws IOException, InterruptedException {
+    return createStreamWithClient(batchBuf, needDecompress, cryptoHandler, conf,
+        mock(ShuffleClient.class));
+  }
+
+  /**
+   * Like {@link #createStream} but with a caller-supplied ShuffleClient mock, so tests can
+   * verify interactions such as {@code readReducerPartitionEnd}.
+   */
+  private CelebornInputStream createStreamWithClient(
+      ByteBuf batchBuf,
+      boolean needDecompress,
+      Optional<CryptoHandler> cryptoHandler,
+      CelebornConf conf,
+      ShuffleClient shuffleClient)
+      throws IOException, InterruptedException {
     TransportClient client = mock(TransportClient.class);
     PbStreamHandler pbHandler =
         PbStreamHandler.newBuilder().setStreamId(1L).setNumChunks(1).build();
@@ -171,8 +188,6 @@ public class CelebornInputStreamCryptoRoundTripSuiteJ {
 
     TransportClientFactory clientFactory = mock(TransportClientFactory.class);
     when(clientFactory.createClient(anyString(), anyInt())).thenReturn(client);
-
-    ShuffleClient shuffleClient = mock(ShuffleClient.class);
 
     // PRIMARY location pointing to a single HDD partition
     PartitionLocation location =
@@ -268,18 +283,35 @@ public class CelebornInputStreamCryptoRoundTripSuiteJ {
 
   @Test
   public void testEncryptWithIntegrityCheckEnabled() throws IOException, InterruptedException {
-    // Verify that EAR + shuffle integrity check (celeborn.client.shuffle.integrityCheck.enabled)
-    // work together: the checksum is computed over plaintext, so decrypt-then-verify must hold.
+    // Verify that EAR + shuffle integrity check work together: the checksum must be computed
+    // over the *decrypted* plaintext, not the ciphertext. We capture the crc32/bytes passed to
+    // readReducerPartitionEnd and assert they match an independently-computed plaintext checksum.
     byte[] plaintext = "integrity check should pass after decryption".getBytes();
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED().key(), "true");
     XorCryptoHandler handler = new XorCryptoHandler((byte) 0x7F);
 
-    // The integrity metadata (checksum) is added by CelebornInputStream over the decrypted data
+    // Independently compute the expected checksum over the plaintext bytes.
+    CommitMetadata expected = new CommitMetadata();
+    expected.addDataWithOffsetAndLength(plaintext, 0, plaintext.length);
+
     ByteBuf batchBuf = buildBatch(plaintext, false, handler, conf);
-    try (CelebornInputStream stream = createStream(batchBuf, false, Optional.of(handler), conf)) {
+
+    // createStream passes shuffleId=1, partitionId=0, startMapIndex=0, endMapIndex=100
+    ShuffleClient shuffleClient = mock(ShuffleClient.class);
+    try (CelebornInputStream stream =
+        createStreamWithClient(batchBuf, false, Optional.of(handler), conf, shuffleClient)) {
       assertArrayEquals(plaintext, readAll(stream));
     }
+
+    // Verify readReducerPartitionEnd was called with the checksum over plaintext, not ciphertext.
+    ArgumentCaptor<Integer> crcCaptor = ArgumentCaptor.forClass(Integer.class);
+    ArgumentCaptor<Long> bytesCaptor = ArgumentCaptor.forClass(Long.class);
+    verify(shuffleClient)
+        .readReducerPartitionEnd(anyInt(), anyInt(), anyInt(), anyInt(),
+            crcCaptor.capture(), bytesCaptor.capture());
+    assertEquals("checksum must be over plaintext", expected.getChecksum(), (int) crcCaptor.getValue());
+    assertEquals("byte count must match plaintext length", expected.getBytes(), (long) bytesCaptor.getValue());
   }
 
   @Test
