@@ -895,8 +895,13 @@ public abstract class CelebornInputStream extends InputStream {
             if (shouldDecompress) {
               if (decrypted.length < Decompressor.getCompressionHeaderLength(conf)) {
                 throw new IOException(
-                    "Decrypted batch too short to contain compression header: " + decrypted.length
-                        + " bytes (shuffleId=" + shuffleId + ", partitionId=" + partitionId + ")");
+                    "Decrypted batch too short to contain compression header: "
+                        + decrypted.length
+                        + " bytes (shuffleId="
+                        + shuffleId
+                        + ", partitionId="
+                        + partitionId
+                        + ")");
               }
               compressedBuf = decrypted;
             } else {

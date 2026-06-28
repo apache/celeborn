@@ -151,13 +151,13 @@ public class CelebornInputStreamCryptoRoundTripSuiteJ {
       Optional<CryptoHandler> cryptoHandler,
       CelebornConf conf)
       throws IOException, InterruptedException {
-    return createStreamWithClient(batchBuf, needDecompress, cryptoHandler, conf,
-        mock(ShuffleClient.class));
+    return createStreamWithClient(
+        batchBuf, needDecompress, cryptoHandler, conf, mock(ShuffleClient.class));
   }
 
   /**
-   * Like {@link #createStream} but with a caller-supplied ShuffleClient mock, so tests can
-   * verify interactions such as {@code readReducerPartitionEnd}.
+   * Like {@link #createStream} but with a caller-supplied ShuffleClient mock, so tests can verify
+   * interactions such as {@code readReducerPartitionEnd}.
    */
   private CelebornInputStream createStreamWithClient(
       ByteBuf batchBuf,
@@ -308,10 +308,14 @@ public class CelebornInputStreamCryptoRoundTripSuiteJ {
     ArgumentCaptor<Integer> crcCaptor = ArgumentCaptor.forClass(Integer.class);
     ArgumentCaptor<Long> bytesCaptor = ArgumentCaptor.forClass(Long.class);
     verify(shuffleClient)
-        .readReducerPartitionEnd(anyInt(), anyInt(), anyInt(), anyInt(),
-            crcCaptor.capture(), bytesCaptor.capture());
-    assertEquals("checksum must be over plaintext", expected.getChecksum(), (int) crcCaptor.getValue());
-    assertEquals("byte count must match plaintext length", expected.getBytes(), (long) bytesCaptor.getValue());
+        .readReducerPartitionEnd(
+            anyInt(), anyInt(), anyInt(), anyInt(), crcCaptor.capture(), bytesCaptor.capture());
+    assertEquals(
+        "checksum must be over plaintext", expected.getChecksum(), (int) crcCaptor.getValue());
+    assertEquals(
+        "byte count must match plaintext length",
+        expected.getBytes(),
+        (long) bytesCaptor.getValue());
   }
 
   @Test
