@@ -76,6 +76,11 @@ case class ResourceConsumption(
     (add(other._1), addSubResourceConsumptions(other._2))
   }
 
+  def isEmpty: Boolean = {
+    diskBytesWritten == 0 && diskFileCount == 0 && hdfsBytesWritten == 0 && hdfsFileCount == 0 &&
+    CollectionUtils.isEmpty(subResourceConsumptions)
+  }
+
   override def toString: String = {
     val subResourceConsumptionString =
       if (CollectionUtils.isEmpty(subResourceConsumptions)) {
