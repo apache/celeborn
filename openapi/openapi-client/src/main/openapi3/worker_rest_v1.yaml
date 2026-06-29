@@ -238,6 +238,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/HandleResponse'
 
+  /api/v1/workers/events:
+    post:
+      tags:
+        - Worker
+      operationId: workerEvent
+      description: |
+        Send an event to this worker to trigger a state transition.
+        Legal event types are 'DECOMMISSIONTHENIDLE' and 'RECOMMISSION'.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerEventRequest'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+
   /api/v1/applications:
     get:
       tags:
@@ -759,6 +780,20 @@ components:
             - GRACEFUL
             - IMMEDIATELY
             - NONE
+
+    WorkerEventRequest:
+      type: object
+      properties:
+        event_type:
+          type: string
+          description: |
+            The type of the worker event.
+            Legal types are 'DECOMMISSIONTHENIDLE' and 'RECOMMISSION'.
+          enum:
+            - DECOMMISSIONTHENIDLE
+            - RECOMMISSION
+      required:
+        - event_type
 
     LoggerInfo:
       type: object
