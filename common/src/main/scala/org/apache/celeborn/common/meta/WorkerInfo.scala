@@ -269,10 +269,15 @@ class WorkerInfo(
     val userResourceConsumptionString =
       if (userResourceConsumption == null || userResourceConsumption.isEmpty) {
         "empty"
-      } else if (userResourceConsumption != null) {
-        userResourceConsumption.asScala.map { case (userIdentifier, resourceConsumption) =>
-          s"\n  UserIdentifier: ${userIdentifier}, ResourceConsumption: ${resourceConsumption}"
-        }.mkString("")
+      } else {
+        val nonEmpty = userResourceConsumption.asScala.filterNot(_._2.isEmpty)
+        if (nonEmpty.isEmpty) {
+          "empty"
+        } else {
+          nonEmpty.map { case (userIdentifier, resourceConsumption) =>
+            s"\n  UserIdentifier: ${userIdentifier}, ResourceConsumption: ${resourceConsumption}"
+          }.mkString("")
+        }
       }
     s"""
        |Host: $host
