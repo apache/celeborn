@@ -133,6 +133,9 @@ upload_nexus_staging() {
 
   echo "Deploying celeborn-client-flink-2.2-shaded_2.12"
   ${PROJECT_DIR}/build/sbt -Pflink-2.2 "clean;celeborn-client-flink-2_2-shaded/publishSigned"
+
+  echo "Deploying celeborn-client-flink-2.3-shaded_2.12"
+  ${PROJECT_DIR}/build/sbt -Pflink-2.3 "clean;celeborn-client-flink-2_3-shaded/publishSigned"
   export JAVA_HOME=$JAVA8_HOME
 
   echo "Deploying celeborn-client-mr-shaded_2.12"

@@ -29,6 +29,7 @@ else
   ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-2.0
   ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-2.1
   ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-2.2
+  ${PROJECT_DIR}/build/mvn spotless:apply -Pflink-2.3
   ${PROJECT_DIR}/build/mvn spotless:apply -Pspark-3.3
   ${PROJECT_DIR}/build/mvn spotless:apply -Pspark-3.5
   ${PROJECT_DIR}/build/mvn spotless:apply -Pspark-4.0
