@@ -126,7 +126,7 @@ class ApplicationHeartbeater(
           }
         }
       },
-      appHeartbeatIntervalMs,
+      0,
       appHeartbeatIntervalMs,
       TimeUnit.MILLISECONDS)
   }

@@ -119,14 +119,18 @@ public class RatisMasterStatusSystemSuiteJ {
 
     while (!serversStarted) {
       try {
-        // Re-point each server to a fresh storage directory on every attempt. Ratis releases the
-        // storage directory lock asynchronously on close(), so a failed attempt (e.g. a random
-        // ratis port collision) can leave the previous directory locked. Reusing the same
-        // directory on retry then fails with "directory is already locked"; allocating a clean
-        // directory each time avoids contending for a lock that has not been released yet.
-        configureServerConf(conf1, 1);
-        configureServerConf(conf2, 2);
-        configureServerConf(conf3, 3);
+        // Re-point each server to a fresh storage directory on retry. Ratis releases the storage
+        // directory lock asynchronously on close(), so a failed attempt (e.g. a random ratis port
+        // collision) can leave the previous directory locked. Reusing the same directory on retry
+        // then fails with "directory is already locked"; allocating a clean directory each time
+        // avoids contending for a lock that has not been released yet. Skip this on the first
+        // attempt: callers already configure a fresh directory when building conf1/2/3, so
+        // reconfiguring here would orphan that just-created (empty) directory.
+        if (retryCount > 0) {
+          configureServerConf(conf1, 1);
+          configureServerConf(conf2, 2);
+          configureServerConf(conf3, 3);
+        }
 
         STATUSSYSTEM1 = new HAMasterMetaManager(mockRpcEnv, conf1);
         STATUSSYSTEM2 = new HAMasterMetaManager(mockRpcEnv, conf2);
@@ -140,7 +144,8 @@ public class RatisMasterStatusSystemSuiteJ {
         String id2 = UUID.randomUUID().toString();
         String id3 = UUID.randomUUID().toString();
 
-        int ratisPort1 = Utils$.MODULE$.selectRandomInt(1024, 32766);
+        int ratisPort1 =
+            Utils$.MODULE$.selectRandomInt(1024, Utils$.MODULE$.MAX_SELECTABLE_PORT() - 2);
         int ratisPort2 = ratisPort1 + 1;
         int ratisPort3 = ratisPort2 + 1;
 

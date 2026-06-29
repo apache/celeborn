@@ -60,4 +60,11 @@ class JVMQuakeSuite extends CelebornFunSuite {
     JavaUtils.deleteRecursively(heapDump)
     JavaUtils.deleteRecursively(new File(quake.getHeapDumpLinkPath))
   }
+
+  test("start() schedules monitoring and stop() tears it down without dumping") {
+    val quake = new JVMQuake(new CelebornConf().set(WORKER_JVM_QUAKE_ENABLED.key, "true"))
+    quake.start()
+    quake.stop()
+    assert(!quake.heapDumped)
+  }
 }

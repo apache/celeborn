@@ -131,6 +131,7 @@ public abstract class ShuffleClient {
           _appUniqueId = appUniqueId;
           initialized = true;
         }
+        return _instance;
       }
     }
     return _instance;

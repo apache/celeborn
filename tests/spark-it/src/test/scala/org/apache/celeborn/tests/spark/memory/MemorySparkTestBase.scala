@@ -43,6 +43,7 @@ trait MemorySparkTestBase extends AnyFunSuite
 
   override def afterAll(): Unit = {
     logInfo("all test complete , stop Celeborn mini cluster")
+    stopActiveSparkSessions()
     shutdownMiniCluster()
   }
 

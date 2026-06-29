@@ -258,6 +258,10 @@ object Utils extends Logging {
     ScalaRandom.nextInt(until - 1 - from) + from
   }
 
+  val MAX_SELECTABLE_PORT = 32768
+
+  def selectRandomPort(): Int = selectRandomInt(1024, MAX_SELECTABLE_PORT)
+
   def startServiceOnPort[T](
       startPort: Int,
       startService: Int => (T, Int),
