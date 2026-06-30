@@ -690,6 +690,10 @@ private[deploy] class Controller(
         new BiFunction[Void, Throwable, Unit] {
           override def apply(v: Void, t: Throwable): Unit = {
             if (null != t) {
+              // Cancel the timeout task even on the exceptional path: otherwise, when the
+              // future fails for a reason other than the timer firing, the task fires later
+              // and logs a misleading "cancel all commit file jobs" warning.
+              timeout.cancel()
               val errMsg = s"Exception while handling commitFiles for shuffleId: $shuffleKey"
               t match {
                 case _: CancellationException =>
@@ -705,18 +709,37 @@ private[deploy] class Controller(
                 case throwable: Throwable =>
                   logError(s"$errMsg, an unexpected exception occurred.", throwable)
               }
+              // Release slots and remove partition locations before reply, mirroring reply().
+              // Unlike reply(), commit tasks may still be running here (cancel(true) does not
+              // interrupt them): a task that has not yet fetched its location will then find it
+              // removed and mark the partition failed, which is harmless -- the response below
+              // already reports every not-committed-and-not-empty partition as failed, and the
+              // shuffle-expiry cleanup that previously reclaimed these slots is idempotent.
+              val releasePrimaryLocations =
+                partitionLocationInfo.removePrimaryPartitions(shuffleKey, primaryIds)
+              val releaseReplicaLocations =
+                partitionLocationInfo.removeReplicaPartitions(shuffleKey, replicaIds)
+              workerInfo.releaseSlots(shuffleKey, releasePrimaryLocations._1)
+              workerInfo.releaseSlots(shuffleKey, releaseReplicaLocations._1)
+              val response = Controller.buildCommitFilesResponseOnCancel(
+                primaryIds,
+                replicaIds,
+                committedPrimaryIds,
+                committedReplicaIds,
+                emptyFilePrimaryIds,
+                emptyFileReplicaIds,
+                committedPrimaryStorageInfos,
+                committedReplicaStorageInfos,
+                committedMapIdBitMap,
+                partitionSizeList)
               commitInfo.synchronized {
-                commitInfo.response = CommitFilesResponse(
-                  StatusCode.COMMIT_FILE_EXCEPTION,
-                  List.empty.asJava,
-                  List.empty.asJava,
-                  primaryIds,
-                  replicaIds)
-
+                commitInfo.response = response
                 commitInfo.status = CommitInfo.COMMIT_FINISHED
               }
+              context.reply(response)
 
               workerSource.incCounter(WorkerSource.COMMIT_FILES_FAIL_COUNT)
+              workerSource.stopTimer(WorkerSource.COMMIT_FILES_TIME, shuffleKey)
             } else {
               // finish, cancel timeout job first.
               timeout.cancel()
@@ -896,5 +919,64 @@ private[deploy] class Controller(
       }
       mapIdx += 1
     }
+  }
+}
+
+private[deploy] object Controller {
+
+  def buildCommitFilesResponseOnCancel(
+      primaryIds: jList[String],
+      replicaIds: jList[String],
+      committedPrimaryIds: jSet[String],
+      committedReplicaIds: jSet[String],
+      emptyFilePrimaryIds: jSet[String],
+      emptyFileReplicaIds: jSet[String],
+      committedPrimaryStorageInfos: java.util.Map[String, StorageInfo],
+      committedReplicaStorageInfos: java.util.Map[String, StorageInfo],
+      committedMapIdBitMap: java.util.Map[String, RoaringBitmap],
+      partitionSizeList: java.util.Collection[Long]): CommitFilesResponse = {
+    // Commit tasks may still be running here: future.cancel(true) does not interrupt a
+    // CompletableFuture. Compute failed = requested - committed - empty, reading committed
+    // before snapshotting it below. The sets are append-only, so a partition that commits in
+    // this window lands in both failed and committed (safe over-report), never in neither --
+    // a partition in neither is read as empty-and-valid by the driver and silently dropped.
+    val failedPrimaryIds = new jArrayList[String](primaryIds)
+    failedPrimaryIds.removeAll(committedPrimaryIds)
+    failedPrimaryIds.removeAll(emptyFilePrimaryIds)
+    val failedReplicaIds = new jArrayList[String](replicaIds)
+    failedReplicaIds.removeAll(committedReplicaIds)
+    failedReplicaIds.removeAll(emptyFileReplicaIds)
+    val committedPrimaryIdList = new jArrayList[String](committedPrimaryIds)
+    val committedReplicaIdList = new jArrayList[String](committedReplicaIds)
+    // Snapshot once: tasks may still be adding, so deriving totalWritten and fileCount from a
+    // single traversal keeps the two fields mutually consistent.
+    val partitionSizes = partitionSizeList.asScala.toVector
+    // Derive status from the failed lists returned in this response. Empty failed lists mean
+    // every requested partition reached a terminal good state before the snapshot (committed
+    // or empty -- both sets are append-only), which is the normal path's SUCCESS condition;
+    // replying PARTIAL_SUCCESS would needlessly land this worker in the client's
+    // commitFilesFailedWorkers. Empty files are a successful terminal state and must not be
+    // reported as failed, so COMMIT_FILE_EXCEPTION is returned only when nothing committed
+    // and nothing is empty.
+    val status =
+      if (failedPrimaryIds.isEmpty && failedReplicaIds.isEmpty) {
+        StatusCode.SUCCESS
+      } else if (committedPrimaryIdList.isEmpty && committedReplicaIdList.isEmpty &&
+        emptyFilePrimaryIds.isEmpty && emptyFileReplicaIds.isEmpty) {
+        StatusCode.COMMIT_FILE_EXCEPTION
+      } else {
+        StatusCode.PARTIAL_SUCCESS
+      }
+    CommitFilesResponse(
+      status,
+      committedPrimaryIdList,
+      committedReplicaIdList,
+      failedPrimaryIds,
+      failedReplicaIds,
+      new jHashMap[String, StorageInfo](committedPrimaryStorageInfos),
+      new jHashMap[String, StorageInfo](committedReplicaStorageInfos),
+      new jHashMap[String, RoaringBitmap](committedMapIdBitMap),
+      partitionSizes.sum,
+      partitionSizes.size)
   }
 }
