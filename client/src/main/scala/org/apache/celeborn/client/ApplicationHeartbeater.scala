@@ -47,6 +47,10 @@ class ApplicationHeartbeater(
   private var stopped = false
   private val reviseLostShuffles = conf.reviseLostShufflesEnabled
 
+  private val gcOnOverloadEnabled = conf.clientGcOnOverloadEnabled
+  private val gcOnOverloadMinIntervalMs = conf.clientGcOnOverloadMinIntervalMs
+  @volatile private[client] var lastGcTriggerTimeMs = 0L
+
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
   private val applicationUnregisterEnabled = conf.applicationUnregisterEnabled
@@ -91,6 +95,7 @@ class ApplicationHeartbeater(
               logDebug("Successfully send app heartbeat.")
               workerStatusTracker.handleHeartbeatResponse(response)
               checkQuotaExceeds(response.checkQuotaResponse)
+              handleGcSignal(response.shouldTriggerGc)
               // revise shuffle id if there are lost shuffles
               if (reviseLostShuffles) {
                 val masterRecordedShuffleIds = response.registeredShuffles
@@ -167,6 +172,21 @@ class ApplicationHeartbeater(
     if (conf.quotaInterruptShuffleEnabled && !response.isAvailable) {
       cancelAllActiveStages(
         s"Application interrupted caused by storage quota exceeded, reason: ${response.reason}")
+    }
+  }
+
+  private[client] def handleGcSignal(shouldTriggerGc: Boolean): Unit = {
+    if (!gcOnOverloadEnabled || !shouldTriggerGc) return
+    val now = System.currentTimeMillis()
+    if (now - lastGcTriggerTimeMs >= gcOnOverloadMinIntervalMs) {
+      logInfo(
+        "Cluster is overloaded; triggering System.gc() to release stale shuffle dependencies.")
+      lastGcTriggerTimeMs = now
+      System.gc()
+    } else {
+      logDebug(
+        s"Cluster overload GC signal received but skipped: last GC was triggered " +
+          s"${now - lastGcTriggerTimeMs}ms ago (min interval: ${gcOnOverloadMinIntervalMs}ms).")
     }
   }
 
