@@ -48,6 +48,8 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
   public final RemoteShuffleInputGateDelegation inputGateDelegation;
   private final ResultPartitionType consumedPartitionType;
 
+  private volatile boolean checkpointingDuringRecoveryEnabled = false;
+
   public RemoteShuffleInputGate(
       CelebornConf celebornConf,
       ShuffleIOOwnerContext ownerContext,
@@ -205,5 +207,17 @@ public class RemoteShuffleInputGate extends IndexedInputGate {
   public ResultPartitionType getConsumedPartitionType() {
     // TODO only used in 1.19
     return consumedPartitionType;
+  }
+
+  public CompletableFuture<Void> getBufferFilteringCompleteFuture() {
+    return CompletableFuture.completedFuture(null);
+  }
+
+  public void setCheckpointingDuringRecoveryEnabled(boolean enabled) {
+    this.checkpointingDuringRecoveryEnabled = enabled;
+  }
+
+  public boolean isCheckpointingDuringRecoveryEnabled() {
+    return checkpointingDuringRecoveryEnabled;
   }
 }
