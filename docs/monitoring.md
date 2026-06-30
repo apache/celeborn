@@ -235,6 +235,7 @@ These metrics are exposed by Celeborn worker.
     | CommitFilesFailCount                   | The count of commit files request failed in current worker.                                                     |
     | SlotsAllocated                         | Slots allocated in last hour.                                                                                   |
     | ActiveSlotsCount                       | The number of slots currently being used in a worker.                                                           |
+    | AvailableSlotsCount                    | The number of slots currently available in a worker.                                                            |
     | ReserveSlotsTime                       | ReserveSlots means acquire a disk buffer and record partition location.                                         |
     | ActiveConnectionCount                  | The count of active network connection.                                                                         |
     | NettyMemory                            | The total amount of off-heap memory used by celeborn worker.                                                    |
