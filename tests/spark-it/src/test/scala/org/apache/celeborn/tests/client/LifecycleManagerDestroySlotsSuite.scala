@@ -48,11 +48,7 @@ class LifecycleManagerDestroySlotsSuite extends WithShuffleClientSuite with Mini
     val conf = celebornConf.clone
     conf.set(CelebornConf.TEST_CLIENT_MOCK_DESTROY_SLOTS_FAILURE.key, "false")
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
-    val ids = new util.ArrayList[Integer](10)
-    0 until 10 foreach {
-      ids.add(_)
-    }
-    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, 10)
     assert(res.status == StatusCode.SUCCESS)
     assert(res.workerResource.keySet().size() == 3)
 
@@ -90,11 +86,7 @@ class LifecycleManagerDestroySlotsSuite extends WithShuffleClientSuite with Mini
     conf.set(CelebornConf.TEST_CLIENT_MOCK_DESTROY_SLOTS_FAILURE.key, "true")
       .set(CelebornConf.CLIENT_RPC_MAX_RETIRES.key, "5")
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
-    val ids = new util.ArrayList[Integer](10)
-    0 until 10 foreach {
-      ids.add(_)
-    }
-    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, 10)
     assert(res.status == StatusCode.SUCCESS)
     assert(res.workerResource.keySet().size() == 3)
 
@@ -132,11 +124,7 @@ class LifecycleManagerDestroySlotsSuite extends WithShuffleClientSuite with Mini
     val conf = celebornConf.clone
     conf.set(CelebornConf.TEST_CLIENT_MOCK_DESTROY_SLOTS_FAILURE.key, "false")
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
-    val ids = new util.ArrayList[Integer](10)
-    0 until 10 foreach {
-      ids.add(_)
-    }
-    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, 10)
     assert(res.status == StatusCode.SUCCESS)
     assert(res.workerResource.keySet().size() == 3)
 

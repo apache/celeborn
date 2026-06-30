@@ -17,10 +17,6 @@
 
 package org.apache.celeborn.tests.client
 
-import java.util
-
-import scala.collection.JavaConverters._
-
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
@@ -50,12 +46,10 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
     conf.set(CelebornConf.CLIENT_BATCH_REMOVE_EXPIRED_SHUFFLE_ENABLED.key, "true")
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val counts = 10
-    val ids =
-      new util.ArrayList[Integer]((0 until counts).toList.map(x => Integer.valueOf(x)).asJava)
     val shuffleIds = (1 to counts).toList
 
     shuffleIds.foreach { shuffleId: Int =>
-      val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+      val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, counts)
       assert(res.status == StatusCode.SUCCESS)
       lifecycleManager.registeredShuffle.add(shuffleId)
       assert(lifecycleManager.registeredShuffle.contains(shuffleId))
@@ -84,12 +78,10 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
     val conf = celebornConf.clone
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val counts = 10
-    val ids =
-      new util.ArrayList[Integer]((0 until counts).toList.map(x => Integer.valueOf(x)).asJava)
     val shuffleIds = (1 to counts).toList
 
     shuffleIds.foreach { shuffleId: Int =>
-      val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+      val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, counts)
       assert(res.status == StatusCode.SUCCESS)
       lifecycleManager.registeredShuffle.add(shuffleId)
       assert(lifecycleManager.registeredShuffle.contains(shuffleId))
