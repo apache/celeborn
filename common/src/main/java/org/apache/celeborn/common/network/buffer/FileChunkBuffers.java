@@ -27,15 +27,25 @@ import org.apache.celeborn.common.network.util.TransportConf;
 public class FileChunkBuffers extends ChunkBuffers {
   private final File file;
   private final TransportConf conf;
+  private final boolean isChunkCompressed;
 
   public FileChunkBuffers(DiskFileInfo fileInfo, TransportConf conf) {
     super(fileInfo.getReduceFileMeta());
+    isChunkCompressed = fileInfo.isChunkCompressionEnabled();
     file = fileInfo.getFile();
     this.conf = conf;
   }
 
   @Override
   public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
+    if (isChunkCompressed && (offset != 0 || len != Integer.MAX_VALUE)) {
+      throw new IllegalArgumentException(
+          "Sliced reads (offset="
+              + offset
+              + ", len="
+              + len
+              + ") are not supported for chunk-compressed files");
+    }
     Tuple2<Long, Long> offsetLen = getChunkOffsetLength(chunkIndex, offset, len);
     return new FileSegmentManagedBuffer(conf, file, offsetLen._1, offsetLen._2);
   }

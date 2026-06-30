@@ -15,24 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.client.read;
+package org.apache.celeborn.service.deploy.worker.file;
 
-import java.util.Optional;
+import java.io.IOException;
 
-import io.netty.buffer.ByteBuf;
-import org.apache.commons.lang3.tuple.Pair;
+import io.netty.buffer.CompositeByteBuf;
 
-import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
-import org.apache.celeborn.common.protocol.PartitionLocation;
+public abstract class FileChannelWriter {
+  public abstract void write(CompositeByteBuf buffer, boolean gatherApiEnabled) throws IOException;
 
-public interface PartitionReader {
-  boolean hasNext();
-
-  Pair<ByteBuf, Boolean> next() throws Exception;
-
-  void close();
-
-  PartitionLocation getLocation();
-
-  Optional<PartitionReaderCheckpointMetadata> getPartitionReaderCheckpointMetadata();
+  public abstract void close(boolean commitFilesFsync) throws IOException;
 }

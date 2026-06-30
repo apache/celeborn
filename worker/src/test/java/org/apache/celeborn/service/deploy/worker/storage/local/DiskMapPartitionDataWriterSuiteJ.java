@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.compression.ChunkCompressionContext;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.network.util.TransportConf;
@@ -133,7 +134,8 @@ public class DiskMapPartitionDataWriterSuiteJ {
             userIdentifier,
             PartitionType.MAP,
             false,
-            false);
+            false,
+            ChunkCompressionContext.disabled());
     PartitionDataWriter fileWriter =
         new PartitionDataWriter(
             PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(

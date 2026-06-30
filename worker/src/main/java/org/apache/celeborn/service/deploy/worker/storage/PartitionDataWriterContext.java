@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.File;
 
+import org.apache.celeborn.common.compression.ChunkCompressionContext;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PartitionSplitMode;
@@ -37,6 +38,7 @@ public class PartitionDataWriterContext {
   private final String shuffleKey;
   private final PartitionType partitionType;
   private final boolean isSegmentGranularityVisible;
+  private final ChunkCompressionContext chunkCompressionContext;
 
   private File workingDir;
   private PartitionDataWriter partitionDataWriter;
@@ -52,7 +54,8 @@ public class PartitionDataWriterContext {
       UserIdentifier userIdentifier,
       PartitionType partitionType,
       boolean partitionSplitEnabled,
-      boolean isSegmentGranularityVisible) {
+      boolean isSegmentGranularityVisible,
+      ChunkCompressionContext chunkCompressionContext) {
     this.splitThreshold = splitThreshold;
     this.partitionSplitMode = partitionSplitMode;
     this.rangeReadFilter = rangeReadFilter;
@@ -64,6 +67,7 @@ public class PartitionDataWriterContext {
     this.partitionType = partitionType;
     this.shuffleKey = Utils.makeShuffleKey(appId, shuffleId);
     this.isSegmentGranularityVisible = isSegmentGranularityVisible;
+    this.chunkCompressionContext = chunkCompressionContext;
   }
 
   public long getSplitThreshold() {
@@ -96,6 +100,14 @@ public class PartitionDataWriterContext {
 
   public boolean isPartitionSplitEnabled() {
     return partitionSplitEnabled;
+  }
+
+  public boolean isChunkCompressionEnabled() {
+    return chunkCompressionContext.isEnabled();
+  }
+
+  public ChunkCompressionContext getChunkCompressionContext() {
+    return chunkCompressionContext;
   }
 
   public String getShuffleKey() {

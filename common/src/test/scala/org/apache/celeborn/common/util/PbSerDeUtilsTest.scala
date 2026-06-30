@@ -29,6 +29,7 @@ import com.google.common.collect.Lists
 import org.apache.hadoop.shaded.org.apache.commons.lang3.RandomStringUtils
 
 import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.compression.ChunkCompressionContext
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta._
 import org.apache.celeborn.common.network.protocol.TransportMessage
@@ -82,42 +83,48 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     new ReduceFileMeta(chunkOffsets1, 123),
     file1.getAbsolutePath,
     StorageInfo.Type.HDD,
-    3000L)
+    3000L,
+    ChunkCompressionContext.disabled())
   val fileInfo2 = new DiskFileInfo(
     userIdentifier2,
     true,
     new ReduceFileMeta(chunkOffsets2, 123),
     file2.getAbsolutePath,
     StorageInfo.Type.SSD,
-    6000L)
+    6000L,
+    ChunkCompressionContext.disabled())
   val fileInfo3 = new DiskFileInfo(
     userIdentifier3,
     true,
     new ReduceFileMeta(chunkOffsets3, 123),
     file3,
     StorageInfo.Type.HDFS,
-    6000L)
+    6000L,
+    ChunkCompressionContext.disabled())
   val fileInfo4 = new DiskFileInfo(
     userIdentifier3,
     true,
     new ReduceFileMeta(chunkOffsets3, 123),
     file4,
     StorageInfo.Type.OSS,
-    6000L)
+    6000L,
+    ChunkCompressionContext.disabled())
   val fileInfo5 = new DiskFileInfo(
     userIdentifier3,
     true,
     new ReduceFileMeta(chunkOffsets3, 123),
     file5,
     StorageInfo.Type.S3,
-    6000L)
+    6000L,
+    ChunkCompressionContext.disabled())
   val fileInfo6 = new DiskFileInfo(
     userIdentifier3,
     true,
     new ReduceFileMeta(chunkOffsets3, 123),
     file6,
     StorageInfo.Type.S3,
-    6000L)
+    6000L,
+    ChunkCompressionContext.disabled())
 
   val mapFileInfo1 = new DiskFileInfo(
     userIdentifier1,
@@ -125,14 +132,16 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     new MapFileMeta(1024, 10),
     file1.getAbsolutePath,
     StorageInfo.Type.HDD,
-    6000L)
+    6000L,
+    ChunkCompressionContext.disabled())
   val mapFileInfo2 = new DiskFileInfo(
     userIdentifier2,
     true,
     new MapFileMeta(1024, 10),
     file2.getAbsolutePath,
     StorageInfo.Type.SSD,
-    6000L)
+    6000L,
+    ChunkCompressionContext.disabled())
   val fileInfoMap = JavaUtils.newConcurrentHashMap[String, DiskFileInfo]()
   mapFileInfo1.setMountPoint("/mnt")
   mapFileInfo2.setMountPoint("/mnt")

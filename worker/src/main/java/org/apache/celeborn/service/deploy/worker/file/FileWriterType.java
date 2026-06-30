@@ -15,24 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.client.read;
+package org.apache.celeborn.service.deploy.worker.file;
 
-import java.util.Optional;
-
-import io.netty.buffer.ByteBuf;
-import org.apache.commons.lang3.tuple.Pair;
-
-import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
-import org.apache.celeborn.common.protocol.PartitionLocation;
-
-public interface PartitionReader {
-  boolean hasNext();
-
-  Pair<ByteBuf, Boolean> next() throws Exception;
-
-  void close();
-
-  PartitionLocation getLocation();
-
-  Optional<PartitionReaderCheckpointMetadata> getPartitionReaderCheckpointMetadata();
+public enum FileWriterType {
+  CHUNK_COMPRESSED,
+  BYPASS
 }

@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions.checkState
 import com.google.protobuf.ByteString
 import org.roaringbitmap.RoaringBitmap
 
+import org.apache.celeborn.common.compression.ChunkCompressionContext
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
@@ -482,7 +483,8 @@ object ControlMessages extends Logging {
       userIdentifier: UserIdentifier,
       pushDataTimeout: Long,
       partitionSplitEnabled: Boolean = false,
-      isSegmentGranularityVisible: Boolean = false)
+      isSegmentGranularityVisible: Boolean = false,
+      chunkCompressionContext: ChunkCompressionContext = ChunkCompressionContext.disabled())
     extends WorkerMessage
 
   case class ReserveSlotsResponse(
@@ -961,7 +963,8 @@ object ControlMessages extends Logging {
           userIdentifier,
           pushDataTimeout,
           partitionSplitEnabled,
-          isSegmentGranularityVisible) =>
+          isSegmentGranularityVisible,
+          chunkCompressionContext) =>
       val payload = PbReserveSlots.newBuilder()
         .setApplicationId(applicationId)
         .setShuffleId(shuffleId)
@@ -975,6 +978,10 @@ object ControlMessages extends Logging {
         .setPushDataTimeout(pushDataTimeout)
         .setPartitionSplitEnabled(partitionSplitEnabled)
         .setIsSegmentGranularityVisible(isSegmentGranularityVisible)
+        .setChunkCompressionConfig(PbChunkCompressionConfig.newBuilder()
+          .setEnabled(chunkCompressionContext.isEnabled)
+          .setLevel(chunkCompressionContext.getCompressionLevel)
+          .build())
         .build().toByteArray
       new TransportMessage(MessageType.RESERVE_SLOTS, payload)
 
@@ -1451,7 +1458,10 @@ object ControlMessages extends Logging {
           userIdentifier,
           pbReserveSlots.getPushDataTimeout,
           pbReserveSlots.getPartitionSplitEnabled,
-          pbReserveSlots.getIsSegmentGranularityVisible)
+          pbReserveSlots.getIsSegmentGranularityVisible,
+          new ChunkCompressionContext(
+            pbReserveSlots.getChunkCompressionConfig.getEnabled,
+            pbReserveSlots.getChunkCompressionConfig.getLevel))
 
       case RESERVE_SLOTS_RESPONSE_VALUE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)

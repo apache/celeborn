@@ -36,6 +36,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.compression.ChunkCompressionContext
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
@@ -47,6 +48,7 @@ import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, CollectionUtils, DiskUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
+import org.apache.celeborn.service.deploy.worker.file.chunk.compressed.ChunkBufferPool
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
 import org.apache.celeborn.service.deploy.worker.shuffledb.{DB, DBBackend, DBProvider}
@@ -80,6 +82,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   val diskReserveSize = conf.workerDiskReserveSize
   val diskReserveRatio = conf.workerDiskReserveRatio
   var s3MultipartUploadHandlerSharedState: AutoCloseable = _
+
+  val chunkBufferPool: ChunkBufferPool = new ChunkBufferPool(conf)
 
   // (deviceName -> deviceInfo) and (mount point -> diskInfo)
   val (deviceInfos, diskInfos) = {
@@ -428,7 +432,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       splitMode: PartitionSplitMode,
       partitionType: PartitionType,
       rangeReadFilter: Boolean,
-      userIdentifier: UserIdentifier): PartitionDataWriter = {
+      userIdentifier: UserIdentifier,
+      chunkCompressionContext: ChunkCompressionContext): PartitionDataWriter = {
     createPartitionDataWriter(
       appId,
       shuffleId,
@@ -439,7 +444,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       rangeReadFilter,
       userIdentifier,
       true,
-      isSegmentGranularityVisible = false)
+      isSegmentGranularityVisible = false,
+      chunkCompressionContext)
   }
 
   def ensureS3MultipartUploaderSharedState(): Unit = this.synchronized {
@@ -492,7 +498,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       rangeReadFilter: Boolean,
       userIdentifier: UserIdentifier,
       partitionSplitEnabled: Boolean,
-      isSegmentGranularityVisible: Boolean): PartitionDataWriter = {
+      isSegmentGranularityVisible: Boolean,
+      chunkCompressionContext: ChunkCompressionContext): PartitionDataWriter = {
     if (healthyLocalWorkingDirs().isEmpty && remoteStorageDirs.isEmpty) {
       throw new IOException("No available working dirs!")
     }
@@ -506,7 +513,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       userIdentifier,
       partitionType,
       partitionSplitEnabled,
-      isSegmentGranularityVisible)
+      isSegmentGranularityVisible,
+      chunkCompressionContext)
 
     val writer =
       try {
@@ -898,6 +906,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
     if (s3MultipartUploadHandlerSharedState != null)
       s3MultipartUploadHandlerSharedState.close()
+
+    chunkBufferPool.close()
   }
 
   private def flushFileWriters(): Unit = {
@@ -1085,7 +1095,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         location.getFileName,
         partitionDataWriterContext.getUserIdentifier,
         partitionDataWriterContext.getPartitionType,
-        partitionDataWriterContext.isPartitionSplitEnabled)
+        partitionDataWriterContext.isPartitionSplitEnabled,
+        partitionDataWriterContext.getChunkCompressionContext)
       (null, createDiskFileResult._1, createDiskFileResult._2, createDiskFileResult._3)
     } else {
       (null, null, null, null)
@@ -1129,6 +1140,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       userIdentifier: UserIdentifier,
       partitionType: PartitionType,
       partitionSplitEnabled: Boolean,
+      chunkCompressionContext: ChunkCompressionContext,
       overrideStorageType: StorageInfo.Type = null): (Flusher, DiskFileInfo, File) = {
     val suggestedMountPoint = location.getStorageInfo.getMountPoint
 
@@ -1174,7 +1186,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           partitionSplitEnabled,
           getFileMeta(partitionType, s"hdfs", conf.shuffleChunkSize),
           hdfsFilePath,
-          StorageInfo.Type.HDFS)
+          StorageInfo.Type.HDFS,
+          ChunkCompressionContext.disabled())
         diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
           fileName,
           hdfsFileInfo)
@@ -1189,7 +1202,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           partitionSplitEnabled,
           new ReduceFileMeta(conf.shuffleChunkSize),
           s3FilePath,
-          StorageInfo.Type.S3)
+          StorageInfo.Type.S3,
+          ChunkCompressionContext.disabled())
         diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
           fileName,
           s3FileInfo)
@@ -1207,7 +1221,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           partitionSplitEnabled,
           new ReduceFileMeta(conf.shuffleChunkSize),
           ossFilePath,
-          StorageInfo.Type.OSS)
+          StorageInfo.Type.OSS,
+          ChunkCompressionContext.disabled())
         diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
           fileName,
           ossFileInfo)
@@ -1237,7 +1252,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             partitionSplitEnabled,
             fileMeta,
             filePath,
-            storageType)
+            storageType,
+            chunkCompressionContext)
           logInfo(s"created file at $filePath")
           diskFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(
             fileName,

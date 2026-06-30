@@ -185,7 +185,7 @@ public class WorkerPartitionReader implements PartitionReader {
   }
 
   @Override
-  public ByteBuf next() throws IOException, InterruptedException {
+  public Pair<ByteBuf, Boolean> next() throws Exception {
     checkpoint();
     checkException();
     if (chunkIndex <= endChunkIndex) {
@@ -229,7 +229,11 @@ public class WorkerPartitionReader implements PartitionReader {
     returnedChunks++;
     inflightRequestCount--;
     lastReturnedChunkId = chunk.getLeft();
-    return chunk.getRight();
+    int chunkIdx = chunk.getLeft();
+    boolean compressed =
+        streamHandler.getChunkCompressedCount() > chunkIdx
+            && streamHandler.getChunkCompressed(chunkIdx);
+    return Pair.of(chunk.getRight(), compressed);
   }
 
   @Override

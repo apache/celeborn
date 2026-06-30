@@ -538,6 +538,11 @@ message PbRegisterWorkerResponse {
   string message = 2;
 }
 
+message PbChunkCompressionConfig {
+  bool enabled = 1;
+  int32 level = 2;
+}
+
 message PbReserveSlots {
   string applicationId = 1;
   int32 shuffleId = 2;
@@ -553,6 +558,7 @@ message PbReserveSlots {
   int32 availableStorageTypes = 12;
   PbPackedPartitionLocationsPair partitionLocationsPair = 13;
   bool isSegmentGranularityVisible = 14;
+  PbChunkCompressionConfig chunkCompressionConfig = 15;
 }
 
 message PbReserveSlotsResponse {
@@ -662,6 +668,8 @@ message PbFileInfo {
   map<int32, int32> partitionWritingSegment = 10;
   repeated PbSegmentIndex segmentIndex = 11;
   int32 storageType = 12;
+  PbChunkCompressionConfig chunkCompressionConfig = 13;
+  repeated bool chunkCompressed = 14;
 }
 
 message PbSegmentIndex {
@@ -757,6 +765,7 @@ message PbStreamHandler {
   int32 numChunks = 2;
   repeated int64 chunkOffsets = 3;
   string fullPath = 4;
+  repeated bool chunkCompressed = 5;
 }
 
 message PbOpenStreamList {
