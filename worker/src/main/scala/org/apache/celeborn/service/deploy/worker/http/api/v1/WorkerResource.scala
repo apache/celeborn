@@ -27,7 +27,7 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 
-import org.apache.celeborn.rest.v1.model.{HandleResponse, UnAvailablePeersResponse, WorkerExitRequest, WorkerInfoResponse, WorkerTimestampData}
+import org.apache.celeborn.rest.v1.model.{HandleResponse, UnAvailablePeersResponse, WorkerEventRequest, WorkerExitRequest, WorkerInfoResponse, WorkerTimestampData}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.server.common.http.api.v1.ApiUtils
 import org.apache.celeborn.service.deploy.worker.Worker
@@ -84,5 +84,24 @@ class WorkerResource extends ApiRequestContext {
     new HandleResponse()
       .success(true)
       .message(httpService.exit(request.getType.toString))
+  }
+
+  @Operation(description =
+    "Send an event to this worker to trigger a state transition. " +
+      "Legal event types are 'DECOMMISSIONTHENIDLE' and 'RECOMMISSION'.")
+  @ApiResponse(
+    responseCode = "200",
+    content = Array(new Content(
+      mediaType = MediaType.APPLICATION_JSON,
+      schema = new Schema(implementation = classOf[HandleResponse]))))
+  @POST
+  @Path("/events")
+  def workerEvent(request: WorkerEventRequest): HandleResponse = {
+    if (request.getEventType == null) {
+      return new HandleResponse().success(false).message("eventType is required")
+    }
+    new HandleResponse()
+      .success(true)
+      .message(httpService.workerEvent(request.getEventType.toString))
   }
 }

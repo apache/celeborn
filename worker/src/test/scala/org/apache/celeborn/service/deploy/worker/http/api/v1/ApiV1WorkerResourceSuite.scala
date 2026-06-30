@@ -18,9 +18,10 @@
 package org.apache.celeborn.service.deploy.worker.http.api.v1
 
 import javax.servlet.http.HttpServletResponse
+import javax.ws.rs.client.Entity
 import javax.ws.rs.core.MediaType
 
-import org.apache.celeborn.rest.v1.model.{ApplicationsResponse, ShufflePartitionsResponse, ShufflesResponse, UnAvailablePeersResponse, WorkerInfoResponse}
+import org.apache.celeborn.rest.v1.model.{ApplicationsResponse, HandleResponse, ShufflePartitionsResponse, ShufflesResponse, UnAvailablePeersResponse, WorkerEventRequest, WorkerInfoResponse}
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.api.v1.ApiV1BaseResourceSuite
 import org.apache.celeborn.service.deploy.MiniClusterFeature
@@ -73,5 +74,43 @@ class ApiV1WorkerResourceSuite extends ApiV1BaseResourceSuite with MiniClusterFe
     response = webTarget.path("workers/unavailable_peers").request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)
     assert(response.readEntity(classOf[UnAvailablePeersResponse]).getPeers.isEmpty)
+  }
+
+  test("worker events resource") {
+    // null eventType → success:false
+    var response = webTarget.path("workers/events").request(MediaType.APPLICATION_JSON).post(
+      Entity.entity(new WorkerEventRequest(), MediaType.APPLICATION_JSON))
+    assert(HttpServletResponse.SC_OK == response.getStatus)
+    val nullEventResponse = response.readEntity(classOf[HandleResponse])
+    assert(!nullEventResponse.getSuccess)
+    assert(nullEventResponse.getMessage.contains("eventType is required"))
+
+    // DECOMMISSIONTHENIDLE → success:true, worker enters shutdown/decommission path
+    response = webTarget.path("workers/events").request(MediaType.APPLICATION_JSON).post(
+      Entity.entity(
+        new WorkerEventRequest().eventType(WorkerEventRequest.EventTypeEnum.DECOMMISSIONTHENIDLE),
+        MediaType.APPLICATION_JSON))
+    assert(HttpServletResponse.SC_OK == response.getStatus)
+    assert(response.readEntity(classOf[HandleResponse]).getSuccess)
+
+    // worker is now in shutdown state (InDecommissionThenIdle or Idle)
+    response = webTarget.path("workers").request(MediaType.APPLICATION_JSON).get()
+    assert(HttpServletResponse.SC_OK == response.getStatus)
+    assert(response.readEntity(classOf[WorkerInfoResponse]).getIsShutdown)
+
+    // RECOMMISSION → success:true, worker returns to Normal
+    response = webTarget.path("workers/events").request(MediaType.APPLICATION_JSON).post(
+      Entity.entity(
+        new WorkerEventRequest().eventType(WorkerEventRequest.EventTypeEnum.RECOMMISSION),
+        MediaType.APPLICATION_JSON))
+    assert(HttpServletResponse.SC_OK == response.getStatus)
+    assert(response.readEntity(classOf[HandleResponse]).getSuccess)
+
+    // worker is back to normal: not shutdown, not decommissioning
+    response = webTarget.path("workers").request(MediaType.APPLICATION_JSON).get()
+    assert(HttpServletResponse.SC_OK == response.getStatus)
+    val restoredWorker = response.readEntity(classOf[WorkerInfoResponse])
+    assert(!restoredWorker.getIsShutdown)
+    assert(!restoredWorker.getIsDecommissioning)
   }
 }
