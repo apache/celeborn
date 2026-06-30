@@ -42,6 +42,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
   }
 
   override def beforeEach(): Unit = {
+    super.beforeEach()
     val testConf = Map(
       s"${CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key}" -> "3")
     val (master, _) = setupMiniClusterWithRandomPorts(testConf, testConf, workerNum = 1)

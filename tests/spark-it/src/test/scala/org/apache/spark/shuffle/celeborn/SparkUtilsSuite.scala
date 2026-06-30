@@ -70,12 +70,12 @@ class SparkUtilsSuite extends AnyFunSuite
         val jobThread = new Thread {
           override def run(): Unit = {
             try {
-              val value = Range(1, 10000).mkString(",")
+              val value = Range(1, 100).mkString(",")
               sc.parallelize(1 to 10000, 2)
                 .map { i => (i, value) }
-                .groupByKey(10)
+                .groupByKey(2)
                 .mapPartitions { iter =>
-                  Thread.sleep(3000)
+                  Thread.sleep(500)
                   iter
                 }.collect()
             } catch {
