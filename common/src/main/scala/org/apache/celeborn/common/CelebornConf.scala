@@ -911,6 +911,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsConf: Option[String] = get(METRICS_CONF)
   def metricsSystemEnable: Boolean = get(METRICS_ENABLED)
   def metricsSampleRate: Double = get(METRICS_SAMPLE_RATE)
+  def metricsPrefix: String = get(METRICS_PREFIX)
   def metricsSlidingWindowSize: Int = get(METRICS_SLIDING_WINDOW_SIZE)
   def metricsCollectCriticalEnabled: Boolean = get(METRICS_COLLECT_CRITICAL_ENABLED)
   def metricsCapacity: Int = get(METRICS_CAPACITY)
@@ -5956,6 +5957,14 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .stringConf
       .createOptional
+
+  val METRICS_PREFIX: ConfigEntry[String] =
+    buildConf("celeborn.metrics.prefix")
+      .categories("metrics")
+      .doc("Prefix metrics with this value.")
+      .version("0.7.0")
+      .stringConf
+      .createWithDefault("metrics")
 
   val METRICS_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.metrics.enabled")
