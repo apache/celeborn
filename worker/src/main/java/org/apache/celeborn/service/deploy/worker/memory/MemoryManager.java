@@ -79,6 +79,8 @@ public class MemoryManager {
   private long pausePushDataAndReplicateTime = 0L;
   private int trimCounter = 0;
   private volatile boolean isPaused = false;
+  private volatile ServingState forcedServingState = null;
+  private volatile long forcedServingStateExpireTime = -1L; // -1 means no expiry
   // For credit stream
   private final AtomicLong readBufferCounter = new AtomicLong(0);
   private long readBufferThreshold;
@@ -307,6 +309,15 @@ public class MemoryManager {
   }
 
   public ServingState currentServingState() {
+    if (forcedServingState != null) {
+      if (forcedServingStateExpireTime > 0
+          && System.currentTimeMillis() > forcedServingStateExpireTime) {
+        this.clearForcedServingState();
+      } else {
+        return forcedServingState;
+      }
+    }
+
     long memoryUsage = getMemoryUsage();
     // pause replicate threshold always greater than pause push data threshold
     // so when trigger pause replicate, pause both push and replicate
@@ -586,6 +597,30 @@ public class MemoryManager {
 
   public void releaseMemoryFileStorage(int bytes) {
     memoryFileStorageCounter.add(-1 * bytes);
+  }
+
+  public ServingState getServingState() {
+    return servingState;
+  }
+
+  public ServingState getForcedServingState() {
+    return forcedServingState;
+  }
+
+  public void forceServingState(ServingState state, Long timeoutMs) {
+    this.forcedServingState = state;
+    this.forcedServingStateExpireTime =
+        timeoutMs > 0 ? System.currentTimeMillis() + timeoutMs : -1L;
+    logger.info(
+        "Serving state manually forced to {} with forcedServingStateExpireTime {}",
+        state,
+        timeoutMs);
+  }
+
+  public void clearForcedServingState() {
+    this.forcedServingState = null;
+    this.forcedServingStateExpireTime = -1L;
+    logger.info("Forced serving state override cleared");
   }
 
   public void close() {
