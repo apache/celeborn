@@ -93,6 +93,7 @@ object ControlMessages extends Logging {
         networkLocation: String,
         disks: Map[String, DiskInfo],
         userResourceConsumption: Map[UserIdentifier, ResourceConsumption],
+        tags: Set[String],
         requestId: String): PbRegisterWorker = {
       val pbDisks = disks.values.map(PbSerDeUtils.toPbDiskInfo).asJava
       val pbUserResourceConsumption =
@@ -107,6 +108,7 @@ object ControlMessages extends Logging {
         .setNetworkLocation(networkLocation)
         .addAllDisks(pbDisks)
         .putAllUserResourceConsumption(pbUserResourceConsumption)
+        .addAllTags(tags.asJava)
         .setRequestId(requestId)
         .build()
     }
