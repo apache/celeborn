@@ -818,13 +818,19 @@ std::unique_ptr<CelebornInputStream> ShuffleClientImpl::readPartition(
     bool needCompression) {
   const auto reducerFileGroupInfo = getReducerFileGroupInfo(shuffleId);
   CELEBORN_CHECK_NOT_NULL(reducerFileGroupInfo);
-  std::string shuffleKey = utils::makeShuffleKey(appUniqueId_, shuffleId);
   std::vector<std::shared_ptr<const protocol::PartitionLocation>> locations;
   if (!reducerFileGroupInfo->fileGroups.empty() &&
       reducerFileGroupInfo->fileGroups.count(partitionId)) {
     locations = std::move(utils::toVector(
         reducerFileGroupInfo->fileGroups.find(partitionId)->second));
   }
+  // No locations: return an empty stream instead of building a reader.
+  if (locations.empty()) {
+    LOG(WARNING) << "Shuffle data is empty for shuffle " << shuffleId
+                 << " partition " << partitionId << ".";
+    return CelebornInputStream::empty();
+  }
+  std::string shuffleKey = utils::makeShuffleKey(appUniqueId_, shuffleId);
   return std::make_unique<CelebornInputStream>(
       shuffleKey,
       conf_,

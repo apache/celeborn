@@ -54,9 +54,16 @@ class CelebornInputStream {
       std::shared_ptr<const protocol::PartitionPushFailedBatches>
           pushFailedBatches = nullptr);
 
+  // Returns an empty, no-op stream whose read() immediately yields -1, for a
+  // partition with no data.
+  static std::unique_ptr<CelebornInputStream> empty();
+
   int read(uint8_t* buffer, size_t offset, size_t len);
 
  private:
+  // The empty, no-op stream for empty(); members are zero/null-initialized.
+  CelebornInputStream();
+
   bool fillBuffer();
 
   bool moveToNextChunk();
