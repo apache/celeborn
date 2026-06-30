@@ -23,14 +23,13 @@ import java.util.Optional;
 
 import scala.Option;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
 import org.apache.spark.internal.config.package$;
 import org.apache.spark.memory.SparkOutOfMemoryError;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.reflect.DynConstructors;
@@ -38,6 +37,7 @@ import org.apache.celeborn.reflect.DynMethods;
 
 public class SparkCommonUtils {
   private static final Logger logger = LoggerFactory.getLogger(SparkCommonUtils.class);
+
   public static void validateAttemptConfig(SparkConf conf) throws IllegalArgumentException {
     int DEFAULT_MAX_CONSECUTIVE_STAGE_ATTEMPTS = 4;
     int maxStageAttempts =
