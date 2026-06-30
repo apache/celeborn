@@ -78,7 +78,6 @@
               <include>org.apache.commons:commons-lang3</include>
               <include>org.roaringbitmap:RoaringBitmap</include>
               <include>commons-io:commons-io</include>
-              <include>org.apache.commons:commons-crypto</include>
             </includes>
           </artifactSet>
           <filters>

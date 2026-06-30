@@ -23,6 +23,9 @@ import java.util.Optional;
 
 import scala.Option;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
@@ -34,6 +37,7 @@ import org.apache.celeborn.reflect.DynConstructors;
 import org.apache.celeborn.reflect.DynMethods;
 
 public class SparkCommonUtils {
+  private static final Logger logger = LoggerFactory.getLogger(SparkCommonUtils.class);
   public static void validateAttemptConfig(SparkConf conf) throws IllegalArgumentException {
     int DEFAULT_MAX_CONSECUTIVE_STAGE_ATTEMPTS = 4;
     int maxStageAttempts =
@@ -113,6 +117,10 @@ public class SparkCommonUtils {
     }
     Option<byte[]> key = env.securityManager().getIOEncryptionKey();
     if (!key.isDefined()) {
+      logger.warn(
+          "IO encryption is enabled (spark.io.encryption.enabled=true) but the IO encryption key "
+              + "is not available from the SecurityManager. Shuffle data will be written as "
+              + "plaintext. Ensure the SecurityManager provides an IO encryption key.");
       return Optional.empty();
     }
     return Optional.of(new SparkCryptoHandler(conf, key.get()));

@@ -127,6 +127,13 @@ public abstract class ShuffleClient {
         }
       }
     }
+    // Apply the crypto handler even when the singleton is already initialized. This handles
+    // the case where SparkEnv was transiently unavailable during the first init call (causing
+    // an empty handler to be stored), so that encryption is correctly applied on retry.
+    // setupCryptoHandler is a volatile write and safe to call without the lock.
+    if (cryptoHandler != null && cryptoHandler.isPresent()) {
+      _instance.setupCryptoHandler(cryptoHandler);
+    }
     return _instance;
   }
 

@@ -20,6 +20,8 @@ package org.apache.spark.shuffle.celeborn;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.security.SecureRandom;
 import java.util.Arrays;
 
@@ -134,5 +136,30 @@ public class SparkCryptoHandlerSuiteJ {
 
     byte[] decrypted = handler.decrypt(encrypted, 0, encrypted.length);
     assertEquals(0, decrypted.length);
+  }
+
+  /**
+   * Verifies that the decrypt bounds check uses {@code length - 20} (4-byte length prefix + 16-byte
+   * IV), not the previous {@code length - 4}. A crafted payload whose embedded length value is
+   * between {@code length - 19} and {@code length - 5} (inclusive) must be rejected.
+   */
+  @Test
+  public void testDecryptRejectsCraftedLengthBetweenLengthMinus4AndLengthMinus20()
+      throws IOException {
+    // Construct a minimal on-wire buffer: [4-byte length][16-byte IV][0-byte ciphertext].
+    // Total = 20 bytes. Embed a plaintext length of 1 — valid under the old (length-4)
+    // guard (1 <= 20-4=16) but invalid under the corrected (length-20) guard (1 > 20-20=0).
+    int totalLen = 20; // 4 (length prefix) + 16 (IV) + 0 (ciphertext)
+    byte[] crafted = new byte[totalLen];
+    ByteBuffer.wrap(crafted).order(ByteOrder.BIG_ENDIAN).putInt(1); // claim 1 byte of plaintext
+
+    try {
+      handler.decrypt(crafted, 0, crafted.length);
+      fail("Expected IOException for crafted length > length - 20");
+    } catch (IOException e) {
+      assertTrue(
+          "Exception message should mention decrypted length",
+          e.getMessage().contains("decrypted length") || e.getMessage().contains("Invalid"));
+    }
   }
 }

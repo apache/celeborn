@@ -23,6 +23,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Properties;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.security.CryptoStreamUtils;
@@ -30,11 +31,24 @@ import org.apache.spark.security.CryptoStreamUtils;
 import org.apache.celeborn.client.security.CryptoHandler;
 
 public class SparkCryptoHandler implements CryptoHandler {
+  // On-wire format: [4-byte plaintext length][16-byte IV][ciphertext].
+  // The minimum overhead (length prefix + IV) added by the crypto stream.
+  private static final int CRYPTO_OVERHEAD_BYTES =
+      Integer.BYTES + CryptoStreamUtils.IV_LENGTH_IN_BYTES();
+
   private final SparkConf sparkConf;
   private final byte[] key;
 
   public SparkCryptoHandler(SparkConf sparkConf, byte[] key) {
-    this.sparkConf = sparkConf;
+    // Pre-filter sparkConf to only crypto-relevant keys so that
+    // CryptoStreamUtils.toCryptoConf() does not scan the full SparkConf on every batch.
+    Properties cryptoProps = CryptoStreamUtils.toCryptoConf(sparkConf);
+    SparkConf minimalConf = new SparkConf(false);
+    String prefix = CryptoStreamUtils.SPARK_IO_ENCRYPTION_COMMONS_CONFIG_PREFIX();
+    for (String propKey : cryptoProps.stringPropertyNames()) {
+      minimalConf.set(prefix + propKey, cryptoProps.getProperty(propKey));
+    }
+    this.sparkConf = minimalConf;
     this.key = key;
   }
 
@@ -54,10 +68,11 @@ public class SparkCryptoHandler implements CryptoHandler {
     ByteArrayInputStream bais = new ByteArrayInputStream(input, offset, length);
     DataInputStream dis = new DataInputStream(bais);
     int decryptedLength = dis.readInt();
-    // The encrypted payload format is: [4-byte plaintext length][ciphertext...].
-    // So the maximum valid decrypted length is length - 4 (the ciphertext portion).
-    // A value outside this range indicates corruption or a wrong key.
-    if (decryptedLength < 0 || decryptedLength > length - 4) {
+    // The encrypted payload format is: [4-byte plaintext length][16-byte IV][ciphertext].
+    // The minimum on-wire overhead is CRYPTO_OVERHEAD_BYTES (4 + 16 = 20), so the maximum
+    // valid plaintext length is length - 20. A value outside this range indicates corruption
+    // or a wrong key.
+    if (decryptedLength < 0 || decryptedLength > length - CRYPTO_OVERHEAD_BYTES) {
       throw new IOException(
           "Invalid decrypted length: " + decryptedLength + ", encrypted length: " + length);
     }
