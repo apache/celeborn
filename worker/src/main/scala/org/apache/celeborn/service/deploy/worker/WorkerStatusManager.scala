@@ -35,12 +35,20 @@ import org.apache.celeborn.service.deploy.worker.storage.StorageManager
 private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging {
 
   var currentWorkerStatus = WorkerStatus.normalWorkerStatus()
-  var exitEventType = WorkerEventType.Immediately
+  // Written under this.synchronized but read unsynchronized from the shutdown-hook thread
+  // (Worker.scala), so it must be volatile to guarantee visibility of a runtime REST
+  // exit(...) update before an independent SIGTERM-triggered hook reads it.
+  @volatile var exitEventType = WorkerEventType.Immediately
   private var worker: Worker = _
   private var shutdown: AtomicBoolean = _
   private var storageManager: StorageManager = _
+  private val decommissionShutdown = conf.workerDecommissionShutdown
   private val gracefulShutdown = conf.workerGracefulShutdown
-  if (gracefulShutdown) {
+  if (decommissionShutdown) {
+    exitEventType = WorkerEventType.Decommission
+    logInfo("Decommission shutdown enabled, worker will decommission on SIGTERM" +
+      " (overrides graceful shutdown)")
+  } else if (gracefulShutdown) {
     exitEventType = WorkerEventType.Graceful
   }
 
