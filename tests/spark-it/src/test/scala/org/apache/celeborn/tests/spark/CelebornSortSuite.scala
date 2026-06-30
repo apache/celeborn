@@ -68,7 +68,7 @@ class CelebornSortSuite extends AnyFunSuite
     celebornSparkSession.stop()
   }
 
-  test("celeborn spark integration test - GetReducerFileGroupResponse broadcast") {
+  test("celeborn spark integration test - scoped reducer metadata bypasses broadcast") {
     SparkUtils.getReducerFileGroupResponseBroadcasts.clear()
     SparkUtils.getReducerFileGroupResponseBroadcastNum.set(0)
     val sparkConf = new SparkConf().setAppName("celeborn-demo").setMaster("local[2]")
@@ -102,7 +102,7 @@ class CelebornSortSuite extends AnyFunSuite
     assert(repartitionResult.equals(celebornRepartitionResult))
     assert(combineResult.equals(celebornCombineResult))
     assert(sqlResult.equals(celebornSqlResult))
-    assert(SparkUtils.getReducerFileGroupResponseBroadcastNum.get() > 0)
+    assert(SparkUtils.getReducerFileGroupResponseBroadcastNum.get() == 0)
 
     celebornSparkSession.stop()
     SparkUtils.getReducerFileGroupResponseBroadcasts.clear()

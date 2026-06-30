@@ -184,6 +184,12 @@ public class DummyShuffleClient extends ShuffleClient {
   }
 
   @Override
+  public ShuffleClientImpl.ReduceFileGroups updateFileGroup(
+      int shuffleId, int startPartition, int endPartition) throws CelebornIOException {
+    return null;
+  }
+
+  @Override
   public boolean isShuffleStageEnd(int shuffleId) throws Exception {
     return true;
   }

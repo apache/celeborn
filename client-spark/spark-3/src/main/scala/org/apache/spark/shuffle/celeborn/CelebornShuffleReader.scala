@@ -166,8 +166,7 @@ class CelebornShuffleReader[K, C](
             true
         }
       try {
-        // startPartition is irrelevant
-        fileGroups = shuffleClient.updateFileGroup(shuffleId, startPartition)
+        fileGroups = shuffleClient.updateFileGroup(shuffleId, startPartition, endPartition)
       } catch {
         case ce: CelebornIOException
             if ce.getCause != null && ce.getCause.isInstanceOf[
