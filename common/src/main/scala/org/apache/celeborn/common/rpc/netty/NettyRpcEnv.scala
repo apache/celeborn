@@ -105,6 +105,8 @@ class NettyRpcEnv(
 
   private val stopped = new AtomicBoolean(false)
 
+  private[netty] def isStopped: Boolean = stopped.get()
+
   /**
    * A map for [[RpcAddress]] and [[Outbox]]. When we are connecting to a remote [[RpcAddress]],
    * we just put messages to its [[Outbox]] to implement a non-blocking `send` method.
@@ -208,7 +210,9 @@ class NettyRpcEnv(
       if (stopped.get) {
         // It's possible that we put `targetOutbox` after stopping. So we need to clean it.
         outboxes.remove(receiver.address)
-        targetOutbox.stop()
+        val cause = new RpcEnvStoppedException()
+        targetOutbox.stop(cause)
+        message.onFailure(cause)
       } else {
         targetOutbox.send(message)
       }
@@ -336,7 +340,7 @@ class NettyRpcEnv(
     while (iter.hasNext()) {
       val outbox = iter.next()
       outboxes.remove(outbox.address)
-      outbox.stop()
+      outbox.stop(new RpcEnvStoppedException())
     }
     if (timeoutScheduler != null) {
       timeoutScheduler.shutdownNow()

@@ -186,9 +186,23 @@ public class MasterClient {
         resetRpcEndpointRef(oldRef);
       }
       return true;
-    } else if (e.getCause() instanceof IOException || e instanceof RpcTimeoutException) {
+    } else if (isRetryableRpcFailure(e)) {
       resetRpcEndpointRef(oldRef);
       return true;
+    }
+    return false;
+  }
+
+  private boolean isRetryableRpcFailure(Throwable throwable) {
+    if (throwable.getCause() instanceof IOException || throwable instanceof RpcTimeoutException) {
+      return true;
+    }
+    Throwable current = throwable;
+    while (current != null) {
+      if (current instanceof OutboxStoppedException) {
+        return true;
+      }
+      current = current.getCause();
     }
     return false;
   }
