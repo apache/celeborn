@@ -38,6 +38,10 @@ public class SparkCryptoHandler implements CryptoHandler {
 
   private final SparkConf sparkConf;
   private final byte[] key;
+  // Each push thread reuses its own ByteArrayOutputStream to avoid per-batch allocation.
+  // The internal buffer grows to the high-water-mark once per thread and is reset() each call.
+  private final ThreadLocal<ByteArrayOutputStream> encryptBaos =
+      ThreadLocal.withInitial(ByteArrayOutputStream::new);
 
   public SparkCryptoHandler(SparkConf sparkConf, byte[] key) {
     // Pre-filter sparkConf to only crypto-relevant keys so that
@@ -54,7 +58,8 @@ public class SparkCryptoHandler implements CryptoHandler {
 
   @Override
   public byte[] encrypt(byte[] input, int offset, int length) throws IOException {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    ByteArrayOutputStream baos = encryptBaos.get();
+    baos.reset();
     DataOutputStream dos = new DataOutputStream(baos);
     dos.writeInt(length);
     try (OutputStream cos = CryptoStreamUtils.createCryptoOutputStream(dos, sparkConf, key)) {
