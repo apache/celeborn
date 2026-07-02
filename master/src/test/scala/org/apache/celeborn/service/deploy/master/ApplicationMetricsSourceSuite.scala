@@ -33,7 +33,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
 
   private def gaugeMetrics(value: Long): JHashMap[String, ClientMetric] = {
     val map = new JHashMap[String, ClientMetric]()
-    map.put("ClientRegisterShuffleCount", ClientMetric(value, MetricType.Gauge))
+    map.put("ClientActiveShuffleCount", ClientMetric(value, MetricType.Gauge))
     map
   }
 
@@ -53,7 +53,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   private def gaugeValue(
       source: ApplicationMetricsSource,
       labels: Map[String, String],
-      name: String = "ClientRegisterShuffleCount"): Option[Long] =
+      name: String = "ClientActiveShuffleCount"): Option[Long] =
     source.gauges()
       .find(g => g.name == name && hasLabels(g.labels, labels))
       .map(_.gauge.getValue.asInstanceOf[Number].longValue())
