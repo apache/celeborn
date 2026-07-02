@@ -71,7 +71,7 @@ public class WorkerEventRequest {
     }
   }
 
-  public static final String JSON_PROPERTY_EVENT_TYPE = "event_type";
+  public static final String JSON_PROPERTY_EVENT_TYPE = "eventType";
   private EventTypeEnum eventType;
 
   public WorkerEventRequest() {

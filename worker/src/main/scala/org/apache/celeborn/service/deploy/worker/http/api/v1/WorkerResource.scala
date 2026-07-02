@@ -97,7 +97,7 @@ class WorkerResource extends ApiRequestContext {
   @POST
   @Path("/events")
   def workerEvent(request: WorkerEventRequest): HandleResponse = {
-    if (request.getEventType == null) {
+    if (request == null || request.getEventType == null) {
       return new HandleResponse().success(false).message("eventType is required")
     }
     new HandleResponse()

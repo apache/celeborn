@@ -247,6 +247,7 @@ paths:
         Send an event to this worker to trigger a state transition.
         Legal event types are 'DECOMMISSIONTHENIDLE' and 'RECOMMISSION'.
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -784,7 +785,7 @@ components:
     WorkerEventRequest:
       type: object
       properties:
-        event_type:
+        eventType:
           type: string
           description: |
             The type of the worker event.
@@ -793,7 +794,7 @@ components:
             - DECOMMISSIONTHENIDLE
             - RECOMMISSION
       required:
-        - event_type
+        - eventType
 
     LoggerInfo:
       type: object
