@@ -67,6 +67,7 @@ class StoragePolicyCase1 extends CelebornFunSuite {
       any(),
       any(),
       any(),
+      any(),
       any())).thenAnswer((mockedFlusher, mockedDiskFile, mockedFile))
 
   val memoryHintPartitionLocation =

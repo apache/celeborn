@@ -30,6 +30,7 @@ import io.netty.util.{HashedWheelTimer, Timeout, TimerTask}
 import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.compression.ChunkCompressionContext
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{WorkerInfo, WorkerPartitionLocationInfo}
@@ -114,7 +115,8 @@ private[deploy] class Controller(
           userIdentifier,
           pushDataTimeout,
           partitionSplitEnabled,
-          isSegmentGranularityVisible) =>
+          isSegmentGranularityVisible,
+          chunkCompressionContext) =>
       checkAuth(context, applicationId)
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.RESERVE_SLOTS_TIME, shuffleKey) {
@@ -134,7 +136,8 @@ private[deploy] class Controller(
           userIdentifier,
           pushDataTimeout,
           partitionSplitEnabled,
-          isSegmentGranularityVisible)
+          isSegmentGranularityVisible,
+          chunkCompressionContext)
         logDebug(s"ReserveSlots for $shuffleKey finished.")
       }
 
@@ -181,7 +184,8 @@ private[deploy] class Controller(
       userIdentifier: UserIdentifier,
       pushDataTimeout: Long,
       partitionSplitEnabled: Boolean,
-      isSegmentGranularityVisible: Boolean): Unit = {
+      isSegmentGranularityVisible: Boolean,
+      chunkCompressionContext: ChunkCompressionContext): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (shutdown.get()) {
       val msg = "Current worker is shutting down!"
@@ -213,7 +217,8 @@ private[deploy] class Controller(
       userIdentifier,
       partitionSplitEnabled,
       isSegmentGranularityVisible,
-      isPrimary = true)
+      isPrimary = true,
+      chunkCompressionContext)
     if (primaryLocs.size() < requestPrimaryLocs.size()) {
       val msg = s"Not all primary partition satisfied for $shuffleKey"
       logWarning(s"[handleReserveSlots] $msg, will destroy writers.")
@@ -234,7 +239,8 @@ private[deploy] class Controller(
       userIdentifier,
       partitionSplitEnabled,
       isSegmentGranularityVisible,
-      isPrimary = false)
+      isPrimary = false,
+      chunkCompressionContext)
     if (replicaLocs.size() < requestReplicaLocs.size()) {
       val msg = s"Not all replica partition satisfied for $shuffleKey"
       logWarning(s"[handleReserveSlots] $msg, destroy writers.")
@@ -277,7 +283,8 @@ private[deploy] class Controller(
       userIdentifier: UserIdentifier,
       partitionSplitEnabled: Boolean,
       isSegmentGranularityVisible: Boolean,
-      isPrimary: Boolean): jList[PartitionLocation] = {
+      isPrimary: Boolean,
+      chunkCompressionContext: ChunkCompressionContext): jList[PartitionLocation] = {
     val partitionLocations = new jArrayList[PartitionLocation]()
     try {
       def createWriter(partitionLocation: PartitionLocation): PartitionLocation = {
@@ -293,7 +300,8 @@ private[deploy] class Controller(
           userIdentifier,
           partitionSplitEnabled,
           isSegmentGranularityVisible,
-          isPrimary)
+          isPrimary,
+          chunkCompressionContext)
       }
       if (createWriterThreadPool == null) {
         partitionLocations.addAll(requestLocs.asScala.map(createWriter).asJava)
@@ -323,7 +331,8 @@ private[deploy] class Controller(
       userIdentifier: UserIdentifier,
       partitionSplitEnabled: Boolean,
       isSegmentGranularityVisible: Boolean,
-      isPrimary: Boolean): PartitionLocation = {
+      isPrimary: Boolean,
+      chunkCompressionContext: ChunkCompressionContext): PartitionLocation = {
     try {
       var location =
         if (isPrimary) {
@@ -347,7 +356,8 @@ private[deploy] class Controller(
           rangeReadFilter,
           userIdentifier,
           partitionSplitEnabled,
-          isSegmentGranularityVisible)
+          isSegmentGranularityVisible,
+          chunkCompressionContext)
         new WorkingPartition(location, writer)
       } else {
         location

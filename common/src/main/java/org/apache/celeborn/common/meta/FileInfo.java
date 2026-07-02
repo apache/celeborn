@@ -63,6 +63,10 @@ public abstract class FileInfo {
     }
   }
 
+  public synchronized void setBytesFlushed(long bytesFlushed) {
+    this.bytesFlushed = bytesFlushed;
+  }
+
   public UserIdentifier getUserIdentifier() {
     return userIdentifier;
   }

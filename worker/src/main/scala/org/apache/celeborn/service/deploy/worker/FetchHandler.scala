@@ -287,7 +287,8 @@ class FetchHandler(
             streamId,
             meta.getNumChunks,
             meta.getChunkOffsets,
-            fileInfo.asInstanceOf[DiskFileInfo].getFilePath)
+            fileInfo.asInstanceOf[DiskFileInfo].getFilePath,
+            meta.getChunkCompressed)
         } else fileInfo match {
           case info: DiskFileInfo if info.isHdfs =>
             chunkStreamManager.registerStream(
@@ -337,7 +338,8 @@ class FetchHandler(
                 s"${NettyUtils.getRemoteAddress(client.getChannel)}")
             makeStreamHandler(
               streamId,
-              meta.getNumChunks)
+              meta.getNumChunks,
+              chunkCompressed = meta.getChunkCompressed)
         }
       workerSource.incCounter(WorkerSource.OPEN_STREAM_SUCCESS_COUNT)
       PbStreamHandlerOpt.newBuilder().setStreamHandler(streamHandler)
@@ -423,7 +425,8 @@ class FetchHandler(
       streamId: Long,
       numChunks: Int,
       offsets: util.List[java.lang.Long] = null,
-      filepath: String = ""): PbStreamHandler = {
+      filepath: String = "",
+      chunkCompressed: util.List[java.lang.Boolean] = null): PbStreamHandler = {
     val pbStreamHandlerBuilder = PbStreamHandler.newBuilder.setStreamId(streamId).setNumChunks(
       numChunks)
     if (offsets != null) {
@@ -431,6 +434,9 @@ class FetchHandler(
     }
     if (filepath.nonEmpty) {
       pbStreamHandlerBuilder.setFullPath(filepath)
+    }
+    if (chunkCompressed != null) {
+      pbStreamHandlerBuilder.addAllChunkCompressed(chunkCompressed)
     }
     pbStreamHandlerBuilder.build()
   }

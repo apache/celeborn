@@ -34,6 +34,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
+import org.apache.celeborn.common.compression.ChunkCompressionContext
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.ControlMessages.CommitFilesResponse
@@ -79,7 +80,8 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
       PartitionSplitMode.SOFT,
       PartitionType.REDUCE,
       true,
-      new UserIdentifier("1", "2"))
+      new UserIdentifier("1", "2"),
+      ChunkCompressionContext.disabled())
     worker.storageManager.createPartitionDataWriter(
       "2",
       2,
@@ -88,7 +90,8 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
       PartitionSplitMode.SOFT,
       PartitionType.REDUCE,
       true,
-      new UserIdentifier("1", "2"))
+      new UserIdentifier("1", "2"),
+      ChunkCompressionContext.disabled())
 
     Assert.assertEquals(1, worker.storageManager.workingDirWriters.values().size())
     val expiredShuffleKeys = new JHashSet[String]()

@@ -24,6 +24,7 @@ import scala.collection.JavaConverters._
 
 import com.google.protobuf.InvalidProtocolBufferException
 
+import org.apache.celeborn.common.compression.ChunkCompressionContext
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{ApplicationInfo, ApplicationMeta, DeviceInfo, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.meta.MapFileMeta.SegmentIndex
@@ -102,7 +103,13 @@ object PbSerDeUtils {
   def fromPbFileInfo(pbFileInfo: PbFileInfo, userIdentifier: UserIdentifier) = {
     val meta = Utils.toPartitionType(pbFileInfo.getPartitionType) match {
       case PartitionType.REDUCE =>
-        new ReduceFileMeta(pbFileInfo.getChunkOffsetsList)
+        val chunkOffsets = pbFileInfo.getChunkOffsetsList
+        val chunkCompressed = pbFileInfo.getChunkCompressedList
+        if (!chunkCompressed.isEmpty) {
+          new ReduceFileMeta(chunkOffsets, chunkCompressed)
+        } else {
+          new ReduceFileMeta(chunkOffsets)
+        }
       case PartitionType.MAP =>
         val fileMeta = new MapFileMeta(
           pbFileInfo.getBufferSize,
@@ -132,7 +139,10 @@ object PbSerDeUtils {
       meta,
       pbFileInfo.getFilePath,
       storageType,
-      pbFileInfo.getBytesFlushed)
+      pbFileInfo.getBytesFlushed,
+      new ChunkCompressionContext(
+        pbFileInfo.getChunkCompressionConfig.getEnabled,
+        pbFileInfo.getChunkCompressionConfig.getLevel))
   }
 
   private def fromPbSegmentIndexList(
@@ -155,6 +165,10 @@ object PbSerDeUtils {
       .setBytesFlushed(fileInfo.getFileLength)
       .setPartitionSplitEnabled(fileInfo.isPartitionSplitEnabled)
       .setStorageType(fileInfo.getStorageType.getValue)
+      .setChunkCompressionConfig(
+        PbChunkCompressionConfig.newBuilder()
+          .setEnabled(fileInfo.isChunkCompressionEnabled)
+          .setLevel(fileInfo.getChunkCompressionLevel))
     if (fileInfo.getFileMeta.isInstanceOf[MapFileMeta]) {
       val mapFileMeta = fileInfo.getFileMeta.asInstanceOf[MapFileMeta]
       builder.setPartitionType(PartitionType.MAP.getValue)
@@ -168,6 +182,9 @@ object PbSerDeUtils {
       val reduceFileMeta = fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta]
       builder.setPartitionType(PartitionType.REDUCE.getValue)
       builder.addAllChunkOffsets(reduceFileMeta.getChunkOffsets)
+      if (reduceFileMeta.getChunkCompressed != null && !reduceFileMeta.getChunkCompressed.isEmpty) {
+        builder.addAllChunkCompressed(reduceFileMeta.getChunkCompressed)
+      }
     }
     builder.build
   }

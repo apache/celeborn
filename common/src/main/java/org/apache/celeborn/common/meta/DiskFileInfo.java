@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.compression.ChunkCompressionContext;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.util.Utils;
@@ -39,16 +40,19 @@ public class DiskFileInfo extends FileInfo {
   private static final Logger logger = LoggerFactory.getLogger(DiskFileInfo.class);
   private final String filePath;
   private final StorageInfo.Type storageType;
+  private final ChunkCompressionContext chunkCompressionContext;
 
   public DiskFileInfo(
       UserIdentifier userIdentifier,
       boolean partitionSplitEnabled,
       FileMeta fileMeta,
       String filePath,
-      StorageInfo.Type storageType) {
+      StorageInfo.Type storageType,
+      ChunkCompressionContext chunkCompressionContext) {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
     this.filePath = filePath;
     this.storageType = storageType;
+    this.chunkCompressionContext = chunkCompressionContext;
   }
 
   // only called when restore from pb or in UT
@@ -58,9 +62,11 @@ public class DiskFileInfo extends FileInfo {
       FileMeta fileMeta,
       String filePath,
       StorageInfo.Type storageType,
-      long bytesFlushed) {
+      long bytesFlushed,
+      ChunkCompressionContext chunkCompressionContext) {
     super(userIdentifier, partitionSplitEnabled, fileMeta);
     this.filePath = filePath;
+    this.chunkCompressionContext = chunkCompressionContext;
     if (storageType != null) {
       this.storageType = storageType;
     } else {
@@ -76,13 +82,16 @@ public class DiskFileInfo extends FileInfo {
         true,
         new ReduceFileMeta(new ArrayList<>(Arrays.asList(0L)), conf.shuffleChunkSize()),
         file.getAbsolutePath(),
-        StorageInfo.Type.HDD);
+        StorageInfo.Type.HDD,
+        ChunkCompressionContext.disabled());
   }
 
+  // User only by the sorted
   public DiskFileInfo(UserIdentifier userIdentifier, FileMeta fileMeta, String filePath) {
     super(userIdentifier, true, fileMeta);
     this.filePath = filePath;
     this.storageType = StorageInfo.Type.HDD;
+    this.chunkCompressionContext = ChunkCompressionContext.disabled();
   }
 
   public File getFile() {
@@ -174,5 +183,17 @@ public class DiskFileInfo extends FileInfo {
 
   public StorageInfo.Type getStorageType() {
     return storageType;
+  }
+
+  public boolean isChunkCompressionEnabled() {
+    return chunkCompressionContext.isEnabled();
+  }
+
+  public int getChunkCompressionLevel() {
+    return chunkCompressionContext.getCompressionLevel();
+  }
+
+  public ChunkCompressionContext getChunkCompressionContext() {
+    return chunkCompressionContext;
   }
 }
