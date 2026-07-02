@@ -28,6 +28,7 @@ import org.apache.commons.lang3.StringUtils
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.metrics.ClientMetric
 import org.apache.celeborn.common.protocol.PbReviseLostShufflesResponse
 import org.apache.celeborn.common.protocol.message.ControlMessages.{ApplicationLost, ApplicationLostResponse, CheckQuotaResponse, HeartbeatFromApplication, HeartbeatFromApplicationResponse, ReviseLostShuffles, ZERO_UUID}
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -42,7 +43,9 @@ class ApplicationHeartbeater(
         (Long, Long, Map[String, java.lang.Long], Map[String, java.lang.Long])),
     workerStatusTracker: WorkerStatusTracker,
     registeredShuffles: ConcurrentHashMap.KeySetView[Int, java.lang.Boolean],
-    cancelAllActiveStages: String => Unit) extends Logging {
+    cancelAllActiveStages: String => Unit,
+    clientMetrics: () => util.Map[String, ClientMetric] =
+      () => new util.HashMap[String, ClientMetric]()) extends Logging {
 
   private var stopped = false
   private val reviseLostShuffles = conf.reviseLostShufflesEnabled
@@ -85,7 +88,8 @@ class ApplicationHeartbeater(
                 tmpApplicationFallbackCounts.asJava,
                 workerStatusTracker.getNeedCheckedWorkers().toList.asJava,
                 ZERO_UUID,
-                true)
+                true,
+                clientMetrics())
             val response = requestHeartbeat(appHeartbeat)
             if (response.statusCode == StatusCode.SUCCESS) {
               logDebug("Successfully send app heartbeat.")
