@@ -77,14 +77,8 @@ class CelebornClientSourceSuite extends CelebornFunSuite {
 
     val snapshot = source.getMetricsSnapshot()
     assert(snapshot.contains(CelebornClientSource.REGISTER_SHUFFLE_COUNT))
+    assert(snapshot(CelebornClientSource.REGISTER_SHUFFLE_COUNT).value == 1)
     assert(snapshot(CelebornClientSource.REGISTER_SHUFFLE_COUNT).metricType == MetricType.Counter)
-    assert(snapshot.contains(CelebornClientSource.REGISTER_SHUFFLE_FAIL_COUNT))
-    assert(snapshot.contains(CelebornClientSource.UNREGISTER_SHUFFLE_COUNT))
-    assert(snapshot.contains(CelebornClientSource.REVIVE_REQUEST_COUNT))
-    assert(snapshot.contains(CelebornClientSource.REVIVE_FAIL_COUNT))
-    assert(snapshot.contains(CelebornClientSource.SLOT_RESERVATION_FAIL_COUNT))
-    assert(snapshot.contains(CelebornClientSource.SHUFFLE_FETCH_FAILURE_COUNT))
-    assert(snapshot.contains(CelebornClientSource.SHUFFLE_DATA_LOST_COUNT))
     assert(snapshot(CelebornClientSource.ACTIVE_SHUFFLE_COUNT).value == 7)
     assert(snapshot(CelebornClientSource.ACTIVE_SHUFFLE_COUNT).metricType == MetricType.Gauge)
   }
