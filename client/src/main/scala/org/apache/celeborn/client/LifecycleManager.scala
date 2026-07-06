@@ -501,7 +501,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           hasPartitionRange: Boolean,
           omitMapAttempts: Boolean) =>
       logDebug(
-        s"Received GetShuffleFileGroup request for shuffleId $shuffleId, " +
+        s"Received GetReducerFileGroup request for shuffleId $shuffleId, " +
           s"isSegmentGranularityVisible $isSegmentGranularityVisible, " +
           s"partitionRange ${if (hasPartitionRange) s"[$startPartition, $endPartition)" else "all"}")
       handleGetReducerFileGroup(
