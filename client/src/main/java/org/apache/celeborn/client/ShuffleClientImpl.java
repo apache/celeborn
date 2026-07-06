@@ -2183,7 +2183,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         loadFileGroup(shuffleId, startPartition, endPartition, isSegmentGranularityVisible);
     if (fileGroupTuple._1() == null) {
       throw new CelebornIOException(
-          loadFileGroupException(shuffleId, startPartition, (fileGroupTuple._2())),
+          loadFileGroupException(shuffleId, startPartition, endPartition, (fileGroupTuple._2())),
           fileGroupTuple._3());
     } else {
       return fileGroupTuple._1();
@@ -2307,6 +2307,16 @@ public class ShuffleClientImpl extends ShuffleClient {
         "Failed to load file group of shuffle %d partition %d! %s",
         shuffleId,
         partitionId,
+        StringUtils.isEmpty(exceptionMsg) ? StringUtils.EMPTY : exceptionMsg);
+  }
+
+  protected String loadFileGroupException(
+      int shuffleId, int startPartition, int endPartition, String exceptionMsg) {
+    return String.format(
+        "Failed to load file group of shuffle %d partition range [%d, %d)! %s",
+        shuffleId,
+        startPartition,
+        endPartition,
         StringUtils.isEmpty(exceptionMsg) ? StringUtils.EMPTY : exceptionMsg);
   }
 
