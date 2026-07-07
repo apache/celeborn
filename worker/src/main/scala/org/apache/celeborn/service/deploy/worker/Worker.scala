@@ -981,7 +981,7 @@ private[celeborn] class Worker(
     sb.append("============================ Worker Event =============================\n")
     sb.append(s"Worker event $eventType received (state=$state): \n")
     sb.append(workerInfo.toString()).append("\n")
-  }
+    sb.toString()
 
   def shutdownGracefully(): Unit = {
     // During shutdown, to avoid allocate slots in this worker,
