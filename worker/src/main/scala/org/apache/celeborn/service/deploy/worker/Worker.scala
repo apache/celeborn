@@ -976,11 +976,11 @@ private[celeborn] class Worker(
       case _ =>
         return s"Unsupported worker event type: $eventType. Legal types are 'DECOMMISSIONTHENIDLE' and 'RECOMMISSION'."
     }
+    val state = workerStatusManager.getWorkerState()
     val sb = new StringBuilder
     sb.append("============================ Worker Event =============================\n")
-    sb.append(s"Worker event $eventType triggered: \n")
+    sb.append(s"Worker event $eventType received (state=$state): \n")
     sb.append(workerInfo.toString()).append("\n")
-    sb.toString()
   }
 
   def shutdownGracefully(): Unit = {
