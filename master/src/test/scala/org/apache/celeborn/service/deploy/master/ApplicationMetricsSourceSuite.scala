@@ -18,6 +18,7 @@
 package org.apache.celeborn.service.deploy.master
 
 import java.util.{HashMap => JHashMap}
+import java.util.concurrent.{Delayed, ScheduledThreadPoolExecutor, TimeUnit}
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
@@ -30,6 +31,9 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
     c.set(CelebornConf.MASTER_CLIENT_METRICS_ENABLED, true)
     c
   }
+
+  private def scheduledTaskCount(source: ApplicationMetricsSource): Int =
+    source.metricsCleaner.asInstanceOf[ScheduledThreadPoolExecutor].getQueue.size()
 
   private def gaugeMetrics(value: Long): JHashMap[String, ClientMetric] = {
     val map = new JHashMap[String, ClientMetric]()
@@ -78,6 +82,27 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
 
     assert(source.gauges().isEmpty)
     assert(source.counters().isEmpty)
+  }
+
+  test("masterClientMetrics disabled: removed app cleaner is not scheduled") {
+    val source = new ApplicationMetricsSource(new CelebornConf())
+
+    assert(scheduledTaskCount(source) == 0)
+  }
+
+  test("removed app cleaner uses configured retention as schedule interval") {
+    val conf = enabledConf()
+    val retentionMs = 2000L
+    conf.set(CelebornConf.MASTER_CLIENT_METRICS_REMOVED_APP_RETENTION, retentionMs)
+    val source = new ApplicationMetricsSource(conf)
+
+    val scheduledTasks = source.metricsCleaner
+      .asInstanceOf[ScheduledThreadPoolExecutor]
+      .getQueue
+    assert(scheduledTasks.size() == 1)
+    val delayMs = scheduledTasks.peek().asInstanceOf[Delayed].getDelay(TimeUnit.MILLISECONDS)
+    assert(delayMs > 0)
+    assert(delayMs <= retentionMs)
   }
 
   test("no custom labels: metrics are not reported") {
