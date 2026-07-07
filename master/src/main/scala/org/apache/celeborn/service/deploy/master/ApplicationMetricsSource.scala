@@ -39,7 +39,9 @@ class ApplicationMetricsSource(conf: CelebornConf)
   private val removedAppIds =
     JavaUtils.newConcurrentHashMap[String, java.lang.Long]()
 
-  startRemovedAppCleaner()
+  if (masterClientMetricsEnabled) {
+    startRemovedAppCleaner()
+  }
 
   private def startRemovedAppCleaner(): Unit = {
     val cleanTask: Runnable = new Runnable {
@@ -52,7 +54,11 @@ class ApplicationMetricsSource(conf: CelebornConf)
         }
       }
     }
-    metricsCleaner.scheduleWithFixedDelay(cleanTask, 10, 10, TimeUnit.MINUTES)
+    metricsCleaner.scheduleWithFixedDelay(
+      cleanTask,
+      removedAppRetentionMs,
+      removedAppRetentionMs,
+      TimeUnit.MILLISECONDS)
   }
 
   def updateApplicationMetrics(
@@ -74,7 +80,9 @@ class ApplicationMetricsSource(conf: CelebornConf)
   }
 
   def removeApplicationMetrics(appId: String): Unit = {
-    removedAppIds.put(appId, System.currentTimeMillis())
+    if (masterClientMetricsEnabled) {
+      removedAppIds.put(appId, System.currentTimeMillis())
+    }
     removeAppFromMetrics(appId)
   }
 }

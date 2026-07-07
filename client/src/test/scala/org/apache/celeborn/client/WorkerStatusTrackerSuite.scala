@@ -160,7 +160,7 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
       errors.get())
   }
 
-  test("recordWorkerFailure increments client worker-excluded counter and gauge") {
+  test("recordWorkerFailure updates client worker-excluded gauge") {
     val celebornConf = new CelebornConf()
     celebornConf.set(CelebornConf.METRICS_ENABLED.key, "true")
     celebornConf.set(CelebornConf.CLIENT_METRICS_ENABLED.key, "true")

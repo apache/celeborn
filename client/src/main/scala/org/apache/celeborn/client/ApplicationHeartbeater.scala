@@ -45,7 +45,7 @@ class ApplicationHeartbeater(
     registeredShuffles: ConcurrentHashMap.KeySetView[Int, java.lang.Boolean],
     cancelAllActiveStages: String => Unit,
     clientMetrics: () => util.Map[String, ClientMetric] =
-      () => new util.HashMap[String, ClientMetric]()) extends Logging {
+      () => java.util.Collections.emptyMap[String, ClientMetric]()) extends Logging {
 
   private var stopped = false
   private val reviseLostShuffles = conf.reviseLostShufflesEnabled
@@ -91,7 +91,7 @@ class ApplicationHeartbeater(
                 workerStatusTracker.getNeedCheckedWorkers().toList.asJava,
                 ZERO_UUID,
                 true,
-                if (appMetricLabels.isEmpty) new util.HashMap[String, ClientMetric]()
+                if (appMetricLabels.isEmpty) java.util.Collections.emptyMap[String, ClientMetric]()
                 else clientMetrics(),
                 appMetricLabels)
             val response = requestHeartbeat(appHeartbeat)

@@ -391,8 +391,9 @@ object ControlMessages extends Logging {
       needCheckedWorkerList: util.List[WorkerInfo],
       override var requestId: String = ZERO_UUID,
       shouldResponse: Boolean = false,
-      clientMetrics: util.Map[String, ClientMetric] = new util.HashMap[String, ClientMetric](),
-      metricLabels: util.Map[String, String] = new util.HashMap[String, String]())
+      clientMetrics: util.Map[String, ClientMetric] =
+        java.util.Collections.emptyMap[String, ClientMetric](),
+      metricLabels: util.Map[String, String] = java.util.Collections.emptyMap[String, String]())
     extends MasterRequestMessage
 
   case class HeartbeatFromApplicationResponse(
