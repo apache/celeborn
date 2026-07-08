@@ -255,3 +255,19 @@ TEST(MessageTest, pushMergedDataCopyConstructor) {
   EXPECT_EQ(copy.batchOffsets().size(), 2);
   EXPECT_EQ(copy.batchOffsets()[1], 4);
 }
+
+TEST(MessageTest, decodeHeartbeat) {
+  const int headerLength = sizeof(int32_t) + sizeof(uint8_t) + sizeof(int32_t);
+  const int encodedLength = 1;
+  const int bodyLength = 0;
+  size_t size = headerLength + encodedLength + bodyLength;
+  auto writeBuffer = memory::ByteBuffer::createWriteOnly(size);
+  writeBuffer->write<int32_t>(encodedLength);
+  writeBuffer->write<uint8_t>(Message::Type::HEARTBEAT);
+  writeBuffer->write<int32_t>(bodyLength);
+  writeBuffer->write<uint8_t>(0);
+  auto message = Message::decodeFrom(
+      memory::ByteBuffer::toReadOnly(std::move(writeBuffer)));
+  EXPECT_NE(message, nullptr);
+  EXPECT_EQ(message->type(), Message::Type::HEARTBEAT);
+}

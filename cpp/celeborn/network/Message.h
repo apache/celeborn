@@ -322,5 +322,14 @@ class PushMergedData : public Message {
   std::vector<std::string> partitionUniqueIds_;
   std::vector<int32_t> batchOffsets_;
 };
+
+class Heartbeat : public Message {
+ public:
+  Heartbeat()
+      : Message(HEARTBEAT, memory::ReadOnlyByteBuffer::createEmptyBuffer()) {}
+
+  static std::unique_ptr<Heartbeat> decodeFrom(
+      std::unique_ptr<memory::ReadOnlyByteBuffer>&& data);
+};
 } // namespace network
 } // namespace celeborn

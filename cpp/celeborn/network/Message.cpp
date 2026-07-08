@@ -102,6 +102,8 @@ std::unique_ptr<Message> Message::decodeFrom(
       return ChunkFetchSuccess::decodeFrom(std::move(data));
     case CHUNK_FETCH_FAILURE:
       return ChunkFetchFailure::decodeFrom(std::move(data));
+    case HEARTBEAT:
+      return Heartbeat::decodeFrom(std::move(data));
     default:
       CELEBORN_FAIL("unsupported Message decode type " + std::to_string(type));
   }
@@ -217,6 +219,12 @@ void PushMergedData::internalEncodeTo(
   protocol::encode(buffer, shuffleKey_);
   protocol::encode(buffer, partitionUniqueIds_);
   protocol::encode(buffer, batchOffsets_);
+}
+
+std::unique_ptr<Heartbeat> Heartbeat::decodeFrom(
+    std::unique_ptr<memory::ReadOnlyByteBuffer>&& data) {
+  data->skip(1);
+  return std::make_unique<Heartbeat>();
 }
 } // namespace network
 } // namespace celeborn
