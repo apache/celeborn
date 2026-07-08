@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.LongAdder;
 import scala.Tuple2;
 
 import com.github.luben.zstd.ZstdException;
-import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.buffer.ByteBuf;
 import net.jpountz.lz4.LZ4Exception;
@@ -451,15 +450,8 @@ public abstract class CelebornInputStream extends InputStream {
     }
 
     private static boolean isInterruption(Throwable throwable) {
-      if (Thread.currentThread().isInterrupted()) {
-        return true;
-      }
-      for (Throwable cause : Throwables.getCausalChain(throwable)) {
-        if (cause instanceof InterruptedException) {
-          return true;
-        }
-      }
-      return false;
+      return Thread.currentThread().isInterrupted()
+          || ExceptionUtils.findInterruptedException(throwable) != null;
     }
 
     private static IOException interruptedIOException(Exception exception) {

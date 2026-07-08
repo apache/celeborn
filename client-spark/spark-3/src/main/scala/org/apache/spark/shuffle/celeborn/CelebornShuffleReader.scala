@@ -18,8 +18,8 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
-import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, Optional, Set => JSet}
-import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeoutException, TimeUnit}
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap, HashSet => JHashSet, Map => JMap, Optional, Set => JSet}
+import java.util.concurrent.{ConcurrentHashMap, ExecutionException, ThreadPoolExecutor, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.BiFunction
 
@@ -48,7 +48,7 @@ import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
-import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{ExceptionUtils, JavaUtils, ThreadUtils, Utils}
 
 class CelebornShuffleReader[K, C](
     handle: CelebornShuffleHandle[K, _, C],
@@ -236,14 +236,16 @@ class CelebornShuffleReader[K, C](
     val parallelClientCreationEnabled = conf.batchOpenStreamParallelClientCreationEnabled
     val locationsByHostPort =
       new mutable.LinkedHashMap[String, JArrayList[PartitionLocation]]()
+    val attemptedClientHostPorts = new JHashSet[String]()
 
     def makeOpenStreamList(locations: JSet[PartitionLocation]): Unit = {
       locations.asScala.foreach { location =>
         partCnt += 1
         val hostPort = location.hostAndFetchPort
         if (!workerRequestMap.containsKey(hostPort)) {
-          CelebornShuffleReader.tryCreateClient(
+          CelebornShuffleReader.tryCreateClientOncePerEndpoint(
             location,
+            attemptedClientHostPorts,
             loc =>
               shuffleClient.getDataClientFactory().createClient(
                 loc.getHost,
@@ -640,12 +642,28 @@ object CelebornShuffleReader {
     try {
       Some(createClient(location))
     } catch {
-      case ex: InterruptedException =>
-        Thread.currentThread().interrupt()
-        throw ex
       case ex: Exception =>
-        onClientCreateFailure(ex)
-        None
+        val interruptedException = ExceptionUtils.findInterruptedException(ex)
+        if (interruptedException != null) {
+          Thread.currentThread().interrupt()
+          throw interruptedException
+        } else {
+          onClientCreateFailure(ex)
+          None
+        }
+    }
+  }
+
+  @VisibleForTesting
+  private[celeborn] def tryCreateClientOncePerEndpoint(
+      location: PartitionLocation,
+      attemptedClientHostPorts: JSet[String],
+      createClient: PartitionLocation => TransportClient,
+      onClientCreateFailure: Exception => Unit): Option[TransportClient] = {
+    if (attemptedClientHostPorts.add(location.hostAndFetchPort)) {
+      tryCreateClient(location, createClient, onClientCreateFailure)
+    } else {
+      None
     }
   }
 
@@ -678,6 +696,13 @@ object CelebornShuffleReader {
     } catch {
       case ex: InterruptedException =>
         Thread.currentThread().interrupt()
+        throw ex
+      case ex: ExecutionException =>
+        val interruptedException = ExceptionUtils.findInterruptedException(ex)
+        if (interruptedException != null) {
+          Thread.currentThread().interrupt()
+          throw interruptedException
+        }
         throw ex
     } finally {
       if (!waitCompleted) {

@@ -19,6 +19,7 @@ package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
 import java.nio.file.Files
+import java.util.HashSet
 import java.util.concurrent.{CountDownLatch, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 
@@ -188,23 +189,72 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
     }
   }
 
-  test("propagate client creation interruption without reporting a worker failure") {
+  test("attempt sequential batch open stream client creation once per worker endpoint") {
+    val firstLocation = newLocation(0, "worker-0", 19098)
+    val duplicateEndpoint = newLocation(1, "worker-0", 19098)
+    val differentEndpoint = newLocation(2, "worker-0", 19099)
+    val attemptedClientHostPorts = new HashSet[String]()
+    val attempts = new AtomicInteger()
+    val failures = new AtomicInteger()
+
+    Seq(firstLocation, duplicateEndpoint, differentEndpoint).foreach { location =>
+      val client = CelebornShuffleReader.tryCreateClientOncePerEndpoint(
+        location,
+        attemptedClientHostPorts,
+        _ => {
+          attempts.incrementAndGet()
+          throw new IOException("boom")
+        },
+        _ => failures.incrementAndGet())
+      assert(client.isEmpty)
+    }
+
+    assert(attempts.get() === 2)
+    assert(failures.get() === 2)
+  }
+
+  test("propagate wrapped client creation interruption without reporting a worker failure") {
     val location = newLocation(0, "worker-0", 19098)
     val failureReported = new AtomicBoolean(false)
+    val interruptedException = new InterruptedException("test")
 
     try {
       val exception = intercept[InterruptedException] {
         CelebornShuffleReader.tryCreateClient(
           location,
-          _ => throw new InterruptedException("test"),
+          _ => throw new IOException("wrapped", interruptedException),
           _ => failureReported.set(true))
       }
 
-      assert(exception.getMessage === "test")
+      assert(exception eq interruptedException)
       assert(Thread.currentThread().isInterrupted)
       assert(!failureReported.get())
     } finally {
       Thread.interrupted()
+    }
+  }
+
+  test("propagate interruption across parallel client creation future boundary") {
+    val location = newLocation(0, "worker-0", 19098)
+    val interruptedException = new InterruptedException("test")
+    val failureReported = new AtomicBoolean(false)
+    val streamCreatorPool = ThreadUtils.newDaemonCachedThreadPool("test-create-client", 1, 60)
+
+    try {
+      val exception = intercept[InterruptedException] {
+        CelebornShuffleReader.createClientsInParallel(
+          Seq(location.hostAndFetchPort -> Seq(location)),
+          streamCreatorPool,
+          _ => throw new IOException("wrapped", interruptedException),
+          (_, _, _) => failureReported.set(true))
+      }
+
+      assert(exception eq interruptedException)
+      assert(Thread.currentThread().isInterrupted)
+      assert(!failureReported.get())
+    } finally {
+      Thread.interrupted()
+      streamCreatorPool.shutdownNow()
     }
   }
 

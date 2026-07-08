@@ -48,6 +48,7 @@ import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBootstrap;
 import org.apache.celeborn.common.network.server.TransportChannelHandler;
 import org.apache.celeborn.common.network.util.*;
+import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 
@@ -161,7 +162,7 @@ public class TransportClientFactory implements Closeable {
       try {
         return createClient(remoteHost, remotePort, partitionId, supplier.get());
       } catch (Exception e) {
-        InterruptedException interruptedException = findInterruptedException(e);
+        InterruptedException interruptedException = ExceptionUtils.findInterruptedException(e);
         if (interruptedException != null) {
           Thread.currentThread().interrupt();
           throw interruptedException;
@@ -181,15 +182,6 @@ public class TransportClientFactory implements Closeable {
       }
     }
 
-    return null;
-  }
-
-  private static InterruptedException findInterruptedException(Throwable throwable) {
-    for (Throwable cause : Throwables.getCausalChain(throwable)) {
-      if (cause instanceof InterruptedException) {
-        return (InterruptedException) cause;
-      }
-    }
     return null;
   }
 
