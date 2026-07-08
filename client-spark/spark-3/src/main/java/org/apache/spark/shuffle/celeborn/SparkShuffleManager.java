@@ -19,6 +19,7 @@ package org.apache.spark.shuffle.celeborn;
 
 import java.io.IOException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.spark.*;
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.celeborn.reflect.DynMethods;
@@ -90,6 +92,23 @@ public class SparkShuffleManager implements ShuffleManager {
   private long sendBufferPoolExpireTimeout;
 
   private ExecutorShuffleIdTracker shuffleIdTracker = new ExecutorShuffleIdTracker();
+
+  // The IO encryption key is fixed for the app lifetime. Lazily initialized on first
+  // writer/reader call (not in the constructor) to ensure SparkEnv is available.
+  private volatile Optional<CryptoHandler> cryptoHandler = null;
+
+  private Optional<CryptoHandler> getCryptoHandler() {
+    if (cryptoHandler == null) {
+      // Only cache when SparkEnv is ready. If it is transiently null (e.g. called before
+      // the executor env is initialized), return empty without caching so the next call retries.
+      if (SparkEnv.get() != null) {
+        cryptoHandler = SparkCommonUtils.getCryptoHandler(conf);
+      } else {
+        return Optional.empty();
+      }
+    }
+    return cryptoHandler;
+  }
 
   public SparkShuffleManager(SparkConf conf, boolean isDriver) {
     if (conf.getBoolean(SQLConf.LOCAL_SHUFFLE_READER_ENABLED().key(), true)) {
@@ -288,7 +307,8 @@ public class SparkShuffleManager implements ShuffleManager {
                 h.lifecycleManagerPort(),
                 celebornConf,
                 h.userIdentifier(),
-                h.extension());
+                h.extension(),
+                getCryptoHandler());
         if (h.stageRerunEnabled()) {
           SparkUtils.addFailureListenerIfBarrierTask(shuffleClient, context, h);
         }
@@ -445,7 +465,8 @@ public class SparkShuffleManager implements ShuffleManager {
           context,
           celebornConf,
           metrics,
-          shuffleIdTracker);
+          shuffleIdTracker,
+          getCryptoHandler());
     } else {
       return new CelebornShuffleReader<>(
           h,
@@ -456,7 +477,8 @@ public class SparkShuffleManager implements ShuffleManager {
           context,
           celebornConf,
           metrics,
-          shuffleIdTracker);
+          shuffleIdTracker,
+          getCryptoHandler());
     }
   }
 

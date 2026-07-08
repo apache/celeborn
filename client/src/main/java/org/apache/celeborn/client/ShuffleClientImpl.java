@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.compress.Compressor;
 import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.client.read.MetricsCallback;
+import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornBroadcastException;
 import org.apache.celeborn.common.exception.CelebornIOException;
@@ -100,6 +101,8 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected final int BATCH_HEADER_SIZE = 4 * 4;
 
   protected byte[] extension;
+
+  private volatile Optional<CryptoHandler> cryptoHandler = Optional.empty();
 
   // key: appShuffleIdentifier, value: shuffleId
   protected Map<String, Tuple2<Integer, Boolean>> shuffleIdCache = JavaUtils.newConcurrentHashMap();
@@ -1052,6 +1055,24 @@ public class ShuffleClientImpl extends ShuffleClient {
       data = compressor.getCompressedBuffer();
       offset = 0;
       length = compressor.getCompressedTotalSize();
+    }
+
+    // Snapshot volatile field once to avoid a TOCTOU race between isPresent() and get().
+    Optional<CryptoHandler> handler = cryptoHandler;
+    if (handler.isPresent()) {
+      byte[] encrypted = handler.get().encrypt(data, offset, length);
+      if (logger.isDebugEnabled()) {
+        logger.debug(
+            "Encrypted shuffle data for shuffle {} map {} partition {}: {} bytes -> {} bytes.",
+            shuffleId,
+            mapId,
+            partitionId,
+            length,
+            encrypted.length);
+      }
+      data = encrypted;
+      offset = 0;
+      length = encrypted.length;
     }
 
     final byte[] body = new byte[BATCH_HEADER_SIZE + length];
@@ -2039,7 +2060,8 @@ public class ShuffleClientImpl extends ShuffleClient {
           partitionId,
           exceptionMaker,
           metricsCallback,
-          needDecompress);
+          needDecompress,
+          cryptoHandler);
     }
   }
 
@@ -2102,6 +2124,14 @@ public class ShuffleClientImpl extends ShuffleClient {
   @Override
   public void setExtension(byte[] extension) {
     this.extension = extension;
+  }
+
+  @Override
+  public void setupCryptoHandler(Optional<CryptoHandler> cryptoHandler) {
+    this.cryptoHandler = cryptoHandler != null ? cryptoHandler : Optional.empty();
+    if (this.cryptoHandler.isPresent()) {
+      logger.info("IO encryption enabled for shuffle data (encryption at rest).");
+    }
   }
 
   boolean mapperEnded(int shuffleId, int mapId) {
