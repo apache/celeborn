@@ -164,31 +164,7 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
     }
   }
 
-  test("retry failed batch open stream client creation for the same worker") {
-    val failedLocation = newLocation(0, "worker-0", 19098)
-    val retryLocation = newLocation(1, "worker-0", 19098)
-    val client = Mockito.mock(classOf[TransportClient])
-    val streamCreatorPool = ThreadUtils.newDaemonCachedThreadPool("test-create-client", 1, 60)
-    var failureCount = 0
-
-    try {
-      val clients = CelebornShuffleReader.createClientsInParallel(
-        Seq(failedLocation.hostAndFetchPort -> Seq(failedLocation, retryLocation)),
-        streamCreatorPool,
-        location => {
-          if (location eq failedLocation) throw new IOException("boom")
-          client
-        },
-        (_, _, _) => failureCount += 1)
-
-      assert(failureCount === 1)
-      assert(clients(failedLocation.hostAndFetchPort) eq client)
-    } finally {
-      streamCreatorPool.shutdownNow()
-    }
-  }
-
-  test("bound failed batch open stream client creation attempts per worker") {
+  test("attempt batch open stream client creation once per worker") {
     val locations = (0 until 100).map(id => newLocation(id, "worker-0", 19098))
     val streamCreatorPool = ThreadUtils.newDaemonCachedThreadPool("test-create-client", 1, 60)
     val attempts = new AtomicInteger()
@@ -205,22 +181,65 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
         (_, _, _) => failures.incrementAndGet())
 
       assert(clients.isEmpty)
-      assert(attempts.get() === 2)
-      assert(failures.get() === 2)
+      assert(attempts.get() === 1)
+      assert(failures.get() === 1)
     } finally {
       streamCreatorPool.shutdownNow()
     }
   }
 
+  test("propagate client creation interruption without reporting a worker failure") {
+    val location = newLocation(0, "worker-0", 19098)
+    val failureReported = new AtomicBoolean(false)
+
+    try {
+      val exception = intercept[InterruptedException] {
+        CelebornShuffleReader.tryCreateClient(
+          location,
+          _ => throw new InterruptedException("test"),
+          _ => failureReported.set(true))
+      }
+
+      assert(exception.getMessage === "test")
+      assert(Thread.currentThread().isInterrupted)
+      assert(!failureReported.get())
+    } finally {
+      Thread.interrupted()
+    }
+  }
+
+  test("skip client creation when the thread is already interrupted") {
+    val location = newLocation(0, "worker-0", 19098)
+    val clientCreationAttempted = new AtomicBoolean(false)
+    val failureReported = new AtomicBoolean(false)
+
+    try {
+      Thread.currentThread().interrupt()
+      intercept[InterruptedException] {
+        CelebornShuffleReader.tryCreateClient(
+          location,
+          _ => {
+            clientCreationAttempted.set(true)
+            Mockito.mock(classOf[TransportClient])
+          },
+          _ => failureReported.set(true))
+      }
+
+      assert(Thread.currentThread().isInterrupted)
+      assert(!clientCreationAttempted.get())
+      assert(!failureReported.get())
+    } finally {
+      Thread.interrupted()
+    }
+  }
+
   test("cancel batch open stream client creation when waiting thread is interrupted") {
     val blockedLocation = newLocation(0, "worker-0", 19098)
-    val retryLocation = newLocation(1, "worker-0", 19098)
-    val retryClient = Mockito.mock(classOf[TransportClient])
+    val client = Mockito.mock(classOf[TransportClient])
     val streamCreatorPool = ThreadUtils.newDaemonCachedThreadPool("test-create-client", 1, 60)
     val clientStarted = new CountDownLatch(1)
     val releaseClient = new CountDownLatch(1)
     val clientInterrupted = new CountDownLatch(1)
-    val retried = new AtomicBoolean(false)
     val failureReported = new AtomicBoolean(false)
     val callerInterrupted = new AtomicBoolean(false)
     val callerFailure = new AtomicReference[Throwable]()
@@ -229,22 +248,17 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
       override def run(): Unit = {
         try {
           CelebornShuffleReader.createClientsInParallel(
-            Seq(blockedLocation.hostAndFetchPort -> Seq(blockedLocation, retryLocation)),
+            Seq(blockedLocation.hostAndFetchPort -> Seq(blockedLocation)),
             streamCreatorPool,
-            location => {
-              if (location eq blockedLocation) {
-                clientStarted.countDown()
-                try {
-                  releaseClient.await()
-                  retryClient
-                } catch {
-                  case ex: InterruptedException =>
-                    clientInterrupted.countDown()
-                    throw ex
-                }
-              } else {
-                retried.set(true)
-                retryClient
+            _ => {
+              clientStarted.countDown()
+              try {
+                releaseClient.await()
+                client
+              } catch {
+                case ex: InterruptedException =>
+                  clientInterrupted.countDown()
+                  throw ex
               }
             },
             (_, _, _) => failureReported.set(true))
@@ -269,73 +283,9 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
       assert(streamCreatorPool.awaitTermination(5, TimeUnit.SECONDS))
       assert(callerFailure.get() == null)
       assert(callerInterrupted.get())
-      assert(!retried.get())
       assert(!failureReported.get())
     } finally {
       releaseClient.countDown()
-      streamCreatorPool.shutdownNow()
-      caller.interrupt()
-      caller.join(TimeUnit.SECONDS.toMillis(5))
-    }
-  }
-
-  test("do not retry client creation after cancellation during failure callback") {
-    val failedLocation = newLocation(0, "worker-0", 19098)
-    val retryLocation = newLocation(1, "worker-0", 19098)
-    val retryClient = Mockito.mock(classOf[TransportClient])
-    val streamCreatorPool = ThreadUtils.newDaemonCachedThreadPool("test-create-client", 1, 60)
-    val failureCallbackStarted = new CountDownLatch(1)
-    val releaseFailureCallback = new CountDownLatch(1)
-    val failureCallbackInterrupted = new CountDownLatch(1)
-    val retried = new AtomicBoolean(false)
-    val callerInterrupted = new AtomicBoolean(false)
-    val callerFailure = new AtomicReference[Throwable]()
-
-    val caller = new Thread(new Runnable {
-      override def run(): Unit = {
-        try {
-          CelebornShuffleReader.createClientsInParallel(
-            Seq(failedLocation.hostAndFetchPort -> Seq(failedLocation, retryLocation)),
-            streamCreatorPool,
-            location => {
-              if (location eq failedLocation) throw new IOException("boom")
-              retried.set(true)
-              retryClient
-            },
-            (_, _, _) => {
-              failureCallbackStarted.countDown()
-              try {
-                releaseFailureCallback.await()
-              } catch {
-                case _: InterruptedException =>
-                  Thread.currentThread().interrupt()
-                  failureCallbackInterrupted.countDown()
-              }
-            })
-          callerFailure.set(new AssertionError("Expected waiting thread to be interrupted"))
-        } catch {
-          case _: InterruptedException =>
-            callerInterrupted.set(Thread.currentThread().isInterrupted)
-          case ex: Throwable =>
-            callerFailure.set(ex)
-        }
-      }
-    })
-
-    try {
-      caller.start()
-      assert(failureCallbackStarted.await(5, TimeUnit.SECONDS))
-      caller.interrupt()
-      caller.join(TimeUnit.SECONDS.toMillis(5))
-      assert(!caller.isAlive)
-      assert(failureCallbackInterrupted.await(5, TimeUnit.SECONDS))
-      streamCreatorPool.shutdown()
-      assert(streamCreatorPool.awaitTermination(5, TimeUnit.SECONDS))
-      assert(callerFailure.get() == null)
-      assert(callerInterrupted.get())
-      assert(!retried.get())
-    } finally {
-      releaseFailureCallback.countDown()
       streamCreatorPool.shutdownNow()
       caller.interrupt()
       caller.join(TimeUnit.SECONDS.toMillis(5))

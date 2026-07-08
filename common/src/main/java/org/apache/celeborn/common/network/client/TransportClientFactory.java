@@ -185,12 +185,10 @@ public class TransportClientFactory implements Closeable {
   }
 
   private static InterruptedException findInterruptedException(Throwable throwable) {
-    Throwable current = throwable;
-    while (current != null) {
-      if (current instanceof InterruptedException) {
-        return (InterruptedException) current;
+    for (Throwable cause : Throwables.getCausalChain(throwable)) {
+      if (cause instanceof InterruptedException) {
+        return (InterruptedException) cause;
       }
-      current = current.getCause();
     }
     return null;
   }
@@ -336,8 +334,10 @@ public class TransportClientFactory implements Closeable {
           cf);
       assert cf.isDone();
       if (cf.isCancelled()) {
+        closeChannel(cf);
         throw new IOException(String.format("Connecting to %s cancelled", address));
       } else if (!cf.isSuccess()) {
+        closeChannel(cf);
         throw new IOException(String.format("Failed to connect to %s", address), cf.cause());
       }
     } else if (!awaitWithChannelCleanup(() -> cf.await(connectTimeoutMs), cf)) {

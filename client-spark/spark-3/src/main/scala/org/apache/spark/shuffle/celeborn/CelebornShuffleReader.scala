@@ -242,21 +242,23 @@ class CelebornShuffleReader[K, C](
         partCnt += 1
         val hostPort = location.hostAndFetchPort
         if (!workerRequestMap.containsKey(hostPort)) {
-          try {
-            val client = shuffleClient.getDataClientFactory().createClient(
-              location.getHost,
-              location.getFetchPort)
+          CelebornShuffleReader.tryCreateClient(
+            location,
+            loc =>
+              shuffleClient.getDataClientFactory().createClient(
+                loc.getHost,
+                loc.getFetchPort),
+            ex => {
+              shuffleClient.excludeFailedFetchLocation(hostPort, ex)
+              logWarning(
+                s"Failed to create client for $shuffleKey-${location.getId} from host: ${hostPort}. " +
+                  s"Shuffle reader will try its replica if exists.")
+            }).foreach { client =>
             val pbOpenStreamList = PbOpenStreamList.newBuilder()
             pbOpenStreamList.setShuffleKey(shuffleKey)
             workerRequestMap.put(
               hostPort,
               (client, new JArrayList[PartitionLocation], pbOpenStreamList))
-          } catch {
-            case ex: Exception =>
-              shuffleClient.excludeFailedFetchLocation(hostPort, ex)
-              logWarning(
-                s"Failed to create client for $shuffleKey-${location.getId} from host: ${hostPort}. " +
-                  s"Shuffle reader will try its replica if exists.")
           }
         }
         workerRequestMap.get(hostPort) match {
@@ -627,8 +629,25 @@ class CelebornShuffleReader[K, C](
 object CelebornShuffleReader {
   var streamCreatorPool: ThreadPoolExecutor = null
 
-  // TransportClientFactory already retries each attempt; allow one extra pooled-client attempt.
-  private val MAX_CLIENT_CREATION_ATTEMPTS_PER_HOST = 2
+  @VisibleForTesting
+  private[celeborn] def tryCreateClient(
+      location: PartitionLocation,
+      createClient: PartitionLocation => TransportClient,
+      onClientCreateFailure: Exception => Unit): Option[TransportClient] = {
+    if (Thread.currentThread().isInterrupted) {
+      throw new InterruptedException("Client creation interrupted")
+    }
+    try {
+      Some(createClient(location))
+    } catch {
+      case ex: InterruptedException =>
+        Thread.currentThread().interrupt()
+        throw ex
+      case ex: Exception =>
+        onClientCreateFailure(ex)
+        None
+    }
+  }
 
   @VisibleForTesting
   private[celeborn] def createClientsInParallel(
@@ -641,22 +660,12 @@ object CelebornShuffleReader {
     val futures = locationsByHostPort.map { case (hostPort, locations) =>
       streamCreatorPool.submit(new Runnable {
         override def run(): Unit = {
-          val locationsIterator = locations.iterator.take(MAX_CLIENT_CREATION_ATTEMPTS_PER_HOST)
-          var clientCreated = false
-          while (!clientCreated && locationsIterator.hasNext) {
-            if (Thread.currentThread().isInterrupted) {
-              throw new InterruptedException("Client creation interrupted")
-            }
-            val location = locationsIterator.next()
-            try {
-              clientsByHostPort.put(hostPort, createClient(location))
-              clientCreated = true
-            } catch {
-              case ex: InterruptedException =>
-                Thread.currentThread().interrupt()
-                throw ex
-              case ex: Exception =>
-                onClientCreateFailure(hostPort, location, ex)
+          locations.headOption.foreach { location =>
+            tryCreateClient(
+              location,
+              createClient,
+              ex => onClientCreateFailure(hostPort, location, ex)).foreach { client =>
+              clientsByHostPort.put(hostPort, client)
             }
           }
         }
