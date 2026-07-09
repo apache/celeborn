@@ -284,3 +284,34 @@ TEST(MessageDispatcherTest, sendFetchChunkRequestAndReceiveFailure) {
 
   EXPECT_TRUE(future.hasException());
 }
+
+TEST(MessageDispatcherTest, heartbeatIsSilentlyConsumed) {
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(sentMsg);
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
+  const long requestId = 1001;
+  const std::string requestBody = "test-request-body";
+  auto rpcRequest = std::make_unique<RpcRequest>(
+      requestId, toReadOnlyByteBuffer(requestBody));
+  auto future = dispatcher->sendRpcRequest(std::move(rpcRequest));
+
+  EXPECT_FALSE(future.isReady());
+
+  // A heartbeat arriving mid-request must be a no-op: it should not fulfill
+  // the pending future, not throw, and not close the dispatcher.
+  auto heartbeat = std::make_unique<Heartbeat>();
+  dispatcher->read(nullptr, std::move(heartbeat));
+
+  EXPECT_FALSE(future.isReady());
+  EXPECT_TRUE(dispatcher->isAvailable());
+
+  const std::string responseBody = "test-response-body";
+  auto rpcResponse = std::make_unique<RpcResponse>(
+      requestId, toReadOnlyByteBuffer(responseBody));
+  dispatcher->read(nullptr, std::move(rpcResponse));
+
+  EXPECT_TRUE(future.isReady());
+}

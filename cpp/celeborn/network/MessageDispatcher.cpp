@@ -120,6 +120,9 @@ void MessageDispatcher::read(Context*, std::unique_ptr<Message> toRecvMsg) {
       }
       return;
     }
+    case Message::HEARTBEAT: {
+      return;
+    }
     default: {
       LOG(ERROR) << "unsupported msg for dispatcher";
     }
