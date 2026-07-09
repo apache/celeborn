@@ -328,8 +328,16 @@ class Heartbeat : public Message {
   Heartbeat()
       : Message(HEARTBEAT, memory::ReadOnlyByteBuffer::createEmptyBuffer()) {}
 
+  Heartbeat(const Heartbeat& other)
+      : Message(HEARTBEAT, other.body_->clone()) {}
+
   static std::unique_ptr<Heartbeat> decodeFrom(
       std::unique_ptr<memory::ReadOnlyByteBuffer>&& data);
+
+ private:
+  int internalEncodedLength() const override;
+
+  void internalEncodeTo(memory::WriteOnlyByteBuffer& buffer) const override;
 };
 } // namespace network
 } // namespace celeborn

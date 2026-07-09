@@ -223,8 +223,17 @@ void PushMergedData::internalEncodeTo(
 
 std::unique_ptr<Heartbeat> Heartbeat::decodeFrom(
     std::unique_ptr<memory::ReadOnlyByteBuffer>&& data) {
+  CELEBORN_CHECK_EQ(data->remainingSize(), 1);
   data->skip(1);
   return std::make_unique<Heartbeat>();
+}
+
+int Heartbeat::internalEncodedLength() const {
+  return 1;
+}
+
+void Heartbeat::internalEncodeTo(memory::WriteOnlyByteBuffer& buffer) const {
+  buffer.write<uint8_t>(0);
 }
 } // namespace network
 } // namespace celeborn

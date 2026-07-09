@@ -270,4 +270,15 @@ TEST(MessageTest, decodeHeartbeat) {
       memory::ByteBuffer::toReadOnly(std::move(writeBuffer)));
   EXPECT_NE(message, nullptr);
   EXPECT_EQ(message->type(), Message::Type::HEARTBEAT);
+  auto heartbeatBody = message->body();
+  EXPECT_EQ(heartbeatBody->remainingSize(), 0);
+}
+
+TEST(MessageTest, encodeHeartbeat) {
+  Heartbeat heartbeat;
+  auto encodedBuffer = heartbeat.encode();
+  EXPECT_EQ(encodedBuffer->read<int32_t>(), 1);
+  EXPECT_EQ(encodedBuffer->read<uint8_t>(), Message::Type::HEARTBEAT);
+  EXPECT_EQ(encodedBuffer->read<int32_t>(), 0);
+  EXPECT_EQ(encodedBuffer->read<uint8_t>(), 0);
 }
