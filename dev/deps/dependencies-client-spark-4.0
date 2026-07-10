@@ -72,7 +72,7 @@ netty-transport-native-kqueue/4.2.10.Final/osx-aarch_64/netty-transport-native-k
 netty-transport-native-kqueue/4.2.10.Final/osx-x86_64/netty-transport-native-kqueue-4.2.10.Final-osx-x86_64.jar
 netty-transport-native-unix-common/4.2.10.Final//netty-transport-native-unix-common-4.2.10.Final.jar
 netty-transport/4.2.10.Final//netty-transport-4.2.10.Final.jar
-paranamer/2.8//paranamer-2.8.jar
+paranamer/2.8.3//paranamer-2.8.3.jar
 protobuf-java/3.25.5//protobuf-java-3.25.5.jar
 scala-library/2.13.16//scala-library-2.13.16.jar
 scala-reflect/2.13.16//scala-reflect-2.13.16.jar
