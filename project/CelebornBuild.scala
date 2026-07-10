@@ -994,7 +994,6 @@ object Spark40 extends SparkClientProjects {
   val scalaBinaryVersion = "2.13"
 
   override val sparkColumnarShuffleVersion: String = "4"
-  override val paranamerVersionOverride: Option[String] = Some("2.8.3")
 }
 
 object Spark41 extends SparkClientProjects {
