@@ -49,19 +49,30 @@ install_app() {
   if [ -z "$3" -o ! -f "$binary" ]; then
     local attempt=1
     while [ "${attempt}" -le "${max_attempts}" ]; do
-      # remove any partial/corrupt download left over from a previous attempt
-      rm -f "${local_tarball}"
+      # Reuse an already-valid tarball (e.g. one pre-staged for an offline build, or downloaded on
+      # a previous attempt); only (re)download when it is missing or not a valid gzip tarball.
+      if [ ! -f "${local_tarball}" ] || ! tar -tzf "${local_tarball}" >/dev/null 2>&1; then
+        if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
+          echo "ERROR: Cannot download $2: neither cURL nor wget is installed." 1>&2
+          exit 2
+        fi
 
-      # download application with `curl`, falling back to `wget`
-      if command -v curl >/dev/null 2>&1; then
-        echo "exec: curl ${curl_opts} ${remote_tarball}" 1>&2
-        curl ${curl_opts} "${remote_tarball}" > "${local_tarball}"
-      elif command -v wget >/dev/null 2>&1; then
-        echo "exec: wget ${wget_opts} ${remote_tarball}" 1>&2
-        wget ${wget_opts} -O "${local_tarball}" "${remote_tarball}"
-      else
-        echo "ERROR: Cannot download $2: neither cURL nor wget is installed." 1>&2
-        exit 2
+        # Try curl first; remove its output if it fails so wget below gets a turn.
+        rm -f "${local_tarball}"
+        if command -v curl >/dev/null 2>&1; then
+          echo "exec: curl ${curl_opts} ${remote_tarball}" 1>&2
+          curl ${curl_opts} "${remote_tarball}" > "${local_tarball}" || rm -f "${local_tarball}"
+        fi
+
+        # Fall back to wget when curl is absent or produced no valid tarball (e.g. a curl-specific
+        # proxy/TLS/CA failure that wget would survive).
+        if [ ! -f "${local_tarball}" ] || ! tar -tzf "${local_tarball}" >/dev/null 2>&1; then
+          if command -v wget >/dev/null 2>&1; then
+            echo "exec: wget ${wget_opts} ${remote_tarball}" 1>&2
+            rm -f "${local_tarball}"
+            wget ${wget_opts} -O "${local_tarball}" "${remote_tarball}" || rm -f "${local_tarball}"
+          fi
+        fi
       fi
 
       # Validate the download before trusting it. A flaky Apache mirror can
@@ -76,13 +87,14 @@ install_app() {
         fi
       fi
 
+      # Drop the invalid download and retry, backing off only between attempts.
+      rm -f "${local_tarball}"
       echo "WARN: Download of $2 from $1 was not a valid tarball" \
         "(attempt ${attempt}/${max_attempts}); retrying..." 1>&2
       attempt=$((attempt + 1))
-      sleep 3
+      [ "${attempt}" -le "${max_attempts}" ] && sleep 3
     done
 
-    rm -f "${local_tarball}"
     echo "WARN: Failed to download a valid $2 from $1 after ${max_attempts} attempts." 1>&2
     return 1
   fi

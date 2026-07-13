@@ -255,7 +255,7 @@ object Utils extends Logging {
    * @return a randomly selected integer within the range [from, until)
    */
   def selectRandomInt(from: Int, until: Int): Int = {
-    ScalaRandom.nextInt(until - 1 - from) + from
+    ScalaRandom.nextInt(until - from) + from
   }
 
   val MAX_SELECTABLE_PORT = 32768

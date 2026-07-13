@@ -18,14 +18,15 @@
 package org.apache.celeborn.service.deploy.master
 
 import java.io.IOException
-import java.net.{BindException, InetSocketAddress, Socket}
+import java.net.BindException
 import java.util.concurrent.TimeUnit
 
+import org.apache.celeborn.RandomPortSupport
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
 
-trait MasterClusterFeature extends Logging {
+trait MasterClusterFeature extends Logging with RandomPortSupport {
   var masterInfo: (Master, Thread) = _
 
   val maxRetries = 3
@@ -34,29 +35,6 @@ trait MasterClusterFeature extends Logging {
   class RunnerWrap[T](code: => T) extends Thread {
     override def run(): Unit = {
       Utils.tryLogNonFatalError(code)
-    }
-  }
-
-  val usedPorts = new java.util.HashSet[Integer]()
-  def portBounded(port: Int): Boolean = {
-    val socket = new Socket()
-    try {
-      socket.connect(new InetSocketAddress("localhost", port), 100)
-      true
-    } catch {
-      case _: IOException => false
-    } finally {
-      socket.close()
-    }
-  }
-  def selectRandomPort(): Int = synchronized {
-    val port = Utils.selectRandomPort()
-    val portUsed = usedPorts.contains(port) || portBounded(port)
-    usedPorts.add(port)
-    if (portUsed) {
-      selectRandomPort()
-    } else {
-      port
     }
   }
 
