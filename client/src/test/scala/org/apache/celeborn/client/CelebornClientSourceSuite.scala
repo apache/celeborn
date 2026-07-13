@@ -70,6 +70,45 @@ class CelebornClientSourceSuite extends CelebornFunSuite {
     assert(snapshot(CelebornClientSource.EXCLUDED_WORKER_COUNT).metricType == MetricType.Gauge)
   }
 
+  test("counter snapshots emit only deltas and omit unchanged counters after commit") {
+    val source = new CelebornClientSource(new CelebornConf())
+
+    source.incCounter(CelebornClientSource.REGISTER_SHUFFLE_COUNT, 2)
+    val first = source.getMetricsSnapshot()
+    assert(first(CelebornClientSource.REGISTER_SHUFFLE_COUNT).value == 2)
+    // Acknowledge the first snapshot (as a successful heartbeat would).
+    source.commitSnapshot()
+
+    // Increment again: only the new delta must be reported, not the cumulative count.
+    source.incCounter(CelebornClientSource.REGISTER_SHUFFLE_COUNT, 3)
+    source.incCounter(CelebornClientSource.REVIVE_REQUEST_COUNT, 4)
+    val second = source.getMetricsSnapshot()
+    assert(second(CelebornClientSource.REGISTER_SHUFFLE_COUNT).value == 3)
+    assert(second(CelebornClientSource.REVIVE_REQUEST_COUNT).value == 4)
+    source.commitSnapshot()
+
+    // With no further increments, unchanged counters are omitted from the snapshot entirely.
+    val third = source.getMetricsSnapshot()
+    assert(!third.contains(CelebornClientSource.REGISTER_SHUFFLE_COUNT))
+    assert(!third.contains(CelebornClientSource.REVIVE_REQUEST_COUNT))
+  }
+
+  test("un-acked counter deltas are carried forward until commit") {
+    val source = new CelebornClientSource(new CelebornConf())
+
+    source.incCounter(CelebornClientSource.REGISTER_SHUFFLE_COUNT, 5)
+    // Snapshot without commit, simulating a heartbeat that failed to send.
+    assert(source.getMetricsSnapshot()(CelebornClientSource.REGISTER_SHUFFLE_COUNT).value == 5)
+
+    // The un-acked delta must not be lost: the next snapshot still reports it (plus new deltas).
+    source.incCounter(CelebornClientSource.REGISTER_SHUFFLE_COUNT, 2)
+    assert(source.getMetricsSnapshot()(CelebornClientSource.REGISTER_SHUFFLE_COUNT).value == 7)
+
+    // Once the heartbeat is acknowledged, the delta is dropped from subsequent snapshots.
+    source.commitSnapshot()
+    assert(!source.getMetricsSnapshot().contains(CelebornClientSource.REGISTER_SHUFFLE_COUNT))
+  }
+
   test("getMetricsSnapshot includes both counters and gauges with correct types") {
     val source = new CelebornClientSource(new CelebornConf())
     source.addGauge(CelebornClientSource.ACTIVE_SHUFFLE_COUNT) { () => 7 }

@@ -45,12 +45,21 @@ class ApplicationHeartbeater(
     registeredShuffles: ConcurrentHashMap.KeySetView[Int, java.lang.Boolean],
     cancelAllActiveStages: String => Unit,
     clientMetrics: () => util.Map[String, ClientMetric] =
-      () => java.util.Collections.emptyMap[String, ClientMetric]()) extends Logging {
+      () => java.util.Collections.emptyMap[String, ClientMetric](),
+    commitClientMetrics: () => Unit = () => ()) extends Logging {
 
   private var stopped = false
   private val reviseLostShuffles = conf.reviseLostShufflesEnabled
   private val appMetricLabels: util.Map[String, String] =
     conf.clientMetricsAppLabels.asJava
+
+  if (conf.clientMetricsEnabled && appMetricLabels.isEmpty) {
+    logWarning(
+      s"Client metrics are enabled ('${CelebornConf.CLIENT_METRICS_ENABLED.key}'=true) but " +
+        s"'${CelebornConf.CLIENT_METRICS_APP_LABELS.key}' is empty. Client metrics are only " +
+        "emitted in application heartbeats when at least one app label is set, so no client " +
+        "metrics will reach the master. Set app labels (e.g. env=prod) to enable emission.")
+  }
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
@@ -97,6 +106,7 @@ class ApplicationHeartbeater(
             val response = requestHeartbeat(appHeartbeat)
             if (response.statusCode == StatusCode.SUCCESS) {
               logDebug("Successfully send app heartbeat.")
+              commitClientMetrics()
               workerStatusTracker.handleHeartbeatResponse(response)
               checkQuotaExceeds(response.checkQuotaResponse)
               // revise shuffle id if there are lost shuffles

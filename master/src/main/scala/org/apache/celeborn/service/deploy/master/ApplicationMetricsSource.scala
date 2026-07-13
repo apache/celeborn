@@ -39,6 +39,9 @@ class ApplicationMetricsSource(conf: CelebornConf)
   private val removedAppIds =
     JavaUtils.newConcurrentHashMap[String, java.lang.Long]()
 
+  private val seriesCardinalityWarnThreshold =
+    conf.masterClientMetricsSeriesCardinalityWarnThreshold
+
   if (masterClientMetricsEnabled) {
     startRemovedAppCleaner()
   }
@@ -65,7 +68,11 @@ class ApplicationMetricsSource(conf: CelebornConf)
       appId: String,
       metricLabels: Map[String, String],
       metrics: JMap[String, ClientMetric]): Unit = {
-    if (!masterClientMetricsEnabled || metricLabels.isEmpty || removedAppIds.containsKey(appId)) {
+    if (!masterClientMetricsEnabled || metricLabels.isEmpty) {
+      return
+    }
+
+    if (removedAppIds.containsKey(appId)) {
       return
     }
 
@@ -77,6 +84,12 @@ class ApplicationMetricsSource(conf: CelebornConf)
           addOrUpdateCounterForApp(name, metricLabels, appId, metric.value)
       }
     }
+
+    if (removedAppIds.containsKey(appId)) {
+      removeAppFromMetrics(appId)
+    }
+
+    warnIfSeriesCardinalityHigh()
   }
 
   def removeApplicationMetrics(appId: String): Unit = {
@@ -84,5 +97,17 @@ class ApplicationMetricsSource(conf: CelebornConf)
       removedAppIds.put(appId, System.currentTimeMillis())
     }
     removeAppFromMetrics(appId)
+  }
+
+  private def warnIfSeriesCardinalityHigh(): Unit = {
+    val trackedSeries = gauges().size + counters().size
+    if (trackedSeries > seriesCardinalityWarnThreshold) {
+      logWarning(
+        s"Client metrics are tracking $trackedSeries distinct series, exceeding " +
+          s"$seriesCardinalityWarnThreshold. Client metric series are keyed by " +
+          s"'${CelebornConf.CLIENT_METRICS_APP_LABELS.key}' and are only reclaimed when an " +
+          "application is lost, so high-cardinality labels can grow memory without bound. " +
+          "Ensure these labels are low-cardinality (e.g. env/team), not per-application values.")
+    }
   }
 }
