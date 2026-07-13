@@ -19,6 +19,8 @@ package org.apache.celeborn.client
 
 import java.util.concurrent.ConcurrentHashMap
 
+import scala.collection.JavaConverters._
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.{ClientMetric, MetricType}
 import org.apache.celeborn.common.metrics.source.{AbstractSource, Role}
@@ -31,8 +33,13 @@ class CelebornClientSource(conf: CelebornConf) extends AbstractSource(conf, Role
 
   import CelebornClientSource._
 
-  // Tracks previous counter values so we can send deltas to the master.
+  // Tracks the counter baselines that have been acknowledged by the master, so we can send
+  // deltas rather than cumulative counts.
   private val counterPrev = new ConcurrentHashMap[String, java.lang.Long]()
+
+  // Counter values captured by the most recent getMetricsSnapshot() that have not yet been
+  // acknowledged.
+  private val pendingCounterValues = new ConcurrentHashMap[String, java.lang.Long]()
 
   addCounter(REGISTER_SHUFFLE_COUNT)
   addCounter(REGISTER_SHUFFLE_FAIL_COUNT)
@@ -44,11 +51,11 @@ class CelebornClientSource(conf: CelebornConf) extends AbstractSource(conf, Role
   addCounter(SHUFFLE_DATA_LOST_COUNT)
 
   def getMetricsSnapshot(): Map[String, ClientMetric] = {
-    // Counters: compute delta since last snapshot
     val counterMetrics = counters().flatMap { c =>
       val current = c.counter.getCount
-      val prev = Option(counterPrev.put(c.name, current)).map(_.longValue()).getOrElse(0L)
+      val prev = Option(counterPrev.get(c.name)).map(_.longValue()).getOrElse(0L)
       val delta = current - prev
+      pendingCounterValues.put(c.name, current)
       if (delta > 0) Some(c.name -> ClientMetric(delta, MetricType.Counter))
       else None
     }
@@ -56,6 +63,13 @@ class CelebornClientSource(conf: CelebornConf) extends AbstractSource(conf, Role
     val gaugeMetrics = gauges().map(g =>
       g.name -> ClientMetric(g.gauge.getValue.asInstanceOf[Number].longValue(), MetricType.Gauge))
     (counterMetrics ++ gaugeMetrics).toMap
+  }
+
+  def commitSnapshot(): Unit = {
+    pendingCounterValues.entrySet().asScala.foreach { entry =>
+      counterPrev.put(entry.getKey, entry.getValue)
+    }
+    pendingCounterValues.clear()
   }
 
   def start(): Unit = startCleaner()

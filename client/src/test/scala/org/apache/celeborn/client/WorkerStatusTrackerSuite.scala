@@ -162,26 +162,31 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
 
   test("recordWorkerFailure updates client worker-excluded gauge") {
     val celebornConf = new CelebornConf()
-    celebornConf.set(CelebornConf.METRICS_ENABLED.key, "true")
-    celebornConf.set(CelebornConf.CLIENT_METRICS_ENABLED.key, "true")
-    val lifecycleManager = new LifecycleManager("app-metrics-test", celebornConf)
+    // Wire a bare WorkerStatusTracker + CelebornClientSource exactly like LifecycleManager does
+    // for the excluded-workers gauge, without standing up an RpcEnv or background threads.
+    val statusTracker = new WorkerStatusTracker(celebornConf, null)
+    val source = new CelebornClientSource(celebornConf)
+    source.addGauge(CelebornClientSource.EXCLUDED_WORKER_COUNT) { () =>
+      statusTracker.excludedWorkers.size
+    }
     try {
-      val statusTracker = lifecycleManager.workerStatusTracker
-      val source = lifecycleManager.clientSource.get
-
       val failed = new ShuffleFailedWorkers()
       val now = System.currentTimeMillis()
       failed.put(mock("host1"), (StatusCode.WORKER_UNRESPONSIVE, now))
       failed.put(mock("host2"), (StatusCode.WORKER_UNRESPONSIVE, now))
       statusTracker.recordWorkerFailure(failed)
 
-      val snapshot = source.getMetricsSnapshot()
-      Assert.assertEquals(2L, snapshot(CelebornClientSource.EXCLUDED_WORKER_COUNT).value)
+      Assert.assertEquals(
+        2L,
+        source.getMetricsSnapshot()(CelebornClientSource.EXCLUDED_WORKER_COUNT).value)
 
       // re-recording already-excluded workers does not change the gauge
       statusTracker.recordWorkerFailure(failed)
+      Assert.assertEquals(
+        2L,
+        source.getMetricsSnapshot()(CelebornClientSource.EXCLUDED_WORKER_COUNT).value)
     } finally {
-      lifecycleManager.stop()
+      source.stop()
     }
   }
 

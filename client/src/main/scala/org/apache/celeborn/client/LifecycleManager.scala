@@ -258,7 +258,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       reason => cancelAllActiveStages(reason),
       () =>
         clientSource.map(_.getMetricsSnapshot().asJava)
-          .getOrElse(java.util.Collections.emptyMap[String, ClientMetric]()))
+          .getOrElse(java.util.Collections.emptyMap[String, ClientMetric]()),
+      () => clientSource.foreach(_.commitSnapshot()))
   private def resetFallbackCounts(counts: ConcurrentHashMap[String, java.lang.Long])
       : Map[String, java.lang.Long] = {
     val fallbackCounts = new util.HashMap[String, java.lang.Long]()

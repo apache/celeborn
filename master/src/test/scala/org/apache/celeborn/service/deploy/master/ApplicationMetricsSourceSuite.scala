@@ -20,11 +20,29 @@ package org.apache.celeborn.service.deploy.master
 import java.util.{HashMap => JHashMap}
 import java.util.concurrent.{Delayed, ScheduledThreadPoolExecutor, TimeUnit}
 
+import scala.collection.mutable.ArrayBuffer
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.{ClientMetric, MetricType}
 
 class ApplicationMetricsSourceSuite extends CelebornFunSuite {
+
+  // Track every source created by a test so its metricsCleaner daemon thread can be shut down
+  // in afterEach, instead of leaking a scheduled thread per source across the suite.
+  private val createdSources = ArrayBuffer[ApplicationMetricsSource]()
+
+  private def newSource(conf: CelebornConf): ApplicationMetricsSource = {
+    val source = new ApplicationMetricsSource(conf)
+    createdSources += source
+    source
+  }
+
+  override def afterEach(): Unit = {
+    createdSources.foreach(_.destroy())
+    createdSources.clear()
+    super.afterEach()
+  }
 
   private def enabledConf(): CelebornConf = {
     val c = new CelebornConf()
@@ -76,7 +94,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
     expected.forall { case (key, value) => actual.get(key).contains(value) }
 
   test("masterClientMetrics disabled: updateApplicationMetrics is a no-op") {
-    val source = new ApplicationMetricsSource(new CelebornConf())
+    val source = newSource(new CelebornConf())
 
     update(source, gaugeMetrics(5), Map("team" -> "data-eng"))
 
@@ -85,7 +103,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   }
 
   test("masterClientMetrics disabled: removed app cleaner is not scheduled") {
-    val source = new ApplicationMetricsSource(new CelebornConf())
+    val source = newSource(new CelebornConf())
 
     assert(scheduledTaskCount(source) == 0)
   }
@@ -94,7 +112,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
     val conf = enabledConf()
     val retentionMs = 2000L
     conf.set(CelebornConf.MASTER_CLIENT_METRICS_REMOVED_APP_RETENTION, retentionMs)
-    val source = new ApplicationMetricsSource(conf)
+    val source = newSource(conf)
 
     val scheduledTasks = source.metricsCleaner
       .asInstanceOf[ScheduledThreadPoolExecutor]
@@ -106,7 +124,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   }
 
   test("no custom labels: metrics are not reported") {
-    val source = new ApplicationMetricsSource(enabledConf())
+    val source = newSource(enabledConf())
 
     update(source, gaugeMetrics(3))
 
@@ -115,7 +133,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   }
 
   test("client labels are used as metric labels") {
-    val source = new ApplicationMetricsSource(enabledConf())
+    val source = newSource(enabledConf())
 
     update(source, gaugeMetrics(5), Map("team" -> "data-eng"))
 
@@ -124,7 +142,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   }
 
   test("gauge is updated to the latest reported value") {
-    val source = new ApplicationMetricsSource(enabledConf())
+    val source = newSource(enabledConf())
     val labels = Map("team" -> "data-eng")
 
     update(source, gaugeMetrics(1), labels)
@@ -134,7 +152,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   }
 
   test("gauge for a label set is updated by whichever app heartbeats last") {
-    val source = new ApplicationMetricsSource(enabledConf())
+    val source = newSource(enabledConf())
     val labels = Map("team" -> "data-eng")
 
     update(source, gaugeMetrics(3), labels, "app-1")
@@ -144,7 +162,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   }
 
   test("counter accumulates deltas from heartbeats") {
-    val source = new ApplicationMetricsSource(enabledConf())
+    val source = newSource(enabledConf())
     val labels = Map("team" -> "data-eng")
 
     update(source, counterMetrics(10), labels)
@@ -154,7 +172,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   }
 
   test("zero or negative counter delta is ignored") {
-    val source = new ApplicationMetricsSource(enabledConf())
+    val source = newSource(enabledConf())
     val labels = Map("team" -> "data-eng")
 
     update(source, counterMetrics(10), labels)
@@ -165,7 +183,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   }
 
   test("counters from apps sharing a label set accumulate") {
-    val source = new ApplicationMetricsSource(enabledConf())
+    val source = newSource(enabledConf())
     val labels = Map("team" -> "data-eng")
 
     update(source, counterMetrics(10), labels, "app-1")
@@ -175,7 +193,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   }
 
   test("counter deltas accumulate across sequential heartbeats") {
-    val source = new ApplicationMetricsSource(enabledConf())
+    val source = newSource(enabledConf())
     val labels = Map("team" -> "data-eng")
 
     update(source, counterMetrics(10), labels)
@@ -186,7 +204,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   }
 
   test("counter labels appear in prometheus output") {
-    val source = new ApplicationMetricsSource(enabledConf())
+    val source = newSource(enabledConf())
 
     update(source, counterMetrics(10), Map("team" -> "infra"))
 
@@ -195,7 +213,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   }
 
   test("mixed gauge and counter in a single heartbeat") {
-    val source = new ApplicationMetricsSource(enabledConf())
+    val source = newSource(enabledConf())
     val labels = Map("team" -> "data-eng")
     val map = new JHashMap[String, ClientMetric]()
     map.put("ActiveShuffleCount", ClientMetric(3, MetricType.Gauge))
@@ -208,7 +226,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   }
 
   test("removing one app keeps metrics registered while another app still contributes") {
-    val source = new ApplicationMetricsSource(enabledConf())
+    val source = newSource(enabledConf())
     val labels = Map("team" -> "data-eng")
 
     update(source, gaugeMetrics(3), labels, "app-1")
@@ -223,7 +241,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   }
 
   test("removing the last contributing app deregisters tracked metrics") {
-    val source = new ApplicationMetricsSource(enabledConf())
+    val source = newSource(enabledConf())
     val labels = Map("team" -> "data-eng")
 
     update(source, gaugeMetrics(3), labels, "app-1")
@@ -243,7 +261,7 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   }
 
   test("late heartbeats for removed apps are ignored") {
-    val source = new ApplicationMetricsSource(enabledConf())
+    val source = newSource(enabledConf())
     val labels = Map("team" -> "data-eng")
 
     update(source, gaugeMetrics(3), labels, "app-1")

@@ -49,11 +49,14 @@ case class NamedHistogram(name: String, histogram: Histogram, labels: Map[String
 
 case class NamedTimer(name: String, timer: Timer, labels: Map[String, String]) extends MetricLabels
 
-case class AppMetricDetails[T](
-    name: String,
-    handle: T,
-    originalLabels: Map[String, String],
-    additionalDetails: java.util.Set[String])
+case class TrackedGauge(
+    namedGauge: NamedGauge[Long],
+    handle: AtomicLong,
+    contributingAppIds: java.util.Set[String])
+
+case class TrackedCounter(
+    namedCounter: NamedCounter,
+    contributingAppIds: java.util.Set[String])
 
 abstract class AbstractSource(conf: CelebornConf, role: String)
   extends Source with Logging {
@@ -108,11 +111,11 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   protected val namedHistogram: ConcurrentHashMap[String, NamedHistogram] =
     JavaUtils.newConcurrentHashMap[String, NamedHistogram]()
 
-  protected val namedGaugesWithDetails: ConcurrentHashMap[String, AppMetricDetails[AtomicLong]] =
-    JavaUtils.newConcurrentHashMap[String, AppMetricDetails[AtomicLong]]()
+  protected val namedGaugesWithDetails: ConcurrentHashMap[String, TrackedGauge] =
+    JavaUtils.newConcurrentHashMap[String, TrackedGauge]()
 
-  protected val namedCountersWithDetails: ConcurrentHashMap[String, AppMetricDetails[Counter]] =
-    JavaUtils.newConcurrentHashMap[String, AppMetricDetails[Counter]]()
+  protected val namedCountersWithDetails: ConcurrentHashMap[String, TrackedCounter] =
+    JavaUtils.newConcurrentHashMap[String, TrackedCounter]()
 
   def addTimerMetrics(namedTimer: NamedTimer): Unit = {
     val timerMetricsString = getTimerMetrics(namedTimer)
@@ -201,16 +204,20 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       })
   }
 
-  def addCounter(name: String): Unit = addCounter(name, Map.empty[String, String])
+  def addCounter(name: String): NamedCounter = addCounter(name, Map.empty[String, String])
 
-  def addCounter(name: String, labels: Map[String, String]): Unit = {
+  def addCounter(name: String, labels: Map[String, String]): NamedCounter = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
-    namedCounters.putIfAbsent(
+    // Atomically get-or-create so the returned NamedCounter is guaranteed to be the instance
+    // currently resident in namedCounters. Callers must never re-.get(metricNameWithLabel)
+    // afterwards, since a concurrent removeCounter could have removed it in the meantime.
+    namedCounters.computeIfAbsent(
       metricNameWithLabel,
-      NamedCounter(
-        name,
-        metricRegistry.counter(metricNameWithLabel),
-        labelsWithCustomizedLabels(labels)))
+      (_: String) =>
+        NamedCounter(
+          name,
+          metricRegistry.counter(metricNameWithLabel),
+          labelsWithCustomizedLabels(labels)))
   }
 
   def addHistogram(name: String): Unit = {
@@ -232,15 +239,20 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       labels: Map[String, String],
       appId: String,
       value: Long): Unit = {
-    val details = namedGaugesWithDetails.computeIfAbsent(
-      metricNameWithCustomizedLabels(name, labels),
-      (_: String) => {
-        val holder = new AtomicLong()
-        addGauge(name, labels)(() => holder.get())
-        AppMetricDetails(name, holder, labels, ConcurrentHashMap.newKeySet[String]())
+    val key = metricNameWithCustomizedLabels(name, labels)
+    namedGaugesWithDetails.compute(
+      key,
+      (_, existing) => {
+        val tracked = Option(existing).getOrElse {
+          val holder = new AtomicLong()
+          addGauge(name, labels)(() => holder.get())
+          val namedGauge = namedGauges.get(key).asInstanceOf[NamedGauge[Long]]
+          TrackedGauge(namedGauge, holder, ConcurrentHashMap.newKeySet[String]())
+        }
+        tracked.contributingAppIds.add(appId)
+        tracked.handle.set(value)
+        tracked
       })
-    details.additionalDetails.add(appId)
-    details.handle.set(value)
   }
 
   protected def addOrUpdateCounterForApp(
@@ -251,19 +263,16 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     if (delta <= 0) {
       return
     }
-    val metricKey = metricNameWithCustomizedLabels(name, labels)
-    val details = namedCountersWithDetails.computeIfAbsent(
-      metricKey,
-      (_: String) => {
-        addCounter(name, labels)
-        AppMetricDetails(
-          name,
-          namedCounters.get(metricKey).counter,
-          labels,
-          ConcurrentHashMap.newKeySet[String]())
+    val key = metricNameWithCustomizedLabels(name, labels)
+    namedCountersWithDetails.compute(
+      key,
+      (_, existing) => {
+        val tracked = Option(existing).getOrElse(
+          TrackedCounter(addCounter(name, labels), ConcurrentHashMap.newKeySet[String]()))
+        tracked.contributingAppIds.add(appId)
+        tracked.namedCounter.counter.inc(delta)
+        tracked
       })
-    details.additionalDetails.add(appId)
-    details.handle.inc(delta)
   }
 
   def counters(): List[NamedCounter] = {
@@ -336,22 +345,41 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   protected def removeAppFromMetrics(appId: String): Unit = {
-    removeAppFromTracked(namedGaugesWithDetails, appId)(d => removeGauge(d.name, d.originalLabels))
-    removeAppFromTracked(namedCountersWithDetails, appId)(d =>
-      removeCounter(d.name, d.originalLabels))
+    removeAppFromTrackedGauges(appId)
+    removeAppFromTrackedCounters(appId)
   }
 
-  private def removeAppFromTracked[T](
-      tracked: ConcurrentHashMap[String, AppMetricDetails[T]],
-      appId: String)(deregister: AppMetricDetails[T] => Unit): Unit = {
-    val iter = tracked.entrySet().iterator()
-    while (iter.hasNext) {
-      val details = iter.next().getValue
-      details.additionalDetails.remove(appId)
-      if (details.additionalDetails.isEmpty) {
-        iter.remove()
-        deregister(details)
-      }
+  private def removeAppFromTrackedGauges(appId: String): Unit = {
+    namedGaugesWithDetails.keySet().asScala.toList.foreach { key =>
+      namedGaugesWithDetails.computeIfPresent(
+        key,
+        (_, tracked) => {
+          tracked.contributingAppIds.remove(appId)
+          if (tracked.contributingAppIds.isEmpty) {
+            namedGauges.remove(key)
+            metricRegistry.remove(key)
+            null
+          } else {
+            tracked
+          }
+        })
+    }
+  }
+
+  private def removeAppFromTrackedCounters(appId: String): Unit = {
+    namedCountersWithDetails.keySet().asScala.toList.foreach { key =>
+      namedCountersWithDetails.computeIfPresent(
+        key,
+        (_, tracked) => {
+          tracked.contributingAppIds.remove(appId)
+          if (tracked.contributingAppIds.isEmpty) {
+            namedCounters.remove(key)
+            metricRegistry.remove(key)
+            null
+          } else {
+            tracked
+          }
+        })
     }
   }
 
