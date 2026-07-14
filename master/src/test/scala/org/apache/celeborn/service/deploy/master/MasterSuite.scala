@@ -21,16 +21,18 @@ import java.nio.file.Files
 import java.util
 
 import org.mockito.ArgumentCaptor
-import org.mockito.Mockito.{mock, verify}
+import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.protocol.{PbCheckForWorkerTimeout, PbRegisterWorker}
+import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
+import org.apache.celeborn.common.protocol.{PbApplicationMetaRequest, PbCheckForWorkerTimeout, PbRegisterWorker}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{RequestSlots, RequestSlotsResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
-import org.apache.celeborn.common.rpc.RpcCallContext
+import org.apache.celeborn.common.rpc.{RpcAddress, RpcCallContext}
+import org.apache.celeborn.common.rpc.netty.{NettyRpcEnv, RemoteNettyRpcCallContext}
 import org.apache.celeborn.common.util.{CelebornExitKind, ThreadUtils}
 
 class MasterSuite extends AnyFunSuite
@@ -196,5 +198,47 @@ class MasterSuite extends AnyFunSuite
     assert(response.status === StatusCode.WORKER_EXCLUDED)
 
     master.rpcEnv.shutdown()
+  }
+
+  test("PbApplicationMetaRequest rejects a caller requesting another application's secret") {
+    val conf = new CelebornConf()
+    val randomMasterPort = selectRandomPort()
+    val randomHttpPort = selectRandomPort()
+    conf.set(CelebornConf.HA_ENABLED.key, "false")
+    conf.set(CelebornConf.MASTER_HTTP_HOST.key, "127.0.0.1")
+    conf.set(CelebornConf.MASTER_HTTP_PORT.key, randomHttpPort.toString)
+
+    val args = Array("-h", "localhost", "-p", randomMasterPort.toString)
+    val masterArgs = new MasterArguments(args, conf)
+    val master = new Master(conf, masterArgs)
+
+    // Builds a remote call context whose connection is authenticated as `clientId`;
+    // null models a worker on the internal channel, which sets no client id.
+    def contextForClient(clientId: String): RemoteNettyRpcCallContext = {
+      val client = mock(classOf[TransportClient])
+      when(client.getClientId).thenReturn(clientId)
+      new RemoteNettyRpcCallContext(
+        mock(classOf[NettyRpcEnv]),
+        mock(classOf[RpcResponseCallback]),
+        RpcAddress("localhost", 1234),
+        client)
+    }
+
+    val request = PbApplicationMetaRequest.newBuilder().setAppId("victim-app").build()
+    val unhandled = (_: Any) => fail("PbApplicationMetaRequest was not handled")
+
+    try {
+      // An application authenticated as "attacker-app" on the external port must not
+      // be able to read "victim-app"'s secret.
+      val e = intercept[IllegalStateException] {
+        master.receiveAndReply(contextForClient("attacker-app")).applyOrElse(request, unhandled)
+      }
+      assert(e.getMessage.contains("not authorized for application victim-app"))
+
+      // A worker carries no client id, so the guard is a no-op and the request is served.
+      master.receiveAndReply(contextForClient(null)).applyOrElse(request, unhandled)
+    } finally {
+      master.rpcEnv.shutdown()
+    }
   }
 }
