@@ -47,6 +47,7 @@ Each instance can report to zero or more _sinks_. Sinks are contained in the
 * `PrometheusServlet`: Adds a servlet within the existing Celeborn REST API to serve metrics data in Prometheus format.
 * `JsonServlet`: Adds a servlet within the existing Celeborn REST API to serve metrics data in JSON format.
 * `GraphiteSink`: Sends metrics to a Graphite node.
+* `JmxSink`: Registers metrics for viewing in a JMX console.
 * `LoggerSink`: Scrape metrics periodically and output them to the logger files if you have enabled
   `celeborn.metrics.loggerSink.output.enabled`. This is used as safety valve to make sure the
   metrics data won't exist in the memory for a long time. If you don't have a metrics collector to
