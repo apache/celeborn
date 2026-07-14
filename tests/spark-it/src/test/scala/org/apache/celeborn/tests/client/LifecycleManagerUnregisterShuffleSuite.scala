@@ -36,6 +36,13 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
   celebornConf
     .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "true")
     .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key, "256K")
+    // The default expired-check interval is 60s. removeExpiredShuffle only
+    // unregisters a shuffle once `unregisterTime < now - checkInterval` and runs
+    // on a fixed-rate timer at that interval, so with 60s the master side cannot
+    // be cleared until the second tick (~120s) -- exactly the eventually() window
+    // below, leaving no margin and no retry if an RPC briefly fails under load.
+    // Use a short interval so the unregister runs promptly with ample retries.
+    .set(CelebornConf.SHUFFLE_EXPIRED_CHECK_INTERVAL.key, "5s")
 
   override def beforeAll(): Unit = {
     super.beforeAll()

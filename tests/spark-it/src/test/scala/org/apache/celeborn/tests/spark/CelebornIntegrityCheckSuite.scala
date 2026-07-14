@@ -110,8 +110,28 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
         // verify that the app fails
         case e: Throwable => {
           logger.error("Expected exception, logging the full exception", e)
+          // The contract under test is that corrupted data makes the app abort
+          // rather than silently return wrong results.
           assert(e.getMessage.contains("Job aborted"))
-          assert(e.getMessage.contains("CommitMetadata mismatch"))
+          // A single-bit flip is planted at a random position within a random
+          // data record, so the corruption is caught in one of two ways
+          // depending on where it lands:
+          //   1. Celeborn's integrity CRC, which is validated only at the end of
+          //      the partition (CelebornInputStream#validateIntegrity), surfaces
+          //      as "CommitMetadata mismatch".
+          //   2. The downstream deserializer (Kryo) choking on a structurally
+          //      invalid byte (e.g. a bogus reference id or length) before the
+          //      partition end is reached, so validateIntegrity() never runs and
+          //      a deserialization error (e.g. IndexOutOfBoundsException) is the
+          //      most-recent failure reported by Spark.
+          // Both are valid "fail instead of returning wrong data" outcomes and
+          // which one surfaces is non-deterministic, so accept either rather than
+          // asserting on the integrity-specific message (which made this flaky).
+          assert(
+            e.getMessage.contains("CommitMetadata mismatch") ||
+              e.getMessage.contains("IndexOutOfBounds") ||
+              e.getMessage.contains("com.esotericsoftware.kryo"),
+            s"App aborted for an unexpected reason: ${e.getMessage}")
         }
       } finally {
         sparkSession.stop()

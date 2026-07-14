@@ -18,7 +18,7 @@
 package org.apache.celeborn.service.deploy
 
 import java.io.IOException
-import java.net.{BindException, InetSocketAddress, Socket}
+import java.net.BindException
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
@@ -27,6 +27,7 @@ import scala.collection.mutable
 
 import org.apache.commons.lang3.StringUtils
 
+import org.apache.celeborn.RandomPortSupport
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.{CelebornExitKind, Utils}
@@ -34,7 +35,7 @@ import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 import org.apache.celeborn.service.deploy.worker.{Worker, WorkerArguments}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
-trait MiniClusterFeature extends Logging {
+trait MiniClusterFeature extends Logging with RandomPortSupport {
 
   var masterInfo: (Master, Thread) = _
   val workerInfos = new mutable.HashMap[Worker, Thread]()
@@ -48,29 +49,6 @@ trait MiniClusterFeature extends Logging {
 
     override def run(): Unit = {
       Utils.tryLogNonFatalError(code)
-    }
-  }
-
-  val usedPorts = new java.util.HashSet[Integer]()
-  def portBounded(port: Int): Boolean = {
-    val socket = new Socket()
-    try {
-      socket.connect(new InetSocketAddress("localhost", port), 100)
-      true
-    } catch {
-      case _: IOException => false
-    } finally {
-      socket.close()
-    }
-  }
-  def selectRandomPort(): Int = synchronized {
-    val port = Utils.selectRandomInt(1024, 65535)
-    val portUsed = usedPorts.contains(port) || portBounded(port)
-    usedPorts.add(port)
-    if (portUsed) {
-      selectRandomPort()
-    } else {
-      port
     }
   }
 
@@ -213,7 +191,7 @@ trait MiniClusterFeature extends Logging {
     val workers = new Array[Worker](workerNum)
     val flagUpdateLock = new ReentrantLock()
     val threads = (1 to workerNum).map { i =>
-      val worker = createWorker(workerConf)
+      var worker = createWorker(workerConf)
       val workerThread = new RunnerWrap({
         var workerStartRetry = 0
         var workerStarted = false
@@ -225,10 +203,20 @@ trait MiniClusterFeature extends Logging {
             workerStarted = true
             worker.initialize()
           } catch {
+            case ie: InterruptedException =>
+              Utils.tryLogNonFatalError(worker.stop(CelebornExitKind.EXIT_IMMEDIATELY))
+              Utils.tryLogNonFatalError(worker.rpcEnv.shutdown())
+              Thread.currentThread().interrupt()
+              throw ie
             case ex: Exception =>
-              if (workers(i - 1) != null) {
-                workers(i - 1).shutdownGracefully()
-              }
+              // Tear the failed worker down locally, mirroring the InterruptedException branch
+              // above. Do NOT call exitImmediately() here: a worker that failed to start usually
+              // never registered, and exitImmediately() issues a blocking WorkerLost RPC to the
+              // master and adds this worker's host:ports to the master's excluded list. In this
+              // retry loop that blocks up to the ask timeout per attempt and leaks stale exclusions
+              // as each recreated worker re-registers under new random ports.
+              Utils.tryLogNonFatalError(worker.stop(CelebornExitKind.EXIT_IMMEDIATELY))
+              Utils.tryLogNonFatalError(worker.rpcEnv.shutdown())
               workerStarted = false
               workerStartRetry += 1
               logError(s"cannot start worker $i, retrying: ", ex)
@@ -236,6 +224,14 @@ trait MiniClusterFeature extends Logging {
                 logError(s"cannot start worker $i, reached to max retrying", ex)
                 throw ex
               }
+              try {
+                TimeUnit.SECONDS.sleep(Math.pow(2, workerStartRetry).toLong)
+              } catch {
+                case ie: InterruptedException =>
+                  Thread.currentThread().interrupt()
+                  throw ie
+              }
+              worker = createWorker(workerConf)
           }
         }
       })
@@ -250,13 +246,19 @@ trait MiniClusterFeature extends Logging {
       try {
         (0 until workerNum).foreach { i =>
           {
-            if (workers(i) == null) {
+            // Snapshot the slot under the same lock that guards its write, so a worker reassigned
+            // on retry is visible here.
+            flagUpdateLock.lock()
+            val worker = workers(i)
+            flagUpdateLock.unlock()
+            if (worker == null) {
               throw new IllegalStateException(s"worker $i hasn't been initialized")
-            } else if (!workerInfos.contains(workers(i))) {
-              workerInfos.put(workers(i), threads(i))
             }
-            if (!workers(i).registered.get()) {
+            if (!worker.registered.get()) {
               throw new IllegalStateException(s"worker $i hasn't been registered")
+            }
+            if (!workerInfos.contains(worker)) {
+              workerInfos.put(worker, threads(i))
             }
           }
         }

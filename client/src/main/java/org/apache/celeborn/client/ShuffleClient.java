@@ -20,6 +20,7 @@ package org.apache.celeborn.client;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -51,13 +52,18 @@ import org.apache.celeborn.common.write.LocationPushFailedBatches;
 import org.apache.celeborn.common.write.PushState;
 
 /**
- * ShuffleClient may be a process singleton, the specific PartitionLocation should be hidden in the
- * implementation
+ * ShuffleClient hides the specific PartitionLocation from callers. A process holds one client per
+ * appUniqueId (see {@link #get}); most deployments run a single application per JVM and therefore a
+ * single client, but a process that drives several applications (e.g. the multi-app spark-it JVM)
+ * holds one isolated client per app.
  */
 public abstract class ShuffleClient {
   private static Logger logger = LoggerFactory.getLogger(ShuffleClient.class);
-  private static volatile ShuffleClient _instance;
-  private static volatile boolean initialized = false;
+  // One client per appUniqueId. Keying by appUniqueId keeps concurrent applications isolated (each
+  // with its own LifecycleManager) and lets each be torn down independently when its application
+  // stops, instead of a single static slot that would have to evict (and orphan the resources of)
+  // the previous app's client on every switch.
+  private static final ConcurrentHashMap<String, ShuffleClient> clients = new ConcurrentHashMap<>();
   private static volatile Map<StorageInfo.Type, FileSystem> hadoopFs;
   private static LongAdder totalReadCounter = new LongAdder();
   private static LongAdder localShuffleReadCounter = new LongAdder();
@@ -68,9 +74,42 @@ public abstract class ShuffleClient {
 
   // for testing
   public static void reset() {
-    _instance = null;
-    initialized = false;
-    hadoopFs = null;
+    List<ShuffleClient> toShutdown;
+    synchronized (ShuffleClient.class) {
+      toShutdown = new ArrayList<>(clients.values());
+      clients.clear();
+      hadoopFs = null;
+    }
+    // Shut down outside the lock: shutdown() tears down an RpcEnv and pools and can block.
+    for (ShuffleClient client : toShutdown) {
+      try {
+        client.shutdown();
+      } catch (Throwable t) {
+        logger.warn("Failed to shutdown shuffle client during reset.", t);
+      }
+    }
+  }
+
+  /**
+   * Removes {@code client} from the registry and shuts it down exactly once, reclaiming its RpcEnv,
+   * Netty data client factory, push-retry pool and reviveManager. An engine's shuffle-manager calls
+   * this from its own stop() so a stopped application's client does not leak until JVM exit, and
+   * (unlike {@link #reset()}) without touching other live applications' clients. Keyed by the
+   * instance rather than appUniqueId because executor-side managers never populate their
+   * appUniqueId field. No-op if the client was already removed (e.g. by a concurrent {@link
+   * #reset()}), so the instance is never shut down twice.
+   */
+  public static void removeInstance(ShuffleClient client) {
+    if (client == null) {
+      return;
+    }
+    boolean removed;
+    synchronized (ShuffleClient.class) {
+      removed = clients.values().removeIf(existing -> existing == client);
+    }
+    if (removed) {
+      client.shutdown();
+    }
   }
 
   protected ShuffleClient() {}
@@ -103,38 +142,39 @@ public abstract class ShuffleClient {
       UserIdentifier userIdentifier,
       byte[] extension,
       Optional<CryptoHandler> cryptoHandler) {
-    if (null == _instance || !initialized) {
+    ShuffleClient client = clients.get(appUniqueId);
+    if (client == null) {
       synchronized (ShuffleClient.class) {
-        if (null == _instance) {
-          // During the execution of Spark tasks, each task may be interrupted due to speculative
-          // tasks. If the Task is interrupted while obtaining the ShuffleClient and the
-          // ShuffleClient is building a singleton, it may cause the LifecycleManagerEndpoint to not
-          // be
-          // assigned. An Executor will only construct a ShuffleClient singleton once. At this time,
-          // when communicating with LifecycleManager, it will cause a NullPointerException.
-          _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
-          _instance.setupLifecycleManagerRef(driverHost, port);
-          _instance.setExtension(extension);
-          _instance.setupCryptoHandler(cryptoHandler);
-          initialized = true;
-        } else if (!initialized) {
-          _instance.shutdown();
-          _instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
-          _instance.setupLifecycleManagerRef(driverHost, port);
-          _instance.setExtension(extension);
-          _instance.setupCryptoHandler(cryptoHandler);
-          initialized = true;
+        client = clients.get(appUniqueId);
+        if (client == null) {
+          // During Spark task execution a task may be interrupted (e.g. by speculative execution)
+          // while this builds the client. Fully set the instance up before publishing it into the
+          // registry, and tear a half-built instance down on failure, so a later call rebuilds
+          // cleanly instead of returning a client with no LifecycleManagerRef (which would NPE on
+          // first use). Because only fully-initialized instances are ever put into the map, the
+          // lock-free clients.get() above can never observe a half-built or wrong-app client.
+          ShuffleClientImpl instance = new ShuffleClientImpl(appUniqueId, conf, userIdentifier);
+          try {
+            instance.setupLifecycleManagerRef(driverHost, port);
+            instance.setExtension(extension);
+            instance.setupCryptoHandler(cryptoHandler);
+          } catch (RuntimeException | Error e) {
+            instance.shutdown();
+            throw e;
+          }
+          clients.put(appUniqueId, instance);
+          client = instance;
         }
       }
     }
-    // Apply the crypto handler even when the singleton is already initialized. This handles
-    // the case where SparkEnv was transiently unavailable during the first init call (causing
-    // an empty handler to be stored), so that encryption is correctly applied on retry.
-    // setupCryptoHandler is a volatile write and safe to call without the lock.
+    // Apply the crypto handler even when the client already exists. This handles the case where
+    // SparkEnv was transiently unavailable during the first init call (causing an empty handler to
+    // be stored), so that encryption is correctly applied on retry. setupCryptoHandler is a
+    // volatile write and safe to call without the lock.
     if (cryptoHandler != null && cryptoHandler.isPresent()) {
-      _instance.setupCryptoHandler(cryptoHandler);
+      client.setupCryptoHandler(cryptoHandler);
     }
-    return _instance;
+    return client;
   }
 
   public static Map<StorageInfo.Type, FileSystem> getHadoopFs(CelebornConf conf) {

@@ -924,8 +924,10 @@ public class ShuffleClientImpl extends ShuffleClient {
         StatusCode statusCode = entry.getValue()._1();
         if (entry.getValue()._2() != null) {
           PartitionLocation oldLoc = oldLocMap.get(partitionId);
-          // Currently, revive only check if main location available, here won't remove peer loc.
-          pushExcludedWorkers.remove(oldLoc.hostAndPushPort());
+          if (oldLoc != null) {
+            // Currently, revive only check if main location available, here won't remove peer loc.
+            pushExcludedWorkers.remove(oldLoc.hostAndPushPort());
+          }
         }
 
         if (StatusCode.SUCCESS == statusCode) {

@@ -275,8 +275,9 @@ public class SparkShuffleManager implements ShuffleManager {
   public void stop() {
     sortShuffleIds.clear();
     if (shuffleClient != null) {
-      shuffleClient.shutdown();
-      ShuffleClient.reset();
+      // Remove and shut down only THIS application's client. Do not call ShuffleClient.reset():
+      // in a multi-app JVM that would also tear down other live applications' clients.
+      ShuffleClient.removeInstance(shuffleClient);
       shuffleClient = null;
     }
     if (lifecycleManager != null) {

@@ -38,17 +38,15 @@ class ShuffleReaderGetHooks(
   val lock = new Object
 
   private def deleteDataFile(appUniqueId: String, celebornShuffleId: Int): Unit = {
-    val datafile =
+    val dataFiles =
       workerDirs.map(dir => {
         new File(s"$dir/celeborn-worker/shuffle_data/$appUniqueId/$celebornShuffleId")
       }).filter(_.exists())
-        .flatMap(_.listFiles().iterator).headOption
-    datafile match {
-      case Some(file) => {
-        file.delete()
-      }
-      case None => throw new RuntimeException("unexpected, there must be some data file")
+        .flatMap(_.listFiles().iterator)
+    if (dataFiles.isEmpty) {
+      throw new RuntimeException("unexpected, there must be some data file")
     }
+    dataFiles.foreach(_.delete())
   }
 
   override def exec(
