@@ -22,7 +22,7 @@ import java.util.Properties
 import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 
-private class JmxSink(val property: Properties, val registry: MetricRegistry) extends Sink {
+class JmxSink(val property: Properties, val registry: MetricRegistry) extends Sink {
 
   val reporter: JmxReporter = JmxReporter.forRegistry(registry).build()
 
