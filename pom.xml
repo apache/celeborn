@@ -1641,6 +1641,26 @@
     </profile>
 
     <profile>
+      <id>spark-4.2</id>
+      <modules>
+        <module>client-spark/common</module>
+        <module>client-spark/spark-3</module>
+        <module>client-spark/spark-3-columnar-common</module>
+        <module>client-spark/spark-4-columnar-shuffle</module>
+        <module>client-spark/spark-4-shaded</module>
+        <module>tests/spark-it</module>
+      </modules>
+      <properties>
+        <lz4-java.group>at.yawk.lz4</lz4-java.group>
+        <lz4-java.version>1.11.0</lz4-java.version>
+        <scala.version>2.13.18</scala.version>
+        <scala.binary.version>2.13</scala.binary.version>
+        <spark.version>4.2.0</spark.version>
+        <zstd-jni.version>1.5.7-7</zstd-jni.version>
+      </properties>
+    </profile>
+
+    <profile>
       <id>jdk-8</id>
       <activation>
         <jdk>1.8</jdk>

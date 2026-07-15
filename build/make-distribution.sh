@@ -379,6 +379,7 @@ if [ "$SBT_ENABLED" == "true" ]; then
     export JAVA_HOME=$JAVA17_HOME
     sbt_build_client -Pspark-4.0
     sbt_build_client -Pspark-4.1
+    sbt_build_client -Pspark-4.2
     export JAVA_HOME=$JAVA8_HOME
     sbt_build_client -Pflink-1.18
     sbt_build_client -Pflink-1.19
@@ -421,6 +422,7 @@ else
     export JAVA_HOME=$JAVA17_HOME
     build_spark_client -Pspark-4.0
     build_spark_client -Pspark-4.1
+    build_spark_client -Pspark-4.2
     export JAVA_HOME=$JAVA8_HOME
     build_flink_client -Pflink-1.18
     build_flink_client -Pflink-1.19

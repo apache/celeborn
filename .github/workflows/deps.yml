@@ -125,6 +125,7 @@ jobs:
         module:
           - 'spark-4.0'
           - 'spark-4.1'
+          - 'spark-4.2'
     steps:
       - uses: actions/checkout@v4
       - name: Setup JDK 17

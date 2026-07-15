@@ -177,6 +177,7 @@ jobs:
         spark:
           - '4.0'
           - '4.1'
+          - '4.2'
         java:
           - 17
         scala-binary:
@@ -188,6 +189,8 @@ jobs:
             scala: '2.13.16'
           - spark: '4.1'
             scala: '2.13.17'
+          - spark: '4.2'
+            scala: '2.13.18'
     steps:
       - uses: actions/checkout@v4
       - name: Setup JDK ${{ matrix.java }}
