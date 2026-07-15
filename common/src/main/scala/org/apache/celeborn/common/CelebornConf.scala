@@ -6939,6 +6939,17 @@ object CelebornConf extends Logging {
       .checkValue(v => v >= 0.0 && v < 1.0, "Should be in [0.0, 1).")
       .createWithDefault(0.3)
 
+  val QUOTA_CLUSTER_OVERLOAD_FACTOR: ConfigEntry[Double] =
+    buildConf("celeborn.quota.overload.factor")
+      .categories("quota")
+      .dynamic
+      .doc("This config decides the quota * factor at which to consider the cluster 'overloaded." +
+        " When the cluster is overloaded, application heartbeat responses contain a signal to" +
+        " trigger a gc to clean up dangling shuffle dependencies")
+      .version("0.6.0")
+      .doubleConf
+      .createWithDefault(0.8)
+
   val QUOTA_CLUSTER_DISK_BYTES_WRITTEN: ConfigEntry[Long] =
     buildConf("celeborn.quota.cluster.diskBytesWritten")
       .categories("quota")

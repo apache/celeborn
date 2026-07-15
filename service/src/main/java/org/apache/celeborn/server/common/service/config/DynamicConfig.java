@@ -169,6 +169,15 @@ public abstract class DynamicConfig {
             ConfigType.STRING));
   }
 
+  public Double getClusterOverloadQuotaFactor() {
+    return getValue(
+            CelebornConf.QUOTA_CLUSTER_OVERLOAD_FACTOR().key(),
+            CelebornConf.QUOTA_CLUSTER_OVERLOAD_FACTOR(),
+            Double.TYPE,
+            ConfigType.DOUBLE
+    );
+  }
+
   public StorageQuota getClusterStorageQuota() {
     return new StorageQuota(
         getValue(
@@ -280,7 +289,8 @@ public abstract class DynamicConfig {
     BYTES,
     STRING,
     TIME_MS,
-    BOOLEAN
+    BOOLEAN,
+    DOUBLE
   }
 
   public static <T> T convert(Class<T> clazz, String value) {

@@ -49,6 +49,8 @@ class QuotaManager(
   val resourceConsumptionMetricsEnabled = celebornConf.masterResourceConsumptionMetricsEnabled
   @volatile
   var clusterQuotaStatus: QuotaStatus = new QuotaStatus()
+  @volatile
+  var clusterOverloaded: Boolean = false
   val appQuotaStatus: JMap[String, QuotaStatus] = JavaUtils.newConcurrentHashMap()
   val userResourceConsumptionCache: JMap[UserIdentifier, ResourceConsumption] =
     JavaUtils.newConcurrentHashMap()
@@ -99,6 +101,10 @@ class QuotaManager(
     CheckQuotaResponse(!status.exceed, status.exceedReason)
   }
 
+  def isClusterOverloaded: Boolean = {
+    clusterOverloaded
+  }
+
   def getUserStorageQuota(user: UserIdentifier): StorageQuota = {
     Option(configService)
       .map(_.getTenantUserConfigFromCache(user.tenantId, user.name).getUserStorageQuota)
@@ -109,6 +115,12 @@ class QuotaManager(
     Option(configService)
       .map(_.getTenantConfigFromCache(tenantId).getTenantStorageQuota)
       .getOrElse(StorageQuota.DEFAULT_QUOTA)
+  }
+
+  def getClusterOverloadLimitFactor: Double = {
+    Option(configService)
+      .map(_.getSystemConfigFromCache.getClusterOverloadQuotaFactor)
+      .getOrElse(StorageQuota.CLUSTER_OVERLOAD_LIMIT_DEFAULT_MULTIPLIER)
   }
 
   def getClusterStorageQuota: StorageQuota = {
@@ -139,6 +151,19 @@ class QuotaManager(
 
   private def checkClusterQuotaSpace(consumption: ResourceConsumption): QuotaStatus = {
     checkQuotaSpace(CLUSTER_EXHAUSTED, consumption, getClusterStorageQuota)
+  }
+
+  // Calling the cluster overloaded (leads to gc triggers on app side to relieve storage)
+  private def checkClusterOverloaded(consumption: ResourceConsumption): Boolean = {
+    val overloadQuota = getClusterStorageQuota
+    val clusterOverloadFactor = getClusterOverloadLimitFactor
+    checkQuotaSpace("cluster overloaded", consumption,
+      new StorageQuota(
+      diskBytesWritten = (clusterOverloadFactor * overloadQuota.diskBytesWritten).toLong,
+      diskFileCount = (clusterOverloadFactor * overloadQuota.diskFileCount).toLong,
+      hdfsBytesWritten = (clusterOverloadFactor * overloadQuota.hdfsBytesWritten).toLong,
+      hdfsFileCount = (clusterOverloadFactor * overloadQuota.hdfsFileCount).toLong,
+    )).exceed
   }
 
   private def checkQuotaSpace(
@@ -261,6 +286,7 @@ class QuotaManager(
 
       // Expire cluster level exceeded app except already expired app
       clusterQuotaStatus = checkClusterQuotaSpace(clusterResourceConsumption)
+      clusterOverloaded = checkClusterOverloaded(clusterResourceConsumption)
       if (interruptShuffleEnabled && clusterQuotaStatus.exceed) {
         checkClusterResourceConsumption(
           tenantResourceConsumptions,
