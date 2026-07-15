@@ -1030,6 +1030,7 @@ object Spark42 extends SparkClientProjects {
 
   override val lz4JavaGroup = "at.yawk.lz4"
   override val sparkColumnarShuffleVersion: String = "4"
+  override val paranamerVersionOverride: Option[String] = Some("2.8.3")
 }
 
 trait SparkClientProjects {
