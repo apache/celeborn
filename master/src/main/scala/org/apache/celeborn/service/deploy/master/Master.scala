@@ -599,6 +599,7 @@ private[celeborn] class Master(
         handleWorkerDecommission(context, workers, requestId))
 
     case pb: PbReviseLostShuffles =>
+      checkAuth(context, pb.getAppId)
       executeWithLeaderChecker(
         context,
         handleReviseLostShuffle(context, pb.getAppId, pb.getLostShufflesList, pb.getRequestId))

@@ -18,6 +18,7 @@
 package org.apache.celeborn.service.deploy.master
 
 import java.io.{PrintWriter, StringWriter}
+import java.util
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -27,12 +28,13 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.source.Role
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
-import org.apache.celeborn.common.protocol.{PbApplicationMeta, PbApplicationMetaRequest, RpcNameConstants, TransportModuleConstants}
+import org.apache.celeborn.common.protocol.{PbApplicationMeta, PbApplicationMetaRequest, PbReviseLostShufflesResponse, RpcNameConstants, TransportModuleConstants}
+import org.apache.celeborn.common.protocol.message.ControlMessages.ReviseLostShuffles
 import org.apache.celeborn.common.rpc.{ClientSaslContextBuilder, RpcAddress, RpcEndpointRef, RpcEnv, RpcSecurityContextBuilder}
 
 /**
- * End-to-end authorization check for PbApplicationMetaRequest with auth enabled, driving
- * the real SASL registration path rather than a mocked client id (as in [[MasterSuite]]).
+ * End-to-end authorization checks for application-scoped Master RPCs with auth enabled,
+ * driving the real SASL registration path rather than a mocked client id (as in [[MasterSuite]]).
  *
  * It covers the whole chain the security guarantee rests on: registration sets the
  * connection's client id, and checkAuth enforces it. A regression that stopped setting
@@ -142,5 +144,32 @@ class MasterApplicationMetaAuthSuite extends AnyFunSuite
     assert(
       workerInternalRef().askSync[PbApplicationMeta](metaRequest(victimApp)).getSecret
         == victimSecret)
+  }
+
+  test("PbReviseLostShuffles is authorized against the registered application") {
+    val victimApp = "revise-victim-app"
+    val attackerApp = "revise-attacker-app"
+
+    val victimRef = registeredAppRef(victimApp, "revise-victim-secret")
+    val ownResponse = victimRef.askSync[PbReviseLostShufflesResponse](
+      ReviseLostShuffles(victimApp, util.Arrays.asList[Integer](1), "victim-request"))
+    assert(ownResponse.getSuccess)
+
+    val victimShuffles = master.statusSystem.registeredAppAndShuffles.get(victimApp)
+    assert(victimShuffles.size() == 1)
+    assert(victimShuffles.contains(1))
+
+    val attackerRef = registeredAppRef(attackerApp, "revise-attacker-secret")
+    val attackerResponse = attackerRef.askSync[PbReviseLostShufflesResponse](
+      ReviseLostShuffles(attackerApp, util.Arrays.asList[Integer](2), "attacker-request"))
+    assert(attackerResponse.getSuccess)
+
+    val e = intercept[Exception] {
+      attackerRef.askSync[PbReviseLostShufflesResponse](
+        ReviseLostShuffles(victimApp, util.Arrays.asList[Integer](3), "cross-app-request"))
+    }
+    assert(stackTraceOf(e).contains(s"not authorized for application $victimApp"))
+    assert(victimShuffles.size() == 1)
+    assert(!victimShuffles.contains(3))
   }
 }
