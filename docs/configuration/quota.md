@@ -26,6 +26,7 @@ license: |
 | celeborn.quota.cluster.hdfsFileCount | 9223372036854775807 | true | Cluster level quota dynamic configuration for written hdfs file count. | 0.6.0 |  | 
 | celeborn.quota.enabled | true | false | When Master side sets to true, the master will enable to check the quota via QuotaManager. When Client side sets to true, LifecycleManager will request Master side to check whether the current user has enough quota before registration of shuffle. Fallback to the default shuffle service when Master side checks that there is no enough quota for current user. | 0.2.0 |  | 
 | celeborn.quota.interruptShuffle.enabled | false | false | Whether to enable interrupt shuffle when quota exceeds. | 0.6.0 |  | 
+| celeborn.quota.overload.factor | 0.8 | true | This config decides the quota * factor at which to consider the cluster 'overloaded. When the cluster is overloaded, application heartbeat responses contain a signal to trigger a gc to clean up dangling shuffle dependencies | 0.7.0 |  | 
 | celeborn.quota.tenant.diskBytesWritten | 9223372036854775807b | true | Tenant level quota dynamic configuration for written disk bytes. | 0.5.0 |  | 
 | celeborn.quota.tenant.diskFileCount | 9223372036854775807 | true | Tenant level quota dynamic configuration for written disk file count. | 0.5.0 |  | 
 | celeborn.quota.tenant.enabled | true | false | Whether to enable tenant-level quota. | 0.6.0 |  | 

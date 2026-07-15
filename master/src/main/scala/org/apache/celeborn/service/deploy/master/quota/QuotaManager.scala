@@ -119,7 +119,7 @@ class QuotaManager(
 
   def getClusterOverloadLimitFactor: Double = {
     Option(configService)
-      .map(_.getSystemConfigFromCache.getClusterOverloadQuotaFactor)
+      .map(_.getSystemConfigFromCache.getClusterOverloadQuotaFactor.doubleValue())
       .getOrElse(StorageQuota.CLUSTER_OVERLOAD_LIMIT_DEFAULT_MULTIPLIER)
   }
 
@@ -157,13 +157,14 @@ class QuotaManager(
   private def checkClusterOverloaded(consumption: ResourceConsumption): Boolean = {
     val overloadQuota = getClusterStorageQuota
     val clusterOverloadFactor = getClusterOverloadLimitFactor
-    checkQuotaSpace("cluster overloaded", consumption,
+    checkQuotaSpace(
+      "cluster overloaded",
+      consumption,
       new StorageQuota(
-      diskBytesWritten = (clusterOverloadFactor * overloadQuota.diskBytesWritten).toLong,
-      diskFileCount = (clusterOverloadFactor * overloadQuota.diskFileCount).toLong,
-      hdfsBytesWritten = (clusterOverloadFactor * overloadQuota.hdfsBytesWritten).toLong,
-      hdfsFileCount = (clusterOverloadFactor * overloadQuota.hdfsFileCount).toLong,
-    )).exceed
+        diskBytesWritten = (clusterOverloadFactor * overloadQuota.diskBytesWritten).toLong,
+        diskFileCount = (clusterOverloadFactor * overloadQuota.diskFileCount).toLong,
+        hdfsBytesWritten = (clusterOverloadFactor * overloadQuota.hdfsBytesWritten).toLong,
+        hdfsFileCount = (clusterOverloadFactor * overloadQuota.hdfsFileCount).toLong)).exceed
   }
 
   private def checkQuotaSpace(

@@ -171,11 +171,10 @@ public abstract class DynamicConfig {
 
   public Double getClusterOverloadQuotaFactor() {
     return getValue(
-            CelebornConf.QUOTA_CLUSTER_OVERLOAD_FACTOR().key(),
-            CelebornConf.QUOTA_CLUSTER_OVERLOAD_FACTOR(),
-            Double.TYPE,
-            ConfigType.DOUBLE
-    );
+        CelebornConf.QUOTA_CLUSTER_OVERLOAD_FACTOR().key(),
+        CelebornConf.QUOTA_CLUSTER_OVERLOAD_FACTOR(),
+        Double.TYPE,
+        ConfigType.DOUBLE);
   }
 
   public StorageQuota getClusterStorageQuota() {

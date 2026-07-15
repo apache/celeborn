@@ -38,7 +38,6 @@ license: |
 | celeborn.logConf.enabled | false | false | When `true`, log the CelebornConf for debugging purposes. | 0.5.0 |  | 
 | celeborn.master.allowWorkerHostPattern | &lt;undefined&gt; | false | Pattern of worker host that allowed to register with the master. If not set, all workers are allowed to register. | 0.6.0 |  | 
 | celeborn.master.clusterOverload.gc.enabled | false | false | Whether to enable the master signaling clients to trigger GC when the cluster storage is overloaded (disk usage exceeds the threshold). | 0.7.0 |  | 
-| celeborn.master.clusterOverload.gc.threshold | 0.9 | false | Fraction of total cluster disk capacity used (0.0–1.0) above which the master signals clients to trigger GC to release stale shuffle dependencies. For example, 0.9 means 90% of total capacity is in use. | 0.7.0 |  | 
 | celeborn.master.denyWorkerHostPattern | &lt;undefined&gt; | false | Pattern of worker host that denied to register with the master. If not set, no workers are denied to register. | 0.6.0 |  | 
 | celeborn.master.dfs.expireDirs.timeout | 1h | false | The timeout for an expired dirs to be deleted on dfs like HDFS, S3, OSS. | 0.6.0 |  | 
 | celeborn.master.estimatedPartitionSize.initialSize | 64mb | false | Initial partition size for estimation, it will change according to runtime stats. | 0.3.0 | celeborn.shuffle.initialEstimatedPartitionSize | 
