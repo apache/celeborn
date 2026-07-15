@@ -937,7 +937,6 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def quotaInterruptShuffleEnabled: Boolean = get(QUOTA_INTERRUPT_SHUFFLE_ENABLED)
 
   def clusterOverloadGcEnabled: Boolean = get(MASTER_CLUSTER_OVERLOAD_GC_ENABLED)
-  def clusterOverloadGcThreshold: Double = get(MASTER_CLUSTER_OVERLOAD_GC_THRESHOLD)
   def clientGcOnOverloadEnabled: Boolean = get(CLIENT_GC_ON_CLUSTER_OVERLOAD_ENABLED)
   def clientGcOnOverloadMinIntervalMs: Long = get(CLIENT_GC_ON_CLUSTER_OVERLOAD_MIN_INTERVAL)
 
@@ -2530,17 +2529,6 @@ object CelebornConf extends Logging {
         "storage is overloaded (disk usage exceeds the threshold).")
       .booleanConf
       .createWithDefault(false)
-
-  val MASTER_CLUSTER_OVERLOAD_GC_THRESHOLD: ConfigEntry[Double] =
-    buildConf("celeborn.master.clusterOverload.gc.threshold")
-      .categories("master")
-      .version("0.7.0")
-      .doc("Fraction of total cluster disk capacity used (0.0–1.0) above which the master " +
-        "signals clients to trigger GC to release stale shuffle dependencies. For example, " +
-        "0.9 means 90% of total capacity is in use.")
-      .doubleConf
-      .checkValue(v => v > 0.0 && v <= 1.0, "Must be between 0 (exclusive) and 1 (inclusive)")
-      .createWithDefault(0.9)
 
   val DFS_EXPIRE_DIRS_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.dfs.expireDirs.timeout")
