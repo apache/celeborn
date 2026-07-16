@@ -688,7 +688,6 @@ object CelebornCommon {
         Dependencies.commonsLang3,
         Dependencies.hadoopClientApi,
         Dependencies.hadoopClientRuntime,
-        Dependencies.jdkTools,
         Dependencies.leveldbJniAll,
         Dependencies.roaringBitmap,
         Dependencies.scalaReflect,
@@ -707,6 +706,14 @@ object CelebornCommon {
         Dependencies.bouncycastleBcprovJdk18on,
         Dependencies.bouncycastleBcpkixJdk18on
       ) ++ commonUnitTestDependencies,
+      // maven-jdk-tools-wrapper (jdkTools) only provides jdk.tools (tools.jar) on
+      // JDK 8; on JDK 9+ the tools API is built into the JDK, so the wrapper is a
+      // no-op there. Gate it to JDK 8 to match the `JDKTools` plugin
+      // (project/JDKTools.scala) and the Maven `jdk-8` profile, and to keep the
+      // sbt/maven classpaths in sync (see dev/dependencies.sh).
+      libraryDependencies ++=
+        (if (System.getProperty("java.specification.version").startsWith("1."))
+          Seq(Dependencies.jdkTools) else Nil),
 
       Compile / sourceGenerators += Def.task {
         val file = (Compile / sourceManaged).value / "org" / "apache" / "celeborn" / "package.scala"
@@ -1004,6 +1011,7 @@ object Spark41 extends SparkClientProjects {
   val scalaBinaryVersion = "2.13"
 
   override val sparkColumnarShuffleVersion: String = "4"
+  override val paranamerVersionOverride: Option[String] = Some("2.8.3")
 }
 
 object Spark42 extends SparkClientProjects {
@@ -1022,6 +1030,7 @@ object Spark42 extends SparkClientProjects {
 
   override val lz4JavaGroup = "at.yawk.lz4"
   override val sparkColumnarShuffleVersion: String = "4"
+  override val paranamerVersionOverride: Option[String] = Some("2.8.3")
 }
 
 trait SparkClientProjects {
@@ -1036,6 +1045,8 @@ trait SparkClientProjects {
   val sparkProjectScalaVersion: String
   val sparkVersion: String
   val zstdJniVersion: String
+
+  val paranamerVersionOverride: Option[String] = None
 
   val includeColumnarShuffle: Boolean = true
 
@@ -1082,7 +1093,10 @@ trait SparkClientProjects {
           "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
           Dependencies.javaxServletApi % "test",
           Dependencies.jakartaServletApi % "test"
-        ) ++ commonUnitTestDependencies ++ Seq(Dependencies.mockitoInline % "test")
+        ) ++ commonUnitTestDependencies ++ Seq(Dependencies.mockitoInline % "test"),
+        dependencyOverrides ++= paranamerVersionOverride
+          .map(v => Seq("com.thoughtworks.paranamer" % "paranamer" % v))
+          .getOrElse(Seq.empty)
       )
   }
 

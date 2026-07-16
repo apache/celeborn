@@ -19,10 +19,6 @@
 
 set -ex
 
-# Explicitly set locale in order to make `sort` output consistent across machines.
-# See https://stackoverflow.com/questions/28881 for more details.
-export LC_ALL=C
-
 PWD=$(cd "$(dirname "$0")"/.. || exit; pwd)
 
 MVN="${PWD}/build/mvn"
@@ -52,7 +48,7 @@ function mvn_build_classpath() {
       classifier_end_index=index(jar_name, ".jar") - 1;
       classifier=substr(jar_name, classifier_start_index, classifier_end_index - classifier_start_index + 1);
       print artifact_id"/"version"/"classifier"/"jar_name
-    }' | grep -v "celeborn" | sort -u >> "${DEP_PR}"
+    }' | grep -v "celeborn" | LC_ALL=C sort -u >> "${DEP_PR}"
 }
 
 function sbt_build_client_classpath() {
@@ -108,7 +104,7 @@ function sbt_process_classpath() {
 
   result=("${result1[@]}" "${result2[@]}")
 
-  echo "${result[@]}" | tr ' ' '\n' | sort -u >> "${DEP_PR}"
+  echo "${result[@]}" | tr ' ' '\n' | LC_ALL=C sort -u >> "${DEP_PR}"
 }
 
 function check_diff() {
