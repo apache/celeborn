@@ -47,33 +47,33 @@ class ApplicationHeartbeaterSuite extends CelebornFunSuite {
   test("GC is not triggered when feature is disabled") {
     val hb = makeHeartbeater(gcEnabled = false)
     hb.handleGcSignal(shouldTriggerGc = true)
-    assert(hb.lastGcTriggerTimeMs == 0L)
+    assert(hb.lastGcTriggerTimeNs == 0L)
   }
 
   test("GC is not triggered when signal is false") {
     val hb = makeHeartbeater(gcEnabled = true)
     hb.handleGcSignal(shouldTriggerGc = false)
-    assert(hb.lastGcTriggerTimeMs == 0L)
+    assert(hb.lastGcTriggerTimeNs == 0L)
   }
 
   test("GC is triggered on first signal when enabled") {
     val hb = makeHeartbeater(gcEnabled = true, minIntervalMs = 0L)
-    val before = System.currentTimeMillis()
+    val before = System.nanoTime()
     hb.handleGcSignal(shouldTriggerGc = true)
-    assert(hb.lastGcTriggerTimeMs >= before)
+    assert(hb.lastGcTriggerTimeNs >= before)
   }
 
   test("GC is skipped when called again within the cooldown interval") {
     val hb = makeHeartbeater(gcEnabled = true, minIntervalMs = 60000L)
 
     hb.handleGcSignal(shouldTriggerGc = true)
-    val firstTrigger = hb.lastGcTriggerTimeMs
+    val firstTrigger = hb.lastGcTriggerTimeNs
     assert(firstTrigger > 0L)
 
     // Second call immediately — well within 60s cooldown
     hb.handleGcSignal(shouldTriggerGc = true)
     assert(
-      hb.lastGcTriggerTimeMs == firstTrigger,
+      hb.lastGcTriggerTimeNs == firstTrigger,
       "lastGcTriggerTimeMs should not change on second call")
   }
 
@@ -82,31 +82,31 @@ class ApplicationHeartbeaterSuite extends CelebornFunSuite {
     val hb = makeHeartbeater(gcEnabled = true, minIntervalMs = 0L)
 
     hb.handleGcSignal(shouldTriggerGc = true)
-    val firstTrigger = hb.lastGcTriggerTimeMs
+    val firstTrigger = hb.lastGcTriggerTimeNs
 
     // With 0ms interval the next call should always be allowed.
     hb.handleGcSignal(shouldTriggerGc = true)
-    assert(hb.lastGcTriggerTimeMs >= firstTrigger)
+    assert(hb.lastGcTriggerTimeNs >= firstTrigger)
   }
 
   test("no GC when both signal is false and feature is disabled") {
     val hb = makeHeartbeater(gcEnabled = false)
     hb.handleGcSignal(shouldTriggerGc = false)
-    assert(hb.lastGcTriggerTimeMs == 0L)
+    assert(hb.lastGcTriggerTimeNs == 0L)
   }
 
   test("cooldown is measured from the last successful GC trigger") {
     val hb = makeHeartbeater(gcEnabled = true, minIntervalMs = 60000L)
 
-    // First trigger — sets lastGcTriggerTimeMs
+    // First trigger — sets lastGcTriggerTimeNs
     hb.handleGcSignal(shouldTriggerGc = true)
-    val firstTrigger = hb.lastGcTriggerTimeMs
+    val firstTrigger = hb.lastGcTriggerTimeNs
     assert(firstTrigger > 0L)
 
-    // Three more calls within cooldown — none should update lastGcTriggerTimeMs
+    // Three more calls within cooldown — none should update lastGcTriggerTimeNs
     hb.handleGcSignal(shouldTriggerGc = true)
     hb.handleGcSignal(shouldTriggerGc = true)
     hb.handleGcSignal(shouldTriggerGc = true)
-    assert(hb.lastGcTriggerTimeMs == firstTrigger)
+    assert(hb.lastGcTriggerTimeNs == firstTrigger)
   }
 }

@@ -2526,7 +2526,7 @@ object CelebornConf extends Logging {
       .categories("master")
       .version("0.7.0")
       .doc("Whether to enable the master signaling clients to trigger GC when the cluster " +
-        "storage is overloaded (disk usage exceeds the threshold).")
+        "storage is overloaded (any cluster quota dimension exceeds the overload threshold).")
       .booleanConf
       .createWithDefault(false)
 

@@ -23,6 +23,7 @@ import java.util.function.Consumer
 
 import scala.collection.JavaConverters._
 
+import com.google.common.annotations.VisibleForTesting
 import org.apache.commons.lang3.StringUtils
 
 import org.apache.celeborn.common.CelebornConf
@@ -50,7 +51,9 @@ class ApplicationHeartbeater(
   private val gcOnOverloadEnabled = conf.clientGcOnOverloadEnabled
   private val gcOnOverloadMinIntervalMs = conf.clientGcOnOverloadMinIntervalMs
   private val gcOnOverloadMinIntervalNs = gcOnOverloadMinIntervalMs * 1000000L
-  @volatile private var lastGcTriggerTimeNs = 0L
+
+  @VisibleForTesting
+  @volatile private[client] var lastGcTriggerTimeNs = 0L
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs

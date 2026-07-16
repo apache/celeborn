@@ -167,7 +167,12 @@ class QuotaManager(
       diskFileCount = scale(overloadQuota.diskFileCount),
       hdfsBytesWritten = scale(overloadQuota.hdfsBytesWritten),
       hdfsFileCount = scale(overloadQuota.hdfsFileCount))
-    checkConsumptionExceeded(consumption, threshold)
+    def exceeded(used: Long, limit: Long): Boolean = limit > 0L && used >= limit
+
+    exceeded(consumption.diskBytesWritten, threshold.diskBytesWritten) ||
+    exceeded(consumption.diskFileCount, threshold.diskFileCount) ||
+    exceeded(consumption.hdfsBytesWritten, threshold.hdfsBytesWritten) ||
+    exceeded(consumption.hdfsFileCount, threshold.hdfsFileCount)
   }
 
   private def checkQuotaSpace(

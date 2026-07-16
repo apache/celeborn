@@ -37,7 +37,7 @@ license: |
 | celeborn.internal.port.enabled | false | false | Whether to create a internal port on Masters/Workers for inter-Masters/Workers communication. This is beneficial when SASL authentication is enforced for all interactions between clients and Celeborn Services, but the services can exchange messages without being subject to SASL authentication. | 0.5.0 |  | 
 | celeborn.logConf.enabled | false | false | When `true`, log the CelebornConf for debugging purposes. | 0.5.0 |  | 
 | celeborn.master.allowWorkerHostPattern | &lt;undefined&gt; | false | Pattern of worker host that allowed to register with the master. If not set, all workers are allowed to register. | 0.6.0 |  | 
-| celeborn.master.clusterOverload.gc.enabled | false | false | Whether to enable the master signaling clients to trigger GC when the cluster storage is overloaded (disk usage exceeds the threshold). | 0.7.0 |  | 
+| celeborn.master.clusterOverload.gc.enabled | false | false | Whether to enable the master signaling clients to trigger GC when the cluster storage is overloaded (any cluster quota dimension exceeds the overload threshold). | 0.7.0 |  | 
 | celeborn.master.denyWorkerHostPattern | &lt;undefined&gt; | false | Pattern of worker host that denied to register with the master. If not set, no workers are denied to register. | 0.6.0 |  | 
 | celeborn.master.dfs.expireDirs.timeout | 1h | false | The timeout for an expired dirs to be deleted on dfs like HDFS, S3, OSS. | 0.6.0 |  | 
 | celeborn.master.estimatedPartitionSize.initialSize | 64mb | false | Initial partition size for estimation, it will change according to runtime stats. | 0.3.0 | celeborn.shuffle.initialEstimatedPartitionSize | 
