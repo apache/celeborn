@@ -74,7 +74,7 @@ class ApplicationHeartbeaterSuite extends CelebornFunSuite {
     hb.handleGcSignal(shouldTriggerGc = true)
     assert(
       hb.lastGcTriggerTimeNs == firstTrigger,
-      "lastGcTriggerTimeMs should not change on second call")
+      "lastGcTriggerTimeNs should not change on second call")
   }
 
   test("GC fires again after cooldown interval has elapsed") {

@@ -50,7 +50,7 @@ class ApplicationHeartbeater(
 
   private val gcOnOverloadEnabled = conf.clientGcOnOverloadEnabled
   private val gcOnOverloadMinIntervalMs = conf.clientGcOnOverloadMinIntervalMs
-  private val gcOnOverloadMinIntervalNs = gcOnOverloadMinIntervalMs * 1000000L
+  private val gcOnOverloadMinIntervalNs = TimeUnit.MILLISECONDS.toNanos(gcOnOverloadMinIntervalMs)
 
   @VisibleForTesting
   @volatile private[client] var lastGcTriggerTimeNs = 0L
