@@ -156,15 +156,18 @@ class QuotaManager(
   // Calling the cluster overloaded (leads to gc triggers on app side to relieve storage)
   private def checkClusterOverloaded(consumption: ResourceConsumption): Boolean = {
     val overloadQuota = getClusterStorageQuota
-    val clusterOverloadFactor = getClusterOverloadLimitFactor
-    checkQuotaSpace(
-      "cluster overloaded",
-      consumption,
-      new StorageQuota(
-        diskBytesWritten = (clusterOverloadFactor * overloadQuota.diskBytesWritten).toLong,
-        diskFileCount = (clusterOverloadFactor * overloadQuota.diskFileCount).toLong,
-        hdfsBytesWritten = (clusterOverloadFactor * overloadQuota.hdfsBytesWritten).toLong,
-        hdfsFileCount = (clusterOverloadFactor * overloadQuota.hdfsFileCount).toLong)).exceed
+    val factor = getClusterOverloadLimitFactor
+    def scale(q: Long): Long = {
+      if (q <= 0L || q == Long.MaxValue) q
+      else math.max(1L, math.ceil(factor * q.toDouble).toLong)
+    }
+
+    val threshold = StorageQuota(
+      diskBytesWritten = scale(overloadQuota.diskBytesWritten),
+      diskFileCount = scale(overloadQuota.diskFileCount),
+      hdfsBytesWritten = scale(overloadQuota.hdfsBytesWritten),
+      hdfsFileCount = scale(overloadQuota.hdfsFileCount))
+    checkConsumptionExceeded(consumption, threshold)
   }
 
   private def checkQuotaSpace(
