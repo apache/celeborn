@@ -24,7 +24,19 @@ import com.codahale.metrics.jmx.JmxReporter
 
 class JmxSink(val property: Properties, val registry: MetricRegistry) extends Sink {
 
-  val reporter: JmxReporter = JmxReporter.forRegistry(registry).build()
+  // Publish MBeans under a configurable, Celeborn-specific JMX domain (defaulting to
+  // `celeborn`) rather than JmxReporter's global default domain `metrics`. This avoids
+  // MBean name collisions when other components using Dropwizard metrics run in the
+  // same JVM. The domain can be overridden via `*.sink.jmx.domain=<domain>`.
+  val domain: String =
+    Option(property.getProperty(JmxSink.JMX_DOMAIN_KEY))
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .getOrElse(JmxSink.JMX_DEFAULT_DOMAIN)
+
+  val reporter: JmxReporter = JmxReporter.forRegistry(registry)
+    .inDomain(domain)
+    .build()
 
   override def start(): Unit = {
     reporter.start()
@@ -35,4 +47,9 @@ class JmxSink(val property: Properties, val registry: MetricRegistry) extends Si
   }
 
   override def report(): Unit = {}
+}
+
+object JmxSink {
+  val JMX_DOMAIN_KEY = "domain"
+  val JMX_DEFAULT_DOMAIN = "celeborn"
 }

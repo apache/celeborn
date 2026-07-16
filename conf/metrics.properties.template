@@ -20,4 +20,6 @@
 *.sink.loggerSink.class=org.apache.celeborn.common.metrics.sink.LoggerSink
 
 # Expose metrics as JMX MBeans. Disabled by default; uncomment to enable.
+# MBeans are published under the `celeborn` JMX domain by default; override with
+# `*.sink.jmx.domain=<domain>` if needed.
 #*.sink.jmx.class=org.apache.celeborn.common.metrics.sink.JmxSink
