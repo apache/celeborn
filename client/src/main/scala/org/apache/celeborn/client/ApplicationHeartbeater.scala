@@ -49,7 +49,8 @@ class ApplicationHeartbeater(
 
   private val gcOnOverloadEnabled = conf.clientGcOnOverloadEnabled
   private val gcOnOverloadMinIntervalMs = conf.clientGcOnOverloadMinIntervalMs
-  @volatile private[client] var lastGcTriggerTimeMs = 0L
+  private val gcOnOverloadMinIntervalNs = gcOnOverloadMinIntervalMs * 1000000L
+  @volatile private var lastGcTriggerTimeNs = 0L
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
@@ -177,16 +178,16 @@ class ApplicationHeartbeater(
 
   private[client] def handleGcSignal(shouldTriggerGc: Boolean): Unit = {
     if (!gcOnOverloadEnabled || !shouldTriggerGc) return
-    val now = System.currentTimeMillis()
-    if (now - lastGcTriggerTimeMs >= gcOnOverloadMinIntervalMs) {
+    val nowNs = System.nanoTime()
+    if (nowNs - lastGcTriggerTimeNs >= gcOnOverloadMinIntervalNs) {
       logInfo(
         "Cluster is overloaded; triggering System.gc() to release stale shuffle dependencies.")
-      lastGcTriggerTimeMs = now
+      lastGcTriggerTimeNs = nowNs
       System.gc()
     } else {
       logDebug(
         s"Cluster overload GC signal received but skipped: last GC was triggered " +
-          s"${now - lastGcTriggerTimeMs}ms ago (min interval: ${gcOnOverloadMinIntervalMs}ms).")
+          s"${(nowNs - lastGcTriggerTimeNs) / 1000000L}ms ago (min interval: ${gcOnOverloadMinIntervalMs}ms).")
     }
   }
 

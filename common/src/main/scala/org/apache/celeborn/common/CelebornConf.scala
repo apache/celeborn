@@ -4806,6 +4806,7 @@ object CelebornConf extends Logging {
         "in response to master GC signals. This prevents excessive GC pressure when the " +
         "cluster remains overloaded across multiple heartbeat intervals.")
       .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(_ >= 0, "Should be >= 0.")
       .createWithDefaultString("5m")
 
   val CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
@@ -6936,7 +6937,7 @@ object CelebornConf extends Logging {
         " trigger a GC to clean up dangling shuffle dependencies")
       .version("0.7.0")
       .doubleConf
-      .checkValue(v => v >= 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")
+      .checkValue(v => v > 0.0 && v <= 1.0, "Should be in (0.0, 1.0].")
       .createWithDefault(0.8)
 
   val QUOTA_CLUSTER_DISK_BYTES_WRITTEN: ConfigEntry[Long] =
