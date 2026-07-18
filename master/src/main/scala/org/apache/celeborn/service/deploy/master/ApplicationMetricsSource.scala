@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.master
 
 import java.util.{Map => JMap}
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.JavaConverters._
 
@@ -41,6 +42,7 @@ class ApplicationMetricsSource(conf: CelebornConf)
 
   private val seriesCardinalityWarnThreshold =
     conf.masterClientMetricsSeriesCardinalityWarnThreshold
+  private val seriesCardinalityWarned = new AtomicBoolean(false)
 
   if (masterClientMetricsEnabled) {
     startRemovedAppCleaner()
@@ -101,7 +103,9 @@ class ApplicationMetricsSource(conf: CelebornConf)
 
   private def warnIfSeriesCardinalityHigh(): Unit = {
     val trackedSeries = gauges().size + counters().size
-    if (trackedSeries > seriesCardinalityWarnThreshold) {
+    if (trackedSeries > seriesCardinalityWarnThreshold && seriesCardinalityWarned.compareAndSet(
+        false,
+        true)) {
       logWarning(
         s"Client metrics are tracking $trackedSeries distinct series, exceeding " +
           s"$seriesCardinalityWarnThreshold. Client metric series are keyed by " +

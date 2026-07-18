@@ -20,6 +20,7 @@ package org.apache.celeborn.common.metrics.source
 import java.util.{Map => JMap}
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, ScheduledExecutorService, TimeUnit}
 import java.util.concurrent.atomic.AtomicLong
+import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -244,16 +245,18 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     val key = metricNameWithCustomizedLabels(name, labels)
     namedGaugesWithDetails.compute(
       key,
-      (_, existing) => {
-        val tracked = Option(existing).getOrElse {
-          val holder = new AtomicLong()
-          addGauge(name, labels)(() => holder.get())
-          val namedGauge = namedGauges.get(key).asInstanceOf[NamedGauge[Long]]
-          TrackedGauge(namedGauge, holder, ConcurrentHashMap.newKeySet[String]())
+      new BiFunction[String, TrackedGauge, TrackedGauge] {
+        override def apply(_key: String, existing: TrackedGauge): TrackedGauge = {
+          val tracked = Option(existing).getOrElse {
+            val holder = new AtomicLong()
+            addGauge(name, labels)(() => holder.get())
+            val namedGauge = namedGauges.get(key).asInstanceOf[NamedGauge[Long]]
+            TrackedGauge(namedGauge, holder, ConcurrentHashMap.newKeySet[String]())
+          }
+          tracked.contributingAppIds.add(appId)
+          tracked.handle.set(value)
+          tracked
         }
-        tracked.contributingAppIds.add(appId)
-        tracked.handle.set(value)
-        tracked
       })
   }
 
@@ -268,12 +271,14 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     val key = metricNameWithCustomizedLabels(name, labels)
     namedCountersWithDetails.compute(
       key,
-      (_, existing) => {
-        val tracked = Option(existing).getOrElse(
-          TrackedCounter(addCounter(name, labels), ConcurrentHashMap.newKeySet[String]()))
-        tracked.contributingAppIds.add(appId)
-        tracked.namedCounter.counter.inc(delta)
-        tracked
+      new BiFunction[String, TrackedCounter, TrackedCounter] {
+        override def apply(_key: String, existing: TrackedCounter): TrackedCounter = {
+          val tracked = Option(existing).getOrElse(
+            TrackedCounter(addCounter(name, labels), ConcurrentHashMap.newKeySet[String]()))
+          tracked.contributingAppIds.add(appId)
+          tracked.namedCounter.counter.inc(delta)
+          tracked
+        }
       })
   }
 
@@ -355,14 +360,16 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     namedGaugesWithDetails.keySet().asScala.toList.foreach { key =>
       namedGaugesWithDetails.computeIfPresent(
         key,
-        (_, tracked) => {
-          tracked.contributingAppIds.remove(appId)
-          if (tracked.contributingAppIds.isEmpty) {
-            namedGauges.remove(key)
-            metricRegistry.remove(key)
-            null
-          } else {
-            tracked
+        new BiFunction[String, TrackedGauge, TrackedGauge] {
+          override def apply(_key: String, tracked: TrackedGauge): TrackedGauge = {
+            tracked.contributingAppIds.remove(appId)
+            if (tracked.contributingAppIds.isEmpty) {
+              namedGauges.remove(key)
+              metricRegistry.remove(key)
+              null
+            } else {
+              tracked
+            }
           }
         })
     }
@@ -372,14 +379,16 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     namedCountersWithDetails.keySet().asScala.toList.foreach { key =>
       namedCountersWithDetails.computeIfPresent(
         key,
-        (_, tracked) => {
-          tracked.contributingAppIds.remove(appId)
-          if (tracked.contributingAppIds.isEmpty) {
-            namedCounters.remove(key)
-            metricRegistry.remove(key)
-            null
-          } else {
-            tracked
+        new BiFunction[String, TrackedCounter, TrackedCounter] {
+          override def apply(_key: String, tracked: TrackedCounter): TrackedCounter = {
+            tracked.contributingAppIds.remove(appId)
+            if (tracked.contributingAppIds.isEmpty) {
+              namedCounters.remove(key)
+              metricRegistry.remove(key)
+              null
+            } else {
+              tracked
+            }
           }
         })
     }
