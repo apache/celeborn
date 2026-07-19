@@ -94,7 +94,10 @@ class JmxSinkSuite extends CelebornFunSuite {
   }
 
   test("test jmx sink honors configured domain case") {
-    val domain = "celeborn-jmx-test-domain"
+    // Use a unique domain per run so the assertions are robust against MBeans that may
+    // already exist in (or were leaked by a prior failed run into) the JVM-global
+    // MBeanServer, and assert on the before/after delta rather than absolute presence.
+    val domain = s"celeborn-jmx-test-${java.util.UUID.randomUUID()}"
     val properties = new Properties()
     properties.setProperty(JmxSink.JMX_DOMAIN_KEY, domain)
     val registry = new MetricRegistry()
@@ -106,18 +109,24 @@ class JmxSinkSuite extends CelebornFunSuite {
     val mBeanServer = ManagementFactory.getPlatformMBeanServer
     val jmxDomainPattern = new ObjectName(s"$domain:*")
 
+    val beforeStart = mBeanServer.queryNames(jmxDomainPattern, null).asScala
+    var registeredByJmxSink = Set.empty[ObjectName]
+
     try {
       sink.start()
       sink.report()
+      val afterStart = mBeanServer.queryNames(jmxDomainPattern, null).asScala
+      registeredByJmxSink = (afterStart -- beforeStart).toSet
       assert(
-        mBeanServer.queryNames(jmxDomainPattern, null).asScala.nonEmpty,
+        registeredByJmxSink.nonEmpty,
         s"JmxSink should register MBeans under the configured '$domain' domain")
     } finally {
       sink.stop()
     }
 
+    val afterStop = mBeanServer.queryNames(jmxDomainPattern, null).asScala
     assert(
-      mBeanServer.queryNames(jmxDomainPattern, null).isEmpty,
+      registeredByJmxSink.forall(name => !afterStop.contains(name)),
       "JmxSink.stop() should unregister the MBeans under the configured domain")
   }
 }
