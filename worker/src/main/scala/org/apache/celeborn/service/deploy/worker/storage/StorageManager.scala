@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker.storage
 
-import java.io.{File, IOException}
+import java.io.{File, FileNotFoundException, IOException}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{FileAlreadyExistsException, Files, Paths}
 import java.util
@@ -32,6 +32,7 @@ import scala.concurrent.duration._
 import com.google.common.annotations.VisibleForTesting
 import io.netty.buffer.ByteBufAllocator
 import org.apache.commons.io.FileUtils
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
 
@@ -74,6 +75,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   val hasOssStorage = conf.hasOssStorage
 
+  // celeborn.worker.storage.expireDirs.timeout 默认1h
   val storageExpireDirTimeout = conf.workerStorageExpireDirTimeout
   val storagePolicy = new StoragePolicy(conf, this, workerSource)
 
@@ -684,17 +686,56 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           MemoryManager.instance().releaseMemoryFileStorage(u._2.releaseMemoryBuffers())
         })
       }
+
+      // here we add new clean logic for remote spill
+//      val useRemoteSpill = conf.clientMrRemoteSpillEnabled
+      // clientMrRemoteSpillEnabled is client side config which worker cannot detect for now,
+      // so we set it true in worker side.
+      val useRemoteSpill = true
+      if (useRemoteSpill) {
+        try {
+          cleanupRemoteSpillFiles(shuffleKey)
+        } catch {
+          case e: Exception =>
+            logWarning(s"Clean remote spill files failed for $shuffleKey", e)
+          // 不抛出异常，不影响其他清理
+        }
+      }
+    }
+  }
+
+  private def cleanupRemoteSpillFiles(shuffleKey: String): Unit = {
+    try {
+
+      // shuffleKey = "appattempt_1769569826598_127776_000001-0"
+      val lastDashIndex = shuffleKey.lastIndexOf('-')
+      val appId = shuffleKey.substring(0, lastDashIndex) // "appattempt_1769569826598_127776_000001"
+
+      // 由参数 celeborn.client.mr.remote.spill.path 控制
+      val remoteSpillBasePath = conf.mrRemoteSpillPath
+      val fullPath = s"$remoteSpillBasePath/$appId"
+      val storageBasePaths = Array(fullPath)
+      // user 参数：非 Kerberos 环境下可硬编码
+      val user = "yarn"
+      logInfo(s"Try delete remote spill file produced by reducer from $appId ")
+      // TODO: remove shuffleServerId in HadoopShuffleDeleteHandler
+      val deleteHandler = new HadoopShuffleDeleteHandler(new Configuration(), null)
+      deleteHandler.delete(storageBasePaths, appId, user)
+    } catch {
+      case e: Exception =>
+        logWarning(s"Failed to cleanup remote spill files for $shuffleKey", e)
     }
   }
 
   private val storageScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-storage-manager-scheduler")
 
-  storageScheduler.scheduleWithFixedDelay(
+  storageScheduler.scheduleWithFixedDelay( // 定时清理过期的应用
     new Runnable {
       override def run(): Unit = {
         try {
           // Clean up dirs which it's application is expired.
+          // storageExpireDirTimeout默认1h
           cleanupExpiredAppDirs(System.currentTimeMillis() - storageExpireDirTimeout)
         } catch {
           case exception: Exception =>

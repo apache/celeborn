@@ -49,12 +49,15 @@ public class CelebornShuffleConsumer<K, V>
   private Task reduceTask;
   private ShuffleClient shuffleClient;
 
+  private Boolean remoteSpillEnabled;
+  private String remoteSpillPath;
+
   @Override
   public void init(Context<K, V> context) {
 
     reduceId = context.getReduceId();
-    mrJobConf = context.getJobConf();
-    JobConf celebornJobConf = new JobConf(HadoopUtils.MR_CELEBORN_CONF);
+    mrJobConf = context.getJobConf(); // mapred-site.xml + -D指定参数 + job.xml
+    JobConf celebornJobConf = new JobConf(HadoopUtils.MR_CELEBORN_CONF);// 对应celeborn.xml，NM上会生成 celeborn.xml文件
 
     umbilical = context.getUmbilical();
     reporter = context.getReporter();
@@ -68,10 +71,16 @@ public class CelebornShuffleConsumer<K, V>
     taskStatus = context.getStatus();
     reduceTask = context.getReduceTask();
 
+    // MR_CELEBORN_APPLICATION_ID 即 celeborn.applicationId
+    // celeborn.xml 文件里有 celeborn.applicationId 对应的value: appattempt_1770105551879_116412_000001
+    // 对应的是  application_1770105551879_116412
     String appId = celebornJobConf.get(HadoopUtils.MR_CELEBORN_APPLICATION_ID);
+    //  MR_CELEBORN_LM_HOST 即 celeborn.lifecycleManager.host，对应的是AM的 ip
+
     String lmHost = celebornJobConf.get(HadoopUtils.MR_CELEBORN_LM_HOST);
     int lmPort = Integer.parseInt(celebornJobConf.get(HadoopUtils.MR_CELEBORN_LM_PORT));
     logger.info("Reducer initialized with celeborn {} {} {}", appId, lmHost, lmPort);
+    // 遍历mrJobConf所有条目，保留以mapreduce.celeborn.开头的配置, 似乎只有mapreduce.celeborn.master.endpoints
     CelebornConf celebornConf = HadoopUtils.fromYarnConf(mrJobConf);
     shuffleClient =
         ShuffleClient.get(
@@ -81,23 +90,68 @@ public class CelebornShuffleConsumer<K, V>
             celebornConf,
             new UserIdentifier(
                 celebornConf.userSpecificTenant(), celebornConf.userSpecificUserName()));
-    this.merger =
-        new MergeManagerImpl<>(
-            reduceId,
-            mrJobConf,
-            context.getLocalFS(),
-            context.getLocalDirAllocator(),
-            reporter,
-            context.getCodec(),
-            context.getCombinerClass(),
-            context.getCombineCollector(),
-            context.getSpilledRecordsCounter(),
-            context.getReduceCombineInputCounter(),
-            context.getMergedMapOutputsCounter(),
-            this,
-            context.getMergePhase(),
-            context.getMapOutputFile());
+     // 通过参数 celeborn.client.mr.remote.spill.path 进行指定
+    this.remoteSpillPath = celebornConf.mrRemoteSpillPath();
+    this.remoteSpillEnabled = celebornConf.clientMrRemoteSpillEnabled();
+
+    this.merger =  createMergeManager(context);
   }
+
+  protected MergeManager<K, V> createMergeManager(ShuffleConsumerPlugin.Context context) {
+
+    if (this.remoteSpillEnabled) {
+      int replication = 1;
+      int retries = 5;
+      String appId = new JobConf(HadoopUtils.MR_CELEBORN_CONF).get(HadoopUtils.MR_CELEBORN_APPLICATION_ID);
+      return new CelebornRemoteSpillMergeManager(
+              appId,
+              reduceId,
+              mrJobConf,
+              remoteSpillPath,
+              replication,
+              retries,
+              context.getLocalFS(),
+              context.getLocalDirAllocator(),
+              reporter,
+              context.getCodec(),
+              context.getCombinerClass(),
+              context.getCombineCollector(),
+              context.getSpilledRecordsCounter(),
+              context.getReduceCombineInputCounter(),
+              context.getMergedMapOutputsCounter(),
+              this,
+              context.getMergePhase(),
+              context.getMapOutputFile(),
+              getRemoteConf());
+    } else {
+      return new MergeManagerImpl<>(
+              reduceId,
+              mrJobConf,
+              context.getLocalFS(),
+              context.getLocalDirAllocator(),
+              reporter,
+              context.getCodec(),
+              context.getCombinerClass(),
+              context.getCombineCollector(),
+              context.getSpilledRecordsCounter(),
+              context.getReduceCombineInputCounter(),
+              context.getMergedMapOutputsCounter(),
+              this,
+              context.getMergePhase(),
+              context.getMapOutputFile());
+    }
+  }
+
+  private JobConf getRemoteConf() {
+    JobConf readerJobConf = new JobConf((mrJobConf));
+//    if (!remoteStorageInfo.isEmpty()) {
+//      for (Map.Entry<String, String> entry : remoteStorageInfo.getConfItems().entrySet()) {
+//        readerJobConf.set(entry.getKey(), entry.getValue());
+//      }
+//    }
+    return readerJobConf;
+  }
+
 
   private ShuffleClientMetrics createMetrics(
       org.apache.hadoop.mapreduce.TaskAttemptID taskAttemptID, JobConf jobConf)

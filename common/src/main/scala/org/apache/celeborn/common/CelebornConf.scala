@@ -886,6 +886,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       WORKER_JVM_QUAKE_KILL_THRESHOLD.defaultValueString).microsecond
   def workerJvmQuakeExitCode: Int = get(WORKER_JVM_QUAKE_EXIT_CODE)
 
+  def mrRemoteSpillPath: String = get(MR_REMOTE_SPILL_PATH)
+
   // //////////////////////////////////////////////////////
   //                 Metrics System                      //
   // //////////////////////////////////////////////////////
@@ -954,6 +956,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(USER_SPECIFIC_APPLICATION_INFO).map(Utils.parseKeyValuePair).toMap
   def clientShuffleIntegrityCheckEnabled: Boolean =
     get(CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED)
+
+  def clientMrRemoteSpillEnabled: Boolean = get(CLIENT_MR_REMOTE_SPILL_ENABLED)
 
   def appUniqueIdWithUUIDSuffix(appId: String): String = {
     if (clientApplicationUUIDSuffixEnabled) {
@@ -4539,6 +4543,17 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(502)
 
+  val MR_REMOTE_SPILL_PATH: ConfigEntry[String] =
+    buildConf("celeborn.client.mr.remote.spill.path")
+      .categories("client")
+      .doc(s"HDFS directory to store MR reduce merge intermediate spill files. " +
+        s"Required when celeborn.client.mr.remote.spill.enabled is true. " +
+        s"This config must be set on both the client and worker side.")
+      .version("0.6.4")
+      .internal
+      .stringConf
+      .createWithDefault("/home/xitong/celeborn/data")
+
   val APPLICATION_HEARTBEAT_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.client.application.heartbeatInterval")
       .withAlternative("celeborn.application.heartbeatInterval")
@@ -5657,6 +5672,14 @@ object CelebornConf extends Logging {
         pairs => pairs.map(_ => Try(Utils.parseKeyValuePair(_))).forall(_.isSuccess),
         "Allowed pattern is: `<key1>=<value1>[,<key2>=<value2>]*`")
       .createWithDefault(Seq.empty)
+
+  val CLIENT_MR_REMOTE_SPILL_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.mr.remote.spill.enabled")
+      .categories("client")
+      .doc("MR reduce merge spill data will be sent to HDFS if enabled, else will be kept on NM local disk  ")
+      .version("0.6.4")
+      .booleanConf
+      .createWithDefault(false)
 
   val TEST_ALTERNATIVE: OptionalConfigEntry[String] =
     buildConf("celeborn.test.alternative.key")

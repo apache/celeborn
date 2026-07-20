@@ -349,7 +349,8 @@ private[celeborn] class Worker(
   val timer = new HashedWheelTimer(ThreadUtils.namedSingleThreadFactory("worker-timer"))
 
   // Configs
-  private val heartbeatInterval = conf.workerHeartbeatTimeout / 4
+  // celeborn.master.heartbeat.worker.timeout 默认120s
+  private val heartbeatInterval = conf.workerHeartbeatTimeout / 4 // 即30s
   private val replicaFastFailDuration = conf.workerReplicateFastFailDuration
 
   private val cleanTaskQueue = new LinkedBlockingQueue[JHashSet[String]]
@@ -542,6 +543,13 @@ private[celeborn] class Worker(
     super.initialize()
     logInfo(s"Starting Worker $host:$pushPort:$fetchPort:$replicatePort" +
       s" with ${workerInfo.diskInfos} slots.")
+    if (conf.clientMrRemoteSpillEnabled && conf.mrRemoteSpillPath.isEmpty) {
+      val msg = "celeborn.client.mr.remote.spill.enabled is true but " +
+        "celeborn.client.mr.remote.spill.path is not set. Please configure " +
+        "celeborn.client.mr.remote.spill.path to a valid HDFS directory."
+      logError(msg)
+      throw new IllegalArgumentException(msg)
+    }
     registerWithMaster()
 
     // start heartbeat
@@ -549,8 +557,8 @@ private[celeborn] class Worker(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError { heartbeatToMaster() }
       },
-      heartbeatInterval,
-      heartbeatInterval,
+      heartbeatInterval, // 默认30s
+      heartbeatInterval, // 默认30s
       TimeUnit.MILLISECONDS)
 
     checkFastFailTask = forwardMessageScheduler.scheduleWithFixedDelay(
@@ -809,7 +817,9 @@ private[celeborn] class Worker(
         logInfo(s"Cleaned up expired shuffle $shuffleKey")
       }
       partitionsSorter.cleanup(expiredShuffleKeys)
-      fetchHandler.cleanupExpiredShuffleKey(expiredShuffleKeys)
+      fetchHandler.cleanupExpiredShuffleKey(
+        expiredShuffleKeys
+      ) // ChunkStreamManager - Clean up expired shuffle keys xxx
       threadPool.execute(new Runnable {
         override def run(): Unit = {
           removeAppResourceConsumption(expiredApplicationIds.asScala)
@@ -818,6 +828,7 @@ private[celeborn] class Worker(
             WorkerSource.CLEAN_EXPIRED_SHUFFLE_KEYS_TIME,
             s"cleanExpiredShuffleKeys-${UUID.randomUUID()}") {
             storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+            // TODO: add function cleanupRemoteSpillFiles(expiredShuffleKeys)
           }
         }
       })
