@@ -4400,8 +4400,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.worker.congestionControl.diskBuffer.low.watermark")
       .withAlternative("celeborn.worker.congestionControl.low.watermark")
       .categories("worker")
-      .doc("Will stop congest users if the total pending bytes of disk buffer is lower than " +
-        "this configuration")
+      .doc("Will stop congest users if the active pending bytes (pinned memory when using " +
+        "pooled allocator, otherwise total memory usage) is lower than this configuration")
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefault(Long.MaxValue)
@@ -4413,7 +4413,7 @@ object CelebornConf extends Logging {
       .doc("If the total bytes in disk buffer exceeds this configure, will start to congest " +
         "users whose produce rate is higher than the potential average consume rate. " +
         "The congestion will stop if the produce rate is lower or equal to the " +
-        "average consume rate, or the total pending bytes lower than " +
+        "average consume rate, or the active pending bytes lower than " +
         s"${WORKER_CONGESTION_CONTROL_DISK_BUFFER_LOW_WATERMARK.key}")
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)

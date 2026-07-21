@@ -23,6 +23,8 @@ license: |
 
 # Upgrading from 0.6 to 0.7
 
+- Since 0.7.0, Celeborn changed the semantics of `celeborn.worker.congestionControl.diskBuffer.low.watermark`. Previously it was compared against total pending bytes (which includes Netty pool overhead). Now it is compared against active pending bytes (pinned memory when using pooled allocator, otherwise total memory usage). This avoids congestion control never resuming when idle pool memory inflates the total pending bytes. Users may need to adjust this value accordingly.
+
 - Since 0.7.0, Celeborn removed `ReleaseSlots`.
 
 - Since 0.7.0, Celeborn removed `WorkerRemove`.
