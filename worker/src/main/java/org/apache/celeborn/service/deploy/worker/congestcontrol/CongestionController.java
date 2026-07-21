@@ -299,6 +299,7 @@ public class CongestionController {
       } else if ((pendingConsume > workerTrafficQuota.diskBufferHighWatermark()
               || workerProduceSpeed > workerTrafficQuota.workerProduceSpeedHighWatermark())
           && overHighWatermark.compareAndSet(false, true)) {
+        lastActivePendingBytesTimeMs = 0;
         logger.info(
             "Pending consume or produce speed is higher than high watermark, need congestion control");
         trimMemoryUsage();
