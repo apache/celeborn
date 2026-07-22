@@ -151,7 +151,13 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
   mountPoints.add("/mnt")
   val cache = JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
 
-  val resourceConsumption1 = ResourceConsumption(1000, 2000, 3000, 4000)
+  val resourceConsumption1 = ResourceConsumption(
+    1000,
+    2000,
+    3000,
+    4000,
+    s3BytesWritten = 5000,
+    s3FileCount = 6000)
   val resourceConsumption2 = ResourceConsumption(
     2000,
     4000,
