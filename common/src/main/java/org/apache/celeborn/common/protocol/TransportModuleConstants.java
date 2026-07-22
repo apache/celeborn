@@ -45,6 +45,14 @@ public class TransportModuleConstants {
 
   public static final String DATA_MODULE = "data";
 
+  // SSL/TLS module dedicated to the inter-master Ratis (Raft consensus) gRPC channel.
+  // This lets operators give Ratis its own certificate/keystore (e.g. one carrying
+  // internal pod-FQDN SANs) independently of the client-facing RPC_SERVICE_MODULE cert.
+  // For backward compatibility, if this module's SSL is not explicitly enabled, Ratis
+  // falls back to the RPC_SERVICE_MODULE configuration (see MasterClusterInfo and
+  // HARaftServer). Its per-module keys use the standard `celeborn.ssl.ratis.*` machinery.
+  public static final String RATIS_MODULE = "ratis";
+
   // When using null, InetSocketAddress will resolve to a wildcard address for bind operations.
   public static final String WILDCARD_BIND_ADDRESS = null;
 }
