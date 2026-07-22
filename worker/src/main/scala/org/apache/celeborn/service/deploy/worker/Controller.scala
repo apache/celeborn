@@ -186,6 +186,7 @@ private[deploy] class Controller(
     if (shutdown.get()) {
       val msg = "Current worker is shutting down!"
       logError(s"[handleReserveSlots] $msg")
+      workerSource.incCounter(WorkerSource.RESERVE_SLOTS_FAIL_COUNT)
       context.reply(ReserveSlotsResponse(StatusCode.WORKER_SHUTDOWN, msg))
       return
     }
@@ -193,6 +194,7 @@ private[deploy] class Controller(
     if (storageManager.healthyLocalWorkingDirs().size <= 0 && remoteStorageDirs.isEmpty) {
       val msg = "Local storage has no available dirs!"
       logError(s"[handleReserveSlots] $msg")
+      workerSource.incCounter(WorkerSource.RESERVE_SLOTS_FAIL_COUNT)
       context.reply(ReserveSlotsResponse(StatusCode.NO_AVAILABLE_WORKING_DIR, msg))
       return
     }
@@ -218,6 +220,7 @@ private[deploy] class Controller(
       val msg = s"Not all primary partition satisfied for $shuffleKey"
       logWarning(s"[handleReserveSlots] $msg, will destroy writers.")
       destroyWriters(primaryLocs, shuffleKey)
+      workerSource.incCounter(WorkerSource.RESERVE_SLOTS_FAIL_COUNT)
       context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }
@@ -240,6 +243,7 @@ private[deploy] class Controller(
       logWarning(s"[handleReserveSlots] $msg, destroy writers.")
       destroyWriters(primaryLocs, shuffleKey)
       destroyWriters(replicaLocs, shuffleKey)
+      workerSource.incCounter(WorkerSource.RESERVE_SLOTS_FAIL_COUNT)
       context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }
