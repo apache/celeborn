@@ -28,7 +28,9 @@ case class ResourceConsumption(
     diskFileCount: Long,
     hdfsBytesWritten: Long,
     hdfsFileCount: Long,
-    var subResourceConsumptions: util.Map[String, ResourceConsumption] = null) {
+    var subResourceConsumptions: util.Map[String, ResourceConsumption] = null,
+    s3BytesWritten: Long = 0,
+    s3FileCount: Long = 0) {
 
   def withSubResourceConsumptions(
       resourceConsumptions: util.Map[String, ResourceConsumption]): ResourceConsumption = {
@@ -41,7 +43,9 @@ case class ResourceConsumption(
       diskBytesWritten + other.diskBytesWritten,
       diskFileCount + other.diskFileCount,
       hdfsBytesWritten + other.hdfsBytesWritten,
-      hdfsFileCount + other.hdfsFileCount)
+      hdfsFileCount + other.hdfsFileCount,
+      s3BytesWritten = s3BytesWritten + other.s3BytesWritten,
+      s3FileCount = s3FileCount + other.s3FileCount)
   }
 
   def subtract(other: ResourceConsumption): ResourceConsumption = {
@@ -49,7 +53,9 @@ case class ResourceConsumption(
       diskBytesWritten - other.diskBytesWritten,
       diskFileCount - other.diskFileCount,
       hdfsBytesWritten - other.hdfsBytesWritten,
-      hdfsFileCount - other.hdfsFileCount)
+      hdfsFileCount - other.hdfsFileCount,
+      s3BytesWritten = s3BytesWritten - other.s3BytesWritten,
+      s3FileCount = s3FileCount - other.s3FileCount)
   }
 
   def addSubResourceConsumptions(otherSubResourceConsumptions: Map[
@@ -89,6 +95,8 @@ case class ResourceConsumption(
       s" diskFileCount: $diskFileCount," +
       s" hdfsBytesWritten: ${Utils.bytesToString(hdfsBytesWritten)}," +
       s" hdfsFileCount: $hdfsFileCount," +
+      s" s3BytesWritten: ${Utils.bytesToString(s3BytesWritten)}," +
+      s" s3FileCount: $s3FileCount," +
       s" subResourceConsumptions: $subResourceConsumptionString)"
   }
 
@@ -96,6 +104,8 @@ case class ResourceConsumption(
     s"ResourceConsumption(diskBytesWritten: ${Utils.bytesToString(diskBytesWritten)}," +
       s" diskFileCount: $diskFileCount," +
       s" hdfsBytesWritten: ${Utils.bytesToString(hdfsBytesWritten)}," +
-      s" hdfsFileCount: $hdfsFileCount)"
+      s" hdfsFileCount: $hdfsFileCount," +
+      s" s3BytesWritten: ${Utils.bytesToString(s3BytesWritten)}," +
+      s" s3FileCount: $s3FileCount)"
   }
 }

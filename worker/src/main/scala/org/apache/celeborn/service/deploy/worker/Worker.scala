@@ -95,6 +95,7 @@ private[celeborn] class Worker(
   private val secretRegistry = new WorkerSecretRegistryImpl(conf.workerApplicationRegistryCacheSize)
 
   private val hasHDFSStorage = conf.hasHDFSStorage
+  private val hasS3Storage = conf.hasS3Storage
 
   if (conf.logCelebornConfEnabled) {
     logInfo(getConf)
@@ -747,7 +748,7 @@ private[celeborn] class Worker(
     ResourceConsumption]): Unit = {
     // Remove application top resource consumption gauges to refresh top resource consumption metrics.
     removeAppResourceConsumption(topApplicationUserIdentifiers.keySet().asScala)
-    // Top resource consumption is determined by diskBytesWritten+hdfsBytesWritten.
+    // Top resource consumption is determined by diskBytesWritten+hdfsBytesWritten+s3BytesWritten.
     userResourceConsumptions.asScala.filter { case (_, resourceConsumption) =>
       CollectionUtils.isNotEmpty(resourceConsumption.subResourceConsumptions)
     }.flatMap { case (userIdentifier, resourceConsumption) =>
@@ -756,12 +757,14 @@ private[celeborn] class Worker(
       }
     }.toSeq
       .sortBy { case (_, _, appConsumption) =>
-        appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten
+        appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten +
+          appConsumption.s3BytesWritten
       }
       .reverse
       .take(topAppResourceConsumptionCount).foreach {
         case (appId, userIdentifier, appConsumption) =>
-          if (appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten >=
+          if (appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten +
+              appConsumption.s3BytesWritten >=
               topAppResourceConsumptionBytesWrittenThreshold) {
             topApplicationUserIdentifiers.put(appId, userIdentifier)
             gaugeResourceConsumption(userIdentifier, appId, appConsumption)
@@ -798,6 +801,18 @@ private[celeborn] class Worker(
         ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
         resourceConsumptionLabel) { () =>
         computeResourceConsumption(userIdentifier, resourceConsumption).hdfsBytesWritten
+      }
+    }
+    if (hasS3Storage) {
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.S3_FILE_COUNT,
+        resourceConsumptionLabel) { () =>
+        computeResourceConsumption(userIdentifier, resourceConsumption).s3FileCount
+      }
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.S3_BYTES_WRITTEN,
+        resourceConsumptionLabel) { () =>
+        computeResourceConsumption(userIdentifier, resourceConsumption).s3BytesWritten
       }
     }
   }
@@ -873,6 +888,14 @@ private[celeborn] class Worker(
         resourceConsumptionLabel)
       resourceConsumptionSource.removeGauge(
         ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+        resourceConsumptionLabel)
+    }
+    if (hasS3Storage) {
+      resourceConsumptionSource.removeGauge(
+        ResourceConsumptionSource.S3_FILE_COUNT,
+        resourceConsumptionLabel)
+      resourceConsumptionSource.removeGauge(
+        ResourceConsumptionSource.S3_BYTES_WRITTEN,
         resourceConsumptionLabel)
     }
   }

@@ -221,6 +221,8 @@ message ResourceConsumption {
   int64 hdfsBytesWritten = 3;
   int64 hdfsFileCount = 4;
   map<string, ResourceConsumption> subResourceConsumption = 5;
+  int64 s3BytesWritten = 6;
+  int64 s3FileCount = 7;
 }
 
 enum Status {
