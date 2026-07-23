@@ -219,8 +219,8 @@ private[deploy] class Controller(
     if (primaryLocs.size() < requestPrimaryLocs.size()) {
       val msg = s"Not all primary partition satisfied for $shuffleKey"
       logWarning(s"[handleReserveSlots] $msg, will destroy writers.")
-      destroyWriters(primaryLocs, shuffleKey)
       workerSource.incCounter(WorkerSource.RESERVE_SLOTS_FAIL_COUNT)
+      destroyWriters(primaryLocs, shuffleKey)
       context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }
@@ -241,9 +241,9 @@ private[deploy] class Controller(
     if (replicaLocs.size() < requestReplicaLocs.size()) {
       val msg = s"Not all replica partition satisfied for $shuffleKey"
       logWarning(s"[handleReserveSlots] $msg, destroy writers.")
+      workerSource.incCounter(WorkerSource.RESERVE_SLOTS_FAIL_COUNT)
       destroyWriters(primaryLocs, shuffleKey)
       destroyWriters(replicaLocs, shuffleKey)
-      workerSource.incCounter(WorkerSource.RESERVE_SLOTS_FAIL_COUNT)
       context.reply(ReserveSlotsResponse(StatusCode.RESERVE_SLOTS_FAILED, msg))
       return
     }
