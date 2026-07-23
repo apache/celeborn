@@ -104,6 +104,8 @@ case class ResourceConsumption(
     s"ResourceConsumption(diskBytesWritten: ${Utils.bytesToString(diskBytesWritten)}," +
       s" diskFileCount: $diskFileCount," +
       s" hdfsBytesWritten: ${Utils.bytesToString(hdfsBytesWritten)}," +
-      s" hdfsFileCount: $hdfsFileCount)"
+      s" hdfsFileCount: $hdfsFileCount," +
+      s" s3BytesWritten: ${Utils.bytesToString(s3BytesWritten)}," +
+      s" s3FileCount: $s3FileCount)"
   }
 }
