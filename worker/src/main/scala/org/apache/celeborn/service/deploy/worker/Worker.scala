@@ -967,6 +967,22 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
+  override def workerEvent(eventType: String): String = {
+    eventType.toUpperCase(Locale.ROOT) match {
+      case "DECOMMISSIONTHENIDLE" =>
+        workerStatusManager.doTransition(WorkerEventType.DecommissionThenIdle)
+      case "RECOMMISSION" =>
+        workerStatusManager.doTransition(WorkerEventType.Recommission)
+      case _ =>
+        return s"Unsupported worker event type: $eventType. Legal types are 'DECOMMISSIONTHENIDLE' and 'RECOMMISSION'."
+    }
+    val state = workerStatusManager.getWorkerState()
+    val sb = new StringBuilder
+    sb.append("============================ Worker Event =============================\n")
+    sb.append(s"Worker event $eventType received (state=$state): \n")
+    sb.append(workerInfo.toString()).append("\n")
+    sb.toString()
+
   def shutdownGracefully(): Unit = {
     // During shutdown, to avoid allocate slots in this worker,
     // add this worker to master's excluded list. When restart, register worker will
