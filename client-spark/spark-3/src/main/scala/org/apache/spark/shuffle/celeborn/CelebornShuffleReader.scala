@@ -18,8 +18,8 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
-import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, Optional, Set => JSet}
-import java.util.concurrent.{ConcurrentHashMap, ThreadPoolExecutor, TimeoutException, TimeUnit}
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap, HashSet => JHashSet, Map => JMap, Optional, Set => JSet}
+import java.util.concurrent.{ConcurrentHashMap, ExecutionException, ThreadPoolExecutor, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.BiFunction
 
@@ -48,7 +48,7 @@ import org.apache.celeborn.common.network.protocol.TransportMessage
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.{ControlMessages, StatusCode}
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
-import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{ExceptionUtils, JavaUtils, ThreadUtils, Utils}
 
 class CelebornShuffleReader[K, C](
     handle: CelebornShuffleHandle[K, _, C],
@@ -236,27 +236,31 @@ class CelebornShuffleReader[K, C](
     val parallelClientCreationEnabled = conf.batchOpenStreamParallelClientCreationEnabled
     val locationsByHostPort =
       new mutable.LinkedHashMap[String, JArrayList[PartitionLocation]]()
+    val attemptedClientHostPorts = new JHashSet[String]()
 
     def makeOpenStreamList(locations: JSet[PartitionLocation]): Unit = {
       locations.asScala.foreach { location =>
         partCnt += 1
         val hostPort = location.hostAndFetchPort
         if (!workerRequestMap.containsKey(hostPort)) {
-          try {
-            val client = shuffleClient.getDataClientFactory().createClient(
-              location.getHost,
-              location.getFetchPort)
+          CelebornShuffleReader.tryCreateClientOncePerEndpoint(
+            location,
+            attemptedClientHostPorts,
+            loc =>
+              shuffleClient.getDataClientFactory().createClient(
+                loc.getHost,
+                loc.getFetchPort),
+            ex => {
+              shuffleClient.excludeFailedFetchLocation(hostPort, ex)
+              logWarning(
+                s"Failed to create client for $shuffleKey-${location.getId} from host: ${hostPort}. " +
+                  s"Shuffle reader will try its replica if exists.")
+            }).foreach { client =>
             val pbOpenStreamList = PbOpenStreamList.newBuilder()
             pbOpenStreamList.setShuffleKey(shuffleKey)
             workerRequestMap.put(
               hostPort,
               (client, new JArrayList[PartitionLocation], pbOpenStreamList))
-          } catch {
-            case ex: Exception =>
-              shuffleClient.excludeFailedFetchLocation(hostPort, ex)
-              logWarning(
-                s"Failed to create client for $shuffleKey-${location.getId} from host: ${hostPort}. " +
-                  s"Shuffle reader will try its replica if exists.")
           }
         }
         workerRequestMap.get(hostPort) match {
@@ -628,6 +632,42 @@ object CelebornShuffleReader {
   var streamCreatorPool: ThreadPoolExecutor = null
 
   @VisibleForTesting
+  private[celeborn] def tryCreateClient(
+      location: PartitionLocation,
+      createClient: PartitionLocation => TransportClient,
+      onClientCreateFailure: Exception => Unit): Option[TransportClient] = {
+    if (Thread.currentThread().isInterrupted) {
+      throw new InterruptedException("Client creation interrupted")
+    }
+    try {
+      Some(createClient(location))
+    } catch {
+      case ex: Exception =>
+        val interruptedException = ExceptionUtils.findInterruptedException(ex)
+        if (interruptedException != null) {
+          Thread.currentThread().interrupt()
+          throw interruptedException
+        } else {
+          onClientCreateFailure(ex)
+          None
+        }
+    }
+  }
+
+  @VisibleForTesting
+  private[celeborn] def tryCreateClientOncePerEndpoint(
+      location: PartitionLocation,
+      attemptedClientHostPorts: JSet[String],
+      createClient: PartitionLocation => TransportClient,
+      onClientCreateFailure: Exception => Unit): Option[TransportClient] = {
+    if (attemptedClientHostPorts.add(location.hostAndFetchPort)) {
+      tryCreateClient(location, createClient, onClientCreateFailure)
+    } else {
+      None
+    }
+  }
+
+  @VisibleForTesting
   private[celeborn] def createClientsInParallel(
       locationsByHostPort: Seq[(String, Seq[PartitionLocation])],
       streamCreatorPool: ThreadPoolExecutor,
@@ -638,19 +678,12 @@ object CelebornShuffleReader {
     val futures = locationsByHostPort.map { case (hostPort, locations) =>
       streamCreatorPool.submit(new Runnable {
         override def run(): Unit = {
-          val locationsIterator = locations.iterator
-          var clientCreated = false
-          while (!clientCreated && locationsIterator.hasNext) {
-            val location = locationsIterator.next()
-            try {
-              clientsByHostPort.put(hostPort, createClient(location))
-              clientCreated = true
-            } catch {
-              case ex: InterruptedException =>
-                Thread.currentThread().interrupt()
-                throw ex
-              case ex: Exception =>
-                onClientCreateFailure(hostPort, location, ex)
+          locations.headOption.foreach { location =>
+            tryCreateClient(
+              location,
+              createClient,
+              ex => onClientCreateFailure(hostPort, location, ex)).foreach { client =>
+              clientsByHostPort.put(hostPort, client)
             }
           }
         }
@@ -663,6 +696,13 @@ object CelebornShuffleReader {
     } catch {
       case ex: InterruptedException =>
         Thread.currentThread().interrupt()
+        throw ex
+      case ex: ExecutionException =>
+        val interruptedException = ExceptionUtils.findInterruptedException(ex)
+        if (interruptedException != null) {
+          Thread.currentThread().interrupt()
+          throw interruptedException
+        }
         throw ex
     } finally {
       if (!waitCompleted) {

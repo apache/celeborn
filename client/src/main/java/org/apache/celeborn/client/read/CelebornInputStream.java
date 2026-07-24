@@ -49,6 +49,7 @@ import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.protocol.*;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.ExceptionMaker;
+import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.LocationPushFailedBatches;
 
@@ -448,6 +449,16 @@ public abstract class CelebornInputStream extends InputStream {
       }
     }
 
+    private static boolean isInterruption(Throwable throwable) {
+      return Thread.currentThread().isInterrupted()
+          || ExceptionUtils.findInterruptedException(throwable) != null;
+    }
+
+    private static IOException interruptedIOException(Exception exception) {
+      Thread.currentThread().interrupt();
+      return ExceptionUtils.wrapThrowableToIOException(exception);
+    }
+
     private PartitionReader createReaderWithRetry(
         PartitionLocation location, PbStreamHandler pbStreamHandler) throws IOException {
       return createReaderWithRetry(location, pbStreamHandler, Optional.empty());
@@ -474,6 +485,9 @@ public abstract class CelebornInputStream extends InputStream {
                   checkpointMetadata);
           return reader;
         } catch (Exception e) {
+          if (isInterruption(e)) {
+            throw interruptedIOException(e);
+          }
           lastException = e;
           shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort(), e);
           fetchChunkRetryCnt++;
@@ -503,6 +517,9 @@ public abstract class CelebornInputStream extends InputStream {
                             .toByteArray());
                 client.sendRpc(bufferStreamEnd.toByteBuffer());
               } catch (InterruptedException | IOException | RuntimeException ex) {
+                if (isInterruption(ex)) {
+                  throw interruptedIOException(ex);
+                }
                 logger.warn(
                     "Close {} stream {} failed",
                     location.hostAndFetchPort(),
@@ -538,6 +555,15 @@ public abstract class CelebornInputStream extends InputStream {
           }
           return currentReader.next();
         } catch (Exception e) {
+          if (isInterruption(e)) {
+            IOException interrupted = interruptedIOException(e);
+            try {
+              currentReader.close();
+            } catch (RuntimeException closeException) {
+              interrupted.addSuppressed(closeException);
+            }
+            throw interrupted;
+          }
           shuffleClient.excludeFailedFetchLocation(
               currentReader.getLocation().hostAndFetchPort(), e);
           fetchChunkRetryCnt++;
@@ -946,6 +972,9 @@ public abstract class CelebornInputStream extends InputStream {
         }
         return hasData;
       } catch (LZ4Exception | ZstdException | IOException e) {
+        if (isInterruption(e)) {
+          throw interruptedIOException(e);
+        }
         logger.error(
             "Failed to fill buffer from chunk. AppShuffleId {}, shuffleId {}, partitionId {}, location {}",
             appShuffleId,
@@ -974,6 +1003,9 @@ public abstract class CelebornInputStream extends InputStream {
         }
         throw ioe;
       } catch (Exception e) {
+        if (isInterruption(e)) {
+          throw interruptedIOException(e);
+        }
         logger.error(
             "Failed to fill buffer from chunk. AppShuffleId {}, shuffleId {}, partitionId {}, location {}",
             appShuffleId,

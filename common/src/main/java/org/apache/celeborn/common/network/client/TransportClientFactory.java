@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -47,6 +48,7 @@ import org.apache.celeborn.common.network.TransportContext;
 import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBootstrap;
 import org.apache.celeborn.common.network.server.TransportChannelHandler;
 import org.apache.celeborn.common.network.util.*;
+import org.apache.celeborn.common.util.ExceptionUtils;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 
@@ -160,9 +162,10 @@ public class TransportClientFactory implements Closeable {
       try {
         return createClient(remoteHost, remotePort, partitionId, supplier.get());
       } catch (Exception e) {
-        if (e instanceof InterruptedException) {
+        InterruptedException interruptedException = ExceptionUtils.findInterruptedException(e);
+        if (interruptedException != null) {
           Thread.currentThread().interrupt();
-          throw e;
+          throw interruptedException;
         }
         numTries++;
         logger.warn(
@@ -315,14 +318,21 @@ public class TransportClientFactory implements Closeable {
     long preConnect = System.nanoTime();
     ChannelFuture cf = bootstrap.connect(address);
     if (connectTimeoutMs <= 0) {
-      cf.await();
+      awaitWithChannelCleanup(
+          () -> {
+            cf.await();
+            return true;
+          },
+          cf);
       assert cf.isDone();
       if (cf.isCancelled()) {
+        closeChannel(cf);
         throw new IOException(String.format("Connecting to %s cancelled", address));
       } else if (!cf.isSuccess()) {
+        closeChannel(cf);
         throw new IOException(String.format("Failed to connect to %s", address), cf.cause());
       }
-    } else if (!cf.await(connectTimeoutMs)) {
+    } else if (!awaitWithChannelCleanup(() -> cf.await(connectTimeoutMs), cf)) {
       closeChannel(cf);
       throw new CelebornIOException(
           String.format("Connecting to %s timed out (%s ms)", address, connectTimeoutMs));
@@ -351,7 +361,7 @@ public class TransportClientFactory implements Closeable {
                       }
                     }
                   });
-      if (!future.await(connectionTimeoutMs)) {
+      if (!awaitWithChannelCleanup(() -> future.await(connectionTimeoutMs), cf)) {
         closeChannel(cf);
         throw new IOException(
             String.format("Failed to connect to %s within connection timeout", address));
@@ -403,6 +413,25 @@ public class TransportClientFactory implements Closeable {
     return client;
   }
 
+  @FunctionalInterface
+  @VisibleForTesting
+  interface InterruptibleAwait {
+    boolean await() throws InterruptedException;
+  }
+
+  @VisibleForTesting
+  static boolean awaitWithChannelCleanup(
+      InterruptibleAwait interruptibleAwait, ChannelFuture channelFuture)
+      throws InterruptedException {
+    try {
+      return interruptibleAwait.await();
+    } catch (InterruptedException e) {
+      closeChannel(channelFuture);
+      Thread.currentThread().interrupt();
+      throw e;
+    }
+  }
+
   /** Close all connections in the connection pool, and shutdown the worker thread pool. */
   @Override
   public void close() {
@@ -428,7 +457,7 @@ public class TransportClientFactory implements Closeable {
     return context;
   }
 
-  private void closeChannel(ChannelFuture channelFuture) {
+  private static void closeChannel(ChannelFuture channelFuture) {
     try {
       channelFuture.channel().close();
     } catch (Exception e) {

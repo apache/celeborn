@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
+import com.google.common.base.Throwables;
+
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.exception.PartitionUnRetryAbleException;
 
@@ -50,6 +52,15 @@ public class ExceptionUtils {
     } else {
       return new IOException(throwable.getMessage(), throwable);
     }
+  }
+
+  public static InterruptedException findInterruptedException(Throwable throwable) {
+    for (Throwable cause : Throwables.getCausalChain(throwable)) {
+      if (cause instanceof InterruptedException) {
+        return (InterruptedException) cause;
+      }
+    }
+    return null;
   }
 
   public static String stringifyException(Throwable exception) {

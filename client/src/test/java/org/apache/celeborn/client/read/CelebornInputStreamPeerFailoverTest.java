@@ -17,6 +17,10 @@
 
 package org.apache.celeborn.client.read;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -24,7 +28,10 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -50,8 +57,9 @@ import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.common.util.ExceptionMaker;
 
-/** Tests for CelebornInputStream peer failover when stream cleanup throws RuntimeException. */
+/** Tests for CelebornInputStream peer failover and interruption handling. */
 public class CelebornInputStreamPeerFailoverTest {
 
   private static final String SHUFFLE_KEY = "appid-1-1";
@@ -144,6 +152,103 @@ public class CelebornInputStreamPeerFailoverTest {
     }
   }
 
+  @Test
+  public void testInterruptedClientCreationDoesNotRetryOrFailOver() throws Exception {
+    InterruptedException interruptedException = new InterruptedException("cancelled");
+    IOException wrappedException = new IOException("wrapped", interruptedException);
+    when(clientFactory.createClient(anyString(), anyInt())).thenThrow(wrappedException);
+
+    try {
+      IOException thrown =
+          assertThrows(IOException.class, () -> createInputStream(PRIMARY_HOST, REPLICA_HOST));
+
+      assertSame(wrappedException, thrown);
+      assertTrue(Thread.currentThread().isInterrupted());
+      verify(clientFactory, times(1)).createClient(anyString(), anyInt());
+      verify(shuffleClient, never()).excludeFailedFetchLocation(anyString(), any());
+    } finally {
+      Thread.interrupted();
+    }
+  }
+
+  @Test
+  public void testInterruptedCleanupDoesNotFailOver() throws Exception {
+    AtomicInteger primaryAttempts = new AtomicInteger();
+    AtomicInteger replicaAttempts = new AtomicInteger();
+    InterruptedException interruptedException = new InterruptedException("cancelled");
+    IOException cleanupException = new IOException("cleanup interrupted", interruptedException);
+
+    when(clientFactory.createClient(anyString(), anyInt()))
+        .thenAnswer(
+            invocation -> {
+              String host = invocation.getArgument(0);
+              if (PRIMARY_HOST.equals(host)) {
+                if (primaryAttempts.incrementAndGet() == 1) {
+                  throw new IOException("Worker Not Registered!");
+                }
+                throw cleanupException;
+              }
+              replicaAttempts.incrementAndGet();
+              return mockReplicaClient();
+            });
+
+    try {
+      IOException thrown =
+          assertThrows(IOException.class, () -> createInputStream(PRIMARY_HOST, REPLICA_HOST));
+
+      assertSame(cleanupException, thrown);
+      assertTrue(Thread.currentThread().isInterrupted());
+      assertEquals(2, primaryAttempts.get());
+      assertEquals(0, replicaAttempts.get());
+    } finally {
+      Thread.interrupted();
+    }
+  }
+
+  @Test
+  public void testInterruptedReconnectDoesNotReportFetchFailureOrFailOver() throws Exception {
+    AtomicInteger primaryAttempts = new AtomicInteger();
+    AtomicInteger replicaAttempts = new AtomicInteger();
+    TransportClient inactiveClient = mock(TransportClient.class);
+    when(inactiveClient.isActive()).thenReturn(false, true);
+    InterruptedException interruptedException = new InterruptedException("cancelled");
+    IOException reconnectException = new IOException("reconnect interrupted", interruptedException);
+    RuntimeException closeException = new RuntimeException("close failed");
+    doThrow(closeException).when(inactiveClient).sendRpc(any(ByteBuffer.class));
+
+    when(clientFactory.createClient(anyString(), anyInt()))
+        .thenAnswer(
+            invocation -> {
+              String host = invocation.getArgument(0);
+              if (PRIMARY_HOST.equals(host)) {
+                if (primaryAttempts.incrementAndGet() == 1) {
+                  return inactiveClient;
+                }
+                throw reconnectException;
+              }
+              replicaAttempts.incrementAndGet();
+              return mockReplicaClient();
+            });
+    ExceptionMaker exceptionMaker = mock(ExceptionMaker.class);
+
+    try {
+      CelebornInputStream inputStream =
+          createInputStream(PRIMARY_HOST, REPLICA_HOST, exceptionMaker);
+      IOException thrown = assertThrows(IOException.class, inputStream::read);
+
+      assertSame(reconnectException, thrown.getCause());
+      assertEquals(1, thrown.getSuppressed().length);
+      assertSame(closeException, thrown.getSuppressed()[0]);
+      assertTrue(Thread.currentThread().isInterrupted());
+      assertEquals(2, primaryAttempts.get());
+      assertEquals(0, replicaAttempts.get());
+      verify(shuffleClient, never()).excludeFailedFetchLocation(anyString(), any());
+      verify(shuffleClient, never()).reportShuffleFetchFailure(anyInt(), anyInt(), anyLong());
+    } finally {
+      Thread.interrupted();
+    }
+  }
+
   /** Tests that all retries are exhausted and an exception is thrown when there is no peer. */
   @Test(expected = CelebornIOException.class)
   public void testFailureWithoutPeer() throws Exception {
@@ -180,7 +285,13 @@ public class CelebornInputStreamPeerFailoverTest {
         Optional.<CryptoHandler>empty());
   }
 
-  private void createInputStream(String primaryHost, String replicaHost) throws IOException {
+  private CelebornInputStream createInputStream(String primaryHost, String replicaHost)
+      throws IOException {
+    return createInputStream(primaryHost, replicaHost, null);
+  }
+
+  private CelebornInputStream createInputStream(
+      String primaryHost, String replicaHost, ExceptionMaker exceptionMaker) throws IOException {
     PartitionLocation primary = createPartitionLocation(primaryHost);
     PartitionLocation replica = createPartitionLocation(replicaHost);
     primary.setPeer(replica);
@@ -192,7 +303,7 @@ public class CelebornInputStreamPeerFailoverTest {
     ArrayList<PbStreamHandler> streamHandlers = new ArrayList<>();
     streamHandlers.add(PbStreamHandler.newBuilder().setStreamId(123L).setNumChunks(10).build());
 
-    CelebornInputStream.create(
+    return CelebornInputStream.create(
         conf,
         clientFactory,
         SHUFFLE_KEY,
@@ -210,7 +321,7 @@ public class CelebornInputStreamPeerFailoverTest {
         1,
         1,
         0,
-        null,
+        exceptionMaker,
         new TestMetricsCallback(),
         false,
         Optional.<CryptoHandler>empty());
