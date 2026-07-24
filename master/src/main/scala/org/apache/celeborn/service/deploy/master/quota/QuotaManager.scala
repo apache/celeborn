@@ -99,6 +99,12 @@ class QuotaManager(
     CheckQuotaResponse(!status.exceed, status.exceedReason)
   }
 
+  def getAppStorageQuota: StorageQuota = {
+    Option(configService)
+      .map(_.getSystemConfigFromCache.getAppStorageQuota)
+      .getOrElse(StorageQuota.DEFAULT_QUOTA)
+  }
+
   def getUserStorageQuota(user: UserIdentifier): StorageQuota = {
     Option(configService)
       .map(_.getTenantUserConfigFromCache(user.tenantId, user.name).getUserStorageQuota)
@@ -270,11 +276,34 @@ class QuotaManager(
     }
   }
 
+  // App-level quota check is intentionally invoked only when a higher-level quota
+  // (user / tenant / cluster) is already exceeded. When no higher-level quota is
+  // breached, individual apps are allowed to consume more freely without being
+  // throttled by the per-app threshold.
+  def checkAppResourceConsumption(
+      appAndResourceConsumptionList: Seq[(String, ResourceConsumption)]): Unit = {
+    val threshold = getAppStorageQuota
+    appAndResourceConsumptionList.foreach {
+      case (appId, consumption) if checkConsumptionExceeded(consumption, threshold) =>
+        val exceedReason =
+          s"$APPLICATION_EXHAUSTED " +
+            s"appId: $appId, " +
+            s"Used: ${consumption.simpleString}, " +
+            s"Threshold: $threshold"
+        appQuotaStatus.put(appId, QuotaStatus(exceed = true, exceedReason))
+      case _ =>
+    }
+  }
+
   def checkUserResourceConsumption(
       userIdentifier: UserIdentifier,
       resourceConsumptionList: Seq[ResourceConsumption],
       usedResourceConsumption: ResourceConsumption): Seq[(String, ResourceConsumption)] = {
     val appConsumptions = computeSubConsumption(resourceConsumptionList).toSeq
+
+    // Check app level storage quota
+    checkAppResourceConsumption(appConsumptions)
+
     // Compute expired size
     val (expired, notExpired) = appConsumptions.partition { case (app, _) =>
       appQuotaStatus.containsKey(app)
@@ -298,6 +327,9 @@ class QuotaManager(
       case (Some(subConsumptions), _) => subConsumptions
     }.flatMap(_.toSeq).toSeq
 
+    // Check app level storage quota
+    checkAppResourceConsumption(appConsumptions)
+
     // Compute nonExpired app total usage
     val (expired, notExpired) = appConsumptions.partition { case (app, _) =>
       appQuotaStatus.containsKey(app)
@@ -320,6 +352,9 @@ class QuotaManager(
       case (None, subConsumptionList) => computeSubConsumption(subConsumptionList)
       case (Some(subConsumptions), _) => subConsumptions
     }.flatMap(_.toSeq).toSeq
+
+    // Check app level storage quota
+    checkAppResourceConsumption(appConsumptions)
 
     // Compute nonExpired app total usage
     val (expired, notExpired) = appConsumptions.partition { case (app, _) =>
