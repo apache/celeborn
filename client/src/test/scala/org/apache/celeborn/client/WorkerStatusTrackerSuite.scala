@@ -27,6 +27,7 @@ import scala.collection.mutable.ArrayBuffer
 import org.junit.Assert
 
 import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.{CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT, CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED}
 import org.apache.celeborn.common.meta.WorkerInfo
@@ -157,6 +158,36 @@ class WorkerStatusTrackerSuite extends CelebornFunSuite {
       "ConcurrentModificationException should not occur with thread-safe set",
       0,
       errors.get())
+  }
+
+  test("recordWorkerFailure updates client worker-excluded gauge") {
+    val celebornConf = new CelebornConf()
+    // Wire a bare WorkerStatusTracker + CelebornClientSource exactly like LifecycleManager does
+    // for the excluded-workers gauge, without standing up an RpcEnv or background threads.
+    val statusTracker = new WorkerStatusTracker(celebornConf, null)
+    val source = new CelebornClientSource(celebornConf)
+    source.addGauge(CelebornClientSource.EXCLUDED_WORKER_COUNT) { () =>
+      statusTracker.excludedWorkers.size
+    }
+    try {
+      val failed = new ShuffleFailedWorkers()
+      val now = System.currentTimeMillis()
+      failed.put(mock("host1"), (StatusCode.WORKER_UNRESPONSIVE, now))
+      failed.put(mock("host2"), (StatusCode.WORKER_UNRESPONSIVE, now))
+      statusTracker.recordWorkerFailure(failed)
+
+      Assert.assertEquals(
+        2L,
+        source.getMetricsSnapshot()(CelebornClientSource.EXCLUDED_WORKER_COUNT).value)
+
+      // re-recording already-excluded workers does not change the gauge
+      statusTracker.recordWorkerFailure(failed)
+      Assert.assertEquals(
+        2L,
+        source.getMetricsSnapshot()(CelebornClientSource.EXCLUDED_WORKER_COUNT).value)
+    } finally {
+      source.stop()
+    }
   }
 
   private def buildResponse(

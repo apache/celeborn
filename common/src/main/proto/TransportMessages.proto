@@ -501,6 +501,18 @@ message PbHeartbeatFromApplication {
   int64 applicationCount = 9;
   map<string, int64> applicationFallbackCounts = 10;
   PbHeartbeatInfo heartbeatInfo = 11;
+  map<string, PbClientMetric> clientMetrics = 12;
+  map<string, string> metricLabels = 13;
+}
+
+enum PbMetricType {
+  GAUGE = 0;
+  COUNTER = 1;
+}
+
+message PbClientMetric {
+  int64 value = 1;
+  PbMetricType type = 2;
 }
 
 message PbHeartbeatFromApplicationResponse {
