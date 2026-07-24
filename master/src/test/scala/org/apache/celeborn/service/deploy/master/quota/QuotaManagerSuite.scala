@@ -681,6 +681,136 @@ class QuotaManagerSuite extends CelebornFunSuite
     clearUserConsumption()
   }
 
+  test("test cluster overload - below threshold is not overloaded") {
+    val user = UserIdentifier("tenant_01", "Jerry")
+    // Cluster quota = 100GB disk, factor = 0.8 → overload threshold = 80GB
+    conf.set("celeborn.quota.cluster.diskBytesWritten", "100gb")
+    conf.set("celeborn.quota.overload.factor", "0.8")
+    configService.refreshCache()
+
+    // 70GB is below the 80GB threshold
+    addUserConsumption(user, ResourceConsumption(Utils.byteStringAsBytes("70g"), 0, 0, 0))
+    quotaManager.updateResourceConsumption()
+
+    assertFalse(quotaManager.isClusterOverloaded)
+    clearUserConsumption()
+  }
+
+  test("test cluster overload - above threshold is overloaded") {
+    val user = UserIdentifier("tenant_01", "Jerry")
+    // Cluster quota = 100GB disk, factor = 0.8 → overload threshold = 80GB
+    conf.set("celeborn.quota.cluster.diskBytesWritten", "100gb")
+    conf.set("celeborn.quota.overload.factor", "0.8")
+    configService.refreshCache()
+
+    // 85GB is above the 80GB threshold
+    addUserConsumption(user, ResourceConsumption(Utils.byteStringAsBytes("85g"), 0, 0, 0))
+    quotaManager.updateResourceConsumption()
+
+    assertTrue(quotaManager.isClusterOverloaded)
+    clearUserConsumption()
+  }
+
+  test("test cluster overload - at exact threshold boundary is overloaded") {
+    val user = UserIdentifier("tenant_01", "Jerry")
+    // Cluster quota = 100GB disk, factor = 0.8 → overload threshold = 80GB
+    conf.set("celeborn.quota.cluster.diskBytesWritten", "100gb")
+    conf.set("celeborn.quota.overload.factor", "0.8")
+    configService.refreshCache()
+
+    // Consumption exactly at threshold (80GB): checkQuota uses value >= quota so this triggers overload
+    val thresholdBytes = (0.8 * Utils.byteStringAsBytes("100g")).toLong
+    addUserConsumption(user, ResourceConsumption(thresholdBytes, 0, 0, 0))
+    quotaManager.updateResourceConsumption()
+
+    assertTrue(quotaManager.isClusterOverloaded)
+    clearUserConsumption()
+  }
+
+  test("test cluster overload - status resets when consumption drops below threshold") {
+    val user = UserIdentifier("tenant_01", "Jerry")
+    conf.set("celeborn.quota.cluster.diskBytesWritten", "100gb")
+    conf.set("celeborn.quota.overload.factor", "0.8")
+    configService.refreshCache()
+
+    // First: consumption above threshold
+    addUserConsumption(user, ResourceConsumption(Utils.byteStringAsBytes("85g"), 0, 0, 0))
+    quotaManager.updateResourceConsumption()
+    assertTrue(quotaManager.isClusterOverloaded)
+
+    // Then: consumption drops below threshold
+    clearUserConsumption()
+    addUserConsumption(user, ResourceConsumption(Utils.byteStringAsBytes("70g"), 0, 0, 0))
+    quotaManager.updateResourceConsumption()
+    assertFalse(quotaManager.isClusterOverloaded)
+
+    clearUserConsumption()
+  }
+
+  test("test cluster overload - custom factor changes the effective threshold") {
+    val user = UserIdentifier("tenant_01", "Jerry")
+    conf.set("celeborn.quota.cluster.diskBytesWritten", "100gb")
+    configService.refreshCache()
+
+    // With factor=0.9, threshold = 90GB; 85GB should not trigger overload
+    conf.set("celeborn.quota.overload.factor", "0.9")
+    configService.refreshCache()
+    addUserConsumption(user, ResourceConsumption(Utils.byteStringAsBytes("85g"), 0, 0, 0))
+    quotaManager.updateResourceConsumption()
+    assertFalse(quotaManager.isClusterOverloaded)
+    clearUserConsumption()
+
+    // Same 85GB would trigger overload with a lower factor=0.8 (threshold=80GB)
+    conf.set("celeborn.quota.overload.factor", "0.8")
+    configService.refreshCache()
+    addUserConsumption(user, ResourceConsumption(Utils.byteStringAsBytes("85g"), 0, 0, 0))
+    quotaManager.updateResourceConsumption()
+    assertTrue(quotaManager.isClusterOverloaded)
+    clearUserConsumption()
+  }
+
+  test("test cluster overload - triggered by hdfs bytes exceeding threshold") {
+    val user = UserIdentifier("tenant_01", "Jerry")
+    conf.set("celeborn.quota.cluster.diskBytesWritten", "100gb")
+    conf.set("celeborn.quota.cluster.hdfsBytesWritten", "50gb")
+    conf.set("celeborn.quota.overload.factor", "0.8")
+    configService.refreshCache()
+
+    // Disk usage is fine (10GB < 80GB threshold) but hdfs usage (45GB) exceeds hdfs threshold (40GB)
+    addUserConsumption(
+      user,
+      ResourceConsumption(Utils.byteStringAsBytes("10g"), 0, Utils.byteStringAsBytes("45g"), 0))
+    quotaManager.updateResourceConsumption()
+
+    assertTrue(quotaManager.isClusterOverloaded)
+    clearUserConsumption()
+  }
+
+  test("test cluster overload - multiple dimensions, all below threshold") {
+    val user = UserIdentifier("tenant_01", "Jerry")
+    conf.set("celeborn.quota.cluster.diskBytesWritten", "100gb")
+    conf.set("celeborn.quota.cluster.diskFileCount", "10000")
+    conf.set("celeborn.quota.cluster.hdfsBytesWritten", "50gb")
+    conf.set("celeborn.quota.cluster.hdfsFileCount", "5000")
+    conf.set("celeborn.quota.overload.factor", "0.8")
+    configService.refreshCache()
+
+    // All dimensions below their respective 80% thresholds
+    addUserConsumption(
+      user,
+      ResourceConsumption(
+        Utils.byteStringAsBytes("75g"), // disk: 75GB < 80GB threshold
+        7000, // files: 7000 < 8000 threshold
+        Utils.byteStringAsBytes("35g"), // hdfs: 35GB < 40GB threshold
+        3000
+      )
+    ) // hdfs files: 3000 < 4000 threshold
+    quotaManager.updateResourceConsumption()
+
+    assertFalse(quotaManager.isClusterOverloaded)
+    clearUserConsumption()
+  }
+
   def checkUserQuota(userIdentifier: UserIdentifier): CheckQuotaResponse = {
     quotaManager.checkUserQuotaStatus(userIdentifier)
   }

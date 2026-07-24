@@ -936,6 +936,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def userQuotaEnabled: Boolean = get(USER_QUOTA_ENABLED)
   def quotaInterruptShuffleEnabled: Boolean = get(QUOTA_INTERRUPT_SHUFFLE_ENABLED)
 
+  def clusterOverloadGcEnabled: Boolean = get(MASTER_CLUSTER_OVERLOAD_GC_ENABLED)
+  def clientGcOnOverloadEnabled: Boolean = get(CLIENT_GC_ON_CLUSTER_OVERLOAD_ENABLED)
+  def clientGcOnOverloadMinIntervalMs: Long = get(CLIENT_GC_ON_CLUSTER_OVERLOAD_MIN_INTERVAL)
+
   // //////////////////////////////////////////////////////
   //                      Identity                       //
   // //////////////////////////////////////////////////////
@@ -2524,6 +2528,15 @@ object CelebornConf extends Logging {
       .doc("Application heartbeat timeout.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("300s")
+
+  val MASTER_CLUSTER_OVERLOAD_GC_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.master.clusterOverload.gc.enabled")
+      .categories("master")
+      .version("0.7.0")
+      .doc("Whether to enable the master signaling clients to trigger GC when the cluster " +
+        "storage is overloaded (any cluster quota dimension exceeds the overload threshold).")
+      .booleanConf
+      .createWithDefault(false)
 
   val DFS_EXPIRE_DIRS_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.master.dfs.expireDirs.timeout")
@@ -4832,6 +4845,26 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
+  val CLIENT_GC_ON_CLUSTER_OVERLOAD_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.clusterOverload.gc.enabled")
+      .categories("client")
+      .version("0.7.0")
+      .doc("When true, the client will trigger System.gc() upon receiving a GC signal from " +
+        "the master indicating cluster storage is overloaded. Disable to ignore the signal.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val CLIENT_GC_ON_CLUSTER_OVERLOAD_MIN_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.clusterOverload.gc.minInterval")
+      .categories("client")
+      .version("0.7.0")
+      .doc("Minimum time that must elapse between consecutive GC triggers on the client side " +
+        "in response to master GC signals. This prevents excessive GC pressure when the " +
+        "cluster remains overloaded across multiple heartbeat intervals.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(_ >= 0, "Should be >= 0.")
+      .createWithDefaultString("5m")
+
   val CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.excludePeerWorkerOnFailure.enabled")
       .categories("client")
@@ -6950,6 +6983,18 @@ object CelebornConf extends Logging {
       .doubleConf
       .checkValue(v => v >= 0.0 && v < 1.0, "Should be in [0.0, 1).")
       .createWithDefault(0.3)
+
+  val QUOTA_CLUSTER_OVERLOAD_FACTOR: ConfigEntry[Double] =
+    buildConf("celeborn.quota.overload.factor")
+      .categories("quota")
+      .dynamic
+      .doc("This config decides the quota * factor at which to consider the cluster 'overloaded'." +
+        " When the cluster is overloaded and `celeborn.master.clusterOverload.gc.enabled` is true," +
+        " application heartbeat responses contain a signal to trigger a GC to clean up dangling shuffle dependencies")
+      .version("0.7.0")
+      .doubleConf
+      .checkValue(v => v > 0.0 && v <= 1.0, "Should be in (0.0, 1.0].")
+      .createWithDefault(0.8)
 
   val QUOTA_CLUSTER_DISK_BYTES_WRITTEN: ConfigEntry[Long] =
     buildConf("celeborn.quota.cluster.diskBytesWritten")

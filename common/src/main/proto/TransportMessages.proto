@@ -510,6 +510,7 @@ message PbHeartbeatFromApplicationResponse {
   repeated PbWorkerInfo shuttingWorkers = 4;
   repeated int32 registeredShuffles = 5;
   PbCheckQuotaResponse checkQuotaResponse = 6;
+  bool shouldTriggerGc = 7;
 }
 
 message PbCheckQuota {
