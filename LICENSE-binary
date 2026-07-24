@@ -226,6 +226,7 @@ com.zaxxer:HikariCP
 info.picocli:picocli
 io.dropwizard.metrics:metrics-core
 io.dropwizard.metrics:metrics-graphite
+io.dropwizard.metrics:metrics-jmx
 io.dropwizard.metrics:metrics-jvm
 io.netty:netty-all
 io.netty:netty-buffer

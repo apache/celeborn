@@ -283,6 +283,11 @@
         <version>${codahale.metrics.version}</version>
       </dependency>
       <dependency>
+        <groupId>io.dropwizard.metrics</groupId>
+        <artifactId>metrics-jmx</artifactId>
+        <version>${codahale.metrics.version}</version>
+      </dependency>
+      <dependency>
         <groupId>org.apache.ratis</groupId>
         <artifactId>ratis-common</artifactId>
         <version>${ratis.version}</version>

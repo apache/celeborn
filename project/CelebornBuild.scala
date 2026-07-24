@@ -142,6 +142,7 @@ object Dependencies {
   val ioDropwizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite" % metricsVersion excludeAll (
     ExclusionRule("com.rabbitmq", "amqp-client"))
   val ioDropwizardMetricsJvm = "io.dropwizard.metrics" % "metrics-jvm" % metricsVersion
+  val ioDropwizardMetricsJmx = "io.dropwizard.metrics" % "metrics-jmx" % metricsVersion
   val ioNetty = "io.netty" % "netty-all" % nettyVersion excludeAll(
     ExclusionRule("io.netty", "netty-codec-haproxy"),
     ExclusionRule("io.netty", "netty-codec-memcache"),
@@ -679,6 +680,7 @@ object CelebornCommon {
         Dependencies.ioDropwizardMetricsCore,
         Dependencies.ioDropwizardMetricsGraphite,
         Dependencies.ioDropwizardMetricsJvm,
+        Dependencies.ioDropwizardMetricsJmx,
         Dependencies.ioNetty,
         Dependencies.ioNettyEpollLinuxX8664,
         Dependencies.ioNettyEpollLinuxAarch64,
