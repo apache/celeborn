@@ -465,6 +465,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.ACTIVE_SLOTS_COUNT) { () =>
     workerInfo.usedSlots()
   }
+  workerSource.addGauge(WorkerSource.AVAILABLE_SLOTS_COUNT) { () =>
+    workerInfo.totalAvailableSlots()
+  }
   workerSource.addGauge(WorkerSource.IS_DECOMMISSIONING_WORKER) { () =>
     if (shutdown.get() && (workerStatusManager.currentWorkerStatus.getState == State.InDecommission ||
         workerStatusManager.currentWorkerStatus.getState == State.InDecommissionThenIdle)) {
