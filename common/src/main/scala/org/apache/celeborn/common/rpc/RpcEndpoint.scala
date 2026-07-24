@@ -20,6 +20,7 @@ package org.apache.celeborn.common.rpc
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.rpc.netty.RemoteNettyRpcCallContext
+import org.apache.celeborn.common.util.Utils
 
 /**
  * A factory class to create the [[RpcEnv]]. It must have an empty constructor so that it can be
@@ -138,6 +139,11 @@ trait RpcEndpoint {
   }
 
   def checkAuth(context: RpcCallContext, appId: String): Unit = {
+    // Validate the application id at the single auth chokepoint so every current
+    // and future RPC handler that calls checkAuth is covered, and so it runs even
+    // when auth is disabled (clientId == null). This guards the worker against
+    // path traversal via appId (e.g. "../foo") before any filesystem path is built.
+    Utils.validateAppId(appId)
     context match {
       case remoteContext: RemoteNettyRpcCallContext =>
         checkAuth(remoteContext.transportClient, appId)

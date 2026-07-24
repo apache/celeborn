@@ -1161,6 +1161,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
       }
 
+      // NOTE: the DFS branches below (HDFS/S3/OSS) also build "$appId/$shuffleId"
+      // paths but rely solely on the upstream Utils.validateAppId guard at the RPC
+      // entry points
       if (storageType == Type.HDFS && location.getStorageInfo.HDFSAvailable()) {
         val shuffleDir =
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
@@ -1216,8 +1219,15 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val dir = dirs(getNextIndex % dirs.size)
         val mountPoint = DeviceInfo.getMountPoint(dir.getAbsolutePath, mountPoints)
         val shuffleDir = new File(dir, s"$appId/$shuffleId")
-        shuffleDir.mkdirs()
         val file = new File(shuffleDir, fileName)
+        // Defense in depth: ensure the resolved path stays under the working dir
+        // even if appId / shuffleId / fileName contained traversal characters.
+        val dirCanonical = dir.getCanonicalPath + File.separator
+        if (!file.getCanonicalPath.startsWith(dirCanonical)) {
+          throw new IOException(
+            s"Refusing to create shuffle file outside working dir: ${file.getCanonicalPath}")
+        }
+        shuffleDir.mkdirs()
         try {
           if (file.exists()) {
             throw new FileAlreadyExistsException(
