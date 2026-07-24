@@ -5748,6 +5748,8 @@ object CelebornConf extends Logging {
       .categories("client")
       .doc(
         "Whether to leverage Spark broadcast mechanism to send the GetReducerFileGroupResponse. " +
+          "This applies only to legacy requests for shuffle-wide reducer metadata; " +
+          "partition-range requests return their smaller task-specific response directly. " +
           "If the response size is large and Spark executor number is large, the Spark driver network " +
           "may be exhausted because each executor will pull the response from the driver. With broadcasting " +
           "GetReducerFileGroupResponse, it prevents the driver from being the bottleneck in sending out multiple " +
@@ -5759,7 +5761,8 @@ object CelebornConf extends Logging {
   val CLIENT_SHUFFLE_GET_REDUCER_FILE_GROUP_BROADCAST_MINI_SIZE =
     buildConf("celeborn.client.spark.shuffle.getReducerFileGroup.broadcast.miniSize")
       .categories("client")
-      .doc("The size at which we use Broadcast to send the GetReducerFileGroupResponse to the executors.")
+      .doc("The size at which we use Broadcast to send a legacy shuffle-wide " +
+        "GetReducerFileGroupResponse to the executors.")
       .version("0.6.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("512k")

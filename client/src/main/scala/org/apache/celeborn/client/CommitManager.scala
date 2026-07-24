@@ -293,8 +293,19 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
   def handleGetReducerFileGroup(
       context: RpcCallContext,
       shuffleId: Int,
+      startPartition: Int,
+      endPartition: Int,
+      hasPartitionRange: Boolean,
+      omitMapAttempts: Boolean,
       serdeVersion: SerdeVersion): Unit = {
-    getCommitHandler(shuffleId).handleGetReducerFileGroup(context, shuffleId, serdeVersion)
+    getCommitHandler(shuffleId).handleGetReducerFileGroup(
+      context,
+      shuffleId,
+      startPartition,
+      endPartition,
+      hasPartitionRange,
+      omitMapAttempts,
+      serdeVersion)
   }
 
   def handleGetStageEnd(context: RpcCallContext, shuffleId: Int): Unit = {

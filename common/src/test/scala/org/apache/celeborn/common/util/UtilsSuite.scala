@@ -17,8 +17,11 @@
 
 package org.apache.celeborn.common.util
 
+import java.io.IOException
 import java.util
 import java.util.Collections
+import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 import org.scalatest.matchers.must.Matchers.contain
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -30,7 +33,7 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.DefaultIdentityProvider
 import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, PbReviseLostShuffles, PbReviseLostShufflesResponse, TransportModuleConstants}
-import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, MapperEnd, ReviseLostShuffles, ReviseLostShufflesResponse}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroup, GetReducerFileGroupResponse, MapperEnd, ReviseLostShuffles, ReviseLostShufflesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 
 class UtilsSuite extends CelebornFunSuite {
@@ -248,15 +251,101 @@ class UtilsSuite extends CelebornFunSuite {
     fileGroup.put(2, partitionLocation(2))
 
     val attempts = Array(0, 0, 1)
-    val response = GetReducerFileGroupResponse(StatusCode.STAGE_ENDED, fileGroup, attempts)
-    val responseTrans = Utils.fromTransportMessage(Utils.toTransportMessage(response)).asInstanceOf[
-      GetReducerFileGroupResponse]
+    Seq(SerdeVersion.V1, SerdeVersion.V2).foreach { serdeVersion =>
+      val response = GetReducerFileGroupResponse(
+        StatusCode.STAGE_ENDED,
+        fileGroup,
+        attempts,
+        serdeVersion = serdeVersion,
+        startPartition = 1,
+        endPartition = 3,
+        hasPartitionRange = true)
+      val responseTrans =
+        Utils.fromTransportMessage(Utils.toTransportMessage(response)).asInstanceOf[
+          GetReducerFileGroupResponse]
 
-    assert(response.status == responseTrans.status)
-    assert(util.Arrays.equals(response.attempts, responseTrans.attempts))
-    val set =
-      (response.fileGroup.values().toArray diff responseTrans.fileGroup.values().toArray).toSet
-    assert(set.size == 0)
+      assert(response.status == responseTrans.status)
+      assert(util.Arrays.equals(response.attempts, responseTrans.attempts))
+      assert(responseTrans.serdeVersion == serdeVersion)
+      assert(responseTrans.startPartition == 1)
+      assert(responseTrans.endPartition == 3)
+      assert(responseTrans.hasPartitionRange)
+      val set =
+        (response.fileGroup.values().toArray diff responseTrans.fileGroup.values().toArray).toSet
+      assert(set.size == 0)
+    }
+  }
+
+  test("GetReducerFileGroup partition range converts with pb") {
+    Seq(SerdeVersion.V1, SerdeVersion.V2).foreach { serdeVersion =>
+      val request = GetReducerFileGroup(
+        7,
+        isSegmentGranularityVisible = false,
+        serdeVersion,
+        startPartition = 11,
+        endPartition = 19,
+        hasPartitionRange = true,
+        omitMapAttempts = true)
+      val converted = Utils.fromTransportMessage(Utils.toTransportMessage(request)).asInstanceOf[
+        GetReducerFileGroup]
+
+      assert(converted.shuffleId == 7)
+      assert(converted.serdeVersion == serdeVersion)
+      assert(converted.startPartition == 11)
+      assert(converted.endPartition == 19)
+      assert(converted.hasPartitionRange)
+      assert(converted.omitMapAttempts)
+    }
+
+    val legacy = GetReducerFileGroup(7, false, SerdeVersion.V1)
+    val convertedLegacy = Utils.fromTransportMessage(Utils.toTransportMessage(legacy)).asInstanceOf[
+      GetReducerFileGroup]
+    assert(!convertedLegacy.hasPartitionRange)
+    assert(!convertedLegacy.omitMapAttempts)
+  }
+
+  test("retry sleep preserves interruption") {
+    val retryStarted = new CountDownLatch(1)
+    val thrown = new AtomicReference[Throwable]()
+    val interruptRestored = new AtomicBoolean(false)
+    val retryThread = new Thread(new Runnable {
+      override def run(): Unit = {
+        try {
+          Utils.withRetryOnTimeoutOrIOException(Int.MaxValue, Int.MaxValue.toLong) {
+            retryStarted.countDown()
+            throw new IOException("retry")
+          }
+        } catch {
+          case t: Throwable =>
+            thrown.set(t)
+            interruptRestored.set(Thread.currentThread().isInterrupted)
+        }
+      }
+    })
+
+    retryThread.start()
+    try {
+      assert(retryStarted.await(10, TimeUnit.SECONDS))
+      val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+      while (retryThread.isAlive &&
+        retryThread.getState != Thread.State.TIMED_WAITING &&
+        System.nanoTime() < deadline) {
+        Thread.sleep(1)
+      }
+      assert(retryThread.getState == Thread.State.TIMED_WAITING)
+
+      retryThread.interrupt()
+      retryThread.join(TimeUnit.SECONDS.toMillis(10))
+
+      assert(!retryThread.isAlive)
+      assert(thrown.get().isInstanceOf[InterruptedException])
+      assert(interruptRestored.get())
+    } finally {
+      if (retryThread.isAlive) {
+        retryThread.interrupt()
+        retryThread.join(TimeUnit.SECONDS.toMillis(10))
+      }
+    }
   }
 
   test("validate number of client/server netty threads") {
