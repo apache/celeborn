@@ -144,22 +144,16 @@ class ReducePartitionCommitHandler(
     if (mockShuffleLost) {
       mockShuffleLostShuffle == shuffleId
     } else {
-      dataLostShuffleSet.contains(shuffleId) || isStageDataLostInUnknownWorker(shuffleId)
+      dataLostShuffleSet.contains(shuffleId)
     }
   }
 
-  private def isStageDataLostInUnknownWorker(shuffleId: Int): Boolean = {
-    if (conf.clientShuffleDataLostOnUnknownWorkerEnabled && !conf.clientPushReplicateEnabled) {
-      val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
-      if (allocatedWorkers != null) {
-        return workerStatusTracker.excludedWorkers.asScala.collect {
-          case (workerId, (status, _))
-              if status == StatusCode.WORKER_UNKNOWN && allocatedWorkers.contains(workerId) =>
-            workerId
-        }.nonEmpty
-      }
+  override def markShuffleDataLost(shuffleId: Int): Unit = {
+    logWarning(s"Marking shuffle $shuffleId data as lost due to unknown/crashed worker.")
+    dataLostShuffleSet.add(shuffleId)
+    if (!isStageEnd(shuffleId)) {
+      setStageEnd(shuffleId)
     }
-    false
   }
 
   override def isPartitionInProcess(shuffleId: Int, partitionId: Int): Boolean = {
