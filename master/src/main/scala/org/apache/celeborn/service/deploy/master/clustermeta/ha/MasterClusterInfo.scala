@@ -38,8 +38,11 @@ object MasterClusterInfo extends Logging {
   def loadHAConfig(conf: CelebornConf): MasterClusterInfo = {
     val localNodeIdOpt = conf.haMasterNodeId
     val clusterNodeIds = conf.haMasterNodeIds
-    // If ssl is enabled, we enable it for ratis as well
-    val sslEnabled = conf.sslEnabled(TransportModuleConstants.RPC_SERVICE_MODULE)
+    // Inter-master Ratis TLS is decoupled from the client-facing rpc_service cert:
+    // it is enabled if either the dedicated `ratis` module or `rpc_service` has SSL on.
+    // This preserves backward compatibility - deployments that only configure
+    // rpc_service SSL continue to secure Ratis exactly as before.
+    val sslEnabled = ratisSslEnabled(conf)
 
     val masterNodes = clusterNodeIds.map { nodeId =>
       val ratisHost = conf.haMasterRatisHost(nodeId)
@@ -70,6 +73,34 @@ object MasterClusterInfo extends Logging {
     }
 
     MasterClusterInfo(localNodes.head, peerNodes.toList.asJava)
+  }
+
+  /**
+   * Whether TLS should be enabled for the inter-master Ratis (Raft consensus) gRPC channel.
+   *
+   * Ratis TLS is decoupled from the client-facing `rpc_service` SSL module so operators can
+   * give Ratis a dedicated certificate/keystore (e.g. one carrying internal pod-FQDN SANs).
+   * To stay fully backward compatible, it is considered enabled when EITHER the dedicated
+   * `ratis` module OR the legacy `rpc_service` module has SSL enabled. Deployments that only
+   * configure `rpc_service` SSL therefore behave exactly as before.
+   */
+  def ratisSslEnabled(conf: CelebornConf): Boolean = {
+    conf.sslEnabled(TransportModuleConstants.RATIS_MODULE) ||
+    conf.sslEnabled(TransportModuleConstants.RPC_SERVICE_MODULE)
+  }
+
+  /**
+   * The transport SSL module whose `celeborn.ssl.<module>.*` config should be used to build the
+   * Ratis SSLFactory. Prefer the dedicated `ratis` module when it is explicitly enabled; otherwise
+   * fall back to `rpc_service` so existing (rpc_service-only) deployments are byte-for-byte
+   * unchanged and continue to use the rpc_service cert for Ratis.
+   */
+  def ratisSslModule(conf: CelebornConf): String = {
+    if (conf.sslEnabled(TransportModuleConstants.RATIS_MODULE)) {
+      TransportModuleConstants.RATIS_MODULE
+    } else {
+      TransportModuleConstants.RPC_SERVICE_MODULE
+    }
   }
 
   private def isLocalAddress(addr: InetAddress): Boolean = {
