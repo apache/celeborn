@@ -178,6 +178,15 @@ public class TransportContext implements Closeable {
   }
 
   public TransportChannelHandler initializePipeline(
+      SocketChannel channel,
+      ChannelInboundHandlerAdapter decoder,
+      boolean isClient,
+      String peerHost,
+      int peerPort) {
+    return initializePipeline(channel, decoder, msgHandler, isClient, peerHost, peerPort);
+  }
+
+  public TransportChannelHandler initializePipeline(
       SocketChannel channel, BaseMessageHandler resolvedMsgHandler, boolean isClient) {
     return initializePipeline(channel, new TransportFrameDecoder(), resolvedMsgHandler, isClient);
   }
@@ -187,6 +196,16 @@ public class TransportContext implements Closeable {
       ChannelInboundHandlerAdapter decoder,
       BaseMessageHandler resolvedMsgHandler,
       boolean isClient) {
+    return initializePipeline(channel, decoder, resolvedMsgHandler, isClient, null, -1);
+  }
+
+  public TransportChannelHandler initializePipeline(
+      SocketChannel channel,
+      ChannelInboundHandlerAdapter decoder,
+      BaseMessageHandler resolvedMsgHandler,
+      boolean isClient,
+      String peerHost,
+      int peerPort) {
     try {
       ChannelPipeline pipeline = channel.pipeline();
       if (nettyLogger.getLoggingHandler() != null) {
@@ -199,7 +218,9 @@ public class TransportContext implements Closeable {
 
         SslHandler sslHandler;
         try {
-          sslHandler = new SslHandler(sslFactory.createSSLEngine(isClient, channel.alloc()));
+          sslHandler =
+              new SslHandler(
+                  sslFactory.createSSLEngine(isClient, channel.alloc(), peerHost, peerPort));
           sslHandler.setHandshakeTimeoutMillis(conf.sslHandshakeTimeoutMs());
         } catch (Exception e) {
           throw new IllegalStateException("Error creating Netty SslHandler", e);
