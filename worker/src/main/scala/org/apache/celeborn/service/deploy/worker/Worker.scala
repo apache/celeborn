@@ -946,6 +946,51 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
+  override def getServingState(): String = {
+    val sb = new StringBuilder
+    sb.append("====================== Worker Serving State ==========================\n")
+    val current = memoryManager.getServingState
+    sb.append(s"Current state: $current.\n")
+
+    val forced = memoryManager.getForcedServingState
+    if (forced != null) {
+      sb.append(s"Manual override active.\n")
+    }
+    sb.toString()
+  }
+
+  override def setServingState(state: String, timeoutStr: String): String = {
+    val sb = new StringBuilder
+    sb.append("====================== Set Serving State ============================\n")
+    if (state.isEmpty) {
+      memoryManager.clearForcedServingState()
+      sb.append("Manual servingState override cleared.\n")
+      return sb.toString()
+    }
+    val servingState =
+      try {
+        ServingState.valueOf(state.toUpperCase(Locale.ROOT))
+      } catch {
+        case _: IllegalArgumentException =>
+          return s"Invalid state '$state'. " +
+            s"Legal values: PUSH_AND_REPLICATE_PAUSED, PUSH_PAUSED, NONE_PAUSED\n"
+      }
+    val timeout =
+      if (timeoutStr.isEmpty) 0L
+      else
+        try {
+          JavaUtils.timeStringAsMs(timeoutStr)
+        } catch {
+          case e: NumberFormatException =>
+            return s"Invalid timeout '$timeoutStr'. $e\n"
+        }
+    memoryManager.forceServingState(servingState, timeout)
+    sb.append(s"Serving state forced to: $servingState\n")
+    if (timeout > 0) sb.append(s"Override will auto-clear after $timeoutStr.\n")
+    else sb.append("Override will persist until explicitly cleared.\n")
+    sb.toString()
+  }
+
   override def exit(exitType: String): String = {
     exitType.toUpperCase(Locale.ROOT) match {
       case "DECOMMISSION" =>
