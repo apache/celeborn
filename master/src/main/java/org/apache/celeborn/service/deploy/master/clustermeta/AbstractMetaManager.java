@@ -357,7 +357,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int replicatePort,
       int internalPort,
       String networkLocation,
-      Map<String, DiskInfo> disks) {
+      Map<String, DiskInfo> disks,
+      Set<String> tags) {
     WorkerInfo workerInfo =
         new WorkerInfo(
             host,
@@ -369,6 +370,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             disks,
             new HashMap<>());
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
+    workerInfo.tags_$eq(new HashSet<>(tags));
     if (networkLocation != null
         && !networkLocation.isEmpty()
         && !NetworkTopology.DEFAULT_RACK.equals(networkLocation)) {
@@ -378,7 +380,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
     workerInfo.updateDiskSlots(estimatedPartitionSize);
     synchronized (workersMap) {
-      workersMap.putIfAbsent(workerInfo.toUniqueId(), workerInfo);
+      WorkerInfo existingWorkerInfo = workersMap.putIfAbsent(workerInfo.toUniqueId(), workerInfo);
+      if (existingWorkerInfo != null) {
+        existingWorkerInfo.tags_$eq(new HashSet<>(tags));
+      }
       shutdownWorkers.remove(workerInfo);
       lostWorkers.remove(workerInfo);
       excludedWorkers.remove(workerInfo);

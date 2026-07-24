@@ -1527,6 +1527,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientInputStreamCreationWindow = get(CLIENT_INPUTSTREAM_CREATION_WINDOW)
 
   def tagsEnabled: Boolean = get(TAGS_ENABLED)
+  def tagsWorkerRegistrationEnabled: Boolean = get(TAGS_WORKER_REGISTRATION_ENABLED)
+  def workerTags: Seq[String] = get(WORKER_TAGS)
   def tagsExpr: String = get(TAGS_EXPR)
   def preferClientTagsExpr: Boolean = get(PREFER_CLIENT_TAGS_EXPR)
 
@@ -6900,6 +6902,24 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .booleanConf
       .createWithDefault(true)
+
+  val TAGS_WORKER_REGISTRATION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.tags.worker.registration.enabled")
+      .categories("master")
+      .version("0.7.0")
+      .doc("When true, the master honors tags advertised by workers at registration " +
+        "(merged with the config-store tags). When false, worker-supplied tags are ignored.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val WORKER_TAGS: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.worker.tags")
+      .categories("worker")
+      .version("0.7.0")
+      .doc("Comma-separated tags this worker supplies to the master at registration.")
+      .stringConf
+      .toSequence
+      .createWithDefault(Seq.empty)
 
   val TAGS_EXPR: ConfigEntry[String] =
     buildConf("celeborn.tags.tagsExpr")
