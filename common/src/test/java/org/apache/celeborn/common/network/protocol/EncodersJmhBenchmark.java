@@ -79,6 +79,7 @@ public class EncodersJmhBenchmark {
   private String sampleString;
   private int[] sampleIntArray;
   private String[] sampleStringArray;
+  private ByteBuf encodeBuf;
 
   @Setup
   public void setup() {
@@ -92,6 +93,7 @@ public class EncodersJmhBenchmark {
     for (int i = 0; i < arrayLen; i++) {
       sampleStringArray[i] = randomString(random, stringBytes);
     }
+    encodeBuf = Unpooled.buffer(Encoders.StringArrays.encodedLength(sampleStringArray));
   }
 
   private static String randomString(SplittableRandom random, int byteLen) {
@@ -105,9 +107,9 @@ public class EncodersJmhBenchmark {
 
   @Benchmark
   public void encodeString(Blackhole blackhole) {
-    ByteBuf buf = Unpooled.buffer(Encoders.Strings.encodedLength(sampleString));
-    Encoders.Strings.encode(buf, sampleString);
-    blackhole.consume(buf);
+    encodeBuf.clear();
+    Encoders.Strings.encode(encodeBuf, sampleString);
+    blackhole.consume(encodeBuf);
   }
 
   @Benchmark
@@ -119,9 +121,9 @@ public class EncodersJmhBenchmark {
 
   @Benchmark
   public void encodeIntArray(Blackhole blackhole) {
-    ByteBuf buf = Unpooled.buffer(Encoders.IntArrays.encodedLength(sampleIntArray));
-    Encoders.IntArrays.encode(buf, sampleIntArray);
-    blackhole.consume(buf);
+    encodeBuf.clear();
+    Encoders.IntArrays.encode(encodeBuf, sampleIntArray);
+    blackhole.consume(encodeBuf);
   }
 
   @Benchmark
@@ -133,9 +135,9 @@ public class EncodersJmhBenchmark {
 
   @Benchmark
   public void encodeStringArray(Blackhole blackhole) {
-    ByteBuf buf = Unpooled.buffer(Encoders.StringArrays.encodedLength(sampleStringArray));
-    Encoders.StringArrays.encode(buf, sampleStringArray);
-    blackhole.consume(buf);
+    encodeBuf.clear();
+    Encoders.StringArrays.encode(encodeBuf, sampleStringArray);
+    blackhole.consume(encodeBuf);
   }
 
   @Benchmark
