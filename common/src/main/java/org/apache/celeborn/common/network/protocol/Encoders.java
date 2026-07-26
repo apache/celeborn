@@ -20,6 +20,7 @@ package org.apache.celeborn.common.network.protocol;
 import java.nio.charset.StandardCharsets;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 
 /** Provides a canonical set of Encoders for simple types. */
 public class Encoders {
@@ -27,13 +28,12 @@ public class Encoders {
   /** Strings are encoded with their length followed by UTF-8 bytes. */
   public static class Strings {
     public static int encodedLength(String s) {
-      return 4 + s.getBytes(StandardCharsets.UTF_8).length;
+      return 4 + ByteBufUtil.utf8Bytes(s);
     }
 
     public static void encode(ByteBuf buf, String s) {
-      byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
-      buf.writeInt(bytes.length);
-      buf.writeBytes(bytes);
+      buf.writeInt(ByteBufUtil.utf8Bytes(s));
+      ByteBufUtil.writeUtf8(buf, s);
     }
 
     public static String decode(ByteBuf buf) {
