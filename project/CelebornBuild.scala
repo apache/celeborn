@@ -706,7 +706,10 @@ object CelebornCommon {
         Dependencies.log4j12Api % "test",
         // SSL support
         Dependencies.bouncycastleBcprovJdk18on,
-        Dependencies.bouncycastleBcpkixJdk18on
+        Dependencies.bouncycastleBcpkixJdk18on,
+        // JMH benchmark dependencies
+        Dependencies.jmhCore,
+        Dependencies.jmhGeneratorAnnprocess
       ) ++ commonUnitTestDependencies,
       // maven-jdk-tools-wrapper (jdkTools) only provides jdk.tools (tools.jar) on
       // JDK 8; on JDK 9+ the tools API is built into the JDK, so the wrapper is a
