@@ -27,6 +27,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
 import org.apache.celeborn.common.protocol.{PbApplicationMetaRequest, PbCheckForWorkerTimeout, PbRegisterWorker}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{RequestSlots, RequestSlotsResponse, ReviseLostShuffles}
@@ -210,6 +211,42 @@ class MasterSuite extends AnyFunSuite
     assert(response.status === StatusCode.WORKER_EXCLUDED)
 
     master.rpcEnv.shutdown()
+  }
+
+  test("manual excluded worker count metric follows manual exclusion state") {
+    val conf = new CelebornConf()
+    val randomMasterPort = selectRandomPort()
+    val randomHttpPort = selectRandomPort()
+    conf.set(CelebornConf.HA_ENABLED.key, "false")
+    conf.set(CelebornConf.MASTER_HTTP_HOST.key, "127.0.0.1")
+    conf.set(CelebornConf.MASTER_HTTP_PORT.key, randomHttpPort.toString)
+
+    val masterArgs = new MasterArguments(
+      Array("-h", "localhost", "-p", randomMasterPort.toString),
+      conf)
+    val master = new Master(conf, masterArgs)
+    val worker = mock(classOf[WorkerInfo])
+    val source = master.metricsSystem.getSourcesByName("master").head
+
+    def manualExcludedWorkerCount: Long = {
+      val metric =
+        """metrics_ManualExcludedWorkerCount_Value\{[^}]*\} ([0-9]+)""".r
+      metric.findFirstMatchIn(source.getMetrics).map(_.group(1).toLong).getOrElse {
+        fail("ManualExcludedWorkerCount metric was not emitted")
+      }
+    }
+
+    try {
+      assert(manualExcludedWorkerCount === 0L)
+
+      master.statusSystem.manuallyExcludedWorkers.add(worker)
+      assert(manualExcludedWorkerCount === 1L)
+
+      master.statusSystem.manuallyExcludedWorkers.remove(worker)
+      assert(manualExcludedWorkerCount === 0L)
+    } finally {
+      master.rpcEnv.shutdown()
+    }
   }
 
   test("PbApplicationMetaRequest rejects a caller requesting another application's secret") {
