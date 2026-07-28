@@ -171,6 +171,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/ShufflesResponse'
 
+  /api/v1/shuffles/unregister:
+    post:
+      tags:
+        - Shuffle
+      operationId: unregisterShuffle
+      description: Unregister a shuffle from the service.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnregisterShuffleRequest'
+      responses:
+        "200":
+          description: The request was handled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandleResponse'
+        "400":
+          description: The request is invalid or the target master is not the leader.
+
   /api/v1/masters:
     get:
       tags:
@@ -781,6 +803,22 @@ components:
           description: The shuffle keys.
           items:
             type: string
+
+    UnregisterShuffleRequest:
+      type: object
+      properties:
+        appId:
+          type: string
+          minLength: 1
+          description: The application id.
+        shuffleId:
+          type: integer
+          format: int32
+          minimum: 0
+          description: The shuffle id.
+      required:
+        - appId
+        - shuffleId
 
     ApplicationHeartbeatData:
       type: object

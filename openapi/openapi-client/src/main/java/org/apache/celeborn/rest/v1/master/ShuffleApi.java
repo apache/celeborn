@@ -25,7 +25,9 @@ import org.apache.celeborn.rest.v1.master.invoker.BaseApi;
 import org.apache.celeborn.rest.v1.master.invoker.Configuration;
 import org.apache.celeborn.rest.v1.master.invoker.Pair;
 
+import org.apache.celeborn.rest.v1.model.HandleResponse;
 import org.apache.celeborn.rest.v1.model.ShufflesResponse;
+import org.apache.celeborn.rest.v1.model.UnregisterShuffleRequest;
 
 
 import java.util.ArrayList;
@@ -113,6 +115,80 @@ public class ShuffleApi extends BaseApi {
     );
   }
 
+  /**
+   * 
+   * Unregister a shuffle from the service.
+   * @param unregisterShuffleRequest  (required)
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse unregisterShuffle(UnregisterShuffleRequest unregisterShuffleRequest) throws ApiException {
+    return this.unregisterShuffle(unregisterShuffleRequest, Collections.emptyMap());
+  }
+
+
+  /**
+   * 
+   * Unregister a shuffle from the service.
+   * @param unregisterShuffleRequest  (required)
+   * @param additionalHeaders additionalHeaders for this call
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse unregisterShuffle(UnregisterShuffleRequest unregisterShuffleRequest, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = unregisterShuffleRequest;
+    
+    // verify the required parameter 'unregisterShuffleRequest' is set
+    if (unregisterShuffleRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'unregisterShuffleRequest' when calling unregisterShuffle");
+    }
+    
+    // create path and map variables
+    String localVarPath = "/api/v1/shuffles/unregister";
+
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    List<Pair> localVarQueryParams = new ArrayList<Pair>();
+    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+    Map<String, String> localVarCookieParams = new HashMap<String, String>();
+    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+    
+    localVarHeaderParams.putAll(additionalHeaders);
+
+    
+    
+    final String[] localVarAccepts = {
+      "application/json"
+    };
+    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+
+    final String[] localVarContentTypes = {
+      "application/json"
+    };
+    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+
+    String[] localVarAuthNames = new String[] { "basic" };
+
+    TypeReference<HandleResponse> localVarReturnType = new TypeReference<HandleResponse>() {};
+    return apiClient.invokeAPI(
+        localVarPath,
+        "POST",
+        localVarQueryParams,
+        localVarCollectionQueryParams,
+        localVarQueryStringJoiner.toString(),
+        localVarPostBody,
+        localVarHeaderParams,
+        localVarCookieParams,
+        localVarFormParams,
+        localVarAccept,
+        localVarContentType,
+        localVarAuthNames,
+        localVarReturnType
+    );
+  }
+
   @Override
   public <T> T invokeAPI(String url, String method, Object request, TypeReference<T> returnType, Map<String, String> additionalHeaders) throws ApiException {
     String localVarPath = url.replace(apiClient.getBaseURL(), "");
@@ -131,7 +207,7 @@ public class ShuffleApi extends BaseApi {
     final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
 
     final String[] localVarContentTypes = {
-      
+      "application/json"
     };
     final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
 

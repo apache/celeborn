@@ -1461,6 +1461,19 @@ private[celeborn] class Master(
     sb.toString()
   }
 
+  def unregisterShuffle(applicationId: String, shuffleId: Int): HandleResponse = {
+    val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
+    val response = self.askSync[PbUnregisterShuffleResponse](
+      UnregisterShuffle(applicationId, shuffleId, MasterClient.genRequestId()))
+    val status = StatusCode.fromValue(response.getStatus)
+    val success = status == StatusCode.SUCCESS
+    if (success) {
+      (success, s"Unregistered shuffle $shuffleKey.")
+    } else {
+      (success, s"Failed to unregister shuffle $shuffleKey: $status.")
+    }
+  }
+
   override def exclude(
       addWorkers: Seq[WorkerInfo],
       removeWorkers: Seq[WorkerInfo]): HandleResponse = {
