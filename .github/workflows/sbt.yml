@@ -43,8 +43,8 @@ jobs:
           - 11
           - 17
         scala:
-          - '2.12.15'
-          - '2.13.5'
+          - '2.12.18'
+          - '2.13.16'
     steps:
     - uses: actions/checkout@v4
     - name: Setup JDK ${{ matrix.java }}
