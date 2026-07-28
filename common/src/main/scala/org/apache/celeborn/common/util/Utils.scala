@@ -698,17 +698,17 @@ object Utils extends Logging {
   }
 
   def splitShuffleKey(shuffleKey: String): (String, Int) = {
-    val splits = shuffleKey.split("-")
-    val appId = splits.dropRight(1).mkString("-")
-    val shuffleId = splits.last.toInt
-    (appId, shuffleId)
+    // shuffleId is always the last '-'-delimited segment (see makeShuffleKey),
+    // and applicationId may itself contain '-' (e.g. Spark's application_<ts>_<id>),
+    // so locate the last '-' once instead of regex-splitting and rejoining.
+    val idx = shuffleKey.lastIndexOf('-')
+    (shuffleKey.substring(0, idx), shuffleKey.substring(idx + 1).toInt)
   }
 
   def splitPartitionLocationUniqueId(uniqueId: String): (Int, Int) = {
-    val splits = uniqueId.split("-")
-    val partitionId = splits.dropRight(1).mkString("-").toInt
-    val epoch = splits.last.toInt
-    (partitionId, epoch)
+    // epoch is the last segment; partitionId (Int) never contains '-'.
+    val idx = uniqueId.lastIndexOf('-')
+    (uniqueId.substring(0, idx).toInt, uniqueId.substring(idx + 1).toInt)
   }
 
   def makeReducerKey(shuffleId: Int, partitionId: Int): String = {
@@ -728,10 +728,9 @@ object Utils extends Logging {
   }
 
   def splitAttemptKey(attemptKey: String): (Int, Int) = {
-    val splits = attemptKey.split("-")
-    val mapId = splits(0).toInt
-    val attemptId = splits(1).toInt
-    (mapId, attemptId)
+    // Fixed two-segment layout: "<mapId>-<attemptId>", both Int.
+    val idx = attemptKey.indexOf('-')
+    (attemptKey.substring(0, idx).toInt, attemptKey.substring(idx + 1).toInt)
   }
 
   def shuffleKeyPrefix(shuffleKey: String): String = {
