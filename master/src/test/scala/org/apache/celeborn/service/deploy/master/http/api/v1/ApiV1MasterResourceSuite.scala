@@ -128,7 +128,7 @@ class ApiV1MasterResourceSuite extends ApiV1BaseResourceSuite with MasterCluster
   test("application resource") {
     var response = webTarget.path("applications").request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)
-    assert(response.readEntity(classOf[ApplicationsResponse]).getApplications.isEmpty)
+    assert(response.readEntity(classOf[ApplicationsHeartbeatResponse]).getApplications.isEmpty)
 
     response = webTarget.path("applications/hostnames").request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)
