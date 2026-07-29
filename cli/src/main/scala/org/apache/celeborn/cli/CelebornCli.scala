@@ -40,6 +40,6 @@ object CelebornCli {
     val cmd = new CommandLine(new CelebornCli())
     cmd.setOptionsCaseInsensitive(false)
     cmd.setSubcommandsCaseInsensitive(false)
-    new CommandLine(new CelebornCli()).execute(args: _*)
+    cmd.execute(args: _*)
   }
 }
