@@ -17,13 +17,13 @@
 
 package org.apache.celeborn.service.deploy.worker.http.api.v1
 
-import java.util.Collections
+import java.util.{Arrays, Collections}
 import javax.servlet.http.HttpServletResponse
 
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.rest.v1.master._
 import org.apache.celeborn.rest.v1.master.invoker._
-import org.apache.celeborn.rest.v1.model.{ExcludeWorkerRequest, RemoveWorkersUnavailableInfoRequest, SendWorkerEventRequest, UnregisterShuffleRequest, WorkerId}
+import org.apache.celeborn.rest.v1.model.{ExcludeWorkerRequest, RemoveWorkersUnavailableInfoRequest, SendWorkerEventRequest, UnregisterShufflesRequest, WorkerId}
 import org.apache.celeborn.rest.v1.model.SendWorkerEventRequest.EventTypeEnum
 
 class ApiV1OpenapiClientSuite extends ApiV1WorkerOpenapiClientSuite {
@@ -66,21 +66,28 @@ class ApiV1OpenapiClientSuite extends ApiV1WorkerOpenapiClientSuite {
     val api = new ShuffleApi(masterApiClient)
     assert(api.getShuffles.getShuffleIds.isEmpty)
 
-    val appId = "openapi-client-unregister-shuffle-app"
-    val shuffleId = 0
-    val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
-    master.statusSystem.updateRequestSlotsMeta(
-      shuffleKey,
-      null,
-      Collections.emptyMap[String, java.util.Map[String, Integer]]())
+    val appId = "openapi-client-unregister-shuffles-app"
+    val shuffleIds = Arrays.asList[Integer](0, 1)
+    shuffleIds.forEach { shuffleId =>
+      master.statusSystem.updateRequestSlotsMeta(
+        Utils.makeShuffleKey(appId, shuffleId),
+        null,
+        Collections.emptyMap[String, java.util.Map[String, Integer]]())
+    }
     try {
-      assert(api.getShuffles.getShuffleIds.contains(shuffleKey))
+      shuffleIds.forEach { shuffleId =>
+        assert(api.getShuffles.getShuffleIds.contains(Utils.makeShuffleKey(appId, shuffleId)))
+      }
 
       val response =
-        api.unregisterShuffle(new UnregisterShuffleRequest().appId(appId).shuffleId(shuffleId))
+        api.unregisterShuffles(
+          new UnregisterShufflesRequest().appId(appId).shuffleIds(shuffleIds))
       assert(response.getSuccess)
-      assert(response.getMessage.contains(shuffleKey))
-      assert(!api.getShuffles.getShuffleIds.contains(shuffleKey))
+      shuffleIds.forEach { shuffleId =>
+        val shuffleKey = Utils.makeShuffleKey(appId, shuffleId)
+        assert(response.getMessage.contains(shuffleKey))
+        assert(!api.getShuffles.getShuffleIds.contains(shuffleKey))
+      }
     } finally {
       master.statusSystem.registeredAppAndShuffles.remove(appId)
       master.statusSystem.appHeartbeatTime.remove(appId)

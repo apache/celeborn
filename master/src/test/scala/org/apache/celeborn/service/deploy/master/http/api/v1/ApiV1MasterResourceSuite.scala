@@ -17,13 +17,13 @@
 
 package org.apache.celeborn.service.deploy.master.http.api.v1
 
-import java.util.Collections
+import java.util.{Arrays, Collections}
 import javax.servlet.http.HttpServletResponse
 import javax.ws.rs.client.Entity
 import javax.ws.rs.core.MediaType
 
 import org.apache.celeborn.common.util.Utils
-import org.apache.celeborn.rest.v1.model.{ApplicationsHeartbeatResponse, ExcludeWorkerRequest, HandleResponse, HostnamesResponse, RemoveWorkersUnavailableInfoRequest, SendWorkerEventRequest, ShufflesResponse, TopologyResponse, UnregisterShuffleRequest, WorkerEventsResponse, WorkerId, WorkersResponse}
+import org.apache.celeborn.rest.v1.model.{ApplicationsHeartbeatResponse, ExcludeWorkerRequest, HandleResponse, HostnamesResponse, RemoveWorkersUnavailableInfoRequest, SendWorkerEventRequest, ShufflesResponse, TopologyResponse, UnregisterShufflesRequest, WorkerEventsResponse, WorkerId, WorkersResponse}
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.api.v1.ApiV1BaseResourceSuite
 import org.apache.celeborn.service.deploy.master.{Master, MasterClusterFeature}
@@ -49,32 +49,40 @@ class ApiV1MasterResourceSuite extends ApiV1BaseResourceSuite with MasterCluster
     assert(response.readEntity(classOf[ShufflesResponse]).getShuffleIds.isEmpty)
   }
 
-  test("unregister shuffle preserves other shuffles and is idempotent") {
-    val appId = "unregister-shuffle-app"
-    val shuffleId = 0
-    val remainingShuffleId = 1
-    master.statusSystem.updateRequestSlotsMeta(
-      Utils.makeShuffleKey(appId, shuffleId),
-      null,
-      Collections.emptyMap[String, java.util.Map[String, Integer]]())
+  test("unregister shuffles preserves other shuffles and is idempotent") {
+    val appId = "unregister-shuffles-app"
+    val shuffleIds = Arrays.asList[Integer](0, 1)
+    val remainingShuffleId = 2
+    shuffleIds.forEach { shuffleId =>
+      master.statusSystem.updateRequestSlotsMeta(
+        Utils.makeShuffleKey(appId, shuffleId),
+        null,
+        Collections.emptyMap[String, java.util.Map[String, Integer]]())
+    }
     master.statusSystem.updateRequestSlotsMeta(
       Utils.makeShuffleKey(appId, remainingShuffleId),
       null,
       Collections.emptyMap[String, java.util.Map[String, Integer]]())
     try {
-      assert(master.statusSystem.registeredAppAndShuffles.get(appId).contains(shuffleId))
+      shuffleIds.forEach { shuffleId =>
+        assert(master.statusSystem.registeredAppAndShuffles.get(appId).contains(shuffleId))
+      }
       assert(master.statusSystem.registeredAppAndShuffles.get(appId).contains(remainingShuffleId))
 
-      val request = new UnregisterShuffleRequest().appId(appId).shuffleId(shuffleId)
+      val request = new UnregisterShufflesRequest().appId(appId).shuffleIds(shuffleIds)
       var response =
         webTarget.path("shuffles/unregister").request(MediaType.APPLICATION_JSON).post(
           Entity.entity(request, MediaType.APPLICATION_JSON))
       assert(HttpServletResponse.SC_OK == response.getStatus)
       val handleResponse = response.readEntity(classOf[HandleResponse])
       assert(handleResponse.getSuccess)
-      assert(handleResponse.getMessage.contains(Utils.makeShuffleKey(appId, shuffleId)))
+      shuffleIds.forEach { shuffleId =>
+        assert(handleResponse.getMessage.contains(Utils.makeShuffleKey(appId, shuffleId)))
+      }
       val registeredShuffles = master.statusSystem.registeredAppAndShuffles.get(appId)
-      assert(!registeredShuffles.contains(shuffleId))
+      shuffleIds.forEach { shuffleId =>
+        assert(!registeredShuffles.contains(shuffleId))
+      }
       assert(registeredShuffles.contains(remainingShuffleId))
 
       response = webTarget.path("shuffles/unregister").request(MediaType.APPLICATION_JSON).post(
@@ -88,7 +96,7 @@ class ApiV1MasterResourceSuite extends ApiV1BaseResourceSuite with MasterCluster
     }
   }
 
-  test("unregister shuffle validates request") {
+  test("unregister shuffles validates request") {
     var response =
       webTarget.path("shuffles/unregister").request(MediaType.APPLICATION_JSON).post(
         Entity.entity("null", MediaType.APPLICATION_JSON))
@@ -98,28 +106,28 @@ class ApiV1MasterResourceSuite extends ApiV1BaseResourceSuite with MasterCluster
     response =
       webTarget.path("shuffles/unregister").request(MediaType.APPLICATION_JSON).post(
         Entity.entity(
-          new UnregisterShuffleRequest().shuffleId(1),
+          new UnregisterShufflesRequest().shuffleIds(Arrays.asList[Integer](1)),
           MediaType.APPLICATION_JSON))
     assert(HttpServletResponse.SC_BAD_REQUEST == response.getStatus)
     assert(response.readEntity(classOf[String]).contains("appId"))
 
     response = webTarget.path("shuffles/unregister").request(MediaType.APPLICATION_JSON).post(
       Entity.entity(
-        new UnregisterShuffleRequest().appId("   ").shuffleId(1),
+        new UnregisterShufflesRequest().appId("   ").shuffleIds(Arrays.asList[Integer](1)),
         MediaType.APPLICATION_JSON))
     assert(HttpServletResponse.SC_BAD_REQUEST == response.getStatus)
     assert(response.readEntity(classOf[String]).contains("appId"))
 
     response = webTarget.path("shuffles/unregister").request(MediaType.APPLICATION_JSON).post(
       Entity.entity(
-        new UnregisterShuffleRequest().appId("app"),
+        new UnregisterShufflesRequest().appId("app"),
         MediaType.APPLICATION_JSON))
     assert(HttpServletResponse.SC_BAD_REQUEST == response.getStatus)
-    assert(response.readEntity(classOf[String]).contains("shuffleId(null)"))
+    assert(response.readEntity(classOf[String]).contains("nonempty"))
 
     response = webTarget.path("shuffles/unregister").request(MediaType.APPLICATION_JSON).post(
       Entity.entity(
-        new UnregisterShuffleRequest().appId("app").shuffleId(-1),
+        new UnregisterShufflesRequest().appId("app").shuffleIds(Arrays.asList[Integer](-1)),
         MediaType.APPLICATION_JSON))
     assert(HttpServletResponse.SC_BAD_REQUEST == response.getStatus)
     assert(response.readEntity(classOf[String]).contains("nonnegative"))

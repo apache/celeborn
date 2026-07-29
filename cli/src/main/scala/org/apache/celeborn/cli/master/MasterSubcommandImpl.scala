@@ -35,6 +35,7 @@ class MasterSubcommandImpl extends MasterSubcommand {
     if (masterOptions.showClusterApps) log(runShowClusterApps)
     if (masterOptions.showClusterAppsInfo) log(runShowClusterAppsInfo)
     if (masterOptions.showClusterShuffles) log(runShowClusterShuffles)
+    if (masterOptions.unregisterShuffles) log(runUnregisterShuffles)
     if (masterOptions.excludeWorkers) log(runExcludeWorkers)
     if (masterOptions.removeExcludedWorkers) log(runRemoveExcludedWorkers)
     if (masterOptions.removeWorkersUnavailableInfo) log(runRemoveWorkersUnavailableInfo)
@@ -76,6 +77,26 @@ class MasterSubcommandImpl extends MasterSubcommand {
 
   private[master] def runShowClusterShuffles: ShufflesResponse =
     shuffleApi.getShuffles(commonOptions.getAuthHeader)
+
+  private[master] def runUnregisterShuffles: HandleResponse = {
+    val appId = Option(unregisterShufflesOptions).map(_.appId).orNull
+    val shuffleIds = Option(unregisterShufflesOptions).map(_.shuffleIds).orNull
+    if (StringUtils.isBlank(appId) || shuffleIds == null || shuffleIds.isEmpty) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Application id and shuffle ids must be provided for this command.")
+    }
+    if (shuffleIds.exists(shuffleId => shuffleId == null || shuffleId < 0)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Shuffle ids must be nonnegative.")
+    }
+
+    val request = new UnregisterShufflesRequest()
+      .appId(appId)
+      .shuffleIds(util.Arrays.asList(shuffleIds: _*))
+    shuffleApi.unregisterShuffles(request, commonOptions.getAuthHeader)
+  }
 
   private[master] def runExcludeWorkers: HandleResponse = {
     val workerIds = getWorkerIds

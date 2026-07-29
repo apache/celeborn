@@ -175,14 +175,14 @@ paths:
     post:
       tags:
         - Shuffle
-      operationId: unregisterShuffle
-      description: Unregister a shuffle from the service.
+      operationId: unregisterShuffles
+      description: Unregister shuffles from the service.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UnregisterShuffleRequest'
+              $ref: '#/components/schemas/UnregisterShufflesRequest'
       responses:
         "200":
           description: The request was handled.
@@ -804,21 +804,24 @@ components:
           items:
             type: string
 
-    UnregisterShuffleRequest:
+    UnregisterShufflesRequest:
       type: object
       properties:
         appId:
           type: string
           minLength: 1
           description: The application id.
-        shuffleId:
-          type: integer
-          format: int32
-          minimum: 0
-          description: The shuffle id.
+        shuffleIds:
+          type: array
+          minItems: 1
+          description: The shuffle ids.
+          items:
+            type: integer
+            format: int32
+            minimum: 0
       required:
         - appId
-        - shuffleId
+        - shuffleIds
 
     ApplicationHeartbeatData:
       type: object

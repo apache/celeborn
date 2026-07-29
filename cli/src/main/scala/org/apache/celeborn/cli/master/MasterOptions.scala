@@ -37,6 +37,11 @@ final class MasterOptions {
   @Option(names = Array("--show-cluster-shuffles"), description = Array("Show cluster shuffles"))
   private[master] var showClusterShuffles: Boolean = _
 
+  @Option(
+    names = Array("--unregister-shuffles"),
+    description = Array("Unregister shuffles from the service"))
+  private[master] var unregisterShuffles: Boolean = _
+
   @Option(names = Array("--exclude-worker"), description = Array("Exclude workers by ID"))
   private[master] var excludeWorkers: Boolean = _
 

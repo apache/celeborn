@@ -86,9 +86,10 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
                            v1,k2:v2,k3:v3...] [--worker-ids=w1,w2,w3...]
                            (--show-masters-info | --show-cluster-apps |
                            --show-cluster-apps-info | --show-cluster-shuffles |
-                           --exclude-worker | --remove-excluded-worker |
-                           --send-worker-event=IMMEDIATELY | DECOMMISSION | 
-                           DECOMMISSION_THEN_IDLE | GRACEFUL | RECOMMISSION | 
+                           --unregister-shuffles | --exclude-worker |
+                           --remove-excluded-worker |
+                           --send-worker-event=IMMEDIATELY | DECOMMISSION |
+                           DECOMMISSION_THEN_IDLE | GRACEFUL | RECOMMISSION |
                            NONE | --show-worker-event-info |
                            --show-lost-workers | --show-excluded-workers |
                            --show-manual-excluded-workers |
@@ -104,10 +105,12 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
                            --revise-lost-shuffles | --delete-apps |
                            --update-interruption-notices=workerId1=timestamp,
                            workerId2=timestamp,workerId3=timestamp)
-                           [[--shuffleIds=<shuffleIds>]]
+                           [[--shuffleIds=<shuffleIds>]] [[--app-id=appId]
+                           [--shuffle-ids=shuffleId[,shuffleId...]]...]
       --add-cluster-alias=alias
                              Add alias to use in the cli for the given set of
                                masters
+      --app-id=appId         The application id.
       --apps=appId           The application Id list separated by comma.
       --auth-header=authHeader
                              The http `Authorization` header for
@@ -168,8 +171,11 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
       --show-workers         Show registered workers
       --show-workers-topology
                              Show registered workers topology
+      --shuffle-ids=shuffleId[,shuffleId...]
+                             The comma-separated shuffle ids to unregister.
       --shuffleIds=<shuffleIds>
                              The shuffle ids to manipulate.
+      --unregister-shuffles  Unregister shuffles from the service
       --update-interruption-notices=workerId1=timestamp,workerId2=timestamp,
         workerId3=timestamp
                              Update interruption notices of workers.

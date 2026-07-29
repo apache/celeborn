@@ -25,28 +25,31 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
- * UnregisterShuffleRequest
+ * UnregisterShufflesRequest
  */
 @JsonPropertyOrder({
-  UnregisterShuffleRequest.JSON_PROPERTY_APP_ID,
-  UnregisterShuffleRequest.JSON_PROPERTY_SHUFFLE_ID
+  UnregisterShufflesRequest.JSON_PROPERTY_APP_ID,
+  UnregisterShufflesRequest.JSON_PROPERTY_SHUFFLE_IDS
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
-public class UnregisterShuffleRequest {
+public class UnregisterShufflesRequest {
   public static final String JSON_PROPERTY_APP_ID = "appId";
   private String appId;
 
-  public static final String JSON_PROPERTY_SHUFFLE_ID = "shuffleId";
-  private Integer shuffleId;
+  public static final String JSON_PROPERTY_SHUFFLE_IDS = "shuffleIds";
+  private List<Integer> shuffleIds = new ArrayList<>();
 
-  public UnregisterShuffleRequest() {
+  public UnregisterShufflesRequest() {
   }
 
-  public UnregisterShuffleRequest appId(String appId) {
+  public UnregisterShufflesRequest appId(String appId) {
     
     this.appId = appId;
     return this;
@@ -71,30 +74,37 @@ public class UnregisterShuffleRequest {
     this.appId = appId;
   }
 
-  public UnregisterShuffleRequest shuffleId(Integer shuffleId) {
+  public UnregisterShufflesRequest shuffleIds(List<Integer> shuffleIds) {
     
-    this.shuffleId = shuffleId;
+    this.shuffleIds = shuffleIds;
+    return this;
+  }
+
+  public UnregisterShufflesRequest addShuffleIdsItem(Integer shuffleIdsItem) {
+    if (this.shuffleIds == null) {
+      this.shuffleIds = new ArrayList<>();
+    }
+    this.shuffleIds.add(shuffleIdsItem);
     return this;
   }
 
   /**
-   * The shuffle id.
-   * minimum: 0
-   * @return shuffleId
+   * The shuffle ids.
+   * @return shuffleIds
    */
   @javax.annotation.Nonnull
-  @JsonProperty(JSON_PROPERTY_SHUFFLE_ID)
+  @JsonProperty(JSON_PROPERTY_SHUFFLE_IDS)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
-  public Integer getShuffleId() {
-    return shuffleId;
+  public List<Integer> getShuffleIds() {
+    return shuffleIds;
   }
 
 
-  @JsonProperty(JSON_PROPERTY_SHUFFLE_ID)
+  @JsonProperty(JSON_PROPERTY_SHUFFLE_IDS)
   @JsonInclude(value = JsonInclude.Include.ALWAYS)
-  public void setShuffleId(Integer shuffleId) {
-    this.shuffleId = shuffleId;
+  public void setShuffleIds(List<Integer> shuffleIds) {
+    this.shuffleIds = shuffleIds;
   }
 
   @Override
@@ -105,22 +115,22 @@ public class UnregisterShuffleRequest {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    UnregisterShuffleRequest unregisterShuffleRequest = (UnregisterShuffleRequest) o;
-    return Objects.equals(this.appId, unregisterShuffleRequest.appId) &&
-        Objects.equals(this.shuffleId, unregisterShuffleRequest.shuffleId);
+    UnregisterShufflesRequest unregisterShufflesRequest = (UnregisterShufflesRequest) o;
+    return Objects.equals(this.appId, unregisterShufflesRequest.appId) &&
+        Objects.equals(this.shuffleIds, unregisterShufflesRequest.shuffleIds);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(appId, shuffleId);
+    return Objects.hash(appId, shuffleIds);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class UnregisterShuffleRequest {\n");
+    sb.append("class UnregisterShufflesRequest {\n");
     sb.append("    appId: ").append(toIndentedString(appId)).append("\n");
-    sb.append("    shuffleId: ").append(toIndentedString(shuffleId)).append("\n");
+    sb.append("    shuffleIds: ").append(toIndentedString(shuffleIds)).append("\n");
     sb.append("}");
     return sb.toString();
   }

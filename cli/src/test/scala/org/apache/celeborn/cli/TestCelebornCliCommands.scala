@@ -199,6 +199,30 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "ShufflesResponse")
   }
 
+  test("master --unregister-shuffles") {
+    val args = prepareMasterArgs() ++ Array(
+      "--unregister-shuffles",
+      "--app-id",
+      "app1",
+      "--shuffle-ids",
+      "1,2")
+    captureOutputAndValidateResponse(args, "Unregistered shuffles app1-1, app1-2.")
+  }
+
+  test("master --unregister-shuffles validates inputs") {
+    Seq(
+      Array("--unregister-shuffles", "--shuffle-ids", "1,2") ->
+        "Application id and shuffle ids must be provided",
+      Array("--unregister-shuffles", "--app-id", "app1") ->
+        "Application id and shuffle ids must be provided",
+      Array("--unregister-shuffles", "--app-id", "app1", "--shuffle-ids", "1,invalid") ->
+        "Invalid value for option '--shuffle-ids'",
+      Array("--unregister-shuffles", "--app-id", "app1", "--shuffle-ids", "1,-1") ->
+        "Shuffle ids must be nonnegative").foreach { case (command, expectedError) =>
+      captureErrorAndValidateResponse(prepareMasterArgs() ++ command, expectedError)
+    }
+  }
+
   test("master --show-worker-event-info") {
     val args = prepareMasterArgs() :+ "--show-worker-event-info"
     captureOutputAndValidateResponse(args, "WorkerEventsResponse")

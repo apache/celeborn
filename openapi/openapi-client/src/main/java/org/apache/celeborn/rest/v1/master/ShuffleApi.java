@@ -27,7 +27,7 @@ import org.apache.celeborn.rest.v1.master.invoker.Pair;
 
 import org.apache.celeborn.rest.v1.model.HandleResponse;
 import org.apache.celeborn.rest.v1.model.ShufflesResponse;
-import org.apache.celeborn.rest.v1.model.UnregisterShuffleRequest;
+import org.apache.celeborn.rest.v1.model.UnregisterShufflesRequest;
 
 
 import java.util.ArrayList;
@@ -117,30 +117,30 @@ public class ShuffleApi extends BaseApi {
 
   /**
    * 
-   * Unregister a shuffle from the service.
-   * @param unregisterShuffleRequest  (required)
+   * Unregister shuffles from the service.
+   * @param unregisterShufflesRequest  (required)
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse unregisterShuffle(UnregisterShuffleRequest unregisterShuffleRequest) throws ApiException {
-    return this.unregisterShuffle(unregisterShuffleRequest, Collections.emptyMap());
+  public HandleResponse unregisterShuffles(UnregisterShufflesRequest unregisterShufflesRequest) throws ApiException {
+    return this.unregisterShuffles(unregisterShufflesRequest, Collections.emptyMap());
   }
 
 
   /**
    * 
-   * Unregister a shuffle from the service.
-   * @param unregisterShuffleRequest  (required)
+   * Unregister shuffles from the service.
+   * @param unregisterShufflesRequest  (required)
    * @param additionalHeaders additionalHeaders for this call
    * @return HandleResponse
    * @throws ApiException if fails to make API call
    */
-  public HandleResponse unregisterShuffle(UnregisterShuffleRequest unregisterShuffleRequest, Map<String, String> additionalHeaders) throws ApiException {
-    Object localVarPostBody = unregisterShuffleRequest;
+  public HandleResponse unregisterShuffles(UnregisterShufflesRequest unregisterShufflesRequest, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = unregisterShufflesRequest;
     
-    // verify the required parameter 'unregisterShuffleRequest' is set
-    if (unregisterShuffleRequest == null) {
-      throw new ApiException(400, "Missing the required parameter 'unregisterShuffleRequest' when calling unregisterShuffle");
+    // verify the required parameter 'unregisterShufflesRequest' is set
+    if (unregisterShufflesRequest == null) {
+      throw new ApiException(400, "Missing the required parameter 'unregisterShufflesRequest' when calling unregisterShuffles");
     }
     
     // create path and map variables

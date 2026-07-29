@@ -40,6 +40,9 @@ trait MasterSubcommand extends BaseCommand {
   @ArgGroup(exclusive = false)
   private[master] var reviseLostShuffleOptions: ReviseLostShuffleOptions = _
 
+  @ArgGroup(exclusive = false)
+  private[master] var unregisterShufflesOptions: UnregisterShufflesOptions = _
+
   @Mixin
   private[master] var commonOptions: CommonOptions = _
 
@@ -76,6 +79,8 @@ trait MasterSubcommand extends BaseCommand {
   private[master] def runShowClusterApps: ApplicationsHeartbeatResponse
 
   private[master] def runShowClusterShuffles: ShufflesResponse
+
+  private[master] def runUnregisterShuffles: HandleResponse
 
   private[master] def runExcludeWorkers: HandleResponse
 

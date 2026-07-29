@@ -28,7 +28,7 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 
-import org.apache.celeborn.rest.v1.model.{HandleResponse, ShufflesResponse, UnregisterShuffleRequest}
+import org.apache.celeborn.rest.v1.model.{HandleResponse, ShufflesResponse, UnregisterShufflesRequest}
 import org.apache.celeborn.server.common.http.api.ApiRequestContext
 import org.apache.celeborn.service.deploy.master.Master
 import org.apache.celeborn.service.deploy.master.http.api.MasterHttpResourceUtils.ensureMasterIsLeader
@@ -59,7 +59,7 @@ class ShuffleResource extends ApiRequestContext {
     new ShufflesResponse().shuffleIds(shuffles)
   }
 
-  @Operation(description = "Unregister a shuffle from the service.")
+  @Operation(description = "Unregister shuffles from the service.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
@@ -67,18 +67,21 @@ class ShuffleResource extends ApiRequestContext {
       schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   @Path("/unregister")
-  def unregisterShuffle(request: UnregisterShuffleRequest): HandleResponse =
+  def unregisterShuffles(request: UnregisterShufflesRequest): HandleResponse =
     ensureMasterIsLeader(master) {
       if (request == null) {
-        throw new BadRequestException("The unregister shuffle request is required.")
+        throw new BadRequestException("The unregister shuffles request is required.")
       }
       val appId = normalizeParam(request.getAppId)
-      val shuffleId = request.getShuffleId
-      if (appId.isEmpty || shuffleId == null || shuffleId < 0) {
+      val shuffleIds = request.getShuffleIds
+      if (appId.isEmpty ||
+        shuffleIds == null ||
+        shuffleIds.isEmpty ||
+        shuffleIds.asScala.exists(shuffleId => shuffleId == null || shuffleId < 0)) {
         throw new BadRequestException(
-          s"appId(${request.getAppId}) is required and shuffleId($shuffleId) must be nonnegative.")
+          s"appId(${request.getAppId}) is required and shuffleIds($shuffleIds) must be a nonempty list of nonnegative ids.")
       }
-      val (success, message) = master.unregisterShuffle(appId, shuffleId)
+      val (success, message) = master.unregisterShuffles(appId, shuffleIds)
       new HandleResponse().success(success).message(message)
     }
 }
