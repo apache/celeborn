@@ -17,21 +17,17 @@
 
 package org.apache.celeborn.cli.master
 
+import java.util
+
 import picocli.CommandLine.Option
 
-final class UnregisterShufflesOptions {
+final class ShuffleOptions {
 
   @Option(
-    names = Array("--app-id"),
-    paramLabel = "appId",
-    description = Array("The application id."))
-  private[master] var appId: String = _
-
-  @Option(
-    names = Array("--shuffle-ids"),
+    names = Array("--shuffleIds"),
     paramLabel = "shuffleId",
     split = ",",
-    description = Array("The comma-separated shuffle ids to unregister."))
-  private[master] var shuffleIds: Array[Integer] = _
+    description = Array("The shuffle ids to manipulate."))
+  private[master] var shuffleIds: util.List[Integer] = _
 
 }

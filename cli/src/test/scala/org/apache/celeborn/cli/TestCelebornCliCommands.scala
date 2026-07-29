@@ -202,22 +202,24 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   test("master --unregister-shuffles") {
     val args = prepareMasterArgs() ++ Array(
       "--unregister-shuffles",
-      "--app-id",
+      "--apps",
       "app1",
-      "--shuffle-ids",
+      "--shuffleIds",
       "1,2")
     captureOutputAndValidateResponse(args, "Unregistered shuffles app1-1, app1-2.")
   }
 
   test("master --unregister-shuffles validates inputs") {
     Seq(
-      Array("--unregister-shuffles", "--shuffle-ids", "1,2") ->
+      Array("--unregister-shuffles", "--shuffleIds", "1,2") ->
         "Application id and shuffle ids must be provided",
-      Array("--unregister-shuffles", "--app-id", "app1") ->
+      Array("--unregister-shuffles", "--apps", "app1") ->
         "Application id and shuffle ids must be provided",
-      Array("--unregister-shuffles", "--app-id", "app1", "--shuffle-ids", "1,invalid") ->
-        "Invalid value for option '--shuffle-ids'",
-      Array("--unregister-shuffles", "--app-id", "app1", "--shuffle-ids", "1,-1") ->
+      Array("--unregister-shuffles", "--apps", "app1,app2", "--shuffleIds", "1,2") ->
+        "Only one application id can be provided",
+      Array("--unregister-shuffles", "--apps", "app1", "--shuffleIds", "1,invalid") ->
+        "Invalid value for option '--shuffleIds'",
+      Array("--unregister-shuffles", "--apps", "app1", "--shuffleIds", "1,-1") ->
         "Shuffle ids must be nonnegative").foreach { case (command, expectedError) =>
       captureErrorAndValidateResponse(prepareMasterArgs() ++ command, expectedError)
     }

@@ -105,12 +105,10 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
                            --revise-lost-shuffles | --delete-apps |
                            --update-interruption-notices=workerId1=timestamp,
                            workerId2=timestamp,workerId3=timestamp)
-                           [[--shuffleIds=<shuffleIds>]] [[--app-id=appId]
-                           [--shuffle-ids=shuffleId[,shuffleId...]]...]
+                           [[--shuffleIds=shuffleId[,shuffleId...]]...]
       --add-cluster-alias=alias
                              Add alias to use in the cli for the given set of
                                masters
-      --app-id=appId         The application id.
       --apps=appId           The application Id list separated by comma.
       --auth-header=authHeader
                              The http `Authorization` header for
@@ -171,9 +169,7 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
       --show-workers         Show registered workers
       --show-workers-topology
                              Show registered workers topology
-      --shuffle-ids=shuffleId[,shuffleId...]
-                             The comma-separated shuffle ids to unregister.
-      --shuffleIds=<shuffleIds>
+      --shuffleIds=shuffleId[,shuffleId...]
                              The shuffle ids to manipulate.
       --unregister-shuffles  Unregister shuffles from the service
       --update-interruption-notices=workerId1=timestamp,workerId2=timestamp,

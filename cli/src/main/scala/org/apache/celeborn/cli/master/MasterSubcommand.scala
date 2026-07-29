@@ -38,10 +38,7 @@ trait MasterSubcommand extends BaseCommand {
   private[master] var masterOptions: MasterOptions = _
 
   @ArgGroup(exclusive = false)
-  private[master] var reviseLostShuffleOptions: ReviseLostShuffleOptions = _
-
-  @ArgGroup(exclusive = false)
-  private[master] var unregisterShufflesOptions: UnregisterShufflesOptions = _
+  private[master] var shuffleOptions: ShuffleOptions = _
 
   @Mixin
   private[master] var commonOptions: CommonOptions = _
