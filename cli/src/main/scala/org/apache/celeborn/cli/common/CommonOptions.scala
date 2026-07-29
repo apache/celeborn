@@ -94,6 +94,19 @@ class CommonOptions {
   private[cli] var apps: String = _
 
   @Option(
+    names = Array("--logger-name"),
+    paramLabel = "logger_name",
+    description = Array("The logger name to query or set the level for. " +
+      "If not specified for --show-loggers, all configured loggers are returned."))
+  private[cli] var loggerName: String = _
+
+  @Option(
+    names = Array("--logger-level"),
+    paramLabel = "level",
+    description = Array("The logger level to set, e.g. DEBUG, INFO, WARN, ERROR."))
+  private[cli] var loggerLevel: String = _
+
+  @Option(
     names = Array("--auth-header"),
     paramLabel = "authHeader",
     description = Array("The http `Authorization` header for authentication. " +

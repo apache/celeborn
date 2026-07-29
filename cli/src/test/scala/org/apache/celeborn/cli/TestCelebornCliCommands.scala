@@ -178,6 +178,26 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "ThreadStackResponse")
   }
 
+  test("worker --show-loggers") {
+    val args = prepareWorkerArgs() :+ "--show-loggers"
+    captureOutputAndValidateResponse(args, "LoggerInfos")
+  }
+
+  test("worker --set-loglevel") {
+    val setArgs = prepareWorkerArgs() ++ Array(
+      "--set-loglevel",
+      "--logger-name",
+      "org.apache.celeborn.cli.TestWorkerLogger",
+      "--logger-level",
+      "DEBUG")
+    captureOutputAndValidateResponse(setArgs, "success: true")
+    val showArgs = prepareWorkerArgs() ++ Array(
+      "--show-loggers",
+      "--logger-name",
+      "org.apache.celeborn.cli.TestWorkerLogger")
+    captureOutputAndValidateResponse(showArgs, "level: DEBUG")
+  }
+
   test("master --show-masters-info") {
     cancel("This test is temporarily disabled since HA is not enabled in the unit tests.")
     val args = prepareMasterArgs() :+ "--show-masters-info"
@@ -282,6 +302,26 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   test("master --show-thread-dump") {
     val args = prepareMasterArgs() :+ "--show-thread-dump"
     captureOutputAndValidateResponse(args, "ThreadStackResponse")
+  }
+
+  test("master --show-loggers") {
+    val args = prepareMasterArgs() :+ "--show-loggers"
+    captureOutputAndValidateResponse(args, "LoggerInfos")
+  }
+
+  test("master --set-loglevel") {
+    val setArgs = prepareMasterArgs() ++ Array(
+      "--set-loglevel",
+      "--logger-name",
+      "org.apache.celeborn.cli.TestMasterLogger",
+      "--logger-level",
+      "DEBUG")
+    captureOutputAndValidateResponse(setArgs, "success: true")
+    val showArgs = prepareMasterArgs() ++ Array(
+      "--show-loggers",
+      "--logger-name",
+      "org.apache.celeborn.cli.TestMasterLogger")
+    captureOutputAndValidateResponse(showArgs, "level: DEBUG")
   }
 
   test("master --exclude-worker and --remove-excluded-worker") {

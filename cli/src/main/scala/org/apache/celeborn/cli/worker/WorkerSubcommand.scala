@@ -23,7 +23,7 @@ import picocli.CommandLine.Model.CommandSpec
 import org.apache.celeborn.cli.CelebornCli
 import org.apache.celeborn.cli.common.{BaseCommand, CliLogging, CommonOptions}
 import org.apache.celeborn.rest.v1.model._
-import org.apache.celeborn.rest.v1.worker.{ApplicationApi, ConfApi, DefaultApi, ShuffleApi, WorkerApi}
+import org.apache.celeborn.rest.v1.worker.{ApplicationApi, ConfApi, DefaultApi, LoggerApi, ShuffleApi, WorkerApi}
 import org.apache.celeborn.rest.v1.worker.invoker.ApiClient
 
 trait WorkerSubcommand extends BaseCommand {
@@ -53,6 +53,7 @@ trait WorkerSubcommand extends BaseCommand {
   private[worker] def applicationApi = new ApplicationApi(apiClient)
   private[worker] def confApi = new ConfApi(apiClient)
   private[worker] def defaultApi = new DefaultApi(apiClient)
+  private[worker] def loggerApi = new LoggerApi(apiClient)
   private[worker] def shuffleApi = new ShuffleApi(apiClient)
   private[worker] def workerApi = new WorkerApi(apiClient)
 
@@ -85,5 +86,9 @@ trait WorkerSubcommand extends BaseCommand {
   private[worker] def runDeleteDynamicConf: HandleResponse
 
   private[worker] def runShowThreadDump: ThreadStackResponse
+
+  private[worker] def runShowLoggers: LoggerInfos
+
+  private[worker] def runSetLogLevel: HandleResponse
 
 }

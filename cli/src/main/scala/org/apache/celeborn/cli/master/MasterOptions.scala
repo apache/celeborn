@@ -104,6 +104,12 @@ final class MasterOptions {
   @Option(names = Array("--show-thread-dump"), description = Array("Show master thread dump"))
   private[master] var showThreadDump: Boolean = _
 
+  @Option(names = Array("--show-loggers"), description = Array("Show logger levels"))
+  private[master] var showLoggers: Boolean = _
+
+  @Option(names = Array("--set-loglevel"), description = Array("Set logger level"))
+  private[master] var setLogLevel: Boolean = _
+
   @Option(names = Array("--show-container-info"), description = Array("Show container info"))
   private[master] var showContainerInfo: Boolean = _
 
