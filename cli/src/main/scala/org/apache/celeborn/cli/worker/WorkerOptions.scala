@@ -79,4 +79,10 @@ final class WorkerOptions {
   @Option(names = Array("--show-thread-dump"), description = Array("Show worker thread dump"))
   private[worker] var showThreadDump: Boolean = _
 
+  @Option(names = Array("--show-loggers"), description = Array("Show logger levels"))
+  private[worker] var showLoggers: Boolean = _
+
+  @Option(names = Array("--set-loglevel"), description = Array("Set logger level"))
+  private[worker] var setLogLevel: Boolean = _
+
 }

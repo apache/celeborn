@@ -25,7 +25,7 @@ import org.apache.commons.lang3.StringUtils
 import picocli.CommandLine.{Command, ParameterException}
 import picocli.CommandLine.Model.CommandSpec
 
-import org.apache.celeborn.rest.v1.model.{DeleteDynamicConfigRequest, HandleResponse, UpsertDynamicConfigRequest}
+import org.apache.celeborn.rest.v1.model.{DeleteDynamicConfigRequest, HandleResponse, LoggerInfo, UpsertDynamicConfigRequest}
 
 @Command(mixinStandardHelpOptions = true, versionProvider = classOf[CliVersionProvider])
 abstract class BaseCommand extends Runnable with CliLogging {
@@ -80,6 +80,37 @@ abstract class BaseCommand extends Runnable with CliLogging {
         .configs(util.Arrays.asList[String](commonOptions.deleteConfigs.split(","): _*))
         .tenant(commonOptions.configTenant)
         .name(commonOptions.configName),
+      commonOptions.getAuthHeader)
+  }
+
+  private[cli] val validLoggerLevels =
+    Seq("OFF", "FATAL", "ERROR", "WARN", "INFO", "DEBUG", "TRACE", "ALL")
+
+  private[cli] def setLogLevel(
+      commonOptions: CommonOptions,
+      spec: CommandSpec,
+      set: (LoggerInfo, util.Map[String, String]) => HandleResponse): HandleResponse = {
+    if (StringUtils.isBlank(commonOptions.loggerName)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Logger name must be provided via --logger-name for this command.")
+    }
+    if (StringUtils.isBlank(commonOptions.loggerLevel)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Logger level must be provided via --logger-level for this command.")
+    }
+    val level = commonOptions.loggerLevel.toUpperCase
+    if (!validLoggerLevels.contains(level)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        s"Invalid logger level `${commonOptions.loggerLevel}`, must be one of " +
+          validLoggerLevels.mkString(", "))
+    }
+    set(
+      new LoggerInfo()
+        .name(commonOptions.loggerName)
+        .level(level),
       commonOptions.getAuthHeader)
   }
 }

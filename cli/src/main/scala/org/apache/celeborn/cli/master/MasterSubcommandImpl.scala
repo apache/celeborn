@@ -55,6 +55,8 @@ class MasterSubcommandImpl extends MasterSubcommand {
     if (masterOptions.upsertDynamicConf) log(runUpsertDynamicConf)
     if (masterOptions.deleteDynamicConf) log(runDeleteDynamicConf)
     if (masterOptions.showThreadDump) log(runShowThreadDump)
+    if (masterOptions.showLoggers) log(runShowLoggers)
+    if (masterOptions.setLogLevel) log(runSetLogLevel)
     if (masterOptions.reviseLostShuffles) log(reviseLostShuffles)
     if (masterOptions.deleteApps) log(deleteApps)
     if (!StringUtils.isBlank(masterOptions.updateInterruptionNotices))
@@ -228,6 +230,13 @@ class MasterSubcommandImpl extends MasterSubcommand {
 
   private[master] def runShowThreadDump: ThreadStackResponse =
     defaultApi.getThreadDump(commonOptions.getAuthHeader)
+
+  private[master] def runShowLoggers: LoggerInfos =
+    loggerApi.getLogger(commonOptions.loggerName, null, commonOptions.getAuthHeader)
+
+  private[master] def runSetLogLevel: HandleResponse = {
+    setLogLevel(commonOptions, spec, loggerApi.setLogger)
+  }
 
   private[master] def runAddClusterAlias: Unit = {
     val aliasToAdd = masterOptions.addClusterAlias

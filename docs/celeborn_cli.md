@@ -82,7 +82,8 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
                            [--cluster=cluster_alias] [--config-level=level]
                            [--config-name=username] [--config-tenant=tenant_id]
                            [--delete-configs=c1,c2,c3...] [--host-list=h1,h2,
-                           h3...] [--hostport=host:port] [--upsert-configs=k1:
+                           h3...] [--hostport=host:port] [--logger-level=level]
+                           [--logger-name=logger_name] [--upsert-configs=k1:
                            v1,k2:v2,k3:v3...] [--worker-ids=w1,w2,w3...]
                            (--show-masters-info | --show-cluster-apps |
                            --show-cluster-apps-info | --show-cluster-shuffles |
@@ -98,6 +99,7 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
                            --show-workers-topology | --show-conf |
                            --show-dynamic-conf | --upsert-dynamic-conf |
                            --delete-dynamic-conf | --show-thread-dump |
+                           --show-loggers | --set-loglevel |
                            --show-container-info | --add-cluster-alias=alias |
                            --remove-cluster-alias=alias |
                            --remove-workers-unavailable-info |
@@ -129,6 +131,12 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
       --host-list=h1,h2,h3...
                              List of hosts to pass to the command
       --hostport=host:port   The host and http port
+      --logger-level=level   The logger level to set, e.g. DEBUG, INFO, WARN,
+                               ERROR.
+      --logger-name=logger_name
+                             The logger name to query or set the level for. If
+                               not specified for --show-loggers, all configured
+                               loggers are returned.
       --remove-cluster-alias=alias
                              Remove alias to use in the cli for the given set
                                of masters
@@ -142,6 +150,7 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
       --send-worker-event=IMMEDIATELY | DECOMMISSION | DECOMMISSION_THEN_IDLE |
         GRACEFUL | RECOMMISSION | NONE
                              Send an event to a worker
+      --set-loglevel         Set logger level
       --show-cluster-apps    Show cluster application's ids
       --show-cluster-apps-info
                              Show cluster application's info
@@ -156,6 +165,7 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
                              Show excluded workers
       --show-lifecycle-managers
                              Show lifecycle managers
+      --show-loggers         Show logger levels
       --show-lost-workers    Show lost workers
       --show-manual-excluded-workers
                              Show manual excluded workers
@@ -192,7 +202,8 @@ Usage: celeborn-cli worker [-hV] [--apps=appId] [--auth-header=authHeader]
                            [--cluster=cluster_alias] [--config-level=level]
                            [--config-name=username] [--config-tenant=tenant_id]
                            [--delete-configs=c1,c2,c3...] [--host-list=h1,h2,
-                           h3...] [--hostport=host:port] [--upsert-configs=k1:
+                           h3...] [--hostport=host:port] [--logger-level=level]
+                           [--logger-name=logger_name] [--upsert-configs=k1:
                            v1,k2:v2,k3:v3...] [--worker-ids=w1,w2,w3...]
                            (--show-worker-info | --show-apps-on-worker |
                            --show-shuffles-on-worker |
@@ -202,7 +213,7 @@ Usage: celeborn-cli worker [-hV] [--apps=appId] [--auth-header=authHeader]
                            --exit=exit_type | --show-conf |
                            --show-container-info | --show-dynamic-conf |
                            --upsert-dynamic-conf | --delete-dynamic-conf |
-                           --show-thread-dump)
+                           --show-thread-dump | --show-loggers | --set-loglevel)
       --apps=appId           The application Id list separated by comma.
       --auth-header=authHeader
                              The http `Authorization` header for
@@ -226,10 +237,18 @@ Usage: celeborn-cli worker [-hV] [--apps=appId] [--auth-header=authHeader]
       --is-decommissioning   Check if the system is decommissioning
       --is-registered        Check if the system is registered
       --is-shutdown          Check if the system is shutdown
+      --logger-level=level   The logger level to set, e.g. DEBUG, INFO, WARN,
+                               ERROR.
+      --logger-name=logger_name
+                             The logger name to query or set the level for. If
+                               not specified for --show-loggers, all configured
+                               loggers are returned.
+      --set-loglevel         Set logger level
       --show-apps-on-worker  Show applications running on the worker
       --show-conf            Show worker conf
       --show-container-info  Show container info
       --show-dynamic-conf    Show dynamic worker conf
+      --show-loggers         Show logger levels
       --show-partition-location-info
                              Show partition location information
       --show-shuffles-on-worker

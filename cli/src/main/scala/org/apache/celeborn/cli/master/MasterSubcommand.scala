@@ -25,7 +25,7 @@ import picocli.CommandLine.Model.CommandSpec
 import org.apache.celeborn.cli.CelebornCli
 import org.apache.celeborn.cli.common.{BaseCommand, CliLogging, CommonOptions}
 import org.apache.celeborn.cli.config.CliConfigManager
-import org.apache.celeborn.rest.v1.master.{ApplicationApi, ConfApi, DefaultApi, MasterApi, ShuffleApi, WorkerApi}
+import org.apache.celeborn.rest.v1.master.{ApplicationApi, ConfApi, DefaultApi, LoggerApi, MasterApi, ShuffleApi, WorkerApi}
 import org.apache.celeborn.rest.v1.master.invoker.ApiClient
 import org.apache.celeborn.rest.v1.model._
 
@@ -67,6 +67,7 @@ trait MasterSubcommand extends BaseCommand {
   private[master] def applicationApi: ApplicationApi = new ApplicationApi(apiClient)
   private[master] def confApi: ConfApi = new ConfApi(apiClient)
   private[master] def defaultApi: DefaultApi = new DefaultApi(apiClient)
+  private[master] def loggerApi: LoggerApi = new LoggerApi(apiClient)
   private[master] def masterApi: MasterApi = new MasterApi(apiClient)
   private[master] def shuffleApi: ShuffleApi = new ShuffleApi(apiClient)
   private[master] def workerApi: WorkerApi = new WorkerApi(apiClient)
@@ -114,6 +115,10 @@ trait MasterSubcommand extends BaseCommand {
   private[master] def runDeleteDynamicConf: HandleResponse
 
   private[master] def runShowThreadDump: ThreadStackResponse
+
+  private[master] def runShowLoggers: LoggerInfos
+
+  private[master] def runSetLogLevel: HandleResponse
 
   private[master] def reviseLostShuffles: HandleResponse
 

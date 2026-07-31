@@ -41,6 +41,8 @@ class WorkerSubcommandImpl extends WorkerSubcommand {
     if (workerOptions.upsertDynamicConf) log(runUpsertDynamicConf)
     if (workerOptions.deleteDynamicConf) log(runDeleteDynamicConf)
     if (workerOptions.showThreadDump) log(runShowThreadDump)
+    if (workerOptions.showLoggers) log(runShowLoggers)
+    if (workerOptions.setLogLevel) log(runSetLogLevel)
   }
 
   private[worker] def runShowWorkerInfo: WorkerInfoResponse =
@@ -90,6 +92,13 @@ class WorkerSubcommandImpl extends WorkerSubcommand {
 
   private[worker] def runShowThreadDump: ThreadStackResponse =
     defaultApi.getThreadDump(commonOptions.getAuthHeader)
+
+  private[worker] def runShowLoggers: LoggerInfos =
+    loggerApi.getLogger(commonOptions.loggerName, null, commonOptions.getAuthHeader)
+
+  private[worker] def runSetLogLevel: HandleResponse = {
+    setLogLevel(commonOptions, spec, loggerApi.setLogger)
+  }
 
   private[worker] def runShowContainerInfo: ContainerInfo =
     defaultApi.getContainerInfo(commonOptions.getAuthHeader)
