@@ -35,6 +35,7 @@ class MasterSubcommandImpl extends MasterSubcommand {
     if (masterOptions.showClusterApps) log(runShowClusterApps)
     if (masterOptions.showClusterAppsInfo) log(runShowClusterAppsInfo)
     if (masterOptions.showClusterShuffles) log(runShowClusterShuffles)
+    if (masterOptions.unregisterShuffles) log(runUnregisterShuffles)
     if (masterOptions.excludeWorkers) log(runExcludeWorkers)
     if (masterOptions.removeExcludedWorkers) log(runRemoveExcludedWorkers)
     if (masterOptions.removeWorkersUnavailableInfo) log(runRemoveWorkersUnavailableInfo)
@@ -78,6 +79,20 @@ class MasterSubcommandImpl extends MasterSubcommand {
 
   private[master] def runShowClusterShuffles: ShufflesResponse =
     shuffleApi.getShuffles(commonOptions.getAuthHeader)
+
+  private[master] def runUnregisterShuffles: HandleResponse = {
+    val (appId, shuffleIds) = getSingleAppShuffleIds
+    if (shuffleIds.asScala.exists(_ < 0)) {
+      throw new ParameterException(
+        spec.commandLine(),
+        "Shuffle ids must be nonnegative.")
+    }
+
+    val request = new UnregisterShufflesRequest()
+      .appId(appId)
+      .shuffleIds(shuffleIds)
+    shuffleApi.unregisterShuffles(request, commonOptions.getAuthHeader)
+  }
 
   private[master] def runExcludeWorkers: HandleResponse = {
     val workerIds = getWorkerIds
@@ -260,24 +275,26 @@ class MasterSubcommandImpl extends MasterSubcommand {
   private[master] def runShowContainerInfo: ContainerInfo =
     defaultApi.getContainerInfo(commonOptions.getAuthHeader)
 
-  override private[master] def reviseLostShuffles: HandleResponse = {
-    if (StringUtils.isAnyBlank(commonOptions.apps, reviseLostShuffleOptions.shuffleIds)) {
+  private def getSingleAppShuffleIds: (String, util.List[Integer]) = {
+    val appId = commonOptions.apps
+    val shuffleIds = Option(shuffleOptions).map(_.shuffleIds).orNull
+    if (StringUtils.isBlank(appId) || shuffleIds == null || shuffleIds.isEmpty) {
       throw new ParameterException(
         spec.commandLine(),
-        "Application id and Shuffle ids must be provided for this command.")
+        "Application id and shuffle ids must be provided for this command.")
     }
-
-    val app = commonOptions.apps
-    if (app.contains(",")) {
+    if (appId.contains(",")) {
       throw new ParameterException(
         spec.commandLine(),
         "Only one application id can be provided for this command.")
     }
+    (appId, shuffleIds)
+  }
 
-    val shuffleIds = util.Arrays.asList[Integer](
-      reviseLostShuffleOptions.shuffleIds.split(",").map(Integer.valueOf): _*)
+  override private[master] def reviseLostShuffles: HandleResponse = {
+    val (appId, shuffleIds) = getSingleAppShuffleIds
     val request =
-      new ReviseLostShufflesRequest().appId(app).shuffleIds(shuffleIds)
+      new ReviseLostShufflesRequest().appId(appId).shuffleIds(shuffleIds)
     applicationApi.reviseLostShuffles(request, commonOptions.getAuthHeader)
   }
 
