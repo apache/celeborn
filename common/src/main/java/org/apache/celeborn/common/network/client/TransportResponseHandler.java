@@ -263,6 +263,32 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     }
   }
 
+  /**
+   * Fail all outstanding requests because the netty event loop this channel is pinned to has died
+   * (see {@link TransportClient#isEventLoopDead()}). Unlike {@link #channelInactive()} this runs on
+   * an arbitrary caller thread, because the dead loop will never deliver channelInactive() itself.
+   *
+   * <p>Idempotent: the outstanding maps are drained by {@code remove}, so a second call is a no-op.
+   *
+   * @param cause the failure handed to every outstanding callback.
+   */
+  void failOutstandingRequestsOnDeadEventLoop(Throwable cause) {
+    if (hasOutstandingRequests()) {
+      logger.error(
+          "Failing {} outstanding requests to {}: the netty event loop this channel is pinned to "
+              + "is no longer usable, so they can never complete",
+          numOutstandingRequests(),
+          NettyUtils.getRemoteAddress(channel));
+      failOutstandingRequests(cause);
+    }
+    if (pushCheckerScheduleFuture != null) {
+      pushCheckerScheduleFuture.cancel(false);
+    }
+    if (fetchCheckerScheduleFuture != null) {
+      fetchCheckerScheduleFuture.cancel(false);
+    }
+  }
+
   @Override
   public void channelActive() {}
 

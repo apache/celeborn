@@ -25,9 +25,13 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
+import io.netty.channel.EventLoopGroup;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -35,6 +39,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
@@ -62,7 +67,17 @@ public class TransportClientFactorySuiteJ {
 
   @Before
   public void setUp() {
-    doSetup(new CelebornConf());
+    doSetup(newCelebornConf());
+  }
+
+  /**
+   * A fresh conf carrying whatever this suite needs on top of the defaults. Tests that build their
+   * own TransportContext must start from this rather than a bare CelebornConf, or they would run a
+   * plain client against the SSL server1/server2 that {@link SSLTransportClientFactorySuiteJ} sets
+   * up, silently testing something other than what the subclass exists to cover.
+   */
+  protected CelebornConf newCelebornConf() {
+    return new CelebornConf();
   }
 
   // for validation in subclasses
@@ -87,7 +102,7 @@ public class TransportClientFactorySuiteJ {
   private void testClientReuse(int maxConnections, boolean concurrent)
       throws IOException, InterruptedException {
 
-    CelebornConf _conf = new CelebornConf();
+    CelebornConf _conf = newCelebornConf();
     _conf.set("celeborn.shuffle.io.numConnectionsPerPeer", Integer.toString(maxConnections));
     TransportConf conf = new TransportConf(TEST_MODULE, _conf);
 
@@ -198,7 +213,7 @@ public class TransportClientFactorySuiteJ {
 
   @Test
   public void closeIdleConnectionForRequestTimeOut() throws IOException, InterruptedException {
-    CelebornConf _conf = new CelebornConf();
+    CelebornConf _conf = newCelebornConf();
     _conf.set("celeborn.shuffle.io.connectionTimeout", "1s");
     TransportConf conf = new TransportConf(TEST_MODULE, _conf);
     TransportContext context = new TransportContext(conf, new BaseMessageHandler(), true);
@@ -214,16 +229,21 @@ public class TransportClientFactorySuiteJ {
     context.close();
   }
 
-  @Test(expected = IOException.class)
-  public void closeFactoryBeforeCreateClient() throws IOException, InterruptedException {
+  @Test
+  public void closeFactoryBeforeCreateClient() {
     TransportClientFactory factory = context.createClientFactory();
+    EventLoopGroup groupBeforeClose = factory.getWorkerGroup();
     factory.close();
-    factory.createClient(getLocalHost(), server1.getPort());
+    assertThrows(IOException.class, () -> factory.createClient(getLocalHost(), server1.getPort()));
+    // SPARK-58292: createClient on a closed factory fails with the terminated-executor cause, but
+    // the closed factory must NOT recreate a fresh worker group (which would leak threads). The
+    // group is left as-is, i.e. the shut-down one from before close().
+    assertSame(groupBeforeClose, factory.getWorkerGroup());
   }
 
   @Test
   public void unlimitedConnectionAndCreationTimeouts() throws IOException, InterruptedException {
-    CelebornConf _conf = new CelebornConf();
+    CelebornConf _conf = newCelebornConf();
     _conf.set("celeborn.shuffle.io.connectTimeout", "-1");
     _conf.set("celeborn.shuffle.io.connectionTimeout", "-1");
     TransportConf conf = new TransportConf(TEST_MODULE, _conf);
@@ -245,6 +265,164 @@ public class TransportClientFactorySuiteJ {
           assertThrows(
               IOException.class, () -> factory.createClient(getLocalHost(), unreachablePort));
       assertNotEquals(exception.getCause(), null);
+    }
+  }
+
+  /**
+   * A dead netty worker event loop is never replaced within a fixed-size group and permanently
+   * poisons connections (SPARK-58292). Simulate it by shutting the factory's whole worker group
+   * down: the next connection's channel registration is then rejected with "event executor
+   * terminated", exactly as it would be by a single loop whose thread has died.
+   */
+  private static EventLoopGroup simulateDeadWorkerEventLoop(TransportClientFactory factory)
+      throws InterruptedException {
+    EventLoopGroup deadGroup = factory.getWorkerGroup();
+    deadGroup.shutdownGracefully().sync();
+    assertTrue(deadGroup.isShuttingDown());
+    return deadGroup;
+  }
+
+  private TransportContext newContext(CelebornConf celebornConf) {
+    return new TransportContext(
+        new TransportConf(TEST_MODULE, celebornConf), new BaseMessageHandler());
+  }
+
+  @Test
+  public void recreatesWorkerGroupWhenEventLoopIsDead() throws Exception {
+    CelebornConf _conf = newCelebornConf();
+    _conf.set("celeborn.shuffle.io.retryWait", "100ms");
+    TransportContext ctx = newContext(_conf);
+    try (TransportClientFactory factory = ctx.createClientFactory()) {
+      EventLoopGroup deadGroup = simulateDeadWorkerEventLoop(factory);
+
+      // The first connect attempt fails because the (dead) group rejects the channel
+      // registration; the factory replaces the worker group and reconnects on it inline.
+      TransportClient client = factory.createClient(getLocalHost(), server1.getPort());
+      assertTrue(client.isActive());
+
+      EventLoopGroup freshGroup = factory.getWorkerGroup();
+      assertNotSame(deadGroup, freshGroup);
+      assertFalse(freshGroup.isShuttingDown());
+    } finally {
+      ctx.close();
+    }
+  }
+
+  @Test
+  public void retiresSupersededWorkerGroupWithNoChannelsLeft() throws Exception {
+    // SPARK-58292: a superseded group must not be retained, along with its selector threads, until
+    // the factory closes. See TransportClientFactory#retireWorkerGroupIfDrained.
+    TransportContext ctx = newContext(newCelebornConf());
+    try (TransportClientFactory factory = ctx.createClientFactory()) {
+      simulateDeadWorkerEventLoop(factory);
+
+      assertTrue(factory.createClient(getLocalHost(), server1.getPort()).isActive());
+
+      // The superseded group had no channels left to serve, so it was retired at once rather than
+      // being parked on the retained list for close() to deal with.
+      assertEquals(0, factory.supersededWorkerGroupCount());
+    } finally {
+      ctx.close();
+    }
+  }
+
+  @Test
+  public void recreatedWorkerGroupIsUsedWithoutConsumingTheRetryBudget() throws Exception {
+    // SPARK-58292: replacing the dead group only helps the triggering request if that request can
+    // actually use the replacement. celeborn.<module>.io.maxRetries may be as low as 1, leaving no
+    // retry to spend on the fresh group, so the reconnect must happen inline instead of being
+    // charged to retryCreateClient.
+    CelebornConf _conf = newCelebornConf();
+    _conf.set("celeborn.shuffle.io.maxRetries", "1");
+    TransportContext ctx = newContext(_conf);
+    try (TransportClientFactory factory = ctx.createClientFactory()) {
+      EventLoopGroup deadGroup = simulateDeadWorkerEventLoop(factory);
+
+      TransportClient client = factory.createClient(getLocalHost(), server1.getPort());
+      assertTrue(client.isActive());
+      assertNotSame(deadGroup, factory.getWorkerGroup());
+    } finally {
+      ctx.close();
+    }
+  }
+
+  @Test
+  public void createUnmanagedClientRecoversFromDeadEventLoop() throws Exception {
+    // createUnmanagedClient has no retry wrapper at all, so it can only recover from a dead event
+    // loop if the reconnect on the recreated group happens inline.
+    TransportContext ctx = newContext(newCelebornConf());
+    try (TransportClientFactory factory = ctx.createClientFactory()) {
+      EventLoopGroup deadGroup = simulateDeadWorkerEventLoop(factory);
+
+      TransportClient client = factory.createUnmanagedClient(getLocalHost(), server1.getPort());
+      assertTrue(client.isActive());
+      assertNotSame(deadGroup, factory.getWorkerGroup());
+    } finally {
+      ctx.close();
+    }
+  }
+
+  @Test
+  public void failsOutstandingRequestsOfPooledClientsOnDeadEventLoops() throws Exception {
+    // SPARK-58292: the request that recovers the worker group must also unblock owners that are
+    // still holding a client pinned to the dead loop -- a dead loop delivers neither the write
+    // listener nor channelInactive(), so nothing else would ever fail their callbacks.
+    //
+    // shutdownGracefully's quiet period is the one window where a loop already reports
+    // isShuttingDown() while its channels are still open, i.e. exactly the state a dead loop leaves
+    // a pooled client in. The period is generous relative to this test body, and the assertion
+    // below fails loudly rather than silently testing the wrong thing if it ever elapses early.
+    TransportContext ctx = newContext(newCelebornConf());
+    try (TransportClientFactory factory = ctx.createClientFactory()) {
+      TransportClient client = factory.createClient(getLocalHost(), server1.getPort());
+      AtomicReference<Throwable> failure = new AtomicReference<>();
+      client
+          .getHandler()
+          .addRpcRequest(
+              1L,
+              new RpcResponseCallback() {
+                @Override
+                public void onSuccess(ByteBuffer response) {}
+
+                @Override
+                public void onFailure(Throwable e) {
+                  failure.set(e);
+                }
+              });
+
+      factory.getWorkerGroup().shutdownGracefully(30, 60, TimeUnit.SECONDS);
+      assertTrue(
+          "quiet period elapsed too early to exercise the sweep", client.getChannel().isOpen());
+      assertFalse(client.isActive());
+      assertTrue(client.getHandler().hasOutstandingRequests());
+
+      factory.failClientsOnDeadEventLoops();
+
+      assertNotNull("the pooled client's outstanding RPC must be failed", failure.get());
+      assertFalse(client.getHandler().hasOutstandingRequests());
+    } finally {
+      ctx.close();
+    }
+  }
+
+  @Test
+  public void doesNotRecreateWorkerGroupWhenDisabled() throws Exception {
+    // With the recreation disabled, a dead worker group is NOT recreated: createClient still
+    // fails, but the worker group is left unchanged.
+    CelebornConf _conf = newCelebornConf();
+    _conf.set("celeborn.shuffle.io.recreateWorkerGroupOnDeadEventLoop", "false");
+    _conf.set("celeborn.shuffle.io.retryWait", "100ms");
+    TransportContext ctx = newContext(_conf);
+    try (TransportClientFactory factory = ctx.createClientFactory()) {
+      EventLoopGroup deadGroup = simulateDeadWorkerEventLoop(factory);
+
+      assertThrows(
+          IOException.class, () -> factory.createClient(getLocalHost(), server1.getPort()));
+      assertSame(deadGroup, factory.getWorkerGroup());
+      // Nothing was superseded, so none of the retirement bookkeeping kicked in either.
+      assertEquals(0, factory.supersededWorkerGroupCount());
+    } finally {
+      ctx.close();
     }
   }
 

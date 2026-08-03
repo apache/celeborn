@@ -93,6 +93,16 @@ public class TransportConf {
   }
 
   /**
+   * Whether to replace the client worker EventLoopGroup when a netty worker event loop is detected
+   * as dead (a connection is rejected with "event executor terminated"). A dead loop is never
+   * replaced within a fixed-size group and keeps being handed out by the round-robin chooser, so
+   * without this the degradation is permanent. On by default. See SPARK-58292.
+   */
+  public boolean recreateWorkerGroupOnDeadEventLoop() {
+    return celebornConf.networkIoRecreateWorkerGroupOnDeadEventLoop(module);
+  }
+
+  /**
    * Receive buffer size (SO_RCVBUF). Note: the optimal size for receive buffer and send buffer
    * should be latency * network_bandwidth. Assuming latency = 1ms, network_bandwidth = 10Gbps
    * buffer size should be ~ 1.25MB

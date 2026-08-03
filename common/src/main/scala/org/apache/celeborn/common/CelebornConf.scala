@@ -585,6 +585,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     getBoolean(key, NETWORK_IO_CLIENT_CONFLICT_AVOID_CHOOSER_ENABLE.defaultValue.get)
   }
 
+  def networkIoRecreateWorkerGroupOnDeadEventLoop(module: String): Boolean = {
+    getTransportConfBoolean(module, NETWORK_IO_RECREATE_WORKER_GROUP_ON_DEAD_EVENT_LOOP)
+  }
+
   def networkIoReceiveBuf(module: String): Int = {
     getTransportConfSizeAsBytes(module, NETWORK_IO_RECEIVE_BUFFER).toInt
   }
@@ -2295,6 +2299,27 @@ object CelebornConf extends Logging {
         s"it works for replicate client of worker replicating data to peer worker.")
       .booleanConf
       .createWithDefault(false)
+
+  val NETWORK_IO_RECREATE_WORKER_GROUP_ON_DEAD_EVENT_LOOP: ConfigEntry[Boolean] =
+    buildConf("celeborn.<module>.io.recreateWorkerGroupOnDeadEventLoop")
+      .categories("network")
+      .version("1.0.0")
+      .doc("Whether to replace the netty client worker EventLoopGroup when one of its event-loop " +
+        "threads is detected as dead (a connection is rejected with \"event executor " +
+        "terminated\"). A dead event loop is never replaced within a fixed-size group and keeps " +
+        "being handed out by the round-robin chooser, permanently poisoning any channel pinned " +
+        "to it, so a request on it can hang forever. When enabled, such a failure recreates the " +
+        "worker group so subsequent connections bind to live threads and the retry can succeed. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_APP_MODULE}`, " +
+        s"works for shuffle client. " +
+        s"If setting <module> to `${TransportModuleConstants.RPC_SERVICE_MODULE}`, " +
+        s"works for master or worker. " +
+        s"If setting <module> to `${TransportModuleConstants.DATA_MODULE}`, " +
+        s"it works for shuffle client push and fetch data. " +
+        s"If setting <module> to `${TransportModuleConstants.REPLICATE_MODULE}`, " +
+        s"it works for replicate client of worker replicating data to peer worker.")
+      .booleanConf
+      .createWithDefault(true)
 
   val NETWORK_IO_RECEIVE_BUFFER: ConfigEntry[Long] =
     buildConf("celeborn.<module>.io.receiveBuffer")
