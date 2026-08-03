@@ -17,13 +17,17 @@
 
 package org.apache.celeborn.cli.master
 
+import java.util
+
 import picocli.CommandLine.Option
 
-final class ReviseLostShuffleOptions {
+final class ShuffleOptions {
 
   @Option(
     names = Array("--shuffleIds"),
+    paramLabel = "shuffleId",
+    split = ",",
     description = Array("The shuffle ids to manipulate."))
-  private[master] var shuffleIds: String = _
+  private[master] var shuffleIds: util.List[Integer] = _
 
 }
