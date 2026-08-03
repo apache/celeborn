@@ -28,13 +28,20 @@ import org.apache.celeborn.common.network.ssl.SslSampleConfigs;
 
 public class SSLTransportClientFactorySuiteJ extends TransportClientFactorySuiteJ {
 
+  /**
+   * Set up SSL for TEST_MODULE, for the suite's own servers and for the clients the inherited
+   * dead-event-loop tests build.
+   */
+  @Override
+  protected CelebornConf newCelebornConf() {
+    return TestHelper.updateCelebornConfWithMap(
+        new CelebornConf(), SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE));
+  }
+
   @Before
   @Override
   public void setUp() {
-    // set up SSL for TEST_MODULE
-    doSetup(
-        TestHelper.updateCelebornConfWithMap(
-            new CelebornConf(), SslSampleConfigs.createDefaultConfigMapForModule(TEST_MODULE)));
+    doSetup(newCelebornConf());
   }
 
   @After

@@ -36,6 +36,7 @@ import io.netty.util.concurrent.GenericFutureListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.protocol.OneWayMessage;
 import org.apache.celeborn.common.network.protocol.PushData;
@@ -92,7 +93,53 @@ public class TransportClient implements Closeable {
   }
 
   public boolean isActive() {
-    return !timedOut && (channel.isOpen() || channel.isActive());
+    // A client on a dead event loop can neither send nor complete anything, so it must not be
+    // reused. See isEventLoopDead().
+    return !timedOut && !isEventLoopDead() && (channel.isOpen() || channel.isActive());
+  }
+
+  /**
+   * Whether this channel's netty event loop can no longer be relied on, i.e. it has terminated or
+   * is shutting down. The motivating case is SPARK-58292: a channel is pinned to one loop for its
+   * lifetime, and netty neither replaces a loop whose thread has died within a fixed-size group nor
+   * stops handing it out.
+   *
+   * <p>Everything submitted to a terminated loop is silently dropped - the write never happens, and
+   * the listener that would have failed the callback never runs either, since netty's {@code
+   * safeExecute} only logs the rejection. So a request issued here orphans rather than failing,
+   * {@code channelInactive()} is never delivered, and even {@code close()} cannot take effect
+   * because it is itself submitted to the dead loop. Nothing but an explicit sweep recovers such a
+   * client.
+   *
+   * <p>Deliberately keyed on {@code isShuttingDown()} rather than the exact {@code isShutdown()}
+   * that netty's "event executor terminated" rejection uses: a loop in {@code shutdownGracefully}'s
+   * quiet period would still drain its queue, so this is conservative. The one visible consequence
+   * is that a best-effort message guarded by {@link #isActive()} - e.g. the BUFFER_STREAM_END a
+   * reader sends on close - is skipped while the owning factory is closing. The server reclaims
+   * those streams when the connection drops, and refusing new work on a group that is going away is
+   * what we want anyway.
+   */
+  public boolean isEventLoopDead() {
+    return channel.eventLoop().isShuttingDown();
+  }
+
+  /**
+   * Invalidate this client if its event loop has died, by failing every outstanding request so that
+   * owners holding the client directly - rather than reacquiring it from {@link
+   * TransportClientFactory} - are notified instead of waiting for a completion that can never come.
+   * No-op for a healthy client, and idempotent.
+   */
+  public void invalidateIfEventLoopDead() {
+    if (isEventLoopDead()) {
+      handler.failOutstandingRequestsOnDeadEventLoop(deadEventLoopException());
+    }
+  }
+
+  private CelebornIOException deadEventLoopException() {
+    return new CelebornIOException(
+        "Connection to "
+            + NettyUtils.getRemoteAddress(channel)
+            + " is pinned to a netty event loop that is no longer usable and cannot make progress");
   }
 
   public SocketAddress getSocketAddress() {
@@ -179,6 +226,12 @@ public class TransportClient implements Closeable {
     }
 
     long requestId = requestId();
+    if (isEventLoopDead()) {
+      // Unlike pushes and fetches, an outstanding RPC has no timeout checker to fall back on, so a
+      // callback orphaned on a dead loop hangs its owner forever. Fail up front instead.
+      callback.onFailure(deadEventLoopException());
+      return requestId;
+    }
     handler.addRpcRequest(requestId, callback);
 
     RpcChannelListener listener = new RpcChannelListener(requestId);
