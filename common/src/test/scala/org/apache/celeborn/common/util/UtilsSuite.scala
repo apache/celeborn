@@ -138,6 +138,27 @@ class UtilsSuite extends CelebornFunSuite {
     assert((1, 1).equals(Utils.splitPartitionLocationUniqueId("1-1")))
   }
 
+  test("splitShuffleKey") {
+    // plain appId without '-'
+    assert(("app0", 1).equals(Utils.splitShuffleKey("app0-1")))
+    // applicationId containing '-' (e.g. Spark application_<timestamp>_<id>)
+    assert(("application_1690000000000_0001", 7)
+      .equals(Utils.splitShuffleKey("application_1690000000000_0001-7")))
+    // round-trip with makeShuffleKey
+    val key = Utils.makeShuffleKey("application_1690000000000_0001", 42)
+    assert(("application_1690000000000_0001", 42).equals(Utils.splitShuffleKey(key)))
+  }
+
+  test("splitPartitionLocationUniqueId multiple segments") {
+    // partitionId is an Int and never contains '-'; only the trailing epoch is sliced off.
+    assert((123, 5).equals(Utils.splitPartitionLocationUniqueId("123-5")))
+  }
+
+  test("splitAttemptKey") {
+    assert((0, 0).equals(Utils.splitAttemptKey("0-0")))
+    assert((12, 34).equals(Utils.splitAttemptKey("12-34")))
+  }
+
   test("bytesToInt") {
     assert(1229202015 == Utils.bytesToInt(Array(73.toByte, 68.toByte, 34.toByte, 95.toByte)))
 
