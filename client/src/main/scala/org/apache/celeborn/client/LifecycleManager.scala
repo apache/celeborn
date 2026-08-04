@@ -1855,12 +1855,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   def requestMasterRequestSlotsWithRetry(
       shuffleId: Int,
       ids: util.ArrayList[Integer]): RequestSlotsResponse = {
-    val excludedWorkerSet =
-      if (excludedWorkersFilter) {
-        workerStatusTracker.excludedWorkers.asScala.keys.toSet
-      } else {
-        Set.empty[WorkerInfo]
-      }
+    val excludedWorkerSet = currentExcludedWorkerSet
     // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
     // during serialization of RequestSlots
     val req =
@@ -1929,20 +1924,29 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   private def requestMasterRequestWorkersWithRetry(): PbRequestWorkersResponse = {
+    val excludedWorkerSet = currentExcludedWorkerSet
     val req = PbRequestWorkers.newBuilder()
       .setApplicationId(appUniqueId)
-      .setHostname(lifecycleHost)
       .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
       .setMaxWorkers(slotsAssignMaxWorkers)
-      .setAvailableStorageTypes(availableStorageTypes)
       .setTagsExpr(clientTagsExpr)
-      .setRequestId(MasterClient.genRequestId())
+      .setShouldReplicate(pushReplicateEnabled)
+      .addAllExcludedWorkerSet(excludedWorkerSet.map(
+        PbSerDeUtils.toPbWorkerInfo(_, true, true)).asJava)
       .build()
     val res = requestMasterRequestWorkers(req)
     if (StatusCode.fromValue(res.getStatus) == StatusCode.SUCCESS) {
       res
     } else {
       requestMasterRequestWorkers(req)
+    }
+  }
+
+  private def currentExcludedWorkerSet: Set[WorkerInfo] = {
+    if (excludedWorkersFilter) {
+      workerStatusTracker.excludedWorkers.asScala.keys.toSet
+    } else {
+      Set.empty
     }
   }
 

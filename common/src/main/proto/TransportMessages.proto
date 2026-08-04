@@ -329,12 +329,11 @@ message PbRequestSlots {
 
 message PbRequestWorkers {
   string applicationId = 1;
-  string hostname = 2;
-  PbUserIdentifier userIdentifier = 3;
-  int32 maxWorkers = 4;
-  int32 availableStorageTypes = 5;
-  string requestId = 6;
-  string tagsExpr = 7;
+  PbUserIdentifier userIdentifier = 2;
+  int32 maxWorkers = 3;
+  string tagsExpr = 4;
+  repeated PbWorkerInfo excludedWorkerSet = 5;
+  bool shouldReplicate = 6;
 }
 
 message PbSlotInfo {

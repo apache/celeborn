@@ -1077,7 +1077,11 @@ private[celeborn] class Master(
   }
 
   def handleRequestWorkers(context: RpcCallContext, requestWorkers: PbRequestWorkers): Unit = {
-    var availableWorkers = workersAvailable()
+    val excludedWorkerSet =
+      requestWorkers.getExcludedWorkerSetList.asScala
+        .map(PbSerDeUtils.fromPbWorkerInfo)
+        .toSet
+    var availableWorkers = workersAvailable(excludedWorkerSet)
     if (conf.tagsEnabled) {
       availableWorkers = tagsManager.getTaggedWorkers(
         PbSerDeUtils.fromPbUserIdentifier(requestWorkers.getUserIdentifier),
@@ -1097,7 +1101,8 @@ private[celeborn] class Master(
     val maxWorkers =
       if (requestWorkers.getMaxWorkers <= 0) splitSlotAssignMaxWorkers
       else Math.min(splitSlotAssignMaxWorkers, requestWorkers.getMaxWorkers)
-    val numWorkers = Math.min(maxWorkers, numAvailableWorkers)
+    val minWorkers = if (requestWorkers.getShouldReplicate) 2 else 1
+    val numWorkers = Math.min(Math.max(minWorkers, maxWorkers), numAvailableWorkers)
     val startIndex = Random.nextInt(numAvailableWorkers)
     val selectedWorkers = new util.ArrayList[WorkerInfo](numWorkers)
     selectedWorkers.addAll(availableWorkers.subList(
