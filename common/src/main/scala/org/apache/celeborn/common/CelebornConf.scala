@@ -3211,6 +3211,7 @@ object CelebornConf extends Logging {
         "Will choose the smaller positive one from Master side and Client side, " +
         "see `celeborn.client.slot.assign.maxWorkers`.")
       .intConf
+      .checkValue(_ > 0, "Must be positive.")
       .createWithDefault(500)
 
   val ESTIMATED_PARTITION_SIZE_INITIAL_SIZE: ConfigEntry[Long] =
@@ -5594,8 +5595,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.shuffle.dynamicResourceEnabled")
       .categories("client")
       .version("0.6.0")
-      .doc("When enabled, the ChangePartitionManager will obtain candidate workers from the availableWorkers pool " +
-        "during heartbeats when worker resource change.")
+      .doc("When enabled, ChangePartitionManager periodically refreshes candidate workers from the Master " +
+        "while handling change-partition requests.")
       .booleanConf
       .createWithDefault(false)
 
@@ -5603,9 +5604,9 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.shuffle.dynamicResource.updateTime")
       .categories("client")
       .version("0.7.0")
-      .doc("The ChangePartitionManager will get candidate workers from the requestWorkers RPC response " +
-        "when the time interval exceeds the updateTime " +
-        s"and `${CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key}` set true")
+      .doc(
+        "Minimum interval between RequestWorkers RPCs triggered by ChangePartitionManager when " +
+          s"`${CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key}` is true.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
