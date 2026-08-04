@@ -35,10 +35,10 @@ public class RoundRobinSlotsAssignStrategy implements SlotsAssignStrategy {
       List<Integer> partitionIds,
       boolean shouldReplicate,
       int availableStorageTypes) {
-    Map<WorkerInfo, List<UsableDiskInfo>> slotsRestrictions = new HashMap<>();
+    Map<WorkerInfo, List<UsableDiskInfo>> slotBudgets = new HashMap<>();
     for (WorkerInfo worker : workers) {
       List<UsableDiskInfo> usableDisks =
-          slotsRestrictions.computeIfAbsent(worker, v -> new ArrayList<>());
+          slotBudgets.computeIfAbsent(worker, v -> new ArrayList<>());
       for (DiskInfo diskInfo : worker.diskInfos().values()) {
         if (DiskStatus.HEALTHY.equals(diskInfo.status())
             && StorageInfo.isAvailable(diskInfo.storageType(), availableStorageTypes)) {
@@ -46,6 +46,6 @@ public class RoundRobinSlotsAssignStrategy implements SlotsAssignStrategy {
         }
       }
     }
-    return slotsRestrictions;
+    return slotBudgets;
   }
 }

@@ -55,12 +55,12 @@ public class SlotsAllocator {
     if (workers.size() < 2 && shouldReplicate) {
       return new HashMap<>();
     }
-    Map<WorkerInfo, List<UsableDiskInfo>> slotsRestrictions =
+    Map<WorkerInfo, List<UsableDiskInfo>> slotBudgets =
         strategy.computeSlotBudgets(workers, partitionIds, shouldReplicate, availableStorageTypes);
     return locateSlots(
         partitionIds,
         workers,
-        slotsRestrictions,
+        slotBudgets,
         shouldReplicate,
         shouldRackAware,
         availableStorageTypes,
@@ -71,13 +71,13 @@ public class SlotsAllocator {
   static StorageInfo buildStorageInfo(
       List<WorkerInfo> workers,
       int workerIndex,
-      Map<WorkerInfo, List<UsableDiskInfo>> restrictions,
+      Map<WorkerInfo, List<UsableDiskInfo>> budgets,
       Map<WorkerInfo, Integer> workerDiskIndex,
       int availableStorageTypes) {
     WorkerInfo selectedWorker = workers.get(workerIndex);
     StorageInfo storageInfo;
-    if (restrictions != null) {
-      List<UsableDiskInfo> usableDiskInfos = restrictions.get(selectedWorker);
+    if (budgets != null) {
+      List<UsableDiskInfo> usableDiskInfos = budgets.get(selectedWorker);
       int diskIndex =
           workerDiskIndex.computeIfAbsent(
               selectedWorker, v -> rand.nextInt(usableDiskInfos.size()));
@@ -174,7 +174,7 @@ public class SlotsAllocator {
 
   /**
    * Progressive locate slots for all partitions <br>
-   * 1. try to allocate for all partitions under restrictions, on workers with no interruption
+   * 1. try to allocate for all partitions under budgets, on workers with no interruption
    * notice if interruptionAware = true. <br>
    * 2. try to allocate for all partitions, and attempt the replica selection to be
    * interruptionAware if interruptionAware = true <br>
@@ -185,17 +185,17 @@ public class SlotsAllocator {
       locateSlots(
           List<Integer> partitionIds,
           List<WorkerInfo> workersList,
-          Map<WorkerInfo, List<UsableDiskInfo>> slotRestrictions,
+          Map<WorkerInfo, List<UsableDiskInfo>> slotBudgets,
           boolean shouldReplicate,
           boolean shouldRackAware,
           int availableStorageTypes,
           boolean interruptionAware,
           int interruptionAwareThreshold) {
 
-    List<WorkerInfo> workersFromSlotRestrictions = new ArrayList<>(slotRestrictions.keySet());
+    List<WorkerInfo> workersFromSlotBudgets = new ArrayList<>(slotBudgets.keySet());
     List<WorkerInfo> workers = workersList;
     if (shouldReplicate && shouldRackAware) {
-      workersFromSlotRestrictions = generateRackAwareWorkers(workersFromSlotRestrictions);
+      workersFromSlotBudgets = generateRackAwareWorkers(workersFromSlotBudgets);
       workers = generateRackAwareWorkers(workers);
     }
 
@@ -208,7 +208,7 @@ public class SlotsAllocator {
       Tuple3<List<WorkerInfo>, List<WorkerInfo>, List<WorkerInfo>>
           workersBasedOnInterruptionNotice =
               prioritizeWorkersBasedOnInterruptionNotice(
-                  workersFromSlotRestrictions,
+                  workersFromSlotBudgets,
                   shouldReplicate,
                   shouldRackAware,
                   interruptionAwareThreshold);
@@ -216,7 +216,7 @@ public class SlotsAllocator {
       workersWithLateInterruptions = workersBasedOnInterruptionNotice._2();
       workersWithEarlyInterruptions = workersBasedOnInterruptionNotice._3();
     } else {
-      workersWithoutInterruptions = workersFromSlotRestrictions;
+      workersWithoutInterruptions = workersFromSlotBudgets;
       workersWithLateInterruptions = null;
       workersWithEarlyInterruptions = null;
     }
@@ -228,7 +228,7 @@ public class SlotsAllocator {
             partitionIds,
             workersWithoutInterruptions,
             workersWithoutInterruptions,
-            slotRestrictions,
+            slotBudgets,
             shouldReplicate,
             shouldRackAware,
             availableStorageTypes,
@@ -236,7 +236,7 @@ public class SlotsAllocator {
     logger.debug(
         "Remaining number of partitionIds after 1st pass slot selection: {}", remain.size());
     // Do an extra pass for partition placement if interruptionAware = true, to see if we can
-    // assign the remaining partitions with slot restriction still set in place. The goal during
+    // assign the remaining partitions with slot budget still set in place. The goal during
     // this pass
     // is to see if we can place primary from `workersWithoutInterruptions +
     // workersWithLateInterruptions`, while replica can be in
@@ -342,27 +342,27 @@ public class SlotsAllocator {
 
   /**
    * Assigns slots in a roundrobin fashion given lists of primary and replica worker candidates and
-   * other restrictions.
+   * other budgets.
    *
    * @param slots the slots that have been assigned for each partitionId
    * @param partitionIds the partitionIds that require slot selection still
    * @param primaryWorkers list of worker candidates that can be used for primary workers.
    * @param replicaWorkers list of worker candidates that can be used for replica workers.
-   * @param slotsRestrictions restrictions for each available slot based on worker characteristics
+   * @param slotBudgets budgets for each available slot based on worker characteristics
    * @param shouldReplicate if replication is enabled within the cluster
    * @param shouldRackAware if rack-aware replication is enabled within the cluster.
    * @param availableStorageTypes available storage types coming from the offer slots request.
    * @param skipLocationsOnSameWorkerCheck if the worker candidates list for primaries and replicas
    *     is the same. This is to prevent index mismatch while assigning slots across both lists.
    * @return the partitionIds that were not able to be assigned slots in this iteration with the
-   *     current primary and replica worker candidates and slot restrictions.
+   *     current primary and replica worker candidates and slot budgets.
    */
   private static List<Integer> roundRobin(
       Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots,
       List<Integer> partitionIds,
       List<WorkerInfo> primaryWorkers,
       List<WorkerInfo> replicaWorkers,
-      Map<WorkerInfo, List<UsableDiskInfo>> slotsRestrictions,
+      Map<WorkerInfo, List<UsableDiskInfo>> slotBudgets,
       boolean shouldReplicate,
       boolean shouldRackAware,
       int availableStorageTypes,
@@ -398,9 +398,9 @@ public class SlotsAllocator {
 
       int partitionId = iter.previous();
       StorageInfo storageInfo;
-      if (slotsRestrictions != null && !slotsRestrictions.isEmpty()) {
+      if (slotBudgets != null && !slotBudgets.isEmpty()) {
         // this means that we'll select a mount point
-        while (!haveUsableSlots(slotsRestrictions, primaryWorkers, nextPrimaryInd)) {
+        while (!haveUsableSlots(slotBudgets, primaryWorkers, nextPrimaryInd)) {
           nextPrimaryInd = primaryWorkersIncrementIndex.applyAsInt(nextPrimaryInd);
           if (nextPrimaryInd == primaryIndex) {
             break outer;
@@ -410,7 +410,7 @@ public class SlotsAllocator {
             buildStorageInfo(
                 primaryWorkers,
                 nextPrimaryInd,
-                slotsRestrictions,
+                slotBudgets,
                 workerDiskIndex,
                 availableStorageTypes);
       } else {
@@ -431,9 +431,9 @@ public class SlotsAllocator {
 
       if (shouldReplicate) {
         int nextReplicaInd = replicaIndex;
-        if (slotsRestrictions != null) {
+        if (slotBudgets != null) {
           while ((nextReplicaInd == nextPrimaryInd && skipLocationsOnSameWorkerCheck)
-              || !haveUsableSlots(slotsRestrictions, replicaWorkers, nextReplicaInd)
+              || !haveUsableSlots(slotBudgets, replicaWorkers, nextReplicaInd)
               || !satisfyRackAware(
                   shouldRackAware,
                   primaryWorkers,
@@ -449,7 +449,7 @@ public class SlotsAllocator {
               buildStorageInfo(
                   replicaWorkers,
                   nextReplicaInd,
-                  slotsRestrictions,
+                  slotBudgets,
                   workerDiskIndex,
                   availableStorageTypes);
         } else if (shouldRackAware) {
@@ -503,8 +503,8 @@ public class SlotsAllocator {
   }
 
   private static boolean haveUsableSlots(
-      Map<WorkerInfo, List<UsableDiskInfo>> restrictions, List<WorkerInfo> workers, int index) {
-    return restrictions.get(workers.get(index)).stream().mapToLong(i -> i.usableSlots).sum() > 0;
+      Map<WorkerInfo, List<UsableDiskInfo>> budgets, List<WorkerInfo> workers, int index) {
+    return budgets.get(workers.get(index)).stream().mapToLong(i -> i.usableSlots).sum() > 0;
   }
 
   private static boolean satisfyRackAware(

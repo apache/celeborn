@@ -33,9 +33,9 @@ import org.apache.celeborn.common.protocol.StorageInfo;
  * <p>The method has two main paths:
  *
  * <ol>
- *   <li><b>With restrictions</b> – a restrictions map is provided, and a disk is selected from the
+ *   <li><b>With budgets</b> – a budget map is provided, and a disk is selected from the
  *       worker's {@link UsableDiskInfo} list.
- *   <li><b>Without restrictions</b> – the restrictions map is {@code null}, and storage type is
+ *   <li><b>Without budgets</b> – the budget map is {@code null}, and storage type is
  *       derived from the {@code availableStorageTypes} bitmask.
  * </ol>
  */
@@ -53,28 +53,28 @@ public class BuildStorageInfoSuiteJ {
     return new WorkerInfo(host, 9001, 9002, 9003, 9004, 9005, disks, null);
   }
 
-  private Map<WorkerInfo, List<UsableDiskInfo>> restrictionsFor(
+  private Map<WorkerInfo, List<UsableDiskInfo>> budgetsFor(
       WorkerInfo worker, List<UsableDiskInfo> diskList) {
-    Map<WorkerInfo, List<UsableDiskInfo>> restrictions = new HashMap<>();
-    restrictions.put(worker, diskList);
-    return restrictions;
+    Map<WorkerInfo, List<UsableDiskInfo>> budgets = new HashMap<>();
+    budgets.put(worker, diskList);
+    return budgets;
   }
 
   // ---------------------------------------------------------------------------
-  // Tests: restrictions != null
+  // Tests: budgets != null
   // ---------------------------------------------------------------------------
 
   /**
-   * An HDD disk in the restrictions list should produce a StorageInfo with the disk mount point.
+   * An HDD disk in the budget list should produce a StorageInfo with the disk mount point.
    */
   @Test
-  public void testWithRestrictions_HDDDisk() {
+  public void testWithBudgets_HDDDisk() {
     DiskInfo disk = makeDiskInfo("/mnt/hdd1", StorageInfo.Type.HDD);
     WorkerInfo worker = makeWorker("host1", Collections.singletonMap("/mnt/hdd1", disk));
 
     UsableDiskInfo usable = new UsableDiskInfo(disk, 10);
-    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
-        restrictionsFor(worker, Collections.singletonList(usable));
+    Map<WorkerInfo, List<UsableDiskInfo>> budgets =
+        budgetsFor(worker, Collections.singletonList(usable));
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
 
@@ -82,7 +82,7 @@ public class BuildStorageInfoSuiteJ {
         SlotsAllocator.buildStorageInfo(
             Collections.singletonList(worker),
             0,
-            restrictions,
+            budgets,
             workerDiskIndex,
             StorageInfo.ALL_TYPES_AVAILABLE_MASK);
 
@@ -93,16 +93,16 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * An SSD disk in the restrictions list should produce a StorageInfo with the disk mount point.
+   * An SSD disk in the budget list should produce a StorageInfo with the disk mount point.
    */
   @Test
-  public void testWithRestrictions_SSDDisk() {
+  public void testWithBudgets_SSDDisk() {
     DiskInfo disk = makeDiskInfo("/mnt/ssd1", StorageInfo.Type.SSD);
     WorkerInfo worker = makeWorker("host1", Collections.singletonMap("/mnt/ssd1", disk));
 
     UsableDiskInfo usable = new UsableDiskInfo(disk, 5);
-    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
-        restrictionsFor(worker, Collections.singletonList(usable));
+    Map<WorkerInfo, List<UsableDiskInfo>> budgets =
+        budgetsFor(worker, Collections.singletonList(usable));
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
 
@@ -110,7 +110,7 @@ public class BuildStorageInfoSuiteJ {
         SlotsAllocator.buildStorageInfo(
             Collections.singletonList(worker),
             0,
-            restrictions,
+            budgets,
             workerDiskIndex,
             StorageInfo.LOCAL_DISK_MASK);
 
@@ -121,17 +121,17 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * An HDFS disk in the restrictions list should produce a StorageInfo with an empty mount point
+   * An HDFS disk in the budget list should produce a StorageInfo with an empty mount point
    * and HDFS type, regardless of the actual mount-point string stored in DiskInfo.
    */
   @Test
-  public void testWithRestrictions_HDFSDisk_emptyMountPoint() {
+  public void testWithBudgets_HDFSDisk_emptyMountPoint() {
     DiskInfo disk = makeDiskInfo("HDFS", StorageInfo.Type.HDFS);
     WorkerInfo worker = makeWorker("host1", Collections.singletonMap("HDFS", disk));
 
     UsableDiskInfo usable = new UsableDiskInfo(disk, 50);
-    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
-        restrictionsFor(worker, Collections.singletonList(usable));
+    Map<WorkerInfo, List<UsableDiskInfo>> budgets =
+        budgetsFor(worker, Collections.singletonList(usable));
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
 
@@ -139,7 +139,7 @@ public class BuildStorageInfoSuiteJ {
         SlotsAllocator.buildStorageInfo(
             Collections.singletonList(worker),
             0,
-            restrictions,
+            budgets,
             workerDiskIndex,
             StorageInfo.HDFS_MASK);
 
@@ -150,17 +150,17 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * An S3 disk in the restrictions list should produce a StorageInfo with an empty mount point and
+   * An S3 disk in the budget list should produce a StorageInfo with an empty mount point and
    * S3 type.
    */
   @Test
-  public void testWithRestrictions_S3Disk_emptyMountPoint() {
+  public void testWithBudgets_S3Disk_emptyMountPoint() {
     DiskInfo disk = makeDiskInfo("S3", StorageInfo.Type.S3);
     WorkerInfo worker = makeWorker("host1", Collections.singletonMap("S3", disk));
 
     UsableDiskInfo usable = new UsableDiskInfo(disk, 20);
-    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
-        restrictionsFor(worker, Collections.singletonList(usable));
+    Map<WorkerInfo, List<UsableDiskInfo>> budgets =
+        budgetsFor(worker, Collections.singletonList(usable));
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
 
@@ -168,7 +168,7 @@ public class BuildStorageInfoSuiteJ {
         SlotsAllocator.buildStorageInfo(
             Collections.singletonList(worker),
             0,
-            restrictions,
+            budgets,
             workerDiskIndex,
             StorageInfo.S3_MASK);
 
@@ -179,17 +179,17 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * An OSS disk in the restrictions list should produce a StorageInfo with an empty mount point and
+   * An OSS disk in the budget list should produce a StorageInfo with an empty mount point and
    * OSS type.
    */
   @Test
-  public void testWithRestrictions_OSSDisk_emptyMountPoint() {
+  public void testWithBudgets_OSSDisk_emptyMountPoint() {
     DiskInfo disk = makeDiskInfo("OSS", StorageInfo.Type.OSS);
     WorkerInfo worker = makeWorker("host1", Collections.singletonMap("OSS", disk));
 
     UsableDiskInfo usable = new UsableDiskInfo(disk, 30);
-    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
-        restrictionsFor(worker, Collections.singletonList(usable));
+    Map<WorkerInfo, List<UsableDiskInfo>> budgets =
+        budgetsFor(worker, Collections.singletonList(usable));
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
 
@@ -197,7 +197,7 @@ public class BuildStorageInfoSuiteJ {
         SlotsAllocator.buildStorageInfo(
             Collections.singletonList(worker),
             0,
-            restrictions,
+            budgets,
             workerDiskIndex,
             StorageInfo.OSS_MASK);
 
@@ -208,11 +208,11 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * When the first disk in the restrictions list has zero usable slots, the method must skip it and
+   * When the first disk in the budget list has zero usable slots, the method must skip it and
    * select the next disk with available capacity.
    */
   @Test
-  public void testWithRestrictions_skipExhaustedDisk() {
+  public void testWithBudgets_skipExhaustedDisk() {
     DiskInfo disk1 = makeDiskInfo("/mnt/disk1", StorageInfo.Type.HDD);
     DiskInfo disk2 = makeDiskInfo("/mnt/disk2", StorageInfo.Type.HDD);
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
@@ -223,8 +223,8 @@ public class BuildStorageInfoSuiteJ {
     diskList.add(exhausted);
     diskList.add(active);
 
-    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
-        restrictionsFor(worker, diskList);
+    Map<WorkerInfo, List<UsableDiskInfo>> budgets =
+        budgetsFor(worker, diskList);
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0); // start at the exhausted disk
 
@@ -232,7 +232,7 @@ public class BuildStorageInfoSuiteJ {
         SlotsAllocator.buildStorageInfo(
             Collections.singletonList(worker),
             0,
-            restrictions,
+            budgets,
             workerDiskIndex,
             StorageInfo.ALL_TYPES_AVAILABLE_MASK);
 
@@ -247,7 +247,7 @@ public class BuildStorageInfoSuiteJ {
    * advance to the next disk (round-robin).
    */
   @Test
-  public void testWithRestrictions_localDiskAdvancesDiskIndex() {
+  public void testWithBudgets_localDiskAdvancesDiskIndex() {
     DiskInfo disk1 = makeDiskInfo("/mnt/disk1", StorageInfo.Type.HDD);
     DiskInfo disk2 = makeDiskInfo("/mnt/disk2", StorageInfo.Type.HDD);
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
@@ -256,15 +256,15 @@ public class BuildStorageInfoSuiteJ {
     diskList.add(new UsableDiskInfo(disk1, 10));
     diskList.add(new UsableDiskInfo(disk2, 10));
 
-    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
-        restrictionsFor(worker, diskList);
+    Map<WorkerInfo, List<UsableDiskInfo>> budgets =
+        budgetsFor(worker, diskList);
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
 
     SlotsAllocator.buildStorageInfo(
         Collections.singletonList(worker),
         0,
-        restrictions,
+        budgets,
         workerDiskIndex,
         StorageInfo.ALL_TYPES_AVAILABLE_MASK);
 
@@ -276,28 +276,28 @@ public class BuildStorageInfoSuiteJ {
    * advanced after slot assignment, because there is only a single logical endpoint.
    */
   @Test
-  public void testWithRestrictions_HDFSDiskDoesNotAdvanceDiskIndex() {
+  public void testWithBudgets_HDFSDiskDoesNotAdvanceDiskIndex() {
     DiskInfo disk = makeDiskInfo("HDFS", StorageInfo.Type.HDFS);
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
 
-    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
-        restrictionsFor(
+    Map<WorkerInfo, List<UsableDiskInfo>> budgets =
+        budgetsFor(
             worker, Collections.singletonList(new UsableDiskInfo(disk, 10)));
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
 
     SlotsAllocator.buildStorageInfo(
-        Collections.singletonList(worker), 0, restrictions, workerDiskIndex, StorageInfo.HDFS_MASK);
+        Collections.singletonList(worker), 0, budgets, workerDiskIndex, StorageInfo.HDFS_MASK);
 
     assertEquals(Integer.valueOf(0), workerDiskIndex.get(worker));
   }
 
   /**
-   * Consecutive calls with two local disks in the restrictions list must cycle through the disks in
+   * Consecutive calls with two local disks in the budget list must cycle through the disks in
    * order, demonstrating round-robin selection.
    */
   @Test
-  public void testWithRestrictions_roundRobinAcrossLocalDisks() {
+  public void testWithBudgets_roundRobinAcrossLocalDisks() {
     DiskInfo disk1 = makeDiskInfo("/mnt/disk1", StorageInfo.Type.HDD);
     DiskInfo disk2 = makeDiskInfo("/mnt/disk2", StorageInfo.Type.HDD);
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
@@ -308,8 +308,8 @@ public class BuildStorageInfoSuiteJ {
     diskList.add(usable1);
     diskList.add(usable2);
 
-    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
-        restrictionsFor(worker, diskList);
+    Map<WorkerInfo, List<UsableDiskInfo>> budgets =
+        budgetsFor(worker, diskList);
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
     List<WorkerInfo> workers = Collections.singletonList(worker);
@@ -317,7 +317,7 @@ public class BuildStorageInfoSuiteJ {
     // First call: disk at index 0
     StorageInfo result1 =
         SlotsAllocator.buildStorageInfo(
-            workers, 0, restrictions, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+            workers, 0, budgets, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
     assertEquals("/mnt/disk1", result1.getMountPoint());
     assertEquals(9, usable1.usableSlots);
     assertEquals(Integer.valueOf(1), workerDiskIndex.get(worker));
@@ -325,22 +325,22 @@ public class BuildStorageInfoSuiteJ {
     // Second call: disk at index 1
     StorageInfo result2 =
         SlotsAllocator.buildStorageInfo(
-            workers, 0, restrictions, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+            workers, 0, budgets, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
     assertEquals("/mnt/disk2", result2.getMountPoint());
     assertEquals(9, usable2.usableSlots);
     assertEquals(Integer.valueOf(0), workerDiskIndex.get(worker)); // wrapped around
   }
 
   // ---------------------------------------------------------------------------
-  // Tests: restrictions == null
+  // Tests: budgets == null
   // ---------------------------------------------------------------------------
 
   /**
-   * When restrictions are {@code null} and all storage types are available (mask = 0), the method
+   * When budgets are {@code null} and all storage types are available (mask = 0), the method
    * must pick a local disk from the worker's disk map.
    */
   @Test
-  public void testWithoutRestrictions_allTypesAvailable_picksLocalDisk() {
+  public void testWithoutBudgets_allTypesAvailable_picksLocalDisk() {
     DiskInfo disk = makeDiskInfo("/mnt/hdd1", StorageInfo.Type.HDD);
     WorkerInfo worker = makeWorker("host1", Collections.singletonMap("/mnt/hdd1", disk));
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
@@ -360,11 +360,11 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * When restrictions are {@code null} and only LOCAL_DISK_MASK is set, the method must pick an SSD
+   * When budgets are {@code null} and only LOCAL_DISK_MASK is set, the method must pick an SSD
    * disk from the worker and record its mount point.
    */
   @Test
-  public void testWithoutRestrictions_localDiskMask() {
+  public void testWithoutBudgets_localDiskMask() {
     DiskInfo disk = makeDiskInfo("/mnt/ssd1", StorageInfo.Type.SSD);
     WorkerInfo worker = makeWorker("host1", Collections.singletonMap("/mnt/ssd1", disk));
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
@@ -384,11 +384,11 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * When restrictions are {@code null} and only S3_MASK is set, the method must return a
+   * When budgets are {@code null} and only S3_MASK is set, the method must return a
    * StorageInfo with empty mount point and S3 type without touching any worker disks.
    */
   @Test
-  public void testWithoutRestrictions_S3Only() {
+  public void testWithoutBudgets_S3Only() {
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
 
     StorageInfo result =
@@ -401,11 +401,11 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * When restrictions are {@code null} and only OSS_MASK is set, the method must return a
+   * When budgets are {@code null} and only OSS_MASK is set, the method must return a
    * StorageInfo with empty mount point and OSS type.
    */
   @Test
-  public void testWithoutRestrictions_OSSOnly() {
+  public void testWithoutBudgets_OSSOnly() {
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
 
     StorageInfo result =
@@ -418,11 +418,11 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * When restrictions are {@code null} and only HDFS_MASK is set, the method must return a
+   * When budgets are {@code null} and only HDFS_MASK is set, the method must return a
    * StorageInfo with empty mount point and HDFS type.
    */
   @Test
-  public void testWithoutRestrictions_HDFSOnly() {
+  public void testWithoutBudgets_HDFSOnly() {
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
 
     StorageInfo result =
@@ -435,11 +435,11 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * When restrictions are {@code null} and only MEMORY_MASK is set, the method must return a
+   * When budgets are {@code null} and only MEMORY_MASK is set, the method must return a
    * StorageInfo with empty mount point and MEMORY type.
    */
   @Test
-  public void testWithoutRestrictions_memoryOnly() {
+  public void testWithoutBudgets_memoryOnly() {
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
 
     StorageInfo result =
@@ -452,11 +452,11 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * When restrictions are {@code null} and the bitmask does not correspond to any known storage
+   * When budgets are {@code null} and the bitmask does not correspond to any known storage
    * type, the method must throw {@link IllegalStateException}.
    */
   @Test(expected = IllegalStateException.class)
-  public void testWithoutRestrictions_noValidStorageType_throwsIllegalState() {
+  public void testWithoutBudgets_noValidStorageType_throwsIllegalState() {
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
     // 0b100000 = 32 has none of the bits used by known storage types
     int unknownMask = 0b100000;
@@ -465,11 +465,11 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * When restrictions are {@code null} and a local disk is selected, the disk index in {@code
+   * When budgets are {@code null} and a local disk is selected, the disk index in {@code
    * workerDiskIndex} must advance so that the next call picks the following disk (round-robin).
    */
   @Test
-  public void testWithoutRestrictions_localDiskAdvancesDiskIndex() {
+  public void testWithoutBudgets_localDiskAdvancesDiskIndex() {
     DiskInfo disk1 = makeDiskInfo("/mnt/disk1", StorageInfo.Type.HDD);
     DiskInfo disk2 = makeDiskInfo("/mnt/disk2", StorageInfo.Type.HDD);
 
