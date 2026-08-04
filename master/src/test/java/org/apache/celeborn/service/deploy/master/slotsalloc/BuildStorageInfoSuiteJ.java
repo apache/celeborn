@@ -80,11 +80,7 @@ public class BuildStorageInfoSuiteJ {
 
     StorageInfo result =
         SlotsAllocator.buildStorageInfo(
-            Collections.singletonList(worker),
-            0,
-            budgets,
-            workerDiskIndex,
-            StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+            worker, budgets, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
 
     assertEquals(StorageInfo.Type.HDD, result.getType());
     assertEquals("/mnt/hdd1", result.getMountPoint());
@@ -108,11 +104,7 @@ public class BuildStorageInfoSuiteJ {
 
     StorageInfo result =
         SlotsAllocator.buildStorageInfo(
-            Collections.singletonList(worker),
-            0,
-            budgets,
-            workerDiskIndex,
-            StorageInfo.LOCAL_DISK_MASK);
+            worker, budgets, workerDiskIndex, StorageInfo.LOCAL_DISK_MASK);
 
     assertEquals(StorageInfo.Type.SSD, result.getType());
     assertEquals("/mnt/ssd1", result.getMountPoint());
@@ -137,11 +129,7 @@ public class BuildStorageInfoSuiteJ {
 
     StorageInfo result =
         SlotsAllocator.buildStorageInfo(
-            Collections.singletonList(worker),
-            0,
-            budgets,
-            workerDiskIndex,
-            StorageInfo.HDFS_MASK);
+            worker, budgets, workerDiskIndex, StorageInfo.HDFS_MASK);
 
     assertEquals(StorageInfo.Type.HDFS, result.getType());
     assertEquals("", result.getMountPoint());
@@ -166,11 +154,7 @@ public class BuildStorageInfoSuiteJ {
 
     StorageInfo result =
         SlotsAllocator.buildStorageInfo(
-            Collections.singletonList(worker),
-            0,
-            budgets,
-            workerDiskIndex,
-            StorageInfo.S3_MASK);
+            worker, budgets, workerDiskIndex, StorageInfo.S3_MASK);
 
     assertEquals(StorageInfo.Type.S3, result.getType());
     assertEquals("", result.getMountPoint());
@@ -195,11 +179,7 @@ public class BuildStorageInfoSuiteJ {
 
     StorageInfo result =
         SlotsAllocator.buildStorageInfo(
-            Collections.singletonList(worker),
-            0,
-            budgets,
-            workerDiskIndex,
-            StorageInfo.OSS_MASK);
+            worker, budgets, workerDiskIndex, StorageInfo.OSS_MASK);
 
     assertEquals(StorageInfo.Type.OSS, result.getType());
     assertEquals("", result.getMountPoint());
@@ -230,11 +210,7 @@ public class BuildStorageInfoSuiteJ {
 
     StorageInfo result =
         SlotsAllocator.buildStorageInfo(
-            Collections.singletonList(worker),
-            0,
-            budgets,
-            workerDiskIndex,
-            StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+            worker, budgets, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
 
     assertEquals(StorageInfo.Type.HDD, result.getType());
     assertEquals("/mnt/disk2", result.getMountPoint()); // disk2 was chosen
@@ -262,11 +238,7 @@ public class BuildStorageInfoSuiteJ {
     workerDiskIndex.put(worker, 0);
 
     SlotsAllocator.buildStorageInfo(
-        Collections.singletonList(worker),
-        0,
-        budgets,
-        workerDiskIndex,
-        StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+        worker, budgets, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
 
     assertEquals(Integer.valueOf(1), workerDiskIndex.get(worker));
   }
@@ -287,7 +259,7 @@ public class BuildStorageInfoSuiteJ {
     workerDiskIndex.put(worker, 0);
 
     SlotsAllocator.buildStorageInfo(
-        Collections.singletonList(worker), 0, budgets, workerDiskIndex, StorageInfo.HDFS_MASK);
+        worker, budgets, workerDiskIndex, StorageInfo.HDFS_MASK);
 
     assertEquals(Integer.valueOf(0), workerDiskIndex.get(worker));
   }
@@ -312,12 +284,10 @@ public class BuildStorageInfoSuiteJ {
         budgetsFor(worker, diskList);
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
-    List<WorkerInfo> workers = Collections.singletonList(worker);
-
     // First call: disk at index 0
     StorageInfo result1 =
         SlotsAllocator.buildStorageInfo(
-            workers, 0, budgets, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+            worker, budgets, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
     assertEquals("/mnt/disk1", result1.getMountPoint());
     assertEquals(9, usable1.usableSlots);
     assertEquals(Integer.valueOf(1), workerDiskIndex.get(worker));
@@ -325,7 +295,7 @@ public class BuildStorageInfoSuiteJ {
     // Second call: disk at index 1
     StorageInfo result2 =
         SlotsAllocator.buildStorageInfo(
-            workers, 0, budgets, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+            worker, budgets, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
     assertEquals("/mnt/disk2", result2.getMountPoint());
     assertEquals(9, usable2.usableSlots);
     assertEquals(Integer.valueOf(0), workerDiskIndex.get(worker)); // wrapped around
@@ -348,11 +318,7 @@ public class BuildStorageInfoSuiteJ {
 
     StorageInfo result =
         SlotsAllocator.buildStorageInfo(
-            Collections.singletonList(worker),
-            0,
-            null,
-            workerDiskIndex,
-            StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+            worker, null, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
 
     assertEquals(StorageInfo.Type.HDD, result.getType());
     assertEquals("/mnt/hdd1", result.getMountPoint());
@@ -372,11 +338,7 @@ public class BuildStorageInfoSuiteJ {
 
     StorageInfo result =
         SlotsAllocator.buildStorageInfo(
-            Collections.singletonList(worker),
-            0,
-            null,
-            workerDiskIndex,
-            StorageInfo.LOCAL_DISK_MASK);
+            worker, null, workerDiskIndex, StorageInfo.LOCAL_DISK_MASK);
 
     assertEquals(StorageInfo.Type.SSD, result.getType());
     assertEquals("/mnt/ssd1", result.getMountPoint());
@@ -393,7 +355,7 @@ public class BuildStorageInfoSuiteJ {
 
     StorageInfo result =
         SlotsAllocator.buildStorageInfo(
-            Collections.singletonList(worker), 0, null, new HashMap<>(), StorageInfo.S3_MASK);
+            worker, null, new HashMap<>(), StorageInfo.S3_MASK);
 
     assertEquals(StorageInfo.Type.S3, result.getType());
     assertEquals("", result.getMountPoint());
@@ -410,7 +372,7 @@ public class BuildStorageInfoSuiteJ {
 
     StorageInfo result =
         SlotsAllocator.buildStorageInfo(
-            Collections.singletonList(worker), 0, null, new HashMap<>(), StorageInfo.OSS_MASK);
+            worker, null, new HashMap<>(), StorageInfo.OSS_MASK);
 
     assertEquals(StorageInfo.Type.OSS, result.getType());
     assertEquals("", result.getMountPoint());
@@ -427,7 +389,7 @@ public class BuildStorageInfoSuiteJ {
 
     StorageInfo result =
         SlotsAllocator.buildStorageInfo(
-            Collections.singletonList(worker), 0, null, new HashMap<>(), StorageInfo.HDFS_MASK);
+            worker, null, new HashMap<>(), StorageInfo.HDFS_MASK);
 
     assertEquals(StorageInfo.Type.HDFS, result.getType());
     assertEquals("", result.getMountPoint());
@@ -444,7 +406,7 @@ public class BuildStorageInfoSuiteJ {
 
     StorageInfo result =
         SlotsAllocator.buildStorageInfo(
-            Collections.singletonList(worker), 0, null, new HashMap<>(), StorageInfo.MEMORY_MASK);
+            worker, null, new HashMap<>(), StorageInfo.MEMORY_MASK);
 
     assertEquals(StorageInfo.Type.MEMORY, result.getType());
     assertEquals("", result.getMountPoint());
@@ -460,8 +422,7 @@ public class BuildStorageInfoSuiteJ {
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
     // 0b100000 = 32 has none of the bits used by known storage types
     int unknownMask = 0b100000;
-    SlotsAllocator.buildStorageInfo(
-        Collections.singletonList(worker), 0, null, new HashMap<>(), unknownMask);
+    SlotsAllocator.buildStorageInfo(worker, null, new HashMap<>(), unknownMask);
   }
 
   /**
@@ -481,19 +442,17 @@ public class BuildStorageInfoSuiteJ {
 
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0); // force first disk
-    List<WorkerInfo> workers = Collections.singletonList(worker);
-
     // First call selects disk1 and advances the index to 1
     StorageInfo result1 =
         SlotsAllocator.buildStorageInfo(
-            workers, 0, null, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+            worker, null, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
     assertEquals("/mnt/disk1", result1.getMountPoint());
     assertEquals(Integer.valueOf(1), workerDiskIndex.get(worker));
 
     // Second call selects disk2 and wraps the index back to 0
     StorageInfo result2 =
         SlotsAllocator.buildStorageInfo(
-            workers, 0, null, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+            worker, null, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
     assertEquals("/mnt/disk2", result2.getMountPoint());
     assertEquals(Integer.valueOf(0), workerDiskIndex.get(worker));
   }

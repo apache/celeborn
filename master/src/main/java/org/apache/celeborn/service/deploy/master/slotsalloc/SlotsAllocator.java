@@ -20,7 +20,7 @@ package org.apache.celeborn.service.deploy.master.slotsalloc;
 import static org.apache.celeborn.common.protocol.StorageInfo.Type.*;
 
 import java.util.*;
-import java.util.function.IntUnaryOperator;
+import java.util.function.IntPredicate;
 import java.util.stream.Collectors;
 
 import scala.Tuple2;
@@ -69,12 +69,10 @@ public class SlotsAllocator {
   }
 
   static StorageInfo buildStorageInfo(
-      List<WorkerInfo> workers,
-      int workerIndex,
+      WorkerInfo selectedWorker,
       Map<WorkerInfo, List<UsableDiskInfo>> budgets,
       Map<WorkerInfo, Integer> workerDiskIndex,
       int availableStorageTypes) {
-    WorkerInfo selectedWorker = workers.get(workerIndex);
     StorageInfo storageInfo;
     if (budgets != null) {
       List<UsableDiskInfo> usableDiskInfos = budgets.get(selectedWorker);
@@ -173,13 +171,8 @@ public class SlotsAllocator {
   }
 
   /**
-   * Progressive locate slots for all partitions <br>
-   * 1. try to allocate for all partitions under budgets, on workers with no interruption
-   * notice if interruptionAware = true. <br>
-   * 2. try to allocate for all partitions, and attempt the replica selection to be
-   * interruptionAware if interruptionAware = true <br>
-   * 3. allocate remain partitions to all workers <br>
-   * 4. allocate remain partitions to all workers again without considering rack aware <br>
+   * Allocates slots by progressively relaxing soft constraints: strategy budgets, interruption
+   * preference, and finally rack awareness.
    */
   private static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
       locateSlots(
@@ -192,108 +185,156 @@ public class SlotsAllocator {
           boolean interruptionAware,
           int interruptionAwareThreshold) {
 
-    List<WorkerInfo> workersFromSlotBudgets = new ArrayList<>(slotBudgets.keySet());
-    List<WorkerInfo> workers = workersList;
+    List<WorkerInfo> budgetWorkers = new ArrayList<>(slotBudgets.keySet());
+    List<WorkerInfo> allWorkers = workersList;
     if (shouldReplicate && shouldRackAware) {
-      workersFromSlotBudgets = generateRackAwareWorkers(workersFromSlotBudgets);
-      workers = generateRackAwareWorkers(workers);
+      budgetWorkers = generateRackAwareWorkers(budgetWorkers);
+      allWorkers = generateRackAwareWorkers(allWorkers);
     }
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
         new HashMap<>();
-    List<WorkerInfo> workersWithoutInterruptions;
-    List<WorkerInfo> workersWithLateInterruptions;
-    List<WorkerInfo> workersWithEarlyInterruptions;
+    List<WorkerInfo> preferredWorkers;
+    List<WorkerInfo> workersWithLateInterruptions = Collections.emptyList();
+    List<WorkerInfo> workersWithEarlyInterruptions = Collections.emptyList();
     if (interruptionAware) {
       Tuple3<List<WorkerInfo>, List<WorkerInfo>, List<WorkerInfo>>
           workersBasedOnInterruptionNotice =
               prioritizeWorkersBasedOnInterruptionNotice(
-                  workersFromSlotBudgets,
-                  shouldReplicate,
-                  shouldRackAware,
-                  interruptionAwareThreshold);
-      workersWithoutInterruptions = workersBasedOnInterruptionNotice._1();
+                  budgetWorkers, shouldReplicate, shouldRackAware, interruptionAwareThreshold);
+      preferredWorkers = workersBasedOnInterruptionNotice._1();
       workersWithLateInterruptions = workersBasedOnInterruptionNotice._2();
       workersWithEarlyInterruptions = workersBasedOnInterruptionNotice._3();
     } else {
-      workersWithoutInterruptions = workersFromSlotBudgets;
-      workersWithLateInterruptions = null;
-      workersWithEarlyInterruptions = null;
+      preferredWorkers = budgetWorkers;
     }
-    // In the first pass, we try to place all partitions (primary and replica) from
-    // `workersWithoutInterruptions`.
-    List<Integer> remain =
-        roundRobin(
+
+    // First honor the budgets computed by the selected strategy.
+    List<Integer> remainingPartitionIds =
+        tryAllocateWithinBudgets(
             slots,
             partitionIds,
-            workersWithoutInterruptions,
-            workersWithoutInterruptions,
+            preferredWorkers,
             slotBudgets,
             shouldReplicate,
             shouldRackAware,
-            availableStorageTypes,
-            true);
+            availableStorageTypes);
     logger.debug(
-        "Remaining number of partitionIds after 1st pass slot selection: {}", remain.size());
-    // Do an extra pass for partition placement if interruptionAware = true, to see if we can
-    // assign the remaining partitions with slot budget still set in place. The goal during
-    // this pass
-    // is to see if we can place primary from `workersWithoutInterruptions +
-    // workersWithLateInterruptions`, while replica can be in
-    // `workersWithEarlyInterruptions`.
-    // This is to avoid the degenerate case in which both primary and replica may end up in
-    // `workersWithEarlyInterruptions`.
-    if (interruptionAware && !remain.isEmpty()) {
-      List<WorkerInfo> primaryWorkerCandidates = new ArrayList<>(workersWithoutInterruptions);
-      primaryWorkerCandidates.addAll(workersWithLateInterruptions);
-      if (shouldReplicate && shouldRackAware) {
-        primaryWorkerCandidates = generateRackAwareWorkers(primaryWorkerCandidates);
-      }
-      remain =
-          roundRobin(
+        "Remaining number of partitionIds after budget-constrained allocation: {}",
+        remainingPartitionIds.size());
+
+    // Relax strategy budgets while retaining the interruption-aware worker preference.
+    if (interruptionAware && !remainingPartitionIds.isEmpty()) {
+      remainingPartitionIds =
+          tryAllocateInterruptionAware(
               slots,
-              remain,
-              primaryWorkerCandidates,
+              remainingPartitionIds,
+              preferredWorkers,
+              workersWithLateInterruptions,
               workersWithEarlyInterruptions,
-              null,
               shouldReplicate,
               shouldRackAware,
-              availableStorageTypes,
-              false);
+              availableStorageTypes);
       logger.debug(
-          "Remaining number of partitionIds after 2nd pass slot selection: {}", remain.size());
+          "Remaining number of partitionIds after interruption-aware fallback: {}",
+          remainingPartitionIds.size());
     }
-    // If partitions are remaining from this point on, and interruptionAware = true, then
-    // this becomes the degenerate case where both primary and replica are likely chosen on
-    // workers with interruptions that are sooner.
-    if (!remain.isEmpty()) {
-      remain =
-          roundRobin(
+
+    // Budgets and interruption preference are soft constraints. Use every worker if necessary.
+    if (!remainingPartitionIds.isEmpty()) {
+      remainingPartitionIds =
+          tryAllocateBestEffort(
               slots,
-              remain,
-              workers,
-              workers,
-              null,
+              remainingPartitionIds,
+              allWorkers,
               shouldReplicate,
               shouldRackAware,
-              availableStorageTypes,
-              true);
+              availableStorageTypes);
       logger.debug(
-          "Remaining number of partitionIds after 3rd pass slot selection: {}", remain.size());
+          "Remaining number of partitionIds after best-effort allocation: {}",
+          remainingPartitionIds.size());
     }
-    if (!remain.isEmpty()) {
-      roundRobin(
-          slots,
-          remain,
-          workers,
-          workers,
-          null,
-          shouldReplicate,
-          false,
-          availableStorageTypes,
-          true);
+
+    // Rack awareness is also a soft constraint and is relaxed only as the final fallback.
+    if (shouldReplicate && shouldRackAware && !remainingPartitionIds.isEmpty()) {
+      remainingPartitionIds =
+          tryAllocateBestEffort(
+              slots,
+              remainingPartitionIds,
+              allWorkers,
+              shouldReplicate,
+              false,
+              availableStorageTypes);
+      logger.debug(
+          "Remaining number of partitionIds after disabling rack-aware placement: {}",
+          remainingPartitionIds.size());
     }
     return slots;
+  }
+
+  private static List<Integer> tryAllocateWithinBudgets(
+      Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots,
+      List<Integer> partitionIds,
+      List<WorkerInfo> workers,
+      Map<WorkerInfo, List<UsableDiskInfo>> slotBudgets,
+      boolean shouldReplicate,
+      boolean shouldRackAware,
+      int availableStorageTypes) {
+    return tryAllocateSlots(
+        slots,
+        partitionIds,
+        workers,
+        workers,
+        slotBudgets,
+        shouldReplicate,
+        shouldRackAware,
+        availableStorageTypes,
+        true);
+  }
+
+  private static List<Integer> tryAllocateInterruptionAware(
+      Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots,
+      List<Integer> partitionIds,
+      List<WorkerInfo> preferredWorkers,
+      List<WorkerInfo> workersWithLateInterruptions,
+      List<WorkerInfo> workersWithEarlyInterruptions,
+      boolean shouldReplicate,
+      boolean shouldRackAware,
+      int availableStorageTypes) {
+    List<WorkerInfo> primaryWorkerCandidates = new ArrayList<>(preferredWorkers);
+    primaryWorkerCandidates.addAll(workersWithLateInterruptions);
+    if (shouldReplicate && shouldRackAware) {
+      primaryWorkerCandidates = generateRackAwareWorkers(primaryWorkerCandidates);
+    }
+    return tryAllocateSlots(
+        slots,
+        partitionIds,
+        primaryWorkerCandidates,
+        workersWithEarlyInterruptions,
+        null,
+        shouldReplicate,
+        shouldRackAware,
+        availableStorageTypes,
+        false);
+  }
+
+  private static List<Integer> tryAllocateBestEffort(
+      Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots,
+      List<Integer> partitionIds,
+      List<WorkerInfo> workers,
+      boolean shouldReplicate,
+      boolean shouldRackAware,
+      int availableStorageTypes) {
+    return tryAllocateSlots(
+        slots,
+        partitionIds,
+        workers,
+        workers,
+        null,
+        shouldReplicate,
+        shouldRackAware,
+        availableStorageTypes,
+        true);
   }
 
   /**
@@ -341,8 +382,8 @@ public class SlotsAllocator {
   }
 
   /**
-   * Assigns slots in a roundrobin fashion given lists of primary and replica worker candidates and
-   * other budgets.
+   * Attempts to allocate the given partitions by scanning primary and replica worker candidates in
+   * round-robin order.
    *
    * @param slots the slots that have been assigned for each partitionId
    * @param partitionIds the partitionIds that require slot selection still
@@ -352,12 +393,12 @@ public class SlotsAllocator {
    * @param shouldReplicate if replication is enabled within the cluster
    * @param shouldRackAware if rack-aware replication is enabled within the cluster.
    * @param availableStorageTypes available storage types coming from the offer slots request.
-   * @param skipLocationsOnSameWorkerCheck if the worker candidates list for primaries and replicas
-   *     is the same. This is to prevent index mismatch while assigning slots across both lists.
+   * @param skipLocationsOnSameWorkerCheck whether primary and replica use the same worker candidate
+   *     list, in which case equal indexes must be skipped
    * @return the partitionIds that were not able to be assigned slots in this iteration with the
    *     current primary and replica worker candidates and slot budgets.
    */
-  private static List<Integer> roundRobin(
+  private static List<Integer> tryAllocateSlots(
       Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots,
       List<Integer> partitionIds,
       List<WorkerInfo> primaryWorkers,
@@ -370,153 +411,135 @@ public class SlotsAllocator {
     if (primaryWorkers.isEmpty() || (shouldReplicate && replicaWorkers.isEmpty())) {
       return partitionIds;
     }
-    // workerInfo -> (diskIndexForPrimaryAndReplica)
+    // Tracks the next disk to try for each worker during this allocation pass.
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
-    List<Integer> partitionIdList = new LinkedList<>(partitionIds);
+    List<Integer> remainingPartitionIds = new LinkedList<>(partitionIds);
 
-    final int primaryWorkersSize = primaryWorkers.size();
-    final int replicaWorkersSize = replicaWorkers.size();
-    final IntUnaryOperator primaryWorkersIncrementIndex = v -> (v + 1) % primaryWorkersSize;
-    int primaryIndex = rand.nextInt(primaryWorkersSize);
-    final IntUnaryOperator replicaWorkersIncrementIndex;
-    int replicaIndex;
-    if (shouldReplicate) {
-      replicaWorkersIncrementIndex = v -> (v + 1) % replicaWorkersSize;
-      replicaIndex = rand.nextInt(replicaWorkersSize);
-    } else {
-      replicaWorkersIncrementIndex = null;
-      replicaIndex = -1;
-    }
+    int primaryIndex = rand.nextInt(primaryWorkers.size());
+    int replicaIndex = shouldReplicate ? rand.nextInt(replicaWorkers.size()) : -1;
 
-    ListIterator<Integer> iter = partitionIdList.listIterator(partitionIdList.size());
-    // Iterate from the end to preserve O(1) removal of processed partitions.
-    // This is important when we have a high number of concurrent apps that have a
-    // high number of partitions.
-    outer:
-    while (iter.hasPrevious()) {
-      int nextPrimaryInd = primaryIndex;
-
-      int partitionId = iter.previous();
-      StorageInfo storageInfo;
-      if (slotBudgets != null && !slotBudgets.isEmpty()) {
-        // this means that we'll select a mount point
-        while (!haveUsableSlots(slotBudgets, primaryWorkers, nextPrimaryInd)) {
-          nextPrimaryInd = primaryWorkersIncrementIndex.applyAsInt(nextPrimaryInd);
-          if (nextPrimaryInd == primaryIndex) {
-            break outer;
-          }
-        }
-        storageInfo =
-            buildStorageInfo(
-                primaryWorkers,
-                nextPrimaryInd,
-                slotBudgets,
-                workerDiskIndex,
-                availableStorageTypes);
-      } else {
-        if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
-          while (!primaryWorkers.get(nextPrimaryInd).haveDisk()) {
-            nextPrimaryInd = primaryWorkersIncrementIndex.applyAsInt(nextPrimaryInd);
-            if (nextPrimaryInd == primaryIndex) {
-              break outer;
-            }
-          }
-        }
-        storageInfo =
-            buildStorageInfo(
-                primaryWorkers, nextPrimaryInd, null, workerDiskIndex, availableStorageTypes);
+    // Preserve the original allocation order while keeping removal from the linked list O(1).
+    ListIterator<Integer> partitionIterator =
+        remainingPartitionIds.listIterator(remainingPartitionIds.size());
+    while (partitionIterator.hasPrevious()) {
+      int partitionId = partitionIterator.previous();
+      int selectedPrimaryIndex =
+          findNextWorkerIndex(
+              primaryWorkers.size(),
+              primaryIndex,
+              index ->
+                  canAssign(
+                      slotBudgets, primaryWorkers.get(index), availableStorageTypes));
+      if (selectedPrimaryIndex < 0) {
+        break;
       }
+      WorkerInfo primaryWorker = primaryWorkers.get(selectedPrimaryIndex);
+
+      StorageInfo primaryStorageInfo =
+          buildStorageInfo(
+              primaryWorker, slotBudgets, workerDiskIndex, availableStorageTypes);
       PartitionLocation primaryPartition =
-          createLocation(partitionId, primaryWorkers.get(nextPrimaryInd), null, storageInfo, true);
+          createLocation(
+              partitionId,
+              primaryWorker,
+              null,
+              primaryStorageInfo,
+              PartitionLocation.Mode.PRIMARY);
 
       if (shouldReplicate) {
-        int nextReplicaInd = replicaIndex;
+        int selectedReplicaIndex;
         if (slotBudgets != null) {
-          while ((nextReplicaInd == nextPrimaryInd && skipLocationsOnSameWorkerCheck)
-              || !haveUsableSlots(slotBudgets, replicaWorkers, nextReplicaInd)
-              || !satisfyRackAware(
-                  shouldRackAware,
-                  primaryWorkers,
-                  nextPrimaryInd,
-                  replicaWorkers,
-                  nextReplicaInd)) {
-            nextReplicaInd = replicaWorkersIncrementIndex.applyAsInt(nextReplicaInd);
-            if (nextReplicaInd == replicaIndex) {
-              break outer;
-            }
-          }
-          storageInfo =
-              buildStorageInfo(
-                  replicaWorkers,
-                  nextReplicaInd,
-                  slotBudgets,
-                  workerDiskIndex,
-                  availableStorageTypes);
+          selectedReplicaIndex =
+              findNextWorkerIndex(
+                  replicaWorkers.size(),
+                  replicaIndex,
+                  index ->
+                      !(skipLocationsOnSameWorkerCheck && index == selectedPrimaryIndex)
+                          && haveUsableSlots(slotBudgets, replicaWorkers.get(index))
+                          && satisfyRackAware(
+                              shouldRackAware, primaryWorker, replicaWorkers.get(index)));
         } else if (shouldRackAware) {
-          while ((nextReplicaInd == nextPrimaryInd && skipLocationsOnSameWorkerCheck)
-              || !satisfyRackAware(
-                  true, primaryWorkers, nextPrimaryInd, replicaWorkers, nextReplicaInd)) {
-            nextReplicaInd = replicaWorkersIncrementIndex.applyAsInt(nextReplicaInd);
-            if (nextReplicaInd == replicaIndex) {
-              break outer;
-            }
-          }
+          selectedReplicaIndex =
+              findNextWorkerIndex(
+                  replicaWorkers.size(),
+                  replicaIndex,
+                  index ->
+                      !(skipLocationsOnSameWorkerCheck && index == selectedPrimaryIndex)
+                          && satisfyRackAware(true, primaryWorker, replicaWorkers.get(index)));
+        } else if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
+          selectedReplicaIndex =
+              findNextWorkerIndex(
+                  replicaWorkers.size(),
+                  replicaIndex,
+                  index ->
+                      !(skipLocationsOnSameWorkerCheck && index == selectedPrimaryIndex)
+                          && replicaWorkers.get(index).haveDisk());
         } else {
-          if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
-            while ((nextReplicaInd == nextPrimaryInd && skipLocationsOnSameWorkerCheck)
-                || !replicaWorkers.get(nextReplicaInd).haveDisk()) {
-              nextReplicaInd = replicaWorkersIncrementIndex.applyAsInt(nextReplicaInd);
-              if (nextReplicaInd == replicaIndex) {
-                break outer;
-              }
-            }
-          }
-          storageInfo =
-              buildStorageInfo(
-                  replicaWorkers, nextReplicaInd, null, workerDiskIndex, availableStorageTypes);
+          selectedReplicaIndex = replicaIndex;
         }
+        if (selectedReplicaIndex < 0) {
+          break;
+        }
+        WorkerInfo replicaWorker = replicaWorkers.get(selectedReplicaIndex);
+
+        StorageInfo replicaStorageInfo =
+            slotBudgets == null && shouldRackAware
+                ? primaryStorageInfo
+                : buildStorageInfo(
+                    replicaWorker, slotBudgets, workerDiskIndex, availableStorageTypes);
         PartitionLocation replicaPartition =
             createLocation(
                 partitionId,
-                replicaWorkers.get(nextReplicaInd),
+                replicaWorker,
                 primaryPartition,
-                storageInfo,
-                false);
+                replicaStorageInfo,
+                PartitionLocation.Mode.REPLICA);
         primaryPartition.setPeer(replicaPartition);
-        Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
-            slots.computeIfAbsent(
-                replicaWorkers.get(nextReplicaInd),
-                v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
-        locations._2.add(replicaPartition);
-        replicaIndex = replicaWorkersIncrementIndex.applyAsInt(nextReplicaInd);
+        addLocation(slots, replicaWorker, replicaPartition);
+        replicaIndex = (selectedReplicaIndex + 1) % replicaWorkers.size();
       }
 
-      Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
-          slots.computeIfAbsent(
-              primaryWorkers.get(nextPrimaryInd),
-              v -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
-      locations._1.add(primaryPartition);
-      primaryIndex = primaryWorkersIncrementIndex.applyAsInt(nextPrimaryInd);
-      iter.remove();
+      addLocation(slots, primaryWorker, primaryPartition);
+      primaryIndex = (selectedPrimaryIndex + 1) % primaryWorkers.size();
+      partitionIterator.remove();
     }
-    return partitionIdList;
+    return remainingPartitionIds;
+  }
+
+  private static int findNextWorkerIndex(
+      int workerCount, int startIndex, IntPredicate isEligible) {
+    int workerIndex = startIndex;
+    do {
+      if (isEligible.test(workerIndex)) {
+        return workerIndex;
+      }
+      workerIndex = (workerIndex + 1) % workerCount;
+    } while (workerIndex != startIndex);
+    return -1;
+  }
+
+  private static boolean canAssign(
+      Map<WorkerInfo, List<UsableDiskInfo>> slotBudgets,
+      WorkerInfo worker,
+      int availableStorageTypes) {
+    if (slotBudgets != null) {
+      return haveUsableSlots(slotBudgets, worker);
+    }
+    return !StorageInfo.localDiskAvailable(availableStorageTypes) || worker.haveDisk();
   }
 
   private static boolean haveUsableSlots(
-      Map<WorkerInfo, List<UsableDiskInfo>> budgets, List<WorkerInfo> workers, int index) {
-    return budgets.get(workers.get(index)).stream().mapToLong(i -> i.usableSlots).sum() > 0;
+      Map<WorkerInfo, List<UsableDiskInfo>> budgets, WorkerInfo worker) {
+    List<UsableDiskInfo> usableDiskInfos = budgets.get(worker);
+    return usableDiskInfos != null
+        && usableDiskInfos.stream().anyMatch(disk -> disk.usableSlots > 0);
   }
 
   private static boolean satisfyRackAware(
-      boolean shouldRackAware,
-      List<WorkerInfo> primaryWorkers,
-      int primaryIndex,
-      List<WorkerInfo> replicaWorkers,
-      int nextReplicaInd) {
+      boolean shouldRackAware, WorkerInfo primaryWorker, WorkerInfo replicaWorker) {
     return !shouldRackAware
         || !Objects.equals(
-            primaryWorkers.get(primaryIndex).networkLocation(),
-            replicaWorkers.get(nextReplicaInd).networkLocation());
+            primaryWorker.networkLocation(), replicaWorker.networkLocation());
   }
 
   private static PartitionLocation createLocation(
@@ -524,7 +547,7 @@ public class SlotsAllocator {
       WorkerInfo workerInfo,
       PartitionLocation peer,
       StorageInfo storageInfo,
-      boolean isPrimary) {
+      PartitionLocation.Mode mode) {
     return new PartitionLocation(
         partitionIndex,
         0,
@@ -533,10 +556,24 @@ public class SlotsAllocator {
         workerInfo.pushPort(),
         workerInfo.fetchPort(),
         workerInfo.replicatePort(),
-        isPrimary ? PartitionLocation.Mode.PRIMARY : PartitionLocation.Mode.REPLICA,
+        mode,
         peer,
         storageInfo,
         new RoaringBitmap());
+  }
+
+  private static void addLocation(
+      Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots,
+      WorkerInfo worker,
+      PartitionLocation location) {
+    Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations =
+        slots.computeIfAbsent(
+            worker, ignored -> new Tuple2<>(new ArrayList<>(), new ArrayList<>()));
+    if (location.getMode() == PartitionLocation.Mode.PRIMARY) {
+      locations._1.add(location);
+    } else {
+      locations._2.add(location);
+    }
   }
 
   public static Map<WorkerInfo, Map<String, Integer>> slotsToDiskAllocations(
