@@ -20,6 +20,8 @@ package org.apache.celeborn.service.deploy.master
 import java.nio.file.Files
 import java.util
 
+import scala.collection.JavaConverters._
+
 import org.mockito.ArgumentCaptor
 import org.mockito.Mockito.{mock, verify, when}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -27,13 +29,14 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
-import org.apache.celeborn.common.protocol.{PbApplicationMetaRequest, PbCheckForWorkerTimeout, PbRegisterWorker}
+import org.apache.celeborn.common.protocol.{PbApplicationMetaRequest, PbCheckForWorkerTimeout, PbRegisterWorker, PbRequestWorkers, PbRequestWorkersResponse}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{RequestSlots, RequestSlotsResponse, ReviseLostShuffles}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcCallContext}
 import org.apache.celeborn.common.rpc.netty.{NettyRpcEnv, RemoteNettyRpcCallContext}
-import org.apache.celeborn.common.util.{CelebornExitKind, ThreadUtils}
+import org.apache.celeborn.common.util.{CelebornExitKind, PbSerDeUtils, ThreadUtils}
 
 class MasterSuite extends AnyFunSuite
   with BeforeAndAfterAll
@@ -208,6 +211,121 @@ class MasterSuite extends AnyFunSuite
     verify(context).reply(captor.capture())
     val response = captor.getValue.asInstanceOf[RequestSlotsResponse]
     assert(response.status === StatusCode.WORKER_EXCLUDED)
+
+    master.rpcEnv.shutdown()
+  }
+
+  test("handleRequestWorkers returns one failure when no workers are available") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.HA_ENABLED.key, "false")
+    conf.set(CelebornConf.MASTER_HTTP_PORT.key, selectRandomPort().toString)
+    val masterArgs = new MasterArguments(
+      Array("-h", "localhost", "-p", selectRandomPort().toString),
+      conf)
+    val master = new Master(conf, masterArgs)
+    val request = PbRequestWorkers.newBuilder()
+      .setApplicationId("app1")
+      .setUserIdentifier(
+        PbSerDeUtils.toPbUserIdentifier(new UserIdentifier("tenant", "user")))
+      .setMaxWorkers(10)
+      .build()
+    val context = mock(classOf[RpcCallContext])
+    val captor = ArgumentCaptor.forClass(classOf[Any])
+
+    master.handleRequestWorkers(context, request)
+
+    verify(context).reply(captor.capture())
+    val response = captor.getValue.asInstanceOf[PbRequestWorkersResponse]
+    assert(StatusCode.fromValue(response.getStatus) === StatusCode.WORKER_EXCLUDED)
+    assert(response.getWorkersCount === 0)
+    master.rpcEnv.shutdown()
+  }
+
+  test("handleRequestWorkers applies limits without allocating slots") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.HA_ENABLED.key, "false")
+    conf.set(CelebornConf.MASTER_HTTP_PORT.key, selectRandomPort().toString)
+    conf.set(CelebornConf.MASTER_SPLIT_SLOT_ASSIGN_MAX_WORKERS.key, "2")
+    val masterArgs = new MasterArguments(
+      Array("-h", "localhost", "-p", selectRandomPort().toString),
+      conf)
+    val master = new Master(conf, masterArgs)
+    val workers = (1 to 4).map { index =>
+      new WorkerInfo(s"host$index", 1000 + index, 2000 + index, 3000 + index, 4000 + index)
+    }
+    master.statusSystem.availableWorkers.addAll(workers.asJava)
+    val registeredShufflesBefore = master.statusSystem.registeredAppAndShuffles.size()
+    val request = PbRequestWorkers.newBuilder()
+      .setApplicationId("app1")
+      .setUserIdentifier(
+        PbSerDeUtils.toPbUserIdentifier(new UserIdentifier("tenant", "user")))
+      .setMaxWorkers(3)
+      .build()
+    val context = mock(classOf[RpcCallContext])
+    val captor = ArgumentCaptor.forClass(classOf[Any])
+
+    master.handleRequestWorkers(context, request)
+
+    verify(context).reply(captor.capture())
+    val response = captor.getValue.asInstanceOf[PbRequestWorkersResponse]
+    val responseWorkers =
+      response.getWorkersList.asScala.map(PbSerDeUtils.fromPbWorkerInfo).toSet
+    assert(StatusCode.fromValue(response.getStatus) === StatusCode.SUCCESS)
+    assert(responseWorkers.size === 2)
+    assert(responseWorkers.subsetOf(workers.toSet))
+    assert(master.statusSystem.registeredAppAndShuffles.size() === registeredShufflesBefore)
+
+    val defaultLimitContext = mock(classOf[RpcCallContext])
+    val defaultLimitCaptor = ArgumentCaptor.forClass(classOf[Any])
+    master.handleRequestWorkers(
+      defaultLimitContext,
+      request.toBuilder.setMaxWorkers(0).build())
+    verify(defaultLimitContext).reply(defaultLimitCaptor.capture())
+    val defaultLimitResponse =
+      defaultLimitCaptor.getValue.asInstanceOf[PbRequestWorkersResponse]
+    assert(StatusCode.fromValue(defaultLimitResponse.getStatus) === StatusCode.SUCCESS)
+    assert(defaultLimitResponse.getWorkersCount === 2)
+
+    val replicatedContext = mock(classOf[RpcCallContext])
+    val replicatedCaptor = ArgumentCaptor.forClass(classOf[Any])
+    master.handleRequestWorkers(
+      replicatedContext,
+      request.toBuilder
+        .setMaxWorkers(1)
+        .setShouldReplicate(true)
+        .build())
+    verify(replicatedContext).reply(replicatedCaptor.capture())
+    val replicatedResponse =
+      replicatedCaptor.getValue.asInstanceOf[PbRequestWorkersResponse]
+    assert(StatusCode.fromValue(replicatedResponse.getStatus) === StatusCode.SUCCESS)
+    assert(replicatedResponse.getWorkersCount === 2)
+
+    val excludedWorkers = workers.take(3)
+    val excludedContext = mock(classOf[RpcCallContext])
+    val excludedCaptor = ArgumentCaptor.forClass(classOf[Any])
+    master.handleRequestWorkers(
+      excludedContext,
+      request.toBuilder
+        .addAllExcludedWorkerSet(
+          excludedWorkers.map(PbSerDeUtils.toPbWorkerInfo(_, true, true)).asJava)
+        .build())
+    verify(excludedContext).reply(excludedCaptor.capture())
+    val excludedResponse =
+      excludedCaptor.getValue.asInstanceOf[PbRequestWorkersResponse]
+    assert(StatusCode.fromValue(excludedResponse.getStatus) === StatusCode.SUCCESS)
+    assert(
+      excludedResponse.getWorkersList.asScala.map(PbSerDeUtils.fromPbWorkerInfo).toSet ===
+        workers.drop(3).toSet)
+
+    val taggedContext = mock(classOf[RpcCallContext])
+    val taggedCaptor = ArgumentCaptor.forClass(classOf[Any])
+    master.handleRequestWorkers(
+      taggedContext,
+      request.toBuilder.setTagsExpr("missing-tag").build())
+    verify(taggedContext).reply(taggedCaptor.capture())
+    val taggedResponse = taggedCaptor.getValue.asInstanceOf[PbRequestWorkersResponse]
+    assert(StatusCode.fromValue(taggedResponse.getStatus) === StatusCode.WORKER_EXCLUDED)
+    assert(taggedResponse.getWorkersCount === 0)
 
     master.rpcEnv.shutdown()
   }

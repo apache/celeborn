@@ -25,6 +25,31 @@ import org.apache.celeborn.common.protocol.StorageInfo
 
 class CelebornConfSuite extends CelebornFunSuite {
 
+  test("master split slot assign max workers must be positive") {
+    Seq("0", "-1").foreach { value =>
+      val error = intercept[IllegalArgumentException] {
+        new CelebornConf()
+          .set(MASTER_SPLIT_SLOT_ASSIGN_MAX_WORKERS.key, value)
+          .masterSplitSlotAssignMaxWorkers
+      }
+      assert(error.getMessage.contains("Must be positive."))
+    }
+  }
+
+  test("dynamic resource update time must be non-negative") {
+    assert(
+      new CelebornConf()
+        .set(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_UPDATE_TIME.key, "0")
+        .clientShuffleDynamicResourceUpdateTime == 0L)
+
+    val error = intercept[IllegalArgumentException] {
+      new CelebornConf()
+        .set(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_UPDATE_TIME.key, "-1ms")
+        .clientShuffleDynamicResourceUpdateTime
+    }
+    assert(error.getMessage.contains("Must be non-negative."))
+  }
+
   test("JVMQuake thresholds should preserve configured time units") {
     val conf = new CelebornConf()
       .set(WORKER_JVM_QUAKE_DUMP_THRESHOLD.key, "30s")

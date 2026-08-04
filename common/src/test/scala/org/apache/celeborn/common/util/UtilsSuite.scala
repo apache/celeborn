@@ -27,9 +27,10 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.{MasterEndpointResolver, StaticMasterEndpointResolver}
 import org.apache.celeborn.common.exception.CelebornException
-import org.apache.celeborn.common.identity.DefaultIdentityProvider
+import org.apache.celeborn.common.identity.{DefaultIdentityProvider, UserIdentifier}
+import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.network.protocol.SerdeVersion
-import org.apache.celeborn.common.protocol.{PartitionLocation, PbReviseLostShuffles, PbReviseLostShufflesResponse, TransportModuleConstants}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PbRequestWorkers, PbRequestWorkersResponse, PbReviseLostShuffles, PbReviseLostShufflesResponse, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, MapperEnd, ReviseLostShuffles, ReviseLostShufflesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 
@@ -193,6 +194,31 @@ class UtilsSuite extends CelebornFunSuite {
     assert(mapperEnd.numPartitions == mapperEndTrans.numPartitions)
     mapperEnd.crc32PerPartition.array should contain theSameElementsInOrderAs mapperEndTrans.crc32PerPartition
     mapperEnd.bytesWrittenPerPartition.array should contain theSameElementsInOrderAs mapperEndTrans.bytesWrittenPerPartition
+  }
+
+  test("PbRequestWorkers messages convert with TransportMessage") {
+    val excludedWorker = new WorkerInfo("host1", 1001, 1002, 1003, 1004)
+    val request = PbRequestWorkers.newBuilder()
+      .setApplicationId("app-1")
+      .setUserIdentifier(
+        PbSerDeUtils.toPbUserIdentifier(new UserIdentifier("tenant", "user")))
+      .setMaxWorkers(10)
+      .setTagsExpr("tag-a,tag-b")
+      .setShouldReplicate(true)
+      .addExcludedWorkerSet(PbSerDeUtils.toPbWorkerInfo(excludedWorker, true, true))
+      .build()
+    val convertedRequest =
+      Utils.fromTransportMessage(Utils.toTransportMessage(request)).asInstanceOf[PbRequestWorkers]
+    assert(convertedRequest == request)
+
+    val response = PbRequestWorkersResponse.newBuilder()
+      .setStatus(StatusCode.SUCCESS.getValue)
+      .addWorkers(PbSerDeUtils.toPbWorkerInfo(excludedWorker, true, true))
+      .build()
+    val convertedResponse =
+      Utils.fromTransportMessage(Utils.toTransportMessage(response))
+        .asInstanceOf[PbRequestWorkersResponse]
+    assert(convertedResponse == response)
   }
 
   test("ReviseLostShuffles class convert with pb") {

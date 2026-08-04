@@ -5608,6 +5608,7 @@ object CelebornConf extends Logging {
         "Minimum interval between RequestWorkers RPCs triggered by ChangePartitionManager when " +
           s"`${CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key}` is true.")
       .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(_ >= 0, "Must be non-negative.")
       .createWithDefaultString("30s")
 
   val CLIENT_PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
