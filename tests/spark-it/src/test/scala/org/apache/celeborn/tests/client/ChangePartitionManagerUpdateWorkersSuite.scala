@@ -57,7 +57,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
       .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED.key, "false")
       .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key, "true")
-      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR.key, "0.0")
+      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_UPDATE_TIME.key, "0")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val changePartitionManager: ChangePartitionManager =
@@ -131,7 +131,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
       .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED.key, "false")
       .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key, "true")
-      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR.key, "0.5")
+      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_UPDATE_TIME.key, "0")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val changePartitionManager: ChangePartitionManager =
@@ -231,13 +231,13 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     lifecycleManager.stop()
   }
 
-  test("test changePartition with available workers and factor") {
+  test("test changePartition honors worker pool update time") {
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
       .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED.key, "false")
       .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key, "true")
-      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR.key, "1.0")
+      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_UPDATE_TIME.key, "2000s")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val changePartitionManager: ChangePartitionManager =
@@ -278,10 +278,28 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     }
     assert(lifecycleManager.workerSnapshots(shuffleId).size() == workerNum)
 
+    // The first change refreshes the pool and starts the update-time window.
+    val initialRequest = ChangePartitionRequest(
+      null,
+      shuffleId,
+      0,
+      -1,
+      null,
+      None)
+    changePartitionManager.changePartitionRequests.computeIfAbsent(
+      shuffleId,
+      changePartitionManager.rpcContextRegisterFunc)
+    changePartitionManager.handleRequestPartitions(
+      shuffleId,
+      Array(initialRequest),
+      lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
+    assert(lifecycleManager.workerSnapshots(shuffleId).size() == workerNum)
+
     // total workerNum is 1 + 2 = 3 now
     setUpWorkers(workerConfForAdding, 2)
     assert(workerInfos.size == 3)
 
+    // The refresh interval has not elapsed, so the newly registered workers are not candidates.
     0 until 10 foreach { partitionId: Int =>
       val req = ChangePartitionRequest(
         null,

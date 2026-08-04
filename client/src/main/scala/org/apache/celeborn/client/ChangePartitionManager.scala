@@ -23,7 +23,6 @@ import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, Schedu
 
 import scala.collection.JavaConverters._
 
-import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
@@ -77,7 +76,6 @@ class ChangePartitionManager(
   private val testRetryRevive = conf.testRetryRevive
 
   private val dynamicResourceEnabled = conf.clientShuffleDynamicResourceEnabled
-  private val dynamicResourceUnavailableFactor = conf.clientShuffleDynamicResourceFactor
 
   def start(): Unit = {
     batchHandleChangePartition = batchHandleChangePartitionSchedulerThread.map {
@@ -285,71 +283,23 @@ class ChangePartitionManager(
     }
 
     val candidates = new util.HashSet[WorkerInfo]()
-    val newlyRequestedLocations = new WorkerResource()
-
-    val snapshotCandidates =
-      lifecycleManager
-        .workerSnapshots(shuffleId)
-        .asScala
-        .values
-        .map(_.workerInfo)
-        .filter(lifecycleManager.workerStatusTracker.workerAvailable)
-        .toSet
-        .asJava
-    candidates.addAll(snapshotCandidates)
-
     if (dynamicResourceEnabled) {
-      val shuffleAllocatedWorkers = lifecycleManager.workerSnapshots(shuffleId).size()
-      val unavailableWorkerRatio = 1 - (snapshotCandidates.size * 1.0 / shuffleAllocatedWorkers)
-      if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)
-        || (unavailableWorkerRatio >= dynamicResourceUnavailableFactor)) {
-
-        // get new available workers for the request partition ids
-        val partitionIds = new util.ArrayList[Integer](
-          changePartitions.map(_.partitionId).map(Integer.valueOf).toList.asJava)
-        // The partition id value is not important here because we're just trying to get the workers to use
-        val requestSlotsRes =
-          lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, partitionIds)
-
-        requestSlotsRes.status match {
-          case StatusCode.REQUEST_FAILED =>
-            logInfo(s"ChangePartition requestSlots RPC request failed for $shuffleId!")
-          case StatusCode.SLOT_NOT_AVAILABLE =>
-            logInfo(s"ChangePartition requestSlots for $shuffleId failed, have no available slots.")
-          case StatusCode.SUCCESS =>
-            logDebug(
-              s"ChangePartition requestSlots request for workers Success! shuffleId: $shuffleId availableWorkers Info: ${requestSlotsRes.workerResource.keySet()}")
-          case StatusCode.WORKER_EXCLUDED =>
-            logInfo(s"ChangePartition requestSlots request for workers for $shuffleId failed due to all workers be excluded!")
-          case _ => // won't happen
-            throw new UnsupportedOperationException()
-        }
-
-        if (requestSlotsRes.status.equals(StatusCode.SUCCESS)) {
-          requestSlotsRes.workerResource.keySet().asScala.foreach { workerInfo: WorkerInfo =>
-            newlyRequestedLocations.computeIfAbsent(workerInfo, lifecycleManager.newLocationFunc)
-          }
-
-          // SetupEndpoint for new Workers
-          val workersRequireEndpoints = new util.HashSet[WorkerInfo](
-            requestSlotsRes.workerResource.keySet()
-              .asScala
-              .filter(lifecycleManager.workerStatusTracker.workerAvailable)
-              .asJava)
-
-          val connectFailedWorkers = new ShuffleFailedWorkers()
-          lifecycleManager.setupEndpoints(
-            workersRequireEndpoints,
-            shuffleId,
-            connectFailedWorkers)
-          workersRequireEndpoints.removeAll(connectFailedWorkers.asScala.keys.toList.asJava)
-          candidates.addAll(workersRequireEndpoints)
-
-          // Update worker status
-          lifecycleManager.workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
-          lifecycleManager.workerStatusTracker.removeFromExcludedWorkers(candidates)
-        }
-      }
+      lifecycleManager.refreshEndpointReadyWorkersFromMaster(shuffleId)
+      candidates.addAll(
+        lifecycleManager.workerStatusTracker.endpointReadyWorkers
+          .filter(lifecycleManager.workerStatusTracker.workerAvailable)
+          .asJava)
+    }
+    if (candidates.isEmpty) {
+      val snapshotCandidates =
+        lifecycleManager
+          .workerSnapshots(shuffleId)
+          .asScala
+          .values
+          .map(_.workerInfo)
+          .filter(lifecycleManager.workerStatusTracker.workerAvailable)
+          .toSet
+      candidates.addAll(snapshotCandidates.asJava)
     }
 
     if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
@@ -374,10 +324,7 @@ class ChangePartitionManager(
       return
     }
 
-    // newlyRequestedLocations is empty if dynamicResourceEnabled is false
-    newlyRequestedLocations.putAll(newlyAllocatedLocations)
-
-    val newPrimaryLocations = newlyRequestedLocations.asScala.flatMap {
+    val newPrimaryLocations = newlyAllocatedLocations.asScala.flatMap {
       case (workInfo, (primaryLocations, replicaLocations)) =>
         // Add all re-allocated slots to worker snapshots.
         val partitionLocationInfo = lifecycleManager.workerSnapshots(shuffleId).computeIfAbsent(
