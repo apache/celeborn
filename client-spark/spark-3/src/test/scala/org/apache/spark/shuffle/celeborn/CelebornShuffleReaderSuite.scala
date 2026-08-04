@@ -24,6 +24,7 @@ import java.util.concurrent.{CountDownLatch, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 
 import org.apache.spark.{Dependency, ShuffleDependency, TaskContext}
+import org.apache.spark.celeborn.ExceptionMakerHelper
 import org.apache.spark.shuffle.ShuffleReadMetricsReporter
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito
@@ -340,6 +341,14 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
       caller.interrupt()
       caller.join(TimeUnit.SECONDS.toMillis(5))
     }
+  }
+
+  test("FetchFailureException message includes workerHost") {
+    val workerHost = "celeborn-worker-1"
+    val e = ExceptionMakerHelper.SHUFFLE_FETCH_FAILURE_EXCEPTION_MAKER
+      .makeFetchFailureException(1, 2, 3, workerHost, new IOException("test"))
+    assert(e.getMessage.contains(workerHost))
+    assert(e.getMessage.contains(ExceptionMakerHelper.FETCH_FAILURE_ERROR_MSG))
   }
 
   private def newLocation(id: Int, host: String, fetchPort: Int): PartitionLocation =

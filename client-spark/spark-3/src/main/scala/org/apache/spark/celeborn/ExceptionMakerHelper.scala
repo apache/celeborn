@@ -30,6 +30,7 @@ object ExceptionMakerHelper {
         appShuffleId: Int,
         shuffleId: Int,
         partitionId: Int,
+        workerHost: String,
         e: Exception): Exception = {
       new FetchFailedException(
         null,
@@ -37,7 +38,7 @@ object ExceptionMakerHelper {
         -1,
         -1,
         partitionId,
-        FETCH_FAILURE_ERROR_MSG + appShuffleId + "/" + shuffleId,
+        FETCH_FAILURE_ERROR_MSG + appShuffleId + "/" + shuffleId + " from worker " + workerHost,
         e)
     }
   }
