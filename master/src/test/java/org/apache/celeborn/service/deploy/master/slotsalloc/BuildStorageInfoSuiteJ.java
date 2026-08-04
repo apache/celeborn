@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.master;
+package org.apache.celeborn.service.deploy.master.slotsalloc;
 
 import static org.junit.Assert.*;
 
@@ -34,7 +34,7 @@ import org.apache.celeborn.common.protocol.StorageInfo;
  *
  * <ol>
  *   <li><b>With restrictions</b> – a restrictions map is provided, and a disk is selected from the
- *       worker's {@link SlotsAllocator.UsableDiskInfo} list.
+ *       worker's {@link UsableDiskInfo} list.
  *   <li><b>Without restrictions</b> – the restrictions map is {@code null}, and storage type is
  *       derived from the {@code availableStorageTypes} bitmask.
  * </ol>
@@ -53,9 +53,9 @@ public class BuildStorageInfoSuiteJ {
     return new WorkerInfo(host, 9001, 9002, 9003, 9004, 9005, disks, null);
   }
 
-  private Map<WorkerInfo, List<SlotsAllocator.UsableDiskInfo>> restrictionsFor(
-      WorkerInfo worker, List<SlotsAllocator.UsableDiskInfo> diskList) {
-    Map<WorkerInfo, List<SlotsAllocator.UsableDiskInfo>> restrictions = new HashMap<>();
+  private Map<WorkerInfo, List<UsableDiskInfo>> restrictionsFor(
+      WorkerInfo worker, List<UsableDiskInfo> diskList) {
+    Map<WorkerInfo, List<UsableDiskInfo>> restrictions = new HashMap<>();
     restrictions.put(worker, diskList);
     return restrictions;
   }
@@ -72,8 +72,8 @@ public class BuildStorageInfoSuiteJ {
     DiskInfo disk = makeDiskInfo("/mnt/hdd1", StorageInfo.Type.HDD);
     WorkerInfo worker = makeWorker("host1", Collections.singletonMap("/mnt/hdd1", disk));
 
-    SlotsAllocator.UsableDiskInfo usable = new SlotsAllocator.UsableDiskInfo(disk, 10);
-    Map<WorkerInfo, List<SlotsAllocator.UsableDiskInfo>> restrictions =
+    UsableDiskInfo usable = new UsableDiskInfo(disk, 10);
+    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
         restrictionsFor(worker, Collections.singletonList(usable));
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
@@ -100,8 +100,8 @@ public class BuildStorageInfoSuiteJ {
     DiskInfo disk = makeDiskInfo("/mnt/ssd1", StorageInfo.Type.SSD);
     WorkerInfo worker = makeWorker("host1", Collections.singletonMap("/mnt/ssd1", disk));
 
-    SlotsAllocator.UsableDiskInfo usable = new SlotsAllocator.UsableDiskInfo(disk, 5);
-    Map<WorkerInfo, List<SlotsAllocator.UsableDiskInfo>> restrictions =
+    UsableDiskInfo usable = new UsableDiskInfo(disk, 5);
+    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
         restrictionsFor(worker, Collections.singletonList(usable));
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
@@ -129,8 +129,8 @@ public class BuildStorageInfoSuiteJ {
     DiskInfo disk = makeDiskInfo("HDFS", StorageInfo.Type.HDFS);
     WorkerInfo worker = makeWorker("host1", Collections.singletonMap("HDFS", disk));
 
-    SlotsAllocator.UsableDiskInfo usable = new SlotsAllocator.UsableDiskInfo(disk, 50);
-    Map<WorkerInfo, List<SlotsAllocator.UsableDiskInfo>> restrictions =
+    UsableDiskInfo usable = new UsableDiskInfo(disk, 50);
+    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
         restrictionsFor(worker, Collections.singletonList(usable));
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
@@ -158,8 +158,8 @@ public class BuildStorageInfoSuiteJ {
     DiskInfo disk = makeDiskInfo("S3", StorageInfo.Type.S3);
     WorkerInfo worker = makeWorker("host1", Collections.singletonMap("S3", disk));
 
-    SlotsAllocator.UsableDiskInfo usable = new SlotsAllocator.UsableDiskInfo(disk, 20);
-    Map<WorkerInfo, List<SlotsAllocator.UsableDiskInfo>> restrictions =
+    UsableDiskInfo usable = new UsableDiskInfo(disk, 20);
+    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
         restrictionsFor(worker, Collections.singletonList(usable));
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
@@ -187,8 +187,8 @@ public class BuildStorageInfoSuiteJ {
     DiskInfo disk = makeDiskInfo("OSS", StorageInfo.Type.OSS);
     WorkerInfo worker = makeWorker("host1", Collections.singletonMap("OSS", disk));
 
-    SlotsAllocator.UsableDiskInfo usable = new SlotsAllocator.UsableDiskInfo(disk, 30);
-    Map<WorkerInfo, List<SlotsAllocator.UsableDiskInfo>> restrictions =
+    UsableDiskInfo usable = new UsableDiskInfo(disk, 30);
+    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
         restrictionsFor(worker, Collections.singletonList(usable));
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
@@ -217,13 +217,13 @@ public class BuildStorageInfoSuiteJ {
     DiskInfo disk2 = makeDiskInfo("/mnt/disk2", StorageInfo.Type.HDD);
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
 
-    SlotsAllocator.UsableDiskInfo exhausted = new SlotsAllocator.UsableDiskInfo(disk1, 0);
-    SlotsAllocator.UsableDiskInfo active = new SlotsAllocator.UsableDiskInfo(disk2, 8);
-    List<SlotsAllocator.UsableDiskInfo> diskList = new ArrayList<>();
+    UsableDiskInfo exhausted = new UsableDiskInfo(disk1, 0);
+    UsableDiskInfo active = new UsableDiskInfo(disk2, 8);
+    List<UsableDiskInfo> diskList = new ArrayList<>();
     diskList.add(exhausted);
     diskList.add(active);
 
-    Map<WorkerInfo, List<SlotsAllocator.UsableDiskInfo>> restrictions =
+    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
         restrictionsFor(worker, diskList);
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0); // start at the exhausted disk
@@ -252,11 +252,11 @@ public class BuildStorageInfoSuiteJ {
     DiskInfo disk2 = makeDiskInfo("/mnt/disk2", StorageInfo.Type.HDD);
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
 
-    List<SlotsAllocator.UsableDiskInfo> diskList = new ArrayList<>();
-    diskList.add(new SlotsAllocator.UsableDiskInfo(disk1, 10));
-    diskList.add(new SlotsAllocator.UsableDiskInfo(disk2, 10));
+    List<UsableDiskInfo> diskList = new ArrayList<>();
+    diskList.add(new UsableDiskInfo(disk1, 10));
+    diskList.add(new UsableDiskInfo(disk2, 10));
 
-    Map<WorkerInfo, List<SlotsAllocator.UsableDiskInfo>> restrictions =
+    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
         restrictionsFor(worker, diskList);
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
@@ -280,9 +280,9 @@ public class BuildStorageInfoSuiteJ {
     DiskInfo disk = makeDiskInfo("HDFS", StorageInfo.Type.HDFS);
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
 
-    Map<WorkerInfo, List<SlotsAllocator.UsableDiskInfo>> restrictions =
+    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
         restrictionsFor(
-            worker, Collections.singletonList(new SlotsAllocator.UsableDiskInfo(disk, 10)));
+            worker, Collections.singletonList(new UsableDiskInfo(disk, 10)));
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
 
@@ -302,13 +302,13 @@ public class BuildStorageInfoSuiteJ {
     DiskInfo disk2 = makeDiskInfo("/mnt/disk2", StorageInfo.Type.HDD);
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
 
-    SlotsAllocator.UsableDiskInfo usable1 = new SlotsAllocator.UsableDiskInfo(disk1, 10);
-    SlotsAllocator.UsableDiskInfo usable2 = new SlotsAllocator.UsableDiskInfo(disk2, 10);
-    List<SlotsAllocator.UsableDiskInfo> diskList = new ArrayList<>();
+    UsableDiskInfo usable1 = new UsableDiskInfo(disk1, 10);
+    UsableDiskInfo usable2 = new UsableDiskInfo(disk2, 10);
+    List<UsableDiskInfo> diskList = new ArrayList<>();
     diskList.add(usable1);
     diskList.add(usable2);
 
-    Map<WorkerInfo, List<SlotsAllocator.UsableDiskInfo>> restrictions =
+    Map<WorkerInfo, List<UsableDiskInfo>> restrictions =
         restrictionsFor(worker, diskList);
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
