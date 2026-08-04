@@ -33,10 +33,10 @@ import org.apache.celeborn.common.protocol.StorageInfo;
  * <p>The method has two main paths:
  *
  * <ol>
- *   <li><b>With budgets</b> – a budget map is provided, and a disk is selected from the
- *       worker's {@link UsableDiskInfo} list.
- *   <li><b>Without budgets</b> – the budget map is {@code null}, and storage type is
- *       derived from the {@code availableStorageTypes} bitmask.
+ *   <li><b>With budgets</b> – a budget map is provided, and a disk is selected from the worker's
+ *       {@link UsableDiskInfo} list.
+ *   <li><b>Without budgets</b> – the budget map is {@code null}, and storage type is derived from
+ *       the {@code availableStorageTypes} bitmask.
  * </ol>
  */
 public class BuildStorageInfoSuiteJ {
@@ -64,9 +64,7 @@ public class BuildStorageInfoSuiteJ {
   // Tests: budgets != null
   // ---------------------------------------------------------------------------
 
-  /**
-   * An HDD disk in the budget list should produce a StorageInfo with the disk mount point.
-   */
+  /** An HDD disk in the budget list should produce a StorageInfo with the disk mount point. */
   @Test
   public void testWithBudgets_HDDDisk() {
     DiskInfo disk = makeDiskInfo("/mnt/hdd1", StorageInfo.Type.HDD);
@@ -88,9 +86,7 @@ public class BuildStorageInfoSuiteJ {
     assertEquals(9, usable.usableSlots); // consumed one slot
   }
 
-  /**
-   * An SSD disk in the budget list should produce a StorageInfo with the disk mount point.
-   */
+  /** An SSD disk in the budget list should produce a StorageInfo with the disk mount point. */
   @Test
   public void testWithBudgets_SSDDisk() {
     DiskInfo disk = makeDiskInfo("/mnt/ssd1", StorageInfo.Type.SSD);
@@ -113,8 +109,8 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * An HDFS disk in the budget list should produce a StorageInfo with an empty mount point
-   * and HDFS type, regardless of the actual mount-point string stored in DiskInfo.
+   * An HDFS disk in the budget list should produce a StorageInfo with an empty mount point and HDFS
+   * type, regardless of the actual mount-point string stored in DiskInfo.
    */
   @Test
   public void testWithBudgets_HDFSDisk_emptyMountPoint() {
@@ -128,8 +124,7 @@ public class BuildStorageInfoSuiteJ {
     workerDiskIndex.put(worker, 0);
 
     StorageInfo result =
-        SlotsAllocator.buildStorageInfo(
-            worker, budgets, workerDiskIndex, StorageInfo.HDFS_MASK);
+        SlotsAllocator.buildStorageInfo(worker, budgets, workerDiskIndex, StorageInfo.HDFS_MASK);
 
     assertEquals(StorageInfo.Type.HDFS, result.getType());
     assertEquals("", result.getMountPoint());
@@ -138,8 +133,8 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * An S3 disk in the budget list should produce a StorageInfo with an empty mount point and
-   * S3 type.
+   * An S3 disk in the budget list should produce a StorageInfo with an empty mount point and S3
+   * type.
    */
   @Test
   public void testWithBudgets_S3Disk_emptyMountPoint() {
@@ -153,8 +148,7 @@ public class BuildStorageInfoSuiteJ {
     workerDiskIndex.put(worker, 0);
 
     StorageInfo result =
-        SlotsAllocator.buildStorageInfo(
-            worker, budgets, workerDiskIndex, StorageInfo.S3_MASK);
+        SlotsAllocator.buildStorageInfo(worker, budgets, workerDiskIndex, StorageInfo.S3_MASK);
 
     assertEquals(StorageInfo.Type.S3, result.getType());
     assertEquals("", result.getMountPoint());
@@ -163,8 +157,8 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * An OSS disk in the budget list should produce a StorageInfo with an empty mount point and
-   * OSS type.
+   * An OSS disk in the budget list should produce a StorageInfo with an empty mount point and OSS
+   * type.
    */
   @Test
   public void testWithBudgets_OSSDisk_emptyMountPoint() {
@@ -178,8 +172,7 @@ public class BuildStorageInfoSuiteJ {
     workerDiskIndex.put(worker, 0);
 
     StorageInfo result =
-        SlotsAllocator.buildStorageInfo(
-            worker, budgets, workerDiskIndex, StorageInfo.OSS_MASK);
+        SlotsAllocator.buildStorageInfo(worker, budgets, workerDiskIndex, StorageInfo.OSS_MASK);
 
     assertEquals(StorageInfo.Type.OSS, result.getType());
     assertEquals("", result.getMountPoint());
@@ -203,8 +196,7 @@ public class BuildStorageInfoSuiteJ {
     diskList.add(exhausted);
     diskList.add(active);
 
-    Map<WorkerInfo, List<UsableDiskInfo>> budgets =
-        budgetsFor(worker, diskList);
+    Map<WorkerInfo, List<UsableDiskInfo>> budgets = budgetsFor(worker, diskList);
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0); // start at the exhausted disk
 
@@ -232,8 +224,7 @@ public class BuildStorageInfoSuiteJ {
     diskList.add(new UsableDiskInfo(disk1, 10));
     diskList.add(new UsableDiskInfo(disk2, 10));
 
-    Map<WorkerInfo, List<UsableDiskInfo>> budgets =
-        budgetsFor(worker, diskList);
+    Map<WorkerInfo, List<UsableDiskInfo>> budgets = budgetsFor(worker, diskList);
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
 
@@ -253,13 +244,11 @@ public class BuildStorageInfoSuiteJ {
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
 
     Map<WorkerInfo, List<UsableDiskInfo>> budgets =
-        budgetsFor(
-            worker, Collections.singletonList(new UsableDiskInfo(disk, 10)));
+        budgetsFor(worker, Collections.singletonList(new UsableDiskInfo(disk, 10)));
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
 
-    SlotsAllocator.buildStorageInfo(
-        worker, budgets, workerDiskIndex, StorageInfo.HDFS_MASK);
+    SlotsAllocator.buildStorageInfo(worker, budgets, workerDiskIndex, StorageInfo.HDFS_MASK);
 
     assertEquals(Integer.valueOf(0), workerDiskIndex.get(worker));
   }
@@ -280,8 +269,7 @@ public class BuildStorageInfoSuiteJ {
     diskList.add(usable1);
     diskList.add(usable2);
 
-    Map<WorkerInfo, List<UsableDiskInfo>> budgets =
-        budgetsFor(worker, diskList);
+    Map<WorkerInfo, List<UsableDiskInfo>> budgets = budgetsFor(worker, diskList);
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
     // First call: disk at index 0
@@ -306,8 +294,8 @@ public class BuildStorageInfoSuiteJ {
   // ---------------------------------------------------------------------------
 
   /**
-   * When budgets are {@code null} and all storage types are available (mask = 0), the method
-   * must pick a local disk from the worker's disk map.
+   * When budgets are {@code null} and all storage types are available (mask = 0), the method must
+   * pick a local disk from the worker's disk map.
    */
   @Test
   public void testWithoutBudgets_allTypesAvailable_picksLocalDisk() {
@@ -326,8 +314,8 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * When budgets are {@code null} and only LOCAL_DISK_MASK is set, the method must pick an SSD
-   * disk from the worker and record its mount point.
+   * When budgets are {@code null} and only LOCAL_DISK_MASK is set, the method must pick an SSD disk
+   * from the worker and record its mount point.
    */
   @Test
   public void testWithoutBudgets_localDiskMask() {
@@ -337,8 +325,7 @@ public class BuildStorageInfoSuiteJ {
     workerDiskIndex.put(worker, 0);
 
     StorageInfo result =
-        SlotsAllocator.buildStorageInfo(
-            worker, null, workerDiskIndex, StorageInfo.LOCAL_DISK_MASK);
+        SlotsAllocator.buildStorageInfo(worker, null, workerDiskIndex, StorageInfo.LOCAL_DISK_MASK);
 
     assertEquals(StorageInfo.Type.SSD, result.getType());
     assertEquals("/mnt/ssd1", result.getMountPoint());
@@ -346,16 +333,15 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * When budgets are {@code null} and only S3_MASK is set, the method must return a
-   * StorageInfo with empty mount point and S3 type without touching any worker disks.
+   * When budgets are {@code null} and only S3_MASK is set, the method must return a StorageInfo
+   * with empty mount point and S3 type without touching any worker disks.
    */
   @Test
   public void testWithoutBudgets_S3Only() {
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
 
     StorageInfo result =
-        SlotsAllocator.buildStorageInfo(
-            worker, null, new HashMap<>(), StorageInfo.S3_MASK);
+        SlotsAllocator.buildStorageInfo(worker, null, new HashMap<>(), StorageInfo.S3_MASK);
 
     assertEquals(StorageInfo.Type.S3, result.getType());
     assertEquals("", result.getMountPoint());
@@ -363,16 +349,15 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * When budgets are {@code null} and only OSS_MASK is set, the method must return a
-   * StorageInfo with empty mount point and OSS type.
+   * When budgets are {@code null} and only OSS_MASK is set, the method must return a StorageInfo
+   * with empty mount point and OSS type.
    */
   @Test
   public void testWithoutBudgets_OSSOnly() {
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
 
     StorageInfo result =
-        SlotsAllocator.buildStorageInfo(
-            worker, null, new HashMap<>(), StorageInfo.OSS_MASK);
+        SlotsAllocator.buildStorageInfo(worker, null, new HashMap<>(), StorageInfo.OSS_MASK);
 
     assertEquals(StorageInfo.Type.OSS, result.getType());
     assertEquals("", result.getMountPoint());
@@ -380,16 +365,15 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * When budgets are {@code null} and only HDFS_MASK is set, the method must return a
-   * StorageInfo with empty mount point and HDFS type.
+   * When budgets are {@code null} and only HDFS_MASK is set, the method must return a StorageInfo
+   * with empty mount point and HDFS type.
    */
   @Test
   public void testWithoutBudgets_HDFSOnly() {
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
 
     StorageInfo result =
-        SlotsAllocator.buildStorageInfo(
-            worker, null, new HashMap<>(), StorageInfo.HDFS_MASK);
+        SlotsAllocator.buildStorageInfo(worker, null, new HashMap<>(), StorageInfo.HDFS_MASK);
 
     assertEquals(StorageInfo.Type.HDFS, result.getType());
     assertEquals("", result.getMountPoint());
@@ -397,16 +381,15 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * When budgets are {@code null} and only MEMORY_MASK is set, the method must return a
-   * StorageInfo with empty mount point and MEMORY type.
+   * When budgets are {@code null} and only MEMORY_MASK is set, the method must return a StorageInfo
+   * with empty mount point and MEMORY type.
    */
   @Test
   public void testWithoutBudgets_memoryOnly() {
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
 
     StorageInfo result =
-        SlotsAllocator.buildStorageInfo(
-            worker, null, new HashMap<>(), StorageInfo.MEMORY_MASK);
+        SlotsAllocator.buildStorageInfo(worker, null, new HashMap<>(), StorageInfo.MEMORY_MASK);
 
     assertEquals(StorageInfo.Type.MEMORY, result.getType());
     assertEquals("", result.getMountPoint());
@@ -414,8 +397,8 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * When budgets are {@code null} and the bitmask does not correspond to any known storage
-   * type, the method must throw {@link IllegalStateException}.
+   * When budgets are {@code null} and the bitmask does not correspond to any known storage type,
+   * the method must throw {@link IllegalStateException}.
    */
   @Test(expected = IllegalStateException.class)
   public void testWithoutBudgets_noValidStorageType_throwsIllegalState() {

@@ -427,24 +427,17 @@ public class SlotsAllocator {
           findNextWorkerIndex(
               primaryWorkers.size(),
               primaryIndex,
-              index ->
-                  canAssign(
-                      slotBudgets, primaryWorkers.get(index), availableStorageTypes));
+              index -> canAssign(slotBudgets, primaryWorkers.get(index), availableStorageTypes));
       if (selectedPrimaryIndex < 0) {
         break;
       }
       WorkerInfo primaryWorker = primaryWorkers.get(selectedPrimaryIndex);
 
       StorageInfo primaryStorageInfo =
-          buildStorageInfo(
-              primaryWorker, slotBudgets, workerDiskIndex, availableStorageTypes);
+          buildStorageInfo(primaryWorker, slotBudgets, workerDiskIndex, availableStorageTypes);
       PartitionLocation primaryPartition =
           createLocation(
-              partitionId,
-              primaryWorker,
-              null,
-              primaryStorageInfo,
-              PartitionLocation.Mode.PRIMARY);
+              partitionId, primaryWorker, null, primaryStorageInfo, PartitionLocation.Mode.PRIMARY);
 
       if (shouldReplicate) {
         int selectedReplicaIndex;
@@ -506,8 +499,7 @@ public class SlotsAllocator {
     return remainingPartitionIds;
   }
 
-  private static int findNextWorkerIndex(
-      int workerCount, int startIndex, IntPredicate isEligible) {
+  private static int findNextWorkerIndex(int workerCount, int startIndex, IntPredicate isEligible) {
     int workerIndex = startIndex;
     do {
       if (isEligible.test(workerIndex)) {
@@ -538,8 +530,7 @@ public class SlotsAllocator {
   private static boolean satisfyRackAware(
       boolean shouldRackAware, WorkerInfo primaryWorker, WorkerInfo replicaWorker) {
     return !shouldRackAware
-        || !Objects.equals(
-            primaryWorker.networkLocation(), replicaWorker.networkLocation());
+        || !Objects.equals(primaryWorker.networkLocation(), replicaWorker.networkLocation());
   }
 
   private static PartitionLocation createLocation(
