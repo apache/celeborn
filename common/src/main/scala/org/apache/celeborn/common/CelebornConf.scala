@@ -684,6 +684,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def masterSlotAssignExtraSlots: Int = get(MASTER_SLOT_ASSIGN_EXTRA_SLOTS)
   def masterSlotAssignMaxWorkers: Int = get(MASTER_SLOT_ASSIGN_MAX_WORKERS)
   def masterSlotAssignMinWorkers: Int = get(MASTER_SLOT_ASSIGN_MIN_WORKERS)
+  def masterSplitSlotAssignMaxWorkers: Int = get(MASTER_SPLIT_SLOT_ASSIGN_MAX_WORKERS)
   def initialEstimatedPartitionSize: Long = get(ESTIMATED_PARTITION_SIZE_INITIAL_SIZE)
   def estimatedPartitionSizeUpdaterInitialDelay: Long =
     get(ESTIMATED_PARTITION_SIZE_UPDATE_INITIAL_DELAY)
@@ -957,7 +958,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientCommitFilesIgnoreExcludedWorkers: Boolean = get(CLIENT_COMMIT_IGNORE_EXCLUDED_WORKERS)
   def clientShuffleDynamicResourceEnabled: Boolean =
     get(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED)
-  def clientShuffleDynamicResourceFactor: Double = get(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR)
+  def clientShuffleDynamicResourceUpdateTime: Long =
+    get(CLIENT_SHUFFLE_DYNAMIC_RESOURCE_UPDATE_TIME)
   def appHeartbeatTimeoutMs: Long = get(APPLICATION_HEARTBEAT_TIMEOUT)
   def dfsExpireDirsTimeoutMS: Long = get(DFS_EXPIRE_DIRS_TIMEOUT)
   def appHeartbeatIntervalMs: Long = get(APPLICATION_HEARTBEAT_INTERVAL)
@@ -3200,6 +3202,16 @@ object CelebornConf extends Logging {
       .doc("Min workers that slots of one shuffle should be allocated on. Provided enough workers are available.")
       .intConf
       .createWithDefault(100)
+
+  val MASTER_SPLIT_SLOT_ASSIGN_MAX_WORKERS: ConfigEntry[Int] =
+    buildConf("celeborn.master.splitSlot.assign.maxWorkers")
+      .categories("master")
+      .version("0.7.0")
+      .doc("Max workers that split slots of the whole application's shuffle can be allocated on. " +
+        "Will choose the smaller positive one from Master side and Client side, " +
+        "see `celeborn.client.slot.assign.maxWorkers`.")
+      .intConf
+      .createWithDefault(500)
 
   val ESTIMATED_PARTITION_SIZE_INITIAL_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.master.estimatedPartitionSize.initialSize")
@@ -5587,16 +5599,15 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR: ConfigEntry[Double] =
-    buildConf("celeborn.client.shuffle.dynamicResourceFactor")
+  val CLIENT_SHUFFLE_DYNAMIC_RESOURCE_UPDATE_TIME: ConfigEntry[Long] =
+    buildConf("celeborn.client.shuffle.dynamicResource.updateTime")
       .categories("client")
-      .version("0.6.0")
-      .doc("The ChangePartitionManager will check whether (unavailable workers / shuffle allocated workers) " +
-        "is more than the factor before obtaining candidate workers from the requestSlots RPC response " +
-        s"when `${CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key}` set true")
-      .doubleConf
-      .checkValue(v => v >= 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")
-      .createWithDefault(0.5)
+      .version("0.7.0")
+      .doc("The ChangePartitionManager will get candidate workers from the requestWorkers RPC response " +
+        "when the time interval exceeds the updateTime " +
+        s"and `${CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key}` set true")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
 
   val CLIENT_PUSH_STAGE_END_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.push.stageEnd.timeout")
