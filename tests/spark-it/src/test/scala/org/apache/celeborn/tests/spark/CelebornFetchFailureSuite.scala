@@ -93,6 +93,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
         .config("spark.sql.shuffle.partitions", 2)
         .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
         .config("spark.celeborn.client.spark.stageRerun.enabled", "false")
+        .config("spark.celeborn.client.spark.fetch.cleanFailedShuffle", "false")
         .getOrCreate()
 
       val value = Range(1, 10000).mkString(",")
