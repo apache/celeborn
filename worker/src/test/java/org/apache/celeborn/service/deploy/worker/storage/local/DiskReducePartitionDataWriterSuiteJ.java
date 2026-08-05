@@ -28,6 +28,7 @@ import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -165,9 +166,9 @@ public class DiskReducePartitionDataWriterSuiteJ {
           }
         };
     PartitionFilesSorter sorter = mock(PartitionFilesSorter.class);
-    Mockito.doReturn(info)
+    Mockito.doReturn(CompletableFuture.completedFuture(info))
         .when(sorter)
-        .getSortedFileInfo(anyString(), anyString(), eq(info), anyInt(), anyInt());
+        .getSortedFileInfoAsync(anyString(), anyString(), eq(info), anyInt(), anyInt());
     handler.setPartitionsSorter(sorter);
     transportContext = new TransportContext(transConf, handler);
     server = transportContext.createServer();

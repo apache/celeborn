@@ -31,6 +31,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Throwables;
 import io.netty.channel.Channel;
@@ -63,6 +68,8 @@ import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
 import org.apache.celeborn.common.protocol.PbOpenStream;
+import org.apache.celeborn.common.protocol.PbOpenStreamList;
+import org.apache.celeborn.common.protocol.PbOpenStreamListResponse;
 import org.apache.celeborn.common.protocol.PbStreamChunkSlice;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.protocol.StreamType;
@@ -192,6 +199,162 @@ public class FetchHandlerSuiteJ {
       PbStreamHandler streamHandler = openStreamAndCheck(client, channel, fetchHandler, 5, 10);
 
       fetchChunkAndCheck(client, channel, fetchHandler, streamHandler);
+    } finally {
+      cleanup(fileInfo);
+    }
+  }
+
+  @Test
+  public void testOpenStreamDoesNotBlockWhileSortedFileInfoIsPending() throws Exception {
+    FileInfo fileInfo = null;
+    ExecutorService requestExecutor = Executors.newSingleThreadExecutor();
+    try {
+      fileInfo = prepare(1);
+      EmbeddedChannel channel = new EmbeddedChannel();
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+      FetchHandler fetchHandler = mockFetchHandler(fileInfo);
+      PartitionFilesSorter partitionFilesSorter = mock(PartitionFilesSorter.class);
+      CompletableFuture<FileInfo> pendingSortedFileInfo = new CompletableFuture<>();
+      when(partitionFilesSorter.getSortedFileInfoAsync(
+              anyString(), anyString(), eq(fileInfo), anyInt(), anyInt()))
+          .thenReturn(pendingSortedFileInfo);
+      fetchHandler.setPartitionsSorter(partitionFilesSorter);
+
+      PbOpenStream request =
+          PbOpenStream.newBuilder()
+              .setShuffleKey(shuffleKey)
+              .setFileName(fileName)
+              .setStartIndex(5)
+              .setEndIndex(10)
+              .build();
+      Future<?> receiveTask =
+          requestExecutor.submit(
+              () ->
+                  fetchHandler.receive(
+                      client,
+                      new RpcRequest(
+                          dummyRequestId,
+                          new NioManagedBuffer(
+                              new TransportMessage(MessageType.OPEN_STREAM, request.toByteArray())
+                                  .toByteBuffer())),
+                      createRpcResponseCallback(channel)));
+
+      receiveTask.get(1, TimeUnit.SECONDS);
+      assertNull(channel.readOutbound());
+
+      pendingSortedFileInfo.complete(fileInfo);
+
+      assertTrue(waitForOutbound(channel) instanceof RpcResponse);
+      verify(partitionFilesSorter)
+          .getSortedFileInfoAsync(anyString(), anyString(), eq(fileInfo), anyInt(), anyInt());
+    } finally {
+      requestExecutor.shutdownNow();
+      cleanup(fileInfo);
+    }
+  }
+
+  @Test
+  public void testBatchOpenStreamDoesNotBlockAndPreservesRequestOrder() throws Exception {
+    FileInfo fileInfo = null;
+    ExecutorService requestExecutor = Executors.newSingleThreadExecutor();
+    try {
+      fileInfo = prepare(1);
+      EmbeddedChannel channel = new EmbeddedChannel();
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+      FetchHandler fetchHandler = mockFetchHandler(fileInfo);
+      PartitionFilesSorter partitionFilesSorter = mock(PartitionFilesSorter.class);
+      CompletableFuture<FileInfo> firstSortedFileInfo = new CompletableFuture<>();
+      CompletableFuture<FileInfo> secondSortedFileInfo = new CompletableFuture<>();
+      String firstFileName = fileName + "-first";
+      String secondFileName = fileName + "-second";
+      when(partitionFilesSorter.getSortedFileInfoAsync(
+              eq(shuffleKey), eq(firstFileName), eq(fileInfo), anyInt(), anyInt()))
+          .thenReturn(firstSortedFileInfo);
+      when(partitionFilesSorter.getSortedFileInfoAsync(
+              eq(shuffleKey), eq(secondFileName), eq(fileInfo), anyInt(), anyInt()))
+          .thenReturn(secondSortedFileInfo);
+      fetchHandler.setPartitionsSorter(partitionFilesSorter);
+
+      PbOpenStreamList request =
+          PbOpenStreamList.newBuilder()
+              .setShuffleKey(shuffleKey)
+              .addFileName(firstFileName)
+              .addFileName(secondFileName)
+              .addStartIndex(5)
+              .addStartIndex(10)
+              .addEndIndex(10)
+              .addEndIndex(15)
+              .addReadLocalShuffle(false)
+              .addReadLocalShuffle(false)
+              .build();
+      Future<?> receiveTask =
+          requestExecutor.submit(
+              () ->
+                  fetchHandler.receive(
+                      client,
+                      new RpcRequest(
+                          dummyRequestId,
+                          new NioManagedBuffer(
+                              new TransportMessage(
+                                      MessageType.BATCH_OPEN_STREAM, request.toByteArray())
+                                  .toByteBuffer())),
+                      createRpcResponseCallback(channel)));
+
+      receiveTask.get(1, TimeUnit.SECONDS);
+      assertNull(channel.readOutbound());
+
+      secondSortedFileInfo.complete(fileInfo);
+      assertNull(channel.readOutbound());
+      firstSortedFileInfo.complete(fileInfo);
+
+      RpcResponse result = (RpcResponse) waitForOutbound(channel);
+      PbOpenStreamListResponse response =
+          TransportMessage.fromByteBuffer(result.body().nioByteBuffer()).getParsedPayload();
+      assertEquals(2, response.getStreamHandlerOptCount());
+      assertTrue(
+          response.getStreamHandlerOpt(0).getStreamHandler().getStreamId()
+              < response.getStreamHandlerOpt(1).getStreamHandler().getStreamId());
+    } finally {
+      requestExecutor.shutdownNow();
+      cleanup(fileInfo);
+    }
+  }
+
+  @Test
+  public void testOpenStreamReportsAsynchronousSortFailure() throws Exception {
+    FileInfo fileInfo = null;
+    try {
+      fileInfo = prepare(1);
+      EmbeddedChannel channel = new EmbeddedChannel();
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+      FetchHandler fetchHandler = mockFetchHandler(fileInfo);
+      PartitionFilesSorter partitionFilesSorter = mock(PartitionFilesSorter.class);
+      CompletableFuture<FileInfo> pendingSortedFileInfo = new CompletableFuture<>();
+      when(partitionFilesSorter.getSortedFileInfoAsync(
+              anyString(), anyString(), eq(fileInfo), anyInt(), anyInt()))
+          .thenReturn(pendingSortedFileInfo);
+      fetchHandler.setPartitionsSorter(partitionFilesSorter);
+
+      PbOpenStream request =
+          PbOpenStream.newBuilder()
+              .setShuffleKey(shuffleKey)
+              .setFileName(fileName)
+              .setStartIndex(5)
+              .setEndIndex(10)
+              .build();
+      fetchHandler.receive(
+          client,
+          new RpcRequest(
+              dummyRequestId,
+              new NioManagedBuffer(
+                  new TransportMessage(MessageType.OPEN_STREAM, request.toByteArray())
+                      .toByteBuffer())),
+          createRpcResponseCallback(channel));
+
+      assertNull(channel.readOutbound());
+      pendingSortedFileInfo.completeExceptionally(new IOException("sort failed"));
+
+      assertTrue(waitForOutbound(channel) instanceof RpcFailure);
     } finally {
       cleanup(fileInfo);
     }
@@ -339,7 +502,7 @@ public class FetchHandlerSuiteJ {
         client,
         new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamByteBuffer)),
         createRpcResponseCallback(channel));
-    RpcResponse result = channel.readOutbound();
+    RpcResponse result = (RpcResponse) waitForOutbound(channel);
     StreamHandle streamHandler = (StreamHandle) Message.decode(result.body().nioByteBuffer());
     if (endIndex == Integer.MAX_VALUE) {
       assertEquals(50, streamHandler.numChunks);
@@ -382,7 +545,7 @@ public class FetchHandlerSuiteJ {
         client,
         new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamByteBuffer)),
         createRpcResponseCallback(channel));
-    RpcResponse result = channel.readOutbound();
+    RpcResponse result = (RpcResponse) waitForOutbound(channel);
     PbStreamHandler streamHandler =
         TransportMessage.fromByteBuffer(result.body().nioByteBuffer()).getParsedPayload();
     if (endIndex == Integer.MAX_VALUE) {
@@ -481,5 +644,23 @@ public class FetchHandlerSuiteJ {
         channel.writeAndFlush(new RpcFailure(dummyRequestId, Throwables.getStackTraceAsString(e)));
       }
     };
+  }
+
+  private Object waitForOutbound(EmbeddedChannel channel) {
+    Object outbound = null;
+    long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+    while (outbound == null && System.nanoTime() < deadlineNanos) {
+      outbound = channel.readOutbound();
+      if (outbound == null) {
+        try {
+          Thread.sleep(10);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new AssertionError("Interrupted while waiting for an outbound message.", e);
+        }
+      }
+    }
+    assertNotNull("Timed out waiting for an outbound message.", outbound);
+    return outbound;
   }
 }
