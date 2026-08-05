@@ -1076,7 +1076,45 @@ private[celeborn] class Master(
       requestSlots.packed))
   }
 
+  private def selectWorkersForRequest(
+      requestWorkers: PbRequestWorkers,
+      availableWorkers: util.List[WorkerInfo]): util.List[WorkerInfo] = {
+    val maxWorkers =
+      if (requestWorkers.getMaxWorkers <= 0) splitSlotAssignMaxWorkers
+      else Math.min(splitSlotAssignMaxWorkers, requestWorkers.getMaxWorkers)
+    val storageType = StorageInfo.typesMap.get(requestWorkers.getStorageType)
+    if (storageType == null) {
+      return Collections.emptyList()
+    }
+    val eligibleWorkers = new util.ArrayList[WorkerInfo]()
+    availableWorkers.asScala
+      .filter { worker =>
+        (storageType != StorageInfo.Type.HDD && storageType != StorageInfo.Type.SSD) ||
+        worker.haveDisk
+      }
+      .foreach(eligibleWorkers.add)
+    if (eligibleWorkers.isEmpty) {
+      return Collections.emptyList()
+    }
+
+    val minWorkers = if (requestWorkers.getShouldReplicate) 2 else 1
+    val selectedWorkerCount =
+      Math.min(Math.max(minWorkers, maxWorkers), eligibleWorkers.size)
+    val startIndex = Random.nextInt(eligibleWorkers.size)
+    val selectedWorkers = new util.ArrayList[WorkerInfo](selectedWorkerCount)
+    selectedWorkers.addAll(eligibleWorkers.subList(
+      startIndex,
+      Math.min(eligibleWorkers.size, startIndex + selectedWorkerCount)))
+    if (startIndex + selectedWorkerCount > eligibleWorkers.size) {
+      selectedWorkers.addAll(eligibleWorkers.subList(
+        0,
+        startIndex + selectedWorkerCount - eligibleWorkers.size))
+    }
+    selectedWorkers
+  }
+
   def handleRequestWorkers(context: RpcCallContext, requestWorkers: PbRequestWorkers): Unit = {
+
     val excludedWorkerSet =
       requestWorkers.getExcludedWorkerSetList.asScala
         .map(PbSerDeUtils.fromPbWorkerInfo)
@@ -1088,30 +1126,23 @@ private[celeborn] class Master(
         requestWorkers.getTagsExpr,
         availableWorkers)
     }
-    val numAvailableWorkers = availableWorkers.size()
-    if (numAvailableWorkers == 0) {
+    if (availableWorkers.isEmpty) {
       logWarning(
-        s"Offer workers for ${requestWorkers.getApplicationId} failed due to no workers.")
+        s"Offer workers for ${requestWorkers.getApplicationId} failed due to no available workers.")
       context.reply(PbRequestWorkersResponse.newBuilder()
         .setStatus(StatusCode.WORKER_EXCLUDED.getValue)
         .build())
       return
     }
 
-    val maxWorkers =
-      if (requestWorkers.getMaxWorkers <= 0) splitSlotAssignMaxWorkers
-      else Math.min(splitSlotAssignMaxWorkers, requestWorkers.getMaxWorkers)
-    val minWorkers = if (requestWorkers.getShouldReplicate) 2 else 1
-    val numWorkers = Math.min(Math.max(minWorkers, maxWorkers), numAvailableWorkers)
-    val startIndex = Random.nextInt(numAvailableWorkers)
-    val selectedWorkers = new util.ArrayList[WorkerInfo](numWorkers)
-    selectedWorkers.addAll(availableWorkers.subList(
-      startIndex,
-      Math.min(numAvailableWorkers, startIndex + numWorkers)))
-    if (startIndex + numWorkers > numAvailableWorkers) {
-      selectedWorkers.addAll(availableWorkers.subList(
-        0,
-        startIndex + numWorkers - numAvailableWorkers))
+    val selectedWorkers = selectWorkersForRequest(requestWorkers, availableWorkers)
+    if (selectedWorkers.isEmpty) {
+      logWarning(
+        s"Offer workers for ${requestWorkers.getApplicationId} failed due to no eligible workers.")
+      context.reply(PbRequestWorkersResponse.newBuilder()
+        .setStatus(StatusCode.SLOT_NOT_AVAILABLE.getValue)
+        .build())
+      return
     }
 
     if (authEnabled) {
@@ -1120,7 +1151,11 @@ private[celeborn] class Master(
     context.reply(PbRequestWorkersResponse.newBuilder()
       .setStatus(StatusCode.SUCCESS.getValue)
       .addAllWorkers(
-        selectedWorkers.asScala.map(PbSerDeUtils.toPbWorkerInfo(_, true, true)).asJava)
+        selectedWorkers.asScala.map { worker =>
+          PbSerDeUtils.toPbWorkerInfo(worker, true, true).toBuilder
+            .setNetworkLocation(worker.networkLocation)
+            .build()
+        }.asJava)
       .build())
   }
 

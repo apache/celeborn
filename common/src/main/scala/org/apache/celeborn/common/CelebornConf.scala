@@ -3207,9 +3207,10 @@ object CelebornConf extends Logging {
     buildConf("celeborn.master.splitSlot.assign.maxWorkers")
       .categories("master")
       .version("0.7.0")
-      .doc("Max workers that split slots of the whole application's shuffle can be allocated on. " +
-        "Will choose the smaller positive one from Master side and Client side, " +
-        "see `celeborn.client.slot.assign.maxWorkers`.")
+      .doc("Maximum workers returned by each dynamic candidate refresh. The request limit is the " +
+        "smaller positive value of this setting and `celeborn.client.slot.assign.maxWorkers`. " +
+        "For replicated shuffle, an effective limit of one is raised to two. Workers already " +
+        "present in a shuffle snapshot are not counted against this limit.")
       .intConf
       .checkValue(_ > 0, "Must be positive.")
       .createWithDefault(500)
@@ -5595,8 +5596,9 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.shuffle.dynamicResourceEnabled")
       .categories("client")
       .version("0.6.0")
-      .doc("When enabled, ChangePartitionManager periodically refreshes candidate workers from the Master " +
-        "while handling change-partition requests.")
+      .doc("When enabled, ChangePartitionManager refreshes endpoint-ready worker candidates from " +
+        "the Master on demand while handling change-partition requests, and combines them with " +
+        "workers already present in the shuffle snapshot.")
       .booleanConf
       .createWithDefault(false)
 
@@ -5605,8 +5607,10 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.7.0")
       .doc(
-        "Minimum interval between RequestWorkers RPCs triggered by ChangePartitionManager when " +
-          s"`${CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key}` is true.")
+        "Minimum interval after a worker-candidate refresh attempt completes before " +
+          s"ChangePartitionManager may try again when `${CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key}` " +
+          "is true. Set to 0 to allow each change-partition handling cycle to refresh when no " +
+          "refresh is already in progress.")
       .timeConf(TimeUnit.MILLISECONDS)
       .checkValue(_ >= 0, "Must be non-negative.")
       .createWithDefaultString("30s")

@@ -282,25 +282,7 @@ class ChangePartitionManager(
       }
     }
 
-    val candidates = new util.HashSet[WorkerInfo]()
-    if (dynamicResourceEnabled) {
-      lifecycleManager.refreshEndpointReadyWorkersFromMaster(shuffleId)
-      candidates.addAll(
-        lifecycleManager.workerStatusTracker.endpointReadyWorkers
-          .filter(lifecycleManager.workerStatusTracker.workerAvailable)
-          .asJava)
-    }
-    if (candidates.isEmpty) {
-      val snapshotCandidates =
-        lifecycleManager
-          .workerSnapshots(shuffleId)
-          .asScala
-          .values
-          .map(_.workerInfo)
-          .filter(lifecycleManager.workerStatusTracker.workerAvailable)
-          .toSet
-      candidates.addAll(snapshotCandidates.asJava)
-    }
+    val candidates = collectCandidateWorkers(shuffleId)
 
     if (candidates.size < 1 || (pushReplicateEnabled && candidates.size < 2)) {
       logError("[Update partition] failed for not enough candidates for revive.")
@@ -355,6 +337,29 @@ class ChangePartitionManager(
         s"$changes.")
     }
     replySuccess(newPrimaryLocations.toArray)
+  }
+
+  private[client] def collectCandidateWorkers(shuffleId: Int): util.HashSet[WorkerInfo] = {
+    if (dynamicResourceEnabled) {
+      lifecycleManager.refreshEndpointReadyWorkersFromMaster(shuffleId)
+    }
+
+    val snapshotCandidates =
+      lifecycleManager
+        .workerSnapshots(shuffleId)
+        .asScala
+        .values
+        .map(_.workerInfo)
+        .filter(lifecycleManager.workerStatusTracker.workerAvailable)
+        .toSet
+    val candidates = new util.HashSet[WorkerInfo](snapshotCandidates.asJava)
+    if (dynamicResourceEnabled) {
+      candidates.addAll(
+        lifecycleManager.workerStatusTracker.endpointReadyWorkers
+          .filter(lifecycleManager.workerStatusTracker.workerAvailable)
+          .asJava)
+    }
+    candidates
   }
 
   private def reallocateChangePartitionRequestSlotsFromCandidates(

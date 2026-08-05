@@ -30,7 +30,7 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.network.protocol.SerdeVersion
-import org.apache.celeborn.common.protocol.{PartitionLocation, PbRequestWorkers, PbRequestWorkersResponse, PbReviseLostShuffles, PbReviseLostShufflesResponse, TransportModuleConstants}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PbRequestWorkers, PbRequestWorkersResponse, PbReviseLostShuffles, PbReviseLostShufflesResponse, StorageInfo, TransportModuleConstants}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroupResponse, MapperEnd, ReviseLostShuffles, ReviseLostShufflesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 
@@ -205,6 +205,7 @@ class UtilsSuite extends CelebornFunSuite {
       .setMaxWorkers(10)
       .setTagsExpr("tag-a,tag-b")
       .setShouldReplicate(true)
+      .setStorageType(StorageInfo.Type.HDD.getValue)
       .addExcludedWorkerSet(PbSerDeUtils.toPbWorkerInfo(excludedWorker, true, true))
       .build()
     val convertedRequest =
@@ -213,7 +214,9 @@ class UtilsSuite extends CelebornFunSuite {
 
     val response = PbRequestWorkersResponse.newBuilder()
       .setStatus(StatusCode.SUCCESS.getValue)
-      .addWorkers(PbSerDeUtils.toPbWorkerInfo(excludedWorker, true, true))
+      .addWorkers(PbSerDeUtils.toPbWorkerInfo(excludedWorker, true, true).toBuilder
+        .setNetworkLocation("/rack-1")
+        .build())
       .build()
     val convertedResponse =
       Utils.fromTransportMessage(Utils.toTransportMessage(response))
