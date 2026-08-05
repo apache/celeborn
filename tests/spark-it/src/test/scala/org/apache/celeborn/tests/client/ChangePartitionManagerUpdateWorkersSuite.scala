@@ -22,6 +22,10 @@ import java.util.Collections
 
 import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, mapAsScalaMapConverter}
 
+import org.scalatest.concurrent.Eventually.eventually
+import org.scalatest.concurrent.Futures.{interval, timeout}
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+
 import org.apache.celeborn.client.{ChangePartitionManager, ChangePartitionRequest, LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.common.CelebornConf
@@ -100,7 +104,8 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     setUpWorkers(workerConfForAdding, 2)
     assert(workerInfos.size == 3)
 
-    0 until 10 foreach { partitionId: Int =>
+    var partitionId = 0
+    eventually(timeout(10.seconds), interval(0.milliseconds)) {
       val req = ChangePartitionRequest(
         null,
         shuffleId,
@@ -115,9 +120,9 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         shuffleId,
         Array(req),
         lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
+      partitionId += 1
+      assert(lifecycleManager.workerSnapshots(shuffleId).size() > 1)
     }
-    Thread.sleep(5000)
-    assert(lifecycleManager.workerSnapshots(shuffleId).size() > 1)
 
     lifecycleManager.stop()
   }
@@ -202,7 +207,8 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     setUpWorkers(workerConfForAdding, 1)
     assert(workerInfos.size == 3)
 
-    0 until 10 foreach { partitionId: Int =>
+    var partitionId = 0
+    eventually(timeout(10.seconds), interval(0.milliseconds)) {
       val req = ChangePartitionRequest(
         null,
         shuffleId,
@@ -217,17 +223,17 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         shuffleId,
         Array(req),
         lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
+      partitionId += 1
+
+      val snapshotCandidates =
+        lifecycleManager
+          .workerSnapshots(shuffleId)
+          .asScala
+          .values
+          .map(_.workerInfo)
+          .filter(lifecycleManager.workerStatusTracker.workerAvailable)
+      assert(snapshotCandidates.size == 2)
     }
-
-    val snapshotCandidates =
-      lifecycleManager
-        .workerSnapshots(shuffleId)
-        .asScala
-        .values
-        .map(_.workerInfo)
-        .filter(lifecycleManager.workerStatusTracker.workerAvailable)
-
-    assert(snapshotCandidates.size == 2)
     lifecycleManager.stop()
   }
 
