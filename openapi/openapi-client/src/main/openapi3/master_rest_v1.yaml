@@ -1301,7 +1301,7 @@ components:
             $ref: '#/components/schemas/WorkerId'
       required:
         - eventType
-        - worker
+        - workers
 
     RatisElectionTransferRequest:
       type: object
