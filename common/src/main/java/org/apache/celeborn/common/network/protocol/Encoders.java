@@ -32,8 +32,13 @@ public class Encoders {
     }
 
     public static void encode(ByteBuf buf, String s) {
-      buf.writeInt(ByteBufUtil.utf8Bytes(s));
-      ByteBufUtil.writeUtf8(buf, s);
+      // Reserve the length slot, write UTF-8 once, then backfill the actual byte length.
+      // This avoids a second full traversal of the string that utf8Bytes(s) would perform
+      // and matches the wire format callers expect: length followed by UTF-8 bytes.
+      int lenIdx = buf.writerIndex();
+      buf.writeInt(0);
+      int written = ByteBufUtil.writeUtf8(buf, s);
+      buf.setInt(lenIdx, written);
     }
 
     public static String decode(ByteBuf buf) {
