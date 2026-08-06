@@ -269,7 +269,7 @@ class MasterSuite extends AnyFunSuite
       .setUserIdentifier(
         PbSerDeUtils.toPbUserIdentifier(new UserIdentifier("tenant", "user")))
       .setMaxWorkers(3)
-      .setStorageType(StorageInfo.Type.MEMORY.getValue)
+      .setAvailableStorageTypes(StorageInfo.MEMORY_MASK)
       .build()
     val response = requestWorkers(master, request)
     val responseWorkers =
@@ -371,7 +371,7 @@ class MasterSuite extends AnyFunSuite
     val localResponse = requestWorkers(
       master,
       request.toBuilder
-        .setStorageType(StorageInfo.Type.HDD.getValue)
+        .setAvailableStorageTypes(StorageInfo.LOCAL_DISK_MASK)
         .build())
     assert(StatusCode.fromValue(localResponse.getStatus) === StatusCode.SUCCESS)
     assert(localResponse.getWorkersList.asScala.map(_.getHost).toSet === Set(diskWorker.host))
@@ -379,7 +379,7 @@ class MasterSuite extends AnyFunSuite
     val noLocalDiskResponse = requestWorkers(
       master,
       request.toBuilder
-        .setStorageType(StorageInfo.Type.HDD.getValue)
+        .setAvailableStorageTypes(StorageInfo.LOCAL_DISK_MASK)
         .addExcludedWorkerSet(PbSerDeUtils.toPbWorkerInfo(diskWorker, true, true))
         .build())
     assert(StatusCode.fromValue(noLocalDiskResponse.getStatus) === StatusCode.SLOT_NOT_AVAILABLE)
@@ -388,10 +388,18 @@ class MasterSuite extends AnyFunSuite
     val remoteResponse = requestWorkers(
       master,
       request.toBuilder
-        .setStorageType(StorageInfo.Type.HDFS.getValue)
+        .setAvailableStorageTypes(StorageInfo.HDFS_MASK)
         .build())
     assert(StatusCode.fromValue(remoteResponse.getStatus) === StatusCode.SUCCESS)
     assert(remoteResponse.getWorkersList.asScala.map(_.getHost).toSet === workers.map(_.host).toSet)
+
+    val mixedResponse = requestWorkers(
+      master,
+      request.toBuilder
+        .setAvailableStorageTypes(StorageInfo.MEMORY_MASK | StorageInfo.LOCAL_DISK_MASK)
+        .build())
+    assert(StatusCode.fromValue(mixedResponse.getStatus) === StatusCode.SUCCESS)
+    assert(mixedResponse.getWorkersList.asScala.map(_.getHost).toSet === Set(diskWorker.host))
 
     master.rpcEnv.shutdown()
   }

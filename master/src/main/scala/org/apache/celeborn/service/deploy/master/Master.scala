@@ -22,7 +22,7 @@ import java.net.BindException
 import java.util
 import java.util.{Map => JMap}
 import java.util.Collections
-import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ExecutorService, ScheduledFuture, ThreadLocalRandom, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
 
@@ -1082,14 +1082,10 @@ private[celeborn] class Master(
     val maxWorkers =
       if (requestWorkers.getMaxWorkers <= 0) splitSlotAssignMaxWorkers
       else Math.min(splitSlotAssignMaxWorkers, requestWorkers.getMaxWorkers)
-    val storageType = StorageInfo.typesMap.get(requestWorkers.getStorageType)
-    if (storageType == null) {
-      return Collections.emptyList()
-    }
     val eligibleWorkers = new util.ArrayList[WorkerInfo]()
     availableWorkers.asScala
       .filter { worker =>
-        (storageType != StorageInfo.Type.HDD && storageType != StorageInfo.Type.SSD) ||
+        !StorageInfo.localDiskAvailable(requestWorkers.getAvailableStorageTypes) ||
         worker.haveDisk
       }
       .foreach(eligibleWorkers.add)
@@ -1100,7 +1096,7 @@ private[celeborn] class Master(
     val minWorkers = if (requestWorkers.getShouldReplicate) 2 else 1
     val selectedWorkerCount =
       Math.min(Math.max(minWorkers, maxWorkers), eligibleWorkers.size)
-    val startIndex = Random.nextInt(eligibleWorkers.size)
+    val startIndex = ThreadLocalRandom.current().nextInt(eligibleWorkers.size)
     val selectedWorkers = new util.ArrayList[WorkerInfo](selectedWorkerCount)
     selectedWorkers.addAll(eligibleWorkers.subList(
       startIndex,

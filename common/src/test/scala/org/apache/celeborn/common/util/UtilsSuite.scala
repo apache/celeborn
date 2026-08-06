@@ -205,7 +205,7 @@ class UtilsSuite extends CelebornFunSuite {
       .setMaxWorkers(10)
       .setTagsExpr("tag-a,tag-b")
       .setShouldReplicate(true)
-      .setStorageType(StorageInfo.Type.HDD.getValue)
+      .setAvailableStorageTypes(StorageInfo.LOCAL_DISK_MASK)
       .addExcludedWorkerSet(PbSerDeUtils.toPbWorkerInfo(excludedWorker, true, true))
       .build()
     val convertedRequest =

@@ -1979,7 +1979,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       .setMaxWorkers(slotsAssignMaxWorkers)
       .setTagsExpr(clientTagsExpr)
       .setShouldReplicate(pushReplicateEnabled)
-      .setStorageType(storageTypes.head.getValue)
+      .setAvailableStorageTypes(availableStorageTypes)
       .addAllExcludedWorkerSet(excludedWorkerSet.map(
         PbSerDeUtils.toPbWorkerInfo(_, true, true)).asJava)
       .build()

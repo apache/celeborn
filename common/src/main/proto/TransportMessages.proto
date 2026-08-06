@@ -334,7 +334,7 @@ message PbRequestWorkers {
   string tagsExpr = 4;
   repeated PbWorkerInfo excludedWorkerSet = 5;
   bool shouldReplicate = 6;
-  int32 storageType = 7;
+  int32 availableStorageTypes = 7;
 }
 
 message PbSlotInfo {
