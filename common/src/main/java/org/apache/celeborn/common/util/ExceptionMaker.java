@@ -19,5 +19,5 @@ package org.apache.celeborn.common.util;
 
 public interface ExceptionMaker {
   Exception makeFetchFailureException(
-      int appShuffleId, int shuffleId, int partitionId, Exception e);
+      int appShuffleId, int shuffleId, int partitionId, String workerHost, Exception e);
 }

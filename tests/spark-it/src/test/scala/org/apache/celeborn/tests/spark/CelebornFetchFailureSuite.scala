@@ -319,6 +319,7 @@ class CelebornFetchFailureSuite extends AnyFunSuite
             appShuffleId,
             -1,
             context.partitionId(),
+            "unknown",
             new IOException("forced"))
         }
         iter
