@@ -662,18 +662,23 @@ public class ShuffleClientSuiteJ {
     int threads = 16;
     CountDownLatch done = new CountDownLatch(threads);
     AtomicReference<Exception> failure = new AtomicReference<>();
+    Thread[] workers = new Thread[threads];
     for (int i = 0; i < threads; i++) {
-      new Thread(
+      Thread t =
+          new Thread(
               () -> {
                 try {
                   shuffleClient.updateFileGroup(0, 0);
                 } catch (Exception e) {
-                  failure.set(e);
+                  failure.compareAndSet(null, e);
                 } finally {
                   done.countDown();
                 }
-              })
-          .start();
+              },
+              "test-updateFileGroup-" + i);
+      t.setDaemon(true);
+      workers[i] = t;
+      t.start();
     }
     Assert.assertTrue("all callers should finish", done.await(30, TimeUnit.SECONDS));
     Assert.assertNull(failure.get());
