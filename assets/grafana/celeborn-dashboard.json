@@ -17053,7 +17053,28 @@
                   "mode": "off"
                 }
               },
-              "mappings": [],
+              "mappings": [
+                {
+                  "options": {
+                    "0": {
+                      "text": "HEALTHY"
+                    },
+                    "1": {
+                      "text": "READ_OR_WRITE_FAILURE"
+                    },
+                    "2": {
+                      "text": "IO_HANG"
+                    },
+                    "3": {
+                      "text": "HIGH_DISK_USAGE"
+                    },
+                    "4": {
+                      "text": "CRITICAL_ERROR"
+                    }
+                  },
+                  "type": "value"
+                }
+              ],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
@@ -17093,7 +17114,7 @@
               },
               "editorMode": "code",
               "expr": "metrics_DiskStatus_Value{instance=~\"${instance}\"}",
-              "legendFormat": "${baseLegend} {{mountpoint}}",
+              "legendFormat": "{{mountpoint}} ${baseLegend}",
               "range": true,
               "refId": "A"
             }
