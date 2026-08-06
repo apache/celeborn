@@ -393,8 +393,8 @@ public class SlotsAllocator {
    * @param shouldReplicate if replication is enabled within the cluster
    * @param shouldRackAware if rack-aware replication is enabled within the cluster.
    * @param availableStorageTypes available storage types coming from the offer slots request.
-   * @param skipLocationsOnSameWorkerCheck whether primary and replica use the same worker candidate
-   *     list, in which case equal indexes must be skipped
+   * @param sameWorkerCandidates whether primary and replica indexes refer to the same worker
+   *     candidate list, in which case equal indexes identify the same worker
    * @return the partitionIds that were not able to be assigned slots in this iteration with the
    *     current primary and replica worker candidates and slot budgets.
    */
@@ -407,7 +407,7 @@ public class SlotsAllocator {
       boolean shouldReplicate,
       boolean shouldRackAware,
       int availableStorageTypes,
-      boolean skipLocationsOnSameWorkerCheck) {
+      boolean sameWorkerCandidates) {
     if (primaryWorkers.isEmpty() || (shouldReplicate && replicaWorkers.isEmpty())) {
       return partitionIds;
     }
@@ -447,7 +447,7 @@ public class SlotsAllocator {
                   replicaWorkers.size(),
                   replicaIndex,
                   index ->
-                      !(skipLocationsOnSameWorkerCheck && index == selectedPrimaryIndex)
+                      !(sameWorkerCandidates && index == selectedPrimaryIndex)
                           && haveUsableSlots(slotBudgets, replicaWorkers.get(index))
                           && satisfyRackAware(
                               shouldRackAware, primaryWorker, replicaWorkers.get(index)));
@@ -457,7 +457,7 @@ public class SlotsAllocator {
                   replicaWorkers.size(),
                   replicaIndex,
                   index ->
-                      !(skipLocationsOnSameWorkerCheck && index == selectedPrimaryIndex)
+                      !(sameWorkerCandidates && index == selectedPrimaryIndex)
                           && satisfyRackAware(true, primaryWorker, replicaWorkers.get(index)));
         } else if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
           selectedReplicaIndex =
@@ -465,7 +465,7 @@ public class SlotsAllocator {
                   replicaWorkers.size(),
                   replicaIndex,
                   index ->
-                      !(skipLocationsOnSameWorkerCheck && index == selectedPrimaryIndex)
+                      !(sameWorkerCandidates && index == selectedPrimaryIndex)
                           && replicaWorkers.get(index).haveDisk());
         } else {
           selectedReplicaIndex = replicaIndex;
