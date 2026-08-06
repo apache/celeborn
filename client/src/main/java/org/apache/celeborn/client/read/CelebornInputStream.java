@@ -991,14 +991,22 @@ public abstract class CelebornInputStream extends InputStream {
         if (exceptionMaker != null) {
           if (shuffleClient.reportShuffleFetchFailure(appShuffleId, shuffleId, taskId)) {
             /*
-             * [[ExceptionMaker.makeException]], for spark applications with celeborn.client.spark.stageRerun.enabled enabled will result in creating
+             * [[ExceptionMaker.makeFetchFailureException]], for spark applications with celeborn.client.spark.stageRerun.enabled enabled will result in creating
              * a FetchFailedException; and that will make the TaskContext as failed with shuffle fetch issues - see SPARK-19276 for more.
              * Given this, Celeborn can wrap the FetchFailedException with our CelebornIOException
              */
+            String workerHost =
+                Optional.ofNullable(currentReader)
+                    .map(
+                        r ->
+                            Optional.ofNullable(r.getLocation())
+                                .map(l -> l.getHost())
+                                .orElse("unknown"))
+                    .orElse("unknown");
             ioe =
                 new CelebornIOException(
                     exceptionMaker.makeFetchFailureException(
-                        appShuffleId, shuffleId, partitionId, e));
+                        appShuffleId, shuffleId, partitionId, workerHost, e));
           }
         }
         throw ioe;
