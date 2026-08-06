@@ -1360,8 +1360,9 @@ object Utils extends Logging {
         try {
           TimeUnit.MILLISECONDS.sleep(retryWaitMs)
         } catch {
-          case _: InterruptedException =>
-            throw e
+          case interrupted: InterruptedException =>
+            Thread.currentThread().interrupt()
+            throw interrupted
         }
       } else {
         throw e

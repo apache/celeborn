@@ -29,8 +29,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import scala.reflect.ClassTag;
@@ -57,6 +59,7 @@ import org.apache.celeborn.common.protocol.CompressionCodec;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbReadReducerPartitionEnd;
 import org.apache.celeborn.common.protocol.PbReadReducerPartitionEndResponse;
+import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroup;
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse$;
 import org.apache.celeborn.common.protocol.message.ControlMessages.RegisterShuffleResponse$;
 import org.apache.celeborn.common.protocol.message.StatusCode;
@@ -109,6 +112,41 @@ public class ShuffleClientSuiteJ {
 
   private static final byte[] TEST_BUF1 = "hello world".getBytes(StandardCharsets.UTF_8);
   private final int BATCH_HEADER_SIZE = 4 * 4;
+
+  private static void assertWaitingOnInFlightLoad(Thread thread) throws InterruptedException {
+    long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+    Thread.State state = thread.getState();
+    while (System.nanoTime() < deadlineNanos) {
+      state = thread.getState();
+      if (state == Thread.State.WAITING || state == Thread.State.TIMED_WAITING) {
+        return;
+      }
+      Thread.sleep(10);
+    }
+    Assert.fail("Expected thread to wait on the in-flight reducer file group load, state=" + state);
+  }
+
+  private static void assertThreadBlocked(Thread thread) throws InterruptedException {
+    long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+    Thread.State state = thread.getState();
+    while (System.nanoTime() < deadlineNanos) {
+      state = thread.getState();
+      if (state == Thread.State.BLOCKED) {
+        return;
+      }
+      Thread.sleep(10);
+    }
+    Assert.fail("Expected thread to block on reducer file group publication, state=" + state);
+  }
+
+  private static void awaitLatch(CountDownLatch latch) {
+    try {
+      Assert.assertTrue(latch.await(10, TimeUnit.SECONDS));
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new AssertionError(e);
+    }
+  }
 
   @Test
   public void testPushData() throws IOException, InterruptedException {
@@ -439,7 +477,10 @@ public class ShuffleClientSuiteJ {
                   Collections.emptySet(),
                   Collections.emptyMap(),
                   new byte[0],
-                  SerdeVersion.V1);
+                  SerdeVersion.V1,
+                  0,
+                  0,
+                  false);
             });
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
@@ -453,7 +494,10 @@ public class ShuffleClientSuiteJ {
                   Collections.emptySet(),
                   Collections.emptyMap(),
                   new byte[0],
-                  SerdeVersion.V1);
+                  SerdeVersion.V1,
+                  0,
+                  0,
+                  false);
             });
 
     shuffleClient =
@@ -484,13 +528,15 @@ public class ShuffleClientSuiteJ {
   }
 
   @Test
-  public void testUpdateReducerFileGroupNonFetchFailureExceptions() {
+  public void testUpdateReducerFileGroupNonFetchFailureExceptions() throws CelebornIOException {
     CelebornConf conf = new CelebornConf();
     conf.set("celeborn.client.spark.stageRerun.enabled", "true");
     Map<Integer, Set<PartitionLocation>> locations = new HashMap<>();
+    AtomicInteger unregisteredRpcCalls = new AtomicInteger();
     when(endpointRef.askSync(any(), any(), any()))
         .thenAnswer(
             t -> {
+              unregisteredRpcCalls.incrementAndGet();
               return GetReducerFileGroupResponse$.MODULE$.apply(
                   StatusCode.SHUFFLE_UNREGISTERED,
                   locations,
@@ -498,12 +544,16 @@ public class ShuffleClientSuiteJ {
                   Collections.emptySet(),
                   Collections.emptyMap(),
                   new byte[0],
-                  SerdeVersion.V1);
+                  SerdeVersion.V1,
+                  0,
+                  0,
+                  false);
             });
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
         .thenAnswer(
             t -> {
+              unregisteredRpcCalls.incrementAndGet();
               return GetReducerFileGroupResponse$.MODULE$.apply(
                   StatusCode.SHUFFLE_UNREGISTERED,
                   locations,
@@ -511,18 +561,19 @@ public class ShuffleClientSuiteJ {
                   Collections.emptySet(),
                   Collections.emptyMap(),
                   new byte[0],
-                  SerdeVersion.V1);
+                  SerdeVersion.V1,
+                  0,
+                  0,
+                  false);
             });
 
     shuffleClient =
         new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
     shuffleClient.setupLifecycleManagerRef(endpointRef);
 
-    try {
-      shuffleClient.updateFileGroup(0, 0);
-    } catch (CelebornIOException e) {
-      Assert.assertTrue(e.getCause() == null);
-    }
+    Assert.assertNotNull(shuffleClient.updateFileGroup(0, 0));
+    Assert.assertNotNull(shuffleClient.updateFileGroup(0, 1));
+    Assert.assertEquals(1, unregisteredRpcCalls.get());
 
     when(endpointRef.askSync(any(), any(), any()))
         .thenAnswer(
@@ -534,7 +585,10 @@ public class ShuffleClientSuiteJ {
                   Collections.emptySet(),
                   Collections.emptyMap(),
                   new byte[0],
-                  SerdeVersion.V1);
+                  SerdeVersion.V1,
+                  0,
+                  0,
+                  false);
             });
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
@@ -547,18 +601,19 @@ public class ShuffleClientSuiteJ {
                   Collections.emptySet(),
                   Collections.emptyMap(),
                   new byte[0],
-                  SerdeVersion.V1);
+                  SerdeVersion.V1,
+                  0,
+                  0,
+                  false);
             });
 
     shuffleClient =
         new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
     shuffleClient.setupLifecycleManagerRef(endpointRef);
 
-    try {
-      shuffleClient.updateFileGroup(0, 0);
-    } catch (CelebornIOException e) {
-      Assert.assertTrue(e.getCause() == null);
-    }
+    CelebornIOException stageEndTimeout =
+        Assert.assertThrows(CelebornIOException.class, () -> shuffleClient.updateFileGroup(0, 0));
+    Assert.assertNull(stageEndTimeout.getCause());
 
     when(endpointRef.askSync(any(), any(), any()))
         .thenAnswer(
@@ -570,7 +625,10 @@ public class ShuffleClientSuiteJ {
                   Collections.emptySet(),
                   Collections.emptyMap(),
                   new byte[0],
-                  SerdeVersion.V1);
+                  SerdeVersion.V1,
+                  0,
+                  0,
+                  false);
             });
 
     when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
@@ -583,18 +641,19 @@ public class ShuffleClientSuiteJ {
                   Collections.emptySet(),
                   Collections.emptyMap(),
                   new byte[0],
-                  SerdeVersion.V1);
+                  SerdeVersion.V1,
+                  0,
+                  0,
+                  false);
             });
 
     shuffleClient =
         new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
     shuffleClient.setupLifecycleManagerRef(endpointRef);
 
-    try {
-      shuffleClient.updateFileGroup(0, 0);
-    } catch (CelebornIOException e) {
-      Assert.assertTrue(e.getCause() == null);
-    }
+    CelebornIOException shuffleDataLost =
+        Assert.assertThrows(CelebornIOException.class, () -> shuffleClient.updateFileGroup(0, 0));
+    Assert.assertNull(shuffleDataLost.getCause());
   }
 
   @Test
@@ -805,5 +864,1084 @@ public class ShuffleClientSuiteJ {
             Utils.makeMapKey(TEST_SHUFFLE_ID, TEST_MAP_ID, TEST_ATTEMPT_ID + 1));
     int[] crc1 = pushState1.getCRC32PerPartition(true, 2);
     assertEquals(0, crc1[0]);
+  }
+
+  @Test
+  public void testUpdateReducerFileGroupEmptyRangeDoesNotLoadMetadata() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    AtomicInteger rpcCalls = new AtomicInteger();
+
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            invocation -> {
+              rpcCalls.incrementAndGet();
+              return null;
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    ShuffleClientImpl.ReduceFileGroups fileGroups = shuffleClient.updateFileGroup(7, 2, 2);
+
+    Assert.assertTrue(fileGroups.partitionGroups.isEmpty());
+    Assert.assertNull(fileGroups.mapAttempts);
+    Assert.assertTrue(fileGroups.partitionIds.isEmpty());
+    Assert.assertTrue(fileGroups.pushFailedBatches.isEmpty());
+    Assert.assertEquals(0, rpcCalls.get());
+    Assert.assertFalse(shuffleClient.hasReducerFileGroupRangeCache(7));
+  }
+
+  @Test
+  public void testLegacyUpdateReducerFileGroupOverloadPreservesSubclassDispatch() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    AtomicInteger calls = new AtomicInteger();
+    ShuffleClientImpl.ReduceFileGroups expected = new ShuffleClientImpl.ReduceFileGroups();
+    ShuffleClientImpl overriddenClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock")) {
+          @Override
+          public ShuffleClientImpl.ReduceFileGroups updateFileGroup(
+              int shuffleId, int partitionId, boolean isSegmentGranularityVisible) {
+            Assert.assertEquals(7, shuffleId);
+            Assert.assertEquals(2, partitionId);
+            Assert.assertFalse(isSegmentGranularityVisible);
+            calls.incrementAndGet();
+            return expected;
+          }
+        };
+
+    try {
+      Assert.assertSame(expected, overriddenClient.updateFileGroup(7, 2));
+      Assert.assertEquals(1, calls.get());
+    } finally {
+      overriddenClient.shutdown();
+    }
+  }
+
+  @Test
+  public void testUpdateReducerFileGroupConcurrentLoadsShareSingleRpc() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    Map<Integer, Set<PartitionLocation>> locations = new HashMap<>();
+    CountDownLatch rpcStarted = new CountDownLatch(1);
+    CountDownLatch releaseRpc = new CountDownLatch(1);
+    CountDownLatch secondThreadStarted = new CountDownLatch(1);
+    AtomicInteger rpcCalls = new AtomicInteger();
+
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            invocation -> {
+              GetReducerFileGroup request = invocation.getArgument(0);
+              rpcCalls.incrementAndGet();
+              rpcStarted.countDown();
+              releaseRpc.await(10, TimeUnit.SECONDS);
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SUCCESS,
+                  locations,
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap(),
+                  new byte[0],
+                  SerdeVersion.V1,
+                  request.startPartition(),
+                  request.endPartition(),
+                  true);
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    AtomicReference<ShuffleClientImpl.ReduceFileGroups> firstResult = new AtomicReference<>();
+    AtomicReference<ShuffleClientImpl.ReduceFileGroups> secondResult = new AtomicReference<>();
+    AtomicReference<Exception> firstException = new AtomicReference<>();
+    AtomicReference<Exception> secondException = new AtomicReference<>();
+
+    Thread firstThread =
+        new Thread(
+            () -> {
+              try {
+                firstResult.set(shuffleClient.updateFileGroup(0, 0));
+              } catch (Exception e) {
+                firstException.set(e);
+              }
+            });
+    Thread secondThread =
+        new Thread(
+            () -> {
+              secondThreadStarted.countDown();
+              try {
+                secondResult.set(shuffleClient.updateFileGroup(0, 0));
+              } catch (Exception e) {
+                secondException.set(e);
+              }
+            });
+
+    firstThread.start();
+    Assert.assertTrue(rpcStarted.await(10, TimeUnit.SECONDS));
+    secondThread.start();
+    Assert.assertTrue(secondThreadStarted.await(10, TimeUnit.SECONDS));
+    assertWaitingOnInFlightLoad(secondThread);
+
+    Assert.assertEquals(1, rpcCalls.get());
+
+    releaseRpc.countDown();
+    firstThread.join(10 * 1000);
+    secondThread.join(10 * 1000);
+
+    Assert.assertFalse(firstThread.isAlive());
+    Assert.assertFalse(secondThread.isAlive());
+    Assert.assertNull(firstException.get());
+    Assert.assertNull(secondException.get());
+    Assert.assertNotNull(firstResult.get());
+    Assert.assertNotNull(secondResult.get());
+    Assert.assertSame(firstResult.get(), secondResult.get());
+  }
+
+  @Test
+  public void testWaitingReducerFileGroupLoadCanBeInterrupted() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    Map<Integer, Set<PartitionLocation>> locations = new HashMap<>();
+    CountDownLatch rpcStarted = new CountDownLatch(1);
+    CountDownLatch releaseRpc = new CountDownLatch(1);
+    AtomicInteger rpcCalls = new AtomicInteger();
+
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            invocation -> {
+              GetReducerFileGroup request = invocation.getArgument(0);
+              rpcCalls.incrementAndGet();
+              rpcStarted.countDown();
+              releaseRpc.await(10, TimeUnit.SECONDS);
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SUCCESS,
+                  locations,
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap(),
+                  new byte[0],
+                  SerdeVersion.V1,
+                  request.startPartition(),
+                  request.endPartition(),
+                  true);
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    AtomicReference<Exception> ownerException = new AtomicReference<>();
+    AtomicReference<Exception> waiterException = new AtomicReference<>();
+    Thread owner =
+        new Thread(
+            () -> {
+              try {
+                shuffleClient.updateFileGroup(0, 0);
+              } catch (Exception e) {
+                ownerException.set(e);
+              }
+            });
+    Thread waiter =
+        new Thread(
+            () -> {
+              try {
+                shuffleClient.updateFileGroup(0, 0);
+              } catch (Exception e) {
+                waiterException.set(e);
+              }
+            });
+
+    owner.start();
+    Assert.assertTrue(rpcStarted.await(10, TimeUnit.SECONDS));
+    waiter.start();
+    assertWaitingOnInFlightLoad(waiter);
+
+    waiter.interrupt();
+    waiter.join(10 * 1000);
+
+    Assert.assertFalse(waiter.isAlive());
+    Assert.assertTrue(owner.isAlive());
+    Assert.assertTrue(waiterException.get() instanceof CelebornIOException);
+    Assert.assertTrue(waiterException.get().getCause() instanceof InterruptedException);
+    Assert.assertEquals(1, rpcCalls.get());
+
+    releaseRpc.countDown();
+    owner.join(10 * 1000);
+    Assert.assertFalse(owner.isAlive());
+    Assert.assertNull(ownerException.get());
+  }
+
+  @Test
+  public void testInterruptedReducerFileGroupOwnerDoesNotFailExactRangeWaiter() throws Exception {
+    assertInterruptedReducerFileGroupOwnerDoesNotFailWaiter(0);
+  }
+
+  @Test
+  public void testInterruptedReducerFileGroupOwnerDoesNotFailColdRangeWaiter() throws Exception {
+    assertInterruptedReducerFileGroupOwnerDoesNotFailWaiter(1);
+  }
+
+  private void assertInterruptedReducerFileGroupOwnerDoesNotFailWaiter(int waiterPartition)
+      throws Exception {
+    CelebornConf conf = new CelebornConf();
+    CountDownLatch firstRpcStarted = new CountDownLatch(1);
+    CountDownLatch releaseFirstRpc = new CountDownLatch(1);
+    AtomicInteger rpcCalls = new AtomicInteger();
+    AtomicReference<GetReducerFileGroup> retryRequest = new AtomicReference<>();
+
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            invocation -> {
+              GetReducerFileGroup request = invocation.getArgument(0);
+              if (rpcCalls.incrementAndGet() == 1) {
+                firstRpcStarted.countDown();
+                releaseFirstRpc.await(10, TimeUnit.SECONDS);
+              } else {
+                retryRequest.set(request);
+              }
+              Map<Integer, Set<PartitionLocation>> locations = new HashMap<>();
+              locations.put(request.startPartition(), Collections.emptySet());
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SUCCESS,
+                  locations,
+                  new int[] {0},
+                  Collections.emptySet(),
+                  Collections.emptyMap(),
+                  new byte[0],
+                  SerdeVersion.V1,
+                  request.startPartition(),
+                  request.endPartition(),
+                  true);
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    AtomicReference<Throwable> ownerException = new AtomicReference<>();
+    AtomicReference<ShuffleClientImpl.ReduceFileGroups> waiterResult = new AtomicReference<>();
+    AtomicReference<Throwable> waiterException = new AtomicReference<>();
+    Thread owner =
+        new Thread(
+            () -> {
+              try {
+                shuffleClient.updateFileGroup(0, 0);
+              } catch (Throwable e) {
+                ownerException.set(e);
+              }
+            });
+    Thread waiter =
+        new Thread(
+            () -> {
+              try {
+                waiterResult.set(shuffleClient.updateFileGroup(0, waiterPartition));
+              } catch (Throwable e) {
+                waiterException.set(e);
+              }
+            });
+
+    owner.start();
+    Assert.assertTrue(firstRpcStarted.await(10, TimeUnit.SECONDS));
+    waiter.start();
+    assertWaitingOnInFlightLoad(waiter);
+
+    owner.interrupt();
+    owner.join(10 * 1000);
+    waiter.join(10 * 1000);
+
+    Assert.assertFalse(owner.isAlive());
+    Assert.assertFalse(waiter.isAlive());
+    Assert.assertTrue(ownerException.get() instanceof CelebornIOException);
+    Assert.assertTrue(ownerException.get().getCause() instanceof InterruptedException);
+    Assert.assertNull(waiterException.get());
+    Assert.assertNotNull(waiterResult.get());
+    Assert.assertEquals(
+        Collections.singleton(waiterPartition), waiterResult.get().partitionGroups.keySet());
+    Assert.assertEquals(2, rpcCalls.get());
+    Assert.assertEquals(waiterPartition, retryRequest.get().startPartition());
+    Assert.assertEquals(waiterPartition + 1, retryRequest.get().endPartition());
+    Assert.assertFalse(retryRequest.get().omitMapAttempts());
+  }
+
+  @Test
+  public void testUpdateReducerFileGroupWarmDifferentRangesDoNotWaitForEachOther()
+      throws Exception {
+    CelebornConf conf = new CelebornConf();
+    Map<Integer, Set<PartitionLocation>> locations = new HashMap<>();
+    int[] mapAttempts = new int[] {0};
+    CountDownLatch slowRpcStarted = new CountDownLatch(1);
+    CountDownLatch releaseSlowRpc = new CountDownLatch(1);
+    CountDownLatch fastRpcFinished = new CountDownLatch(1);
+    AtomicInteger rpcCalls = new AtomicInteger();
+
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            invocation -> {
+              GetReducerFileGroup request = invocation.getArgument(0);
+              rpcCalls.incrementAndGet();
+              Assert.assertTrue(request.hasPartitionRange());
+              if (request.startPartition() == 2) {
+                Assert.assertEquals(3, request.endPartition());
+                Assert.assertFalse(request.omitMapAttempts());
+              } else if (request.startPartition() == 0) {
+                Assert.assertEquals(1, request.endPartition());
+                Assert.assertTrue(request.omitMapAttempts());
+                slowRpcStarted.countDown();
+                releaseSlowRpc.await(10, TimeUnit.SECONDS);
+              } else {
+                Assert.assertEquals(1, request.startPartition());
+                Assert.assertEquals(2, request.endPartition());
+                Assert.assertTrue(request.omitMapAttempts());
+                fastRpcFinished.countDown();
+              }
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SUCCESS,
+                  locations,
+                  request.omitMapAttempts() ? new int[0] : mapAttempts,
+                  Collections.emptySet(),
+                  Collections.emptyMap(),
+                  new byte[0],
+                  SerdeVersion.V1,
+                  request.startPartition(),
+                  request.endPartition(),
+                  true);
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+    shuffleClient.updateFileGroup(0, 2);
+    Assert.assertEquals(1, rpcCalls.get());
+
+    AtomicReference<Exception> slowException = new AtomicReference<>();
+    AtomicReference<Exception> fastException = new AtomicReference<>();
+    Thread slowThread =
+        new Thread(
+            () -> {
+              try {
+                shuffleClient.updateFileGroup(0, 0);
+              } catch (Exception e) {
+                slowException.set(e);
+              }
+            });
+    Thread fastThread =
+        new Thread(
+            () -> {
+              try {
+                shuffleClient.updateFileGroup(0, 1);
+              } catch (Exception e) {
+                fastException.set(e);
+              }
+            });
+
+    slowThread.start();
+    Assert.assertTrue(slowRpcStarted.await(10, TimeUnit.SECONDS));
+    fastThread.start();
+    Assert.assertTrue(fastRpcFinished.await(10, TimeUnit.SECONDS));
+    fastThread.join(10 * 1000);
+
+    Assert.assertFalse(fastThread.isAlive());
+    Assert.assertTrue(slowThread.isAlive());
+    Assert.assertNull(fastException.get());
+    Assert.assertEquals(3, rpcCalls.get());
+
+    releaseSlowRpc.countDown();
+    slowThread.join(10 * 1000);
+    Assert.assertFalse(slowThread.isAlive());
+    Assert.assertNull(slowException.get());
+  }
+
+  @Test
+  public void testUpdateReducerFileGroupRequestsAndCachesOnlyNeededRange() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    AtomicInteger rpcCalls = new AtomicInteger();
+    AtomicReference<GetReducerFileGroup> firstRequest = new AtomicReference<>();
+    AtomicReference<GetReducerFileGroup> secondRequest = new AtomicReference<>();
+    CountDownLatch firstRpcStarted = new CountDownLatch(1);
+    CountDownLatch releaseFirstRpc = new CountDownLatch(1);
+    int[] mapAttempts = new int[] {0, 1, 2};
+
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            invocation -> {
+              GetReducerFileGroup request = invocation.getArgument(0);
+              int call = rpcCalls.getAndIncrement();
+              if (call == 0) {
+                firstRequest.set(request);
+                firstRpcStarted.countDown();
+                releaseFirstRpc.await(10, TimeUnit.SECONDS);
+              } else if (call == 1) {
+                secondRequest.set(request);
+              }
+              Map<Integer, Set<PartitionLocation>> locations = new HashMap<>();
+              for (int partitionId = request.startPartition();
+                  partitionId < request.endPartition();
+                  partitionId++) {
+                locations.put(partitionId, Collections.emptySet());
+              }
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SUCCESS,
+                  locations,
+                  request.omitMapAttempts() ? new int[0] : mapAttempts,
+                  Collections.emptySet(),
+                  Collections.emptyMap(),
+                  new byte[0],
+                  SerdeVersion.V1,
+                  request.startPartition(),
+                  request.endPartition(),
+                  true);
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    AtomicReference<ShuffleClientImpl.ReduceFileGroups> firstResult = new AtomicReference<>();
+    AtomicReference<ShuffleClientImpl.ReduceFileGroups> adjacentResult = new AtomicReference<>();
+    AtomicReference<Exception> firstException = new AtomicReference<>();
+    AtomicReference<Exception> adjacentException = new AtomicReference<>();
+    Thread firstThread =
+        new Thread(
+            () -> {
+              try {
+                firstResult.set(shuffleClient.updateFileGroup(7, 10, 20));
+              } catch (Exception e) {
+                firstException.set(e);
+              }
+            });
+    Thread adjacentThread =
+        new Thread(
+            () -> {
+              try {
+                adjacentResult.set(shuffleClient.updateFileGroup(7, 20, 21));
+              } catch (Exception e) {
+                adjacentException.set(e);
+              }
+            });
+
+    firstThread.start();
+    Assert.assertTrue(firstRpcStarted.await(10, TimeUnit.SECONDS));
+    adjacentThread.start();
+    assertWaitingOnInFlightLoad(adjacentThread);
+
+    Assert.assertEquals(1, rpcCalls.get());
+    releaseFirstRpc.countDown();
+    firstThread.join(10 * 1000);
+    adjacentThread.join(10 * 1000);
+
+    Assert.assertFalse(firstThread.isAlive());
+    Assert.assertFalse(adjacentThread.isAlive());
+    Assert.assertNull(firstException.get());
+    Assert.assertNull(adjacentException.get());
+
+    ShuffleClientImpl.ReduceFileGroups first = firstResult.get();
+    ShuffleClientImpl.ReduceFileGroups adjacent = adjacentResult.get();
+    ShuffleClientImpl.ReduceFileGroups nested = shuffleClient.updateFileGroup(7, 11, 12);
+
+    Assert.assertEquals(2, rpcCalls.get());
+    Assert.assertEquals(10, first.partitionGroups.size());
+    Assert.assertEquals(Collections.singleton(11), nested.partitionGroups.keySet());
+    Assert.assertTrue(firstRequest.get().hasPartitionRange());
+    Assert.assertEquals(10, firstRequest.get().startPartition());
+    Assert.assertEquals(20, firstRequest.get().endPartition());
+    Assert.assertFalse(firstRequest.get().omitMapAttempts());
+    Assert.assertArrayEquals(mapAttempts, first.mapAttempts);
+
+    Assert.assertEquals(Collections.singleton(20), adjacent.partitionGroups.keySet());
+    Assert.assertTrue(secondRequest.get().omitMapAttempts());
+    Assert.assertArrayEquals(mapAttempts, adjacent.mapAttempts);
+  }
+
+  @Test
+  public void testLegacyFullResponseIsCachedForAllRanges() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    AtomicInteger rpcCalls = new AtomicInteger();
+    Map<Integer, Set<PartitionLocation>> fullResponse = new HashMap<>();
+    fullResponse.put(0, Collections.emptySet());
+    fullResponse.put(100, Collections.emptySet());
+
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            invocation -> {
+              rpcCalls.incrementAndGet();
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SUCCESS,
+                  fullResponse,
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap(),
+                  new byte[0],
+                  SerdeVersion.V1,
+                  0,
+                  0,
+                  false);
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    shuffleClient.updateFileGroup(7, 0, 1);
+    ShuffleClientImpl.ReduceFileGroups second = shuffleClient.updateFileGroup(7, 100, 101);
+
+    Assert.assertEquals(1, rpcCalls.get());
+    Assert.assertEquals(Collections.singleton(100), second.partitionGroups.keySet());
+  }
+
+  @Test
+  public void testUpdateReducerFileGroupConcurrentFailuresAreSharedAndNextCallRetries()
+      throws Exception {
+    CelebornConf conf = new CelebornConf();
+    Map<Integer, Set<PartitionLocation>> locations = new HashMap<>();
+    CountDownLatch rpcStarted = new CountDownLatch(1);
+    CountDownLatch releaseFailure = new CountDownLatch(1);
+    CountDownLatch secondThreadStarted = new CountDownLatch(1);
+    AtomicInteger rpcCalls = new AtomicInteger();
+
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            invocation -> {
+              if (rpcCalls.incrementAndGet() == 1) {
+                rpcStarted.countDown();
+                releaseFailure.await(10, TimeUnit.SECONDS);
+                return GetReducerFileGroupResponse$.MODULE$.apply(
+                    StatusCode.STAGE_END_TIMEOUT,
+                    locations,
+                    new int[0],
+                    Collections.emptySet(),
+                    Collections.emptyMap(),
+                    new byte[0],
+                    SerdeVersion.V1,
+                    0,
+                    0,
+                    false);
+              }
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SUCCESS,
+                  locations,
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap(),
+                  new byte[0],
+                  SerdeVersion.V1,
+                  0,
+                  0,
+                  false);
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    AtomicReference<Exception> firstException = new AtomicReference<>();
+    AtomicReference<ShuffleClientImpl.ReduceFileGroups> secondResult = new AtomicReference<>();
+    AtomicReference<Exception> secondException = new AtomicReference<>();
+
+    Thread firstThread =
+        new Thread(
+            () -> {
+              try {
+                shuffleClient.updateFileGroup(0, 0);
+              } catch (Exception e) {
+                firstException.set(e);
+              }
+            });
+    Thread secondThread =
+        new Thread(
+            () -> {
+              secondThreadStarted.countDown();
+              try {
+                secondResult.set(shuffleClient.updateFileGroup(0, 0));
+              } catch (Exception e) {
+                secondException.set(e);
+              }
+            });
+
+    firstThread.start();
+    Assert.assertTrue(rpcStarted.await(10, TimeUnit.SECONDS));
+    secondThread.start();
+    Assert.assertTrue(secondThreadStarted.await(10, TimeUnit.SECONDS));
+    assertWaitingOnInFlightLoad(secondThread);
+    Assert.assertEquals(1, rpcCalls.get());
+
+    releaseFailure.countDown();
+    firstThread.join(10 * 1000);
+    secondThread.join(10 * 1000);
+
+    Assert.assertFalse(firstThread.isAlive());
+    Assert.assertFalse(secondThread.isAlive());
+    Assert.assertTrue(firstException.get() instanceof CelebornIOException);
+    Assert.assertTrue(secondException.get() instanceof CelebornIOException);
+    Assert.assertNull(secondResult.get());
+    Assert.assertEquals(1, rpcCalls.get());
+
+    Assert.assertNotNull(shuffleClient.updateFileGroup(0, 0));
+    Assert.assertEquals(2, rpcCalls.get());
+  }
+
+  @Test
+  public void testCleanupShuffleDoesNotRestoreReducerFileGroupCache() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    Map<Integer, Set<PartitionLocation>> locations = new HashMap<>();
+    CountDownLatch rpcStarted = new CountDownLatch(1);
+    CountDownLatch releaseRpc = new CountDownLatch(1);
+    CountDownLatch cleanupFinished = new CountDownLatch(1);
+    AtomicInteger rpcCalls = new AtomicInteger();
+
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            invocation -> {
+              if (rpcCalls.incrementAndGet() == 1) {
+                rpcStarted.countDown();
+                releaseRpc.await(10, TimeUnit.SECONDS);
+              }
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SUCCESS,
+                  locations,
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap(),
+                  new byte[0],
+                  SerdeVersion.V1,
+                  0,
+                  0,
+                  false);
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    AtomicReference<Exception> firstException = new AtomicReference<>();
+    Thread firstThread =
+        new Thread(
+            () -> {
+              try {
+                shuffleClient.updateFileGroup(0, 0);
+              } catch (Exception e) {
+                firstException.set(e);
+              }
+            });
+    Thread cleanupThread =
+        new Thread(
+            () -> {
+              shuffleClient.cleanupShuffle(0);
+              cleanupFinished.countDown();
+            });
+
+    firstThread.start();
+    Assert.assertTrue(rpcStarted.await(10, TimeUnit.SECONDS));
+    cleanupThread.start();
+    Assert.assertTrue(cleanupFinished.await(10, TimeUnit.SECONDS));
+    releaseRpc.countDown();
+    firstThread.join(10 * 1000);
+    cleanupThread.join(10 * 1000);
+
+    Assert.assertFalse(firstThread.isAlive());
+    Assert.assertFalse(cleanupThread.isAlive());
+    Assert.assertTrue(firstException.get() instanceof CelebornIOException);
+    Assert.assertFalse(shuffleClient.hasReducerFileGroupRangeCache(0));
+
+    Assert.assertNotNull(shuffleClient.updateFileGroup(0, 0));
+    Assert.assertEquals(2, rpcCalls.get());
+  }
+
+  @Test
+  public void testCleanupShuffleFailsWaitingReducerFileGroupLoads() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    Map<Integer, Set<PartitionLocation>> locations = new HashMap<>();
+    CountDownLatch rpcStarted = new CountDownLatch(1);
+    CountDownLatch releaseRpc = new CountDownLatch(1);
+    CountDownLatch secondThreadStarted = new CountDownLatch(1);
+    CountDownLatch cleanupFinished = new CountDownLatch(1);
+    AtomicInteger rpcCalls = new AtomicInteger();
+
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            invocation -> {
+              if (rpcCalls.incrementAndGet() == 1) {
+                rpcStarted.countDown();
+                releaseRpc.await(10, TimeUnit.SECONDS);
+              }
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SUCCESS,
+                  locations,
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap(),
+                  new byte[0],
+                  SerdeVersion.V1,
+                  0,
+                  0,
+                  false);
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    AtomicReference<Exception> firstException = new AtomicReference<>();
+    AtomicReference<ShuffleClientImpl.ReduceFileGroups> secondResult = new AtomicReference<>();
+    AtomicReference<Exception> secondException = new AtomicReference<>();
+    Thread firstThread =
+        new Thread(
+            () -> {
+              try {
+                shuffleClient.updateFileGroup(0, 0);
+              } catch (Exception e) {
+                firstException.set(e);
+              }
+            });
+    Thread secondThread =
+        new Thread(
+            () -> {
+              secondThreadStarted.countDown();
+              try {
+                secondResult.set(shuffleClient.updateFileGroup(0, 0));
+              } catch (Exception e) {
+                secondException.set(e);
+              }
+            });
+    Thread cleanupThread =
+        new Thread(
+            () -> {
+              shuffleClient.cleanupShuffle(0);
+              cleanupFinished.countDown();
+            });
+
+    firstThread.start();
+    Assert.assertTrue(rpcStarted.await(10, TimeUnit.SECONDS));
+    secondThread.start();
+    Assert.assertTrue(secondThreadStarted.await(10, TimeUnit.SECONDS));
+    assertWaitingOnInFlightLoad(secondThread);
+    cleanupThread.start();
+    Assert.assertTrue(cleanupFinished.await(10, TimeUnit.SECONDS));
+
+    releaseRpc.countDown();
+    firstThread.join(10 * 1000);
+    secondThread.join(10 * 1000);
+    cleanupThread.join(10 * 1000);
+
+    Assert.assertFalse(firstThread.isAlive());
+    Assert.assertFalse(secondThread.isAlive());
+    Assert.assertFalse(cleanupThread.isAlive());
+    Assert.assertTrue(firstException.get() instanceof CelebornIOException);
+    Assert.assertTrue(secondException.get() instanceof CelebornIOException);
+    Assert.assertNull(secondResult.get());
+    Assert.assertEquals(1, rpcCalls.get());
+
+    Assert.assertNotNull(shuffleClient.updateFileGroup(0, 0));
+    Assert.assertEquals(2, rpcCalls.get());
+  }
+
+  @Test
+  public void testColdBootstrapWaiterDoesNotRecreateCacheAfterCleanup() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    CountDownLatch firstRpcStarted = new CountDownLatch(1);
+    CountDownLatch releaseFirstRpc = new CountDownLatch(1);
+    CountDownLatch publicationStarted = new CountDownLatch(1);
+    CountDownLatch releasePublication = new CountDownLatch(1);
+    CountDownLatch cleanupFinished = new CountDownLatch(1);
+    AtomicInteger rpcCalls = new AtomicInteger();
+
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            invocation -> {
+              GetReducerFileGroup request = invocation.getArgument(0);
+              if (rpcCalls.incrementAndGet() == 1) {
+                firstRpcStarted.countDown();
+                releaseFirstRpc.await(10, TimeUnit.SECONDS);
+              }
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SUCCESS,
+                  Collections.emptyMap(),
+                  new int[] {0},
+                  Collections.emptySet(),
+                  Collections.emptyMap(),
+                  new byte[0],
+                  SerdeVersion.V1,
+                  request.startPartition(),
+                  request.endPartition(),
+                  true);
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+    shuffleClient.reduceFileGroupsBeforeInFlightRelease =
+        () -> {
+          publicationStarted.countDown();
+          awaitLatch(releasePublication);
+        };
+
+    AtomicReference<Exception> ownerException = new AtomicReference<>();
+    AtomicReference<ShuffleClientImpl.ReduceFileGroups> waiterResult = new AtomicReference<>();
+    AtomicReference<Exception> waiterException = new AtomicReference<>();
+    Thread owner =
+        new Thread(
+            () -> {
+              try {
+                shuffleClient.updateFileGroup(0, 0);
+              } catch (Exception e) {
+                ownerException.set(e);
+              }
+            });
+    Thread waiter =
+        new Thread(
+            () -> {
+              try {
+                waiterResult.set(shuffleClient.updateFileGroup(0, 1));
+              } catch (Exception e) {
+                waiterException.set(e);
+              }
+            });
+    Thread cleanupThread =
+        new Thread(
+            () -> {
+              shuffleClient.cleanupShuffle(0);
+              cleanupFinished.countDown();
+            });
+
+    owner.start();
+    Assert.assertTrue(firstRpcStarted.await(10, TimeUnit.SECONDS));
+    waiter.start();
+    assertWaitingOnInFlightLoad(waiter);
+    releaseFirstRpc.countDown();
+    Assert.assertTrue(publicationStarted.await(10, TimeUnit.SECONDS));
+
+    cleanupThread.start();
+    assertThreadBlocked(cleanupThread);
+    Assert.assertFalse(shuffleClient.hasReducerFileGroupRangeCache(0));
+    releasePublication.countDown();
+
+    owner.join(10 * 1000);
+    waiter.join(10 * 1000);
+    cleanupThread.join(10 * 1000);
+
+    Assert.assertFalse(owner.isAlive());
+    Assert.assertFalse(waiter.isAlive());
+    Assert.assertFalse(cleanupThread.isAlive());
+    Assert.assertTrue(cleanupFinished.await(10, TimeUnit.SECONDS));
+    Assert.assertNull(ownerException.get());
+    Assert.assertNull(waiterResult.get());
+    Assert.assertTrue(waiterException.get() instanceof CelebornIOException);
+    Assert.assertEquals(1, rpcCalls.get());
+    Assert.assertFalse(shuffleClient.hasReducerFileGroupRangeCache(0));
+  }
+
+  @Test
+  public void testUpdateReducerFileGroupRechecksCacheAfterClaimingLoad() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    Map<Integer, Set<PartitionLocation>> locations = new HashMap<>();
+    CountDownLatch firstRpcStarted = new CountDownLatch(1);
+    CountDownLatch releaseFirstRpc = new CountDownLatch(1);
+    CountDownLatch secondCacheMiss = new CountDownLatch(1);
+    CountDownLatch releaseSecondCacheMiss = new CountDownLatch(1);
+    AtomicInteger cacheMisses = new AtomicInteger();
+    AtomicInteger rpcCalls = new AtomicInteger();
+
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            invocation -> {
+              if (rpcCalls.incrementAndGet() == 1) {
+                firstRpcStarted.countDown();
+                releaseFirstRpc.await(10, TimeUnit.SECONDS);
+                return GetReducerFileGroupResponse$.MODULE$.apply(
+                    StatusCode.SUCCESS,
+                    locations,
+                    new int[0],
+                    Collections.emptySet(),
+                    Collections.emptyMap(),
+                    new byte[0],
+                    SerdeVersion.V1,
+                    0,
+                    0,
+                    false);
+              }
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.STAGE_END_TIMEOUT,
+                  locations,
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap(),
+                  new byte[0],
+                  SerdeVersion.V1,
+                  0,
+                  0,
+                  false);
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+    shuffleClient.reduceFileGroupsAfterCacheMiss =
+        () -> {
+          if (cacheMisses.incrementAndGet() == 2) {
+            secondCacheMiss.countDown();
+            awaitLatch(releaseSecondCacheMiss);
+          }
+        };
+
+    AtomicReference<ShuffleClientImpl.ReduceFileGroups> firstResult = new AtomicReference<>();
+    AtomicReference<ShuffleClientImpl.ReduceFileGroups> secondResult = new AtomicReference<>();
+    AtomicReference<Exception> firstException = new AtomicReference<>();
+    AtomicReference<Exception> secondException = new AtomicReference<>();
+    Thread firstThread =
+        new Thread(
+            () -> {
+              try {
+                firstResult.set(shuffleClient.updateFileGroup(0, 0));
+              } catch (Exception e) {
+                firstException.set(e);
+              }
+            });
+    Thread secondThread =
+        new Thread(
+            () -> {
+              try {
+                secondResult.set(shuffleClient.updateFileGroup(0, 0));
+              } catch (Exception e) {
+                secondException.set(e);
+              }
+            });
+
+    firstThread.start();
+    Assert.assertTrue(firstRpcStarted.await(10, TimeUnit.SECONDS));
+    secondThread.start();
+    Assert.assertTrue(secondCacheMiss.await(10, TimeUnit.SECONDS));
+    releaseFirstRpc.countDown();
+    firstThread.join(10 * 1000);
+    Assert.assertFalse(firstThread.isAlive());
+
+    releaseSecondCacheMiss.countDown();
+    secondThread.join(10 * 1000);
+
+    Assert.assertFalse(secondThread.isAlive());
+    Assert.assertNull(firstException.get());
+    Assert.assertNull(secondException.get());
+    Assert.assertNotNull(firstResult.get());
+    Assert.assertEquals(firstResult.get().partitionGroups, secondResult.get().partitionGroups);
+    Assert.assertEquals(1, rpcCalls.get());
+  }
+
+  @Test
+  public void testCleanupShuffleWaitsForReducerFileGroupPublication() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    Map<Integer, Set<PartitionLocation>> locations = new HashMap<>();
+    CountDownLatch publicationStarted = new CountDownLatch(1);
+    CountDownLatch releasePublication = new CountDownLatch(1);
+    CountDownLatch cleanupFinished = new CountDownLatch(1);
+
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            invocation ->
+                GetReducerFileGroupResponse$.MODULE$.apply(
+                    StatusCode.SUCCESS,
+                    locations,
+                    new int[0],
+                    Collections.emptySet(),
+                    Collections.emptyMap(),
+                    new byte[0],
+                    SerdeVersion.V1,
+                    0,
+                    0,
+                    false));
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+    shuffleClient.reduceFileGroupsBeforeInFlightRelease =
+        () -> {
+          publicationStarted.countDown();
+          awaitLatch(releasePublication);
+        };
+
+    AtomicReference<Exception> loadException = new AtomicReference<>();
+    Thread loadThread =
+        new Thread(
+            () -> {
+              try {
+                shuffleClient.updateFileGroup(0, 0);
+              } catch (Exception e) {
+                loadException.set(e);
+              }
+            });
+    Thread cleanupThread =
+        new Thread(
+            () -> {
+              shuffleClient.cleanupShuffle(0);
+              cleanupFinished.countDown();
+            });
+
+    loadThread.start();
+    Assert.assertTrue(publicationStarted.await(10, TimeUnit.SECONDS));
+    cleanupThread.start();
+    assertThreadBlocked(cleanupThread);
+    Assert.assertFalse(cleanupFinished.await(100, TimeUnit.MILLISECONDS));
+
+    releasePublication.countDown();
+    loadThread.join(10 * 1000);
+    cleanupThread.join(10 * 1000);
+
+    Assert.assertFalse(loadThread.isAlive());
+    Assert.assertFalse(cleanupThread.isAlive());
+    Assert.assertNull(loadException.get());
+    Assert.assertFalse(shuffleClient.hasReducerFileGroupRangeCache(0));
+  }
+
+  @Test
+  public void testUpdateReducerFileGroupWaitingReadersPreserveFatalErrors() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    CountDownLatch rpcStarted = new CountDownLatch(1);
+    CountDownLatch releaseRpc = new CountDownLatch(1);
+    AtomicInteger rpcCalls = new AtomicInteger();
+    AssertionError fatalError = new AssertionError("test fatal error");
+
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            invocation -> {
+              rpcCalls.incrementAndGet();
+              rpcStarted.countDown();
+              releaseRpc.await(10, TimeUnit.SECONDS);
+              throw fatalError;
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    AtomicReference<Throwable> firstError = new AtomicReference<>();
+    AtomicReference<Throwable> secondError = new AtomicReference<>();
+    Thread firstThread =
+        new Thread(
+            () -> {
+              try {
+                shuffleClient.updateFileGroup(0, 0);
+              } catch (Throwable e) {
+                firstError.set(e);
+              }
+            });
+    Thread secondThread =
+        new Thread(
+            () -> {
+              try {
+                shuffleClient.updateFileGroup(0, 0);
+              } catch (Throwable e) {
+                secondError.set(e);
+              }
+            });
+
+    firstThread.start();
+    Assert.assertTrue(rpcStarted.await(10, TimeUnit.SECONDS));
+    secondThread.start();
+    assertWaitingOnInFlightLoad(secondThread);
+    releaseRpc.countDown();
+    firstThread.join(10 * 1000);
+    secondThread.join(10 * 1000);
+
+    Assert.assertFalse(firstThread.isAlive());
+    Assert.assertFalse(secondThread.isAlive());
+    Assert.assertSame(fatalError, firstError.get());
+    Assert.assertSame(fatalError, secondError.get());
+    Assert.assertEquals(1, rpcCalls.get());
   }
 }

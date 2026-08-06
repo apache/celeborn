@@ -237,7 +237,11 @@ object ControlMessages extends Logging {
   case class GetReducerFileGroup(
       shuffleId: Int,
       isSegmentGranularityVisible: Boolean,
-      serdeVersion: SerdeVersion)
+      serdeVersion: SerdeVersion,
+      startPartition: Int = 0,
+      endPartition: Int = 0,
+      hasPartitionRange: Boolean = false,
+      omitMapAttempts: Boolean = false)
     extends MasterMessage
 
   // util.Set[String] -> util.Set[Path.toString]
@@ -250,7 +254,10 @@ object ControlMessages extends Logging {
       pushFailedBatches: util.Map[String, LocationPushFailedBatches] =
         Collections.emptyMap(),
       broadcast: Array[Byte] = Array.emptyByteArray,
-      serdeVersion: SerdeVersion = SerdeVersion.V1)
+      serdeVersion: SerdeVersion = SerdeVersion.V1,
+      startPartition: Int = 0,
+      endPartition: Int = 0,
+      hasPartitionRange: Boolean = false)
     extends MasterMessage
 
   object WorkerExclude {
@@ -762,11 +769,23 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END_RESPONSE, payload, serdeVersion)
 
-    case GetReducerFileGroup(shuffleId, isSegmentGranularityVisible, serdeVersion) =>
-      val payload = PbGetReducerFileGroup.newBuilder()
+    case GetReducerFileGroup(
+          shuffleId,
+          isSegmentGranularityVisible,
+          serdeVersion,
+          startPartition,
+          endPartition,
+          hasPartitionRange,
+          omitMapAttempts) =>
+      val builder = PbGetReducerFileGroup.newBuilder()
         .setShuffleId(shuffleId)
         .setIsSegmentGranularityVisible(isSegmentGranularityVisible)
-        .build().toByteArray
+        .setHasPartitionRange(hasPartitionRange)
+        .setOmitMapAttempts(omitMapAttempts)
+      if (hasPartitionRange) {
+        builder.setStartPartition(startPartition).setEndPartition(endPartition)
+      }
+      val payload = builder.build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP, payload, serdeVersion)
 
     case GetReducerFileGroupResponse(
@@ -776,7 +795,10 @@ object ControlMessages extends Logging {
           partitionIds,
           failedBatches,
           broadcast,
-          serdeVersion) =>
+          serdeVersion,
+          startPartition,
+          endPartition,
+          hasPartitionRange) =>
       val builder = PbGetReducerFileGroupResponse
         .newBuilder()
         .setStatus(status.getValue)
@@ -795,6 +817,10 @@ object ControlMessages extends Logging {
             (uniqueId, PbSerDeUtils.toPbLocationPushFailedBatches(pushFailedBatchSet))
         }.asJava)
       builder.setBroadcast(ByteString.copyFrom(broadcast))
+      builder.setHasPartitionRange(hasPartitionRange)
+      if (hasPartitionRange) {
+        builder.setStartPartition(startPartition).setEndPartition(endPartition)
+      }
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.GET_REDUCER_FILE_GROUP_RESPONSE, payload, serdeVersion)
 
@@ -1274,7 +1300,11 @@ object ControlMessages extends Logging {
         GetReducerFileGroup(
           pbGetReducerFileGroup.getShuffleId,
           pbGetReducerFileGroup.getIsSegmentGranularityVisible,
-          message.getSerdeVersion)
+          message.getSerdeVersion,
+          pbGetReducerFileGroup.getStartPartition,
+          pbGetReducerFileGroup.getEndPartition,
+          pbGetReducerFileGroup.getHasPartitionRange,
+          pbGetReducerFileGroup.getOmitMapAttempts)
 
       case GET_REDUCER_FILE_GROUP_RESPONSE_VALUE =>
         val pbGetReducerFileGroupResponse = PbGetReducerFileGroupResponse
@@ -1311,7 +1341,11 @@ object ControlMessages extends Logging {
           attempts,
           partitionIds,
           pushFailedBatches,
-          broadcast)
+          broadcast,
+          message.getSerdeVersion,
+          pbGetReducerFileGroupResponse.getStartPartition,
+          pbGetReducerFileGroupResponse.getEndPartition,
+          pbGetReducerFileGroupResponse.getHasPartitionRange)
 
       case GET_SHUFFLE_ID_VALUE =>
         message.getParsedPayload()

@@ -21,7 +21,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -37,6 +39,7 @@ import io.netty.buffer.Unpooled;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.fs.FileSystem;
+import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -157,16 +160,33 @@ public class ShuffleClientImpl extends ShuffleClient {
     public Map<String, LocationPushFailedBatches> pushFailedBatches;
     public int[] mapAttempts;
     public Set<Integer> partitionIds;
+    private boolean hasPartitionRange;
+    private int startPartition;
+    private int endPartition;
 
     ReduceFileGroups(
         Map<Integer, Set<PartitionLocation>> partitionGroups,
         int[] mapAttempts,
         Set<Integer> partitionIds,
         Map<String, LocationPushFailedBatches> pushFailedBatches) {
+      this(partitionGroups, mapAttempts, partitionIds, pushFailedBatches, false, 0, 0);
+    }
+
+    ReduceFileGroups(
+        Map<Integer, Set<PartitionLocation>> partitionGroups,
+        int[] mapAttempts,
+        Set<Integer> partitionIds,
+        Map<String, LocationPushFailedBatches> pushFailedBatches,
+        boolean hasPartitionRange,
+        int startPartition,
+        int endPartition) {
       this.partitionGroups = partitionGroups;
       this.mapAttempts = mapAttempts;
       this.partitionIds = partitionIds;
       this.pushFailedBatches = pushFailedBatches;
+      this.hasPartitionRange = hasPartitionRange;
+      this.startPartition = startPartition;
+      this.endPartition = endPartition;
     }
 
     public ReduceFileGroups() {
@@ -181,12 +201,162 @@ public class ShuffleClientImpl extends ShuffleClient {
       mapAttempts = fileGroups.mapAttempts;
       partitionIds = fileGroups.partitionIds;
       pushFailedBatches = fileGroups.pushFailedBatches;
+      hasPartitionRange = fileGroups.hasPartitionRange;
+      startPartition = fileGroups.startPartition;
+      endPartition = fileGroups.endPartition;
     }
   }
 
   // key: shuffleId
   protected final Map<Integer, Tuple3<ReduceFileGroups, String, Exception>> reduceFileGroupsMap =
       JavaUtils.newConcurrentHashMap();
+
+  private static final class ReducerFileGroupRange {
+    private final int startPartition;
+    private final int endPartition;
+    private final boolean segmentGranularityVisible;
+
+    private ReducerFileGroupRange(
+        int startPartition, int endPartition, boolean segmentGranularityVisible) {
+      this.startPartition = startPartition;
+      this.endPartition = endPartition;
+      this.segmentGranularityVisible = segmentGranularityVisible;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (this == other) {
+        return true;
+      }
+      if (!(other instanceof ReducerFileGroupRange)) {
+        return false;
+      }
+      ReducerFileGroupRange that = (ReducerFileGroupRange) other;
+      return startPartition == that.startPartition
+          && endPartition == that.endPartition
+          && segmentGranularityVisible == that.segmentGranularityVisible;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(startPartition, endPartition, segmentGranularityVisible);
+    }
+  }
+
+  private static final class ReducerFileGroupCache {
+    private final ReduceFileGroups fileGroups =
+        new ReduceFileGroups(
+            JavaUtils.newConcurrentHashMap(),
+            null,
+            ConcurrentHashMap.newKeySet(),
+            JavaUtils.newConcurrentHashMap());
+    private final RoaringBitmap loadedPartitions = new RoaringBitmap();
+    private final RoaringBitmap segmentVisibleLoadedPartitions = new RoaringBitmap();
+    private final Map<
+            ReducerFileGroupRange, CompletableFuture<Tuple3<ReduceFileGroups, String, Exception>>>
+        inFlightLoads = JavaUtils.newConcurrentHashMap();
+    private boolean active = true;
+    private boolean allPartitionsLoaded = false;
+    private boolean segmentVisibleAllPartitionsLoaded = false;
+
+    private synchronized boolean contains(
+        int startPartition, int endPartition, boolean segmentGranularityVisible) {
+      if (!active) {
+        return false;
+      }
+      RoaringBitmap loaded =
+          segmentGranularityVisible ? segmentVisibleLoadedPartitions : loadedPartitions;
+      boolean allLoaded =
+          segmentGranularityVisible ? segmentVisibleAllPartitionsLoaded : allPartitionsLoaded;
+      return allLoaded || loaded.contains((long) startPartition, (long) endPartition);
+    }
+
+    private synchronized boolean hasMapAttempts() {
+      return fileGroups.mapAttempts != null;
+    }
+
+    private synchronized void merge(
+        int startPartition,
+        int endPartition,
+        boolean segmentGranularityVisible,
+        ReduceFileGroups loadedFileGroups) {
+      if (loadedFileGroups.hasPartitionRange
+          && (loadedFileGroups.startPartition != startPartition
+              || loadedFileGroups.endPartition != endPartition)) {
+        throw new IllegalStateException(
+            String.format(
+                "Reducer file group response range [%d, %d) does not match request [%d, %d)",
+                loadedFileGroups.startPartition,
+                loadedFileGroups.endPartition,
+                startPartition,
+                endPartition));
+      }
+      fileGroups.partitionGroups.putAll(loadedFileGroups.partitionGroups);
+      fileGroups.pushFailedBatches.putAll(loadedFileGroups.pushFailedBatches);
+      fileGroups.partitionIds.addAll(loadedFileGroups.partitionIds);
+      if (fileGroups.mapAttempts == null) {
+        fileGroups.mapAttempts = loadedFileGroups.mapAttempts;
+      }
+      if (loadedFileGroups.hasPartitionRange) {
+        RoaringBitmap loaded =
+            segmentGranularityVisible ? segmentVisibleLoadedPartitions : loadedPartitions;
+        loaded.add((long) startPartition, (long) endPartition);
+      } else if (segmentGranularityVisible) {
+        // Older drivers ignore the range fields and return shuffle-wide metadata. Remember that
+        // coverage so later requests do not repeat the full download.
+        segmentVisibleAllPartitionsLoaded = true;
+      } else {
+        // See the mixed-version compatibility note above.
+        allPartitionsLoaded = true;
+      }
+    }
+
+    private synchronized ReduceFileGroups getRange(int startPartition, int endPartition) {
+      Map<Integer, Set<PartitionLocation>> partitionGroups = new HashMap<>();
+      Set<Integer> partitionIds = new HashSet<>();
+      Map<String, LocationPushFailedBatches> pushFailedBatches = new HashMap<>();
+      for (int partitionId = startPartition; partitionId < endPartition; partitionId++) {
+        Set<PartitionLocation> locations = fileGroups.partitionGroups.get(partitionId);
+        if (locations != null) {
+          partitionGroups.put(partitionId, locations);
+          for (PartitionLocation location : locations) {
+            LocationPushFailedBatches failedBatches =
+                fileGroups.pushFailedBatches.get(location.getUniqueId());
+            if (failedBatches != null) {
+              pushFailedBatches.put(location.getUniqueId(), failedBatches);
+            }
+          }
+        }
+        if (fileGroups.partitionIds.contains(partitionId)) {
+          partitionIds.add(partitionId);
+        }
+      }
+      return new ReduceFileGroups(
+          partitionGroups,
+          fileGroups.mapAttempts,
+          partitionIds,
+          pushFailedBatches,
+          true,
+          startPartition,
+          endPartition);
+    }
+
+    private synchronized void deactivate() {
+      active = false;
+      Tuple3<ReduceFileGroups, String, Exception> cleanedUp =
+          Tuple3.apply(null, "Shuffle cleaned up", null);
+      inFlightLoads.values().forEach(future -> future.complete(cleanedUp));
+      inFlightLoads.clear();
+    }
+  }
+
+  // key: shuffleId. Each executor keeps only reducer ranges it has actually read.
+  private final Map<Integer, ReducerFileGroupCache> reduceFileGroupRangeCaches =
+      JavaUtils.newConcurrentHashMap();
+
+  @VisibleForTesting Runnable reduceFileGroupsAfterCacheMiss = () -> {};
+
+  @VisibleForTesting Runnable reduceFileGroupsBeforeInFlightRelease = () -> {};
 
   private final TransportMessagesHelper messagesHelper = new TransportMessagesHelper();
 
@@ -1865,6 +2035,10 @@ public class ShuffleClientImpl extends ShuffleClient {
     // clear status
     reducePartitionMap.remove(shuffleId);
     reduceFileGroupsMap.remove(shuffleId);
+    ReducerFileGroupCache rangeCache = reduceFileGroupRangeCaches.remove(shuffleId);
+    if (rangeCache != null) {
+      rangeCache.deactivate();
+    }
     mapperEndMap.remove(shuffleId);
     stageEndShuffleSet.remove(shuffleId);
     splitting.remove(shuffleId);
@@ -1875,6 +2049,21 @@ public class ShuffleClientImpl extends ShuffleClient {
 
   protected Tuple3<ReduceFileGroups, String, Exception> loadFileGroupInternal(
       int shuffleId, boolean isSegmentGranularityVisible) {
+    return loadFileGroupInternal(shuffleId, 0, 0, isSegmentGranularityVisible, false);
+  }
+
+  protected Tuple3<ReduceFileGroups, String, Exception> loadFileGroupInternal(
+      int shuffleId, int startPartition, int endPartition, boolean isSegmentGranularityVisible) {
+    return loadFileGroupInternal(
+        shuffleId, startPartition, endPartition, isSegmentGranularityVisible, true);
+  }
+
+  private Tuple3<ReduceFileGroups, String, Exception> loadFileGroupInternal(
+      int shuffleId,
+      int startPartition,
+      int endPartition,
+      boolean isSegmentGranularityVisible,
+      boolean hasPartitionRange) {
     long getReducerFileGroupStartTime = System.nanoTime();
     String exceptionMsg = null;
     Exception exception = null;
@@ -1884,8 +2073,18 @@ public class ShuffleClientImpl extends ShuffleClient {
       return Tuple3.apply(null, exceptionMsg, exception);
     }
     try {
+      ReducerFileGroupCache rangeCache = reduceFileGroupRangeCaches.get(shuffleId);
+      boolean omitMapAttempts =
+          hasPartitionRange && rangeCache != null && rangeCache.hasMapAttempts();
       GetReducerFileGroup getReducerFileGroup =
-          new GetReducerFileGroup(shuffleId, isSegmentGranularityVisible, SerdeVersion.V1);
+          new GetReducerFileGroup(
+              shuffleId,
+              isSegmentGranularityVisible,
+              SerdeVersion.V1,
+              startPartition,
+              endPartition,
+              hasPartitionRange,
+              omitMapAttempts);
 
       GetReducerFileGroupResponse response =
           lifecycleManagerRef.askSync(
@@ -1904,9 +2103,12 @@ public class ShuffleClientImpl extends ShuffleClient {
                   "Failed to get GetReducerFileGroupResponse broadcast for shuffle: " + shuffleId);
             }
           }
-          logger.info(
-              "Shuffle {} request reducer file group success using {} ms, result partition size {}.",
+          logger.debug(
+              "Shuffle {} request reducer file group {} success using {} ms, result partition size {}.",
               shuffleId,
+              hasPartitionRange
+                  ? String.format("range [%d, %d)", startPartition, endPartition)
+                  : "for all partitions",
               TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - getReducerFileGroupStartTime),
               response.fileGroup().size());
           return Tuple3.apply(
@@ -1914,7 +2116,10 @@ public class ShuffleClientImpl extends ShuffleClient {
                   response.fileGroup(),
                   response.attempts(),
                   response.partitionIds(),
-                  response.pushFailedBatches()),
+                  response.pushFailedBatches(),
+                  response.hasPartitionRange(),
+                  response.startPartition(),
+                  response.endPartition()),
               null,
               null);
         case SHUFFLE_UNREGISTERED:
@@ -1926,7 +2131,10 @@ public class ShuffleClientImpl extends ShuffleClient {
                   response.fileGroup(),
                   response.attempts(),
                   response.partitionIds(),
-                  response.pushFailedBatches()),
+                  response.pushFailedBatches(),
+                  response.hasPartitionRange(),
+                  response.startPartition(),
+                  response.endPartition()),
               null,
               null);
         case STAGE_END_TIMEOUT:
@@ -1957,6 +2165,12 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
+  public ReduceFileGroups updateFileGroup(int shuffleId, int startPartition, int endPartition)
+      throws CelebornIOException {
+    return updateFileGroup(shuffleId, startPartition, endPartition, false);
+  }
+
+  @Override
   public boolean isShuffleStageEnd(int shuffleId) throws Exception {
     if (null != lifecycleManagerRef) {
       PbGetStageEnd request = PbGetStageEnd.newBuilder().setShuffleId(shuffleId).build();
@@ -1975,22 +2189,139 @@ public class ShuffleClientImpl extends ShuffleClient {
   public ReduceFileGroups updateFileGroup(
       int shuffleId, int partitionId, boolean isSegmentGranularityVisible)
       throws CelebornIOException {
+    return updateFileGroup(shuffleId, partitionId, partitionId + 1, isSegmentGranularityVisible);
+  }
+
+  public ReduceFileGroups updateFileGroup(
+      int shuffleId, int startPartition, int endPartition, boolean isSegmentGranularityVisible)
+      throws CelebornIOException {
+    if (startPartition < 0 || endPartition < startPartition) {
+      throw new IllegalArgumentException(
+          String.format("Invalid reducer file group range [%d, %d)", startPartition, endPartition));
+    }
+    if (startPartition == endPartition) {
+      return super.updateFileGroup(shuffleId, startPartition, endPartition);
+    }
     Tuple3<ReduceFileGroups, String, Exception> fileGroupTuple =
-        reduceFileGroupsMap.compute(
-            shuffleId,
-            (id, existsTuple) -> {
-              if (existsTuple == null || existsTuple._1() == null) {
-                return loadFileGroupInternal(shuffleId, isSegmentGranularityVisible);
-              } else {
-                return existsTuple;
-              }
-            });
+        loadFileGroup(shuffleId, startPartition, endPartition, isSegmentGranularityVisible);
     if (fileGroupTuple._1() == null) {
       throw new CelebornIOException(
-          loadFileGroupException(shuffleId, partitionId, (fileGroupTuple._2())),
+          loadFileGroupException(shuffleId, startPartition, endPartition, (fileGroupTuple._2())),
           fileGroupTuple._3());
     } else {
       return fileGroupTuple._1();
+    }
+  }
+
+  private Tuple3<ReduceFileGroups, String, Exception> loadFileGroup(
+      int shuffleId, int startPartition, int endPartition, boolean isSegmentGranularityVisible) {
+    ReducerFileGroupCache rangeCache =
+        reduceFileGroupRangeCaches.computeIfAbsent(
+            shuffleId, ignored -> new ReducerFileGroupCache());
+    ReducerFileGroupRange range =
+        new ReducerFileGroupRange(startPartition, endPartition, isSegmentGranularityVisible);
+    while (true) {
+      synchronized (rangeCache) {
+        if (!rangeCache.active || reduceFileGroupRangeCaches.get(shuffleId) != rangeCache) {
+          return Tuple3.apply(null, "Shuffle cleaned up", null);
+        }
+        if (rangeCache.contains(startPartition, endPartition, isSegmentGranularityVisible)) {
+          return Tuple3.apply(rangeCache.getRange(startPartition, endPartition), null, null);
+        }
+      }
+      reduceFileGroupsAfterCacheMiss.run();
+
+      CompletableFuture<Tuple3<ReduceFileGroups, String, Exception>> newLoad =
+          new CompletableFuture<>();
+      CompletableFuture<Tuple3<ReduceFileGroups, String, Exception>> inFlightLoad = null;
+      boolean waitingForMapAttempts = false;
+      synchronized (rangeCache) {
+        if (!rangeCache.active || reduceFileGroupRangeCaches.get(shuffleId) != rangeCache) {
+          return Tuple3.apply(null, "Shuffle cleaned up", null);
+        }
+        inFlightLoad = rangeCache.inFlightLoads.get(range);
+        if (inFlightLoad == null && !rangeCache.hasMapAttempts()) {
+          // Let only the first cold range fetch the shuffle-wide mapper attempts. Once it merges,
+          // unrelated ranges proceed independently and omit that array from their responses.
+          inFlightLoad = rangeCache.inFlightLoads.values().stream().findAny().orElse(null);
+          waitingForMapAttempts = inFlightLoad != null;
+        }
+        if (inFlightLoad == null) {
+          inFlightLoad = rangeCache.inFlightLoads.putIfAbsent(range, newLoad);
+        }
+      }
+      if (inFlightLoad != null) {
+        Tuple3<ReduceFileGroups, String, Exception> loadedTuple =
+            waitForFileGroupLoad(inFlightLoad);
+        boolean retryAfterOwnerInterrupt =
+            loadedTuple._3() instanceof InterruptedException
+                && !Thread.currentThread().isInterrupted();
+        if ((waitingForMapAttempts && loadedTuple._1() != null) || retryAfterOwnerInterrupt) {
+          continue;
+        }
+        return loadedTuple;
+      }
+
+      if (rangeCache.contains(startPartition, endPartition, isSegmentGranularityVisible)) {
+        Tuple3<ReduceFileGroups, String, Exception> cached =
+            Tuple3.apply(rangeCache.getRange(startPartition, endPartition), null, null);
+        rangeCache.inFlightLoads.remove(range, newLoad);
+        newLoad.complete(cached);
+        return cached;
+      }
+
+      try {
+        Tuple3<ReduceFileGroups, String, Exception> loadedTuple =
+            loadFileGroupInternal(
+                shuffleId, startPartition, endPartition, isSegmentGranularityVisible);
+        Tuple3<ReduceFileGroups, String, Exception> completedTuple = loadedTuple;
+        synchronized (rangeCache) {
+          boolean shouldPublish =
+              reduceFileGroupRangeCaches.get(shuffleId) == rangeCache
+                  && rangeCache.active
+                  && rangeCache.inFlightLoads.get(range) == newLoad;
+          if (shouldPublish && loadedTuple._1() != null) {
+            rangeCache.merge(
+                startPartition, endPartition, isSegmentGranularityVisible, loadedTuple._1());
+            completedTuple =
+                Tuple3.apply(rangeCache.getRange(startPartition, endPartition), null, null);
+            reduceFileGroupsBeforeInFlightRelease.run();
+          } else if (!shouldPublish) {
+            completedTuple = Tuple3.apply(null, "Shuffle cleaned up", null);
+          }
+          rangeCache.inFlightLoads.remove(range, newLoad);
+        }
+        newLoad.complete(completedTuple);
+        return completedTuple;
+      } catch (Throwable e) {
+        rangeCache.inFlightLoads.remove(range, newLoad);
+        newLoad.completeExceptionally(e);
+        if (e instanceof RuntimeException) {
+          throw (RuntimeException) e;
+        } else if (e instanceof Error) {
+          throw (Error) e;
+        } else {
+          throw new RuntimeException(e);
+        }
+      }
+    }
+  }
+
+  private Tuple3<ReduceFileGroups, String, Exception> waitForFileGroupLoad(
+      CompletableFuture<Tuple3<ReduceFileGroups, String, Exception>> inFlightLoad) {
+    try {
+      return inFlightLoad.get();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return Tuple3.apply(null, e.getMessage(), e);
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof Error) {
+        throw (Error) cause;
+      }
+      Exception exception =
+          cause instanceof Exception ? (Exception) cause : new RuntimeException(cause);
+      return Tuple3.apply(null, exception.getMessage(), exception);
     }
   }
 
@@ -1999,6 +2330,16 @@ public class ShuffleClientImpl extends ShuffleClient {
         "Failed to load file group of shuffle %d partition %d! %s",
         shuffleId,
         partitionId,
+        StringUtils.isEmpty(exceptionMsg) ? StringUtils.EMPTY : exceptionMsg);
+  }
+
+  protected String loadFileGroupException(
+      int shuffleId, int startPartition, int endPartition, String exceptionMsg) {
+    return String.format(
+        "Failed to load file group of shuffle %d partition range [%d, %d)! %s",
+        shuffleId,
+        startPartition,
+        endPartition,
         StringUtils.isEmpty(exceptionMsg) ? StringUtils.EMPTY : exceptionMsg);
   }
 
@@ -2070,6 +2411,11 @@ public class ShuffleClientImpl extends ShuffleClient {
   @VisibleForTesting
   public Map<Integer, Tuple3<ReduceFileGroups, String, Exception>> getReduceFileGroupsMap() {
     return reduceFileGroupsMap;
+  }
+
+  @VisibleForTesting
+  public boolean hasReducerFileGroupRangeCache(int shuffleId) {
+    return reduceFileGroupRangeCaches.containsKey(shuffleId);
   }
 
   @Override
