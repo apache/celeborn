@@ -136,9 +136,9 @@ public class SendWorkerEventRequest {
    * The workers to send the event.
    * @return workers
    */
-  @javax.annotation.Nullable
+  @javax.annotation.Nonnull
   @JsonProperty(JSON_PROPERTY_WORKERS)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
 
   public List<WorkerId> getWorkers() {
     return workers;
@@ -146,7 +146,7 @@ public class SendWorkerEventRequest {
 
 
   @JsonProperty(JSON_PROPERTY_WORKERS)
-  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
   public void setWorkers(List<WorkerId> workers) {
     this.workers = workers;
   }
