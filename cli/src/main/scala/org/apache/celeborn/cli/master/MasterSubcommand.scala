@@ -25,7 +25,7 @@ import picocli.CommandLine.Model.CommandSpec
 import org.apache.celeborn.cli.CelebornCli
 import org.apache.celeborn.cli.common.{BaseCommand, CliLogging, CommonOptions}
 import org.apache.celeborn.cli.config.CliConfigManager
-import org.apache.celeborn.rest.v1.master.{ApplicationApi, ConfApi, DefaultApi, LoggerApi, MasterApi, ShuffleApi, WorkerApi}
+import org.apache.celeborn.rest.v1.master.{ApplicationApi, ConfApi, DefaultApi, LoggerApi, MasterApi, RatisApi, ShuffleApi, WorkerApi}
 import org.apache.celeborn.rest.v1.master.invoker.ApiClient
 import org.apache.celeborn.rest.v1.model._
 
@@ -69,6 +69,7 @@ trait MasterSubcommand extends BaseCommand {
   private[master] def defaultApi: DefaultApi = new DefaultApi(apiClient)
   private[master] def loggerApi: LoggerApi = new LoggerApi(apiClient)
   private[master] def masterApi: MasterApi = new MasterApi(apiClient)
+  private[master] def ratisApi: RatisApi = new RatisApi(apiClient)
   private[master] def shuffleApi: ShuffleApi = new ShuffleApi(apiClient)
   private[master] def workerApi: WorkerApi = new WorkerApi(apiClient)
 
@@ -127,5 +128,25 @@ trait MasterSubcommand extends BaseCommand {
   private[master] def deleteApps: HandleResponse
 
   private[master] def updateInterruptionNotices: HandleResponse
+
+  private[master] def runRatisElectionTransfer: HandleResponse
+
+  private[master] def runRatisElectionStepDown: HandleResponse
+
+  private[master] def runRatisElectionPause: HandleResponse
+
+  private[master] def runRatisElectionResume: HandleResponse
+
+  private[master] def runRatisPeerAdd: HandleResponse
+
+  private[master] def runRatisPeerRemove: HandleResponse
+
+  private[master] def runRatisPeerSetPriority: HandleResponse
+
+  private[master] def runRatisSnapshotCreate: HandleResponse
+
+  private[master] def runRatisDownloadRaftMetaConf: Unit
+
+  private[master] def runRatisGenerateNewRaftMetaConf: Unit
 
 }

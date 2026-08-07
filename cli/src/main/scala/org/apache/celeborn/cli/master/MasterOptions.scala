@@ -150,4 +150,60 @@ final class MasterOptions {
     paramLabel = "workerId1=timestamp,workerId2=timestamp,workerId3=timestamp",
     description = Array("Update interruption notices of workers."))
   private[master] var updateInterruptionNotices: String = _
+
+  @Option(
+    names = Array("--ratis-election-transfer"),
+    description = Array("Transfer the ratis group leader to the peer specified by --peer-address."))
+  private[master] var ratisElectionTransfer: Boolean = _
+
+  @Option(
+    names = Array("--ratis-election-step-down"),
+    description = Array("Make the ratis group leader step down its leadership."))
+  private[master] var ratisElectionStepDown: Boolean = _
+
+  @Option(
+    names = Array("--ratis-election-pause"),
+    description = Array("Pause leader election at the current master." +
+      " Then, the current master would not start a leader election."))
+  private[master] var ratisElectionPause: Boolean = _
+
+  @Option(
+    names = Array("--ratis-election-resume"),
+    description = Array("Resume leader election at the current master."))
+  private[master] var ratisElectionResume: Boolean = _
+
+  @Option(
+    names = Array("--ratis-peer-add"),
+    description = Array("Add new peers specified by --ratis-peers to the ratis group."))
+  private[master] var ratisPeerAdd: Boolean = _
+
+  @Option(
+    names = Array("--ratis-peer-remove"),
+    description = Array("Remove peers specified by --ratis-peers from the ratis group."))
+  private[master] var ratisPeerRemove: Boolean = _
+
+  @Option(
+    names = Array("--ratis-peer-set-priority"),
+    description = Array("Set the priority of the ratis peers specified by --peer-priorities."))
+  private[master] var ratisPeerSetPriority: Boolean = _
+
+  @Option(
+    names = Array("--ratis-snapshot-create"),
+    description = Array("Trigger the current master to take a ratis snapshot."))
+  private[master] var ratisSnapshotCreate: Boolean = _
+
+  @Option(
+    names = Array("--ratis-download-raft-meta-conf"),
+    paramLabel = "path",
+    description = Array("Download the raft-meta.conf file of the current master" +
+      " to the specified local file path."))
+  private[master] var ratisDownloadRaftMetaConf: String = _
+
+  @Option(
+    names = Array("--ratis-generate-new-raft-meta-conf"),
+    paramLabel = "path",
+    description = Array("Generate a new-raft-meta.conf file based on the original raft-meta.conf" +
+      " and the new peers specified by --ratis-peers, which is used to move a ratis node" +
+      " to a new node. The generated file is saved to the specified local file path."))
+  private[master] var ratisGenerateNewRaftMetaConf: String = _
 }

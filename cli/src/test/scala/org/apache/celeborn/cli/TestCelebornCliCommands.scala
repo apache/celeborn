@@ -420,6 +420,54 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureErrorAndValidateResponse(args, "Invalid timestamp for worker")
   }
 
+  test("master --ratis-election-transfer validates inputs") {
+    val args = prepareMasterArgs() :+ "--ratis-election-transfer"
+    captureErrorAndValidateResponse(args, "Peer address must be provided via --peer-address")
+  }
+
+  test("master --ratis-peer-add and --ratis-peer-remove validate inputs") {
+    Seq(
+      Array("--ratis-peer-add") ->
+        "Ratis peers must be provided via --ratis-peers",
+      Array("--ratis-peer-remove") ->
+        "Ratis peers must be provided via --ratis-peers",
+      Array("--ratis-peer-add", "--ratis-peers", "host1:9872") ->
+        "Invalid ratis peer: 'host1:9872'. Expected format: id|host:port",
+      Array("--ratis-peer-add", "--ratis-peers", "id1|host1") ->
+        "Invalid ratis peer address: 'host1'. Expected format: host:port",
+      Array("--ratis-peer-add", "--ratis-peers", "id1|host1:abc") ->
+        "Port is not a valid integer").foreach { case (command, expectedError) =>
+      captureErrorAndValidateResponse(prepareMasterArgs() ++ command, expectedError)
+    }
+  }
+
+  test("master --ratis-peer-set-priority validates inputs") {
+    Seq(
+      Array("--ratis-peer-set-priority") ->
+        "Peer priorities must be provided via --peer-priorities",
+      Array("--ratis-peer-set-priority", "--peer-priorities", "host1:9872") ->
+        "Invalid peer priority: 'host1:9872'. Expected format: host:port=priority",
+      Array("--ratis-peer-set-priority", "--peer-priorities", "host1:9872=abc") ->
+        "Invalid priority for peer 'host1:9872': 'abc' is not a valid integer").foreach {
+      case (command, expectedError) =>
+        captureErrorAndValidateResponse(prepareMasterArgs() ++ command, expectedError)
+    }
+  }
+
+  test("master --ratis-generate-new-raft-meta-conf validates inputs") {
+    val args = prepareMasterArgs() ++ Array(
+      "--ratis-generate-new-raft-meta-conf",
+      "new-raft-meta.conf")
+    captureErrorAndValidateResponse(args, "Ratis peers must be provided via --ratis-peers")
+  }
+
+  test("master --ratis-download-raft-meta-conf validates target path") {
+    val args = prepareMasterArgs() ++ Array(
+      "--ratis-download-raft-meta-conf",
+      "/nonexistent-celeborn-cli-test-dir/raft-meta.conf")
+    captureErrorAndValidateResponse(args, "The parent directory does not exist")
+  }
+
   test("--version") {
     val versionInfo = "Could not resolve version of Celeborn since no RELEASE file was found"
     captureOutputAndValidateResponse(Array("--version"), versionInfo)

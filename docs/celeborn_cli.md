@@ -83,8 +83,11 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
                            [--config-name=username] [--config-tenant=tenant_id]
                            [--delete-configs=c1,c2,c3...] [--host-list=h1,h2,
                            h3...] [--hostport=host:port] [--logger-level=level]
-                           [--logger-name=logger_name] [--upsert-configs=k1:
-                           v1,k2:v2,k3:v3...] [--worker-ids=w1,w2,w3...]
+                           [--logger-name=logger_name] [--peer-address=host:
+                           port] [--peer-priorities=host1:port1=priority1,host2:
+                           port2=priority2,...] [--ratis-peers=id1|host1:port1,
+                           id2|host2:port2,...] [--upsert-configs=k1:v1,k2:v2,
+                           k3:v3...] [--worker-ids=w1,w2,w3...]
                            (--show-masters-info | --show-cluster-apps |
                            --show-cluster-apps-info | --show-cluster-shuffles |
                            --unregister-shuffles | --exclude-worker |
@@ -106,7 +109,14 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
                            --remove-workers-unavailable-info |
                            --revise-lost-shuffles | --delete-apps |
                            --update-interruption-notices=workerId1=timestamp,
-                           workerId2=timestamp,workerId3=timestamp)
+                           workerId2=timestamp,workerId3=timestamp |
+                           --ratis-election-transfer |
+                           --ratis-election-step-down | --ratis-election-pause
+                           | --ratis-election-resume | --ratis-peer-add |
+                           --ratis-peer-remove | --ratis-peer-set-priority |
+                           --ratis-snapshot-create |
+                           --ratis-download-raft-meta-conf=path |
+                           --ratis-generate-new-raft-meta-conf=path)
                            [[--shuffleIds=shuffleId[,shuffleId...]]...]
       --add-cluster-alias=alias
                              Add alias to use in the cli for the given set of
@@ -138,6 +148,46 @@ Usage: celeborn-cli master [-hV] [--apps=appId] [--auth-header=authHeader]
                              The logger name to query or set the level for. If
                                not specified for --show-loggers, all configured
                                loggers are returned.
+      --peer-address=host:port
+                             The address of the ratis peer to transfer the
+                               leader to.
+      --peer-priorities=host1:port1=priority1,host2:port2=priority2,...
+                             The comma separated ratis peer address and
+                               priority pairs in the format of `host:
+                               port=priority`.
+      --ratis-download-raft-meta-conf=path
+                             Download the raft-meta.conf file of the current
+                               master to the specified local file path.
+      --ratis-election-pause Pause leader election at the current master. Then,
+                               the current master would not start a leader
+                               election.
+      --ratis-election-resume
+                             Resume leader election at the current master.
+      --ratis-election-step-down
+                             Make the ratis group leader step down its
+                               leadership.
+      --ratis-election-transfer
+                             Transfer the ratis group leader to the peer
+                               specified by --peer-address.
+      --ratis-generate-new-raft-meta-conf=path
+                             Generate a new-raft-meta.conf file based on the
+                               original raft-meta.conf and the new peers
+                               specified by --ratis-peers, which is used to
+                               move a ratis node to a new node. The generated
+                               file is saved to the specified local file path.
+      --ratis-peer-add       Add new peers specified by --ratis-peers to the
+                               ratis group.
+      --ratis-peer-remove    Remove peers specified by --ratis-peers from the
+                               ratis group.
+      --ratis-peer-set-priority
+                             Set the priority of the ratis peers specified by
+                               --peer-priorities.
+      --ratis-peers=id1|host1:port1,id2|host2:port2,...
+                             The comma separated ratis peers in the format of
+                               `id|host:port`. The peer id is required.
+      --ratis-snapshot-create
+                             Trigger the current master to take a ratis
+                               snapshot.
       --remove-cluster-alias=alias
                              Remove alias to use in the cli for the given set
                                of masters

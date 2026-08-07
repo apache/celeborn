@@ -107,6 +107,26 @@ class CommonOptions {
   private[cli] var loggerLevel: String = _
 
   @Option(
+    names = Array("--peer-address"),
+    paramLabel = "host:port",
+    description = Array("The address of the ratis peer to transfer the leader to."))
+  private[cli] var peerAddress: String = _
+
+  @Option(
+    names = Array("--ratis-peers"),
+    paramLabel = "id1|host1:port1,id2|host2:port2,...",
+    description = Array("The comma separated ratis peers in the format of `id|host:port`." +
+      " The peer id is required."))
+  private[cli] var ratisPeers: String = _
+
+  @Option(
+    names = Array("--peer-priorities"),
+    paramLabel = "host1:port1=priority1,host2:port2=priority2,...",
+    description = Array("The comma separated ratis peer address and priority pairs" +
+      " in the format of `host:port=priority`."))
+  private[cli] var peerPriorities: String = _
+
+  @Option(
     names = Array("--auth-header"),
     paramLabel = "authHeader",
     description = Array("The http `Authorization` header for authentication. " +
