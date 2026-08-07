@@ -878,6 +878,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_PARTITION_SORTER_RESERVED_MEMORY_PER_PARTITION)
   def workerPartitionSorterThreads: Int =
     get(WORKER_PARTITION_SORTER_THREADS).getOrElse(Runtime.getRuntime.availableProcessors)
+  def workerPartitionSorterResolveThreads: Int = get(WORKER_PARTITION_SORTER_RESOLVE_THREADS)
   def workerPartitionSorterIndexCacheMaxWeight: Long =
     get(WORKER_PARTITION_SORTER_INDEX_CACHE_MAX_WEIGHT)
   def workerPartitionSorterIndexExpire: Long = get(WORKER_PARTITION_SORTER_INDEX_CACHE_EXPIRE)
@@ -3889,6 +3890,15 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .intConf
       .createOptional
+
+  val WORKER_PARTITION_SORTER_RESOLVE_THREADS: ConfigEntry[Int] =
+    buildConf("celeborn.worker.sortPartition.resolve.threads")
+      .categories("worker")
+      .doc("Thread number of worker to resolve sorted shuffle file indexes.")
+      .version("0.7.0")
+      .intConf
+      .checkValue(_ > 0, "Partition sorter resolve threads must be positive.")
+      .createWithDefault(4)
 
   val WORKER_PARTITION_SORTER_INDEX_CACHE_MAX_WEIGHT: ConfigEntry[Long] =
     buildConf("celeborn.worker.sortPartition.indexCache.maxWeight")

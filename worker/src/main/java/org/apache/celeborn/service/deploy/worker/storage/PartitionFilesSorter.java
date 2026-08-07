@@ -69,7 +69,6 @@ import org.apache.celeborn.service.deploy.worker.shuffledb.StoreVersion;
 
 public class PartitionFilesSorter extends ShuffleRecoverHelper {
   private static final Logger logger = LoggerFactory.getLogger(PartitionFilesSorter.class);
-  private static final int SORTED_FILE_RESOLVE_THREADS = 4;
 
   private static final StoreVersion CURRENT_VERSION = new StoreVersion(1, 0);
   private static final String RECOVERY_SORTED_FILES_FILE_NAME_PREFIX = "sortedFiles";
@@ -147,7 +146,7 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
             "worker-file-sorter-executor", conf.workerPartitionSorterThreads(), 120);
     sortedFileResolveExecutors =
         ThreadUtils.newDaemonFixedThreadPool(
-            SORTED_FILE_RESOLVE_THREADS, "worker-sorted-file-resolver");
+            conf.workerPartitionSorterResolveThreads(), "worker-sorted-file-resolver");
 
     indexCache =
         CacheBuilder.newBuilder()
@@ -334,6 +333,12 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       return failedSortedFileInfo(new IOException("Partition sorter is closed."));
     }
     if (fileInfo instanceof MemoryFileInfo) {
+      logger.debug(
+          "Sorting memory shuffle file synchronously for shuffle key {}, file name {}, map range [{}, {})",
+          shuffleKey,
+          fileName,
+          startMapIndex,
+          endMapIndex);
       try {
         return CompletableFuture.completedFuture(
             getSortedFileInfo(shuffleKey, fileName, fileInfo, startMapIndex, endMapIndex));

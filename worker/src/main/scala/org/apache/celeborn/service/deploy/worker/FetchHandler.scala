@@ -149,6 +149,17 @@ class FetchHandler(
         val endIndices = openStreamList.getEndIndexList
         val readLocalFlags = openStreamList.getReadLocalShuffleList
         checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
+        if (startIndices.size() != files.size() ||
+          endIndices.size() != files.size() ||
+          readLocalFlags.size() != files.size()) {
+          workerSource.incCounter(WorkerSource.OPEN_STREAM_FAIL_COUNT)
+          callback.onFailure(new CelebornIOException(
+            s"Invalid open stream list: fileName count ${files.size()}, " +
+              s"startIndex count ${startIndices.size()}, " +
+              s"endIndex count ${endIndices.size()}, " +
+              s"readLocalShuffle count ${readLocalFlags.size()}"))
+          return
+        }
         val openStreamRequestId = Utils.makeOpenStreamRequestId(
           shuffleKey,
           client.getChannel.id().toString,

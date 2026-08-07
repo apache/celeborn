@@ -321,6 +321,47 @@ public class FetchHandlerSuiteJ {
   }
 
   @Test
+  public void testBatchOpenStreamRejectsMismatchedRequestFieldLengths() {
+    EmbeddedChannel channel = new EmbeddedChannel();
+    TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+    FetchHandler fetchHandler = mockFetchHandler(null);
+    PbOpenStreamList validRequest =
+        PbOpenStreamList.newBuilder()
+            .setShuffleKey(shuffleKey)
+            .addFileName(fileName)
+            .addStartIndex(5)
+            .addEndIndex(10)
+            .addReadLocalShuffle(false)
+            .build();
+    PbOpenStreamList[] malformedRequests = {
+      validRequest.toBuilder().clearStartIndex().build(),
+      validRequest.toBuilder().clearEndIndex().build(),
+      validRequest.toBuilder().clearReadLocalShuffle().build(),
+      validRequest.toBuilder().addEndIndex(15).build()
+    };
+
+    for (PbOpenStreamList malformedRequest : malformedRequests) {
+      fetchHandler.receive(
+          client,
+          new RpcRequest(
+              dummyRequestId,
+              new NioManagedBuffer(
+                  new TransportMessage(
+                          MessageType.BATCH_OPEN_STREAM, malformedRequest.toByteArray())
+                      .toByteBuffer())),
+          createRpcResponseCallback(channel));
+
+      Object response = channel.readOutbound();
+      assertTrue(response instanceof RpcFailure);
+      assertTrue(((RpcFailure) response).errorString.contains("Invalid open stream list"));
+      assertNull(channel.readOutbound());
+    }
+
+    verify(fetchHandler.workerSource(), never()).startTimer(anyString(), anyString());
+    verify(fetchHandler, never()).getRawFileInfo(anyString(), anyString());
+  }
+
+  @Test
   public void testOpenStreamReportsAsynchronousSortFailure() throws Exception {
     FileInfo fileInfo = null;
     try {

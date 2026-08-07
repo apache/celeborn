@@ -385,6 +385,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.SORTING_FILES) { () =>
     partitionsSorter.getSortingCount
   }
+  workerSource.addGauge(WorkerSource.SORTED_FILE_WAITERS) { () =>
+    partitionsSorter.getSortedFileWaiterCount
+  }
   workerSource.addGauge(WorkerSource.SORTED_FILES) { () =>
     partitionsSorter.getSortedCount
   }
