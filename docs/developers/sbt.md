@@ -314,9 +314,9 @@ Publish the shade client for Spark 3.5:
 $ ./build/sbt -Pspark-3.5 celeborn-client-spark-3-shaded/publish
 ```
 
-Publish the shade client for Spark 4.0:
+Publish the shade client for Spark 4.2:
 ```shell
-$ ./build/sbt -Pspark-4.0 celeborn-client-spark-4-shaded/publish
+$ ./build/sbt -Pspark-4.2 celeborn-client-spark-4-shaded/publish
 ```
 
 Publish the shade client for Flink 1.18:
