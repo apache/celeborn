@@ -110,7 +110,9 @@
 "module:service":
   - changed-files:
     - any-glob-to-any-file: [
-      'service/**/*'
+      'service/**/*',
+      'lifecycle-manager/**/*',
+      'multipart-uploader/**/*',
     ]
 
 "module:spi":
@@ -161,4 +163,10 @@
   - changed-files:
     - any-glob-to-any-file: [
       'client-tez/**/*',
+    ]
+
+"module:rust":
+  - changed-files:
+    - any-glob-to-any-file: [
+      'rust/**/*',
     ]
