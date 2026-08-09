@@ -17,9 +17,15 @@
 
 package org.apache.spark.shuffle.celeborn;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.*;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.security.SecureRandom;
@@ -27,6 +33,7 @@ import java.util.Arrays;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.internal.config.package$;
+import org.apache.spark.security.CryptoStreamUtils;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -136,6 +143,68 @@ public class SparkCryptoHandlerSuiteJ {
 
     byte[] decrypted = handler.decrypt(encrypted, 0, encrypted.length);
     assertEquals(0, decrypted.length);
+  }
+
+  @Test
+  public void testEncryptWithConfiguredCipherInteroperatesWithSparkCryptoStreamUtils()
+      throws IOException {
+    SparkConf sparkConf = new SparkConf(false);
+    sparkConf.set(package$.MODULE$.IO_ENCRYPTION_ENABLED(), true);
+    sparkConf.set(package$.MODULE$.IO_CRYPTO_CIPHER_TRANSFORMATION(), "AES/CBC/PKCS5Padding");
+    assertEncryptInteroperatesWithSparkCryptoStreamUtils(sparkConf);
+  }
+
+  @Test
+  public void testDecryptWithConfiguredCipherInteroperatesWithSparkCryptoStreamUtils()
+      throws IOException {
+    SparkConf sparkConf = new SparkConf(false);
+    sparkConf.set(package$.MODULE$.IO_ENCRYPTION_ENABLED(), true);
+    sparkConf.set(package$.MODULE$.IO_CRYPTO_CIPHER_TRANSFORMATION(), "AES/CBC/PKCS5Padding");
+    assertDecryptInteroperatesWithSparkCryptoStreamUtils(sparkConf);
+  }
+
+  @Test
+  public void testDefaultCipherTransformationInteroperatesWithSparkCryptoStreamUtils()
+      throws IOException {
+    SparkConf sparkConf = new SparkConf(false);
+    sparkConf.set(package$.MODULE$.IO_ENCRYPTION_ENABLED(), true);
+    assertEncryptInteroperatesWithSparkCryptoStreamUtils(sparkConf);
+    assertDecryptInteroperatesWithSparkCryptoStreamUtils(sparkConf);
+  }
+
+  private void assertEncryptInteroperatesWithSparkCryptoStreamUtils(SparkConf sparkConf)
+      throws IOException {
+    byte[] plaintext = "12345678901234567".getBytes(UTF_8);
+    CryptoHandler cryptoHandler = new SparkCryptoHandler(sparkConf, key);
+
+    byte[] encrypted = cryptoHandler.encrypt(plaintext, 0, plaintext.length);
+    try (DataInputStream input =
+        new DataInputStream(
+            CryptoStreamUtils.createCryptoInputStream(
+                new ByteArrayInputStream(
+                    encrypted, Integer.BYTES, encrypted.length - Integer.BYTES),
+                sparkConf,
+                key))) {
+      byte[] decrypted = new byte[plaintext.length];
+      input.readFully(decrypted);
+      assertArrayEquals(plaintext, decrypted);
+    }
+  }
+
+  private void assertDecryptInteroperatesWithSparkCryptoStreamUtils(SparkConf sparkConf)
+      throws IOException {
+    byte[] plaintext = "12345678901234567".getBytes(UTF_8);
+    CryptoHandler cryptoHandler = new SparkCryptoHandler(sparkConf, key);
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    DataOutputStream dataOutput = new DataOutputStream(output);
+    dataOutput.writeInt(plaintext.length);
+    try (OutputStream cryptoOutput =
+        CryptoStreamUtils.createCryptoOutputStream(dataOutput, sparkConf, key)) {
+      cryptoOutput.write(plaintext);
+    }
+
+    byte[] encrypted = output.toByteArray();
+    assertArrayEquals(plaintext, cryptoHandler.decrypt(encrypted, 0, encrypted.length));
   }
 
   /**
