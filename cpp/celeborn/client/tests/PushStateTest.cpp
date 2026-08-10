@@ -247,6 +247,26 @@ TEST_F(PushStateBytesSizeTest, limitMaxInFlightByTotalBytesSize) {
   EXPECT_TRUE(thirdBatchCompleted.load());
 }
 
+// The existing byte-size tests exceed the request-count limit at the same time
+// as the byte limit, so they pass either way. Here only the byte limit is
+// exceeded: two in-flight batches stay within maxReqsInFlight (2 total, 100 per
+// worker) while their 4000 bytes exceed both maxBytesSizeInFlight limits (3000
+// total, 2500 per worker). The push must block.
+TEST_F(PushStateBytesSizeTest, limitMaxInFlightByBytesSizeOnly) {
+  const std::string hostAndPushPort = "xx.xx.xx.xx:8080";
+  const int batchSize = 2000;
+
+  pushState_->addBatch(0, batchSize, hostAndPushPort);
+  pushState_->addBatch(1, batchSize, hostAndPushPort);
+
+  EXPECT_TRUE(pushState_->limitMaxInFlight(hostAndPushPort))
+      << "Push should be throttled while the in-flight bytes exceed the limit";
+
+  // Dropping one batch brings the bytes back under both limits.
+  pushState_->removeBatch(0, hostAndPushPort);
+  EXPECT_FALSE(pushState_->limitMaxInFlight(hostAndPushPort));
+}
+
 TEST_F(PushStateBytesSizeTest, cleanupClearsBytesSizeTracking) {
   const std::string hostAndPushPort = "xx.xx.xx.xx:8080";
 

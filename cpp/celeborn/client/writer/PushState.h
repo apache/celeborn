@@ -55,10 +55,9 @@ class PushState {
   // block until the ongoing package num decreases below max limit. If the
   // limit operation succeeds before timeout, return false, otherwise return
   // true.
-  // When maxBytesSizeInFlight is enabled, the limit check considers both
-  // request count and byte size limits. The push is allowed if either:
-  // 1. Request count is within limits, or
-  // 2. Byte size is within limits (when enabled)
+  // When maxBytesSizeInFlight is enabled, the push is allowed only once both
+  // the request count and the byte size are within limits; otherwise only the
+  // request count is checked.
   bool limitMaxInFlight(const std::string& hostAndPushPort);
 
   // Check if the pushState's ongoing package num reaches zero, if not, block

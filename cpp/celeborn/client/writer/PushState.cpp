@@ -124,8 +124,23 @@ bool PushState::limitMaxInFlight(const std::string& hostAndPushPort) {
            batchBytesSize->load() <= maxInFlightBytesSizePerWorker_);
     }
 
-    if (reqCountWithinLimits ||
-        (maxInFlightBytesSizeEnabled_ && byteSizeWithinLimits)) {
+    // A send may proceed only when it is within limits. With byte-level
+    // backpressure enabled it must satisfy BOTH the request-count and the
+    // byte-size limits.
+    //
+    // Accepting either limit on its own leaves the byte limits unable to
+    // throttle at all: blocking would then require both limits to be
+    // exceeded, which is a strict subset of the request-count-only condition.
+    // Enabling maxBytesSizeInFlight could then only ever admit pushes that
+    // the request count alone would have blocked, which is the opposite of
+    // the memory guard these options document themselves as.
+    //
+    // Note the Java client's equivalent check in
+    // InFlightRequestTracker#limitMaxInFlight still accepts either limit.
+    const bool withinLimits = maxInFlightBytesSizeEnabled_
+        ? (reqCountWithinLimits && byteSizeWithinLimits)
+        : reqCountWithinLimits;
+    if (withinLimits) {
       break;
     }
 
