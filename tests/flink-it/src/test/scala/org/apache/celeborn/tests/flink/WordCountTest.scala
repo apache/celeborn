@@ -31,7 +31,9 @@ import org.apache.flink.util.OperatingSystem
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.hdfs.MiniDFSCluster
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.concurrent.Eventually._
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.time.SpanSugar._
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.{ACTIVE_STORAGE_TYPES, AUTH_ENABLED, HDFS_DIR, INTERNAL_PORT_ENABLED, WORKER_STORAGE_CREATE_FILE_POLICY}
@@ -112,13 +114,19 @@ abstract class WordCountTestBase extends AnyFunSuite with Logging with MiniClust
   }
 
   private def checkFlushingFileLength(): Unit = {
-    workers.map(worker => {
-      worker.storageManager.workingDirWriters.values().asScala.map(writers => {
-        writers.forEach((fileName, fileWriter) => {
-          assert(new File(fileName).length() == fileWriter.getDiskFileInfo.getFileLength)
-        })
-      })
-    })
+    // getDiskFileInfo.getFileLength is the logical byte count accounted as data is written, while
+    // the physical file is grown asynchronously by the LocalFlusher. Right after the job finishes
+    // the flusher may not have drained the last buffers yet, so the on-disk length can lag (briefly
+    // even 0). Wait for the flush to catch up before asserting equality instead of reading mid-flush.
+    eventually(timeout(30.seconds), interval(500.milliseconds)) {
+      workers.foreach { worker =>
+        worker.storageManager.workingDirWriters.values().asScala.foreach { writers =>
+          writers.forEach((fileName, fileWriter) => {
+            assert(new File(fileName).length() == fileWriter.getDiskFileInfo.getFileLength)
+          })
+        }
+      }
+    }
   }
 }
 
