@@ -90,6 +90,7 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
           s"spark.${CelebornConf.SHUFFLE_COMPRESSION_CODEC.key}",
           CompressionCodec.NONE.toString)
         .config(s"spark.${CelebornConf.CLIENT_STAGE_RERUN_ENABLED.key}", "false")
+        .config(s"spark.${CelebornConf.CLIENT_FETCH_CLEAN_FAILED_SHUFFLE.key}", "false")
         .config("spark.celeborn.client.shuffle.integrityCheck.enabled", "true")
         .config(
           "spark.shuffle.manager",
