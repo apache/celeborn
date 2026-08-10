@@ -53,13 +53,19 @@ void celeborn_ffi_free_error(char* err);
 // Releases a buffer returned via celeborn_ffi_read_partition_full.
 void celeborn_ffi_free_buffer(uint8_t* data);
 
+// Creates a client configured from `num_props` key/value pairs, each a
+// NUL-terminated string naming a CelebornConf property (for example
+// "celeborn.client.push.buffer.max.size"). Passing the properties through
+// verbatim means bindings pick up new configuration keys without an ABI
+// change; unknown keys are rejected by CelebornConf::registerProperty.
+//
 // Returns NULL on failure; in that case *err_out is set.
 celeborn_ffi_handle* celeborn_ffi_create_client(
     const char* app_id,
     size_t app_id_len,
-    int32_t push_buffer_max_size,
-    const char* codec,
-    size_t codec_len,
+    const char* const* keys,
+    const char* const* values,
+    size_t num_props,
     char** err_out);
 
 celeborn_ffi_status celeborn_ffi_setup_lifecycle_manager(

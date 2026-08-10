@@ -16,6 +16,7 @@
 //! Rust-friendly wrapper around `celeborn-client-sys` (raw C ABI bindings
 //! to `libceleborn_client.{so,dylib}`).
 
+use std::ffi::CString;
 use std::marker::PhantomData;
 use std::os::raw::c_char;
 use std::ptr;
@@ -46,19 +47,26 @@ unsafe fn ffi_error(err: *mut c_char) -> Error {
 /// Configuration for connecting to a Celeborn LifecycleManager.
 pub struct Config {
     pub app_id: String,
-    /// Max push buffer size in bytes. 0 means use cpp default (64kB).
-    pub push_buffer_max_size: i32,
-    /// Compression codec: "NONE", "LZ4", or "ZSTD".
-    pub shuffle_compression_codec: String,
+    /// Native `CelebornConf` properties, forwarded verbatim to the C++
+    /// client, e.g. `("celeborn.client.push.buffer.max.size", "64k")`.
+    /// Anything the C++ client understands can be set here without a change
+    /// to this crate; unknown keys are rejected at connect time.
+    pub properties: Vec<(String, String)>,
 }
 
 impl Config {
     pub fn new(app_id: String) -> Self {
         Self {
             app_id,
-            push_buffer_max_size: 0,
-            shuffle_compression_codec: "NONE".to_string(),
+            properties: Vec::new(),
         }
+    }
+
+    /// Sets a native `CelebornConf` property. Properties are applied in
+    /// insertion order, so a later entry for the same key wins.
+    pub fn set_property(&mut self, key: impl Into<String>, value: impl Into<String>) -> &mut Self {
+        self.properties.push((key.into(), value.into()));
+        self
     }
 }
 
@@ -118,13 +126,20 @@ fn validate_connect_args(config: &Config, lm_port: i32) -> Result<()> {
     if lm_port <= 0 {
         return Err(Error::InvalidArg("lm_port must be > 0"));
     }
-    let valid_codecs = ["NONE", "LZ4", "ZSTD"];
-    if !valid_codecs.contains(&config.shuffle_compression_codec.as_str()) {
-        return Err(Error::InvalidArg(
-            "shuffle_compression_codec must be NONE, LZ4, or ZSTD",
-        ));
+    if config.properties.iter().any(|(key, _)| key.is_empty()) {
+        return Err(Error::InvalidArg("property key is empty"));
     }
     Ok(())
+}
+
+/// Copies borrowed strings into NUL-terminated `CString`s for the C ABI.
+fn to_c_strings<'a>(items: impl Iterator<Item = &'a str>) -> Result<Vec<CString>> {
+    items
+        .map(|item| {
+            CString::new(item)
+                .map_err(|_| Error::InvalidArg("property contains an interior NUL byte"))
+        })
+        .collect()
 }
 
 impl ShuffleClient {
@@ -132,14 +147,23 @@ impl ShuffleClient {
     pub fn connect(config: Config, lm_host: &str, lm_port: i32) -> Result<Self> {
         validate_connect_args(&config, lm_port)?;
 
+        // The C++ side expects NUL-terminated strings, so the properties are
+        // copied into CStrings. `keys`/`values` own those buffers and must
+        // stay alive for the duration of the call below; `key_ptrs`/
+        // `value_ptrs` only borrow from them.
+        let keys = to_c_strings(config.properties.iter().map(|(key, _)| key.as_str()))?;
+        let values = to_c_strings(config.properties.iter().map(|(_, value)| value.as_str()))?;
+        let key_ptrs: Vec<*const c_char> = keys.iter().map(|key| key.as_ptr()).collect();
+        let value_ptrs: Vec<*const c_char> = values.iter().map(|value| value.as_ptr()).collect();
+
         let mut err: *mut c_char = ptr::null_mut();
         let handle = unsafe {
             sys::celeborn_ffi_create_client(
                 config.app_id.as_ptr() as *const c_char,
                 config.app_id.len(),
-                config.push_buffer_max_size,
-                config.shuffle_compression_codec.as_ptr() as *const c_char,
-                config.shuffle_compression_codec.len(),
+                key_ptrs.as_ptr(),
+                value_ptrs.as_ptr(),
+                key_ptrs.len(),
                 &mut err,
             )
         };
@@ -433,30 +457,27 @@ impl<'client> Drop for PartitionReader<'client> {
 mod tests {
     use super::*;
 
-    fn config_with(app_id: &str, codec: &str) -> Config {
-        let mut config = Config::new(app_id.to_string());
-        config.shuffle_compression_codec = codec.to_string();
-        config
+    fn config_with(app_id: &str) -> Config {
+        Config::new(app_id.to_string())
     }
 
     #[test]
-    fn validate_accepts_supported_codecs() {
-        for codec in ["NONE", "LZ4", "ZSTD"] {
-            let config = config_with("app", codec);
-            assert!(validate_connect_args(&config, 39099).is_ok());
-        }
+    fn validate_accepts_valid_args() {
+        let mut config = config_with("app");
+        config.set_property("celeborn.client.shuffle.compression.codec", "LZ4");
+        assert!(validate_connect_args(&config, 39099).is_ok());
     }
 
     #[test]
     fn validate_rejects_empty_app_id() {
-        let config = config_with("", "NONE");
+        let config = config_with("");
         let err = validate_connect_args(&config, 39099).unwrap_err();
         assert!(matches!(err, Error::InvalidArg("app_id is empty")));
     }
 
     #[test]
     fn validate_rejects_non_positive_port() {
-        let config = config_with("app", "NONE");
+        let config = config_with("app");
         assert!(matches!(
             validate_connect_args(&config, 0).unwrap_err(),
             Error::InvalidArg("lm_port must be > 0")
@@ -468,10 +489,41 @@ mod tests {
     }
 
     #[test]
-    fn validate_rejects_unknown_codec() {
-        let config = config_with("app", "GZIP");
+    fn validate_rejects_empty_property_key() {
+        let mut config = config_with("app");
+        config.set_property("", "value");
         assert!(matches!(
             validate_connect_args(&config, 39099).unwrap_err(),
+            Error::InvalidArg("property key is empty")
+        ));
+    }
+
+    #[test]
+    fn set_property_accumulates_native_keys() {
+        let mut config = config_with("app");
+        config
+            .set_property("celeborn.client.push.buffer.max.size", "64k")
+            .set_property("celeborn.client.shuffle.compression.codec", "ZSTD");
+        assert_eq!(
+            config.properties,
+            vec![
+                (
+                    "celeborn.client.push.buffer.max.size".to_string(),
+                    "64k".to_string()
+                ),
+                (
+                    "celeborn.client.shuffle.compression.codec".to_string(),
+                    "ZSTD".to_string()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn to_c_strings_rejects_interior_nul() {
+        assert!(to_c_strings(["ok"].into_iter()).is_ok());
+        assert!(matches!(
+            to_c_strings(["ba\0d"].into_iter()).unwrap_err(),
             Error::InvalidArg(_)
         ));
     }
