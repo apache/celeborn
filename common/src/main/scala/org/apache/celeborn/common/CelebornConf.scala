@@ -5258,7 +5258,7 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .doc("whether to clean those disk space occupied by shuffles which cannot be fetched")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.client.spark.fetch.cleanFailedShuffleInterval")
