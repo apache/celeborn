@@ -243,7 +243,7 @@ public class MetaHandler {
               fetchPort,
               replicatePort,
               diskInfos,
-              request.getWorkerHeartbeatRequest().getWorkerStatus().getStateStartTime(),
+              request.getWorkerHeartbeatRequest().getTime(),
               workerStatus,
               highWorkload);
           break;
