@@ -29,8 +29,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import scala.reflect.ClassTag;
@@ -629,6 +631,58 @@ public class ShuffleClientSuiteJ {
 
     Exception exception = exceptionRef.get();
     Assert.assertTrue(exception.getCause() instanceof TimeoutException);
+  }
+
+  @Test
+  public void testUpdateReducerFileGroupConcurrentLoadIssuesSingleRpc()
+      throws InterruptedException {
+    // Concurrent first-time loads must dedup to a single GetReducerFileGroup RPC (the RPC once
+    // ran under reduceFileGroupsMap's bin lock, convoying every reduce task of the shuffle).
+    CelebornConf conf = new CelebornConf();
+    AtomicInteger rpcCount = new AtomicInteger(0);
+    when(endpointRef.askSync(any(), any(), any(Integer.class), any(Long.class), any()))
+        .thenAnswer(
+            t -> {
+              rpcCount.incrementAndGet();
+              Thread.sleep(500);
+              return GetReducerFileGroupResponse$.MODULE$.apply(
+                  StatusCode.SUCCESS,
+                  new HashMap<>(),
+                  new int[0],
+                  Collections.emptySet(),
+                  Collections.emptyMap(),
+                  new byte[0],
+                  SerdeVersion.V1);
+            });
+
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    shuffleClient.setupLifecycleManagerRef(endpointRef);
+
+    int threads = 16;
+    CountDownLatch done = new CountDownLatch(threads);
+    AtomicReference<Exception> failure = new AtomicReference<>();
+    Thread[] workers = new Thread[threads];
+    for (int i = 0; i < threads; i++) {
+      Thread t =
+          new Thread(
+              () -> {
+                try {
+                  shuffleClient.updateFileGroup(0, 0);
+                } catch (Exception e) {
+                  failure.compareAndSet(null, e);
+                } finally {
+                  done.countDown();
+                }
+              },
+              "test-updateFileGroup-" + i);
+      t.setDaemon(true);
+      workers[i] = t;
+      t.start();
+    }
+    Assert.assertTrue("all callers should finish", done.await(30, TimeUnit.SECONDS));
+    Assert.assertNull(failure.get());
+    Assert.assertEquals("first-time load must issue exactly one RPC", 1, rpcCount.get());
   }
 
   @Test
