@@ -188,6 +188,10 @@ public class ShuffleClientImpl extends ShuffleClient {
   protected final Map<Integer, Tuple3<ReduceFileGroups, String, Exception>> reduceFileGroupsMap =
       JavaUtils.newConcurrentHashMap();
 
+  // Per-shuffle monitor serializing first-time file group loads, so the blocking
+  // GetReducerFileGroup RPC runs outside reduceFileGroupsMap's bin lock (see updateFileGroup).
+  private final Map<Integer, Object> fileGroupLoadLocks = JavaUtils.newConcurrentHashMap();
+
   private final TransportMessagesHelper messagesHelper = new TransportMessagesHelper();
 
   public ShuffleClientImpl(String appUniqueId, CelebornConf conf, UserIdentifier userIdentifier) {
@@ -1865,6 +1869,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     // clear status
     reducePartitionMap.remove(shuffleId);
     reduceFileGroupsMap.remove(shuffleId);
+    fileGroupLoadLocks.remove(shuffleId);
     mapperEndMap.remove(shuffleId);
     stageEndShuffleSet.remove(shuffleId);
     splitting.remove(shuffleId);
@@ -1975,16 +1980,19 @@ public class ShuffleClientImpl extends ShuffleClient {
   public ReduceFileGroups updateFileGroup(
       int shuffleId, int partitionId, boolean isSegmentGranularityVisible)
       throws CelebornIOException {
-    Tuple3<ReduceFileGroups, String, Exception> fileGroupTuple =
-        reduceFileGroupsMap.compute(
-            shuffleId,
-            (id, existsTuple) -> {
-              if (existsTuple == null || existsTuple._1() == null) {
-                return loadFileGroupInternal(shuffleId, isSegmentGranularityVisible);
-              } else {
-                return existsTuple;
-              }
-            });
+    // Cache hits take no lock. compute() would hold the bin lock across the blocking RPC and
+    // convoy every reduce task of the shuffle, so cold loads serialize on a per-shuffle monitor
+    // (double-checked) instead: one RPC in flight, and the RPC runs off the map's bin lock.
+    Tuple3<ReduceFileGroups, String, Exception> fileGroupTuple = reduceFileGroupsMap.get(shuffleId);
+    if (fileGroupTuple == null || fileGroupTuple._1() == null) {
+      synchronized (fileGroupLoadLocks.computeIfAbsent(shuffleId, id -> new Object())) {
+        fileGroupTuple = reduceFileGroupsMap.get(shuffleId);
+        if (fileGroupTuple == null || fileGroupTuple._1() == null) {
+          fileGroupTuple = loadFileGroupInternal(shuffleId, isSegmentGranularityVisible);
+          reduceFileGroupsMap.put(shuffleId, fileGroupTuple);
+        }
+      }
+    }
     if (fileGroupTuple._1() == null) {
       throw new CelebornIOException(
           loadFileGroupException(shuffleId, partitionId, (fileGroupTuple._2())),
