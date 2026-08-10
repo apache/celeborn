@@ -17,10 +17,34 @@
 
 #include "celeborn/network/MessageDispatcher.h"
 
+#include <folly/ExceptionWrapper.h>
+
 #include "celeborn/protocol/TransportMessage.h"
 
 namespace celeborn {
 namespace network {
+namespace {
+// Builds a retriable "connection closed" error. Sending on a closed connection
+// is a normal recoverable condition -- the peer closed the socket because of a
+// worker restart or an idle timeout -- not an invariant violation. Reporting it
+// through the promise instead of asserting mirrors the Java client, where a
+// send on an inactive channel surfaces as a retriable IOException via
+// TransportResponseHandler#channelInactive -> failOutstandingRequests, which
+// CelebornInputStream then retries or fails over to the replica.
+folly::exception_wrapper makeConnectionClosedException(
+    const std::string& detail) {
+  return folly::make_exception_wrapper<utils::CelebornRuntimeError>(
+      __FILE__,
+      static_cast<size_t>(__LINE__),
+      __FUNCTION__,
+      /*expression=*/"connection closed",
+      /*message=*/detail,
+      utils::error_source::kErrorSourceRuntime.c_str(),
+      utils::error_code::kInvalidState.c_str(),
+      /*isRetriable=*/true);
+}
+} // namespace
+
 void MessageDispatcher::read(Context*, std::unique_ptr<Message> toRecvMsg) {
   switch (toRecvMsg->type()) {
     case Message::RPC_RESPONSE: {
@@ -138,7 +162,6 @@ void MessageDispatcher::read(Context*, std::unique_ptr<Message> toRecvMsg) {
 
 folly::Future<std::unique_ptr<Message>> MessageDispatcher::operator()(
     std::unique_ptr<Message> toSendMsg) {
-  CELEBORN_CHECK(!closed_);
   auto currTime = std::chrono::system_clock::now();
   long requestId;
   switch (toSendMsg->type()) {
@@ -163,6 +186,14 @@ folly::Future<std::unique_ptr<Message>> MessageDispatcher::operator()(
     }
   }
 
+  // Fast path: the connection is already closed. Fail with a retriable error
+  // rather than asserting, so the caller's retry/failover logic can recover.
+  if (closed_.load()) {
+    return folly::makeFuture<std::unique_ptr<Message>>(
+        makeConnectionClosedException(fmt::format(
+            "connection closed before sending requestId {}", requestId)));
+  }
+
   auto f = requestIdRegistry_.withLock(
       [&](auto& registry) -> folly::Future<std::unique_ptr<Message>> {
         auto& holder = registry[requestId];
@@ -178,7 +209,21 @@ folly::Future<std::unique_ptr<Message>> MessageDispatcher::operator()(
 
   this->pipeline_->write(std::move(toSendMsg));
 
-  CELEBORN_CHECK(!closed_);
+  // close() flips closed_ before cleanup() locks the registry. If cleanup() ran
+  // between the fast-path check and the registration above, our promise would
+  // never be fulfilled. Detect that and fail it here so the caller sees a
+  // retriable error instead of hanging until the request times out.
+  if (closed_.load()) {
+    requestIdRegistry_.withLock([&](auto& registry) {
+      auto it = registry.find(requestId);
+      if (it != registry.end()) {
+        it->second.msgPromise.setException(
+            makeConnectionClosedException(fmt::format(
+                "connection closed while sending requestId {}", requestId)));
+        registry.erase(it);
+      }
+    });
+  }
   return f;
 }
 
@@ -191,8 +236,18 @@ folly::Future<std::unique_ptr<Message>>
 MessageDispatcher::sendFetchChunkRequest(
     const protocol::StreamChunkSlice& streamChunkSlice,
     std::unique_ptr<Message> toSendMsg) {
-  CELEBORN_CHECK(!closed_);
   CELEBORN_CHECK(toSendMsg->type() == Message::RPC_REQUEST);
+
+  // Fast path: the connection is already closed. Fail with a retriable error
+  // rather than asserting, so CelebornInputStream can retry or fail over to a
+  // replica.
+  if (closed_.load()) {
+    return folly::makeFuture<std::unique_ptr<Message>>(
+        makeConnectionClosedException(fmt::format(
+            "connection closed before fetching streamChunkSlice {}",
+            streamChunkSlice.toString())));
+  }
+
   auto f = streamChunkSliceRegistry_.withLock([&](auto& registry) {
     auto& holder = registry[streamChunkSlice];
     holder.requestTime = std::chrono::system_clock::now();
@@ -207,7 +262,21 @@ MessageDispatcher::sendFetchChunkRequest(
     return p.getFuture();
   });
   this->pipeline_->write(std::move(toSendMsg));
-  CELEBORN_CHECK(!closed_);
+
+  // Race handling: see operator(). If cleanup() ran before we registered above,
+  // fail our promise here rather than leaking it.
+  if (closed_.load()) {
+    streamChunkSliceRegistry_.withLock([&](auto& registry) {
+      auto it = registry.find(streamChunkSlice);
+      if (it != registry.end()) {
+        it->second.msgPromise.setException(
+            makeConnectionClosedException(fmt::format(
+                "connection closed while fetching streamChunkSlice {}",
+                streamChunkSlice.toString())));
+        registry.erase(it);
+      }
+    });
+  }
   return f;
 }
 
@@ -275,7 +344,8 @@ void MessageDispatcher::cleanup() {
       auto errorMsg =
           fmt::format("Client closed, cancel ongoing requestId {}", requestId);
       LOG(WARNING) << errorMsg;
-      promiseHolder.msgPromise.setException(std::runtime_error(errorMsg));
+      promiseHolder.msgPromise.setException(
+          makeConnectionClosedException(errorMsg));
     }
     registry.clear();
   });
@@ -285,7 +355,8 @@ void MessageDispatcher::cleanup() {
           "Client closed, cancel ongoing streamChunkSlice {}",
           streamChunkSlice.toString());
       LOG(WARNING) << errorMsg;
-      promiseHolder.msgPromise.setException(std::runtime_error(errorMsg));
+      promiseHolder.msgPromise.setException(
+          makeConnectionClosedException(errorMsg));
     }
     registry.clear();
   });

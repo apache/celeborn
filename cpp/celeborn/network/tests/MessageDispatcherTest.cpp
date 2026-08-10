@@ -66,6 +66,15 @@ std::string takeExceptionMessage(
   return std::move(future).result().exception().what().toStdString();
 }
 
+// Returns true when the future failed with a CelebornException marked
+// retriable.
+bool failedRetriably(folly::Future<std::unique_ptr<Message>>&& future) {
+  bool retriable = false;
+  const bool matched = std::move(future).result().exception().with_exception(
+      [&](const utils::CelebornException& e) { retriable = e.isRetriable(); });
+  return matched && retriable;
+}
+
 } // namespace
 
 TEST(MessageDispatcherTest, sendRpcRequestAndReceiveResponse) {
@@ -302,6 +311,77 @@ TEST(MessageDispatcherTest, sendFetchChunkRequestAndReceiveFailure) {
   const auto exceptionMsg = takeExceptionMessage(std::move(future));
   EXPECT_NE(exceptionMsg.find(errorMsg), std::string::npos);
   EXPECT_NE(exceptionMsg.find(streamChunkSlice.toString()), std::string::npos);
+}
+
+// A send issued after the connection is closed must fail gracefully with a
+// ready, retriable exception instead of tripping an assertion. This mirrors the
+// Java client, where a send on an inactive channel surfaces as a retriable
+// IOException that CelebornInputStream retries.
+TEST(MessageDispatcherTest, sendRpcRequestAfterCloseFailsRetriably) {
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(sentMsg);
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
+  dispatcher->close();
+  EXPECT_FALSE(dispatcher->isAvailable());
+
+  const long requestId = 2001;
+  const std::string requestBody = "test-request-body";
+  auto rpcRequest = std::make_unique<RpcRequest>(
+      requestId, toReadOnlyByteBuffer(requestBody));
+  auto future = dispatcher->sendRpcRequest(std::move(rpcRequest));
+
+  ASSERT_TRUE(future.isReady());
+  ASSERT_TRUE(future.hasException());
+  EXPECT_TRUE(failedRetriably(std::move(future)));
+}
+
+TEST(MessageDispatcherTest, sendFetchChunkRequestAfterCloseFailsRetriably) {
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(sentMsg);
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
+  dispatcher->close();
+  EXPECT_FALSE(dispatcher->isAvailable());
+
+  const protocol::StreamChunkSlice streamChunkSlice{2001, 2002, 2003, 2004};
+  const long requestId = 2001;
+  const std::string requestBody = "test-request-body";
+  auto rpcRequest = std::make_unique<RpcRequest>(
+      requestId, toReadOnlyByteBuffer(requestBody));
+  auto future = dispatcher->sendFetchChunkRequest(
+      streamChunkSlice, std::move(rpcRequest));
+
+  ASSERT_TRUE(future.isReady());
+  ASSERT_TRUE(future.hasException());
+  EXPECT_TRUE(failedRetriably(std::move(future)));
+}
+
+// close() must fail any in-flight request rather than leaving its future
+// pending forever, matching Java's failOutstandingRequests on channelInactive.
+TEST(MessageDispatcherTest, closeFailsInFlightRequestsRetriably) {
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(sentMsg);
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
+  const long requestId = 3001;
+  const std::string requestBody = "test-request-body";
+  auto rpcRequest = std::make_unique<RpcRequest>(
+      requestId, toReadOnlyByteBuffer(requestBody));
+  auto future = dispatcher->sendRpcRequest(std::move(rpcRequest));
+  EXPECT_FALSE(future.isReady());
+
+  dispatcher->close();
+
+  ASSERT_TRUE(future.isReady());
+  ASSERT_TRUE(future.hasException());
+  EXPECT_TRUE(failedRetriably(std::move(future)));
 }
 
 TEST(MessageDispatcherTest, heartbeatIsSilentlyConsumed) {

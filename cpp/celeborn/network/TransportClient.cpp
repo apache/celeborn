@@ -264,7 +264,19 @@ std::shared_ptr<TransportClient> TransportClientFactory::createClient(
           connectTimeout_,
           folly::exceptionStr(e).toStdString());
       LOG(ERROR) << errorMsg;
-      CELEBORN_FAIL(errorMsg);
+      // Failing to establish a connection is transient: the peer may be
+      // restarting, or the network may be briefly unavailable. Mark it
+      // retriable so createReaderWithRetry and the push failover path treat it
+      // as recoverable instead of a hard failure.
+      throw utils::CelebornRuntimeError(
+          __FILE__,
+          __LINE__,
+          __FUNCTION__,
+          /*expression=*/"",
+          /*message=*/errorMsg,
+          utils::error_source::kErrorSourceRuntime.c_str(),
+          utils::error_code::kInvalidState.c_str(),
+          /*isRetriable=*/true);
     }
   }
 }
