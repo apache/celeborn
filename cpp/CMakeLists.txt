@@ -337,9 +337,16 @@ if(APPLE)
     INSTALL_RPATH "@loader_path;${HOMEBREW_PREFIX}/lib;${HOMEBREW_PREFIX}/opt/openssl@3/lib"
     BUILD_WITH_INSTALL_RPATH TRUE)
 else()
+  # The version script alone is enough: it puts everything except celeborn::*
+  # and celeborn_* into the `local:` bucket. Do NOT add -Wl,--exclude-libs,ALL
+  # on top of it -- that forces STV_HIDDEN on every symbol coming out of a
+  # static archive, and the celeborn_ffi_* entry points live in the
+  # libceleborn_ffi.a that is pulled in with --whole-archive above. Hidden
+  # visibility wins over the version script, so the C ABI would disappear from
+  # the .so's dynamic symbol table and downstream bindings (the Rust crate
+  # links this as `dylib=celeborn_client`) would fail to resolve it.
   target_link_options(celeborn_client PRIVATE
-    "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map"
-    "-Wl,--exclude-libs,ALL")
+    "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map")
   set_target_properties(celeborn_client PROPERTIES
     INSTALL_RPATH "$ORIGIN"
     BUILD_WITH_INSTALL_RPATH TRUE)
