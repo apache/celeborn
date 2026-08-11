@@ -37,4 +37,23 @@ class PrometheusServlet(
       servletPath,
       new ServletParams(_ => getMetricsSnapshot, "text/plain"))
   }
+
+  override def getMetricsSnapshot: String = {
+    val raw = super.getMetricsSnapshot
+    val seen = scala.collection.mutable.HashSet[String]()
+    val header = "^#\\s+(TYPE|HELP)\\s+(\\S+)\\b.*$".r
+    val out = new StringBuilder(raw.length)
+
+    raw.linesIterator.foreach {
+      case line @ header(kind, metric) =>
+        val key = s"$kind\t$metric"
+        if (!seen.contains(key)) {
+          out.append(line).append('\n')
+          seen += key
+        }
+      case line =>
+        out.append(line).append('\n')
+    }
+    out.result()
+  }
 }
