@@ -238,6 +238,7 @@ object WorkerSource {
   // slots
   val SLOTS_ALLOCATED = "SlotsAllocated"
   val ACTIVE_SLOTS_COUNT = "ActiveSlotsCount"
+  val AVAILABLE_SLOTS_COUNT = "AvailableSlotsCount"
   val RESERVE_SLOTS_TIME = "ReserveSlotsTime"
 
   // connection
