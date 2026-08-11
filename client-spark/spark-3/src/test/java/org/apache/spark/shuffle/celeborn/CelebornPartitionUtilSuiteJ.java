@@ -115,6 +115,70 @@ public class CelebornPartitionUtilSuiteJ {
     }
   }
 
+  /**
+   * CELEBORN-2032 combined with skewed-partition reading (readSkewPartitionWithoutMapRange):
+   * splitSkewedPartitionLocations resolves a logical sub-partition's chunk range purely from the
+   * chunk offsets of whichever physical PartitionLocation instance is passed in. The primary and
+   * its replica are flushed independently by two different Workers, so their chunk offsets are not
+   * guaranteed to match even though they hold the same data and share the same uniqueId.
+   *
+   * <p>This test simulates a first attempt (reads primary) and a retry/speculative attempt (reads
+   * replica, per CELEBORN-2032's odd-attemptNumber-prefers-replica policy) for the exact same
+   * logical sub-partition index, and shows that the resolved chunk range differs between the two:
+   * reading the primary resolves to chunk range [2, 3], while reading the replica for the very same
+   * sub-partition resolves to [3, 3] and drops chunk 2 entirely. If the caller were to switch
+   * between primary/replica across attempts (as happened before this fix), the bytes/CRC actually
+   * read would differ across attempts and fail the AQE skew validation
+   * (SkewHandlingWithoutMapRangeValidator) on retry.
+   */
+  @Test
+  public void testSkewPartitionSplitDiffersBetweenPrimaryAndReplicaChunkOffsets() {
+    // Primary and replica hold the same logical data (same total file size 900) but flush
+    // independently, resulting in different physical chunk boundaries around the sub-partition
+    // split point (step = 900 / 3 = 300).
+    PartitionLocation primary =
+        genPartitionLocation(0, new Long[] {0L, 100L, 200L, 340L, 600L, 900L});
+    PartitionLocation replica =
+        genPartitionLocation(0, new Long[] {0L, 100L, 200L, 260L, 600L, 900L});
+    Assert.assertEquals(
+        "primary and replica must represent the same logical partition",
+        primary.getUniqueId(),
+        replica.getUniqueId());
+
+    int subPartitionSize = 3;
+    int subPartitionIndex = 1; // e.g. the sub-partition assigned to this reduce task
+
+    Map<String, Pair<Integer, Integer>> primaryResult =
+        CelebornPartitionUtil.splitSkewedPartitionLocations(
+            new ArrayList<>(Collections.singletonList(primary)),
+            subPartitionSize,
+            subPartitionIndex);
+    Map<String, Pair<Integer, Integer>> replicaResult =
+        CelebornPartitionUtil.splitSkewedPartitionLocations(
+            new ArrayList<>(Collections.singletonList(replica)),
+            subPartitionSize,
+            subPartitionIndex);
+
+    Map<String, Pair<Integer, Integer>> expectedPrimaryRange =
+        genRanges(new Object[][] {{"0-0", 2, 3}});
+    Map<String, Pair<Integer, Integer>> expectedReplicaRange =
+        genRanges(new Object[][] {{"0-0", 3, 3}});
+    Assert.assertEquals(expectedPrimaryRange, primaryResult);
+    Assert.assertEquals(expectedReplicaRange, replicaResult);
+
+    // The core bug: for the identical (uniqueId, subPartitionIndex), the chunk range resolved
+    // depends on which replica's chunk offsets were used, so it is NOT idempotent across
+    // attempts unless the same replica is consistently read every time. Here the replica-based
+    // range [3, 3] is a strict subset of the primary-based range [2, 3] and drops chunk 2
+    // entirely, which is exactly the kind of mismatch that fails
+    // SkewHandlingWithoutMapRangeValidator when different attempts read different replicas.
+    Assert.assertNotEquals(
+        "chunk range must not depend on which replica is read, otherwise retries/speculative "
+            + "attempts will read a different byte range for the same logical sub-partition",
+        primaryResult.get(primary.getUniqueId()),
+        replicaResult.get(replica.getUniqueId()));
+  }
+
   @Test
   public void testSplitStable() {
     ArrayList<PartitionLocation> locations = new ArrayList<>();

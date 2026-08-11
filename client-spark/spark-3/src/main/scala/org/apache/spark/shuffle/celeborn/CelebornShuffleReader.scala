@@ -291,11 +291,19 @@ class CelebornShuffleReader[K, C](
       if (fileGroups.partitionGroups.containsKey(partitionId)) {
         // CELEBORN-2032. For the first time of open stream and
         // attemptNumber % 2 = 1, we should read the replica data first.
+        // Note: when splitSkewPartitionWithoutMapRange is enabled, the chunk range is
+        // computed against a single physical location (primary or replica) based on the
+        // byte offsets recorded by that location's own flush. Since primary and replica
+        // don't guarantee identical chunk offsets, switching which replica is read across
+        // task attempts (retries/speculation) can make splitSkewedPartitionLocations resolve
+        // a different physical chunk range for the same logical sub-partition, causing
+        // CRC/byte-count mismatches on retry. So we skip the replica preference in that case
+        // and always stick with the primary (or previously chosen) location.
         val originLocations = fileGroups.partitionGroups.get(partitionId)
         val hasReplicate = pushReplicateEnabled &&
           originLocations.asScala.exists(p => p != null && p.hasPeer)
         var locations =
-          if (preferReplicaRead && hasReplicate) {
+          if (preferReplicaRead && hasReplicate && !splitSkewPartitionWithoutMapRange) {
             originLocations.asScala.map { p =>
               if (p != null && p.hasPeer) p.getPeer else p
             }.asJava
