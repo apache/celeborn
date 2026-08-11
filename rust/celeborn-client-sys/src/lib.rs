@@ -53,12 +53,16 @@ extern "C" {
     pub fn celeborn_ffi_free_error(err: *mut c_char);
     pub fn celeborn_ffi_free_buffer(data: *mut u8);
 
+    /// Creates a client configured from `num_props` NUL-terminated
+    /// key/value pairs, each naming a `CelebornConf` property. Passing the
+    /// properties through verbatim means new configuration keys need no
+    /// change to this signature.
     pub fn celeborn_ffi_create_client(
         app_id: *const c_char,
         app_id_len: usize,
-        push_buffer_max_size: i32,
-        codec: *const c_char,
-        codec_len: usize,
+        keys: *const *const c_char,
+        values: *const *const c_char,
+        num_props: usize,
         err_out: *mut *mut c_char,
     ) -> *mut celeborn_ffi_handle;
 

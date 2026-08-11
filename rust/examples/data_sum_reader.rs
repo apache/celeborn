@@ -62,7 +62,7 @@ fn main() {
     );
 
     let mut config = Config::new(app_id);
-    config.shuffle_compression_codec = compress_codec;
+    config.set_property("celeborn.client.shuffle.compression.codec", compress_codec);
 
     let client =
         Arc::new(ShuffleClient::connect(config, lm_host, lm_port).expect("Failed to connect to LM"));

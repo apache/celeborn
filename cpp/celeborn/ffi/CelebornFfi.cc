@@ -110,16 +110,16 @@ void celeborn_ffi_free_buffer(uint8_t* data) {
 celeborn_ffi_handle* celeborn_ffi_create_client(
     const char* app_id,
     size_t app_id_len,
-    int32_t push_buffer_max_size,
-    const char* codec,
-    size_t codec_len,
+    const char* const* keys,
+    const char* const* values,
+    size_t num_props,
     char** err_out) {
   if (app_id == nullptr && app_id_len > 0) {
     set_error(err_out, "null pointer for argument 'app_id'");
     return nullptr;
   }
-  if (codec == nullptr && codec_len > 0) {
-    set_error(err_out, "null pointer for argument 'codec'");
+  if (num_props > 0 && (keys == nullptr || values == nullptr)) {
+    set_error(err_out, "null pointer for argument 'keys' or 'values'");
     return nullptr;
   }
   try {
@@ -129,15 +129,14 @@ celeborn_ffi_handle* celeborn_ffi_create_client(
     }
     impl->conf = std::make_shared<celeborn::conf::CelebornConf>();
 
-    if (push_buffer_max_size > 0) {
-      impl->conf->registerProperty(
-          celeborn::conf::CelebornConf::kClientPushBufferMaxSize,
-          std::to_string(push_buffer_max_size) + "b");
-    }
-    if (codec_len > 0) {
-      impl->conf->registerProperty(
-          celeborn::conf::CelebornConf::kShuffleCompressionCodec,
-          std::string(codec, codec_len));
+    for (size_t i = 0; i < num_props; i++) {
+      if (keys[i] == nullptr || values[i] == nullptr) {
+        set_error(
+            err_out,
+            "null key or value at property index " + std::to_string(i));
+        return nullptr;
+      }
+      impl->conf->registerProperty(keys[i], values[i]);
     }
 
     impl->endpoint =
