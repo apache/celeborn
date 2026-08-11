@@ -65,7 +65,6 @@
     <scala.binary.version>2.12</scala.binary.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
-    <maven.compiler.release></maven.compiler.release>
     <maven.version>3.9.16</maven.version>
 
     <flink.version>1.20.5</flink.version>
@@ -1541,7 +1540,7 @@
       <properties>
         <lz4-java.group>org.lz4</lz4-java.group>
         <lz4-java.version>1.7.1</lz4-java.version>
-        <scala.version>2.12.15</scala.version>
+        <scala.version>2.12.18</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.2.4</spark.version>
         <zstd-jni.version>1.5.0-4</zstd-jni.version>
@@ -1562,7 +1561,7 @@
       <properties>
         <lz4-java.group>org.lz4</lz4-java.group>
         <lz4-java.version>1.8.0</lz4-java.version>
-        <scala.version>2.12.15</scala.version>
+        <scala.version>2.12.18</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.3.4</spark.version>
         <zstd-jni.version>1.5.2-1</zstd-jni.version>

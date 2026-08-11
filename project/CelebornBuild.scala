@@ -930,7 +930,7 @@ object Spark32 extends SparkClientProjects {
   val sparkClientShadedProjectName = "celeborn-client-spark-3-shaded"
 
   val lz4JavaVersion = "1.7.1"
-  val sparkProjectScalaVersion = "2.12.15"
+  val sparkProjectScalaVersion = "2.12.18"
 
   val sparkVersion = "3.2.4"
   val zstdJniVersion = "1.5.0-4"
@@ -947,7 +947,7 @@ object Spark33 extends SparkClientProjects {
   // val jacksonVersion = "2.13.4"
   // val jacksonDatabindVersion = "2.13.4.2"
   val lz4JavaVersion = "1.8.0"
-  val sparkProjectScalaVersion = "2.12.15"
+  val sparkProjectScalaVersion = "2.12.18"
   // scalaBinaryVersion
   // val scalaBinaryVersion = "2.12"
   val sparkVersion = "3.3.4"
