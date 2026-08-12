@@ -61,6 +61,11 @@ std::unique_ptr<memory::ReadOnlyByteBuffer> toReadOnlyByteBuffer(
   return memory::ByteBuffer::toReadOnly(std::move(buffer));
 }
 
+std::string takeExceptionMessage(
+    folly::Future<std::unique_ptr<Message>>&& future) {
+  return std::move(future).result().exception().what().toStdString();
+}
+
 } // namespace
 
 TEST(MessageDispatcherTest, sendRpcRequestAndReceiveResponse) {
@@ -124,7 +129,10 @@ TEST(MessageDispatcherTest, sendRpcRequestAndReceiveFailure) {
       std::make_unique<RpcFailure>(requestId, std::move(copiedErrorMsg));
   dispatcher->read(nullptr, std::move(rpcFailure));
 
-  EXPECT_TRUE(future.hasException());
+  ASSERT_TRUE(future.hasException());
+  EXPECT_NE(
+      takeExceptionMessage(std::move(future)).find(errorMsg),
+      std::string::npos);
 }
 
 TEST(MessageDispatcherTest, sendPushDataAndReceiveSuccess) {
@@ -204,13 +212,19 @@ TEST(MessageDispatcherTest, sendPushDataAndReceiveFailure) {
   EXPECT_EQ(
       sentPushData->body()->readToString(requestBody.size()), requestBody);
 
-  const std::string errorMsg = "test-error-msg";
+  // A push failure carries the worker's StatusCode name. It must survive on the
+  // exception, otherwise ShuffleClientImpl::getPushDataFailCause cannot tell
+  // this apart from a generic failure and worker exclusion never engages.
+  const std::string errorMsg = "PUSH_DATA_FAIL_PARTITION_NOT_FOUND";
   auto copiedErrorMsg = errorMsg;
   auto rpcFailure =
       std::make_unique<RpcFailure>(requestId, std::move(copiedErrorMsg));
   dispatcher->read(nullptr, std::move(rpcFailure));
 
-  EXPECT_TRUE(future.hasException());
+  ASSERT_TRUE(future.hasException());
+  EXPECT_NE(
+      takeExceptionMessage(std::move(future)).find(errorMsg),
+      std::string::npos);
 }
 
 TEST(MessageDispatcherTest, sendFetchChunkRequestAndReceiveSuccess) {
@@ -282,7 +296,12 @@ TEST(MessageDispatcherTest, sendFetchChunkRequestAndReceiveFailure) {
       streamChunkSlice, std::move(copiedErrorMsg));
   dispatcher->read(nullptr, std::move(chunkFetchFailure));
 
-  EXPECT_TRUE(future.hasException());
+  ASSERT_TRUE(future.hasException());
+  // The fetch-failure message must keep both the worker's error text and the
+  // streamChunkSlice it belongs to, so the reader can attribute the failure.
+  const auto exceptionMsg = takeExceptionMessage(std::move(future));
+  EXPECT_NE(exceptionMsg.find(errorMsg), std::string::npos);
+  EXPECT_NE(exceptionMsg.find(streamChunkSlice.toString()), std::string::npos);
 }
 
 TEST(MessageDispatcherTest, heartbeatIsSilentlyConsumed) {
