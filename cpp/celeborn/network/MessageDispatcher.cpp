@@ -60,11 +60,16 @@ void MessageDispatcher::read(Context*, std::unique_ptr<Message> toRecvMsg) {
         registry.erase(failure->requestId());
         return std::move(result);
       });
+      const std::string errorMsg = failure->errorMsg();
       LOG(ERROR) << "Rpc failed, requestId: " << failure->requestId()
-                 << " errorMsg: " << failure->errorMsg() << std::endl;
+                 << " errorMsg: " << errorMsg << std::endl;
       if (found) {
+        // Carry the worker's error message on the exception so the push/fetch
+        // callbacks can recover the precise cause via
+        // ShuffleClientImpl::getPushDataFailCause. A blank std::exception
+        // would collapse every failure into the non-critical default.
         holder.msgPromise.setException(
-            folly::exception_wrapper(std::exception()));
+            folly::make_exception_wrapper<std::runtime_error>(errorMsg));
       }
       return;
     }
@@ -115,8 +120,10 @@ void MessageDispatcher::read(Context*, std::unique_ptr<Message> toRecvMsg) {
           failure->errorMsg());
       LOG(ERROR) << errorMsg;
       if (found) {
+        // Carry the streamChunkSlice context and the worker's error message so
+        // the reader's fetch-failure path sees the real cause.
         holder.msgPromise.setException(
-            folly::exception_wrapper(std::exception()));
+            folly::make_exception_wrapper<std::runtime_error>(errorMsg));
       }
       return;
     }
