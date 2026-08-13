@@ -36,14 +36,11 @@ public class LoadAwareSlotsAssignStrategy implements SlotsAssignStrategy {
   private static final Logger logger = LoggerFactory.getLogger(LoadAwareSlotsAssignStrategy.class);
 
   private final int diskGroupCount;
-  private final double diskGroupGradient;
   private final double flushTimeWeight;
   private final double fetchTimeWeight;
   private final double activeSlotsWeight;
+  private final double[] taskAllocationRatio;
   private final RoundRobinSlotsAssignStrategy fallback = new RoundRobinSlotsAssignStrategy();
-
-  private static boolean initialized = false;
-  private static double[] taskAllocationRatio = null;
 
   public LoadAwareSlotsAssignStrategy(
       int diskGroupCount,
@@ -52,10 +49,10 @@ public class LoadAwareSlotsAssignStrategy implements SlotsAssignStrategy {
       double fetchTimeWeight,
       double activeSlotsWeight) {
     this.diskGroupCount = diskGroupCount;
-    this.diskGroupGradient = diskGroupGradient;
     this.flushTimeWeight = flushTimeWeight;
     this.fetchTimeWeight = fetchTimeWeight;
     this.activeSlotsWeight = activeSlotsWeight;
+    this.taskAllocationRatio = computeTaskAllocationRatio(diskGroupCount, diskGroupGradient);
   }
 
   @Override
@@ -102,10 +99,6 @@ public class LoadAwareSlotsAssignStrategy implements SlotsAssignStrategy {
           noUsableDisks ? "usable disks" : "available slots");
       return fallback.computeSlotBudgets(
           workers, partitionIds, shouldReplicate, availableStorageTypes);
-    }
-
-    if (!initialized) {
-      initLoadAwareAlgorithm(diskGroupCount, diskGroupGradient);
     }
 
     List<List<DiskInfo>> groups =
@@ -213,8 +206,8 @@ public class LoadAwareSlotsAssignStrategy implements SlotsAssignStrategy {
     return budgets;
   }
 
-  private static void initLoadAwareAlgorithm(int diskGroups, double diskGroupGradient) {
-    taskAllocationRatio = new double[diskGroups];
+  private static double[] computeTaskAllocationRatio(int diskGroups, double diskGroupGradient) {
+    double[] taskAllocationRatio = new double[diskGroups];
     double totalAllocations = 0;
 
     for (int i = 0; i < diskGroups; i++) {
@@ -227,7 +220,7 @@ public class LoadAwareSlotsAssignStrategy implements SlotsAssignStrategy {
     logger.info(
         "load-aware offer slots algorithm init with taskAllocationRatio {}",
         StringUtils.join(taskAllocationRatio, ','));
-    initialized = true;
+    return taskAllocationRatio;
   }
 
   private static List<List<DiskInfo>> placeDisksToGroups(
