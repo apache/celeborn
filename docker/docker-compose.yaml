@@ -15,9 +15,14 @@
 #
 
 # Local docker-compose cluster for Apache Celeborn.
-# Topology: 1 master (HA disabled) + 3 workers (via replicas).
+# Topology: 1 master (HA disabled) + 3 workers (via replicas)
+#           + an example Spark cluster (1 master + 2 workers) whose shuffle
+#           data is served by Celeborn, so the whole stack can be exercised
+#           end-to-end without exposing any extra ports.
 #
-# Prerequisites: build the image first ->  ./docker/build-image.sh  (produces celeborn:dev)
+# Prerequisites: build the images first ->
+#   ./docker/build-image.sh -Pspark-3.5
+# (produces celeborn:dev and celeborn-spark:dev)
 #
 # Usage:
 #   docker compose -f docker/docker-compose.yaml up -d
@@ -70,6 +75,60 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  spark-master:
+    image: celeborn-spark:dev
+    container_name: celeborn-spark-master
+    hostname: celeborn-spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master -h celeborn-spark-master
+    environment:
+      SPARK_MASTER_HOST: celeborn-spark-master
+      SPARK_MASTER_PORT: 7077
+      SPARK_MASTER_WEBUI_PORT: 8080
+      SPARK_PUBLIC_DNS: localhost
+    volumes:
+      # Pre-wire Spark to use Celeborn shuffle (see spark-defaults.conf).
+      - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      - shared:/shared:rw
+    ports:
+      - "4040:4040"   # Spark application UI (when a job runs on the master)
+      - "7077:7077"   # Spark master RPC
+      - "8080:8080"   # Spark master Web UI
+    networks:
+      - celeborn-net
+    depends_on:
+      celeborn-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/celeborn-spark-master/8080' || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 20s
+    restart: unless-stopped
+
+  spark-worker:
+    image: celeborn-spark:dev
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://celeborn-spark-master:7077
+    deploy:
+      replicas: 2
+    environment:
+      SPARK_WORKER_CORES: 1
+      SPARK_WORKER_MEMORY: 1g
+      SPARK_WORKER_WEBUI_PORT: 8081
+      SPARK_PUBLIC_DNS: localhost
+    volumes:
+      - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      - shared:/shared:rw
+    networks:
+      - celeborn-net
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    restart: unless-stopped
+
 networks:
   celeborn-net:
     driver: bridge
+
+volumes:
+  shared:

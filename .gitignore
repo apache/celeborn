@@ -76,3 +76,6 @@ spark-warehouse/
 logs
 pids
 tmp/
+
+# Spark client shaded jar copied into the docker build context by build-image.sh
+docker/spark/*.jar
