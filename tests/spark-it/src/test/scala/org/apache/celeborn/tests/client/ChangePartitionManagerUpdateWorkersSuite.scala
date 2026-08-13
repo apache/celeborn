@@ -105,7 +105,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     assert(workerInfos.size == 3)
 
     var partitionId = 0
-    eventually(timeout(10.seconds), interval(0.milliseconds)) {
+    eventually(timeout(10.seconds), interval(100.milliseconds)) {
       val req = ChangePartitionRequest(
         null,
         shuffleId,
@@ -208,7 +208,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     assert(workerInfos.size == 3)
 
     var partitionId = 0
-    eventually(timeout(10.seconds), interval(0.milliseconds)) {
+    eventually(timeout(10.seconds), interval(100.milliseconds)) {
       val req = ChangePartitionRequest(
         null,
         shuffleId,
