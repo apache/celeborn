@@ -1496,11 +1496,10 @@
       <properties>
         <lz4-java.group>org.lz4</lz4-java.group>
         <lz4-java.version>1.7.1</lz4-java.version>
-        <scala.version>2.12.10</scala.version>
+        <scala.version>2.12.18</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.0.3</spark.version>
         <zstd-jni.version>1.4.4-3</zstd-jni.version>
-        <maven.plugin.silencer.version>1.6.0</maven.plugin.silencer.version>
         <commons-lang3.version>3.17.0</commons-lang3.version>
       </properties>
     </profile>
@@ -1518,11 +1517,10 @@
       <properties>
         <lz4-java.group>org.lz4</lz4-java.group>
         <lz4-java.version>1.7.1</lz4-java.version>
-        <scala.version>2.12.10</scala.version>
+        <scala.version>2.12.18</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.1.3</spark.version>
         <zstd-jni.version>1.4.8-1</zstd-jni.version>
-        <maven.plugin.silencer.version>1.6.0</maven.plugin.silencer.version>
         <commons-lang3.version>3.17.0</commons-lang3.version>
       </properties>
     </profile>
@@ -1540,7 +1538,7 @@
       <properties>
         <lz4-java.group>org.lz4</lz4-java.group>
         <lz4-java.version>1.7.1</lz4-java.version>
-        <scala.version>2.12.15</scala.version>
+        <scala.version>2.12.18</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.2.4</spark.version>
         <zstd-jni.version>1.5.0-4</zstd-jni.version>
@@ -1561,7 +1559,7 @@
       <properties>
         <lz4-java.group>org.lz4</lz4-java.group>
         <lz4-java.version>1.8.0</lz4-java.version>
-        <scala.version>2.12.15</scala.version>
+        <scala.version>2.12.18</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.3.4</spark.version>
         <zstd-jni.version>1.5.2-1</zstd-jni.version>
@@ -1582,7 +1580,7 @@
       <properties>
         <lz4-java.group>org.lz4</lz4-java.group>
         <lz4-java.version>1.8.0</lz4-java.version>
-        <scala.version>2.12.17</scala.version>
+        <scala.version>2.12.18</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <spark.version>3.4.4</spark.version>
         <zstd-jni.version>1.5.2-5</zstd-jni.version>
