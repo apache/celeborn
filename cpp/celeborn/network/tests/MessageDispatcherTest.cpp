@@ -32,16 +32,26 @@ class MockHandler : public wangle::Handler<
  public:
   MockHandler(std::unique_ptr<Message>& writedMsg) : writedMsg_(writedMsg) {}
 
+  // When writeError is set, write() reports the failure through the returned
+  // future, the way wangle's AsyncSocketHandler does for a socket that is no
+  // longer good or whose write callback fails.
+  MockHandler(std::unique_ptr<Message>& writedMsg, std::string writeError)
+      : writedMsg_(writedMsg), writeError_(std::move(writeError)) {}
+
   void read(Context* ctx, std::unique_ptr<folly::IOBuf> msg) override {}
 
   folly::Future<folly::Unit> write(Context* ctx, std::unique_ptr<Message> msg)
       override {
     writedMsg_ = std::move(msg);
+    if (!writeError_.empty()) {
+      return folly::makeFuture<folly::Unit>(std::runtime_error(writeError_));
+    }
     return {};
   }
 
  private:
   std::unique_ptr<Message>& writedMsg_;
+  const std::string writeError_;
 };
 
 SerializePipeline::Ptr createMockedPipeline(MockHandler&& mockHandler) {
@@ -379,6 +389,52 @@ TEST(MessageDispatcherTest, closeFailsInFlightRequestsRetriably) {
 
   dispatcher->close();
 
+  ASSERT_TRUE(future.isReady());
+  ASSERT_TRUE(future.hasException());
+  EXPECT_TRUE(failedRetriably(std::move(future)));
+}
+
+// A failed write must fail the registered request instead of leaving its future
+// pending until the request timeout. wangle's AsyncSocketHandler reports such a
+// failure through the write future -- immediately when the socket is no longer
+// good, or later from its write callback -- without going through
+// transportInactive first, so closed_ is not necessarily set at that point.
+TEST(MessageDispatcherTest, sendRpcRequestFailedWriteFailsRequestRetriably) {
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(sentMsg, "socket is closed in write()");
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
+  const long requestId = 4001;
+  const std::string requestBody = "test-request-body";
+  auto rpcRequest = std::make_unique<RpcRequest>(
+      requestId, toReadOnlyByteBuffer(requestBody));
+  auto future = dispatcher->sendRpcRequest(std::move(rpcRequest));
+
+  // The dispatcher is still open: only the write failed.
+  EXPECT_TRUE(dispatcher->isAvailable());
+  ASSERT_TRUE(future.isReady());
+  ASSERT_TRUE(future.hasException());
+  EXPECT_TRUE(failedRetriably(std::move(future)));
+}
+
+TEST(MessageDispatcherTest, sendFetchChunkRequestFailedWriteFailsRetriably) {
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(sentMsg, "socket is closed in write()");
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
+  const protocol::StreamChunkSlice streamChunkSlice{4001, 4002, 4003, 4004};
+  const long requestId = 4001;
+  const std::string requestBody = "test-request-body";
+  auto rpcRequest = std::make_unique<RpcRequest>(
+      requestId, toReadOnlyByteBuffer(requestBody));
+  auto future = dispatcher->sendFetchChunkRequest(
+      streamChunkSlice, std::move(rpcRequest));
+
+  EXPECT_TRUE(dispatcher->isAvailable());
   ASSERT_TRUE(future.isReady());
   ASSERT_TRUE(future.hasException());
   EXPECT_TRUE(failedRetriably(std::move(future)));

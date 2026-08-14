@@ -96,6 +96,16 @@ class MessageDispatcher : public wangle::ClientDispatcherBase<
  private:
   void cleanup();
 
+  // Fails the pending rpc/push request with a retriable error carrying
+  // `detail`, and unregisters it. A no-op when the request is no longer
+  // registered, i.e. it has already been fulfilled, cleaned up or interrupted.
+  void failPendingRequest(long requestId, const std::string& detail);
+
+  // The sendFetchChunkRequest counterpart of failPendingRequest.
+  void failPendingFetch(
+      const protocol::StreamChunkSlice& streamChunkSlice,
+      const std::string& detail);
+
   using MsgPromise = folly::Promise<std::unique_ptr<Message>>;
   struct MsgPromiseHolder {
     MsgPromise msgPromise;

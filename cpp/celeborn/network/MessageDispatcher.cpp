@@ -24,20 +24,27 @@
 namespace celeborn {
 namespace network {
 namespace {
-// Builds a retriable "connection closed" error. Sending on a closed connection
-// is a normal recoverable condition -- the peer closed the socket because of a
-// worker restart or an idle timeout -- not an invariant violation. Reporting it
-// through the promise instead of asserting mirrors the Java client, where a
-// send on an inactive channel surfaces as a retriable IOException via
-// TransportResponseHandler#channelInactive -> failOutstandingRequests, which
+// Builds a retriable transport error. A closed connection or a failed socket
+// write is a normal recoverable condition -- the peer closed the socket because
+// of a worker restart or an idle timeout -- not an invariant violation.
+// Reporting it through the promise instead of asserting mirrors the Java
+// client, where an inactive channel surfaces as a retriable IOException via
+// TransportResponseHandler#channelInactive -> failOutstandingRequests and a
+// failed write surfaces via TransportClient's StdChannelListener, which
 // CelebornInputStream then retries or fails over to the replica.
-folly::exception_wrapper makeConnectionClosedException(
+//
+// The caller passes its own __FILE__/__LINE__/__FUNCTION__ so the exception
+// points at the failing site rather than at this helper.
+folly::exception_wrapper makeRetriableTransportError(
+    const char* file,
+    size_t line,
+    const char* function,
     const std::string& detail) {
   return folly::make_exception_wrapper<utils::CelebornRuntimeError>(
-      __FILE__,
-      static_cast<size_t>(__LINE__),
-      __FUNCTION__,
-      /*expression=*/"connection closed",
+      file,
+      line,
+      function,
+      /*expression=*/"",
       /*message=*/detail,
       utils::error_source::kErrorSourceRuntime.c_str(),
       utils::error_code::kInvalidState.c_str(),
@@ -190,8 +197,12 @@ folly::Future<std::unique_ptr<Message>> MessageDispatcher::operator()(
   // rather than asserting, so the caller's retry/failover logic can recover.
   if (closed_.load()) {
     return folly::makeFuture<std::unique_ptr<Message>>(
-        makeConnectionClosedException(fmt::format(
-            "connection closed before sending requestId {}", requestId)));
+        makeRetriableTransportError(
+            __FILE__,
+            __LINE__,
+            __FUNCTION__,
+            fmt::format(
+                "connection closed before sending requestId {}", requestId)));
   }
 
   auto f = requestIdRegistry_.withLock(
@@ -207,24 +218,86 @@ folly::Future<std::unique_ptr<Message>> MessageDispatcher::operator()(
         return p.getFuture();
       });
 
-  this->pipeline_->write(std::move(toSendMsg));
+  // Observe the write future, like Java's TransportClient does with
+  // StdChannelListener. wangle's AsyncSocketHandler::write returns an
+  // already-failed future when the socket is no longer good, and otherwise
+  // fails it from AsyncTransport::WriteCallback::writeErr. Neither necessarily
+  // flips closed_ before the check below, so dropping the future would leave
+  // the promise pending until the request timeout.
+  this->pipeline_->write(std::move(toSendMsg))
+      .thenError([this, requestId](const folly::exception_wrapper& e) {
+        // Phrased like the Java listener's message so that
+        // ShuffleClientImpl::getPushDataFailCause classifies it as a
+        // connection failure rather than a non-critical one.
+        failPendingRequest(
+            requestId,
+            fmt::format(
+                "Failed to send request {}, errorMsg: {}",
+                requestId,
+                e.what().toStdString()));
+      });
 
   // close() flips closed_ before cleanup() locks the registry. If cleanup() ran
   // between the fast-path check and the registration above, our promise would
   // never be fulfilled. Detect that and fail it here so the caller sees a
   // retriable error instead of hanging until the request times out.
   if (closed_.load()) {
-    requestIdRegistry_.withLock([&](auto& registry) {
-      auto it = registry.find(requestId);
-      if (it != registry.end()) {
-        it->second.msgPromise.setException(
-            makeConnectionClosedException(fmt::format(
-                "connection closed while sending requestId {}", requestId)));
-        registry.erase(it);
-      }
-    });
+    failPendingRequest(
+        requestId,
+        fmt::format("connection closed while sending requestId {}", requestId));
   }
   return f;
+}
+
+void MessageDispatcher::failPendingRequest(
+    long requestId,
+    const std::string& detail) {
+  bool found = true;
+  auto holder = requestIdRegistry_.withLock([&](auto& registry) {
+    auto search = registry.find(requestId);
+    if (search == registry.end()) {
+      // Already fulfilled, cleaned up or interrupted.
+      found = false;
+      return MsgPromiseHolder{};
+    }
+    auto result = std::move(search->second);
+    registry.erase(search);
+    return std::move(result);
+  });
+  if (!found) {
+    return;
+  }
+  LOG(WARNING) << detail;
+  // Fulfil outside the registry lock, like read() does: setException may run
+  // the caller's continuation inline -- a failed write is reported from the
+  // socket's write callback, by which time the continuation is attached -- and
+  // that continuation may re-enter the dispatcher.
+  holder.msgPromise.setException(
+      makeRetriableTransportError(__FILE__, __LINE__, __FUNCTION__, detail));
+}
+
+void MessageDispatcher::failPendingFetch(
+    const protocol::StreamChunkSlice& streamChunkSlice,
+    const std::string& detail) {
+  bool found = true;
+  auto holder = streamChunkSliceRegistry_.withLock([&](auto& registry) {
+    auto search = registry.find(streamChunkSlice);
+    if (search == registry.end()) {
+      // Already fulfilled, cleaned up or interrupted.
+      found = false;
+      return MsgPromiseHolder{};
+    }
+    auto result = std::move(search->second);
+    registry.erase(search);
+    return std::move(result);
+  });
+  if (!found) {
+    return;
+  }
+  LOG(WARNING) << detail;
+  // Fulfil outside the registry lock: see failPendingRequest.
+  holder.msgPromise.setException(
+      makeRetriableTransportError(__FILE__, __LINE__, __FUNCTION__, detail));
 }
 
 folly::Future<std::unique_ptr<Message>> MessageDispatcher::sendPushDataRequest(
@@ -243,9 +316,13 @@ MessageDispatcher::sendFetchChunkRequest(
   // replica.
   if (closed_.load()) {
     return folly::makeFuture<std::unique_ptr<Message>>(
-        makeConnectionClosedException(fmt::format(
-            "connection closed before fetching streamChunkSlice {}",
-            streamChunkSlice.toString())));
+        makeRetriableTransportError(
+            __FILE__,
+            __LINE__,
+            __FUNCTION__,
+            fmt::format(
+                "connection closed before fetching streamChunkSlice {}",
+                streamChunkSlice.toString())));
   }
 
   auto f = streamChunkSliceRegistry_.withLock([&](auto& registry) {
@@ -261,21 +338,25 @@ MessageDispatcher::sendFetchChunkRequest(
         });
     return p.getFuture();
   });
-  this->pipeline_->write(std::move(toSendMsg));
+  // Write-failure handling: see operator().
+  this->pipeline_->write(std::move(toSendMsg))
+      .thenError([this, streamChunkSlice](const folly::exception_wrapper& e) {
+        failPendingFetch(
+            streamChunkSlice,
+            fmt::format(
+                "Failed to send request for streamChunkSlice {}, errorMsg: {}",
+                streamChunkSlice.toString(),
+                e.what().toStdString()));
+      });
 
   // Race handling: see operator(). If cleanup() ran before we registered above,
   // fail our promise here rather than leaking it.
   if (closed_.load()) {
-    streamChunkSliceRegistry_.withLock([&](auto& registry) {
-      auto it = registry.find(streamChunkSlice);
-      if (it != registry.end()) {
-        it->second.msgPromise.setException(
-            makeConnectionClosedException(fmt::format(
-                "connection closed while fetching streamChunkSlice {}",
-                streamChunkSlice.toString())));
-        registry.erase(it);
-      }
-    });
+    failPendingFetch(
+        streamChunkSlice,
+        fmt::format(
+            "connection closed while fetching streamChunkSlice {}",
+            streamChunkSlice.toString()));
   }
   return f;
 }
@@ -344,8 +425,8 @@ void MessageDispatcher::cleanup() {
       auto errorMsg =
           fmt::format("Client closed, cancel ongoing requestId {}", requestId);
       LOG(WARNING) << errorMsg;
-      promiseHolder.msgPromise.setException(
-          makeConnectionClosedException(errorMsg));
+      promiseHolder.msgPromise.setException(makeRetriableTransportError(
+          __FILE__, __LINE__, __FUNCTION__, errorMsg));
     }
     registry.clear();
   });
@@ -355,8 +436,8 @@ void MessageDispatcher::cleanup() {
           "Client closed, cancel ongoing streamChunkSlice {}",
           streamChunkSlice.toString());
       LOG(WARNING) << errorMsg;
-      promiseHolder.msgPromise.setException(
-          makeConnectionClosedException(errorMsg));
+      promiseHolder.msgPromise.setException(makeRetriableTransportError(
+          __FILE__, __LINE__, __FUNCTION__, errorMsg));
     }
     registry.clear();
   });
