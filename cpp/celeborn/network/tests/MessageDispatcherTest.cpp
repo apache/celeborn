@@ -19,11 +19,18 @@
 
 #include "celeborn/network/FrameDecoder.h"
 #include "celeborn/network/MessageDispatcher.h"
+#include "celeborn/network/TransportClient.h"
 
 using namespace celeborn;
 using namespace celeborn::network;
 
 namespace {
+// How write() reports a failure: through the returned future, the way wangle's
+// AsyncSocketHandler does, or by throwing, the way a handler that serializes
+// the message does -- MessageSerializeHandler encodes it, and Message::encode
+// checks its own invariants.
+enum class WriteFailure { kFailFuture, kThrow };
+
 class MockHandler : public wangle::Handler<
                         std::unique_ptr<folly::IOBuf>,
                         std::unique_ptr<Message>,
@@ -34,16 +41,46 @@ class MockHandler : public wangle::Handler<
 
   // When writeError is set, write() reports the failure through the returned
   // future, the way wangle's AsyncSocketHandler does for a socket that is no
-  // longer good or whose write callback fails.
-  MockHandler(std::unique_ptr<Message>& writedMsg, std::string writeError)
-      : writedMsg_(writedMsg), writeError_(std::move(writeError)) {}
+  // longer good or whose write callback fails. The writes before
+  // failFromWrite succeed, so that a test can leave an earlier request in
+  // flight on the connection that the failing write kills.
+  MockHandler(
+      std::unique_ptr<Message>& writedMsg,
+      std::string writeError,
+      int failFromWrite = 1,
+      WriteFailure writeFailure = WriteFailure::kFailFuture)
+      : writedMsg_(writedMsg),
+        writeError_(std::move(writeError)),
+        failFromWrite_(failFromWrite),
+        writeFailure_(writeFailure) {}
+
+  // Hands the write future back to the test, which completes it whenever it
+  // wants -- AsyncSocketHandler reports a failed write from the socket's write
+  // callback, so it can arrive long after write() returned, including while the
+  // connection is being torn down.
+  MockHandler(
+      std::unique_ptr<Message>& writedMsg,
+      folly::Promise<folly::Unit>& writePromise)
+      : writedMsg_(writedMsg), writePromise_(&writePromise) {}
 
   void read(Context* ctx, std::unique_ptr<folly::IOBuf> msg) override {}
 
   folly::Future<folly::Unit> write(Context* ctx, std::unique_ptr<Message> msg)
       override {
     writedMsg_ = std::move(msg);
-    if (!writeError_.empty()) {
+    ++numWrites_;
+    if (writePromise_ != nullptr) {
+      return writePromise_->getFuture();
+    }
+    if (writeFailure_ == WriteFailure::kThrow) {
+      // Only the one malformed message throws: what a handler rejects is the
+      // message, not the connection, so the writes around it go through.
+      if (numWrites_ == failFromWrite_) {
+        throw std::runtime_error(writeError_);
+      }
+      return {};
+    }
+    if (!writeError_.empty() && numWrites_ >= failFromWrite_) {
       return folly::makeFuture<folly::Unit>(std::runtime_error(writeError_));
     }
     return {};
@@ -52,6 +89,10 @@ class MockHandler : public wangle::Handler<
  private:
   std::unique_ptr<Message>& writedMsg_;
   const std::string writeError_;
+  const int failFromWrite_{1};
+  const WriteFailure writeFailure_{WriteFailure::kFailFuture};
+  folly::Promise<folly::Unit>* writePromise_{nullptr};
+  int numWrites_{0};
 };
 
 SerializePipeline::Ptr createMockedPipeline(MockHandler&& mockHandler) {
@@ -395,49 +436,303 @@ TEST(MessageDispatcherTest, closeFailsInFlightRequestsRetriably) {
 }
 
 // A failed write must fail the registered request instead of leaving its future
-// pending until the request timeout. wangle's AsyncSocketHandler reports such a
-// failure through the write future -- immediately when the socket is no longer
-// good, or later from its write callback -- without going through
-// transportInactive first, so closed_ is not necessarily set at that point.
-TEST(MessageDispatcherTest, sendRpcRequestFailedWriteFailsRequestRetriably) {
+// pending until the request timeout, and it must retire the connection.
+// wangle's AsyncSocketHandler reports such a failure through the write future
+// -- immediately when the socket is no longer good, or later from its write
+// callback -- without going through transportInactive first, so the dispatcher
+// is not closed at that point: TransportClient::active() would keep reporting
+// true and TransportClientFactory would hand the same dead connection to every
+// retry. Java's StdChannelListener closes the channel before reporting the
+// failure, and closing it fails whatever else was outstanding.
+TEST(MessageDispatcherTest, sendRpcRequestFailedWriteRetiresConnection) {
   std::unique_ptr<Message> sentMsg;
-  MockHandler mockHandler(sentMsg, "socket is closed in write()");
+  // The first write succeeds and leaves its request in flight; the second one
+  // fails.
+  MockHandler mockHandler(
+      sentMsg, "socket is closed in write()", /*failFromWrite=*/2);
   auto mockPipeline = createMockedPipeline(std::move(mockHandler));
   auto dispatcher = std::make_unique<MessageDispatcher>();
   dispatcher->setPipeline(mockPipeline.get());
 
-  const long requestId = 4001;
   const std::string requestBody = "test-request-body";
-  auto rpcRequest = std::make_unique<RpcRequest>(
-      requestId, toReadOnlyByteBuffer(requestBody));
-  auto future = dispatcher->sendRpcRequest(std::move(rpcRequest));
+  auto inFlight = dispatcher->sendRpcRequest(std::make_unique<RpcRequest>(
+      /*requestId=*/4001, toReadOnlyByteBuffer(requestBody)));
+  EXPECT_FALSE(inFlight.isReady());
 
-  // The dispatcher is still open: only the write failed.
-  EXPECT_TRUE(dispatcher->isAvailable());
+  auto future = dispatcher->sendRpcRequest(std::make_unique<RpcRequest>(
+      /*requestId=*/4002, toReadOnlyByteBuffer(requestBody)));
+
   ASSERT_TRUE(future.isReady());
   ASSERT_TRUE(future.hasException());
   EXPECT_TRUE(failedRetriably(std::move(future)));
+  // The connection is retired, so the client pool stops handing it out.
+  EXPECT_FALSE(dispatcher->isAvailable());
+  // And the request that was still outstanding on it is failed too, rather than
+  // waiting for its timeout on a dead connection.
+  ASSERT_TRUE(inFlight.isReady());
+  ASSERT_TRUE(inFlight.hasException());
+  EXPECT_TRUE(failedRetriably(std::move(inFlight)));
+  // A caller still holding the retired connection fails fast on it instead of
+  // writing to a dead socket.
+  auto rejected = dispatcher->sendRpcRequest(std::make_unique<RpcRequest>(
+      /*requestId=*/4003, toReadOnlyByteBuffer(requestBody)));
+  ASSERT_TRUE(rejected.isReady());
+  EXPECT_TRUE(failedRetriably(std::move(rejected)));
 }
 
-TEST(MessageDispatcherTest, sendFetchChunkRequestFailedWriteFailsRetriably) {
+// The hop from a retired connection to the client pool: TransportClient::active
+// reports the dispatcher's availability, and TransportClientFactory only reuses
+// a cached client while that is true, so a failed write must make the client
+// report itself inactive.
+TEST(MessageDispatcherTest, failedWriteMakesTransportClientInactive) {
   std::unique_ptr<Message> sentMsg;
   MockHandler mockHandler(sentMsg, "socket is closed in write()");
   auto mockPipeline = createMockedPipeline(std::move(mockHandler));
   auto dispatcher = std::make_unique<MessageDispatcher>();
   dispatcher->setPipeline(mockPipeline.get());
+  auto* rawDispatcher = dispatcher.get();
+  TransportClient client(
+      /*client=*/nullptr, std::move(dispatcher), Timeout(10000));
+  EXPECT_TRUE(client.active());
 
-  const protocol::StreamChunkSlice streamChunkSlice{4001, 4002, 4003, 4004};
-  const long requestId = 4001;
+  auto future = rawDispatcher->sendRpcRequest(std::make_unique<RpcRequest>(
+      /*requestId=*/4101, toReadOnlyByteBuffer("test-request-body")));
+
+  ASSERT_TRUE(future.isReady());
+  EXPECT_TRUE(failedRetriably(std::move(future)));
+  EXPECT_FALSE(client.active());
+}
+
+TEST(MessageDispatcherTest, sendFetchChunkRequestFailedWriteRetiresConnection) {
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(
+      sentMsg, "socket is closed in write()", /*failFromWrite=*/2);
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
   const std::string requestBody = "test-request-body";
-  auto rpcRequest = std::make_unique<RpcRequest>(
-      requestId, toReadOnlyByteBuffer(requestBody));
-  auto future = dispatcher->sendFetchChunkRequest(
-      streamChunkSlice, std::move(rpcRequest));
+  const protocol::StreamChunkSlice inFlightSlice{4001, 4002, 4003, 4004};
+  auto inFlight = dispatcher->sendFetchChunkRequest(
+      inFlightSlice,
+      std::make_unique<RpcRequest>(
+          /*requestId=*/4001, toReadOnlyByteBuffer(requestBody)));
+  EXPECT_FALSE(inFlight.isReady());
 
-  EXPECT_TRUE(dispatcher->isAvailable());
+  const protocol::StreamChunkSlice streamChunkSlice{4002, 4002, 4003, 4004};
+  auto future = dispatcher->sendFetchChunkRequest(
+      streamChunkSlice,
+      std::make_unique<RpcRequest>(
+          /*requestId=*/4002, toReadOnlyByteBuffer(requestBody)));
+
   ASSERT_TRUE(future.isReady());
   ASSERT_TRUE(future.hasException());
   EXPECT_TRUE(failedRetriably(std::move(future)));
+  EXPECT_FALSE(dispatcher->isAvailable());
+  ASSERT_TRUE(inFlight.isReady());
+  ASSERT_TRUE(inFlight.hasException());
+  EXPECT_TRUE(failedRetriably(std::move(inFlight)));
+  const protocol::StreamChunkSlice rejectedSlice{4003, 4002, 4003, 4004};
+  auto rejected = dispatcher->sendFetchChunkRequest(
+      rejectedSlice,
+      std::make_unique<RpcRequest>(
+          /*requestId=*/4003, toReadOnlyByteBuffer(requestBody)));
+  ASSERT_TRUE(rejected.isReady());
+  EXPECT_TRUE(failedRetriably(std::move(rejected)));
+}
+
+// The write failure may be reported after the dispatcher is destroyed: it comes
+// from the socket's write callback, and AsyncSocket fails whatever is still
+// pending when it is torn down. TransportClient destroys its dispatcher before
+// the bootstrap that owns the pipeline -- and it has to, because
+// ~ClientDispatcherBase unregisters itself from that pipeline -- so the write
+// continuation must not depend on the dispatcher being alive.
+TEST(MessageDispatcherTest, failedWriteAfterDispatcherDestroyedIsIgnored) {
+  std::unique_ptr<Message> sentMsg;
+  folly::Promise<folly::Unit> writePromise;
+  MockHandler mockHandler(sentMsg, writePromise);
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
+  auto future = dispatcher->sendRpcRequest(std::make_unique<RpcRequest>(
+      /*requestId=*/5001, toReadOnlyByteBuffer("test-request-body")));
+  EXPECT_FALSE(future.isReady());
+
+  dispatcher.reset();
+  // The destroyed dispatcher failed the request it still had outstanding, with
+  // the same retriable error it reports on close() rather than with folly's
+  // BrokenPromise, which carries no cause for the caller to classify.
+  ASSERT_TRUE(future.isReady());
+  ASSERT_TRUE(future.hasException());
+  EXPECT_TRUE(failedRetriably(std::move(future)));
+
+  // The write fails only now, with no dispatcher left to report it to. The
+  // continuation must be a no-op instead of reaching into freed memory.
+  writePromise.setException(
+      std::runtime_error("socket is closed during teardown"));
+}
+
+TEST(MessageDispatcherTest, failedFetchWriteAfterDispatcherDestroyedIsIgnored) {
+  std::unique_ptr<Message> sentMsg;
+  folly::Promise<folly::Unit> writePromise;
+  MockHandler mockHandler(sentMsg, writePromise);
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
+  const protocol::StreamChunkSlice streamChunkSlice{5001, 5002, 5003, 5004};
+  auto future = dispatcher->sendFetchChunkRequest(
+      streamChunkSlice,
+      std::make_unique<RpcRequest>(
+          /*requestId=*/5001, toReadOnlyByteBuffer("test-request-body")));
+  EXPECT_FALSE(future.isReady());
+
+  dispatcher.reset();
+  ASSERT_TRUE(future.isReady());
+  ASSERT_TRUE(future.hasException());
+  EXPECT_TRUE(failedRetriably(std::move(future)));
+
+  writePromise.setException(
+      std::runtime_error("socket is closed during teardown"));
+}
+
+// A handler may also fail by throwing rather than by failing the write future:
+// the message is serialized on the way down the pipeline, by
+// MessageSerializeHandler, and wangle::Pipeline::write has no try/catch of its
+// own. The connection itself is fine in that case, so the exception keeps
+// propagating to the caller -- a violation of our own encoding invariants is
+// not retriable -- but the request must not be left registered on the
+// connection, since nothing was sent and no response will ever arrive for it.
+TEST(MessageDispatcherTest, throwingWriteUnregistersTheRequest) {
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(
+      sentMsg,
+      "encoded length mismatch",
+      /*failFromWrite=*/2,
+      WriteFailure::kThrow);
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
+  const std::string requestBody = "test-request-body";
+  auto inFlight = dispatcher->sendRpcRequest(std::make_unique<RpcRequest>(
+      /*requestId=*/7001, toReadOnlyByteBuffer(requestBody)));
+  EXPECT_FALSE(inFlight.isReady());
+
+  const long requestId = 7002;
+  EXPECT_THROW(
+      dispatcher->sendRpcRequest(std::make_unique<RpcRequest>(
+          requestId, toReadOnlyByteBuffer(requestBody))),
+      std::runtime_error);
+
+  // The connection is untouched: it is still usable, and what was outstanding
+  // on it is still outstanding.
+  EXPECT_TRUE(dispatcher->isAvailable());
+  EXPECT_FALSE(inFlight.isReady());
+  // And the request whose write threw is gone from the registry. Registering
+  // the same id again would otherwise find the leftover entry, whose future has
+  // already been handed out.
+  auto retried = dispatcher->sendRpcRequest(std::make_unique<RpcRequest>(
+      requestId, toReadOnlyByteBuffer(requestBody)));
+  EXPECT_FALSE(retried.isReady());
+}
+
+TEST(MessageDispatcherTest, throwingFetchWriteUnregistersTheRequest) {
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(
+      sentMsg,
+      "encoded length mismatch",
+      /*failFromWrite=*/1,
+      WriteFailure::kThrow);
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
+  const std::string requestBody = "test-request-body";
+  const protocol::StreamChunkSlice streamChunkSlice{7003, 7004, 7005, 7006};
+  EXPECT_THROW(
+      dispatcher->sendFetchChunkRequest(
+          streamChunkSlice,
+          std::make_unique<RpcRequest>(
+              /*requestId=*/7003, toReadOnlyByteBuffer(requestBody))),
+      std::runtime_error);
+
+  EXPECT_TRUE(dispatcher->isAvailable());
+  auto retried = dispatcher->sendFetchChunkRequest(
+      streamChunkSlice,
+      std::make_unique<RpcRequest>(
+          /*requestId=*/7003, toReadOnlyByteBuffer(requestBody)));
+  EXPECT_FALSE(retried.isReady());
+}
+
+// A send that expects no response has no promise to fail, but a failed write
+// still means the connection is dead: it must be retired, or the client pool
+// keeps handing it to the next caller. ~WorkerPartitionReader takes this path
+// to send BufferStreamEnd.
+TEST(MessageDispatcherTest, failedWriteWithoutResponseRetiresConnection) {
+  std::unique_ptr<Message> sentMsg;
+  // The first write succeeds and leaves its request in flight; the second one
+  // fails.
+  MockHandler mockHandler(
+      sentMsg, "socket is closed in write()", /*failFromWrite=*/2);
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
+  const std::string requestBody = "test-request-body";
+  auto inFlight = dispatcher->sendRpcRequest(std::make_unique<RpcRequest>(
+      /*requestId=*/6001, toReadOnlyByteBuffer(requestBody)));
+  EXPECT_FALSE(inFlight.isReady());
+
+  dispatcher->sendRpcRequestWithoutResponse(std::make_unique<RpcRequest>(
+      /*requestId=*/6002, toReadOnlyByteBuffer(requestBody)));
+
+  EXPECT_FALSE(dispatcher->isAvailable());
+  ASSERT_TRUE(inFlight.isReady());
+  ASSERT_TRUE(inFlight.hasException());
+  EXPECT_TRUE(failedRetriably(std::move(inFlight)));
+}
+
+// A handler that rejects the message by throwing must not propagate out of a
+// send that expects no response either: ~WorkerPartitionReader sends
+// BufferStreamEnd this way, and an exception escaping a destructor aborts the
+// process.
+TEST(MessageDispatcherTest, throwingWriteWithoutResponseIsReported) {
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(
+      sentMsg,
+      "encoded length mismatch",
+      /*failFromWrite=*/1,
+      WriteFailure::kThrow);
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
+  EXPECT_NO_THROW(
+      dispatcher->sendRpcRequestWithoutResponse(std::make_unique<RpcRequest>(
+          /*requestId=*/7007, toReadOnlyByteBuffer("test-request-body"))));
+
+  // The message was rejected, not the connection.
+  EXPECT_TRUE(dispatcher->isAvailable());
+}
+
+// And once the connection is retired, such a send is skipped rather than
+// written to a socket that is known to be dead.
+TEST(MessageDispatcherTest, sendWithoutResponseAfterCloseIsSkipped) {
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(sentMsg);
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
+  dispatcher->close();
+  ASSERT_FALSE(dispatcher->isAvailable());
+
+  dispatcher->sendRpcRequestWithoutResponse(std::make_unique<RpcRequest>(
+      /*requestId=*/6003, toReadOnlyByteBuffer("test-request-body")));
+
+  EXPECT_EQ(sentMsg, nullptr);
 }
 
 TEST(MessageDispatcherTest, heartbeatIsSilentlyConsumed) {
