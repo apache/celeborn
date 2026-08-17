@@ -91,11 +91,21 @@ Master rather than being a cross-version plugin API. Compile the provider agains
 `celeborn-master_<scala.binary.version>` artifact and Celeborn version used by the target cluster,
 and rebuild the provider when either version changes.
 
-`CelebornConf` is the provider's bootstrap input. Custom providers can read arbitrary namespaced
-keys with `get`, `getOption`, or `getAllWithPrefix`. A provider can also use a Celeborn setting such
-as a configuration URI to load its own configuration format or service. The provider should load
-and validate that configuration in `create`, then return a strategy with fixed configuration;
-`computeSlotBudgets` should not perform configuration I/O.
+Custom providers read arbitrary namespaced keys directly from the `CelebornConf` supplied to
+`create`. For example, a provider can read
+`celeborn.master.slot.assign.acme.maxSlotsPerDisk` with `conf.getLong(key, defaultValue)`. The same
+key can be set either in Celeborn's static configuration or at `SYSTEM` level in the dynamic
+configuration service. Dynamic values take precedence over static values.
+
+After a system-level dynamic configuration update, the Master creates a new `CelebornConf`
+snapshot and calls the selected provider's `create` method again. Once creation succeeds, the new
+strategy atomically replaces the old one. If configuration validation fails, the Master logs the
+failure and keeps using the last valid strategy. The provider itself can also be changed at runtime
+by updating `celeborn.master.slot.assign.policy` at `SYSTEM` level.
+
+Providers should validate and capture their configuration in `create`, then return a strategy with
+fixed configuration. `computeSlotBudgets` should not read configuration or perform configuration
+I/O.
 
 ## Celeborn Worker's Behavior
 1. When reserve slots Celeborn worker will decide a slot be placed in local disks or HDFS when reserve slots.

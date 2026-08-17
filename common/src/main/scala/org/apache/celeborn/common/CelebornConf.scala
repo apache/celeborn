@@ -3103,6 +3103,7 @@ object CelebornConf extends Logging {
       .doc("Policy for master to assign slots. Built-in policies are roundrobin and loadaware. " +
         "Additional policies can be registered through the SlotsAssignStrategyProvider SPI. " +
         "Loadaware policy will be ignored when `HDFS` is enabled in `celeborn.storage.availableTypes`")
+      .dynamic
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .createWithDefault(BuiltInSlotsAssignPolicy.ROUNDROBIN.name)
@@ -3132,6 +3133,7 @@ object CelebornConf extends Logging {
       .categories("master")
       .doc("This configuration is a guidance for load-aware slot allocation algorithm. " +
         "This value is control how many disk groups will be created.")
+      .dynamic
       .version("0.3.0")
       .intConf
       .createWithDefault(5)
@@ -3142,6 +3144,7 @@ object CelebornConf extends Logging {
       .categories("master")
       .doc("This value means how many more workload will be placed into a faster disk group " +
         "than a slower group.")
+      .dynamic
       .version("0.3.0")
       .doubleConf
       .createWithDefault(0.1)
@@ -3152,6 +3155,7 @@ object CelebornConf extends Logging {
       .categories("master")
       .doc(
         "Weight of average flush time when calculating ordering in load-aware assignment strategy")
+      .dynamic
       .version("0.3.0")
       .doubleConf
       .createWithDefault(0)
@@ -3162,6 +3166,7 @@ object CelebornConf extends Logging {
       .categories("master")
       .doc(
         "Weight of average fetch time when calculating ordering in load-aware assignment strategy")
+      .dynamic
       .version("0.3.0")
       .doubleConf
       .createWithDefault(1)
@@ -3171,6 +3176,7 @@ object CelebornConf extends Logging {
       .categories("master")
       .doc(
         "Weight of active slots when calculating ordering in load-aware assignment strategy")
+      .dynamic
       .version("0.7.0")
       .doubleConf
       .createWithDefault(0)

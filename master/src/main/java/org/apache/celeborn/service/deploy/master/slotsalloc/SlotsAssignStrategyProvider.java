@@ -36,10 +36,11 @@ public interface SlotsAssignStrategyProvider {
   /**
    * Creates a configured strategy instance for a master.
    *
-   * <p>The Celeborn configuration is bootstrap input. A custom provider may read its own namespaced
-   * keys from it or use it to locate and load a provider-specific configuration source.
-   * Configuration should be validated and captured when the strategy is created rather than read
-   * during slot allocation.
+   * <p>A custom provider may read its own namespaced keys directly from the supplied Celeborn
+   * configuration. When system-level dynamic configuration is enabled, it overrides the static
+   * configuration in this snapshot and the master calls {@code create} again after an update.
+   * Configuration should therefore be validated and captured when the strategy is created rather
+   * than read during slot allocation.
    */
   SlotsAssignStrategy create(CelebornConf conf);
 }

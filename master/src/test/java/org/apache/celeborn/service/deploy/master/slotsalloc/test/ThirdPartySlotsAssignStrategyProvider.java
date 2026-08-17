@@ -17,13 +17,10 @@
 
 package org.apache.celeborn.service.deploy.master.slotsalloc.test;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.DiskInfo;
@@ -38,11 +35,8 @@ import org.apache.celeborn.service.deploy.master.slotsalloc.UsableDiskInfo;
 public final class ThirdPartySlotsAssignStrategyProvider implements SlotsAssignStrategyProvider {
 
   public static final String NAME = "THIRD_PARTY_LIMITED";
-  public static final String CONFIG_RESOURCE_KEY =
-      "celeborn.master.slot.assign.thirdParty.config.resource";
-  public static final String TEST_CONFIG_RESOURCE = "third-party-slots-assign.properties";
-
-  private static final String MAX_SLOTS_PER_DISK_KEY = "max-slots-per-disk";
+  public static final String MAX_SLOTS_PER_DISK_KEY =
+      "celeborn.master.slot.assign.thirdParty.maxSlotsPerDisk";
 
   @Override
   public String getName() {
@@ -51,61 +45,16 @@ public final class ThirdPartySlotsAssignStrategyProvider implements SlotsAssignS
 
   @Override
   public SlotsAssignStrategy create(CelebornConf conf) {
-    String resourceName = conf.get(CONFIG_RESOURCE_KEY, "").trim();
-    if (resourceName.isEmpty()) {
+    if (!conf.contains(MAX_SLOTS_PER_DISK_KEY)) {
       throw new IllegalArgumentException(
-          "Missing third-party configuration resource: " + CONFIG_RESOURCE_KEY);
-    }
-    ThirdPartyConfig config =
-        ThirdPartyConfig.load(
-            resourceName, ThirdPartySlotsAssignStrategyProvider.class.getClassLoader());
-    return new LimitedSlotsAssignStrategy(config.maxSlotsPerDisk);
-  }
-
-  private static final class ThirdPartyConfig {
-    private final long maxSlotsPerDisk;
-
-    private ThirdPartyConfig(long maxSlotsPerDisk) {
-      this.maxSlotsPerDisk = maxSlotsPerDisk;
+          "Missing third-party configuration: " + MAX_SLOTS_PER_DISK_KEY);
     }
 
-    private static ThirdPartyConfig load(String resourceName, ClassLoader classLoader) {
-      InputStream resource = classLoader.getResourceAsStream(resourceName);
-      if (resource == null) {
-        throw new IllegalArgumentException(
-            "Third-party configuration resource does not exist: " + resourceName);
-      }
-
-      Properties properties = new Properties();
-      try (InputStream input = resource) {
-        properties.load(input);
-      } catch (IOException e) {
-        throw new IllegalStateException(
-            "Failed to load third-party configuration resource: " + resourceName, e);
-      }
-
-      String configuredLimit = properties.getProperty(MAX_SLOTS_PER_DISK_KEY);
-      if (configuredLimit == null) {
-        throw new IllegalArgumentException(
-            "Missing third-party configuration property: " + MAX_SLOTS_PER_DISK_KEY);
-      }
-
-      final long maxSlotsPerDisk;
-      try {
-        maxSlotsPerDisk = Long.parseLong(configuredLimit);
-      } catch (NumberFormatException e) {
-        throw new IllegalArgumentException(
-            "Invalid third-party configuration property "
-                + MAX_SLOTS_PER_DISK_KEY
-                + ": "
-                + configuredLimit,
-            e);
-      }
-      if (maxSlotsPerDisk <= 0) {
-        throw new IllegalArgumentException(MAX_SLOTS_PER_DISK_KEY + " must be positive");
-      }
-      return new ThirdPartyConfig(maxSlotsPerDisk);
+    long maxSlotsPerDisk = conf.getLong(MAX_SLOTS_PER_DISK_KEY, -1L);
+    if (maxSlotsPerDisk <= 0) {
+      throw new IllegalArgumentException(MAX_SLOTS_PER_DISK_KEY + " must be positive");
     }
+    return new LimitedSlotsAssignStrategy(maxSlotsPerDisk);
   }
 
   private static final class LimitedSlotsAssignStrategy implements SlotsAssignStrategy {
