@@ -76,6 +76,27 @@ Roundrobin slots allocation will distribute all slots into all registered worker
 all workers as an array and place 1 slots in a worker until all slots are allocated. 
 If a worker has multiple disks, the chosen disk index is `(monotone increasing disk index +1)  % disk count`.  
 
+## Custom strategies
+
+Custom slot assignment strategies are loaded through Java's service provider interface (SPI).
+Implement `SlotsAssignStrategy` for the allocation algorithm and `SlotsAssignStrategyProvider`
+to give it a configuration name and create it from `CelebornConf`. The provider must have a public
+no-argument constructor and must be listed in
+`META-INF/services/org.apache.celeborn.service.deploy.master.slotsalloc.SlotsAssignStrategyProvider`
+inside a JAR on the master class path. Set `celeborn.master.slot.assign.policy` to the provider name;
+provider names are matched case-insensitively.
+
+This SPI exposes Celeborn Master's slot-allocation model and is therefore version-coupled to the
+Master rather than being a cross-version plugin API. Compile the provider against the same
+`celeborn-master_<scala.binary.version>` artifact and Celeborn version used by the target cluster,
+and rebuild the provider when either version changes.
+
+`CelebornConf` is the provider's bootstrap input. Custom providers can read arbitrary namespaced
+keys with `get`, `getOption`, or `getAllWithPrefix`. A provider can also use a Celeborn setting such
+as a configuration URI to load its own configuration format or service. The provider should load
+and validate that configuration in `create`, then return a strategy with fixed configuration;
+`computeSlotBudgets` should not perform configuration I/O.
+
 ## Celeborn Worker's Behavior
 1. When reserve slots Celeborn worker will decide a slot be placed in local disks or HDFS when reserve slots.
 2. If a partition is evicted from memory, the partition might be placed in HDFS.

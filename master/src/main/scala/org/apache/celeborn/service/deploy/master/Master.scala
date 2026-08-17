@@ -57,7 +57,7 @@ import org.apache.celeborn.service.deploy.master.audit.ShuffleAuditLogger
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 import org.apache.celeborn.service.deploy.master.quota.QuotaManager
-import org.apache.celeborn.service.deploy.master.slotsalloc.{SlotsAllocator, SlotsAssignStrategyFactory}
+import org.apache.celeborn.service.deploy.master.slotsalloc.{SlotsAllocator, SlotsAssignStrategyProviderRegistry}
 import org.apache.celeborn.service.deploy.master.tags.TagsManager
 
 private[celeborn] class Master(
@@ -208,7 +208,8 @@ private[celeborn] class Master(
   private val slotsAssignMaxWorkers = conf.masterSlotAssignMaxWorkers
   private val slotsAssignMinWorkers = conf.masterSlotAssignMinWorkers
   private val slotsAssignExtraSlots = conf.masterSlotAssignExtraSlots
-  private val slotsAssignStrategy = SlotsAssignStrategyFactory.create(conf)
+  private val slotsAssignStrategy =
+    SlotsAssignStrategyProviderRegistry.get(conf.masterSlotAssignPolicyName).create(conf)
 
   private val estimatedPartitionSizeUpdaterInitialDelay =
     conf.estimatedPartitionSizeUpdaterInitialDelay

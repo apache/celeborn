@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.protocol;
 
-public enum SlotsAssignPolicy {
+public enum BuiltInSlotsAssignPolicy {
   ROUNDROBIN,
   LOADAWARE;
 }

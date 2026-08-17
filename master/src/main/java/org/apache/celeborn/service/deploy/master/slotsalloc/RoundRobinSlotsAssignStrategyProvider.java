@@ -18,20 +18,17 @@
 package org.apache.celeborn.service.deploy.master.slotsalloc;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.protocol.SlotsAssignPolicy;
+import org.apache.celeborn.common.protocol.BuiltInSlotsAssignPolicy;
 
-public class SlotsAssignStrategyFactory {
+public final class RoundRobinSlotsAssignStrategyProvider implements SlotsAssignStrategyProvider {
 
-  public static SlotsAssignStrategy create(CelebornConf conf) {
-    SlotsAssignPolicy policy = conf.masterSlotAssignPolicy();
-    if (policy == SlotsAssignPolicy.LOADAWARE) {
-      return new LoadAwareSlotsAssignStrategy(
-          conf.masterSlotAssignLoadAwareDiskGroupNum(),
-          conf.masterSlotAssignLoadAwareDiskGroupGradient(),
-          conf.masterSlotAssignLoadAwareFlushTimeWeight(),
-          conf.masterSlotAssignLoadAwareFetchTimeWeight(),
-          conf.masterSlotAssignLoadAwareActiveSlotsWeight());
-    }
+  @Override
+  public String getName() {
+    return BuiltInSlotsAssignPolicy.ROUNDROBIN.name();
+  }
+
+  @Override
+  public SlotsAssignStrategy create(CelebornConf conf) {
     return new RoundRobinSlotsAssignStrategy();
   }
 }

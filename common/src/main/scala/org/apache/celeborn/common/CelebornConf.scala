@@ -656,8 +656,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Master                         //
   // //////////////////////////////////////////////////////
-  def masterSlotAssignPolicy: SlotsAssignPolicy =
-    SlotsAssignPolicy.valueOf(get(MASTER_SLOT_ASSIGN_POLICY))
+  def masterSlotAssignPolicyName: String = get(MASTER_SLOT_ASSIGN_POLICY)
+
+  def masterSlotAssignPolicy: BuiltInSlotsAssignPolicy =
+    BuiltInSlotsAssignPolicy.valueOf(get(MASTER_SLOT_ASSIGN_POLICY))
 
   def masterSlotAssignInterruptionAware: Boolean = get(MASTER_SLOT_ASSIGN_INTERRUPTION_AWARE)
   def masterSlotsAssignInterruptionAwareThreshold: Int =
@@ -3098,14 +3100,12 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.slots.assign.policy")
       .categories("master")
       .version("0.3.0")
-      .doc("Policy for master to assign slots, Celeborn supports two types of policy: roundrobin and loadaware. " +
+      .doc("Policy for master to assign slots. Built-in policies are roundrobin and loadaware. " +
+        "Additional policies can be registered through the SlotsAssignStrategyProvider SPI. " +
         "Loadaware policy will be ignored when `HDFS` is enabled in `celeborn.storage.availableTypes`")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .checkValues(Set(
-        SlotsAssignPolicy.ROUNDROBIN.name,
-        SlotsAssignPolicy.LOADAWARE.name))
-      .createWithDefault(SlotsAssignPolicy.ROUNDROBIN.name)
+      .createWithDefault(BuiltInSlotsAssignPolicy.ROUNDROBIN.name)
 
   val MASTER_SLOT_ASSIGN_INTERRUPTION_AWARE: ConfigEntry[Boolean] =
     buildConf("celeborn.master.slot.assign.interruptionAware")
