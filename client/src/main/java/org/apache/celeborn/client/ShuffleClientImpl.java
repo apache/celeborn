@@ -2048,6 +2048,19 @@ public class ShuffleClientImpl extends ShuffleClient {
       logger.warn("Shuffle data is empty for shuffle {} partition {}.", shuffleId, partitionId);
       return CelebornInputStream.empty();
     } else {
+      if (logger.isInfoEnabled()) {
+        Set<String> workerHosts = new LinkedHashSet<>();
+        for (PartitionLocation location : locations) {
+          if (location != null) {
+            workerHosts.add(location.getHost());
+          }
+        }
+        logger.info(
+            "Reduce task for shuffle {} partition {} reads data from worker hosts: {}",
+            shuffleId,
+            partitionId,
+            workerHosts);
+      }
       String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
       assert dataClientFactory != null;
       return CelebornInputStream.create(
