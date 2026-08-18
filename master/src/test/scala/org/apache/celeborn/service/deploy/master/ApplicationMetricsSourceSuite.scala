@@ -59,11 +59,6 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
     map
   }
 
-  private def counterMetrics(value: Long): JHashMap[String, ClientMetric] = {
-    val map = new JHashMap[String, ClientMetric]()
-    map.put("ClientRegisterShuffleCount", ClientMetric(value, MetricType.Counter))
-    map
-  }
 
   private def update(
       source: ApplicationMetricsSource,
@@ -79,14 +74,6 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
     source.gauges()
       .find(g => g.name == name && hasLabels(g.labels, labels))
       .map(_.gauge.getValue.asInstanceOf[Number].longValue())
-
-  private def counterValue(
-      source: ApplicationMetricsSource,
-      labels: Map[String, String],
-      name: String = "ClientRegisterShuffleCount"): Option[Long] =
-    source.counters()
-      .find(c => c.name == name && hasLabels(c.labels, labels))
-      .map(_.counter.getCount)
 
   private def hasLabels(
       actual: Map[String, String],
@@ -151,68 +138,17 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
     assert(gaugeValue(source, labels).contains(42L))
   }
 
-  test("gauge for a label set is updated by whichever app heartbeats last") {
+  test("gauge for a label set aggregates values across apps by sum") {
     val source = newSource(enabledConf())
     val labels = Map("team" -> "data-eng")
 
     update(source, gaugeMetrics(3), labels, "app-1")
     update(source, gaugeMetrics(7), labels, "app-2")
 
-    assert(gaugeValue(source, labels).contains(7L))
+    assert(gaugeValue(source, labels).contains(10L))
   }
 
-  test("counter accumulates deltas from heartbeats") {
-    val source = newSource(enabledConf())
-    val labels = Map("team" -> "data-eng")
-
-    update(source, counterMetrics(10), labels)
-    update(source, counterMetrics(15), labels)
-
-    assert(counterValue(source, labels).contains(25L))
-  }
-
-  test("zero or negative counter delta is ignored") {
-    val source = newSource(enabledConf())
-    val labels = Map("team" -> "data-eng")
-
-    update(source, counterMetrics(10), labels)
-    update(source, counterMetrics(0), labels)
-    update(source, counterMetrics(-5), labels)
-
-    assert(counterValue(source, labels).contains(10L))
-  }
-
-  test("counters from apps sharing a label set accumulate") {
-    val source = newSource(enabledConf())
-    val labels = Map("team" -> "data-eng")
-
-    update(source, counterMetrics(10), labels, "app-1")
-    update(source, counterMetrics(5), labels, "app-2")
-
-    assert(counterValue(source, labels).contains(15L))
-  }
-
-  test("counter deltas accumulate across sequential heartbeats") {
-    val source = newSource(enabledConf())
-    val labels = Map("team" -> "data-eng")
-
-    update(source, counterMetrics(10), labels)
-    update(source, counterMetrics(20), labels)
-    update(source, counterMetrics(35), labels)
-
-    assert(counterValue(source, labels).contains(65L))
-  }
-
-  test("counter labels appear in prometheus output") {
-    val source = newSource(enabledConf())
-
-    update(source, counterMetrics(10), Map("team" -> "infra"))
-
-    val metrics = source.getMetrics
-    assert(metrics.contains("""team="infra""""))
-  }
-
-  test("mixed gauge and counter in a single heartbeat") {
+  test("non-gauge metrics in heartbeat are silently ignored") {
     val source = newSource(enabledConf())
     val labels = Map("team" -> "data-eng")
     val map = new JHashMap[String, ClientMetric]()
@@ -222,22 +158,19 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
     source.updateApplicationMetrics("app-1", labels, map)
 
     assert(gaugeValue(source, labels, "ActiveShuffleCount").contains(3L))
-    assert(counterValue(source, labels, "RegisterShuffleCount").contains(10L))
+    assert(source.counters().isEmpty)
   }
 
-  test("removing one app keeps metrics registered while another app still contributes") {
+  test("removing one app updates gauge sum while another app still contributes") {
     val source = newSource(enabledConf())
     val labels = Map("team" -> "data-eng")
 
     update(source, gaugeMetrics(3), labels, "app-1")
     update(source, gaugeMetrics(7), labels, "app-2")
-    update(source, counterMetrics(10), labels, "app-1")
-    update(source, counterMetrics(5), labels, "app-2")
 
     source.removeApplicationMetrics("app-1")
 
     assert(gaugeValue(source, labels).contains(7L))
-    assert(counterValue(source, labels).contains(15L))
   }
 
   test("removing the last contributing app deregisters tracked metrics") {
@@ -246,18 +179,14 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
 
     update(source, gaugeMetrics(3), labels, "app-1")
     update(source, gaugeMetrics(7), labels, "app-2")
-    update(source, counterMetrics(10), labels, "app-1")
-    update(source, counterMetrics(5), labels, "app-2")
 
     source.removeApplicationMetrics("app-1")
 
     assert(gaugeValue(source, labels).contains(7L))
-    assert(counterValue(source, labels).contains(15L))
 
     source.removeApplicationMetrics("app-2")
 
     assert(gaugeValue(source, labels).isEmpty)
-    assert(counterValue(source, labels).isEmpty)
   }
 
   test("late heartbeats for removed apps are ignored") {
@@ -269,5 +198,47 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
     update(source, gaugeMetrics(9), labels, "app-1")
 
     assert(gaugeValue(source, labels).isEmpty)
+  }
+
+  test("labels with invalid Prometheus key names are rejected") {
+    val source = newSource(enabledConf())
+
+    update(source, gaugeMetrics(5), Map("invalid-key" -> "ok"))
+    assert(source.gauges().isEmpty)
+
+    update(source, gaugeMetrics(5), Map("123start" -> "ok"))
+    assert(source.gauges().isEmpty)
+
+    update(source, gaugeMetrics(5), Map("valid_key" -> "ok"))
+    assert(source.gauges().nonEmpty)
+  }
+
+  test("labels with unsafe values (quotes, backslashes, newlines) are rejected") {
+    val source = newSource(enabledConf())
+
+    update(source, gaugeMetrics(5), Map("team" -> """val"ue"""))
+    assert(source.gauges().isEmpty)
+
+    update(source, gaugeMetrics(5), Map("team" -> "val\\ue"))
+    assert(source.gauges().isEmpty)
+
+    update(source, gaugeMetrics(5), Map("team" -> "val\nue"))
+    assert(source.gauges().isEmpty)
+
+    update(source, gaugeMetrics(5), Map("team" -> "safe_value"))
+    assert(source.gauges().nonEmpty)
+  }
+
+  test("gauge values from multiple apps are summed, not last-writer-wins") {
+    val source = newSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+
+    update(source, gaugeMetrics(3), labels, "app-1")
+    update(source, gaugeMetrics(7), labels, "app-2")
+
+    assert(gaugeValue(source, labels).contains(10L))
+
+    update(source, gaugeMetrics(5), labels, "app-1")
+    assert(gaugeValue(source, labels).contains(12L))
   }
 }

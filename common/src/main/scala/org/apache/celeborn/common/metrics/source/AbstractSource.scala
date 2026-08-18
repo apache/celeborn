@@ -53,11 +53,7 @@ case class NamedTimer(name: String, timer: Timer, labels: Map[String, String]) e
 case class TrackedGauge(
     namedGauge: NamedGauge[Long],
     handle: AtomicLong,
-    contributingAppIds: java.util.Set[String])
-
-case class TrackedCounter(
-    namedCounter: NamedCounter,
-    contributingAppIds: java.util.Set[String])
+    perAppValues: ConcurrentHashMap[String, java.lang.Long])
 
 abstract class AbstractSource(conf: CelebornConf, role: String)
   extends Source with Logging {
@@ -114,9 +110,6 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   protected val namedGaugesWithDetails: ConcurrentHashMap[String, TrackedGauge] =
     JavaUtils.newConcurrentHashMap[String, TrackedGauge]()
-
-  protected val namedCountersWithDetails: ConcurrentHashMap[String, TrackedCounter] =
-    JavaUtils.newConcurrentHashMap[String, TrackedCounter]()
 
   def addTimerMetrics(namedTimer: NamedTimer): Unit = {
     val timerMetricsString = getTimerMetrics(namedTimer)
@@ -235,6 +228,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
         labelsWithCustomizedLabels(labels)))
   }
 
+  // Stores each app's gauge value separately and exposes the sum as the reported metric.
   protected def addOrUpdateGaugeForApp(
       name: String,
       labels: Map[String, String],
@@ -249,32 +243,14 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
             val holder = new AtomicLong()
             addGauge(name, labels)(() => holder.get())
             val namedGauge = namedGauges.get(key).asInstanceOf[NamedGauge[Long]]
-            TrackedGauge(namedGauge, holder, ConcurrentHashMap.newKeySet[String]())
+            TrackedGauge(
+              namedGauge,
+              holder,
+              new ConcurrentHashMap[String, java.lang.Long]())
           }
-          tracked.contributingAppIds.add(appId)
-          tracked.handle.set(value)
-          tracked
-        }
-      })
-  }
-
-  protected def addOrUpdateCounterForApp(
-      name: String,
-      labels: Map[String, String],
-      appId: String,
-      delta: Long): Unit = {
-    if (delta <= 0) {
-      return
-    }
-    val key = metricNameWithCustomizedLabels(name, labels)
-    namedCountersWithDetails.compute(
-      key,
-      new BiFunction[String, TrackedCounter, TrackedCounter] {
-        override def apply(_key: String, existing: TrackedCounter): TrackedCounter = {
-          val tracked = Option(existing).getOrElse(
-            TrackedCounter(addCounter(name, labels), ConcurrentHashMap.newKeySet[String]()))
-          tracked.contributingAppIds.add(appId)
-          tracked.namedCounter.counter.inc(delta)
+          val oldVal = tracked.perAppValues.put(appId, value)
+          val delta = value - (if (oldVal != null) oldVal.longValue() else 0L)
+          tracked.handle.addAndGet(delta)
           tracked
         }
       })
@@ -350,38 +326,17 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   protected def removeAppFromMetrics(appId: String): Unit = {
-    removeAppFromTrackedGauges(appId)
-    removeAppFromTrackedCounters(appId)
-  }
-
-  private def removeAppFromTrackedGauges(appId: String): Unit = {
     namedGaugesWithDetails.keySet().asScala.toList.foreach { key =>
       namedGaugesWithDetails.computeIfPresent(
         key,
         new BiFunction[String, TrackedGauge, TrackedGauge] {
           override def apply(_key: String, tracked: TrackedGauge): TrackedGauge = {
-            tracked.contributingAppIds.remove(appId)
-            if (tracked.contributingAppIds.isEmpty) {
-              namedGauges.remove(key)
-              metricRegistry.remove(key)
-              null
-            } else {
-              tracked
+            val oldVal = tracked.perAppValues.remove(appId)
+            if (oldVal != null) {
+              tracked.handle.addAndGet(-oldVal.longValue())
             }
-          }
-        })
-    }
-  }
-
-  private def removeAppFromTrackedCounters(appId: String): Unit = {
-    namedCountersWithDetails.keySet().asScala.toList.foreach { key =>
-      namedCountersWithDetails.computeIfPresent(
-        key,
-        new BiFunction[String, TrackedCounter, TrackedCounter] {
-          override def apply(_key: String, tracked: TrackedCounter): TrackedCounter = {
-            tracked.contributingAppIds.remove(appId)
-            if (tracked.contributingAppIds.isEmpty) {
-              namedCounters.remove(key)
+            if (tracked.perAppValues.isEmpty) {
+              namedGauges.remove(key)
               metricRegistry.remove(key)
               null
             } else {
@@ -807,7 +762,6 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     namedCounters.clear()
     namedGauges.clear()
     namedGaugesWithDetails.clear()
-    namedCountersWithDetails.clear()
     namedMeters.clear()
     namedTimers.clear()
     timerMetrics.clear()

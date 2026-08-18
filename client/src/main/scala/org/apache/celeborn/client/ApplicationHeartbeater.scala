@@ -45,8 +45,7 @@ class ApplicationHeartbeater(
     registeredShuffles: ConcurrentHashMap.KeySetView[Int, java.lang.Boolean],
     cancelAllActiveStages: String => Unit,
     clientMetrics: () => util.Map[String, ClientMetric] =
-      () => java.util.Collections.emptyMap[String, ClientMetric](),
-    commitClientMetrics: () => Unit = () => ()) extends Logging {
+      () => java.util.Collections.emptyMap[String, ClientMetric]()) extends Logging {
 
   private var stopped = false
   private val reviseLostShuffles = conf.reviseLostShufflesEnabled
@@ -106,7 +105,6 @@ class ApplicationHeartbeater(
             val response = requestHeartbeat(appHeartbeat)
             if (response.statusCode == StatusCode.SUCCESS) {
               logDebug("Successfully send app heartbeat.")
-              commitClientMetrics()
               workerStatusTracker.handleHeartbeatResponse(response)
               checkQuotaExceeds(response.checkQuotaResponse)
               // revise shuffle id if there are lost shuffles

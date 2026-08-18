@@ -32,18 +32,9 @@ class CelebornSourceSuite extends CelebornFunSuite {
         value: Long): Unit =
       addOrUpdateGaugeForApp(name, labels, appId, value)
 
-    def updateCounter(
-        name: String,
-        labels: Map[String, String],
-        appId: String,
-        delta: Long): Unit =
-      addOrUpdateCounterForApp(name, labels, appId, delta)
-
     def removeApp(appId: String): Unit = removeAppFromMetrics(appId)
 
     def trackedGaugeCount: Int = namedGaugesWithDetails.size()
-
-    def trackedCounterCount: Int = namedCountersWithDetails.size()
   }
 
   private def hasLabels(
@@ -58,14 +49,6 @@ class CelebornSourceSuite extends CelebornFunSuite {
     source.gauges()
       .find(g => g.name == name && hasLabels(g.labels, labels))
       .map(_.gauge.getValue.asInstanceOf[Number].longValue())
-
-  private def counterValue(
-      source: AbstractSource,
-      labels: Map[String, String],
-      name: String): Option[Long] =
-    source.counters()
-      .find(c => c.name == name && hasLabels(c.labels, labels))
-      .map(_.counter.getCount)
 
   test("test histogram") {
     val conf = new CelebornConf()
@@ -193,44 +176,22 @@ class CelebornSourceSuite extends CelebornFunSuite {
     assert(source.getMetrics.contains("""user="metric""""))
   }
 
-  test("dynamic app counter reuses existing counter registration and accumulates deltas") {
-    val source = new TestSource()
-    val labels = Map("user" -> "metric")
-
-    source.updateCounter("DynamicCounter", labels, "app-1", 10L)
-    source.updateCounter("DynamicCounter", labels, "app-1", 5L)
-    source.updateCounter("DynamicCounter", labels, "app-1", 0L)
-    source.updateCounter("DynamicCounter", labels, "app-1", -1L)
-
-    assert(source.trackedCounterCount == 1)
-    assert(source.counters().count(c =>
-      c.name == "DynamicCounter" && hasLabels(c.labels, labels)) == 1)
-    assert(counterValue(source, labels, "DynamicCounter").contains(15L))
-  }
-
-  test("dynamic app metrics are removed only after all contributing apps are removed") {
+  test("dynamic app gauges are removed only after all contributing apps are removed") {
     val source = new TestSource()
     val labels = Map("user" -> "metric")
 
     source.updateGauge("DynamicGauge", labels, "app-1", 1L)
     source.updateGauge("DynamicGauge", labels, "app-2", 2L)
-    source.updateCounter("DynamicCounter", labels, "app-1", 10L)
-    source.updateCounter("DynamicCounter", labels, "app-2", 5L)
 
     source.removeApp("app-1")
 
     assert(source.trackedGaugeCount == 1)
-    assert(source.trackedCounterCount == 1)
     assert(gaugeValue(source, labels, "DynamicGauge").contains(2L))
-    assert(counterValue(source, labels, "DynamicCounter").contains(15L))
 
     source.removeApp("app-2")
 
     assert(source.trackedGaugeCount == 0)
-    assert(source.trackedCounterCount == 0)
     assert(gaugeValue(source, labels, "DynamicGauge").isEmpty)
-    assert(counterValue(source, labels, "DynamicCounter").isEmpty)
     assert(!source.gaugeExists("DynamicGauge", labels))
-    assert(!source.counterExists("DynamicCounter", labels))
   }
 }
