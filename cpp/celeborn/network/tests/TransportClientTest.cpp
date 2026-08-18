@@ -25,11 +25,38 @@ using namespace celeborn::network;
 
 namespace {
 using MS = std::chrono::milliseconds;
+
+// The retriable error MessageDispatcher reports when the connection is closed
+// or the write fails.
+folly::exception_wrapper retriableConnectionClosed() {
+  return folly::make_exception_wrapper<utils::CelebornRuntimeError>(
+      __FILE__,
+      static_cast<size_t>(__LINE__),
+      __FUNCTION__,
+      /*expression=*/"",
+      /*message=*/"connection closed",
+      utils::error_source::kErrorSourceRuntime.c_str(),
+      utils::error_code::kInvalidState.c_str(),
+      /*isRetriable=*/true);
+}
+
+// True when the exception handed to the caller kept the retriable
+// classification the dispatcher attached to the failure.
+bool failedRetriably(const std::exception* exception) {
+  const auto* celebornException =
+      dynamic_cast<const utils::CelebornException*>(exception);
+  return celebornException != nullptr && celebornException->isRetriable();
+}
+
 class MockDispatcher : public MessageDispatcher {
  public:
   folly::Future<std::unique_ptr<Message>> sendRpcRequest(
       std::unique_ptr<Message> toSendMsg) override {
     sentMsg_ = std::move(toSendMsg);
+    if (connectionClosed_) {
+      return folly::makeFuture<std::unique_ptr<Message>>(
+          retriableConnectionClosed());
+    }
     msgPromise_ = MsgPromise();
     return msgPromise_.getFuture();
   }
@@ -42,6 +69,10 @@ class MockDispatcher : public MessageDispatcher {
   folly::Future<std::unique_ptr<Message>> sendPushDataRequest(
       std::unique_ptr<Message> toSendMsg) override {
     sentMsg_ = std::move(toSendMsg);
+    if (connectionClosed_) {
+      return folly::makeFuture<std::unique_ptr<Message>>(
+          retriableConnectionClosed());
+    }
     msgPromise_ = MsgPromise();
     return msgPromise_.getFuture();
   }
@@ -50,6 +81,10 @@ class MockDispatcher : public MessageDispatcher {
       const protocol::StreamChunkSlice& streamChunkSlice,
       std::unique_ptr<Message> toSendMsg) override {
     sentMsg_ = std::move(toSendMsg);
+    if (connectionClosed_) {
+      return folly::makeFuture<std::unique_ptr<Message>>(
+          retriableConnectionClosed());
+    }
     msgPromise_ = MsgPromise();
     return msgPromise_.getFuture();
   }
@@ -62,10 +97,17 @@ class MockDispatcher : public MessageDispatcher {
     msgPromise_.setValue(std::move(msg));
   }
 
+  // Makes every send fail retriably, as MessageDispatcher does once the
+  // connection is closed.
+  void setConnectionClosed() {
+    connectionClosed_ = true;
+  }
+
  private:
   using MsgPromise = folly::Promise<std::unique_ptr<Message>>;
   std::unique_ptr<Message> sentMsg_;
   MsgPromise msgPromise_;
+  bool connectionClosed_{false};
 };
 
 std::unique_ptr<memory::ReadOnlyByteBuffer> toReadOnlyByteBuffer(
@@ -207,6 +249,78 @@ TEST_F(TransportClientTest, sendRpcRequestSyncTimeout) {
   // Not response received, should be timeout.
   EXPECT_FALSE(receivedRpcResponse);
   EXPECT_TRUE(timeoutHappened);
+}
+
+// The retriable classification the dispatcher attaches to a recoverable
+// transport failure must survive TransportClient's public API, otherwise no
+// caller can tell such a failure apart from a terminal one.
+TEST_F(TransportClientTest, sendRpcRequestSyncPreservesRetriableFailure) {
+  auto mockDispatcher = std::make_unique<MockDispatcher>();
+  mockDispatcher->setConnectionClosed();
+  TransportClient client(nullptr, std::move(mockDispatcher), MS(10000));
+
+  const long requestId = 1001;
+  auto rpcRequest = std::make_unique<RpcRequest>(
+      requestId, toReadOnlyByteBuffer("test-request-body"));
+
+  bool failed = false;
+  bool retriable = false;
+  try {
+    client.sendRpcRequestSync(*rpcRequest, MS(10000));
+  } catch (const std::exception& e) {
+    failed = true;
+    retriable = failedRetriably(&e);
+  }
+  EXPECT_TRUE(failed);
+  EXPECT_TRUE(retriable);
+}
+
+TEST_F(TransportClientTest, pushDataAsyncPreservesRetriableFailure) {
+  auto mockDispatcher = std::make_unique<MockDispatcher>();
+  mockDispatcher->setConnectionClosed();
+  TransportClient client(nullptr, std::move(mockDispatcher), MS(10000));
+  auto mockRpcResponseCallback = std::make_shared<MockRpcResponseCallback>();
+
+  auto pushData = std::make_unique<PushData>(
+      /*requestId=*/1001,
+      /*mode=*/2,
+      "test-shuffle-key",
+      "test-partition-id",
+      toReadOnlyByteBuffer("test-request-body"));
+  client.pushDataAsync(*pushData, MS(10000), mockRpcResponseCallback);
+
+  auto onFailureException = mockRpcResponseCallback->getOnFailureException();
+  EXPECT_FALSE(mockRpcResponseCallback->getOnSuccessBuffer());
+  ASSERT_TRUE(onFailureException);
+  EXPECT_TRUE(failedRetriably(onFailureException.get()));
+}
+
+TEST_F(TransportClientTest, fetchChunkAsyncPreservesRetriableFailure) {
+  auto mockDispatcher = std::make_unique<MockDispatcher>();
+  mockDispatcher->setConnectionClosed();
+  TransportClient client(nullptr, std::move(mockDispatcher), MS(10000));
+
+  const protocol::StreamChunkSlice streamChunkSlice{1, 2, 3, 4};
+  auto rpcRequest = std::make_unique<RpcRequest>(
+      /*requestId=*/1001, toReadOnlyByteBuffer("test-request-body"));
+  std::unique_ptr<memory::ReadOnlyByteBuffer> onSuccessBuffer;
+  FetchChunkSuccessCallback onSuccess =
+      [&](protocol::StreamChunkSlice slice,
+          std::unique_ptr<memory::ReadOnlyByteBuffer> buffer) {
+        onSuccessBuffer = std::move(buffer);
+      };
+  std::unique_ptr<std::exception> onFailureException;
+  FetchChunkFailureCallback onFailure =
+      [&](protocol::StreamChunkSlice slice,
+          std::unique_ptr<std::exception> exception) {
+        onFailureException = std::move(exception);
+      };
+
+  client.fetchChunkAsync(streamChunkSlice, *rpcRequest, onSuccess, onFailure);
+
+  EXPECT_FALSE(onSuccessBuffer);
+  ASSERT_TRUE(onFailureException);
+  EXPECT_TRUE(failedRetriably(onFailureException.get()));
 }
 
 TEST_F(TransportClientTest, sendRpcRequestWithoutResponse) {

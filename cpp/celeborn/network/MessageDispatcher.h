@@ -17,6 +17,9 @@
 
 #pragma once
 
+#include <functional>
+#include <memory>
+
 #include <wangle/bootstrap/ClientBootstrap.h>
 #include <wangle/channel/AsyncSocketHandler.h>
 #include <wangle/channel/EventBaseHandler.h>
@@ -53,6 +56,10 @@ class MessageDispatcher : public wangle::ClientDispatcherBase<
                               std::unique_ptr<Message>,
                               std::unique_ptr<Message>> {
  public:
+  MessageDispatcher();
+
+  ~MessageDispatcher() override;
+
   void read(Context*, std::unique_ptr<Message> toRecvMsg) override;
 
   virtual folly::Future<std::unique_ptr<Message>> sendRpcRequest(
@@ -89,28 +96,28 @@ class MessageDispatcher : public wangle::ClientDispatcherBase<
 
   folly::Future<folly::Unit> close(Context* ctx) override;
 
-  bool isAvailable() override {
-    return !closed_;
-  }
+  bool isAvailable() override;
 
  private:
-  void cleanup();
+  // The outstanding requests of the connection, and the flag that retires it.
+  // Defined in the .cpp, and refcounted separately from the dispatcher, because
+  // the continuations the dispatcher attaches asynchronously can run after it
+  // is gone: a failed write is reported from the socket's write callback, and
+  // AsyncSocket fails whatever is still pending while it is torn down, by which
+  // time TransportClient has destroyed its dispatcher. Keeping the dispatcher
+  // alive instead is not an option -- ~ClientDispatcherBase unregisters it from
+  // the pipeline, so it must be destroyed while that pipeline still lives.
+  class ConnectionState;
 
-  using MsgPromise = folly::Promise<std::unique_ptr<Message>>;
-  struct MsgPromiseHolder {
-    MsgPromise msgPromise;
-    std::chrono::time_point<std::chrono::system_clock> requestTime;
-  };
-  folly::Synchronized<std::unordered_map<long, MsgPromiseHolder>, std::mutex>
-      requestIdRegistry_;
-  folly::Synchronized<
-      std::unordered_map<
-          protocol::StreamChunkSlice,
-          MsgPromiseHolder,
-          protocol::StreamChunkSlice::Hasher>,
-      std::mutex>
-      streamChunkSliceRegistry_;
-  std::atomic<bool> closed_{false};
+  // Writes a message down the pipeline and returns the future reporting the
+  // write's outcome. A handler may fail by throwing instead of by failing that
+  // future, in which case `onThrow` runs and the exception keeps propagating.
+  // See the call sites for when that happens.
+  folly::Future<folly::Unit> writeToPipeline(
+      std::unique_ptr<Message> toSendMsg,
+      const std::function<void()>& onThrow);
+
+  const std::shared_ptr<ConnectionState> state_;
 };
 } // namespace network
 } // namespace celeborn

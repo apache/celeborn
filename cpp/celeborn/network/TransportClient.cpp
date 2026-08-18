@@ -22,6 +22,80 @@
 
 namespace celeborn {
 namespace network {
+namespace {
+// True when the cause was already classified as retriable by the transport.
+bool isRetriableCause(const std::exception& e) {
+  const auto* celebornException =
+      dynamic_cast<const utils::CelebornException*>(&e);
+  return celebornException != nullptr && celebornException->isRetriable();
+}
+
+// Rebuilds the failure handed to a push/fetch callback. The transport marks a
+// recoverable failure -- a closed connection, a failed write, a connect
+// failure -- with a retriable CelebornException; flattening it into a plain
+// std::runtime_error here would drop that classification before any caller can
+// observe it, so the retriable exception is forwarded as-is.
+//
+// Matching CelebornRuntimeError alone is enough: the CELEBORN_CHECK /
+// CELEBORN_FAIL macros all hardcode isRetriable=false, so a retriable cause is
+// always one of the CelebornRuntimeErrors the transport builds explicitly.
+std::unique_ptr<std::exception> toCallbackException(
+    const folly::exception_wrapper& e) {
+  std::unique_ptr<std::exception> retriableFailure;
+  e.with_exception([&](const utils::CelebornRuntimeError& error) {
+    if (error.isRetriable()) {
+      retriableFailure = std::make_unique<utils::CelebornRuntimeError>(error);
+    }
+  });
+  if (retriableFailure) {
+    return retriableFailure;
+  }
+  return std::make_unique<std::runtime_error>(e.what().toStdString());
+}
+
+// The counterpart of toCallbackException for a synchronously thrown cause:
+// wraps `errorMsg` while keeping the cause's retriable classification.
+std::unique_ptr<std::exception> wrapCallbackException(
+    const char* file,
+    size_t line,
+    const char* function,
+    const std::string& errorMsg,
+    const std::exception& cause) {
+  if (!isRetriableCause(cause)) {
+    return std::make_unique<std::runtime_error>(errorMsg);
+  }
+  return std::make_unique<utils::CelebornRuntimeError>(
+      file,
+      line,
+      function,
+      /*expression=*/"",
+      /*message=*/errorMsg,
+      utils::error_source::kErrorSourceRuntime.c_str(),
+      utils::error_code::kInvalidState.c_str(),
+      /*isRetriable=*/true);
+}
+
+// Rethrows `errorMsg` preserving the cause's retriable classification.
+// CELEBORN_FAIL would hardcode isRetriable=false and hide a recoverable
+// transport failure from the retry/failover paths.
+[[noreturn]] void failPreservingRetriable(
+    const char* file,
+    size_t line,
+    const char* function,
+    const std::string& errorMsg,
+    const std::exception& cause) {
+  throw utils::CelebornRuntimeError(
+      file,
+      line,
+      function,
+      /*expression=*/"",
+      /*message=*/errorMsg,
+      utils::error_source::kErrorSourceRuntime.c_str(),
+      utils::error_code::kInvalidState.c_str(),
+      /*isRetriable=*/isRetriableCause(cause));
+}
+} // namespace
+
 void MessageSerializeHandler::read(
     Context* ctx,
     std::unique_ptr<folly::IOBuf> msg) {
@@ -61,7 +135,7 @@ RpcResponse TransportClient::sendRpcRequestSync(
         timeout,
         folly::exceptionStr(e).toStdString());
     LOG(ERROR) << errorMsg;
-    CELEBORN_FAIL(errorMsg);
+    failPreservingRetriable(__FILE__, __LINE__, __FUNCTION__, errorMsg, e);
   }
 }
 
@@ -100,8 +174,7 @@ void TransportClient::pushDataAsync(
               }
             })
         .thenError([_callback = callback](const folly::exception_wrapper& e) {
-          _callback->onFailure(
-              std::make_unique<std::runtime_error>(e.what().toStdString()));
+          _callback->onFailure(toCallbackException(e));
         });
 
   } catch (std::exception& e) {
@@ -112,7 +185,8 @@ void TransportClient::pushDataAsync(
         pushData.mode(),
         e.what());
     LOG(ERROR) << errorMsg;
-    callback->onFailure(std::make_unique<std::runtime_error>(errorMsg));
+    callback->onFailure(
+        wrapCallbackException(__FILE__, __LINE__, __FUNCTION__, errorMsg, e));
   }
 }
 
@@ -137,8 +211,7 @@ void TransportClient::pushMergedDataAsync(
               }
             })
         .thenError([_callback = callback](const folly::exception_wrapper& e) {
-          _callback->onFailure(
-              std::make_unique<std::runtime_error>(e.what().toStdString()));
+          _callback->onFailure(toCallbackException(e));
         });
 
   } catch (std::exception& e) {
@@ -148,7 +221,8 @@ void TransportClient::pushMergedDataAsync(
         pushMergedData.mode(),
         e.what());
     LOG(ERROR) << errorMsg;
-    callback->onFailure(std::make_unique<std::runtime_error>(errorMsg));
+    callback->onFailure(
+        wrapCallbackException(__FILE__, __LINE__, __FUNCTION__, errorMsg, e));
   }
 }
 
@@ -178,12 +252,12 @@ void TransportClient::fetchChunkAsync(
         })
         .thenError(
             [=, _onFailure = onFailure](const folly::exception_wrapper& e) {
-              _onFailure(
-                  streamChunkSlice,
-                  std::make_unique<std::runtime_error>(e.what().toStdString()));
+              _onFailure(streamChunkSlice, toCallbackException(e));
             });
   } catch (std::exception& e) {
-    CELEBORN_FAIL(e.what());
+    LOG(ERROR) << "fetchChunk failed. streamChunkSlice: "
+               << streamChunkSlice.toString() << ", errorMsg: " << e.what();
+    failPreservingRetriable(__FILE__, __LINE__, __FUNCTION__, e.what(), e);
   }
 }
 
@@ -264,7 +338,20 @@ std::shared_ptr<TransportClient> TransportClientFactory::createClient(
           connectTimeout_,
           folly::exceptionStr(e).toStdString());
       LOG(ERROR) << errorMsg;
-      CELEBORN_FAIL(errorMsg);
+      // Failing to establish a connection is transient: the peer may be
+      // restarting, or the network may be briefly unavailable. Classify it as
+      // retriable rather than as an invariant violation, so that the
+      // createReaderWithRetry and push failover paths can tell it apart from a
+      // terminal failure.
+      throw utils::CelebornRuntimeError(
+          __FILE__,
+          __LINE__,
+          __FUNCTION__,
+          /*expression=*/"",
+          /*message=*/errorMsg,
+          utils::error_source::kErrorSourceRuntime.c_str(),
+          utils::error_code::kInvalidState.c_str(),
+          /*isRetriable=*/true);
     }
   }
 }
