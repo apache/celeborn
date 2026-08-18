@@ -29,7 +29,9 @@ namespace {
 // AsyncSocketHandler does, or by throwing, the way a handler that serializes
 // the message does -- MessageSerializeHandler encodes it, and Message::encode
 // checks its own invariants.
-enum class WriteFailure { kFailFuture, kThrow };
+// kThrowNonStd throws something that does not derive from std::exception, which
+// a handler is free to do.
+enum class WriteFailure { kFailFuture, kThrow, kThrowNonStd };
 
 class MockHandler : public wangle::Handler<
                         std::unique_ptr<folly::IOBuf>,
@@ -72,10 +74,14 @@ class MockHandler : public wangle::Handler<
     if (writePromise_ != nullptr) {
       return writePromise_->getFuture();
     }
-    if (writeFailure_ == WriteFailure::kThrow) {
+    if (writeFailure_ == WriteFailure::kThrow ||
+        writeFailure_ == WriteFailure::kThrowNonStd) {
       // Only the one malformed message throws: what a handler rejects is the
       // message, not the connection, so the writes around it go through.
       if (numWrites_ == failFromWrite_) {
+        if (writeFailure_ == WriteFailure::kThrowNonStd) {
+          throw writeError_;
+        }
         throw std::runtime_error(writeError_);
       }
       return {};
@@ -714,6 +720,25 @@ TEST(MessageDispatcherTest, throwingWriteWithoutResponseIsReported) {
           /*requestId=*/7007, toReadOnlyByteBuffer("test-request-body"))));
 
   // The message was rejected, not the connection.
+  EXPECT_TRUE(dispatcher->isAvailable());
+}
+
+// Including when what it throws does not derive from std::exception.
+TEST(MessageDispatcherTest, nonStdThrowingWriteWithoutResponseIsReported) {
+  std::unique_ptr<Message> sentMsg;
+  MockHandler mockHandler(
+      sentMsg,
+      "encoded length mismatch",
+      /*failFromWrite=*/1,
+      WriteFailure::kThrowNonStd);
+  auto mockPipeline = createMockedPipeline(std::move(mockHandler));
+  auto dispatcher = std::make_unique<MessageDispatcher>();
+  dispatcher->setPipeline(mockPipeline.get());
+
+  EXPECT_NO_THROW(
+      dispatcher->sendRpcRequestWithoutResponse(std::make_unique<RpcRequest>(
+          /*requestId=*/7008, toReadOnlyByteBuffer("test-request-body"))));
+
   EXPECT_TRUE(dispatcher->isAvailable());
 }
 

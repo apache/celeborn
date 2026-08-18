@@ -517,6 +517,12 @@ void MessageDispatcher::sendRpcRequestWithoutResponse(
     LOG(ERROR) << "failed to send requestId " << requestId
                << " without response, errorMsg: " << e.what();
     return;
+  } catch (...) {
+    // A handler is free to throw something that does not derive from
+    // std::exception, and that must not escape a destructor either.
+    LOG(ERROR) << "failed to send requestId " << requestId
+               << " without response, errorMsg: unknown exception";
+    return;
   }
   std::move(written).thenError(
       [weakState, requestId](const folly::exception_wrapper& e) {
