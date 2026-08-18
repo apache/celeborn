@@ -17,10 +17,6 @@
 
 package org.apache.celeborn.client
 
-import java.util.concurrent.ConcurrentHashMap
-
-import scala.collection.JavaConverters._
-
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.{ClientMetric, MetricType}
 import org.apache.celeborn.common.metrics.source.{AbstractSource, Role}
@@ -31,48 +27,14 @@ import org.apache.celeborn.common.metrics.source.{AbstractSource, Role}
 class CelebornClientSource(conf: CelebornConf) extends AbstractSource(conf, Role.CLIENT) {
   override val sourceName = "client"
 
-  import CelebornClientSource._
-
-  // Tracks the counter baselines that have been acknowledged by the master, so we can send
-  // deltas rather than cumulative counts.
-  private val counterPrev = new ConcurrentHashMap[String, java.lang.Long]()
-
-  // Counter values captured by the most recent getMetricsSnapshot() that have not yet been
-  // acknowledged.
-  private val pendingCounterValues = new ConcurrentHashMap[String, java.lang.Long]()
-
-  addCounter(REGISTER_SHUFFLE_COUNT)
-  addCounter(REGISTER_SHUFFLE_FAIL_COUNT)
-  addCounter(UNREGISTER_SHUFFLE_COUNT)
-  addCounter(REVIVE_REQUEST_COUNT)
-  addCounter(REVIVE_FAIL_COUNT)
-  addCounter(SLOT_RESERVATION_FAIL_COUNT)
-  addCounter(SHUFFLE_FETCH_FAILURE_COUNT)
-  addCounter(SHUFFLE_DATA_LOST_COUNT)
-
   def getMetricsSnapshot(): Map[String, ClientMetric] = {
-    val counterMetrics = counters().flatMap { c =>
-      val current = c.counter.getCount
-      val prev = Option(counterPrev.get(c.name)).map(_.longValue()).getOrElse(0L)
-      val delta = current - prev
-      pendingCounterValues.put(c.name, current)
-      if (delta > 0) Some(c.name -> ClientMetric(delta, MetricType.Counter))
-      else None
+    val snapshot = Map.newBuilder[String, ClientMetric]
+    gauges().foreach { g =>
+      snapshot += g.name -> ClientMetric(
+        g.gauge.getValue.asInstanceOf[Number].longValue(), MetricType.Gauge)
     }
-    // Gauges: send the latest value as-is.
-    val gaugeMetrics = gauges().map(g =>
-      g.name -> ClientMetric(g.gauge.getValue.asInstanceOf[Number].longValue(), MetricType.Gauge))
-    (counterMetrics ++ gaugeMetrics).toMap
+    snapshot.result()
   }
-
-  def commitSnapshot(): Unit = {
-    pendingCounterValues.entrySet().asScala.foreach { entry =>
-      counterPrev.put(entry.getKey, entry.getValue)
-    }
-    pendingCounterValues.clear()
-  }
-
-  def start(): Unit = startCleaner()
 
   def stop(): Unit = metricsCleaner.shutdown()
 }
@@ -81,12 +43,4 @@ object CelebornClientSource {
   val EXCLUDED_WORKER_COUNT = "ClientExcludedWorkerCount"
   val SHUTTING_WORKER_COUNT = "ClientShuttingWorkerCount"
   val ACTIVE_SHUFFLE_COUNT = "ClientActiveShuffleCount"
-  val REGISTER_SHUFFLE_COUNT = "ClientRegisterShuffleCount"
-  val REGISTER_SHUFFLE_FAIL_COUNT = "ClientRegisterShuffleFailCount"
-  val UNREGISTER_SHUFFLE_COUNT = "ClientUnregisterShuffleCount"
-  val REVIVE_REQUEST_COUNT = "ClientReviveRequestCount"
-  val REVIVE_FAIL_COUNT = "ClientReviveFailCount"
-  val SLOT_RESERVATION_FAIL_COUNT = "ClientSlotReservationFailCount"
-  val SHUFFLE_FETCH_FAILURE_COUNT = "ClientShuffleFetchFailureCount"
-  val SHUFFLE_DATA_LOST_COUNT = "ClientShuffleDataLostCount"
 }

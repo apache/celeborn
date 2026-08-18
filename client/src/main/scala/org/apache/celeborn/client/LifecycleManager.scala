@@ -231,8 +231,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   val clientSource: Option[CelebornClientSource] =
     if (clientMetricsEnabled) Some(new CelebornClientSource(conf)) else None
 
-  @inline private[client] def incClientMetric(name: String, delta: Long = 1L): Unit =
-    clientSource.foreach(_.incCounter(name, delta))
   val commitManager = new CommitManager(appUniqueId, conf, this)
   val workerStatusTracker = new WorkerStatusTracker(conf, this)
   clientSource.foreach { source =>
@@ -245,7 +243,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     source.addGauge(CelebornClientSource.SHUTTING_WORKER_COUNT) { () =>
       workerStatusTracker.shuttingWorkers.size
     }
-    source.start()
   }
   private val heartbeater =
     new ApplicationHeartbeater(
@@ -262,8 +259,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       reason => cancelAllActiveStages(reason),
       () =>
         clientSource.map(_.getMetricsSnapshot().asJava)
-          .getOrElse(java.util.Collections.emptyMap[String, ClientMetric]()),
-      () => clientSource.foreach(_.commitSnapshot()))
+          .getOrElse(java.util.Collections.emptyMap[String, ClientMetric]()))
   private def resetFallbackCounts(counts: ConcurrentHashMap[String, java.lang.Long])
       : Map[String, java.lang.Long] = {
     val fallbackCounts = new util.HashMap[String, java.lang.Long]()
@@ -754,9 +750,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
     // Reply to all RegisterShuffle request for current shuffle id.
     def replyRegisterShuffle(response: RegisterShuffleResponse): Unit = {
-      incClientMetric(
-        if (response.status == StatusCode.SUCCESS) CelebornClientSource.REGISTER_SHUFFLE_COUNT
-        else CelebornClientSource.REGISTER_SHUFFLE_FAIL_COUNT)
       registeringShuffleRequest.synchronized {
         val serializedMsg: Option[ByteBuffer] = partitionType match {
           case PartitionType.REDUCE =>
@@ -919,11 +912,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       serdeVersion: SerdeVersion): Unit = {
     val contextWrapper =
       ChangeLocationsCallContext(context, partitionIds.size(), serdeVersion)
-    incClientMetric(CelebornClientSource.REVIVE_REQUEST_COUNT, partitionIds.size())
     // If shuffle not registered, reply ShuffleNotRegistered and return
     if (!registeredShuffle.contains(shuffleId)) {
       logError(s"[handleRevive] shuffle $shuffleId not registered!")
-      incClientMetric(CelebornClientSource.REVIVE_FAIL_COUNT, partitionIds.size())
       contextWrapper.reply(
         -1,
         StatusCode.SHUFFLE_UNREGISTERED,
@@ -935,7 +926,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       s"[handleRevive] shuffle $shuffleId, $mapIds, $partitionIds, $oldEpochs, $oldPartitions, $causes")
     if (commitManager.isStageEnd(shuffleId)) {
       logError(s"[handleRevive] shuffle $shuffleId stage ended!")
-      incClientMetric(CelebornClientSource.REVIVE_FAIL_COUNT, partitionIds.size())
       contextWrapper.reply(
         -1,
         StatusCode.STAGE_ENDED,
@@ -1149,7 +1139,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           if (invokeReportTaskShuffleFetchFailurePreCheck(taskId)) {
             logInfo(s"handle fetch failure for appShuffleId $appShuffleId shuffleId $shuffleId")
             ret = invokeAppShuffleTrackerCallback(appShuffleId)
-            if (ret) incClientMetric(CelebornClientSource.SHUFFLE_FETCH_FAILURE_COUNT)
             shuffleIds.put(appShuffleIdentifier, (shuffleId, false))
           } else {
             logInfo(
@@ -1281,7 +1270,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           context.reply(MapperEndResponse(StatusCode.SUCCESS, serdeVersion))
         case false =>
           logError(s"Failed $message, reply ${StatusCode.SHUFFLE_DATA_LOST}.")
-          incClientMetric(CelebornClientSource.SHUFFLE_DATA_LOST_COUNT)
           context.reply(MapperEndResponse(StatusCode.SHUFFLE_DATA_LOST, serdeVersion))
       }
     }
@@ -1647,7 +1635,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       // [[releasePartitionLocation]]. Now in the slots are all the successful partition
       // locations.
       logWarning(s"Reserve buffers for $shuffleId still fail after retrying, clear buffers.")
-      incClientMetric(CelebornClientSource.SLOT_RESERVATION_FAIL_COUNT)
       destroySlotsWithRetry(shuffleId, slots)
     } else {
       logInfo(s"Reserve buffer success for shuffleId $shuffleId")
@@ -1867,7 +1854,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           // if unregister shuffle not success, wait next turn
           if (StatusCode.SUCCESS == StatusCode.fromValue(unregisterShuffleResponse.getStatus)) {
             unregisterShuffleTime.remove(shuffleId)
-            incClientMetric(CelebornClientSource.UNREGISTER_SHUFFLE_COUNT)
           }
         }
       } else {
@@ -1879,7 +1865,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         if (StatusCode.SUCCESS == StatusCode.fromValue(unregisterShuffleResponse.getStatus)) {
           shuffleIdsToRemove.foreach { shuffleId: Integer =>
             unregisterShuffleTime.remove(shuffleId)
-            incClientMetric(CelebornClientSource.UNREGISTER_SHUFFLE_COUNT)
           }
         }
       }

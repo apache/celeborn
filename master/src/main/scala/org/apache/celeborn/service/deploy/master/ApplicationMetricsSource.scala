@@ -33,6 +33,9 @@ class ApplicationMetricsSource(conf: CelebornConf)
   extends AbstractSource(conf, Role.MASTER) with Logging {
   override val sourceName = "application"
 
+  private val ValidLabelName = "^[a-zA-Z_][a-zA-Z0-9_]*$".r.pattern
+  private val UnsafeLabelValue = """["\\\n\r]""".r
+
   private val masterClientMetricsEnabled = conf.masterClientMetricsEnabled
   private val removedAppRetentionMs = conf.masterClientMetricsRemovedAppRetentionMs
 
@@ -70,11 +73,25 @@ class ApplicationMetricsSource(conf: CelebornConf)
       appId: String,
       metricLabels: Map[String, String],
       metrics: JMap[String, ClientMetric]): Unit = {
-    if (!masterClientMetricsEnabled || metricLabels.isEmpty) {
+    if (!masterClientMetricsEnabled) {
+      logWarning(s"Ignoring client metrics from $appId: master client metrics are disabled.")
+      return
+    }
+
+    if (metricLabels.isEmpty) {
+      logWarning(s"Ignoring client metrics from $appId: no metric labels provided.")
       return
     }
 
     if (removedAppIds.containsKey(appId)) {
+      logWarning(s"Ignoring client metrics from $appId: application has been removed.")
+      return
+    }
+
+    if (!validateLabels(metricLabels)) {
+      logWarning(
+        s"Rejecting client metrics from $appId: labels contain invalid Prometheus " +
+          "label names or unsafe values (quotes, backslashes, or newlines).")
       return
     }
 
@@ -82,8 +99,7 @@ class ApplicationMetricsSource(conf: CelebornConf)
       metric.metricType match {
         case MetricType.Gauge =>
           addOrUpdateGaugeForApp(name, metricLabels, appId, metric.value)
-        case MetricType.Counter =>
-          addOrUpdateCounterForApp(name, metricLabels, appId, metric.value)
+        case _ =>
       }
     }
 
@@ -101,8 +117,17 @@ class ApplicationMetricsSource(conf: CelebornConf)
     removeAppFromMetrics(appId)
   }
 
+  private def validateLabels(labels: Map[String, String]): Boolean = {
+    labels.forall { case (key, value) =>
+      ValidLabelName.matcher(key).matches() && UnsafeLabelValue.findFirstIn(value).isEmpty
+    }
+  }
+
   private def warnIfSeriesCardinalityHigh(): Unit = {
-    val trackedSeries = gauges().size + counters().size
+    if (seriesCardinalityWarned.get()) {
+      return
+    }
+    val trackedSeries = namedGauges.size() + namedCounters.size()
     if (trackedSeries > seriesCardinalityWarnThreshold && seriesCardinalityWarned.compareAndSet(
         false,
         true)) {
