@@ -59,9 +59,4 @@ private[celeborn] class CelebornStatusStore(store: KVStore) {
       case _: NoSuchElementException => new CelebornPropertiesUIData(Seq.empty)
     }
   }
-
-  def hasData(): Boolean = {
-    val info = aggregatedTaskInfo()
-    info.shuffleWriteBytes > 0 || info.shuffleReadBytes > 0
-  }
 }

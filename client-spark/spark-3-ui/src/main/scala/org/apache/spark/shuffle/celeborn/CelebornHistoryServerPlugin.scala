@@ -36,9 +36,7 @@ class CelebornHistoryServerPlugin extends AppHistoryServerPlugin {
   override def setupUI(ui: SparkUI): Unit = {
     val kvstore: KVStore = ui.store.store
     val statusStore = new CelebornStatusStore(kvstore)
-    if (statusStore.hasData()) {
-      new CelebornUITab(statusStore, ui)
-    }
+    new CelebornUITab(statusStore, ui)
   }
 
   override def displayOrder: Int = 1
