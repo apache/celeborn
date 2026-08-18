@@ -17,10 +17,13 @@
 
 #pragma once
 
+#include <atomic>
 #include <memory>
+#include <mutex>
 
 #include "celeborn/client/writer/PushState.h"
 #include "celeborn/conf/CelebornConf.h"
+#include "celeborn/utils/CelebornUtils.h"
 
 namespace celeborn {
 namespace client {
@@ -73,7 +76,67 @@ class SimplePushStrategy : public PushStrategy {
   const int maxInFlightPerWorker_;
 };
 
-// TODO: support SlowStartPushStrategy
+class SlowStartPushStrategy : public PushStrategy {
+ public:
+  class CongestControlContext {
+   public:
+    CongestControlContext(int reqsInFlightBlockThreshold)
+        : reqsInFlightBlockThreshold_(reqsInFlightBlockThreshold) {}
+
+    void increaseCurrentMaxReqs();
+
+    void decreaseCurrentMaxReqs();
+
+    int getCurrentMaxReqsInFlight() const {
+      return currentMaxReqsInFlight_.load();
+    }
+
+    int getContinueCongestedNumber() const {
+      return continueCongestedNumber_.load();
+    }
+
+   private:
+    std::mutex mutex_;
+    std::atomic<int> currentMaxReqsInFlight_{1};
+    // Indicate the number of congested times even after the in flight
+    // requests reduced to 1.
+    std::atomic<int> continueCongestedNumber_{0};
+    int congestionAvoidanceFlag_{0};
+    int reqsInFlightBlockThreshold_;
+  };
+
+  SlowStartPushStrategy(const conf::CelebornConf& conf)
+      : maxInFlightPerWorker_(conf.clientPushMaxReqsInFlightPerWorker()),
+        initialSleepMills_(conf.clientPushSlowStartInitialSleepTime()),
+        maxSleepMills_(conf.clientPushSlowStartMaxSleepMills()) {}
+
+  ~SlowStartPushStrategy() override = default;
+
+  void onSuccess(const std::string& hostAndPushPort) override;
+
+  void onCongestControl(const std::string& hostAndPushPort) override;
+
+  void clear() override;
+
+  void limitPushSpeed(PushState& pushState, const std::string& hostAndPushPort)
+      override;
+
+  int getCurrentMaxReqsInFlight(const std::string& hostAndPushPort) override;
+
+  // Visible for testing.
+  std::shared_ptr<CongestControlContext> getCongestControlContextByAddress(
+      const std::string& hostAndPushPort);
+
+  // Visible for testing.
+  long getSleepTime(CongestControlContext& context) const;
+
+ private:
+  const int maxInFlightPerWorker_;
+  const long initialSleepMills_;
+  const long maxSleepMills_;
+  utils::ConcurrentHashMap<std::string, std::shared_ptr<CongestControlContext>>
+      congestControlInfoPerAddress_;
+};
 
 } // namespace client
 } // namespace celeborn
