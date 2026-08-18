@@ -31,7 +31,8 @@ class CelebornClientSource(conf: CelebornConf) extends AbstractSource(conf, Role
     val snapshot = Map.newBuilder[String, ClientMetric]
     gauges().foreach { g =>
       snapshot += g.name -> ClientMetric(
-        g.gauge.getValue.asInstanceOf[Number].longValue(), MetricType.Gauge)
+        g.gauge.getValue.asInstanceOf[Number].longValue(),
+        MetricType.Gauge)
     }
     snapshot.result()
   }
