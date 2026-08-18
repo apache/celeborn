@@ -59,7 +59,6 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
     map
   }
 
-
   private def update(
       source: ApplicationMetricsSource,
       metrics: JHashMap[String, ClientMetric],
