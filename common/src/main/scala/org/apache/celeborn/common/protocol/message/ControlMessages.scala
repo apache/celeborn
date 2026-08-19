@@ -890,7 +890,6 @@ object ControlMessages extends Logging {
         .setShouldResponse(shouldResponse)
         .putAllClientMetrics(clientMetrics.asScala.map { case (name, metric) =>
           val pbType = metric.metricType match {
-            case MetricType.Counter => PbMetricType.COUNTER
             case MetricType.Gauge => PbMetricType.GAUGE
           }
           name -> PbClientMetric.newBuilder().setValue(metric.value).setType(pbType).build()
@@ -1385,8 +1384,6 @@ object ControlMessages extends Logging {
             pbHeartbeatFromApplication.getClientMetricsMap.asScala.flatMap {
               case (name, pbMetric) =>
                 pbMetric.getType match {
-                  case PbMetricType.COUNTER =>
-                    Some(name -> ClientMetric(pbMetric.getValue, MetricType.Counter))
                   case PbMetricType.GAUGE =>
                     Some(name -> ClientMetric(pbMetric.getValue, MetricType.Gauge))
                   case unknown =>

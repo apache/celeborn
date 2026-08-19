@@ -198,20 +198,16 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       })
   }
 
-  def addCounter(name: String): NamedCounter = addCounter(name, Map.empty[String, String])
+  def addCounter(name: String): Unit = addCounter(name, Map.empty[String, String])
 
-  def addCounter(name: String, labels: Map[String, String]): NamedCounter = {
+  def addCounter(name: String, labels: Map[String, String]): Unit = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
-    // Atomically get-or-create so the returned NamedCounter is guaranteed to be the instance
-    // currently resident in namedCounters. Callers must never re-.get(metricNameWithLabel)
-    // afterwards, since a concurrent removeCounter could have removed it in the meantime.
-    namedCounters.computeIfAbsent(
+    namedCounters.putIfAbsent(
       metricNameWithLabel,
-      (_: String) =>
-        NamedCounter(
-          name,
-          metricRegistry.counter(metricNameWithLabel),
-          labelsWithCustomizedLabels(labels)))
+      NamedCounter(
+        name,
+        metricRegistry.counter(metricNameWithLabel),
+        labelsWithCustomizedLabels(labels)))
   }
 
   def addHistogram(name: String): Unit = {
@@ -290,10 +286,6 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def gaugeExists(name: String, labels: Map[String, String]): Boolean = {
     namedGauges.containsKey(metricNameWithCustomizedLabels(name, labels))
-  }
-
-  def counterExists(name: String, labels: Map[String, String]): Boolean = {
-    namedCounters.containsKey(metricNameWithCustomizedLabels(name, labels))
   }
 
   def needSample(): Boolean = {
