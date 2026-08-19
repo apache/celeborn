@@ -21,6 +21,13 @@ license: |
 
 # Migration Guide
 
+# Upgrading from 0.7 to 1.0
+
+- Since 1.0.0, `celeborn.master.slot.assign.policy` supports custom strategy names registered through
+  the `SlotsAssignStrategyProvider` SPI and can be updated through system-level dynamic
+  configuration. Existing `ROUNDROBIN` and `LOADAWARE` values remain supported and require no
+  migration. See [Slots allocation](./developers/slotsallocation.md#custom-strategies) for details.
+
 # Upgrading from 0.6 to 0.7
 
 - Since 0.7.0, Celeborn removed `ReleaseSlots`.
