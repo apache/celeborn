@@ -152,7 +152,6 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
     val labels = Map("team" -> "data-eng")
     val map = new JHashMap[String, ClientMetric]()
     map.put("ActiveShuffleCount", ClientMetric(3, MetricType.Gauge))
-    map.put("RegisterShuffleCount", ClientMetric(10, MetricType.Counter))
 
     source.updateApplicationMetrics("app-1", labels, map)
 
