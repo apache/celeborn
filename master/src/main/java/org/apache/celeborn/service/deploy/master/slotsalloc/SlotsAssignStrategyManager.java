@@ -161,7 +161,7 @@ public final class SlotsAssignStrategyManager {
     if (systemConfig == null || systemConfig.getConfigs() == null) {
       return Collections.emptyMap();
     }
-    return new HashMap<>(systemConfig.getConfigs());
+    return Collections.unmodifiableMap(new HashMap<>(systemConfig.getConfigs()));
   }
 
   private static final class ConfiguredStrategy {
