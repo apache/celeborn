@@ -26,6 +26,7 @@ import java.io.OutputStream;
 import java.util.Properties;
 
 import org.apache.spark.SparkConf;
+import org.apache.spark.internal.config.package$;
 import org.apache.spark.security.CryptoStreamUtils;
 
 import org.apache.celeborn.client.security.CryptoHandler;
@@ -52,6 +53,9 @@ public class SparkCryptoHandler implements CryptoHandler {
     for (String propKey : cryptoProps.stringPropertyNames()) {
       minimalConf.set(prefix + propKey, cryptoProps.getProperty(propKey));
     }
+    minimalConf.set(
+        package$.MODULE$.IO_CRYPTO_CIPHER_TRANSFORMATION(),
+        sparkConf.get(package$.MODULE$.IO_CRYPTO_CIPHER_TRANSFORMATION()));
     this.sparkConf = minimalConf;
     this.key = key;
   }
