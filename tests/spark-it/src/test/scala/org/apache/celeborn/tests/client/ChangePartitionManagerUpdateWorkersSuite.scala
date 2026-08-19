@@ -62,11 +62,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val changePartitionManager: ChangePartitionManager =
       new ChangePartitionManager(conf, lifecycleManager)
-    val ids = new util.ArrayList[Integer](10)
-    0 until 10 foreach {
-      ids.add(_)
-    }
-    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, 10)
     assert(res.status == StatusCode.SUCCESS)
     assert(res.workerResource.keySet().size() == 1)
 
@@ -136,11 +132,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val changePartitionManager: ChangePartitionManager =
       new ChangePartitionManager(conf, lifecycleManager)
-    val ids = new util.ArrayList[Integer](10)
-    0 until 10 foreach {
-      ids.add(_)
-    }
-    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, 10)
     assert(res.status == StatusCode.SUCCESS)
     val workerNum = res.workerResource.keySet().size()
     assert(workerNum == 2)
@@ -242,11 +234,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val changePartitionManager: ChangePartitionManager =
       new ChangePartitionManager(conf, lifecycleManager)
-    val ids = new util.ArrayList[Integer](10)
-    0 until 10 foreach {
-      ids.add(_)
-    }
-    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, 10)
     assert(res.status == StatusCode.SUCCESS)
 
     // workerNum is 1
@@ -313,11 +301,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val changePartitionManager: ChangePartitionManager =
       new ChangePartitionManager(conf, lifecycleManager)
-    val ids = new util.ArrayList[Integer](10)
-    0 until 10 foreach {
-      ids.add(_)
-    }
-    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, 10)
     assert(res.status == StatusCode.SUCCESS)
 
     // workerNum is 1
@@ -389,12 +373,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     val changePartitionManager: ChangePartitionManager =
       new ChangePartitionManager(conf, lifecycleManager)
 
-    val ids = new util.ArrayList[Integer](10)
-    0 until 10 foreach {
-      ids.add(_)
-    }
-
-    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, ids)
+    val res = lifecycleManager.requestMasterRequestSlotsWithRetry(shuffleId, 10)
 
     lifecycleManager.setupEndpoints(
       res.workerResource.keySet(),
