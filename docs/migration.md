@@ -23,6 +23,8 @@ license: |
 
 # Upgrading from 0.6 to 0.7
 
+- Since 0.7.0, Celeborn removed `celeborn.client.shuffle.dynamicResourceFactor`, which used the unavailable-worker ratio to trigger a refresh. Dynamic worker refresh is now performed on demand while handling change-partition requests and throttled by `celeborn.client.shuffle.dynamicResource.updateTime` (30s by default).
+
 - Since 0.7.0, Celeborn removed `ReleaseSlots`.
 
 - Since 0.7.0, Celeborn removed `WorkerRemove`.

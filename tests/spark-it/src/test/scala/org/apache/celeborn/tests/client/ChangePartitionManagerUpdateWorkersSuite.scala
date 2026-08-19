@@ -22,6 +22,10 @@ import java.util.Collections
 
 import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, mapAsScalaMapConverter}
 
+import org.scalatest.concurrent.Eventually.eventually
+import org.scalatest.concurrent.Futures.{interval, timeout}
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+
 import org.apache.celeborn.client.{ChangePartitionManager, ChangePartitionRequest, LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.client.LifecycleManager.ShuffleFailedWorkers
 import org.apache.celeborn.common.CelebornConf
@@ -57,7 +61,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
       .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED.key, "false")
       .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key, "true")
-      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR.key, "0.0")
+      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_UPDATE_TIME.key, "0")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val changePartitionManager: ChangePartitionManager =
@@ -100,7 +104,8 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     setUpWorkers(workerConfForAdding, 2)
     assert(workerInfos.size == 3)
 
-    0 until 10 foreach { partitionId: Int =>
+    var partitionId = 0
+    eventually(timeout(10.seconds), interval(100.milliseconds)) {
       val req = ChangePartitionRequest(
         null,
         shuffleId,
@@ -115,9 +120,9 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         shuffleId,
         Array(req),
         lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
+      partitionId += 1
+      assert(lifecycleManager.workerSnapshots(shuffleId).size() > 1)
     }
-    Thread.sleep(5000)
-    assert(lifecycleManager.workerSnapshots(shuffleId).size() > 1)
 
     lifecycleManager.stop()
   }
@@ -131,7 +136,7 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
       .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED.key, "false")
       .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key, "true")
-      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR.key, "0.5")
+      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_UPDATE_TIME.key, "0")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val changePartitionManager: ChangePartitionManager =
@@ -202,7 +207,8 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     setUpWorkers(workerConfForAdding, 1)
     assert(workerInfos.size == 3)
 
-    0 until 10 foreach { partitionId: Int =>
+    var partitionId = 0
+    eventually(timeout(10.seconds), interval(100.milliseconds)) {
       val req = ChangePartitionRequest(
         null,
         shuffleId,
@@ -217,27 +223,27 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
         shuffleId,
         Array(req),
         lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
+      partitionId += 1
+
+      val snapshotCandidates =
+        lifecycleManager
+          .workerSnapshots(shuffleId)
+          .asScala
+          .values
+          .map(_.workerInfo)
+          .filter(lifecycleManager.workerStatusTracker.workerAvailable)
+      assert(snapshotCandidates.size == 2)
     }
-
-    val snapshotCandidates =
-      lifecycleManager
-        .workerSnapshots(shuffleId)
-        .asScala
-        .values
-        .map(_.workerInfo)
-        .filter(lifecycleManager.workerStatusTracker.workerAvailable)
-
-    assert(snapshotCandidates.size == 2)
     lifecycleManager.stop()
   }
 
-  test("test changePartition with available workers and factor") {
+  test("test changePartition honors worker pool update time") {
     val shuffleId = nextShuffleId
     val conf = celebornConf.clone
     conf.set(CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key, "3")
       .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED.key, "false")
       .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key, "true")
-      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR.key, "1.0")
+      .set(CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_UPDATE_TIME.key, "2000s")
 
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val changePartitionManager: ChangePartitionManager =
@@ -278,10 +284,28 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     }
     assert(lifecycleManager.workerSnapshots(shuffleId).size() == workerNum)
 
+    // The first change refreshes the pool and starts the update-time window.
+    val initialRequest = ChangePartitionRequest(
+      null,
+      shuffleId,
+      0,
+      -1,
+      null,
+      None)
+    changePartitionManager.changePartitionRequests.computeIfAbsent(
+      shuffleId,
+      changePartitionManager.rpcContextRegisterFunc)
+    changePartitionManager.handleRequestPartitions(
+      shuffleId,
+      Array(initialRequest),
+      lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
+    assert(lifecycleManager.workerSnapshots(shuffleId).size() == workerNum)
+
     // total workerNum is 1 + 2 = 3 now
     setUpWorkers(workerConfForAdding, 2)
     assert(workerInfos.size == 3)
 
+    // The refresh interval has not elapsed, so the newly registered workers are not candidates.
     0 until 10 foreach { partitionId: Int =>
       val req = ChangePartitionRequest(
         null,

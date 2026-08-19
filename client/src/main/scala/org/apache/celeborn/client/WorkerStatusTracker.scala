@@ -41,6 +41,21 @@ class WorkerStatusTracker(
   val excludedWorkers = new ShuffleFailedWorkers()
   val shuttingWorkers: JSet[WorkerInfo] = ConcurrentHashMap.newKeySet[WorkerInfo]()
 
+  // These workers already have client-local RPC endpoints and can reserve slots directly.
+  private val endpointReadyWorkerSet: JSet[WorkerInfo] =
+    ConcurrentHashMap.newKeySet[WorkerInfo]()
+
+  private[client] def endpointReadyWorkers: Set[WorkerInfo] =
+    endpointReadyWorkerSet.asScala.toSet
+
+  private[client] def addEndpointReadyWorkers(workers: Set[WorkerInfo]): Unit = {
+    workers.filter(workerAvailable).foreach(endpointReadyWorkerSet.add)
+  }
+
+  private[client] def removeEndpointReadyWorkers(workers: Set[WorkerInfo]): Unit = {
+    workers.foreach(endpointReadyWorkerSet.remove)
+  }
+
   def registerWorkerStatusListener(workerStatusListener: WorkerStatusListener): Unit = {
     workerStatusListeners.add(workerStatusListener)
   }

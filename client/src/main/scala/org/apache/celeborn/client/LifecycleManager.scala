@@ -124,6 +124,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   private val excludedWorkersFilter = conf.registerShuffleFilterExcludedWorkerEnabled
 
+  private val dynamicResourceUpdateTime = conf.clientShuffleDynamicResourceUpdateTime
+  private val endpointReadyWorkersRefreshLock = new Object
+  private var endpointReadyWorkersRefreshInProgress = false
+  private var lastEndpointReadyWorkersRefreshAttemptTime = 0L
+
   private val registerShuffleResponseRpcCache: Cache[Int, ByteBuffer] = CacheBuilder.newBuilder()
     .concurrencyLevel(rpcCacheConcurrencyLevel)
     .expireAfterAccess(rpcCacheExpireTime, TimeUnit.MILLISECONDS)
@@ -859,6 +864,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         partitionLocationInfo.addReplicaPartitions(replicaLocations)
         allocatedWorkers.put(workerInfo.toUniqueId, partitionLocationInfo)
       }
+      workerStatusTracker.addEndpointReadyWorkers(candidatesWorkers.asScala.toSet)
       shuffleAllocatedWorkers.put(shuffleId, allocatedWorkers)
       registeredShuffle.add(shuffleId)
       commitManager.registerShuffle(
@@ -1850,12 +1856,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   def requestMasterRequestSlotsWithRetry(
       shuffleId: Int,
       ids: util.ArrayList[Integer]): RequestSlotsResponse = {
-    val excludedWorkerSet =
-      if (excludedWorkersFilter) {
-        workerStatusTracker.excludedWorkers.asScala.keys.toSet
-      } else {
-        Set.empty[WorkerInfo]
-      }
+    val excludedWorkerSet = currentExcludedWorkerSet
     // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
     // during serialization of RequestSlots
     val req =
@@ -1877,6 +1878,139 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       requestMasterRequestSlots(req)
     } else {
       res
+    }
+  }
+
+  private def syncEndpointReadyWorkers(
+      shuffleId: Int,
+      workersFromMaster: Set[WorkerInfo]): Unit = {
+    val currentEndpointReadyWorkers = workerStatusTracker.endpointReadyWorkers
+    val workersToRemove = currentEndpointReadyWorkers.diff(workersFromMaster)
+    val workersToConnect = workersFromMaster.diff(currentEndpointReadyWorkers)
+    val connectFailedWorkers = new ShuffleFailedWorkers()
+    setupEndpoints(workersToConnect.asJava, shuffleId, connectFailedWorkers)
+    workerStatusTracker.recordWorkerFailure(connectFailedWorkers)
+
+    val connectedWorkers = workersToConnect.diff(connectFailedWorkers.asScala.keySet)
+    workerStatusTracker.addEndpointReadyWorkers(connectedWorkers)
+    workerStatusTracker.removeEndpointReadyWorkers(workersToRemove)
+  }
+
+  private[client] def refreshEndpointReadyWorkersFromMaster(shuffleId: Int): Unit = {
+    val shouldRefresh = endpointReadyWorkersRefreshLock.synchronized {
+      var waitedForRefresh = false
+      val waitDeadline = System.currentTimeMillis() + rpcAskTimeoutMs
+      var remainingWaitTime = rpcAskTimeoutMs
+      while (endpointReadyWorkersRefreshInProgress && remainingWaitTime > 0) {
+        // Reuse the in-flight result instead of letting this revive observe an incomplete pool.
+        waitedForRefresh = true
+        try {
+          endpointReadyWorkersRefreshLock.wait(remainingWaitTime)
+        } catch {
+          case _: InterruptedException =>
+            Thread.currentThread().interrupt()
+            return
+        }
+        remainingWaitTime = waitDeadline - System.currentTimeMillis()
+      }
+      if (endpointReadyWorkersRefreshInProgress) {
+        logWarning(
+          s"Timed out after ${rpcAskTimeoutMs}ms waiting for the in-flight endpoint-ready " +
+            "workers refresh; continue using the current worker pool.")
+      }
+
+      val currentTime = System.currentTimeMillis()
+      val refreshIntervalElapsed = lastEndpointReadyWorkersRefreshAttemptTime == 0L ||
+        currentTime - lastEndpointReadyWorkersRefreshAttemptTime >= dynamicResourceUpdateTime
+      if (!waitedForRefresh && refreshIntervalElapsed) {
+        endpointReadyWorkersRefreshInProgress = true
+        true
+      } else {
+        false
+      }
+    }
+    if (!shouldRefresh) {
+      return
+    }
+
+    try {
+      val requestWorkersRes = requestMasterRequestWorkersWithRetry()
+      StatusCode.fromValue(requestWorkersRes.getStatus) match {
+        case StatusCode.REQUEST_FAILED =>
+          logInfo("ChangePartition requestWorkers RPC request failed.")
+        case StatusCode.SUCCESS =>
+          val availableWorkers =
+            requestWorkersRes.getWorkersList.asScala.map { pbWorkerInfo =>
+              val workerInfo = PbSerDeUtils.fromPbWorkerInfo(pbWorkerInfo)
+              if (pbWorkerInfo.getNetworkLocation.nonEmpty) {
+                workerInfo.networkLocation = pbWorkerInfo.getNetworkLocation
+              }
+              workerInfo
+            }.toSet
+          syncEndpointReadyWorkers(shuffleId, availableWorkers)
+          logDebug(
+            s"ChangePartition requestWorkers succeeded with workers " +
+              s"$availableWorkers.")
+        case StatusCode.WORKER_EXCLUDED =>
+          syncEndpointReadyWorkers(shuffleId, Set.empty)
+          logInfo(s"Offer workers for appId $appUniqueId shuffleId $shuffleId failed.")
+        case StatusCode.SLOT_NOT_AVAILABLE =>
+          syncEndpointReadyWorkers(shuffleId, Set.empty)
+          logInfo(
+            s"No eligible workers are available for appId $appUniqueId shuffleId $shuffleId.")
+        case status =>
+          logWarning(
+            s"ChangePartition requestWorkers failed with status $status.")
+      }
+    } finally {
+      endpointReadyWorkersRefreshLock.synchronized {
+        lastEndpointReadyWorkersRefreshAttemptTime = System.currentTimeMillis()
+        endpointReadyWorkersRefreshInProgress = false
+        endpointReadyWorkersRefreshLock.notifyAll()
+      }
+    }
+  }
+
+  private def requestMasterRequestWorkersWithRetry(): PbRequestWorkersResponse = {
+    val excludedWorkerSet = currentExcludedWorkerSet
+    val req = PbRequestWorkers.newBuilder()
+      .setApplicationId(appUniqueId)
+      .setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(userIdentifier))
+      .setMaxWorkers(slotsAssignMaxWorkers)
+      .setTagsExpr(clientTagsExpr)
+      .setShouldReplicate(pushReplicateEnabled)
+      .setAvailableStorageTypes(availableStorageTypes)
+      .addAllExcludedWorkerSet(excludedWorkerSet.map(
+        PbSerDeUtils.toPbWorkerInfo(_, true, true)).asJava)
+      .build()
+    val res = requestMasterRequestWorkers(req)
+    if (StatusCode.fromValue(res.getStatus) == StatusCode.REQUEST_FAILED) {
+      requestMasterRequestWorkers(req)
+    } else {
+      res
+    }
+  }
+
+  private def currentExcludedWorkerSet: Set[WorkerInfo] = {
+    if (excludedWorkersFilter) {
+      workerStatusTracker.excludedWorkers.asScala.keys.toSet
+    } else {
+      Set.empty
+    }
+  }
+
+  private def requestMasterRequestWorkers(
+      message: PbRequestWorkers): PbRequestWorkersResponse = {
+    try {
+      masterClient.askSync[PbRequestWorkersResponse](
+        message,
+        classOf[PbRequestWorkersResponse])
+    } catch {
+      case e: Exception =>
+        logError("AskSync request workers failed.", e)
+        PbRequestWorkersResponse.newBuilder()
+          .setStatus(StatusCode.REQUEST_FAILED.getValue)
+          .build()
     }
   }
 

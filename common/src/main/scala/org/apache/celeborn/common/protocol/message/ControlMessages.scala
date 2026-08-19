@@ -679,6 +679,9 @@ object ControlMessages extends Logging {
         .build().toByteArray
       new TransportMessage(MessageType.REQUEST_SLOTS, payload)
 
+    case pb: PbRequestWorkers =>
+      new TransportMessage(MessageType.REQUEST_WORKERS, pb.toByteArray)
+
     case RequestSlotsResponse(status, workerResource, packed) =>
       val builder = PbRequestSlotsResponse.newBuilder()
         .setStatus(status.getValue)
@@ -692,6 +695,9 @@ object ControlMessages extends Logging {
       }
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.REQUEST_SLOTS_RESPONSE, payload)
+
+    case pb: PbRequestWorkersResponse =>
+      new TransportMessage(MessageType.REQUEST_WORKERS_RESPONSE, pb.toByteArray)
 
     case Revive(shuffleId, mapIds, reviveRequests, serdeVersion) =>
       val builder = PbRevive.newBuilder()
@@ -1176,6 +1182,12 @@ object ControlMessages extends Logging {
         RequestSlotsResponse(
           StatusCode.fromValue(pbRequestSlotsResponse.getStatus),
           workerResource)
+
+      case REQUEST_WORKERS_VALUE =>
+        PbRequestWorkers.parseFrom(message.getPayload)
+
+      case REQUEST_WORKERS_RESPONSE_VALUE =>
+        PbRequestWorkersResponse.parseFrom(message.getPayload)
 
       case CHANGE_LOCATION_VALUE =>
         val pbRevive = PbRevive.parseFrom(message.getPayload)
