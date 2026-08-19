@@ -55,8 +55,20 @@ public final class SlotsAssignStrategyManager {
         Collections.unmodifiableMap(
             loadProviders(ServiceLoader.load(SlotsAssignStrategyProvider.class)));
 
-    this.lastAttemptedDynamicConfigs = currentDynamicConfigs();
-    this.configuredStrategy = createStrategy(lastAttemptedDynamicConfigs);
+    Map<String, String> initialDynamicConfigs = currentDynamicConfigs();
+    this.lastAttemptedDynamicConfigs = initialDynamicConfigs;
+    try {
+      this.configuredStrategy = createStrategy(initialDynamicConfigs);
+    } catch (RuntimeException e) {
+      if (initialDynamicConfigs.isEmpty()) {
+        throw e;
+      }
+      LOG.error(
+          "Failed to initialize slots assignment strategy from dynamic configuration; "
+              + "falling back to static configuration",
+          e);
+      this.configuredStrategy = createStrategy(Collections.emptyMap());
+    }
 
     if (configService != null) {
       configService.registerListenerOnConfigUpdate(this::reload);
