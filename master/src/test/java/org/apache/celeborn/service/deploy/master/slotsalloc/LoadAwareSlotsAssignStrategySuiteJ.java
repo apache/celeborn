@@ -18,6 +18,8 @@
 package org.apache.celeborn.service.deploy.master.slotsalloc;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,16 +58,55 @@ public class LoadAwareSlotsAssignStrategySuiteJ {
     assertEquals(10, allocatedSlots(weightedBudgets, workers.get(2)));
   }
 
+  @Test
+  public void testProviderRejectsInvalidConfiguration() {
+    assertInvalidConfiguration(
+        CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM().key(), "0");
+    assertInvalidConfiguration(
+        CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM().key(), "-1");
+
+    assertInvalidDoubleConfiguration(
+        CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT().key());
+    assertInvalidDoubleConfiguration(
+        CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_FLUSHTIME_WEIGHT().key());
+    assertInvalidDoubleConfiguration(
+        CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT().key());
+    assertInvalidDoubleConfiguration(
+        CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_ACTIVE_SLOTS_WEIGHT().key());
+  }
+
   private static SlotsAssignStrategy createStrategy(double diskGroupGradient) {
-    CelebornConf conf = new CelebornConf();
-    conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM().key(), "3");
+    CelebornConf conf = validLoadAwareConf();
     conf.set(
         CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT().key(),
         String.valueOf(diskGroupGradient));
+    return new LoadAwareSlotsAssignStrategyProvider().create(conf);
+  }
+
+  private static CelebornConf validLoadAwareConf() {
+    CelebornConf conf = new CelebornConf();
+    conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM().key(), "3");
     conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_FLUSHTIME_WEIGHT().key(), "1");
     conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT().key(), "10");
     conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_ACTIVE_SLOTS_WEIGHT().key(), "100");
-    return new LoadAwareSlotsAssignStrategyProvider().create(conf);
+    return conf;
+  }
+
+  private static void assertInvalidDoubleConfiguration(String key) {
+    assertInvalidConfiguration(key, "-1");
+    assertInvalidConfiguration(key, "NaN");
+    assertInvalidConfiguration(key, "Infinity");
+  }
+
+  private static void assertInvalidConfiguration(String key, String value) {
+    CelebornConf conf = validLoadAwareConf().set(key, value);
+
+    IllegalArgumentException error =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new LoadAwareSlotsAssignStrategyProvider().create(conf));
+
+    assertTrue(error.getMessage().contains(key));
   }
 
   private static List<WorkerInfo> createWorkers(int workerCount) {

@@ -18,6 +18,7 @@
 package org.apache.celeborn.service.deploy.master.slotsalloc;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -40,7 +41,9 @@ import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.server.common.service.config.ConfigService;
 import org.apache.celeborn.server.common.service.config.SystemConfig;
+import org.apache.celeborn.service.deploy.master.slotsalloc.test.NullSlotsAssignStrategyProvider;
 import org.apache.celeborn.service.deploy.master.slotsalloc.test.ThirdPartySlotsAssignStrategyProvider;
+import org.apache.celeborn.service.deploy.master.slotsalloc.test.TransientSlotsAssignStrategyProvider;
 
 public class SlotsAssignStrategyManagerSuiteJ {
 
@@ -102,6 +105,16 @@ public class SlotsAssignStrategyManagerSuiteJ {
             () -> SlotsAssignStrategyManager.loadProviders(Arrays.asList(first, second)));
 
     assertTrue(error.getMessage().contains("Multiple slots assignment strategy providers"));
+  }
+
+  @Test
+  public void testNullStrategyProviderFailsFast() {
+    NullPointerException error =
+        assertThrows(
+            NullPointerException.class,
+            () -> new SlotsAssignStrategyManager(conf(NullSlotsAssignStrategyProvider.NAME), null));
+
+    assertTrue(error.getMessage().contains(NullSlotsAssignStrategyProvider.NAME));
   }
 
   @Test
@@ -170,6 +183,60 @@ public class SlotsAssignStrategyManagerSuiteJ {
   }
 
   @Test
+  public void testNullDynamicStrategyKeepsPreviousStrategy() {
+    CelebornConf staticConf = conf("roundrobin");
+    SystemConfig dynamicConfig = new SystemConfig(staticConf);
+    dynamicConfig.setConfigs(Collections.emptyMap());
+    ConfigService configService = mock(ConfigService.class);
+    when(configService.getSystemConfigFromCache()).thenReturn(dynamicConfig);
+
+    SlotsAssignStrategyManager manager = new SlotsAssignStrategyManager(staticConf, configService);
+    ArgumentCaptor<Runnable> listener = ArgumentCaptor.forClass(Runnable.class);
+    verify(configService).registerListenerOnConfigUpdate(listener.capture());
+    SlotsAssignStrategy previousStrategy = manager.getStrategy();
+
+    dynamicConfig.setConfigs(
+        Collections.singletonMap(
+            CelebornConf.MASTER_SLOT_ASSIGN_POLICY().key(), NullSlotsAssignStrategyProvider.NAME));
+    listener.getValue().run();
+
+    assertSame(previousStrategy, manager.getStrategy());
+  }
+
+  @Test
+  public void testFailedDynamicStrategyIsRetriedOnlyAfterConfigChange() {
+    CelebornConf staticConf = conf("roundrobin");
+    SystemConfig dynamicConfig = new SystemConfig(staticConf);
+    dynamicConfig.setConfigs(Collections.emptyMap());
+    ConfigService configService = mock(ConfigService.class);
+    when(configService.getSystemConfigFromCache()).thenReturn(dynamicConfig);
+
+    SlotsAssignStrategyManager manager = new SlotsAssignStrategyManager(staticConf, configService);
+    ArgumentCaptor<Runnable> listener = ArgumentCaptor.forClass(Runnable.class);
+    verify(configService).registerListenerOnConfigUpdate(listener.capture());
+    SlotsAssignStrategy previousStrategy = manager.getStrategy();
+
+    dynamicConfig.setConfigs(
+        Collections.singletonMap(
+            CelebornConf.MASTER_SLOT_ASSIGN_POLICY().key(),
+            TransientSlotsAssignStrategyProvider.NAME));
+    listener.getValue().run();
+    assertSame(previousStrategy, manager.getStrategy());
+
+    listener.getValue().run();
+    assertSame(previousStrategy, manager.getStrategy());
+
+    Map<String, String> changedConfigs = new HashMap<>();
+    changedConfigs.put(
+        CelebornConf.MASTER_SLOT_ASSIGN_POLICY().key(), TransientSlotsAssignStrategyProvider.NAME);
+    changedConfigs.put(TransientSlotsAssignStrategyProvider.REVISION_KEY, "1");
+    dynamicConfig.setConfigs(changedConfigs);
+    listener.getValue().run();
+    assertNotSame(previousStrategy, manager.getStrategy());
+    assertTrue(manager.getStrategy() instanceof RoundRobinSlotsAssignStrategy);
+  }
+
+  @Test
   public void testInvalidDynamicConfigKeepsPreviousStrategy() {
     CelebornConf staticConf = thirdPartyConf("7");
     SystemConfig dynamicConfig = new SystemConfig(staticConf);
@@ -191,6 +258,33 @@ public class SlotsAssignStrategyManagerSuiteJ {
 
     assertSame(previousStrategy, manager.getStrategy());
     assertEquals(3L, slotBudget(manager.getStrategy()));
+  }
+
+  @Test
+  public void testInvalidDynamicLoadAwareConfigKeepsPreviousStrategy() {
+    CelebornConf staticConf = conf("loadaware");
+    SystemConfig dynamicConfig = new SystemConfig(staticConf);
+    dynamicConfig.setConfigs(Collections.emptyMap());
+    ConfigService configService = mock(ConfigService.class);
+    when(configService.getSystemConfigFromCache()).thenReturn(dynamicConfig);
+
+    SlotsAssignStrategyManager manager = new SlotsAssignStrategyManager(staticConf, configService);
+    ArgumentCaptor<Runnable> listener = ArgumentCaptor.forClass(Runnable.class);
+    verify(configService).registerListenerOnConfigUpdate(listener.capture());
+    SlotsAssignStrategy previousStrategy = manager.getStrategy();
+
+    dynamicConfig.setConfigs(
+        Collections.singletonMap(
+            CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM().key(), "0"));
+    listener.getValue().run();
+    assertSame(previousStrategy, manager.getStrategy());
+
+    dynamicConfig.setConfigs(
+        Collections.singletonMap(
+            CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM().key(), "3"));
+    listener.getValue().run();
+    assertNotSame(previousStrategy, manager.getStrategy());
+    assertTrue(manager.getStrategy() instanceof LoadAwareSlotsAssignStrategy);
   }
 
   private static CelebornConf thirdPartyConf(String maxSlotsPerDisk) {

@@ -15,20 +15,24 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.master.slotsalloc;
+package org.apache.celeborn.service.deploy.master.slotsalloc.test;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.protocol.SlotsAssignPolicy;
+import org.apache.celeborn.service.deploy.master.slotsalloc.SlotsAssignStrategy;
+import org.apache.celeborn.service.deploy.master.slotsalloc.SlotsAssignStrategyProvider;
 
-public final class RoundRobinSlotsAssignStrategyProvider implements SlotsAssignStrategyProvider {
+/** Test provider that violates the SPI contract by returning a null strategy. */
+public final class NullSlotsAssignStrategyProvider implements SlotsAssignStrategyProvider {
+
+  public static final String NAME = "TEST_NULL";
 
   @Override
   public String getName() {
-    return SlotsAssignPolicy.ROUNDROBIN.name();
+    return NAME;
   }
 
   @Override
   public SlotsAssignStrategy create(CelebornConf conf) {
-    return new RoundRobinSlotsAssignStrategy();
+    return null;
   }
 }

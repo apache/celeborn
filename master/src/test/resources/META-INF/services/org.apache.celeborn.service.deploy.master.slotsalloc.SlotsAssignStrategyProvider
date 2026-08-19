@@ -16,3 +16,5 @@
 #
 
 org.apache.celeborn.service.deploy.master.slotsalloc.test.ThirdPartySlotsAssignStrategyProvider
+org.apache.celeborn.service.deploy.master.slotsalloc.test.NullSlotsAssignStrategyProvider
+org.apache.celeborn.service.deploy.master.slotsalloc.test.TransientSlotsAssignStrategyProvider

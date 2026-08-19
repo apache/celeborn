@@ -103,6 +103,10 @@ strategy atomically replaces the old one. If configuration validation fails, the
 failure and keeps using the last valid strategy. The provider itself can also be changed at runtime
 by updating `celeborn.master.slot.assign.policy` at `SYSTEM` level.
 
+The manager does not retry an unchanged system-level configuration snapshot. If provider creation
+fails, subsequent refreshes with the same snapshot are ignored while the last valid strategy
+remains active. Changing the dynamic configuration triggers another creation attempt.
+
 Providers should validate and capture their configuration in `create`, then return a strategy with
 fixed configuration. `computeSlotBudgets` should not read configuration or perform configuration
 I/O.

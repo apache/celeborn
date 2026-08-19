@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.TreeSet;
 
@@ -45,7 +46,7 @@ public final class SlotsAssignStrategyManager {
   private final Map<String, SlotsAssignStrategyProvider> providersByName;
 
   private volatile ConfiguredStrategy configuredStrategy;
-  private Map<String, String> appliedDynamicConfigs;
+  private Map<String, String> lastAttemptedDynamicConfigs;
 
   public SlotsAssignStrategyManager(CelebornConf staticConf, ConfigService configService) {
     this.staticConf = staticConf.clone();
@@ -54,8 +55,8 @@ public final class SlotsAssignStrategyManager {
         Collections.unmodifiableMap(
             loadProviders(ServiceLoader.load(SlotsAssignStrategyProvider.class)));
 
-    this.appliedDynamicConfigs = currentDynamicConfigs();
-    this.configuredStrategy = createStrategy(appliedDynamicConfigs);
+    this.lastAttemptedDynamicConfigs = currentDynamicConfigs();
+    this.configuredStrategy = createStrategy(lastAttemptedDynamicConfigs);
 
     if (configService != null) {
       configService.registerListenerOnConfigUpdate(this::reload);
@@ -97,14 +98,16 @@ public final class SlotsAssignStrategyManager {
 
   private synchronized void reload() {
     Map<String, String> latestDynamicConfigs = currentDynamicConfigs();
-    if (latestDynamicConfigs.equals(appliedDynamicConfigs)) {
+    if (latestDynamicConfigs.equals(lastAttemptedDynamicConfigs)) {
       return;
     }
 
+    // Record the snapshot before creating the strategy so an unchanged invalid configuration is
+    // reported only once instead of being retried on every polling cycle.
+    lastAttemptedDynamicConfigs = latestDynamicConfigs;
     try {
       ConfiguredStrategy updatedStrategy = createStrategy(latestDynamicConfigs);
       configuredStrategy = updatedStrategy;
-      appliedDynamicConfigs = latestDynamicConfigs;
       LOG.info(
           "Reloaded slots assignment strategy provider {} after dynamic configuration update",
           updatedStrategy.providerName);
@@ -130,7 +133,11 @@ public final class SlotsAssignStrategyManager {
               + "'. Available providers: "
               + new TreeSet<>(providersByName.keySet()));
     }
-    return new ConfiguredStrategy(providerName, provider.create(effectiveConf));
+    SlotsAssignStrategy strategy =
+        Objects.requireNonNull(
+            provider.create(effectiveConf),
+            "Slots assignment strategy provider '" + providerName + "' returned null");
+    return new ConfiguredStrategy(providerName, strategy);
   }
 
   private Map<String, String> currentDynamicConfigs() {

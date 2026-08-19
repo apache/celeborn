@@ -15,20 +15,32 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.master.slotsalloc;
+package org.apache.celeborn.service.deploy.master.slotsalloc.test;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.protocol.SlotsAssignPolicy;
+import org.apache.celeborn.service.deploy.master.slotsalloc.RoundRobinSlotsAssignStrategy;
+import org.apache.celeborn.service.deploy.master.slotsalloc.SlotsAssignStrategy;
+import org.apache.celeborn.service.deploy.master.slotsalloc.SlotsAssignStrategyProvider;
 
-public final class RoundRobinSlotsAssignStrategyProvider implements SlotsAssignStrategyProvider {
+/** Test provider that fails its first creation attempt and succeeds after configuration changes. */
+public final class TransientSlotsAssignStrategyProvider implements SlotsAssignStrategyProvider {
+
+  public static final String NAME = "TEST_TRANSIENT";
+  public static final String REVISION_KEY = "celeborn.master.slot.assign.test.revision";
+
+  private boolean firstCreation = true;
 
   @Override
   public String getName() {
-    return SlotsAssignPolicy.ROUNDROBIN.name();
+    return NAME;
   }
 
   @Override
   public SlotsAssignStrategy create(CelebornConf conf) {
+    if (firstCreation) {
+      firstCreation = false;
+      throw new IllegalStateException("Transient strategy creation failure");
+    }
     return new RoundRobinSlotsAssignStrategy();
   }
 }

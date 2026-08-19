@@ -38,9 +38,9 @@ public interface SlotsAssignStrategyProvider {
    *
    * <p>A custom provider may read its own namespaced keys directly from the supplied Celeborn
    * configuration. When system-level dynamic configuration is enabled, it overrides the static
-   * configuration in this snapshot and the master calls {@code create} again after an update.
-   * Configuration should therefore be validated and captured when the strategy is created rather
-   * than read during slot allocation.
+   * configuration in this snapshot and the master calls {@code create} after an update. The master
+   * does not retry an unchanged system-level configuration snapshot. Configuration should therefore
+   * be validated and captured when the strategy is created rather than read during slot allocation.
    */
   SlotsAssignStrategy create(CelebornConf conf);
 }

@@ -18,13 +18,13 @@
 package org.apache.celeborn.service.deploy.master.slotsalloc;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.protocol.BuiltInSlotsAssignPolicy;
+import org.apache.celeborn.common.protocol.SlotsAssignPolicy;
 
 public final class LoadAwareSlotsAssignStrategyProvider implements SlotsAssignStrategyProvider {
 
   @Override
   public String getName() {
-    return BuiltInSlotsAssignPolicy.LOADAWARE.name();
+    return SlotsAssignPolicy.LOADAWARE.name();
   }
 
   @Override

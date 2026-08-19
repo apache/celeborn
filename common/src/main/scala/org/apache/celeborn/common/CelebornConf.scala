@@ -658,8 +658,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def masterSlotAssignPolicyName: String = get(MASTER_SLOT_ASSIGN_POLICY)
 
-  def masterSlotAssignPolicy: BuiltInSlotsAssignPolicy =
-    BuiltInSlotsAssignPolicy.valueOf(get(MASTER_SLOT_ASSIGN_POLICY))
+  /** Returns the configured built-in policy. Use `masterSlotAssignPolicyName` for SPI providers. */
+  @deprecated("Use masterSlotAssignPolicyName for SPI provider selection", "0.7.0")
+  def masterSlotAssignPolicy: SlotsAssignPolicy =
+    SlotsAssignPolicy.valueOf(get(MASTER_SLOT_ASSIGN_POLICY))
 
   def masterSlotAssignInterruptionAware: Boolean = get(MASTER_SLOT_ASSIGN_INTERRUPTION_AWARE)
   def masterSlotsAssignInterruptionAwareThreshold: Int =
@@ -3106,7 +3108,7 @@ object CelebornConf extends Logging {
       .dynamic
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .createWithDefault(BuiltInSlotsAssignPolicy.ROUNDROBIN.name)
+      .createWithDefault(SlotsAssignPolicy.ROUNDROBIN.name)
 
   val MASTER_SLOT_ASSIGN_INTERRUPTION_AWARE: ConfigEntry[Boolean] =
     buildConf("celeborn.master.slot.assign.interruptionAware")
@@ -3136,6 +3138,7 @@ object CelebornConf extends Logging {
       .dynamic
       .version("0.3.0")
       .intConf
+      .checkValue(_ > 0, "Value must be positive")
       .createWithDefault(5)
 
   val MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT: ConfigEntry[Double] =
@@ -3147,6 +3150,9 @@ object CelebornConf extends Logging {
       .dynamic
       .version("0.3.0")
       .doubleConf
+      .checkValue(
+        value => java.lang.Double.isFinite(value) && value >= 0.0,
+        "Value must be finite and non-negative")
       .createWithDefault(0.1)
 
   val MASTER_SLOT_ASSIGN_LOADAWARE_FLUSHTIME_WEIGHT: ConfigEntry[Double] =
@@ -3158,6 +3164,9 @@ object CelebornConf extends Logging {
       .dynamic
       .version("0.3.0")
       .doubleConf
+      .checkValue(
+        value => java.lang.Double.isFinite(value) && value >= 0.0,
+        "Value must be finite and non-negative")
       .createWithDefault(0)
 
   val MASTER_SLOT_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT: ConfigEntry[Double] =
@@ -3169,6 +3178,9 @@ object CelebornConf extends Logging {
       .dynamic
       .version("0.3.0")
       .doubleConf
+      .checkValue(
+        value => java.lang.Double.isFinite(value) && value >= 0.0,
+        "Value must be finite and non-negative")
       .createWithDefault(1)
 
   val MASTER_SLOT_ASSIGN_LOADAWARE_ACTIVE_SLOTS_WEIGHT: ConfigEntry[Double] =
@@ -3179,6 +3191,9 @@ object CelebornConf extends Logging {
       .dynamic
       .version("0.7.0")
       .doubleConf
+      .checkValue(
+        value => java.lang.Double.isFinite(value) && value >= 0.0,
+        "Value must be finite and non-negative")
       .createWithDefault(0)
 
   val MASTER_SLOT_ASSIGN_EXTRA_SLOTS: ConfigEntry[Int] =
