@@ -184,6 +184,31 @@ public class SlotsAssignStrategyManagerSuiteJ {
   }
 
   @Test
+  public void testInvalidInitialDynamicParameterFallsBackToStaticStrategy() {
+    CelebornConf staticConf = conf("roundrobin");
+    SystemConfig dynamicConfig = new SystemConfig(staticConf);
+    Map<String, String> invalidConfigs = new HashMap<>();
+    invalidConfigs.put(CelebornConf.MASTER_SLOT_ASSIGN_POLICY().key(), "loadaware");
+    invalidConfigs.put(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM().key(), "0");
+    dynamicConfig.setConfigs(invalidConfigs);
+    ConfigService configService = mock(ConfigService.class);
+    when(configService.getSystemConfigFromCache()).thenReturn(dynamicConfig);
+
+    SlotsAssignStrategyManager manager = new SlotsAssignStrategyManager(staticConf, configService);
+    ArgumentCaptor<Runnable> listener = ArgumentCaptor.forClass(Runnable.class);
+    verify(configService).registerListenerOnConfigUpdate(listener.capture());
+    assertTrue(manager.getStrategy() instanceof RoundRobinSlotsAssignStrategy);
+
+    Map<String, String> validConfigs = new HashMap<>();
+    validConfigs.put(CelebornConf.MASTER_SLOT_ASSIGN_POLICY().key(), "loadaware");
+    validConfigs.put(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM().key(), "3");
+    dynamicConfig.setConfigs(validConfigs);
+    listener.getValue().run();
+
+    assertTrue(manager.getStrategy() instanceof LoadAwareSlotsAssignStrategy);
+  }
+
+  @Test
   public void testUnknownDynamicProviderKeepsPreviousStrategy() {
     CelebornConf staticConf = conf("roundrobin");
     SystemConfig dynamicConfig = new SystemConfig(staticConf);
