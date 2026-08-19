@@ -524,7 +524,6 @@ message PbHeartbeatFromApplication {
 
 enum PbMetricType {
   GAUGE = 0;
-  COUNTER = 1;
 }
 
 message PbClientMetric {
