@@ -46,6 +46,7 @@ import org.apache.celeborn.common.client.{ApplicationInfoProvider, MasterClient}
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ApplicationMeta, ShufflePartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.metrics.ClientMetric
 import org.apache.celeborn.common.metrics.source.Role
 import org.apache.celeborn.common.network.protocol.{SerdeVersion, TransportMessagesHelper}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
@@ -222,8 +223,23 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   private val masterClient = new MasterClient(masterRpcEnvInUse, conf, false)
+  private val clientMetricsEnabled = conf.metricsSystemEnable && conf.clientMetricsEnabled
+  val clientSource: Option[CelebornClientSource] =
+    if (clientMetricsEnabled) Some(new CelebornClientSource(conf)) else None
+
   val commitManager = new CommitManager(appUniqueId, conf, this)
   val workerStatusTracker = new WorkerStatusTracker(conf, this)
+  clientSource.foreach { source =>
+    source.addGauge(CelebornClientSource.ACTIVE_SHUFFLE_COUNT) { () =>
+      registeredShuffle.size
+    }
+    source.addGauge(CelebornClientSource.EXCLUDED_WORKER_COUNT) { () =>
+      workerStatusTracker.excludedWorkers.size
+    }
+    source.addGauge(CelebornClientSource.SHUTTING_WORKER_COUNT) { () =>
+      workerStatusTracker.shuttingWorkers.size
+    }
+  }
   private val heartbeater =
     new ApplicationHeartbeater(
       appUniqueId,
@@ -236,7 +252,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       },
       workerStatusTracker,
       registeredShuffle,
-      reason => cancelAllActiveStages(reason))
+      reason => cancelAllActiveStages(reason),
+      () =>
+        clientSource.map(_.getMetricsSnapshot().asJava)
+          .getOrElse(java.util.Collections.emptyMap[String, ClientMetric]()))
   private def resetFallbackCounts(counts: ConcurrentHashMap[String, java.lang.Long])
       : Map[String, java.lang.Long] = {
     val fallbackCounts = new util.HashMap[String, java.lang.Long]()
@@ -2050,6 +2069,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
    */
   override def stop(): Unit = {
     heartbeater.stop()
+    clientSource.foreach(_.stop())
     super.stop()
   }
 

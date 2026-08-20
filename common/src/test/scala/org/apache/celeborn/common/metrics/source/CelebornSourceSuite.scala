@@ -22,6 +22,34 @@ import org.apache.celeborn.common.CelebornConf
 
 class CelebornSourceSuite extends CelebornFunSuite {
 
+  private class TestSource extends AbstractSource(new CelebornConf(), Role.MASTER) {
+    override def sourceName: String = "testSource"
+
+    def updateGauge(
+        name: String,
+        labels: Map[String, String],
+        appId: String,
+        value: Long): Unit =
+      addOrUpdateGaugeForApp(name, labels, appId, value)
+
+    def removeApp(appId: String): Unit = removeAppFromMetrics(appId)
+
+    def trackedGaugeCount: Int = namedGaugesWithDetails.size()
+  }
+
+  private def hasLabels(
+      actual: Map[String, String],
+      expected: Map[String, String]): Boolean =
+    expected.forall { case (key, value) => actual.get(key).contains(value) }
+
+  private def gaugeValue(
+      source: AbstractSource,
+      labels: Map[String, String],
+      name: String): Option[Long] =
+    source.gauges()
+      .find(g => g.name == name && hasLabels(g.labels, labels))
+      .map(_.gauge.getValue.asInstanceOf[Number].longValue())
+
   test("test histogram") {
     val conf = new CelebornConf()
 
@@ -132,5 +160,38 @@ class CelebornSourceSuite extends CelebornFunSuite {
     val instance = source.instanceLabel("instance")
     assert(metrics.contains(
       s"""metrics_Counter_Count{instance="$instance",role="Master",user="metric"} 2"""))
+  }
+
+  test("dynamic app gauge reuses existing gauge registration and updates value") {
+    val source = new TestSource()
+    val labels = Map("user" -> "metric")
+
+    source.updateGauge("DynamicGauge", labels, "app-1", 1L)
+    source.updateGauge("DynamicGauge", labels, "app-1", 42L)
+
+    assert(source.trackedGaugeCount == 1)
+    assert(source.gauges().count(g => g.name == "DynamicGauge" && hasLabels(g.labels, labels)) == 1)
+    assert(gaugeValue(source, labels, "DynamicGauge").contains(42L))
+    assert(source.getMetrics.contains("""metrics_DynamicGauge_Value"""))
+    assert(source.getMetrics.contains("""user="metric""""))
+  }
+
+  test("dynamic app gauges are removed only after all contributing apps are removed") {
+    val source = new TestSource()
+    val labels = Map("user" -> "metric")
+
+    source.updateGauge("DynamicGauge", labels, "app-1", 1L)
+    source.updateGauge("DynamicGauge", labels, "app-2", 2L)
+
+    source.removeApp("app-1")
+
+    assert(source.trackedGaugeCount == 1)
+    assert(gaugeValue(source, labels, "DynamicGauge").contains(2L))
+
+    source.removeApp("app-2")
+
+    assert(source.trackedGaugeCount == 0)
+    assert(gaugeValue(source, labels, "DynamicGauge").isEmpty)
+    assert(!source.gaugeExists("DynamicGauge", labels))
   }
 }

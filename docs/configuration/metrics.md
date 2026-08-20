@@ -19,6 +19,8 @@ license: |
 <!--begin-include-->
 | Key | Default | isDynamic | Description | Since | Deprecated |
 | --- | ------- | --------- | ----------- | ----- | ---------- |
+| celeborn.client.metrics.appLabels |  | false | Custom metric labels sent from the client in each application heartbeat and applied to client metrics exposed on the master's Prometheus endpoint. Labels' pattern is: `<label1_key>=<label1_value>[,<label2_key>=<label2_value>]*`; e.g. `env=prod,version=1` | 0.7.0 |  | 
+| celeborn.client.metrics.enabled | false | false | When true, the LifecycleManager collects client-side metrics. Requires `celeborn.metrics.enabled` to also be true. Note that client metrics are only emitted in application heartbeats when `celeborn.client.metrics.appLabels` is set. | 0.7.0 |  | 
 | celeborn.metrics.capacity | 4096 | false | The maximum number of metrics which a source can use to generate output strings. | 0.2.0 |  | 
 | celeborn.metrics.collectPerfCritical.enabled | false | false | It controls whether to collect metrics which may affect performance. When enable, Celeborn collects them. | 0.2.0 |  | 
 | celeborn.metrics.conf | &lt;undefined&gt; | false | Custom metrics configuration file path. Default use `metrics.properties` in classpath. | 0.3.0 |  | 
@@ -28,6 +30,9 @@ license: |
 | celeborn.metrics.json.pretty.enabled | true | false | When true, view metrics in json pretty format | 0.4.0 |  | 
 | celeborn.metrics.loggerSink.output.enabled | false | false | Whether to output scraped metrics to the logger. This config will have effect if you enabled logger sink.If you will not scrape metrics periodically, do add `org.apache.celeborn.common.metrics.sink.LoggerSink` to metrics.properties. | 0.6.0 |  | 
 | celeborn.metrics.loggerSink.scrape.interval | 30min | false | The interval of logger sink to scrape its own metrics. This config will have effect if you enabled logger sink. If you will not scrape metrics periodically, do add `org.apache.celeborn.common.metrics.sink.LoggerSink` to metrics.properties. | 0.6.0 |  | 
+| celeborn.metrics.master.clientMetrics.enabled | false | false | When true, the master exposes client-side metrics forwarded in application heartbeats on its Prometheus endpoint. | 0.7.0 |  | 
+| celeborn.metrics.master.clientMetrics.removedApp.retention | 5min | false | How long to retain removed application IDs in the client metrics source to reject late heartbeats after an application is lost. Entries older than this are periodically evicted. | 0.7.0 |  | 
+| celeborn.metrics.master.clientMetrics.seriesCardinality.warnThreshold | 1000 | false | Client metric series are keyed only by their (low-cardinality) label set and are only reclaimed when an application is lost, so a high-cardinality `celeborn.client.metrics.appLabels` configuration can grow the number of distinct series without bound. If the number of tracked series exceeds this threshold, the master logs a one-time warning. | 0.7.0 |  | 
 | celeborn.metrics.prometheus.path | /metrics/prometheus | false | URI context path of prometheus metrics HTTP server. | 0.4.0 |  | 
 | celeborn.metrics.sample.rate | 1.0 | false | It controls if Celeborn collect timer metrics for some operations. Its value should be in [0.0, 1.0]. | 0.2.0 |  | 
 | celeborn.metrics.timer.slidingWindow.size | 4096 | false | The sliding window size of timer metric. | 0.2.0 |  | 

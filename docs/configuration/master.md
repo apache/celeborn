@@ -88,6 +88,7 @@ license: |
 | celeborn.master.userResourceConsumption.metrics.enabled | false | false | Whether to enable resource consumption metrics. | 0.6.0 |  | 
 | celeborn.master.userResourceConsumption.update.interval | 30s | false | Time length for a window about compute user resource consumption. | 0.3.0 |  | 
 | celeborn.master.workerUnavailableInfo.expireTimeout | 1800s | false | Worker unavailable info would be cleared when the retention period is expired. Set -1 to disable the expiration. | 0.3.1 |  | 
+| celeborn.metrics.master.clientMetrics.seriesCardinality.warnThreshold | 1000 | false | Client metric series are keyed only by their (low-cardinality) label set and are only reclaimed when an application is lost, so a high-cardinality `celeborn.client.metrics.appLabels` configuration can grow the number of distinct series without bound. If the number of tracked series exceeds this threshold, the master logs a one-time warning. | 0.7.0 |  | 
 | celeborn.quota.cluster.enabled | true | false | Whether to enable cluster-level quota. | 0.6.0 |  | 
 | celeborn.quota.enabled | true | false | When Master side sets to true, the master will enable to check the quota via QuotaManager. When Client side sets to true, LifecycleManager will request Master side to check whether the current user has enough quota before registration of shuffle. Fallback to the default shuffle service when Master side checks that there is no enough quota for current user. | 0.2.0 |  | 
 | celeborn.quota.tenant.enabled | true | false | Whether to enable tenant-level quota. | 0.6.0 |  | 

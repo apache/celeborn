@@ -19,6 +19,8 @@ package org.apache.celeborn.common.metrics.source
 
 import java.util.{Map => JMap}
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, ScheduledExecutorService, TimeUnit}
+import java.util.concurrent.atomic.AtomicLong
+import java.util.function.BiFunction
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -48,6 +50,11 @@ case class NamedHistogram(name: String, histogram: Histogram, labels: Map[String
 
 case class NamedTimer(name: String, timer: Timer, labels: Map[String, String]) extends MetricLabels
 
+case class TrackedGauge(
+    namedGauge: NamedGauge[Long],
+    handle: AtomicLong,
+    perAppValues: ConcurrentHashMap[String, java.lang.Long])
+
 abstract class AbstractSource(conf: CelebornConf, role: String)
   extends Source with Logging {
   override val metricRegistry = new MetricRegistry()
@@ -74,6 +81,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       Map("instance" -> s"${Utils.localHostName(conf)}:${conf.masterHttpPort}")
     case Role.WORKER =>
       Map("instance" -> s"${Utils.localHostName(conf)}:${conf.workerHttpPort}")
+    case Role.CLIENT =>
+      Map("instance" -> Utils.localHostName(conf))
     case _ => Map.empty
   }
   val staticLabels: Map[String, String] = labelsWithCustomizedLabels(Map.empty)
@@ -98,6 +107,9 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   protected val namedHistogram: ConcurrentHashMap[String, NamedHistogram] =
     JavaUtils.newConcurrentHashMap[String, NamedHistogram]()
+
+  protected val namedGaugesWithDetails: ConcurrentHashMap[String, TrackedGauge] =
+    JavaUtils.newConcurrentHashMap[String, TrackedGauge]()
 
   def addTimerMetrics(namedTimer: NamedTimer): Unit = {
     val timerMetricsString = getTimerMetrics(namedTimer)
@@ -212,6 +224,34 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
         labelsWithCustomizedLabels(labels)))
   }
 
+  // Stores each app's gauge value separately and exposes the sum as the reported metric.
+  protected def addOrUpdateGaugeForApp(
+      name: String,
+      labels: Map[String, String],
+      appId: String,
+      value: Long): Unit = {
+    val key = metricNameWithCustomizedLabels(name, labels)
+    namedGaugesWithDetails.compute(
+      key,
+      new BiFunction[String, TrackedGauge, TrackedGauge] {
+        override def apply(_key: String, existing: TrackedGauge): TrackedGauge = {
+          val tracked = Option(existing).getOrElse {
+            val holder = new AtomicLong()
+            addGauge(name, labels)(() => holder.get())
+            val namedGauge = namedGauges.get(key).asInstanceOf[NamedGauge[Long]]
+            TrackedGauge(
+              namedGauge,
+              holder,
+              new ConcurrentHashMap[String, java.lang.Long]())
+          }
+          val oldVal = tracked.perAppValues.put(appId, value)
+          val delta = value - (if (oldVal != null) oldVal.longValue() else 0L)
+          tracked.handle.addAndGet(delta)
+          tracked
+        }
+      })
+  }
+
   def counters(): List[NamedCounter] = {
     namedCounters.values().asScala.toList
   }
@@ -275,6 +315,28 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
     metricRegistry.remove(metricNameWithLabel)
     metricNameWithLabel
+  }
+
+  protected def removeAppFromMetrics(appId: String): Unit = {
+    namedGaugesWithDetails.keySet().asScala.toList.foreach { key =>
+      namedGaugesWithDetails.computeIfPresent(
+        key,
+        new BiFunction[String, TrackedGauge, TrackedGauge] {
+          override def apply(_key: String, tracked: TrackedGauge): TrackedGauge = {
+            val oldVal = tracked.perAppValues.remove(appId)
+            if (oldVal != null) {
+              tracked.handle.addAndGet(-oldVal.longValue())
+            }
+            if (tracked.perAppValues.isEmpty) {
+              namedGauges.remove(key)
+              metricRegistry.remove(key)
+              null
+            } else {
+              tracked
+            }
+          }
+        })
+    }
   }
 
   override def sample[T](metricsName: String, key: String)(f: => T): T = {
@@ -691,6 +753,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     metricsCleaner.shutdown()
     namedCounters.clear()
     namedGauges.clear()
+    namedGaugesWithDetails.clear()
     namedMeters.clear()
     namedTimers.clear()
     timerMetrics.clear()
