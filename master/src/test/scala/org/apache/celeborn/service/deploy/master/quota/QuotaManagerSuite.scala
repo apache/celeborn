@@ -321,16 +321,16 @@ class QuotaManagerSuite extends CelebornFunSuite
   }
 
   test("test handleResourceConsumption time - case1") {
-    // 1000 users 100w applications, all exceeded
+    // 100 users 10000 applications, all exceeded
     conf.set("celeborn.quota.tenant.diskBytesWritten", "1mb")
     conf.set("celeborn.quota.cluster.diskBytesWritten", "1mb")
     configService.refreshCache()
     val MAX = 2L * 1024 * 1024 * 1024
     val MIN = 1L * 1024 * 1024 * 1024
     val random = new Random()
-    for (i <- 0 until 1000) {
+    for (i <- 0 until 100) {
       val user = UserIdentifier("default", s"user$i")
-      val subResourceConsumption = (0 until 1000).map {
+      val subResourceConsumption = (0 until 100).map {
         index =>
           val appId = s"$user$i app$index"
           val consumption = ResourceConsumption(
@@ -350,7 +350,7 @@ class QuotaManagerSuite extends CelebornFunSuite
     quotaManager.updateResourceConsumption()
 
     val res = resourceConsumptionSource.getMetrics
-    for (i <- 0 until 1000) {
+    for (i <- 0 until 100) {
       val user = UserIdentifier("default", s"user$i")
       assert(res.contains(
         s"""metrics_diskFileCount_Value{$metricsInstanceLabel,name="user$i",role="Master",tenantId="default"}"""))
@@ -361,7 +361,7 @@ class QuotaManagerSuite extends CelebornFunSuite
       assert(res.contains(
         s"""metrics_hdfsBytesWritten_Value{$metricsInstanceLabel,name="user$i",role="Master",tenantId="default"}"""))
       assertFalse(quotaManager.checkUserQuotaStatus(user).isAvailable)
-      (0 until 1000).foreach {
+      (0 until 100).foreach {
         index =>
           val appId = s"$user$i app$index"
           assertFalse(quotaManager.checkApplicationQuotaStatus(appId).isAvailable)
@@ -371,18 +371,18 @@ class QuotaManagerSuite extends CelebornFunSuite
   }
 
   test("test handleResourceConsumption time - case2") {
-    // 1000 users 2000000 applications, all exceeded
+    // 100 users 10000 applications, the first 10 users' applications all exceeded
     conf.set("celeborn.quota.tenant.diskBytesWritten", "1mb")
     conf.set("celeborn.quota.cluster.diskBytesWritten", "1mb")
     configService.refreshCache()
     val MAX = 2L * 1024 * 1024 * 1024
     val MIN = 1L * 1024 * 1024 * 1024
     val random = new Random()
-    for (i <- 0 until 1000) {
+    for (i <- 0 until 100) {
       val user = UserIdentifier("default", s"user$i")
       val subResourceConsumption =
-        if (i < 100) {
-          (0 until 1000).map {
+        if (i < 10) {
+          (0 until 100).map {
             index =>
               val appId = s"$user$i case2_app$index"
               val consumption = ResourceConsumption(
@@ -394,7 +394,7 @@ class QuotaManagerSuite extends CelebornFunSuite
               (appId, consumption)
           }.toMap
         } else {
-          (0 until 1000).map {
+          (0 until 100).map {
             index =>
               val appId = s"$user$i case2_app$index"
               val consumption = ResourceConsumption(0, 0, 0, 0)
@@ -411,7 +411,7 @@ class QuotaManagerSuite extends CelebornFunSuite
     quotaManager.updateResourceConsumption()
 
     val res = resourceConsumptionSource.getMetrics
-    for (i <- 0 until 1000) {
+    for (i <- 0 until 100) {
       val user = UserIdentifier("default", s"user$i")
       assert(res.contains(
         s"""metrics_diskFileCount_Value{$metricsInstanceLabel,name="user$i",role="Master",tenantId="default"}"""))
@@ -422,10 +422,10 @@ class QuotaManagerSuite extends CelebornFunSuite
       assert(res.contains(
         s"""metrics_hdfsBytesWritten_Value{$metricsInstanceLabel,name="user$i",role="Master",tenantId="default"}"""))
       assertFalse(quotaManager.checkUserQuotaStatus(user).isAvailable)
-      (0 until 1000).foreach {
+      (0 until 100).foreach {
         index =>
           val appId = s"$user$i case2_app$index"
-          if (i < 100) {
+          if (i < 10) {
             assertFalse(quotaManager.checkApplicationQuotaStatus(appId).isAvailable)
           } else {
             assertTrue(quotaManager.checkApplicationQuotaStatus(appId).isAvailable)

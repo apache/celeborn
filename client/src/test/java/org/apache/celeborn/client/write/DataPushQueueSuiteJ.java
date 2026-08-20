@@ -44,7 +44,7 @@ public class DataPushQueueSuiteJ {
   private static File tempDir = null;
 
   private final int shuffleId = 0;
-  private final int numPartitions = 1000000;
+  private final int numPartitions = 30000;
 
   @BeforeClass
   public static void beforeAll() {

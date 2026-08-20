@@ -170,5 +170,11 @@ class LifecycleManagerReserveSlotsSuite extends AnyFunSuite
     assert(partitionLocationMap2.get(partitions(0)).getEpoch > 0)
     // epoch of partition(1) is 0 without split
     assert(partitionLocationMap2.get(partitions(1)).getEpoch == 0)
+
+    // Stop the LifecycleManager explicitly, otherwise its app heartbeater keeps
+    // firing at the dead master port for the rest of this shared spark-it JVM.
+    shuffleClient1.shutdown()
+    shuffleClient2.shutdown()
+    lifecycleManager.stop()
   }
 }
