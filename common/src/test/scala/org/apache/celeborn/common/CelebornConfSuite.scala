@@ -33,6 +33,23 @@ class CelebornConfSuite extends CelebornFunSuite {
     assert(conf.workerJvmQuakeKillThreshold.toMillis == 60000L)
   }
 
+  test("worker sorted file resolver threads must be positive") {
+    val conf = new CelebornConf()
+    assert(conf.workerPartitionSorterResolveThreads == 4)
+
+    conf.set(WORKER_PARTITION_SORTER_RESOLVE_THREADS.key, "2")
+    assert(conf.workerPartitionSorterResolveThreads == 2)
+
+    Seq("0", "-1").foreach { invalidValue =>
+      val error = intercept[IllegalArgumentException] {
+        new CelebornConf()
+          .set(WORKER_PARTITION_SORTER_RESOLVE_THREADS.key, invalidValue)
+          .workerPartitionSorterResolveThreads
+      }
+      assert(error.getMessage.contains("Partition sorter resolve threads must be positive."))
+    }
+  }
+
   test("celeborn.master.endpoints support multi nodes") {
     val conf = new CelebornConf()
       .set(CelebornConf.MASTER_ENDPOINTS.key, "localhost1:9097,localhost2:9097")

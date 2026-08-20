@@ -249,6 +249,7 @@ object WorkerSource {
   val SORT_MEMORY = "SortMemory"
   val SORTING_FILES = "SortingFiles"
   val PENDING_SORT_TASKS = "PendingSortTasks"
+  val SORTED_FILE_WAITERS = "SortedFileWaiters"
   val SORTED_FILES = "SortedFiles"
   val SORTED_FILE_SIZE = "SortedFileSize"
   val SORTER_CACHE_HIT_RATE = "SorterCacheHitRate"
