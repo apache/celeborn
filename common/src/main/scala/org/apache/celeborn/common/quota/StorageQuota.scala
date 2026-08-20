@@ -37,4 +37,5 @@ case class StorageQuota(
 
 object StorageQuota {
   val DEFAULT_QUOTA = StorageQuota(Long.MaxValue, Long.MaxValue, Long.MaxValue, Long.MaxValue)
+  val CLUSTER_OVERLOAD_LIMIT_DEFAULT_MULTIPLIER: Double = 0.8
 }

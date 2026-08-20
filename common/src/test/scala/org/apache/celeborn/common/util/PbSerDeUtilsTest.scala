@@ -814,7 +814,8 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
       mockWorkers("host1").toList.asJava,
       mockWorkers("host2").toList.asJava,
       Array(Integer.valueOf(1)).toList.asJava,
-      CheckQuotaResponse(isAvailable = false, "test_reason"))
+      CheckQuotaResponse(isAvailable = false, "test_reason"),
+      shouldTriggerGc = true)
     val toTransportHeartbeatFromApplicationResponse =
       ControlMessages.toTransportMessage(heartbeatFromApplicationResponse)
     val fromTransportHeartbeatFromApplicationResponse =
@@ -822,6 +823,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
         .asInstanceOf[HeartbeatFromApplicationResponse]
 
     assert(fromTransportHeartbeatFromApplicationResponse.equals(heartbeatFromApplicationResponse))
+    assert(fromTransportHeartbeatFromApplicationResponse.shouldTriggerGc)
   }
 
   test("HeartbeatFromApplicationResponse backward compatibility without checkQuotaResponse") {

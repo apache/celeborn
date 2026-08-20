@@ -1259,7 +1259,8 @@ private[celeborn] class Master(
         new util.ArrayList[WorkerInfo](
           (statusSystem.shutdownWorkers.asScala ++ statusSystem.decommissionWorkers.asScala).asJava),
         new util.ArrayList(appRelatedShuffles),
-        quotaManager.checkApplicationQuotaStatus(appId)))
+        quotaManager.checkApplicationQuotaStatus(appId),
+        if (conf.clusterOverloadGcEnabled) quotaManager.isClusterOverloaded else false))
     } else {
       context.reply(OneWayMessageResponse)
     }

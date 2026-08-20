@@ -23,6 +23,7 @@ import java.util.function.Consumer
 
 import scala.collection.JavaConverters._
 
+import com.google.common.annotations.VisibleForTesting
 import org.apache.commons.lang3.StringUtils
 
 import org.apache.celeborn.common.CelebornConf
@@ -46,6 +47,13 @@ class ApplicationHeartbeater(
 
   private var stopped = false
   private val reviseLostShuffles = conf.reviseLostShufflesEnabled
+
+  private val gcOnOverloadEnabled = conf.clientGcOnOverloadEnabled
+  private val gcOnOverloadMinIntervalMs = conf.clientGcOnOverloadMinIntervalMs
+  private val gcOnOverloadMinIntervalNs = TimeUnit.MILLISECONDS.toNanos(gcOnOverloadMinIntervalMs)
+
+  @VisibleForTesting
+  @volatile private[client] var lastGcTriggerTimeNs = 0L
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
   private val appHeartbeatIntervalMs = conf.appHeartbeatIntervalMs
@@ -91,6 +99,7 @@ class ApplicationHeartbeater(
               logDebug("Successfully send app heartbeat.")
               workerStatusTracker.handleHeartbeatResponse(response)
               checkQuotaExceeds(response.checkQuotaResponse)
+              handleGcSignal(response.shouldTriggerGc)
               // revise shuffle id if there are lost shuffles
               if (reviseLostShuffles) {
                 val masterRecordedShuffleIds = response.registeredShuffles
@@ -167,6 +176,21 @@ class ApplicationHeartbeater(
     if (conf.quotaInterruptShuffleEnabled && !response.isAvailable) {
       cancelAllActiveStages(
         s"Application interrupted caused by storage quota exceeded, reason: ${response.reason}")
+    }
+  }
+
+  private[client] def handleGcSignal(shouldTriggerGc: Boolean): Unit = {
+    if (!gcOnOverloadEnabled || !shouldTriggerGc) return
+    val nowNs = System.nanoTime()
+    if (nowNs - lastGcTriggerTimeNs >= gcOnOverloadMinIntervalNs) {
+      logInfo(
+        "Cluster is overloaded; triggering System.gc() to release stale shuffle dependencies.")
+      lastGcTriggerTimeNs = nowNs
+      System.gc()
+    } else {
+      logDebug(
+        s"Cluster overload GC signal received but skipped: last GC was triggered " +
+          s"${(nowNs - lastGcTriggerTimeNs) / 1000000L}ms ago (min interval: ${gcOnOverloadMinIntervalMs}ms).")
     }
   }
 
