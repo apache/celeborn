@@ -35,15 +35,16 @@ exercised end-to-end.
 ./docker/build-image.sh
 
 # Also build the Spark example image (celeborn-spark:dev):
-./docker/build-image.sh -Pspark-3.5
+./docker/build-image.sh -Pspark-3.5    # Spark 3 client
+./docker/build-image.sh -Pspark-4.0    # or Spark 4 client
 ```
 
 This runs `./build/make-distribution.sh` (producing `dist/`) and then:
 
 - `docker build -t celeborn:dev -f dist/docker/Dockerfile dist/` — the
   Celeborn master/worker image, always built.
-- If a Spark client profile was passed (e.g. `-Pspark-3.5`), the distribution
-  also produces `dist/spark/celeborn-client-spark-3-shaded_*.jar`;
+- If a Spark client profile was passed (e.g. `-Pspark-3.5` or `-Pspark-4.0`),
+  the distribution also produces `dist/spark/celeborn-client-spark-*-shaded_*.jar`;
   `build-image.sh` copies it into `docker/spark/` and runs
   `docker build -t celeborn-spark:dev docker/spark/` — a Spark image with the
   Celeborn client jar baked in. Without a Spark profile, the Spark image is
@@ -78,10 +79,9 @@ Spark is pre-wired to use Celeborn via `docker/spark/conf/spark-defaults.conf`
 built-in `GroupByTest`, which forces a shuffle:
 
 ```bash
-docker exec celeborn-spark-master /opt/spark/bin/spark-submit \
+docker exec celeborn-spark-master /opt/spark/bin/run-example \
   --master spark://celeborn-spark-master:7077 \
-  --class org.apache.spark.examples.GroupByTest \
-  /opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar 10 100 1000 10
+  GroupByTest 10 100 1000 10
 ```
 
 The job should finish with `final status: SUCCEEDED`. While it runs, watch the

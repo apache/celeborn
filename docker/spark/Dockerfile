@@ -24,7 +24,7 @@
 # Usage (built by build-image.sh, not directly):
 #   docker build -t celeborn-spark:dev docker/spark/
 
-ARG spark_image_tag=3.5.0
+ARG spark_image_tag=3.5.9
 FROM apache/spark:${spark_image_tag}
 
 ENV PATH="${PATH}:/opt/spark/bin"
@@ -33,7 +33,7 @@ USER root
 RUN mkdir -p /home/spark /shared && chown spark:spark /home/spark /shared
 
 # Celeborn client shaded jar enables spark.shuffle.manager=...CelebornShuffleManager
-COPY celeborn-client-spark-3-shaded_*.jar /opt/spark/jars/
+COPY celeborn-client-spark-*-shaded_*.jar /opt/spark/jars/
 
 VOLUME /shared
 
