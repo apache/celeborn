@@ -143,4 +143,43 @@ public class ShuffleBlockInfoUtilsTest {
         "Target buffer should remain empty with an empty indexMap",
         targetByteBuf.numComponents() == 0);
   }
+
+  @Test
+  public void testSliceSortedBufferByMapRangeWithMaxEndIndex() {
+    Map<Integer, List<ShuffleBlockInfo>> indexMap = new HashMap<>();
+
+    indexMap.put(0, Arrays.asList(new ShuffleBlockInfo(0, 50), new ShuffleBlockInfo(50, 30)));
+    indexMap.put(1, Arrays.asList(new ShuffleBlockInfo(0, 20), new ShuffleBlockInfo(20, 30)));
+
+    for (ShuffleBlockInfo blockInfo :
+        indexMap.values().stream().flatMap(List::stream).toArray(ShuffleBlockInfo[]::new)) {
+      byte[] data = new byte[(int) blockInfo.length];
+      Arrays.fill(data, (byte) blockInfo.offset); // Fill data with offset value for simplicity
+      sortedByteBuf.addComponents(Unpooled.wrappedBuffer(data));
+    }
+
+    // A full re-read passes endMapIndex == Integer.MAX_VALUE. It must be clamped to
+    // maxMapIndex + 1 instead of looping up to Integer.MAX_VALUE, and must produce
+    // exactly the same result as an explicit full-range read.
+    CompositeByteBuf targetByteBufWithMaxEndIndex = Unpooled.compositeBuffer();
+    ShuffleBlockInfoUtils.sliceSortedBufferByMapRange(
+        0,
+        Integer.MAX_VALUE,
+        indexMap,
+        sortedByteBuf,
+        targetByteBufWithMaxEndIndex,
+        shuffleChunkSize);
+
+    ShuffleBlockInfoUtils.sliceSortedBufferByMapRange(
+        0, 2, indexMap, sortedByteBuf, targetByteBuf, shuffleChunkSize);
+
+    Assert.assertEquals(
+        "Unexpected number of components in target buffer",
+        targetByteBuf.numComponents(),
+        targetByteBufWithMaxEndIndex.numComponents());
+    Assert.assertEquals(
+        "Unexpected readable bytes in target buffer",
+        targetByteBuf.readableBytes(),
+        targetByteBufWithMaxEndIndex.readableBytes());
+  }
 }
