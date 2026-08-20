@@ -196,12 +196,13 @@ public class RatisMasterStatusSystemSuiteJ {
         RATISSERVER1.start();
         RATISSERVER2.start();
         RATISSERVER3.start();
-        // Poll for a raft leader instead of a fixed 15s sleep. Without a leader the rest
-        // of the suite cannot proceed, so fail here if none is elected within 30s.
-        awaitCondition(
-            () -> RATISSERVER1.isLeader() || RATISSERVER2.isLeader() || RATISSERVER3.isLeader());
-        if (!RATISSERVER1.isLeader() && !RATISSERVER2.isLeader() && !RATISSERVER3.isLeader()) {
-          Assert.fail("No raft leader was elected within 30 seconds");
+        // Poll for a *ready* raft leader instead of a fixed 15s sleep. Without a leader the
+        // rest of the suite cannot proceed, so fail here if none is elected within 30s.
+        // isLeader() alone is not enough: a newly elected leader rejects writes with
+        // LeaderNotReadyException until its no-op log entry for the new term is committed.
+        awaitCondition(RatisMasterStatusSystemSuiteJ::hasReadyLeader);
+        if (!hasReadyLeader()) {
+          Assert.fail("No ready raft leader was elected within 30 seconds");
         }
         serversStarted = true;
       } catch (Exception e) {
@@ -305,6 +306,24 @@ public class RatisMasterStatusSystemSuiteJ {
     while (!condition.getAsBoolean() && System.currentTimeMillis() < deadlineMs) {
       Thread.sleep(100L);
     }
+  }
+
+  // A leader is usable for writes only once it is ready, i.e. its no-op log entry for
+  // the current term has been committed; before that it is in LEADER state but rejects
+  // requests with LeaderNotReadyException.
+  private static boolean hasReadyLeader() {
+    for (HARaftServer server : Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3)) {
+      if (server.isLeader()) {
+        try {
+          if (server.getServer().getDivision(server.getGroupId()).getInfo().isLeaderReady()) {
+            return true;
+          }
+        } catch (IOException e) {
+          // Division not available yet; keep polling.
+        }
+      }
+    }
+    return false;
   }
 
   public HAMasterMetaManager pickLeaderStatusSystem() {
