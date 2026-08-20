@@ -245,6 +245,9 @@ def cherry_pick(pr_num, merge_hash, default_branch):
 def _semver_max_version(names):
     if not names:
         return None
+    names = [n for n in names if re.fullmatch(r"\d+\.\d+\.\d+", n)]
+    if not names:
+        return None
     parsed = [(tuple(int(p) for p in n.split(".")), n) for n in names]
     return max(parsed)[1]
 
@@ -270,7 +273,7 @@ def compute_default_fix_versions(merge_branches, unreleased_version_names):
                     "enter fix version(s) manually when prompted."
                 )
         else:
-            prefix = b.replace("branch-", "")
+            prefix = b.replace("branch-", "") + "."
             chosen = _semver_max_version(
                 [n for n in unreleased_version_names if n.startswith(prefix)]
             )
