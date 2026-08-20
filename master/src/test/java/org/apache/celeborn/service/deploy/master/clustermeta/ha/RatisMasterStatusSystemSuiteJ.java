@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
 
 import scala.Tuple2;
 
@@ -195,7 +196,14 @@ public class RatisMasterStatusSystemSuiteJ {
         RATISSERVER1.start();
         RATISSERVER2.start();
         RATISSERVER3.start();
-        Thread.sleep(15 * 1000);
+        // Poll for a *ready* raft leader instead of a fixed 15s sleep. Without a leader the
+        // rest of the suite cannot proceed, so fail here if none is elected within 30s.
+        // isLeader() alone is not enough: a newly elected leader rejects writes with
+        // LeaderNotReadyException until its no-op log entry for the new term is committed.
+        awaitCondition(RatisMasterStatusSystemSuiteJ::hasReadyLeader);
+        if (!hasReadyLeader()) {
+          Assert.fail("No ready raft leader was elected within 30 seconds");
+        }
         serversStarted = true;
       } catch (Exception e) {
         stopAllRaftServers();
@@ -289,6 +297,35 @@ public class RatisMasterStatusSystemSuiteJ {
     return MasterClient.encodeRequestId(UUID.randomUUID().toString(), callerId.incrementAndGet());
   }
 
+  // Waits until the given condition holds, polling every 100ms for up to 30 seconds.
+  // Replaces the fixed sleeps that gave raft replication time to reach all three status
+  // systems. On timeout it simply returns, so the original assertions below still fail
+  // with their regular diff instead of a new timeout exception.
+  private static void awaitCondition(BooleanSupplier condition) throws InterruptedException {
+    long deadlineMs = System.currentTimeMillis() + 30000L;
+    while (!condition.getAsBoolean() && System.currentTimeMillis() < deadlineMs) {
+      Thread.sleep(100L);
+    }
+  }
+
+  // A leader is usable for writes only once it is ready, i.e. its no-op log entry for
+  // the current term has been committed; before that it is in LEADER state but rejects
+  // requests with LeaderNotReadyException.
+  private static boolean hasReadyLeader() {
+    for (HARaftServer server : Arrays.asList(RATISSERVER1, RATISSERVER2, RATISSERVER3)) {
+      if (server.isLeader()) {
+        try {
+          if (server.getServer().getDivision(server.getGroupId()).getInfo().isLeaderReady()) {
+            return true;
+          }
+        } catch (IOException e) {
+          // Division not available yet; keep polling.
+        }
+      }
+    }
+    return false;
+  }
+
   public HAMasterMetaManager pickLeaderStatusSystem() {
     if (RATISSERVER1.isLeader()) {
       return STATUSSYSTEM1;
@@ -373,7 +410,14 @@ public class RatisMasterStatusSystemSuiteJ {
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.workersMap.size() == 3
+                && STATUSSYSTEM2.workersMap.size() == 3
+                && STATUSSYSTEM3.workersMap.size() == 3
+                && STATUSSYSTEM1.availableWorkers.size() == 3
+                && STATUSSYSTEM2.availableWorkers.size() == 3
+                && STATUSSYSTEM3.availableWorkers.size() == 3);
 
     Assert.assertEquals(3, STATUSSYSTEM1.workersMap.size());
     Assert.assertEquals(3, STATUSSYSTEM2.workersMap.size());
@@ -453,7 +497,14 @@ public class RatisMasterStatusSystemSuiteJ {
 
     statusSystem.handleWorkerExclude(
         Arrays.asList(workerInfo1, workerInfo2), Collections.emptyList(), getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.manuallyExcludedWorkers.size() == 2
+                && STATUSSYSTEM2.manuallyExcludedWorkers.size() == 2
+                && STATUSSYSTEM3.manuallyExcludedWorkers.size() == 2
+                && STATUSSYSTEM1.availableWorkers.isEmpty()
+                && STATUSSYSTEM2.availableWorkers.isEmpty()
+                && STATUSSYSTEM3.availableWorkers.isEmpty());
 
     Assert.assertEquals(2, STATUSSYSTEM1.manuallyExcludedWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM2.manuallyExcludedWorkers.size());
@@ -465,7 +516,14 @@ public class RatisMasterStatusSystemSuiteJ {
 
     statusSystem.handleWorkerExclude(
         Collections.emptyList(), Collections.singletonList(workerInfo1), getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.manuallyExcludedWorkers.size() == 1
+                && STATUSSYSTEM2.manuallyExcludedWorkers.size() == 1
+                && STATUSSYSTEM3.manuallyExcludedWorkers.size() == 1
+                && STATUSSYSTEM1.availableWorkers.size() == 1
+                && STATUSSYSTEM2.availableWorkers.size() == 1
+                && STATUSSYSTEM3.availableWorkers.size() == 1);
 
     Assert.assertEquals(1, STATUSSYSTEM1.manuallyExcludedWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM2.manuallyExcludedWorkers.size());
@@ -517,7 +575,14 @@ public class RatisMasterStatusSystemSuiteJ {
 
     statusSystem.handleWorkerLost(
         HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.workersMap.size() == 2
+                && STATUSSYSTEM2.workersMap.size() == 2
+                && STATUSSYSTEM3.workersMap.size() == 2
+                && STATUSSYSTEM1.availableWorkers.size() == 2
+                && STATUSSYSTEM2.availableWorkers.size() == 2
+                && STATUSSYSTEM3.availableWorkers.size() == 2);
 
     Assert.assertEquals(2, STATUSSYSTEM1.workersMap.size());
     Assert.assertEquals(2, STATUSSYSTEM2.workersMap.size());
@@ -674,7 +739,11 @@ public class RatisMasterStatusSystemSuiteJ {
         disks3,
         userResourceConsumption3,
         getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.workersMap.size() == 3
+                && STATUSSYSTEM2.workersMap.size() == 3
+                && STATUSSYSTEM3.workersMap.size() == 3);
 
     Assert.assertEquals(3, STATUSSYSTEM1.workersMap.size());
     Assert.assertEquals(3, STATUSSYSTEM2.workersMap.size());
@@ -699,7 +768,10 @@ public class RatisMasterStatusSystemSuiteJ {
         allocations);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
-    Thread.sleep(3000L);
+    // Negative assertion: the checks below verify that used slots do NOT change, so
+    // polling cannot replace a fixed wait. 1s gives any unexpected replicated update
+    // enough time to be applied before the assertions run.
+    Thread.sleep(1000L);
 
     // Do not update diskinfo's activeslots
 
@@ -765,7 +837,12 @@ public class RatisMasterStatusSystemSuiteJ {
         userResourceConsumption3,
         getNewReqeustId());
 
-    Thread.sleep(3000L);
+    // Wait for the three registrations above to replicate before requesting slots.
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.workersMap.size() == 3
+                && STATUSSYSTEM2.workersMap.size() == 3
+                && STATUSSYSTEM3.workersMap.size() == 3);
     WorkerInfo workerInfo1 =
         new WorkerInfo(
             HOSTNAME1,
@@ -793,14 +870,22 @@ public class RatisMasterStatusSystemSuiteJ {
     workersToAllocate.put(workerInfo2.toUniqueId(), allocations);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.registeredAppAndShuffles.size() == 1
+                && STATUSSYSTEM2.registeredAppAndShuffles.size() == 1
+                && STATUSSYSTEM3.registeredAppAndShuffles.size() == 1);
 
     Assert.assertEquals(1, STATUSSYSTEM1.registeredAppAndShuffles.size());
     Assert.assertEquals(1, STATUSSYSTEM2.registeredAppAndShuffles.size());
     Assert.assertEquals(1, STATUSSYSTEM3.registeredAppAndShuffles.size());
 
     statusSystem.handleAppLost(APPID1, getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.registeredAppAndShuffles.isEmpty()
+                && STATUSSYSTEM2.registeredAppAndShuffles.isEmpty()
+                && STATUSSYSTEM3.registeredAppAndShuffles.isEmpty());
 
     Assert.assertTrue(STATUSSYSTEM1.registeredAppAndShuffles.isEmpty());
     Assert.assertTrue(STATUSSYSTEM2.registeredAppAndShuffles.isEmpty());
@@ -874,14 +959,22 @@ public class RatisMasterStatusSystemSuiteJ {
     workersToAllocate.put(workerInfo2.toUniqueId(), allocations);
 
     statusSystem.handleRequestSlots(SHUFFLEKEY1, HOSTNAME1, workersToAllocate, getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.registeredAppAndShuffles.size() == 1
+                && STATUSSYSTEM2.registeredAppAndShuffles.size() == 1
+                && STATUSSYSTEM3.registeredAppAndShuffles.size() == 1);
 
     Assert.assertEquals(1, STATUSSYSTEM1.registeredAppAndShuffles.size());
     Assert.assertEquals(1, STATUSSYSTEM2.registeredAppAndShuffles.size());
     Assert.assertEquals(1, STATUSSYSTEM3.registeredAppAndShuffles.size());
 
     statusSystem.handleUnRegisterShuffle(SHUFFLEKEY1, getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.registeredAppAndShuffles.isEmpty()
+                && STATUSSYSTEM2.registeredAppAndShuffles.isEmpty()
+                && STATUSSYSTEM3.registeredAppAndShuffles.isEmpty());
 
     Assert.assertTrue(STATUSSYSTEM1.registeredAppAndShuffles.isEmpty());
     Assert.assertTrue(STATUSSYSTEM2.registeredAppAndShuffles.isEmpty());
@@ -961,7 +1054,11 @@ public class RatisMasterStatusSystemSuiteJ {
       statusSystem.handleRequestSlots(shuffleKey, HOSTNAME1, workersToAllocate, getNewReqeustId());
     }
 
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.registeredShuffleCount() == 4
+                && STATUSSYSTEM2.registeredShuffleCount() == 4
+                && STATUSSYSTEM3.registeredShuffleCount() == 4);
 
     Assert.assertEquals(4, STATUSSYSTEM1.registeredShuffleCount());
     Assert.assertEquals(4, STATUSSYSTEM2.registeredShuffleCount());
@@ -971,13 +1068,21 @@ public class RatisMasterStatusSystemSuiteJ {
     shuffleKeys1.add(shuffleKeysAll.get(0));
 
     statusSystem.handleBatchUnRegisterShuffles(shuffleKeys1, getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.registeredShuffleCount() == 3
+                && STATUSSYSTEM2.registeredShuffleCount() == 3
+                && STATUSSYSTEM3.registeredShuffleCount() == 3);
     Assert.assertEquals(3, STATUSSYSTEM1.registeredShuffleCount());
     Assert.assertEquals(3, STATUSSYSTEM2.registeredShuffleCount());
     Assert.assertEquals(3, STATUSSYSTEM3.registeredShuffleCount());
 
     statusSystem.handleBatchUnRegisterShuffles(shuffleKeysAll, getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.registeredShuffleCount() == 0
+                && STATUSSYSTEM2.registeredShuffleCount() == 0
+                && STATUSSYSTEM3.registeredShuffleCount() == 0);
 
     Assert.assertTrue(STATUSSYSTEM1.registeredShuffleCount() == 0);
     Assert.assertTrue(STATUSSYSTEM2.registeredShuffleCount() == 0);
@@ -992,7 +1097,11 @@ public class RatisMasterStatusSystemSuiteJ {
     long dummy = 1235L;
     statusSystem.handleAppHeartbeat(
         APPID1, 1, 1, 1, 1, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            Long.valueOf(dummy).equals(STATUSSYSTEM1.appHeartbeatTime.get(APPID1))
+                && Long.valueOf(dummy).equals(STATUSSYSTEM2.appHeartbeatTime.get(APPID1))
+                && Long.valueOf(dummy).equals(STATUSSYSTEM3.appHeartbeatTime.get(APPID1)));
     Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM1.appHeartbeatTime.get(APPID1));
     Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM2.appHeartbeatTime.get(APPID1));
     Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM3.appHeartbeatTime.get(APPID1));
@@ -1000,7 +1109,14 @@ public class RatisMasterStatusSystemSuiteJ {
     String appId2 = "app02";
     statusSystem.handleAppHeartbeat(
         appId2, 1, 1, 2, 2, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            Long.valueOf(dummy).equals(STATUSSYSTEM1.appHeartbeatTime.get(appId2))
+                && Long.valueOf(dummy).equals(STATUSSYSTEM2.appHeartbeatTime.get(appId2))
+                && Long.valueOf(dummy).equals(STATUSSYSTEM3.appHeartbeatTime.get(appId2))
+                && STATUSSYSTEM1.appHeartbeatTime.size() == 2
+                && STATUSSYSTEM2.appHeartbeatTime.size() == 2
+                && STATUSSYSTEM3.appHeartbeatTime.size() == 2);
 
     Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM1.appHeartbeatTime.get(appId2));
     Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM2.appHeartbeatTime.get(appId2));
@@ -1062,7 +1178,17 @@ public class RatisMasterStatusSystemSuiteJ {
         false,
         workerStatus,
         getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.excludedWorkers.size() == 1
+                && STATUSSYSTEM2.excludedWorkers.size() == 1
+                && STATUSSYSTEM3.excludedWorkers.size() == 1
+                && STATUSSYSTEM1.workersMap.size() == 3
+                && STATUSSYSTEM2.workersMap.size() == 3
+                && STATUSSYSTEM3.workersMap.size() == 3
+                && STATUSSYSTEM1.availableWorkers.size() == 2
+                && STATUSSYSTEM2.availableWorkers.size() == 2
+                && STATUSSYSTEM3.availableWorkers.size() == 2);
 
     Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
@@ -1088,7 +1214,17 @@ public class RatisMasterStatusSystemSuiteJ {
         false,
         workerStatus,
         getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.excludedWorkers.size() == 2
+                && STATUSSYSTEM2.excludedWorkers.size() == 2
+                && STATUSSYSTEM3.excludedWorkers.size() == 2
+                && STATUSSYSTEM1.workersMap.size() == 3
+                && STATUSSYSTEM2.workersMap.size() == 3
+                && STATUSSYSTEM3.workersMap.size() == 3
+                && STATUSSYSTEM1.availableWorkers.size() == 1
+                && STATUSSYSTEM2.availableWorkers.size() == 1
+                && STATUSSYSTEM3.availableWorkers.size() == 1);
 
     Assert.assertEquals(2, statusSystem.excludedWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM1.excludedWorkers.size());
@@ -1117,7 +1253,17 @@ public class RatisMasterStatusSystemSuiteJ {
         false,
         workerStatus,
         getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.excludedWorkers.size() == 1
+                && STATUSSYSTEM2.excludedWorkers.size() == 1
+                && STATUSSYSTEM3.excludedWorkers.size() == 1
+                && STATUSSYSTEM1.workersMap.size() == 3
+                && STATUSSYSTEM2.workersMap.size() == 3
+                && STATUSSYSTEM3.workersMap.size() == 3
+                && STATUSSYSTEM1.availableWorkers.size() == 2
+                && STATUSSYSTEM2.availableWorkers.size() == 2
+                && STATUSSYSTEM3.availableWorkers.size() == 2);
 
     Assert.assertEquals(1, statusSystem.excludedWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
@@ -1146,7 +1292,17 @@ public class RatisMasterStatusSystemSuiteJ {
         true,
         workerStatus,
         getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.excludedWorkers.size() == 2
+                && STATUSSYSTEM2.excludedWorkers.size() == 2
+                && STATUSSYSTEM3.excludedWorkers.size() == 2
+                && STATUSSYSTEM1.workersMap.size() == 3
+                && STATUSSYSTEM2.workersMap.size() == 3
+                && STATUSSYSTEM3.workersMap.size() == 3
+                && STATUSSYSTEM1.availableWorkers.size() == 1
+                && STATUSSYSTEM2.availableWorkers.size() == 1
+                && STATUSSYSTEM3.availableWorkers.size() == 1);
     Assert.assertEquals(2, statusSystem.excludedWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM1.excludedWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM2.excludedWorkers.size());
@@ -1219,7 +1375,12 @@ public class RatisMasterStatusSystemSuiteJ {
           userResourceConsumption3,
           getNewReqeustId());
 
-      Thread.sleep(3000L);
+      // Wait for the three registrations above to replicate before sending heartbeats.
+      awaitCondition(
+          () ->
+              STATUSSYSTEM1.workersMap.size() == 3
+                  && STATUSSYSTEM2.workersMap.size() == 3
+                  && STATUSSYSTEM3.workersMap.size() == 3);
 
       // worker2 and work3 are unhealthy
       statusSystem.handleWorkerHeartbeat(
@@ -1234,7 +1395,14 @@ public class RatisMasterStatusSystemSuiteJ {
           false,
           workerStatus,
           getNewReqeustId());
-      Thread.sleep(3000L);
+      awaitCondition(
+          () ->
+              STATUSSYSTEM1.excludedWorkers.size() == 1
+                  && STATUSSYSTEM2.excludedWorkers.size() == 1
+                  && STATUSSYSTEM3.excludedWorkers.size() == 1
+                  && STATUSSYSTEM1.availableWorkers.size() == 2
+                  && STATUSSYSTEM2.availableWorkers.size() == 2
+                  && STATUSSYSTEM3.availableWorkers.size() == 2);
       Assert.assertEquals(1, statusSystem.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
@@ -1256,7 +1424,14 @@ public class RatisMasterStatusSystemSuiteJ {
           false,
           workerStatus,
           getNewReqeustId());
-      Thread.sleep(3000L);
+      awaitCondition(
+          () ->
+              STATUSSYSTEM1.excludedWorkers.size() == 2
+                  && STATUSSYSTEM2.excludedWorkers.size() == 2
+                  && STATUSSYSTEM3.excludedWorkers.size() == 2
+                  && STATUSSYSTEM1.availableWorkers.size() == 1
+                  && STATUSSYSTEM2.availableWorkers.size() == 1
+                  && STATUSSYSTEM3.availableWorkers.size() == 1);
       Assert.assertEquals(2, statusSystem.excludedWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM1.excludedWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM2.excludedWorkers.size());
@@ -1279,7 +1454,14 @@ public class RatisMasterStatusSystemSuiteJ {
           false,
           workerStatus,
           getNewReqeustId());
-      Thread.sleep(3000L);
+      awaitCondition(
+          () ->
+              STATUSSYSTEM1.excludedWorkers.size() == 1
+                  && STATUSSYSTEM2.excludedWorkers.size() == 1
+                  && STATUSSYSTEM3.excludedWorkers.size() == 1
+                  && STATUSSYSTEM1.availableWorkers.size() == 2
+                  && STATUSSYSTEM2.availableWorkers.size() == 2
+                  && STATUSSYSTEM3.availableWorkers.size() == 2);
       Assert.assertEquals(1, statusSystem.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
@@ -1301,7 +1483,14 @@ public class RatisMasterStatusSystemSuiteJ {
           false,
           workerStatus,
           getNewReqeustId());
-      Thread.sleep(3000L);
+      awaitCondition(
+          () ->
+              STATUSSYSTEM1.excludedWorkers.isEmpty()
+                  && STATUSSYSTEM2.excludedWorkers.isEmpty()
+                  && STATUSSYSTEM3.excludedWorkers.isEmpty()
+                  && STATUSSYSTEM1.availableWorkers.size() == 3
+                  && STATUSSYSTEM2.availableWorkers.size() == 3
+                  && STATUSSYSTEM3.availableWorkers.size() == 3);
       Assert.assertEquals(0, statusSystem.excludedWorkers.size());
       Assert.assertEquals(0, STATUSSYSTEM1.excludedWorkers.size());
       Assert.assertEquals(0, STATUSSYSTEM2.excludedWorkers.size());
@@ -1323,7 +1512,14 @@ public class RatisMasterStatusSystemSuiteJ {
           true,
           workerStatus,
           getNewReqeustId());
-      Thread.sleep(3000L);
+      awaitCondition(
+          () ->
+              STATUSSYSTEM1.excludedWorkers.size() == 1
+                  && STATUSSYSTEM2.excludedWorkers.size() == 1
+                  && STATUSSYSTEM3.excludedWorkers.size() == 1
+                  && STATUSSYSTEM1.availableWorkers.size() == 2
+                  && STATUSSYSTEM2.availableWorkers.size() == 2
+                  && STATUSSYSTEM3.availableWorkers.size() == 2);
       Assert.assertEquals(1, statusSystem.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
@@ -1345,7 +1541,14 @@ public class RatisMasterStatusSystemSuiteJ {
           true,
           workerStatus,
           getNewReqeustId());
-      Thread.sleep(3000L);
+      awaitCondition(
+          () ->
+              STATUSSYSTEM1.excludedWorkers.isEmpty()
+                  && STATUSSYSTEM2.excludedWorkers.isEmpty()
+                  && STATUSSYSTEM3.excludedWorkers.isEmpty()
+                  && STATUSSYSTEM1.availableWorkers.size() == 3
+                  && STATUSSYSTEM2.availableWorkers.size() == 3
+                  && STATUSSYSTEM3.availableWorkers.size() == 3);
       // release 2 workers with high workload
       Assert.assertEquals(0, statusSystem.excludedWorkers.size());
       Assert.assertEquals(0, STATUSSYSTEM1.excludedWorkers.size());
@@ -1369,7 +1572,14 @@ public class RatisMasterStatusSystemSuiteJ {
           true,
           workerStatus,
           getNewReqeustId());
-      Thread.sleep(3000L);
+      awaitCondition(
+          () ->
+              STATUSSYSTEM1.excludedWorkers.size() == 1
+                  && STATUSSYSTEM2.excludedWorkers.size() == 1
+                  && STATUSSYSTEM3.excludedWorkers.size() == 1
+                  && STATUSSYSTEM1.availableWorkers.size() == 2
+                  && STATUSSYSTEM2.availableWorkers.size() == 2
+                  && STATUSSYSTEM3.availableWorkers.size() == 2);
       Assert.assertEquals(1, statusSystem.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM2.excludedWorkers.size());
@@ -1391,7 +1601,14 @@ public class RatisMasterStatusSystemSuiteJ {
           false,
           workerStatus,
           getNewReqeustId());
-      Thread.sleep(3000L);
+      awaitCondition(
+          () ->
+              STATUSSYSTEM1.excludedWorkers.size() == 1
+                  && STATUSSYSTEM2.excludedWorkers.size() == 1
+                  && STATUSSYSTEM3.excludedWorkers.size() == 1
+                  && STATUSSYSTEM1.availableWorkers.size() == 2
+                  && STATUSSYSTEM2.availableWorkers.size() == 2
+                  && STATUSSYSTEM3.availableWorkers.size() == 2);
       // release worker2
       Assert.assertEquals(1, statusSystem.excludedWorkers.size());
       Assert.assertEquals(1, STATUSSYSTEM1.excludedWorkers.size());
@@ -1414,7 +1631,14 @@ public class RatisMasterStatusSystemSuiteJ {
           true,
           workerStatus,
           getNewReqeustId());
-      Thread.sleep(3000L);
+      awaitCondition(
+          () ->
+              STATUSSYSTEM1.excludedWorkers.size() == 2
+                  && STATUSSYSTEM2.excludedWorkers.size() == 2
+                  && STATUSSYSTEM3.excludedWorkers.size() == 2
+                  && STATUSSYSTEM1.availableWorkers.size() == 1
+                  && STATUSSYSTEM2.availableWorkers.size() == 1
+                  && STATUSSYSTEM3.availableWorkers.size() == 1);
       Assert.assertEquals(2, statusSystem.excludedWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM1.excludedWorkers.size());
       Assert.assertEquals(2, STATUSSYSTEM2.excludedWorkers.size());
@@ -1567,7 +1791,17 @@ public class RatisMasterStatusSystemSuiteJ {
             userResourceConsumption1));
 
     statusSystem.handleReportWorkerUnavailable(failedWorkers, getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.shutdownWorkers.size() == 1
+                && STATUSSYSTEM2.shutdownWorkers.size() == 1
+                && STATUSSYSTEM3.shutdownWorkers.size() == 1
+                && STATUSSYSTEM1.excludedWorkers.isEmpty()
+                && STATUSSYSTEM2.excludedWorkers.isEmpty()
+                && STATUSSYSTEM3.excludedWorkers.isEmpty()
+                && STATUSSYSTEM1.availableWorkers.size() == 2
+                && STATUSSYSTEM2.availableWorkers.size() == 2
+                && STATUSSYSTEM3.availableWorkers.size() == 2);
     Assert.assertEquals(1, STATUSSYSTEM1.shutdownWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM2.shutdownWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM3.shutdownWorkers.size());
@@ -1636,7 +1870,18 @@ public class RatisMasterStatusSystemSuiteJ {
         HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, getNewReqeustId());
     statusSystem.handleReportWorkerUnavailable(unavailableWorkers, getNewReqeustId());
 
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.workersMap.size() == 2
+                && STATUSSYSTEM1.shutdownWorkers.size() == 1
+                && STATUSSYSTEM2.shutdownWorkers.size() == 1
+                && STATUSSYSTEM3.shutdownWorkers.size() == 1
+                && STATUSSYSTEM1.lostWorkers.size() == 1
+                && STATUSSYSTEM2.lostWorkers.size() == 1
+                && STATUSSYSTEM3.lostWorkers.size() == 1
+                && STATUSSYSTEM1.availableWorkers.size() == 2
+                && STATUSSYSTEM2.availableWorkers.size() == 2
+                && STATUSSYSTEM3.availableWorkers.size() == 2);
     Assert.assertEquals(2, STATUSSYSTEM1.workersMap.size());
 
     Assert.assertEquals(1, STATUSSYSTEM1.shutdownWorkers.size());
@@ -1652,7 +1897,17 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
 
     statusSystem.handleRemoveWorkersUnavailableInfo(unavailableWorkers, getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.shutdownWorkers.isEmpty()
+                && STATUSSYSTEM2.shutdownWorkers.isEmpty()
+                && STATUSSYSTEM3.shutdownWorkers.isEmpty()
+                && STATUSSYSTEM1.lostWorkers.isEmpty()
+                && STATUSSYSTEM2.lostWorkers.isEmpty()
+                && STATUSSYSTEM3.lostWorkers.isEmpty()
+                && STATUSSYSTEM1.availableWorkers.size() == 2
+                && STATUSSYSTEM2.availableWorkers.size() == 2
+                && STATUSSYSTEM3.availableWorkers.size() == 2);
 
     Assert.assertEquals(0, STATUSSYSTEM1.shutdownWorkers.size());
     Assert.assertEquals(0, STATUSSYSTEM2.shutdownWorkers.size());
@@ -1759,7 +2014,14 @@ public class RatisMasterStatusSystemSuiteJ {
         Lists.newArrayList(workerInfo1, workerInfo2),
         getNewReqeustId());
 
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.workerEventInfos.size() == 2
+                && STATUSSYSTEM2.workerEventInfos.size() == 2
+                && STATUSSYSTEM3.workerEventInfos.size() == 2
+                && STATUSSYSTEM1.availableWorkers.size() == 1
+                && STATUSSYSTEM2.availableWorkers.size() == 1
+                && STATUSSYSTEM3.availableWorkers.size() == 1);
     Assert.assertEquals(2, STATUSSYSTEM1.workerEventInfos.size());
     Assert.assertEquals(2, STATUSSYSTEM2.workerEventInfos.size());
     Assert.assertEquals(2, STATUSSYSTEM3.workerEventInfos.size());
@@ -1779,7 +2041,14 @@ public class RatisMasterStatusSystemSuiteJ {
         ResourceProtos.WorkerEventType.None_VALUE,
         Lists.newArrayList(workerInfo1),
         getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.workerEventInfos.size() == 1
+                && STATUSSYSTEM2.workerEventInfos.size() == 1
+                && STATUSSYSTEM3.workerEventInfos.size() == 1
+                && STATUSSYSTEM1.availableWorkers.size() == 2
+                && STATUSSYSTEM2.availableWorkers.size() == 2
+                && STATUSSYSTEM3.availableWorkers.size() == 2);
     Assert.assertEquals(1, STATUSSYSTEM1.workerEventInfos.size());
     Assert.assertEquals(1, STATUSSYSTEM2.workerEventInfos.size());
     Assert.assertEquals(1, STATUSSYSTEM3.workerEventInfos.size());
@@ -1843,7 +2112,14 @@ public class RatisMasterStatusSystemSuiteJ {
         Lists.newArrayList(workerInfo1, workerInfo2),
         getNewReqeustId());
 
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.workerEventInfos.size() == 2
+                && STATUSSYSTEM2.workerEventInfos.size() == 2
+                && STATUSSYSTEM3.workerEventInfos.size() == 2
+                && STATUSSYSTEM1.availableWorkers.size() == 1
+                && STATUSSYSTEM2.availableWorkers.size() == 1
+                && STATUSSYSTEM3.availableWorkers.size() == 1);
     Assert.assertEquals(2, STATUSSYSTEM1.workerEventInfos.size());
     Assert.assertEquals(2, STATUSSYSTEM2.workerEventInfos.size());
     Assert.assertEquals(2, STATUSSYSTEM3.workerEventInfos.size());
@@ -1861,7 +2137,14 @@ public class RatisMasterStatusSystemSuiteJ {
 
     statusSystem.handleWorkerEvent(
         WorkerEventType.None_VALUE, Lists.newArrayList(workerInfo1), getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.workerEventInfos.size() == 1
+                && STATUSSYSTEM2.workerEventInfos.size() == 1
+                && STATUSSYSTEM3.workerEventInfos.size() == 1
+                && STATUSSYSTEM1.availableWorkers.size() == 2
+                && STATUSSYSTEM2.availableWorkers.size() == 2
+                && STATUSSYSTEM3.availableWorkers.size() == 2);
     Assert.assertEquals(1, STATUSSYSTEM1.workerEventInfos.size());
     Assert.assertEquals(1, STATUSSYSTEM2.workerEventInfos.size());
     Assert.assertEquals(1, STATUSSYSTEM3.workerEventInfos.size());
@@ -1880,7 +2163,11 @@ public class RatisMasterStatusSystemSuiteJ {
 
     statusSystem.handleReviseLostShuffles(
         "app-1", Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8), getNewReqeustId());
-    Thread.sleep(1000l);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.registeredShuffleCount() == 8
+                && STATUSSYSTEM2.registeredShuffleCount() == 8
+                && STATUSSYSTEM3.registeredShuffleCount() == 8);
     Assert.assertEquals(STATUSSYSTEM1.registeredShuffleCount(), 8);
     Assert.assertEquals(STATUSSYSTEM2.registeredShuffleCount(), 8);
     Assert.assertEquals(STATUSSYSTEM3.registeredShuffleCount(), 8);
@@ -2012,7 +2299,17 @@ public class RatisMasterStatusSystemSuiteJ {
             userResourceConsumption1));
 
     statusSystem.handleReportWorkerDecommission(workers, getNewReqeustId());
-    Thread.sleep(3000L);
+    awaitCondition(
+        () ->
+            STATUSSYSTEM1.decommissionWorkers.size() == 1
+                && STATUSSYSTEM2.decommissionWorkers.size() == 1
+                && STATUSSYSTEM3.decommissionWorkers.size() == 1
+                && STATUSSYSTEM1.excludedWorkers.isEmpty()
+                && STATUSSYSTEM2.excludedWorkers.isEmpty()
+                && STATUSSYSTEM3.excludedWorkers.isEmpty()
+                && STATUSSYSTEM1.availableWorkers.size() == 2
+                && STATUSSYSTEM2.availableWorkers.size() == 2
+                && STATUSSYSTEM3.availableWorkers.size() == 2);
     Assert.assertEquals(1, STATUSSYSTEM1.decommissionWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM2.decommissionWorkers.size());
     Assert.assertEquals(1, STATUSSYSTEM3.decommissionWorkers.size());
