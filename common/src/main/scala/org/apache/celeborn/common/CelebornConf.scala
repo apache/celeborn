@@ -815,6 +815,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterRatisSnapshotAutoTriggerThreshold: Long =
     get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_THRESHOLD)
   def haMasterRatisSnapshotRetentionFileNum: Int = get(HA_MASTER_RATIS_SNAPSHOT_RETENTION_FILE_NUM)
+  def masterHaHeartbeatBatchEnabled: Boolean = get(MASTER_HA_HEARTBEAT_BATCH_ENABLED)
+  def masterHaHeartbeatBatchIntervalMs: Long = get(MASTER_HA_HEARTBEAT_BATCH_INTERVAL)
 
   def masterPersistWorkerNetworkLocation: Boolean = get(MASTER_PERSIST_WORKER_NETWORK_LOCATION)
   def haRatisCustomConfigs: JMap[String, String] = {
@@ -3085,6 +3087,30 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .intConf
       .createWithDefault(3)
+
+  val MASTER_HA_HEARTBEAT_BATCH_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.master.ha.heartbeat.batch.enabled")
+      .categories("ha")
+      .version("1.0.0")
+      .doc(
+        "Whether to aggregate worker/app heartbeats on the raft leader and flush them " +
+          "periodically as a single BatchHeartbeat raft log entry, reducing raft log entries, " +
+          "fsyncs and state machine applies by roughly the number of heartbeats per flush window.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val MASTER_HA_HEARTBEAT_BATCH_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.master.ha.heartbeat.batch.interval")
+      .categories("ha")
+      .version("1.0.0")
+      .doc(
+        "The interval at which aggregated heartbeats are flushed as a single raft log entry. " +
+          "Heartbeat replies do not wait for raft replication when batching is enabled, so a " +
+          "larger interval only means the leader may lose at most one interval of heartbeat " +
+          "metadata on failover, which is negligible compared to the worker/app heartbeat " +
+          "timeouts (120s/300s by default).")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1s")
 
   val MASTER_PERSIST_WORKER_NETWORK_LOCATION: ConfigEntry[Boolean] =
     buildConf("celeborn.master.persist.workerNetworkLocation")

@@ -1620,6 +1620,15 @@ private[celeborn] class Master(
       val transferLeadership = conf.haMasterGracefulShutdownEnabled
       statusSystem match {
         case ha: HAMasterMetaManager =>
+          val heartbeatAggregator = ha.getHeartbeatAggregator
+          if (heartbeatAggregator != null) {
+            try {
+              heartbeatAggregator.stop()
+            } catch {
+              case e: Exception =>
+                logError("Failed to stop heartbeat aggregator during Master shutdown.", e)
+            }
+          }
           val ratisServer = ha.getRatisServer
           if (ratisServer != null) {
             try {
