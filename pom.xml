@@ -481,6 +481,25 @@
             <groupId>org.jctools</groupId>
             <artifactId>jctools-core</artifactId>
           </exclusion>
+          <!-- Netty 4.2 merged the QUIC/HTTP3 stack into netty-all:
+               netty-codec-http3 -> netty-codec-classes-quic -> netty-codec-native-quic.
+               netty-codec-native-quic ships a libnetty_quiche42_* native library per
+               platform classifier (linux/osx/windows x86_64/aarch_64), ~29MB
+               uncompressed, which every *-shaded module pulls in via
+               <include>io.netty:*</include> in the shade config. Celeborn only uses
+               Netty TCP RPC and has no HTTP/3 code path, so exclude the whole trio. -->
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-http3</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-classes-quic</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-native-quic</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
