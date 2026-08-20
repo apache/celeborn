@@ -76,3 +76,5 @@ spark-warehouse/
 logs
 pids
 tmp/
+
+*.jar
