@@ -86,7 +86,7 @@ public final class MessageEncoder extends MessageToMessageEncoder<Message> {
     msgType.encode(header);
     header.writeInt(bodyLength);
     in.encode(header);
-    assert header.writableBytes() == 0;
+    assert header.writerIndex() == headerLength;
 
     if (body != null) {
       if (body instanceof FileRegion && in.body() instanceof FileSegmentManagedBuffer) {
