@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -349,6 +350,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       String networkLocation,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      Set<String> tags,
       String requestId) {
     try {
       ratisServer.submitRequest(
@@ -365,6 +367,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setInternalPort(internalPort)
                       .setNetworkLocation(networkLocation)
                       .putAllDisks(MetaUtil.toPbDiskInfos(disks))
+                      .addAllTags(tags)
                       .build())
               .build());
       updateWorkerResourceConsumptions(

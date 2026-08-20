@@ -182,6 +182,7 @@ message RegisterWorkerRequest {
   map<string, ResourceConsumption> userResourceConsumption = 7;
   int32 internalPort = 8;
   optional string networkLocation = 9;
+  repeated string tags = 10;
 }
 
 message ReportWorkerUnavailableRequest {
