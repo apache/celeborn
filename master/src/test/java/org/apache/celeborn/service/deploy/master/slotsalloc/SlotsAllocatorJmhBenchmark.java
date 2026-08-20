@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.master;
+package org.apache.celeborn.service.deploy.master.slotsalloc;
 
-import static org.apache.celeborn.service.deploy.master.SlotsAllocatorSuiteJ.*;
+import static org.apache.celeborn.service.deploy.master.slotsalloc.SlotsAllocatorSuiteJ.*;
 import static org.openjdk.jmh.annotations.Mode.*;
 
 import java.util.Collections;
@@ -44,6 +44,8 @@ public class SlotsAllocatorJmhBenchmark {
   private static final boolean HAS_DISKS = true;
   private static final int NUM_NETWORK_LOCATIONS = 20;
   private static final int NUM_PARTITIONS = 100000;
+  private static final SlotsAssignStrategy SLOTS_ASSIGN_STRATEGY =
+      new RoundRobinSlotsAssignStrategy();
 
   @State(Scope.Thread)
   public static class BenchmarkState {
@@ -78,14 +80,15 @@ public class SlotsAllocatorJmhBenchmark {
   public void benchmarkSlotSelection(Blackhole blackhole, BenchmarkState state) {
 
     blackhole.consume(
-        SlotsAllocator.offerSlotsRoundRobin(
+        SlotsAllocator.offerSlots(
             state.workers,
             state.partitionIds,
             true,
             true,
             StorageInfo.ALL_TYPES_AVAILABLE_MASK,
             false,
-            0));
+            0,
+            SLOTS_ASSIGN_STRATEGY));
   }
 
   public static void main(String[] args) throws Exception {

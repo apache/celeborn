@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.master;
+package org.apache.celeborn.service.deploy.master.slotsalloc;
 
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY;
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.NET_TOPOLOGY_TABLE_MAPPING_FILE_KEY;
@@ -51,6 +51,8 @@ public class SlotsAllocatorRackAwareSuiteJ {
 
   private static final int NUM_ATTEMPTS =
       Integer.getInteger("SlotsAllocatorRackAwareSuiteJ.NUM_ATTEMPTS", 100);
+  private static final SlotsAssignStrategy SLOTS_ASSIGN_STRATEGY =
+      new RoundRobinSlotsAssignStrategy();
 
   @Test
   public void offerSlotsRoundRobinWithRackAware() throws IOException {
@@ -80,8 +82,15 @@ public class SlotsAllocatorRackAwareSuiteJ {
     List<WorkerInfo> workers = prepareWorkers(resolver);
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        SlotsAllocator.offerSlotsRoundRobin(
-            workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK, false, 0);
+        SlotsAllocator.offerSlots(
+            workers,
+            partitionIds,
+            true,
+            true,
+            StorageInfo.ALL_TYPES_AVAILABLE_MASK,
+            false,
+            0,
+            SLOTS_ASSIGN_STRATEGY);
 
     Consumer<PartitionLocation> assertCustomer =
         new Consumer<PartitionLocation>() {
@@ -120,8 +129,15 @@ public class SlotsAllocatorRackAwareSuiteJ {
     List<WorkerInfo> workers = prepareWorkers(resolver);
 
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        SlotsAllocator.offerSlotsRoundRobin(
-            workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK, false, 0);
+        SlotsAllocator.offerSlots(
+            workers,
+            partitionIds,
+            true,
+            true,
+            StorageInfo.ALL_TYPES_AVAILABLE_MASK,
+            false,
+            0,
+            SLOTS_ASSIGN_STRATEGY);
 
     Consumer<PartitionLocation> assertConsumer =
         new Consumer<PartitionLocation>() {
@@ -207,8 +223,15 @@ public class SlotsAllocatorRackAwareSuiteJ {
           IntStream.range(0, numPartitions).boxed().collect(Collectors.toList());
 
       Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-          SlotsAllocator.offerSlotsRoundRobin(
-              workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK, false, 0);
+          SlotsAllocator.offerSlots(
+              workers,
+              partitionIds,
+              true,
+              true,
+              StorageInfo.ALL_TYPES_AVAILABLE_MASK,
+              false,
+              0,
+              SLOTS_ASSIGN_STRATEGY);
 
       Map<String, Long> numReplicaPerHost =
           slots.entrySet().stream()
@@ -245,8 +268,15 @@ public class SlotsAllocatorRackAwareSuiteJ {
         List<WorkerInfo> workers = test.generateWorkers();
 
         Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-            SlotsAllocator.offerSlotsRoundRobin(
-                workers, partitionIds, true, true, StorageInfo.ALL_TYPES_AVAILABLE_MASK, false, 0);
+            SlotsAllocator.offerSlots(
+                workers,
+                partitionIds,
+                true,
+                true,
+                StorageInfo.ALL_TYPES_AVAILABLE_MASK,
+                false,
+                0,
+                SLOTS_ASSIGN_STRATEGY);
 
         Map<String, Long> numReplicaPerHost =
             slots.entrySet().stream()

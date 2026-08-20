@@ -656,6 +656,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   //                      Master                         //
   // //////////////////////////////////////////////////////
+  def masterSlotAssignPolicyName: String = get(MASTER_SLOT_ASSIGN_POLICY)
+
+  /** Returns the configured built-in policy. Use `masterSlotAssignPolicyName` for SPI providers. */
+  @deprecated("Use masterSlotAssignPolicyName for SPI provider selection", "0.7.0")
   def masterSlotAssignPolicy: SlotsAssignPolicy =
     SlotsAssignPolicy.valueOf(get(MASTER_SLOT_ASSIGN_POLICY))
 
@@ -3098,13 +3102,12 @@ object CelebornConf extends Logging {
       .withAlternative("celeborn.slots.assign.policy")
       .categories("master")
       .version("0.3.0")
-      .doc("Policy for master to assign slots, Celeborn supports two types of policy: roundrobin and loadaware. " +
+      .doc("Policy for master to assign slots. Built-in policies are roundrobin and loadaware. " +
+        "Additional policies can be registered through the SlotsAssignStrategyProvider SPI. " +
         "Loadaware policy will be ignored when `HDFS` is enabled in `celeborn.storage.availableTypes`")
+      .dynamic
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
-      .checkValues(Set(
-        SlotsAssignPolicy.ROUNDROBIN.name,
-        SlotsAssignPolicy.LOADAWARE.name))
       .createWithDefault(SlotsAssignPolicy.ROUNDROBIN.name)
 
   val MASTER_SLOT_ASSIGN_INTERRUPTION_AWARE: ConfigEntry[Boolean] =
@@ -3132,8 +3135,10 @@ object CelebornConf extends Logging {
       .categories("master")
       .doc("This configuration is a guidance for load-aware slot allocation algorithm. " +
         "This value is control how many disk groups will be created.")
+      .dynamic
       .version("0.3.0")
       .intConf
+      .checkValue(_ > 0, "Value must be positive")
       .createWithDefault(5)
 
   val MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT: ConfigEntry[Double] =
@@ -3142,8 +3147,12 @@ object CelebornConf extends Logging {
       .categories("master")
       .doc("This value means how many more workload will be placed into a faster disk group " +
         "than a slower group.")
+      .dynamic
       .version("0.3.0")
       .doubleConf
+      .checkValue(
+        value => java.lang.Double.isFinite(value) && value >= 0.0,
+        "Value must be finite and non-negative")
       .createWithDefault(0.1)
 
   val MASTER_SLOT_ASSIGN_LOADAWARE_FLUSHTIME_WEIGHT: ConfigEntry[Double] =
@@ -3152,8 +3161,12 @@ object CelebornConf extends Logging {
       .categories("master")
       .doc(
         "Weight of average flush time when calculating ordering in load-aware assignment strategy")
+      .dynamic
       .version("0.3.0")
       .doubleConf
+      .checkValue(
+        value => java.lang.Double.isFinite(value) && value >= 0.0,
+        "Value must be finite and non-negative")
       .createWithDefault(0)
 
   val MASTER_SLOT_ASSIGN_LOADAWARE_FETCHTIME_WEIGHT: ConfigEntry[Double] =
@@ -3162,8 +3175,12 @@ object CelebornConf extends Logging {
       .categories("master")
       .doc(
         "Weight of average fetch time when calculating ordering in load-aware assignment strategy")
+      .dynamic
       .version("0.3.0")
       .doubleConf
+      .checkValue(
+        value => java.lang.Double.isFinite(value) && value >= 0.0,
+        "Value must be finite and non-negative")
       .createWithDefault(1)
 
   val MASTER_SLOT_ASSIGN_LOADAWARE_ACTIVE_SLOTS_WEIGHT: ConfigEntry[Double] =
@@ -3171,8 +3188,12 @@ object CelebornConf extends Logging {
       .categories("master")
       .doc(
         "Weight of active slots when calculating ordering in load-aware assignment strategy")
+      .dynamic
       .version("0.7.0")
       .doubleConf
+      .checkValue(
+        value => java.lang.Double.isFinite(value) && value >= 0.0,
+        "Value must be finite and non-negative")
       .createWithDefault(0)
 
   val MASTER_SLOT_ASSIGN_EXTRA_SLOTS: ConfigEntry[Int] =

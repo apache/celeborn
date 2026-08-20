@@ -57,6 +57,7 @@ import org.apache.celeborn.service.deploy.master.audit.ShuffleAuditLogger
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 import org.apache.celeborn.service.deploy.master.quota.QuotaManager
+import org.apache.celeborn.service.deploy.master.slotsalloc.{SlotsAllocator, SlotsAssignStrategyManager}
 import org.apache.celeborn.service.deploy.master.tags.TagsManager
 
 private[celeborn] class Master(
@@ -207,12 +208,8 @@ private[celeborn] class Master(
   private val slotsAssignMaxWorkers = conf.masterSlotAssignMaxWorkers
   private val slotsAssignMinWorkers = conf.masterSlotAssignMinWorkers
   private val slotsAssignExtraSlots = conf.masterSlotAssignExtraSlots
-  private val slotsAssignLoadAwareDiskGroupNum = conf.masterSlotAssignLoadAwareDiskGroupNum
-  private val slotsAssignLoadAwareDiskGroupGradient =
-    conf.masterSlotAssignLoadAwareDiskGroupGradient
-  private val loadAwareFlushTimeWeight = conf.masterSlotAssignLoadAwareFlushTimeWeight
-  private val loadAwareFetchTimeWeight = conf.masterSlotAssignLoadAwareFetchTimeWeight
-  private val loadAwareActiveSlotsWeight = conf.masterSlotAssignLoadAwareActiveSlotsWeight
+  private val slotsAssignStrategyManager =
+    new SlotsAssignStrategyManager(conf, configService)
 
   private val estimatedPartitionSizeUpdaterInitialDelay =
     conf.estimatedPartitionSizeUpdaterInitialDelay
@@ -233,7 +230,6 @@ private[celeborn] class Master(
     estimatedPartitionSizeUpdaterInitialDelay,
     estimatedPartitionSizeForEstimationUpdateInterval,
     TimeUnit.MILLISECONDS)
-  private val slotsAssignPolicy = conf.masterSlotAssignPolicy
   private val slotsAssignInterruptionAware = conf.masterSlotAssignInterruptionAware
   private val slotsAssignInterruptionAwareThreshold =
     conf.masterSlotsAssignInterruptionAwareThreshold
@@ -977,30 +973,15 @@ private[celeborn] class Master(
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
         statusSystem.workersMap.synchronized {
-          if (slotsAssignPolicy == SlotsAssignPolicy.LOADAWARE) {
-            SlotsAllocator.offerSlotsLoadAware(
-              selectedWorkers,
-              requestSlots.partitionIdList,
-              requestSlots.shouldReplicate,
-              requestSlots.shouldRackAware,
-              slotsAssignLoadAwareDiskGroupNum,
-              slotsAssignLoadAwareDiskGroupGradient,
-              loadAwareFlushTimeWeight,
-              loadAwareFetchTimeWeight,
-              loadAwareActiveSlotsWeight,
-              requestSlots.availableStorageTypes,
-              slotsAssignInterruptionAware,
-              slotsAssignInterruptionAwareThreshold)
-          } else {
-            SlotsAllocator.offerSlotsRoundRobin(
-              selectedWorkers,
-              requestSlots.partitionIdList,
-              requestSlots.shouldReplicate,
-              requestSlots.shouldRackAware,
-              requestSlots.availableStorageTypes,
-              slotsAssignInterruptionAware,
-              slotsAssignInterruptionAwareThreshold)
-          }
+          SlotsAllocator.offerSlots(
+            selectedWorkers,
+            requestSlots.partitionIdList,
+            requestSlots.shouldReplicate,
+            requestSlots.shouldRackAware,
+            requestSlots.availableStorageTypes,
+            slotsAssignInterruptionAware,
+            slotsAssignInterruptionAwareThreshold,
+            slotsAssignStrategyManager.getStrategy)
         }
       }
 

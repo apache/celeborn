@@ -76,6 +76,41 @@ Roundrobin slots allocation will distribute all slots into all registered worker
 all workers as an array and place 1 slots in a worker until all slots are allocated. 
 If a worker has multiple disks, the chosen disk index is `(monotone increasing disk index +1)  % disk count`.  
 
+## Custom strategies
+
+Custom slot assignment strategies are loaded through Java's service provider interface (SPI).
+Implement `SlotsAssignStrategy` for the allocation algorithm and `SlotsAssignStrategyProvider`
+to give it a configuration name and create it from `CelebornConf`. The provider must have a public
+no-argument constructor and must be listed in
+`META-INF/services/org.apache.celeborn.service.deploy.master.slotsalloc.SlotsAssignStrategyProvider`
+inside a JAR on the master class path. Set `celeborn.master.slot.assign.policy` to the provider name;
+provider names are matched case-insensitively.
+
+This SPI exposes Celeborn Master's slot-allocation model and is therefore version-coupled to the
+Master rather than being a cross-version plugin API. Compile the provider against the same
+`celeborn-master_<scala.binary.version>` artifact and Celeborn version used by the target cluster,
+and rebuild the provider when either version changes.
+
+Custom providers read arbitrary namespaced keys directly from the `CelebornConf` supplied to
+`create`. For example, a provider can read
+`celeborn.master.slot.assign.acme.maxSlotsPerDisk` with `conf.getLong(key, defaultValue)`. The same
+key can be set either in Celeborn's static configuration or at `SYSTEM` level in the dynamic
+configuration service. Dynamic values take precedence over static values.
+
+After a system-level dynamic configuration update, the Master creates a new `CelebornConf`
+snapshot and calls the selected provider's `create` method again. Once creation succeeds, the new
+strategy atomically replaces the old one. If configuration validation fails, the Master logs the
+failure and keeps using the last valid strategy. The provider itself can also be changed at runtime
+by updating `celeborn.master.slot.assign.policy` at `SYSTEM` level.
+
+The manager does not retry an unchanged system-level configuration snapshot. If provider creation
+fails, subsequent refreshes with the same snapshot are ignored while the last valid strategy
+remains active. Changing the dynamic configuration triggers another creation attempt.
+
+Providers should validate and capture their configuration in `create`, then return a strategy with
+fixed configuration. `computeSlotBudgets` should not read configuration or perform configuration
+I/O.
+
 ## Celeborn Worker's Behavior
 1. When reserve slots Celeborn worker will decide a slot be placed in local disks or HDFS when reserve slots.
 2. If a partition is evicted from memory, the partition might be placed in HDFS.

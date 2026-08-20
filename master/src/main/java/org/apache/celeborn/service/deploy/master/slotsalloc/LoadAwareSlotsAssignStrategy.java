@@ -1,0 +1,262 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.celeborn.service.deploy.master.slotsalloc;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.apache.celeborn.common.meta.DiskInfo;
+import org.apache.celeborn.common.meta.DiskStatus;
+import org.apache.celeborn.common.meta.WorkerInfo;
+import org.apache.celeborn.common.protocol.StorageInfo;
+
+public class LoadAwareSlotsAssignStrategy implements SlotsAssignStrategy {
+
+  private static final Logger logger = LoggerFactory.getLogger(LoadAwareSlotsAssignStrategy.class);
+
+  private final int diskGroupCount;
+  private final double flushTimeWeight;
+  private final double fetchTimeWeight;
+  private final double activeSlotsWeight;
+  private final double[] taskAllocationRatio;
+  private final RoundRobinSlotsAssignStrategy fallback = new RoundRobinSlotsAssignStrategy();
+
+  public LoadAwareSlotsAssignStrategy(
+      int diskGroupCount,
+      double diskGroupGradient,
+      double flushTimeWeight,
+      double fetchTimeWeight,
+      double activeSlotsWeight) {
+    this.diskGroupCount = diskGroupCount;
+    this.flushTimeWeight = flushTimeWeight;
+    this.fetchTimeWeight = fetchTimeWeight;
+    this.activeSlotsWeight = activeSlotsWeight;
+    this.taskAllocationRatio = computeTaskAllocationRatio(diskGroupCount, diskGroupGradient);
+  }
+
+  @Override
+  public Map<WorkerInfo, List<UsableDiskInfo>> computeSlotBudgets(
+      List<WorkerInfo> workers,
+      List<Integer> partitionIds,
+      boolean shouldReplicate,
+      int availableStorageTypes) {
+    if (StorageInfo.HDFSOnly(availableStorageTypes)
+        || StorageInfo.S3Only(availableStorageTypes)
+        || StorageInfo.OSSOnly(availableStorageTypes)) {
+      return fallback.computeSlotBudgets(
+          workers, partitionIds, shouldReplicate, availableStorageTypes);
+    }
+
+    List<DiskInfo> usableDisks = new ArrayList<>();
+    Map<DiskInfo, WorkerInfo> diskToWorkerMap = new HashMap<>();
+
+    workers.forEach(
+        i ->
+            i.diskInfos()
+                .forEach(
+                    (key, diskInfo) -> {
+                      diskToWorkerMap.put(diskInfo, i);
+                      if (diskInfo.actualUsableSpace() > 0
+                          && diskInfo.status().equals(DiskStatus.HEALTHY)
+                          && !diskInfo.storageType().isDFS()) {
+                        usableDisks.add(diskInfo);
+                      }
+                    }));
+
+    boolean noUsableDisks =
+        usableDisks.isEmpty()
+            || (shouldReplicate
+                && (usableDisks.size() == 1
+                    || usableDisks.stream().map(diskToWorkerMap::get).distinct().count() <= 1));
+    boolean noAvailableSlots =
+        usableDisks.stream().mapToLong(DiskInfo::getAvailableSlots).sum() <= 0;
+
+    if (noUsableDisks || noAvailableSlots) {
+      logger.warn(
+          "offer slots for {} fallback to roundrobin because there is no {}",
+          StringUtils.join(partitionIds, ','),
+          noUsableDisks ? "usable disks" : "available slots");
+      return fallback.computeSlotBudgets(
+          workers, partitionIds, shouldReplicate, availableStorageTypes);
+    }
+
+    List<List<DiskInfo>> groups =
+        placeDisksToGroups(
+            usableDisks, diskGroupCount, flushTimeWeight, fetchTimeWeight, activeSlotsWeight);
+    int partitionCnt = shouldReplicate ? partitionIds.size() * 2 : partitionIds.size();
+    int groupSize = groups.size();
+    long[] groupAllocations = new long[groupSize];
+    Map<WorkerInfo, List<UsableDiskInfo>> budgets = new HashMap<>();
+    long[] groupAvailableSlots = new long[groupSize];
+    for (int i = 0; i < groupSize; i++) {
+      for (DiskInfo disk : groups.get(i)) {
+        groupAvailableSlots[i] += disk.getAvailableSlots();
+      }
+    }
+    double[] currentAllocation = new double[groupSize];
+    double currentAllocationSum = 0;
+    for (int i = 0; i < groupSize; i++) {
+      if (!groups.get(i).isEmpty()) {
+        currentAllocationSum += taskAllocationRatio[i];
+      }
+    }
+    for (int i = 0; i < groupSize; i++) {
+      if (!groups.get(i).isEmpty()) {
+        currentAllocation[i] = taskAllocationRatio[i] / currentAllocationSum;
+      }
+    }
+    long toNextGroup = 0;
+    long left = partitionCnt;
+    for (int i = 0; i < groupSize; i++) {
+      if (left <= 0) {
+        break;
+      }
+      long estimateAllocation = (int) Math.ceil(partitionCnt * currentAllocation[i]);
+      if (estimateAllocation > left) {
+        estimateAllocation = left;
+      }
+      if (estimateAllocation + toNextGroup > groupAvailableSlots[i]) {
+        groupAllocations[i] = groupAvailableSlots[i];
+        toNextGroup = estimateAllocation - groupAvailableSlots[i] + toNextGroup;
+      } else {
+        groupAllocations[i] = estimateAllocation + toNextGroup;
+      }
+      left -= groupAllocations[i];
+    }
+
+    long groupLeft = 0;
+    for (int i = 0; i < groups.size(); i++) {
+      int disksInsideGroup = groups.get(i).size();
+      long groupRequired = groupAllocations[i] + groupLeft;
+      for (DiskInfo disk : groups.get(i)) {
+        if (groupRequired <= 0) {
+          break;
+        }
+        List<UsableDiskInfo> diskAllocation =
+            budgets.computeIfAbsent(diskToWorkerMap.get(disk), v -> new ArrayList<>());
+        long allocated =
+            (int) Math.ceil((groupAllocations[i] + groupLeft) / (double) disksInsideGroup);
+        if (allocated > disk.getAvailableSlots()) {
+          allocated = disk.getAvailableSlots();
+        }
+        if (allocated > groupRequired) {
+          allocated = groupRequired;
+        }
+        diskAllocation.add(new UsableDiskInfo(disk, Math.toIntExact(allocated)));
+        groupRequired -= allocated;
+      }
+      groupLeft = groupRequired;
+    }
+
+    if (logger.isDebugEnabled()) {
+      StringBuilder sb = new StringBuilder();
+      for (int i = 0; i < groups.size(); i++) {
+        sb.append("| group ").append(i).append(" ");
+        for (DiskInfo diskInfo : groups.get(i)) {
+          WorkerInfo workerInfo = diskToWorkerMap.get(diskInfo);
+          String workerHost = workerInfo.host();
+          long allocation = 0;
+          if (budgets.get(workerInfo) != null) {
+            for (UsableDiskInfo usableInfo : budgets.get(workerInfo)) {
+              if (usableInfo.diskInfo.equals(diskInfo)) {
+                allocation = usableInfo.usableSlots;
+              }
+            }
+          }
+          sb.append(workerHost)
+              .append("-")
+              .append(diskInfo.mountPoint())
+              .append(" flushtime:")
+              .append(diskInfo.avgFlushTime())
+              .append(" fetchtime:")
+              .append(diskInfo.avgFetchTime())
+              .append(" allocation: ")
+              .append(allocation)
+              .append(" ");
+        }
+        sb.append(" | ");
+      }
+      logger.debug(
+          "total {} allocate with group {} with allocations {}",
+          partitionCnt,
+          StringUtils.join(groupAllocations, ','),
+          sb);
+    }
+    return budgets;
+  }
+
+  private static double[] computeTaskAllocationRatio(int diskGroups, double diskGroupGradient) {
+    double[] taskAllocationRatio = new double[diskGroups];
+    double totalAllocations = 0;
+
+    for (int i = 0; i < diskGroups; i++) {
+      totalAllocations += Math.pow(1 + diskGroupGradient, diskGroups - 1 - i);
+    }
+    for (int i = 0; i < diskGroups; i++) {
+      taskAllocationRatio[i] =
+          Math.pow(1 + diskGroupGradient, diskGroups - 1 - i) / totalAllocations;
+    }
+    logger.info(
+        "load-aware offer slots algorithm init with taskAllocationRatio {}",
+        StringUtils.join(taskAllocationRatio, ','));
+    return taskAllocationRatio;
+  }
+
+  private static List<List<DiskInfo>> placeDisksToGroups(
+      List<DiskInfo> usableDisks,
+      int diskGroupCount,
+      double flushTimeWeight,
+      double fetchTimeWeight,
+      double activeSlotsWeight) {
+    List<List<DiskInfo>> diskGroups = new ArrayList<>();
+    usableDisks.sort(
+        (o1, o2) -> {
+          double delta =
+              (o1.avgFlushTime() * flushTimeWeight + o1.avgFetchTime() * fetchTimeWeight)
+                  + o1.activeSlots() * activeSlotsWeight
+                  - (o2.avgFlushTime() * flushTimeWeight
+                      + o2.avgFetchTime() * fetchTimeWeight
+                      + o2.activeSlots() * activeSlotsWeight);
+          return delta < 0 ? -1 : (delta > 0 ? 1 : 0);
+        });
+    int diskCount = usableDisks.size();
+    int startIndex = 0;
+    int groupSizeSize = (int) Math.ceil(usableDisks.size() / (double) diskGroupCount);
+    for (int i = 0; i < diskGroupCount; i++) {
+      List<DiskInfo> diskList = new ArrayList<>();
+      if (startIndex >= usableDisks.size()) {
+        continue;
+      }
+      if (startIndex + groupSizeSize <= diskCount) {
+        diskList.addAll(usableDisks.subList(startIndex, startIndex + groupSizeSize));
+        startIndex += groupSizeSize;
+      } else {
+        diskList.addAll(usableDisks.subList(startIndex, usableDisks.size()));
+        startIndex = usableDisks.size();
+      }
+      diskGroups.add(diskList);
+    }
+    return diskGroups;
+  }
+}

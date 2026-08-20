@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.celeborn.service.deploy.master;
+package org.apache.celeborn.service.deploy.master.slotsalloc;
 
 import static org.junit.Assert.*;
 
@@ -161,19 +161,15 @@ public class SlotsAllocatorSuiteJ {
     lightlyReservedDisk.activeSlots_$eq(0);
 
     final Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
-        SlotsAllocator.offerSlotsLoadAware(
+        SlotsAllocator.offerSlots(
             workers,
             Collections.singletonList(0),
             false,
             false,
-            2,
-            1,
-            0,
-            0,
-            1,
             StorageInfo.ALL_TYPES_AVAILABLE_MASK,
             false,
-            0);
+            0,
+            new LoadAwareSlotsAssignStrategy(2, 1, 0, 0, 1));
 
     assertTrue(slots.containsKey(workers.get(1)));
     assertFalse(slots.containsKey(workers.get(0)));
@@ -199,33 +195,25 @@ public class SlotsAllocatorSuiteJ {
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_NUM().key(), "2");
     conf.set(CelebornConf.MASTER_SLOT_ASSIGN_LOADAWARE_DISKGROUP_GRADIENT().key(), "1");
-    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots;
-    if (roundrobin) {
-      slots =
-          SlotsAllocator.offerSlotsRoundRobin(
-              workers,
-              partitionIds,
-              shouldReplicate,
-              false,
-              StorageInfo.ALL_TYPES_AVAILABLE_MASK,
-              interruptionAware,
-              interruptionAwareThreshold);
-    } else {
-      slots =
-          SlotsAllocator.offerSlotsLoadAware(
-              workers,
-              partitionIds,
-              shouldReplicate,
-              false,
-              conf.masterSlotAssignLoadAwareDiskGroupNum(),
-              conf.masterSlotAssignLoadAwareDiskGroupGradient(),
-              conf.masterSlotAssignLoadAwareFlushTimeWeight(),
-              conf.masterSlotAssignLoadAwareFetchTimeWeight(),
-              conf.masterSlotAssignLoadAwareActiveSlotsWeight(),
-              StorageInfo.ALL_TYPES_AVAILABLE_MASK,
-              interruptionAware,
-              interruptionAwareThreshold);
-    }
+    SlotsAssignStrategy strategy =
+        roundrobin
+            ? new RoundRobinSlotsAssignStrategy()
+            : new LoadAwareSlotsAssignStrategy(
+                conf.masterSlotAssignLoadAwareDiskGroupNum(),
+                conf.masterSlotAssignLoadAwareDiskGroupGradient(),
+                conf.masterSlotAssignLoadAwareFlushTimeWeight(),
+                conf.masterSlotAssignLoadAwareFetchTimeWeight(),
+                conf.masterSlotAssignLoadAwareActiveSlotsWeight());
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
+        SlotsAllocator.offerSlots(
+            workers,
+            partitionIds,
+            shouldReplicate,
+            false,
+            StorageInfo.ALL_TYPES_AVAILABLE_MASK,
+            interruptionAware,
+            interruptionAwareThreshold,
+            strategy);
     if (expectSuccess) {
       if (shouldReplicate) {
         slots.forEach(
@@ -318,27 +306,22 @@ public class SlotsAllocatorSuiteJ {
       conf.set("celeborn.active.storage.levels", "HDFS");
       availableStorageTypes = StorageInfo.HDFS_MASK;
     }
-    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots;
-    if (roundRobin) {
-      slots =
-          SlotsAllocator.offerSlotsRoundRobin(
-              workers, partitionIds, shouldReplicate, false, availableStorageTypes, false, 0);
-    } else {
-      slots =
-          SlotsAllocator.offerSlotsLoadAware(
-              workers,
-              partitionIds,
-              shouldReplicate,
-              false,
-              3,
-              0.1,
-              0,
-              1,
-              0,
-              StorageInfo.LOCAL_DISK_MASK | availableStorageTypes,
-              false,
-              0);
-    }
+    SlotsAssignStrategy strategy =
+        roundRobin
+            ? new RoundRobinSlotsAssignStrategy()
+            : new LoadAwareSlotsAssignStrategy(3, 0.1, 0, 1, 0);
+    int requestedStorageTypes =
+        roundRobin ? availableStorageTypes : StorageInfo.LOCAL_DISK_MASK | availableStorageTypes;
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
+        SlotsAllocator.offerSlots(
+            workers,
+            partitionIds,
+            shouldReplicate,
+            false,
+            requestedStorageTypes,
+            false,
+            0,
+            strategy);
     int allocatedPartitionCount = 0;
     for (Map.Entry<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
         workerToPartitions : slots.entrySet()) {
@@ -568,14 +551,15 @@ public class SlotsAllocatorSuiteJ {
         IntStream.range(0, 150).boxed().collect(Collectors.toList());
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
         slotsFromBestCasePartitionIds =
-            SlotsAllocator.offerSlotsRoundRobin(
+            SlotsAllocator.offerSlots(
                 workers,
                 bestCasePartitionIds,
                 shouldReplicate,
                 shouldRackAware,
                 StorageInfo.ALL_TYPES_AVAILABLE_MASK,
                 true,
-                (int) interruptionAwarePercentileThreshold);
+                (int) interruptionAwarePercentileThreshold,
+                new RoundRobinSlotsAssignStrategy());
     slotsFromBestCasePartitionIds
         .values()
         .forEach(
@@ -623,14 +607,15 @@ public class SlotsAllocatorSuiteJ {
     }
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
         slotsFromSpillOverCasePartitionIds =
-            SlotsAllocator.offerSlotsRoundRobin(
+            SlotsAllocator.offerSlots(
                 workers,
                 spillOverCasePartitionIds,
                 shouldReplicate,
                 shouldRackAware,
                 StorageInfo.ALL_TYPES_AVAILABLE_MASK,
                 true,
-                (int) interruptionAwarePercentileThreshold);
+                (int) interruptionAwarePercentileThreshold,
+                new RoundRobinSlotsAssignStrategy());
     slotsFromSpillOverCasePartitionIds
         .values()
         .forEach(
@@ -663,7 +648,7 @@ public class SlotsAllocatorSuiteJ {
                 }
               }
             });
-    // With the slot restrictions in place for LoadAware, we expect to spill replicas into
+    // With the load-aware slot budgets in place, we expect to spill replicas into
     // workersWithEarlyInterruptionsHosts.
     // But primaries should be in workersWithoutInterruptions + workersWithLateInterruptions.
     Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
