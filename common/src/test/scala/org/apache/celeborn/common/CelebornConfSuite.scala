@@ -20,7 +20,6 @@ package org.apache.celeborn.common
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.internal.config.ConfigEntry
-import org.apache.celeborn.common.network.util.IOMode
 import org.apache.celeborn.common.protocol.StorageInfo
 
 class CelebornConfSuite extends CelebornFunSuite {
@@ -287,7 +286,7 @@ class CelebornConfSuite extends CelebornFunSuite {
 
   // Transport conf tests
 
-  private val transportTestNetworkIoMode = IOMode.EPOLL.name()
+  private val transportTestNetworkIoMode = CelebornConf.networkIoMode()
   private val transportTestNetworkIoPreferDirectBufs =
     !NETWORK_IO_PREFER_DIRECT_BUFS.defaultValue.get
 
