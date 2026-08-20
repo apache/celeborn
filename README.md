@@ -436,7 +436,6 @@ Check [SPARK-42689](https://issues.apache.org/jira/browse/SPARK-42689) and [CELE
 for more details.
 
 For Spark versions < 3.5.0, we provide a patch to enable users to use Spark with DRA and Celeborn.
-- For Spark 2.x check [Spark2 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark2.patch).
 - For Spark 3.0 check [Spark3.0 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_0.patch).
 - For Spark 3.1 check [Spark3.1 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_1.patch).
 - For Spark 3.2 check [Spark3.2 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_2.patch).
