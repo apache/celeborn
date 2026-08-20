@@ -155,7 +155,7 @@ WorkerRef: null
 ```
 
 ## Deploy Spark client
-Celeborn release binary contains clients for Spark 2.x and Spark 3.x, copy the corresponding client jar into Spark's
+Celeborn release binary contains clients for Spark 3.x and Spark 4.x, copy the corresponding client jar into Spark's
 `jars/` directory:
 
 Copy `$CELEBORN_HOME/spark/celeborn-client-spark-<spark.major.version>-shaded_<scala.binary.version>-<celeborn.version>.jar` to `$SPARK_HOME/jars/`.

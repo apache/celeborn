@@ -41,7 +41,7 @@ Celeborn Worker's slot count is decided by `total usable disk size / average shu
 Celeborn worker's slot count decreases when a partition is allocated and increments when a partition is freed.
 
 ## Build
-1. Celeborn supports Spark 3.0/3.1/3.2/3.3/3.4/3.5/4.0, Flink 1.18/1.19/1.20/2.0/2.1/2.2/2.3 and Hadoop MapReduce 3.
+1. Celeborn supports Spark 3.0/3.1/3.2/3.3/3.4/3.5/4.0/4.1/4.2, Flink 1.18/1.19/1.20/2.0/2.1/2.2/2.3 and Hadoop MapReduce 3.
 2. Celeborn tested under Scala 2.11/2.12/2.13 and Java 8/11/17 environment.
 
 Build Celeborn via `make-distribution.sh`:
@@ -436,7 +436,6 @@ Check [SPARK-42689](https://issues.apache.org/jira/browse/SPARK-42689) and [CELE
 for more details.
 
 For Spark versions < 3.5.0, we provide a patch to enable users to use Spark with DRA and Celeborn.
-- For Spark 2.x check [Spark2 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark2.patch).
 - For Spark 3.0 check [Spark3.0 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_0.patch).
 - For Spark 3.1 check [Spark3.1 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_1.patch).
 - For Spark 3.2 check [Spark3.2 Patch](assets/spark-patch/Celeborn_Dynamic_Allocation_spark3_2.patch).
