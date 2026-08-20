@@ -60,7 +60,7 @@ jobs:
           build/*.jar
           ~/.sbt
           ~/.cache/coursier
-        key: sbt-${{ hashFiles('**/pom.xml', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
+        key: sbt-${{ github.job }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.spark }}${{ matrix.flink }}-${{ hashFiles('project/**/*.scala', 'project/**/*.sbt', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
         restore-keys: |
           sbt-
     - name: Test Service with SBT
@@ -174,7 +174,7 @@ jobs:
           build/*.jar
           ~/.sbt
           ~/.cache/coursier
-        key: sbt-${{ hashFiles('**/pom.xml', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
+        key: sbt-${{ github.job }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.spark }}${{ matrix.flink }}-${{ hashFiles('project/**/*.scala', 'project/**/*.sbt', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
         restore-keys: |
           sbt-
     - name: Test with SBT
@@ -226,7 +226,7 @@ jobs:
             build/*.jar
             ~/.sbt
             ~/.cache/coursier
-          key: sbt-${{ hashFiles('**/pom.xml', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
+          key: sbt-${{ github.job }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.spark }}${{ matrix.flink }}-${{ hashFiles('project/**/*.scala', 'project/**/*.sbt', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
           restore-keys: |
             sbt-
       - name: Test with SBT
@@ -268,7 +268,7 @@ jobs:
             build/*.jar
             ~/.sbt
             ~/.cache/coursier
-          key: sbt-${{ hashFiles('**/pom.xml', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
+          key: sbt-${{ github.job }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.spark }}${{ matrix.flink }}-${{ hashFiles('project/**/*.scala', 'project/**/*.sbt', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
           restore-keys: |
             sbt-
       - name: Test with SBT
@@ -311,7 +311,7 @@ jobs:
             build/*.jar
             ~/.sbt
             ~/.cache/coursier
-          key: sbt-${{ hashFiles('**/pom.xml', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
+          key: sbt-${{ github.job }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.spark }}${{ matrix.flink }}-${{ hashFiles('project/**/*.scala', 'project/**/*.sbt', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
           restore-keys: |
             sbt-
       - name: Test with SBT
@@ -349,7 +349,7 @@ jobs:
             build/*.jar
             ~/.sbt
             ~/.cache/coursier
-          key: sbt-${{ hashFiles('**/pom.xml', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
+          key: sbt-${{ github.job }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.spark }}${{ matrix.flink }}-${{ hashFiles('project/**/*.scala', 'project/**/*.sbt', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
           restore-keys: |
             sbt-
       - name: Test with SBT
@@ -387,7 +387,7 @@ jobs:
             build/*.jar
             ~/.sbt
             ~/.cache/coursier
-          key: sbt-${{ hashFiles('**/pom.xml', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
+          key: sbt-${{ github.job }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.spark }}${{ matrix.flink }}-${{ hashFiles('project/**/*.scala', 'project/**/*.sbt', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
           restore-keys: |
             sbt-
       - name: Test with SBT
