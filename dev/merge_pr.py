@@ -242,6 +242,52 @@ def cherry_pick(pr_num, merge_hash, default_branch):
     return pick_ref
 
 
+def _semver_max_version(names):
+    if not names:
+        return None
+    names = [n for n in names if re.fullmatch(r"\d+\.\d+\.\d+", n)]
+    if not names:
+        return None
+    parsed = [(tuple(int(p) for p in n.split(".")), n) for n in names]
+    return max(parsed)[1]
+
+
+def compute_default_fix_versions(merge_branches, unreleased_version_names):
+    """
+    Compute the suggested fix versions for the merge branches.
+
+    main contributes the greatest unreleased N.0.0, and branch-M.N contributes
+    the greatest unreleased M.N.x version. Duplicate suggestions are collapsed.
+    """
+    default_fix_versions = []
+    for b in merge_branches:
+        if b == "main":
+            chosen = _semver_max_version(
+                [n for n in unreleased_version_names if re.fullmatch(r"\d+\.0\.0", n)]
+            )
+            if chosen:
+                default_fix_versions.append(chosen)
+            else:
+                print(
+                    "No unreleased N.0.0 fix version found on JIRA for main; "
+                    "enter fix version(s) manually when prompted."
+                )
+        else:
+            prefix = b.replace("branch-", "") + "."
+            chosen = _semver_max_version(
+                [n for n in unreleased_version_names if n.startswith(prefix)]
+            )
+            if chosen:
+                default_fix_versions.append(chosen)
+            else:
+                print(
+                    "Target version for %s is not found on JIRA, it may be archived or "
+                    "not created. Skipping it." % b
+                )
+
+    return list(dict.fromkeys(default_fix_versions))
+
+
 def resolve_jira_issue(merge_branches, comment, default_jira_id=""):
     jira_id = input("Enter a JIRA id [%s]: " % default_jira_id)
     if jira_id == "":
@@ -276,43 +322,12 @@ def resolve_jira_issue(merge_branches, comment, default_jira_id=""):
     versions = [
         x
         for x in versions
-        if not x.raw["released"] and not x.raw["archived"] and re.match(r"\d+\.\d+\.\d+", x.name)
+        if not x.raw["released"] and not x.raw["archived"] and re.fullmatch(r"\d+\.\d+\.\d+", x.name)
     ]
 
-    default_fix_versions = []
-    for b in merge_branches:
-        if b == "main":
-            default_fix_versions.append(versions[0].name)
-        else:
-            found = False
-            found_versions = []
-            for v in versions:
-                if v.name.startswith(b.replace("branch-", "")):
-                    found_versions.append(v.name)
-                    found = True
-            if found:
-                # There might be several unreleased versions for specific branches
-                # For example, assuming
-                # versions = ['4.0.0', '3.5.1', '3.5.0', '3.4.2', '3.3.4', '3.3.3']
-                # we've found two candidates for branch-3.5, we pick the last/smallest one
-                default_fix_versions.append(found_versions[-1])
-            else:
-                print(
-                    "Target version for %s is not found on JIRA, it may be archived or "
-                    "not created. Skipping it." % b
-                )
-
-    for v in default_fix_versions:
-        # Handles the case where we have forked a release branch but not yet made the release.
-        # In this case, if the PR is committed to the main branch and the release branch, we
-        # only consider the release branch to be the fix version. E.g. it is not valid to have
-        # both 1.1.0 and 1.0.0 as fix versions.
-        (major, minor, patch) = v.split(".")
-        if patch == "0":
-            previous = "%s.%s.%s" % (major, int(minor) - 1, 0)
-            if previous in default_fix_versions:
-                default_fix_versions = list(filter(lambda x: x != v, default_fix_versions))
-    default_fix_versions = ",".join(default_fix_versions)
+    default_fix_versions = ",".join(
+        compute_default_fix_versions(merge_branches, [v.name for v in versions])
+    )
 
     available_versions = set(list(map(lambda v: v.name, versions)))
     while True:
