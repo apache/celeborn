@@ -1116,7 +1116,7 @@ object Utils extends Logging {
   def tryWithResources[R <: Closeable, U](f: => R)(func: R => U): U = {
     val res = f
     try {
-      func(f)
+      func(res)
     } finally {
       if (null != res) {
         res.close()

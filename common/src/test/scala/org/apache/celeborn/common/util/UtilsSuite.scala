@@ -17,8 +17,10 @@
 
 package org.apache.celeborn.common.util
 
+import java.io.Closeable
 import java.util
 import java.util.Collections
+import java.util.concurrent.atomic.AtomicInteger
 
 import org.scalatest.matchers.must.Matchers.contain
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -324,5 +326,36 @@ class UtilsSuite extends CelebornFunSuite {
       celebornConf.identityProviderClass,
       celebornConf)
     assert(testInstance.isInstanceOf[DefaultIdentityProvider])
+  }
+
+  test("tryWithResources should evaluate the resource expression once and close the resource given to the function") {
+    val evaluations = new AtomicInteger(0)
+
+    class Resource extends Closeable {
+      var closed: Boolean = false
+      override def close(): Unit = closed = true
+    }
+
+    val received = Utils.tryWithResources {
+      evaluations.incrementAndGet()
+      new Resource
+    }(res => res)
+
+    assert(evaluations.get() == 1)
+    assert(received.closed)
+
+    var thrownReceived: Resource = null
+    intercept[RuntimeException] {
+      Utils.tryWithResources {
+        evaluations.incrementAndGet()
+        new Resource
+      } { res =>
+        thrownReceived = res
+        throw new RuntimeException("func failed")
+      }
+    }
+    assert(evaluations.get() == 2)
+    assert(thrownReceived.closed)
+    assert(thrownReceived ne received)
   }
 }
