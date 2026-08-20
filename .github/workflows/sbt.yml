@@ -53,6 +53,16 @@ jobs:
         distribution: zulu
         java-version: ${{ matrix.java }}
         check-latest: false
+    - name: Cache SBT launcher and dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          build/*.jar
+          ~/.sbt
+          ~/.cache/coursier
+        key: sbt-${{ github.job }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.spark }}${{ matrix.flink }}-${{ hashFiles('project/**/*.scala', 'project/**/*.sbt', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
+        restore-keys: |
+          sbt-
     - name: Test Service with SBT
       run: |
         build/sbt ++${{ matrix.scala }} "clean; test"
@@ -157,6 +167,16 @@ jobs:
         distribution: zulu
         java-version: ${{ matrix.java }}
         check-latest: false
+    - name: Cache SBT launcher and dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          build/*.jar
+          ~/.sbt
+          ~/.cache/coursier
+        key: sbt-${{ github.job }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.spark }}${{ matrix.flink }}-${{ hashFiles('project/**/*.scala', 'project/**/*.sbt', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
+        restore-keys: |
+          sbt-
     - name: Test with SBT
       run: |
         build/sbt -Dspark.shuffle.plugin.class=${{ matrix.shuffle-plugin-class }} -Pspark-${{ matrix.spark }} ++${{ matrix.scala }} "clean; celeborn-spark-group/test"
@@ -199,6 +219,16 @@ jobs:
           distribution: zulu
           java-version: ${{ matrix.java }}
           check-latest: false
+      - name: Cache SBT launcher and dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/*.jar
+            ~/.sbt
+            ~/.cache/coursier
+          key: sbt-${{ github.job }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.spark }}${{ matrix.flink }}-${{ hashFiles('project/**/*.scala', 'project/**/*.sbt', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
+          restore-keys: |
+            sbt-
       - name: Test with SBT
         run: |
           build/sbt -Dspark.shuffle.plugin.class=${{ matrix.shuffle-plugin-class }} -Pspark-${{ matrix.spark }} ++${{ matrix.scala }} "clean; celeborn-spark-group/test"
@@ -231,6 +261,16 @@ jobs:
           distribution: zulu
           java-version: ${{ matrix.java }}
           check-latest: false
+      - name: Cache SBT launcher and dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/*.jar
+            ~/.sbt
+            ~/.cache/coursier
+          key: sbt-${{ github.job }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.spark }}${{ matrix.flink }}-${{ hashFiles('project/**/*.scala', 'project/**/*.sbt', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
+          restore-keys: |
+            sbt-
       - name: Test with SBT
         run: |
           build/sbt -Pflink-${{ matrix.flink }} "clean; celeborn-flink-group/test"
@@ -264,6 +304,16 @@ jobs:
           distribution: zulu
           java-version: ${{ matrix.java }}
           check-latest: false
+      - name: Cache SBT launcher and dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/*.jar
+            ~/.sbt
+            ~/.cache/coursier
+          key: sbt-${{ github.job }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.spark }}${{ matrix.flink }}-${{ hashFiles('project/**/*.scala', 'project/**/*.sbt', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
+          restore-keys: |
+            sbt-
       - name: Test with SBT
         run: |
           build/sbt -Pflink-${{ matrix.flink }} "clean; celeborn-flink-group/test"
@@ -292,6 +342,16 @@ jobs:
           distribution: zulu
           java-version: ${{ matrix.java }}
           check-latest: false
+      - name: Cache SBT launcher and dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/*.jar
+            ~/.sbt
+            ~/.cache/coursier
+          key: sbt-${{ github.job }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.spark }}${{ matrix.flink }}-${{ hashFiles('project/**/*.scala', 'project/**/*.sbt', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
+          restore-keys: |
+            sbt-
       - name: Test with SBT
         run: |
           build/sbt -Pmr "clean; celeborn-mr-group/test"
@@ -320,6 +380,16 @@ jobs:
           distribution: zulu
           java-version: ${{ matrix.java }}
           check-latest: false
+      - name: Cache SBT launcher and dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/*.jar
+            ~/.sbt
+            ~/.cache/coursier
+          key: sbt-${{ github.job }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.spark }}${{ matrix.flink }}-${{ hashFiles('project/**/*.scala', 'project/**/*.sbt', 'project/build.properties', 'build/sbt', 'build/sbt-launch-lib.bash') }}
+          restore-keys: |
+            sbt-
       - name: Test with SBT
         run: |
           build/sbt "clean;celeborn-openapi-client/check"
