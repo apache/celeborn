@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker.storage;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -71,12 +72,26 @@ public class LocalPartitionDataReader extends PartitionDataReader {
   public void readBufferIntoReadBuffer(ByteBuf buf, long fileSize, int length, String filePath)
       throws IOException {
     Utils.checkFileIntegrity(fileSize - dataFileChanel.position(), length, filePath);
-    ByteBuffer tmpBuffer = ByteBuffer.allocate(length);
-    while (tmpBuffer.hasRemaining()) {
-      dataFileChanel.read(tmpBuffer);
+    long position = dataFileChanel.position();
+    int totalRead = 0;
+    while (totalRead < length) {
+      int read = buf.writeBytes(dataFileChanel, position + totalRead, length - totalRead);
+      if (read < 0) {
+        throw new EOFException(
+            "Unexpected EOF in "
+                + filePath
+                + ": expected "
+                + length
+                + " bytes but only read "
+                + totalRead);
+      }
+      if (read == 0) {
+        throw new IOException(
+            "Zero bytes read from " + filePath + ", file may be corrupted or truncated");
+      }
+      totalRead += read;
     }
-    tmpBuffer.flip();
-    buf.writeBytes(tmpBuffer);
+    dataFileChanel.position(position + totalRead);
   }
 
   @Override
