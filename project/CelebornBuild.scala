@@ -158,6 +158,10 @@ object Dependencies {
     ExclusionRule("io.netty", "netty-transport-udt"),
     ExclusionRule("io.netty", "netty-transport-sctp"),
     ExclusionRule("io.netty", "netty-handler-ssl-ocsp"),
+    // Netty 4.2 merged the QUIC/HTTP3 stack into netty-all; see pom.xml for details.
+    ExclusionRule("io.netty", "netty-codec-http3"),
+    ExclusionRule("io.netty", "netty-codec-classes-quic"),
+    ExclusionRule("io.netty", "netty-codec-native-quic"),
     ExclusionRule("org.jctools", "jctools-core")
   )
   val ioNettyEpollLinuxX8664 = "io.netty" % "netty-transport-native-epoll" % nettyVersion classifier "linux-x86_64"
