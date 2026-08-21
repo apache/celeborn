@@ -458,6 +458,7 @@ public class SlotsAllocator {
                   replicaIndex,
                   index ->
                       !(sameWorkerCandidates && index == selectedPrimaryIndex)
+                          && canAssign(null, replicaWorkers.get(index), availableStorageTypes)
                           && satisfyRackAware(true, primaryWorker, replicaWorkers.get(index)));
         } else if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
           selectedReplicaIndex =
@@ -476,10 +477,7 @@ public class SlotsAllocator {
         WorkerInfo replicaWorker = replicaWorkers.get(selectedReplicaIndex);
 
         StorageInfo replicaStorageInfo =
-            slotBudgets == null && shouldRackAware
-                ? primaryStorageInfo
-                : buildStorageInfo(
-                    replicaWorker, slotBudgets, workerDiskIndex, availableStorageTypes);
+            buildStorageInfo(replicaWorker, slotBudgets, workerDiskIndex, availableStorageTypes);
         PartitionLocation replicaPartition =
             createLocation(
                 partitionId,

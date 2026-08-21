@@ -184,6 +184,69 @@ public class SlotsAllocatorRackAwareSuiteJ {
   }
 
   @Test
+  public void offerSlotsRackAwareFallbackRequiresReplicaDisk() {
+    List<WorkerInfo> workers =
+        Arrays.asList(
+            prepareWorker("disk-worker", "/rack/r1", "/mnt/disk1"),
+            prepareWorker("diskless-worker", "/rack/r2", null));
+
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
+        SlotsAllocator.offerSlots(
+            workers,
+            Collections.singletonList(0),
+            true,
+            true,
+            StorageInfo.LOCAL_DISK_MASK,
+            false,
+            0,
+            SLOTS_ASSIGN_STRATEGY);
+
+    Assert.assertTrue(slots.isEmpty());
+  }
+
+  @Test
+  public void offerSlotsRackAwareFallbackUsesReplicaStorageInfo() {
+    List<WorkerInfo> workers =
+        Arrays.asList(
+            prepareWorker("worker1", "/rack/r1", "/mnt/disk1"),
+            prepareWorker("worker2", "/rack/r2", "/mnt/disk2"));
+
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
+        SlotsAllocator.offerSlots(
+            workers,
+            Collections.singletonList(0),
+            true,
+            true,
+            StorageInfo.LOCAL_DISK_MASK,
+            false,
+            0,
+            SLOTS_ASSIGN_STRATEGY);
+
+    Assert.assertEquals(2, slots.size());
+    workers.forEach(
+        worker -> {
+          List<PartitionLocation> locations = new ArrayList<>();
+          locations.addAll(slots.get(worker)._1);
+          locations.addAll(slots.get(worker)._2);
+          Assert.assertEquals(1, locations.size());
+          Assert.assertEquals(
+              worker.diskInfos().keySet().iterator().next(),
+              locations.get(0).getStorageInfo().getMountPoint());
+        });
+  }
+
+  private static WorkerInfo prepareWorker(String host, String rack, String mountPoint) {
+    Map<String, DiskInfo> diskInfos = new HashMap<>();
+    if (mountPoint != null) {
+      // Keep availableSlots at zero to force allocation through the best-effort fallback.
+      diskInfos.put(mountPoint, new DiskInfo(mountPoint, 1024L, 1, 1, 0));
+    }
+    WorkerInfo worker = new WorkerInfo(host, 1, 2, 3, 4, 5, diskInfos, null);
+    worker.networkLocation_$eq(rack);
+    return worker;
+  }
+
+  @Test
   public void testRackAwareRoundRobinReplicaPatterns() {
     for (Tuple2<Integer, List<WorkerInfo>> tuple :
         Arrays.asList(
