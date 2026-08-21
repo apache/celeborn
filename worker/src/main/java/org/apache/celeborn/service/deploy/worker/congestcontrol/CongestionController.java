@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.quota.UserTrafficQuota;
 import org.apache.celeborn.common.quota.WorkerTrafficQuota;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -48,6 +49,10 @@ public class CongestionController {
   private final long userInactiveTimeMills;
 
   private final AtomicBoolean overHighWatermark = new AtomicBoolean(false);
+
+  private long cachedActivePendingBytes = 0;
+  private long lastActivePendingBytesTimeMs = 0;
+  private final long activePendingBytesCacheIntervalMs;
 
   private final BufferStatusHub consumedBufferStatusHub;
 
@@ -77,6 +82,7 @@ public class CongestionController {
     this.workerSource = workerSource;
     this.sampleTimeWindowSeconds = sampleTimeWindowSeconds;
     this.userInactiveTimeMills = conf.workerCongestionControlUserInactiveIntervalMs();
+    this.activePendingBytesCacheIntervalMs = conf.workerPinnedMemoryCheckIntervalMs();
     this.consumedBufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
     this.producedBufferStatusHub = new BufferStatusHub(sampleTimeWindowSeconds);
     this.userBufferStatuses = JavaUtils.newConcurrentHashMap();
@@ -141,7 +147,7 @@ public class CongestionController {
    * 1. If the total pending bytes is over high watermark, will congest users who produce speed is
    * higher than the potential average consume speed.
    *
-   * <p>2. Will stop congest these uses until the pending bytes lower to low watermark.
+   * <p>2. Will stop congest these uses until the active pending bytes lower to low watermark.
    *
    * <p>3. If the pending bytes doesn't exceed the high watermark, will allow all users to try to
    * get max throughout capacity.
@@ -206,6 +212,20 @@ public class CongestionController {
     return MemoryManager.instance().getMemoryUsage();
   }
 
+  public long getActivePendingBytes() {
+    long now = System.currentTimeMillis();
+    if (now - lastActivePendingBytesTimeMs >= activePendingBytesCacheIntervalMs) {
+      lastActivePendingBytesTimeMs = now;
+      MemoryManager memoryManager = MemoryManager.instance();
+      if (NettyUtils.getAllPooledByteBufAllocators().isEmpty()) {
+        cachedActivePendingBytes = memoryManager.getMemoryUsage();
+      } else {
+        cachedActivePendingBytes = memoryManager.getPinnedMemory();
+      }
+    }
+    return cachedActivePendingBytes;
+  }
+
   public void trimMemoryUsage() {
     MemoryManager.instance().trimAllListeners();
   }
@@ -265,20 +285,23 @@ public class CongestionController {
     try {
       long pendingConsume = getTotalPendingBytes();
       long workerProduceSpeed = producedBufferStatusHub.avgBytesPerSec();
-      if (pendingConsume < workerTrafficQuota.diskBufferLowWatermark()
-          && workerProduceSpeed < workerTrafficQuota.workerProduceSpeedLowWatermark()) {
-        if (overHighWatermark.compareAndSet(true, false)) {
-          logger.info(
-              "Pending consume and produce speed is lower than low watermark, exit congestion control");
+      if (overHighWatermark.get()) {
+        long activePendingBytes = getActivePendingBytes();
+        if (activePendingBytes < workerTrafficQuota.diskBufferLowWatermark()
+            && workerProduceSpeed < workerTrafficQuota.workerProduceSpeedLowWatermark()) {
+          if (overHighWatermark.compareAndSet(true, false)) {
+            logger.info(
+                "Pending consume and produce speed is lower than low watermark, exit congestion control");
+          }
+          return;
         }
-        return;
+        trimMemoryUsage();
       } else if ((pendingConsume > workerTrafficQuota.diskBufferHighWatermark()
               || workerProduceSpeed > workerTrafficQuota.workerProduceSpeedHighWatermark())
           && overHighWatermark.compareAndSet(false, true)) {
+        lastActivePendingBytesTimeMs = 0;
         logger.info(
             "Pending consume or produce speed is higher than high watermark, need congestion control");
-      }
-      if (overHighWatermark.get()) {
         trimMemoryUsage();
       }
     } catch (Exception e) {

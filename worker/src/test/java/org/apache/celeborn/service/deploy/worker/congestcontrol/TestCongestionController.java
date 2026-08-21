@@ -35,6 +35,7 @@ public class TestCongestionController {
   private WorkerSource source = new WorkerSource(new CelebornConf());
 
   private long pendingBytes = 0L;
+  private long activePendingBytes = 0L;
   private final long userInactiveTimeMills = 2000L;
 
   @Before
@@ -64,6 +65,11 @@ public class TestCongestionController {
           }
 
           @Override
+          public long getActivePendingBytes() {
+            return activePendingBytes;
+          }
+
+          @Override
           public void trimMemoryUsage() {
             // No op
           }
@@ -86,11 +92,13 @@ public class TestCongestionController {
 
     produceBytes(controller, userIdentifier, 1001);
     pendingBytes = 1001;
+    activePendingBytes = 1001;
     controller.checkCongestion();
     Assert.assertTrue(controller.isUserCongested(userCongestionControlContext));
 
     controller.getProducedBufferStatusHub().add(new BufferStatusHub.BufferStatusNode(1001));
     pendingBytes = 0;
+    activePendingBytes = 0;
     controller.checkCongestion();
     Assert.assertFalse(controller.isUserCongested(userCongestionControlContext));
     clearBufferStatus(controller);
@@ -114,6 +122,7 @@ public class TestCongestionController {
     produceBytes(controller, user2, 201);
     controller.getProducedBufferStatusHub().add(new BufferStatusHub.BufferStatusNode(500));
     pendingBytes = 1001;
+    activePendingBytes = 1001;
     controller.checkCongestion();
     Assert.assertTrue(controller.isUserCongested(context1));
     Assert.assertFalse(controller.isUserCongested(context2));
@@ -123,12 +132,14 @@ public class TestCongestionController {
     produceBytes(controller, user2, 800);
     controller.getProducedBufferStatusHub().add(new BufferStatusHub.BufferStatusNode(500));
     pendingBytes = 1600;
+    activePendingBytes = 1600;
     controller.checkCongestion();
     Assert.assertTrue(controller.isUserCongested(context1));
     Assert.assertTrue(controller.isUserCongested(context2));
 
     // If pending bytes lower than the low watermark, should don't congest all users.
     pendingBytes = 0;
+    activePendingBytes = 0;
     controller.checkCongestion();
     Assert.assertFalse(controller.isUserCongested(context1));
     Assert.assertFalse(controller.isUserCongested(context2));
@@ -178,6 +189,11 @@ public class TestCongestionController {
         new CongestionController(source, 10, celebornConf, null) {
           @Override
           public long getTotalPendingBytes() {
+            return 0;
+          }
+
+          @Override
+          public long getActivePendingBytes() {
             return 0;
           }
 
@@ -257,6 +273,11 @@ public class TestCongestionController {
           }
 
           @Override
+          public long getActivePendingBytes() {
+            return 0;
+          }
+
+          @Override
           public void trimMemoryUsage() {
             // No op
           }
@@ -318,6 +339,11 @@ public class TestCongestionController {
           }
 
           @Override
+          public long getActivePendingBytes() {
+            return 0;
+          }
+
+          @Override
           public void trimMemoryUsage() {
             // No op
           }
@@ -358,6 +384,32 @@ public class TestCongestionController {
     Assert.assertTrue(
         userCongestionControlContext.getUserBufferInfo().getBufferStatusHub().avgBytesPerSec() > 0);
     Assert.assertTrue(controller.getProducedBufferStatusHub().avgBytesPerSec() > 0);
+  }
+
+  @Test
+  public void testNoFlappingWhenEnteringHighWatermark() {
+    UserIdentifier user = new UserIdentifier("test", "celeborn");
+    UserCongestionControlContext context = controller.getUserCongestionContext(user);
+
+    activePendingBytes = 0;
+    Assert.assertFalse(controller.isOverHighWatermark());
+
+    pendingBytes = 1001;
+    activePendingBytes = 1001;
+    produceBytes(controller, user, 1001);
+    controller.checkCongestion();
+    Assert.assertTrue(controller.isOverHighWatermark());
+
+    controller.checkCongestion();
+    Assert.assertTrue(
+        "Should remain in congestion when active pending bytes are still above low watermark",
+        controller.isOverHighWatermark());
+
+    activePendingBytes = 0;
+    pendingBytes = 0;
+    controller.checkCongestion();
+    Assert.assertFalse(controller.isOverHighWatermark());
+    clearBufferStatus(controller);
   }
 
   private void clearBufferStatus(CongestionController controller) {
