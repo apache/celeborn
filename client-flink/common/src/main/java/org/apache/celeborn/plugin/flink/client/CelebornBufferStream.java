@@ -115,10 +115,10 @@ public class CelebornBufferStream {
           @Override
           public void onFailure(Throwable e) {
             logger.error(
-                "Send PbReadAddCredit to {} failed, streamId {}, detail {}",
+                "Send PbReadAddCredit to {} failed, streamId {}",
                 NettyUtils.getRemoteAddress(client.getChannel()),
                 streamId,
-                e.getCause());
+                e);
             messageConsumer.accept(new TransportableError(streamId, e));
           }
         });
@@ -139,10 +139,10 @@ public class CelebornBufferStream {
           @Override
           public void onFailure(Throwable e) {
             logger.error(
-                "Send PbNotifyRequiredSegment to {} failed, streamId {}, detail {}",
+                "Send PbNotifyRequiredSegment to {} failed, streamId {}",
                 NettyUtils.getRemoteAddress(client.getChannel()),
                 streamId,
-                e.getCause());
+                e);
             messageConsumer.accept(new TransportableError(streamId, e));
           }
         });
@@ -358,7 +358,8 @@ public class CelebornBufferStream {
                   "Open file {} stream for {} error from {}",
                   fileName,
                   shuffleKey,
-                  NettyUtils.getRemoteAddress(client.getChannel()));
+                  NettyUtils.getRemoteAddress(client.getChannel()),
+                  e);
               messageConsumer.accept(new TransportableError(streamId, e));
             }
           }
@@ -369,7 +370,8 @@ public class CelebornBufferStream {
                 "Open file {} stream for {} error from {}",
                 fileName,
                 shuffleKey,
-                NettyUtils.getRemoteAddress(client.getChannel()));
+                NettyUtils.getRemoteAddress(client.getChannel()),
+                e);
             messageConsumer.accept(new TransportableError(streamId, e));
           }
         };
