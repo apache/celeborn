@@ -284,7 +284,21 @@ public class SSLFactory {
    * @return A valid {@link SSLEngine}.
    */
   public SSLEngine createSSLEngine(boolean isClient, ByteBufAllocator allocator) {
-    SSLEngine engine = createEngine(isClient, allocator);
+    return createSSLEngine(isClient, allocator, null, -1);
+  }
+
+  /**
+   * Creates a new {@link SSLEngine} with peer hostname for SNI support.
+   *
+   * @param isClient Whether the engine is used in a client context
+   * @param allocator The {@link ByteBufAllocator to use}
+   * @param peerHost The peer hostname (used for SNI in client mode)
+   * @param peerPort The peer port
+   * @return A valid {@link SSLEngine}.
+   */
+  public SSLEngine createSSLEngine(
+      boolean isClient, ByteBufAllocator allocator, String peerHost, int peerPort) {
+    SSLEngine engine = createEngine(isClient, allocator, peerHost, peerPort);
     engine.setUseClientMode(isClient);
     engine.setWantClientAuth(true);
     engine.setEnabledProtocols(enabledProtocols(engine, requestedProtocol));
@@ -292,7 +306,11 @@ public class SSLFactory {
     return engine;
   }
 
-  private SSLEngine createEngine(boolean isClient, ByteBufAllocator allocator) {
+  private SSLEngine createEngine(
+      boolean isClient, ByteBufAllocator allocator, String peerHost, int peerPort) {
+    if (isClient && peerHost != null && peerPort > 0) {
+      return jdkSslContext.createSSLEngine(peerHost, peerPort);
+    }
     return jdkSslContext.createSSLEngine();
   }
 
