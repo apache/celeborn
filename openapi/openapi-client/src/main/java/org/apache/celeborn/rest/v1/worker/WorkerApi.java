@@ -27,6 +27,7 @@ import org.apache.celeborn.rest.v1.worker.invoker.Pair;
 
 import org.apache.celeborn.rest.v1.model.HandleResponse;
 import org.apache.celeborn.rest.v1.model.UnAvailablePeersResponse;
+import org.apache.celeborn.rest.v1.model.WorkerEventRequest;
 import org.apache.celeborn.rest.v1.model.WorkerExitRequest;
 import org.apache.celeborn.rest.v1.model.WorkerInfoResponse;
 
@@ -169,6 +170,75 @@ public class WorkerApi extends BaseApi {
     return apiClient.invokeAPI(
         localVarPath,
         "GET",
+        localVarQueryParams,
+        localVarCollectionQueryParams,
+        localVarQueryStringJoiner.toString(),
+        localVarPostBody,
+        localVarHeaderParams,
+        localVarCookieParams,
+        localVarFormParams,
+        localVarAccept,
+        localVarContentType,
+        localVarAuthNames,
+        localVarReturnType
+    );
+  }
+
+  /**
+   * 
+   * Send an event to this worker to trigger a state transition. Legal event types are &#39;DECOMMISSIONTHENIDLE&#39; and &#39;RECOMMISSION&#39;. 
+   * @param workerEventRequest  (optional)
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse workerEvent(WorkerEventRequest workerEventRequest) throws ApiException {
+    return this.workerEvent(workerEventRequest, Collections.emptyMap());
+  }
+
+
+  /**
+   * 
+   * Send an event to this worker to trigger a state transition. Legal event types are &#39;DECOMMISSIONTHENIDLE&#39; and &#39;RECOMMISSION&#39;. 
+   * @param workerEventRequest  (optional)
+   * @param additionalHeaders additionalHeaders for this call
+   * @return HandleResponse
+   * @throws ApiException if fails to make API call
+   */
+  public HandleResponse workerEvent(WorkerEventRequest workerEventRequest, Map<String, String> additionalHeaders) throws ApiException {
+    Object localVarPostBody = workerEventRequest;
+    
+    // create path and map variables
+    String localVarPath = "/api/v1/workers/events";
+
+    StringJoiner localVarQueryStringJoiner = new StringJoiner("&");
+    String localVarQueryParameterBaseName;
+    List<Pair> localVarQueryParams = new ArrayList<Pair>();
+    List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+    Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+    Map<String, String> localVarCookieParams = new HashMap<String, String>();
+    Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+    
+    localVarHeaderParams.putAll(additionalHeaders);
+
+    
+    
+    final String[] localVarAccepts = {
+      "application/json"
+    };
+    final String localVarAccept = apiClient.selectHeaderAccept(localVarAccepts);
+
+    final String[] localVarContentTypes = {
+      "application/json"
+    };
+    final String localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
+
+    String[] localVarAuthNames = new String[] { "basic" };
+
+    TypeReference<HandleResponse> localVarReturnType = new TypeReference<HandleResponse>() {};
+    return apiClient.invokeAPI(
+        localVarPath,
+        "POST",
         localVarQueryParams,
         localVarCollectionQueryParams,
         localVarQueryStringJoiner.toString(),
