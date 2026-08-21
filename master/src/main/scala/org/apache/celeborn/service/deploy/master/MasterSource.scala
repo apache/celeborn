@@ -50,6 +50,8 @@ object MasterSource {
 
   val EXCLUDED_WORKER_COUNT = "ExcludedWorkerCount"
 
+  val MANUAL_EXCLUDED_WORKER_COUNT = "ManualExcludedWorkerCount"
+
   val SHUTDOWN_WORKER_COUNT = "ShutdownWorkerCount"
 
   val AVAILABLE_WORKER_COUNT = "AvailableWorkerCount"

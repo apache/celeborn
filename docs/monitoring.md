@@ -115,6 +115,7 @@ These metrics are exposed by Celeborn master.
     | WorkerCount                  | The count of active workers.                                                              |
     | LostWorkerCount              | The count of workers in lost list.                                                        |
     | ExcludedWorkerCount          | The count of workers in excluded list.                                                    |
+    | ManualExcludedWorkerCount    | The count of workers in manually excluded list.                                           |
     | AvailableWorkerCount         | The count of workers in available list.                                                   |
     | ShutdownWorkerCount          | The count of workers in shutdown list.                                                    |
     | DecommissionWorkerCount      | The count of workers in decommission list.                                                |
