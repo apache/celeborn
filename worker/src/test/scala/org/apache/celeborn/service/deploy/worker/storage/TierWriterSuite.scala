@@ -21,7 +21,7 @@ import java.io.IOException
 import java.nio.file.Files
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 
-import io.netty.buffer.UnpooledByteBufAllocator
+import io.netty.buffer.{AbstractByteBufAllocator, ByteBuf, CompositeByteBuf, DuplicatedByteBuf, UnpooledByteBufAllocator}
 import org.mockito.Mockito
 import org.mockito.MockitoSugar.when
 import org.scalatest.BeforeAndAfterEach
@@ -37,6 +37,65 @@ import org.apache.celeborn.service.deploy.worker.WorkerSource
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
 class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
+  private class FailBeforeAddCompositeByteBuf(failure: Throwable)
+    extends CompositeByteBuf(UnpooledByteBufAllocator.DEFAULT, false, Int.MaxValue) {
+    override def addComponent(
+        increaseWriterIndex: Boolean,
+        buffer: ByteBuf): CompositeByteBuf = throw failure
+  }
+
+  private class LargeReadableByteBuf(buffer: ByteBuf, virtualSize: Int)
+    extends DuplicatedByteBuf(buffer) {
+    override def capacity(): Int = virtualSize
+
+    override def readableBytes(): Int = virtualSize
+  }
+
+  private class OomByteBufAllocator(failure: OutOfMemoryError)
+    extends AbstractByteBufAllocator(false) {
+    override protected def newHeapBuffer(initialCapacity: Int, maxCapacity: Int): ByteBuf =
+      throw failure
+
+    override protected def newDirectBuffer(initialCapacity: Int, maxCapacity: Int): ByteBuf =
+      throw failure
+
+    override def isDirectBufferPooled(): Boolean = false
+  }
+
+  private def capacityOverflowFlushBuffer(): CompositeByteBuf = {
+    val flushBuffer = new CompositeByteBuf(
+      UnpooledByteBufAllocator.DEFAULT,
+      false,
+      Int.MaxValue)
+    val component = UnpooledByteBufAllocator.DEFAULT.buffer(1, Int.MaxValue).writeByte(0)
+    flushBuffer.addComponent(
+      true,
+      new LargeReadableByteBuf(component, Int.MaxValue - 512))
+    flushBuffer
+  }
+
+  private def consolidationOomFlushBuffer(failure: OutOfMemoryError): CompositeByteBuf = {
+    val flushBuffer = new CompositeByteBuf(new OomByteBufAllocator(failure), false, 1)
+    flushBuffer.addComponent(true, UnpooledByteBufAllocator.DEFAULT.buffer(0, 0))
+    flushBuffer
+  }
+
+  private def restoreCounters(memoryCounterBefore: Long, diskCounterBefore: Long): Unit = {
+    val memoryManager = MemoryManager.instance()
+    val memoryCounterDelta = memoryManager.getMemoryFileStorageCounter - memoryCounterBefore
+    if (memoryCounterDelta > 0) {
+      memoryManager.releaseMemoryFileStorage(memoryCounterDelta.toInt)
+    } else if (memoryCounterDelta < 0) {
+      memoryManager.incrementMemoryFileStorage((-memoryCounterDelta).toInt)
+    }
+    val diskCounterDelta = memoryManager.getDiskBufferCounter.get() - diskCounterBefore
+    if (diskCounterDelta > 0) {
+      memoryManager.releaseDiskBuffer(diskCounterDelta.toInt)
+    } else if (diskCounterDelta < 0) {
+      memoryManager.incrementDiskBuffer((-diskCounterDelta).toInt)
+    }
+  }
+
   private def prepareMemoryWriter: MemoryTierWriter = {
 
     val celebornConf = new CelebornConf()
@@ -332,5 +391,240 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterEach {
     val fileLen = localTierWriter.close()
     assert(fileLen == 10240)
     assert(localTierWriter.closed === true)
+  }
+
+  test("memory tier writer should not account data when insertion fails before adding") {
+    val memoryTierWriter = prepareMemoryWriter
+    val buf = WriterUtils.generateSparkFormatData(UnpooledByteBufAllocator.DEFAULT, 0)
+    val refCntBeforeWrite = buf.refCnt()
+    val memoryManager = MemoryManager.instance()
+    val memoryCounterBefore = memoryManager.getMemoryFileStorageCounter
+    val diskCounterBefore = memoryManager.getDiskBufferCounter.get()
+    val fileLengthBefore = memoryTierWriter.fileInfo.getFileLength
+    val failure = new OutOfMemoryError("insertion failed before adding component")
+    val failingBuffer = new FailBeforeAddCompositeByteBuf(failure)
+    val originalFlushBuffer = memoryTierWriter.flushBuffer
+    memoryTierWriter.flushBuffer = failingBuffer
+    originalFlushBuffer.release()
+    var callerReferenceReleased = false
+
+    try {
+      memoryTierWriter.numPendingWrites.incrementAndGet()
+      val thrown = intercept[OutOfMemoryError](memoryTierWriter.write(buf))
+
+      assert(thrown eq failure)
+      assert(failingBuffer.writerIndex() === 0)
+      assert(failingBuffer.numComponents() === 0)
+      assert(memoryManager.getMemoryFileStorageCounter === memoryCounterBefore)
+      assert(memoryTierWriter.fileInfo.getFileLength === fileLengthBefore)
+      assert(buf.refCnt() === refCntBeforeWrite)
+      assert(buf.release())
+      callerReferenceReleased = true
+      assert(buf.refCnt() === 0)
+    } finally {
+      memoryTierWriter.destroy(new IOException("test cleanup"))
+      restoreCounters(memoryCounterBefore, diskCounterBefore)
+      if (!callerReferenceReleased && buf.refCnt() > 0) {
+        buf.release(buf.refCnt())
+      }
+    }
+  }
+
+  test("local tier writer should not account data when insertion fails before adding") {
+    val localTierWriter = prepareLocalTierWriter(false)
+    val buf = WriterUtils.generateSparkFormatData(UnpooledByteBufAllocator.DEFAULT, 0)
+    val refCntBeforeWrite = buf.refCnt()
+    val memoryManager = MemoryManager.instance()
+    val memoryCounterBefore = memoryManager.getMemoryFileStorageCounter
+    val diskCounterBefore = memoryManager.getDiskBufferCounter.get()
+    val failure = new OutOfMemoryError("insertion failed before adding component")
+    val failingBuffer = new FailBeforeAddCompositeByteBuf(failure)
+    val originalFlushBuffer = localTierWriter.flushBuffer
+    localTierWriter.flushBuffer = failingBuffer
+    localTierWriter.getFlusher.returnBuffer(originalFlushBuffer, false)
+    var callerReferenceReleased = false
+
+    try {
+      localTierWriter.numPendingWrites.incrementAndGet()
+      val thrown = intercept[OutOfMemoryError](localTierWriter.write(buf))
+
+      assert(thrown eq failure)
+      assert(failingBuffer.writerIndex() === 0)
+      assert(failingBuffer.numComponents() === 0)
+      assert(memoryManager.getDiskBufferCounter.get() === diskCounterBefore)
+      assert(buf.refCnt() === refCntBeforeWrite)
+      assert(buf.release())
+      callerReferenceReleased = true
+      assert(buf.refCnt() === 0)
+    } finally {
+      if (localTierWriter.flushBuffer != null) {
+        localTierWriter.flushBuffer.release()
+        localTierWriter.flushBuffer = null
+      }
+      localTierWriter.numPendingWrites.set(0)
+      localTierWriter.close()
+      restoreCounters(memoryCounterBefore, diskCounterBefore)
+      if (!callerReferenceReleased && buf.refCnt() > 0) {
+        buf.release(buf.refCnt())
+      }
+    }
+  }
+
+  test("memory tier writer should preserve state on composite buffer capacity overflow") {
+    val memoryTierWriter = prepareMemoryWriter
+    val buf = WriterUtils.generateSparkFormatData(UnpooledByteBufAllocator.DEFAULT, 0)
+    val refCntBeforeWrite = buf.refCnt()
+    val memoryManager = MemoryManager.instance()
+    val memoryCounterBefore = memoryManager.getMemoryFileStorageCounter
+    val diskCounterBefore = memoryManager.getDiskBufferCounter.get()
+    val fileLengthBefore = memoryTierWriter.fileInfo.getFileLength
+    val overflowBuffer = capacityOverflowFlushBuffer()
+    val writerIndexBefore = overflowBuffer.writerIndex()
+    val numComponentsBefore = overflowBuffer.numComponents()
+    val originalFlushBuffer = memoryTierWriter.flushBuffer
+    memoryTierWriter.flushBuffer = overflowBuffer
+    originalFlushBuffer.release()
+    var callerReferenceReleased = false
+
+    try {
+      memoryTierWriter.numPendingWrites.incrementAndGet()
+      val thrown = intercept[IllegalArgumentException](memoryTierWriter.write(buf))
+
+      assert(thrown.getMessage.contains("overflow"))
+      assert(overflowBuffer.writerIndex() === writerIndexBefore)
+      assert(overflowBuffer.numComponents() === numComponentsBefore)
+      assert(memoryManager.getMemoryFileStorageCounter === memoryCounterBefore)
+      assert(memoryTierWriter.fileInfo.getFileLength === fileLengthBefore)
+      assert(buf.refCnt() === refCntBeforeWrite)
+      assert(buf.release())
+      callerReferenceReleased = true
+      assert(buf.refCnt() === 0)
+    } finally {
+      memoryTierWriter.destroy(new IOException("test cleanup"))
+      restoreCounters(memoryCounterBefore, diskCounterBefore)
+      if (!callerReferenceReleased && buf.refCnt() > 0) {
+        buf.release(buf.refCnt())
+      }
+    }
+  }
+
+  test("memory tier writer should account data added before consolidation OOM") {
+    val memoryTierWriter = prepareMemoryWriter
+    val memoryFileInfo = memoryTierWriter.fileInfo.asInstanceOf[MemoryFileInfo]
+    val buf = WriterUtils.generateSparkFormatData(UnpooledByteBufAllocator.DEFAULT, 0)
+    val numBytes = buf.readableBytes()
+    val refCntBeforeWrite = buf.refCnt()
+    val memoryManager = MemoryManager.instance()
+    val memoryCounterBefore = memoryManager.getMemoryFileStorageCounter
+    val diskCounterBefore = memoryManager.getDiskBufferCounter.get()
+    val fileLengthBefore = memoryTierWriter.fileInfo.getFileLength
+    val failure = new OutOfMemoryError("consolidation failed")
+    val failingBuffer = consolidationOomFlushBuffer(failure)
+    val numComponentsBefore = failingBuffer.numComponents()
+    val originalFlushBuffer = memoryTierWriter.flushBuffer
+    memoryTierWriter.flushBuffer = failingBuffer
+    originalFlushBuffer.release()
+    var memoryBufferReleased = false
+    var callerReferenceReleased = false
+
+    try {
+      memoryTierWriter.numPendingWrites.incrementAndGet()
+      val thrown = intercept[OutOfMemoryError](memoryTierWriter.write(buf))
+
+      assert(thrown eq failure)
+      assert(failingBuffer.writerIndex() === numBytes)
+      assert(failingBuffer.readableBytes() === numBytes)
+      assert(failingBuffer.numComponents() === numComponentsBefore + 1)
+      assert(memoryManager.getMemoryFileStorageCounter === memoryCounterBefore + numBytes)
+      assert(memoryTierWriter.fileInfo.getFileLength === fileLengthBefore + numBytes)
+      assert(buf.refCnt() === refCntBeforeWrite + 1)
+
+      memoryTierWriter.numPendingWrites.set(0)
+      assert(memoryTierWriter.close() === fileLengthBefore + numBytes)
+      val releasedBytes = memoryFileInfo.releaseMemoryBuffers()
+      memoryBufferReleased = true
+      memoryManager.releaseMemoryFileStorage(releasedBytes)
+      assert(releasedBytes === numBytes)
+      assert(memoryManager.getMemoryFileStorageCounter === memoryCounterBefore)
+      assert(buf.refCnt() === refCntBeforeWrite)
+      assert(buf.release())
+      callerReferenceReleased = true
+      assert(buf.refCnt() === 0)
+    } finally {
+      if (!memoryTierWriter.closed) {
+        memoryTierWriter.destroy(new IOException("test cleanup"))
+      } else if (!memoryBufferReleased && memoryFileInfo.getBuffer.refCnt() > 0) {
+        val releasedBytes = memoryFileInfo.releaseMemoryBuffers()
+        memoryManager.releaseMemoryFileStorage(releasedBytes)
+      }
+      restoreCounters(memoryCounterBefore, diskCounterBefore)
+      if (!callerReferenceReleased && buf.refCnt() > 0) {
+        buf.release(buf.refCnt())
+      }
+    }
+  }
+
+  test("local tier writer should account data added before consolidation OOM") {
+    val localTierWriter = prepareLocalTierWriter(false)
+    val buf = WriterUtils.generateSparkFormatData(UnpooledByteBufAllocator.DEFAULT, 0)
+    val numBytes = buf.readableBytes()
+    val refCntBeforeWrite = buf.refCnt()
+    val memoryManager = MemoryManager.instance()
+    val memoryCounterBefore = memoryManager.getMemoryFileStorageCounter
+    val diskCounterBefore = memoryManager.getDiskBufferCounter.get()
+    val failure = new OutOfMemoryError("consolidation failed")
+    val failingBuffer = consolidationOomFlushBuffer(failure)
+    val numComponentsBefore = failingBuffer.numComponents()
+    val originalFlushBuffer = localTierWriter.flushBuffer
+    localTierWriter.flushBuffer = failingBuffer
+    localTierWriter.getFlusher.returnBuffer(originalFlushBuffer, false)
+    var flushBufferReleased = false
+    var callerReferenceReleased = false
+
+    try {
+      localTierWriter.numPendingWrites.incrementAndGet()
+      val thrown = intercept[OutOfMemoryError](localTierWriter.write(buf))
+
+      assert(thrown eq failure)
+      assert(failingBuffer.writerIndex() === numBytes)
+      assert(failingBuffer.readableBytes() === numBytes)
+      assert(failingBuffer.numComponents() === numComponentsBefore + 1)
+      assert(memoryManager.getDiskBufferCounter.get() === diskCounterBefore + numBytes)
+      assert(buf.refCnt() === refCntBeforeWrite + 1)
+
+      localTierWriter.returnBuffer(false)
+      assert(memoryManager.getDiskBufferCounter.get() === diskCounterBefore)
+      assert(failingBuffer.writerIndex() === 0)
+      assert(failingBuffer.numComponents() === 0)
+      assert(buf.refCnt() === refCntBeforeWrite)
+      val returnedBuffer = localTierWriter.getFlusher.takeBuffer()
+      assert(returnedBuffer eq failingBuffer)
+      assert(returnedBuffer.release())
+      flushBufferReleased = true
+
+      localTierWriter.numPendingWrites.set(0)
+      localTierWriter.close()
+      assert(buf.release())
+      callerReferenceReleased = true
+      assert(buf.refCnt() === 0)
+    } finally {
+      if (!flushBufferReleased) {
+        if (localTierWriter.flushBuffer != null) {
+          localTierWriter.flushBuffer.release()
+          localTierWriter.flushBuffer = null
+        } else if (failingBuffer.refCnt() > 0) {
+          val returnedBuffer = localTierWriter.getFlusher.takeBuffer()
+          returnedBuffer.release()
+        }
+      }
+      localTierWriter.numPendingWrites.set(0)
+      if (!localTierWriter.closed) {
+        localTierWriter.close()
+      }
+      restoreCounters(memoryCounterBefore, diskCounterBefore)
+      if (!callerReferenceReleased && buf.refCnt() > 0) {
+        buf.release(buf.refCnt())
+      }
+    }
   }
 }

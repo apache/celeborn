@@ -1546,7 +1546,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
             result(index) = StatusCode.HARD_SPLIT
           } else {
-            logError("Exception encountered when write.", e)
+            logError(s"Exception encountered when writing shuffle $shuffleKey.", e)
             workerSource.incCounter(WorkerSource.WRITE_DATA_FAIL_COUNT)
             val cause =
               if (isPrimary) {
