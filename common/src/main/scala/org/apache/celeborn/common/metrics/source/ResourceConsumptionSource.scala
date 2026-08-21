@@ -33,4 +33,8 @@ object ResourceConsumptionSource {
   val HDFS_FILE_COUNT = "hdfsFileCount"
 
   val HDFS_BYTES_WRITTEN = "hdfsBytesWritten"
+
+  val S3_FILE_COUNT = "s3FileCount"
+
+  val S3_BYTES_WRITTEN = "s3BytesWritten"
 }

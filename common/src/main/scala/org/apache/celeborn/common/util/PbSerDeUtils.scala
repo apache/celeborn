@@ -224,7 +224,9 @@ object PbSerDeUtils {
     pbResourceConsumption.getDiskFileCount,
     pbResourceConsumption.getHdfsBytesWritten,
     pbResourceConsumption.getHdfsFileCount,
-    fromPbSubResourceConsumptions(pbResourceConsumption.getSubResourceConsumptionsMap))
+    fromPbSubResourceConsumptions(pbResourceConsumption.getSubResourceConsumptionsMap),
+    pbResourceConsumption.getS3BytesWritten,
+    pbResourceConsumption.getS3FileCount)
 
   def toPbResourceConsumption(resourceConsumption: ResourceConsumption): PbResourceConsumption = {
     PbResourceConsumption.newBuilder
@@ -232,6 +234,8 @@ object PbSerDeUtils {
       .setDiskFileCount(resourceConsumption.diskFileCount)
       .setHdfsBytesWritten(resourceConsumption.hdfsBytesWritten)
       .setHdfsFileCount(resourceConsumption.hdfsFileCount)
+      .setS3BytesWritten(resourceConsumption.s3BytesWritten)
+      .setS3FileCount(resourceConsumption.s3FileCount)
       .putAllSubResourceConsumptions(toPbSubResourceConsumptions(
         resourceConsumption.subResourceConsumptions))
       .build

@@ -1031,12 +1031,15 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       : ResourceConsumption = {
     val diskFileInfos = fileInfos.filter(!_.isDFS)
     val hdfsFileInfos = fileInfos.filter(_.isHdfs)
+    val s3FileInfos = fileInfos.filter(_.isS3)
     ResourceConsumption(
       diskFileInfos.map(_.getFileLength).sum,
       diskFileInfos.size,
       hdfsFileInfos.map(_.getFileLength).sum,
       hdfsFileInfos.size,
-      subResourceConsumptions)
+      subResourceConsumptions,
+      s3FileInfos.map(_.getFileLength).sum,
+      s3FileInfos.size)
   }
 
   def notifyFileInfoCommitted(

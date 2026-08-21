@@ -702,6 +702,8 @@ message PbResourceConsumption {
   int64 hdfsBytesWritten = 3;
   int64 hdfsFileCount = 4;
   map<string, PbResourceConsumption> subResourceConsumptions = 5;
+  int64 s3BytesWritten = 6;
+  int64 s3FileCount = 7;
 }
 
 // deprecated
