@@ -50,6 +50,7 @@ import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
+import org.apache.celeborn.common.network.protocol.ChunkFetchFailure;
 import org.apache.celeborn.common.network.protocol.ChunkFetchSuccess;
 import org.apache.celeborn.common.network.protocol.Message;
 import org.apache.celeborn.common.network.protocol.OpenStream;
@@ -300,6 +301,38 @@ public class FetchHandlerSuiteJ {
     } finally {
       cleanup(fileInfo);
     }
+  }
+
+  @Test
+  public void testFetchChunkForUnregisteredStream() {
+    EmbeddedChannel channel = new EmbeddedChannel();
+    TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+    FetchHandler fetchHandler = mockFetchHandler(null);
+
+    // the stream is never opened, so it is unknown to the ChunkStreamManager
+    long unregisteredStreamId = 12345;
+    fetchHandler.receive(
+        client,
+        new RpcRequest(
+            TransportClient.requestId(),
+            new NioManagedBuffer(
+                new TransportMessage(
+                        MessageType.CHUNK_FETCH_REQUEST,
+                        PbChunkFetchRequest.newBuilder()
+                            .setStreamChunkSlice(
+                                PbStreamChunkSlice.newBuilder()
+                                    .setStreamId(unregisteredStreamId)
+                                    .setChunkIndex(0)
+                                    .setOffset(0)
+                                    .setLen(Integer.MAX_VALUE))
+                            .build()
+                            .toByteArray())
+                    .toByteBuffer())),
+        createRpcResponseCallback(channel));
+
+    ChunkFetchFailure chunkFetchFailure = channel.readOutbound();
+    assertEquals(unregisteredStreamId, chunkFetchFailure.streamChunkSlice.streamId);
+    assertTrue(chunkFetchFailure.errorString.contains("not registered"));
   }
 
   private FetchHandler mockFetchHandler(FileInfo fileInfo) {
