@@ -39,6 +39,7 @@ public class CelebornSorter extends ExternalSorter {
 
   private static final Logger LOG = LoggerFactory.getLogger(CelebornSorter.class);
   private CelebornSortBasedPusher celebornSortBasedPusher;
+  private final CelebornTezWriter celebornTezWriter;
 
   private int[] numRecordsPerPartition;
 
@@ -53,6 +54,7 @@ public class CelebornSorter extends ExternalSorter {
       throws IOException {
     super(outputContext, conf, numOutputs, initialMemoryAvailable);
 
+    this.celebornTezWriter = celebornTezWriter;
     this.numRecordsPerPartition = new int[numOutputs];
 
     final float spillper =
@@ -80,6 +82,12 @@ public class CelebornSorter extends ExternalSorter {
   @Override
   public void flush() throws IOException {
     celebornSortBasedPusher.close();
+  }
+
+  @Override
+  public long[] getPartitionStats() {
+    // ExternalSorter uses null to indicate that partition statistics reporting is disabled.
+    return partitionStats == null ? null : celebornTezWriter.getPartitionStats();
   }
 
   @Override
