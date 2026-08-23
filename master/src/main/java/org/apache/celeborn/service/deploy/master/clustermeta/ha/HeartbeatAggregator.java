@@ -88,6 +88,7 @@ public class HeartbeatAggregator {
   }
 
   public void stop() {
+    flushSafely();
     flushExecutor.shutdownNow();
   }
 
