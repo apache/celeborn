@@ -399,7 +399,7 @@ object PbSerDeUtils {
         .setFetchPort(location.getPeer.getFetchPort)
         .setReplicatePort(location.getPeer.getReplicatePort)
         .setStorageInfo(StorageInfo.toPb(location.getPeer.getStorageInfo))
-        .setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMap))
+        .setMapIdBitmap(Utils.roaringBitmapToByteString(location.getPeer.getMapIdBitMap))
       builder.setPeer(peerBuilder.build)
     }
     builder.build

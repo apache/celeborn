@@ -27,6 +27,7 @@ import scala.util.Random
 
 import com.google.common.collect.Lists
 import org.apache.hadoop.shaded.org.apache.commons.lang3.RandomStringUtils
+import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
@@ -459,6 +460,82 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     val restoredPartitionLocation = PbSerDeUtils.fromPbPartitionLocation(pbPartitionLocation)
 
     assert(restoredPartitionLocation.equals(partitionLocation1))
+  }
+
+  test("fromAndToPbPartitionLocation should preserve the peer's own mapIdBitMap") {
+    val primaryBitmap = new RoaringBitmap()
+    primaryBitmap.add(1)
+    primaryBitmap.add(2)
+    val peerBitmap = new RoaringBitmap()
+    peerBitmap.add(3)
+    val storage = new StorageInfo(
+      StorageInfo.Type.HDD,
+      "mountPoint",
+      false,
+      "filePath",
+      StorageInfo.LOCAL_DISK_MASK)
+    val peer = new PartitionLocation(
+      4,
+      0,
+      "host-peer",
+      44,
+      43,
+      42,
+      41,
+      Mode.REPLICA,
+      null,
+      storage,
+      peerBitmap)
+    val primary = new PartitionLocation(
+      5,
+      0,
+      "host-primary",
+      55,
+      54,
+      53,
+      52,
+      Mode.PRIMARY,
+      peer,
+      storage,
+      primaryBitmap)
+
+    val restored = PbSerDeUtils.fromPbPartitionLocation(
+      PbSerDeUtils.toPbPartitionLocation(primary))
+
+    assert(restored.getMapIdBitMap.toArray.sameElements(Array(1, 2)))
+    assert(restored.getPeer.getMapIdBitMap.toArray.sameElements(Array(3)))
+
+    // a peer whose bitmap is null must stay null, not inherit the primary's
+    val nullBitmapPeer = new PartitionLocation(
+      6,
+      0,
+      "host-null-bitmap-peer",
+      66,
+      65,
+      64,
+      63,
+      Mode.REPLICA,
+      null,
+      storage,
+      null)
+    val primaryWithNullBitmapPeer = new PartitionLocation(
+      7,
+      0,
+      "host-primary-null-bitmap-peer",
+      77,
+      76,
+      75,
+      74,
+      Mode.PRIMARY,
+      nullBitmapPeer,
+      storage,
+      primaryBitmap)
+
+    val restoredNullPeer = PbSerDeUtils.fromPbPartitionLocation(
+      PbSerDeUtils.toPbPartitionLocation(primaryWithNullBitmapPeer))
+
+    assert(restoredNullPeer.getMapIdBitMap.toArray.sameElements(Array(1, 2)))
+    assert(restoredNullPeer.getPeer.getMapIdBitMap == null)
   }
 
   test("fromAndToPbWorkerResource") {
