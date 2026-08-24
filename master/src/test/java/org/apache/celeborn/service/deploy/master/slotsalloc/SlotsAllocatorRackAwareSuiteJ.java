@@ -205,6 +205,32 @@ public class SlotsAllocatorRackAwareSuiteJ {
   }
 
   @Test
+  public void offerSlotsRackAwareFallbackSkipsDisklessReplica() {
+    WorkerInfo primaryWorker = prepareWorker("primary-worker", "/rack/r1", "/mnt/disk1");
+    WorkerInfo disklessReplica = prepareWorker("diskless-replica", "/rack/r2", null);
+    WorkerInfo diskReplica = prepareWorker("disk-replica", "/rack/r2", "/mnt/disk2");
+    // Use separate candidate lists and two partitions so the diskless replica is scanned regardless
+    // of the random initial replica index.
+    disklessReplica.nextInterruptionNotice_$eq(1L);
+    diskReplica.nextInterruptionNotice_$eq(2L);
+
+    Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots =
+        SlotsAllocator.offerSlots(
+            Arrays.asList(primaryWorker, disklessReplica, diskReplica),
+            Arrays.asList(0, 1),
+            true,
+            true,
+            StorageInfo.LOCAL_DISK_MASK,
+            true,
+            0,
+            SLOTS_ASSIGN_STRATEGY);
+
+    Assert.assertFalse(slots.containsKey(disklessReplica));
+    Assert.assertEquals(2, slots.get(primaryWorker)._1.size());
+    Assert.assertEquals(2, slots.get(diskReplica)._2.size());
+  }
+
+  @Test
   public void offerSlotsRackAwareFallbackUsesReplicaStorageInfo() {
     List<WorkerInfo> workers =
         Arrays.asList(
