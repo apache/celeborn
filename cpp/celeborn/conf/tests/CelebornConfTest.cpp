@@ -54,6 +54,9 @@ void testDefaultValues(CelebornConf* conf) {
   EXPECT_EQ(conf->clientFetchMaxRetriesForEachReplica(), 3);
   EXPECT_EQ(conf->networkIoRetryWait(), SECOND(5));
   EXPECT_FALSE(conf->clientPushReplicateEnabled());
+  EXPECT_EQ(conf->clientPushLimitStrategy(), CelebornConf::kSimplePushStrategy);
+  EXPECT_EQ(conf->clientPushSlowStartInitialSleepTime(), 500);
+  EXPECT_EQ(conf->clientPushSlowStartMaxSleepMills(), 2000);
   EXPECT_FALSE(conf->clientFetchExcludeWorkerOnFailureEnabled());
   EXPECT_EQ(conf->clientFetchExcludedWorkerExpireTimeout(), SECOND(60));
   EXPECT_FALSE(conf->clientAdaptiveOptimizeSkewedPartitionReadEnabled());
@@ -101,6 +104,16 @@ TEST(CelebornConfTest, setValues) {
   EXPECT_TRUE(conf->clientPushReplicateEnabled());
   conf->registerProperty(CelebornConf::kClientPushReplicateEnabled, "false");
   EXPECT_FALSE(conf->clientPushReplicateEnabled());
+  conf->registerProperty(
+      CelebornConf::kClientPushLimitStrategy,
+      std::string(CelebornConf::kSlowStartPushStrategy));
+  EXPECT_EQ(
+      conf->clientPushLimitStrategy(), CelebornConf::kSlowStartPushStrategy);
+  conf->registerProperty(
+      CelebornConf::kClientPushSlowStartInitialSleepTime, "1s");
+  EXPECT_EQ(conf->clientPushSlowStartInitialSleepTime(), 1000);
+  conf->registerProperty(CelebornConf::kClientPushSlowStartMaxSleepTime, "3s");
+  EXPECT_EQ(conf->clientPushSlowStartMaxSleepMills(), 3000);
   conf->registerProperty(
       CelebornConf::kClientFetchExcludeWorkerOnFailureEnabled, "true");
   EXPECT_TRUE(conf->clientFetchExcludeWorkerOnFailureEnabled());
