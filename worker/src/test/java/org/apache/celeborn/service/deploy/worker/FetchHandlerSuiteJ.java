@@ -63,10 +63,14 @@ import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbBufferStreamEnd;
 import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
 import org.apache.celeborn.common.protocol.PbOpenStream;
+import org.apache.celeborn.common.protocol.PbOpenStreamList;
+import org.apache.celeborn.common.protocol.PbOpenStreamListResponse;
 import org.apache.celeborn.common.protocol.PbStreamChunkSlice;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
+import org.apache.celeborn.common.protocol.PbStreamHandlerOpt;
 import org.apache.celeborn.common.protocol.StreamType;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
+import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
@@ -161,7 +165,7 @@ public class FetchHandlerSuiteJ {
   }
 
   @Test
-  public void testFetchOriginFile() throws IOException {
+  public void testFetchOriginFile() throws Exception {
     FileInfo fileInfo = null;
     try {
       // total write: 32 * 50 * 256k = 400m
@@ -180,7 +184,7 @@ public class FetchHandlerSuiteJ {
   }
 
   @Test
-  public void testFetchSortFile() throws IOException {
+  public void testFetchSortFile() throws Exception {
     FileInfo fileInfo = null;
     try {
       // total write size: 32 * 50 * 256k = 400m
@@ -198,7 +202,7 @@ public class FetchHandlerSuiteJ {
   }
 
   @Test
-  public void testLegacyOpenStream() throws IOException {
+  public void testLegacyOpenStream() throws Exception {
     FileInfo fileInfo = null;
     try {
       // total write size: 32 * 50 * 256k = 400m
@@ -215,7 +219,7 @@ public class FetchHandlerSuiteJ {
   }
 
   @Test
-  public void testWorkerReadSortFileOnceOriginalFileBeDeleted() throws IOException {
+  public void testWorkerReadSortFileOnceOriginalFileBeDeleted() throws Exception {
     FileInfo fileInfo = null;
     try {
       // total write size: 32 * 50 * 256k = 400m
@@ -237,7 +241,7 @@ public class FetchHandlerSuiteJ {
   }
 
   @Test
-  public void testLocalReadSortFileOnceOriginalFileBeDeleted() throws IOException {
+  public void testLocalReadSortFileOnceOriginalFileBeDeleted() throws Exception {
     FileInfo fileInfo = null;
     try {
       // total write size: 32 * 50 * 256k = 400m
@@ -255,7 +259,7 @@ public class FetchHandlerSuiteJ {
   }
 
   @Test
-  public void testDoNotDeleteOriginalFileWhenNonRangeWorkerReadWorkInProgress() throws IOException {
+  public void testDoNotDeleteOriginalFileWhenNonRangeWorkerReadWorkInProgress() throws Exception {
     FileInfo fileInfo = null;
     try {
       // total write size: 32 * 50 * 256k = 400m
@@ -280,7 +284,7 @@ public class FetchHandlerSuiteJ {
   }
 
   @Test
-  public void testDoNotDeleteOriginalFileWhenNonRangeLocalReadWorkInProgress() throws IOException {
+  public void testDoNotDeleteOriginalFileWhenNonRangeLocalReadWorkInProgress() throws Exception {
     FileInfo fileInfo = null;
     try {
       // total write size: 32 * 50 * 256k = 400m
@@ -297,6 +301,104 @@ public class FetchHandlerSuiteJ {
       // non-range fetch finished.
       bufferStreamEnd(client, fetchHandler, nonRangeReadStreamHandler.getStreamId());
       checkOriginFileBeDeleted(fileInfo);
+    } finally {
+      cleanup(fileInfo);
+    }
+  }
+
+  @Test
+  public void testBatchOpenStream() throws Exception {
+    FileInfo fileInfo = null;
+    try {
+      fileInfo = prepare(32);
+      EmbeddedChannel channel = new EmbeddedChannel();
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+      FetchHandler fetchHandler = mockFetchHandler(fileInfo);
+
+      PbOpenStreamList.Builder builder = PbOpenStreamList.newBuilder().setShuffleKey(shuffleKey);
+      int batchSize = 3;
+      for (int i = 0; i < batchSize; i++) {
+        builder.addFileName(fileName);
+        builder.addStartIndex(5);
+        builder.addEndIndex(10);
+        builder.addReadLocalShuffle(false);
+      }
+      ByteBuffer batchOpenStreamBuffer =
+          new TransportMessage(MessageType.BATCH_OPEN_STREAM, builder.build().toByteArray())
+              .toByteBuffer();
+      fetchHandler.receive(
+          client,
+          new RpcRequest(dummyRequestId, new NioManagedBuffer(batchOpenStreamBuffer)),
+          createRpcResponseCallback(channel));
+
+      RpcResponse result = readOutboundWithTimeout(channel, 30_000);
+      PbOpenStreamListResponse response =
+          TransportMessage.fromByteBuffer(result.body().nioByteBuffer()).getParsedPayload();
+      assertEquals(batchSize, response.getStreamHandlerOptCount());
+      for (int i = 0; i < batchSize; i++) {
+        PbStreamHandlerOpt opt = response.getStreamHandlerOpt(i);
+        assertEquals(StatusCode.SUCCESS.getValue(), opt.getStatus());
+        assertEquals(10 - 5, opt.getStreamHandler().getNumChunks());
+      }
+    } finally {
+      cleanup(fileInfo);
+    }
+  }
+
+  @Test
+  public void testBatchOpenStreamPartialFailure() throws Exception {
+    FileInfo fileInfo = null;
+    try {
+      fileInfo = prepare(32);
+      EmbeddedChannel channel = new EmbeddedChannel();
+      TransportClient client = new TransportClient(channel, mock(TransportResponseHandler.class));
+
+      WorkerSource workerSource = mock(WorkerSource.class);
+      TransportConf transportConf =
+          Utils.fromCelebornConf(conf, TransportModuleConstants.FETCH_MODULE, 4);
+      FetchHandler fetchHandler0 = new FetchHandler(conf, transportConf, workerSource);
+      Worker worker = mock(Worker.class);
+      PartitionFilesSorter partitionFilesSorter =
+          new PartitionFilesSorter(MemoryManager.instance(), conf, workerSource);
+      StorageManager storageManager = mock(StorageManager.class);
+      Mockito.doReturn(storageManager).when(worker).storageManager();
+      Mockito.doReturn(workerSource).when(worker).workerSource();
+      Mockito.doReturn(partitionFilesSorter).when(worker).partitionsSorter();
+      fetchHandler0.init(worker);
+      FetchHandler fetchHandler = spy(fetchHandler0);
+
+      String existingFile = "existingFile";
+      String missingFile = "missingFile";
+      Mockito.doReturn(fileInfo).when(fetchHandler).getRawFileInfo(shuffleKey, existingFile);
+      Mockito.doAnswer(
+              invocation -> {
+                throw new java.io.FileNotFoundException("Not found");
+              })
+          .when(fetchHandler)
+          .getRawFileInfo(shuffleKey, missingFile);
+
+      PbOpenStreamList.Builder builder = PbOpenStreamList.newBuilder().setShuffleKey(shuffleKey);
+      builder.addFileName(existingFile).addStartIndex(5).addEndIndex(10).addReadLocalShuffle(false);
+      builder.addFileName(missingFile).addStartIndex(0).addEndIndex(10).addReadLocalShuffle(false);
+      builder.addFileName(existingFile).addStartIndex(5).addEndIndex(10).addReadLocalShuffle(false);
+
+      ByteBuffer batchBuffer =
+          new TransportMessage(MessageType.BATCH_OPEN_STREAM, builder.build().toByteArray())
+              .toByteBuffer();
+      fetchHandler.receive(
+          client,
+          new RpcRequest(dummyRequestId, new NioManagedBuffer(batchBuffer)),
+          createRpcResponseCallback(channel));
+
+      RpcResponse result = readOutboundWithTimeout(channel, 30_000);
+      PbOpenStreamListResponse response =
+          TransportMessage.fromByteBuffer(result.body().nioByteBuffer()).getParsedPayload();
+      assertEquals(3, response.getStreamHandlerOptCount());
+
+      assertEquals(StatusCode.SUCCESS.getValue(), response.getStreamHandlerOpt(0).getStatus());
+      assertEquals(
+          StatusCode.OPEN_STREAM_FAILED.getValue(), response.getStreamHandlerOpt(1).getStatus());
+      assertEquals(StatusCode.SUCCESS.getValue(), response.getStreamHandlerOpt(2).getStatus());
     } finally {
       cleanup(fileInfo);
     }
@@ -324,6 +426,21 @@ public class FetchHandlerSuiteJ {
   private final String shuffleKey = "dummyShuffleKey-123";
   private final String fileName = "dummyFileName";
   private final long dummyRequestId = 0;
+
+  @SuppressWarnings("unchecked")
+  private <T> T readOutboundWithTimeout(EmbeddedChannel channel, long timeoutMs)
+      throws InterruptedException {
+    long deadline = System.currentTimeMillis() + timeoutMs;
+    T result;
+    while ((result = (T) channel.readOutbound()) == null) {
+      if (System.currentTimeMillis() > deadline) {
+        fail("Timed out waiting for outbound message");
+      }
+      channel.runPendingTasks();
+      Thread.sleep(50);
+    }
+    return result;
+  }
 
   @Deprecated
   private void legacyOpenStreamAndCheck(
@@ -354,7 +471,7 @@ public class FetchHandlerSuiteJ {
       FetchHandler fetchHandler,
       int startIndex,
       int endIndex)
-      throws IOException {
+      throws Exception {
     return openStreamAndCheck(client, channel, fetchHandler, startIndex, endIndex, false);
   }
 
@@ -365,7 +482,7 @@ public class FetchHandlerSuiteJ {
       int startIndex,
       int endIndex,
       Boolean readLocalShuffle)
-      throws IOException {
+      throws Exception {
     ByteBuffer openStreamByteBuffer =
         new TransportMessage(
                 MessageType.OPEN_STREAM,
@@ -382,7 +499,7 @@ public class FetchHandlerSuiteJ {
         client,
         new RpcRequest(dummyRequestId, new NioManagedBuffer(openStreamByteBuffer)),
         createRpcResponseCallback(channel));
-    RpcResponse result = channel.readOutbound();
+    RpcResponse result = readOutboundWithTimeout(channel, 30_000);
     PbStreamHandler streamHandler =
         TransportMessage.fromByteBuffer(result.body().nioByteBuffer()).getParsedPayload();
     if (endIndex == Integer.MAX_VALUE) {
