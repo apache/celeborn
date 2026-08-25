@@ -462,80 +462,72 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     assert(restoredPartitionLocation.equals(partitionLocation1))
   }
 
-  test("fromAndToPbPartitionLocation should preserve the peer's own mapIdBitMap") {
-    val primaryBitmap = new RoaringBitmap()
-    primaryBitmap.add(1)
-    primaryBitmap.add(2)
-    val peerBitmap = new RoaringBitmap()
-    peerBitmap.add(3)
-    val storage = new StorageInfo(
-      StorageInfo.Type.HDD,
-      "mountPoint",
-      false,
-      "filePath",
-      StorageInfo.LOCAL_DISK_MASK)
-    val peer = new PartitionLocation(
-      4,
+  private def newMapIdBitMap(mapIds: Int*): RoaringBitmap = {
+    val bitmap = new RoaringBitmap()
+    mapIds.foreach(mapId => bitmap.add(mapId))
+    bitmap
+  }
+
+  private def newLocationWithBitMap(
+      id: Int,
+      mode: Mode,
+      peer: PartitionLocation,
+      mapIdBitMap: RoaringBitmap): PartitionLocation =
+    new PartitionLocation(
+      id,
       0,
-      "host-peer",
-      44,
-      43,
-      42,
-      41,
-      Mode.REPLICA,
-      null,
-      storage,
-      peerBitmap)
-    val primary = new PartitionLocation(
-      5,
-      0,
-      "host-primary",
-      55,
-      54,
-      53,
-      52,
-      Mode.PRIMARY,
+      s"host$id",
+      id * 10,
+      id * 10 + 1,
+      id * 10 + 2,
+      id * 10 + 3,
+      mode,
       peer,
-      storage,
-      primaryBitmap)
+      new StorageInfo(
+        StorageInfo.Type.HDD,
+        "/mnt/disk1",
+        false,
+        s"/mnt/disk1/shuffle-$id",
+        StorageInfo.LOCAL_DISK_MASK),
+      mapIdBitMap)
+
+  test("fromAndToPbPartitionLocation keeps the peer's own mapIdBitMap") {
+    val replica = newLocationWithBitMap(1, Mode.REPLICA, null, newMapIdBitMap(3))
+    val primary = newLocationWithBitMap(2, Mode.PRIMARY, replica, newMapIdBitMap(1, 2))
 
     val restored = PbSerDeUtils.fromPbPartitionLocation(
       PbSerDeUtils.toPbPartitionLocation(primary))
 
     assert(restored.getMapIdBitMap.toArray.sameElements(Array(1, 2)))
+    assert(restored.getPeer.getMapIdBitMap != null)
     assert(restored.getPeer.getMapIdBitMap.toArray.sameElements(Array(3)))
+    // the peer keeps its own mode, and the back link points at the root again
+    assert(restored.getPeer.getMode == Mode.REPLICA)
+    assert(restored.getPeer.getPeer eq restored)
+  }
 
-    // a peer whose bitmap is null must stay null, not inherit the primary's
-    val nullBitmapPeer = new PartitionLocation(
-      6,
-      0,
-      "host-null-bitmap-peer",
-      66,
-      65,
-      64,
-      63,
-      Mode.REPLICA,
-      null,
-      storage,
-      null)
-    val primaryWithNullBitmapPeer = new PartitionLocation(
-      7,
-      0,
-      "host-primary-null-bitmap-peer",
-      77,
-      76,
-      75,
-      74,
-      Mode.PRIMARY,
-      nullBitmapPeer,
-      storage,
-      primaryBitmap)
+  test("fromAndToPbPartitionLocation keeps the peer's mapIdBitMap when the root has none") {
+    val primary = newLocationWithBitMap(3, Mode.PRIMARY, null, newMapIdBitMap(1, 2))
+    val replica = newLocationWithBitMap(4, Mode.REPLICA, primary, null)
 
-    val restoredNullPeer = PbSerDeUtils.fromPbPartitionLocation(
-      PbSerDeUtils.toPbPartitionLocation(primaryWithNullBitmapPeer))
+    val restored = PbSerDeUtils.fromPbPartitionLocation(
+      PbSerDeUtils.toPbPartitionLocation(replica))
 
-    assert(restoredNullPeer.getMapIdBitMap.toArray.sameElements(Array(1, 2)))
-    assert(restoredNullPeer.getPeer.getMapIdBitMap == null)
+    assert(restored.getMapIdBitMap == null)
+    assert(restored.getPeer.getMapIdBitMap != null)
+    assert(restored.getPeer.getMapIdBitMap.toArray.sameElements(Array(1, 2)))
+    assert(restored.getPeer.getMode == Mode.PRIMARY)
+  }
+
+  test("fromAndToPbPartitionLocation does not give a null-bitmap peer the root's mapIdBitMap") {
+    val replica = newLocationWithBitMap(5, Mode.REPLICA, null, null)
+    val primary = newLocationWithBitMap(6, Mode.PRIMARY, replica, newMapIdBitMap(1, 2))
+
+    val restored = PbSerDeUtils.fromPbPartitionLocation(
+      PbSerDeUtils.toPbPartitionLocation(primary))
+
+    assert(restored.getMapIdBitMap.toArray.sameElements(Array(1, 2)))
+    assert(restored.getPeer.getMapIdBitMap == null)
   }
 
   test("fromAndToPbWorkerResource") {
@@ -686,6 +678,25 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     val loc1 = rePb._1.get(0)
 
     assert(partitionLocationIPv6 == loc1)
+  }
+
+  test("toPbPackedPartitionLocationsPair keeps each location's own mapIdBitMap") {
+    val replica = newLocationWithBitMap(7, Mode.REPLICA, null, newMapIdBitMap(3))
+    val primary = newLocationWithBitMap(8, Mode.PRIMARY, replica, newMapIdBitMap(1, 2))
+    replica.setPeer(primary)
+
+    val pairPb = PbSerDeUtils.toPbPackedPartitionLocationsPair(List(primary))
+    val rePb = PbSerDeUtils.fromPbPackedPartitionLocationsPair(pairPb)
+
+    // only the input locations land in the returned lists, the peer comes back through getPeer
+    assert(rePb._2.isEmpty)
+    val restored = rePb._1.get(0)
+
+    assert(restored.getMapIdBitMap.toArray.sameElements(Array(1, 2)))
+    assert(restored.getPeer.getMapIdBitMap != null)
+    assert(restored.getPeer.getMapIdBitMap.toArray.sameElements(Array(3)))
+    assert(restored.getPeer.getMode == Mode.REPLICA)
+    assert(restored.getPeer.getPeer eq restored)
   }
 
   private def testSerializationPerformance(scale: Int): Unit = {
