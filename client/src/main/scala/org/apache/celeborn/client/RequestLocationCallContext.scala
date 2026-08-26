@@ -32,7 +32,8 @@ trait RequestLocationCallContext {
       partitionId: Int,
       status: StatusCode,
       partitionLocationOpt: Option[PartitionLocation],
-      available: Boolean): Unit
+      available: Boolean,
+      additionalLocations: util.List[PartitionLocation] = util.Collections.emptyList()): Unit
 }
 
 case class ChangeLocationsCallContext(
@@ -44,6 +45,8 @@ case class ChangeLocationsCallContext(
   val newLocs =
     JavaUtils.newConcurrentHashMap[Integer, (StatusCode, java.lang.Boolean, PartitionLocation)](
       partitionCount)
+  val additionalLocs =
+    JavaUtils.newConcurrentHashMap[Integer, util.List[PartitionLocation]](partitionCount)
 
   def markMapperEnd(mapId: Int): Unit = this.synchronized {
     endedMapIds.add(mapId)
@@ -53,17 +56,26 @@ case class ChangeLocationsCallContext(
       partitionId: Int,
       status: StatusCode,
       partitionLocationOpt: Option[PartitionLocation],
-      available: Boolean): Unit = this.synchronized {
-    if (newLocs.containsKey(partitionId)) {
-      logError(s"PartitionId $partitionId already exists!")
-    }
-    newLocs.put(partitionId, (status, available, partitionLocationOpt.getOrElse(null)))
+      available: Boolean,
+      additionalLocations: util.List[PartitionLocation] = util.Collections.emptyList()): Unit =
+    this.synchronized {
+      if (newLocs.containsKey(partitionId)) {
+        // One Revive message can carry several requests of the same partition (adaptive
+        // parallelism reports every retired epoch); all of them are answered with the same
+        // full active set, so the first reply wins.
+        logDebug(s"PartitionId $partitionId already replied, ignore the duplicate reply.")
+      } else {
+        newLocs.put(partitionId, (status, available, partitionLocationOpt.getOrElse(null)))
+        if (additionalLocations != null && !additionalLocations.isEmpty) {
+          additionalLocs.put(partitionId, additionalLocations)
+        }
+      }
 
-    if (newLocs.size() == partitionCount || StatusCode.SHUFFLE_UNREGISTERED == status
-      || StatusCode.STAGE_ENDED == status) {
-      context.reply(ChangeLocationResponse(endedMapIds, newLocs, serdeVersion))
+      if (newLocs.size() == partitionCount || StatusCode.SHUFFLE_UNREGISTERED == status
+        || StatusCode.STAGE_ENDED == status) {
+        context.reply(ChangeLocationResponse(endedMapIds, newLocs, serdeVersion, additionalLocs))
+      }
     }
-  }
 }
 
 case class ApplyNewLocationCallContext(context: RpcCallContext, serdeVersion: SerdeVersion)
@@ -72,7 +84,8 @@ case class ApplyNewLocationCallContext(context: RpcCallContext, serdeVersion: Se
       partitionId: Int,
       status: StatusCode,
       partitionLocationOpt: Option[PartitionLocation],
-      available: Boolean): Unit = {
+      available: Boolean,
+      additionalLocations: util.List[PartitionLocation] = util.Collections.emptyList()): Unit = {
     partitionLocationOpt match {
       case Some(partitionLocation) =>
         context.reply(RegisterShuffleResponse(status, Array(partitionLocation), serdeVersion))

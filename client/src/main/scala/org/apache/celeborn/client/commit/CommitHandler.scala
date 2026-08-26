@@ -211,6 +211,12 @@ abstract class CommitHandler(
   def areAllMapperAttemptsFinished(shuffleId: Int): Boolean
 
   /**
+   * Returns per-partition total written bytes (indexed by partitionId), or null if unavailable.
+   * Only reduce partition mode tracks this; map partition mode returns null.
+   */
+  def getShufflePartitionBytes(shuffleId: Int): Array[Long] = null
+
+  /**
    * return (thisMapperAttemptedFinishedSuccessOrNot, allMapperFinishedOrNot)
    */
   def finishMapperAttempt(

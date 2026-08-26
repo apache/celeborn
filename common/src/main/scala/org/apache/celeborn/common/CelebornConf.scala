@@ -1033,6 +1033,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def clientFetchTimeoutMs: Long = get(CLIENT_FETCH_TIMEOUT)
   def clientFetchPollChunkWaitTime: Long = get(CLIENT_FETCH_POLL_CHUNK_WAIT_TIME)
+  def clientFetchSlowChunkThresholdMs: Long = get(CLIENT_FETCH_SLOW_CHUNK_THRESHOLD)
   def clientFetchBufferSize: Int = get(CLIENT_FETCH_BUFFER_SIZE).toInt
   def clientFetchMaxReqsInFlight: Int = get(CLIENT_FETCH_MAX_REQS_IN_FLIGHT)
   def isPartitionReaderCheckpointEnabled: Boolean =
@@ -1112,6 +1113,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
         pushDataTimeoutMs * clientPushMaxReviveTimes * 2)
     }
   def clientPushLimitInFlightSleepDeltaMs: Long = get(CLIENT_PUSH_LIMIT_IN_FLIGHT_SLEEP_INTERVAL)
+  def clientPushSlowPushThresholdMs: Long = get(CLIENT_PUSH_SLOW_PUSH_THRESHOLD)
   def clientPushTakeTaskWaitIntervalMs: Long = get(CLIENT_PUSH_TAKE_TASK_WAIT_INTERVAL)
   def clientPushTakeTaskMaxWaitAttempts: Int = get(CLIENT_PUSH_TAKE_TASK_MAX_WAIT_ATTEMPTS)
   def clientPushSendBufferPoolExpireTimeout: Long = get(CLIENT_PUSH_SENDBUFFERPOOL_EXPIRETIMEOUT)
@@ -1157,6 +1159,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shufflePartitionSplitMode: PartitionSplitMode =
     PartitionSplitMode.valueOf(get(SHUFFLE_PARTITION_SPLIT_MODE))
   def shufflePartitionSplitThreshold: Long = get(SHUFFLE_PARTITION_SPLIT_THRESHOLD)
+  def clientShuffleAdaptivePartitionWriteParallelismEnabled: Boolean =
+    get(CLIENT_SHUFFLE_ADAPTIVE_PARTITION_WRITE_PARALLELISM_ENABLED)
+  def clientShuffleAdaptivePartitionWriteParallelismMaxLocations: Int =
+    get(CLIENT_SHUFFLE_ADAPTIVE_PARTITION_WRITE_PARALLELISM_MAX_LOCATIONS)
+  def clientShuffleAdaptivePartitionWriteParallelismHotWindowMs: Long =
+    get(CLIENT_SHUFFLE_ADAPTIVE_PARTITION_WRITE_PARALLELISM_HOT_WINDOW)
   def batchHandleChangePartitionEnabled: Boolean = get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED)
   def batchHandleChangePartitionBuckets: Int =
     get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_BUCKETS)
@@ -5133,6 +5141,16 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("50ms")
 
+  val CLIENT_PUSH_SLOW_PUSH_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.slowPush.threshold")
+      .categories("client")
+      .doc("Threshold of the push data round trip time. If pushing a batch to a worker " +
+        "takes longer than this threshold, a warn log will be recorded with the target " +
+        "worker, partition and batch info.")
+      .version("0.7.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
+
   val CLIENT_PUSH_SORT_RANDOMIZE_PARTITION_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.client.push.sort.randomizePartitionId.enabled")
       .withAlternative("celeborn.push.sort.randomizePartitionId.enabled")
@@ -5216,6 +5234,16 @@ object CelebornConf extends Logging {
         "task getting stuck")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefault(500)
+
+  val CLIENT_FETCH_SLOW_CHUNK_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.client.fetch.slowChunk.threshold")
+      .categories("client")
+      .version("0.7.0")
+      .doc("Threshold of the fetch chunk round trip time. If fetching a chunk from a worker " +
+        "takes longer than this threshold, a warn log will be recorded with the worker, " +
+        "stream and chunk info.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1s")
 
   val CLIENT_FETCH_BUFFER_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.buffer.size")
@@ -5359,6 +5387,42 @@ object CelebornConf extends Logging {
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set(PartitionSplitMode.SOFT.name, PartitionSplitMode.HARD.name))
       .createWithDefault(PartitionSplitMode.SOFT.name)
+
+  val CLIENT_SHUFFLE_ADAPTIVE_PARTITION_WRITE_PARALLELISM_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffle.adaptivePartitionWriteParallelism.enabled")
+      .categories("client")
+      .doc("Whether to enable writing one partition to multiple partition locations " +
+        "in parallel. When enabled, a hot partition (whose location is filled up faster " +
+        "than the hot partition window) is gradually assigned more active locations, and " +
+        "mappers are dispatched to active locations by mapId % activeCount. When disabled, " +
+        "the behavior is identical to the legacy single active location per partition.")
+      .version("0.7.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_SHUFFLE_ADAPTIVE_PARTITION_WRITE_PARALLELISM_MAX_LOCATIONS: ConfigEntry[Int] =
+    buildConf("celeborn.client.shuffle.adaptivePartitionWriteParallelism.maxLocations")
+      .categories("client")
+      .doc("Max number of active locations one partition can write in parallel when " +
+        "celeborn.client.shuffle.adaptivePartitionWriteParallelism.enabled is true. The LifecycleManager " +
+        "caps the judged desired location count of a partition to this value.")
+      .version("0.7.0")
+      .intConf
+      .checkValue(v => v > 0, "Must be positive.")
+      .createWithDefault(8)
+
+  val CLIENT_SHUFFLE_ADAPTIVE_PARTITION_WRITE_PARALLELISM_HOT_WINDOW: ConfigEntry[Long] =
+    buildConf("celeborn.client.shuffle.adaptivePartitionWriteParallelism.hotWindow")
+      .categories("client")
+      .doc("The window to judge whether a partition is hot when " +
+        "celeborn.client.shuffle.adaptivePartitionWriteParallelism.enabled is true. If a partition location " +
+        "is filled up (soft/hard split) faster than this window, the partition is hot " +
+        "and its desired active location count is raised to ceil(window / fillTime), " +
+        "i.e. the location count that would push the per-location fill time above this " +
+        "window, capped by celeborn.client.shuffle.adaptivePartitionWriteParallelism.maxLocations.")
+      .version("0.7.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("60s")
 
   val SHUFFLE_COMPRESSION_CODEC: ConfigEntry[String] =
     buildConf("celeborn.client.shuffle.compression.codec")

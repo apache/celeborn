@@ -369,20 +369,29 @@ class CelebornShuffleReader[K, C](
     val locationStreamHandlerMap: ConcurrentHashMap[PartitionLocation, PbStreamHandler] =
       JavaUtils.newConcurrentHashMap()
 
-    val futures = workerRequestMap.values().asScala.map { entry =>
+    val futures = workerRequestMap.asScala.map { case (hostPort, entry) =>
       streamCreatorPool.submit(new Runnable {
         override def run(): Unit = {
           val (client, locArr, pbOpenStreamListBuilder) = entry
           val msg = new TransportMessage(
             MessageType.BATCH_OPEN_STREAM,
             pbOpenStreamListBuilder.build().toByteArray)
+          val openStreamStartTime = System.currentTimeMillis()
           val pbOpenStreamListResponse =
             try {
               val response = client.sendRpcSync(msg.toByteBuffer, fetchTimeoutMs)
               TransportMessage.fromByteBuffer(response).getParsedPayload[PbOpenStreamListResponse]
             } catch {
-              case _: Exception => null
+              case e: Exception =>
+                logWarning(
+                  s"BatchOpenStream request to $hostPort failed, " +
+                    s"fall back to single OpenStream for each partition later.",
+                  e)
+                null
             }
+          logDebug(
+            s"BatchOpenStream request to $hostPort cost " +
+              s"${System.currentTimeMillis() - openStreamStartTime}ms")
           if (pbOpenStreamListResponse != null) {
             0 until locArr.size() foreach { idx =>
               val streamHandlerOpt = pbOpenStreamListResponse.getStreamHandlerOptList.get(idx)

@@ -153,7 +153,18 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       shuffleId: Int,
       locations: util.List[PartitionLocation]): Unit = {
     val map = latestPartitionLocation.computeIfAbsent(shuffleId, newMapFunc)
-    locations.asScala.foreach(location => map.put(location.getId, location))
+    // latest = the location with the max epoch; keep this semantic when one call carries
+    // multiple active locations of the same partition (adaptive parallelism).
+    locations.asScala.foreach(location =>
+      map.merge(
+        location.getId,
+        location,
+        new util.function.BiFunction[PartitionLocation, PartitionLocation, PartitionLocation] {
+          override def apply(
+              oldLoc: PartitionLocation,
+              newLoc: PartitionLocation): PartitionLocation =
+            if (newLoc.getEpoch >= oldLoc.getEpoch) newLoc else oldLoc
+        }))
     invalidateLatestMaxLocsCache(shuffleId)
   }
 
@@ -870,6 +881,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       // Fifth, reply the allocated partition location to ShuffleClient.
       logInfo(s"Handle RegisterShuffle Success for $shuffleId.")
       val allPrimaryPartitionLocations = slots.asScala.flatMap(_._2._1.asScala).toArray
+      // Record the allocation time of the initial (epoch 0) locations so that
+      // ChangePartitionManager can measure fill times for hot partition detection.
+      if (conf.clientShuffleAdaptivePartitionWriteParallelismEnabled) {
+        changePartitionManager.recordInitialAllocTime(
+          shuffleId,
+          allPrimaryPartitionLocations,
+          System.currentTimeMillis())
+      }
       replyRegisterShuffle(RegisterShuffleResponse(
         StatusCode.SUCCESS,
         allPrimaryPartitionLocations,
@@ -886,8 +905,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       oldPartitions: util.List[PartitionLocation],
       causes: util.List[StatusCode],
       serdeVersion: SerdeVersion): Unit = {
+    // One Revive message may carry several retire reports of the same partition (adaptive
+    // parallelism forwards every retired epoch, not only the latest one), so the response
+    // completes once every DISTINCT partition has been replied.
     val contextWrapper =
-      ChangeLocationsCallContext(context, partitionIds.size(), serdeVersion)
+      ChangeLocationsCallContext(context, partitionIds.asScala.toSet.size, serdeVersion)
     // If shuffle not registered, reply ShuffleNotRegistered and return
     if (!registeredShuffle.contains(shuffleId)) {
       logError(s"[handleRevive] shuffle $shuffleId not registered!")
@@ -1215,6 +1237,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       return
     }
 
+    changePartitionManager.logReviveSummary(shuffleId, topPartitionBytesSummary(shuffleId, 20))
     if (commitManager.tryFinalCommit(shuffleId)) {
       // Here we only clear PartitionLocation info in shuffleAllocatedWorkers.
       // Since rerun or speculation task may running after we handle StageEnd.
@@ -1222,6 +1245,21 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         partitionLocationInfo.removeAllPrimaryPartitions()
         partitionLocationInfo.removeAllReplicaPartitions()
       }
+    }
+  }
+
+  private def topPartitionBytesSummary(shuffleId: Int, topN: Int): String = {
+    val partitionBytes = commitManager.getShufflePartitionBytes(shuffleId)
+    if (partitionBytes == null || partitionBytes.isEmpty) {
+      "NONE"
+    } else {
+      partitionBytes.zipWithIndex
+        .sortBy(-_._1)
+        .take(topN)
+        .map { case (bytes, partitionId) =>
+          s"(partition $partitionId, bytes ${Utils.bytesToString(bytes)})"
+        }
+        .mkString("[", ", ", "]")
     }
   }
 

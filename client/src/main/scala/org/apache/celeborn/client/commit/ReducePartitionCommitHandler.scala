@@ -89,7 +89,6 @@ class ReducePartitionCommitHandler(
   private val rpcCacheConcurrencyLevel = conf.clientRpcCacheConcurrencyLevel
   private val rpcCacheExpireTime = conf.clientRpcCacheExpireTime
 
-  private val shuffleIntegrityCheckEnabled = conf.clientShuffleIntegrityCheckEnabled
   // partitionId-shuffleId -> number of mappers that have written to this reducer (partition + shuffle)
   private val commitMetadataForReducer =
     JavaUtils.newConcurrentHashMap[Integer, Array[CommitMetadata]]
@@ -298,6 +297,15 @@ class ReducePartitionCommitHandler(
     shuffleMapperAttempts.get(shuffleId)
   }
 
+  override def getShufflePartitionBytes(shuffleId: Int): Array[Long] = {
+    val metadataArray = commitMetadataForReducer.get(shuffleId)
+    if (metadataArray == null) {
+      null
+    } else {
+      metadataArray.map(m => if (m == null) 0L else m.getBytes)
+    }
+  }
+
   override def areAllMapperAttemptsFinished(shuffleId: Int): Boolean = {
     val attempts = shuffleMapperAttempts.get(shuffleId)
     if (null != attempts) {
@@ -356,7 +364,7 @@ class ReducePartitionCommitHandler(
         (false, false)
       }
     }
-    if (shuffleIntegrityCheckEnabled && mapperAttemptFinishedSuccess) {
+    if (mapperAttemptFinishedSuccess) {
       val commitMetadataArray = commitMetadataForReducer.get(shuffleId)
       checkState(
         commitMetadataArray != null,
@@ -447,9 +455,9 @@ class ReducePartitionCommitHandler(
         shuffleMapperAttempts.put(shuffleId, attempts)
         shuffleToCompletedMappers.put(shuffleId, 0)
       }
-      if (shuffleIntegrityCheckEnabled) {
-        commitMetadataForReducer.put(shuffleId, Array.fill(numPartitions)(new CommitMetadata()))
-      }
+      // Record per-partition commit metadata unconditionally so that stage end can summarize
+      // top partitions by written bytes even when the integrity check is disabled.
+      commitMetadataForReducer.put(shuffleId, Array.fill(numPartitions)(new CommitMetadata()))
     }
   }
 

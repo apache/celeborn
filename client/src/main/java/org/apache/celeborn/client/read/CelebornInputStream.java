@@ -210,6 +210,11 @@ public abstract class CelebornInputStream extends InputStream {
 
     private MetricsCallback callback;
 
+    // Per stream read stats, conditionally logged when the stream is closed,
+    // used to diagnose slow shuffle fetch.
+    private final ReadStreamStats streamStats = new ReadStreamStats();
+    private final long createTimeMs = System.currentTimeMillis();
+
     // mapId, attemptId, batchId, size
     private final int BATCH_HEADER_SIZE = 4 * 4;
     private final byte[] sizeBuf = new byte[BATCH_HEADER_SIZE];
@@ -345,7 +350,25 @@ public abstract class CelebornInputStream extends InputStream {
         fetchChunkMaxRetry = conf.clientFetchMaxRetriesForEachReplica();
       }
       this.retryWaitMs = conf.networkIoRetryWaitMs(TransportModuleConstants.DATA_MODULE);
-      this.callback = metricsCallback;
+      // Wrap the callback so that chunk wait time is also recorded into streamStats.
+      this.callback =
+          new MetricsCallback() {
+            @Override
+            public void incBytesRead(long bytesRead) {
+              metricsCallback.incBytesRead(bytesRead);
+            }
+
+            @Override
+            public void incReadTime(long time) {
+              metricsCallback.incReadTime(time);
+              streamStats.addChunkWaitTime(TimeUnit.MILLISECONDS.toNanos(time));
+            }
+
+            @Override
+            public void incDuplicateBytesRead(long bytesRead) {
+              metricsCallback.incDuplicateBytesRead(bytesRead);
+            }
+          };
       this.exceptionMaker = exceptionMaker;
       this.cryptoHandler = cryptoHandler;
       this.partitionId = partitionId;
@@ -490,11 +513,14 @@ public abstract class CelebornInputStream extends InputStream {
           }
           lastException = e;
           shuffleClient.excludeFailedFetchLocation(location.hostAndFetchPort(), e);
+          streamStats.incExcludeCount();
           fetchChunkRetryCnt++;
+          streamStats.incRetryCount();
           if (location.hasPeer() && !readSkewPartitionWithoutMapRange) {
             // fetchChunkRetryCnt % 2 == 0 means both replicas have been tried,
             // so sleep before next try.
             if (fetchChunkRetryCnt % 2 == 0) {
+              streamStats.addRetryWaitTime(retryWaitMs);
               Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
             }
             logger.warn(
@@ -528,6 +554,7 @@ public abstract class CelebornInputStream extends InputStream {
               }
               pbStreamHandler = null;
             }
+            streamStats.incPeerSwitchCount();
             location = location.getPeer();
           } else {
             logger.warn(
@@ -536,6 +563,7 @@ public abstract class CelebornInputStream extends InputStream {
                 fetchChunkMaxRetry,
                 location,
                 e);
+            streamStats.addRetryWaitTime(retryWaitMs);
             Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
           }
         }
@@ -566,7 +594,9 @@ public abstract class CelebornInputStream extends InputStream {
           }
           shuffleClient.excludeFailedFetchLocation(
               currentReader.getLocation().hostAndFetchPort(), e);
+          streamStats.incExcludeCount();
           fetchChunkRetryCnt++;
+          streamStats.incRetryCount();
           currentReader.close();
           if (fetchChunkRetryCnt == fetchChunkMaxRetry) {
             logger.warn("Fetch chunk fail exceeds max retry {}", fetchChunkRetryCnt, e);
@@ -587,8 +617,10 @@ public abstract class CelebornInputStream extends InputStream {
               // fetchChunkRetryCnt % 2 == 0 means both replicas have been tried,
               // so sleep before next try.
               if (fetchChunkRetryCnt % 2 == 0) {
+                streamStats.addRetryWaitTime(retryWaitMs);
                 Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
               }
+              streamStats.incPeerSwitchCount();
               // We must not use checkpoint for peer location since chunkIds don't always match
               // across peers
               currentReader = createReaderWithRetry(currentReader.getLocation().getPeer(), null);
@@ -599,6 +631,7 @@ public abstract class CelebornInputStream extends InputStream {
                   fetchChunkMaxRetry,
                   currentReader.getLocation(),
                   e);
+              streamStats.addRetryWaitTime(retryWaitMs);
               Uninterruptibles.sleepUninterruptibly(retryWaitMs, TimeUnit.MILLISECONDS);
               // When reading from the same host again, it is possible to skip already read data
               // chunks,
@@ -667,7 +700,8 @@ public abstract class CelebornInputStream extends InputStream {
                 callback,
                 startChunkIndex,
                 endChunkIndex,
-                checkpointMetadata);
+                checkpointMetadata,
+                streamStats);
           }
         case S3:
         case OSS:
@@ -750,6 +784,7 @@ public abstract class CelebornInputStream extends InputStream {
             locationsCount,
             locationsCount - skipCount.sum(),
             skipCount.sum());
+        logReadStreamSummaryIfNeeded(locationsCount);
         if (currentChunk != null) {
           logger.debug("Release chunk {}", currentChunk);
           currentChunk.release();
@@ -775,6 +810,35 @@ public abstract class CelebornInputStream extends InputStream {
 
         closed = true;
       }
+    }
+
+    private void logReadStreamSummaryIfNeeded(int locationsCount) {
+      long chunkWaitMs = streamStats.getChunkWaitTimeMs();
+      if (chunkWaitMs < 1000
+          && streamStats.getRetryCount() == 0
+          && streamStats.getSlowChunkCount() == 0) {
+        return;
+      }
+      logger.info(
+          "Read stream summary for appShuffleId {}, shuffleId {}, partitionId {}: "
+              + "total={}ms, chunkWait={}ms, decompress={}ms, retries={}, retryWait={}ms, "
+              + "peerSwitch={}, exclude={}, slowChunks={}, maxChunkRtt={}ms, "
+              + "locations total {}, read {}, skip {}.",
+          appShuffleId,
+          shuffleId,
+          partitionId,
+          System.currentTimeMillis() - createTimeMs,
+          chunkWaitMs,
+          streamStats.getDecompressTimeMs(),
+          streamStats.getRetryCount(),
+          streamStats.getRetryWaitTimeMs(),
+          streamStats.getPeerSwitchCount(),
+          streamStats.getExcludeCount(),
+          streamStats.getSlowChunkCount(),
+          streamStats.getMaxChunkRttMs(),
+          locationsCount,
+          locationsCount - skipCount.sum(),
+          skipCount.sum());
     }
 
     void validateIntegrity() throws IOException {
@@ -950,11 +1014,13 @@ public abstract class CelebornInputStream extends InputStream {
           callback.incBytesRead(BATCH_HEADER_SIZE + encryptedSize);
           if (shouldDecompress) {
             // decompress data
+            long decompressStartNanos = System.nanoTime();
             int originalLength = decompressor.getOriginalLen(compressedBuf);
             if (rawDataBuf.length < originalLength) {
               rawDataBuf = new byte[originalLength];
             }
             limit = decompressor.decompress(compressedBuf, rawDataBuf, 0);
+            streamStats.addDecompressTime(System.nanoTime() - decompressStartNanos);
           } else {
             limit = size;
           }

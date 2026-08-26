@@ -353,6 +353,8 @@ message PbChangeLocationPartitionInfo {
   int32 status = 2;
   PbPartitionLocation partition = 3;
   bool oldAvailable = 4;
+  // The remaining active locations of the partition (full active set delivery).
+  repeated PbPartitionLocation additionalPartitions = 5;
 }
 
 message PbChangeLocationResponse {
