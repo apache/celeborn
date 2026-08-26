@@ -61,6 +61,14 @@ final class WorkerOptions {
     description = Array("Exit the application with a specified type"))
   private[worker] var exitType: String = _
 
+  @Option(
+    names = Array("--exit-timeout"),
+    paramLabel = "duration",
+    description = Array(
+      "Optional decommission forceExitTimeout override for --exit DECOMMISSION " +
+        "(e.g. 600s/30m/1h); ignored for other exit types."))
+  private[worker] var exitTimeout: String = _
+
   @Option(names = Array("--show-conf"), description = Array("Show worker conf"))
   private[worker] var showConf: Boolean = _
 

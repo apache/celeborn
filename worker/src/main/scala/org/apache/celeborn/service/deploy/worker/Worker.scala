@@ -984,12 +984,35 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
-  override def exit(exitType: String): String = {
+  @volatile private var decommissionTimeoutOverrideMs: Long = -1L
+
+  override def exit(exitType: String, timeout: String): String = {
     exitType.toUpperCase(Locale.ROOT) match {
       case "DECOMMISSION" =>
-        ShutdownHookManager.get().updateTimeout(
-          conf.workerDecommissionForceExitTimeout,
-          TimeUnit.MILLISECONDS)
+        val parsedTimeoutMs: Long =
+          if (timeout != null && timeout.nonEmpty) {
+            val ms = Utils.timeStringAsMs(timeout)
+            if (ms <= 0) {
+              logWarning(s"Invalid exit timeout '$timeout', falling back to config. " +
+                "Use a positive duration like 600s / 30m / 1h.")
+              -1L
+            } else {
+              ms
+            }
+          } else {
+            -1L
+          }
+        val fromApi = parsedTimeoutMs > 0
+        val effectiveTimeoutMs =
+          if (fromApi) {
+            parsedTimeoutMs
+          } else {
+            conf.workerDecommissionForceExitTimeout
+          }
+        decommissionTimeoutOverrideMs = effectiveTimeoutMs
+        logInfo(s"Worker decommission with forceExitTimeout=${effectiveTimeoutMs}ms " +
+          s"(source=${if (fromApi) "exit API" else "config"}).")
+        ShutdownHookManager.get().updateTimeout(effectiveTimeoutMs, TimeUnit.MILLISECONDS)
         workerStatusManager.doTransition(WorkerEventType.Decommission)
       case "GRACEFUL" =>
         workerStatusManager.doTransition(WorkerEventType.Graceful)
@@ -1064,7 +1087,12 @@ private[celeborn] class Worker(
     sendWorkerDecommissionToMaster()
     shutdown.set(true)
     val interval = conf.workerDecommissionCheckInterval
-    val timeout = conf.workerDecommissionForceExitTimeout
+    val timeout =
+      if (decommissionTimeoutOverrideMs > 0) {
+        decommissionTimeoutOverrideMs
+      } else {
+        conf.workerDecommissionForceExitTimeout
+      }
     var waitTimes = 0
 
     def waitTime: Long = waitTimes * interval
