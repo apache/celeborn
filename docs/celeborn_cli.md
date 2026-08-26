@@ -232,6 +232,9 @@ Usage: celeborn-cli worker [-hV] [--apps=appId] [--auth-header=authHeader]
                              The comma separated dynamic configs to delete.
       --delete-dynamic-conf  Delete dynamic worker conf
       --exit=exit_type       Exit the application with a specified type
+      --exit-timeout=duration
+                             Optional decommission forceExitTimeout override for --exit DECOMMISSION
+                             (e.g. 600s/30m/1h); ignored for other exit types.
   -h, --help                 Show this help message and exit.
       --host-list=h1,h2,h3...
                              List of hosts to pass to the command

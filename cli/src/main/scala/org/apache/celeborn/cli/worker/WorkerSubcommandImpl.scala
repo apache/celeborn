@@ -68,8 +68,15 @@ class WorkerSubcommandImpl extends WorkerSubcommand {
 
   private[worker] def runExit: HandleResponse = {
     val workerExitType: TypeEnum = TypeEnum.valueOf(workerOptions.exitType)
-    val workerExitRequest: WorkerExitRequest = new WorkerExitRequest().`type`(workerExitType)
-    logInfo(s"Sending worker exit type: ${workerExitType.getValue}")
+    val workerExitRequest: WorkerExitRequest =
+      new WorkerExitRequest().`type`(workerExitType)
+    if (workerOptions.exitTimeout != null && workerOptions.exitTimeout.nonEmpty) {
+      workerExitRequest.timeout(workerOptions.exitTimeout)
+      logInfo(s"Sending worker exit type: ${workerExitType.getValue}, " +
+        s"timeout: ${workerOptions.exitTimeout}")
+    } else {
+      logInfo(s"Sending worker exit type: ${workerExitType.getValue}")
+    }
     workerApi.workerExit(workerExitRequest, commonOptions.getAuthHeader)
   }
 
