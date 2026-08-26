@@ -73,25 +73,9 @@ class ApplicationMetricsSource(conf: CelebornConf)
       appId: String,
       metricLabels: Map[String, String],
       metrics: JMap[String, ClientMetric]): Unit = {
-    if (!masterClientMetricsEnabled) {
-      logWarning(s"Ignoring client metrics from $appId: master client metrics are disabled.")
-      return
-    }
-
-    if (metricLabels.isEmpty) {
-      logWarning(s"Ignoring client metrics from $appId: no metric labels provided.")
-      return
-    }
-
-    if (removedAppIds.containsKey(appId)) {
-      logWarning(s"Ignoring client metrics from $appId: application has been removed.")
-      return
-    }
-
-    if (!validateLabels(metricLabels)) {
-      logWarning(
-        s"Rejecting client metrics from $appId: labels contain invalid Prometheus " +
-          "label names or unsafe values (quotes, backslashes, or newlines).")
+    val reason = rejectReason(appId, metricLabels)
+    if (reason != null) {
+      logWarning(s"Ignoring client metrics from $appId: $reason")
       return
     }
 
@@ -108,6 +92,15 @@ class ApplicationMetricsSource(conf: CelebornConf)
     }
 
     warnIfSeriesCardinalityHigh()
+  }
+
+  private def rejectReason(appId: String, metricLabels: Map[String, String]): String = {
+    if (!masterClientMetricsEnabled) "master client metrics are disabled"
+    else if (metricLabels.isEmpty) "no metric labels provided"
+    else if (removedAppIds.containsKey(appId)) "application has been removed"
+    else if (!validateLabels(metricLabels)) "labels contain invalid Prometheus " +
+      "label names or unsafe values (quotes, backslashes, or newlines)"
+    else null
   }
 
   def removeApplicationMetrics(appId: String): Unit = {
@@ -127,7 +120,7 @@ class ApplicationMetricsSource(conf: CelebornConf)
     if (seriesCardinalityWarned.get()) {
       return
     }
-    val trackedSeries = namedGauges.size() + namedCounters.size()
+    val trackedSeries = namedGauges.size() + namedGaugesWithDetails.size() + namedCounters.size()
     if (trackedSeries > seriesCardinalityWarnThreshold && seriesCardinalityWarned.compareAndSet(
         false,
         true)) {

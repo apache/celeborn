@@ -52,12 +52,18 @@ class ApplicationHeartbeater(
   private val appMetricLabels: util.Map[String, String] =
     conf.clientMetricsAppLabels.asJava
 
-  if (conf.clientMetricsEnabled && appMetricLabels.isEmpty) {
+  if (conf.metricsSystemEnable && conf.clientMetricsEnabled && appMetricLabels.isEmpty) {
     logWarning(
       s"Client metrics are enabled ('${CelebornConf.CLIENT_METRICS_ENABLED.key}'=true) but " +
         s"'${CelebornConf.CLIENT_METRICS_APP_LABELS.key}' is empty. Client metrics are only " +
         "emitted in application heartbeats when at least one app label is set, so no client " +
         "metrics will reach the master. Set app labels (e.g. env=prod) to enable emission.")
+  } else if (!conf.metricsSystemEnable && conf.clientMetricsEnabled) {
+    logWarning(
+      s"Client metrics are enabled ('${CelebornConf.CLIENT_METRICS_ENABLED.key}'=true) but " +
+        s"the metrics system is disabled ('${CelebornConf.METRICS_ENABLED.key}'=false), so no " +
+        "client metrics will reach the master. Set " +
+        s"'${CelebornConf.METRICS_ENABLED.key}'=true to enable emission.")
   }
 
   // Use independent app heartbeat threads to avoid being blocked by other operations.
