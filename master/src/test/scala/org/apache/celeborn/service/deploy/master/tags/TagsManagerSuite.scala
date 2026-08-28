@@ -31,9 +31,9 @@ class TagsManagerSuite extends CelebornFunSuite {
   private val TAG1 = "tag1"
   private val TAG2 = "tag2"
 
-  private val WORKER1 = new WorkerInfo("host1", 111, 112, 113, 114, 115)
-  private val WORKER2 = new WorkerInfo("host2", 211, 212, 213, 214, 215)
-  private val WORKER3 = new WorkerInfo("host3", 311, 312, 313, 314, 315)
+  private val WORKER1 = workerWithTags("host1")
+  private val WORKER2 = workerWithTags("host2")
+  private val WORKER3 = workerWithTags("host3")
 
   private val workers = List(WORKER1, WORKER2, WORKER3).asJava
 

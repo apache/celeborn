@@ -18,7 +18,8 @@
 package org.apache.celeborn.service.deploy.master.tags
 
 import java.util
-import java.util.{Collections, Set => JSet}
+import java.util.{Set => JSet}
+import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Predicate
 import java.util.stream.Collectors
 
@@ -31,12 +32,18 @@ import org.apache.celeborn.server.common.service.config.ConfigService
 
 class TagsManager(configService: Option[ConfigService]) extends Logging {
 
-  private def tagStore: Option[util.Map[String, JSet[String]]] = {
-    configService match {
-      case Some(cs) => Option(cs.getSystemConfigFromCache.getTags)
-      case _ => None
-    }
-  }
+  private val tagStoreRef: AtomicReference[Map[String, JSet[String]]] =
+    new AtomicReference(Map.empty)
+
+  private def updateSnapshot(): Unit =
+    tagStoreRef.set(configService.flatMap(cs =>
+      Option(cs.getSystemConfigFromCache.getTags)
+        .map(_.asScala.toMap)).getOrElse(Map.empty))
+
+  updateSnapshot()
+  configService.foreach(_.registerListenerOnConfigUpdate(() => updateSnapshot()))
+
+  private def tagStore: Map[String, JSet[String]] = tagStoreRef.get()
 
   private def resolveTagsExpr(userIdentifier: UserIdentifier, clientTagsExpr: String): String =
     configService.map { cs =>
@@ -63,20 +70,18 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
     val workerTagsPredicate = new Predicate[WorkerInfo] {
       override def test(w: WorkerInfo): Boolean = tags.forall { tag =>
         w.tags.contains(tag) ||
-        store.flatMap(s => Option(s.get(tag))).exists(_.contains(w.toUniqueId))
+        store.get(tag).exists(_.contains(w.toUniqueId))
       }
     }
     workers.stream().filter(workerTagsPredicate).collect(Collectors.toList())
   }
 
   def getTagsForWorker(worker: WorkerInfo): Set[String] = {
-    val storeTags = tagStore.map(_.asScala.collect {
+    val storeTags = tagStore.collect {
       case (tag, workerIds) if workerIds.contains(worker.toUniqueId) => tag
-    }.toSet).getOrElse(Set.empty)
+    }.toSet
     storeTags ++ worker.tags.asScala
   }
 
-  def getTagsForCluster: Set[String] = {
-    tagStore.map(_.keySet.asScala.toSet).getOrElse(Set.empty)
-  }
+  def getTagsForCluster: Set[String] = tagStore.keySet
 }

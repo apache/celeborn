@@ -6927,7 +6927,7 @@ object CelebornConf extends Logging {
   val TAGS_WORKER_REGISTRATION_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.tags.worker.registration.enabled")
       .categories("master")
-      .version("0.7.0")
+      .version("0.7.1")
       .doc("When true, the master honors tags advertised by workers at registration " +
         "(merged with the config-store tags). When false, worker-supplied tags are ignored.")
       .booleanConf
@@ -6936,7 +6936,7 @@ object CelebornConf extends Logging {
   val WORKER_TAGS: ConfigEntry[Seq[String]] =
     buildConf("celeborn.worker.tags")
       .categories("worker")
-      .version("0.7.0")
+      .version("0.7.1")
       .doc("Comma-separated tags this worker supplies to the master at registration.")
       .stringConf
       .toSequence
