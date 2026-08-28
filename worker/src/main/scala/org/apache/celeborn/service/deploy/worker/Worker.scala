@@ -24,6 +24,7 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
 import scala.collection.JavaConverters._
+import scala.util.control.NonFatal
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
@@ -986,32 +987,39 @@ private[celeborn] class Worker(
 
   @volatile private var decommissionTimeoutOverrideMs: Long = -1L
 
+  override def exit(exitType: String): String = exit(exitType, null)
+
   override def exit(exitType: String, timeout: String): String = {
     exitType.toUpperCase(Locale.ROOT) match {
       case "DECOMMISSION" =>
-        val parsedTimeoutMs: Long =
+        val overrideMs: Long =
           if (timeout != null && timeout.nonEmpty) {
-            val ms = Utils.timeStringAsMs(timeout)
-            if (ms <= 0) {
-              logWarning(s"Invalid exit timeout '$timeout', falling back to config. " +
-                "Use a positive duration like 600s / 30m / 1h.")
-              -1L
-            } else {
-              ms
+            try {
+              val ms = Utils.timeStringAsMs(timeout)
+              if (ms > 0) ms
+              else {
+                logWarning(s"Invalid exit timeout '$timeout', falling back to config. " +
+                  "Use a positive duration like 600s / 30m / 1h.")
+                -1L
+              }
+            } catch {
+              case NonFatal(_) =>
+                logWarning(s"Unparseable exit timeout '$timeout', falling back to config. " +
+                  "Use a positive duration like 600s / 30m / 1h.")
+                -1L
             }
           } else {
             -1L
           }
-        val fromApi = parsedTimeoutMs > 0
+        decommissionTimeoutOverrideMs = overrideMs
         val effectiveTimeoutMs =
-          if (fromApi) {
-            parsedTimeoutMs
+          if (overrideMs > 0) {
+            overrideMs
           } else {
             conf.workerDecommissionForceExitTimeout
           }
-        decommissionTimeoutOverrideMs = effectiveTimeoutMs
         logInfo(s"Worker decommission with forceExitTimeout=${effectiveTimeoutMs}ms " +
-          s"(source=${if (fromApi) "exit API" else "config"}).")
+          s"(source=${if (overrideMs > 0) "exit API" else "config"}).")
         ShutdownHookManager.get().updateTimeout(effectiveTimeoutMs, TimeUnit.MILLISECONDS)
         workerStatusManager.doTransition(WorkerEventType.Decommission)
       case "GRACEFUL" =>
