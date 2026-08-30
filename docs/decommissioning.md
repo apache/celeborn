@@ -54,6 +54,11 @@ to meet varying workload demands.
 | celeborn.worker.decommission.forceExitTimeout     | 6h    |
 | celeborn.worker.decommission.checkInterval        | 30s   |
 
+> `forceExitTimeout` is read once at decommission start and is **not dynamically changeable**
+> for the running decommission. You can override it **per decommission** via the `timeout`
+> field/param of the worker `exit` API (see below) or the CLI `--exit-timeout` option, without
+> restarting the worker or editing configuration.
+
 
 ## Perform Decommissioning
 
@@ -62,6 +67,12 @@ Administrators perform decommissioning operation in two approaches:
 1. Via Celeborn Worker REST API endpoint:
   ```shell
   curl -X POST -H "Content-Type: application/json" -d '{"type":"Decommission"}' http://ip:port/api/v1/workers/exit
+  ```
+  You can override `celeborn.worker.decommission.forceExitTimeout` for this single decommission
+  by passing an optional `timeout` duration (e.g. `600s`/`30m`/`1h`); if omitted, the config
+  value (default `6h`) is used:
+  ```shell
+  curl -X POST -H "Content-Type: application/json" -d '{"type":"Decommission","timeout":"30m"}' http://ip:port/api/v1/workers/exit
   ```
 2. Via Celeborn Master(Leader) REST API endpoint:
   ```shell
