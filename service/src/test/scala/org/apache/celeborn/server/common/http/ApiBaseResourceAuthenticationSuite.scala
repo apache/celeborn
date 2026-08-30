@@ -26,6 +26,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.authentication.HttpAuthSchemes
 import org.apache.celeborn.common.network.TestHelper
 import org.apache.celeborn.server.common.http.HttpAuthUtils.AUTHORIZATION_HEADER
+import org.apache.celeborn.server.common.http.api.HealthCheckResponse
 import org.apache.celeborn.server.common.http.authentication.{UserDefinedPasswordAuthenticationProviderImpl, UserDefineTokenAuthenticationProviderImpl}
 
 abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
@@ -91,6 +92,12 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
         .get()
       assert(HttpServletResponse.SC_FORBIDDEN == response.getStatus)
     }
+  }
+
+  test("health api do not need authentication") {
+    val response = webTarget.path("health").request(MediaType.APPLICATION_JSON).get()
+    assert(HttpServletResponse.SC_OK == response.getStatus)
+    assert(response.readEntity(classOf[HealthCheckResponse]).healthy)
   }
 
   test("swagger api do not need authentication") {

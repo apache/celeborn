@@ -935,6 +935,19 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
+  override def healthCheck(): HandleResponse = {
+    val state = workerStatusManager.currentWorkerStatus.getState
+    if (!registered.get()) {
+      (false, "worker is not registered with master")
+    } else if (state != State.Normal) {
+      // Only workers in Normal state are selected when the master offers slots, see
+      // AbstractMetaManager#isWorkerAvailable.
+      (false, s"worker state is $state instead of ${State.Normal}")
+    } else {
+      (true, "")
+    }
+  }
+
   override def listPartitionLocationInfo: String = {
     val sb = new StringBuilder
     sb.append("==================== Partition Location Info =========================\n")

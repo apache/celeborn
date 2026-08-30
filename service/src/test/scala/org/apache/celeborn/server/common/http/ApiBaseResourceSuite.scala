@@ -22,6 +22,7 @@ import javax.ws.rs.core.MediaType
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.network.TestHelper
+import org.apache.celeborn.server.common.http.api.HealthCheckResponse
 
 abstract class ApiBaseResourceSuite extends HttpTestHelper {
   celebornConf.set(CelebornConf.METRICS_ENABLED.key, "true")
@@ -33,6 +34,15 @@ abstract class ApiBaseResourceSuite extends HttpTestHelper {
     val response = webTarget.path("ping").request(MediaType.TEXT_PLAIN).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)
     assert(response.readEntity(classOf[String]) == "pong")
+  }
+
+  test("health") {
+    val response = webTarget.path("health").request(MediaType.APPLICATION_JSON).get()
+    assert(HttpServletResponse.SC_OK == response.getStatus)
+    val health = response.readEntity(classOf[HealthCheckResponse])
+    assert(health.healthy)
+    assert(health.reason.isEmpty)
+    assert(health.service == httpService.serviceName)
   }
 
   test("conf") {
