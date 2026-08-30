@@ -1003,9 +1003,9 @@ private[celeborn] class Worker(
                 -1L
               }
             } catch {
-              case NonFatal(_) =>
+              case NonFatal(e) =>
                 logWarning(s"Unparseable exit timeout '$timeout', falling back to config. " +
-                  "Use a positive duration like 600s / 30m / 1h.")
+                  "Use a positive duration like 600s / 30m / 1h.", e)
                 -1L
             }
           } else {
