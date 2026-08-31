@@ -302,6 +302,11 @@ private[celeborn] class Worker(
 
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)
+
+  // Whether the master still knows about this worker, per the last heartbeat response. This is
+  // separate from `registered`, which gates RPC serving and stays true across a re-registration
+  // so that clients can keep fetching data this worker still holds.
+  val registeredInMasterView = new AtomicBoolean(true)
   val shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] =
     JavaUtils.newConcurrentHashMap[String, AtomicIntegerArray]()
   val shufflePartitionType: ConcurrentHashMap[String, PartitionType] =
@@ -537,6 +542,10 @@ private[celeborn] class Worker(
         highWorkload,
         workerStatusManager.currentWorkerStatus),
       classOf[HeartbeatFromWorkerResponse])
+    handleHeartbeatResponse(response)
+  }
+
+  private[worker] def handleHeartbeatResponse(response: HeartbeatFromWorkerResponse): Unit = {
     response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
     cleanTaskQueue.put(response.expiredShuffleKeys)
 
@@ -544,6 +553,7 @@ private[celeborn] class Worker(
     workerStatusManager.doTransition(workerEvent)
     if (!response.registered) {
       logError("Worker not registered in master, clean expired shuffle data and register again.")
+      registeredInMasterView.set(false)
       try {
         registerWithMaster()
       } catch {
@@ -724,6 +734,7 @@ private[celeborn] class Worker(
       // Register successfully
       if (null != resp && resp.getSuccess) {
         registered.set(true)
+        registeredInMasterView.set(true)
         logInfo("Register worker successfully.")
         return
       }
@@ -937,7 +948,7 @@ private[celeborn] class Worker(
 
   override def healthCheck(): HandleResponse = {
     val state = workerStatusManager.currentWorkerStatus.getState
-    if (!registered.get()) {
+    if (!registered.get() || !registeredInMasterView.get()) {
       (false, "worker is not registered with master")
     } else if (state != State.Normal) {
       // Only workers in Normal state are selected when the master offers slots, see

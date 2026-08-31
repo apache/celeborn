@@ -21,6 +21,7 @@ import java.io.File
 import java.nio.file.{Files, Paths}
 import java.util
 import java.util.{HashSet => JHashSet}
+import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.JavaConverters._
 
@@ -29,6 +30,8 @@ import org.mockito.{ArgumentCaptor, ArgumentMatchers, MockedConstruction, Mockit
 import org.mockito.MockedConstruction.MockInitializer
 import org.mockito.Mockito.mockConstruction
 import org.mockito.MockitoSugar._
+import org.mockito.invocation.InvocationOnMock
+import org.mockito.stubbing.Answer
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -36,7 +39,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.protocol._
-import org.apache.celeborn.common.protocol.message.ControlMessages.CommitFilesResponse
+import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFilesResponse, HeartbeatFromWorkerResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.RpcCallContext
@@ -305,6 +308,50 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
     // timeout but SUCCESS epoch2 can reply
     assert(shuffleCommitTime.get(shuffleKey).get(epoch2) == null)
     assert(epochCommitMap.get(epoch2).response.status == StatusCode.SUCCESS)
+  }
+
+  test("CELEBORN-2447: heartbeat reporting not-registered clears the master-view flag " +
+    "before re-registering") {
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
+    // Recorded at the moment the re-registration RPC is issued, so the test asserts the
+    // ordering of the flag clear rather than only its final value.
+    val flagWhenReRegistering = new AtomicBoolean(true)
+    val mockInitializer = {
+      // Old syntax needed for scala 2.11
+      new MockInitializer[MasterClient] {
+        override def prepare(instance: MasterClient, context: MockedConstruction.Context): Unit = {
+          val answer = new Answer[PbRegisterWorkerResponse] {
+            override def answer(invocation: InvocationOnMock): PbRegisterWorkerResponse = {
+              flagWhenReRegistering.set(worker.registeredInMasterView.get())
+              PbRegisterWorkerResponse.newBuilder().setSuccess(true).build()
+            }
+          }
+          Mockito.doAnswer(answer)
+            .when(instance)
+            .askSync(
+              ArgumentMatchers.any(classOf[PbRegisterWorker]),
+              ArgumentMatchers.eq(classOf[PbRegisterWorkerResponse]))
+        }
+      }
+    }
+    val mockedMasterClient = mockConstruction(classOf[MasterClient], mockInitializer)
+    try {
+      worker = new Worker(conf, workerArgs)
+      worker.registered.set(true)
+      assert(worker.registeredInMasterView.get())
+
+      // WorkerEventType.None keeps doTransition a no-op; other events spawn an exit thread.
+      worker.handleHeartbeatResponse(
+        HeartbeatFromWorkerResponse(new JHashSet[String](), registered = false))
+
+      assert(!flagWhenReRegistering.get(), "master-view flag must be cleared before re-registering")
+      // `registered` gates RPC serving and must survive the re-registration.
+      assert(worker.registered.get())
+      // Re-registration succeeded, so readiness is restored.
+      assert(worker.registeredInMasterView.get())
+    } finally {
+      mockedMasterClient.close()
+    }
   }
 
   test("CELEBORN-2257: Properly reports remote disks on worker registration") {

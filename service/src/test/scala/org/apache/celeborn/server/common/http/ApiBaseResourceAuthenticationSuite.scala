@@ -94,7 +94,7 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
     }
   }
 
-  test("health api do not need authentication") {
+  test("health api does not need authentication") {
     val response = webTarget.path("health").request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)
     assert(response.readEntity(classOf[HealthCheckResponse]).healthy)

@@ -20,6 +20,8 @@ package org.apache.celeborn.service.deploy.worker.http.api
 import javax.servlet.http.HttpServletResponse
 import javax.ws.rs.core.MediaType
 
+import org.apache.celeborn.common.meta.WorkerStatus
+import org.apache.celeborn.common.protocol.PbWorkerStatus.State
 import org.apache.celeborn.server.common.HttpService
 import org.apache.celeborn.server.common.http.ApiBaseResourceSuite
 import org.apache.celeborn.server.common.http.api.HealthCheckResponse
@@ -54,6 +56,36 @@ class ApiWorkerResourceSuite extends ApiBaseResourceSuite with MiniClusterFeatur
       assert(health.reason.contains("not registered"))
     } finally {
       worker.registered.set(true)
+    }
+  }
+
+  test("health reports unavailable when the master no longer knows the worker") {
+    worker.registeredInMasterView.set(false)
+    try {
+      val response = webTarget.path("health").request(MediaType.APPLICATION_JSON).get()
+      assert(HttpServletResponse.SC_SERVICE_UNAVAILABLE == response.getStatus)
+      val health = response.readEntity(classOf[HealthCheckResponse])
+      assert(!health.healthy)
+      assert(health.reason.contains("not registered"))
+    } finally {
+      worker.registeredInMasterView.set(true)
+    }
+  }
+
+  test("health reports unavailable when the worker state is not Normal") {
+    worker.workerStatusManager.transitionState(State.InDecommission)
+    try {
+      assert(worker.workerStatusManager.getWorkerState() == State.InDecommission)
+      val response = webTarget.path("health").request(MediaType.APPLICATION_JSON).get()
+      assert(HttpServletResponse.SC_SERVICE_UNAVAILABLE == response.getStatus)
+      val health = response.readEntity(classOf[HealthCheckResponse])
+      assert(!health.healthy)
+      assert(health.reason.contains(State.InDecommission.toString))
+    } finally {
+      // InDecommission may only transition to Exit, so restore Normal directly.
+      val normal = WorkerStatus.normalWorkerStatus()
+      worker.workerStatusManager.currentWorkerStatus = normal
+      worker.workerInfo.setWorkerStatus(normal)
     }
   }
 

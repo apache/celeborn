@@ -59,7 +59,10 @@ The check differs by role:
 - **Worker**: healthy only when it is registered with the master and its state is `Normal`. This
   matches the master's own definition of an available worker, so a worker that is idle,
   decommissioning or exiting is reported as not able to serve, consistent with the fact that the
-  master no longer offers slots to it.
+  master no longer offers slots to it. A worker also reports not able to serve while it is
+  re-registering after a heartbeat response told it that the master no longer knows about it.
+  Note that the worker keeps serving push and fetch requests throughout that window, since it
+  still holds the data clients hold locations for; only readiness is withheld.
 
 `/health` bypasses HTTP authentication by default, since a kubelet cannot present credentials.
 
