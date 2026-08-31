@@ -372,6 +372,10 @@ public abstract class CelebornInputStream extends InputStream {
       if (bitmap == null && location.hasPeer()) {
         bitmap = location.getPeer().getMapIdBitMap();
       }
+      // A null bitmap means the map ids are unknown, so the location must not be skipped.
+      if (bitmap == null) {
+        return false;
+      }
       for (int i = startMapIndex; i < endMapIndex; i++) {
         if (bitmap.contains(i)) {
           return false;
