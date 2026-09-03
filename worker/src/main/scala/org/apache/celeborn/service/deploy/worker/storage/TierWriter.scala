@@ -64,6 +64,7 @@ abstract class TierWriterBase(
 
   @volatile var closed: Boolean = false
   @volatile private var destroyed: Boolean = false
+  @volatile var committed: Boolean = false
 
   takeBuffer()
 
@@ -117,6 +118,7 @@ abstract class TierWriterBase(
           logWarning(s"close file writer $this failed", e)
       }
     }
+    committed = true
     notifyFileCommitted()
 
     fileInfo.getFileLength

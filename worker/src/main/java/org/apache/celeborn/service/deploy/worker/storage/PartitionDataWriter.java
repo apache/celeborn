@@ -265,6 +265,11 @@ public class PartitionDataWriter implements DeviceObserver {
 
   @Override
   public void notifyError(String mountPoint, DiskStatus diskStatus) {
+    // A committed file is already flushed and visible to fetch requests,
+    // a device error broadcast must not destroy it.
+    if (currentTierWriter.committed()) {
+      return;
+    }
     destroy(
         new IOException(
             "Destroy FileWriter "
