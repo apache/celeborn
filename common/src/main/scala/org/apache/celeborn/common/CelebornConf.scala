@@ -2973,7 +2973,7 @@ object CelebornConf extends Logging {
   val HA_MASTER_RATIS_CLOSE_THRESHOLD: ConfigEntry[Long] =
     buildConf("celeborn.master.ha.ratis.raft.server.close.threshold")
       .categories("ha")
-      .version("0.7.0")
+      .version("1.0.0")
       .doc("Threshold for the Ratis JvmPauseMonitor to close the local raft server after " +
         "a JVM/host pause, e.g. long GC, VM live migration or jmap -F. Maps to Ratis " +
         "raft.server.close.threshold. Once exceeded, the master leaves the raft group " +
