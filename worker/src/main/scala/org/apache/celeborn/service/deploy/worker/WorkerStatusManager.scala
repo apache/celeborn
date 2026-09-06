@@ -34,7 +34,7 @@ import org.apache.celeborn.service.deploy.worker.storage.StorageManager
 
 private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging {
 
-  // Written under this manager's monitor but read without it, for example by the /health
+  // Written under this manager's monitor but read without it, for example by the /healthz
   // endpoint on an HTTP thread, so it is published volatile.
   @volatile var currentWorkerStatus = WorkerStatus.normalWorkerStatus()
   var exitEventType = WorkerEventType.Immediately

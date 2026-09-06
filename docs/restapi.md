@@ -36,13 +36,13 @@ The configuration of `<master-http-host>`, `<master-http-port>`, `<worker-http-h
 
 ### Health Check API (Since 1.0.0)
 
-Both master and worker serve a health check endpoint at `/health`, intended to back a Kubernetes
+Both master and worker serve a health check endpoint at `/healthz`, intended to back a Kubernetes
 readiness probe. It responds `200` when the service is able to serve and `503` when it is not,
 so that it can be consumed with a plain `httpGet` probe.
 
-| Path      | Method | Meaning                                                                           |
-|-----------|--------|-----------------------------------------------------------------------------------|
-| `/health` | GET    | Whether the service is able to serve. Returns `200` when healthy, `503` when not. |
+| Path       | Method | Meaning                                                                           |
+|------------|--------|-----------------------------------------------------------------------------------|
+| `/healthz` | GET    | Whether the service is able to serve. Returns `200` when healthy, `503` when not. |
 
 The response body reports the reason when the service is not able to serve:
 
@@ -64,7 +64,7 @@ The check differs by role:
   Note that the worker keeps serving push and fetch requests throughout that window, since it
   still holds the data clients hold locations for; only readiness is withheld.
 
-`/health` bypasses HTTP authentication by default, since a kubelet cannot present credentials.
+`/healthz` bypasses HTTP authentication by default, since a kubelet cannot present credentials.
 
 ### Deprecated REST APIs
 

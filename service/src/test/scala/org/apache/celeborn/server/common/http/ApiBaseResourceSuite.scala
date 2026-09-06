@@ -37,7 +37,7 @@ abstract class ApiBaseResourceSuite extends HttpTestHelper {
   }
 
   test("health") {
-    val response = webTarget.path("health").request(MediaType.APPLICATION_JSON).get()
+    val response = webTarget.path("healthz").request(MediaType.APPLICATION_JSON).get()
     assert(HttpServletResponse.SC_OK == response.getStatus)
     val health = response.readEntity(classOf[HealthCheckResponse])
     assert(health.healthy)

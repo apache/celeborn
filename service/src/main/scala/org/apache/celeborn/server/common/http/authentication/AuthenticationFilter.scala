@@ -221,7 +221,7 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
 }
 
 object AuthenticationFilter {
-  private val BYPASS_DEFAULT_API_PATHS = Set("/health", "/openapi.json", "/openapi.yaml")
+  private val BYPASS_DEFAULT_API_PATHS = Set("/healthz", "/openapi.json", "/openapi.yaml")
 
   final val HTTP_CLIENT_IP_ADDRESS = new ThreadLocal[String]() {
     override protected def initialValue: String = null

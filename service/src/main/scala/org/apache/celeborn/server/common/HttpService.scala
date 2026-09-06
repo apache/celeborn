@@ -187,7 +187,7 @@ abstract class HttpService extends Service with Logging {
 
   /**
    * Whether the service is able to serve, along with the reason when it is not. Intended to back
-   * the `/health` endpoint consumed by readiness probes.
+   * the `/healthz` endpoint consumed by readiness probes.
    *
    * The default is a shallow check that only reports that the HTTP service is available, which is
    * what the master needs: a follower master is a healthy replica, and gating on Ratis quorum or

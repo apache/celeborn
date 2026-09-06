@@ -35,7 +35,7 @@ import io.swagger.v3.oas.annotations.tags.Tag
 case class HealthCheckResponse(service: String, healthy: Boolean, reason: String)
 
 @Tag(name = "Health")
-@Path("/health")
+@Path("/healthz")
 @Produces(Array(MediaType.APPLICATION_JSON))
 private[api] class HealthResource extends ApiRequestContext {
 

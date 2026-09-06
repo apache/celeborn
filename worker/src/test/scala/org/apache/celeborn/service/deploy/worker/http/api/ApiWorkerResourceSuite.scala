@@ -49,7 +49,7 @@ class ApiWorkerResourceSuite extends ApiBaseResourceSuite with MiniClusterFeatur
   test("health reports unavailable when the worker is not registered") {
     worker.registered.set(false)
     try {
-      val response = webTarget.path("health").request(MediaType.APPLICATION_JSON).get()
+      val response = webTarget.path("healthz").request(MediaType.APPLICATION_JSON).get()
       assert(HttpServletResponse.SC_SERVICE_UNAVAILABLE == response.getStatus)
       val health = response.readEntity(classOf[HealthCheckResponse])
       assert(!health.healthy)
@@ -62,7 +62,7 @@ class ApiWorkerResourceSuite extends ApiBaseResourceSuite with MiniClusterFeatur
   test("health reports unavailable when the master no longer knows the worker") {
     worker.registeredInMasterView.set(false)
     try {
-      val response = webTarget.path("health").request(MediaType.APPLICATION_JSON).get()
+      val response = webTarget.path("healthz").request(MediaType.APPLICATION_JSON).get()
       assert(HttpServletResponse.SC_SERVICE_UNAVAILABLE == response.getStatus)
       val health = response.readEntity(classOf[HealthCheckResponse])
       assert(!health.healthy)
@@ -76,7 +76,7 @@ class ApiWorkerResourceSuite extends ApiBaseResourceSuite with MiniClusterFeatur
     worker.workerStatusManager.transitionState(State.InDecommission)
     try {
       assert(worker.workerStatusManager.getWorkerState() == State.InDecommission)
-      val response = webTarget.path("health").request(MediaType.APPLICATION_JSON).get()
+      val response = webTarget.path("healthz").request(MediaType.APPLICATION_JSON).get()
       assert(HttpServletResponse.SC_SERVICE_UNAVAILABLE == response.getStatus)
       val health = response.readEntity(classOf[HealthCheckResponse])
       assert(!health.healthy)
