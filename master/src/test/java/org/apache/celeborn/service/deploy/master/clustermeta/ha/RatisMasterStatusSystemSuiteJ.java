@@ -25,11 +25,13 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import scala.Tuple2;
 
 import com.google.common.collect.Lists;
+import org.apache.ratis.util.LifeCycle;
 import org.junit.*;
 import org.mockito.Mockito;
 
@@ -2144,5 +2146,32 @@ public class RatisMasterStatusSystemSuiteJ {
 
     assertEquals(statusSystem.applicationInfos.get(appId).userIdentifier(), userIdentifier);
     assertEquals(statusSystem.applicationInfos.get(appId).extraInfo(), extraInfo);
+  }
+
+  @Test
+  public void testUnexpectedRaftServerClose() throws Exception {
+    HARaftServer nonLeader =
+        !RATISSERVER1.isLeader()
+            ? RATISSERVER1
+            : (!RATISSERVER2.isLeader() ? RATISSERVER2 : RATISSERVER3);
+    try {
+      AtomicBoolean handlerInvoked = new AtomicBoolean(false);
+      nonLeader.setUnexpectedCloseHandler(() -> handlerInvoked.set(true));
+
+      // Simulate the Ratis JvmPauseMonitor closing the local raft server.
+      nonLeader.getServer().close();
+      Assert.assertEquals(LifeCycle.State.CLOSED, nonLeader.getServerState());
+
+      long deadline = System.currentTimeMillis() + 30_000;
+      while (!handlerInvoked.get() && System.currentTimeMillis() < deadline) {
+        Thread.sleep(200L);
+      }
+      Assert.assertTrue(handlerInvoked.get());
+
+      nonLeader.updateServerRole();
+      Assert.assertFalse(nonLeader.getCachedLeaderPeerRpcEndpoint().isPresent());
+    } finally {
+      init();
+    }
   }
 }
