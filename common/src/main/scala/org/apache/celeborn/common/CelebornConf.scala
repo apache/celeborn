@@ -2973,7 +2973,7 @@ object CelebornConf extends Logging {
   val HA_MASTER_RATIS_UNEXPECTED_CLOSE_ACTION: ConfigEntry[String] =
     buildConf("celeborn.master.ha.ratis.unexpected.close.action")
       .categories("ha")
-      .version("0.7.0")
+      .version("1.0.0")
       .doc("Action when the local raft server is closed unexpectedly, i.e. not via the " +
         "master stop flow, e.g. closed by the Ratis JvmPauseMonitor after a JVM pause " +
         "longer than raft.server.close.threshold. 'exit' logs a fatal message and exits " +
