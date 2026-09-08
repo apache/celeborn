@@ -151,15 +151,18 @@ class LifecycleManagerReserveSlotsSuite extends AnyFunSuite
       Thread.sleep(5 * 1000) // wait for flush
     }
 
+    // getPartitionLocation returns a snapshot, re-fetch to observe the revive update
+    val partitionLocationMap1AfterSplit =
+      shuffleClient1.getPartitionLocation(SHUFFLE_ID, MAP_NUM, PARTITION_NUM)
     assert(
-      partitionLocationMap1.get(partitions(0)).getEpoch > 0
+      partitionLocationMap1AfterSplit.get(partitions(0)).getEpoch > 0
     ) // means partition(0) will be split
 
     // push merged data, we expect that partition(0) will be split, while partition(1) will not be split
     shuffleClient1.pushMergedData(SHUFFLE_ID, MAP_ID, ATTEMPT_ID)
     shuffleClient1.mapperEnd(SHUFFLE_ID, MAP_ID, ATTEMPT_ID, MAP_NUM, PARTITION_NUM)
     // partition(1) will not be split
-    assert(partitionLocationMap1.get(partitions(1)).getEpoch == 0)
+    assert(partitionLocationMap1AfterSplit.get(partitions(1)).getEpoch == 0)
 
     val shuffleClient2 = new ShuffleClientImpl(APP, clientConf, UserIdentifier("mock", "mock"))
     shuffleClient2.setupLifecycleManagerRef(lifecycleManager.self)
