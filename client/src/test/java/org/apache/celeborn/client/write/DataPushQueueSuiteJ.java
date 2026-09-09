@@ -26,6 +26,7 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.junit.AfterClass;
@@ -206,13 +207,14 @@ public class DataPushQueueSuiteJ {
 
     dataPusher.addTask(0, new byte[1], 1);
 
+    AtomicReference<Throwable> terminationFailure = new AtomicReference<>();
     Thread terminationThread =
         new Thread(
             () -> {
               try {
                 dataPusher.waitOnTermination();
-              } catch (Exception e) {
-                throw new RuntimeException(e);
+              } catch (Throwable t) {
+                terminationFailure.set(t);
               }
             });
     terminationThread.start();
@@ -232,6 +234,7 @@ public class DataPushQueueSuiteJ {
       client.shutdown();
     }
     Assert.assertFalse("termination should complete", terminationThread.isAlive());
+    Assert.assertNull("waitOnTermination failed", terminationFailure.get());
   }
 
   @Test
@@ -262,13 +265,14 @@ public class DataPushQueueSuiteJ {
         };
 
     dataPusher.addTask(0, new byte[1], 1);
+    AtomicReference<Throwable> terminationFailure = new AtomicReference<>();
     Thread terminationThread =
         new Thread(
             () -> {
               try {
                 dataPusher.waitOnTermination();
-              } catch (Exception e) {
-                throw new RuntimeException(e);
+              } catch (Throwable t) {
+                terminationFailure.set(t);
               }
             });
     terminationThread.start();
@@ -277,6 +281,7 @@ public class DataPushQueueSuiteJ {
     allowPush.countDown();
     terminationThread.join(TimeUnit.SECONDS.toMillis(10));
     Assert.assertFalse("termination should complete", terminationThread.isAlive());
+    Assert.assertNull("waitOnTermination failed", terminationFailure.get());
     Assert.assertEquals(1, pushedTasks.get());
     client.shutdown();
   }
