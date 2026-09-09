@@ -49,6 +49,17 @@ public class DataPusher {
   private final DataPushQueue dataPushQueue;
   private final ReentrantLock idleLock = new ReentrantLock();
   private final Condition idleFull = idleLock.newCondition();
+  private final ReentrantLock lifecycleLock = new ReentrantLock();
+  private final Condition producersDrained = lifecycleLock.newCondition();
+
+  private enum LifecycleState {
+    RUNNING,
+    CLOSING,
+    TERMINATED
+  }
+
+  private volatile LifecycleState lifecycleState = LifecycleState.RUNNING;
+  private int activeProducers;
 
   private final AtomicReference<IOException> exceptionRef = new AtomicReference<>();
 
@@ -153,8 +164,18 @@ public class DataPusher {
 
   public void addTask(int partitionId, byte[] buffer, int size)
       throws IOException, InterruptedException {
-    client.computeBatchCRC(shuffleId, mapId, attemptId, partitionId, buffer, 0, size);
+    lifecycleLock.lockInterruptibly();
     try {
+      if (lifecycleState != LifecycleState.RUNNING) {
+        throw new IOException("DataPusher is closing or terminated");
+      }
+      activeProducers++;
+    } finally {
+      lifecycleLock.unlock();
+    }
+
+    try {
+      client.computeBatchCRC(shuffleId, mapId, attemptId, partitionId, buffer, 0, size);
       PushTask task = null;
       while (task == null) {
         checkException();
@@ -170,20 +191,46 @@ public class DataPusher {
       logger.error("DataPusher thread interrupted while adding push task.");
       pushThread.interrupt();
       throw e;
+    } finally {
+      lifecycleLock.lock();
+      try {
+        activeProducers--;
+        if (activeProducers == 0) {
+          producersDrained.signalAll();
+        }
+      } finally {
+        lifecycleLock.unlock();
+      }
     }
   }
 
   public void waitOnTermination() throws IOException, InterruptedException {
+    lifecycleLock.lockInterruptibly();
     try {
-      idleLock.lockInterruptibly();
-      waitIdleQueueFullWithLock();
+      if (lifecycleState == LifecycleState.RUNNING) {
+        lifecycleState = LifecycleState.CLOSING;
+      }
+      while (activeProducers > 0) {
+        producersDrained.await();
+      }
     } catch (InterruptedException e) {
       logger.error("DataPusher thread interrupted while waitOnTermination.");
       pushThread.interrupt();
       throw e;
+    } finally {
+      lifecycleLock.unlock();
     }
 
-    terminated = true;
+    idleLock.lockInterruptibly();
+    waitIdleQueueFullWithLock();
+
+    lifecycleLock.lock();
+    try {
+      lifecycleState = LifecycleState.TERMINATED;
+      terminated = true;
+    } finally {
+      lifecycleLock.unlock();
+    }
     try {
       pushThread.join();
     } catch (InterruptedException e) {
@@ -244,7 +291,7 @@ public class DataPusher {
   }
 
   protected boolean stillRunning() {
-    return !terminated
+    return lifecycleState != LifecycleState.TERMINATED
         && !Objects.nonNull(exceptionRef.get())
         && !Objects.nonNull(pushState.exception.get());
   }
