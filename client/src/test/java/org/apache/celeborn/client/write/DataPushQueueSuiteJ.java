@@ -217,12 +217,15 @@ public class DataPushQueueSuiteJ {
             });
     terminationThread.start();
     Assert.assertTrue(pushStarted.await(10, TimeUnit.SECONDS));
+    // Give the termination thread time to close the lifecycle admission barrier.
+    Thread.sleep(100);
 
     try {
       dataPusher.addTask(0, new byte[1], 1);
       Assert.fail("addTask should be rejected while closing");
     } catch (IOException expected) {
       // The lifecycle admission barrier is closed before termination completes.
+      Assert.assertEquals("DataPusher is in state CLOSING", expected.getMessage());
     } finally {
       allowPush.countDown();
       terminationThread.join(TimeUnit.SECONDS.toMillis(10));

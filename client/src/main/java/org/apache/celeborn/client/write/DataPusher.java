@@ -167,7 +167,7 @@ public class DataPusher {
     lifecycleLock.lockInterruptibly();
     try {
       if (lifecycleState != LifecycleState.RUNNING) {
-        throw new IOException("DataPusher is closing or terminated");
+        throw new IOException("DataPusher is in state " + lifecycleState);
       }
       activeProducers++;
     } finally {
