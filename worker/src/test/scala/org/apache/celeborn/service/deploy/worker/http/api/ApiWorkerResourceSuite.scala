@@ -46,6 +46,25 @@ class ApiWorkerResourceSuite extends ApiBaseResourceSuite with MiniClusterFeatur
     shutdownMiniCluster()
   }
 
+  test("health reports unavailable during the startup interval before initialization completes") {
+    // `initialize()` starts the HTTP server and registers with the master before the push/fetch
+    // handlers and the controller endpoint are set up. Clearing the flag reproduces that interval:
+    // the worker is registered and in Normal state, but cannot serve traffic yet.
+    assert(worker.registered.get())
+    assert(worker.registeredInMasterView.get())
+    assert(worker.workerStatusManager.getWorkerState() == State.Normal)
+    worker.initialized.set(false)
+    try {
+      val response = webTarget.path("healthz").request(MediaType.APPLICATION_JSON).get()
+      assert(HttpServletResponse.SC_SERVICE_UNAVAILABLE == response.getStatus)
+      val health = response.readEntity(classOf[HealthCheckResponse])
+      assert(!health.healthy)
+      assert(health.reason.contains("still initializing"))
+    } finally {
+      worker.initialized.set(true)
+    }
+  }
+
   test("health reports unavailable when the worker is not registered") {
     worker.registered.set(false)
     try {

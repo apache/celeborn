@@ -307,6 +307,10 @@ private[celeborn] class Worker(
   // separate from `registered`, which gates RPC serving and stays true across a re-registration
   // so that clients can keep fetching data this worker still holds.
   val registeredInMasterView = new AtomicBoolean(true)
+
+  // Whether `initialize()` finished wiring up the push/fetch/replicate handlers and the
+  // controller endpoint. Registration alone is not enough to serve traffic, see the health check.
+  val initialized = new AtomicBoolean(false)
   val shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] =
     JavaUtils.newConcurrentHashMap[String, AtomicIntegerArray]()
   val shufflePartitionType: ConcurrentHashMap[String, PartitionType] =
@@ -622,6 +626,7 @@ private[celeborn] class Worker(
 
     controller.init(this)
     rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
+    initialized.set(true)
 
     logInfo("Worker started.")
     rpcEnv.awaitTermination()
@@ -948,7 +953,11 @@ private[celeborn] class Worker(
 
   override def healthCheck(): HandleResponse = {
     val state = workerStatusManager.currentWorkerStatus.getState
-    if (!registered.get() || !registeredInMasterView.get()) {
+    if (!initialized.get()) {
+      // The HTTP server starts and registration completes before the push/fetch handlers and the
+      // controller endpoint are set up, so a probe in that interval must not report healthy.
+      (false, "worker is still initializing")
+    } else if (!registered.get() || !registeredInMasterView.get()) {
       (false, "worker is not registered with master")
     } else if (state != State.Normal) {
       // Only workers in Normal state are selected when the master offers slots, see
