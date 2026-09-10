@@ -27,6 +27,8 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
 import org.apache.celeborn.client.{LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.network.protocol.SerdeVersion
+import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroup, GetReducerFileGroupResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
@@ -119,6 +121,38 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
     }
     val currentTime = System.currentTimeMillis()
     assert(currentTime - previousTime > conf.shuffleExpiredCheckIntervalMs)
+    lifecycleManager.stop()
+  }
+
+  test("released shuffle is reported as expired and an empty map stage is still reported as empty") {
+    val conf = celebornConf.clone
+    val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
+    val ids =
+      new util.ArrayList[Integer]((0 until 10).toList.map(x => Integer.valueOf(x)).asJava)
+    val releasedShuffleId = 101
+    val neverRegisteredShuffleId = 202
+
+    def getReducerFileGroup(shuffleId: Int): GetReducerFileGroupResponse =
+      lifecycleManager.self.askSync[GetReducerFileGroupResponse](
+        GetReducerFileGroup(shuffleId, false, SerdeVersion.V1))
+
+    assert(lifecycleManager.requestMasterRequestSlotsWithRetry(
+      releasedShuffleId,
+      ids).status == StatusCode.SUCCESS)
+    lifecycleManager.registeredShuffle.add(releasedShuffleId)
+    lifecycleManager.commitManager.setStageEnd(releasedShuffleId)
+    assert(getReducerFileGroup(releasedShuffleId).status == StatusCode.SUCCESS)
+
+    lifecycleManager.unregisterShuffle(releasedShuffleId)
+    eventually(timeout(120.seconds), interval(1.seconds)) {
+      assert(!lifecycleManager.registeredShuffle.contains(releasedShuffleId))
+    }
+    assert(getReducerFileGroup(releasedShuffleId).status == StatusCode.SHUFFLE_EXPIRED)
+
+    val emptyStage = getReducerFileGroup(neverRegisteredShuffleId)
+    assert(emptyStage.status == StatusCode.SHUFFLE_UNREGISTERED)
+    assert(emptyStage.fileGroup.isEmpty)
+
     lifecycleManager.stop()
   }
 

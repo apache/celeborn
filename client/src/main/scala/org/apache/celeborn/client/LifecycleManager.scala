@@ -90,6 +90,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val shufflePartitionType = JavaUtils.newConcurrentHashMap[Int, PartitionType]()
   private val rangeReadFilter = conf.shuffleRangeReadFilterEnabled
   private val unregisterShuffleTime = JavaUtils.newConcurrentHashMap[Int, Long]()
+  private val expiredShuffleIds = ConcurrentHashMap.newKeySet[Int]()
 
   val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   val shuffleCount = new LongAdder()
@@ -971,6 +972,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     // If isSegmentGranularityVisible is set to true, the downstream reduce task may start early than upstream map task, e.g. flink hybrid shuffle.
     // Under these circumstances, there's a possibility that the shuffle might not yet be registered when the downstream reduce task send GetReduceFileGroup request,
     // so we shouldn't send a SHUFFLE_NOT_REGISTERED response directly, should enqueue this request to pending list, and response to the downstream reduce task the ReduceFileGroup when the upstream map task register shuffle done
+    if (expiredShuffleIds.contains(shuffleId)) {
+      logWarning(s"[handleGetReducerFileGroup] shuffle $shuffleId has been released, its data must be recomputed.")
+      context.reply(GetReducerFileGroupResponse(
+        StatusCode.SHUFFLE_EXPIRED,
+        JavaUtils.newConcurrentHashMap(),
+        Array.empty,
+        serdeVersion = serdeVersion))
+      return
+    }
     if (!registeredShuffle.contains(shuffleId) && !isSegmentGranularityVisible) {
       logWarning(s"[handleGetReducerFileGroup] shuffle $shuffleId not registered, maybe no shuffle data within this stage.")
       context.reply(GetReducerFileGroupResponse(
@@ -1280,6 +1290,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       }
     }
     celebornShuffleIdToAppShuffleIdMap.remove(shuffleId)
+    expiredShuffleIds.add(shuffleId)
     // add shuffleKey to delay shuffle removal set
     unregisterShuffleTime.put(shuffleId, System.currentTimeMillis())
 
@@ -1296,6 +1307,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           shuffleIds.values.map {
             case (shuffleId, _) =>
               unregisterShuffle(shuffleId)
+              expiredShuffleIds.remove(shuffleId)
               unregisterShuffleCallback.foreach(c => c.accept(shuffleId))
           })
       }
