@@ -260,6 +260,8 @@ These metrics are exposed by Celeborn worker.
     | DeviceOSTotalBytes                     | The total usable space of OS for device monitor.                                                                |
     | DeviceCelebornFreeBytes                | The actual usable space of Celeborn for device.                                                                 |
     | DeviceCelebornTotalBytes               | The total space of Celeborn for device.                                                                         |
+    | DiskStatus                             | The status of the disk on the worker. 0:HEALTHY 1:READ_OR_WRITE_FAILURE 2:IO_HANG 3:HIGH_DISK_USAGE 4:CRITICAL_ERROR. Label: mountpoint |
+    | UnhealthyDiskCount                     | The number of disks whose status is not HEALTHY on the worker.                                                  |
     | PotentialConsumeSpeed                  | The speed of potential consumption for congestion control.                                                      |
     | UserProduceSpeed                       | The speed of user production for congestion control.                                                            |
     | WorkerConsumeSpeed                     | The speed of worker consumption for congestion control.                                                         |
