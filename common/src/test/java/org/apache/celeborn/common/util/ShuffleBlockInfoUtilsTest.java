@@ -177,9 +177,13 @@ public class ShuffleBlockInfoUtilsTest {
         "Unexpected number of components in target buffer",
         targetByteBuf.numComponents(),
         targetByteBufWithMaxEndIndex.numComponents());
-    Assert.assertEquals(
-        "Unexpected readable bytes in target buffer",
-        targetByteBuf.readableBytes(),
-        targetByteBufWithMaxEndIndex.readableBytes());
+    // addComponent does not advance the target's writerIndex, so compare per-component
+    // bytes instead of the composite's readableBytes()
+    for (int i = 0; i < targetByteBuf.numComponents(); i++) {
+      Assert.assertEquals(
+          "Component " + i + " content mismatch",
+          targetByteBuf.component(i),
+          targetByteBufWithMaxEndIndex.component(i));
+    }
   }
 }
