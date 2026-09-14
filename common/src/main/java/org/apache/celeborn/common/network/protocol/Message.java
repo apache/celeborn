@@ -65,7 +65,7 @@ public abstract class Message implements Encodable {
     ByteBuf buf = Unpooled.buffer(encodedLength() + 1);
     buf.writeByte(type().id());
     encode(buf);
-    assert buf.writableBytes() == 0 : "Writable bytes remain: " + buf.writableBytes();
+    assert buf.writerIndex() == encodedLength() + 1 : "Bytes written: " + buf.writerIndex();
     return buf.nioBuffer();
   }
 
