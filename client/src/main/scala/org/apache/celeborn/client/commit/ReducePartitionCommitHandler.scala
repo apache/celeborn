@@ -210,23 +210,28 @@ class ReducePartitionCommitHandler(
       }
     }
 
-    // ask allLocations workers holding partitions to commit files
-    val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
-    val (dataLost, commitFailedWorkers) = handleFinalCommitFiles(shuffleId, allocatedWorkers)
-    recordWorkerFailure(commitFailedWorkers)
-    // reply
-    if (!dataLost) {
-      logInfo(s"Succeed to handle stageEnd for $shuffleId.")
-      // record in stageEndShuffleSet
-      setStageEnd(shuffleId)
-    } else {
-      logError(s"Failed to handle stageEnd for $shuffleId, lost file!")
-      dataLostShuffleSet.add(shuffleId)
-      // record in stageEndShuffleSet
-      setStageEnd(shuffleId)
+    try {
+      // ask allLocations workers holding partitions to commit files
+      val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
+      val (dataLost, commitFailedWorkers) = handleFinalCommitFiles(shuffleId, allocatedWorkers)
+      recordWorkerFailure(commitFailedWorkers)
+      // reply
+      if (!dataLost) {
+        logInfo(s"Succeed to handle stageEnd for $shuffleId.")
+        // record in stageEndShuffleSet
+        setStageEnd(shuffleId)
+      } else {
+        logError(s"Failed to handle stageEnd for $shuffleId, lost file!")
+        dataLostShuffleSet.add(shuffleId)
+        // record in stageEndShuffleSet
+        setStageEnd(shuffleId)
+      }
+      true
+    } finally {
+      // Clear the in-process marker even if the commit threw, so stage-end can be retried
+      // instead of parking every GetReducerFileGroup until the RPC timeout.
+      inProcessStageEndShuffleSet.remove(shuffleId)
     }
-    inProcessStageEndShuffleSet.remove(shuffleId)
-    true
   }
 
   private def handleFinalCommitFiles(
