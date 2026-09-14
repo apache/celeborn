@@ -34,6 +34,38 @@ The configuration of `<master-http-host>`, `<master-http-port>`, `<worker-http-h
 | celeborn.worker.http.host | 0.0.0.0 | Worker's http host. | 0.4.0 |
 | celeborn.worker.http.port | 9096    | Worker's http port. | 0.4.0 |
 
+### Health Check API (Since 1.0.0)
+
+Both master and worker serve a health check endpoint at `/healthz`, intended to back a Kubernetes
+readiness probe. It responds `200` when the service is able to serve and `503` when it is not,
+so that it can be consumed with a plain `httpGet` probe.
+
+| Path       | Method | Meaning                                                                           |
+|------------|--------|-----------------------------------------------------------------------------------|
+| `/healthz` | GET    | Whether the service is able to serve. Returns `200` when healthy, `503` when not. |
+
+The response body reports the reason when the service is not able to serve:
+
+```json
+{"service":"worker","healthy":false,"reason":"worker is not registered with master"}
+```
+
+The check differs by role:
+
+- **Master**: healthy once its HTTP service is available. The check is deliberately shallow and
+  does not depend on Ratis quorum or leadership, since a follower master is a healthy replica and
+  a quorum-aware check would report every master as unhealthy during a cold start. Use
+  `/api/v1/ratis` and `/api/v1/masters` to monitor quorum and leadership.
+- **Worker**: healthy only when it is registered with the master and its state is `Normal`. This
+  matches the master's own definition of an available worker, so a worker that is idle,
+  decommissioning or exiting is reported as not able to serve, consistent with the fact that the
+  master no longer offers slots to it. A worker also reports not able to serve while it is
+  re-registering after a heartbeat response told it that the master no longer knows about it.
+  Note that the worker keeps serving push and fetch requests throughout that window, since it
+  still holds the data clients hold locations for; only readiness is withheld.
+
+`/healthz` bypasses HTTP authentication by default, since a kubelet cannot present credentials.
+
 ### Deprecated REST APIs
 
 Since 0.6.0, the legacy REST APIs are deprecated and will be removed in the future.

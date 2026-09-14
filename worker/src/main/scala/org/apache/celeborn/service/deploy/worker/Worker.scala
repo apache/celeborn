@@ -302,6 +302,15 @@ private[celeborn] class Worker(
 
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)
+
+  // Whether the master still knows about this worker, per the last heartbeat response. This is
+  // separate from `registered`, which gates RPC serving and stays true across a re-registration
+  // so that clients can keep fetching data this worker still holds.
+  val registeredInMasterView = new AtomicBoolean(true)
+
+  // Whether `initialize()` finished wiring up the push/fetch/replicate handlers and the
+  // controller endpoint. Registration alone is not enough to serve traffic, see the health check.
+  val initialized = new AtomicBoolean(false)
   val shuffleMapperAttempts: ConcurrentHashMap[String, AtomicIntegerArray] =
     JavaUtils.newConcurrentHashMap[String, AtomicIntegerArray]()
   val shufflePartitionType: ConcurrentHashMap[String, PartitionType] =
@@ -537,6 +546,10 @@ private[celeborn] class Worker(
         highWorkload,
         workerStatusManager.currentWorkerStatus),
       classOf[HeartbeatFromWorkerResponse])
+    handleHeartbeatResponse(response)
+  }
+
+  private[worker] def handleHeartbeatResponse(response: HeartbeatFromWorkerResponse): Unit = {
     response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
     cleanTaskQueue.put(response.expiredShuffleKeys)
 
@@ -544,6 +557,7 @@ private[celeborn] class Worker(
     workerStatusManager.doTransition(workerEvent)
     if (!response.registered) {
       logError("Worker not registered in master, clean expired shuffle data and register again.")
+      registeredInMasterView.set(false)
       try {
         registerWithMaster()
       } catch {
@@ -612,6 +626,7 @@ private[celeborn] class Worker(
 
     controller.init(this)
     rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
+    initialized.set(true)
 
     logInfo("Worker started.")
     rpcEnv.awaitTermination()
@@ -724,6 +739,7 @@ private[celeborn] class Worker(
       // Register successfully
       if (null != resp && resp.getSuccess) {
         registered.set(true)
+        registeredInMasterView.set(true)
         logInfo("Register worker successfully.")
         return
       }
@@ -933,6 +949,23 @@ private[celeborn] class Worker(
     sb.append("========================= Worker Registered ==========================\n")
     sb.append(registered.get()).append("\n")
     sb.toString()
+  }
+
+  override def healthCheck(): HandleResponse = {
+    val state = workerStatusManager.currentWorkerStatus.getState
+    if (!initialized.get()) {
+      // The HTTP server starts and registration completes before the push/fetch handlers and the
+      // controller endpoint are set up, so a probe in that interval must not report healthy.
+      (false, "worker is still initializing")
+    } else if (!registered.get() || !registeredInMasterView.get()) {
+      (false, "worker is not registered with master")
+    } else if (state != State.Normal) {
+      // Only workers in Normal state are selected when the master offers slots, see
+      // AbstractMetaManager#isWorkerAvailable.
+      (false, s"worker state is $state instead of ${State.Normal}")
+    } else {
+      (true, "")
+    }
   }
 
   override def listPartitionLocationInfo: String = {
