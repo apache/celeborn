@@ -28,6 +28,7 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.apache.celeborn.client.{LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.network.protocol.SerdeVersion
+import org.apache.celeborn.common.protocol.{PbGetShuffleId, PbGetShuffleIdResponse}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroup, GetReducerFileGroupResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.service.deploy.MiniClusterFeature
@@ -124,18 +125,28 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
     lifecycleManager.stop()
   }
 
-  test("released shuffle is reported as expired and an empty map stage is still reported as empty") {
+  test(
+    "released shuffle is reported as expired and an empty map stage is still reported as empty") {
     val conf = celebornConf.clone
     val lifecycleManager: LifecycleManager = new LifecycleManager(APP, conf)
     val ids =
       new util.ArrayList[Integer]((0 until 10).toList.map(x => Integer.valueOf(x)).asJava)
-    val releasedShuffleId = 101
-    val neverRegisteredShuffleId = 202
+    val appShuffleId = 101
+    val neverMappedShuffleId = 202
 
     def getReducerFileGroup(shuffleId: Int): GetReducerFileGroupResponse =
       lifecycleManager.self.askSync[GetReducerFileGroupResponse](
         GetReducerFileGroup(shuffleId, false, SerdeVersion.V1))
 
+    // allocate the celeborn shuffle id the way a map task writer does, so the
+    // app shuffle stays mapped while the copy is released mid-job
+    val releasedShuffleId = lifecycleManager.self.askSync[PbGetShuffleIdResponse](
+      PbGetShuffleId.newBuilder()
+        .setAppShuffleId(appShuffleId)
+        .setAppShuffleIdentifier(s"$appShuffleId-0-0")
+        .setIsShuffleWriter(true)
+        .setIsBarrierStage(false)
+        .build()).getShuffleId
     assert(lifecycleManager.requestMasterRequestSlotsWithRetry(
       releasedShuffleId,
       ids).status == StatusCode.SUCCESS)
@@ -149,7 +160,9 @@ class LifecycleManagerUnregisterShuffleSuite extends WithShuffleClientSuite
     }
     assert(getReducerFileGroup(releasedShuffleId).status == StatusCode.SHUFFLE_EXPIRED)
 
-    val emptyStage = getReducerFileGroup(neverRegisteredShuffleId)
+    // a final release of an id that no app shuffle maps any more is not a tombstone
+    lifecycleManager.unregisterShuffle(neverMappedShuffleId)
+    val emptyStage = getReducerFileGroup(neverMappedShuffleId)
     assert(emptyStage.status == StatusCode.SHUFFLE_UNREGISTERED)
     assert(emptyStage.fileGroup.isEmpty)
 
