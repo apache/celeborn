@@ -1027,7 +1027,9 @@ private[celeborn] class Worker(
 
   def decommissionWorker(): Unit = {
     logInfo("Worker start to decommission")
-    workerStatusManager.transitionState(State.InDecommission)
+    if (workerStatusManager.currentWorkerStatus.getState != State.InDecommission) {
+      workerStatusManager.transitionState(State.InDecommission)
+    }
     sendWorkerDecommissionToMaster()
     shutdown.set(true)
     val interval = conf.workerDecommissionCheckInterval
