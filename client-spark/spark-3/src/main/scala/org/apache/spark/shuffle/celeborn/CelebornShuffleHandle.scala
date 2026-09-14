@@ -51,4 +51,9 @@ class CelebornShuffleHandle[K, V, C](
     numMappers,
     dependency,
     null)
+
+  // Only created for shuffles stored on Celeborn workers (fallback uses SortShuffleManager), so
+  // their output survives executor loss. TODO(CELEBORN-XXXX): uncomment once
+  // ShuffleHandle.isReliablyStored ships in a released Spark (SPARK-59138); blocked on that PR.
+  // override def isReliablyStored: Boolean = true
 }
