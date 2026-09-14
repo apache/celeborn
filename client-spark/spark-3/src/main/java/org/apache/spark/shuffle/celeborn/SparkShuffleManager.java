@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.spark.*;
+import org.apache.spark.internal.config.ConfigEntry;
 import org.apache.spark.internal.config.package$;
 import org.apache.spark.launcher.SparkLauncher;
 import org.apache.spark.rdd.DeterministicLevel;
@@ -58,6 +59,21 @@ public class SparkShuffleManager implements ShuffleManager {
 
   private static final String SORT_SHUFFLE_MANAGER_NAME =
       "org.apache.spark.shuffle.sort.SortShuffleManager";
+
+  // Decommissioning configs do not exist in Spark 3.0. Read Spark's entries to preserve its defaults.
+  private static final ConfigEntry<Object> DECOMMISSION_ENABLED =
+      DynMethods.builder("DECOMMISSION_ENABLED")
+          .impl(package$.class)
+          .orNoop()
+          .build(package$.MODULE$)
+          .invoke();
+
+  private static final ConfigEntry<Object> STORAGE_DECOMMISSION_SHUFFLE_BLOCKS_ENABLED =
+      DynMethods.builder("STORAGE_DECOMMISSION_SHUFFLE_BLOCKS_ENABLED")
+          .impl(package$.class)
+          .orNoop()
+          .build(package$.MODULE$)
+          .invoke();
 
   private static final boolean COLUMNAR_SHUFFLE_CLASSES_PRESENT;
 
@@ -111,6 +127,20 @@ public class SparkShuffleManager implements ShuffleManager {
     return cryptoHandler;
   }
 
+  private static boolean isDecommissionShuffleBlocksEnabled(SparkConf conf) {
+    return DECOMMISSION_ENABLED != null
+        && STORAGE_DECOMMISSION_SHUFFLE_BLOCKS_ENABLED != null
+        && (Boolean) conf.get(DECOMMISSION_ENABLED)
+        && (Boolean) conf.get(STORAGE_DECOMMISSION_SHUFFLE_BLOCKS_ENABLED);
+  }
+
+  static boolean isUnsafeDraFallback(SparkConf conf) {
+    return conf.getBoolean("spark.dynamicAllocation.enabled", false)
+        && !conf.getBoolean("spark.shuffle.service.enabled", false)
+        && !(Boolean) conf.get(package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED())
+        && !isDecommissionShuffleBlocksEnabled(conf);
+  }
+
   public SparkShuffleManager(SparkConf conf, boolean isDriver) {
     if (conf.getBoolean(SQLConf.LOCAL_SHUFFLE_READER_ENABLED().key(), true)) {
       logger.warn(
@@ -121,17 +151,12 @@ public class SparkShuffleManager implements ShuffleManager {
     this.celebornConf = SparkUtils.fromSparkConf(conf);
     boolean shuffleTrackingEnabled =
         (Boolean) conf.get(package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED());
-    boolean draWithoutShuffleService =
-        conf.getBoolean("spark.dynamicAllocation.enabled", false)
-            && !conf.getBoolean("spark.shuffle.service.enabled", false);
     boolean neverFallback = FallbackPolicy.NEVER.equals(celebornConf.sparkShuffleFallbackPolicy());
-    if (draWithoutShuffleService && !neverFallback && !shuffleTrackingEnabled) {
-      // Fallback output lives on the executor's local disk; without tracking, DRA can reclaim
-      // that executor and lose it. Spark also fails this config fast (see supportsReliableStorage).
+    if (!neverFallback && isUnsafeDraFallback(conf)) {
       logger.warn(
           "DRA is enabled without the external shuffle service and fallback policy is not NEVER, "
-              + "but {} is disabled. Enable it so fallback shuffle output is not lost when idle "
-              + "executors are reclaimed.",
+              + "but {} is disabled and shuffle decommissioning is not enabled. Enable tracking so fallback "
+              + "shuffle output is not lost when idle executors are reclaimed.",
           package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED().key());
     } else if (neverFallback && shuffleTrackingEnabled) {
       // Under NEVER all shuffle stays on Celeborn, so tracking only delays releasing executors.
@@ -231,15 +256,12 @@ public class SparkShuffleManager implements ShuffleManager {
 
     lifecycleManager.shuffleCount().increment();
     if (fallbackPolicyRunner.applyFallbackPolicies(dependency, lifecycleManager)) {
-      if (conf.getBoolean("spark.dynamicAllocation.enabled", false)
-          && !conf.getBoolean("spark.shuffle.service.enabled", false)
-          && !(Boolean) conf.get(package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED())) {
-        // Fallback output lives on the executor's local disk. Without shuffle tracking DRA can
-        // reclaim that executor and cause FetchFailed. With tracking on, the fallback is safe.
+      if (isUnsafeDraFallback(conf)) {
         logger.error(
             "DRA is enabled but we fallback to vanilla Spark SortShuffleManager for "
-                + "shuffle: {} due to fallback policy, and {} is disabled. It may cause block can "
-                + "not be found when a reducer task fetches data.",
+                + "shuffle: {} due to fallback policy, and {} is disabled while shuffle "
+                + "decommissioning is not enabled. Fallback shuffle blocks may be lost when idle "
+                + "executors are reclaimed.",
             shuffleId,
             package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED().key());
       } else {

@@ -17,7 +17,7 @@
 
 package org.apache.spark.shuffle.celeborn
 
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.{SparkConf, SparkContext, SparkVersionUtil}
 import org.apache.spark.sql.internal.SQLConf
 import org.junit
 import org.junit.Assert
@@ -97,13 +97,63 @@ class SparkShuffleManagerSuite extends Logging {
     // supportsReliableStorage must be true only for NEVER; AUTO/ALWAYS may fall back to local-disk
     // shuffle, so reporting reliable storage would let DRA reclaim executors holding fallback data.
     def reliable(policy: String): Boolean = {
-      val conf = new SparkConf()
+      val conf = new SparkConf(false)
         .set(s"spark.${CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY.key}", policy)
-      new CelebornShuffleDataIO(conf).driver().supportsReliableStorage()
+      new CelebornShuffleDataIO(conf).driver()
+        .asInstanceOf[CelebornShuffleDriverComponents].supportsReliableStorage()
     }
     Assert.assertTrue(reliable("NEVER"))
     Assert.assertFalse(reliable("AUTO"))
     Assert.assertFalse(reliable("ALWAYS"))
+    Assert.assertFalse(
+      new CelebornShuffleDataIO(new SparkConf(false)).driver()
+        .asInstanceOf[CelebornShuffleDriverComponents].supportsReliableStorage())
+  }
+
+  @junit.Test
+  def testUnsafeDraFallback(): Unit = {
+    for {
+      dra <- Seq(false, true)
+      shuffleService <- Seq(false, true)
+      tracking <- Seq(false, true)
+      decommission <- Seq(false, true)
+      shuffleBlocks <- Seq(false, true)
+    } {
+      val conf = new SparkConf(false)
+        .set("spark.dynamicAllocation.enabled", dra.toString)
+        .set("spark.shuffle.service.enabled", shuffleService.toString)
+        .set("spark.dynamicAllocation.shuffleTracking.enabled", tracking.toString)
+        .set("spark.decommission.enabled", decommission.toString)
+        .set("spark.storage.decommission.shuffleBlocks.enabled", shuffleBlocks.toString)
+      val decommissionSupported = SparkVersionUtil.isGreaterThan(3, 0)
+      val expected = dra && !shuffleService && !tracking &&
+        !(decommissionSupported && decommission && shuffleBlocks)
+      Assert.assertEquals(conf.toDebugString, expected, SparkShuffleManager.isUnsafeDraFallback(conf))
+    }
+  }
+
+  @junit.Test
+  def testUnsafeDraFallbackUsesSparkDefaults(): Unit = {
+    val conf = new SparkConf(false)
+      .set("spark.dynamicAllocation.enabled", "true")
+      .set("spark.shuffle.service.enabled", "false")
+      .set("spark.dynamicAllocation.shuffleTracking.enabled", "false")
+    Assert.assertTrue(SparkShuffleManager.isUnsafeDraFallback(conf))
+
+    conf.set("spark.decommission.enabled", "true")
+    // Spark 3.4 changed shuffle-block decommissioning's default from false to true.
+    Assert.assertEquals(
+      !SparkVersionUtil.isGreaterThan(3, 3),
+      SparkShuffleManager.isUnsafeDraFallback(conf))
+
+    conf.remove("spark.decommission.enabled")
+    conf.set("spark.storage.decommission.shuffleBlocks.enabled", "true")
+    Assert.assertTrue(SparkShuffleManager.isUnsafeDraFallback(conf))
+
+    conf.remove("spark.dynamicAllocation.shuffleTracking.enabled")
+    Assert.assertEquals(
+      !SparkVersionUtil.isGreaterThan(3, 3),
+      SparkShuffleManager.isUnsafeDraFallback(conf))
   }
 
   @junit.Test
