@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.read.checkpoint.PartitionReaderCheckpointMetadata;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
@@ -283,10 +284,16 @@ public class DfsPartitionReader implements PartitionReader {
                 results.put(Pair.of(currentChunkIndex, Unpooled.wrappedBuffer(buffer)));
                 logger.debug("add index {} to results", currentChunkIndex++);
               }
-            } catch (Exception e) {
-              logger.warn("Fetch thread is cancelled.", e);
+            } catch (InterruptedException e) {
+              logger.warn("Read thread is interrupted.", e);
               exception.set(e);
-              // cancel a task for speculative, ignore this exception
+            } catch (Throwable t) {
+              logger.error("Read thread encountered error.", t);
+              if (t instanceof Exception) {
+                exception.set((Exception) t);
+              } else {
+                exception.set(new CelebornIOException("Fetch thread encountered an error", t));
+              }
             }
             logger.debug("fetch {} is done.", location.getStorageInfo().getFilePath());
           });

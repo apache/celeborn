@@ -88,26 +88,38 @@ class ChangePartitionManager(
                 batchHandleChangePartitionExecutors.submit {
                   new Runnable {
                     override def run(): Unit = {
-                      val distinctPartitions = {
-                        val requestSet = inBatchPartitions.get(shuffleId)
-                        val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
-                        requests.asScala.map { case (partitionId, request) =>
-                          locksForShuffle(partitionId % locksForShuffle.length).synchronized {
-                            if (!requestSet.contains(partitionId) && requests.containsKey(
-                                partitionId)) {
-                              requestSet.add(partitionId)
-                              Some(request.asScala.toArray.maxBy(_.epoch))
-                            } else {
-                              None
+                      try {
+                        val distinctPartitions = {
+                          val requestSet = inBatchPartitions.get(shuffleId)
+                          val locksForShuffle = locks.computeIfAbsent(shuffleId, locksRegisterFunc)
+                          requests.asScala.map { case (partitionId, request) =>
+                            locksForShuffle(partitionId % locksForShuffle.length).synchronized {
+                              if (!requestSet.contains(partitionId) && requests.containsKey(
+                                  partitionId)) {
+                                requestSet.add(partitionId)
+                                Some(request.asScala.toArray.maxBy(_.epoch))
+                              } else {
+                                None
+                              }
                             }
-                          }
-                        }.filter(_.isDefined).map(_.get).toArray
-                      }
-                      if (distinctPartitions.nonEmpty) {
-                        handleRequestPartitions(
-                          shuffleId,
-                          distinctPartitions,
-                          lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
+                          }.filter(_.isDefined).map(_.get).toArray
+                        }
+                        if (distinctPartitions.nonEmpty) {
+                          handleRequestPartitions(
+                            shuffleId,
+                            distinctPartitions,
+                            lifecycleManager.commitManager.isSegmentGranularityVisible(shuffleId))
+                        }
+                      } catch {
+                        case e: InterruptedException =>
+                          logError(
+                            s"Batch handle change partition for shuffle $shuffleId interrupted.",
+                            e)
+                          throw e
+                        case t: Throwable =>
+                          logError(
+                            s"Batch handle change partition for shuffle $shuffleId failed.",
+                            t)
                       }
                     }
                   }
@@ -117,6 +129,8 @@ class ChangePartitionManager(
               case e: InterruptedException =>
                 logError("Partition split scheduler thread is shutting down, detail: ", e)
                 throw e
+              case t: Throwable =>
+                logError("Batch handle change partition scheduler failed.", t)
             }
           }
         },
