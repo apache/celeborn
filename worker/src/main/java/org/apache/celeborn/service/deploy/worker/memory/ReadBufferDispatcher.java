@@ -151,6 +151,12 @@ public class ReadBufferDispatcher {
             }
             request.getBufferListener().notifyBuffers(null, e);
           }
+        } catch (InterruptedException e) {
+          if (stopFlag) {
+            logger.info("Read buffer dispatcher is shutting down.");
+          } else {
+            logger.warn("Read buffer dispatcher interrupted unexpectedly.", e);
+          }
         } catch (Throwable e) {
           logger.error("Read buffer dispatcher encountered error: {}", e.getMessage(), e);
         }
