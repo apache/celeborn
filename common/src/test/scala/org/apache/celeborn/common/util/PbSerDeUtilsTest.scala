@@ -27,6 +27,7 @@ import scala.util.Random
 
 import com.google.common.collect.Lists
 import org.apache.hadoop.shaded.org.apache.commons.lang3.RandomStringUtils
+import org.roaringbitmap.RoaringBitmap
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
@@ -461,6 +462,45 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     assert(restoredPartitionLocation.equals(partitionLocation1))
   }
 
+  test("fromAndToPbPartitionLocation preserves lazy and peer bitmaps") {
+    val primary =
+      new PartitionLocation(10, 0, "host1", 10, 11, 12, 13, PartitionLocation.Mode.PRIMARY)
+    val replica =
+      new PartitionLocation(10, 0, "host2", 20, 21, 22, 23, PartitionLocation.Mode.REPLICA)
+    val primaryBitmap = new RoaringBitmap()
+    primaryBitmap.add(1)
+    val replicaBitmap = new RoaringBitmap()
+    replicaBitmap.add(2)
+    primary.setMapIdBitMap(primaryBitmap)
+    replica.setMapIdBitMap(replicaBitmap)
+    primary.setPeer(replica)
+    replica.setPeer(primary)
+
+    val restored = PbSerDeUtils.fromPbPartitionLocation(
+      PbSerDeUtils.toPbPartitionLocation(primary))
+
+    assert(restored.hasPeer)
+    assert(restored.getMapIdBitMap.contains(1))
+    assert(!restored.getMapIdBitMap.contains(2))
+    assert(restored.getPeer.getMapIdBitMap.contains(2))
+    assert(!restored.getPeer.getMapIdBitMap.contains(1))
+
+    val (packedPrimaries, _) = fromPbPackedPartitionLocationsPair(
+      toPbPackedPartitionLocationsPair(List(primary)))
+    val packedRestored = packedPrimaries.get(0)
+    assert(packedRestored.hasPeer)
+    assert(packedRestored.getMapIdBitMap.contains(1))
+    assert(!packedRestored.getMapIdBitMap.contains(2))
+    assert(packedRestored.getPeer.getMapIdBitMap.contains(2))
+    assert(!packedRestored.getPeer.getMapIdBitMap.contains(1))
+
+    val withoutBitmap =
+      new PartitionLocation(11, 0, "host3", 30, 31, 32, 33, PartitionLocation.Mode.PRIMARY)
+    val restoredWithoutBitmap = PbSerDeUtils.fromPbPartitionLocation(
+      PbSerDeUtils.toPbPartitionLocation(withoutBitmap))
+    assert(restoredWithoutBitmap.getMapIdBitMapIfPresent == null)
+  }
+
   test("fromAndToPbWorkerResource") {
     val pbWorkerResource = PbSerDeUtils.toPbWorkerResource(workerResource)
     val restoredWorkerResource = PbSerDeUtils.fromPbWorkerResource(pbWorkerResource)
@@ -694,6 +734,9 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
 
     assert(primaryLocations.zip(locs1.asScala).count(x => x._1 != x._2) == 0)
     assert(replicaLocations.zip(locs2.asScala).count(x => x._1 != x._2) == 0)
+    (locs1.asScala ++ locs2.asScala).foreach { loc =>
+      assert(loc.hasPeer)
+    }
 
     assert(packedWorkerResourceSize < workerResourceSize)
     log.info(s"Packed size : ${packedWorkerResourceSize} unpacked size :${workerResourceSize}")
@@ -703,6 +746,10 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
 
   test("serializationComparasion") {
     testSerializationPerformance(100)
+  }
+
+  test("packed partition location serde remains compact at scale") {
+    testSerializationPerformance(1000)
   }
 
   test("GetReduceFileGroup with primary and replica locations") {

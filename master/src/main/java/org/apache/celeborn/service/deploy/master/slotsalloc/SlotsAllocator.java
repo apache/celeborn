@@ -26,7 +26,6 @@ import java.util.stream.Collectors;
 import scala.Tuple2;
 import scala.Tuple3;
 
-import org.roaringbitmap.RoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -548,7 +547,7 @@ public class SlotsAllocator {
         mode,
         peer,
         storageInfo,
-        new RoaringBitmap());
+        null);
   }
 
   private static void addLocation(
