@@ -136,7 +136,12 @@ public class ShuffleBlockInfoUtils {
     int offset = 0;
     int length = 0;
     boolean blockBoundary = true;
-    for (int i = startMapIndex; i < endMapIndex; i++) {
+    int maxMapIndex = endMapIndex;
+    if (endMapIndex == Integer.MAX_VALUE) {
+      // not a range read
+      maxMapIndex = indexMap.keySet().stream().max(Integer::compareTo).get() + 1;
+    }
+    for (int i = startMapIndex; i < maxMapIndex; i++) {
       List<ShuffleBlockInfo> blockInfos = indexMap.get(i);
       if (blockInfos != null) {
         for (ShuffleBlockInfo blockInfo : blockInfos) {
