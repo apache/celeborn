@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.util.control.NonFatal
 
 import io.netty.buffer.{ByteBuf, CompositeByteBuf}
 import org.apache.hadoop.fs.{FileSystem, FSDataOutputStream}
@@ -87,6 +88,32 @@ abstract class TierWriterBase(
   def handleException(): Unit
 
   protected def writeInternal(buf: ByteBuf): Unit
+
+  protected def accountAddedBytes(numBytes: Int): Unit
+
+  protected def appendToFlushBuffer(buf: ByteBuf): Unit = {
+    val numBytes = buf.readableBytes()
+    val writerIndexBefore = flushBuffer.writerIndex()
+    val numComponentsBefore = flushBuffer.numComponents()
+    buf.retain()
+    try {
+      flushBuffer.addComponent(true, buf)
+    } catch {
+      case t: Throwable if t.isInstanceOf[OutOfMemoryError] || NonFatal(t) =>
+        // addComponent can fail after taking ownership while consolidating components.
+        val componentAdded =
+          flushBuffer.writerIndex() != writerIndexBefore ||
+            flushBuffer.numComponents() != numComponentsBefore
+        if (componentAdded) {
+          accountAddedBytes(numBytes)
+        }
+        logError(
+          s"Failed to add $numBytes bytes to flush buffer for shuffle $shuffleKey file $filename.",
+          t)
+        throw t
+    }
+    accountAddedBytes(numBytes)
+  }
 
   def needEvict(): Boolean
 
@@ -322,24 +349,14 @@ class MemoryTierWriter(
   // Memory file won't produce flush task
   override def genFlushTask(finalFlush: Boolean, keepBuffer: Boolean): FlushTask = null
 
-  override def writeInternal(buf: ByteBuf): Unit = {
-    buf.retain()
-    val numBytes = buf.readableBytes()
-    try {
-      flushBuffer.addComponent(true, buf)
-    } catch {
-      case oom: OutOfMemoryError =>
-        // memory tier writer will not flush
-        // add the bytes into flusher buffer is flush completed
-        metaHandler.afterFlush(numBytes)
-        MemoryManager.instance.incrementMemoryFileStorage(numBytes)
-        throw oom
-    }
+  override protected def accountAddedBytes(numBytes: Int): Unit = {
     // memory tier writer will not flush
     // add the bytes into flusher buffer is flush completed
     metaHandler.afterFlush(numBytes)
     MemoryManager.instance().incrementMemoryFileStorage(numBytes)
   }
+
+  override def writeInternal(buf: ByteBuf): Unit = appendToFlushBuffer(buf)
 
   override def closeStreams(): Unit = {
     try {
@@ -437,14 +454,10 @@ class LocalTierWriter(
     if (flushBufferReadableBytes != 0 && flushBufferReadableBytes + numBytes >= flusherBufferSize) {
       flush(false)
     }
-    buf.retain()
-    try {
-      flushBuffer.addComponent(true, buf)
-    } catch {
-      case oom: OutOfMemoryError =>
-        MemoryManager.instance.incrementDiskBuffer(numBytes)
-        throw oom
-    }
+    appendToFlushBuffer(buf)
+  }
+
+  override protected def accountAddedBytes(numBytes: Int): Unit = {
     MemoryManager.instance.incrementDiskBuffer(numBytes)
   }
 
@@ -659,14 +672,10 @@ class DfsTierWriter(
     if (flushBufferReadableBytes != 0 && flushBufferReadableBytes + numBytes >= flusherBufferSize) {
       flush(false)
     }
-    buf.retain()
-    try {
-      flushBuffer.addComponent(true, buf)
-    } catch {
-      case oom: OutOfMemoryError =>
-        MemoryManager.instance.incrementDiskBuffer(numBytes)
-        throw oom
-    }
+    appendToFlushBuffer(buf)
+  }
+
+  override protected def accountAddedBytes(numBytes: Int): Unit = {
     MemoryManager.instance.incrementDiskBuffer(numBytes)
   }
 
