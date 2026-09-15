@@ -20,6 +20,7 @@ package org.apache.celeborn.client;
 import java.io.IOException;
 import java.util.concurrent.atomic.LongAdder;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.tez.runtime.library.api.IOInterruptedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,7 @@ public class CelebornTezWriter {
   private final int attemptNumber;
   private final int numMappers;
   private final int numPartitions;
+  private final LongAdder[] mapStatusLengths;
 
   public CelebornTezWriter(
       int shuffleId,
@@ -51,9 +53,29 @@ public class CelebornTezWriter {
       String lifecycleManagerHost,
       int lifecycleManagerPort,
       UserIdentifier userIdentifier) {
-    shuffleClient =
+    this(
+        shuffleId,
+        mapId,
+        attemptNumber,
+        taskAttemptId,
+        numMappers,
+        numPartitions,
+        conf,
         ShuffleClient.get(
-            appUniqueId, lifecycleManagerHost, lifecycleManagerPort, conf, userIdentifier, null);
+            appUniqueId, lifecycleManagerHost, lifecycleManagerPort, conf, userIdentifier, null));
+  }
+
+  @VisibleForTesting
+  CelebornTezWriter(
+      int shuffleId,
+      int mapId,
+      int attemptNumber,
+      long taskAttemptId,
+      int numMappers,
+      int numPartitions,
+      CelebornConf conf,
+      ShuffleClient shuffleClient) {
+    this.shuffleClient = shuffleClient;
     // TEZ_SHUFFLE_ID
     this.shuffleId = shuffleId;
     this.mapId = mapId;
@@ -61,7 +83,7 @@ public class CelebornTezWriter {
     this.numMappers = numMappers;
     this.numPartitions = numPartitions;
 
-    LongAdder[] mapStatusLengths = new LongAdder[numPartitions];
+    mapStatusLengths = new LongAdder[numPartitions];
     for (int i = 0; i < numPartitions; i++) {
       mapStatusLengths[i] = new LongAdder();
     }
@@ -81,6 +103,28 @@ public class CelebornTezWriter {
               mapStatusLengths);
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  @VisibleForTesting
+  CelebornTezWriter(
+      int shuffleId,
+      int mapId,
+      int attemptNumber,
+      int numMappers,
+      int numPartitions,
+      ShuffleClient shuffleClient,
+      DataPusher dataPusher) {
+    this.shuffleId = shuffleId;
+    this.mapId = mapId;
+    this.attemptNumber = attemptNumber;
+    this.numMappers = numMappers;
+    this.numPartitions = numPartitions;
+    this.shuffleClient = shuffleClient;
+    this.dataPusher = dataPusher;
+    mapStatusLengths = new LongAdder[numPartitions];
+    for (int i = 0; i < numPartitions; i++) {
+      mapStatusLengths[i] = new LongAdder();
     }
   }
 
@@ -104,10 +148,24 @@ public class CelebornTezWriter {
             size,
             numMappers,
             numPartitions);
+    mapStatusLengths[partitionId].add(bytesWritten);
   }
 
   public int getNumPartitions() {
     return numPartitions;
+  }
+
+  public long[] getPartitionStats() {
+    // Return a stable snapshot because the underlying counters are updated by the push thread.
+    return snapshotPartitionStats(mapStatusLengths);
+  }
+
+  static long[] snapshotPartitionStats(LongAdder[] mapStatusLengths) {
+    long[] partitionStats = new long[mapStatusLengths.length];
+    for (int i = 0; i < mapStatusLengths.length; i++) {
+      partitionStats[i] = mapStatusLengths[i].sum();
+    }
+    return partitionStats;
   }
 
   public void close() throws IOException {

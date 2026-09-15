@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.hadoop.io.RawComparator;
@@ -53,7 +52,6 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
   private byte[] serializedKV;
   private final int maxPushDataSize;
   private Map<Integer, AtomicInteger> recordsPerPartition = new HashMap<>();
-  private Map<Integer, AtomicLong> bytesPerPartition = new HashMap<>();
   private final boolean needSort;
 
   public CelebornSortBasedPusher(
@@ -107,14 +105,10 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
       int dataLen = insertRecordInternal(key, value, partition);
       if (numOutputs == 1 && !needSort) {
         recordsPerPartition.putIfAbsent(0, new AtomicInteger());
-        bytesPerPartition.putIfAbsent(0, new AtomicLong());
         recordsPerPartition.get(0).incrementAndGet();
-        bytesPerPartition.get(0).incrementAndGet();
       } else {
         recordsPerPartition.computeIfAbsent(partition, p -> new AtomicInteger());
-        bytesPerPartition.computeIfAbsent(partition, p -> new AtomicLong());
         recordsPerPartition.get(partition).incrementAndGet();
-        bytesPerPartition.get(partition).incrementAndGet();
       }
       if (logger.isDebugEnabled()) {
         logger.debug(
@@ -321,16 +315,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
   }
 
   public long[] getBytesPerPartition() {
-    long[] values = new long[numOutputs];
-    for (int i = 0; i < numOutputs; i++) {
-      AtomicLong bytes = bytesPerPartition.get(i);
-      if (bytes != null) {
-        values[i] = bytes.get();
-      } else {
-        values[i] = 0;
-      }
-    }
-    return values;
+    return celebornTezWriter.getPartitionStats();
   }
 
   static class SerializedKV {

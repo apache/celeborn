@@ -74,6 +74,7 @@ public class CelebornUnorderedPartitionedKVWriter extends KeyValuesWriter {
   final TezRuntimeConfiguration.ReportPartitionStats reportPartitionStats;
 
   private CelebornSortBasedPusher pusher;
+  private final CelebornTezWriter celebornTezWriter;
 
   public CelebornUnorderedPartitionedKVWriter(
       OutputContext outputContext,
@@ -84,6 +85,7 @@ public class CelebornUnorderedPartitionedKVWriter extends KeyValuesWriter {
       CelebornConf celebornConf) {
     this.outputContext = outputContext;
     this.conf = conf;
+    this.celebornTezWriter = celebornTezWriter;
     try {
       this.localFs = (RawLocalFileSystem) FileSystem.getLocal(conf).getRaw();
     } catch (IOException e) {
@@ -175,7 +177,7 @@ public class CelebornUnorderedPartitionedKVWriter extends KeyValuesWriter {
   private void updateTezCountersAndNotify() {
     numRecordsPerPartition = pusher.getRecordsPerPartition();
     if (sizePerPartition != null) {
-      sizePerPartition = pusher.getBytesPerPartition();
+      sizePerPartition = celebornTezWriter.getPartitionStats();
     }
     outputContext.notifyProgress();
   }
