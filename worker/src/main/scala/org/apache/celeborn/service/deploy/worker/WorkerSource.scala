@@ -263,6 +263,10 @@ object WorkerSource {
   val EVICTED_FILE_COUNT = "EvictedFileCount"
   val EVICTED_LOCAL_FILE_COUNT = "EvictedLocalFileCount"
   val EVICTED_DFS_FILE_COUNT = "EvictedDfsFileCount"
+  // Bytes of PushData/PushMergedData bodies handed off to a peer for replication but not yet
+  // acknowledged (replica response received, or the attempt failed/errored out beforehand); see
+  // PushDataHandler#getPendingReplicateBytes.
+  val PENDING_REPLICATE_BYTES = "PendingReplicateBytes"
 
   val MEMORY_STORAGE_FILE_COUNT = "MemoryStorageFileCount"
 

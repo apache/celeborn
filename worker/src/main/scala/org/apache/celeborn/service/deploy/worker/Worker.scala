@@ -436,6 +436,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.EVICTED_DFS_FILE_COUNT) { () =>
     storageManager.evictedDfsFileCount.get()
   }
+  workerSource.addGauge(WorkerSource.PENDING_REPLICATE_BYTES) { () =>
+    memoryManager.getPendingReplicateBytes
+  }
   workerSource.addGauge(WorkerSource.MEMORY_STORAGE_FILE_COUNT) { () =>
     storageManager.memoryWriters.size()
   }

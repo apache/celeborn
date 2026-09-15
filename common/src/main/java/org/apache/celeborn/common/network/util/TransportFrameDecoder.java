@@ -51,10 +51,42 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implemen
   private static final int MAX_FRAME_SIZE = Integer.MAX_VALUE;
   private static final int UNKNOWN_FRAME_SIZE = -1;
 
+  /**
+   * Netty's {@code AdaptiveRecvByteBufAllocator} caps a single {@code channelRead} at this many
+   * bytes.
+   */
+  public static final long MAX_SINGLE_READ_BYTES = 65536;
+
   private final LinkedList<ByteBuf> buffers = new LinkedList<>();
 
-  private long totalSize = 0;
-  private long nextFrameSize = UNKNOWN_FRAME_SIZE;
+  // totalSize and nextFrameSize: written by the Netty I/O thread, read by checkService via
+  // hasLikelyLargeIncompleteFrame().
+  private volatile long totalSize = 0;
+  private volatile long nextFrameSize = UNKNOWN_FRAME_SIZE;
+
+  /**
+   * When set, this channel is resumed only to drain its stuck half-received frame (in {@link
+   * #buffers}) and release the memory, not to resume normal traffic.
+   */
+  private volatile boolean frameDrain = false;
+
+  /** Enables single-frame drain mode: the next decoded frame fires {@link FrameDrainCompleted}. */
+  public void enableFrameDrain() {
+    this.frameDrain = true;
+  }
+
+  /**
+   * True if the stuck half-frame looks unusually large. When {@code byFrameSize} is true, ranks by
+   * the frame currently being decoded (falling back to {@code totalSize} while the header hasn't
+   * been fully read yet); otherwise ranks by {@code totalSize}, the total unparsed bytes piled up
+   * regardless of frame boundaries.
+   */
+  public boolean hasLikelyLargeIncompleteFrame(boolean byFrameSize) {
+    if (byFrameSize && nextFrameSize != UNKNOWN_FRAME_SIZE) {
+      return nextFrameSize > MAX_SINGLE_READ_BYTES;
+    }
+    return totalSize > MAX_SINGLE_READ_BYTES;
+  }
 
   @Override
   public void channelRead(ChannelHandlerContext ctx, Object data) {
@@ -73,7 +105,19 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implemen
       }
       ctx.fireChannelRead(msg);
       clear();
+
+      if (frameDrain) {
+        // Frame drained; notify to re-pause before the next syscall. Already-buffered frames are
+        // still dispatched.
+        frameDrain = false;
+        ctx.channel().pipeline().fireUserEventTriggered(FrameDrainCompleted.INSTANCE);
+      }
     }
+  }
+
+  /** Fired once, right after frame-drain mode completes a single frame. */
+  public enum FrameDrainCompleted {
+    INSTANCE
   }
 
   private void clear() {

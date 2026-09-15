@@ -56,6 +56,8 @@ public class MemoryManager {
   private final long maxSortMemory;
   private final int forceAppendPauseSpentTimeThreshold;
   private final List<MemoryPressureListener> memoryPressureListeners = new ArrayList<>();
+  // Replicate bytes handed off to a peer but not yet acknowledged; included in appActiveMemory.
+  private final AtomicLong pendingReplicateBytesCounter = new AtomicLong(0);
 
   private final ScheduledExecutorService checkService =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-memory-manager-checker");
@@ -101,6 +103,14 @@ public class MemoryManager {
   private boolean resumingByPinnedMemory = false;
   private long workerPinnedMemoryResumeKeepTime;
 
+  private final boolean drainIncompleteFrameEnabled;
+  private final long drainIncompleteFrameIntervalMs;
+  private final double drainIncompleteFrameRatio;
+  private final long drainIncompleteFrameWatermarkBytes;
+  // accessed only from the checkService thread:
+  private long drainIncompleteFrameLastTickTime = -1L;
+  private long drainPinnedMemoryLastLogTime = -1L;
+
   @VisibleForTesting
   public static MemoryManager initialize(CelebornConf conf) {
     return initialize(conf, null, null);
@@ -124,6 +134,18 @@ public class MemoryManager {
     }
   }
 
+  public void incrementPendingReplicateBytes(long bytes) {
+    pendingReplicateBytesCounter.addAndGet(bytes);
+  }
+
+  public void releasePendingReplicateBytes(long bytes) {
+    pendingReplicateBytesCounter.addAndGet(-bytes);
+  }
+
+  public long getPendingReplicateBytes() {
+    return pendingReplicateBytesCounter.get();
+  }
+
   public static MemoryManager instance() {
     return _INSTANCE;
   }
@@ -140,6 +162,10 @@ public class MemoryManager {
     this.pinnedMemoryCheckEnabled = conf.workerPinnedMemoryCheckEnabled();
     this.pinnedMemoryCheckInterval = conf.workerPinnedMemoryCheckIntervalMs();
     this.workerPinnedMemoryResumeKeepTime = conf.workerPinnedMemoryResumeKeepTime();
+    this.drainIncompleteFrameEnabled = conf.workerDrainIncompleteFrameEnabled();
+    this.drainIncompleteFrameIntervalMs = conf.workerDrainIncompleteFrameIntervalMs();
+    this.drainIncompleteFrameRatio = conf.workerDrainIncompleteFrameRatio();
+    double drainIncompleteFrameWatermarkRatio = conf.workerDrainIncompleteFrameWatermarkRatio();
     long reportInterval = conf.workerDirectMemoryReportIntervalSecond();
     double readBufferTargetRatio = conf.readBufferTargetRatio();
     long readBufferTargetUpdateInterval = conf.readBufferTargetUpdateInterval();
@@ -175,6 +201,8 @@ public class MemoryManager {
     readBufferThreshold = (long) (maxDirectMemory * readBufferRatio);
     readBufferTarget = (long) (readBufferThreshold * readBufferTargetRatio);
     memoryFileStorageThreshold = (long) (maxDirectMemory * memoryFileStorageRatio);
+    drainIncompleteFrameWatermarkBytes =
+        (long) (maxDirectMemory * drainIncompleteFrameWatermarkRatio);
 
     checkService.scheduleWithFixedDelay(
         () -> {
@@ -195,7 +223,7 @@ public class MemoryManager {
                     + "disk buffer size: {}, "
                     + "sort memory size: {}, "
                     + "read buffer size: {}, "
-                    + "memory file storage size : {}",
+                    + "memory file storage size: {}",
                 Utils.bytesToString(getNettyUsedDirectMemory()),
                 Utils.bytesToString(maxDirectMemory),
                 Utils.bytesToString(diskBufferCounter.get()),
@@ -365,6 +393,7 @@ public class MemoryManager {
               appendPauseSpentTime(servingState);
             }
           }
+          checkAndTriggerDrainIncompleteFrame();
         }
         logger.debug("Trigger action: TRIM");
         trimAllListeners();
@@ -393,6 +422,7 @@ public class MemoryManager {
                 trimCounter);
             appendPauseSpentTime(servingState);
           }
+          checkAndTriggerDrainIncompleteFrame();
         }
         logger.debug("Trigger action: TRIM");
         trimAllListeners();
@@ -400,6 +430,8 @@ public class MemoryManager {
       case NONE_PAUSED:
         // resume from paused mode, append pause spent time
         resumingByPinnedMemory = false;
+        drainIncompleteFrameLastTickTime = -1L; // reset for the next backpressure episode
+        drainPinnedMemoryLastLogTime = -1L;
         if (lastState == ServingState.PUSH_AND_REPLICATE_PAUSED) {
           resumeReplicate();
           resumePush();
@@ -408,6 +440,52 @@ public class MemoryManager {
           resumePush();
           appendPauseSpentTime(lastState);
         }
+    }
+  }
+
+  /**
+   * Fires a drainIncompleteFrame tick when backpressure is active and the relevant usage is
+   * at/below the watermark. REPLICATE_MODULE is evaluated without pendingReplicateBytesCounter,
+   * since that counter doesn't represent this worker's own memory footprint; every other module
+   * uses the full accounting.
+   */
+  private void checkAndTriggerDrainIncompleteFrame() {
+    if (!drainIncompleteFrameEnabled) return;
+
+    long localActiveMemory =
+        sortMemoryCounter.get() + diskBufferCounter.get() + memoryFileStorageCounter.sum();
+    long appActiveMemory = localActiveMemory + pendingReplicateBytesCounter.get();
+    boolean pushReady = appActiveMemory <= drainIncompleteFrameWatermarkBytes;
+    boolean replicateReady = localActiveMemory <= drainIncompleteFrameWatermarkBytes;
+    if (!pushReady && !replicateReady) return;
+
+    long now = System.currentTimeMillis();
+    if (drainIncompleteFrameLastTickTime >= 0
+        && now - drainIncompleteFrameLastTickTime < drainIncompleteFrameIntervalMs) return;
+    drainIncompleteFrameLastTickTime = now;
+
+    int resumedChannels = 0;
+    for (MemoryPressureListener listener : memoryPressureListeners) {
+      if (pushReady) {
+        resumedChannels +=
+            listener.drainIncompleteFrame(
+                drainIncompleteFrameRatio, TransportModuleConstants.PUSH_MODULE);
+      }
+      if (replicateReady) {
+        resumedChannels +=
+            listener.drainIncompleteFrame(
+                drainIncompleteFrameRatio, TransportModuleConstants.REPLICATE_MODULE);
+      }
+    }
+    if (resumedChannels > 0) {
+      logger.info(
+          "DrainIncompleteFrame resumed {} channels (ratio={})",
+          resumedChannels,
+          drainIncompleteFrameRatio);
+    }
+    if (drainPinnedMemoryLastLogTime < 0 || now - drainPinnedMemoryLastLogTime >= 10000L) {
+      drainPinnedMemoryLastLogTime = now;
+      logger.info("Pinned memory during backpressure: {}", Utils.bytesToString(getPinnedMemory()));
     }
   }
 
@@ -675,6 +753,14 @@ public class MemoryManager {
     void onResume(String moduleName);
 
     void onTrim();
+
+    /**
+     * Resume a small subset of {@code moduleName}'s paused channels to drain their stuck
+     * half-frames. Default no-op; see {@link ChannelsLimiter}.
+     */
+    default int drainIncompleteFrame(double ratio, String moduleName) {
+      return 0;
+    }
   }
 
   public interface ReadBufferTargetChangeListener {

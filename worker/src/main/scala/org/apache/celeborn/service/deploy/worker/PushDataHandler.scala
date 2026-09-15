@@ -36,10 +36,10 @@ import org.apache.celeborn.common.meta.{DiskStatus, WorkerInfo, WorkerPartitionL
 import org.apache.celeborn.common.metrics.source.Source
 import org.apache.celeborn.common.network.buffer.{NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient, TransportClientFactory}
-import org.apache.celeborn.common.network.protocol.{Message, PushData, PushDataHandShake, PushMergedData, RegionFinish, RegionStart, RequestMessage, RpcFailure, RpcRequest, RpcResponse, TransportMessage}
+import org.apache.celeborn.common.network.protocol._
 import org.apache.celeborn.common.network.protocol.Message.Type
 import org.apache.celeborn.common.network.server.BaseMessageHandler
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, PbPushDataHandShake, PbPushMergedDataSplitPartitionInfo, PbRegionFinish, PbRegionStart, PbSegmentStart}
+import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PbPartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.unsafe.Platform
@@ -291,16 +291,28 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       }
 
       pushData.body().retain()
+      val bodySize: Long = pushData.body().size()
+      MemoryManager.instance().incrementPendingReplicateBytes(bodySize)
+      val bytesReleased = new AtomicBoolean(false)
+      // Ensures the matching decrement below fires exactly once no matter which of the several
+      // failure/success branches below is taken.
+      def releasePendingReplicateBytes(): Unit = {
+        if (bytesReleased.compareAndSet(false, true)) {
+          MemoryManager.instance().releasePendingReplicateBytes(bodySize)
+        }
+      }
       replicateThreadPool.submit(new Runnable {
         override def run(): Unit = {
           if (unavailablePeers.containsKey(peerWorker)) {
             pushData.body().release()
+            releasePendingReplicateBytes()
             handlePushDataConnectionFail(callbackWithTimer, location)
             return
           }
           // Handle the response from replica
           val wrappedCallback = new RpcResponseCallback() {
             override def onSuccess(response: ByteBuffer): Unit = {
+              releasePendingReplicateBytes()
               Try(Await.result(writePromise.future, Duration.Inf)) match {
                 case Success(result) =>
                   if (result(0) != StatusCode.SUCCESS) {
@@ -342,6 +354,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             }
 
             override def onFailure(e: Throwable): Unit = {
+              releasePendingReplicateBytes()
               logError(
                 s"PushData replication failed for shuffle: $shuffleKey, partitionLocation: $location",
                 e)
@@ -376,6 +389,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           } catch {
             case e: Exception =>
               pushData.body().release()
+              releasePendingReplicateBytes()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
               logError(
@@ -627,16 +641,28 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         return
       }
       pushMergedData.body().retain()
+      val bodySize: Long = pushMergedData.body().size()
+      MemoryManager.instance().incrementPendingReplicateBytes(bodySize)
+      val bytesReleased = new AtomicBoolean(false)
+      // Ensures the matching decrement below fires exactly once no matter which of the several
+      // failure/success branches below is taken.
+      def releasePendingReplicateBytes(): Unit = {
+        if (bytesReleased.compareAndSet(false, true)) {
+          MemoryManager.instance().releasePendingReplicateBytes(bodySize)
+        }
+      }
       replicateThreadPool.submit(new Runnable {
         override def run(): Unit = {
           if (unavailablePeers.containsKey(peerWorker)) {
             pushMergedData.body().release()
+            releasePendingReplicateBytes()
             handlePushMergedDataConnectionFail(pushMergedDataCallback, location)
             return
           }
           // Handle the response from replica
           val wrappedCallback = new RpcResponseCallback() {
             override def onSuccess(response: ByteBuffer): Unit = {
+              releasePendingReplicateBytes()
               Try(Await.result(writePromise.future, Duration.Inf)) match {
                 case Success(result) =>
                   var index = 0
@@ -724,6 +750,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             }
 
             override def onFailure(e: Throwable): Unit = {
+              releasePendingReplicateBytes()
               logError(
                 s"PushMergedData replicate failed for shuffle: $shuffleKey, partitionLocation: $location",
                 e)
@@ -763,6 +790,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           } catch {
             case e: Exception =>
               pushMergedData.body().release()
+              releasePendingReplicateBytes()
               unavailablePeers.put(peerWorker, System.currentTimeMillis())
               workerSource.incCounter(WorkerSource.REPLICATE_DATA_CREATE_CONNECTION_FAIL_COUNT)
               logError(

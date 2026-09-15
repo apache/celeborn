@@ -1453,6 +1453,14 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerDirectMemoryReportIntervalSecond: Long = get(WORKER_DIRECT_MEMORY_REPORT_INTERVAL)
   def workerDirectMemoryTrimChannelWaitInterval: Long =
     get(WORKER_DIRECT_MEMORY_TRIM_CHANNEL_WAIT_INTERVAL)
+  def workerDrainIncompleteFrameEnabled: Boolean =
+    get(WORKER_DRAIN_INCOMPLETE_FRAME_ENABLED)
+  def workerDrainIncompleteFrameIntervalMs: Long =
+    get(WORKER_DRAIN_INCOMPLETE_FRAME_INTERVAL)
+  def workerDrainIncompleteFrameRatio: Double =
+    get(WORKER_DRAIN_INCOMPLETE_FRAME_RATIO)
+  def workerDrainIncompleteFrameWatermarkRatio: Double =
+    get(WORKER_DRAIN_INCOMPLETE_FRAME_WATERMARK_RATIO)
   def workerDirectMemoryTrimFlushWaitInterval: Long =
     get(WORKER_DIRECT_MEMORY_TRIM_FLUSH_WAIT_INTERVAL)
   def workerDirectMemoryRatioForMemoryFilesStorage: Double =
@@ -4177,6 +4185,48 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("1s")
+
+  val WORKER_DRAIN_INCOMPLETE_FRAME_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.monitor.drainIncompleteFrame.enabled")
+      .categories("worker")
+      .doc(
+        "When true, gradually drains a fixed ratio of paused channels per tick to flush " +
+          "incomplete frames in TransportFrameDecoder buffers and recover from backpressure deadlock.")
+      .version("0.7.1")
+      .booleanConf
+      .createWithDefaultString("true")
+
+  val WORKER_DRAIN_INCOMPLETE_FRAME_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.monitor.drainIncompleteFrame.interval")
+      .categories("worker")
+      .doc(
+        "Minimum interval between drainIncompleteFrame ticks. Draining arms when usage is at/below " +
+          "the watermark and disarms when above; a new batch of channels is drained each interval.")
+      .version("0.7.1")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5ms")
+
+  val WORKER_DRAIN_INCOMPLETE_FRAME_RATIO: ConfigEntry[Double] =
+    buildConf("celeborn.worker.monitor.drainIncompleteFrame.ratio")
+      .categories("worker")
+      .doc(
+        "Fraction of paused channels to drain per tick. Draining disarms automatically when " +
+          "application-layer usage rises above the watermark. 0.05 (5%) gives gradual recovery.")
+      .version("0.7.1")
+      .doubleConf
+      .checkValue(v => v > 0 && v <= 1, "Should be in (0, 1].")
+      .createWithDefault(0.05)
+
+  val WORKER_DRAIN_INCOMPLETE_FRAME_WATERMARK_RATIO: ConfigEntry[Double] =
+    buildConf("celeborn.worker.monitor.drainIncompleteFrame.watermark.ratio")
+      .categories("worker")
+      .doc(
+        "Application-layer usage watermark (ratio of max direct memory): draining arms when usage " +
+          "is at/below this value and disarms when above. Tune from celeborn.worker.monitor.memory.report.interval.")
+      .version("0.7.1")
+      .doubleConf
+      .checkValue(v => v >= 0 && v <= 1, "Should be in [0, 1].")
+      .createWithDefault(0.1)
 
   val WORKER_DIRECT_MEMORY_TRIM_FLUSH_WAIT_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.worker.monitor.memory.trimFlushWaitInterval")

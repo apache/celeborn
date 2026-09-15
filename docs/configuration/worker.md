@@ -156,6 +156,10 @@ license: |
 | celeborn.worker.monitor.disk.notifyError.expireTimeout | 10m | false | The expire timeout of non-critical device error. Only notify critical error when the number of non-critical errors for a period of time exceeds threshold. | 0.3.0 |  | 
 | celeborn.worker.monitor.disk.notifyError.threshold | 64 | false | Device monitor will only notify critical error once the accumulated valid non-critical error number exceeding this threshold. | 0.3.0 |  | 
 | celeborn.worker.monitor.disk.sys.block.dir | /sys/block | false | The directory where linux file block information is stored. | 0.2.0 |  | 
+| celeborn.worker.monitor.drainIncompleteFrame.enabled | true | false | When true, gradually drains a fixed ratio of paused channels per tick to flush incomplete frames in TransportFrameDecoder buffers and recover from backpressure deadlock. | 0.7.1 |  | 
+| celeborn.worker.monitor.drainIncompleteFrame.interval | 5ms | false | Minimum interval between drainIncompleteFrame ticks. Draining arms when usage is at/below the watermark and disarms when above; a new batch of channels is drained each interval. | 0.7.1 |  | 
+| celeborn.worker.monitor.drainIncompleteFrame.ratio | 0.05 | false | Fraction of paused channels to drain per tick. Draining disarms automatically when application-layer usage rises above the watermark. 0.05 (5%) gives gradual recovery. | 0.7.1 |  | 
+| celeborn.worker.monitor.drainIncompleteFrame.watermark.ratio | 0.1 | false | Application-layer usage watermark (ratio of max direct memory): draining arms when usage is at/below this value and disarms when above. Tune from celeborn.worker.monitor.memory.report.interval. | 0.7.1 |  | 
 | celeborn.worker.monitor.memory.check.interval | 10ms | false | Interval of worker direct memory checking. | 0.3.0 | celeborn.worker.memory.checkInterval | 
 | celeborn.worker.monitor.memory.report.interval | 10s | false | Interval of worker direct memory tracker reporting to log. | 0.3.0 | celeborn.worker.memory.reportInterval | 
 | celeborn.worker.monitor.memory.trimChannelWaitInterval | 1s | false | Wait time after worker trigger channel to trim cache. | 0.3.0 |  | 
