@@ -28,6 +28,11 @@ license: |
   configuration. Existing `ROUNDROBIN` and `LOADAWARE` values remain supported and require no
   migration. See [Slots allocation](./developers/slotsallocation.md#custom-strategies) for details.
 
+- Since 1.0.0, Celeborn removed `celeborn.client.shuffle.dynamicResourceFactor`, which used the
+  unavailable-worker ratio to trigger a refresh. Dynamic worker refresh is now performed on demand
+  while handling change-partition requests and throttled by
+  `celeborn.client.shuffle.dynamicResource.updateTime` (30s by default).
+
 # Upgrading from 0.6 to 0.7
 
 - Since 0.7.0, Celeborn removed `ReleaseSlots`.
