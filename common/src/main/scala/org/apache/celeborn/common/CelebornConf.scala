@@ -1159,6 +1159,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def shufflePartitionSplitMode: PartitionSplitMode =
     PartitionSplitMode.valueOf(get(SHUFFLE_PARTITION_SPLIT_MODE))
   def shufflePartitionSplitThreshold: Long = get(SHUFFLE_PARTITION_SPLIT_THRESHOLD)
+  def clientShuffleAdaptivePartitionWriteParallelismEnabled: Boolean =
+    get(CLIENT_SHUFFLE_ADAPTIVE_PARTITION_WRITE_PARALLELISM_ENABLED)
+  def clientShuffleAdaptivePartitionWriteParallelismMaxLocations: Int =
+    get(CLIENT_SHUFFLE_ADAPTIVE_PARTITION_WRITE_PARALLELISM_MAX_LOCATIONS)
+  def clientShuffleAdaptivePartitionWriteParallelismTargetSplitIntervalMs: Long =
+    get(CLIENT_SHUFFLE_ADAPTIVE_PARTITION_WRITE_PARALLELISM_TARGET_SPLIT_INTERVAL)
   def batchHandleChangePartitionEnabled: Boolean = get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED)
   def batchHandleChangePartitionBuckets: Int =
     get(CLIENT_BATCH_HANDLE_CHANGE_PARTITION_BUCKETS)
@@ -5373,6 +5379,40 @@ object CelebornConf extends Logging {
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Set(PartitionSplitMode.SOFT.name, PartitionSplitMode.HARD.name))
       .createWithDefault(PartitionSplitMode.SOFT.name)
+
+  val CLIENT_SHUFFLE_ADAPTIVE_PARTITION_WRITE_PARALLELISM_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.shuffle.adaptivePartitionWriteParallelism.enabled")
+      .categories("client")
+      .doc("Whether to enable adaptive partition write parallelism, i.e. writing " +
+        "one partition to multiple partition locations in parallel. Disabled by default.")
+      .version("1.0.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_SHUFFLE_ADAPTIVE_PARTITION_WRITE_PARALLELISM_MAX_LOCATIONS: ConfigEntry[Int] =
+    buildConf("celeborn.client.shuffle.adaptivePartitionWriteParallelism.maxLocations")
+      .categories("client")
+      .doc("Max number of active locations one partition can write to in parallel. " +
+        "The effective cap is min of this value and the shuffle's number of mappers; " +
+        "-1 (default) means capped by the mapper count only.")
+      .version("1.0.0")
+      .intConf
+      .checkValue(v => v == -1 || v > 0, "Must be -1 or positive.")
+      .createWithDefault(-1)
+
+  val CLIENT_SHUFFLE_ADAPTIVE_PARTITION_WRITE_PARALLELISM_TARGET_SPLIT_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.shuffle.adaptivePartitionWriteParallelism.targetSplitInterval")
+      .categories("client")
+      .doc("The target fill time of a single partition location, i.e. the time from its " +
+        "allocation to its split. A location splits once, so in steady state this is also " +
+        "the partition's split interval. A location filled (split) faster than this marks " +
+        "the partition hot, and the target parallelism is raised to ceil(targetSplitInterval " +
+        "/ measured fill time) - independent of the current parallelism - so that the " +
+        "per-location fill time converges to this value. Larger values demand more parallel " +
+        "locations and proportionally more slots and disk for hot partitions.")
+      .version("1.0.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("60s")
 
   val SHUFFLE_COMPRESSION_CODEC: ConfigEntry[String] =
     buildConf("celeborn.client.shuffle.compression.codec")

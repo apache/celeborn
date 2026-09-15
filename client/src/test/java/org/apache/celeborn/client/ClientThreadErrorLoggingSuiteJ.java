@@ -23,6 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -158,7 +159,8 @@ public class ClientThreadErrorLoggingSuiteJ {
         int partitionId,
         StatusCode status,
         Option<PartitionLocation> partitionLocation,
-        boolean available) {}
+        boolean available,
+        List<PartitionLocation> additionalPartitions) {}
   }
 
   private static class MessageAppender extends AbstractAppender {
