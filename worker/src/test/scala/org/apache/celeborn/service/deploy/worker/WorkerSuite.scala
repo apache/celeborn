@@ -35,6 +35,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.ControlMessages.CommitFilesResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -130,6 +131,28 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
       }
     }
     Assert.assertEquals(1, allWriters.size())
+  }
+
+  test("remove expired unavailable peers") {
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
+    conf.set(CelebornConf.WORKER_REPLICATE_FAST_FAIL_DURATION.key, "100ms")
+    worker = new Worker(conf, workerArgs)
+    val expiredPeer =
+      new WorkerInfo("expired", 1, 2, 3, 4, -1, new util.HashMap(), null)
+    val activePeer =
+      new WorkerInfo("active", 5, 6, 7, 8, -1, new util.HashMap(), null)
+    val currentTime = System.currentTimeMillis()
+    worker.unavailablePeers.put(expiredPeer, currentTime - 101)
+    worker.unavailablePeers.put(activePeer, currentTime)
+
+    worker.removeExpiredUnavailablePeers(currentTime)
+
+    assert(!worker.unavailablePeers.containsKey(expiredPeer))
+    assert(worker.unavailablePeers.containsKey(activePeer))
+
+    worker.removeExpiredUnavailablePeers(currentTime + 101)
+
+    assert(worker.unavailablePeers.isEmpty)
   }
 
   test("handle top resource consumption") {

@@ -39,7 +39,8 @@ class PushDataTimeoutTest extends AnyFunSuite
     logInfo("test initialized, setup celeborn mini cluster")
     val workerConf = Map(
       CelebornConf.TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT.key -> "true",
-      CelebornConf.TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT.key -> "true")
+      CelebornConf.TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT.key -> "true",
+      CelebornConf.WORKER_REPLICATE_FAST_FAIL_DURATION.key -> "10m")
     // required at least 4 workers, the reason behind this requirement is that when replication is
     // enabled, there is a possibility that two workers might be added to the excluded list due to
     // primary/replica timeout issues, then there are not enough workers to do replication if
@@ -53,6 +54,7 @@ class PushDataTimeoutTest extends AnyFunSuite
     PushDataHandler.pushReplicaDataTimeoutTested.set(false)
     PushDataHandler.pushPrimaryMergeDataTimeoutTested.set(false)
     PushDataHandler.pushReplicaMergeDataTimeoutTested.set(false)
+    workerInfos.keys.foreach(_.unavailablePeers.clear())
   }
 
   override def afterEach(): Unit = {
@@ -87,6 +89,7 @@ class PushDataTimeoutTest extends AnyFunSuite
       assert(PushDataHandler.pushPrimaryDataTimeoutTested.get())
       if (enabled) {
         assert(PushDataHandler.pushReplicaDataTimeoutTested.get())
+        assert(workerInfos.keys.exists(!_.unavailablePeers.isEmpty))
       }
     }
   }
@@ -116,6 +119,7 @@ class PushDataTimeoutTest extends AnyFunSuite
       assert(PushDataHandler.pushPrimaryMergeDataTimeoutTested.get())
       if (enabled) {
         assert(PushDataHandler.pushReplicaMergeDataTimeoutTested.get())
+        assert(workerInfos.keys.exists(!_.unavailablePeers.isEmpty))
       }
     }
   }

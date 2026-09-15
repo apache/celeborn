@@ -25,7 +25,10 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.After;
@@ -35,12 +38,19 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
+import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
+import org.apache.celeborn.common.network.protocol.PushData;
+import org.apache.celeborn.common.network.protocol.RequestMessage;
+import org.apache.celeborn.common.network.protocol.RpcResponse;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.server.TransportServer;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.network.util.TransportFrameDecoder;
+import org.apache.celeborn.common.protocol.TransportModuleConstants;
+import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.ThreadUtils;
 
@@ -182,6 +192,82 @@ public class TransportClientFactorySuiteJ {
     assertNotSame(c1, c2);
     assertTrue(c2.isActive());
     factory.close();
+  }
+
+  @Test
+  public void replaceClientAfterPushTimeout() throws Exception {
+    AtomicBoolean respond = new AtomicBoolean(false);
+    BaseMessageHandler handler =
+        new BaseMessageHandler() {
+          @Override
+          public void receive(TransportClient client, RequestMessage message) {
+            PushData pushData = (PushData) message;
+            if (respond.get()) {
+              client
+                  .getChannel()
+                  .writeAndFlush(
+                      new RpcResponse(
+                          pushData.requestId, new NioManagedBuffer(ByteBuffer.allocate(0))));
+            }
+          }
+
+          @Override
+          public boolean checkRegistered() {
+            return true;
+          }
+        };
+    TransportConf conf =
+        new TransportConf(TransportModuleConstants.REPLICATE_MODULE, new CelebornConf());
+
+    try (TransportContext timeoutContext = new TransportContext(conf, handler);
+        TransportServer timeoutServer = timeoutContext.createServer();
+        TransportClientFactory factory = timeoutContext.createClientFactory()) {
+      TransportClient timedOutClient =
+          factory.createClient(getLocalHost(), timeoutServer.getPort());
+      RpcResponseCallback timedOutCallback = mock(RpcResponseCallback.class);
+      RpcResponseCallback outstandingCallback = mock(RpcResponseCallback.class);
+      timedOutClient.pushData(
+          new PushData(
+              (byte) 0,
+              "shuffleKey",
+              "partitionId-1",
+              new NioManagedBuffer(ByteBuffer.allocate(1))),
+          0,
+          timedOutCallback);
+      timedOutClient.pushData(
+          new PushData(
+              (byte) 0,
+              "shuffleKey",
+              "partitionId-2",
+              new NioManagedBuffer(ByteBuffer.allocate(1))),
+          TimeUnit.MINUTES.toMillis(1),
+          outstandingCallback);
+
+      timedOutClient.getHandler().failExpiredPushRequest();
+
+      Mockito.verify(timedOutCallback, Mockito.timeout(5000).times(1))
+          .onFailure(
+              Mockito.argThat(
+                  error ->
+                      error.getMessage().startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())));
+      Mockito.verify(outstandingCallback, Mockito.timeout(5000).times(1)).onFailure(Mockito.any());
+
+      respond.set(true);
+      TransportClient replacementClient =
+          factory.createClient(getLocalHost(), timeoutServer.getPort());
+      assertNotSame(timedOutClient, replacementClient);
+      RpcResponseCallback successCallback = mock(RpcResponseCallback.class);
+      replacementClient.pushData(
+          new PushData(
+              (byte) 0,
+              "shuffleKey",
+              "partitionId-3",
+              new NioManagedBuffer(ByteBuffer.allocate(1))),
+          TimeUnit.SECONDS.toMillis(5),
+          successCallback);
+      Mockito.verify(successCallback, Mockito.timeout(5000)).onSuccess(Mockito.any());
+      Mockito.verify(successCallback, Mockito.never()).onFailure(Mockito.any());
+    }
   }
 
   @Test
