@@ -506,6 +506,9 @@ private[celeborn] class Master(
         .toMap.asJava
       val userResourceConsumption =
         PbSerDeUtils.fromPbUserResourceConsumption(pbRegisterWorker.getUserResourceConsumptionMap)
+      val tags =
+        if (conf.tagsWorkerRegistrationEnabled) pbRegisterWorker.getTagsList.asScala.toSet
+        else Set.empty[String]
 
       logDebug(s"Received RegisterWorker request $requestId, $host:$pushPort:$replicatePort" +
         s" $disks.")
@@ -522,6 +525,7 @@ private[celeborn] class Master(
           networkLocation,
           disks,
           userResourceConsumption,
+          tags,
           requestId))
 
     case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _, _, _) =>
@@ -851,6 +855,7 @@ private[celeborn] class Master(
       networkLocation: String,
       disks: util.Map[String, DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
+      tags: Set[String],
       requestId: String): Unit = {
     val workerToRegister =
       new WorkerInfo(
@@ -886,6 +891,7 @@ private[celeborn] class Master(
         networkLocation,
         disks,
         userResourceConsumption,
+        tags.asJava,
         requestId)
       context.reply(RegisterWorkerResponse(true, "Worker in snapshot, re-register."))
     } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
@@ -902,6 +908,7 @@ private[celeborn] class Master(
         networkLocation,
         disks,
         userResourceConsumption,
+        tags.asJava,
         requestId)
       context.reply(RegisterWorkerResponse(true, "Worker in workerLostEvents, re-register."))
     } else {
@@ -915,6 +922,7 @@ private[celeborn] class Master(
         networkLocation,
         disks,
         userResourceConsumption,
+        tags.asJava,
         requestId)
       logInfo(s"Registered worker $workerToRegister.")
       context.reply(RegisterWorkerResponse(true, ""))
