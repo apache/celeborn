@@ -29,7 +29,7 @@ import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils}
 
 class WorkerPartitionLocationInfo extends Logging {
 
-  // key: ShuffleKey, values: (uniqueId -> PartitionLocation))
+  // key: ShuffleKey, values: (uniqueId -> PartitionLocation)
   type PartitionInfo = ConcurrentHashMap[String, ConcurrentHashMap[String, PartitionLocation]]
   private[celeborn] val primaryPartitionLocations = new PartitionInfo
   private[celeborn] val replicaPartitionLocations = new PartitionInfo

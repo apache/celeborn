@@ -185,6 +185,17 @@ abstract class HttpService extends Service with Logging {
 
   def exit(exitType: String): String = throw new UnsupportedOperationException()
 
+  /**
+   * Whether the service is able to serve, along with the reason when it is not. Intended to back
+   * the `/healthz` endpoint consumed by readiness probes.
+   *
+   * The default is a shallow check that only reports that the HTTP service is available, which is
+   * what the master needs: a follower master is a healthy replica, and gating on Ratis quorum or
+   * leadership would leave every master unhealthy during a cold start. The worker overrides this
+   * with a check of its registration and state.
+   */
+  def healthCheck(): HandleResponse = (true, "")
+
   def handleWorkerEvent(
       workerEventType: WorkerEventType,
       workers: Seq[WorkerInfo]): HandleResponse =

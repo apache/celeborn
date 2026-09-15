@@ -159,7 +159,9 @@ object ApiUtils {
       case StorageInfo.Type.S3 =>
         locationData.storage(StorageEnum.S3)
     }
-    Option(partitionLocation.getMapIdBitMap).map(_.toString).foreach(locationData.mapIdBitMap)
+    Option(partitionLocation.getMapIdBitMapIfPresent)
+      .map(_.toString)
+      .foreach(locationData.mapIdBitMap)
     locationData
   }
 }

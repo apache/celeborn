@@ -257,6 +257,9 @@ trait MiniClusterFeature extends Logging with RandomPortSupport {
             if (!worker.registered.get()) {
               throw new IllegalStateException(s"worker $i hasn't been registered")
             }
+            if (!worker.initialized.get()) {
+              throw new IllegalStateException(s"worker $i hasn't finished initialization")
+            }
             if (!workerInfos.contains(worker)) {
               workerInfos.put(worker, threads(i))
             }

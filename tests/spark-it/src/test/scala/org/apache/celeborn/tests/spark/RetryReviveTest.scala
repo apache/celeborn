@@ -68,7 +68,7 @@ class RetryReviveTest extends AnyFunSuite
       .set(s"spark.${CelebornConf.TEST_CLIENT_RETRY_REVIVE.key}", "true")
       .set(s"spark.${CelebornConf.CLIENT_PUSH_MAX_REVIVE_TIMES.key}", "3")
       .set(s"spark.${CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_ENABLED.key}", "true")
-      .set(s"spark.${CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_FACTOR.key}", "0")
+      .set(s"spark.${CelebornConf.CLIENT_SHUFFLE_DYNAMIC_RESOURCE_UPDATE_TIME.key}", "0")
       .set(s"spark.${CelebornConf.MASTER_SLOT_ASSIGN_EXTRA_SLOTS.key}", "0")
       .setAppName("celeborn-demo").setMaster("local[2]")
     val ss = SparkSession.builder()

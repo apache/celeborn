@@ -18,6 +18,7 @@
 package org.apache.celeborn.client.read;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -45,6 +46,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.roaringbitmap.RoaringBitmap;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.security.CryptoHandler;
@@ -283,6 +285,57 @@ public class CelebornInputStreamPeerFailoverTest {
         new TestMetricsCallback(),
         false,
         Optional.<CryptoHandler>empty());
+  }
+
+  @Test
+  public void testRangeReadFilterReadsLocationWhenBothBitmapsAreAbsent() {
+    PartitionLocation primary = createPartitionLocation(PRIMARY_HOST);
+    PartitionLocation replica = createPartitionLocation(REPLICA_HOST);
+    primary.setPeer(replica);
+    replica.setPeer(primary);
+
+    assertFalse(CelebornInputStream.shouldSkipLocation(true, 0, 10, primary));
+    assertFalse(CelebornInputStream.shouldSkipLocation(false, 0, 10, primary));
+  }
+
+  @Test
+  public void testRangeReadFilterUsesPeerBitmapWhenPrimaryBitmapIsAbsent() {
+    PartitionLocation primary = createPartitionLocation(PRIMARY_HOST);
+    PartitionLocation replica = createPartitionLocation(REPLICA_HOST);
+    RoaringBitmap peerBitmap = new RoaringBitmap();
+    peerBitmap.add(5);
+    replica.setMapIdBitMap(peerBitmap);
+    primary.setPeer(replica);
+
+    assertFalse(CelebornInputStream.shouldSkipLocation(true, 0, 10, primary));
+    assertTrue(CelebornInputStream.shouldSkipLocation(true, 6, 10, primary));
+  }
+
+  @Test
+  public void testRangeReadFilterUsesHalfOpenRange() {
+    PartitionLocation location = createPartitionLocation(PRIMARY_HOST);
+    RoaringBitmap bitmap = new RoaringBitmap();
+    bitmap.add(5);
+    bitmap.add(10);
+    location.setMapIdBitMap(bitmap);
+
+    assertFalse(CelebornInputStream.shouldSkipLocation(true, 5, 10, location));
+    assertTrue(CelebornInputStream.shouldSkipLocation(true, 6, 10, location));
+  }
+
+  @Test
+  public void testRangeReadFilterHandlesEmptyAndSentinelRanges() {
+    PartitionLocation location = createPartitionLocation(PRIMARY_HOST);
+    RoaringBitmap bitmap = new RoaringBitmap();
+    bitmap.add(5);
+    location.setMapIdBitMap(bitmap);
+
+    assertTrue(CelebornInputStream.shouldSkipLocation(true, 5, 5, location));
+    assertTrue(CelebornInputStream.shouldSkipLocation(true, 10, 5, location));
+    assertTrue(CelebornInputStream.shouldSkipLocation(true, -1, -1, location));
+
+    bitmap.add(-1);
+    assertFalse(CelebornInputStream.shouldSkipLocation(true, -1, 0, location));
   }
 
   private CelebornInputStream createInputStream(String primaryHost, String replicaHost)

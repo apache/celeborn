@@ -18,6 +18,15 @@
 package org.apache.celeborn.common.protocol;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 import org.junit.Test;
 import org.roaringbitmap.RoaringBitmap;
@@ -173,6 +182,158 @@ public class PartitionLocationSuiteJ {
   }
 
   @Test
+  public void testSetPeerMaintainsPeerReference() {
+    PartitionLocation primary =
+        new PartitionLocation(
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode);
+    PartitionLocation replica =
+        new PartitionLocation(
+            partitionId,
+            epoch,
+            host,
+            rpcPort,
+            pushPort,
+            fetchPort,
+            replicatePort,
+            PartitionLocation.Mode.REPLICA);
+
+    primary.setPeer(replica);
+
+    assertEquals(true, primary.hasPeer());
+    assertSame(replica, primary.getPeer());
+
+    primary.setPeer(null);
+    assertEquals(false, primary.hasPeer());
+  }
+
+  @Test
+  public void testCopyPartitionLocationKeepsSharedFields() {
+    PartitionLocation primary =
+        new PartitionLocation(
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode);
+    PartitionLocation replica =
+        new PartitionLocation(
+            partitionId,
+            epoch,
+            host,
+            rpcPort,
+            pushPort,
+            fetchPort,
+            replicatePort,
+            PartitionLocation.Mode.REPLICA);
+    primary.setPeer(replica);
+    StorageInfo storageInfo = primary.getStorageInfo();
+    RoaringBitmap bitmap = primary.getMapIdBitMapOrCreate();
+
+    PartitionLocation copy = new PartitionLocation(primary);
+
+    assertSame(replica, copy.getPeer());
+    assertSame(storageInfo, copy.getStorageInfo());
+    assertSame(bitmap, copy.getMapIdBitMap());
+  }
+
+  @Test
+  public void testLazyDefaultStorageInfoIsNotShared() {
+    PartitionLocation first =
+        new PartitionLocation(
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode);
+    PartitionLocation second =
+        new PartitionLocation(
+            partitionId + 1, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode);
+
+    StorageInfo storageInfo = first.getStorageInfo();
+    storageInfo.availableStorageTypes = StorageInfo.HDFS_MASK;
+    storageInfo.setMountPoint("/mnt/disk1");
+
+    assertSame(storageInfo, first.getStorageInfoOrCreate());
+    assertNotSame(first.getStorageInfo(), second.getStorageInfo());
+    assertEquals(StorageInfo.HDFS_MASK, first.getStorageInfo().availableStorageTypes);
+    assertEquals("/mnt/disk1", first.getStorageInfo().getMountPoint());
+    assertEquals(
+        StorageInfo.ALL_TYPES_AVAILABLE_MASK, second.getStorageInfo().availableStorageTypes);
+    assertEquals("", second.getStorageInfo().getMountPoint());
+  }
+
+  @Test
+  public void testLazyMapIdBitmapKeepsCompatibleGetter() {
+    PartitionLocation location =
+        new PartitionLocation(
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode);
+
+    assertNull(location.getMapIdBitMapIfPresent());
+    RoaringBitmap bitmap = location.getMapIdBitMapOrCreate();
+    bitmap.add(1);
+
+    assertSame(bitmap, location.getMapIdBitMap());
+    assertEquals(1, location.getMapIdBitMap().getCardinality());
+  }
+
+  @Test
+  public void testWorkerEndpointIsInterned() {
+    WorkerEndpoint first = WorkerEndpoint.apply(host, rpcPort, pushPort, fetchPort, replicatePort);
+    WorkerEndpoint second = WorkerEndpoint.apply(host, rpcPort, pushPort, fetchPort, replicatePort);
+    WorkerEndpoint different =
+        WorkerEndpoint.apply(host, rpcPort, pushPort + 1, fetchPort, replicatePort);
+
+    assertSame(first, second);
+    assertNotSame(first, different);
+  }
+
+  @Test
+  public void testSameVersionJavaSerializationReinternsWorkerEndpoint() throws Exception {
+    WorkerEndpoint endpoint =
+        WorkerEndpoint.apply(host, rpcPort, pushPort, fetchPort, replicatePort);
+    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    try (ObjectOutputStream output = new ObjectOutputStream(bytes)) {
+      output.writeObject(endpoint);
+    }
+
+    WorkerEndpoint deserialized;
+    try (ObjectInputStream input =
+        new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+      deserialized = (WorkerEndpoint) input.readObject();
+    }
+
+    assertSame(endpoint, deserialized);
+    assertEquals("localhost:1", deserialized.hostAndPushPort());
+    assertEquals("localhost:2", deserialized.hostAndFetchPort());
+  }
+
+  @Test
+  public void testHostPortCachesAreInvalidatedBySetters() {
+    PartitionLocation location =
+        new PartitionLocation(
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode);
+
+    assertEquals("localhost:1", location.hostAndPushPort());
+    assertEquals("localhost:2", location.hostAndFetchPort());
+
+    location.setHost("remoteHost");
+    location.setRpcPort(13);
+    location.setPushPort(11);
+    location.setFetchPort(12);
+    location.setReplicatePort(14);
+
+    assertEquals("remoteHost:11", location.hostAndPushPort());
+    assertEquals("remoteHost:12", location.hostAndFetchPort());
+    assertEquals(13, location.getRpcPort());
+    assertEquals(14, location.getReplicatePort());
+  }
+
+  @Test
+  public void testWorkerEndpointKeepsWorkerInfoCompatible() {
+    PartitionLocation location1 =
+        new PartitionLocation(
+            partitionId, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode);
+    PartitionLocation location2 =
+        new PartitionLocation(
+            partitionId + 1, epoch, host, rpcPort, pushPort, fetchPort, replicatePort, mode);
+
+    assertEquals(location1.getWorker(), location2.getWorker());
+    assertNotNull(location1.hostAndPorts());
+  }
+
+  @Test
   public void testToStringOutput() {
     PartitionLocation location1 =
         new PartitionLocation(
@@ -209,7 +370,7 @@ public class PartitionLocationSuiteJ {
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
             + "  mode:PRIMARY\n"
             + "  peer:(empty)\n"
-            + "  storage hint:StorageInfo{type=MEMORY, mountPoint='', finalResult=false, filePath=null, fileSize=0, chunkOffsets=null}\n"
+            + "  storage hint:null\n"
             + "  mapIdBitMap:{}]";
     String exp2 =
         "PartitionLocation[\n"
@@ -217,7 +378,7 @@ public class PartitionLocationSuiteJ {
             + "  host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4\n"
             + "  mode:PRIMARY\n"
             + "  peer:(host-rpcPort-pushPort-fetchPort-replicatePort:localhost-3-1-2-4)\n"
-            + "  storage hint:StorageInfo{type=MEMORY, mountPoint='', finalResult=false, filePath=null, fileSize=0, chunkOffsets=null}\n"
+            + "  storage hint:null\n"
             + "  mapIdBitMap:{}]";
     String exp3 =
         "PartitionLocation[\n"

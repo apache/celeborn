@@ -34,6 +34,31 @@ import org.apache.celeborn.common.protocol.message.ControlMessages.HeartbeatFrom
 import org.apache.celeborn.common.protocol.message.StatusCode
 
 class WorkerStatusTrackerSuite extends CelebornFunSuite {
+  test("maintain endpoint-ready worker pool") {
+    val statusTracker = new WorkerStatusTracker(new CelebornConf(), null)
+    val worker1 = mock("host1")
+    val worker2 = mock("host2")
+    val worker3 = mock("host3")
+
+    statusTracker.addEndpointReadyWorkers(Set(worker1, worker2))
+    assert(statusTracker.endpointReadyWorkers == Set(worker1, worker2))
+
+    val replacementWorker2 = mock("host2")
+    statusTracker.addEndpointReadyWorkers(Set(replacementWorker2, worker3))
+    assert(statusTracker.endpointReadyWorkers == Set(worker1, worker2, worker3))
+    // Keep the existing WorkerInfo instance because it owns the client-local RPC endpoint.
+    assert(statusTracker.endpointReadyWorkers.find(_ == worker2).get eq worker2)
+
+    statusTracker.removeEndpointReadyWorkers(Set(worker1))
+    assert(statusTracker.endpointReadyWorkers == Set(worker2, worker3))
+
+    statusTracker.excludedWorkers.put(
+      worker1,
+      (StatusCode.WORKER_EXCLUDED, System.currentTimeMillis()))
+    statusTracker.addEndpointReadyWorkers(Set(worker1))
+    assert(statusTracker.endpointReadyWorkers == Set(worker2, worker3))
+  }
+
   test("handleHeartbeatResponse without availableWorkers") {
     val celebornConf = new CelebornConf()
     celebornConf.set(CLIENT_EXCLUDED_WORKER_EXPIRE_TIMEOUT, 2000L)

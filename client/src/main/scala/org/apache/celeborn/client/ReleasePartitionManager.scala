@@ -62,29 +62,36 @@ class ReleasePartitionManager(
                   batchHandleReleasePartitionExecutors.submit {
                     new Runnable {
                       override def run(): Unit = {
-                        val unReleasePartitionIds = new util.HashSet[Int]
-                        unReleasedPartitionIdRequestSet.synchronized {
-                          unReleasePartitionIds.addAll(unReleasedPartitionIdRequestSet)
-                          unReleasedPartitionIdRequestSet.clear()
-                        }
+                        try {
+                          val unReleasePartitionIds = new util.HashSet[Int]
+                          unReleasedPartitionIdRequestSet.synchronized {
+                            unReleasePartitionIds.addAll(unReleasedPartitionIdRequestSet)
+                            unReleasedPartitionIdRequestSet.clear()
+                          }
 
-                        lifecycleManager.workerSnapshots(shuffleId).asScala.foreach {
-                          case (_, partitionLocationInfo) =>
-                            val destroyResource = new WorkerResource
-                            unReleasePartitionIds.asScala.foreach {
-                              partitionId =>
-                                addDestroyResource(
-                                  destroyResource,
-                                  partitionLocationInfo,
-                                  partitionId)
-                            }
+                          lifecycleManager.workerSnapshots(shuffleId).asScala.foreach {
+                            case (_, partitionLocationInfo) =>
+                              val destroyResource = new WorkerResource
+                              unReleasePartitionIds.asScala.foreach {
+                                partitionId =>
+                                  addDestroyResource(
+                                    destroyResource,
+                                    partitionLocationInfo,
+                                    partitionId)
+                              }
 
-                            if (!destroyResource.isEmpty) {
-                              lifecycleManager.destroySlotsWithRetry(
-                                shuffleId,
-                                destroyResource)
-                              logTrace(s"Destroyed partition resource for shuffle $shuffleId $destroyResource")
-                            }
+                              if (!destroyResource.isEmpty) {
+                                lifecycleManager.destroySlotsWithRetry(
+                                  shuffleId,
+                                  destroyResource)
+                                logTrace(s"Destroyed partition resource for shuffle $shuffleId $destroyResource")
+                              }
+                          }
+                        } catch {
+                          case t: Throwable =>
+                            logError(
+                              s"Error releasing partition resource for shuffle $shuffleId",
+                              t)
                         }
                       }
                     }

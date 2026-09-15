@@ -22,7 +22,7 @@ import java.net.BindException
 import java.util
 import java.util.{Map => JMap}
 import java.util.Collections
-import java.util.concurrent.{ExecutorService, ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ExecutorService, ScheduledFuture, ThreadLocalRandom, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.ToLongFunction
 
@@ -206,6 +206,7 @@ private[celeborn] class Master(
   private val tagsManager = new TagsManager(Option(configService))
 
   private val slotsAssignMaxWorkers = conf.masterSlotAssignMaxWorkers
+  private val splitSlotAssignMaxWorkers = conf.masterSplitSlotAssignMaxWorkers
   private val slotsAssignMinWorkers = conf.masterSlotAssignMinWorkers
   private val slotsAssignExtraSlots = conf.masterSlotAssignExtraSlots
   private val slotsAssignStrategyManager =
@@ -527,6 +528,11 @@ private[celeborn] class Master(
       logTrace(s"Received RequestSlots request $requestSlots.")
       checkAuth(context, applicationId)
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
+
+    case requestWorkers: PbRequestWorkers =>
+      logTrace(s"Received RequestWorkers request $requestWorkers.")
+      checkAuth(context, requestWorkers.getApplicationId)
+      executeWithLeaderChecker(context, handleRequestWorkers(context, requestWorkers))
 
     case pb: PbBatchUnregisterShuffles =>
       val applicationId = pb.getAppId
@@ -953,22 +959,11 @@ private[celeborn] class Master(
       return
     }
 
-    val numWorkers = Math.min(
-      Math.max(
-        if (requestSlots.shouldReplicate) 2 else 1,
-        if (requestSlots.maxWorkers <= 0) slotsAssignMaxWorkers
-        else Math.min(slotsAssignMaxWorkers, requestSlots.maxWorkers)),
-      numAvailableWorkers)
-    val startIndex = Random.nextInt(numAvailableWorkers)
-    val selectedWorkers = new util.ArrayList[WorkerInfo](numWorkers)
-    selectedWorkers.addAll(availableWorkers.subList(
-      startIndex,
-      Math.min(numAvailableWorkers, startIndex + numWorkers)))
-    if (startIndex + numWorkers > numAvailableWorkers) {
-      selectedWorkers.addAll(availableWorkers.subList(
-        0,
-        startIndex + numWorkers - numAvailableWorkers))
-    }
+    val selectedWorkers = selectWorkers(
+      availableWorkers,
+      requestSlots.maxWorkers,
+      slotsAssignMaxWorkers,
+      requestSlots.shouldReplicate)
     // offer slots
     val slots =
       masterSource.sample(MasterSource.OFFER_SLOTS_TIME, s"offerSlots-${Random.nextInt()}") {
@@ -1043,7 +1038,7 @@ private[celeborn] class Master(
         s"extraSlots=$offerSlotsExtraSize"))
 
     if (authEnabled) {
-      pushApplicationMetaToWorkers(requestSlots, slots)
+      pushApplicationMetaToWorkers(requestSlots.applicationId, slots.keySet())
     }
     context.reply(RequestSlotsResponse(
       StatusCode.SUCCESS,
@@ -1051,26 +1046,111 @@ private[celeborn] class Master(
       requestSlots.packed))
   }
 
+  private def selectWorkers(
+      candidates: util.List[WorkerInfo],
+      numSelectMax: Int,
+      numAssignMax: Int,
+      shouldReplicate: Boolean): util.List[WorkerInfo] = {
+    val numCandidates = candidates.size()
+    if (numCandidates == 0) {
+      return Collections.emptyList()
+    }
+
+    val numWorkers = Math.min(
+      Math.max(
+        if (shouldReplicate) 2 else 1,
+        if (numSelectMax <= 0) numAssignMax
+        else Math.min(numAssignMax, numSelectMax)),
+      numCandidates)
+    val startIndex = ThreadLocalRandom.current().nextInt(numCandidates)
+    val selectedWorkers = new util.ArrayList[WorkerInfo](numWorkers)
+    selectedWorkers.addAll(candidates.subList(
+      startIndex,
+      Math.min(numCandidates, startIndex + numWorkers)))
+    if (startIndex + numWorkers > numCandidates) {
+      selectedWorkers.addAll(candidates.subList(
+        0,
+        startIndex + numWorkers - numCandidates))
+    }
+    selectedWorkers
+  }
+
+  def handleRequestWorkers(context: RpcCallContext, requestWorkers: PbRequestWorkers): Unit = {
+
+    val excludedWorkerSet =
+      requestWorkers.getExcludedWorkerSetList.asScala
+        .map(PbSerDeUtils.fromPbWorkerInfo)
+        .toSet
+    var availableWorkers = workersAvailable(excludedWorkerSet)
+    if (conf.tagsEnabled) {
+      availableWorkers = tagsManager.getTaggedWorkers(
+        PbSerDeUtils.fromPbUserIdentifier(requestWorkers.getUserIdentifier),
+        requestWorkers.getTagsExpr,
+        availableWorkers)
+    }
+    if (availableWorkers.isEmpty) {
+      logWarning(
+        s"Offer workers for ${requestWorkers.getApplicationId} failed due to no available workers.")
+      context.reply(PbRequestWorkersResponse.newBuilder()
+        .setStatus(StatusCode.WORKER_EXCLUDED.getValue)
+        .build())
+      return
+    }
+
+    val candidates = new util.ArrayList[WorkerInfo]()
+    availableWorkers.asScala
+      .filter { worker =>
+        !StorageInfo.localDiskAvailable(requestWorkers.getAvailableStorageTypes) ||
+        worker.haveDisk
+      }
+      .foreach(candidates.add)
+    val selectedWorkers = selectWorkers(
+      candidates,
+      requestWorkers.getMaxWorkers,
+      splitSlotAssignMaxWorkers,
+      requestWorkers.getShouldReplicate)
+    if (selectedWorkers.isEmpty) {
+      logWarning(
+        s"Offer workers for ${requestWorkers.getApplicationId} failed due to no eligible workers.")
+      context.reply(PbRequestWorkersResponse.newBuilder()
+        .setStatus(StatusCode.SLOT_NOT_AVAILABLE.getValue)
+        .build())
+      return
+    }
+
+    if (authEnabled) {
+      pushApplicationMetaToWorkers(requestWorkers.getApplicationId, selectedWorkers)
+    }
+    context.reply(PbRequestWorkersResponse.newBuilder()
+      .setStatus(StatusCode.SUCCESS.getValue)
+      .addAllWorkers(
+        selectedWorkers.asScala.map { worker =>
+          PbSerDeUtils.toPbWorkerInfo(worker, true, true).toBuilder
+            .setNetworkLocation(worker.networkLocation)
+            .build()
+        }.asJava)
+      .build())
+  }
+
   def pushApplicationMetaToWorkers(
-      requestSlots: RequestSlots,
-      slots: util.Map[WorkerInfo, (util.List[PartitionLocation], util.List[PartitionLocation])])
-      : Unit = {
+      applicationId: String,
+      workers: util.Collection[WorkerInfo]): Unit = {
     // Pass application registration information to the workers
     val pbApplicationMeta = PbApplicationMeta.newBuilder()
-      .setAppId(requestSlots.applicationId)
-      .setSecret(secretRegistry.getSecretKey(requestSlots.applicationId))
+      .setAppId(applicationId)
+      .setSecret(secretRegistry.getSecretKey(applicationId))
       .build()
     val transportMessage =
       new TransportMessage(MessageType.APPLICATION_META, pbApplicationMeta.toByteArray)
     val workerSet = workersAssignedToApp.computeIfAbsent(
-      requestSlots.applicationId,
+      applicationId,
       new util.function.Function[String, util.Set[WorkerInfo]] {
         override def apply(key: String): util.Set[WorkerInfo] =
           util.Collections.newSetFromMap(JavaUtils.newConcurrentHashMap[
             WorkerInfo,
             java.lang.Boolean]())
       })
-    slots.keySet().asScala.foreach { worker =>
+    workers.asScala.foreach { worker =>
       // The app meta info is send to a Worker only if it wasn't previously sent.
       if (workerSet.add(worker)) {
         sendApplicationMetaExecutor.submit(new Runnable {

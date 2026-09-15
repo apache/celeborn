@@ -57,6 +57,7 @@ object Dependencies {
   val junitInterfaceVersion = "0.13.3"
   // don't forget update `junitInterfaceVersion` when we upgrade junit
   val junitVersion = "4.13.2"
+  val jolVersion = "0.17"
   val leveldbJniVersion = "1.8"
   val log4j2Version = "2.25.4"
   val disruptorVersion = "3.4.4"
@@ -249,6 +250,7 @@ object Dependencies {
   // https://www.scala-sbt.org/1.x/docs/Testing.html
   val junitInterface = "com.github.sbt" % "junit-interface" % junitInterfaceVersion
   val junit = "junit" % "junit" % junitVersion
+  val jolCore = "org.openjdk.jol" % "jol-core" % jolVersion
   val mockitoCore = "org.mockito" % "mockito-core" % mockitoVersion
   val mockitoInline = "org.mockito" % "mockito-inline" % mockitoVersion
   val scalatestMockito = "org.mockito" %% "mockito-scala-scalatest" % scalatestMockitoVersion
@@ -706,6 +708,7 @@ object CelebornCommon {
         Dependencies.jacksonCore,
         Dependencies.jacksonDatabind,
         Dependencies.jacksonAnnotations,
+        Dependencies.jolCore % "test",
         Dependencies.log4jSlf4jImpl % "test",
         Dependencies.log4j12Api % "test",
         // SSL support

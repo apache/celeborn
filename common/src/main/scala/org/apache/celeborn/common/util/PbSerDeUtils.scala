@@ -382,7 +382,7 @@ object PbSerDeUtils {
       .setFetchPort(location.getFetchPort)
       .setReplicatePort(location.getReplicatePort)
       .setStorageInfo(StorageInfo.toPb(location.getStorageInfo))
-      .setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMap))
+      .setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMapIfPresent))
     if (location.hasPeer) {
       val peerBuilder = PbPartitionLocation.newBuilder
       if (location.getPeer.getMode eq Mode.PRIMARY) {
@@ -399,7 +399,7 @@ object PbSerDeUtils {
         .setFetchPort(location.getPeer.getFetchPort)
         .setReplicatePort(location.getPeer.getReplicatePort)
         .setStorageInfo(StorageInfo.toPb(location.getPeer.getStorageInfo))
-        .setMapIdBitmap(Utils.roaringBitmapToByteString(location.getMapIdBitMap))
+        .setMapIdBitmap(Utils.roaringBitmapToByteString(location.getPeer.getMapIdBitMapIfPresent))
       builder.setPeer(peerBuilder.build)
     }
     builder.build
@@ -562,7 +562,7 @@ object PbSerDeUtils {
     pbPackedLocationsBuilder.addEpoches(location.getEpoch)
     pbPackedLocationsBuilder.addWorkerIds(workerIdIndex(location.getWorker.toUniqueId))
     pbPackedLocationsBuilder.addMapIdBitMap(
-      Utils.roaringBitmapToByteString(location.getMapIdBitMap))
+      Utils.roaringBitmapToByteString(location.getMapIdBitMapIfPresent))
     pbPackedLocationsBuilder.addTypes(location.getStorageInfo.getType.getValue)
     pbPackedLocationsBuilder.addMountPoints(
       mountPointsIndex(location.getStorageInfo.getMountPoint))
