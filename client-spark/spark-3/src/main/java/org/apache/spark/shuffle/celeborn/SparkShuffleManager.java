@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.spark.*;
+import org.apache.spark.internal.config.ConfigEntry;
 import org.apache.spark.internal.config.package$;
 import org.apache.spark.launcher.SparkLauncher;
 import org.apache.spark.rdd.DeterministicLevel;
@@ -36,6 +37,7 @@ import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.protocol.FallbackPolicy;
 import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.celeborn.reflect.DynMethods;
 import org.apache.celeborn.spark.FailedShuffleCleaner;
@@ -57,6 +59,21 @@ public class SparkShuffleManager implements ShuffleManager {
 
   private static final String SORT_SHUFFLE_MANAGER_NAME =
       "org.apache.spark.shuffle.sort.SortShuffleManager";
+
+  // Decommissioning configs do not exist in Spark 3.0. Read Spark's entries to preserve its defaults.
+  private static final ConfigEntry<Object> DECOMMISSION_ENABLED =
+      DynMethods.builder("DECOMMISSION_ENABLED")
+          .impl(package$.class)
+          .orNoop()
+          .build(package$.MODULE$)
+          .invoke();
+
+  private static final ConfigEntry<Object> STORAGE_DECOMMISSION_SHUFFLE_BLOCKS_ENABLED =
+      DynMethods.builder("STORAGE_DECOMMISSION_SHUFFLE_BLOCKS_ENABLED")
+          .impl(package$.class)
+          .orNoop()
+          .build(package$.MODULE$)
+          .invoke();
 
   private static final boolean COLUMNAR_SHUFFLE_CLASSES_PRESENT;
 
@@ -110,6 +127,20 @@ public class SparkShuffleManager implements ShuffleManager {
     return cryptoHandler;
   }
 
+  private static boolean isDecommissionShuffleBlocksEnabled(SparkConf conf) {
+    return DECOMMISSION_ENABLED != null
+        && STORAGE_DECOMMISSION_SHUFFLE_BLOCKS_ENABLED != null
+        && (Boolean) conf.get(DECOMMISSION_ENABLED)
+        && (Boolean) conf.get(STORAGE_DECOMMISSION_SHUFFLE_BLOCKS_ENABLED);
+  }
+
+  static boolean isUnsafeDraFallback(SparkConf conf) {
+    return conf.getBoolean("spark.dynamicAllocation.enabled", false)
+        && !conf.getBoolean("spark.shuffle.service.enabled", false)
+        && !(Boolean) conf.get(package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED())
+        && !isDecommissionShuffleBlocksEnabled(conf);
+  }
+
   public SparkShuffleManager(SparkConf conf, boolean isDriver) {
     if (conf.getBoolean(SQLConf.LOCAL_SHUFFLE_READER_ENABLED().key(), true)) {
       logger.warn(
@@ -117,21 +148,26 @@ public class SparkShuffleManager implements ShuffleManager {
               + "use Celeborn as Remote Shuffle Service to avoid performance degradation.",
           SQLConf.LOCAL_SHUFFLE_READER_ENABLED().key());
     }
-    if ((Boolean) conf.get(package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED())) {
-      String key = package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED().key();
-      Boolean defaultValue =
-          (Boolean) package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED().defaultValue().get();
+    this.celebornConf = SparkUtils.fromSparkConf(conf);
+    boolean shuffleTrackingEnabled =
+        (Boolean) conf.get(package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED());
+    boolean neverFallback = FallbackPolicy.NEVER.equals(celebornConf.sparkShuffleFallbackPolicy());
+    if (!neverFallback && isUnsafeDraFallback(conf)) {
       logger.warn(
-          "Detected {} (default is {}) is enabled, "
-              + "it's highly recommended to disable it when use Celeborn as Remote Shuffle Service "
-              + "to avoid performance degradation.",
-          key,
-          defaultValue);
+          "DRA is enabled without the external shuffle service and fallback policy is not NEVER, "
+              + "but {} is disabled and shuffle decommissioning is not enabled. Enable tracking so fallback "
+              + "shuffle output is not lost when idle executors are reclaimed.",
+          package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED().key());
+    } else if (neverFallback && shuffleTrackingEnabled) {
+      // Under NEVER all shuffle stays on Celeborn, so tracking only delays releasing executors.
+      logger.warn(
+          "{} is enabled with fallback policy NEVER; it is unnecessary and delays releasing idle "
+              + "executors, so it is recommended to disable it.",
+          package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED().key());
     }
     SparkCommonUtils.validateAttemptConfig(conf);
     this.conf = conf;
     this.isDriver = isDriver;
-    this.celebornConf = SparkUtils.fromSparkConf(conf);
     this.cores = executorCores(conf);
     this.fallbackPolicyRunner = new CelebornShuffleFallbackPolicyRunner(celebornConf);
     this.sendBufferPoolCheckInterval = celebornConf.clientPushSendBufferPoolExpireCheckInterval();
@@ -220,13 +256,14 @@ public class SparkShuffleManager implements ShuffleManager {
 
     lifecycleManager.shuffleCount().increment();
     if (fallbackPolicyRunner.applyFallbackPolicies(dependency, lifecycleManager)) {
-      if (conf.getBoolean("spark.dynamicAllocation.enabled", false)
-          && !conf.getBoolean("spark.shuffle.service.enabled", false)) {
+      if (isUnsafeDraFallback(conf)) {
         logger.error(
             "DRA is enabled but we fallback to vanilla Spark SortShuffleManager for "
-                + "shuffle: {} due to fallback policy. It may cause block can not found when reducer "
-                + "task fetch data.",
-            shuffleId);
+                + "shuffle: {} due to fallback policy, and {} is disabled while shuffle "
+                + "decommissioning is not enabled. Fallback shuffle blocks may be lost when idle "
+                + "executors are reclaimed.",
+            shuffleId,
+            package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED().key());
       } else {
         logger.warn("Fallback to vanilla Spark SortShuffleManager for shuffle: {}", shuffleId);
       }

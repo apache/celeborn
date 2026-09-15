@@ -200,13 +200,22 @@ spark.sql.adaptive.skewJoin.enabled true
 # Support Spark Dynamic Resource Allocation
 # Required Spark version >= 3.5.0
 spark.shuffle.sort.io.plugin.class org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO
-# Required Spark version >= 3.4.0, highly recommended to disable
-spark.dynamicAllocation.shuffleTracking.enabled false
+# Available since Spark 3.0; enabled by default since Spark 3.4.
+# With AUTO (default) or ALWAYS fallback, keep tracking enabled to protect local-disk shuffle data.
+spark.dynamicAllocation.shuffleTracking.enabled true
 
 # Support ShuffleManager when defined in user jars
 # Required Spark version < 4.0.0 or without SPARK-45762, highly recommended to false for ShuffleManager in user-defined jar specified by --jars or spark.jars
 spark.executor.userClassPathFirst false
 ```
+
+With DRA enabled, `AUTO` and `ALWAYS` fallback policies require shuffle tracking unless an external
+shuffle service or Spark shuffle decommissioning is configured. Shuffle decommissioning requires
+`spark.decommission.enabled=true` and `spark.storage.decommission.shuffleBlocks.enabled=true`;
+also enable `spark.storage.decommission.enabled` to migrate stored blocks.
+To keep all shuffle data on Celeborn, set `spark.celeborn.client.spark.shuffle.fallback.policy=NEVER`.
+With `CelebornShuffleDataIO` on Spark 3.5 or later, `NEVER` permits disabling shuffle tracking to
+release idle executors promptly, but fails rather than falling back when Celeborn cannot serve a shuffle.
 
 ## Deploy Flink client
 
