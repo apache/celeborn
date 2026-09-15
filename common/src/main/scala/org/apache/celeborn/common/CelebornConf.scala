@@ -801,6 +801,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterRatisLogInstallSnapshotEnabled: Boolean =
     get(HA_MASTER_RATIS_LOG_INSTALL_SNAPSHOT_ENABLED)
   def haMasterRatisRpcRequestTimeout: Long = get(HA_MASTER_RATIS_RPC_REQUEST_TIMEOUT)
+  def haMasterRatisCloseThreshold: Long = get(HA_MASTER_RATIS_CLOSE_THRESHOLD)
   def haMasterRatisRetryCacheExpiryTime: Long = get(HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME)
   def haMasterRatisRpcTimeoutMin: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MIN)
   def haMasterRatisRpcTimeoutMax: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MAX)
@@ -2966,6 +2967,17 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("3s")
+
+  val HA_MASTER_RATIS_CLOSE_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.master.ha.ratis.raft.server.close.threshold")
+      .categories("ha")
+      .version("1.0.0")
+      .doc("Threshold for the Ratis JvmPauseMonitor to close the local raft server after " +
+        "a JVM/host pause, e.g. long GC, VM live migration or jmap -F. Maps to Ratis " +
+        "raft.server.close.threshold. Once exceeded, the master leaves the raft group " +
+        "until the process is restarted.")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("60s")
 
   val HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME: ConfigEntry[Long] =
     buildConf("celeborn.master.ha.ratis.raft.server.retrycache.expirytime")

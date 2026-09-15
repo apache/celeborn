@@ -112,6 +112,12 @@ celeborn.worker.replicate.fastFail.duration 240s
 celeborn.worker.monitor.disk.enabled false
 ```
 
+Note: In an HA cluster, each master runs a Ratis JvmPauseMonitor. If the JVM or the host is paused
+longer than `celeborn.master.ha.ratis.raft.server.close.threshold` (default 60s), the local raft
+server is closed and the master leaves the raft group; the process must be restarted to recover.
+Avoid operations that suspend the JVM for a long time on production masters, e.g. `jmap -F` or
+heap dumps, and prefer low-intrusion diagnostics like `jcmd <pid> GC.class_histogram`.
+
 Flink engine related configurations:
 ```properties
 # If you are using Celeborn for flink, these settings will be needed.

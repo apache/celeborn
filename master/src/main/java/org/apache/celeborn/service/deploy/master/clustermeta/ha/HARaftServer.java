@@ -374,6 +374,10 @@ public class HARaftServer {
         TimeDuration.valueOf(conf.haMasterRatisRpcRequestTimeout(), TimeUnit.SECONDS);
     RaftServerConfigKeys.Rpc.setRequestTimeout(properties, serverRequestTimeout);
 
+    // Set the threshold for JvmPauseMonitor to close the local raft server
+    RaftServerConfigKeys.setCloseThreshold(
+        properties, TimeDuration.valueOf(conf.haMasterRatisCloseThreshold(), TimeUnit.SECONDS));
+
     // Set timeout for server retry cache entry
     TimeDuration retryCacheExpiryTime =
         TimeDuration.valueOf(conf.haMasterRatisRetryCacheExpiryTime(), TimeUnit.SECONDS);
