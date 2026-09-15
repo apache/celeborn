@@ -42,7 +42,8 @@ private[celeborn] class CelebornPropertiesUIData(
 
 /**
  * Marker persisted during History Server replay when the application's recorded
- * `spark.plugins` contains [[CelebornPlugin]]. `setupUI` runs on a fresh plugin
+ * `spark.plugins` or `spark.plugins.defaultList` contains [[CelebornPlugin]].
+ * `setupUI` runs on a fresh plugin
  * instance (FsHistoryProvider loads plugins again after replay), so the opt-in
  * state has to be passed through the KVStore rather than in memory.
  */

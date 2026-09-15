@@ -125,4 +125,18 @@ class CelebornListenerSuite {
     assertTrue(statusStore2.celebornProperties().info.exists(
       _._1 == "spark.celeborn.master.endpoints"))
   }
+
+  @Test
+  def pluginOptInViaDefaultList(): Unit = {
+    // The plugin can also be loaded via spark.plugins.defaultList (e.g. from the
+    // Spark default config file); replay must recognize that as opt-in too.
+    val store = new InMemoryStore()
+    val statusStore = new CelebornStatusStore(store)
+    val listener = new CelebornListener(store, new SparkConf(), requirePluginOptIn = true)
+    listener.onEnvironmentUpdate(envUpdate(
+      "spark.plugins.defaultList" -> s"com.example.OtherPlugin, $pluginClass"))
+    listener.onTaskEnd(newTaskEnd(100L, 10L, 1L, 5L))
+    assertTrue(statusStore.extensionEnabled())
+    assertEquals(100L, statusStore.aggregatedTaskInfo().shuffleWriteBytes)
+  }
 }

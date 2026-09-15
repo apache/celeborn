@@ -39,7 +39,8 @@ class CelebornHistoryServerPlugin extends AppHistoryServerPlugin {
 
   override def setupUI(ui: SparkUI): Unit = {
     val statusStore = new CelebornStatusStore(ui.store.store)
-    // Only attach the tab for applications that opted in via spark.plugins.
+    // Only attach the tab for applications that opted in via spark.plugins or
+    // spark.plugins.defaultList.
     if (statusStore.extensionEnabled()) {
       new CelebornUITab(statusStore, ui)
     }
