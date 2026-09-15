@@ -394,6 +394,9 @@ private[celeborn] class Worker(
   workerSource.addGauge(WorkerSource.SORTING_FILES) { () =>
     partitionsSorter.getSortingCount
   }
+  workerSource.addGauge(WorkerSource.SORTED_FILE_WAITERS) { () =>
+    partitionsSorter.getSortedFileWaiterCount
+  }
   workerSource.addGauge(WorkerSource.SORTED_FILES) { () =>
     partitionsSorter.getSortedCount
   }
@@ -854,8 +857,9 @@ private[celeborn] class Worker(
         }
         logInfo(s"Cleaned up expired shuffle $shuffleKey")
       }
-      partitionsSorter.cleanup(expiredShuffleKeys)
+      // Stop in-flight reads from admitting new sort work before expiring the sorter state.
       fetchHandler.cleanupExpiredShuffleKey(expiredShuffleKeys)
+      partitionsSorter.cleanup(expiredShuffleKeys)
       threadPool.execute(new Runnable {
         override def run(): Unit = {
           removeAppResourceConsumption(expiredApplicationIds.asScala)

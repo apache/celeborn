@@ -22,12 +22,27 @@ import static org.mockito.Mockito.when;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RunnableScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import com.google.common.cache.Cache;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -42,6 +57,7 @@ import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.common.util.CelebornExitKind;
 import org.apache.celeborn.common.util.JavaUtils;
+import org.apache.celeborn.common.util.ShuffleBlockInfoUtils.ShuffleBlockInfo;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
@@ -136,6 +152,23 @@ public class DiskPartitionFilesSorterSuiteJ {
     JavaUtils.deleteRecursively(new File(shuffleFile.getPath() + ".index"));
   }
 
+  private DiskFileInfo copyCurrentShuffleFile(File copiedShuffleFile) throws IOException {
+    Files.copy(
+        shuffleFile.toPath(), copiedShuffleFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    DiskFileInfo copiedFileInfo =
+        new DiskFileInfo(copiedShuffleFile, userIdentifier, new CelebornConf());
+    copiedFileInfo.getReduceFileMeta().getChunkOffsets().add(copiedShuffleFile.length());
+    copiedFileInfo.updateBytesFlushed(copiedShuffleFile.length());
+    return copiedFileInfo;
+  }
+
+  private static Object getSorterField(PartitionFilesSorter sorter, String name)
+      throws ReflectiveOperationException {
+    Field field = PartitionFilesSorter.class.getDeclaredField(name);
+    field.setAccessible(true);
+    return field.get(sorter);
+  }
+
   private void check(int mapCount, int startMapIndex, int endMapIndex) throws IOException {
     try {
       long[] partitionSize = prepare(mapCount);
@@ -179,6 +212,871 @@ public class DiskPartitionFilesSorterSuiteJ {
     int startMapIndex = random.nextInt(5);
     int endMapIndex = startMapIndex + random.nextInt(5) + 5;
     check(15000, startMapIndex, endMapIndex);
+  }
+
+  @Test
+  public void testAsyncSortedFileWaitersHaveIndependentTimeouts() throws Exception {
+    PartitionFilesSorter partitionFilesSorter = null;
+    CountDownLatch allowWriteIndex = new CountDownLatch(1);
+    CountDownLatch writeIndexStarted = new CountDownLatch(1);
+    AtomicInteger writeIndexCalls = new AtomicInteger();
+    try {
+      prepare(1);
+      CelebornConf conf = new CelebornConf();
+      // Run captured timeout tasks directly to control their order without timing sleeps.
+      conf.set(CelebornConf.WORKER_PARTITION_SORTER_SORT_TIMEOUT().key(), "1h");
+      partitionFilesSorter =
+          new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf)) {
+            @Override
+            protected void writeIndex(
+                Map<Integer, List<ShuffleBlockInfo>> indexMap, String indexFilePath, boolean isDfs)
+                throws IOException {
+              writeIndexCalls.incrementAndGet();
+              writeIndexStarted.countDown();
+              try {
+                if (!allowWriteIndex.await(30, TimeUnit.SECONDS)) {
+                  throw new IOException("Timed out waiting to release the index write.");
+                }
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted while gating the index write.", e);
+              }
+              super.writeIndex(indexMap, indexFilePath, isDfs);
+            }
+          };
+
+      CompletableFuture<FileInfo> firstWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              "application-late-waiter",
+              originFileName,
+              partitionDataWriter.getDiskFileInfo(),
+              0,
+              MAX_MAP_ID);
+      Assert.assertTrue(writeIndexStarted.await(10, TimeUnit.SECONDS));
+
+      ScheduledThreadPoolExecutor timeoutExecutor =
+          (ScheduledThreadPoolExecutor)
+              getSorterField(partitionFilesSorter, "sortWaitTimeoutExecutor");
+      RunnableScheduledFuture<?> firstDeadline =
+          (RunnableScheduledFuture<?>) timeoutExecutor.getQueue().peek();
+      Assert.assertNotNull(firstDeadline);
+
+      // Attach a later request immediately before advancing the first request's deadline.
+      CompletableFuture<FileInfo> lateWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              "application-late-waiter",
+              originFileName,
+              partitionDataWriter.getDiskFileInfo(),
+              0,
+              MAX_MAP_ID);
+      Assert.assertFalse(firstWaiter.isDone());
+      Assert.assertFalse(lateWaiter.isDone());
+      Assert.assertEquals(2, partitionFilesSorter.getSortedFileWaiterCount());
+      Assert.assertEquals(2, timeoutExecutor.getQueue().size());
+      RunnableScheduledFuture<?> lateDeadline =
+          (RunnableScheduledFuture<?>)
+              timeoutExecutor.getQueue().stream()
+                  .filter(task -> task != firstDeadline)
+                  .findFirst()
+                  .orElseThrow(() -> new AssertionError("Expected the late waiter's own timeout."));
+
+      firstDeadline.run();
+      try {
+        firstWaiter.get(5, TimeUnit.SECONDS);
+        Assert.fail("Expected only the first waiter to time out.");
+      } catch (ExecutionException e) {
+        Assert.assertTrue(e.getCause() instanceof IOException);
+        Assert.assertTrue(e.getCause().getMessage().contains("timeout"));
+      }
+      Assert.assertFalse(lateWaiter.isDone());
+      Assert.assertFalse(lateDeadline.isDone());
+      Assert.assertEquals(1, partitionFilesSorter.getSortedFileWaiterCount());
+      Assert.assertEquals(1, partitionFilesSorter.getSortingCount());
+      Assert.assertEquals(1, writeIndexCalls.get());
+
+      CompletableFuture<FileInfo> retryWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              "application-late-waiter",
+              originFileName,
+              partitionDataWriter.getDiskFileInfo(),
+              0,
+              MAX_MAP_ID);
+      Assert.assertEquals(2, timeoutExecutor.getQueue().size());
+      RunnableScheduledFuture<?> retryDeadline =
+          (RunnableScheduledFuture<?>)
+              timeoutExecutor.getQueue().stream()
+                  .filter(task -> task != lateDeadline)
+                  .findFirst()
+                  .orElseThrow(() -> new AssertionError("Expected the retry's own timeout."));
+      Assert.assertTrue(
+          "A retry receives its full timeout for the same ongoing sort.",
+          retryDeadline.getDelay(TimeUnit.MILLISECONDS) > TimeUnit.MINUTES.toMillis(30));
+      Assert.assertFalse(retryWaiter.isDone());
+
+      // Cancelling another request must not cancel the shared sort or its remaining readers.
+      CompletableFuture<FileInfo> cancelledWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              "application-late-waiter",
+              originFileName,
+              partitionDataWriter.getDiskFileInfo(),
+              0,
+              MAX_MAP_ID);
+      Assert.assertTrue(cancelledWaiter.cancel(false));
+      Assert.assertFalse(lateWaiter.isDone());
+      Assert.assertFalse(retryWaiter.isDone());
+      Assert.assertEquals(2, partitionFilesSorter.getSortedFileWaiterCount());
+
+      Map<?, ?> shuffleSortFutures =
+          (Map<?, ?>)
+              ((Map<?, ?>) getSorterField(partitionFilesSorter, "sortCompletionFutures"))
+                  .get("application-late-waiter");
+      CompletableFuture<?> rawSort =
+          (CompletableFuture<?>)
+              shuffleSortFutures.get("application-late-waiter-" + originFileName);
+      Assert.assertNotNull(rawSort);
+      int pendingSortDependents = rawSort.getNumberOfDependents();
+
+      // Expired and cancelled readers must not accumulate on a still-running physical sort.
+      for (int attempt = 0; attempt < 20; attempt++) {
+        HashSet<Runnable> existingDeadlines = new HashSet<>(timeoutExecutor.getQueue());
+        CompletableFuture<FileInfo> abandonedWaiter =
+            partitionFilesSorter.getSortedFileInfoAsync(
+                "application-late-waiter",
+                originFileName,
+                partitionDataWriter.getDiskFileInfo(),
+                0,
+                MAX_MAP_ID);
+        if ((attempt & 1) == 0) {
+          Runnable deadline =
+              timeoutExecutor.getQueue().stream()
+                  .filter(task -> !existingDeadlines.contains(task))
+                  .findFirst()
+                  .orElseThrow(() -> new AssertionError("Expected the new waiter's own timeout."));
+          deadline.run();
+          try {
+            abandonedWaiter.get(5, TimeUnit.SECONDS);
+            Assert.fail("Expected the abandoned waiter to time out.");
+          } catch (ExecutionException e) {
+            Assert.assertTrue(e.getCause() instanceof IOException);
+            Assert.assertTrue(e.getCause().getMessage().contains("timeout"));
+          }
+        } else {
+          Assert.assertTrue(abandonedWaiter.cancel(false));
+        }
+        Assert.assertEquals(
+            "Completed readers must detach from the pending physical sort.",
+            pendingSortDependents,
+            rawSort.getNumberOfDependents());
+        Assert.assertFalse(rawSort.isDone());
+        Assert.assertFalse(lateWaiter.isDone());
+        Assert.assertFalse(retryWaiter.isDone());
+        Assert.assertEquals(2, partitionFilesSorter.getSortedFileWaiterCount());
+      }
+
+      allowWriteIndex.countDown();
+      Assert.assertNotNull(lateWaiter.get(10, TimeUnit.SECONDS));
+      Assert.assertNotNull(retryWaiter.get(10, TimeUnit.SECONDS));
+      Assert.assertTrue(cancelledWaiter.isCancelled());
+      Assert.assertEquals(0, partitionFilesSorter.getSortedFileWaiterCount());
+      Assert.assertEquals(1, writeIndexCalls.get());
+    } finally {
+      allowWriteIndex.countDown();
+      if (partitionFilesSorter != null) {
+        partitionFilesSorter.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN());
+      }
+      if (shuffleFile != null) {
+        clean();
+      }
+    }
+  }
+
+  @Test
+  public void testAsyncSortedFileWaitersShareOneInFlightSort() throws Exception {
+    PartitionFilesSorter partitionFilesSorter = null;
+    CountDownLatch allowWriteIndex = new CountDownLatch(1);
+    try {
+      prepare(100);
+      CelebornConf conf = new CelebornConf();
+      conf.set(CelebornConf.SHUFFLE_CHUNK_SIZE().key(), "8m");
+      CountDownLatch writeIndexStarted = new CountDownLatch(1);
+      partitionFilesSorter =
+          new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf)) {
+            @Override
+            protected void writeIndex(
+                Map<Integer, List<ShuffleBlockInfo>> indexMap, String indexFilePath, boolean isDfs)
+                throws IOException {
+              writeIndexStarted.countDown();
+              try {
+                Assert.assertTrue(allowWriteIndex.await(10, TimeUnit.SECONDS));
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted while waiting to write the index.", e);
+              }
+              super.writeIndex(indexMap, indexFilePath, isDfs);
+            }
+          };
+
+      CompletableFuture<FileInfo> firstWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              "application-1", originFileName, partitionDataWriter.getDiskFileInfo(), 5, 10);
+      CompletableFuture<FileInfo> secondWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              "application-1", originFileName, partitionDataWriter.getDiskFileInfo(), 10, 15);
+
+      Assert.assertTrue(writeIndexStarted.await(10, TimeUnit.SECONDS));
+      Assert.assertFalse(firstWaiter.isDone());
+      Assert.assertFalse(secondWaiter.isDone());
+      Assert.assertEquals(2, partitionFilesSorter.getSortedFileWaiterCount());
+      Assert.assertEquals(1, partitionFilesSorter.getSortingCount());
+
+      allowWriteIndex.countDown();
+      Assert.assertNotNull(firstWaiter.get(10, TimeUnit.SECONDS));
+      Assert.assertNotNull(secondWaiter.get(10, TimeUnit.SECONDS));
+      Assert.assertEquals(0, partitionFilesSorter.getSortedFileWaiterCount());
+    } finally {
+      allowWriteIndex.countDown();
+      if (partitionFilesSorter != null) {
+        partitionFilesSorter.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN());
+      }
+      clean();
+    }
+  }
+
+  @Test
+  public void testAsyncSortedFileRequestFailsAfterSorterClose() throws Exception {
+    try {
+      prepare(100);
+      CelebornConf conf = new CelebornConf();
+      PartitionFilesSorter partitionFilesSorter =
+          new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
+      partitionFilesSorter.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN());
+
+      CompletableFuture<FileInfo> sortedFileInfo =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              "application-closed", originFileName, partitionDataWriter.getDiskFileInfo(), 5, 10);
+
+      Assert.assertTrue(sortedFileInfo.isCompletedExceptionally());
+      try {
+        sortedFileInfo.get(1, TimeUnit.SECONDS);
+        Assert.fail("Expected closed partition sorter to reject the request.");
+      } catch (ExecutionException e) {
+        Assert.assertTrue(e.getCause() instanceof IOException);
+        Assert.assertTrue(e.getCause().getMessage().contains("closed"));
+      }
+    } finally {
+      clean();
+    }
+  }
+
+  @Test
+  public void testAsyncSortedFileRequestCanRetryAfterWaitTimeout() throws Exception {
+    PartitionFilesSorter partitionFilesSorter = null;
+    CountDownLatch allowWriteIndex = new CountDownLatch(1);
+    try {
+      prepare(100);
+      CelebornConf conf = new CelebornConf();
+      conf.set(CelebornConf.WORKER_PARTITION_SORTER_SORT_TIMEOUT().key(), "500ms");
+      CountDownLatch writeIndexStarted = new CountDownLatch(1);
+      partitionFilesSorter =
+          new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf)) {
+            @Override
+            protected void writeIndex(
+                Map<Integer, List<ShuffleBlockInfo>> indexMap, String indexFilePath, boolean isDfs)
+                throws IOException {
+              writeIndexStarted.countDown();
+              try {
+                Assert.assertTrue(allowWriteIndex.await(10, TimeUnit.SECONDS));
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted while waiting to write the index.", e);
+              }
+              super.writeIndex(indexMap, indexFilePath, isDfs);
+            }
+          };
+
+      CompletableFuture<FileInfo> timedOutWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              "application-timeout", originFileName, partitionDataWriter.getDiskFileInfo(), 5, 10);
+      PartitionFilesSorter activeSorter = partitionFilesSorter;
+      CompletableFuture<FileInfo> retryWaiter =
+          timedOutWaiter
+              .handle(
+                  (ignored, error) -> {
+                    if (error == null) {
+                      throw new IllegalStateException("Expected the first sort wait to time out.");
+                    }
+                    return activeSorter.getSortedFileInfoAsync(
+                        "application-timeout",
+                        originFileName,
+                        partitionDataWriter.getDiskFileInfo(),
+                        5,
+                        10);
+                  })
+              .thenCompose(retry -> retry);
+      Assert.assertTrue(writeIndexStarted.await(10, TimeUnit.SECONDS));
+      try {
+        timedOutWaiter.get(5, TimeUnit.SECONDS);
+        Assert.fail("Expected asynchronous sorted-file request to time out.");
+      } catch (ExecutionException e) {
+        Assert.assertTrue(e.getCause() instanceof IOException);
+        Assert.assertTrue(e.getCause().getMessage().contains("timeout"));
+      }
+
+      allowWriteIndex.countDown();
+      Assert.assertNotNull(retryWaiter.get(5, TimeUnit.SECONDS));
+    } finally {
+      allowWriteIndex.countDown();
+      if (partitionFilesSorter != null) {
+        partitionFilesSorter.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN());
+      }
+      clean();
+    }
+  }
+
+  @Test
+  public void testAsyncSortedFileWaitersDoNotCollideAcrossShuffleKeys() throws Exception {
+    PartitionFilesSorter partitionFilesSorter = null;
+    File secondShuffleFile = null;
+    CountDownLatch allowFirstWrite = new CountDownLatch(1);
+    CountDownLatch allowSecondWrite = new CountDownLatch(1);
+    try {
+      prepare(100);
+      secondShuffleFile = File.createTempFile("Celeborn", "future-key-collision-suite");
+      DiskFileInfo secondFileInfo = copyCurrentShuffleFile(secondShuffleFile);
+      CelebornConf conf = new CelebornConf();
+      conf.set(CelebornConf.WORKER_PARTITION_SORTER_THREADS().key(), "2");
+      String firstShuffleKey = "application-1";
+      String firstFileName = "2-3";
+      String secondShuffleKey = "application-1-2";
+      String secondFileName = "3";
+      CountDownLatch bothWritesStarted = new CountDownLatch(2);
+      String firstIndexFilePath =
+          Utils.getIndexFilePath(partitionDataWriter.getDiskFileInfo().getFilePath());
+      String secondIndexFilePath = Utils.getIndexFilePath(secondShuffleFile.getAbsolutePath());
+      partitionFilesSorter =
+          new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf)) {
+            @Override
+            protected void writeIndex(
+                Map<Integer, List<ShuffleBlockInfo>> indexMap, String indexFilePath, boolean isDfs)
+                throws IOException {
+              bothWritesStarted.countDown();
+              try {
+                if (indexFilePath.equals(firstIndexFilePath)) {
+                  Assert.assertTrue(allowFirstWrite.await(10, TimeUnit.SECONDS));
+                } else if (indexFilePath.equals(secondIndexFilePath)) {
+                  Assert.assertTrue(allowSecondWrite.await(10, TimeUnit.SECONDS));
+                }
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted while waiting to write the index.", e);
+              }
+              super.writeIndex(indexMap, indexFilePath, isDfs);
+            }
+          };
+
+      CompletableFuture<FileInfo> firstWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              firstShuffleKey, firstFileName, partitionDataWriter.getDiskFileInfo(), 5, 10);
+      CompletableFuture<FileInfo> secondWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              secondShuffleKey, secondFileName, secondFileInfo, 5, 10);
+
+      Assert.assertTrue(bothWritesStarted.await(10, TimeUnit.SECONDS));
+      allowFirstWrite.countDown();
+      Assert.assertNotNull(firstWaiter.get(10, TimeUnit.SECONDS));
+      Assert.assertFalse(secondWaiter.isDone());
+
+      allowSecondWrite.countDown();
+      Assert.assertNotNull(secondWaiter.get(10, TimeUnit.SECONDS));
+    } finally {
+      allowFirstWrite.countDown();
+      allowSecondWrite.countDown();
+      if (partitionFilesSorter != null) {
+        partitionFilesSorter.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN());
+      }
+      if (secondShuffleFile != null) {
+        JavaUtils.deleteRecursively(secondShuffleFile);
+        JavaUtils.deleteRecursively(new File(secondShuffleFile.getPath() + ".sorted"));
+        JavaUtils.deleteRecursively(new File(secondShuffleFile.getPath() + ".index"));
+      }
+      clean();
+    }
+  }
+
+  @Test
+  public void testCleanupOnlyFailsWaitersForExactShuffleKey() throws Exception {
+    PartitionFilesSorter partitionFilesSorter = null;
+    File liveShuffleFile = null;
+    CountDownLatch allowWriteIndex = new CountDownLatch(1);
+    try {
+      prepare(100);
+      liveShuffleFile = File.createTempFile("Celeborn", "live-sort-suite");
+      DiskFileInfo liveFileInfo = copyCurrentShuffleFile(liveShuffleFile);
+      CelebornConf conf = new CelebornConf();
+      conf.set(CelebornConf.WORKER_PARTITION_SORTER_THREADS().key(), "2");
+      CountDownLatch writeIndexStarted = new CountDownLatch(2);
+      partitionFilesSorter =
+          new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf)) {
+            @Override
+            protected void writeIndex(
+                Map<Integer, List<ShuffleBlockInfo>> indexMap, String indexFilePath, boolean isDfs)
+                throws IOException {
+              writeIndexStarted.countDown();
+              try {
+                Assert.assertTrue(allowWriteIndex.await(10, TimeUnit.SECONDS));
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted while waiting to write the index.", e);
+              }
+              super.writeIndex(indexMap, indexFilePath, isDfs);
+            }
+          };
+
+      CompletableFuture<FileInfo> expiredShuffleWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              "application-1", originFileName, partitionDataWriter.getDiskFileInfo(), 5, 10);
+      CompletableFuture<FileInfo> liveShuffleWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              "application-1-2", liveShuffleFile.getAbsolutePath(), liveFileInfo, 5, 10);
+
+      Assert.assertTrue(writeIndexStarted.await(10, TimeUnit.SECONDS));
+      HashSet<String> expiredShuffleKeys = new HashSet<>();
+      expiredShuffleKeys.add("application-1");
+      partitionFilesSorter.cleanup(expiredShuffleKeys);
+
+      Assert.assertTrue(expiredShuffleWaiter.isCompletedExceptionally());
+      Assert.assertFalse(liveShuffleWaiter.isDone());
+
+      allowWriteIndex.countDown();
+      Assert.assertNotNull(liveShuffleWaiter.get(10, TimeUnit.SECONDS));
+    } finally {
+      allowWriteIndex.countDown();
+      if (partitionFilesSorter != null) {
+        partitionFilesSorter.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN());
+      }
+      if (liveShuffleFile != null) {
+        JavaUtils.deleteRecursively(liveShuffleFile);
+        JavaUtils.deleteRecursively(new File(liveShuffleFile.getPath() + ".sorted"));
+        JavaUtils.deleteRecursively(new File(liveShuffleFile.getPath() + ".index"));
+      }
+      clean();
+    }
+  }
+
+  @Test
+  public void testWaiterResolutionDoesNotBlockUnrelatedWaiter() throws Exception {
+    PartitionFilesSorter partitionFilesSorter = null;
+    File secondShuffleFile = null;
+    CountDownLatch allowFirstResolve = new CountDownLatch(1);
+    try {
+      prepare(100);
+      secondShuffleFile = File.createTempFile("Celeborn", "second-sort-suite");
+      DiskFileInfo secondFileInfo = copyCurrentShuffleFile(secondShuffleFile);
+      CelebornConf conf = new CelebornConf();
+      conf.set(CelebornConf.WORKER_PARTITION_SORTER_THREADS().key(), "1");
+      String shuffleKey = "application-resolve";
+      String firstIndexFilePath = Utils.getIndexFilePath(originFileName);
+      String secondIndexFilePath = Utils.getIndexFilePath(secondShuffleFile.getAbsolutePath());
+      CountDownLatch firstResolveStarted = new CountDownLatch(1);
+      CountDownLatch secondWriteIndexStarted = new CountDownLatch(1);
+      partitionFilesSorter =
+          new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf)) {
+            @Override
+            protected Map<Integer, List<ShuffleBlockInfo>> readIndex(String indexFilePath)
+                throws IOException {
+              Map<Integer, List<ShuffleBlockInfo>> index = super.readIndex(indexFilePath);
+              if (indexFilePath.equals(firstIndexFilePath)) {
+                firstResolveStarted.countDown();
+                try {
+                  Assert.assertTrue(allowFirstResolve.await(10, TimeUnit.SECONDS));
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  throw new IOException("Interrupted while waiting to resolve the index.", e);
+                }
+              }
+              return index;
+            }
+
+            @Override
+            protected void writeIndex(
+                Map<Integer, List<ShuffleBlockInfo>> indexMap, String indexFilePath, boolean isDfs)
+                throws IOException {
+              if (indexFilePath.equals(secondIndexFilePath)) {
+                secondWriteIndexStarted.countDown();
+              }
+              super.writeIndex(indexMap, indexFilePath, isDfs);
+            }
+          };
+
+      CompletableFuture<FileInfo> firstWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              shuffleKey, originFileName, partitionDataWriter.getDiskFileInfo(), 5, 10);
+      CompletableFuture<FileInfo> secondWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              shuffleKey, secondShuffleFile.getAbsolutePath(), secondFileInfo, 5, 10);
+
+      Assert.assertTrue(firstResolveStarted.await(10, TimeUnit.SECONDS));
+      Assert.assertTrue(secondWriteIndexStarted.await(10, TimeUnit.SECONDS));
+      Assert.assertFalse(firstWaiter.isDone());
+      Assert.assertNotNull(secondWaiter.get(10, TimeUnit.SECONDS));
+
+      allowFirstResolve.countDown();
+      Assert.assertNotNull(firstWaiter.get(10, TimeUnit.SECONDS));
+    } finally {
+      allowFirstResolve.countDown();
+      if (partitionFilesSorter != null) {
+        partitionFilesSorter.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN());
+      }
+      if (secondShuffleFile != null) {
+        JavaUtils.deleteRecursively(secondShuffleFile);
+        JavaUtils.deleteRecursively(new File(secondShuffleFile.getPath() + ".sorted"));
+        JavaUtils.deleteRecursively(new File(secondShuffleFile.getPath() + ".index"));
+      }
+      clean();
+    }
+  }
+
+  @Test
+  public void testCleanupFailsQueuedSortedFileRequests() throws Exception {
+    PartitionFilesSorter partitionFilesSorter = null;
+    CountDownLatch indexLoaded = new CountDownLatch(1);
+    CountDownLatch allowIndexPublication = new CountDownLatch(1);
+    AtomicInteger indexReads = new AtomicInteger();
+    try {
+      prepare(1);
+      CelebornConf conf = new CelebornConf();
+      conf.set(CelebornConf.WORKER_PARTITION_SORTER_RESOLVE_THREADS().key(), "1");
+      String shuffleKey = "application-queued-resolve";
+      String fileId = shuffleKey + "-" + originFileName;
+      partitionFilesSorter =
+          new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf)) {
+            @Override
+            protected Map<Integer, List<ShuffleBlockInfo>> readIndex(String indexFilePath)
+                throws IOException {
+              Map<Integer, List<ShuffleBlockInfo>> index = super.readIndex(indexFilePath);
+              indexReads.incrementAndGet();
+              indexLoaded.countDown();
+              try {
+                if (!allowIndexPublication.await(30, TimeUnit.SECONDS)) {
+                  throw new IOException("Timed out waiting to publish the loaded index.");
+                }
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted while waiting to publish the index.", e);
+              }
+              return index;
+            }
+          };
+
+      CompletableFuture<FileInfo> resolvingWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              shuffleKey, originFileName, partitionDataWriter.getDiskFileInfo(), 0, 25);
+      Assert.assertTrue(indexLoaded.await(10, TimeUnit.SECONDS));
+      CompletableFuture<FileInfo> queuedWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              shuffleKey, originFileName, partitionDataWriter.getDiskFileInfo(), 25, MAX_MAP_ID);
+      ThreadPoolExecutor resolver =
+          (ThreadPoolExecutor) getSorterField(partitionFilesSorter, "sortedFileResolveExecutors");
+      Assert.assertEquals(1, resolver.getQueue().size());
+      Assert.assertEquals(2, partitionFilesSorter.getSortedFileWaiterCount());
+
+      HashSet<String> expiredShuffleKeys = new HashSet<>();
+      expiredShuffleKeys.add(shuffleKey);
+      partitionFilesSorter.cleanup(expiredShuffleKeys);
+      for (CompletableFuture<FileInfo> waiter : Arrays.asList(resolvingWaiter, queuedWaiter)) {
+        try {
+          waiter.get(5, TimeUnit.SECONDS);
+          Assert.fail("Cleanup must fail both running and queued sorted-file requests.");
+        } catch (ExecutionException e) {
+          Assert.assertTrue(e.getCause() instanceof IOException);
+          Assert.assertTrue(e.getCause().getMessage().contains("expired"));
+        }
+      }
+      Assert.assertEquals(0, partitionFilesSorter.getSortedFileWaiterCount());
+
+      allowIndexPublication.countDown();
+      // A sentinel after the queued request ensures stale resolver work has finished.
+      resolver.submit(() -> {}).get(10, TimeUnit.SECONDS);
+      Cache<?, ?> indexCache = (Cache<?, ?>) getSorterField(partitionFilesSorter, "indexCache");
+      Map<?, ?> indexCacheNames =
+          (Map<?, ?>) getSorterField(partitionFilesSorter, "indexCacheNames");
+      Assert.assertNull(indexCache.getIfPresent(fileId));
+      Assert.assertFalse(indexCacheNames.containsKey(shuffleKey));
+      Assert.assertEquals(1, indexReads.get());
+    } finally {
+      allowIndexPublication.countDown();
+      if (partitionFilesSorter != null) {
+        partitionFilesSorter.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN());
+      }
+      if (shuffleFile != null) {
+        clean();
+      }
+    }
+  }
+
+  @Test
+  public void testExpiredSorterFailureDoesNotFailReplacementRequest() throws Exception {
+    PartitionFilesSorter partitionFilesSorter = null;
+    CountDownLatch allowOldFailure = new CountDownLatch(1);
+    CountDownLatch allowReplacementWrite = new CountDownLatch(1);
+    CountDownLatch oldFailureStarted = new CountDownLatch(1);
+    CountDownLatch oldFailureFinished = new CountDownLatch(1);
+    CountDownLatch replacementWriteStarted = new CountDownLatch(1);
+    AtomicInteger writeAttempts = new AtomicInteger();
+    try {
+      prepare(1);
+      CelebornConf conf = new CelebornConf();
+      conf.set(CelebornConf.WORKER_PARTITION_SORTER_THREADS().key(), "2");
+      String shuffleKey = "application-stale-sort-failure";
+      partitionFilesSorter =
+          new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf)) {
+            @Override
+            protected void writeIndex(
+                Map<Integer, List<ShuffleBlockInfo>> indexMap, String indexFilePath, boolean isDfs)
+                throws IOException {
+              if (writeAttempts.getAndIncrement() == 0) {
+                throw new IOException("Injected failure from the original shuffle state.");
+              }
+              replacementWriteStarted.countDown();
+              try {
+                Assert.assertTrue(allowReplacementWrite.await(30, TimeUnit.SECONDS));
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted while holding the replacement sort.", e);
+              }
+              super.writeIndex(indexMap, indexFilePath, isDfs);
+            }
+
+            @Override
+            protected void failSortCompletionFuture(
+                String shuffleKey, String fileId, ShuffleReadState readState, Exception error) {
+              oldFailureStarted.countDown();
+              try {
+                Assert.assertTrue(allowOldFailure.await(30, TimeUnit.SECONDS));
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Interrupted while holding the old sort failure.", e);
+              }
+              super.failSortCompletionFuture(shuffleKey, fileId, readState, error);
+              oldFailureFinished.countDown();
+            }
+          };
+
+      CompletableFuture<FileInfo> expiredWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              shuffleKey, originFileName, partitionDataWriter.getDiskFileInfo(), 0, MAX_MAP_ID);
+      Assert.assertTrue(oldFailureStarted.await(10, TimeUnit.SECONDS));
+      HashSet<String> expiredShuffleKeys = new HashSet<>();
+      expiredShuffleKeys.add(shuffleKey);
+      partitionFilesSorter.cleanup(expiredShuffleKeys);
+      Assert.assertTrue(expiredWaiter.isCompletedExceptionally());
+
+      CompletableFuture<FileInfo> replacementWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              shuffleKey, originFileName, partitionDataWriter.getDiskFileInfo(), 0, MAX_MAP_ID);
+      Assert.assertTrue(replacementWriteStarted.await(10, TimeUnit.SECONDS));
+      allowOldFailure.countDown();
+      Assert.assertTrue(oldFailureFinished.await(10, TimeUnit.SECONDS));
+      Assert.assertFalse(
+          "An expired sorter must not fail a new request.", replacementWaiter.isDone());
+      Assert.assertEquals(1, partitionFilesSorter.getSortingCount());
+
+      allowReplacementWrite.countDown();
+      Assert.assertNotNull(replacementWaiter.get(10, TimeUnit.SECONDS));
+    } finally {
+      allowOldFailure.countDown();
+      allowReplacementWrite.countDown();
+      if (partitionFilesSorter != null) {
+        partitionFilesSorter.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN());
+      }
+      if (shuffleFile != null) {
+        clean();
+      }
+    }
+  }
+
+  @Test
+  public void testIndexLoadErrorFailsAllSharedWaiters() throws Exception {
+    PartitionFilesSorter partitionFilesSorter = null;
+    CountDownLatch indexReadStarted = new CountDownLatch(1);
+    CountDownLatch allowIndexFailure = new CountDownLatch(1);
+    AtomicInteger indexReads = new AtomicInteger();
+    AssertionError injectedError = new AssertionError("Injected index-load error.");
+    try {
+      prepare(1);
+      CelebornConf conf = new CelebornConf();
+      conf.set(CelebornConf.WORKER_PARTITION_SORTER_RESOLVE_THREADS().key(), "2");
+      String shuffleKey = "application-index-load-error";
+      String fileId = shuffleKey + "-" + originFileName;
+      partitionFilesSorter =
+          new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf)) {
+            @Override
+            protected Map<Integer, List<ShuffleBlockInfo>> readIndex(String indexFilePath)
+                throws IOException {
+              indexReads.incrementAndGet();
+              indexReadStarted.countDown();
+              try {
+                Assert.assertTrue(allowIndexFailure.await(30, TimeUnit.SECONDS));
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted while holding the index-load error.", e);
+              }
+              throw injectedError;
+            }
+          };
+
+      CompletableFuture<FileInfo> firstWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              shuffleKey, originFileName, partitionDataWriter.getDiskFileInfo(), 0, 25);
+      Assert.assertTrue(indexReadStarted.await(10, TimeUnit.SECONDS));
+      CompletableFuture<FileInfo> secondWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              shuffleKey, originFileName, partitionDataWriter.getDiskFileInfo(), 25, MAX_MAP_ID);
+
+      Map<?, ?> states = (Map<?, ?>) getSorterField(partitionFilesSorter, "shuffleReadStates");
+      Object readState = states.get(shuffleKey);
+      Field indexLoadsField = readState.getClass().getDeclaredField("indexLoads");
+      indexLoadsField.setAccessible(true);
+      CompletableFuture<?> sharedIndexLoad;
+      synchronized (readState) {
+        sharedIndexLoad =
+            (CompletableFuture<?>) ((Map<?, ?>) indexLoadsField.get(readState)).get(fileId);
+      }
+      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+      // The owner is held in readIndex, so only the second resolver can wait on this future.
+      while (sharedIndexLoad.getNumberOfDependents() == 0 && System.nanoTime() < deadline) {
+        Thread.sleep(10);
+      }
+      Assert.assertTrue(sharedIndexLoad.getNumberOfDependents() > 0);
+      allowIndexFailure.countDown();
+
+      for (CompletableFuture<FileInfo> waiter : Arrays.asList(firstWaiter, secondWaiter)) {
+        try {
+          waiter.get(5, TimeUnit.SECONDS);
+          Assert.fail("An index-load Error must fail every reader sharing the load.");
+        } catch (ExecutionException e) {
+          Throwable cause = e.getCause();
+          while (cause.getCause() != null) {
+            cause = cause.getCause();
+          }
+          Assert.assertSame(injectedError, cause);
+        }
+      }
+      Assert.assertEquals(1, indexReads.get());
+    } finally {
+      allowIndexFailure.countDown();
+      if (partitionFilesSorter != null) {
+        partitionFilesSorter.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN());
+      }
+      if (shuffleFile != null) {
+        clean();
+      }
+    }
+  }
+
+  @Test
+  public void testFailedSortRetryAlwaysEnqueuesReplacementSorter() throws Exception {
+    PartitionFilesSorter partitionFilesSorter = null;
+    CountDownLatch allowFailurePublicationToReturn = new CountDownLatch(1);
+    CountDownLatch allowReplacementWriteIndexToReturn = new CountDownLatch(1);
+    try {
+      prepare(100);
+      CelebornConf conf = new CelebornConf();
+      conf.set(CelebornConf.WORKER_PARTITION_SORTER_SORT_TIMEOUT().key(), "30s");
+      AtomicInteger writeIndexAttempts = new AtomicInteger();
+      CountDownLatch failurePublished = new CountDownLatch(1);
+      CountDownLatch replacementWriteIndexStarted = new CountDownLatch(1);
+      CountDownLatch failedSorterExited = new CountDownLatch(1);
+      WorkerSource workerSource =
+          new WorkerSource(conf) {
+            @Override
+            public void stopTimer(String metricName, String key) {
+              super.stopTimer(metricName, key);
+              if (WorkerSource.SORT_TIME().equals(metricName)) {
+                failedSorterExited.countDown();
+              }
+            }
+          };
+      partitionFilesSorter =
+          new PartitionFilesSorter(MemoryManager.instance(), conf, workerSource) {
+            @Override
+            protected void writeIndex(
+                Map<Integer, List<ShuffleBlockInfo>> indexMap, String indexFilePath, boolean isDfs)
+                throws IOException {
+              int attempt = writeIndexAttempts.getAndIncrement();
+              if (attempt == 0) {
+                throw new IOException("Injected first sort failure.");
+              }
+              if (attempt == 1) {
+                replacementWriteIndexStarted.countDown();
+                try {
+                  Assert.assertTrue(allowReplacementWriteIndexToReturn.await(10, TimeUnit.SECONDS));
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  throw new IOException("Interrupted while waiting to write the index.", e);
+                }
+              }
+              super.writeIndex(indexMap, indexFilePath, isDfs);
+            }
+
+            @Override
+            protected void failSortCompletionFuture(
+                String shuffleKey, String fileId, ShuffleReadState readState, Exception e) {
+              super.failSortCompletionFuture(shuffleKey, fileId, readState, e);
+              failurePublished.countDown();
+              try {
+                Assert.assertTrue(allowFailurePublicationToReturn.await(10, TimeUnit.SECONDS));
+              } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(
+                    "Interrupted while waiting after sort failure.", interrupted);
+              }
+            }
+          };
+
+      CompletableFuture<FileInfo> firstWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              "application-failed-sort",
+              originFileName,
+              partitionDataWriter.getDiskFileInfo(),
+              5,
+              10);
+      Assert.assertTrue(failurePublished.await(10, TimeUnit.SECONDS));
+      Assert.assertTrue(firstWaiter.isCompletedExceptionally());
+
+      CompletableFuture<FileInfo> retryWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              "application-failed-sort",
+              originFileName,
+              partitionDataWriter.getDiskFileInfo(),
+              5,
+              10);
+      Assert.assertTrue(replacementWriteIndexStarted.await(10, TimeUnit.SECONDS));
+      allowFailurePublicationToReturn.countDown();
+      Assert.assertTrue(failedSorterExited.await(10, TimeUnit.SECONDS));
+      Assert.assertEquals(1, partitionFilesSorter.getSortingCount());
+
+      CompletableFuture<FileInfo> thirdWaiter =
+          partitionFilesSorter.getSortedFileInfoAsync(
+              "application-failed-sort",
+              originFileName,
+              partitionDataWriter.getDiskFileInfo(),
+              5,
+              10);
+      Assert.assertFalse(thirdWaiter.isDone());
+      allowReplacementWriteIndexToReturn.countDown();
+
+      Assert.assertNotNull(retryWaiter.get(10, TimeUnit.SECONDS));
+      Assert.assertNotNull(thirdWaiter.get(10, TimeUnit.SECONDS));
+      Assert.assertEquals(2, writeIndexAttempts.get());
+    } finally {
+      allowFailurePublicationToReturn.countDown();
+      allowReplacementWriteIndexToReturn.countDown();
+      if (partitionFilesSorter != null) {
+        partitionFilesSorter.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN());
+      }
+      clean();
+    }
   }
 
   @Test
