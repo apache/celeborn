@@ -156,32 +156,24 @@ public class MetaHandler {
           break;
 
         case AppHeartbeat:
-          appId = request.getAppHeartbeatRequest().getAppId();
-          long time = request.getAppHeartbeatRequest().getTime();
-          long totalWritten = request.getAppHeartbeatRequest().getTotalWritten();
-          long fileCount = request.getAppHeartbeatRequest().getFileCount();
-          long shuffleCount = request.getAppHeartbeatRequest().getShuffleCount();
-          long applicationCount = request.getAppHeartbeatRequest().getApplicationCount();
-          LOG.debug("Handle app heartbeat for {} with shuffle count {}", appId, shuffleCount);
-          Map<String, Long> shuffleFallbackCounts =
-              request.getAppHeartbeatRequest().getShuffleFallbackCountsMap();
-          if (CollectionUtils.isNotEmpty(shuffleFallbackCounts)) {
-            LOG.warn(
-                "{} shuffle fallbacks in app {}",
-                shuffleFallbackCounts.values().stream().mapToLong(v -> v).sum(),
-                appId);
+          handleAppHeartbeat(request.getAppHeartbeatRequest());
+          break;
+
+        case BatchHeartbeat:
+          List<PbMetaWorkerHeartbeatRequest> workerHeartbeats =
+              request.getBatchHeartbeatRequest().getWorkerHeartbeatsList();
+          List<PbMetaAppHeartbeatRequest> appHeartbeats =
+              request.getBatchHeartbeatRequest().getAppHeartbeatsList();
+          LOG.debug(
+              "Handle batch heartbeat with {} worker heartbeats and {} app heartbeats.",
+              workerHeartbeats.size(),
+              appHeartbeats.size());
+          for (PbMetaWorkerHeartbeatRequest workerHeartbeat : workerHeartbeats) {
+            handleWorkerHeartbeat(workerHeartbeat);
           }
-          Map<String, Long> applicationFallbackCounts =
-              request.getAppHeartbeatRequest().getApplicationFallbackCountsMap();
-          metaSystem.updateAppHeartbeatMeta(
-              appId,
-              time,
-              totalWritten,
-              fileCount,
-              shuffleCount,
-              applicationCount,
-              shuffleFallbackCounts,
-              applicationFallbackCounts);
+          for (PbMetaAppHeartbeatRequest appHeartbeat : appHeartbeats) {
+            handleAppHeartbeat(appHeartbeat);
+          }
           break;
 
         case AppLost:
@@ -213,39 +205,7 @@ public class MetaHandler {
           break;
 
         case WorkerHeartbeat:
-          host = request.getWorkerHeartbeatRequest().getHost();
-          rpcPort = request.getWorkerHeartbeatRequest().getRpcPort();
-          pushPort = request.getWorkerHeartbeatRequest().getPushPort();
-          fetchPort = request.getWorkerHeartbeatRequest().getFetchPort();
-          Map<String, PbDiskInfo> pbDiskInfoMap = request.getWorkerHeartbeatRequest().getDisksMap();
-          diskInfos = MetaUtil.fromPbDiskInfoMap(pbDiskInfoMap);
-          replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
-          boolean highWorkload = request.getWorkerHeartbeatRequest().getHighWorkload();
-          if (request.getWorkerHeartbeatRequest().hasWorkerStatus()) {
-            workerStatus =
-                MetaUtil.fromPbWorkerStatus(request.getWorkerHeartbeatRequest().getWorkerStatus());
-          } else {
-            workerStatus = WorkerStatus.normalWorkerStatus();
-          }
-
-          LOG.debug(
-              "Handle worker heartbeat for {} {} {} {} {} {}",
-              host,
-              rpcPort,
-              pushPort,
-              fetchPort,
-              replicatePort,
-              diskInfos);
-          metaSystem.updateWorkerHeartbeatMeta(
-              host,
-              rpcPort,
-              pushPort,
-              fetchPort,
-              replicatePort,
-              diskInfos,
-              request.getWorkerHeartbeatRequest().getTime(),
-              workerStatus,
-              highWorkload);
+          handleWorkerHeartbeat(request.getWorkerHeartbeatRequest());
           break;
 
         case RegisterWorker:
@@ -333,6 +293,64 @@ public class MetaHandler {
       }
     }
     return responseBuilder.build();
+  }
+
+  private void handleWorkerHeartbeat(PbMetaWorkerHeartbeatRequest workerHeartbeat) {
+    String host = workerHeartbeat.getHost();
+    int rpcPort = workerHeartbeat.getRpcPort();
+    int pushPort = workerHeartbeat.getPushPort();
+    int fetchPort = workerHeartbeat.getFetchPort();
+    int replicatePort = workerHeartbeat.getReplicatePort();
+    Map<String, DiskInfo> diskInfos = MetaUtil.fromPbDiskInfoMap(workerHeartbeat.getDisksMap());
+    boolean highWorkload = workerHeartbeat.getHighWorkload();
+    WorkerStatus workerStatus;
+    if (workerHeartbeat.hasWorkerStatus()) {
+      workerStatus = MetaUtil.fromPbWorkerStatus(workerHeartbeat.getWorkerStatus());
+    } else {
+      workerStatus = WorkerStatus.normalWorkerStatus();
+    }
+
+    LOG.debug(
+        "Handle worker heartbeat for {} {} {} {} {} {}",
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        diskInfos);
+    metaSystem.updateWorkerHeartbeatMeta(
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        diskInfos,
+        workerHeartbeat.getTime(),
+        workerStatus,
+        highWorkload);
+  }
+
+  private void handleAppHeartbeat(PbMetaAppHeartbeatRequest appHeartbeat) {
+    String appId = appHeartbeat.getAppId();
+    long shuffleCount = appHeartbeat.getShuffleCount();
+    LOG.debug("Handle app heartbeat for {} with shuffle count {}", appId, shuffleCount);
+    Map<String, Long> shuffleFallbackCounts = appHeartbeat.getShuffleFallbackCountsMap();
+    if (CollectionUtils.isNotEmpty(shuffleFallbackCounts)) {
+      LOG.warn(
+          "{} shuffle fallbacks in app {}",
+          shuffleFallbackCounts.values().stream().mapToLong(v -> v).sum(),
+          appId);
+    }
+    Map<String, Long> applicationFallbackCounts = appHeartbeat.getApplicationFallbackCountsMap();
+    metaSystem.updateAppHeartbeatMeta(
+        appId,
+        appHeartbeat.getTime(),
+        appHeartbeat.getTotalWritten(),
+        appHeartbeat.getFileCount(),
+        shuffleCount,
+        appHeartbeat.getApplicationCount(),
+        shuffleFallbackCounts,
+        applicationFallbackCounts);
   }
 
   public void writeToSnapShot(File file) throws IOException {

@@ -46,6 +46,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   protected HARaftServer ratisServer;
 
+  private HeartbeatAggregator heartbeatAggregator;
+
   public HAMasterMetaManager(RpcEnv rpcEnv, CelebornConf conf) {
     this(rpcEnv, conf, new CelebornRackResolver(conf));
   }
@@ -68,6 +70,13 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   public void setRatisServer(HARaftServer ratisServer) {
     this.ratisServer = ratisServer;
+    if (conf.masterHaHeartbeatBatchEnabled()) {
+      this.heartbeatAggregator = new HeartbeatAggregator(ratisServer, conf);
+    }
+  }
+
+  public HeartbeatAggregator getHeartbeatAggregator() {
+    return heartbeatAggregator;
   }
 
   @Override
@@ -168,22 +177,27 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       Map<String, Long> applicationFallbackCounts,
       long time,
       String requestId) {
+    ResourceProtos.AppHeartbeatRequest appHeartbeatRequest =
+        ResourceProtos.AppHeartbeatRequest.newBuilder()
+            .setAppId(appId)
+            .setTime(time)
+            .setTotalWritten(totalWritten)
+            .setFileCount(fileCount)
+            .setShuffleCount(shuffleCount)
+            .setApplicationCount(applicationCount)
+            .putAllShuffleFallbackCounts(shuffleFallbackCounts)
+            .putAllApplicationFallbackCounts(applicationFallbackCounts)
+            .build();
+    if (heartbeatAggregator != null) {
+      heartbeatAggregator.offerAppHeartbeat(appHeartbeatRequest);
+      return;
+    }
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
               .setCmdType(Type.AppHeartbeat)
               .setRequestId(requestId)
-              .setAppHeartbeatRequest(
-                  ResourceProtos.AppHeartbeatRequest.newBuilder()
-                      .setAppId(appId)
-                      .setTime(time)
-                      .setTotalWritten(totalWritten)
-                      .setFileCount(fileCount)
-                      .setShuffleCount(shuffleCount)
-                      .setApplicationCount(applicationCount)
-                      .putAllShuffleFallbackCounts(shuffleFallbackCounts)
-                      .putAllApplicationFallbackCounts(applicationFallbackCounts)
-                      .build())
+              .setAppHeartbeatRequest(appHeartbeatRequest)
               .build());
     } catch (CelebornRuntimeException e) {
       LOG.error("Handle heartbeat for {} failed!", appId, e);
@@ -312,23 +326,30 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       boolean highWorkload,
       WorkerStatus workerStatus,
       String requestId) {
+    ResourceProtos.WorkerHeartbeatRequest workerHeartbeatRequest =
+        ResourceProtos.WorkerHeartbeatRequest.newBuilder()
+            .setHost(host)
+            .setRpcPort(rpcPort)
+            .setPushPort(pushPort)
+            .setFetchPort(fetchPort)
+            .setReplicatePort(replicatePort)
+            .putAllDisks(MetaUtil.toPbDiskInfos(disks))
+            .setWorkerStatus(MetaUtil.toPbWorkerStatus(workerStatus))
+            .setTime(time)
+            .setHighWorkload(highWorkload)
+            .build();
+    if (heartbeatAggregator != null) {
+      heartbeatAggregator.offerWorkerHeartbeat(workerHeartbeatRequest);
+      updateWorkerResourceConsumptions(
+          host, rpcPort, pushPort, fetchPort, replicatePort, userResourceConsumption);
+      return;
+    }
     try {
       ratisServer.submitRequest(
           ResourceRequest.newBuilder()
               .setCmdType(Type.WorkerHeartbeat)
               .setRequestId(requestId)
-              .setWorkerHeartbeatRequest(
-                  ResourceProtos.WorkerHeartbeatRequest.newBuilder()
-                      .setHost(host)
-                      .setRpcPort(rpcPort)
-                      .setPushPort(pushPort)
-                      .setFetchPort(fetchPort)
-                      .setReplicatePort(replicatePort)
-                      .putAllDisks(MetaUtil.toPbDiskInfos(disks))
-                      .setWorkerStatus(MetaUtil.toPbWorkerStatus(workerStatus))
-                      .setTime(time)
-                      .setHighWorkload(highWorkload)
-                      .build())
+              .setWorkerHeartbeatRequest(workerHeartbeatRequest)
               .build());
       updateWorkerResourceConsumptions(
           host, rpcPort, pushPort, fetchPort, replicatePort, userResourceConsumption);
