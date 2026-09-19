@@ -198,6 +198,7 @@ private[celeborn] class Master(
 
   private val dfsExpireDirsTimeoutMS = conf.dfsExpireDirsTimeoutMS
   private val remoteStorageDirs = conf.remoteStorageDirs
+  private val masterClientMetricsEnabled = conf.masterClientMetricsEnabled
 
   private val quotaManager = new QuotaManager(
     statusSystem,
@@ -1316,10 +1317,13 @@ private[celeborn] class Master(
       applicationFallbackCounts,
       System.currentTimeMillis(),
       requestId)
-    applicationMetricsSource.updateApplicationMetrics(
-      appId,
-      metricLabels.asScala.toMap,
-      clientMetrics)
+
+    if (masterClientMetricsEnabled && !metricLabels.isEmpty) {
+      applicationMetricsSource.updateApplicationMetrics(
+        appId,
+        metricLabels.asScala.toMap,
+        clientMetrics)
+    }
     gaugeShuffleFallbackCounts()
     val unknownWorkers = needCheckedWorkerList.asScala.filterNot(w =>
       statusSystem.workersMap.containsKey(w.toUniqueId)).asJava

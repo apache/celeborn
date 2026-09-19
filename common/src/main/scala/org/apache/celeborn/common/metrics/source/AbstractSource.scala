@@ -245,19 +245,27 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       appId: String,
       value: Long): Unit = {
     val key = metricNameWithCustomizedLabels(name, labels)
-    val tracked = namedGaugesWithDetails.computeIfAbsent(
+    namedGaugesWithDetails.compute(
       key,
-      (_: String) => {
-        val sum = new AtomicLong()
-        val gauge = metricRegistry.gauge(
-          key,
-          new GaugeSupplier[Long](() => sum.get())).asInstanceOf[Gauge[Long]]
-        TrackedGauge(
-          NamedGauge(name, gauge, labelsWithCustomizedLabels(labels)),
-          sum,
-          JavaUtils.newConcurrentHashMap[String, java.lang.Long]())
+      new java.util.function.BiFunction[String, TrackedGauge, TrackedGauge] {
+        override def apply(k: String, existing: TrackedGauge): TrackedGauge = {
+          val tracked =
+            if (existing != null) {
+              existing
+            } else {
+              val sum = new AtomicLong()
+              val gauge = metricRegistry.gauge(
+                key,
+                new GaugeSupplier[Long](() => sum.get())).asInstanceOf[Gauge[Long]]
+              TrackedGauge(
+                NamedGauge(name, gauge, labelsWithCustomizedLabels(labels)),
+                sum,
+                JavaUtils.newConcurrentHashMap[String, java.lang.Long]())
+            }
+          tracked.updateAppValue(appId, value)
+          tracked
+        }
       })
-    tracked.updateAppValue(appId, value)
   }
 
   def counters(): List[NamedCounter] = {
@@ -331,13 +339,15 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
     namedGaugesWithDetails.keySet().asScala.toList.foreach { key =>
       namedGaugesWithDetails.computeIfPresent(
         key,
-        (_: String, tracked: TrackedGauge) => {
-          tracked.updateAppValue(appId, null)
-          if (tracked.perAppValues.isEmpty) {
-            metricRegistry.remove(key)
-            null
-          } else {
-            tracked
+        new java.util.function.BiFunction[String, TrackedGauge, TrackedGauge] {
+          override def apply(k: String, tracked: TrackedGauge): TrackedGauge = {
+            tracked.updateAppValue(appId, null)
+            if (tracked.perAppValues.isEmpty) {
+              metricRegistry.remove(key)
+              null
+            } else {
+              tracked
+            }
           }
         })
     }

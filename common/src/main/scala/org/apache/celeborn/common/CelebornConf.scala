@@ -6113,8 +6113,8 @@ object CelebornConf extends Logging {
         "reject late heartbeats after an application is lost. Entries older than this are " +
         "periodically evicted.")
       .version("0.7.0")
-      .timeConf(TimeUnit.MINUTES)
-      .createWithDefaultString("5min")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
 
   val MASTER_CLIENT_METRICS_SERIES_CARDINALITY_WARN_THRESHOLD: ConfigEntry[Int] =
     buildConf("celeborn.metrics.master.clientMetrics.seriesCardinality.warnThreshold")

@@ -73,9 +73,14 @@ class ApplicationMetricsSource(conf: CelebornConf)
       appId: String,
       metricLabels: Map[String, String],
       metrics: JMap[String, ClientMetric]): Unit = {
-    val reason = rejectReason(appId, metricLabels)
-    if (reason != null) {
-      logWarning(s"Ignoring client metrics from $appId: $reason")
+    if (removedAppIds.containsKey(appId)) {
+      removeAppFromMetrics(appId)
+      return
+    }
+
+    if (!validateLabels(metricLabels)) {
+      logWarning(s"Ignoring client metrics from $appId: labels contain invalid Prometheus " +
+        "label names or unsafe values (quotes, backslashes, or newlines)")
       return
     }
 
@@ -87,20 +92,7 @@ class ApplicationMetricsSource(conf: CelebornConf)
       }
     }
 
-    if (removedAppIds.containsKey(appId)) {
-      removeAppFromMetrics(appId)
-    }
-
     warnIfSeriesCardinalityHigh()
-  }
-
-  private def rejectReason(appId: String, metricLabels: Map[String, String]): String = {
-    if (!masterClientMetricsEnabled) "master client metrics are disabled"
-    else if (metricLabels.isEmpty) "no metric labels provided"
-    else if (removedAppIds.containsKey(appId)) "application has been removed"
-    else if (!validateLabels(metricLabels)) "labels contain invalid Prometheus " +
-      "label names or unsafe values (quotes, backslashes, or newlines)"
-    else null
   }
 
   def removeApplicationMetrics(appId: String): Unit = {

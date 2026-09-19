@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.metrics.source
 
+import java.util.concurrent.{CyclicBarrier, TimeUnit}
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 
@@ -224,5 +226,36 @@ class CelebornSourceSuite extends CelebornFunSuite {
     assert(source.trackedGaugeCount == 0)
     assert(gaugeValue(source, labels, "DynamicGauge").isEmpty)
     assert(!source.gaugeExists("DynamicGauge", labels))
+  }
+
+  test("concurrent add and remove do not orphan a live app's gauge value") {
+    for (_ <- 1 to 50) {
+      val source = new TestSource()
+      val labels = Map("user" -> "metric")
+      val barrier = new CyclicBarrier(2)
+
+      source.updateGauge("G", labels, "app-A", 10L)
+
+      val remover = new Thread(() => {
+        barrier.await(5, TimeUnit.SECONDS)
+        source.removeApp("app-A")
+      })
+      val adder = new Thread(() => {
+        barrier.await(5, TimeUnit.SECONDS)
+        source.updateGauge("G", labels, "app-B", 20L)
+      })
+
+      remover.start()
+      adder.start()
+      remover.join(5000)
+      adder.join(5000)
+
+      assert(
+        source.trackedGaugeCount == 1,
+        "app-B is live so the gauge must still be tracked")
+      assert(
+        gaugeValue(source, labels, "G").contains(20L),
+        "app-B's value must be visible in the gauge")
+    }
   }
 }

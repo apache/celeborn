@@ -79,15 +79,6 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
       expected: Map[String, String]): Boolean =
     expected.forall { case (key, value) => actual.get(key).contains(value) }
 
-  test("masterClientMetrics disabled: updateApplicationMetrics is a no-op") {
-    val source = newSource(new CelebornConf())
-
-    update(source, gaugeMetrics(5), Map("team" -> "data-eng"))
-
-    assert(source.gauges().isEmpty)
-    assert(source.counters().isEmpty)
-  }
-
   test("masterClientMetrics disabled: removed app cleaner is not scheduled") {
     val source = newSource(new CelebornConf())
 
@@ -96,8 +87,9 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
 
   test("removed app cleaner uses configured retention as schedule interval") {
     val conf = enabledConf()
-    val retentionMs = 2000L
-    conf.set(CelebornConf.MASTER_CLIENT_METRICS_REMOVED_APP_RETENTION, retentionMs)
+    conf.set(CelebornConf.MASTER_CLIENT_METRICS_REMOVED_APP_RETENTION.key, "2s")
+    val retentionMs = conf.masterClientMetricsRemovedAppRetentionMs
+    assert(retentionMs == 2000L)
     val source = newSource(conf)
 
     val scheduledTasks = source.metricsCleaner
@@ -107,15 +99,6 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
     val delayMs = scheduledTasks.peek().asInstanceOf[Delayed].getDelay(TimeUnit.MILLISECONDS)
     assert(delayMs > 0)
     assert(delayMs <= retentionMs)
-  }
-
-  test("no custom labels: metrics are not reported") {
-    val source = newSource(enabledConf())
-
-    update(source, gaugeMetrics(3))
-
-    assert(source.gauges().isEmpty)
-    assert(source.counters().isEmpty)
   }
 
   test("client labels are used as metric labels") {
