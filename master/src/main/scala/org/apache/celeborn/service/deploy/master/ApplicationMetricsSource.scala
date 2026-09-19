@@ -95,6 +95,9 @@ class ApplicationMetricsSource(conf: CelebornConf)
     warnIfSeriesCardinalityHigh()
   }
 
+  override protected def isAppRemoved(appId: String): Boolean =
+    removedAppIds.containsKey(appId)
+
   def removeApplicationMetrics(appId: String): Unit = {
     if (masterClientMetricsEnabled) {
       removedAppIds.put(appId, System.currentTimeMillis())
