@@ -446,11 +446,15 @@ public class HARaftServer {
       return null;
     }
 
+    // Prefer the dedicated `ratis` SSL module when explicitly enabled, else fall back to the
+    // client-facing `rpc_service` module. Whether TLS is on at all is MasterClusterInfo's call.
+    String sslModule =
+        conf.sslEnabled(TransportModuleConstants.RATIS_MODULE)
+            ? TransportModuleConstants.RATIS_MODULE
+            : TransportModuleConstants.RPC_SERVICE_MODULE;
     // This is used only for querying state after initialization - not actual SSL
     // also why nThreads does not matter
-    SSLFactory factory =
-        SSLFactory.createSslFactory(
-            Utils.fromCelebornConf(conf, TransportModuleConstants.RPC_SERVICE_MODULE, 1));
+    SSLFactory factory = SSLFactory.createSslFactory(Utils.fromCelebornConf(conf, sslModule, 1));
 
     assert (null != factory);
     assert (factory.hasKeyManagers());

@@ -38,8 +38,7 @@ object MasterClusterInfo extends Logging {
   def loadHAConfig(conf: CelebornConf): MasterClusterInfo = {
     val localNodeIdOpt = conf.haMasterNodeId
     val clusterNodeIds = conf.haMasterNodeIds
-    // If ssl is enabled, we enable it for ratis as well
-    val sslEnabled = conf.sslEnabled(TransportModuleConstants.RPC_SERVICE_MODULE)
+    val sslEnabled = ratisSslEnabled(conf)
 
     val masterNodes = clusterNodeIds.map { nodeId =>
       val ratisHost = conf.haMasterRatisHost(nodeId)
@@ -70,6 +69,15 @@ object MasterClusterInfo extends Logging {
     }
 
     MasterClusterInfo(localNodes.head, peerNodes.toList.asJava)
+  }
+
+  /**
+   * Whether TLS is enabled for the inter-master Ratis channel: true if either the dedicated
+   * `ratis` module or the legacy `rpc_service` module has SSL enabled.
+   */
+  def ratisSslEnabled(conf: CelebornConf): Boolean = {
+    conf.sslEnabled(TransportModuleConstants.RATIS_MODULE) ||
+    conf.sslEnabled(TransportModuleConstants.RPC_SERVICE_MODULE)
   }
 
   private def isLocalAddress(addr: InetAddress): Boolean = {
