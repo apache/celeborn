@@ -1463,6 +1463,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(WORKER_MEMORY_FILE_STORAGE_EVICT_AGGRESSIVE_MODE_ENABLED)
   def workerMemoryFileStorageEvictRatio: Double =
     get(WORKER_MEMORY_FILE_STORAGE_EVICT_RATIO)
+  def workerMemoryFileStorageReplicaEnabled: Boolean =
+    get(WORKER_MEMORY_FILE_STORAGE_REPLICA_ENABLED)
   def workerPushDataMergeBufferEnabled: Boolean = get(WORKER_PUSH_DATA_MERGE_BUFFER_ENABLED)
   def workerDirectMemoryRatioToMergeBuffer: Double = get(WORKER_DIRECT_MEMORY_RATIO_TO_MERGE_BUFFER)
 
@@ -4397,6 +4399,18 @@ object CelebornConf extends Logging {
       .version("0.5.1")
       .doubleConf
       .createWithDefault(0.5)
+
+  val WORKER_MEMORY_FILE_STORAGE_REPLICA_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.memoryFileStorage.replica.enabled")
+      .categories("worker")
+      .doc("Whether replica partitions can be stored in memory file storage. Replica data is " +
+        "only read when fetching from the primary fails, so by default replica partitions " +
+        "skip memory file storage and are written to the next storage type in " +
+        "`celeborn.worker.storage.storagePolicy.createFilePolicy`, leaving memory for " +
+        "primary partitions.")
+      .version("1.0.0")
+      .booleanConf
+      .createWithDefault(false)
 
   val WORKER_PUSH_DATA_MERGE_BUFFER_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.pushdata.mergeBuffer.enabled")
