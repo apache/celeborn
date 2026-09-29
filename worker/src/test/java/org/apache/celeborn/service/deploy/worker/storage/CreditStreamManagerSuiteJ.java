@@ -62,6 +62,23 @@ public class CreditStreamManagerSuiteJ {
     MemoryManager.initialize(conf);
   }
 
+  @Test
+  public void testStreamControlsRequireOriginalChannel() {
+    CreditStreamManager manager = new CreditStreamManager(10, 10, 1, 32);
+    Channel owner = Mockito.mock(Channel.class);
+    Channel other = Mockito.mock(Channel.class);
+    manager.getStreams().put(1L, new CreditStreamManager.StreamState(owner, "app-1", 1024, null));
+    manager.checkStreamOwner(1L, owner);
+    try {
+      manager.checkStreamOwner(1L, other);
+      Assert.fail("A different channel must not control the existing credit stream");
+    } catch (SecurityException expected) {
+      Assert.assertEquals(1, manager.getStreamsCount());
+    }
+    // Late controls for an already removed stream keep their existing no-op behavior.
+    manager.checkStreamOwner(2L, other);
+  }
+
   private File createTemporaryFileWithIndexFile() throws IOException {
     String filename = UUID.randomUUID().toString();
     File temporaryFile = new File(tempDir, filename);

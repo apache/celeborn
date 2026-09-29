@@ -219,6 +219,14 @@ public class CreditStreamManager {
     }
   }
 
+  /** Credit stream controls must come from the channel to which the reader sends data. */
+  public void checkStreamOwner(long streamId, Channel channel) {
+    StreamState streamState = streams.get(streamId);
+    if (streamState != null && streamState.getAssociatedChannel() != channel) {
+      throw new SecurityException("Stream " + streamId + " belongs to another channel.");
+    }
+  }
+
   public void connectionTerminated(Channel channel) {
     for (Map.Entry<Long, StreamState> entry : streams.entrySet()) {
       if (entry.getValue().getAssociatedChannel() == channel) {
