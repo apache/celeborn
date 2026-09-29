@@ -18,8 +18,10 @@
 package org.apache.celeborn.common.network.security;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.*;
 
+import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -28,8 +30,15 @@ import org.junit.After;
 import org.junit.Test;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
+import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
+import org.apache.celeborn.common.network.protocol.OneWayMessage;
+import org.apache.celeborn.common.network.protocol.RequestMessage;
+import org.apache.celeborn.common.network.protocol.RpcRequest;
+import org.apache.celeborn.common.network.server.AbstractAuthRpcHandler;
+import org.apache.celeborn.common.network.server.BaseMessageHandler;
 
 public class ConnectionSecurityContextSuiteJ {
   private final EmbeddedChannel channel = new EmbeddedChannel();
@@ -144,6 +153,100 @@ public class ConnectionSecurityContextSuiteJ {
     assertSame(effective, checked.get().getUserIdentifier());
     assertSame(claimed, request.getUserIdentifier());
     assertEquals(1, resolutions.get());
+  }
+
+  @Test
+  public void nativeApplicationBindingDoesNotReplacePluginIdentityOrPolicy() {
+    UserIdentifier externalUser = new UserIdentifier("tenant", "alice");
+    ConnectionSecurityContext context =
+        new ConnectionSecurityContext() {
+          @Override
+          public UserIdentifier resolveUserIdentifier(
+              String applicationId, UserIdentifier claimed) {
+            return externalUser;
+          }
+
+          @Override
+          public void authorize(AuthorizationRequest request) {
+            assertSame(externalUser, request.getUserIdentifier());
+            if (!"tenant/resource".equals(request.getApplicationId())) {
+              throw new SecurityException("Outside the plugin's grant");
+            }
+          }
+        };
+    AuthorizationRequest request =
+        AuthorizationRequest.forApplication(SecurityOperation.PUSH_DATA, "tenant/resource");
+    client.setSecurityContext(context);
+    assertNull(client.getClientId());
+    assertSame(externalUser, client.authorize(request));
+
+    client.setClientId("native/application");
+    assertSame(context, client.getSecurityContext());
+    assertEquals("native/application", client.getClientId());
+    assertSame(externalUser, client.authorize(request));
+    // Native equality would reject this target. The plugin policy is selected explicitly instead.
+    assertThrows(SecurityException.class, () -> client.checkNativeAuthorization(request));
+    assertThrows(IllegalStateException.class, () -> client.setClientId("different/application"));
+    assertSame(context, client.getSecurityContext());
+    assertSame(externalUser, client.authorize(request));
+    assertThrows(
+        SecurityException.class,
+        () ->
+            client.authorize(
+                AuthorizationRequest.forApplication(
+                    SecurityOperation.PUSH_DATA, "other/resource")));
+  }
+
+  @Test
+  public void boundIdentitiesDoNotCompleteAuthenticationLayers() {
+    client.setClientId("native/application");
+    client.setSecurityContext(request -> {});
+    BaseMessageHandler delegate = mock(BaseMessageHandler.class);
+    AtomicBoolean outerComplete = new AtomicBoolean();
+    AtomicBoolean innerComplete = new AtomicBoolean();
+    AbstractAuthRpcHandler inner = authHandler(delegate, innerComplete);
+    AbstractAuthRpcHandler outer = authHandler(inner, outerComplete);
+    RpcResponseCallback callback = mock(RpcResponseCallback.class);
+    NioManagedBuffer empty = new NioManagedBuffer(ByteBuffer.allocate(0));
+    RpcRequest handshake = new RpcRequest(1L, empty);
+    RpcRequest business = new RpcRequest(2L, empty);
+    OneWayMessage oneWay = new OneWayMessage(empty);
+
+    outer.receive(client, handshake, callback);
+    assertFalse(outer.isAuthenticated());
+    assertThrows(SecurityException.class, () -> outer.receive(client, oneWay));
+    verifyNoInteractions(delegate);
+
+    outerComplete.set(true);
+    outer.receive(client, handshake, callback);
+    assertTrue(outer.isAuthenticated());
+    assertFalse(inner.isAuthenticated());
+    outer.receive(client, handshake, callback);
+    assertThrows(SecurityException.class, () -> outer.receive(client, oneWay));
+    verifyNoInteractions(delegate);
+
+    innerComplete.set(true);
+    outer.receive(client, handshake, callback);
+    assertTrue(inner.isAuthenticated());
+    // Completing a handshake consumes that frame; only subsequent business frames are delegated.
+    verifyNoInteractions(delegate);
+    outer.receive(client, business, callback);
+    outer.receive(client, oneWay);
+    verify(delegate).receive(client, business, callback);
+    verify(delegate).receive(client, oneWay);
+    verifyNoMoreInteractions(delegate);
+  }
+
+  private static AbstractAuthRpcHandler authHandler(
+      BaseMessageHandler delegate, AtomicBoolean complete) {
+    return new AbstractAuthRpcHandler(delegate) {
+      @Override
+      protected boolean doAuthChallenge(
+          TransportClient client, RequestMessage message, RpcResponseCallback callback) {
+        callback.onSuccess(ByteBuffer.allocate(0));
+        return complete.get();
+      }
+    };
   }
 
   @Test

@@ -20,13 +20,29 @@ package org.apache.celeborn.common.network.security;
 import javax.annotation.Nullable;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.network.client.TransportClient;
 
 /**
- * A connection's authenticated identity and authorization policy, supplied by its bootstrap.
- * Capture the identity established by the mechanism in this object and install it before forwarding
+ * A connection's mechanism-specific authenticated identity and authorization policy, supplied by
+ * its owning bootstrap.
+ *
+ * <p>Keep the mechanism's verified principal or session in this implementation's private state.
+ * Celeborn does not prescribe that identity's type or require it to equal the native application ID
+ * returned by {@link TransportClient#getClientId()}. The resolved {@link UserIdentifier} is the
+ * identity projection used by Celeborn for authorization, ownership and quota.
+ *
+ * <p>Install this context once, after its owner authenticates the peer and before forwarding
  * business traffic. Implementations must support concurrent calls and must not change the bound
- * identity after publication. This context replaces the native authorization policy; authentication
- * layers, including native SASL when enabled, still have to finish independently.
+ * identity after publication. Multiple authentication layers designate one context owner and
+ * coordinate their evidence through that owner; they must not replace an installed context.
+ * Installing a context does not complete another layer's handshake, including native SASL.
+ *
+ * <p>This context replaces the native authorization policy. The framework does not implicitly
+ * require equal principal strings or combine authorization policies. Enforce any required
+ * association between the mechanism's identity and a native application binding in the plugin's
+ * policy before protected operations execute. A plugin can explicitly invoke {@link
+ * TransportClient#checkNativeAuthorization(AuthorizationRequest)} when it also requires the native
+ * authorization rules.
  */
 public interface ConnectionSecurityContext {
   /** Reject unauthorized or unrecognized operations with SecurityException. */

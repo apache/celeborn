@@ -387,18 +387,25 @@ public class TransportClient implements Closeable {
   }
 
   /**
-   * Returns the ID used by the client to authenticate itself when authentication is enabled.
+   * Returns the application ID bound by native registration or SASL, including adapters that
+   * deliberately establish the same native application binding.
    *
-   * @return The client ID, or null if authentication is disabled.
+   * <p>SASL may set this ID before its handshake completes. External authentication can complete
+   * without setting it. Neither a non-null ID nor a null ID determines authentication completion.
+   *
+   * @return The native application ID, or null when no native application is bound.
    */
   public String getClientId() {
     return clientId;
   }
 
   /**
-   * Sets the authenticated client ID. This is meant to be used by the authentication layer.
+   * Binds the application ID used by native registration, SASL and native authorization. External
+   * mechanisms retain their own principal or session in a {@link ConnectionSecurityContext}; they
+   * use this field only when deliberately establishing a native application binding.
    *
-   * <p>Trying to set a different client ID after it's been set will result in an exception.
+   * <p>This does not complete any authentication handler or replace the installed security context.
+   * Rebinding the same ID is allowed; trying to bind a different ID results in an exception.
    */
   public void setClientId(String id) {
     Preconditions.checkState(
@@ -406,19 +413,39 @@ public class TransportClient implements Closeable {
     this.clientId = id;
   }
 
-  /** Installs a connection-bound policy once, after the plugin has authenticated its peer. */
+  /**
+   * Installs the owning plugin's identity and policy after that plugin authenticates its peer.
+   * Installation is allowed only once, even for the same context instance, and is independent of
+   * the native application binding.
+   *
+   * <p>Other required authentication layers must still complete their own handshakes before
+   * business traffic is forwarded. This method does not mark any authentication handler as
+   * complete.
+   */
   public synchronized void setSecurityContext(ConnectionSecurityContext context) {
     Preconditions.checkNotNull(context, "securityContext");
     Preconditions.checkState(securityContext == null, "Security context has already been set.");
     securityContext = context;
   }
 
+  /**
+   * Returns the installed plugin context, or null. Its presence does not imply that all required
+   * authentication layers have completed.
+   */
   @Nullable
   public ConnectionSecurityContext getSecurityContext() {
     return securityContext;
   }
 
-  /** Resolves the effective user, checks access, and returns that exact user to the caller. */
+  /**
+   * Resolves the effective user, checks access, and returns that exact user to the caller. The
+   * installed context replaces native authorization; without a context, native authorization is
+   * used. Any association between plugin identity and native application identity belongs to the
+   * plugin's policy.
+   *
+   * <p>This method does not perform authentication. Callers must pass the required authentication
+   * handlers before authorizing protected operations.
+   */
   @Nullable
   public UserIdentifier authorize(AuthorizationRequest request) {
     Preconditions.checkNotNull(request, "authorizationRequest");
