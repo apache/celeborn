@@ -36,6 +36,7 @@ import io.netty.util.concurrent.GenericFutureListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
 import org.apache.celeborn.common.network.protocol.OneWayMessage;
 import org.apache.celeborn.common.network.protocol.PushData;
@@ -43,6 +44,9 @@ import org.apache.celeborn.common.network.protocol.PushMergedData;
 import org.apache.celeborn.common.network.protocol.RpcRequest;
 import org.apache.celeborn.common.network.protocol.StreamChunkSlice;
 import org.apache.celeborn.common.network.protocol.TransportMessage;
+import org.apache.celeborn.common.network.security.AuthorizationRequest;
+import org.apache.celeborn.common.network.security.ConnectionSecurityContext;
+import org.apache.celeborn.common.network.security.SecurityOperation;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.MessageType;
 import org.apache.celeborn.common.protocol.PbChunkFetchRequest;
@@ -79,7 +83,8 @@ public class TransportClient implements Closeable {
   private final Channel channel;
   private final TransportResponseHandler handler;
   private volatile boolean timedOut;
-  @Nullable private String clientId;
+  @Nullable private volatile String clientId;
+  @Nullable private volatile ConnectionSecurityContext securityContext;
 
   public TransportClient(Channel channel, TransportResponseHandler handler) {
     this.channel = Preconditions.checkNotNull(channel);
@@ -399,6 +404,58 @@ public class TransportClient implements Closeable {
     Preconditions.checkState(
         clientId == null || clientId.equals(id), "Client ID has already been set.");
     this.clientId = id;
+  }
+
+  /** Installs a connection-bound policy once, after the plugin has authenticated its peer. */
+  public synchronized void setSecurityContext(ConnectionSecurityContext context) {
+    Preconditions.checkNotNull(context, "securityContext");
+    Preconditions.checkState(securityContext == null, "Security context has already been set.");
+    securityContext = context;
+  }
+
+  @Nullable
+  public ConnectionSecurityContext getSecurityContext() {
+    return securityContext;
+  }
+
+  /** Resolves the effective user, checks access, and returns that exact user to the caller. */
+  @Nullable
+  public UserIdentifier authorize(AuthorizationRequest request) {
+    Preconditions.checkNotNull(request, "authorizationRequest");
+    ConnectionSecurityContext context = securityContext;
+    if (context == null) {
+      checkNativeAuthorization(request);
+      return request.getUserIdentifier();
+    }
+    UserIdentifier user =
+        context.resolveUserIdentifier(request.getApplicationId(), request.getUserIdentifier());
+    if (request.getUserIdentifier() != null && user == null) {
+      throw new SecurityException("Security context did not resolve the requested user.");
+    }
+    context.authorize(request.withUserIdentifier(user));
+    return user;
+  }
+
+  /** The native policy, also available to plugins that explicitly compose it with their policy. */
+  public void checkNativeAuthorization(AuthorizationRequest request) {
+    String authenticatedApp = clientId;
+    if (authenticatedApp == null) {
+      // Native internal service channels and deployments without authentication have no app ID.
+      return;
+    }
+    if (request.getScope() == AuthorizationRequest.Scope.SERVICE
+        && !SecurityOperation.GET_APPLICATION_META.equals(request.getOperation())) {
+      throw new SecurityException(
+          "Application "
+              + authenticatedApp
+              + " cannot perform service operation "
+              + request.getOperation());
+    }
+    String targetApp = request.getApplicationId();
+    if (targetApp != null && !authenticatedApp.equals(targetApp)) {
+      throw new SecurityException(
+          "Client for " + authenticatedApp + " not authorized for application " + targetApp + ".");
+    }
   }
 
   public class StdChannelListener implements GenericFutureListener<Future<? super Void>> {
