@@ -46,6 +46,8 @@ private[celeborn] class LocalNettyRpcCallContext(
     p: Promise[Any])
   extends NettyRpcCallContext(senderAddress) {
 
+  override val isLocal: Boolean = true
+
   override protected def send(message: Any): Unit = {
     p.success(message)
   }
@@ -60,6 +62,8 @@ private[celeborn] class RemoteNettyRpcCallContext(
     senderAddress: RpcAddress,
     val transportClient: TransportClient)
   extends NettyRpcCallContext(senderAddress) {
+
+  override def client: Option[TransportClient] = Some(transportClient)
 
   override protected def send(message: Any): Unit = {
     val reply = nettyEnv.serialize(message)

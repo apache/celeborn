@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.rpc.netty
 
-import java.util.concurrent.ExecutionException
+import java.util.concurrent.{ExecutionException, LinkedBlockingQueue, TimeUnit}
 
 import scala.concurrent.duration._
 
@@ -142,6 +142,67 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
     assertRequestMessageEquals(
       msg3,
       RequestMessage(nettyEnv, client, msg3.serialize(nettyEnv)))
+  }
+
+  test("ask and send retain remote origin even with a forged local sender address") {
+    val observed = new LinkedBlockingQueue[RpcRequestContext]()
+    val errors = new LinkedBlockingQueue[Throwable]()
+    val received = new LinkedBlockingQueue[String]()
+    val local = env.setupEndpoint(
+      "origin-authorization",
+      new ThreadSafeRpcEndpoint {
+        override val rpcEnv: RpcEnv = env
+        override def authorize(context: RpcRequestContext, message: Any): Any = {
+          observed.add(context)
+          context.requireLocal()
+          s"authorized-$message"
+        }
+        override def receive: PartialFunction[Any, Unit] = {
+          case message: String => received.add(message)
+        }
+        override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
+          case message: String =>
+            received.add(message)
+            context.reply(message)
+        }
+        override def onError(cause: Throwable): Unit = { errors.add(cause) }
+      })
+    val remoteEnv = createRpcEnv(createCelebornConf(), "origin-client", 0)
+      .asInstanceOf[NettyRpcEnv]
+    try {
+      val remote = remoteEnv.setupEndpointRef(env.address, "origin-authorization")
+      remote.send("remote-send")
+      assert(errors.poll(5, TimeUnit.SECONDS).isInstanceOf[SecurityException])
+      val sendOrigin = observed.poll(5, TimeUnit.SECONDS)
+      assert(sendOrigin != null && !sendOrigin.isLocal && sendOrigin.client.isDefined)
+
+      val failure = intercept[CelebornException](remote.askSync[String]("remote-ask"))
+      assert(failure.getCause.isInstanceOf[SecurityException])
+      assert(errors.poll(5, TimeUnit.SECONDS).isInstanceOf[SecurityException])
+      val askOrigin = observed.poll(5, TimeUnit.SECONDS)
+      assert(askOrigin != null && !askOrigin.isLocal && askOrigin.client.isDefined)
+
+      val connection = remoteEnv.createClient(env.address)
+      val forged =
+        new RequestMessage(env.address, remote.asInstanceOf[NettyRpcEndpointRef], "forged")
+      connection.send(forged.serialize(remoteEnv))
+      assert(errors.poll(5, TimeUnit.SECONDS).isInstanceOf[SecurityException])
+      val forgedOrigin = observed.poll(5, TimeUnit.SECONDS)
+      assert(forgedOrigin != null && forgedOrigin.senderAddress == env.address)
+      assert(!forgedOrigin.isLocal && forgedOrigin.client.isDefined)
+      assert(received.isEmpty)
+
+      local.send("local-send")
+      assert(local.askSync[String]("local-ask") == "authorized-local-ask")
+      assert(received.poll(5, TimeUnit.SECONDS) == "authorized-local-send")
+      assert(received.poll(5, TimeUnit.SECONDS) == "authorized-local-ask")
+      assert(observed.poll(5, TimeUnit.SECONDS).isLocal)
+      assert(observed.poll(5, TimeUnit.SECONDS).isLocal)
+    } finally {
+      remoteEnv.shutdown()
+      remoteEnv.awaitTermination()
+      env.stop(local)
+    }
   }
 
   test("StackOverflowError should be sent back and Dispatcher should survive") {

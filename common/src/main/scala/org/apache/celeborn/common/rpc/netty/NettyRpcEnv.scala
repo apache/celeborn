@@ -627,7 +627,7 @@ private[celeborn] class NettyRpcHandler(
     try {
       val message = requestMessage.body().nioByteBuffer()
       val messageToDispatch = internalReceive(client, message)
-      dispatcher.postOneWayMessage(messageToDispatch)
+      dispatcher.postOneWayMessage(messageToDispatch, client)
     } catch {
       case e: Exception =>
         logError("Error while invoking NettyRpcHandler#receive() for one-way message.", e)

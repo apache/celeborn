@@ -80,6 +80,14 @@ trait RpcEndpoint {
     case _ => context.sendFailure(new CelebornException(self + " won't reply anything"))
   }
 
+  /**
+   * Checks an operation before either receive path runs. Implementations may return a message with
+   * its user claim replaced by the effective user returned from context.authorize. Both policy and
+   * business logic then observe the same user. Internal forwarding endpoints must delegate this
+   * hook with the original context.
+   */
+  def authorize(context: RpcRequestContext, message: Any): Any = message
+
   def checkRegistered(): Boolean = true
 
   /**

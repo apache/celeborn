@@ -26,7 +26,7 @@ import scala.util.control.NonFatal
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpoint, RpcMetricsTracker, ThreadSafeRpcEndpoint}
+import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpoint, RpcMetricsTracker, RpcRequestContext, ThreadSafeRpcEndpoint}
 
 sealed private[celeborn] trait InboxMessage extends RpcTimeMetrics
 
@@ -38,7 +38,8 @@ private[celeborn] trait RpcTimeMetrics {
 
 private[celeborn] case class OneWayMessage(
     senderAddress: RpcAddress,
-    content: Any)
+    content: Any,
+    context: RpcRequestContext = RpcRequestContext.local(null))
   extends InboxMessage
 
 private[celeborn] case class RpcMessage(
@@ -125,8 +126,9 @@ private[celeborn] class Inbox(
     message match {
       case RpcMessage(_sender, content, context) =>
         try {
+          val authorized = endpoint.authorize(context, content)
           endpoint.receiveAndReply(context).applyOrElse[Any, Unit](
-            content,
+            authorized,
             { msg =>
               throw new CelebornException(s"Unsupported message $message from ${_sender}")
             })
@@ -138,9 +140,10 @@ private[celeborn] class Inbox(
             throw e
         }
 
-      case OneWayMessage(_sender, content) =>
+      case OneWayMessage(_sender, content, context) =>
+        val authorized = endpoint.authorize(context, content)
         endpoint.receive.applyOrElse[Any, Unit](
-          content,
+          authorized,
           { msg =>
             throw new CelebornException(s"Unsupported message $message from ${_sender}")
           })
