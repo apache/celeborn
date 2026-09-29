@@ -63,7 +63,8 @@ public class TransportServer implements Closeable {
     this.conf = context.getConf();
     this.source = context.getSource();
     this.appMessageHandler = Preconditions.checkNotNull(context.getMsgHandler());
-    this.bootstraps = Lists.newArrayList(Preconditions.checkNotNull(bootstraps));
+    this.bootstraps =
+        Lists.newArrayList(context.resolveServerBootstraps(Preconditions.checkNotNull(bootstraps)));
 
     boolean shouldClose = true;
     try {

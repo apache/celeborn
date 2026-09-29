@@ -548,6 +548,18 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       CelebornConf.networkIoMode())
   }
 
+  def clientBootstrapClasses(module: String): java.util.List[String] = {
+    val entry = TRANSPORT_CLIENT_BOOTSTRAP_CLASSES
+    entry.valueConverter(
+      get(entry.key.replace("<module>", module), entry.defaultValueString)).asJava
+  }
+
+  def serverBootstrapClasses(module: String): java.util.List[String] = {
+    val entry = TRANSPORT_SERVER_BOOTSTRAP_CLASSES
+    entry.valueConverter(
+      get(entry.key.replace("<module>", module), entry.defaultValueString)).asJava
+  }
+
   def networkIoPreferDirectBufs(module: String): Boolean = {
     getTransportConfBoolean(module, NETWORK_IO_PREFER_DIRECT_BUFS)
   }
@@ -6617,6 +6629,31 @@ object CelebornConf extends Logging {
       .version("0.5.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val TRANSPORT_CLIENT_BOOTSTRAP_CLASSES: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.<module>.client.bootstrap.classes")
+      .categories("network", "security")
+      .version("1.0.0")
+      .doc("Ordered TransportClientBootstrap classes with a public TransportConf or no-argument " +
+        "constructor. Run before the caller's bootstraps, including native SASL when enabled. " +
+        "Applies only to the exact transport module; does not inherit parent module settings. " +
+        "Instances are owned and closed by the transport context.")
+      .stringConf
+      .toSequence
+      .createWithDefault(Seq.empty)
+
+  val TRANSPORT_SERVER_BOOTSTRAP_CLASSES: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.<module>.server.bootstrap.classes")
+      .categories("network", "security")
+      .version("1.0.0")
+      .doc("Ordered TransportServerBootstrap classes with a public TransportConf or no-argument " +
+        "constructor. Receive requests in configuration order before the caller's handlers, " +
+        "including native SASL when enabled. Applies only to the exact transport module; " +
+        "does not inherit parent module settings. " +
+        "Instances are owned and closed by the transport context.")
+      .stringConf
+      .toSequence
+      .createWithDefault(Seq.empty)
 
   val INTERNAL_PORT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.internal.port.enabled")
