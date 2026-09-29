@@ -17,13 +17,17 @@
 
 package org.apache.celeborn.common.rpc
 
+import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.Promise
+
 import io.netty.channel.embedded.EmbeddedChannel
 import org.mockito.Mockito.mock
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.network.client.{TransportClient, TransportResponseHandler}
-import org.apache.celeborn.common.network.security.{AuthorizationRequest, SecurityOperation}
+import org.apache.celeborn.common.network.security.{AuthorizationRequest, ConnectionSecurityContext, SecurityOperation}
+import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 
 class RpcRequestContextSuite extends CelebornFunSuite {
   test("an unknown context cannot acquire local authority by declaring a sender address") {
@@ -61,5 +65,62 @@ class RpcRequestContextSuite extends CelebornFunSuite {
     } finally {
       channel.finishAndReleaseAll()
     }
+  }
+
+  test("legacy checkAuth uses the plugin policy independently of native application identity") {
+    val channel = new EmbeddedChannel()
+    val client = new TransportClient(channel, mock(classOf[TransportResponseHandler]))
+    // Supply a native binding to test policy selection; this does not perform a SASL handshake.
+    client.setClientId("native-application")
+    val requests = ArrayBuffer.empty[AuthorizationRequest]
+    client.setSecurityContext(new ConnectionSecurityContext {
+      override def authorize(request: AuthorizationRequest): Unit = {
+        requests += request
+        if (request.getApplicationId != "tenant/application") {
+          throw new SecurityException("Plugin rejected application")
+        }
+      }
+    })
+    try {
+      val context = new RemoteNettyRpcCallContext(null, null, null, client)
+      endpoint.checkAuth(context, "tenant/application")
+      val rejection = intercept[SecurityException] {
+        endpoint.checkAuth(context, "foreign/application")
+      }
+      assert(rejection.getMessage == "Plugin rejected application")
+      assert(requests.map(_.getApplicationId) == Seq("tenant/application", "foreign/application"))
+      assert(requests.forall(_.getScope == AuthorizationRequest.Scope.APPLICATION))
+      assert(requests.forall(_.getOperation == SecurityOperation.APPLICATION_ACCESS))
+    } finally {
+      channel.finishAndReleaseAll()
+    }
+  }
+
+  test("legacy checkAuth rejects an unknown call context and accepts an explicit local context") {
+    val address = RpcAddress("localhost", 12345)
+    val unknown = new RpcCallContext {
+      override val senderAddress: RpcAddress = address
+      override def reply(response: Any): Unit = ()
+      override def sendFailure(e: Throwable): Unit = ()
+    }
+    intercept[SecurityException](endpoint.checkAuth(unknown, "app"))
+    endpoint.checkAuth(new LocalNettyRpcCallContext(address, Promise[Any]()), "app")
+  }
+
+  test("legacy checkAuth preserves native same-application authorization without a plugin") {
+    val channel = new EmbeddedChannel()
+    val client = new TransportClient(channel, mock(classOf[TransportResponseHandler]))
+    client.setClientId("app")
+    try {
+      val context = new RemoteNettyRpcCallContext(null, null, null, client)
+      endpoint.checkAuth(context, "app")
+      intercept[SecurityException](endpoint.checkAuth(context, "other-app"))
+    } finally {
+      channel.finishAndReleaseAll()
+    }
+  }
+
+  private val endpoint = new RpcEndpoint {
+    override val rpcEnv: RpcEnv = null
   }
 }
