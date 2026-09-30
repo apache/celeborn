@@ -31,7 +31,6 @@ import java.util.function.Supplier;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.*;
@@ -106,8 +105,7 @@ public class TransportClientFactory implements Closeable {
     this.context = Preconditions.checkNotNull(context);
     TransportConf conf = context.getConf();
     this.clientBootstraps =
-        Lists.newArrayList(
-            context.resolveClientBootstraps(Preconditions.checkNotNull(clientBootstraps)));
+        context.resolveClientBootstraps(Preconditions.checkNotNull(clientBootstraps));
     this.connectionPool = JavaUtils.newConcurrentHashMap();
     this.numConnectionsPerPeer = conf.numConnectionsPerPeer();
     this.connectTimeoutMs = conf.connectTimeoutMs();

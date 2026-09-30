@@ -154,12 +154,12 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) 
 
   /** Posts a one-way message. */
   def postOneWayMessage(message: RequestMessage): Unit = {
-    postOneWayMessage(message, RpcRequestContext.local(message.senderAddress))
+    postOneWayMessage(message, RpcRequestContext.local())
   }
 
   /** Network one-way messages retain the connection even when their sender address claims locality. */
   def postOneWayMessage(message: RequestMessage, client: TransportClient): Unit = {
-    postOneWayMessage(message, RpcRequestContext.remote(message.senderAddress, client))
+    postOneWayMessage(message, RpcRequestContext.remote(client))
   }
 
   private def postOneWayMessage(message: RequestMessage, context: RpcRequestContext): Unit = {

@@ -188,7 +188,7 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
       connection.send(forged.serialize(remoteEnv))
       assert(errors.poll(5, TimeUnit.SECONDS).isInstanceOf[SecurityException])
       val forgedOrigin = observed.poll(5, TimeUnit.SECONDS)
-      assert(forgedOrigin != null && forgedOrigin.senderAddress == env.address)
+      assert(forgedOrigin != null)
       assert(!forgedOrigin.isLocal && forgedOrigin.client.isDefined)
       assert(received.isEmpty)
 

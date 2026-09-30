@@ -23,8 +23,6 @@ import org.apache.celeborn.common.network.security.AuthorizationRequest
 
 /** Receiver-created request origin. It is never inferred from a serialized sender address. */
 trait RpcRequestContext {
-  def senderAddress: RpcAddress
-
   // Unknown custom call contexts are not implicitly trusted as local calls.
   def isLocal: Boolean = false
   def client: Option[TransportClient] = None
@@ -48,15 +46,13 @@ trait RpcRequestContext {
 }
 
 private[celeborn] object RpcRequestContext {
-  def local(address: RpcAddress): RpcRequestContext = new RpcRequestContext {
-    override val senderAddress: RpcAddress = address
+  def local(): RpcRequestContext = new RpcRequestContext {
     override val isLocal: Boolean = true
   }
 
-  def remote(address: RpcAddress, connection: TransportClient): RpcRequestContext = {
+  def remote(connection: TransportClient): RpcRequestContext = {
     require(connection != null, "A remote request requires its transport connection")
     new RpcRequestContext {
-      override val senderAddress: RpcAddress = address
       override val client: Option[TransportClient] = Some(connection)
     }
   }

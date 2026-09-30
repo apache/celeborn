@@ -492,42 +492,24 @@ class FetchHandler(
   private def authorizeCreditStream(
       client: TransportClient,
       operation: String,
-      streamId: Long,
-      oneWay: Boolean = false): String = {
-    // Resolve ownership from server state. Credit readers send data to their original channel.
+      streamId: Long): String = {
+    // Resolve the target from server state; the connection policy decides access.
+    // Raw rejections propagate to the transport's error log without closing a shared connection.
     val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)
     if (shuffleKey != null) {
-      try {
-        authorizeApplication(client, operation, shuffleKey)
-        creditStreamManager.checkStreamOwner(streamId, client.getChannel)
-      } catch {
-        case e: RuntimeException =>
-          if (oneWay) {
-            // Raw controls have no failure response; terminate the caller without mutating the stream.
-            client.close()
-          }
-          throw e
-      }
+      authorizeApplication(client, operation, shuffleKey)
     }
     shuffleKey
   }
 
   def handleEndStreamFromClient(client: TransportClient, streamId: Long): Unit = {
-    handleEndStreamFromClient(client, streamId, StreamType.CreditStream, oneWay = true)
+    handleEndStreamFromClient(client, streamId, StreamType.CreditStream)
   }
 
   def handleEndStreamFromClient(
       client: TransportClient,
       streamId: Long,
       streamType: StreamType): Unit = {
-    handleEndStreamFromClient(client, streamId, streamType, oneWay = false)
-  }
-
-  private def handleEndStreamFromClient(
-      client: TransportClient,
-      streamId: Long,
-      streamType: StreamType,
-      oneWay: Boolean): Unit = {
     streamType match {
       case StreamType.ChunkStream =>
         val streamState = chunkStreamManager.getStreamState(streamId)
@@ -543,8 +525,7 @@ class FetchHandler(
         val shuffleKey = authorizeCreditStream(
           client,
           SecurityOperation.BUFFER_STREAM_END,
-          streamId,
-          oneWay)
+          streamId)
         if (shuffleKey != null) {
           workerSource.recordAppActiveConnection(
             client,
@@ -564,8 +545,7 @@ class FetchHandler(
     val shuffleKey = authorizeCreditStream(
       client,
       SecurityOperation.READ_ADD_CREDIT,
-      streamId,
-      oneWay = requestId == -1)
+      streamId)
     if (shuffleKey != null) {
       workerSource.recordAppActiveConnection(
         client,
@@ -636,12 +616,6 @@ class FetchHandler(
           WorkerSource.FETCH_MEMORY_CHUNK_TIME,
           WorkerSource.FETCH_MEMORY_CHUNK_SUCCESS_COUNT,
           WorkerSource.FETCH_MEMORY_CHUNK_FAIL_COUNT)
-      case _ =>
-        // Local and DFS reads register metadata-only streams without chunk buffers.
-        client.getChannel.writeAndFlush(new ChunkFetchFailure(
-          streamChunkSlice,
-          s"Stream ${streamChunkSlice.streamId} does not support chunk fetch."))
-        return
     }
 
     maxChunkBeingTransferred.foreach { threshold =>

@@ -107,7 +107,7 @@ class MasterSecuritySuite extends CelebornFunSuite {
 
       // WorkerExclude is dispatched by Master.exclude through self.askSync and has no wire decoder.
       // Exercise the authorization mapping directly without introducing a remote RPC capability.
-      val remote = RpcRequestContext.remote(RpcAddress("localhost", 12345), connection)
+      val remote = RpcRequestContext.remote(connection)
       assert(intercept[SecurityException](master.authorize(remote, request)) eq rejection)
       assert(observed.size == 1)
       assert(observed.head.getOperation == EXCLUDE_WORKERS)
@@ -228,15 +228,13 @@ class MasterSecuritySuite extends CelebornFunSuite {
 
       // This internal object has no wire encoding, so exercise its authorization hook directly.
       val clientEnv = clients.head.asInstanceOf[NettyRpcEnv]
-      val remote = RpcRequestContext.remote(
-        clientEnv.address,
-        clientEnv.createClient(master.rpcEnv.address))
+      val remote = RpcRequestContext.remote(clientEnv.createClient(master.rpcEnv.address))
       val failure = intercept[SecurityException] {
         master.authorize(remote, CheckForWorkerUnavailableInfoTimeout)
       }
       assert(failure.getMessage.contains("local RPC messages"))
       assert(master.authorize(
-        RpcRequestContext.local(master.rpcEnv.address),
+        RpcRequestContext.local(),
         CheckForWorkerUnavailableInfoTimeout) == CheckForWorkerUnavailableInfoTimeout)
     }
   }

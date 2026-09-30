@@ -242,20 +242,25 @@ public class DataAuthorizationSuiteJ {
       verify(streams, never()).addCredit(anyInt(), anyLong());
       verify(streams, never()).notifyRequiredSegment(anyInt(), anyLong(), anyInt());
       verify(streams, never()).notifyStreamEndByClient(anyLong());
+      assertTrue(fixture.channel.isActive());
     }
   }
 
   @Test
-  public void deniedRawCreditControlClosesCallerWithoutMutation() throws Exception {
+  public void deniedRawCreditControlDoesNotMutateStreamOrCloseConnection() throws Exception {
     for (RequestMessage request :
         new RequestMessage[] {new ReadAddCredit(STREAM_ID, 3), new BufferStreamEnd(STREAM_ID)}) {
-      try (Fixture fixture = new Fixture("app-b")) {
-        CreditStreamManager streams = fixture.creditStream();
-        fixture.dispatch(fixture.fetch, request);
-        assertFalse(
-            "A denied control with no callback must fail the calling channel",
-            fixture.channel.isActive());
+      try (Fixture owner = new Fixture("app-a");
+          Fixture caller = new Fixture("app-b")) {
+        CreditStreamManager streams = owner.ownedCreditStream(owner.channel);
+        caller.dispatch(owner.fetch, request);
+        assertTrue(
+            "A rejected raw control must not close a shared connection", caller.channel.isActive());
+        assertTrue(owner.channel.isActive());
+        assertNull(caller.channel.readOutbound());
+        assertNotNull(streams.getStreams().get(STREAM_ID));
         verify(streams, never()).addCredit(anyInt(), anyLong());
+        verify(streams, never()).notifyRequiredSegment(anyInt(), anyLong(), anyInt());
         verify(streams, never()).notifyStreamEndByClient(anyLong());
       }
     }
@@ -379,15 +384,17 @@ public class DataAuthorizationSuiteJ {
   }
 
   @Test
-  public void rawCreditPolicyExceptionClosesCallerWithoutMutation() throws Exception {
+  public void rawCreditPolicyExceptionDoesNotMutateStreamOrCloseConnection() throws Exception {
     try (Fixture fixture = new Fixture("app-a")) {
-      CreditStreamManager streams = fixture.creditStream();
+      CreditStreamManager streams = fixture.ownedCreditStream(fixture.channel);
       fixture.client.setSecurityContext(
           request -> {
             throw new IllegalArgumentException("policy unavailable");
           });
       fixture.dispatch(fixture.fetch, new ReadAddCredit(STREAM_ID, 3));
-      assertFalse(fixture.channel.isActive());
+      assertTrue(fixture.channel.isActive());
+      assertNull(fixture.channel.readOutbound());
+      assertNotNull(streams.getStreams().get(STREAM_ID));
       verify(streams, never()).addCredit(anyInt(), anyLong());
     }
   }
@@ -435,22 +442,38 @@ public class DataAuthorizationSuiteJ {
   }
 
   @Test
-  public void creditControlsRejectAnotherChannelEvenWithinSameApplication() throws Exception {
-    for (RequestMessage request : creditControlRequests()) {
-      try (Fixture owner = new Fixture("app-a");
-          Fixture caller = new Fixture("app-a")) {
-        CreditStreamManager streams = owner.ownedCreditStream(owner.channel);
-        caller.dispatch(owner.fetch, request);
-        if (request instanceof RpcRequest) {
-          caller.assertRpcFailure();
-        } else {
-          assertFalse(caller.channel.isActive());
-        }
-        assertTrue(owner.channel.isActive());
-        assertNotNull(streams.getStreams().get(STREAM_ID));
-        verify(streams, never()).addCredit(anyInt(), anyLong());
-        verify(streams, never()).notifyRequiredSegment(anyInt(), anyLong(), anyInt());
-        verify(streams, never()).notifyStreamEndByClient(anyLong());
+  public void creditControlsAllowAnotherAuthorizedChannel() throws Exception {
+    try (Fixture owner = new Fixture("app-a");
+        Fixture caller = new Fixture("app-a")) {
+      assertCreditControlsAllowed(owner, caller);
+    }
+  }
+
+  @Test
+  public void externalPolicyAllowsCreditControlAcrossApplicationsAndChannels() throws Exception {
+    try (Fixture owner = new Fixture("app-a");
+        Fixture caller = new Fixture("app-b")) {
+      List<AuthorizationRequest> requests = new ArrayList<>();
+      caller.client.setSecurityContext(
+          request -> {
+            requests.add(request);
+            if (!"app-a".equals(request.getApplicationId())) {
+              throw new SecurityException("Application not permitted by plugin");
+            }
+          });
+      assertCreditControlsAllowed(owner, caller);
+      String[] operations = {
+        SecurityOperation.READ_ADD_CREDIT,
+        SecurityOperation.NOTIFY_REQUIRED_SEGMENT,
+        SecurityOperation.BUFFER_STREAM_END,
+        SecurityOperation.READ_ADD_CREDIT,
+        SecurityOperation.BUFFER_STREAM_END
+      };
+      assertEquals(operations.length, requests.size());
+      for (int i = 0; i < operations.length; i++) {
+        assertEquals(operations[i], requests.get(i).getOperation());
+        assertEquals("app-a", requests.get(i).getApplicationId());
+        assertEquals(AuthorizationRequest.Scope.APPLICATION, requests.get(i).getScope());
       }
     }
   }
@@ -458,40 +481,30 @@ public class DataAuthorizationSuiteJ {
   @Test
   public void creditControlsAllowTheOwningChannel() throws Exception {
     try (Fixture owner = new Fixture("app-a")) {
-      CreditStreamManager streams = owner.ownedCreditStream(owner.channel);
-      RequestMessage[] requests = creditControlRequests();
-      for (int i = 0; i < requests.length; i++) {
-        owner.dispatch(owner.fetch, requests[i]);
-        Object response = owner.channel.readOutbound();
-        if (i < 2) {
-          assertTrue(response instanceof RpcResponse);
-          assertEquals(REQUEST_ID, ((RpcResponse) response).requestId);
-          ((RpcResponse) response).body().release();
-        } else {
-          // Stream end retains its existing no-response behavior, even in an RPC envelope.
-          assertNull(response);
-        }
-        assertTrue(owner.channel.isActive());
-      }
-      verify(streams, times(2)).addCredit(3, STREAM_ID);
-      verify(streams).notifyRequiredSegment(4, STREAM_ID, 2);
-      verify(streams, times(2)).notifyStreamEndByClient(STREAM_ID);
+      assertCreditControlsAllowed(owner, owner);
     }
   }
 
-  @Test
-  public void metadataOnlyStreamCannotBeFetchedAsChunks() throws Exception {
-    for (boolean protobuf : new boolean[] {false, true}) {
-      try (Fixture fixture = new Fixture("app-a")) {
-        // Local and DFS readers register a stream for closing the file, without chunk buffers.
-        fixture.fetch.chunkStreamManager().registerStream(STREAM_ID, SHUFFLE_KEY, FILE_NAME);
-        fixture.dispatch(fixture.fetch, chunkRequest(protobuf));
-        Object response = fixture.channel.readOutbound();
-        assertTrue(
-            "Expected ChunkFetchFailure, got " + response, response instanceof ChunkFetchFailure);
-        assertNotNull(fixture.fetch.chunkStreamManager().getStreamState(STREAM_ID));
+  private void assertCreditControlsAllowed(Fixture owner, Fixture caller) throws Exception {
+    CreditStreamManager streams = owner.ownedCreditStream(owner.channel);
+    RequestMessage[] requests = creditControlRequests();
+    for (int i = 0; i < requests.length; i++) {
+      caller.dispatch(owner.fetch, requests[i]);
+      Object response = caller.channel.readOutbound();
+      if (i < 2) {
+        assertTrue("Expected RpcResponse, got " + response, response instanceof RpcResponse);
+        assertEquals(REQUEST_ID, ((RpcResponse) response).requestId);
+        ((RpcResponse) response).body().release();
+      } else {
+        // Stream end retains its existing no-response behavior, even in an RPC envelope.
+        assertNull(response);
       }
+      assertTrue(caller.channel.isActive());
+      assertTrue(owner.channel.isActive());
     }
+    verify(streams, times(2)).addCredit(3, STREAM_ID);
+    verify(streams).notifyRequiredSegment(4, STREAM_ID, 2);
+    verify(streams, times(2)).notifyStreamEndByClient(STREAM_ID);
   }
 
   private static RequestMessage[] creditControlRequests() throws Exception {

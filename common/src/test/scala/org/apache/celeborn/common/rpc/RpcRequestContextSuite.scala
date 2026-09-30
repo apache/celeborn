@@ -30,11 +30,8 @@ import org.apache.celeborn.common.network.security.{AuthorizationRequest, Connec
 import org.apache.celeborn.common.rpc.netty.{LocalNettyRpcCallContext, RemoteNettyRpcCallContext}
 
 class RpcRequestContextSuite extends CelebornFunSuite {
-  test("an unknown context cannot acquire local authority by declaring a sender address") {
-    val address = RpcAddress("localhost", 12345)
-    val context = new RpcRequestContext {
-      override val senderAddress: RpcAddress = address
-    }
+  test("an unknown context has neither local authority nor a transport connection") {
+    val context = new RpcRequestContext {}
     intercept[SecurityException](context.requireLocal())
     intercept[SecurityException](context.authorize(
       AuthorizationRequest.forService(SecurityOperation.WORKER_LOST)))
@@ -42,7 +39,7 @@ class RpcRequestContextSuite extends CelebornFunSuite {
 
   test("local authority is assigned by the dispatcher and preserves the supplied user") {
     val user = UserIdentifier("tenant", "user")
-    val context = RpcRequestContext.local(null)
+    val context = RpcRequestContext.local()
     context.requireLocal()
     assert(context.authorize(AuthorizationRequest.forApplication(
       SecurityOperation.CHECK_QUOTA,
@@ -50,12 +47,12 @@ class RpcRequestContextSuite extends CelebornFunSuite {
       user)) eq user)
   }
 
-  test("a remote request retains its connection even when its sender address looks local") {
+  test("a remote request retains its connection and cannot acquire local authority") {
     val channel = new EmbeddedChannel()
     val client = new TransportClient(channel, mock(classOf[TransportResponseHandler]))
     client.setClientId("app")
     try {
-      val context = RpcRequestContext.remote(RpcAddress("localhost", 12345), client)
+      val context = RpcRequestContext.remote(client)
       assert(context.client.contains(client))
       assert(!context.isLocal)
       intercept[SecurityException](context.requireLocal())

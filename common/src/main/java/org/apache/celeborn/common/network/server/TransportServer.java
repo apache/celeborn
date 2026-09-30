@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelFuture;
@@ -63,8 +62,7 @@ public class TransportServer implements Closeable {
     this.conf = context.getConf();
     this.source = context.getSource();
     this.appMessageHandler = Preconditions.checkNotNull(context.getMsgHandler());
-    this.bootstraps =
-        Lists.newArrayList(context.resolveServerBootstraps(Preconditions.checkNotNull(bootstraps)));
+    this.bootstraps = context.resolveServerBootstraps(Preconditions.checkNotNull(bootstraps));
 
     boolean shouldClose = true;
     try {

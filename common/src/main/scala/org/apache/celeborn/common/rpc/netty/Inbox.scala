@@ -39,7 +39,7 @@ private[celeborn] trait RpcTimeMetrics {
 private[celeborn] case class OneWayMessage(
     senderAddress: RpcAddress,
     content: Any,
-    context: RpcRequestContext = RpcRequestContext.local(null))
+    context: RpcRequestContext)
   extends InboxMessage
 
 private[celeborn] case class RpcMessage(
