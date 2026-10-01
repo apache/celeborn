@@ -113,6 +113,47 @@ public class ShuffleClientSuiteJ {
   private final int BATCH_HEADER_SIZE = 4 * 4;
 
   @Test
+  public void testPushRetryBackoff() {
+    CelebornConf conf = new CelebornConf();
+    conf.set(CelebornConf.CLIENT_PUSH_RETRY_BACKOFF_INITIAL().key(), "100ms");
+    conf.set(CelebornConf.CLIENT_PUSH_RETRY_BACKOFF_MAX().key(), "400ms");
+    conf.set(CelebornConf.CLIENT_PUSH_RETRY_BACKOFF_JITTER().key(), "0");
+    ShuffleClientImpl client =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    try {
+      assertEquals(0, client.pushRetryBackoffMs(0));
+      assertEquals(100, client.pushRetryBackoffMs(1));
+      assertEquals(200, client.pushRetryBackoffMs(2));
+      assertEquals(400, client.pushRetryBackoffMs(3));
+      assertEquals(400, client.pushRetryBackoffMs(Integer.MAX_VALUE));
+    } finally {
+      client.shutdown();
+    }
+
+    conf.set(CelebornConf.CLIENT_PUSH_RETRY_BACKOFF_JITTER().key(), "0.5");
+    client = new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    try {
+      Set<Long> delays = new java.util.HashSet<>();
+      for (int i = 0; i < 100; i++) {
+        long delay = client.pushRetryBackoffMs(1);
+        assertTrue(delay >= 50 && delay <= 150);
+        delays.add(delay);
+      }
+      assertTrue("jitter should produce different retry delays", delays.size() > 1);
+    } finally {
+      client.shutdown();
+    }
+
+    conf.set(CelebornConf.CLIENT_PUSH_RETRY_BACKOFF_INITIAL().key(), "0");
+    client = new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    try {
+      assertEquals(0, client.pushRetryBackoffMs(1));
+    } finally {
+      client.shutdown();
+    }
+  }
+
+  @Test
   public void testPushData() throws IOException, InterruptedException {
     for (CompressionCodec codec : CompressionCodec.values()) {
       CelebornConf conf = setupEnv(codec);

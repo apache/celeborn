@@ -317,14 +317,16 @@ public class ShuffleClientImpl extends ShuffleClient {
    * {@code celeborn.client.push.retry.backoff.max}, spread by jitter so that map tasks blocked on
    * the same partition do not retry in lockstep. Returns 0 when backoff is disabled.
    */
-  private long pushRetryBackoffMs(int retryTimes) {
+  @VisibleForTesting
+  long pushRetryBackoffMs(int retryTimes) {
     if (pushRetryBackoffInitialMs <= 0 || retryTimes <= 0) {
       return 0;
     }
     // Shift-loop rather than a power, because the hard split retry counter is not bounded.
     long delay = pushRetryBackoffInitialMs;
     for (int i = 1; i < retryTimes && delay < pushRetryBackoffMaxMs; i++) {
-      delay = delay << 1;
+      delay =
+          delay > pushRetryBackoffMaxMs / 2 ? pushRetryBackoffMaxMs : delay << 1;
     }
     delay = Math.min(delay, pushRetryBackoffMaxMs);
     long jitter = (long) (delay * pushRetryBackoffJitter);

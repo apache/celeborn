@@ -26,6 +26,7 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.IntStream;
 
 import scala.Function0;
 import scala.collection.mutable.ListBuffer;
@@ -116,6 +117,37 @@ public class DiskMapPartitionDataWriterSuiteJ {
       } catch (IOException e) {
         LOG.error("Failed to delete temp dir.", e);
       }
+    }
+  }
+
+  @Test
+  public void testShouldLogHardSplitOnlyOnce() throws IOException {
+    PartitionDataWriterContext context =
+        new PartitionDataWriterContext(
+            SPLIT_THRESHOLD,
+            splitMode,
+            false,
+            new PartitionLocation(
+                1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY, null),
+            "app1-1",
+            1,
+            userIdentifier,
+            PartitionType.MAP,
+            false,
+            false);
+    PartitionDataWriter fileWriter =
+        new PartitionDataWriter(
+            PartitionDataWriterSuiteUtils.prepareDiskFileTestEnvironment(
+                tempDir, userIdentifier, localFlusher, false, CONF, storagePolicy, context),
+            source,
+            CONF,
+            DeviceMonitor$.MODULE$.EmptyMonitor(),
+            context);
+    try {
+      assertEquals(
+          1, IntStream.range(0, 100).parallel().filter(i -> fileWriter.shouldLogHardSplit()).count());
+    } finally {
+      fileWriter.close();
     }
   }
 
