@@ -20,10 +20,16 @@ package org.apache.celeborn.client;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,6 +39,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import scala.reflect.ClassTag;
@@ -52,6 +59,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.CommitMetadata;
 import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.network.protocol.SerdeVersion;
@@ -59,6 +67,7 @@ import org.apache.celeborn.common.protocol.CompressionCodec;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbReadReducerPartitionEnd;
 import org.apache.celeborn.common.protocol.PbReadReducerPartitionEndResponse;
+import org.apache.celeborn.common.protocol.ReviveRequest;
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse$;
 import org.apache.celeborn.common.protocol.message.ControlMessages.RegisterShuffleResponse$;
 import org.apache.celeborn.common.protocol.message.StatusCode;
@@ -151,6 +160,119 @@ public class ShuffleClientSuiteJ {
     } finally {
       client.shutdown();
     }
+  }
+
+  @Test
+  public void testHardSplitPushSchedulesRetryAndClearsBatchAfterRevive() throws Exception {
+    CelebornConf conf = retryIntegrationTestConf();
+    setupEnv(conf, CompressionCodec.NONE, StatusCode.SUCCESS, false);
+    shuffleClient = spy(shuffleClient);
+
+    AtomicReference<Runnable> scheduledRetry = new AtomicReference<>();
+    AtomicLong scheduledDelay = new AtomicLong(-1);
+    doAnswer(
+            invocation -> {
+              scheduledRetry.set(invocation.getArgument(0));
+              scheduledDelay.set(invocation.getArgument(1));
+              return null;
+            })
+        .when(shuffleClient)
+        .scheduleRetry(any(Runnable.class), anyLong());
+
+    shuffleClient.pushData(
+        TEST_SHUFFLE_ID,
+        TEST_MAP_ID,
+        TEST_ATTEMPT_ID,
+        TEST_REDUCRE_ID,
+        TEST_BUF1,
+        0,
+        TEST_BUF1.length,
+        1,
+        1);
+
+    ArgumentCaptor<RpcResponseCallback> callbackCaptor =
+        ArgumentCaptor.forClass(RpcResponseCallback.class);
+    verify(client).pushData(any(), anyLong(), callbackCaptor.capture());
+    callbackCaptor
+        .getValue()
+        .onSuccess(ByteBuffer.wrap(new byte[] {StatusCode.HARD_SPLIT.getValue()}));
+
+    assertEquals(100, scheduledDelay.get());
+    ReviveRequest reviveRequest = takeReviveRequest(shuffleClient);
+    reviveRequest.reviveStatus = StatusCode.SUCCESS.getValue();
+    scheduledRetry.get().run();
+
+    verify(client, times(2)).pushData(any(), anyLong(), callbackCaptor.capture());
+    callbackCaptor
+        .getAllValues()
+        .get(callbackCaptor.getAllValues().size() - 1)
+        .onSuccess(ByteBuffer.allocate(0));
+
+    PushState pushState =
+        shuffleClient.getPushState(Utils.makeMapKey(TEST_SHUFFLE_ID, TEST_MAP_ID, TEST_ATTEMPT_ID));
+    assertFalse(pushState.limitZeroInFlight());
+  }
+
+  @Test
+  public void testHardSplitMergedPushSchedulesRetryAfterRevive() throws Exception {
+    CelebornConf conf = retryIntegrationTestConf();
+    setupEnv(conf, CompressionCodec.NONE, StatusCode.SUCCESS, false);
+    shuffleClient = spy(shuffleClient);
+
+    AtomicReference<Runnable> scheduledRetry = new AtomicReference<>();
+    AtomicLong scheduledDelay = new AtomicLong(-1);
+    doAnswer(
+            invocation -> {
+              scheduledRetry.set(invocation.getArgument(0));
+              scheduledDelay.set(invocation.getArgument(1));
+              return null;
+            })
+        .when(shuffleClient)
+        .scheduleRetry(any(Runnable.class), anyLong());
+
+    shuffleClient.mergeData(
+        TEST_SHUFFLE_ID,
+        TEST_MAP_ID,
+        TEST_ATTEMPT_ID,
+        TEST_REDUCRE_ID,
+        TEST_BUF1,
+        0,
+        TEST_BUF1.length,
+        1,
+        1);
+    shuffleClient.pushMergedData(TEST_SHUFFLE_ID, TEST_MAP_ID, TEST_ATTEMPT_ID);
+
+    ArgumentCaptor<RpcResponseCallback> callbackCaptor =
+        ArgumentCaptor.forClass(RpcResponseCallback.class);
+    verify(client).pushMergedData(any(), anyLong(), callbackCaptor.capture());
+    callbackCaptor
+        .getValue()
+        .onSuccess(ByteBuffer.wrap(new byte[] {StatusCode.HARD_SPLIT.getValue()}));
+
+    assertEquals(100, scheduledDelay.get());
+    ReviveRequest reviveRequest = takeReviveRequest(shuffleClient);
+    reviveRequest.reviveStatus = StatusCode.SUCCESS.getValue();
+    scheduledRetry.get().run();
+
+    verify(client, times(2)).pushMergedData(any(), anyLong(), any());
+  }
+
+  private CelebornConf retryIntegrationTestConf() {
+    CelebornConf conf = new CelebornConf();
+    conf.set(CelebornConf.CLIENT_PUSH_RETRY_BACKOFF_INITIAL().key(), "100ms");
+    conf.set(CelebornConf.CLIENT_PUSH_RETRY_BACKOFF_MAX().key(), "400ms");
+    conf.set(CelebornConf.CLIENT_PUSH_RETRY_BACKOFF_JITTER().key(), "0");
+    conf.set(CelebornConf.CLIENT_PUSH_REVIVE_INTERVAL().key(), "1h");
+    return conf;
+  }
+
+  private ReviveRequest takeReviveRequest(ShuffleClientImpl client) throws Exception {
+    Field reviveManagerField = ShuffleClientImpl.class.getDeclaredField("reviveManager");
+    reviveManagerField.setAccessible(true);
+    ReviveManager reviveManager = (ReviveManager) reviveManagerField.get(client);
+    ReviveRequest request = reviveManager.requestQueue.poll();
+    assertNotNull(request);
+    return request;
   }
 
   @Test
@@ -297,7 +419,15 @@ public class ShuffleClientSuiteJ {
   private CelebornConf setupEnv(
       CompressionCodec codec, StatusCode statusCode, boolean interruptWhenPushData)
       throws IOException, InterruptedException {
-    CelebornConf conf = new CelebornConf();
+    return setupEnv(new CelebornConf(), codec, statusCode, interruptWhenPushData);
+  }
+
+  private CelebornConf setupEnv(
+      CelebornConf conf,
+      CompressionCodec codec,
+      StatusCode statusCode,
+      boolean interruptWhenPushData)
+      throws IOException, InterruptedException {
     conf.set(CelebornConf.SHUFFLE_COMPRESSION_CODEC().key(), codec.name());
     conf.set(CelebornConf.CLIENT_PUSH_RETRY_THREADS().key(), "1");
     conf.set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "1K");

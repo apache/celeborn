@@ -145,7 +145,8 @@ public class DiskMapPartitionDataWriterSuiteJ {
             context);
     try {
       assertEquals(
-          1, IntStream.range(0, 100).parallel().filter(i -> fileWriter.shouldLogHardSplit()).count());
+          1,
+          IntStream.range(0, 100).parallel().filter(i -> fileWriter.shouldLogHardSplit()).count());
     } finally {
       fileWriter.close();
     }

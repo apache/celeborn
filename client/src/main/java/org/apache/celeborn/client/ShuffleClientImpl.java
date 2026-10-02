@@ -325,8 +325,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     // Shift-loop rather than a power, because the hard split retry counter is not bounded.
     long delay = pushRetryBackoffInitialMs;
     for (int i = 1; i < retryTimes && delay < pushRetryBackoffMaxMs; i++) {
-      delay =
-          delay > pushRetryBackoffMaxMs / 2 ? pushRetryBackoffMaxMs : delay << 1;
+      delay = delay > pushRetryBackoffMaxMs / 2 ? pushRetryBackoffMaxMs : delay << 1;
     }
     delay = Math.min(delay, pushRetryBackoffMaxMs);
     long jitter = (long) (delay * pushRetryBackoffJitter);
@@ -334,6 +333,11 @@ public class ShuffleClientImpl extends ShuffleClient {
       return delay;
     }
     return delay - jitter + ThreadLocalRandom.current().nextLong(2 * jitter + 1);
+  }
+
+  @VisibleForTesting
+  void scheduleRetry(Runnable retry, long delayMs) {
+    pushDataRetryPool.schedule(retry, delayMs, TimeUnit.MILLISECONDS);
   }
 
   private void submitRetryPushData(
@@ -564,7 +568,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     } else {
       ReviveRequest[] requests =
           addAndGetReviveRequests(shuffleId, mapId, attemptId, reviveFailedBatchesMap, cause);
-      pushDataRetryPool.schedule(
+      scheduleRetry(
           () ->
               submitRetryPushMergedData(
                   pushState,
@@ -578,8 +582,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   remainReviveTimes - 1,
                   System.currentTimeMillis()
                       + conf.clientRpcRequestPartitionLocationAskTimeout().duration().toMillis()),
-          pushRetryBackoffMs(maxReviveTimes - (remainReviveTimes - 1)),
-          TimeUnit.MILLISECONDS);
+          pushRetryBackoffMs(maxReviveTimes - (remainReviveTimes - 1)));
     }
   }
 
@@ -1236,7 +1239,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                           + conf.clientRpcRequestPartitionLocationAskTimeout()
                               .duration()
                               .toMillis();
-                  pushDataRetryPool.schedule(
+                  scheduleRetry(
                       () ->
                           submitRetryPushData(
                               shuffleId,
@@ -1247,8 +1250,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                               reviveRequest,
                               remainReviveTimes,
                               dueTime),
-                      pushRetryBackoffMs(++hardSplitRetryTimes),
-                      TimeUnit.MILLISECONDS);
+                      pushRetryBackoffMs(++hardSplitRetryTimes));
                 } else if (reason == StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue()) {
                   logger.debug(
                       "Push data to {} primary congestion required for shuffle {} map {} attempt {} partition {} batch {}.",
@@ -1330,7 +1332,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 long dueTime =
                     System.currentTimeMillis()
                         + conf.clientRpcRequestPartitionLocationAskTimeout().duration().toMillis();
-                pushDataRetryPool.schedule(
+                scheduleRetry(
                     () ->
                         submitRetryPushData(
                             shuffleId,
@@ -1341,8 +1343,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                             reviveRequest,
                             remainReviveTimes,
                             dueTime),
-                    pushRetryBackoffMs(maxReviveTimes - remainReviveTimes),
-                    TimeUnit.MILLISECONDS);
+                    pushRetryBackoffMs(maxReviveTimes - remainReviveTimes));
               } else {
                 pushState.removeBatch(nextBatchId, latest.hostAndPushPort());
                 logger.info(
@@ -1688,7 +1689,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                 // path, so there is no per-batch attempt counter to grow from. Apply the initial
                 // delay with jitter, which is what decorrelates the herd; growing this one too
                 // needs the counter threaded through doPushMergedData and is left as follow-up.
-                pushDataRetryPool.schedule(
+                scheduleRetry(
                     () ->
                         submitRetryPushMergedData(
                             pushState,
@@ -1704,8 +1705,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                                 + conf.clientRpcRequestPartitionLocationAskTimeout()
                                     .duration()
                                     .toMillis()),
-                    pushRetryBackoffMs(1),
-                    TimeUnit.MILLISECONDS);
+                    pushRetryBackoffMs(1));
               }
             } else if (reason == StatusCode.PUSH_DATA_SUCCESS_PRIMARY_CONGESTED.getValue()) {
               logger.debug(
@@ -1778,7 +1778,7 @@ public class ShuffleClientImpl extends ShuffleClient {
             if (!mapperEnded(shuffleId, mapId)) {
               ReviveRequest[] requests =
                   addAndGetReviveRequests(shuffleId, mapId, attemptId, batches, cause);
-              pushDataRetryPool.schedule(
+              scheduleRetry(
                   () ->
                       submitRetryPushMergedData(
                           pushState,
@@ -1794,8 +1794,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                               + conf.clientRpcRequestPartitionLocationAskTimeout()
                                   .duration()
                                   .toMillis()),
-                  pushRetryBackoffMs(maxReviveTimes - (remainReviveTimes - 1)),
-                  TimeUnit.MILLISECONDS);
+                  pushRetryBackoffMs(maxReviveTimes - (remainReviveTimes - 1)));
             } else {
               pushState.removeBatch(groupedBatchId, hostPort);
               logger.info(
