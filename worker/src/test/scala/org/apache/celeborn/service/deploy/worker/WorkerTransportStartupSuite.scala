@@ -17,13 +17,18 @@
 
 package org.apache.celeborn.service.deploy.worker
 
+import java.lang.management.ManagementFactory
 import java.net.ServerSocket
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 import scala.util.control.NonFatal
+
+import org.scalatest.concurrent.Eventually.eventually
+import org.scalatest.concurrent.Futures.{interval, timeout}
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
@@ -37,14 +42,19 @@ class WorkerTransportStartupSuite extends CelebornFunSuite {
       // Isolate the failed object in a child so those existing resources cannot leak into tests.
       val output = Files.createTempFile("celeborn-transport-startup-", ".out")
       val java = Paths.get(System.getProperty("java.home"), "bin", "java").toString
-      val process = new ProcessBuilder(
+      // Worker initialization needs the same Java module access as the parent test JVM.
+      val moduleOptions = ManagementFactory.getRuntimeMXBean.getInputArguments.asScala
+        .filter(arg => arg.startsWith("--add-opens=") || arg.startsWith("--add-exports="))
+      val command = Seq(
         java,
         "-Xmx1g",
         "-XX:MaxDirectMemorySize=256m",
+        "-XX:+IgnoreUnrecognizedVMOptions") ++ moduleOptions ++ Seq(
         "-cp",
         System.getProperty("java.class.path"),
         "org.apache.celeborn.service.deploy.worker.WorkerTransportStartupProbe",
         scenario)
+      val process = new ProcessBuilder(command: _*)
         .redirectErrorStream(true).redirectOutput(output.toFile).start()
       try {
         val finished = process.waitFor(45, TimeUnit.SECONDS)
@@ -129,8 +139,11 @@ object WorkerTransportStartupProbe {
       assert(counts.size() == (if (factoryFailure) 2 else 1), counts.toString)
       assert(counts.values().asScala.forall(_ == 1), s"$module close counts: $counts")
       if (factoryFailure) {
-        val rebound = new ServerSocket(port)
-        rebound.close()
+        // NIO releases the listening socket after asynchronous selector deregistration.
+        eventually(timeout(5.seconds), interval(10.milliseconds)) {
+          val rebound = new ServerSocket(port)
+          rebound.close()
+        }
       }
       println(s"$scenario: configured instances closed once; original startup failure retained")
     } finally {
