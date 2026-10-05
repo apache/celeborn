@@ -25,6 +25,15 @@ set -u
 
 SA=/var/run/secrets/kubernetes.io/serviceaccount
 
+# Kubernetes counts preStop against terminationGracePeriodSeconds, so no request may hang: a
+# server that accepts the connection and then stops responding would burn the whole grace
+# period and the pod would be killed without ever draining. Only the wait after a successful
+# exit request is allowed to take that long. `-T` is the one timeout flag both busybox and GNU
+# wget accept.
+HTTP_TIMEOUT=10
+CURL_OPTS="--connect-timeout 5 --max-time $HTTP_TIMEOUT"
+WGET_OPTS="-T $HTTP_TIMEOUT"
+
 # preStop output is not collected, so log through the main process.
 log() {
   _msg="celeborn preStop: $*"
@@ -57,9 +66,9 @@ else
     URL="https://kubernetes.default.svc/apis/apps/v1/namespaces/$(cat "$SA/namespace")/statefulsets/${STS_NAME:-}/scale"
     AUTH="Authorization: Bearer $(cat "$SA/token")"
     if command -v curl >/dev/null 2>&1; then
-      SCALE=$(curl -sS --cacert "$SA/ca.crt" -H "$AUTH" "$URL" 2>/dev/null)
+      SCALE=$(curl -sS $CURL_OPTS --cacert "$SA/ca.crt" -H "$AUTH" "$URL" 2>/dev/null)
     else
-      SCALE=$(wget -q -O - --ca-certificate="$SA/ca.crt" --header="$AUTH" "$URL" 2>/dev/null)
+      SCALE=$(wget -q $WGET_OPTS -O - --ca-certificate="$SA/ca.crt" --header="$AUTH" "$URL" 2>/dev/null)
     fi
     DESIRED=$(printf '%s' "$SCALE" | sed 's/"status".*//' | grep -o '"replicas":[0-9 ]*' | head -n 1 | tr -dc '0-9')
   fi
@@ -81,6 +90,8 @@ log "ordinal=${ORDINAL:-unknown} desired=${DESIRED:-unknown} exit=$EXIT_TYPE"
 
 BODY='{"type":"'"$EXIT_TYPE"'"}'
 
+# The exit endpoint hands the drain to a separate thread and answers straight away, so bounding
+# the request does not cut a drain short.
 # The worker's HTTP server binds to one address, not the wildcard: celeborn.worker.http.host
 # defaults to <localhost>, which resolves to this pod's own address, and Jetty is given that
 # host. So loopback is refused - target the pod IP, and keep loopback only as a fallback for a
@@ -98,10 +109,10 @@ RC=1
 for HOST in $HOSTS; do
   EXIT_URL="http://$HOST:${WORKER_HTTP_PORT:-9096}/api/v1/workers/exit"
   if command -v curl >/dev/null 2>&1; then
-    curl -sS -f -X POST -H 'Content-Type: application/json' -d "$BODY" "$EXIT_URL" >/dev/null 2>&1
+    curl -sS -f $CURL_OPTS -X POST -H 'Content-Type: application/json' -d "$BODY" "$EXIT_URL" >/dev/null 2>&1
     RC=$?
   else
-    wget -q -O /dev/null --header='Content-Type: application/json' --post-data="$BODY" "$EXIT_URL"
+    wget -q $WGET_OPTS -O /dev/null --header='Content-Type: application/json' --post-data="$BODY" "$EXIT_URL"
     RC=$?
   fi
   if [ "$RC" -eq 0 ]; then
