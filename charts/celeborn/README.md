@@ -327,19 +327,20 @@ Disable either with `diskUsage.enabled: false` / `memoryUsage.enabled: false`, a
 with `worker.autoscaling.triggers`, which are appended to the built-in ones and rendered
 through `tpl` against the zone's context, so `{{ .zone.name }}` resolves per zone.
 
-The built-in queries select on `role="Worker"` and the release namespace, so several Celeborn
-clusters can share one Prometheus without scaling on each other's workers.
+The built-in queries select on `role="Worker"`, the release namespace and the pod names of the
+statefulset they scale, so several Celeborn clusters can share one Prometheus - or one
+namespace - without scaling on each other's workers.
 
 Celeborn exports gauges as `metrics_<Name>_Value` and counters as `metrics_<Name>_Count`. Other
 metrics worth scaling on are `ActiveShuffleSize` and `ActiveShuffleFileCount` (data held),
 `ActiveSlotsCount` (slots allocated), and `IsHighWorkload` / `PausePushDataStatus` (the worker
 is already in trouble).
 
-The `zone` label the built-in queries select on comes from
-`worker.zoneAwareReplication.metricsLabel`, which passes the zone into
-`celeborn.metrics.extraLabels` so the worker stamps it on everything it emits. With that turned
-off the queries fall back to matching pod names. `role="Worker"` matters too: masters report the
-device gauges for whichever volume holds the Ratis directory.
+`worker.zoneAwareReplication.metricsLabel` passes the zone into `celeborn.metrics.extraLabels`
+so the worker stamps it on everything it emits. The built-in queries do not use it - a `zone`
+label says nothing about which release a worker belongs to - but it is there for queries of your
+own. `role="Worker"` matters too: masters report the device gauges for whichever volume holds
+the Ratis directory.
 
 `minReplicaCount` defaults to the statefulset's own replica count, so a zone never scales
 below the size it was deployed at unless you set it explicitly.

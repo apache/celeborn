@@ -172,7 +172,7 @@ tests:
           value: Value
       - matchRegex:
           path: spec.triggers[0].metadata.query
-          pattern: metrics_DeviceCelebornFreeBytes_Value\{role="Worker",namespace="NAMESPACE"\}
+          pattern: metrics_DeviceCelebornFreeBytes_Value\{role="Worker",namespace="NAMESPACE",pod=~"celeborn-worker-\[0-9\]\+"\}
       - equal:
           path: spec.triggers[0].metadata.threshold
           value: "0.70"
@@ -181,7 +181,7 @@ tests:
           value: Value
       - matchRegex:
           path: spec.triggers[1].metadata.query
-          pattern: max\(metrics_DirectMemoryUsageRatio_Value\{role="Worker",namespace="NAMESPACE"\}
+          pattern: max\(metrics_DirectMemoryUsageRatio_Value\{role="Worker",namespace="NAMESPACE",pod=~"celeborn-worker-\[0-9\]\+"\}
       - equal:
           path: spec.triggers[1].metadata.threshold
           value: "0.70"
@@ -195,15 +195,15 @@ tests:
     asserts:
       - matchRegex:
           path: spec.triggers[0].metadata.query
-          pattern: metrics_IsDecommissioningWorker_Value\{role="Worker",namespace="NAMESPACE"\} == 0
+          pattern: metrics_IsDecommissioningWorker_Value\{role="Worker",namespace="NAMESPACE",pod=~"celeborn-worker-\[0-9\]\+"\} == 0
       - matchRegex:
           path: spec.triggers[1].metadata.query
-          pattern: metrics_IsDecommissioningWorker_Value\{role="Worker",namespace="NAMESPACE"\} == 0
+          pattern: metrics_IsDecommissioningWorker_Value\{role="Worker",namespace="NAMESPACE",pod=~"celeborn-worker-\[0-9\]\+"\} == 0
       - notMatchRegex:
           path: spec.triggers[0].metadata.query
           pattern: DirectMemoryUsageRatio
 
-  - it: Should scope the default triggers to the zone by label
+  - it: Should scope the default triggers to the zone's own statefulset
     set:
       worker:
         zoneAwareReplication:
@@ -216,10 +216,10 @@ tests:
     asserts:
       - matchRegex:
           path: spec.triggers[0].metadata.query
-          pattern: role="Worker",namespace="NAMESPACE",zone="us-east-1a"
+          pattern: role="Worker",namespace="NAMESPACE",pod=~"celeborn-worker-us-east-1a-\[0-9\]\+"
       - matchRegex:
           path: spec.triggers[1].metadata.query
-          pattern: role="Worker",namespace="NAMESPACE",zone="us-east-1a"
+          pattern: role="Worker",namespace="NAMESPACE",pod=~"celeborn-worker-us-east-1a-\[0-9\]\+"
 
   - it: Should scope by pod name when the zone metric label is off
     set:
@@ -236,6 +236,39 @@ tests:
       - matchRegex:
           path: spec.triggers[0].metadata.query
           pattern: role="Worker",namespace="NAMESPACE",pod=~"celeborn-worker-us-east-1a-\[0-9\]\+"
+
+  - it: Should not select another release's workers in the same namespace
+    release:
+      name: beta
+    set:
+      worker:
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+    asserts:
+      - matchRegex:
+          path: spec.triggers[0].metadata.query
+          pattern: pod=~"beta-celeborn-worker-\[0-9\]\+"
+      - notMatchRegex:
+          path: spec.triggers[0].metadata.query
+          pattern: pod=~"alpha-celeborn-worker
+
+  - it: Should not select another release's workers sharing a zone name
+    release:
+      name: beta
+    set:
+      worker:
+        zoneAwareReplication:
+          enabled: true
+          zones:
+            - name: us-east-1a
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+    asserts:
+      - matchRegex:
+          path: spec.triggers[0].metadata.query
+          pattern: pod=~"beta-celeborn-worker-us-east-1a-\[0-9\]\+"
 
   - it: Should drop a default trigger that is disabled
     set:

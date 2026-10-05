@@ -110,21 +110,14 @@ zone gets `ceil(replicas / zones)` unless the zone overrides it.
 {{- end }}
 
 {{/*
-Label selector used by the built-in autoscaling triggers. Scopes the query to this
-statefulset's workers: by the `zone` label the worker publishes when it has one, and by pod
-name when the zone metric label is turned off.
+Label selector used by the built-in autoscaling triggers. Scoped by pod name to this
+statefulset's own workers, so releases sharing a namespace - or sharing a zone name - never
+scale on each other's workers. The `zone` metric label is not enough on its own: it says
+nothing about which release a worker belongs to.
 */}}
 {{- define "celeborn.worker.autoscaling.selector" -}}
-{{- $selector := printf "role=\"Worker\",namespace=\"%s\"" .Release.Namespace -}}
-{{- if .zone -}}
-{{- if .Values.worker.zoneAwareReplication.metricsLabel -}}
-{{- $selector = printf "%s,zone=\"%s\"" $selector .zone.name -}}
-{{- else -}}
-{{- /* Anchored on the ordinal, so zone `a` does not also match the pods of zone `a-x`. */ -}}
-{{- $selector = printf "%s,pod=~\"%s-[0-9]+\"" $selector (include "celeborn.worker.statefulSet.name" .) -}}
-{{- end -}}
-{{- end -}}
-{{ $selector }}
+{{- /* Anchored on the ordinal, so statefulset `x-a` does not also match the pods of `x-a-y`. */ -}}
+{{ printf "role=\"Worker\",namespace=\"%s\",pod=~\"%s-[0-9]+\"" .Release.Namespace (include "celeborn.worker.statefulSet.name" .) }}
 {{- end }}
 
 {{/*
