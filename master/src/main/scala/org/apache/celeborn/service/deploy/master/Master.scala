@@ -41,7 +41,7 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
-import org.apache.celeborn.common.metrics.{ClientMetric, MetricsSystem}
+import org.apache.celeborn.common.metrics.{ClientMetric, MetricsSystem, MetricType}
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, Role, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.CelebornRackResolver
 import org.apache.celeborn.common.network.protocol.{TransportMessage, TransportMessagesHelper}
@@ -76,14 +76,12 @@ private[celeborn] class Master(
     new ResourceConsumptionSource(conf, Role.MASTER)
   private val threadPoolSource = ThreadPoolSource(conf, Role.MASTER)
   private val masterSource = new MasterSource(conf)
-  private val applicationMetricsSource = new ApplicationMetricsSource(conf)
   private val jvmSource = new JVMSource(conf, Role.MASTER)
   private val jvmCpuSource = new JVMCPUSource(conf, Role.MASTER)
   private val systemMiscSource = new SystemMiscSource(conf, Role.MASTER)
 
   metricsSystem.registerSource(resourceConsumptionSource)
   metricsSystem.registerSource(masterSource)
-  metricsSystem.registerSource(applicationMetricsSource)
   metricsSystem.registerSource(threadPoolSource)
   metricsSystem.registerSource(jvmSource)
   metricsSystem.registerSource(jvmCpuSource)
@@ -178,6 +176,7 @@ private[celeborn] class Master(
     } else {
       new SingleMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
     }
+  metricsSystem.registerSource(statusSystem.applicationMetricsSource())
   secretRegistry.setMetadataHandler(statusSystem)
 
   // Threads
@@ -1223,7 +1222,6 @@ private[celeborn] class Master(
         workersAssignedToApp.remove(appId)
         statusSystem.handleAppLost(appId, requestId)
         quotaManager.handleAppLost(appId)
-        applicationMetricsSource.removeApplicationMetrics(appId)
         logInfo(s"Removed application $appId")
         if (remoteStorageDirs.isDefined) {
           checkAndCleanExpiredAppDirsOnDFS(appId)
@@ -1304,6 +1302,20 @@ private[celeborn] class Master(
       shouldResponse: Boolean,
       clientMetrics: util.Map[String, ClientMetric],
       metricLabels: util.Map[String, String]): Unit = {
+    val (clientGauges, clientMetricLabels) =
+      if (masterClientMetricsEnabled && !metricLabels.isEmpty) {
+        val gauges = new util.HashMap[String, java.lang.Long]()
+        clientMetrics.asScala.foreach { case (name, metric) =>
+          metric.metricType match {
+            case MetricType.Gauge => gauges.put(name, metric.value)
+          }
+        }
+        (gauges, metricLabels)
+      } else {
+        (
+          Collections.emptyMap[String, java.lang.Long](),
+          Collections.emptyMap[String, String]())
+      }
     statusSystem.handleAppHeartbeat(
       appId,
       totalWritten,
@@ -1313,14 +1325,10 @@ private[celeborn] class Master(
       shuffleFallbackCounts,
       applicationFallbackCounts,
       System.currentTimeMillis(),
+      clientGauges,
+      clientMetricLabels,
       requestId)
 
-    if (masterClientMetricsEnabled && !metricLabels.isEmpty) {
-      applicationMetricsSource.updateApplicationMetrics(
-        appId,
-        metricLabels.asScala.toMap,
-        clientMetrics)
-    }
     gaugeShuffleFallbackCounts()
     val unknownWorkers = needCheckedWorkerList.asScala.filterNot(w =>
       statusSystem.workersMap.containsKey(w.toUniqueId)).asJava

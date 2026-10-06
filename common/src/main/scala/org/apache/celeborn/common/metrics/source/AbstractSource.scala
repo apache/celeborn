@@ -276,6 +276,10 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
           tracked
         }
       })
+
+    if (isAppRemoved(appId)) {
+      removeAppFromGauge(key, appId)
+    }
   }
 
   def counters(): List[NamedCounter] = {
@@ -346,21 +350,36 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
   }
 
   protected def removeAppFromMetrics(appId: String): Unit = {
+    namedGaugesWithDetails.keySet().asScala.toList.foreach(removeAppFromGauge(_, appId))
+  }
+
+  protected def removeAllAppGauges(): Unit = {
     namedGaugesWithDetails.keySet().asScala.toList.foreach { key =>
       namedGaugesWithDetails.computeIfPresent(
         key,
         new java.util.function.BiFunction[String, TrackedGauge, TrackedGauge] {
           override def apply(k: String, tracked: TrackedGauge): TrackedGauge = {
-            tracked.updateAppValue(appId, null)
-            if (tracked.perAppValues.isEmpty) {
-              metricRegistry.remove(key)
-              null
-            } else {
-              tracked
-            }
+            metricRegistry.remove(key)
+            null
           }
         })
     }
+  }
+
+  private def removeAppFromGauge(key: String, appId: String): Unit = {
+    namedGaugesWithDetails.computeIfPresent(
+      key,
+      new java.util.function.BiFunction[String, TrackedGauge, TrackedGauge] {
+        override def apply(k: String, tracked: TrackedGauge): TrackedGauge = {
+          tracked.updateAppValue(appId, null)
+          if (tracked.perAppValues.isEmpty) {
+            metricRegistry.remove(key)
+            null
+          } else {
+            tracked
+          }
+        }
+      })
   }
 
   override def sample[T](metricsName: String, key: String)(f: => T): T = {

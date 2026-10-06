@@ -18,13 +18,14 @@
 package org.apache.celeborn.service.deploy.master
 
 import java.util.{HashMap => JHashMap}
-import java.util.concurrent.{Delayed, ScheduledThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{CountDownLatch, Delayed, ScheduledThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.atomic.AtomicBoolean
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.metrics.{ClientMetric, MetricType}
 
 class ApplicationMetricsSourceSuite extends CelebornFunSuite {
 
@@ -44,6 +45,39 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
     super.afterEach()
   }
 
+  /**
+   * A source whose first isAppRemoved call (made inside compute, before a new series is
+   * published) blocks until the test releases it, so cleanup can be run deterministically in
+   * the window between the removal check and the map insertion.
+   */
+  private class PausingSource(conf: CelebornConf) extends ApplicationMetricsSource(conf) {
+    val paused = new CountDownLatch(1)
+    val release = new CountDownLatch(1)
+    private val firstCall = new AtomicBoolean(true)
+
+    override protected def isAppRemoved(appId: String): Boolean = {
+      val removed = super.isAppRemoved(appId)
+      if (firstCall.compareAndSet(true, false)) {
+        paused.countDown()
+        assert(release.await(10, TimeUnit.SECONDS))
+      }
+      removed
+    }
+  }
+
+  /** Runs the first heartbeat of an absent series, firing `cleanup` mid-insertion. */
+  private def raceFirstInsertion(
+      source: PausingSource,
+      labels: Map[String, String])(cleanup: => Unit): Unit = {
+    val heartbeat = new Thread(() => update(source, gaugeMetrics(7), labels))
+    heartbeat.start()
+    assert(source.paused.await(10, TimeUnit.SECONDS))
+    cleanup
+    source.release.countDown()
+    heartbeat.join(10000)
+    assert(!heartbeat.isAlive)
+  }
+
   private def enabledConf(): CelebornConf = {
     val c = new CelebornConf()
     c.set(CelebornConf.MASTER_CLIENT_METRICS_ENABLED, true)
@@ -53,18 +87,18 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   private def scheduledTaskCount(source: ApplicationMetricsSource): Int =
     source.metricsCleaner.asInstanceOf[ScheduledThreadPoolExecutor].getQueue.size()
 
-  private def gaugeMetrics(value: Long): JHashMap[String, ClientMetric] = {
-    val map = new JHashMap[String, ClientMetric]()
-    map.put("ClientActiveShuffleCount", ClientMetric(value, MetricType.Gauge))
+  private def gaugeMetrics(value: Long): JHashMap[String, java.lang.Long] = {
+    val map = new JHashMap[String, java.lang.Long]()
+    map.put("ClientActiveShuffleCount", value)
     map
   }
 
   private def update(
       source: ApplicationMetricsSource,
-      metrics: JHashMap[String, ClientMetric],
+      metrics: JHashMap[String, java.lang.Long],
       labels: Map[String, String] = Map.empty,
       appId: String = "app-1"): Unit =
-    source.updateApplicationMetrics(appId, labels, metrics)
+    source.updateApplicationMetrics(appId, labels.asJava, metrics)
 
   private def gaugeValue(
       source: ApplicationMetricsSource,
@@ -130,16 +164,12 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
     assert(gaugeValue(source, labels).contains(10L))
   }
 
-  test("non-gauge metrics in heartbeat are silently ignored") {
-    val source = newSource(enabledConf())
-    val labels = Map("team" -> "data-eng")
-    val map = new JHashMap[String, ClientMetric]()
-    map.put("ActiveShuffleCount", ClientMetric(3, MetricType.Gauge))
+  test("masterClientMetrics disabled: replicated client metrics are ignored") {
+    val source = newSource(new CelebornConf())
 
-    source.updateApplicationMetrics("app-1", labels, map)
+    update(source, gaugeMetrics(3), Map("team" -> "data-eng"))
 
-    assert(gaugeValue(source, labels, "ActiveShuffleCount").contains(3L))
-    assert(source.counters().isEmpty)
+    assert(source.gauges().isEmpty)
   }
 
   test("removing one app updates gauge sum while another app still contributes") {
@@ -221,5 +251,42 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
 
     update(source, gaugeMetrics(5), labels, "app-1")
     assert(gaugeValue(source, labels).contains(12L))
+  }
+
+  test("clearApplicationMetrics drops all series but keeps removed apps ignored") {
+    val source = newSource(enabledConf())
+    val engLabels = Map("team" -> "data-eng")
+    val mlLabels = Map("team" -> "ml")
+    update(source, gaugeMetrics(3), engLabels, "app-1")
+    update(source, gaugeMetrics(4), engLabels, "app-2")
+    update(source, gaugeMetrics(5), mlLabels, "app-3")
+    source.removeApplicationMetrics("app-3")
+    assert(source.gauges().size == 1)
+
+    source.clearApplicationMetrics()
+
+    assert(source.gauges().isEmpty)
+    assert(!source.gaugeExists("ClientActiveShuffleCount", engLabels))
+
+    // Live apps repopulate from their next heartbeat, starting from a clean sum.
+    update(source, gaugeMetrics(6), engLabels, "app-1")
+    assert(gaugeValue(source, engLabels).contains(6L))
+
+    // An app removed before the clear stays ignored.
+    update(source, gaugeMetrics(5), mlLabels, "app-3")
+    assert(gaugeValue(source, mlLabels).isEmpty)
+  }
+
+  test("removal racing the first insertion of an absent series leaves no gauge") {
+    val source = new PausingSource(enabledConf())
+    createdSources += source
+    val labels = Map("team" -> "data-eng")
+
+    raceFirstInsertion(source, labels) {
+      source.removeApplicationMetrics("app-1")
+    }
+
+    assert(gaugeValue(source, labels).isEmpty)
+    assert(source.gauges().isEmpty)
   }
 }

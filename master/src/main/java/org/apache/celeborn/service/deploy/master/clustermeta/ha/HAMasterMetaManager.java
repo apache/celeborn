@@ -35,6 +35,7 @@ import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
+import org.apache.celeborn.service.deploy.master.ApplicationMetricsSource;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
 import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
@@ -51,6 +52,15 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   }
 
   public HAMasterMetaManager(RpcEnv rpcEnv, CelebornConf conf, CelebornRackResolver rackResolver) {
+    this(rpcEnv, conf, rackResolver, new ApplicationMetricsSource(conf));
+  }
+
+  public HAMasterMetaManager(
+      RpcEnv rpcEnv,
+      CelebornConf conf,
+      CelebornRackResolver rackResolver,
+      ApplicationMetricsSource applicationMetricsSource) {
+    super(applicationMetricsSource);
     this.rpcEnv = rpcEnv;
     this.conf = conf;
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
@@ -167,6 +177,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       Map<String, Long> shuffleFallbackCounts,
       Map<String, Long> applicationFallbackCounts,
       long time,
+      Map<String, Long> clientGauges,
+      Map<String, String> clientMetricLabels,
       String requestId) {
     try {
       ratisServer.submitRequest(
@@ -183,6 +195,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setApplicationCount(applicationCount)
                       .putAllShuffleFallbackCounts(shuffleFallbackCounts)
                       .putAllApplicationFallbackCounts(applicationFallbackCounts)
+                      .putAllClientGauges(clientGauges)
+                      .putAllClientMetricLabels(clientMetricLabels)
                       .build())
               .build());
     } catch (CelebornRuntimeException e) {

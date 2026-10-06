@@ -1066,6 +1066,8 @@ message PbMetaAppHeartbeatRequest {
   PbHeartbeatInfo heartbeatInfo = 7;
   int64 applicationCount = 8;
   map<string, int64> applicationFallbackCounts = 9;
+  map<string, int64> clientGauges = 10;
+  map<string, string> clientMetricLabels = 11;
 }
 
 message PbMetaWorkerExcludeRequest {
