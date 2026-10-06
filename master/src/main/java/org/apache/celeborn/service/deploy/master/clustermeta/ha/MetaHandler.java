@@ -181,7 +181,9 @@ public class MetaHandler {
               shuffleCount,
               applicationCount,
               shuffleFallbackCounts,
-              applicationFallbackCounts);
+              applicationFallbackCounts,
+              request.getAppHeartbeatRequest().getClientGaugesMap(),
+              request.getAppHeartbeatRequest().getClientMetricLabelsMap());
           break;
 
         case AppLost:

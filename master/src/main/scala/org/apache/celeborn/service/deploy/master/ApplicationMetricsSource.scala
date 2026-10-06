@@ -25,7 +25,6 @@ import scala.collection.JavaConverters._
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.metrics.{ClientMetric, MetricType}
 import org.apache.celeborn.common.metrics.source.{AbstractSource, Role}
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
 
@@ -71,25 +70,25 @@ class ApplicationMetricsSource(conf: CelebornConf)
 
   def updateApplicationMetrics(
       appId: String,
-      metricLabels: Map[String, String],
-      metrics: JMap[String, ClientMetric]): Unit = {
+      metricLabels: JMap[String, String],
+      gauges: JMap[String, java.lang.Long]): Unit = {
+    if (!masterClientMetricsEnabled) {
+      return
+    }
     if (removedAppIds.containsKey(appId)) {
       removeAppFromMetrics(appId)
       return
     }
 
-    if (!validateLabels(metricLabels)) {
+    val labels = metricLabels.asScala.toMap
+    if (!validateLabels(labels)) {
       logWarning(s"Ignoring client metrics from $appId: labels contain invalid Prometheus " +
         "label names or unsafe values (quotes, backslashes, or newlines)")
       return
     }
 
-    metrics.asScala.foreach { case (name, metric) =>
-      metric.metricType match {
-        case MetricType.Gauge =>
-          addOrUpdateGaugeForApp(name, metricLabels, appId, metric.value)
-        case _ =>
-      }
+    gauges.asScala.foreach { case (name, value) =>
+      addOrUpdateGaugeForApp(name, labels, appId, value)
     }
 
     warnIfSeriesCardinalityHigh()
@@ -103,6 +102,10 @@ class ApplicationMetricsSource(conf: CelebornConf)
       removedAppIds.put(appId, System.currentTimeMillis())
     }
     removeAppFromMetrics(appId)
+  }
+
+  def clearApplicationMetrics(): Unit = {
+    removeAllAppGauges()
   }
 
   private def validateLabels(labels: Map[String, String]): Boolean = {
