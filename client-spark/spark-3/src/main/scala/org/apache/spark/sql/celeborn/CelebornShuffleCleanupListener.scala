@@ -17,7 +17,11 @@
 
 package org.apache.spark.sql.celeborn
 
+import java.lang.reflect.Method
+import java.util.concurrent.atomic.AtomicReference
+
 import scala.collection.mutable.ArrayBuffer
+import scala.util.Try
 import scala.util.control.NonFatal
 
 import org.apache.spark.internal.Logging
@@ -38,6 +42,8 @@ import org.apache.celeborn.client.LifecycleManager
  */
 class CelebornShuffleCleanupListener(lifecycleManager: LifecycleManager)
   extends SparkListener with Logging {
+
+  import CelebornShuffleCleanupListener._
 
   override def onOtherEvent(event: SparkListenerEvent): Unit = {
     event match {
@@ -71,7 +77,7 @@ class CelebornShuffleCleanupListener(lifecycleManager: LifecycleManager)
         visit(adaptivePlan.executedPlan, inAdaptivePlan = true)
 
       case shuffleStage: ShuffleQueryStageExec =>
-        if (shuffleStage.isMaterialized) {
+        if (isStageMaterialized(shuffleStage)) {
           // Non-vanilla ShuffleExchangeLike (e.g. Gluten's columnar exchange) is ignored.
           shuffleStage.shuffle match {
             case exchange: ShuffleExchangeExec =>
@@ -126,6 +132,29 @@ class CelebornShuffleCleanupListener(lifecycleManager: LifecycleManager)
           s"SQL execution ${end.executionId}.")
       shuffleIds.foreach(shuffleId =>
         qe.sparkSession.sparkContext.shuffleDriverComponents.removeShuffle(shuffleId, false))
+    }
+  }
+}
+
+private object CelebornShuffleCleanupListener {
+
+  // QueryStageExec.isMaterialized only exists since Spark 3.2; on Spark 3.0/3.1 the
+  // materialization result is read from resultOption instead (an Option on 3.0, an
+  // AtomicReference[Option] on 3.1).
+  private val isStageMaterialized: ShuffleQueryStageExec => Boolean = {
+    def method(name: String): Option[Method] =
+      Try(classOf[QueryStageExec].getMethod(name)).toOption
+
+    method("isMaterialized").map { m => (stage: ShuffleQueryStageExec) =>
+      m.invoke(stage).asInstanceOf[Boolean]
+    }.getOrElse {
+      val resultOption = classOf[QueryStageExec].getMethod("resultOption")
+      (stage: ShuffleQueryStageExec) =>
+        resultOption.invoke(stage) match {
+          case ref: AtomicReference[_] => ref.get().asInstanceOf[Option[_]].isDefined
+          case option: Option[_] => option.isDefined
+          case _ => false
+        }
     }
   }
 }
