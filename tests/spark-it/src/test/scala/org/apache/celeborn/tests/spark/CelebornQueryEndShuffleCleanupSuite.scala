@@ -17,6 +17,12 @@
 
 package org.apache.celeborn.tests.spark
 
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
+
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration.Duration
+
 import org.apache.spark.{SparkConf, SparkEnv, SparkException}
 import org.apache.spark.shuffle.celeborn.SparkShuffleManager
 import org.apache.spark.sql.SparkSession
@@ -71,6 +77,10 @@ class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
     sparkConf
   }
 
+  private val groupByQuery = "SELECT id % 10 AS k, COUNT(1) AS cnt FROM ta GROUP BY id % 10"
+
+  private def expectedGroupByResult: Map[Long, Long] = (0L until 10L).map(_ -> 100L).toMap
+
   Seq(true, false).foreach { aqeEnabled =>
     test(s"CELEBORN-2465: shuffles are unregistered on SQL query completion, " +
       s"aqeEnabled: $aqeEnabled") {
@@ -90,8 +100,6 @@ class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
           |""".stripMargin).collect()
       assert(result.length == 10)
       awaitShufflesUnregistered(lifecycleManager())
-
-      spark.stop()
     }
   }
 
@@ -115,8 +123,6 @@ class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
     } finally {
       spark.sql("DROP TABLE IF EXISTS celeborn_cleanup_ctas_test")
     }
-
-    spark.stop()
   }
 
   test("CELEBORN-2465: all shuffles of a multi-join query are unregistered, aqeEnabled: true") {
@@ -138,8 +144,6 @@ class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
         |""".stripMargin).collect()
     assert(result.head.getLong(0) == 1000)
     awaitShufflesUnregistered(lifecycleManager())
-
-    spark.stop()
   }
 
   test("CELEBORN-2465: shuffles are not unregistered on SQL query completion by default") {
@@ -155,8 +159,6 @@ class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
     assert(
       !lifecycleManager().registeredShuffle.isEmpty,
       "Shuffles should still be registered when query end shuffle cleanup is disabled.")
-
-    spark.stop()
   }
 
   test("CELEBORN-2465: failed query only cleans up actually registered shuffles") {
@@ -183,7 +185,101 @@ class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
     // The listener must not break error propagation, and must clean up the materialized
     // shuffle of the failed query without touching non-registered shuffle ids.
     awaitShufflesUnregistered(lifecycleManager())
+  }
 
-    spark.stop()
+  test("CELEBORN-2465: failed AQE query only cleans up materialized shuffles") {
+    val spark = SparkSession.builder().config(queryEndShuffleCleanupConf(true)).getOrCreate()
+
+    spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
+    spark.udf.register(
+      "fail_udf",
+      (v: Long) => {
+        throw new RuntimeException("intentional failure for test")
+        v
+      })
+
+    // The query fails in the reduce stage after the shuffle stage has been materialized.
+    assertThrows[SparkException] {
+      spark.sql(
+        """
+          |SELECT k, fail_udf(cnt) FROM (
+          |  SELECT id % 10 AS k, COUNT(1) AS cnt FROM ta GROUP BY id % 10
+          |) t
+          |""".stripMargin).collect()
+    }
+
+    // The materialized shuffle stage of the failed AQE query must be cleaned up without
+    // touching exchanges that were never materialized.
+    awaitShufflesUnregistered(lifecycleManager())
+  }
+
+  test("CELEBORN-2465: re-executing the same DataFrame sequentially returns correct results") {
+    val spark = SparkSession.builder().config(queryEndShuffleCleanupConf(true)).getOrCreate()
+
+    spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
+    val df = spark.sql(groupByQuery)
+
+    // Each re-execution reuses the same ShuffleDependency whose shuffle was unregistered
+    // after the previous execution; stage rerun must regenerate the shuffle data.
+    (1 to 3).foreach { _ =>
+      assert(
+        df.collect().map(row => row.getLong(0) -> row.getLong(1)).toMap == expectedGroupByResult)
+      awaitShufflesUnregistered(lifecycleManager())
+    }
+  }
+
+  test("CELEBORN-2465: re-executing the same DataFrame concurrently returns correct results") {
+    val spark = SparkSession.builder().config(queryEndShuffleCleanupConf(true)).getOrCreate()
+
+    spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
+    val df = spark.sql(groupByQuery)
+    assert(df.collect().length == 10)
+    awaitShufflesUnregistered(lifecycleManager())
+
+    // Two threads collect the same DataFrame concurrently; one execution's query-end
+    // cleanup may race the other execution's shuffle read, and stage rerun must keep
+    // both results correct.
+    val executor = Executors.newFixedThreadPool(2)
+    implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(executor)
+    val failure = new AtomicReference[Throwable]()
+    try {
+      val results = (1 to 2).map { _ =>
+        Future {
+          df.collect().map(row => row.getLong(0) -> row.getLong(1)).toMap
+        }
+      }
+      results.foreach { f =>
+        try {
+          assert(Await.result(f, Duration("5min")) == expectedGroupByResult)
+        } catch {
+          case t: Throwable => failure.compareAndSet(null, t)
+        }
+      }
+    } finally {
+      executor.shutdownNow()
+    }
+    if (failure.get() != null) {
+      throw failure.get()
+    }
+    awaitShufflesUnregistered(lifecycleManager())
+  }
+
+  test("CELEBORN-2465: query end shuffle cleanup requires stage rerun to be enabled") {
+    val sparkConf = queryEndShuffleCleanupConf(false)
+    sparkConf.set(s"spark.${CelebornConf.CLIENT_STAGE_RERUN_ENABLED.key}", "false")
+    val spark = SparkSession.builder().config(sparkConf).getOrCreate()
+
+    spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
+    val t = intercept[Throwable] {
+      spark.sql(groupByQuery).collect()
+    }
+    val messages = Iterator.iterate(Option(t))(_.flatMap(cause => Option(cause.getCause)))
+      .takeWhile(_.isDefined)
+      .flatten
+      .map(_.getMessage)
+      .mkString("\n")
+    assert(
+      messages.contains(CelebornConf.CLIENT_STAGE_RERUN_ENABLED.key),
+      s"Expected fail-fast on ${CelebornConf.CLIENT_STAGE_RERUN_ENABLED.key}, got: $messages")
   }
 }

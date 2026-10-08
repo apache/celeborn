@@ -181,7 +181,15 @@ public class SparkShuffleManager implements ShuffleManager {
           }
 
           if (celebornConf.clientSparkSqlQueryEndShuffleCleanupEnabled()) {
-            SparkUtils.addSparkListener(new CelebornQueryEndShuffleCleaner());
+            if (!celebornConf.clientStageRerunEnabled()) {
+              throw new IllegalArgumentException(
+                  CelebornConf.CLIENT_STAGE_RERUN_ENABLED().key()
+                      + " has to be "
+                      + "enabled, when "
+                      + CelebornConf.CLIENT_SPARK_SQL_QUERY_END_SHUFFLE_CLEANUP_ENABLED().key()
+                      + " is set to true");
+            }
+            SparkUtils.addSparkListener(new CelebornQueryEndShuffleCleaner(lifecycleManager));
           }
 
           if (lifecycleManager.conf().clientFetchCleanFailedShuffle()) {

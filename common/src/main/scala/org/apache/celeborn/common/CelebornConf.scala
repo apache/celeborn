@@ -5276,14 +5276,15 @@ object CelebornConf extends Logging {
       .createWithDefault(true)
 
   val CLIENT_SPARK_SQL_QUERY_END_SHUFFLE_CLEANUP_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.spark.queryEndShuffleCleanup.enabled")
+    buildConf("celeborn.client.spark.sql.queryEndShuffleCleanup.enabled")
       .categories("client")
       .version("1.0.0")
       .doc("When enabled, shuffles written by a SQL query (or Dataset action) are proactively " +
         "unregistered when the query completes, instead of waiting for driver GC or application " +
-        "end. Note that if the same DataFrame reference is executed again, the cleaned shuffles " +
-        "must be regenerated via stage retries, so it is strongly recommended to enable " +
-        s"${CLIENT_STAGE_RERUN_ENABLED.key} together.")
+        "end. This is useful for long-running Spark applications such as ThriftServer, Kyuubi, " +
+        "spark-sql and spark-connect-server. Note that if the same DataFrame reference is " +
+        "executed again, the cleaned shuffles must be regenerated via stage retries, so " +
+        s"${CLIENT_STAGE_RERUN_ENABLED.key} has to be enabled together.")
       .booleanConf
       .createWithDefault(false)
 
