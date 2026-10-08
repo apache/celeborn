@@ -1045,8 +1045,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchCleanFailedShuffle: Boolean = get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE)
   def clientFetchCleanFailedShuffleIntervalMS: Long =
     get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_INTERVAL)
-  def clientSparkSqlQueryEndShuffleCleanupEnabled: Boolean =
-    get(CLIENT_SPARK_SQL_QUERY_END_SHUFFLE_CLEANUP_ENABLED)
+  def clientSparkShuffleCleanupEnabled: Boolean =
+    get(CLIENT_SPARK_SHUFFLE_CLEANUP_ENABLED)
   def clientFetchExcludeWorkerOnFailureEnabled: Boolean =
     get(CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
   def clientFetchExcludedWorkerExpireTimeout: Long =
@@ -5275,8 +5275,8 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val CLIENT_SPARK_SQL_QUERY_END_SHUFFLE_CLEANUP_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.spark.sql.queryEndShuffleCleanup.enabled")
+  val CLIENT_SPARK_SHUFFLE_CLEANUP_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.shuffleCleanup.enabled")
       .categories("client")
       .version("1.0.0")
       .doc("When enabled, shuffles written by a SQL query (or Dataset action) are proactively " +

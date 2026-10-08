@@ -34,7 +34,7 @@ import org.apache.celeborn.client.{LifecycleManager, ShuffleClient}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
 
-class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
+class CelebornShuffleCleanupSuite extends AnyFunSuite
   with SparkTestBase
   with BeforeAndAfterEach {
 
@@ -63,13 +63,13 @@ class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
       "Shuffles should be unregistered after the SQL query completes.")
   }
 
-  private def queryEndShuffleCleanupConf(aqeEnabled: Boolean): SparkConf = {
+  private def shuffleCleanupConf(aqeEnabled: Boolean): SparkConf = {
     val sparkConf = updateSparkConf(
       new SparkConf().setAppName("celeborn-test").setMaster("local[2]"),
       ShuffleMode.HASH)
     sparkConf.set(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key, aqeEnabled.toString)
     sparkConf.set(
-      s"spark.${CelebornConf.CLIENT_SPARK_SQL_QUERY_END_SHUFFLE_CLEANUP_ENABLED.key}",
+      s"spark.${CelebornConf.CLIENT_SPARK_SHUFFLE_CLEANUP_ENABLED.key}",
       "true")
     // Speed up the delayed unregister inside LifecycleManager.
     sparkConf.set(s"spark.${CelebornConf.SHUFFLE_EXPIRED_CHECK_INTERVAL.key}", "1s")
@@ -84,7 +84,7 @@ class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
   Seq(true, false).foreach { aqeEnabled =>
     test(s"CELEBORN-2465: shuffles are unregistered on SQL query completion, " +
       s"aqeEnabled: $aqeEnabled") {
-      val spark = SparkSession.builder().config(queryEndShuffleCleanupConf(aqeEnabled))
+      val spark = SparkSession.builder().config(shuffleCleanupConf(aqeEnabled))
         .getOrCreate()
 
       spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
@@ -105,7 +105,7 @@ class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
 
   test("CELEBORN-2465: CTAS shuffles are unregistered on SQL query completion, " +
     "aqeEnabled: true") {
-    val spark = SparkSession.builder().config(queryEndShuffleCleanupConf(true)).getOrCreate()
+    val spark = SparkSession.builder().config(shuffleCleanupConf(true)).getOrCreate()
 
     try {
       // For CTAS / INSERT the executedPlan root is a DataWritingCommandExec wrapping an
@@ -125,7 +125,7 @@ class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
   }
 
   test("CELEBORN-2465: all shuffles of a multi-join query are unregistered, aqeEnabled: true") {
-    val spark = SparkSession.builder().config(queryEndShuffleCleanupConf(true)).getOrCreate()
+    val spark = SparkSession.builder().config(shuffleCleanupConf(true)).getOrCreate()
 
     spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
     spark.range(0, 1000, 1, 4).createOrReplaceTempView("tb")
@@ -157,11 +157,11 @@ class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
 
     assert(
       !lifecycleManager().registeredShuffle.isEmpty,
-      "Shuffles should still be registered when query end shuffle cleanup is disabled.")
+      "Shuffles should still be registered when shuffle cleanup is disabled.")
   }
 
   test("CELEBORN-2465: failed query only cleans up actually registered shuffles") {
-    val spark = SparkSession.builder().config(queryEndShuffleCleanupConf(false)).getOrCreate()
+    val spark = SparkSession.builder().config(shuffleCleanupConf(false)).getOrCreate()
 
     spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
     spark.udf.register(
@@ -187,7 +187,7 @@ class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
   }
 
   test("CELEBORN-2465: failed AQE query only cleans up materialized shuffles") {
-    val spark = SparkSession.builder().config(queryEndShuffleCleanupConf(true)).getOrCreate()
+    val spark = SparkSession.builder().config(shuffleCleanupConf(true)).getOrCreate()
 
     spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
     spark.udf.register(
@@ -213,7 +213,7 @@ class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
   }
 
   test("CELEBORN-2465: re-executing the same DataFrame sequentially returns correct results") {
-    val spark = SparkSession.builder().config(queryEndShuffleCleanupConf(true)).getOrCreate()
+    val spark = SparkSession.builder().config(shuffleCleanupConf(true)).getOrCreate()
 
     spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
     val df = spark.sql(groupByQuery)
@@ -228,7 +228,7 @@ class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
   }
 
   test("CELEBORN-2465: re-executing the same DataFrame concurrently returns correct results") {
-    val spark = SparkSession.builder().config(queryEndShuffleCleanupConf(true)).getOrCreate()
+    val spark = SparkSession.builder().config(shuffleCleanupConf(true)).getOrCreate()
 
     spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
     val df = spark.sql(groupByQuery)
@@ -263,8 +263,8 @@ class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
     awaitShufflesUnregistered(lifecycleManager())
   }
 
-  test("CELEBORN-2465: query end shuffle cleanup requires stage rerun to be enabled") {
-    val sparkConf = queryEndShuffleCleanupConf(false)
+  test("CELEBORN-2465: shuffle cleanup requires stage rerun to be enabled") {
+    val sparkConf = shuffleCleanupConf(false)
     sparkConf.set(s"spark.${CelebornConf.CLIENT_STAGE_RERUN_ENABLED.key}", "false")
     val spark = SparkSession.builder().config(sparkConf).getOrCreate()
 

@@ -36,7 +36,7 @@ import org.apache.celeborn.client.LifecycleManager
  * shuffle data while waiting for driver GC. Stage rerun must be enabled so that a
  * re-executed DataFrame can regenerate its cleaned shuffles.
  */
-class CelebornQueryEndShuffleCleaner(lifecycleManager: LifecycleManager)
+class CelebornShuffleCleanupListener(lifecycleManager: LifecycleManager)
   extends SparkListener with Logging {
 
   override def onOtherEvent(event: SparkListenerEvent): Unit = {
