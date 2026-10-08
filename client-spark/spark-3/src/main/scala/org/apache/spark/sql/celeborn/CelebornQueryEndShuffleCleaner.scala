@@ -30,6 +30,12 @@ import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionEnd
 
 import org.apache.celeborn.client.LifecycleManager
 
+/**
+ * Unregisters the shuffles of a SQL execution once it completes, so that long-running
+ * applications (ThriftServer, Kyuubi, spark-sql, spark-connect-server) do not pile up
+ * shuffle data while waiting for driver GC. Stage rerun must be enabled so that a
+ * re-executed DataFrame can regenerate its cleaned shuffles.
+ */
 class CelebornQueryEndShuffleCleaner(lifecycleManager: LifecycleManager)
   extends SparkListener with Logging {
 
@@ -52,60 +58,44 @@ class CelebornQueryEndShuffleCleaner(lifecycleManager: LifecycleManager)
     (plan +: plan.subqueriesAll).flatMap(collectShuffleIds(_, queryFailed)).distinct
   }
 
-  // Note: this runs on the listener-bus thread, so it must never trigger actual computation.
-  // ShuffleExchangeExec.shuffleDependency is a lazy val whose evaluation executes the child
-  // plan and registers a brand new shuffle with the shuffle manager, so it may only be read
-  // from exchanges that are already materialized.
+  // Runs on the listener-bus thread, so it must never trigger computation. Reading the lazy
+  // ShuffleExchangeExec.shuffleDependency of an exchange that never executed would run its
+  // child plan and register a new shuffle, so only materialized exchanges may be touched.
   private def collectShuffleIds(plan: SparkPlan, queryFailed: Boolean): Seq[Int] = {
     val shuffleIds = ArrayBuffer.empty[Int]
 
-    // inAdaptivePlan: whether we are inside an AdaptiveSparkPlanExec subtree without having
-    // crossed a materialized shuffle stage. Raw exchanges there may never have been executed
-    // (e.g. an AQE query that failed or was cancelled before creating that stage), so their
-    // shuffleDependency must not be read.
+    // inAdaptivePlan: inside an AdaptiveSparkPlanExec without having crossed a materialized
+    // shuffle stage; raw exchanges there may be unexecuted (failed/cancelled AQE queries).
     def visit(p: SparkPlan, inAdaptivePlan: Boolean): Unit = p match {
       case adaptivePlan: AdaptiveSparkPlanExec =>
         visit(adaptivePlan.executedPlan, inAdaptivePlan = true)
 
       case shuffleStage: ShuffleQueryStageExec =>
-        // Only materialized stages are safe to inspect: their exchange's lazy
-        // shuffleDependency is already computed. A materialized stage also implies all
-        // query stages nested in its plan subtree are materialized, so keep descending.
         if (shuffleStage.isMaterialized) {
+          // Non-vanilla ShuffleExchangeLike (e.g. Gluten's columnar exchange) is ignored.
           shuffleStage.shuffle match {
             case exchange: ShuffleExchangeExec =>
               shuffleIds += exchange.shuffleDependency.shuffleId
-            // Non-vanilla ShuffleExchangeLike implementations (e.g. Gluten's columnar
-            // exchange) are not supported.
             case _ =>
           }
+          // A materialized stage only references materialized child stages; keep descending.
           visit(shuffleStage.plan, inAdaptivePlan = false)
         }
 
+      // Spark 4 wraps the final AQE plan in a ResultQueryStageExec leaf.
       case stage: QueryStageExec =>
-        // Spark 4 wraps the final AQE plan in a ResultQueryStageExec leaf, so descend to
-        // reach the shuffle stages referenced by it. BroadcastQueryStageExec and
-        // TableCacheQueryStageExec (whose plan is an InMemoryTableScanExec) contain no
-        // shuffles, descending into them is harmless.
         visit(stage.plan, inAdaptivePlan)
 
       case reused: ReusedExchangeExec =>
-        // The child of a ReusedExchangeExec is the exchange instance being reused.
         visit(reused.child, inAdaptivePlan)
 
       case exchange: ShuffleExchangeExec =>
-        // Non-AQE plan (or below a materialized AQE stage). For a successful query every
-        // exchange has been executed, so its shuffleDependency is already computed. For a
-        // failed query an exchange here may never have materialized; reading its lazy
-        // shuffleDependency then builds the child RDD lineage on this listener thread,
-        // and for RangePartitioning would even launch a sampling job, so those exchanges
-        // are skipped (their shuffles, if any, fall back to the regular GC-driven
-        // cleanup).
+        // In a failed query an exchange here may be unexecuted; RangePartitioning ones are
+        // skipped since reading them could launch a sampling job on this thread.
         if (!inAdaptivePlan &&
           (!queryFailed || !exchange.outputPartitioning.isInstanceOf[RangePartitioning])) {
           shuffleIds += exchange.shuffleDependency.shuffleId
         }
-        // Earlier query stages sit below this exchange in the tree; keep descending.
         exchange.children.foreach(visit(_, inAdaptivePlan))
 
       case other =>
@@ -124,8 +114,8 @@ class CelebornQueryEndShuffleCleaner(lifecycleManager: LifecycleManager)
       return
     }
 
-    // Note: if planning itself failed, accessing qe.executedPlan re-triggers planning and
-    // re-throws the planning failure; that exception is caught as NonFatal by the caller.
+    // If planning itself failed, qe.executedPlan re-triggers planning and re-throws;
+    // that is caught as NonFatal by the caller.
     val shuffleIds = extractShuffleIds(qe.executedPlan, end.executionFailure.isDefined)
       .filter(
         lifecycleManager.isAppShuffleRegistered(_, lifecycleManager.conf.clientStageRerunEnabled))

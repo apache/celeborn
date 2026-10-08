@@ -108,9 +108,8 @@ class CelebornQueryEndShuffleCleanupSuite extends AnyFunSuite
     val spark = SparkSession.builder().config(queryEndShuffleCleanupConf(true)).getOrCreate()
 
     try {
-      // For CTAS / INSERT, the root of executedPlan is a DataWritingCommandExec wrapping an
-      // AdaptiveSparkPlanExec, so the exchanges are not reachable without unwrapping the
-      // AdaptiveSparkPlanExec nested in the tree.
+      // For CTAS / INSERT the executedPlan root is a DataWritingCommandExec wrapping an
+      // AdaptiveSparkPlanExec, so exchanges are only reachable by unwrapping it.
       import org.apache.spark.sql.functions._
       spark.range(0, 1000, 1, 4)
         .withColumn("k", expr("id % 10"))
