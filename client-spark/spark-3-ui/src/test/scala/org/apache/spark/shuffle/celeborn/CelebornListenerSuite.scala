@@ -22,6 +22,7 @@ import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.internal.config.Status.ASYNC_TRACKING_ENABLED
 import org.apache.spark.scheduler.{JobSucceeded, SparkListenerEnvironmentUpdate, SparkListenerJobEnd, SparkListenerTaskEnd, TaskInfo, TaskLocality}
 import org.apache.spark.status.ElementTrackingStore
+import org.apache.spark.util.Utils
 import org.apache.spark.util.kvstore.InMemoryStore
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.Test
@@ -138,5 +139,32 @@ class CelebornListenerSuite {
     listener.onTaskEnd(newTaskEnd(100L, 10L, 1L, 5L))
     assertTrue(statusStore.extensionEnabled())
     assertEquals(100L, statusStore.aggregatedTaskInfo().shuffleWriteBytes)
+  }
+
+  @Test
+  def sensitivePropertiesAreRedacted(): Unit = {
+    val store = new InMemoryStore()
+    val statusStore = new CelebornStatusStore(store)
+    val listener = new CelebornListener(store, new SparkConf())
+
+    listener.onEnvironmentUpdate(envUpdate(
+      "spark.celeborn.ssl.rpc_service.trustStorePassword" -> "top-secret-password",
+      "spark.celeborn.storage.oss.secret.key" -> "oss-secret-key",
+      "spark.celeborn.master.endpoints" -> "host1:9097,host2:9097",
+      "spark.executor.memory" -> "1g"))
+
+    val props = statusStore.celebornProperties().info.toMap
+
+    // Sensitive values are redacted, same as Spark's Environment tab.
+    assertEquals(Utils.REDACTION_REPLACEMENT_TEXT,
+      props("spark.celeborn.ssl.rpc_service.trustStorePassword"))
+    assertEquals(Utils.REDACTION_REPLACEMENT_TEXT,
+      props("spark.celeborn.storage.oss.secret.key"))
+
+    // Ordinary Celeborn property remains visible.
+    assertEquals("host1:9097,host2:9097", props("spark.celeborn.master.endpoints"))
+
+    // Non-Celeborn properties are filtered out.
+    assertFalse(props.contains("spark.executor.memory"))
   }
 }

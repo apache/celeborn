@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicLong
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler._
+import org.apache.spark.util.Utils
 import org.apache.spark.util.kvstore.KVStore
 
 /**
@@ -94,8 +95,9 @@ private[celeborn] class CelebornListener(
         return
       }
     }
-    val celebornProps = sparkProps
-      .filter { case (k, _) => k.startsWith("spark.celeborn.") }
+    val celebornProps = Utils.redact(
+      conf,
+      sparkProps.filter { case (k, _) => k.startsWith("spark.celeborn.") })
       .sortBy(_._1)
     if (celebornProps.nonEmpty) {
       kvstore.write(new CelebornPropertiesUIData(celebornProps.toList))
