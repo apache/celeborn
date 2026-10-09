@@ -156,10 +156,10 @@ class CelebornListenerSuite {
     val props = statusStore.celebornProperties().info.toMap
 
     // Sensitive values are redacted, same as Spark's Environment tab.
-    assertEquals(Utils.REDACTION_REPLACEMENT_TEXT,
+    assertEquals(
+      Utils.REDACTION_REPLACEMENT_TEXT,
       props("spark.celeborn.ssl.rpc_service.trustStorePassword"))
-    assertEquals(Utils.REDACTION_REPLACEMENT_TEXT,
-      props("spark.celeborn.storage.oss.secret.key"))
+    assertEquals(Utils.REDACTION_REPLACEMENT_TEXT, props("spark.celeborn.storage.oss.secret.key"))
 
     // Ordinary Celeborn property remains visible.
     assertEquals("host1:9097,host2:9097", props("spark.celeborn.master.endpoints"))
