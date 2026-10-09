@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.protocol.FallbackPolicy;
 
 public class CelebornShuffleDataIO implements ShuffleDataIO {
 
@@ -58,7 +59,10 @@ class CelebornShuffleDriverComponents extends LocalDiskShuffleDriverComponents {
   private final boolean supportsReliableStorage;
 
   public CelebornShuffleDriverComponents(CelebornConf celebornConf) {
-    this.supportsReliableStorage = !celebornConf.shuffleForceFallbackEnabled();
+    // Reliable only under NEVER. AUTO/ALWAYS may fall back to local-disk shuffle, whose output
+    // dies with the executor, so report false to stop DRA from reclaiming executors that hold it.
+    this.supportsReliableStorage =
+        FallbackPolicy.NEVER.equals(celebornConf.sparkShuffleFallbackPolicy());
   }
 
   // Omitting @Override annotation to avoid compile error before Spark 3.5.0
