@@ -83,7 +83,7 @@ public final class SslMessageEncoder extends MessageToMessageEncoder<Message> {
     msgType.encode(header);
     header.writeInt(bodyLength);
     in.encode(header);
-    assert header.writableBytes() == 0;
+    assert header.writerIndex() == headerLength;
 
     if (body != null && bodyLength > 0) {
       // We transfer ownership of the reference on in.body() to EncryptedMessageWithHeader.
