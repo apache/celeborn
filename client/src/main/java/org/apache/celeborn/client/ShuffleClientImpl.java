@@ -1936,6 +1936,7 @@ public class ShuffleClientImpl extends ShuffleClient {
               null);
         case STAGE_END_TIMEOUT:
         case SHUFFLE_DATA_LOST:
+        case SHUFFLE_EXPIRED:
           exceptionMsg =
               String.format(
                   "Request %s return %s for %s.",
