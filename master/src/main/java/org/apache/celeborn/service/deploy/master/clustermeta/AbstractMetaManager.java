@@ -56,6 +56,7 @@ import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.util.WorkerStatusUtils;
+import org.apache.celeborn.service.deploy.master.ApplicationMetricsSource;
 
 /**
  * Note: Do not update the worker collections directly from outside the metadata manager, especially
@@ -105,6 +106,16 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       JavaUtils.newConcurrentHashMap();
   public final ConcurrentHashMap<String, ApplicationMeta> applicationMetas =
       JavaUtils.newConcurrentHashMap();
+
+  private final ApplicationMetricsSource applicationMetricsSource;
+
+  protected AbstractMetaManager(ApplicationMetricsSource applicationMetricsSource) {
+    this.applicationMetricsSource = applicationMetricsSource;
+  }
+
+  public ApplicationMetricsSource applicationMetricsSource() {
+    return applicationMetricsSource;
+  }
 
   public void updateApplicationInfo(
       String appId, UserIdentifier userIdentifier, Map<String, String> extraInfo) {
@@ -169,7 +180,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       long shuffleCount,
       long applicationCount,
       Map<String, Long> shuffleFallbackCounts,
-      Map<String, Long> applicationFallbackCounts) {
+      Map<String, Long> applicationFallbackCounts,
+      Map<String, Long> clientGauges,
+      Map<String, String> clientMetricLabels) {
     appHeartbeatTime.put(appId, time);
     partitionTotalWritten.add(totalWritten);
     partitionTotalFileCount.add(fileCount);
@@ -177,6 +190,13 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     applicationTotalCount.add(applicationCount);
     addFallbackCounts(this.shuffleFallbackCounts, shuffleFallbackCounts);
     addFallbackCounts(this.applicationFallbackCounts, applicationFallbackCounts);
+    if (!clientMetricLabels.isEmpty()) {
+      try {
+        applicationMetricsSource.updateApplicationMetrics(appId, clientMetricLabels, clientGauges);
+      } catch (Throwable t) {
+        LOG.warn("Failed to update client metrics for app {}", appId, t);
+      }
+    }
   }
 
   public void updateAppLostMeta(String appId) {
@@ -184,6 +204,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     appHeartbeatTime.remove(appId);
     applicationMetas.remove(appId);
     applicationInfos.remove(appId);
+    try {
+      applicationMetricsSource.removeApplicationMetrics(appId);
+    } catch (Throwable t) {
+      LOG.warn("Failed to remove client metrics for app {}", appId, t);
+    }
   }
 
   @VisibleForTesting
@@ -566,6 +591,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workerEventInfos.clear();
     applicationMetas.clear();
     applicationInfos.clear();
+    try {
+      applicationMetricsSource.clearApplicationMetrics();
+    } catch (Throwable t) {
+      LOG.warn("Failed to clear client metrics while restoring meta", t);
+    }
   }
 
   public void updateMetaByReportWorkerUnavailable(List<WorkerInfo> failedWorkers) {

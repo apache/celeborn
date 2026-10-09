@@ -41,7 +41,7 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
-import org.apache.celeborn.common.metrics.MetricsSystem
+import org.apache.celeborn.common.metrics.{ClientMetric, MetricsSystem, MetricType}
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, Role, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.CelebornRackResolver
 import org.apache.celeborn.common.network.protocol.{TransportMessage, TransportMessagesHelper}
@@ -176,6 +176,7 @@ private[celeborn] class Master(
     } else {
       new SingleMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
     }
+  metricsSystem.registerSource(statusSystem.applicationMetricsSource())
   secretRegistry.setMetadataHandler(statusSystem)
 
   // Threads
@@ -196,6 +197,7 @@ private[celeborn] class Master(
 
   private val dfsExpireDirsTimeoutMS = conf.dfsExpireDirsTimeoutMS
   private val remoteStorageDirs = conf.remoteStorageDirs
+  private val masterClientMetricsEnabled = conf.masterClientMetricsEnabled
 
   private val quotaManager = new QuotaManager(
     statusSystem,
@@ -474,7 +476,9 @@ private[celeborn] class Master(
           applicationFallbackCounts,
           needCheckedWorkerList,
           requestId,
-          shouldResponse) =>
+          shouldResponse,
+          clientMetrics,
+          metricLabels) =>
       logDebug(s"Received heartbeat from app $appId")
       checkAuth(context, appId)
       executeWithLeaderChecker(
@@ -490,7 +494,9 @@ private[celeborn] class Master(
           applicationFallbackCounts,
           needCheckedWorkerList,
           requestId,
-          shouldResponse))
+          shouldResponse,
+          clientMetrics,
+          metricLabels))
 
     case pbRegisterWorker: PbRegisterWorker =>
       val requestId = pbRegisterWorker.getRequestId
@@ -1293,7 +1299,23 @@ private[celeborn] class Master(
       applicationFallbackCounts: util.Map[String, java.lang.Long],
       needCheckedWorkerList: util.List[WorkerInfo],
       requestId: String,
-      shouldResponse: Boolean): Unit = {
+      shouldResponse: Boolean,
+      clientMetrics: util.Map[String, ClientMetric],
+      metricLabels: util.Map[String, String]): Unit = {
+    val (clientGauges, clientMetricLabels) =
+      if (masterClientMetricsEnabled && !metricLabels.isEmpty) {
+        val gauges = new util.HashMap[String, java.lang.Long]()
+        clientMetrics.asScala.foreach { case (name, metric) =>
+          metric.metricType match {
+            case MetricType.Gauge => gauges.put(name, metric.value)
+          }
+        }
+        (gauges, metricLabels)
+      } else {
+        (
+          Collections.emptyMap[String, java.lang.Long](),
+          Collections.emptyMap[String, String]())
+      }
     statusSystem.handleAppHeartbeat(
       appId,
       totalWritten,
@@ -1303,7 +1325,10 @@ private[celeborn] class Master(
       shuffleFallbackCounts,
       applicationFallbackCounts,
       System.currentTimeMillis(),
+      clientGauges,
+      clientMetricLabels,
       requestId)
+
     gaugeShuffleFallbackCounts()
     val unknownWorkers = needCheckedWorkerList.asScala.filterNot(w =>
       statusSystem.workersMap.containsKey(w.toUniqueId)).asJava

@@ -124,6 +124,8 @@ message AppHeartbeatRequest {
   HeartbeatInfo heartbeatInfo = 7;
   optional int64 applicationCount = 8;
   map<string, int64> applicationFallbackCounts = 9;
+  map<string, int64> clientGauges = 10;
+  map<string, string> clientMetricLabels = 11;
 }
 
 message AppLostRequest {

@@ -50,6 +50,7 @@ import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
+import org.apache.celeborn.service.deploy.master.ApplicationMetricsSource;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 
 public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
@@ -122,6 +123,34 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     Assert.assertEquals(2020, latest.getTerm());
     Assert.assertEquals(1005, latest.getIndex());
     Assert.assertEquals(1, latest.getFiles().size());
+  }
+
+  @Test
+  public void testHAMetaManagerCreatesItsOwnApplicationMetricsSource() {
+    CelebornConf conf = new CelebornConf();
+    conf.set(CelebornConf.MASTER_CLIENT_METRICS_ENABLED().key(), "true");
+    HAMasterMetaManager system = new HAMasterMetaManager(null, conf);
+    ApplicationMetricsSource source = system.applicationMetricsSource();
+    try {
+      Assert.assertNotNull(source);
+      system.updateAppHeartbeatMeta(
+          "app-1",
+          System.currentTimeMillis(),
+          1,
+          1,
+          1,
+          1,
+          new HashMap<>(),
+          new HashMap<>(),
+          Collections.singletonMap("ClientActiveShuffleCount", 5L),
+          Collections.singletonMap("team", "data-eng"));
+      Assert.assertFalse(source.gauges().isEmpty());
+
+      system.updateAppLostMeta("app-1");
+      Assert.assertTrue(source.gauges().isEmpty());
+    } finally {
+      source.destroy();
+    }
   }
 
   @Test

@@ -26,10 +26,13 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
 
 import scala.Tuple2;
 
 import com.google.common.collect.Lists;
+import org.apache.ratis.protocol.TransferLeadershipRequest;
+import org.apache.ratis.rpc.CallId;
 import org.junit.*;
 import org.mockito.Mockito;
 
@@ -41,6 +44,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.network.sasl.SaslCredentials;
 import org.apache.celeborn.common.network.sasl.SaslTestBase;
 import org.apache.celeborn.common.network.sasl.SecretRegistry;
@@ -57,6 +61,7 @@ import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.util.Utils$;
+import org.apache.celeborn.service.deploy.master.ApplicationMetricsSource;
 import org.apache.celeborn.service.deploy.master.MasterSecretRegistryImpl;
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
@@ -108,6 +113,16 @@ public class RatisMasterStatusSystemSuiteJ {
   public static void resetRaftServer(
       CelebornConf conf1, CelebornConf conf2, CelebornConf conf3, boolean sslEnabled)
       throws IOException, InterruptedException {
+    resetRaftServer(conf1, conf2, conf3, sslEnabled, new ApplicationMetricsSource[3]);
+  }
+
+  public static void resetRaftServer(
+      CelebornConf conf1,
+      CelebornConf conf2,
+      CelebornConf conf3,
+      boolean sslEnabled,
+      ApplicationMetricsSource[] metricsSources)
+      throws IOException, InterruptedException {
     Mockito.when(mockRpcEnv.setupEndpointRef(Mockito.any(), Mockito.any()))
         .thenReturn(mockRpcEndpoint);
     when(mockRpcEnv.setupEndpointRef(any(), any())).thenReturn(dummyRef);
@@ -132,9 +147,9 @@ public class RatisMasterStatusSystemSuiteJ {
           configureServerConf(conf3, 3);
         }
 
-        STATUSSYSTEM1 = new HAMasterMetaManager(mockRpcEnv, conf1);
-        STATUSSYSTEM2 = new HAMasterMetaManager(mockRpcEnv, conf2);
-        STATUSSYSTEM3 = new HAMasterMetaManager(mockRpcEnv, conf3);
+        STATUSSYSTEM1 = newStatusSystem(conf1, metricsSources[0]);
+        STATUSSYSTEM2 = newStatusSystem(conf2, metricsSources[1]);
+        STATUSSYSTEM3 = newStatusSystem(conf3, metricsSources[2]);
 
         MetaHandler handler1 = new MetaHandler(STATUSSYSTEM1);
         MetaHandler handler2 = new MetaHandler(STATUSSYSTEM2);
@@ -205,6 +220,11 @@ public class RatisMasterStatusSystemSuiteJ {
         }
       }
     }
+  }
+
+  private static HAMasterMetaManager newStatusSystem(
+      CelebornConf conf, ApplicationMetricsSource metricsSource) {
+    return new HAMasterMetaManager(mockRpcEnv, conf, new CelebornRackResolver(conf), metricsSource);
   }
 
   @Test
@@ -807,6 +827,262 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertTrue(STATUSSYSTEM3.registeredAppAndShuffles.isEmpty());
   }
 
+  private static void waitFor(BooleanSupplier condition, String description)
+      throws InterruptedException {
+    long deadline = System.currentTimeMillis() + 30_000L;
+    while (!condition.getAsBoolean()) {
+      if (System.currentTimeMillis() > deadline) {
+        fail("Timed out waiting for " + description);
+      }
+      Thread.sleep(100L);
+    }
+  }
+
+  private static void transferLeadership(HARaftServer from, HARaftServer to) throws Exception {
+    from.getServer()
+        .transferLeadership(
+            new TransferLeadershipRequest(
+                from.getClientId(),
+                from.getServer().getId(),
+                from.getGroupId(),
+                CallId.getAndIncrement(),
+                to.getServer().getId(),
+                30_000L));
+    waitFor(to::isLeader, "leadership to transfer");
+    // isLeader() trusts a cached LEADER role, so force a refresh on the old leader to make sure
+    // it has observed the step-down (and fired its leadership listeners) before asserting.
+    waitFor(
+        () -> {
+          from.updateServerRole();
+          return !from.isLeader();
+        },
+        "old leader to observe step-down");
+  }
+
+  /** A freshly elected leader rejects writes until it has committed an entry in its term. */
+  private static void submitWhenLeaderReady(Runnable submit) throws InterruptedException {
+    waitFor(
+        () -> {
+          try {
+            submit.run();
+            return true;
+          } catch (CelebornRuntimeException e) {
+            return false;
+          }
+        },
+        "new leader to accept writes");
+  }
+
+  private static final Map<String, String> CLIENT_LABELS =
+      Collections.singletonMap("team", "data-eng");
+
+  private void heartbeatWithGauge(HAMasterMetaManager leader, String appId, long value)
+      throws InterruptedException {
+    Map<String, Long> gauges = Collections.singletonMap("ClientActiveShuffleCount", value);
+    submitWhenLeaderReady(
+        () ->
+            leader.handleAppHeartbeat(
+                appId,
+                1,
+                1,
+                1,
+                1,
+                new HashMap<>(),
+                new HashMap<>(),
+                System.currentTimeMillis(),
+                gauges,
+                CLIENT_LABELS,
+                getNewReqeustId()));
+  }
+
+  /** Sum of the client gauge across apps as exported by the source, or null if not exported. */
+  private static Long exportedGauge(ApplicationMetricsSource source) {
+    if (source.gauges().isEmpty()) {
+      return null;
+    }
+    return ((Number) source.gauges().head().gauge().getValue()).longValue();
+  }
+
+  private static void waitForAllMasters(ApplicationMetricsSource[] sources, Long expected)
+      throws InterruptedException {
+    waitFor(
+        () -> Arrays.stream(sources).allMatch(s -> Objects.equals(exportedGauge(s), expected)),
+        "all masters to export " + expected);
+  }
+
+  @Test
+  public void testClientMetricsReplicatedAcrossLeadershipChanges() throws Exception {
+    ApplicationMetricsSource[] sources = new ApplicationMetricsSource[3];
+    try {
+      CelebornConf metricsConf = new CelebornConf();
+      metricsConf.set(CelebornConf.MASTER_CLIENT_METRICS_ENABLED().key(), "true");
+      for (int i = 0; i < 3; i++) {
+        sources[i] = new ApplicationMetricsSource(metricsConf);
+      }
+      resetRaftServer(
+          configureServerConf(new CelebornConf(), 1),
+          configureServerConf(new CelebornConf(), 2),
+          configureServerConf(new CelebornConf(), 3),
+          false,
+          sources);
+      HARaftServer[] servers = {RATISSERVER1, RATISSERVER2, RATISSERVER3};
+      HAMasterMetaManager[] systems = {STATUSSYSTEM1, STATUSSYSTEM2, STATUSSYSTEM3};
+
+      int a = RATISSERVER1.isLeader() ? 0 : (RATISSERVER2.isLeader() ? 1 : 2);
+      int b = (a + 1) % 3;
+
+      // A heartbeat reaching leader A is applied on every master.
+      heartbeatWithGauge(systems[a], APPID1, 7);
+      waitForAllMasters(sources, 7L);
+
+      // Leadership moves to B; B's heartbeats keep every master, including A, up to date.
+      transferLeadership(servers[a], servers[b]);
+      heartbeatWithGauge(systems[b], APPID1, 5);
+      waitForAllMasters(sources, 5L);
+
+      // The app terminates on B: the replicated AppLost removes it from every master.
+      submitWhenLeaderReady(() -> systems[b].handleAppLost(APPID1, getNewReqeustId()));
+      waitForAllMasters(sources, null);
+
+      // A becomes leader again: a late heartbeat from the terminated app stays ignored on every
+      // master, while live apps are tracked.
+      transferLeadership(servers[b], servers[a]);
+      heartbeatWithGauge(systems[a], APPID1, 9);
+      heartbeatWithGauge(systems[a], "appId2", 4);
+      waitForAllMasters(sources, 4L);
+    } finally {
+      for (ApplicationMetricsSource source : sources) {
+        if (source != null) {
+          source.destroy();
+        }
+      }
+      // Restart the shared cluster without the metrics sources.
+      resetRaftServer(
+          configureServerConf(new CelebornConf(), 1),
+          configureServerConf(new CelebornConf(), 2),
+          configureServerConf(new CelebornConf(), 3),
+          false);
+    }
+  }
+
+  @Test
+  public void testHeartbeatDelayedPastRetentionIsClearedByNextAppLost() throws Exception {
+    ApplicationMetricsSource[] sources = new ApplicationMetricsSource[3];
+    try {
+      CelebornConf metricsConf = new CelebornConf();
+      metricsConf.set(CelebornConf.MASTER_CLIENT_METRICS_ENABLED().key(), "true");
+      metricsConf.set(CelebornConf.MASTER_CLIENT_METRICS_REMOVED_APP_RETENTION().key(), "500ms");
+      for (int i = 0; i < 3; i++) {
+        sources[i] = new ApplicationMetricsSource(metricsConf);
+      }
+      resetRaftServer(
+          configureServerConf(new CelebornConf(), 1),
+          configureServerConf(new CelebornConf(), 2),
+          configureServerConf(new CelebornConf(), 3),
+          false,
+          sources);
+      HAMasterMetaManager[] systems = {STATUSSYSTEM1, STATUSSYSTEM2, STATUSSYSTEM3};
+      HAMasterMetaManager leader = pickLeaderStatusSystem();
+
+      heartbeatWithGauge(leader, APPID1, 7);
+      waitForAllMasters(sources, 7L);
+      submitWhenLeaderReady(() -> leader.handleAppLost(APPID1, getNewReqeustId()));
+      waitForAllMasters(sources, null);
+
+      // Once the removed-app retention has passed, a heartbeat that was delayed in flight is
+      // no longer rejected and re-creates the series on every master.
+      Thread.sleep(1_500L);
+      heartbeatWithGauge(leader, APPID1, 3);
+      waitForAllMasters(sources, 3L);
+
+      // It cannot leak: the same entry puts the app back into appHeartbeatTime on every master,
+      // so the leader's timeout checker will lose it again, which clears it everywhere.
+      Assert.assertTrue(
+          Arrays.stream(systems).allMatch(s -> s.appHeartbeatTime.containsKey(APPID1)));
+      submitWhenLeaderReady(() -> leader.handleAppLost(APPID1, getNewReqeustId()));
+      waitForAllMasters(sources, null);
+    } finally {
+      for (ApplicationMetricsSource source : sources) {
+        if (source != null) {
+          source.destroy();
+        }
+      }
+      // Restart the shared cluster without the metrics sources.
+      resetRaftServer(
+          configureServerConf(new CelebornConf(), 1),
+          configureServerConf(new CelebornConf(), 2),
+          configureServerConf(new CelebornConf(), 3),
+          false);
+    }
+  }
+
+  /** A metrics source that fails on every call, to exercise the apply-path guardrails. */
+  private static class FailingMetricsSource extends ApplicationMetricsSource {
+    FailingMetricsSource(CelebornConf conf) {
+      super(conf);
+    }
+
+    @Override
+    public void updateApplicationMetrics(
+        String appId, Map<String, String> metricLabels, Map<String, Long> gauges) {
+      throw new IllegalArgumentException("injected update failure");
+    }
+
+    @Override
+    public void removeApplicationMetrics(String appId) {
+      throw new IllegalStateException("injected remove failure");
+    }
+  }
+
+  @Test
+  public void testClientMetricsFailureDoesNotBreakRatisApply() throws Exception {
+    ApplicationMetricsSource[] sources = new ApplicationMetricsSource[3];
+    try {
+      CelebornConf metricsConf = new CelebornConf();
+      metricsConf.set(CelebornConf.MASTER_CLIENT_METRICS_ENABLED().key(), "true");
+      for (int i = 0; i < 3; i++) {
+        sources[i] = new FailingMetricsSource(metricsConf);
+      }
+      resetRaftServer(
+          configureServerConf(new CelebornConf(), 1),
+          configureServerConf(new CelebornConf(), 2),
+          configureServerConf(new CelebornConf(), 3),
+          false,
+          sources);
+      HAMasterMetaManager[] systems = {STATUSSYSTEM1, STATUSSYSTEM2, STATUSSYSTEM3};
+      HAMasterMetaManager leader = pickLeaderStatusSystem();
+
+      // An exception escaping the apply would terminate every master on the same entry.
+      heartbeatWithGauge(leader, APPID1, 7);
+      waitFor(
+          () -> Arrays.stream(systems).allMatch(s -> s.appHeartbeatTime.containsKey(APPID1)),
+          "heartbeat to be applied on every master");
+
+      submitWhenLeaderReady(() -> leader.handleAppLost(APPID1, getNewReqeustId()));
+      waitFor(
+          () -> Arrays.stream(systems).noneMatch(s -> s.appHeartbeatTime.containsKey(APPID1)),
+          "AppLost to be applied on every master");
+
+      // The state machine keeps applying later entries.
+      heartbeatWithGauge(leader, "appId2", 4);
+      waitFor(
+          () -> Arrays.stream(systems).allMatch(s -> s.appHeartbeatTime.containsKey("appId2")),
+          "later heartbeat to be applied on every master");
+    } finally {
+      for (ApplicationMetricsSource source : sources) {
+        if (source != null) {
+          source.destroy();
+        }
+      }
+      // Restart the shared cluster without the metrics sources.
+      resetRaftServer(
+          configureServerConf(new CelebornConf(), 1),
+          configureServerConf(new CelebornConf(), 2),
+          configureServerConf(new CelebornConf(), 3),
+          false);
+    }
+  }
+
   @Test
   public void testHandleUnRegisterShuffle() throws InterruptedException {
     AbstractMetaManager statusSystem = pickLeaderStatusSystem();
@@ -991,7 +1267,17 @@ public class RatisMasterStatusSystemSuiteJ {
 
     long dummy = 1235L;
     statusSystem.handleAppHeartbeat(
-        APPID1, 1, 1, 1, 1, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
+        APPID1,
+        1,
+        1,
+        1,
+        1,
+        new HashMap<>(),
+        new HashMap<>(),
+        dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        getNewReqeustId());
     Thread.sleep(3000L);
     Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM1.appHeartbeatTime.get(APPID1));
     Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM2.appHeartbeatTime.get(APPID1));
@@ -999,7 +1285,17 @@ public class RatisMasterStatusSystemSuiteJ {
 
     String appId2 = "app02";
     statusSystem.handleAppHeartbeat(
-        appId2, 1, 1, 2, 2, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
+        appId2,
+        1,
+        1,
+        2,
+        2,
+        new HashMap<>(),
+        new HashMap<>(),
+        dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        getNewReqeustId());
     Thread.sleep(3000L);
 
     Assert.assertEquals(Long.valueOf(dummy), STATUSSYSTEM1.appHeartbeatTime.get(appId2));
@@ -1681,28 +1977,88 @@ public class RatisMasterStatusSystemSuiteJ {
 
     Long dummy = 1235L;
     statusSystem.handleAppHeartbeat(
-        APPID1, 10000000000l, 1, 1, 1, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
+        APPID1,
+        10000000000l,
+        1,
+        1,
+        1,
+        new HashMap<>(),
+        new HashMap<>(),
+        dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        getNewReqeustId());
     String appId2 = "app02";
     statusSystem.handleAppHeartbeat(
-        appId2, 1, 1, 2, 2, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
+        appId2,
+        1,
+        1,
+        2,
+        2,
+        new HashMap<>(),
+        new HashMap<>(),
+        dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        getNewReqeustId());
 
     // Max size
     statusSystem.handleUpdatePartitionSize();
     Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.maxPartitionSizeToEstimate());
 
     statusSystem.handleAppHeartbeat(
-        APPID1, 1000000000l, 1, 1, 1, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
+        APPID1,
+        1000000000l,
+        1,
+        1,
+        1,
+        new HashMap<>(),
+        new HashMap<>(),
+        dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        getNewReqeustId());
     statusSystem.handleAppHeartbeat(
-        appId2, 1, 1, 2, 2, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
+        appId2,
+        1,
+        1,
+        2,
+        2,
+        new HashMap<>(),
+        new HashMap<>(),
+        dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        getNewReqeustId());
 
     // Size between minEstimateSize -> maxEstimateSize
     statusSystem.handleUpdatePartitionSize();
     Assert.assertEquals(statusSystem.estimatedPartitionSize, 500000000);
 
     statusSystem.handleAppHeartbeat(
-        APPID1, 1000l, 1, 1, 1, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
+        APPID1,
+        1000l,
+        1,
+        1,
+        1,
+        new HashMap<>(),
+        new HashMap<>(),
+        dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        getNewReqeustId());
     statusSystem.handleAppHeartbeat(
-        appId2, 1000l, 1, 2, 2, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
+        appId2,
+        1000l,
+        1,
+        2,
+        2,
+        new HashMap<>(),
+        new HashMap<>(),
+        dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        getNewReqeustId());
 
     // Min size
     statusSystem.handleUpdatePartitionSize();
@@ -2107,6 +2463,8 @@ public class RatisMasterStatusSystemSuiteJ {
         shuffleFallbackCounts,
         applicationFallbackCounts,
         dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
         getNewReqeustId());
     shuffleFallbackCounts.put(POLICY1, 1L);
     shuffleFallbackCounts.put(POLICY2, 2L);
@@ -2121,6 +2479,8 @@ public class RatisMasterStatusSystemSuiteJ {
         shuffleFallbackCounts,
         applicationFallbackCounts,
         dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
         getNewReqeustId());
 
     assertEquals(statusSystem.shuffleTotalCount.longValue(), 5);
