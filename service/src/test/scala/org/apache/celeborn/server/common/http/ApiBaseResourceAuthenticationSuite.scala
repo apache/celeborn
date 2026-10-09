@@ -22,6 +22,8 @@ import java.util.Base64
 import javax.servlet.http.HttpServletResponse
 import javax.ws.rs.core.MediaType
 
+import scala.collection.JavaConverters._
+
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.authentication.HttpAuthSchemes
 import org.apache.celeborn.common.network.TestHelper
@@ -150,5 +152,28 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
         assert(HttpServletResponse.SC_NOT_FOUND == response.getStatus)
       }
     }
+  }
+
+  test("request without Authorization header gets 401 with WWW-Authenticate challenges") {
+    // The suite configures BASIC + BEARER schemes; a request with no Authorization header must be
+    // challenged with one WWW-Authenticate value per registered scheme. The Basic challenge carries
+    // a realm (RFC 7617), other schemes use their bare token.
+    val response = webTarget.path("shuffle").request(MediaType.TEXT_PLAIN).get()
+    assert(HttpServletResponse.SC_UNAUTHORIZED == response.getStatus)
+
+    val challenges =
+      response.getStringHeaders.get(HttpAuthUtils.WWW_AUTHENTICATE_HEADER).asScala.toSet
+    assert(challenges.contains("Basic realm=\"Celeborn\""))
+    assert(challenges.contains(HttpAuthSchemes.BEARER.toString))
+  }
+
+  test("request with unmatched Authorization scheme keeps 401 and original error") {
+    // An Authorization header that matches no configured handler must still 401 and must NOT be
+    // challenged (no new WWW-Authenticate added for it).
+    val response = webTarget.path("shuffle")
+      .request(MediaType.TEXT_PLAIN)
+      .header(AUTHORIZATION_HEADER, "Digest realm=\"x\"")
+      .get()
+    assert(HttpServletResponse.SC_UNAUTHORIZED == response.getStatus)
   }
 }

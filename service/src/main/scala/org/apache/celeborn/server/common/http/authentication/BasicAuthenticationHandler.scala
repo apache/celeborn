@@ -82,7 +82,9 @@ class BasicAuthenticationHandler(providerClass: String) extends AuthenticationHa
       authUser = creds.take(1).headOption.filterNot(_.isEmpty).getOrElse("anonymous")
     } else {
       if (creds.size < 2 || creds(0).trim.isEmpty || creds(1).trim.isEmpty) {
-        response.setHeader(WWW_AUTHENTICATE_HEADER, authScheme.toString)
+        response.setHeader(
+          WWW_AUTHENTICATE_HEADER,
+          HttpAuthUtils.challengeHeaderValue(authScheme))
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED)
       } else {
         val Seq(user, password) = creds.toSeq.take(2)
