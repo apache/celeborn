@@ -438,6 +438,19 @@ public class HARaftServer {
       properties.set(ratisEntry.getKey().replace("celeborn.ratis.", ""), ratisEntry.getValue());
     }
 
+    // The dedicated config takes precedence over the celeborn.ratis.raft.server.close.threshold
+    // passthrough above when explicitly set; otherwise the passthrough (if any) still applies.
+    if (conf.contains(CelebornConf.HA_MASTER_RATIS_CLOSE_THRESHOLD().key())) {
+      if (conf.haRatisCustomConfigs().containsKey("celeborn.ratis.raft.server.close.threshold")) {
+        LOG.warn(
+            "Both {} and celeborn.ratis.raft.server.close.threshold are set; "
+                + "the dedicated config takes precedence.",
+            CelebornConf.HA_MASTER_RATIS_CLOSE_THRESHOLD().key());
+      }
+      RaftServerConfigKeys.setCloseThreshold(
+          properties, TimeDuration.valueOf(conf.haMasterRatisCloseThreshold(), TimeUnit.SECONDS));
+    }
+
     return properties;
   }
 

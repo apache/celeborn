@@ -115,8 +115,10 @@ celeborn.worker.monitor.disk.enabled false
 Note: In an HA cluster, each master runs a Ratis JvmPauseMonitor. If the JVM or the host is paused
 longer than `celeborn.master.ha.ratis.raft.server.close.threshold` (default 60s), the local raft
 server is closed and the master leaves the raft group; the process must be restarted to recover.
-Avoid operations that suspend the JVM for a long time on production masters, e.g. `jmap -F` or
-heap dumps, and prefer low-intrusion diagnostics like `jcmd <pid> GC.class_histogram`.
+Avoid operations that suspend the JVM for a long time on production masters, e.g. `jmap -F`,
+heap dumps, or `jcmd <pid> GC.class_histogram` (which forces a full GC by default; the `all=true`
+form skips the forced GC but still walks the whole heap). Prefer low-intrusion diagnostics such as
+`jstat -gcutil <pid> <interval>` for GC observation.
 
 Flink engine related configurations:
 ```properties
