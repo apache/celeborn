@@ -177,9 +177,30 @@ public class ShuffleBlockInfoUtilsTest {
         "Unexpected number of components in target buffer",
         targetByteBuf.numComponents(),
         targetByteBufWithMaxEndIndex.numComponents());
+    // addComponent does not advance the target's writerIndex, so readableBytes() on the
+    // composite buffers is always 0. Compare the per-component bytes instead.
+    long expectedBytes = 50 + 30 + 20 + 30;
     Assert.assertEquals(
-        "Unexpected readable bytes in target buffer",
-        targetByteBuf.readableBytes(),
-        targetByteBufWithMaxEndIndex.readableBytes());
+        "Unexpected sliced bytes for full re-read",
+        expectedBytes,
+        totalComponentBytes(targetByteBufWithMaxEndIndex));
+    Assert.assertEquals(
+        "Full re-read must produce the same bytes as an explicit full-range read",
+        totalComponentBytes(targetByteBuf),
+        totalComponentBytes(targetByteBufWithMaxEndIndex));
+    for (int i = 0; i < targetByteBuf.numComponents(); i++) {
+      Assert.assertEquals(
+          "Component " + i + " content mismatch",
+          targetByteBuf.component(i),
+          targetByteBufWithMaxEndIndex.component(i));
+    }
+  }
+
+  private static long totalComponentBytes(CompositeByteBuf buf) {
+    long total = 0;
+    for (int i = 0; i < buf.numComponents(); i++) {
+      total += buf.component(i).readableBytes();
+    }
+    return total;
   }
 }
