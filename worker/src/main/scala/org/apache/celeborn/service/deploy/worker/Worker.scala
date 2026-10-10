@@ -24,6 +24,7 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
 import scala.collection.JavaConverters._
+import scala.util.control.NonFatal
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
@@ -35,7 +36,7 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
-import org.apache.celeborn.common.metrics.MetricsSystem
+import org.apache.celeborn.common.metrics.{MetricsSystem, WorkerStats}
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, Role, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.{CelebornRackResolver, TransportContext}
 import org.apache.celeborn.common.network.protocol.TransportMessagesHelper
@@ -55,6 +56,7 @@ import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingState
+import org.apache.celeborn.service.deploy.worker.metrics.ScaleMetricCollector
 import org.apache.celeborn.service.deploy.worker.monitor.JVMQuake
 import org.apache.celeborn.service.deploy.worker.profiler.JVMProfiler
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
@@ -187,6 +189,10 @@ private[celeborn] class Worker(
 
   val memoryManager: MemoryManager = MemoryManager.initialize(conf, storageManager, workerSource)
   memoryManager.registerMemoryListener(storageManager)
+
+  private val scaleMetricCollector = Utils.instantiateClassWithCelebornConf[ScaleMetricCollector](
+    conf.scaleMetricCollectorClassName,
+    conf)
 
   val partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource)
 
@@ -533,6 +539,14 @@ private[celeborn] class Worker(
     }.toMap.asJava
     val diskInfos = workerInfo.updateThenGetDiskInfos(currentDiskMap).asScala.values.toSeq
     workerStatusManager.checkIfNeedTransitionStatus()
+    val workerStats: Option[WorkerStats] =
+      try {
+        scaleMetricCollector.currentWorkerStats()
+      } catch {
+        case NonFatal(e) =>
+          logWarning("Failed to read worker scaling metrics", e)
+          None
+      }
     val response = masterClient.askSync[HeartbeatFromWorkerResponse](
       HeartbeatFromWorker(
         host,
@@ -544,7 +558,8 @@ private[celeborn] class Worker(
         handleResourceConsumption(),
         activeShuffleKeys,
         highWorkload,
-        workerStatusManager.currentWorkerStatus),
+        workerStatusManager.currentWorkerStatus,
+        workerStats),
       classOf[HeartbeatFromWorkerResponse])
     handleHeartbeatResponse(response)
   }
@@ -574,6 +589,7 @@ private[celeborn] class Worker(
     logInfo(s"Starting Worker $host:$pushPort:$fetchPort:$replicatePort" +
       s" with ${workerInfo.diskInfos} slots.")
     registerWithMaster()
+    scaleMetricCollector.init(this)
 
     // start heartbeat
     sendHeartbeatTask = forwardMessageScheduler.scheduleWithFixedDelay(
@@ -638,6 +654,8 @@ private[celeborn] class Worker(
   override def stop(exitKind: Int): Unit = {
     if (!stopped) {
       logInfo("Stopping Worker.")
+
+      Utils.tryLogNonFatalError(scaleMetricCollector.stop())
 
       if (jvmProfiler != null) {
         jvmProfiler.stop()

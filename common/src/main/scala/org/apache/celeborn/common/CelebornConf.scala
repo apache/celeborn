@@ -933,6 +933,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsWorkerAppLevelEnabled: Boolean = get(METRICS_WORKER_APP_LEVEL_ENABLED)
   def metricsLoggerSinkScrapeInterval: Long = get(METRICS_LOGGERSINK_SCRAPE_INTERVAL)
   def metricsLoggerSinkScrapeOutputEnabled: Boolean = get(METRICS_LOGGERSINK_SCRAPE_OUTPUT_ENABLED)
+  def scaleMetricCollectorClassName: String = get(SCALE_METRIC_COLLECTOR_CLASS_NAME)
+  def scaleMetricInterval: Long = get(SCALE_METRIC_INTERVAL)
+  def scaleMetricWindowSize: Int = get(SCALE_METRIC_WINDOW_SIZE)
 
   // //////////////////////////////////////////////////////
   //                      Quota                         //
@@ -6163,6 +6166,33 @@ object CelebornConf extends Logging {
         " do add `org.apache.celeborn.common.metrics.sink.LoggerSink` to metrics.properties.")
       .booleanConf
       .createWithDefault(false)
+
+  val SCALE_METRIC_COLLECTOR_CLASS_NAME: ConfigEntry[String] =
+    buildConf("celeborn.scale.metricCollectorClassName")
+      .categories("metrics")
+      .version("1.0.0")
+      .doc("Class name of the worker metric collector used by automatic scaling.")
+      .stringConf
+      .createWithDefault(
+        "org.apache.celeborn.service.deploy.worker.metrics.DefaultScaleMetricCollector")
+
+  val SCALE_METRIC_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.scale.metricInterval")
+      .categories("metrics")
+      .version("1.0.0")
+      .doc("Interval between worker metric collection tasks.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(_ > 0, "Worker metric interval must be positive")
+      .createWithDefaultString("5s")
+
+  val SCALE_METRIC_WINDOW_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.scale.metricWindowSize")
+      .categories("metrics")
+      .version("1.0.0")
+      .doc("Number of samples in the sliding window used by worker metrics.")
+      .intConf
+      .checkValue(_ > 0, "Worker metric window size must be positive")
+      .createWithDefault(6)
 
   val IDENTITY_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.identity.provider")
