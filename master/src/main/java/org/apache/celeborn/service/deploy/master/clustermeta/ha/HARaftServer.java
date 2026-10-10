@@ -319,11 +319,23 @@ public class HARaftServer {
     }
   }
 
-  private void checkRaftServerState() {
+  @VisibleForTesting
+  void checkRaftServerState() {
     if (stopped.get() || unexpectedCloseHandled.get()) {
       return;
     }
-    LifeCycle.State state = server.getLifeCycleState();
+    handleRaftServerState(server.getLifeCycleState());
+  }
+
+  @VisibleForTesting
+  void handleRaftServerState(LifeCycle.State state) {
+    // Recheck stopped after the lifecycle state was observed: a concurrent stop() may
+    // have set stopped and closed the server in between. Treating an intentional
+    // shutdown as an unexpected close would exit the process as a failure and trigger
+    // a spurious restart under a restart-on-failure supervisor.
+    if (stopped.get() || unexpectedCloseHandled.get()) {
+      return;
+    }
     if ((state == LifeCycle.State.CLOSED || state == LifeCycle.State.EXCEPTION)
         && unexpectedCloseHandled.compareAndSet(false, true)) {
       LOG.error(

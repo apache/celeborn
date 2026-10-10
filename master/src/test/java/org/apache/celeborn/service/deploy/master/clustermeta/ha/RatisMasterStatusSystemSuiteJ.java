@@ -2174,4 +2174,33 @@ public class RatisMasterStatusSystemSuiteJ {
       init();
     }
   }
+
+  @Test
+  public void testConcurrentStopNotTreatedAsUnexpectedClose() throws Exception {
+    HARaftServer nonLeader =
+        !RATISSERVER1.isLeader()
+            ? RATISSERVER1
+            : (!RATISSERVER2.isLeader() ? RATISSERVER2 : RATISSERVER3);
+    try {
+      AtomicBoolean handlerInvoked = new AtomicBoolean(false);
+      nonLeader.setUnexpectedCloseHandler(() -> handlerInvoked.set(true));
+
+      // Normal shutdown: sets stopped and closes the raft server.
+      nonLeader.stop();
+      Assert.assertEquals(LifeCycle.State.CLOSED, nonLeader.getServerState());
+
+      // Replay the interleaving described in the review: the checker passed the entry
+      // check while stopped was still false and read CLOSED; stop() then completed
+      // before the checker acted on the state. The checker must stay silent.
+      nonLeader.handleRaftServerState(LifeCycle.State.CLOSED);
+      Assert.assertFalse(
+          "A normal stop must not be treated as an unexpected close", handlerInvoked.get());
+
+      // The full check path must also stay silent after a normal stop.
+      nonLeader.checkRaftServerState();
+      Assert.assertFalse(handlerInvoked.get());
+    } finally {
+      init();
+    }
+  }
 }
