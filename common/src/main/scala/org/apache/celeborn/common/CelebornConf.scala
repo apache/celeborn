@@ -811,6 +811,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT)
   def haMasterRatisRpcSlownessTimeout: Long = get(HA_MASTER_RATIS_RPC_SLOWNESS_TIMEOUT)
   def haMasterRatisRoleCheckInterval: Long = get(HA_MASTER_RATIS_ROLE_CHECK_INTERVAL)
+  def haMasterRatisUnexpectedCloseAction: String = get(HA_MASTER_RATIS_UNEXPECTED_CLOSE_ACTION)
   def haMasterRatisSnapshotAutoTriggerEnabled: Boolean =
     get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED)
   def haMasterRatisSnapshotAutoTriggerThreshold: Long =
@@ -2975,6 +2976,19 @@ object CelebornConf extends Logging {
         "celeborn.ratis.raft.server.close.threshold passthrough when both are set.")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("60s")
+
+  val HA_MASTER_RATIS_UNEXPECTED_CLOSE_ACTION: ConfigEntry[String] =
+    buildConf("celeborn.master.ha.ratis.unexpected.close.action")
+      .categories("ha")
+      .version("0.7.1")
+      .doc("Action when the local raft server is closed unexpectedly, i.e. not via the " +
+        "master stop flow, e.g. closed by the Ratis JvmPauseMonitor after a JVM pause " +
+        "longer than raft.server.close.threshold. 'exit' logs a fatal message and exits " +
+        "the master process so that supervisors (systemd/K8s) can restart it and the " +
+        "node rejoins the raft group; 'none' only logs.")
+      .stringConf
+      .checkValues(Set("exit", "none"))
+      .createWithDefault("exit")
 
   val HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME: ConfigEntry[Long] =
     buildConf("celeborn.master.ha.ratis.raft.server.retrycache.expirytime")
