@@ -26,12 +26,21 @@ package org.apache.celeborn.common.network.client;
  * reasonable to perform an expensive bootstrapping operation, as they often share a lifespan with
  * the JVM itself.
  */
-public interface TransportClientBootstrap {
+public interface TransportClientBootstrap extends AutoCloseable {
   /**
-   * Performs the bootstrapping operation, throwing an exception on failure.
+   * Performs the bootstrapping operation, throwing an exception on failure. Authentication must
+   * finish before this method returns. Configured instances are shared across connections and must
+   * support concurrent calls.
    *
    * @param client the transport client to bootstrap
    * @throws RuntimeException
    */
   void doBootstrap(TransportClient client) throws RuntimeException;
+
+  /**
+   * Releases resources owned by a configured bootstrap. Configured instances are shared across a
+   * transport context's connections and closed by that context after its factories and servers.
+   */
+  @Override
+  default void close() throws Exception {}
 }

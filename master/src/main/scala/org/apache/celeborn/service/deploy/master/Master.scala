@@ -45,6 +45,8 @@ import org.apache.celeborn.common.metrics.MetricsSystem
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, Role, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.CelebornRackResolver
 import org.apache.celeborn.common.network.protocol.{TransportMessage, TransportMessagesHelper}
+import org.apache.celeborn.common.network.security.AuthorizationRequest
+import org.apache.celeborn.common.network.security.SecurityOperation._
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -434,6 +436,79 @@ private[celeborn] class Master(
     }
   }
 
+  /**
+   * Map application and service requests to authorization operations. Replace user claims with the
+   * effective user so business logic uses the same user as authorization; other business messages
+   * remain unchanged after the check. Maintenance messages require a local origin, and unknown
+   * messages are rejected.
+   */
+  override def authorize(context: RpcRequestContext, message: Any): Any = {
+    def check(request: AuthorizationRequest): Any = {
+      context.authorize(request)
+      message
+    }
+
+    message match {
+      case request: RegisterApplicationInfo =>
+        request.copy(userIdentifier = context.authorize(AuthorizationRequest.forApplication(
+          REGISTER_APPLICATION_INFO,
+          request.applicationId,
+          request.userIdentifier)))
+      case request: HeartbeatFromApplication =>
+        check(AuthorizationRequest.forApplication(APPLICATION_HEARTBEAT, request.appId))
+      case _: PbRegisterWorker =>
+        check(AuthorizationRequest.forService(REGISTER_WORKER))
+      case request: RequestSlots =>
+        request.copy(userIdentifier = context.authorize(AuthorizationRequest.forApplication(
+          REQUEST_SLOTS,
+          request.applicationId,
+          request.userIdentifier)))
+      case request: PbRequestWorkers =>
+        val user = context.authorize(AuthorizationRequest.forApplication(
+          REQUEST_WORKERS,
+          request.getApplicationId,
+          PbSerDeUtils.fromPbUserIdentifier(request.getUserIdentifier)))
+        request.toBuilder.setUserIdentifier(PbSerDeUtils.toPbUserIdentifier(user)).build()
+      case request: PbBatchUnregisterShuffles =>
+        check(AuthorizationRequest.forApplication(BATCH_UNREGISTER_SHUFFLES, request.getAppId))
+      case request: PbUnregisterShuffle =>
+        check(AuthorizationRequest.forApplication(UNREGISTER_SHUFFLE, request.getAppId))
+      case request: ApplicationLost =>
+        check(AuthorizationRequest.forApplication(APPLICATION_LOST, request.appId))
+      case _: HeartbeatFromWorker =>
+        check(AuthorizationRequest.forService(WORKER_HEARTBEAT))
+      case _: ReportWorkerUnavailable =>
+        check(AuthorizationRequest.forService(REPORT_WORKER_UNAVAILABLE))
+      case _: ReportWorkerDecommission =>
+        check(AuthorizationRequest.forService(REPORT_WORKER_DECOMMISSION))
+      case request: PbReviseLostShuffles =>
+        check(AuthorizationRequest.forApplication(REVISE_LOST_SHUFFLES, request.getAppId))
+      case _: PbWorkerExclude =>
+        check(AuthorizationRequest.forService(EXCLUDE_WORKERS))
+      case _: PbWorkerLost =>
+        check(AuthorizationRequest.forService(WORKER_LOST))
+      case request: CheckQuota =>
+        request.copy(userIdentifier = context.authorize(AuthorizationRequest.forApplication(
+          CHECK_QUOTA,
+          null,
+          request.userIdentifier)))
+      case _: PbCheckWorkersAvailable =>
+        check(AuthorizationRequest.forApplication(CHECK_WORKERS_AVAILABLE, null))
+      case _: PbWorkerEventRequest =>
+        check(AuthorizationRequest.forService(WORKER_EVENT))
+      case request: PbApplicationMetaRequest =>
+        check(AuthorizationRequest.forService(GET_APPLICATION_META, request.getAppId))
+      case _: PbRemoveWorkersUnavailableInfo =>
+        check(AuthorizationRequest.forService(REMOVE_WORKERS_UNAVAILABLE_INFO))
+      case _: PbCheckForWorkerTimeout | CheckForWorkerUnavailableInfoTimeout |
+          CheckForApplicationTimeOut | CheckForDFSExpiredDirsTimeout =>
+        context.requireLocal()
+        message
+      case _ =>
+        throw new SecurityException(s"Unsupported Master request: ${message.getClass.getName}")
+    }
+  }
+
   override def receive: PartialFunction[Any, Unit] = {
     case _: PbCheckForWorkerTimeout =>
       executeWithLeaderChecker(null, timeoutDeadWorkers())
@@ -460,7 +535,6 @@ private[celeborn] class Master(
     case RegisterApplicationInfo(appId, userIdentifier, extraInfo, requestId) =>
       logDebug(
         s"Received RegisterApplicationInfo request for app $appId/$userIdentifier/$extraInfo.")
-      checkAuth(context, appId)
       executeWithLeaderChecker(
         context,
         handleRegisterApplicationInfo(context, appId, userIdentifier, extraInfo, requestId))
@@ -476,7 +550,6 @@ private[celeborn] class Master(
           requestId,
           shouldResponse) =>
       logDebug(s"Received heartbeat from app $appId")
-      checkAuth(context, appId)
       executeWithLeaderChecker(
         context,
         handleHeartbeatFromApplication(
@@ -526,12 +599,10 @@ private[celeborn] class Master(
 
     case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
-      checkAuth(context, applicationId)
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 
     case requestWorkers: PbRequestWorkers =>
       logTrace(s"Received RequestWorkers request $requestWorkers.")
-      checkAuth(context, requestWorkers.getApplicationId)
       executeWithLeaderChecker(context, handleRequestWorkers(context, requestWorkers))
 
     case pb: PbBatchUnregisterShuffles =>
@@ -539,7 +610,6 @@ private[celeborn] class Master(
       val shuffleIds = pb.getShuffleIdsList.asScala.toList
       val requestId = pb.getRequestId
       logDebug(s"Received BatchUnregisterShuffle request $requestId, $applicationId, $shuffleIds")
-      checkAuth(context, applicationId)
       executeWithLeaderChecker(
         context,
         batchHandleUnregisterShuffles(context, applicationId, shuffleIds, requestId))
@@ -549,7 +619,6 @@ private[celeborn] class Master(
       val shuffleId = pb.getShuffleId
       val requestId = pb.getRequestId
       logDebug(s"Received UnregisterShuffle request $requestId, $applicationId, $shuffleId")
-      checkAuth(context, applicationId)
       executeWithLeaderChecker(
         context,
         handleUnregisterShuffle(context, applicationId, shuffleId, requestId))
@@ -557,7 +626,6 @@ private[celeborn] class Master(
     case ApplicationLost(appId, requestId) =>
       logDebug(
         s"Received ApplicationLost request $requestId, $appId from ${context.senderAddress}.")
-      checkAuth(context, appId)
       executeWithLeaderChecker(context, handleApplicationLost(context, appId, requestId))
 
     case HeartbeatFromWorker(
@@ -601,7 +669,6 @@ private[celeborn] class Master(
         handleWorkerDecommission(context, workers, requestId))
 
     case pb: PbReviseLostShuffles =>
-      checkAuth(context, pb.getAppId)
       executeWithLeaderChecker(
         context,
         handleReviseLostShuffle(context, pb.getAppId, pb.getLostShufflesList, pb.getRequestId))
@@ -650,10 +717,6 @@ private[celeborn] class Master(
           context))
 
     case pb: PbApplicationMetaRequest =>
-      // Workers fetch application meta over the internal channel, where no client id
-      // is set, so the check is a no-op for them; it only rejects an external
-      // application that asks for another application's secret.
-      checkAuth(context, pb.getAppId)
       executeWithLeaderChecker(context, handleRequestForApplicationMeta(context, pb))
 
     case pb: PbRemoveWorkersUnavailableInfo =>

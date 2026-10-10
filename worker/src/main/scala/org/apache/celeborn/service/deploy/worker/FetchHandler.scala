@@ -35,6 +35,7 @@ import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, MapFileMeta, Mem
 import org.apache.celeborn.common.network.buffer.{FileChunkBuffers, MemoryChunkBuffers, NettyManagedBuffer, NioManagedBuffer}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
 import org.apache.celeborn.common.network.protocol._
+import org.apache.celeborn.common.network.security.{AuthorizationRequest, SecurityOperation}
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{MessageType, PbBufferStreamEnd, PbChunkFetchRequest, PbNotifyRequiredSegment, PbOpenStream, PbOpenStreamList, PbOpenStreamListResponse, PbReadAddCredit, PbStreamHandler, PbStreamHandlerOpt, StreamType}
@@ -148,7 +149,7 @@ class FetchHandler(
         val endIndices = openStreamList.getEndIndexList
         val readLocalFlags = openStreamList.getReadLocalShuffleList
         val pbOpenStreamListResponse = PbOpenStreamListResponse.newBuilder()
-        checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
+        authorizeApplication(client, SecurityOperation.OPEN_STREAM_LIST, shuffleKey)
         val openStreamRequestId = Utils.makeOpenStreamRequestId(
           shuffleKey,
           client.getChannel.id().toString,
@@ -245,6 +246,7 @@ class FetchHandler(
     } catch {
       case e: Exception =>
         logError("Catch an error when handle legacy rpc message.", e)
+        callback.onFailure(e)
     }
 
   }
@@ -364,7 +366,7 @@ class FetchHandler(
       isLegacy: Boolean,
       readLocalShuffle: Boolean = false,
       callback: RpcResponseCallback): Unit = {
-    checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
+    authorizeApplication(client, SecurityOperation.OPEN_STREAM, shuffleKey)
     workerSource.recordAppActiveConnection(client, shuffleKey)
     val requestId = Utils.makeOpenStreamRequestId(
       shuffleKey,
@@ -479,6 +481,27 @@ class FetchHandler(
     rpcResponseCallback.onFailure(ExceptionUtils.wrapIOExceptionToUnRetryable(ioe))
   }
 
+  private def authorizeApplication(
+      client: TransportClient,
+      operation: String,
+      shuffleKey: String): Unit = {
+    client.authorize(
+      AuthorizationRequest.forApplication(operation, Utils.splitShuffleKey(shuffleKey)._1))
+  }
+
+  private def authorizeCreditStream(
+      client: TransportClient,
+      operation: String,
+      streamId: Long): String = {
+    // Resolve the target from server state; the connection policy decides access.
+    // Raw rejections propagate to the transport's error log without closing a shared connection.
+    val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)
+    if (shuffleKey != null) {
+      authorizeApplication(client, operation, shuffleKey)
+    }
+    shuffleKey
+  }
+
   def handleEndStreamFromClient(client: TransportClient, streamId: Long): Unit = {
     handleEndStreamFromClient(client, streamId, StreamType.CreditStream)
   }
@@ -489,14 +512,20 @@ class FetchHandler(
       streamType: StreamType): Unit = {
     streamType match {
       case StreamType.ChunkStream =>
-        val streamState = chunkStreamManager.removeStreamState(streamId)
+        val streamState = chunkStreamManager.getStreamState(streamId)
         if (streamState != null) {
           val (shuffleKey, fileName) = (streamState.shuffleKey, streamState.fileName)
-          workerSource.recordAppActiveConnection(client, shuffleKey)
-          getRawFileInfo(shuffleKey, fileName).closeStream(streamId)
+          authorizeApplication(client, SecurityOperation.BUFFER_STREAM_END, shuffleKey)
+          if (chunkStreamManager.removeStreamState(streamId) != null) {
+            workerSource.recordAppActiveConnection(client, shuffleKey)
+            getRawFileInfo(shuffleKey, fileName).closeStream(streamId)
+          }
         }
       case StreamType.CreditStream =>
-        val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)
+        val shuffleKey = authorizeCreditStream(
+          client,
+          SecurityOperation.BUFFER_STREAM_END,
+          streamId)
         if (shuffleKey != null) {
           workerSource.recordAppActiveConnection(
             client,
@@ -513,7 +542,10 @@ class FetchHandler(
       credit: Int,
       streamId: Long,
       requestId: Long): Unit = {
-    val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)
+    val shuffleKey = authorizeCreditStream(
+      client,
+      SecurityOperation.READ_ADD_CREDIT,
+      streamId)
     if (shuffleKey != null) {
       workerSource.recordAppActiveConnection(
         client,
@@ -536,7 +568,10 @@ class FetchHandler(
     // process NotifyRequiredSegment request here, the MapPartitionDataReader will send data if the segment buffer is available.
     logDebug(
       s"Handle NotifyRequiredSegment with streamId: $streamId, requiredSegmentId: $requiredSegmentId")
-    val shuffleKey = creditStreamManager.getStreamShuffleKey(streamId)
+    val shuffleKey = authorizeCreditStream(
+      client,
+      SecurityOperation.NOTIFY_REQUIRED_SEGMENT,
+      streamId)
     if (shuffleKey != null) {
       workerSource.recordAppActiveConnection(
         client,
@@ -557,6 +592,21 @@ class FetchHandler(
       s" to fetch block $streamChunkSlice")
 
     val streamState = chunkStreamManager.getStreamState(streamChunkSlice.streamId)
+    if (streamState == null) {
+      val message = s"Stream ${streamChunkSlice.streamId} is not registered with worker. " +
+        "This can happen if the worker was restart recently."
+      logError(message)
+      client.getChannel.writeAndFlush(new ChunkFetchFailure(streamChunkSlice, message))
+      return
+    }
+    try {
+      // Chunk readers may reconnect: reauthorize the application without binding the old channel.
+      authorizeApplication(client, SecurityOperation.CHUNK_FETCH, streamState.shuffleKey)
+    } catch {
+      case e: RuntimeException =>
+        client.getChannel.writeAndFlush(new ChunkFetchFailure(streamChunkSlice, e.toString))
+        return
+    }
     val storageMetrics = streamState.buffers match {
       case _: FileChunkBuffers => (
           WorkerSource.FETCH_LOCAL_CHUNK_TIME,
@@ -566,14 +616,6 @@ class FetchHandler(
           WorkerSource.FETCH_MEMORY_CHUNK_TIME,
           WorkerSource.FETCH_MEMORY_CHUNK_SUCCESS_COUNT,
           WorkerSource.FETCH_MEMORY_CHUNK_FAIL_COUNT)
-    }
-    if (streamState == null) {
-      val message = s"Stream ${streamChunkSlice.streamId} is not registered with worker. " +
-        "This can happen if the worker was restart recently."
-      logError(message)
-      workerSource.incCounter(storageMetrics._3)
-      client.getChannel.writeAndFlush(new ChunkFetchFailure(streamChunkSlice, message))
-      return
     }
 
     maxChunkBeingTransferred.foreach { threshold =>

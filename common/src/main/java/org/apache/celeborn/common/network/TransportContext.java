@@ -18,8 +18,10 @@
 package org.apache.celeborn.common.network;
 
 import java.io.Closeable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nullable;
 
@@ -47,6 +49,7 @@ import org.apache.celeborn.common.network.util.FrameDecoder;
 import org.apache.celeborn.common.network.util.NettyLogger;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.network.util.TransportFrameDecoder;
+import org.apache.celeborn.reflect.DynConstructors;
 
 /**
  * Contains the context to create a {@link TransportServer}, {@link TransportClientFactory}, and to
@@ -73,6 +76,9 @@ public class TransportContext implements Closeable {
   @Nullable private final SSLFactory sslFactory;
   private final boolean enableHeartbeat;
   private final AbstractSource source;
+  private final List<TransportClientBootstrap> configuredClientBootstraps = new ArrayList<>();
+  private final List<TransportServerBootstrap> configuredServerBootstraps = new ArrayList<>();
+  private final AtomicBoolean closed = new AtomicBoolean();
 
   private static final MessageEncoder ENCODER = MessageEncoder.INSTANCE;
   private static final SslMessageEncoder SSL_ENCODER = SslMessageEncoder.INSTANCE;
@@ -87,10 +93,21 @@ public class TransportContext implements Closeable {
     this.conf = conf;
     this.msgHandler = msgHandler;
     this.closeIdleConnections = closeIdleConnections;
-    this.sslFactory = SSLFactory.createSslFactory(conf);
     this.channelsLimiter = channelsLimiter;
     this.enableHeartbeat = enableHeartbeat;
     this.source = source;
+    try {
+      for (String className : conf.clientBootstrapClasses()) {
+        configuredClientBootstraps.add(loadBootstrap(className, TransportClientBootstrap.class));
+      }
+      for (String className : conf.serverBootstrapClasses()) {
+        configuredServerBootstraps.add(loadBootstrap(className, TransportServerBootstrap.class));
+      }
+      this.sslFactory = SSLFactory.createSslFactory(conf);
+    } catch (RuntimeException | LinkageError e) {
+      closeBootstraps();
+      throw e;
+    }
 
     if (null != this.sslFactory) {
       logger.info(
@@ -135,6 +152,26 @@ public class TransportContext implements Closeable {
 
   public TransportClientFactory createClientFactory(List<TransportClientBootstrap> bootstraps) {
     return new TransportClientFactory(this, bootstraps);
+  }
+
+  /** Also used by direct factory constructors, including engine-specific subclasses. */
+  public List<TransportClientBootstrap> resolveClientBootstraps(
+      List<TransportClientBootstrap> bootstraps) {
+    List<TransportClientBootstrap> resolved = new ArrayList<>(configuredClientBootstraps);
+    resolved.addAll(bootstraps);
+    return resolved;
+  }
+
+  /** Configured handlers receive requests in configuration order, before caller handlers. */
+  public List<TransportServerBootstrap> resolveServerBootstraps(
+      List<TransportServerBootstrap> bootstraps) {
+    List<TransportServerBootstrap> resolved = new ArrayList<>(bootstraps);
+    // Each wrapper receives requests before its delegate, so install configured wrappers in
+    // reverse.
+    for (int i = configuredServerBootstraps.size() - 1; i >= 0; i--) {
+      resolved.add(configuredServerBootstraps.get(i));
+    }
+    return resolved;
   }
 
   public TransportClientFactory createClientFactory() {
@@ -259,10 +296,42 @@ public class TransportContext implements Closeable {
     return source;
   }
 
+  private <T> T loadBootstrap(String className, Class<T> expected) {
+    try {
+      Class<? extends T> implementation =
+          Class.forName(className, false, Thread.currentThread().getContextClassLoader())
+              .asSubclass(expected);
+      return expected.cast(
+          DynConstructors.builder(expected)
+              .impl(implementation, TransportConf.class)
+              .impl(implementation)
+              .buildChecked()
+              .newInstance(conf));
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Unable to load transport bootstrap " + className, e);
+    }
+  }
+
+  private void closeBootstraps() {
+    List<AutoCloseable> bootstraps = new ArrayList<>(configuredClientBootstraps);
+    bootstraps.addAll(configuredServerBootstraps);
+    Collections.reverse(bootstraps);
+    for (AutoCloseable bootstrap : bootstraps) {
+      try {
+        bootstrap.close();
+      } catch (Exception e) {
+        logger.warn("Error closing transport bootstrap {}.", bootstrap.getClass().getName(), e);
+      }
+    }
+  }
+
   @Override
   public void close() {
-    if (sslFactory != null) {
-      sslFactory.destroy();
+    if (closed.compareAndSet(false, true)) {
+      closeBootstraps();
+      if (sslFactory != null) {
+        sslFactory.destroy();
+      }
     }
   }
 }

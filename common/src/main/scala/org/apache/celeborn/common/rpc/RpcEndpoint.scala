@@ -18,8 +18,7 @@
 package org.apache.celeborn.common.rpc
 
 import org.apache.celeborn.common.exception.CelebornException
-import org.apache.celeborn.common.network.client.TransportClient
-import org.apache.celeborn.common.rpc.netty.RemoteNettyRpcCallContext
+import org.apache.celeborn.common.network.security.{AuthorizationRequest, SecurityOperation}
 
 /**
  * A factory class to create the [[RpcEnv]]. It must have an empty constructor so that it can be
@@ -80,6 +79,14 @@ trait RpcEndpoint {
     case _ => context.sendFailure(new CelebornException(self + " won't reply anything"))
   }
 
+  /**
+   * Checks an operation before either receive path runs. Implementations may return a message with
+   * its user claim replaced by the effective user returned from context.authorize. Both policy and
+   * business logic then observe the same user. Internal forwarding endpoints must delegate this
+   * hook with the original context.
+   */
+  def authorize(context: RpcRequestContext, message: Any): Any = message
+
   def checkRegistered(): Boolean = true
 
   /**
@@ -137,19 +144,15 @@ trait RpcEndpoint {
     }
   }
 
+  /**
+   * Compatibility entry point for application access checks. Uses the connection's policy and
+   * requires an explicit local origin to bypass remote authorization. This helper does not return
+   * the resolved user; built-in endpoints use operation-specific authorize hooks to propagate it.
+   */
   def checkAuth(context: RpcCallContext, appId: String): Unit = {
-    context match {
-      case remoteContext: RemoteNettyRpcCallContext =>
-        checkAuth(remoteContext.transportClient, appId)
-      case _ =>
-      // Do nothing if the context is not RemoteNettyRpcCallContext
-    }
-  }
-
-  private def checkAuth(client: TransportClient, appId: String): Unit = {
-    if (client.getClientId != null && client.getClientId != appId)
-      throw new IllegalStateException(
-        s"Client for ${client.getClientId} not authorized for application $appId.")
+    context.authorize(AuthorizationRequest.forApplication(
+      SecurityOperation.APPLICATION_ACCESS,
+      appId))
   }
 }
 

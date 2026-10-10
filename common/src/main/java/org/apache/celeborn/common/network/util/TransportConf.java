@@ -18,6 +18,7 @@
 package org.apache.celeborn.common.network.util;
 
 import java.io.File;
+import java.util.List;
 
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.kqueue.KQueue;
@@ -171,6 +172,14 @@ public class TransportConf {
   /** Whether authentication is enabled or not. */
   public boolean authEnabled() {
     return celebornConf.authEnabled();
+  }
+
+  public List<String> clientBootstrapClasses() {
+    return celebornConf.clientBootstrapClasses(module);
+  }
+
+  public List<String> serverBootstrapClasses() {
+    return celebornConf.serverBootstrapClasses(module);
   }
 
   /** Whether Secure (SSL/TLS) wire communication is enabled. */

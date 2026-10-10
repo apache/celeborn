@@ -137,7 +137,7 @@ private[celeborn] class RpcMetricsTracker(
         val processTime = rpc.endProcessTime - rpc.dequeueTime
         record(content, queueTime, processTime)
         logSlowRpc(message, queueTime, processTime)
-      case one @ OneWayMessage(_, content) =>
+      case one @ OneWayMessage(_, content, _) =>
         val queueTime = one.dequeueTime - one.enqueueTime
         val processTime = one.endProcessTime - one.dequeueTime
         record(content, queueTime, processTime)

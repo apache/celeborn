@@ -22,15 +22,16 @@ import java.util
 
 import scala.collection.JavaConverters._
 
+import io.netty.channel.Channel
 import org.mockito.ArgumentCaptor
-import org.mockito.Mockito.{mock, verify, when}
+import org.mockito.Mockito.{mock, verify}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
-import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
+import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient, TransportResponseHandler}
 import org.apache.celeborn.common.protocol.{PbApplicationMetaRequest, PbCheckForWorkerTimeout, PbRegisterWorker, PbRequestWorkers, PbRequestWorkersResponse}
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.protocol.message.ControlMessages.{RequestSlots, RequestSlotsResponse, ReviseLostShuffles}
@@ -48,13 +49,18 @@ class MasterSuite extends AnyFunSuite
   // Builds a remote call context whose connection is authenticated as `clientId`;
   // null models a connection when authentication is disabled or an internal worker connection.
   private def contextForClient(clientId: String): RemoteNettyRpcCallContext = {
-    val client = mock(classOf[TransportClient])
-    when(client.getClientId).thenReturn(clientId)
+    val client =
+      new TransportClient(mock(classOf[Channel]), mock(classOf[TransportResponseHandler]))
+    client.setClientId(clientId)
     new RemoteNettyRpcCallContext(
       mock(classOf[NettyRpcEnv]),
       mock(classOf[RpcResponseCallback]),
       RpcAddress("localhost", 1234),
       client)
+  }
+
+  private def receiveAuthorized(master: Master, context: RpcCallContext, message: Any): Unit = {
+    master.receiveAndReply(context).apply(master.authorize(context, message))
   }
 
   private def requestWorkers(
@@ -417,18 +423,16 @@ class MasterSuite extends AnyFunSuite
     val master = new Master(conf, masterArgs)
 
     val request = PbApplicationMetaRequest.newBuilder().setAppId("victim-app").build()
-    val unhandled = (_: Any) => fail("PbApplicationMetaRequest was not handled")
-
     try {
       // An application authenticated as "attacker-app" on the external port must not
       // be able to read "victim-app"'s secret.
-      val e = intercept[IllegalStateException] {
-        master.receiveAndReply(contextForClient("attacker-app")).applyOrElse(request, unhandled)
+      val e = intercept[SecurityException] {
+        receiveAuthorized(master, contextForClient("attacker-app"), request)
       }
       assert(e.getMessage.contains("not authorized for application victim-app"))
 
       // A worker carries no client id, so the guard is a no-op and the request is served.
-      master.receiveAndReply(contextForClient(null)).applyOrElse(request, unhandled)
+      receiveAuthorized(master, contextForClient(null), request)
     } finally {
       master.rpcEnv.shutdown()
     }
@@ -460,24 +464,21 @@ class MasterSuite extends AnyFunSuite
       authDisabledApp,
       util.Arrays.asList[Integer](3),
       "auth-disabled-request")
-    val unhandled = (_: Any) => fail("PbReviseLostShuffles was not handled")
-
     try {
-      master.receiveAndReply(contextForClient(victimApp)).applyOrElse(ownRequest, unhandled)
+      receiveAuthorized(master, contextForClient(victimApp), ownRequest)
       val victimShuffles = master.statusSystem.registeredAppAndShuffles.get(victimApp)
       assert(victimShuffles.size() == 1)
       assert(victimShuffles.contains(1))
 
-      val e = intercept[IllegalStateException] {
-        master.receiveAndReply(contextForClient("attacker-app"))
-          .applyOrElse(crossAppRequest, unhandled)
+      val e = intercept[SecurityException] {
+        receiveAuthorized(master, contextForClient("attacker-app"), crossAppRequest)
       }
       assert(e.getMessage.contains(s"not authorized for application $victimApp"))
       assert(victimShuffles.size() == 1)
       assert(!victimShuffles.contains(2))
 
       // Authentication-disabled connections have no client id, so existing behavior is preserved.
-      master.receiveAndReply(contextForClient(null)).applyOrElse(authDisabledRequest, unhandled)
+      receiveAuthorized(master, contextForClient(null), authDisabledRequest)
       val authDisabledShuffles =
         master.statusSystem.registeredAppAndShuffles.get(authDisabledApp)
       assert(authDisabledShuffles.size() == 1)

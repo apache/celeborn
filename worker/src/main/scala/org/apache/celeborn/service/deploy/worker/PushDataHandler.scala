@@ -38,6 +38,7 @@ import org.apache.celeborn.common.network.buffer.{NettyManagedBuffer, NioManaged
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient, TransportClientFactory}
 import org.apache.celeborn.common.network.protocol.{Message, PushData, PushDataHandShake, PushMergedData, RegionFinish, RegionStart, RequestMessage, RpcFailure, RpcRequest, RpcResponse, TransportMessage}
 import org.apache.celeborn.common.network.protocol.Message.Type
+import org.apache.celeborn.common.network.security.{AuthorizationRequest, SecurityOperation}
 import org.apache.celeborn.common.network.server.BaseMessageHandler
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, PbPushDataHandShake, PbPushMergedDataSplitPartitionInfo, PbRegionFinish, PbRegionStart, PbSegmentStart}
 import org.apache.celeborn.common.protocol.PbPartitionLocation.Mode
@@ -103,7 +104,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   override def receive(client: TransportClient, msg: RequestMessage): Unit =
     msg match {
       case pushData: PushData =>
-        workerSource.recordAppActiveConnection(client, pushData.shuffleKey)
         val callback = new SimpleRpcResponseCallback(
           client,
           pushData.requestId,
@@ -111,7 +111,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         handleCore(
           client,
           pushData,
-          pushData.requestId,
+          SecurityOperation.PUSH_DATA,
+          pushData.mode == PartitionLocation.Mode.PRIMARY.mode(),
           pushData.shuffleKey,
           () => {
             val partitionType =
@@ -128,7 +129,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           },
           callback)
       case pushMergedData: PushMergedData =>
-        workerSource.recordAppActiveConnection(client, pushMergedData.shuffleKey)
         val callback = new SimpleRpcResponseCallback(
           client,
           pushMergedData.requestId,
@@ -136,7 +136,8 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         handleCore(
           client,
           pushMergedData,
-          pushMergedData.requestId,
+          SecurityOperation.PUSH_MERGED_DATA,
+          pushMergedData.mode == PartitionLocation.Mode.PRIMARY.mode(),
           pushMergedData.shuffleKey,
           () =>
             handlePushMergedData(
@@ -894,7 +895,10 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     }
 
     override def onFailure(e: Throwable): Unit = {
-      client.getChannel.writeAndFlush(new RpcFailure(requestId, e.getMessage))
+      // Plugin exceptions may have no message, but RpcFailure requires an encodable string.
+      client.getChannel.writeAndFlush(new RpcFailure(
+        requestId,
+        Option(e.getMessage).getOrElse(e.toString)))
     }
   }
 
@@ -985,12 +989,18 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
   private def handleCore(
       client: TransportClient,
       message: RequestMessage,
-      requestId: Long,
+      operation: String,
+      isPrimary: Boolean,
       shuffleKey: String,
       handler: () => Unit,
       callback: RpcResponseCallback): Unit = {
-    checkAuth(client, Utils.splitShuffleKey(shuffleKey)._1)
     try {
+      val appId = Utils.splitShuffleKey(shuffleKey)._1
+      // Replica mode requests a service operation; the connection policy must verify the caller.
+      client.authorize(
+        if (isPrimary) AuthorizationRequest.forApplication(operation, appId)
+        else AuthorizationRequest.forService(operation, appId))
+      workerSource.recordAppActiveConnection(client, shuffleKey)
       handler()
     } catch {
       case e: Exception =>
@@ -1076,11 +1086,18 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
     val requestId = rpcRequest.requestId
     val (pbMsg, msg, isLegacy, messageType, mode, shuffleKey, partitionUniqueId, checkSplit) =
       mapPartitionRpcRequest(rpcRequest)
-    workerSource.recordAppActiveConnection(client, shuffleKey)
+    val operation = messageType match {
+      case Type.PUSH_DATA_HAND_SHAKE => SecurityOperation.PUSH_DATA_HANDSHAKE
+      case Type.REGION_START => SecurityOperation.REGION_START
+      case Type.REGION_FINISH => SecurityOperation.REGION_FINISH
+      case Type.SEGMENT_START => SecurityOperation.SEGMENT_START
+      case other => throw new IllegalArgumentException(s"Not support $other yet")
+    }
     handleCore(
       client,
       rpcRequest,
-      requestId,
+      operation,
+      mode == Mode.Primary,
       shuffleKey,
       () =>
         handleMapPartitionRpcRequestCore(
