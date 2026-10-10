@@ -278,6 +278,8 @@ object WorkerSource {
   val DEVICE_CELEBORN_FREE_CAPACITY = "DeviceCelebornFreeBytes"
   val DEVICE_CELEBORN_TOTAL_CAPACITY = "DeviceCelebornTotalBytes"
   val PARTITION_FILE_SIZE = "PartitionFileSizeBytes"
+  val DISK_STATUS = "DiskStatus"
+  val UNHEALTHY_DISK_COUNT = "UnhealthyDiskCount"
 
   // congestion control
   val POTENTIAL_CONSUME_SPEED = "PotentialConsumeSpeed"

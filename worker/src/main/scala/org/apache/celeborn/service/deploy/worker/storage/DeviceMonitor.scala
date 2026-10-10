@@ -107,6 +107,14 @@ class LocalDeviceMonitor(
           diskInfos.map(_.actualUsableSpace).sum
         }
       }
+    workerSource.addGauge(WorkerSource.UNHEALTHY_DISK_COUNT) { () =>
+      diskInfos.values().asScala.count(_.status != DiskStatus.HEALTHY)
+    }
+    diskInfos.asScala.foreach { case (mountPoint, diskInfo) =>
+      workerSource.addGauge(WorkerSource.DISK_STATUS, Map("mountpoint" -> mountPoint)) { () =>
+        diskInfo.status.getValue
+      }
+    }
   }
 
   override def startCheck(): Unit = {
