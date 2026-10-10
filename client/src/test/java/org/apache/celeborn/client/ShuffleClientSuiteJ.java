@@ -860,4 +860,29 @@ public class ShuffleClientSuiteJ {
     int[] crc1 = pushState1.getCRC32PerPartition(true, 2);
     assertEquals(0, crc1[0]);
   }
+
+  @Test
+  public void testHasWritableLocation() {
+    // The revive satisfaction predicate of adaptive parallelism: a request is locally
+    // satisfied only when the partition has a writable location — a newer but retired epoch
+    // must not short-circuit it.
+    CelebornConf conf = new CelebornConf();
+    shuffleClient =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+
+    Map<Integer, PartitionLocationGroup> groups = new HashMap<>();
+    assertFalse(shuffleClient.hasWritableLocation(groups, 0, TEST_MAP_ID));
+
+    PartitionLocationGroup group = new PartitionLocationGroup(primaryLocation);
+    groups.put(0, group);
+    assertTrue(shuffleClient.hasWritableLocation(groups, 0, TEST_MAP_ID));
+
+    // Soft-split stays writable.
+    group.retire(primaryLocation.getEpoch(), StatusCode.SOFT_SPLIT);
+    assertTrue(shuffleClient.hasWritableLocation(groups, 0, TEST_MAP_ID));
+
+    // Hard-split is skipped: nothing writable remains.
+    group.retire(primaryLocation.getEpoch(), StatusCode.HARD_SPLIT);
+    assertFalse(shuffleClient.hasWritableLocation(groups, 0, TEST_MAP_ID));
+  }
 }
