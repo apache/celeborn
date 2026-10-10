@@ -24,7 +24,7 @@ import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo}
 import org.apache.celeborn.common.metrics.source.AbstractSource
-import org.apache.celeborn.common.protocol.{PartitionType, StorageInfo}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, StorageInfo}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
 class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: AbstractSource)
@@ -32,6 +32,8 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
   private val createFileOrder: Option[List[String]] = conf.workerStoragePolicyCreateFilePolicy
   private val evictFileOrder: Option[Map[String, List[String]]] =
     conf.workerStoragePolicyEvictFilePolicy
+  private val memoryFileStorageReplicaEnabled: Boolean =
+    conf.workerMemoryFileStorageReplicaEnabled
 
   def getEvictedFileWriter(
       celebornFile: TierWriterBase,
@@ -98,7 +100,11 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
       try {
         storageInfoType match {
           case StorageInfo.Type.MEMORY =>
-            if (location.getStorageInfo.memoryAvailable() && MemoryManager.instance().memoryFileStorageAvailable()) {
+            if (!memoryFileStorageReplicaEnabled
+              && location.getMode == PartitionLocation.Mode.REPLICA) {
+              logDebug(s"Skip memory file for replica ${partitionDataWriterContext.getShuffleKey} ${location.getFileName}")
+              null
+            } else if (location.getStorageInfo.memoryAvailable() && MemoryManager.instance().memoryFileStorageAvailable()) {
               logDebug(s"Create memory file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
               val memoryFileInfo = storageManager.createMemoryFileInfo(
                 partitionDataWriterContext.getAppId,
