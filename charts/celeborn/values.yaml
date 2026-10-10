@@ -96,6 +96,11 @@ master:
   # -- Number of Celeborn master replicas to deploy, should not less than 3.
   replicas: 3
 
+  # -- Pod management policy for the Celeborn master statefulset, empty means `OrderedReady`.
+  # `Parallel` is required when `master.readinessProbe` is set. The field is immutable, so
+  # changing it on an existing release requires recreating the statefulset. See README.md.
+  podManagementPolicy: ""
+
   # -- Annotations for Celeborn master pods.
   annotations:
     # key1: value1
@@ -125,6 +130,36 @@ master:
   volumeMounts:
   - name: celeborn-ratis
     mountPath: /mnt/celeborn_ratis
+
+  # -- Startup probe for Celeborn master containers. It holds off the liveness probe while the
+  # master waits for the DNS records of its peers, which can take a while if a replica is slow to
+  # be scheduled. Set to `null` to disable.
+  startupProbe:
+    httpGet:
+      path: /healthz
+      port: metrics
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+
+  # -- Liveness probe for Celeborn master containers. `/healthz` reports healthy once the
+  # master HTTP service is up, so it is safe to restart on. Set to `null` to disable.
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: metrics
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+
+  # -- Readiness probe for Celeborn master containers. Disabled by default: a master waits for the
+  # DNS records of all master replicas before it starts serving, and with the default
+  # `OrderedReady` pod management no further replica is created until the previous one is ready.
+  # Enable it only together with `master.podManagementPolicy: Parallel`. See README.md.
+  readinessProbe:
+    # httpGet:
+    #   path: /healthz
+    #   port: metrics
 
   # -- Resources for Celeborn master containers.
   resources:
@@ -222,6 +257,12 @@ worker:
   # -- Number of Celeborn worker replicas to deploy, should less than node number.
   replicas: 5
 
+  # -- Pod management policy for the Celeborn worker statefulset, empty means `OrderedReady`.
+  # With `OrderedReady`, `worker.readinessProbe` also serializes a cold start; `Parallel` starts
+  # all workers at once. The field is immutable, so changing it on an existing release requires
+  # recreating the statefulset. See README.md.
+  podManagementPolicy: ""
+
   # -- Value for terminationGracePeriodSeconds for worker pods
   terminationGracePeriodSeconds: 30
 
@@ -262,6 +303,33 @@ worker:
     mountPath: /mnt/disk3
   - name: disk4
     mountPath: /mnt/disk4
+
+  # -- Startup probe for Celeborn worker containers. Disabled by default, since no liveness probe
+  # is configured by default either.
+  startupProbe:
+    # httpGet:
+    #   path: /healthz
+    #   port: metrics
+
+  # -- Liveness probe for Celeborn worker containers. Disabled by default: worker `/healthz`
+  # fails while the worker is not registered with the master, so a liveness probe on it would
+  # restart every worker during a master outage. See README.md.
+  livenessProbe:
+    # httpGet:
+    #   path: /healthz
+    #   port: metrics
+
+  # -- Readiness probe for Celeborn worker containers. `/healthz` reports healthy only once the
+  # worker is initialized and registered with the master, which keeps a rolling update from
+  # advancing to the next worker too early. Set to `null` to disable.
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: metrics
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
 
   # -- Resources for Celeborn worker containers.
   resources:

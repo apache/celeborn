@@ -516,3 +516,65 @@ tests:
     asserts:
       - notExists:
           path: spec.template.spec.initContainers
+
+  - it: Should add a readiness probe on /healthz and no liveness probe by default
+    template: worker/statefulset.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].readinessProbe.httpGet
+          value:
+            path: /healthz
+            port: metrics
+      - notExists:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].livenessProbe
+      - notExists:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].startupProbe
+
+  - it: Should use the specified probes if `worker.livenessProbe` and `worker.readinessProbe` are set
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        livenessProbe:
+          tcpSocket:
+            port: 9096
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: metrics
+          initialDelaySeconds: 60
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].livenessProbe.tcpSocket.port
+          value: 9096
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].livenessProbe.periodSeconds
+          value: 30
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].readinessProbe.initialDelaySeconds
+          value: 60
+
+  - it: Should not add a readiness probe if `worker.readinessProbe` is empty
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        readinessProbe: null
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].readinessProbe
+
+  - it: Should not set pod management policy by default
+    template: worker/statefulset.yaml
+    asserts:
+      - notExists:
+          path: spec.podManagementPolicy
+
+  - it: Should use the specified pod management policy if `worker.podManagementPolicy` is set
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        podManagementPolicy: Parallel
+    asserts:
+      - equal:
+          path: spec.podManagementPolicy
+          value: Parallel

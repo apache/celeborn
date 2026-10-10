@@ -24,6 +24,9 @@ metadata:
     {{- include "celeborn.master.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.master.replicas }}
+  {{- with .Values.master.podManagementPolicy }}
+  podManagementPolicy: {{ . }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "celeborn.master.selectorLabels" . | nindent 6 }}
@@ -127,6 +130,18 @@ spec:
           mountPath: /opt/celeborn/conf/ratis-log4j.properties
         {{- with .Values.master.volumeMounts }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.master.startupProbe }}
+        startupProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.master.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.master.readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 10 }}
         {{- end }}
         {{- with .Values.master.resources }}
         resources:

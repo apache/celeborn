@@ -478,3 +478,71 @@ tests:
                   storage: 200Gi
                 limits:
                   storage: 200Gi
+
+  - it: Should add startup and liveness probes on /healthz and no readiness probe by default
+    template: master/statefulset.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].startupProbe.httpGet
+          value:
+            path: /healthz
+            port: metrics
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].livenessProbe.httpGet
+          value:
+            path: /healthz
+            port: metrics
+      - notExists:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].readinessProbe
+
+  - it: Should use the specified probes if `master.livenessProbe` and `master.readinessProbe` are set
+    template: master/statefulset.yaml
+    set:
+      master:
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: metrics
+          initialDelaySeconds: 120
+          failureThreshold: 10
+        readinessProbe:
+          tcpSocket:
+            port: 9097
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].livenessProbe.initialDelaySeconds
+          value: 120
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].livenessProbe.failureThreshold
+          value: 10
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].readinessProbe.tcpSocket.port
+          value: 9097
+
+  - it: Should not add probes if `master.startupProbe` and `master.livenessProbe` are empty
+    template: master/statefulset.yaml
+    set:
+      master:
+        startupProbe: null
+        livenessProbe: null
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].startupProbe
+      - notExists:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].livenessProbe
+
+  - it: Should not set pod management policy by default
+    template: master/statefulset.yaml
+    asserts:
+      - notExists:
+          path: spec.podManagementPolicy
+
+  - it: Should use the specified pod management policy if `master.podManagementPolicy` is set
+    template: master/statefulset.yaml
+    set:
+      master:
+        podManagementPolicy: Parallel
+    asserts:
+      - equal:
+          path: spec.podManagementPolicy
+          value: Parallel

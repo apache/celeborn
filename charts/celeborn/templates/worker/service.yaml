@@ -29,4 +29,6 @@ spec:
     {{- include "celeborn.worker.selectorLabels" . | nindent 4 }}
   type: {{ .Values.service.type }}
   clusterIP: None
+  # Keep the DNS records of unready workers, now that readiness is gated. See README.md.
+  publishNotReadyAddresses: true
   {{- include "celeborn.worker.service.port" . | nindent 2 }}
