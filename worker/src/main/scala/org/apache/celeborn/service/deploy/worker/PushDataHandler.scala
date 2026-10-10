@@ -352,6 +352,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                 workerSource.incCounter(WorkerSource.REPLICATE_DATA_WRITE_FAIL_COUNT)
                 callbackWithTimer.onFailure(e)
               } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
+                unavailablePeers.put(peerWorker, System.currentTimeMillis())
                 workerSource.incCounter(WorkerSource.REPLICATE_DATA_TIMEOUT_COUNT)
                 callbackWithTimer.onFailure(e)
               } else if (ExceptionUtils.connectFail(e.getMessage)) {
@@ -734,6 +735,7 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
                 workerSource.incCounter(WorkerSource.REPLICATE_DATA_WRITE_FAIL_COUNT)
                 pushMergedDataCallback.onFailure(e)
               } else if (e.getMessage.startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())) {
+                unavailablePeers.put(peerWorker, System.currentTimeMillis())
                 workerSource.incCounter(WorkerSource.REPLICATE_DATA_TIMEOUT_COUNT)
                 pushMergedDataCallback.onFailure(e)
               } else if (ExceptionUtils.connectFail(e.getMessage)) {

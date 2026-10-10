@@ -25,13 +25,25 @@ public class PushRequestInfo {
   public ChannelFuture channelFuture;
   public long dueTime;
   public RpcResponseCallback callback;
+  private final Runnable timeoutHandler;
 
   public PushRequestInfo(long dueTime, RpcResponseCallback callback) {
+    this(dueTime, callback, null);
+  }
+
+  public PushRequestInfo(long dueTime, RpcResponseCallback callback, Runnable timeoutHandler) {
     this.dueTime = dueTime;
     this.callback = callback;
+    this.timeoutHandler = timeoutHandler;
   }
 
   public void setChannelFuture(ChannelFuture future) {
     this.channelFuture = future;
+  }
+
+  public void handleTimeout() {
+    if (timeoutHandler != null) {
+      timeoutHandler.run();
+    }
   }
 }
