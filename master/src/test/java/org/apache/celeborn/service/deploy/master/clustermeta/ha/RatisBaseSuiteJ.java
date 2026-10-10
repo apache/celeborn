@@ -28,11 +28,12 @@ import org.apache.celeborn.common.CelebornConf;
 
 public class RatisBaseSuiteJ {
   HARaftServer ratisServer;
+  HAMasterMetaManager metaSystem;
 
   @Before
   public void init() throws Exception {
     CelebornConf conf = new CelebornConf();
-    HAMasterMetaManager metaSystem = new HAMasterMetaManager(null, conf);
+    metaSystem = new HAMasterMetaManager(null, conf);
     MetaHandler handler = new MetaHandler(metaSystem);
     File tmpDir1 = File.createTempFile("celeborn-ratis-tmp", "for-test-only");
     tmpDir1.delete();
