@@ -113,6 +113,11 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
 
   override def init(filterConfig: FilterConfig): Unit = {
     initAuthHandlers()
+    if (authSchemes.nonEmpty && authSchemeHandlers.isEmpty) {
+      throw new ServletException(
+        s"No authentication handler registered for the configured schemes" +
+          s" ${authSchemes.mkString(", ")}, refusing to serve requests without authentication")
+    }
   }
 
   private[celeborn] def getMatchedHandler(authorization: String): Option[AuthenticationHandler] = {

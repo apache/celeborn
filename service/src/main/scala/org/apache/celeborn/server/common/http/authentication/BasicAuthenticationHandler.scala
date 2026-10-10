@@ -43,8 +43,7 @@ class BasicAuthenticationHandler(providerClass: String) extends AuthenticationHa
   override def authenticationSupported: Boolean = {
     Option(providerClass).exists { _ =>
       try {
-        Class.forName(providerClass).isAssignableFrom(classOf[PasswdAuthenticationProvider])
-        true
+        classOf[PasswdAuthenticationProvider].isAssignableFrom(Class.forName(providerClass))
       } catch {
         case _: Throwable => false
       }
