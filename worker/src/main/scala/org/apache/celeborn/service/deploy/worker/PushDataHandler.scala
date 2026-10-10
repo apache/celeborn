@@ -589,8 +589,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         } else {
           val splitStatus = checkDiskFullAndSplit(fileWriter, isPrimary)
           if (splitStatus == StatusCode.HARD_SPLIT) {
-            logWarning(
-              s"return hard split for disk full with shuffle $shuffleKey map $mapId attempt $attemptId")
+            logDebug(
+              s"return hard split for shuffle $shuffleKey map $mapId attempt $attemptId; " +
+                s"see the CheckDiskFullAndSplit log for the cause")
             workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
             pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.HARD_SPLIT)
           } else if (splitStatus == StatusCode.SOFT_SPLIT) {
@@ -1470,7 +1471,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
         } else {
           StatusCode.NO_SPLIT
         }
-      if (splitStatus == StatusCode.HARD_SPLIT) {
+      // Log the cause once per split file. A split file keeps failing the threshold check until a
+      // new epoch propagates, so without the latch every concurrent push to it logs again.
+      if (splitStatus == StatusCode.HARD_SPLIT && fileWriter.shouldLogHardSplit()) {
         logInfo(
           s"""
              |CheckDiskFullAndSplit hardSplit

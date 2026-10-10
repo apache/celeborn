@@ -1094,6 +1094,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushSortRandomizePartitionIdEnabled: Boolean =
     get(CLIENT_PUSH_SORT_RANDOMIZE_PARTITION_ENABLED)
   def clientPushRetryThreads: Int = get(CLIENT_PUSH_RETRY_THREADS)
+  def clientPushRetryBackoffInitial: Long = get(CLIENT_PUSH_RETRY_BACKOFF_INITIAL)
+  def clientPushRetryBackoffMax: Long = get(CLIENT_PUSH_RETRY_BACKOFF_MAX)
+  def clientPushRetryBackoffJitter: Double = get(CLIENT_PUSH_RETRY_BACKOFF_JITTER)
   def clientPushStageEndTimeout: Long = get(CLIENT_PUSH_STAGE_END_TIMEOUT)
   def clientPushUnsafeRowFastWrite: Boolean = get(CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED)
   def clientRpcCacheExpireTime: Long = get(CLIENT_RPC_CACHE_EXPIRE_TIME)
@@ -5166,6 +5169,37 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .intConf
       .createWithDefault(8)
+
+  val CLIENT_PUSH_RETRY_BACKOFF_MAX: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.retry.backoff.max")
+      .categories("client")
+      .doc("Upper bound of the exponential push data retry delay.")
+      .version("0.7.1")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(_ > 0, "Value must be positive!")
+      .createWithDefaultString("10s")
+
+  val CLIENT_PUSH_RETRY_BACKOFF_INITIAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.retry.backoff.initial")
+      .categories("client")
+      .doc("Initial delay before re-sending a push data request that was rejected with " +
+        s"HARD_SPLIT or failed. The delay grows exponentially up to " +
+        s"`${CLIENT_PUSH_RETRY_BACKOFF_MAX.key}` so that map tasks blocked on the same " +
+        "partition do not retry in lockstep. Set to 0 to disable backoff.")
+      .version("0.7.1")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(_ >= 0, "Value must be zero or positive!")
+      .createWithDefaultString("500ms")
+
+  val CLIENT_PUSH_RETRY_BACKOFF_JITTER: ConfigEntry[Double] =
+    buildConf("celeborn.client.push.retry.backoff.jitter")
+      .categories("client")
+      .doc("Fraction of the push data retry delay applied as random jitter. A value of 0.5 " +
+        "spreads retries uniformly over [0.5, 1.5] times the computed delay.")
+      .version("0.7.1")
+      .doubleConf
+      .checkValue(v => v >= 0.0 && v <= 1.0, "Value must be in [0.0, 1.0]!")
+      .createWithDefault(0.5)
 
   val CLIENT_PUSH_TAKE_TASK_WAIT_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.client.push.takeTaskWaitInterval")
