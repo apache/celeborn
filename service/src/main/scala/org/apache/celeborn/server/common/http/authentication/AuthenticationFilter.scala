@@ -162,10 +162,23 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
     try {
       if (matchedHandler == null) {
         logDebug(s"No auth scheme matched for url: ${httpRequest.getRequestURL}")
-        httpResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED)
-        httpResponse.sendError(
-          HttpServletResponse.SC_UNAUTHORIZED,
-          s"No auth scheme matched for $authorization")
+        if (authorization == null || authorization.isEmpty) {
+          // First request with no Authorization header. Send WWW-Authenticate
+          // challenge(s) to initiate auth handshake (e.g. SPNEGO/Kerberos
+          // requires a 401+WWW-Authenticate to start the handshake).
+          authSchemeHandlers.keys.foreach { scheme =>
+            httpResponse.addHeader("WWW-Authenticate", scheme.toString)
+          }
+          httpResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED)
+          httpResponse.setContentType("text/html;charset=iso-8859-1")
+          httpResponse.getWriter.write(
+            "<html><body><h2>HTTP ERROR 401 Unauthorized</h2></body></html>")
+          httpResponse.getWriter.flush
+        } else {
+          httpResponse.sendError(
+            HttpServletResponse.SC_UNAUTHORIZED,
+            s"No auth scheme matched for $authorization")
+        }
       } else {
         HTTP_AUTH_TYPE.set(matchedHandler.authScheme.toString)
         HTTP_CLIENT_IDENTIFIER.set(matchedHandler.authenticate(httpRequest, httpResponse))
