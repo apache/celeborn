@@ -220,10 +220,111 @@ master:
 
 worker:
   # -- Number of Celeborn worker replicas to deploy, should less than node number.
+  # With `worker.zoneAwareReplication.enabled`, this is the total across all zones and each
+  # zone deploys `ceil(replicas / number of zones)`.
   replicas: 5
 
-  # -- Value for terminationGracePeriodSeconds for worker pods
+  # Zone-aware replication: render one worker statefulset per zone instead of a single one
+  # for the whole cluster, so zone membership is a property of the statefulset rather than
+  # the outcome of scheduling. See README.md.
+  zoneAwareReplication:
+    # -- Whether to deploy one Celeborn worker statefulset per zone.
+    enabled: false
+    # -- Publish the zone as a `zone` label on every metric the worker emits, through
+    # `celeborn.metrics.extraLabels`, so autoscaling and dashboards can select a zone without
+    # matching on pod names. Appends to any `celeborn.metrics.extraLabels` already configured.
+    metricsLabel: true
+    # -- Zone definitions. Redefine the whole list to change any part of it, as YAML cannot
+    # merge list entries.
+    zones: []
+    # -- Name of the zone. Used in the statefulset name and in the
+    # `celeborn.apache.org/zone` label, so it must be a valid label value.
+    # - name: us-east-1a
+    #   # -- Node selector for this zone, merged over `worker.nodeSelector` (this one wins).
+    #   nodeSelector:
+    #     topology.kubernetes.io/zone: us-east-1a
+    #   # -- Replicas for this zone. Overrides the even split of `worker.replicas`.
+    #   replicas: 3
+    #   # -- Affinity for this zone. Replaces `worker.affinity` when set.
+    #   affinity: {}
+
+  # -- Value for terminationGracePeriodSeconds for worker pods. Raise it above
+  # `celeborn.worker.decommission.forceExitTimeout` when `worker.drain` is enabled, otherwise
+  # kubelet kills a draining worker before it finishes. See README.md.
   terminationGracePeriodSeconds: 30
+
+  # Ask a worker to drain before Kubernetes removes it. Deleting a pod only sends SIGTERM,
+  # which never reaches Celeborn's decommission path, so the worker would leave with its
+  # shuffle data and any application still reading it loses that stage. Useful with a fixed
+  # replica count as well as with `worker.autoscaling`.
+  drain:
+    # -- Whether to add a preStop hook that asks the worker to decommission when a scale-in is
+    # removing it, and to shut down gracefully otherwise. The pod tells the two apart by
+    # comparing its own ordinal with the statefulset's desired replica count, and falls back to
+    # a graceful shutdown when it cannot read it. Enable this alongside `worker.autoscaling`:
+    # without it a scale-in is destructive. Needs `rbac.create` and
+    # `celeborn.worker.graceful.shutdown.enabled`. See README.md.
+    enabled: false
+    # -- Decommission on every termination, not only a scale-in. Set this when the worker's
+    # storage does not outlive its pod: graceful shutdown persists state to recover from on
+    # restart, and with nothing to recover a rollout drops its in-flight shuffles. The cost is
+    # that rollouts and node drains then wait for the drain too, bounded by
+    # `celeborn.worker.decommission.forceExitTimeout`. See README.md.
+    alwaysDecommission: false
+
+  # Autoscaling for Celeborn workers, via a KEDA ScaledObject per worker statefulset.
+  # Requires KEDA in the cluster. See README.md.
+  autoscaling:
+    # -- Whether to create a KEDA ScaledObject for each worker statefulset.
+    enabled: false
+    # -- Lower bound. Empty means the statefulset's own replica count, which is
+    # `worker.replicas` split across zones when zone-aware replication is enabled.
+    minReplicaCount:
+    # -- Upper bound, per statefulset (so per zone, when zones are enabled).
+    maxReplicaCount: 10
+    # -- How often KEDA evaluates the triggers, in seconds.
+    pollingInterval: 30
+    # -- Seconds before scaling to zero. Only applies with `minReplicaCount: 0`; pace
+    # ordinary scale-in with `behavior.scaleDown` instead.
+    cooldownPeriod: 300
+    # -- Scaling behaviour, passed through to the underlying HPA.
+    behavior: {}
+    # -- Prometheus-compatible endpoint the built-in triggers below query. Required unless
+    # both are disabled.
+    prometheusAddress: ""
+
+    # Scale out when the fullest worker runs out of disk. This is the signal that bites
+    # first: a worker that fills up stops accepting pushes.
+    # This doubles as the slot utilization target: a disk's `maxSlots` is its total space
+    # divided by the estimated partition size, so slots and disk fill in step. See README.md.
+    diskUsage:
+      # -- Whether to add the disk usage trigger.
+      enabled: true
+      # -- Fraction of the worker's Celeborn disk capacity in use, between 0 and 1.
+      threshold: "0.70"
+
+    # Scale out when workers run short of off-heap memory. A worker stops accepting pushes at
+    # `celeborn.worker.directMemoryRatioToPauseReceive`, so this is the other way a worker
+    # takes itself out of service. See README.md.
+    memoryUsage:
+      # -- Whether to add the off-heap memory trigger.
+      enabled: true
+      # -- Fraction of the worker's off-heap memory in use, between 0 and 1. Keep it below
+      # `celeborn.worker.directMemoryRatioToPauseReceive` (0.85) so capacity arrives before
+      # pushes pause.
+      threshold: "0.70"
+
+    # -- Extra KEDA triggers, appended to the built-in ones. Rendered through `tpl`, so
+    # `{{ .zone.name }}` resolves to the zone of the statefulset being scaled and one
+    # definition covers every zone. Referencing it with zones off is rejected at render time.
+    triggers: []
+    # - type: prometheus
+    #   # `Value`, not KEDA's `AverageValue` default, for a saturation ratio. See README.md.
+    #   metricType: Value
+    #   metadata:
+    #     serverAddress: http://prometheus.monitoring.svc.cluster.local:9090
+    #     query: max(1 - metrics_DeviceCelebornFreeBytes_Value{role="Worker",zone="{{ .zone.name }}"} / metrics_DeviceCelebornTotalBytes_Value{role="Worker",zone="{{ .zone.name }}"})
+    #     threshold: "0.7"
 
   # -- Annotations for Celeborn worker pods.
   annotations:

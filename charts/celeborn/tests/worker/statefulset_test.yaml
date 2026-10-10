@@ -516,3 +516,390 @@ tests:
     asserts:
       - notExists:
           path: spec.template.spec.initContainers
+
+  - it: Should create a single worker statefulset when zone-aware replication is disabled
+    template: worker/statefulset.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: celeborn-worker
+      - notExists:
+          path: spec.selector.matchLabels["celeborn.apache.org/zone"]
+
+  - it: Should create one worker statefulset per zone if `worker.zoneAwareReplication` is enabled
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        replicas: 9
+        zoneAwareReplication:
+          enabled: true
+          zones:
+            - name: us-east-1a
+            - name: us-east-1b
+            - name: us-east-1c
+    asserts:
+      - hasDocuments:
+          count: 3
+      - equal:
+          path: metadata.name
+          value: celeborn-worker-us-east-1b
+        documentIndex: 1
+      - equal:
+          path: spec.selector.matchLabels["celeborn.apache.org/zone"]
+          value: us-east-1b
+        documentIndex: 1
+      - equal:
+          path: spec.template.metadata.labels["celeborn.apache.org/zone"]
+          value: us-east-1b
+        documentIndex: 1
+      - equal:
+          path: spec.serviceName
+          value: celeborn-worker-svc
+        documentIndex: 1
+
+  - it: Should split `worker.replicas` across zones, rounding up
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        replicas: 5
+        zoneAwareReplication:
+          enabled: true
+          zones:
+            - name: us-east-1a
+            - name: us-east-1b
+            - name: us-east-1c
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  - it: Should use the zone replicas if `zones[].replicas` is set
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        replicas: 9
+        zoneAwareReplication:
+          enabled: true
+          zones:
+            - name: us-east-1a
+              replicas: 7
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 7
+
+  - it: Should merge the zone node selector over `worker.nodeSelector`
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        nodeSelector:
+          workload: celeborn
+        zoneAwareReplication:
+          enabled: true
+          zones:
+            - name: us-east-1a
+              nodeSelector:
+                topology.kubernetes.io/zone: us-east-1a
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value:
+            workload: celeborn
+            topology.kubernetes.io/zone: us-east-1a
+
+  - it: Should use the zone affinity if `zones[].affinity` is set
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        zoneAwareReplication:
+          enabled: true
+          zones:
+            - name: us-east-1a
+              affinity:
+                nodeAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                      - matchExpressions:
+                          - key: topology.kubernetes.io/zone
+                            operator: In
+                            values:
+                              - us-east-1a
+    asserts:
+      - equal:
+          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values[0]
+          value: us-east-1a
+
+  - it: Should fail if zone-aware replication is enabled without zones
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        zoneAwareReplication:
+          enabled: true
+          zones: []
+    asserts:
+      - failedTemplate:
+          errorMessage: worker.zoneAwareReplication.enabled is true but worker.zoneAwareReplication.zones is empty
+
+  - it: Should not have a preStop drain hook as default
+    template: worker/statefulset.yaml
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].lifecycle
+      - notContains:
+          path: spec.template.spec.volumes[0].configMap.items
+          content:
+            key: worker-drain.sh
+            path: worker-drain.sh
+
+  - it: Should run the mounted drain script from the preStop hook
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        drain:
+          enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command
+          value:
+            - /bin/sh
+            - /opt/celeborn/drain/worker-drain.sh
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: celeborn-conf
+            subPath: worker-drain.sh
+            mountPath: /opt/celeborn/drain/worker-drain.sh
+      - contains:
+          path: spec.template.spec.volumes[0].configMap.items
+          content:
+            key: worker-drain.sh
+            path: worker-drain.sh
+
+  - it: Should pass the pod, statefulset and port to the drain script
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        drain:
+          enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0]
+          value:
+            name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+      - equal:
+          path: spec.template.spec.containers[0].env[1]
+          value:
+            name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+      - equal:
+          path: spec.template.spec.containers[0].env[2]
+          value:
+            name: STS_NAME
+            value: celeborn-worker
+      - equal:
+          path: spec.template.spec.containers[0].env[3]
+          value:
+            name: WORKER_HTTP_PORT
+            value: "9096"
+      - equal:
+          path: spec.template.spec.containers[0].env[4]
+          value:
+            name: ALWAYS_DECOMMISSION
+            value: "false"
+
+  - it: Should tell the drain script to always decommission when asked
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        drain:
+          enabled: true
+          alwaysDecommission: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[4].value
+          value: "true"
+
+  - it: Should point the drain script at the zone statefulset
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        zoneAwareReplication:
+          enabled: true
+          zones:
+            - name: us-east-1a
+        drain:
+          enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: STS_NAME
+            value: celeborn-worker-us-east-1a
+
+  - it: Should not add the preStop drain hook if `worker.drain` is disabled
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        drain:
+          enabled: false
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].lifecycle
+
+  - it: Should not inject POD_NAME when the drain is disabled
+    template: worker/statefulset.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0].name
+          value: CELEBORN_WORKER_MEMORY
+
+  - it: Should not set the zone metric label when zone-aware replication is off
+    template: worker/statefulset.yaml
+    asserts:
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].command[4]
+          pattern: extraLabels
+
+  - it: Should publish the zone as a metric label in each zone
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        zoneAwareReplication:
+          enabled: true
+          zones:
+            - name: us-east-1a
+            - name: us-east-1b
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CELEBORN_ZONE_METRIC_LABELS
+            value: zone=us-east-1b
+        documentIndex: 1
+      - matchRegex:
+          path: spec.template.spec.containers[0].command[4]
+          pattern: extraLabels=\$CELEBORN_ZONE_METRIC_LABELS
+        documentIndex: 1
+
+  - it: Should append the zone to any configured extra metric labels
+    template: worker/statefulset.yaml
+    set:
+      celeborn:
+        celeborn.metrics.extraLabels: env=prod
+      worker:
+        zoneAwareReplication:
+          enabled: true
+          zones:
+            - name: us-east-1a
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CELEBORN_ZONE_METRIC_LABELS
+            value: env=prod,zone=us-east-1a
+
+  - it: Should not set the zone metric label if `metricsLabel` is false
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        zoneAwareReplication:
+          enabled: true
+          metricsLabel: false
+          zones:
+            - name: us-east-1a
+    asserts:
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].command[4]
+          pattern: extraLabels
+
+  - it: Should fail if a zone has no name
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        zoneAwareReplication:
+          enabled: true
+          zones:
+            - nodeSelector:
+                topology.kubernetes.io/zone: us-east-1a
+    asserts:
+      - failedTemplate:
+          errorMessage: every entry in worker.zoneAwareReplication.zones needs a name
+
+  - it: Should fail if two zones share a name
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        zoneAwareReplication:
+          enabled: true
+          zones:
+            - name: us-east-1a
+            - name: us-east-1a
+    asserts:
+      - failedTemplate:
+          errorMessage: worker.zoneAwareReplication.zones has duplicate names
+
+  - it: "Should honour an explicit `zones[].replicas: 0`"
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        replicas: 6
+        zoneAwareReplication:
+          enabled: true
+          zones:
+            - name: us-east-1a
+              replicas: 0
+            - name: us-east-1b
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0
+        documentIndex: 0
+      - equal:
+          path: spec.replicas
+          value: 3
+        documentIndex: 1
+
+  - it: Should let an empty `zones[].affinity` clear the chart affinity for that zone
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        zoneAwareReplication:
+          enabled: true
+          zones:
+            - name: us-east-1a
+              affinity: {}
+            - name: us-east-1b
+    asserts:
+      - notExists:
+          path: spec.template.spec.affinity
+        documentIndex: 0
+      - exists:
+          path: spec.template.spec.affinity.podAntiAffinity
+        documentIndex: 1
+
+  - it: Should not interpolate the metric label value into the start command
+    template: worker/statefulset.yaml
+    set:
+      celeborn:
+        celeborn.metrics.extraLabels: env=$(id -u)
+      worker:
+        zoneAwareReplication:
+          enabled: true
+          zones:
+            - name: us-east-1a
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CELEBORN_ZONE_METRIC_LABELS
+            value: env=$(id -u),zone=us-east-1a
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].command[4]
+          pattern: id -u

@@ -15,6 +15,46 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */ -}}
 
+{{- /*
+One statefulset per zone when zone-aware replication is enabled, a single one otherwise.
+The no-zone case iterates once over an empty dict, which `if .zone` treats as unset.
+*/ -}}
+{{- $zones := list dict }}
+{{- if .Values.worker.zoneAwareReplication.enabled }}
+{{- if not .Values.worker.zoneAwareReplication.zones }}
+{{- fail "worker.zoneAwareReplication.enabled is true but worker.zoneAwareReplication.zones is empty" }}
+{{- end }}
+{{- $zones = .Values.worker.zoneAwareReplication.zones }}
+{{- $names := list }}
+{{- range $zone := $zones }}
+{{- if not $zone.name }}
+{{- fail "every entry in worker.zoneAwareReplication.zones needs a name" }}
+{{- end }}
+{{- $names = append $names $zone.name }}
+{{- end }}
+{{- if ne (len (uniq $names)) (len $names) }}
+{{- fail "worker.zoneAwareReplication.zones has duplicate names" }}
+{{- end }}
+{{- end }}
+{{- range $index, $zone := $zones }}
+{{- if $index }}
+---
+{{- end }}
+{{- /* Render the body against a context carrying the zone, so `.` keeps working below. */}}
+{{- with dict "Values" $.Values "Release" $.Release "Chart" $.Chart "Capabilities" $.Capabilities "Template" $.Template "Files" $.Files "zone" $zone }}
+{{- $drainMount := .Values.worker.drain.enabled }}
+{{- /*
+Computed once: used both as an env var and referenced from the start command. The value is
+never interpolated into the shell string - `$()` or a quote in a legitimate label would
+otherwise be evaluated by /bin/sh at startup.
+*/}}
+{{- $zoneMetricLabels := "" }}
+{{- if and $zone .Values.worker.zoneAwareReplication.metricsLabel }}
+{{- $zoneMetricLabels = printf "zone=%s" $zone.name }}
+{{- with get .Values.celeborn "celeborn.metrics.extraLabels" }}
+{{- $zoneMetricLabels = printf "%s,%s" . $zoneMetricLabels }}
+{{- end }}
+{{- end }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -23,7 +63,7 @@ metadata:
   labels:
     {{- include "celeborn.worker.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.worker.replicas }}
+  replicas: {{ include "celeborn.worker.replicas" . }}
   selector:
     matchLabels:
       {{- include "celeborn.worker.selectorLabels" . | nindent 6 }}
@@ -103,14 +143,50 @@ spec:
           true; do
             echo "waiting for master";
             sleep 2;
-          done && exec /opt/celeborn/sbin/start-worker.sh
+          {{- /*
+          Publish the zone as a metric label, so queries select on it rather than on pod names.
+          The conf file is loaded with setIfMissing, so a system property wins over it, and
+          start-worker.sh builds CELEBORN_JAVA_OPTS from CELEBORN_WORKER_JAVA_OPTS - so this
+          composes with whatever `worker.env` already sets.
+          */}}
+          {{- $zoneOpts := "" }}
+          {{- if $zoneMetricLabels }}
+          {{- $zoneOpts = "export CELEBORN_WORKER_JAVA_OPTS=\"${CELEBORN_WORKER_JAVA_OPTS:-} -Dceleborn.metrics.extraLabels=$CELEBORN_ZONE_METRIC_LABELS\" && " }}
+          {{- end }}
+          done && {{ $zoneOpts }}exec /opt/celeborn/sbin/start-worker.sh
         ports:
         - containerPort: {{ get .Values.celeborn "celeborn.worker.http.port" | default 9096 }}
           name: metrics
           protocol: TCP
-        {{- with .Values.worker.env }}
+        {{- $drain := $drainMount }}
+        {{- if or $drain $zoneMetricLabels .Values.worker.env }}
         env:
+        {{- with $zoneMetricLabels }}
+        - name: CELEBORN_ZONE_METRIC_LABELS
+          value: {{ . | quote }}
+        {{- end }}
+        {{- if $drain }}
+        {{- /* Not $HOSTNAME: with worker.hostNetwork that is the node name, whose trailing
+        number would be read as an ordinal and decommission the worker on every rollout. */}}
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        {{- /* The worker's http server binds to this address, not the wildcard. */}}
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: STS_NAME
+          value: {{ include "celeborn.worker.statefulSet.name" . }}
+        - name: WORKER_HTTP_PORT
+          value: {{ get .Values.celeborn "celeborn.worker.http.port" | default 9096 | quote }}
+        - name: ALWAYS_DECOMMISSION
+          value: {{ .Values.worker.drain.alwaysDecommission | quote }}
+        {{- end }}
+        {{- with .Values.worker.env }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
         {{- end }}
         {{- with .Values.worker.envFrom }}
         envFrom:
@@ -126,8 +202,22 @@ spec:
         - name: celeborn-conf
           subPath: metrics.properties
           mountPath: /opt/celeborn/conf/metrics.properties
+        {{- if $drainMount }}
+        - name: celeborn-conf
+          subPath: worker-drain.sh
+          mountPath: /opt/celeborn/drain/worker-drain.sh
+        {{- end }}
         {{- with .Values.worker.volumeMounts }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $drain }}
+        {{- /* The drain logic lives in files/worker-drain.sh, shipped in the config map. */}}
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - /opt/celeborn/drain/worker-drain.sh
         {{- end }}
         {{- with .Values.worker.resources }}
         resources:
@@ -153,14 +243,24 @@ spec:
             path: log4j2.xml
           - key: metrics.properties
             path: metrics.properties
+          {{- if $drainMount }}
+          - key: worker-drain.sh
+            path: worker-drain.sh
+          {{- end }}
       {{- with .Values.worker.volumes }}
       {{- toYaml . | nindent 6 }}
       {{- end }}
-      {{- with .Values.worker.nodeSelector }}
+      {{- $nodeSelector := merge (deepCopy (default dict (and .zone .zone.nodeSelector))) (default dict .Values.worker.nodeSelector) }}
+      {{- with $nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.worker.affinity }}
+      {{- $affinity := .Values.worker.affinity }}
+      {{- /* Key presence, not truthiness: `affinity: {}` clears the global one for this zone. */}}
+      {{- if and .zone (hasKey .zone "affinity") }}
+      {{- $affinity = .zone.affinity }}
+      {{- end }}
+      {{- with $affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -183,3 +283,5 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       terminationGracePeriodSeconds: {{ .Values.worker.terminationGracePeriodSeconds }}
+{{- end }}
+{{- end }}
