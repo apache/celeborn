@@ -309,6 +309,36 @@ tests:
           path: spec.template.spec.nodeSelector.key2
           value: value2
 
+  - it: Should not add topology spread constraints if `master.topologySpreadConstraints` is not set
+    template: master/statefulset.yaml
+    asserts:
+      - notExists:
+          path: spec.template.spec.topologySpreadConstraints
+
+  - it: Should add topology spread constraints if `master.topologySpreadConstraints` is set
+    template: master/statefulset.yaml
+    set:
+      master:
+        topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: DoNotSchedule
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: celeborn
+                app.kubernetes.io/role: master
+    asserts:
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints
+          value:
+            - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: DoNotSchedule
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: celeborn
+                  app.kubernetes.io/role: master
+
   - it: Should add tolerations if `master.tolerations` is set
     template: master/statefulset.yaml
     set:
