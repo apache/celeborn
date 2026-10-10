@@ -23,6 +23,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.junit.AfterClass;
@@ -175,6 +179,110 @@ public class DataPushQueueSuiteJ {
     } catch (Throwable e) {
       Assert.assertTrue(e.getCause() instanceof OutOfMemoryError);
     }
+    client.shutdown();
+  }
+
+  @Test
+  public void testDataPusherRejectsTasksWhileClosing() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    DummyShuffleClient client =
+        new DummyShuffleClient(conf, new File(tempDir, UUID.randomUUID().toString()));
+    client.initReducePartitionMap(0, 1, 1);
+    LongAdder[] mapStatusLengths = {new LongAdder()};
+    CountDownLatch pushStarted = new CountDownLatch(1);
+    CountDownLatch allowPush = new CountDownLatch(1);
+    DataPusher dataPusher =
+        new DataPusher(0, 0, 0, 0, 1, 1, conf, client, null, integer -> {}, mapStatusLengths) {
+          @Override
+          protected void pushData(PushTask task) throws IOException {
+            pushStarted.countDown();
+            try {
+              allowPush.await(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              throw new IOException(e);
+            }
+          }
+        };
+
+    dataPusher.addTask(0, new byte[1], 1);
+
+    AtomicReference<Throwable> terminationFailure = new AtomicReference<>();
+    Thread terminationThread =
+        new Thread(
+            () -> {
+              try {
+                dataPusher.waitOnTermination();
+              } catch (Throwable t) {
+                terminationFailure.set(t);
+              }
+            });
+    terminationThread.start();
+    Assert.assertTrue(pushStarted.await(10, TimeUnit.SECONDS));
+    // Give the termination thread time to close the lifecycle admission barrier.
+    Thread.sleep(100);
+
+    try {
+      dataPusher.addTask(0, new byte[1], 1);
+      Assert.fail("addTask should be rejected while closing");
+    } catch (IOException expected) {
+      // The lifecycle admission barrier is closed before termination completes.
+      Assert.assertEquals("DataPusher is in state CLOSING", expected.getMessage());
+    } finally {
+      allowPush.countDown();
+      terminationThread.join(TimeUnit.SECONDS.toMillis(10));
+      client.shutdown();
+    }
+    Assert.assertFalse("termination should complete", terminationThread.isAlive());
+    Assert.assertNull("waitOnTermination failed", terminationFailure.get());
+  }
+
+  @Test
+  public void testDataPusherDrainsTaskAdmittedBeforeTermination() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    DummyShuffleClient client =
+        new DummyShuffleClient(conf, new File(tempDir, UUID.randomUUID().toString()));
+    client.initReducePartitionMap(0, 1, 1);
+    LongAdder[] mapStatusLengths = {new LongAdder()};
+    CountDownLatch pushStarted = new CountDownLatch(1);
+    CountDownLatch allowPush = new CountDownLatch(1);
+    AtomicInteger pushedTasks = new AtomicInteger();
+    DataPusher dataPusher =
+        new DataPusher(0, 0, 0, 0, 1, 1, conf, client, null, integer -> {}, mapStatusLengths) {
+          @Override
+          protected void pushData(PushTask task) throws IOException {
+            pushStarted.countDown();
+            try {
+              if (!allowPush.await(10, TimeUnit.SECONDS)) {
+                throw new IOException("Timed out waiting to release push");
+              }
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              throw new IOException(e);
+            }
+            pushedTasks.incrementAndGet();
+          }
+        };
+
+    dataPusher.addTask(0, new byte[1], 1);
+    AtomicReference<Throwable> terminationFailure = new AtomicReference<>();
+    Thread terminationThread =
+        new Thread(
+            () -> {
+              try {
+                dataPusher.waitOnTermination();
+              } catch (Throwable t) {
+                terminationFailure.set(t);
+              }
+            });
+    terminationThread.start();
+
+    Assert.assertTrue(pushStarted.await(10, TimeUnit.SECONDS));
+    allowPush.countDown();
+    terminationThread.join(TimeUnit.SECONDS.toMillis(10));
+    Assert.assertFalse("termination should complete", terminationThread.isAlive());
+    Assert.assertNull("waitOnTermination failed", terminationFailure.get());
+    Assert.assertEquals(1, pushedTasks.get());
     client.shutdown();
   }
 
