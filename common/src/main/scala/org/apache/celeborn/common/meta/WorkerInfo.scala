@@ -47,7 +47,8 @@ class WorkerInfo(
   var nextInterruptionNotice = Long.MaxValue
   var lastHeartbeat: Long = 0
   var workerStatus = WorkerStatus.normalWorkerStatus()
-  var isHighWorkLoad: Boolean = false;
+  var isHighWorkLoad: Boolean = false
+  var tags: util.Set[String] = new util.HashSet[String]()
   val diskInfos = {
     if (_diskInfos != null) JavaUtils.newConcurrentHashMap[String, DiskInfo](_diskInfos)
     else null

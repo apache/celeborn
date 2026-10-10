@@ -258,6 +258,7 @@ public class MetaHandler {
           int internalPort = request.getRegisterWorkerRequest().getInternalPort();
           Map<String, PbDiskInfo> pbDiskInfo = request.getRegisterWorkerRequest().getDisksMap();
           diskInfos = MetaUtil.fromPbDiskInfoMap(pbDiskInfo);
+          Set<String> tags = new HashSet<>(request.getRegisterWorkerRequest().getTagsList());
           LOG.debug(
               "Handle worker register for {} {} {} {} {} {} {}",
               host,
@@ -275,7 +276,8 @@ public class MetaHandler {
               replicatePort,
               internalPort,
               networkLocation,
-              diskInfos);
+              diskInfos,
+              tags);
           break;
 
         case ReportWorkerUnavailable:

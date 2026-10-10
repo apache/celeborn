@@ -17,8 +17,10 @@
 
 package org.apache.celeborn.service.deploy.master.clustermeta;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.ApplicationMeta;
@@ -77,6 +79,31 @@ public interface IMetadataHandler {
       WorkerStatus workerStatus,
       String requestId);
 
+  default void handleRegisterWorker(
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      int internalPort,
+      String networkLocation,
+      Map<String, DiskInfo> disks,
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      String requestId) {
+    handleRegisterWorker(
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        internalPort,
+        networkLocation,
+        disks,
+        userResourceConsumption,
+        Collections.emptySet(),
+        requestId);
+  }
+
   void handleRegisterWorker(
       String host,
       int rpcPort,
@@ -87,6 +114,7 @@ public interface IMetadataHandler {
       String networkLocation,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      Set<String> tags,
       String requestId);
 
   void handleReportWorkerUnavailable(List<WorkerInfo> failedNodes, String requestId);
