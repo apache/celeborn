@@ -27,6 +27,7 @@ import com.google.protobuf.InvalidProtocolBufferException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{ApplicationInfo, ApplicationMeta, DeviceInfo, DiskFileInfo, DiskInfo, MapFileMeta, ReduceFileMeta, WorkerEventInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.meta.MapFileMeta.SegmentIndex
+import org.apache.celeborn.common.metrics.WorkerStats
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.PartitionLocation.Mode
 import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
@@ -530,14 +531,36 @@ object PbSerDeUtils {
   }
 
   def toPbWorkerStatus(workerStatus: WorkerStatus): PbWorkerStatus = {
-    PbWorkerStatus.newBuilder()
+    toPbWorkerStatus(workerStatus, None)
+  }
+
+  def toPbWorkerStatus(
+      workerStatus: WorkerStatus,
+      workerStats: Option[WorkerStats]): PbWorkerStatus = {
+    val builder = PbWorkerStatus.newBuilder()
       .setState(workerStatus.getState)
       .setStateStartTime(workerStatus.getStateStartTime)
-      .build()
+    workerStats.foreach { stats =>
+      builder.putAllStats(stats.metrics.map { case (name, value) =>
+        name -> Double.box(value)
+      }.asJava)
+    }
+    builder.build()
   }
 
   def fromPbWorkerStatus(pbWorkerStatus: PbWorkerStatus): WorkerStatus = {
     new WorkerStatus(pbWorkerStatus.getState.getNumber, pbWorkerStatus.getStateStartTime)
+  }
+
+  def fromPbWorkerStats(pbWorkerStatus: PbWorkerStatus): Option[WorkerStats] = {
+    if (pbWorkerStatus.getStatsCount == 0) {
+      None
+    } else {
+      Some(WorkerStats(
+        pbWorkerStatus.getStatsMap.asScala.map { case (name, value) =>
+          name -> value.doubleValue()
+        }.toMap))
+    }
   }
 
   def toPbWorkerEventInfo(workerEventInfo: WorkerEventInfo): PbWorkerEventInfo = {
