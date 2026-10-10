@@ -1049,6 +1049,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchCleanFailedShuffle: Boolean = get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE)
   def clientFetchCleanFailedShuffleIntervalMS: Long =
     get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_INTERVAL)
+  def clientSparkShuffleCleanupEnabled: Boolean =
+    get(CLIENT_SPARK_SHUFFLE_CLEANUP_ENABLED)
   def clientFetchExcludeWorkerOnFailureEnabled: Boolean =
     get(CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
   def clientFetchExcludedWorkerExpireTimeout: Long =
@@ -5313,6 +5315,19 @@ object CelebornConf extends Logging {
       .doc("Whether to enable stage rerun. If true, client throws FetchFailedException instead of CelebornIOException.")
       .booleanConf
       .createWithDefault(true)
+
+  val CLIENT_SPARK_SHUFFLE_CLEANUP_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.shuffleCleanup.enabled")
+      .categories("client")
+      .version("1.0.0")
+      .doc("When enabled, shuffles written by a SQL query (or Dataset action) are proactively " +
+        "unregistered when the query completes, instead of waiting for driver GC or application " +
+        "end. This is useful for long-running Spark applications such as ThriftServer, Kyuubi, " +
+        "spark-sql and spark-connect-server. Note that if the same DataFrame reference is " +
+        "executed again, the cleaned shuffles must be regenerated via stage retries, so " +
+        s"${CLIENT_STAGE_RERUN_ENABLED.key} has to be enabled together.")
+      .booleanConf
+      .createWithDefault(false)
 
   val CLIENT_FETCH_CLEAN_FAILED_SHUFFLE: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.fetch.cleanFailedShuffle")
