@@ -1442,8 +1442,10 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       fileWriter: PartitionDataWriter,
       isPrimary: Boolean): StatusCode = {
     if (fileWriter.needHardSplitForMemoryShuffleStorage()) {
-      logInfo(
-        s"Do hardSplit for memory shuffle file fileLength:${fileWriter.getMemoryFileInfo.getFileLength}")
+      if (fileWriter.shouldLogHardSplit()) {
+        logInfo(
+          s"Do hardSplit for memory shuffle file fileLength:${fileWriter.getMemoryFileInfo.getFileLength}")
+      }
       return StatusCode.HARD_SPLIT
     }
     val diskFull = checkDiskFull(fileWriter)

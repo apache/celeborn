@@ -148,10 +148,15 @@ class PushDataHandlerSuite extends AnyFunSuite {
   test("returns HARD_SPLIT when memory shuffle storage needs hard split") {
     val handler = buildHandler(partitionSplitEnabled = true)
     val fileWriter = buildFileWriter(fileLength = 0L, needMemoryHardSplit = true)
+    when(fileWriter.shouldLogHardSplit()).thenReturn(true, false)
 
-    val result = handler.checkDiskFullAndSplit(fileWriter, isPrimary = true)
+    val firstResult = handler.checkDiskFullAndSplit(fileWriter, isPrimary = true)
+    val secondResult = handler.checkDiskFullAndSplit(fileWriter, isPrimary = true)
 
-    assert(result === StatusCode.HARD_SPLIT)
+    assert(firstResult === StatusCode.HARD_SPLIT)
+    assert(secondResult === StatusCode.HARD_SPLIT)
+    verify(fileWriter, times(2)).shouldLogHardSplit()
+    verify(fileWriter, times(1)).getMemoryFileInfo
   }
 
   test("returns NO_SPLIT when workerPartitionSplitEnabled is false") {

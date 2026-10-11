@@ -149,6 +149,14 @@ public class ShuffleClientSuiteJ {
         delays.add(delay);
       }
       assertTrue("jitter should produce different retry delays", delays.size() > 1);
+
+      delays.clear();
+      for (int i = 0; i < 100; i++) {
+        long delay = client.pushRetryBackoffMs(3);
+        assertTrue(delay >= 200 && delay <= 400);
+        delays.add(delay);
+      }
+      assertTrue("jitter at the cap should produce different retry delays", delays.size() > 1);
     } finally {
       client.shutdown();
     }

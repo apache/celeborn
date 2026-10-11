@@ -332,7 +332,13 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (jitter <= 0) {
       return delay;
     }
-    return delay - jitter + ThreadLocalRandom.current().nextLong(2 * jitter + 1);
+    long minDelay = delay - jitter;
+    long maxDelay = delay > pushRetryBackoffMaxMs - jitter ? pushRetryBackoffMaxMs : delay + jitter;
+    long jitterRange = maxDelay - minDelay;
+    if (jitterRange == Long.MAX_VALUE) {
+      return ThreadLocalRandom.current().nextLong(Long.MAX_VALUE);
+    }
+    return minDelay + ThreadLocalRandom.current().nextLong(jitterRange + 1);
   }
 
   @VisibleForTesting
