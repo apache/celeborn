@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.roaringbitmap.RoaringBitmap;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.security.CryptoHandler;
@@ -285,6 +286,52 @@ public class CelebornInputStreamPeerFailoverTest {
         Optional.<CryptoHandler>empty());
   }
 
+  @Test
+  public void testRangeReadWithUnknownBitmapWithoutPeerOpensReader() throws Exception {
+    PartitionLocation primary = createPartitionLocation(PRIMARY_HOST);
+    primary.setMapIdBitMap(null);
+    TransportClient client = mockReplicaClient();
+    when(clientFactory.createClient(PRIMARY_HOST, PORT + 2)).thenReturn(client);
+
+    try (CelebornInputStream inputStream = createRangeReadInputStream(primary)) {
+      verify(clientFactory).createClient(PRIMARY_HOST, PORT + 2);
+    }
+  }
+
+  @Test
+  public void testRangeReadWithBothBitmapsUnknownOpensReader() throws Exception {
+    PartitionLocation primary = createPartitionLocation(PRIMARY_HOST);
+    PartitionLocation replica = createPartitionLocation(REPLICA_HOST);
+    primary.setMapIdBitMap(null);
+    replica.setMapIdBitMap(null);
+    primary.setPeer(replica);
+    replica.setPeer(primary);
+    TransportClient client = mockReplicaClient();
+    when(clientFactory.createClient(PRIMARY_HOST, PORT + 2)).thenReturn(client);
+
+    try (CelebornInputStream inputStream = createRangeReadInputStream(primary)) {
+      verify(clientFactory).createClient(PRIMARY_HOST, PORT + 2);
+    }
+  }
+
+  @Test
+  public void testRangeReadWithNonoverlappingBitmapSkipsReader() throws Exception {
+    PartitionLocation primary = createPartitionLocation(PRIMARY_HOST);
+    primary.setMapIdBitMap(RoaringBitmap.bitmapOf(20));
+
+    try (CelebornInputStream inputStream = createRangeReadInputStream(primary)) {
+      assertEquals(-1, inputStream.read());
+      verify(clientFactory, never()).createClient(anyString(), anyInt());
+    }
+  }
+
+  private CelebornInputStream createRangeReadInputStream(PartitionLocation location)
+      throws IOException {
+    conf.set(CelebornConf.SHUFFLE_RANGE_READ_FILTER_ENABLED().key(), "true");
+    conf.set(CelebornConf.CLIENT_CHUNK_PREFETCH_ENABLED().key(), "false");
+    return createInputStream(location, null, 0, 10);
+  }
+
   private CelebornInputStream createInputStream(String primaryHost, String replicaHost)
       throws IOException {
     return createInputStream(primaryHost, replicaHost, null);
@@ -297,8 +344,15 @@ public class CelebornInputStreamPeerFailoverTest {
     primary.setPeer(replica);
     replica.setPeer(primary);
 
+    return createInputStream(primary, exceptionMaker, 0, 100);
+  }
+
+  private CelebornInputStream createInputStream(
+      PartitionLocation location, ExceptionMaker exceptionMaker, int startMapIndex, int endMapIndex)
+      throws IOException {
+
     ArrayList<PartitionLocation> locations = new ArrayList<>();
-    locations.add(primary);
+    locations.add(location);
 
     ArrayList<PbStreamHandler> streamHandlers = new ArrayList<>();
     streamHandlers.add(PbStreamHandler.newBuilder().setStreamId(123L).setNumChunks(10).build());
@@ -314,8 +368,8 @@ public class CelebornInputStreamPeerFailoverTest {
         new HashMap<>(),
         0,
         1L,
-        0,
-        100,
+        startMapIndex,
+        endMapIndex,
         fetchExcludedWorkers,
         shuffleClient,
         1,

@@ -372,6 +372,10 @@ public abstract class CelebornInputStream extends InputStream {
       if (bitmap == null && location.hasPeer()) {
         bitmap = location.getPeer().getMapIdBitMap();
       }
+      if (bitmap == null) {
+        // Missing filter metadata cannot prove that this location is irrelevant.
+        return false;
+      }
       for (int i = startMapIndex; i < endMapIndex; i++) {
         if (bitmap.contains(i)) {
           return false;
