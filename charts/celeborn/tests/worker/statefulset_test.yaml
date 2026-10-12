@@ -677,6 +677,40 @@ tests:
             key: worker-drain.sh
             path: worker-drain.sh
 
+  - it: Should fail the drain with worker HTTP TLS enabled
+    template: worker/statefulset.yaml
+    set:
+      celeborn:
+        celeborn.worker.http.ssl.enabled: true
+      worker:
+        drain:
+          enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "worker.drain does not support celeborn.worker.http.ssl.enabled: the preStop hook calls the worker over plain HTTP"
+
+  - it: Should fail the drain with worker HTTP authentication enabled
+    template: worker/statefulset.yaml
+    set:
+      celeborn:
+        celeborn.worker.http.auth.supportedSchemes: BASIC
+      worker:
+        drain:
+          enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "worker.drain does not support celeborn.worker.http.auth.supportedSchemes: the preStop hook sends no credentials"
+
+  - it: Should allow worker HTTP TLS when the drain is disabled
+    template: worker/statefulset.yaml
+    set:
+      celeborn:
+        celeborn.worker.http.ssl.enabled: true
+        celeborn.worker.http.auth.supportedSchemes: BASIC
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].lifecycle
+
   - it: Should pass the pod, statefulset and port to the drain script
     template: worker/statefulset.yaml
     set:

@@ -330,7 +330,26 @@ tests:
       - failedTemplate:
           errorMessage: "worker.autoscaling.enabled is true but no trigger is: enable worker.autoscaling.diskUsage or memoryUsage, or set worker.autoscaling.triggers"
 
-  - it: Should allow scaling to zero
+  - it: Should allow scaling to zero with a trigger of its own
+    set:
+      worker:
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+          minReplicaCount: 0
+          triggers:
+            - type: cron
+              metadata:
+                timezone: UTC
+                start: 0 6 * * *
+                end: 0 20 * * *
+                desiredReplicas: "3"
+    asserts:
+      - equal:
+          path: spec.minReplicaCount
+          value: 0
+
+  - it: Should fail scaling to zero on the built-in triggers alone
     set:
       worker:
         autoscaling:
@@ -338,6 +357,5 @@ tests:
           prometheusAddress: http://prometheus:9090
           minReplicaCount: 0
     asserts:
-      - equal:
-          path: spec.minReplicaCount
-          value: 0
+      - failedTemplate:
+          errorMessage: "worker.autoscaling.minReplicaCount: 0 needs a trigger in worker.autoscaling.triggers that does not depend on the workers' own metrics: the built-in ones go silent once the last worker is gone, and the statefulset could never scale back up"

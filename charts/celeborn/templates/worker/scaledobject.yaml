@@ -19,6 +19,11 @@ limitations under the License.
 {{- if not (or .Values.worker.autoscaling.diskUsage.enabled .Values.worker.autoscaling.memoryUsage.enabled .Values.worker.autoscaling.triggers) }}
 {{- fail "worker.autoscaling.enabled is true but no trigger is: enable worker.autoscaling.diskUsage or memoryUsage, or set worker.autoscaling.triggers" }}
 {{- end }}
+{{- /* The built-in triggers read metrics from the workers themselves, so at zero replicas nothing can wake the statefulset. */}}
+{{- $min := .Values.worker.autoscaling.minReplicaCount }}
+{{- if and (not (kindIs "invalid" $min)) (eq (toString $min) "0") (not .Values.worker.autoscaling.triggers) }}
+{{- fail "worker.autoscaling.minReplicaCount: 0 needs a trigger in worker.autoscaling.triggers that does not depend on the workers' own metrics: the built-in ones go silent once the last worker is gone, and the statefulset could never scale back up" }}
+{{- end }}
 {{- /* One ScaledObject per worker statefulset, so each zone scales on its own load. */}}
 {{- $zones := list dict }}
 {{- if .Values.worker.zoneAwareReplication.enabled }}

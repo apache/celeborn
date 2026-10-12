@@ -263,7 +263,8 @@ worker:
     # comparing its own ordinal with the statefulset's desired replica count, and falls back to
     # a graceful shutdown when it cannot read it. Enable this alongside `worker.autoscaling`:
     # without it a scale-in is destructive. Needs `rbac.create` and
-    # `celeborn.worker.graceful.shutdown.enabled`. See README.md.
+    # `celeborn.worker.graceful.shutdown.enabled`. Not supported with worker HTTP TLS or
+    # authentication. See README.md.
     enabled: false
     # -- Decommission on every termination, not only a scale-in. Set this when the worker's
     # storage does not outlive its pod: graceful shutdown persists state to recover from on
@@ -278,7 +279,8 @@ worker:
     # -- Whether to create a KEDA ScaledObject for each worker statefulset.
     enabled: false
     # -- Lower bound. Empty means the statefulset's own replica count, which is
-    # `worker.replicas` split across zones when zone-aware replication is enabled.
+    # `worker.replicas` split across zones when zone-aware replication is enabled. 0 needs a
+    # trigger in `triggers` that does not depend on the workers' own metrics. See README.md.
     minReplicaCount:
     # -- Upper bound, per statefulset (so per zone, when zones are enabled).
     maxReplicaCount: 10

@@ -36,6 +36,15 @@ The no-zone case iterates once over an empty dict, which `if .zone` treats as un
 {{- fail "worker.zoneAwareReplication.zones has duplicate names" }}
 {{- end }}
 {{- end }}
+{{- /* The drain hook's exit request is plain HTTP with no credentials. See README.md. */}}
+{{- if .Values.worker.drain.enabled }}
+{{- if eq (get .Values.celeborn "celeborn.worker.http.ssl.enabled" | toString) "true" }}
+{{- fail "worker.drain does not support celeborn.worker.http.ssl.enabled: the preStop hook calls the worker over plain HTTP" }}
+{{- end }}
+{{- if get .Values.celeborn "celeborn.worker.http.auth.supportedSchemes" | toString | trim }}
+{{- fail "worker.drain does not support celeborn.worker.http.auth.supportedSchemes: the preStop hook sends no credentials" }}
+{{- end }}
+{{- end }}
 {{- range $index, $zone := $zones }}
 {{- if $index }}
 ---

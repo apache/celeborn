@@ -164,6 +164,13 @@ This needs three things:
   `celeborn.worker.graceful.shutdown.timeout`, so a long grace period does not slow rollouts
   down.
 
+The hook calls the worker over plain HTTP and sends no credentials, so it cannot reach a worker
+with `celeborn.worker.http.ssl.enabled` or `celeborn.worker.http.auth.supportedSchemes` set. A
+failed exit request falls through to `SIGTERM`, which on a scale-in would silently skip the
+drain, so the chart refuses to render `worker.drain` together with either setting under
+`celeborn`. It can only see what is set there: enabling TLS or authentication some other way,
+such as an extra config file, still bypasses the drain.
+
 It is off by default. Turn it on alongside `worker.autoscaling`, or leave it off and treat
 scale-in as destructive, only letting it happen when the fleet is idle.
 
@@ -344,6 +351,13 @@ the Ratis directory.
 
 `minReplicaCount` defaults to the statefulset's own replica count, so a zone never scales
 below the size it was deployed at unless you set it explicitly.
+
+Scaling to zero needs a trigger that does not come from the workers. Both built-in queries read
+metrics the statefulset's own workers emit, so once the last one is gone they return nothing and
+KEDA has no signal to scale back up on. The chart refuses `minReplicaCount: 0` unless
+`worker.autoscaling.triggers` has an entry - a `cron` schedule, or a query on something outside
+the workers such as pending Spark executors. It cannot tell what that trigger reads, so make
+sure it is one that still fires with no workers running.
 
 Enable `worker.drain` as well. Scaling in deletes worker pods, and without the drain those
 workers leave with shuffle data an application may still need - see
