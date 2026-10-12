@@ -171,6 +171,9 @@ master:
             - master
         topologyKey: kubernetes.io/hostname
 
+  # -- Topology spread constraints for Celeborn master pods.
+  topologySpreadConstraints: []
+
   # -- Tolerations for Celeborn master pods.
   tolerations:
   # - key: key1
@@ -322,6 +325,9 @@ worker:
             values:
             - worker
         topologyKey: kubernetes.io/hostname
+
+  # -- Topology spread constraints for Celeborn worker pods.
+  topologySpreadConstraints: []
 
   # -- Tolerations for Celeborn worker pods.
   tolerations:
