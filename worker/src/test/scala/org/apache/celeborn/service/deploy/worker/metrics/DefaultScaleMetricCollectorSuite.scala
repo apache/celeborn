@@ -28,6 +28,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.{DiskInfo, DiskStatus}
 import org.apache.celeborn.common.metrics.WorkerStats
 import org.apache.celeborn.common.protocol.StorageInfo
+import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.worker.Worker
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager
@@ -40,14 +41,18 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
     val os = mock[OperatingSystemMXBean]
     val conf = new CelebornConf()
       .set(CelebornConf.SCALE_METRIC_WINDOW_SIZE, windowSize)
+      .set(CelebornConf.WORKER_DISK_RESERVE_SIZE, 0L)
     val collector = new DefaultScaleMetricCollector(conf, os)
     val disk = new DiskInfo("/tmp", 512L, 0L, 0L, 0L)
+    disk.configuredUsableSpace = 1024L
     disk.setTotalSpace(1024L)
     when(worker.memoryManager).thenReturn(memory)
     when(worker.storageManager).thenReturn(storage)
     memory.maxDirectMemory = 1024L
     when(memory.getMemoryUsage).thenReturn(256L)
     when(storage.localDisksSnapshot()).thenReturn(List(disk))
+    when(storage.diskReserveSize).thenReturn(conf.workerDiskReserveSize)
+    when(storage.diskReserveRatio).thenReturn(conf.workerDiskReserveRatio)
     when(os.getAvailableProcessors).thenReturn(4)
     when(os.getSystemLoadAverage).thenReturn(2.0)
 
@@ -66,6 +71,7 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
   test("collects memory, normalized system load and aggregated disk capacity") {
     withFixture() { f =>
       val second = new DiskInfo("/data", 256L, 0L, 0L, 0L)
+      second.configuredUsableSpace = 1024L
       second.setTotalSpace(1024L)
       when(f.storage.localDisksSnapshot()).thenReturn(List(f.disk, second))
       assert(f.collect() == Map(
@@ -73,6 +79,56 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
         WorkerStats.LastMinuteSystemLoadRatio -> 0.5,
         WorkerStats.DiskUsedRatio -> 0.625,
         WorkerStats.DiskRemainingSize -> 768.0))
+    }
+  }
+
+  test("a configured capacity below physical capacity does not create disk pressure") {
+    withFixture() { f =>
+      f.conf.set(CelebornConf.WORKER_STORAGE_DIRS, Seq("/data:capacity=100g"))
+      f.disk.configuredUsableSpace = f.conf.workerBaseDirs.head._2
+      f.disk.setTotalSpace(Utils.byteStringAsBytes("1t"))
+        .setUsableSpace(Utils.byteStringAsBytes("100g"))
+      when(f.storage.diskReserveSize).thenReturn(Utils.byteStringAsBytes("5g"))
+
+      val empty = f.collect()
+      assert(empty(WorkerStats.DiskUsedRatio) == 0.0)
+      assert(empty(WorkerStats.DiskRemainingSize) == Utils.byteStringAsBytes("100g").toDouble)
+      assert(f.disk.totalSpace == Utils.byteStringAsBytes("1t"))
+
+      f.disk.setUsableSpace(Utils.byteStringAsBytes("80g"))
+      val occupied = f.collect()
+      assert(math.abs(occupied(WorkerStats.DiskUsedRatio) - 0.2) < 1e-12)
+      assert(occupied(WorkerStats.DiskRemainingSize) == Utils.byteStringAsBytes("80g").toDouble)
+
+      f.disk.setUsableSpace(Utils.byteStringAsBytes("10g"))
+      val physicallyLimited = f.collect()
+      assert(math.abs(physicallyLimited(WorkerStats.DiskUsedRatio) - 0.9) < 1e-12)
+      assert(physicallyLimited(WorkerStats.DiskRemainingSize) ==
+        Utils.byteStringAsBytes("10g").toDouble)
+    }
+  }
+
+  test("capacity above physical capacity excludes the fixed or proportional reserve") {
+    withFixture() { f =>
+      f.conf.set(CelebornConf.WORKER_STORAGE_DIRS, Seq("/data"))
+      f.disk.configuredUsableSpace = f.conf.workerBaseDirs.head._2
+      f.disk.setTotalSpace(Utils.byteStringAsBytes("100g"))
+        .setUsableSpace(Utils.byteStringAsBytes("80g"))
+      when(f.storage.diskReserveSize).thenReturn(Utils.byteStringAsBytes("20g"))
+      when(f.storage.diskReserveRatio).thenReturn(Some(0.1))
+      assert(f.collect()(WorkerStats.DiskUsedRatio) == 0.0)
+
+      when(f.storage.diskReserveRatio).thenReturn(Some(0.3))
+      f.disk.setUsableSpace(Utils.byteStringAsBytes("70g"))
+      assert(f.collect()(WorkerStats.DiskUsedRatio) == 0.0)
+      f.disk.setUsableSpace(Utils.byteStringAsBytes("35g"))
+      assert(f.collect()(WorkerStats.DiskUsedRatio) == 0.5)
+
+      when(f.storage.diskReserveSize).thenReturn(Utils.byteStringAsBytes("100g"))
+      f.disk.setUsableSpace(0L)
+      val reserved = f.collect()
+      assert(reserved(WorkerStats.DiskUsedRatio).isNaN)
+      assert(reserved(WorkerStats.DiskRemainingSize) == 0.0)
     }
   }
 
@@ -86,13 +142,14 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
     }
   }
 
-  test("IO_HANG disks retain their total capacity but contribute no usable space") {
+  test("IO_HANG disks retain their effective capacity but contribute no usable space") {
     withFixture() { f =>
       val hung = new DiskInfo("/hung", Long.MaxValue, 0L, 0L, 0L)
+      hung.configuredUsableSpace = 512L
       hung.setTotalSpace(1024L).setStatus(DiskStatus.IO_HANG)
       when(f.storage.localDisksSnapshot()).thenReturn(List(f.disk, hung))
       val partial = f.collect()
-      assert(partial(WorkerStats.DiskUsedRatio) == 0.75)
+      assert(math.abs(partial(WorkerStats.DiskUsedRatio) - 2.0 / 3) < 1e-12)
       assert(partial(WorkerStats.DiskRemainingSize) == 512.0)
 
       f.disk.setStatus(DiskStatus.IO_HANG)
@@ -103,7 +160,7 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
       f.disk.setStatus(DiskStatus.HEALTHY)
       hung.setUsableSpace(256L).setStatus(DiskStatus.HEALTHY)
       val recovered = f.collect()
-      assert(recovered(WorkerStats.DiskUsedRatio) == 0.625)
+      assert(recovered(WorkerStats.DiskUsedRatio) == 0.5)
       assert(recovered(WorkerStats.DiskRemainingSize) == 768.0)
     }
   }
@@ -141,6 +198,7 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
   test("reports disk metrics even when usable space exceeds a disk's capacity") {
     withFixture() { f =>
       val badDisk = new DiskInfo("/bad", 256L, 0L, 0L, 0L)
+      badDisk.configuredUsableSpace = 128L
       badDisk.setTotalSpace(128L)
       when(f.storage.localDisksSnapshot()).thenReturn(List(f.disk, badDisk))
       val metrics = f.collect()

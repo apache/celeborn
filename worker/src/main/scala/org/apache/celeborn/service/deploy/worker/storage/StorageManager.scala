@@ -970,7 +970,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             val (fileSystemReportedUsableSpace, fileSystemReportedTotalSpace) =
               getFileSystemReportedSpace(diskInfo.mountPoint)
             val actualReserveSize =
-              DiskUtils.getActualReserveSize(diskInfo, diskReserveSize, diskReserveRatio)
+              DiskUtils.getActualReserveSize(
+                fileSystemReportedTotalSpace,
+                diskReserveSize,
+                diskReserveRatio)
             val workingDirUsableSpace =
               Math.min(
                 diskInfo.configuredUsableSpace - totalUsage,
