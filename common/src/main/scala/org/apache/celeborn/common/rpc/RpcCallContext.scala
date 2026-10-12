@@ -21,7 +21,7 @@ package org.apache.celeborn.common.rpc
  * A callback that [[RpcEndpoint]] can use to send back a message or failure. It's thread-safe
  * and can be called in any thread.
  */
-trait RpcCallContext {
+trait RpcCallContext extends RpcRequestContext {
 
   /**
    * Reply a message to the sender. If the sender is [[RpcEndpoint]], its [[RpcEndpoint.receive]]

@@ -26,7 +26,7 @@ import org.scalatest.BeforeAndAfter
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.source.Role
-import org.apache.celeborn.common.rpc.{RpcAddress, RpcMetricsTracker, RpcSource, TestRpcEndpoint}
+import org.apache.celeborn.common.rpc.{RpcAddress, RpcMetricsTracker, RpcRequestContext, RpcSource, TestRpcEndpoint}
 import org.apache.celeborn.common.util.ThreadUtils
 
 class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
@@ -67,7 +67,7 @@ class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
   test("post") {
     val dispatcher = mock(classOf[Dispatcher])
 
-    val message = OneWayMessage(null, "hi")
+    val message = OneWayMessage(null, "hi", RpcRequestContext.local())
     inbox.post(message)
     inbox.process(dispatcher)
     assert(inbox.isEmpty)
@@ -110,7 +110,7 @@ class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
         new Runnable {
           override def run(): Unit = {
             for (_ <- 0 until 100) {
-              val message = OneWayMessage(null, "hi")
+              val message = OneWayMessage(null, "hi", RpcRequestContext.local())
               inbox.post(message)
             }
             exitLatch.countDown()
@@ -171,7 +171,7 @@ class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
     when(endpoint.receive).thenThrow(new OutOfMemoryError())
     val dispatcher = mock(classOf[Dispatcher])
     val inbox = initInbox(endpoint, None)
-    inbox.post(OneWayMessage(null, "hi"))
+    inbox.post(OneWayMessage(null, "hi", RpcRequestContext.local()))
     intercept[OutOfMemoryError] {
       inbox.process(dispatcher)
     }

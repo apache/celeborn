@@ -20,6 +20,8 @@ package org.apache.celeborn.common.network.server;
 import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportClient;
 import org.apache.celeborn.common.network.protocol.RequestMessage;
+import org.apache.celeborn.common.network.security.AuthorizationRequest;
+import org.apache.celeborn.common.network.security.SecurityOperation;
 
 /** Handler for sendRPC() messages sent by {@link TransportClient}s. */
 public class BaseMessageHandler {
@@ -48,10 +50,7 @@ public class BaseMessageHandler {
   public void exceptionCaught(Throwable cause, TransportClient client) {}
 
   protected void checkAuth(TransportClient client, String appId) {
-    if (client.getClientId() != null && !client.getClientId().equals(appId)) {
-      throw new IllegalStateException(
-          String.format(
-              "Client for %s not authorized for application %s.", client.getClientId(), appId));
-    }
+    client.authorize(
+        AuthorizationRequest.forApplication(SecurityOperation.APPLICATION_ACCESS, appId));
   }
 }

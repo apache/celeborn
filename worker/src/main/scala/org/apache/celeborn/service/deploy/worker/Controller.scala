@@ -34,6 +34,8 @@ import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.metrics.MetricsSystem
+import org.apache.celeborn.common.network.security.AuthorizationRequest
+import org.apache.celeborn.common.network.security.SecurityOperation._
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.protocol.message.StatusCode
@@ -101,6 +103,25 @@ private[deploy] class Controller(
       TimeUnit.MILLISECONDS)
   }
 
+  // ReserveSlots must carry the authorized user into writer ownership and resource accounting.
+  override def authorize(context: RpcRequestContext, message: Any): Any = message match {
+    case request: ReserveSlots =>
+      request.copy(userIdentifier = context.authorize(AuthorizationRequest.forApplication(
+        RESERVE_SLOTS,
+        request.applicationId,
+        request.userIdentifier)))
+    case request: CommitFiles =>
+      context.authorize(AuthorizationRequest.forApplication(COMMIT_FILES, request.applicationId))
+      message
+    case request: DestroyWorkerSlots =>
+      context.authorize(AuthorizationRequest.forApplication(
+        DESTROY_WORKER_SLOTS,
+        Utils.splitShuffleKey(request.shuffleKey)._1))
+      message
+    case _ =>
+      throw new SecurityException(s"Unsupported Worker request: ${message.getClass.getName}")
+  }
+
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
     case ReserveSlots(
           applicationId,
@@ -115,7 +136,6 @@ private[deploy] class Controller(
           pushDataTimeout,
           partitionSplitEnabled,
           isSegmentGranularityVisible) =>
-      checkAuth(context, applicationId)
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.RESERVE_SLOTS_TIME, shuffleKey) {
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
@@ -146,7 +166,6 @@ private[deploy] class Controller(
           mapAttempts,
           epoch,
           mockFailure) =>
-      checkAuth(context, applicationId)
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       logDebug(s"Received CommitFiles request, $shuffleKey, primary files" +
         s" ${primaryIds.asScala.mkString(",")}; replica files ${replicaIds.asScala.mkString(",")}.")
@@ -164,7 +183,6 @@ private[deploy] class Controller(
         s"$commitFilesTimeMs ms.")
 
     case DestroyWorkerSlots(shuffleKey, primaryLocations, replicaLocations, mockFailure) =>
-      checkAuth(context, Utils.splitShuffleKey(shuffleKey)._1)
       handleDestroy(context, shuffleKey, primaryLocations, replicaLocations, mockFailure)
   }
 

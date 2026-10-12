@@ -47,7 +47,23 @@ class StoragePolicyCase1 extends CelebornFunSuite {
   conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL.key, "10")
   conf.set(CelebornConf.WORKER_DIRECT_MEMORY_REPORT_INTERVAL.key, "10")
   conf.set(CelebornConf.WORKER_READBUFFER_ALLOCATIONWAIT.key, "10ms")
-  MemoryManager.initialize(conf)
+
+  override protected def beforeEach(): Unit = {
+    super.beforeEach()
+    // Suite discovery precedes execution, so other suites may reset the singleton in between.
+    Option(MemoryManager.instance()).foreach(_.close())
+    MemoryManager.reset()
+    MemoryManager.initialize(conf)
+  }
+
+  override protected def afterEach(): Unit = {
+    try {
+      Option(MemoryManager.instance()).foreach(_.close())
+    } finally {
+      MemoryManager.reset()
+      super.afterEach()
+    }
+  }
 
   val mockedCelebornMemoryFile = mock[MemoryFileInfo]
   when(

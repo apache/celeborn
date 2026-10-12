@@ -25,7 +25,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
@@ -53,6 +56,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.celeborn.client.ApplicationHeartbeater;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.FallbackPolicy;
 import org.apache.celeborn.common.util.Utils$;
@@ -72,10 +76,6 @@ public class RemoteShuffleMasterSuiteJ {
     int startPort = Utils$.MODULE$.selectRandomInt(1024, 65535);
     configuration.setString("celeborn.master.port", String.valueOf(startPort));
     configuration.setString("celeborn.master.endpoints", "localhost:" + startPort);
-    // Set a large app heartbeat interval to avoid the app heartbeater resetting
-    // LifecycleManager#shuffleCount/shuffleFallbackCounts via sumThenReset in the
-    // middle of a test, which makes the count assertions below flaky.
-    configuration.setString("celeborn.client.application.heartbeatInterval", "1h");
     remoteShuffleMaster = createShuffleMaster(configuration);
   }
 
@@ -111,10 +111,12 @@ public class RemoteShuffleMasterSuiteJ {
 
   @Test
   public void testRegisterPartitionWithProducer()
-      throws UnknownHostException, ExecutionException, InterruptedException {
+      throws UnknownHostException, ExecutionException, InterruptedException,
+          IllegalAccessException {
     JobID jobID = JobID.generate();
     JobShuffleContext jobShuffleContext = createJobShuffleContext(jobID);
     remoteShuffleMaster.registerJob(jobShuffleContext);
+    stopApplicationHeartbeater();
 
     IntermediateDataSetID intermediateDataSetID = new IntermediateDataSetID();
     PartitionDescriptor partitionDescriptor = createPartitionDescriptor(intermediateDataSetID, 0);
@@ -165,13 +167,15 @@ public class RemoteShuffleMasterSuiteJ {
 
   @Test
   public void testRegisterPartitionWithProducerForForceFallbackPolicy()
-      throws UnknownHostException, ExecutionException, InterruptedException {
+      throws UnknownHostException, ExecutionException, InterruptedException,
+          IllegalAccessException {
     configuration.setString(
         CelebornConf.FLINK_SHUFFLE_FALLBACK_POLICY().key(), FallbackPolicy.ALWAYS.name());
     remoteShuffleMaster = createShuffleMaster(configuration, new NettyShuffleServiceFactory());
     JobID jobID = JobID.generate();
     JobShuffleContext jobShuffleContext = createJobShuffleContext(jobID);
     remoteShuffleMaster.registerJob(jobShuffleContext);
+    stopApplicationHeartbeater();
 
     IntermediateDataSetID intermediateDataSetID = new IntermediateDataSetID();
     PartitionDescriptor partitionDescriptor = createPartitionDescriptor(intermediateDataSetID, 0);
@@ -303,6 +307,20 @@ public class RemoteShuffleMasterSuiteJ {
             CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED().key()),
         IllegalArgumentException.class,
         () -> createShuffleMaster(configuration));
+  }
+
+  private void stopApplicationHeartbeater() throws IllegalAccessException, InterruptedException {
+    // The first heartbeat is immediate regardless of its interval and drains these counters.
+    // Stop it before checking cumulative counts, and wait for any in-progress callback to exit.
+    ApplicationHeartbeater heartbeater =
+        (ApplicationHeartbeater)
+            FieldUtils.readField(remoteShuffleMaster.lifecycleManager(), "heartbeater", true);
+    ExecutorService executor =
+        (ExecutorService) FieldUtils.readField(heartbeater, "appHeartbeatHandlerThread", true);
+    heartbeater.stop();
+    Assert.assertTrue(
+        "Application heartbeater did not terminate",
+        executor.awaitTermination(10, TimeUnit.SECONDS));
   }
 
   @After

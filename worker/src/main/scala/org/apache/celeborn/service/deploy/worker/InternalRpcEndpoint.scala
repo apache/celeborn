@@ -20,6 +20,8 @@ package org.apache.celeborn.service.deploy.worker
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.sasl.SecretRegistry
+import org.apache.celeborn.common.network.security.AuthorizationRequest
+import org.apache.celeborn.common.network.security.SecurityOperation._
 import org.apache.celeborn.common.protocol.PbApplicationMeta
 import org.apache.celeborn.common.rpc._
 
@@ -35,6 +37,16 @@ private[celeborn] class InternalRpcEndpoint(
 
   override def onDisconnected(address: RpcAddress): Unit = {
     logDebug(s"Client $address got disconnected.")
+  }
+
+  // The Master installs secrets through a one-way request; authorize before registry mutation.
+  override def authorize(context: RpcRequestContext, message: Any): Any = message match {
+    case request: PbApplicationMeta =>
+      context.authorize(AuthorizationRequest.forService(INSTALL_APPLICATION_META, request.getAppId))
+      message
+    case _ =>
+      throw new SecurityException(
+        s"Unsupported internal Worker request: ${message.getClass.getName}")
   }
 
   override def receive: PartialFunction[Any, Unit] = {
