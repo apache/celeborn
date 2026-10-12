@@ -1983,7 +1983,6 @@ object TezClientProjects {
           ShadeRule.rename("org.roaringbitmap.**" -> "org.apache.celeborn.shaded.org.roaringbitmap.@1").inAll,
           ShadeRule.rename("io.dropwizard.metrics.**" -> "org.apache.celeborn.shaded.io.dropwizard.metrics.@1").inAll,
           ShadeRule.rename("com.codahale.metrics.**" -> "org.apache.celeborn.shaded.com.codahale.metrics.@1").inAll,
-          ShadeRule.rename("com.github.luben.**" -> "org.apache.celeborn.shaded.com.github.luben.@1").inAll,
         ),
 
         (assembly / assemblyMergeStrategy) := {
