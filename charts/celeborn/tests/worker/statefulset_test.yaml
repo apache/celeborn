@@ -517,14 +517,11 @@ tests:
       - notExists:
           path: spec.template.spec.initContainers
 
-  - it: Should add a readiness probe on /healthz and no liveness probe by default
+  - it: Should not add probes by default
     template: worker/statefulset.yaml
     asserts:
-      - equal:
-          path: spec.template.spec.containers[?(@.name=="celeborn")].readinessProbe.httpGet
-          value:
-            path: /healthz
-            port: metrics
+      - notExists:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].readinessProbe
       - notExists:
           path: spec.template.spec.containers[?(@.name=="celeborn")].livenessProbe
       - notExists:

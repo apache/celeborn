@@ -59,29 +59,56 @@ Specify parameters using `--set key=value[,key=value]` argument to `helm install
 Both the master and the worker serve `GET /healthz` on their HTTP port, returning `200` when the
 process can serve and `503` when it cannot. The chart wires probes to that endpoint through
 `master.startupProbe`, `master.livenessProbe`, `master.readinessProbe` and the matching `worker.*`
-values. Each value is a complete Kubernetes probe object, so it can be tuned freely or set to
-`null` to drop the probe.
+values. Each value is a complete Kubernetes probe object, passed through as it is.
 
-The defaults are deliberately asymmetric:
+All probes are off by default. `/healthz` was added after Celeborn 0.7.0, the release the chart
+deploys by default, so probes pointed at it would never pass against that image: workers would
+stay NotReady and masters would be restarted. Enable them only with an image that serves
+`/healthz`.
 
-- The master check is shallow - it reports healthy once the master HTTP service is up - so a
-  startup and a liveness probe are enabled by default. The startup probe holds off the liveness
-  probe while a master waits for the DNS records of its peers, which can take a while if one
-  replica is slow to be scheduled.
-- The worker readiness check is enabled by default and is the reason the probes exist: it reports
-  healthy only after the worker has finished initializing and registered with the master, which
-  stops a rolling update from moving on to the next worker while the previous one still rejects
-  traffic.
-- The worker liveness probe is disabled by default. Worker `/healthz` fails while the worker is
-  not registered with the master, so pointing a liveness probe at it would restart every worker in
-  the cluster during a master outage or failover. If a worker liveness probe is wanted, prefer a
-  `tcpSocket` check on the RPC port.
-- The master readiness probe is disabled by default, because it deadlocks a cold start under the
-  default pod management policy - see below.
+With such an image, a working setup looks like this:
 
-The master startup probe allows `failureThreshold` x `periodSeconds` - 300s by default - for the
-peers to resolve before the container is restarted. Raise `failureThreshold` on clusters where
-scheduling a master replica routinely takes longer than that.
+```yaml
+master:
+  podManagementPolicy: Parallel   # immutable - see "Readiness and pod management policy"
+  startupProbe:
+    httpGet:
+      path: /healthz
+      port: metrics
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: metrics
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+
+worker:
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: metrics
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+```
+
+The reasoning behind that shape:
+
+- The master check is shallow - it reports healthy once the master HTTP service is up - so it is
+  safe to restart on. Pair the liveness probe with a startup probe, which holds it off while a
+  master waits for the DNS records of its peers; that can take a while if one replica is slow to
+  be scheduled. The startup probe allows `failureThreshold` x `periodSeconds` - 300s above.
+- The worker readiness check is the reason the probes exist: it reports healthy only after the
+  worker has finished initializing and registered with the master, which stops a rolling update
+  from moving on to the next worker while the previous one still rejects traffic.
+- Leave the worker liveness probe off. Worker `/healthz` fails while the worker is not registered
+  with the master, so a liveness probe on it would restart every worker in the cluster during a
+  master outage or failover. If one is wanted, use a `tcpSocket` check on the RPC port.
 
 ### Parked workers and rolling updates
 
@@ -95,8 +122,10 @@ before upgrading, or set `worker.readinessProbe: null` for that rollout.
 Both statefulsets leave `podManagementPolicy` unset, which means `OrderedReady`: no replica is
 created until the previous one is ready. A master does not start serving until the DNS records of
 all master replicas resolve, so a ready-gated master-0 would wait for a master-1 that the
-statefulset controller will not create until master-0 is ready. Enabling `master.readinessProbe`
-therefore requires `master.podManagementPolicy: Parallel`.
+statefulset controller will not create until master-0 is ready. A startup probe gates readiness
+as much as a readiness probe does - a container is not ready until its startup probe passes - so
+the chart refuses to render `master.startupProbe` or `master.readinessProbe` with more than one
+master unless `master.podManagementPolicy` is `Parallel`.
 
 Worker readiness has no such cycle - workers wait on master DNS, not on each other - but under
 `OrderedReady` it does serialize a cold start, since each worker is created only after the

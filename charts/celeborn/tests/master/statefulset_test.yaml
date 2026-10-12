@@ -479,26 +479,31 @@ tests:
                 limits:
                   storage: 200Gi
 
-  - it: Should add startup and liveness probes on /healthz and no readiness probe by default
+  - it: Should render a fresh install with three masters and no probes by default
     template: master/statefulset.yaml
     asserts:
       - equal:
-          path: spec.template.spec.containers[?(@.name=="celeborn")].startupProbe.httpGet
-          value:
-            path: /healthz
-            port: metrics
-      - equal:
-          path: spec.template.spec.containers[?(@.name=="celeborn")].livenessProbe.httpGet
-          value:
-            path: /healthz
-            port: metrics
+          path: spec.replicas
+          value: 3
+      - notExists:
+          path: spec.podManagementPolicy
+      - notExists:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].startupProbe
+      - notExists:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].livenessProbe
       - notExists:
           path: spec.template.spec.containers[?(@.name=="celeborn")].readinessProbe
 
-  - it: Should use the specified probes if `master.livenessProbe` and `master.readinessProbe` are set
+  - it: Should use the specified probes if `master.startupProbe`, `master.livenessProbe` and `master.readinessProbe` are set
     template: master/statefulset.yaml
     set:
       master:
+        podManagementPolicy: Parallel
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: metrics
+          failureThreshold: 30
         livenessProbe:
           httpGet:
             path: /healthz
@@ -510,6 +515,9 @@ tests:
             port: 9097
     asserts:
       - equal:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].startupProbe.failureThreshold
+          value: 30
+      - equal:
           path: spec.template.spec.containers[?(@.name=="celeborn")].livenessProbe.initialDelaySeconds
           value: 120
       - equal:
@@ -519,17 +527,54 @@ tests:
           path: spec.template.spec.containers[?(@.name=="celeborn")].readinessProbe.tcpSocket.port
           value: 9097
 
-  - it: Should not add probes if `master.startupProbe` and `master.livenessProbe` are empty
+  - it: Should allow a master liveness probe without `Parallel`, since it does not gate readiness
     template: master/statefulset.yaml
     set:
       master:
-        startupProbe: null
-        livenessProbe: null
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: metrics
     asserts:
-      - notExists:
-          path: spec.template.spec.containers[?(@.name=="celeborn")].startupProbe
-      - notExists:
+      - exists:
           path: spec.template.spec.containers[?(@.name=="celeborn")].livenessProbe
+
+  - it: Should fail a master startup probe under the default `OrderedReady` policy
+    template: master/statefulset.yaml
+    set:
+      master:
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: metrics
+    asserts:
+      - failedTemplate:
+          errorMessage: "master.startupProbe and master.readinessProbe require master.podManagementPolicy: Parallel: a master waits for all its peers before serving, and OrderedReady does not create the next master until the previous one is ready"
+
+  - it: Should fail a master readiness probe under the default `OrderedReady` policy
+    template: master/statefulset.yaml
+    set:
+      master:
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: metrics
+    asserts:
+      - failedTemplate:
+          errorMessage: "master.startupProbe and master.readinessProbe require master.podManagementPolicy: Parallel: a master waits for all its peers before serving, and OrderedReady does not create the next master until the previous one is ready"
+
+  - it: Should allow a master startup probe under `OrderedReady` with a single master
+    template: master/statefulset.yaml
+    set:
+      master:
+        replicas: 1
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: metrics
+    asserts:
+      - exists:
+          path: spec.template.spec.containers[?(@.name=="celeborn")].startupProbe
 
   - it: Should not set pod management policy by default
     template: master/statefulset.yaml
