@@ -2655,7 +2655,7 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .doc("A comma-separated list of master http auth supported schemes." +
         "<ul>" +
-        " <li>SPNEGO: Kerberos/GSSAPI authentication.</li>" +
+        " <li>NEGOTIATE: Kerberos/GSSAPI authentication.</li>" +
         " <li>BASIC: User-defined password authentication, the concreted implementation is" +
         " configurable via `celeborn.master.http.auth.basic.provider`.</li>" +
         " <li>BEARER: User-defined bearer token authentication, the concreted implementation is" +
@@ -3649,7 +3649,7 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .doc("A comma-separated list of worker http auth supported schemes." +
         "<ul>" +
-        " <li>SPNEGO: Kerberos/GSSAPI authentication.</li>" +
+        " <li>NEGOTIATE: Kerberos/GSSAPI authentication.</li>" +
         " <li>BASIC: User-defined password authentication, the concreted implementation is" +
         " configurable via `celeborn.worker.http.auth.basic.provider`.</li>" +
         " <li>BEARER: User-defined bearer token authentication, the concreted implementation is" +
