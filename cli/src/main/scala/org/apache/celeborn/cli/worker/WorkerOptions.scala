@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.cli.worker
 
-import picocli.CommandLine.Option
+import picocli.CommandLine.{ArgGroup, Option}
 
 final class WorkerOptions {
 
@@ -55,19 +55,8 @@ final class WorkerOptions {
     description = Array("Check if the system is registered"))
   private[worker] var isRegistered: Boolean = _
 
-  @Option(
-    names = Array("--exit"),
-    paramLabel = "exit_type",
-    description = Array("Exit the application with a specified type"))
-  private[worker] var exitType: String = _
-
-  @Option(
-    names = Array("--exit-timeout"),
-    paramLabel = "duration",
-    description = Array(
-      "Optional decommission forceExitTimeout override for --exit DECOMMISSION " +
-        "(e.g. 600s/30m/1h); ignored for other exit types."))
-  private[worker] var exitTimeout: String = _
+  @ArgGroup(exclusive = false)
+  private[worker] var exitOptions: WorkerExitOptions = _
 
   @Option(names = Array("--show-conf"), description = Array("Show worker conf"))
   private[worker] var showConf: Boolean = _
@@ -92,5 +81,24 @@ final class WorkerOptions {
 
   @Option(names = Array("--set-loglevel"), description = Array("Set logger level"))
   private[worker] var setLogLevel: Boolean = _
+
+}
+
+final class WorkerExitOptions {
+
+  @Option(
+    names = Array("--exit"),
+    required = true,
+    paramLabel = "exit_type",
+    description = Array("Exit the application with a specified type"))
+  private[worker] var exitType: String = _
+
+  @Option(
+    names = Array("--exit-timeout"),
+    paramLabel = "duration",
+    description = Array(
+      "Optional decommission forceExitTimeout override for --exit DECOMMISSION " +
+        "(e.g. 600s/30m/1h); ignored for other exit types."))
+  private[worker] var exitTimeout: String = _
 
 }

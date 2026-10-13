@@ -205,17 +205,17 @@ Usage: celeborn-cli worker [-hV] [--apps=appId] [--auth-header=authHeader]
                            [--config-name=username] [--config-tenant=tenant_id]
                            [--delete-configs=c1,c2,c3...] [--host-list=h1,h2,
                            h3...] [--hostport=host:port] [--logger-level=level]
-                           [--logger-name=logger_name] [--upsert-configs=k1:
-                           v1,k2:v2,k3:v3...] [--worker-ids=w1,w2,w3...]
+                           [--logger-name=logger_name] [--upsert-configs=k1:v1,
+                           k2:v2,k3:v3...] [--worker-ids=w1,w2,w3...]
                            (--show-worker-info | --show-apps-on-worker |
                            --show-shuffles-on-worker |
                            --show-partition-location-info |
                            --show-unavailable-peers | --is-shutdown |
-                           --is-decommissioning | --is-registered |
-                           --exit=exit_type | --show-conf |
-                           --show-container-info | --show-dynamic-conf |
+                           --is-decommissioning | --is-registered | --show-conf
+                           | --show-container-info | --show-dynamic-conf |
                            --upsert-dynamic-conf | --delete-dynamic-conf |
-                           --show-thread-dump | --show-loggers | --set-loglevel)
+                           --show-thread-dump | --show-loggers | --set-loglevel
+                           | [--exit=exit_type [--exit-timeout=duration]])
       --apps=appId           The application Id list separated by comma.
       --auth-header=authHeader
                              The http `Authorization` header for
@@ -233,8 +233,9 @@ Usage: celeborn-cli worker [-hV] [--apps=appId] [--auth-header=authHeader]
       --delete-dynamic-conf  Delete dynamic worker conf
       --exit=exit_type       Exit the application with a specified type
       --exit-timeout=duration
-                             Optional decommission forceExitTimeout override for --exit DECOMMISSION
-                             (e.g. 600s/30m/1h); ignored for other exit types.
+                             Optional decommission forceExitTimeout override
+                               for --exit DECOMMISSION (e.g. 600s/30m/1h);
+                               ignored for other exit types.
   -h, --help                 Show this help message and exit.
       --host-list=h1,h2,h3...
                              List of hosts to pass to the command
