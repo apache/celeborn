@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.worker.storage;
 
 import java.io.IOException;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import scala.Option;
@@ -51,6 +52,9 @@ public class PartitionDataWriter implements DeviceObserver {
   private final PartitionSplitMode splitMode;
   private final long memoryFileStorageMaxFileSize;
   private final AtomicInteger numPendingWrites = new AtomicInteger(0);
+  // Latches on the first hard split of this file so the hard split cause is logged once per
+  // split file instead of once per push. Dies with the writer, so it needs no cleanup.
+  private final AtomicBoolean hardSplitLogged = new AtomicBoolean(false);
   private final PartitionDataWriterContext writerContext;
   protected final AbstractSource source; // metrics
   private final String writerString;
@@ -261,6 +265,11 @@ public class PartitionDataWriter implements DeviceObserver {
 
   public PartitionSplitMode getSplitMode() {
     return splitMode;
+  }
+
+  /** Returns true only for the first hard split of this file, false for every subsequent one. */
+  public boolean shouldLogHardSplit() {
+    return hardSplitLogged.compareAndSet(false, true);
   }
 
   @Override
