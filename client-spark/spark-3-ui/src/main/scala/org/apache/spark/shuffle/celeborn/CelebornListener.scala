@@ -23,6 +23,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler._
 import org.apache.spark.shuffle.celeborn.events._
+import org.apache.spark.shuffle.celeborn.ui.CelebornUIUtils
 import org.apache.spark.status.{ElementTrackingStore, KVUtils}
 import org.apache.spark.util.Utils
 import org.apache.spark.util.kvstore.KVStore
@@ -106,9 +107,12 @@ private[celeborn] class CelebornListener(
 
   // Cap the per-shuffle assignment rows to bound KVStore / event-log growth on long-running
   // jobs with many shuffles (mirrors Gluten's UI_RETAINED_EXECUTIONS trigger and Spark's
-  // retainedStages). When the count exceeds the threshold, evict the oldest rows.
+  // retainedStages). When the count exceeds the threshold, evict the oldest rows. Read via
+  // the CelebornConf entry so the documented `spark.celeborn.client.spark.ui.retainedShuffles`
+  // key (and the entry's default and `retainedShuffle` alias handling) applies; a bare-key
+  // SparkConf lookup never matches the user-set key because SparkConf does exact matching.
   private val retainedShuffles: Int =
-    conf.getInt("celeborn.client.spark.ui.retainedShuffles", 1000)
+    CelebornUIUtils.celebornConf(conf).clientSparkUIRetainedShuffles
 
   kvstore match {
     case tracking: ElementTrackingStore =>

@@ -21,15 +21,36 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.celeborn.CelebornStatusStore
 
+import org.apache.celeborn.common.CelebornConf
+
 /** Helpers for the Celeborn UI extension: enablement check and tab attachment. */
 private[celeborn] object CelebornUIUtils extends Logging {
 
   /**
+   * Build a [[CelebornConf]] from the `spark.celeborn.*` entries of a SparkConf.
+   * SparkUtils.fromSparkConf does the same but its class initialization drags in
+   * spark-sql's UnsafeRowSerializer (via the AQE dataSize DynField), which is not on
+   * this module's classpath (spark-core only) and absent in RDD-only applications.
+   */
+  private[celeborn] def celebornConf(conf: SparkConf): CelebornConf = {
+    val celebornConf = new CelebornConf()
+    conf.getAll.foreach { case (key, value) =>
+      if (key.startsWith("spark.celeborn.")) {
+        celebornConf.set(key.substring("spark.".length), value)
+      }
+    }
+    celebornConf
+  }
+
+  /**
    * The UI extension is on when both celeborn's flag and Spark's own UI flag are on.
-   *  `celeborn.client.spark.ui.enabled` defaults to true.
+   *  The celeborn flag is read through the CelebornConf entry so the documented
+   *  `spark.celeborn.client.spark.ui.enabled` key (and the entry's default handling)
+   *  applies; a bare-key SparkConf lookup never matches the user-set key because
+   *  SparkConf does exact matching.
    */
   def isUIEnabled(conf: SparkConf): Boolean = {
-    conf.getBoolean("celeborn.client.spark.ui.enabled", true) &&
+    celebornConf(conf).clientSparkUIEnabled &&
     conf.getBoolean("spark.ui.enabled", true)
   }
 

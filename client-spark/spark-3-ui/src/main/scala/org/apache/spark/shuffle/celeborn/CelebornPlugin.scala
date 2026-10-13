@@ -87,11 +87,13 @@ private class CelebornDriverPlugin extends DriverPlugin with Logging {
     // Prefer the appId passed to registerMetrics (reliable); fall back to sc.applicationId.
     info.put("Application Id", Option(appId).filter(_.nonEmpty).getOrElse(sc.applicationId))
     info.put("Celeborn UI Enabled", "true")
-    // Derive key Celeborn runtime config from CelebornConf (rebuild from sc.conf via SparkUtils).
+    // Derive key Celeborn runtime config from CelebornConf (rebuild from sc.conf via
+    // CelebornUIUtils.celebornConf, which does not touch SparkUtils: SparkUtils' class init
+    // drags in spark-sql's UnsafeRowSerializer and would fail in RDD-only applications).
     // Celeborn has no ProjectConstants version class, so runtime config stands in for version —
     // it is more useful for diagnosing shuffle behavior anyway.
     try {
-      val celebornConf = SparkUtils.fromSparkConf(sc.conf)
+      val celebornConf = CelebornUIUtils.celebornConf(sc.conf)
       info.put("Celeborn Compression Codec", celebornConf.shuffleCompressionCodec.toString)
       info.put("Celeborn Shuffle Writer Mode", celebornConf.shuffleWriterMode.toString)
       info.put("Celeborn Push Replicate Enabled", celebornConf.clientPushReplicateEnabled.toString)

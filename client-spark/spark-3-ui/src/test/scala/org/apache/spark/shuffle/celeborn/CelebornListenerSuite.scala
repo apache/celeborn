@@ -31,6 +31,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
 
 import org.apache.celeborn.common.protocol.message.{PushWorkerStats, ReadMetrics, WorkerReadCost, WriteMetrics}
+import org.apache.spark.shuffle.celeborn.ui.CelebornUIUtils
 
 @RunWith(classOf[JUnit4])
 class CelebornListenerSuite {
@@ -331,9 +332,11 @@ class CelebornListenerSuite {
 
   @Test
   def retainedShufflesEvictsOldestAssignments(): Unit = {
+    // Set through the user-facing `spark.celeborn.*` key so the test exercises the same
+    // SparkUtils.fromSparkConf prefix-strip path as a real application.
     val conf = new SparkConf()
       .set(ASYNC_TRACKING_ENABLED, false)
-      .set("celeborn.client.spark.ui.retainedShuffles", "2")
+      .set("spark.celeborn.client.spark.ui.retainedShuffles", "2")
     val store = new InMemoryStore()
     val tracking = new ElementTrackingStore(store, conf)
     val statusStore = new CelebornStatusStore(tracking)
@@ -354,6 +357,21 @@ class CelebornListenerSuite {
       Set(3, 4),
       statusStore.assignmentInfos().map(_.appShuffleId).toSet)
     tracking.close(false)
+  }
+
+  @Test
+  def uiGatingHonorsSparkCelebornPrefix(): Unit = {
+    // SparkConf(false) skips loading system properties: the surefire JVM injects
+    // spark.ui.enabled=false, which would defeat the "defaults to true" assertion.
+    // Enabled by default (both celeborn's flag and Spark's own UI flag default true).
+    assertTrue(CelebornUIUtils.isUIEnabled(new SparkConf(false)))
+    // The user-facing `spark.celeborn.*` key disables the extension: isUIEnabled must go
+    // through the CelebornConf entry (bare-key SparkConf lookups never match it).
+    val disabled = new SparkConf(false).set("spark.celeborn.client.spark.ui.enabled", "false")
+    assertFalse(CelebornUIUtils.isUIEnabled(disabled))
+    // Spark's own UI flag gates the tab independently.
+    val sparkUiOff = new SparkConf(false).set("spark.ui.enabled", "false")
+    assertFalse(CelebornUIUtils.isUIEnabled(sparkUiOff))
   }
 
   @Test
