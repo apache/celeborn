@@ -244,6 +244,9 @@ private[celeborn] class Master(
   masterSource.addGauge(MasterSource.EXCLUDED_WORKER_COUNT) { () =>
     statusSystem.excludedWorkers.size + statusSystem.manuallyExcludedWorkers.size
   }
+  masterSource.addGauge(MasterSource.MANUALLY_EXCLUDED_WORKER_COUNT) { () =>
+    statusSystem.manuallyExcludedWorkers.size
+  }
   masterSource.addGauge(MasterSource.AVAILABLE_WORKER_COUNT) { () =>
     statusSystem.availableWorkers.size()
   }
