@@ -139,6 +139,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           if (info.channelFuture != null) {
             info.channelFuture.cancel(true);
           }
+          info.handleTimeout();
           String module = conf.getModuleName();
           // When module name equals to DATA_MODULE, mean shuffle client push data, else means
           // do data replication.
