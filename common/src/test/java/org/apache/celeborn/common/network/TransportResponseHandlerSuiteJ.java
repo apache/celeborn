@@ -25,6 +25,8 @@ import java.nio.ByteBuffer;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.local.LocalChannel;
 import org.junit.Test;
+import org.mockito.InOrder;
+import org.mockito.Mockito;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.buffer.NioManagedBuffer;
@@ -33,6 +35,7 @@ import org.apache.celeborn.common.network.client.RpcResponseCallback;
 import org.apache.celeborn.common.network.client.TransportResponseHandler;
 import org.apache.celeborn.common.network.protocol.*;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
+import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.read.FetchRequestInfo;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.PushRequestInfo;
@@ -173,6 +176,35 @@ public class TransportResponseHandlerSuiteJ {
 
     handler.handle(new RpcFailure(12345, "oh no"));
     verify(callback, times(1)).onFailure(any());
+    assertEquals(0, handler.numOutstandingRequests());
+  }
+
+  @Test
+  public void invokeTimeoutHandlerBeforePushFailureCallback() {
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(
+                new CelebornConf(), TransportModuleConstants.REPLICATE_MODULE, 8),
+            new LocalChannel());
+    Runnable timeoutHandler = mock(Runnable.class);
+    RpcResponseCallback callback = mock(RpcResponseCallback.class);
+    PushRequestInfo info =
+        new PushRequestInfo(System.currentTimeMillis() - 1, callback, timeoutHandler);
+    ChannelFuture pushFuture = mock(ChannelFuture.class);
+    info.setChannelFuture(pushFuture);
+    handler.addPushRequest(12345, info);
+
+    handler.failExpiredPushRequest();
+
+    verify(pushFuture).cancel(true);
+    InOrder timeoutOrder = inOrder(timeoutHandler, callback);
+    timeoutOrder.verify(timeoutHandler).run();
+    timeoutOrder
+        .verify(callback)
+        .onFailure(
+            Mockito.<Throwable>argThat(
+                error ->
+                    error.getMessage().startsWith(StatusCode.PUSH_DATA_TIMEOUT_REPLICA.name())));
     assertEquals(0, handler.numOutstandingRequests());
   }
 }
