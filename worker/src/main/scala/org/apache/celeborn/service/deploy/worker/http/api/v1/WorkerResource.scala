@@ -72,7 +72,9 @@ class WorkerResource extends ApiRequestContext {
   }
 
   @Operation(description =
-    "Trigger this worker to exit. Legal exit types are 'DECOMMISSION', 'GRACEFUL' and 'IMMEDIATELY'.")
+    "Trigger this worker to exit. Legal exit types are 'DECOMMISSION', 'GRACEFUL' and 'IMMEDIATELY'. " +
+      "Optional 'timeout' (e.g. 600s/30m/1h) overrides the decommission forceExitTimeout " +
+      "for this single decommission; ignored for non-Decommission types.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
@@ -83,6 +85,6 @@ class WorkerResource extends ApiRequestContext {
   def exit(request: WorkerExitRequest): HandleResponse = {
     new HandleResponse()
       .success(true)
-      .message(httpService.exit(request.getType.toString))
+      .message(httpService.exit(request.getType.toString, request.getTimeout))
   }
 }

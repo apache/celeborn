@@ -759,6 +759,11 @@ components:
             - GRACEFUL
             - IMMEDIATELY
             - NONE
+        timeout:
+          type: string
+          description: >-
+            Optional decommission forceExitTimeout override for this single decommission
+            (e.g. 600s/30m/1h); ignored for non-Decommission types.
 
     LoggerInfo:
       type: object
