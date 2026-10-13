@@ -5173,7 +5173,7 @@ object CelebornConf extends Logging {
   val CLIENT_PUSH_RETRY_BACKOFF_MAX: ConfigEntry[Long] =
     buildConf("celeborn.client.push.retry.backoff.max")
       .categories("client")
-      .doc("Upper bound of the exponential push data retry delay.")
+      .doc("Upper bound of the push data retry delay, including jitter.")
       .version("0.7.1")
       .timeConf(TimeUnit.MILLISECONDS)
       .checkValue(_ > 0, "Value must be positive!")
@@ -5195,7 +5195,9 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.push.retry.backoff.jitter")
       .categories("client")
       .doc("Fraction of the push data retry delay applied as random jitter. A value of 0.5 " +
-        "spreads retries uniformly over [0.5, 1.5] times the computed delay.")
+        "spreads retries uniformly over [0.5, 1.5] times the computed delay, capped at " +
+        s"`${CLIENT_PUSH_RETRY_BACKOFF_MAX.key}`. For example, once the computed delay reaches " +
+        "the default maximum of 10s, retries are spread over [5s, 10s].")
       .version("0.7.1")
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "Value must be in [0.0, 1.0]!")
