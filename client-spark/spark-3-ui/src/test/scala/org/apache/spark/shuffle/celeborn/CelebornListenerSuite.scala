@@ -29,10 +29,27 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
 
+import org.apache.spark.shuffle.celeborn.ui.CelebornUIUtils
+
 @RunWith(classOf[JUnit4])
 class CelebornListenerSuite {
 
   private val pluginClass = classOf[CelebornPlugin].getName
+
+  @Test
+  def uiGatingHonorsSparkCelebornPrefix(): Unit = {
+    // SparkConf(false) skips loading system properties: the surefire JVM injects
+    // spark.ui.enabled=false, which would defeat the "defaults to true" assertion.
+    // Enabled by default (both celeborn's flag and Spark's own UI flag default true).
+    assertTrue(CelebornUIUtils.isUIEnabled(new SparkConf(false)))
+    // The user-facing `spark.celeborn.*` key disables the extension: isUIEnabled must go
+    // through the CelebornConf entry (bare-key SparkConf lookups never match it).
+    val disabled = new SparkConf(false).set("spark.celeborn.client.spark.ui.enabled", "false")
+    assertFalse(CelebornUIUtils.isUIEnabled(disabled))
+    // Spark's own UI flag gates the tab independently.
+    val sparkUiOff = new SparkConf(false).set("spark.ui.enabled", "false")
+    assertFalse(CelebornUIUtils.isUIEnabled(sparkUiOff))
+  }
 
   private def newTaskEnd(
       writeBytes: Long,

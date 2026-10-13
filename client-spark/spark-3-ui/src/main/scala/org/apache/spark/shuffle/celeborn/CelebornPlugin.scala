@@ -22,7 +22,7 @@ import java.util
 import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.{DriverPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.internal.Logging
-import org.apache.spark.shuffle.celeborn.ui.CelebornUITab
+import org.apache.spark.shuffle.celeborn.ui.CelebornUIUtils
 
 /**
  * SparkPlugin entry point for the Celeborn UI extension.
@@ -48,16 +48,21 @@ private class CelebornDriverPlugin extends DriverPlugin with Logging {
       ctx: PluginContext): util.Map[String, String] = {
     logInfo("Initializing CelebornDriverPlugin...")
     this.sc = sc
-    val kvStore = sc.statusStore.store
-    new CelebornListener(kvStore, sc.conf).register(sc)
+    // Gate the listener registration on the UI extension flag so that turning the
+    // extension off is zero-overhead (no listener, no aggregation).
+    if (CelebornUIUtils.isUIEnabled(sc.conf)) {
+      new CelebornListener(sc.statusStore.store, sc.conf).register(sc)
+    } else {
+      logInfo("Celeborn Spark UI extension is disabled, skipping.")
+    }
     java.util.Collections.emptyMap[String, String]()
   }
 
   override def registerMetrics(
       appId: String,
       ctx: PluginContext): Unit = {
-    sc.ui.foreach { ui =>
-      new CelebornUITab(new CelebornStatusStore(ui.store.store), ui)
+    if (CelebornUIUtils.isUIEnabled(sc.conf)) {
+      CelebornUIUtils.attachUI(sc)
     }
   }
 

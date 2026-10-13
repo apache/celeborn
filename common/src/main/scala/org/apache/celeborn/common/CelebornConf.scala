@@ -1047,6 +1047,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
   def clientStageRerunEnabled: Boolean = get(CLIENT_STAGE_RERUN_ENABLED)
+  def clientSparkUIEnabled: Boolean = get(CLIENT_SPARK_UI_ENABLED)
   def clientFetchCleanFailedShuffle: Boolean = get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE)
   def clientFetchCleanFailedShuffleIntervalMS: Long =
     get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_INTERVAL)
@@ -5348,6 +5349,18 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.4.0")
       .doc("Whether to enable stage rerun. If true, client throws FetchFailedException instead of CelebornIOException.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val CLIENT_SPARK_UI_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.ui.enabled")
+      .categories("client")
+      .version("1.0.0")
+      .doc("Whether to enable the Celeborn Spark UI extension. When true and the " +
+        "CelebornPlugin is registered via spark.plugins, a Celeborn tab is attached to the " +
+        "Spark WebUI and a listener aggregates shuffle metrics into the status store. When " +
+        "false, the listener is not registered and no metrics are collected, so it is " +
+        "zero-overhead when off.")
       .booleanConf
       .createWithDefault(true)
 
