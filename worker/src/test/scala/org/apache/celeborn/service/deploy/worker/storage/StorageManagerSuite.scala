@@ -28,7 +28,7 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.{WORKER_DISK_RESERVE_SIZE, WORKER_GRACEFUL_SHUTDOWN_ENABLED, WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH, WORKER_STORAGE_DIRS}
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{DiskInfo, DiskStatus}
+import org.apache.celeborn.common.meta.{DiskFileInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, StorageInfo}
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.worker.WorkerSource
@@ -47,6 +47,18 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
     val storageManager = new StorageManager(conf, new WorkerSource(conf))
     // should not throw IllegalMonitorStateException exception
     storageManager.saveAllCommittedFileInfosToDB()
+  }
+
+  test("[CELEBORN-XXXX] committedFileInfos should not leak when graceful shutdown is disabled") {
+    val conf = new CelebornConf().set(WORKER_GRACEFUL_SHUTDOWN_ENABLED, false)
+    val storageManager = new StorageManager(conf, new WorkerSource(conf))
+    val shuffleKey = "app-1-0"
+    val expiredShuffleKeys = new util.HashSet[String]()
+    expiredShuffleKeys.add(shuffleKey)
+
+    storageManager.notifyFileInfoCommitted(shuffleKey, "0-0-0", mock[DiskFileInfo])
+    storageManager.cleanupExpiredShuffleKey(expiredShuffleKeys)
+    assert(storageManager.committedFileInfos.isEmpty)
   }
 
   test("updateDiskInfosWithDiskReserveSize") {
