@@ -552,4 +552,114 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
             .getIndex());
     stopRaftServers(raftServers);
   }
+
+  @Test
+  public void testBatchHeartbeat() throws InvalidProtocolBufferException {
+    StateMachine stateMachine = ratisServer.getMasterStateMachine();
+
+    // Register two workers first, heartbeat apply is a no-op for unregistered workers.
+    for (int i = 1; i <= 2; i++) {
+      PbMetaRequest registerRequest =
+          PbMetaRequest.newBuilder()
+              .setMetaRequestType(
+                  org.apache.celeborn.common.protocol.PbMetaRequestType.RegisterWorker)
+              .setRequestId(UUID.randomUUID().toString())
+              .setRegisterWorkerRequest(
+                  org.apache.celeborn.common.protocol.PbMetaRegisterWorkerRequest.newBuilder()
+                      .setHost("host" + i)
+                      .setRpcPort(1)
+                      .setPushPort(2)
+                      .setFetchPort(3)
+                      .setReplicatePort(4)
+                      .setInternalPort(5)
+                      .build())
+              .build();
+      Assert.assertTrue(stateMachine.runCommand(registerRequest, -1).getSuccess());
+    }
+    Assert.assertEquals(2, metaSystem.workersMap.size());
+
+    long heartbeatTime = System.currentTimeMillis();
+    org.apache.celeborn.common.protocol.PbMetaWorkerHeartbeatRequest workerHeartbeat1 =
+        org.apache.celeborn.common.protocol.PbMetaWorkerHeartbeatRequest.newBuilder()
+            .setHost("host1")
+            .setRpcPort(1)
+            .setPushPort(2)
+            .setFetchPort(3)
+            .setReplicatePort(4)
+            .setTime(heartbeatTime)
+            .build();
+    org.apache.celeborn.common.protocol.PbMetaWorkerHeartbeatRequest workerHeartbeat2 =
+        org.apache.celeborn.common.protocol.PbMetaWorkerHeartbeatRequest.newBuilder()
+            .setHost("host2")
+            .setRpcPort(1)
+            .setPushPort(2)
+            .setFetchPort(3)
+            .setReplicatePort(4)
+            .setTime(heartbeatTime)
+            .build();
+    org.apache.celeborn.common.protocol.PbMetaAppHeartbeatRequest appHeartbeat =
+        org.apache.celeborn.common.protocol.PbMetaAppHeartbeatRequest.newBuilder()
+            .setAppId("app-1")
+            .setTime(heartbeatTime)
+            .setTotalWritten(100)
+            .setFileCount(10)
+            .build();
+
+    PbMetaRequest batchRequest =
+        PbMetaRequest.newBuilder()
+            .setMetaRequestType(
+                org.apache.celeborn.common.protocol.PbMetaRequestType.BatchHeartbeat)
+            .setRequestId(UUID.randomUUID().toString())
+            .setBatchHeartbeatRequest(
+                org.apache.celeborn.common.protocol.PbBatchHeartbeatRequest.newBuilder()
+                    .addWorkerHeartbeats(workerHeartbeat1)
+                    .addWorkerHeartbeats(workerHeartbeat2)
+                    .addAppHeartbeats(appHeartbeat)
+                    .build())
+            .build();
+
+    PbMetaRequestResponse response = stateMachine.runCommand(batchRequest, -1);
+    Assert.assertTrue(response.getSuccess());
+
+    // Each worker heartbeat must be applied with its own time field (see CELEBORN-2399).
+    for (WorkerInfo workerInfo : metaSystem.workersMap.values()) {
+      Assert.assertEquals(heartbeatTime, workerInfo.lastHeartbeat());
+    }
+    Assert.assertEquals(Long.valueOf(heartbeatTime), metaSystem.appHeartbeatTime.get("app-1"));
+
+    // The batched log entry written by the leader (ResourceRequest) must stay wire-compatible
+    // with the apply side (PbMetaRequest).
+    ResourceProtos.ResourceRequest resourceRequest =
+        ResourceProtos.ResourceRequest.newBuilder()
+            .setCmdType(ResourceProtos.Type.BatchHeartbeat)
+            .setRequestId(UUID.randomUUID().toString())
+            .setBatchHeartbeatRequest(
+                ResourceProtos.BatchHeartbeatRequest.newBuilder()
+                    .addWorkerHeartbeats(
+                        ResourceProtos.WorkerHeartbeatRequest.newBuilder()
+                            .setHost("host1")
+                            .setRpcPort(1)
+                            .setPushPort(2)
+                            .setFetchPort(3)
+                            .setReplicatePort(4)
+                            .setTime(heartbeatTime)
+                            .build())
+                    .addAppHeartbeats(
+                        ResourceProtos.AppHeartbeatRequest.newBuilder()
+                            .setAppId("app-1")
+                            .setTime(heartbeatTime)
+                            .setTotalWritten(100)
+                            .setFileCount(10)
+                            .build())
+                    .build())
+            .build();
+    PbMetaRequest parsed = PbMetaRequest.parseFrom(resourceRequest.toByteString());
+    Assert.assertEquals(
+        org.apache.celeborn.common.protocol.PbMetaRequestType.BatchHeartbeat,
+        parsed.getMetaRequestType());
+    Assert.assertEquals(1, parsed.getBatchHeartbeatRequest().getWorkerHeartbeatsCount());
+    Assert.assertEquals(1, parsed.getBatchHeartbeatRequest().getAppHeartbeatsCount());
+    Assert.assertEquals(
+        heartbeatTime, parsed.getBatchHeartbeatRequest().getWorkerHeartbeats(0).getTime());
+  }
 }
