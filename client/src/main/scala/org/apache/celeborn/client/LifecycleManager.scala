@@ -85,6 +85,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val pushRackAwareEnabled = conf.clientReserveSlotsRackAwareEnabled
   private val partitionSplitThreshold = conf.shufflePartitionSplitThreshold
   private val partitionSplitMode = conf.shufflePartitionSplitMode
+  private val adaptivePartitionWriteParallelismEnabled =
+    conf.clientShuffleAdaptivePartitionWriteParallelismEnabled
   // shuffle id -> partition type
   private val shufflePartitionType = JavaUtils.newConcurrentHashMap[Int, PartitionType]()
   private val rangeReadFilter = conf.shuffleRangeReadFilterEnabled
@@ -157,7 +159,20 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       shuffleId: Int,
       locations: util.List[PartitionLocation]): Unit = {
     val map = latestPartitionLocation.computeIfAbsent(shuffleId, newMapFunc)
-    locations.asScala.foreach(location => map.put(location.getId, location))
+    if (!adaptivePartitionWriteParallelismEnabled) {
+      locations.asScala.foreach(location => map.put(location.getId, location))
+    } else {
+      locations.asScala.foreach(location =>
+        map.merge(
+          location.getId,
+          location,
+          new util.function.BiFunction[PartitionLocation, PartitionLocation, PartitionLocation] {
+            override def apply(
+                oldLoc: PartitionLocation,
+                newLoc: PartitionLocation): PartitionLocation =
+              if (newLoc.getEpoch >= oldLoc.getEpoch) newLoc else oldLoc
+          }))
+    }
     invalidateLatestMaxLocsCache(shuffleId)
   }
 
@@ -875,6 +890,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       // Fifth, reply the allocated partition location to ShuffleClient.
       logInfo(s"Handle RegisterShuffle Success for $shuffleId.")
       val allPrimaryPartitionLocations = slots.asScala.flatMap(_._2._1.asScala).toArray
+      if (adaptivePartitionWriteParallelismEnabled) {
+        changePartitionManager.recordInitialAllocTime(
+          shuffleId,
+          allPrimaryPartitionLocations,
+          numMappers,
+          System.currentTimeMillis())
+      }
       replyRegisterShuffle(RegisterShuffleResponse(
         StatusCode.SUCCESS,
         allPrimaryPartitionLocations,
@@ -892,7 +914,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       causes: util.List[StatusCode],
       serdeVersion: SerdeVersion): Unit = {
     val contextWrapper =
-      ChangeLocationsCallContext(context, partitionIds.size(), serdeVersion)
+      ChangeLocationsCallContext(
+        context,
+        if (adaptivePartitionWriteParallelismEnabled) {
+          partitionIds.asScala.toSet.size
+        } else {
+          partitionIds.size()
+        },
+        serdeVersion)
     // If shuffle not registered, reply ShuffleNotRegistered and return
     if (!registeredShuffle.contains(shuffleId)) {
       logError(s"[handleRevive] shuffle $shuffleId not registered!")
@@ -923,15 +952,26 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       }
     }
 
-    (0 until partitionIds.size()).foreach { idx =>
-      changePartitionManager.handleRequestPartitionLocation(
+    if (adaptivePartitionWriteParallelismEnabled) {
+      changePartitionManager.handlePartitionLocationRequests(
         contextWrapper,
         shuffleId,
-        partitionIds.get(idx),
-        oldEpochs.get(idx),
-        oldPartitions.get(idx),
-        Some(causes.get(idx)),
+        partitionIds,
+        oldEpochs,
+        oldPartitions,
+        causes,
         commitManager.isSegmentGranularityVisible(shuffleId))
+    } else {
+      (0 until partitionIds.size()).foreach { idx =>
+        changePartitionManager.handleRequestPartitionLocation(
+          contextWrapper,
+          shuffleId,
+          partitionIds.get(idx),
+          oldEpochs.get(idx),
+          oldPartitions.get(idx),
+          Some(causes.get(idx)),
+          commitManager.isSegmentGranularityVisible(shuffleId))
+      }
     }
   }
 
