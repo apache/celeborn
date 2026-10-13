@@ -296,6 +296,7 @@ object PbSerDeUtils {
     } else {
       workerInfo.nextInterruptionNotice = pbWorkerInfo.getNextInterruptionNotice
     }
+    workerInfo.tags = new util.HashSet[String](pbWorkerInfo.getTagsList)
     workerInfo
   }
 
@@ -310,6 +311,7 @@ object PbSerDeUtils {
       .setPushPort(workerInfo.pushPort)
       .setReplicatePort(workerInfo.replicatePort)
       .setInternalPort(workerInfo.internalPort)
+      .addAllTags(workerInfo.tags)
     if (masterPersistWorkerNetworkLocation) {
       builder.setNetworkLocation(workerInfo.networkLocation)
     }
