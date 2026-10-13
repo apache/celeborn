@@ -83,6 +83,7 @@ import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.CommitMetadata;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.protocol.message.ControlMessages.MapperMetrics;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.PushState;
@@ -288,6 +289,14 @@ public abstract class CelebornShuffleWriterSuiteBase {
     int[] crcPerPartition = pushState.getCRC32PerPartition(true, numPartitions);
     long[] bytesPerPartition = pushState.getBytesWrittenPerPartition(true, numPartitions);
 
+    MapperMetrics mapperMetrics = client.getMapperEndMetrics(shuffleId, 0, 0);
+    assertNotNull(mapperMetrics);
+    long totalBytesPushed = 0;
+    for (long bytes : bytesPerPartition) {
+      totalBytesPushed += bytes;
+    }
+    assertEquals(totalBytesPushed, mapperMetrics.uncompressedBytesWritten());
+
     Map<Integer, List<byte[]>> crcData = client.getCrcDataByPartition(mapKey);
     Map<Integer, List<byte[]>> pushData = client.getPushDataByPartition(mapKey);
 
@@ -353,8 +362,8 @@ public abstract class CelebornShuffleWriterSuiteBase {
     final CelebornShuffleHandle<Integer, String, String> handle =
         new CelebornShuffleHandle<>(
             appId, host, port, userIdentifier, shuffleId, false, numMaps, dependency);
-    final ShuffleClient client = new DummyShuffleClient(conf, tempFile);
-    ((DummyShuffleClient) client).initReducePartitionMap(shuffleId, numPartitions, 1);
+    final DummyShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    client.initReducePartitionMap(shuffleId, numPartitions, 1);
 
     final ShuffleWriter<Integer, String> writer =
         createShuffleWriter(handle, taskContext, conf, client, metrics.shuffleWriteMetrics());
@@ -385,6 +394,10 @@ public abstract class CelebornShuffleWriterSuiteBase {
     assertEquals(metrics.recordsWritten(), total.intValue());
     assertEquals(metrics.bytesWritten(), tempFile.length());
     assertTrue(metrics.writeTime() > 0);
+    MapperMetrics mapperMetrics = client.getMapperEndMetrics(shuffleId, 0, 0);
+    assertNotNull(mapperMetrics);
+    // The dummy client applies no compression, so uncompressed bytes == bytes written.
+    assertEquals(tempFile.length(), mapperMetrics.uncompressedBytesWritten());
 
     try (FileInputStream fis = new FileInputStream(tempFile)) {
       Iterator it = newSerializerInstance(serializer).deserializeStream(fis).asKeyValueIterator();

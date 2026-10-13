@@ -38,7 +38,7 @@ import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
 
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
-import org.apache.celeborn.client.listener.WorkerStatusListener
+import org.apache.celeborn.client.listener.{MapperEndCallback, WorkerStatusListener}
 import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.CelebornConf.ACTIVE_STORAGE_TYPES
 import org.apache.celeborn.common.client.{ApplicationInfoProvider, MasterClient}
@@ -445,7 +445,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           numPartitions,
           crc32PerPartition,
           bytesWrittenPerPartition,
-          serdeVersion) =>
+          serdeVersion,
+          metrics) =>
       logTrace(s"Received MapperEnd TaskEnd request, " +
         s"${Utils.makeMapKey(shuffleId, mapId, attemptId)}")
       val partitionType = getPartitionType(shuffleId)
@@ -461,7 +462,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             numPartitions,
             crc32PerPartition,
             bytesWrittenPerPartition,
-            serdeVersion)
+            serdeVersion,
+            metrics)
         case PartitionType.MAP =>
           handleMapPartitionEnd(
             context,
@@ -945,7 +947,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       numPartitions: Int,
       crc32PerPartition: Array[Int],
       bytesWrittenPerPartition: Array[Long],
-      serdeVersion: SerdeVersion): Unit = {
+      serdeVersion: SerdeVersion,
+      metrics: MapperMetrics): Unit = {
 
     val (mapperAttemptFinishedSuccess, allMapperFinished) =
       commitManager.finishMapperAttempt(
@@ -957,6 +960,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         numPartitions = numPartitions,
         crc32PerPartition = crc32PerPartition,
         bytesWrittenPerPartition = bytesWrittenPerPartition)
+    // Report every finished writer attempt, including ones the commit handler rejects
+    // (duplicate speculative attempts); a rejected MapperEnd with the same attemptId is
+    // just a retried RPC.
+    if (mapperAttemptFinishedSuccess ||
+      attemptId != commitManager.getMapperAttempts(shuffleId)(mapId)) {
+      mapperEndCallback.foreach(_.onMapperEnd(shuffleId, mapId, attemptId, metrics))
+    }
     if (mapperAttemptFinishedSuccess && allMapperFinished) {
       // last mapper finished. call mapper end
       logInfo(s"Last MapperEnd, call StageEnd with shuffleKey:" +
@@ -2137,6 +2147,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   @volatile private var unregisterShuffleCallback: Option[Consumer[Integer]] = None
   def registerUnregisterShuffleCallback(callback: Consumer[Integer]): Unit = {
     unregisterShuffleCallback = Some(callback)
+  }
+
+  @volatile private var mapperEndCallback: Option[MapperEndCallback] = None
+  def registerMapperEndCallback(callback: MapperEndCallback): Unit = {
+    mapperEndCallback = Some(callback)
   }
 
   def registerAppShuffleDeterminate(appShuffleId: Int, determinate: Boolean): Unit = {

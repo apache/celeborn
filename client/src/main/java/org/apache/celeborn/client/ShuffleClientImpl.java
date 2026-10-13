@@ -1852,16 +1852,22 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
+  public void mapperEnd(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int numPartitions,
+      MapperMetrics metrics)
       throws IOException {
-    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, -1);
+    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, -1, metrics);
   }
 
   @Override
   public void mapPartitionMapperEnd(
       int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions, int partitionId)
       throws IOException {
-    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, partitionId);
+    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, partitionId, null);
   }
 
   private void mapEndInternal(
@@ -1870,7 +1876,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       int attemptId,
       int numMappers,
       int numPartitions,
-      Integer partitionId)
+      Integer partitionId,
+      MapperMetrics metrics)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = getPushState(mapKey);
@@ -1896,7 +1903,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                   numPartitions,
                   crc32PerPartition,
                   bytesPerPartition,
-                  SerdeVersion.V1),
+                  SerdeVersion.V1,
+                  metrics == null ? new MapperMetrics(0L) : metrics),
               rpcMaxRetries,
               rpcRetryWait,
               ClassTag$.MODULE$.apply(MapperEndResponse.class));

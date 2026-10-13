@@ -45,6 +45,7 @@ import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
 import org.apache.celeborn.common.protocol.StorageInfo;
 import org.apache.celeborn.common.protocol.message.ControlMessages;
+import org.apache.celeborn.common.protocol.message.ControlMessages.MapperMetrics;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.util.CelebornHadoopUtils;
 import org.apache.celeborn.common.util.ExceptionMaker;
@@ -372,8 +373,18 @@ public abstract class ShuffleClient {
 
   // Report partition locations written by the completed map task of ReducePartition Shuffle Type.
   public abstract void mapperEnd(
-      int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int numPartitions,
+      MapperMetrics metrics)
       throws IOException;
+
+  public void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
+      throws IOException {
+    mapperEnd(shuffleId, mapId, attemptId, numMappers, numPartitions, new MapperMetrics(0L));
+  }
 
   public abstract void readReducerPartitionEnd(
       int shuffleId, int partitionId, int startMapIndex, int endMapIndex, int crc32, long bytes)

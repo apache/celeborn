@@ -19,6 +19,8 @@ package org.apache.celeborn.tests.client
 
 import java.util
 
+import scala.collection.JavaConverters._
+
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
@@ -26,6 +28,7 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.apache.celeborn.client.{LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.protocol.message.ControlMessages.MapperMetrics
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
@@ -124,6 +127,51 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
       assert(appInfo.extraInfo.get("k1") == "v1")
       assert(appInfo.registrationTime > 0 && appInfo.registrationTime < System.currentTimeMillis())
     }
+  }
+
+  test("CELEBORN-2479: mapper end callback reports every finished writer attempt once") {
+    prepareService()
+    val numMappers = 8
+    val numPartitions = 9
+    val shuffleId = nextShuffleId
+    val mapId = 1
+    val attemptId = 0
+
+    val reported = new util.concurrent.ConcurrentLinkedQueue[java.lang.Long]()
+    lifecycleManager.registerMapperEndCallback((_, _, _, metrics) =>
+      reported.add(metrics.uncompressedBytesWritten))
+
+    // Register a REDUCE-partition shuffle.
+    shuffleClient.getPartitionLocation(shuffleId, numMappers, numPartitions)
+
+    // Accepted attempt.
+    shuffleClient.mapperEnd(
+      shuffleId,
+      mapId,
+      attemptId,
+      numMappers,
+      numPartitions,
+      new MapperMetrics(100L))
+    // Retried RPC of the same attempt: reported once.
+    shuffleClient.mapperEnd(
+      shuffleId,
+      mapId,
+      attemptId,
+      numMappers,
+      numPartitions,
+      new MapperMetrics(100L))
+    // Duplicate speculative attempt: rejected by the commit handler, still reported.
+    shuffleClient.mapperEnd(
+      shuffleId,
+      mapId,
+      attemptId + 1,
+      numMappers,
+      numPartitions,
+      new MapperMetrics(250L))
+
+    // The callback runs synchronously before the RPC reply.
+    assert(reported.asScala.map(_.toLong).toSet == Set(100L, 250L))
+    assert(reported.asScala.map(_.toLong).sum == 350L)
   }
 
   override def afterAll(): Unit = {

@@ -34,7 +34,7 @@ import org.apache.celeborn.common.identity.{DefaultIdentityProvider, UserIdentif
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, PbRequestWorkers, PbRequestWorkersResponse, PbReviseLostShuffles, PbReviseLostShufflesResponse, StorageInfo, TransportModuleConstants}
-import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFilesResponse, GetReducerFileGroupResponse, MapperEnd, ReviseLostShuffles, ReviseLostShufflesResponse}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFilesResponse, GetReducerFileGroupResponse, MapperEnd, MapperMetrics, ReviseLostShuffles, ReviseLostShufflesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 
 class UtilsSuite extends CelebornFunSuite {
@@ -185,7 +185,8 @@ class UtilsSuite extends CelebornFunSuite {
         1,
         Array.emptyIntArray,
         Array.emptyLongArray,
-        SerdeVersion.V1)
+        SerdeVersion.V1,
+        MapperMetrics(123456L))
     val mapperEndTrans =
       Utils.fromTransportMessage(Utils.toTransportMessage(mapperEnd)).asInstanceOf[MapperEnd]
     assert(mapperEnd.shuffleId == mapperEndTrans.shuffleId)
@@ -195,6 +196,7 @@ class UtilsSuite extends CelebornFunSuite {
     assert(mapperEnd.partitionId == mapperEndTrans.partitionId)
     assert(mapperEnd.failedBatchSet == mapperEndTrans.failedBatchSet)
     assert(mapperEnd.numPartitions == mapperEndTrans.numPartitions)
+    assert(mapperEnd.metrics == mapperEndTrans.metrics)
     mapperEnd.crc32PerPartition.array should contain theSameElementsInOrderAs mapperEndTrans.crc32PerPartition
     mapperEnd.bytesWrittenPerPartition.array should contain theSameElementsInOrderAs mapperEndTrans.bytesWrittenPerPartition
   }

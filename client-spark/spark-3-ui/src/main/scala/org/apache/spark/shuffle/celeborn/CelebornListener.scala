@@ -19,7 +19,7 @@ package org.apache.spark.shuffle.celeborn
 
 import java.util.concurrent.atomic.AtomicLong
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, Success}
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler._
 import org.apache.spark.util.Utils
@@ -47,6 +47,8 @@ private[celeborn] class CelebornListener(
   private val totalReadBytes = new AtomicLong(0L)
   private val totalFetchWaitTimeMs = new AtomicLong(0L)
   private val totalTaskDurationMs = new AtomicLong(0L)
+  // Total bytes pushed before compression, for the compression ratio.
+  private val totalUncompressedWriteBytes = new AtomicLong(0L)
 
   private val lastUpdateTimestamp = new AtomicLong(-1L)
   private val updateIntervalMillis = 5000L
@@ -61,14 +63,31 @@ private[celeborn] class CelebornListener(
       return
     }
     Option(taskEnd.taskMetrics).foreach { metrics =>
-      totalWriteBytes.addAndGet(metrics.shuffleWriteMetrics.bytesWritten)
-      // writeTime is in nanoseconds; normalize to ms.
-      totalWriteTimeMs.addAndGet(metrics.shuffleWriteMetrics.writeTime / 1000000L)
+      taskEnd.reason match {
+        case Success =>
+          // Write-side metrics only for successful attempts: failed ones never report
+          // MapperEnd, so counting them would skew the compression ratio.
+          totalWriteBytes.addAndGet(metrics.shuffleWriteMetrics.bytesWritten)
+          // writeTime is in nanoseconds; normalize to ms.
+          totalWriteTimeMs.addAndGet(metrics.shuffleWriteMetrics.writeTime / 1000000L)
+        case _ =>
+      }
       totalReadBytes.addAndGet(metrics.shuffleReadMetrics.totalBytesRead)
       totalFetchWaitTimeMs.addAndGet(metrics.shuffleReadMetrics.fetchWaitTime)
       totalTaskDurationMs.addAndGet(taskEnd.taskInfo.duration)
     }
     mayUpdate()
+  }
+
+  override def onOtherEvent(event: SparkListenerEvent): Unit = {
+    event match {
+      case e: CelebornMapperMetricsEvent =>
+        if (pluginEnabled) {
+          totalUncompressedWriteBytes.addAndGet(e.getUncompressedBytesWritten)
+          mayUpdate()
+        }
+      case _ =>
+    }
   }
 
   override def onJobEnd(jobEnd: SparkListenerJobEnd): Unit = {
@@ -136,7 +155,8 @@ private[celeborn] class CelebornListener(
         totalWriteTimeMs.get(),
         totalReadBytes.get(),
         totalFetchWaitTimeMs.get(),
-        totalTaskDurationMs.get()))
+        totalTaskDurationMs.get(),
+        totalUncompressedWriteBytes.get()))
     } catch {
       case e: Exception =>
         logWarning("Failed to flush CelebornListener aggregations", e)

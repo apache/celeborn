@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
+import org.apache.celeborn.common.protocol.message.ControlMessages.MapperMetrics;
 import org.apache.celeborn.common.util.Utils;
 
 @Private
@@ -78,6 +79,9 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   private final LongAdder[] mapStatusLengths;
   private long tmpRecordsWritten = 0;
+
+  // Giant-record bytes pushed directly, bypassing the pusher's uncompressed counter.
+  private long giantRecordBytesWritten = 0;
 
   /**
    * Are we in the process of stopping? Because map tasks can call stop() with success = true and
@@ -370,6 +374,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     mapStatusLengths[partitionId].add(bytesWritten);
     writeMetrics.incBytesWritten(bytesWritten);
     writeMetrics.incWriteTime(delta);
+    giantRecordBytesWritten += numBytes;
   }
 
   private void cleanupPusher() throws IOException {
@@ -396,7 +401,13 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     writeMetrics.incRecordsWritten(tmpRecordsWritten);
 
     long waitStartTime = System.nanoTime();
-    shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers, numPartitions);
+    shuffleClient.mapperEnd(
+        shuffleId,
+        mapId,
+        encodedAttemptId,
+        numMappers,
+        numPartitions,
+        new MapperMetrics(pusher.getUncompressedBytesWritten() + giantRecordBytesWritten));
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
   }
 
