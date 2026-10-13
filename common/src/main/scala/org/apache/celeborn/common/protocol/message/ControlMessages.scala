@@ -52,6 +52,54 @@ sealed trait WorkerMessage extends Message
 
 sealed trait ClientMessage extends Message
 
+// Write-path timing breakdown carried in MapperEnd for the UI (all in ms). Populated only
+// when celeborn.client.spark.ui.enabled.
+case class WriteMetrics(
+    copyTimeMs: Long,
+    serializeTimeMs: Long,
+    compressTimeMs: Long,
+    queueWaitTimeMs: Long,
+    queueStallTimeMs: Long,
+    inflightWaitTimeMs: Long,
+    drainWaitTimeMs: Long,
+    slowPushCount: Long,
+    maxPushRttMs: Long,
+    uncompressedBytes: Long)
+
+// Per-(shuffle,mapId,attemptId,worker) push cost carried in MapperEnd for the UI.
+case class PushWorkerStats(
+    workerId: String,
+    pushCount: Long,
+    pushBytes: Long,
+    totalPushRttNanos: Long,
+    softSplitCount: Long,
+    hardSplitCount: Long,
+    primaryCongestedCount: Long,
+    replicaCongestedCount: Long,
+    lastPushFailureReason: String)
+
+// Per-worker read cost carried in ReportShuffleReadMetrics for the UI.
+case class WorkerReadCost(
+    workerId: String,
+    chunkCount: Long,
+    bytes: Long,
+    totalRttNanos: Long,
+    maxRttNanos: Long)
+
+// Read-path timing breakdown + per-worker read cost for the UI. Sent from the executor
+// (CelebornInputStream close) via a new RPC when celeborn.client.spark.ui.enabled.
+case class ReadMetrics(
+    decompressTimeMs: Long,
+    chunkWaitTimeMs: Long,
+    deserializeTimeMs: Long,
+    copyTimeMs: Long,
+    retryCount: Long,
+    retryWaitTimeMs: Long,
+    peerSwitchCount: Long,
+    excludeCount: Long,
+    slowChunkCount: Long,
+    maxChunkRttMs: Long)
+
 object ControlMessages extends Logging {
   val ZERO_UUID = new UUID(0L, 0L).toString
 
@@ -218,7 +266,9 @@ object ControlMessages extends Logging {
       numPartitions: Int,
       crc32PerPartition: Array[Int],
       bytesWrittenPerPartition: Array[Long],
-      serdeVersion: SerdeVersion)
+      serdeVersion: SerdeVersion,
+      writeMetrics: Option[WriteMetrics] = None,
+      pushWorkerStats: util.List[PushWorkerStats] = util.Collections.emptyList())
     extends MasterMessage
 
   case class ReadReducerPartitionEnd(
@@ -231,6 +281,17 @@ object ControlMessages extends Logging {
     extends MasterMessage
 
   case class MapperEndResponse(status: StatusCode, serdeVersion: SerdeVersion) extends MasterMessage
+
+  // Read-path metrics reported from the executor to the driver (new RPC) for the UI.
+  case class ReportShuffleReadMetrics(
+      shuffleId: Int,
+      readMetrics: ReadMetrics,
+      workerReadCosts: util.List[WorkerReadCost],
+      serdeVersion: SerdeVersion)
+    extends MasterMessage
+
+  case class ReportShuffleReadMetricsResponse(status: StatusCode, serdeVersion: SerdeVersion)
+    extends MasterMessage
 
   case class ReadReducerPartitionEndResponse(status: StatusCode) extends MasterMessage
 
@@ -743,12 +804,14 @@ object ControlMessages extends Logging {
           numPartitions,
           crc32PerPartition,
           bytesWrittenPerPartition,
-          serdeVersion) =>
+          serdeVersion,
+          writeMetrics,
+          pushWorkerStats) =>
       val pushFailedMap = pushFailedBatch.asScala.map { case (k, v) =>
         val resultValue = PbSerDeUtils.toPbLocationPushFailedBatches(v)
         (k, resultValue)
       }.toMap.asJava
-      val payload = PbMapperEnd.newBuilder()
+      val builder = PbMapperEnd.newBuilder()
         .setShuffleId(shuffleId)
         .setMapId(mapId)
         .setAttemptId(attemptId)
@@ -759,7 +822,33 @@ object ControlMessages extends Logging {
         .addAllCrc32PerPartition(crc32PerPartition.map(Integer.valueOf).toSeq.asJava)
         .addAllBytesWrittenPerPartition(bytesWrittenPerPartition.map(
           java.lang.Long.valueOf).toSeq.asJava)
-        .build().toByteArray
+      writeMetrics.foreach { w =>
+        builder.setCopyTimeMs(w.copyTimeMs)
+          .setSerializeTimeMs(w.serializeTimeMs)
+          .setCompressTimeMs(w.compressTimeMs)
+          .setQueueWaitTimeMs(w.queueWaitTimeMs)
+          .setQueueStallTimeMs(w.queueStallTimeMs)
+          .setInflightWaitTimeMs(w.inflightWaitTimeMs)
+          .setDrainWaitTimeMs(w.drainWaitTimeMs)
+          .setSlowPushCount(w.slowPushCount)
+          .setMaxPushRttMs(w.maxPushRttMs)
+          .setUncompressedBytes(w.uncompressedBytes)
+      }
+      pushWorkerStats.asScala.foreach { s =>
+        builder.addPushWorkerStats(
+          PbPushWorkerStats.newBuilder()
+            .setWorkerId(s.workerId)
+            .setPushCount(s.pushCount)
+            .setPushBytes(s.pushBytes)
+            .setTotalPushRttNanos(s.totalPushRttNanos)
+            .setSoftSplitCount(s.softSplitCount)
+            .setHardSplitCount(s.hardSplitCount)
+            .setPrimaryCongestedCount(s.primaryCongestedCount)
+            .setReplicaCongestedCount(s.replicaCongestedCount)
+            .setLastPushFailureReason(s.lastPushFailureReason)
+            .build())
+      }
+      val payload = builder.build().toByteArray
       new TransportMessage(MessageType.MAPPER_END, payload, serdeVersion)
 
     case MapperEndResponse(status, serdeVersion) =>
@@ -767,6 +856,44 @@ object ControlMessages extends Logging {
         .setStatus(status.getValue)
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END_RESPONSE, payload, serdeVersion)
+
+    case ReportShuffleReadMetrics(shuffleId, readMetrics, workerReadCosts, serdeVersion) =>
+      val rm = readMetrics
+      val builder = PbReportShuffleReadMetrics.newBuilder()
+        .setShuffleId(shuffleId)
+        .setDecompressTimeMs(rm.decompressTimeMs)
+        .setChunkWaitTimeMs(rm.chunkWaitTimeMs)
+        .setDeserializeTimeMs(rm.deserializeTimeMs)
+        .setCopyTimeMs(rm.copyTimeMs)
+        .setRetryCount(rm.retryCount)
+        .setRetryWaitTimeMs(rm.retryWaitTimeMs)
+        .setPeerSwitchCount(rm.peerSwitchCount)
+        .setExcludeCount(rm.excludeCount)
+        .setSlowChunkCount(rm.slowChunkCount)
+        .setMaxChunkRttMs(rm.maxChunkRttMs)
+      workerReadCosts.asScala.foreach { w =>
+        builder.addWorkerReadCosts(
+          PbWorkerReadCost.newBuilder()
+            .setWorkerId(w.workerId)
+            .setChunkCount(w.chunkCount)
+            .setBytes(w.bytes)
+            .setTotalRttNanos(w.totalRttNanos)
+            .setMaxRttNanos(w.maxRttNanos)
+            .build())
+      }
+      new TransportMessage(
+        MessageType.REPORT_SHUFFLE_READ_METRICS,
+        builder.build().toByteArray,
+        serdeVersion)
+
+    case ReportShuffleReadMetricsResponse(status, serdeVersion) =>
+      val payload = PbReportShuffleReadMetricsResponse.newBuilder()
+        .setStatus(status.getValue)
+        .build().toByteArray
+      new TransportMessage(
+        MessageType.REPORT_SHUFFLE_READ_METRICS_RESPONSE,
+        payload,
+        serdeVersion)
 
     case GetReducerFileGroup(shuffleId, isSegmentGranularityVisible, serdeVersion) =>
       val payload = PbGetReducerFileGroup.newBuilder()
@@ -1260,7 +1387,41 @@ object ControlMessages extends Logging {
           pbMapperEnd.getNumPartitions,
           crc32Array,
           bytesWrittenPerPartitionArray,
-          message.getSerdeVersion)
+          message.getSerdeVersion,
+          // Reconstruct WriteMetrics only if the producer populated it (any field > 0). proto3
+          // scalars default to 0, so absent == all-zero; the producer only sets them when
+          // celeborn.client.spark.ui.enabled.
+          {
+            val w = WriteMetrics(
+              pbMapperEnd.getCopyTimeMs,
+              pbMapperEnd.getSerializeTimeMs,
+              pbMapperEnd.getCompressTimeMs,
+              pbMapperEnd.getQueueWaitTimeMs,
+              pbMapperEnd.getQueueStallTimeMs,
+              pbMapperEnd.getInflightWaitTimeMs,
+              pbMapperEnd.getDrainWaitTimeMs,
+              pbMapperEnd.getSlowPushCount,
+              pbMapperEnd.getMaxPushRttMs,
+              pbMapperEnd.getUncompressedBytes)
+            if (w.copyTimeMs == 0 && w.serializeTimeMs == 0 && w.compressTimeMs == 0 &&
+              w.queueWaitTimeMs == 0 && w.drainWaitTimeMs == 0 && w.slowPushCount == 0) {
+              None
+            } else {
+              Some(w)
+            }
+          },
+          pbMapperEnd.getPushWorkerStatsList.asScala.map { s =>
+            PushWorkerStats(
+              s.getWorkerId,
+              s.getPushCount,
+              s.getPushBytes,
+              s.getTotalPushRttNanos,
+              s.getSoftSplitCount,
+              s.getHardSplitCount,
+              s.getPrimaryCongestedCount,
+              s.getReplicaCongestedCount,
+              s.getLastPushFailureReason)
+          }.asJava)
 
       case READ_REDUCER_PARTITION_END_VALUE =>
         val pbReadReducerPartitionEnd = PbReadReducerPartitionEnd.parseFrom(message.getPayload)
@@ -1279,6 +1440,37 @@ object ControlMessages extends Logging {
         val pbMapperEndResponse = PbMapperEndResponse.parseFrom(message.getPayload)
         MapperEndResponse(
           StatusCode.fromValue(pbMapperEndResponse.getStatus),
+          message.getSerdeVersion)
+
+      case REPORT_SHUFFLE_READ_METRICS_VALUE =>
+        val pb = PbReportShuffleReadMetrics.parseFrom(message.getPayload)
+        ReportShuffleReadMetrics(
+          pb.getShuffleId,
+          ReadMetrics(
+            pb.getDecompressTimeMs,
+            pb.getChunkWaitTimeMs,
+            pb.getDeserializeTimeMs,
+            pb.getCopyTimeMs,
+            pb.getRetryCount,
+            pb.getRetryWaitTimeMs,
+            pb.getPeerSwitchCount,
+            pb.getExcludeCount,
+            pb.getSlowChunkCount,
+            pb.getMaxChunkRttMs),
+          pb.getWorkerReadCostsList.asScala.map { w =>
+            WorkerReadCost(
+              w.getWorkerId,
+              w.getChunkCount,
+              w.getBytes,
+              w.getTotalRttNanos,
+              w.getMaxRttNanos)
+          }.asJava,
+          message.getSerdeVersion)
+
+      case REPORT_SHUFFLE_READ_METRICS_RESPONSE_VALUE =>
+        val pb = PbReportShuffleReadMetricsResponse.parseFrom(message.getPayload)
+        ReportShuffleReadMetricsResponse(
+          StatusCode.fromValue(pb.getStatus),
           message.getSerdeVersion)
 
       case GET_REDUCER_FILE_GROUP_VALUE =>

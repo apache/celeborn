@@ -57,6 +57,15 @@ class ChangePartitionManager(
   private val inBatchPartitions =
     JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap.KeySetView[Int, java.lang.Boolean]]()
 
+  // shuffleId -> (partitionId -> revive times, i.e. the max epoch ever allocated,
+  // as the epoch starts from 0 and increases by 1 for each successful revive)
+  private val partitionReviveCounts =
+    JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Integer, Integer]]()
+
+  // shuffleId -> (revive cause -> times)
+  private val reviveCauseCounts =
+    JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[StatusCode, java.lang.Long]]()
+
   private val batchHandleChangePartitionEnabled = conf.batchHandleChangePartitionEnabled
   private val batchHandleChangePartitionExecutors = ThreadUtils.newDaemonCachedThreadPool(
     "celeborn-client-lifecycle-manager-change-partition-executor",
@@ -165,6 +174,29 @@ class ChangePartitionManager(
       Array.fill(lockBucketSize)(new AnyRef())
     }
   }
+
+  private val reviveCountsRegisterFunc =
+    new util.function.Function[Int, ConcurrentHashMap[Integer, Integer]]() {
+      override def apply(s: Int): ConcurrentHashMap[Integer, Integer] =
+        JavaUtils.newConcurrentHashMap()
+    }
+
+  private val reviveCausesRegisterFunc =
+    new util.function.Function[Int, ConcurrentHashMap[StatusCode, java.lang.Long]]() {
+      override def apply(s: Int): ConcurrentHashMap[StatusCode, java.lang.Long] =
+        JavaUtils.newConcurrentHashMap()
+    }
+
+  private val maxEpochMergeFunc = new util.function.BiFunction[Integer, Integer, Integer] {
+    override def apply(oldEpoch: Integer, newEpoch: Integer): Integer =
+      math.max(oldEpoch, newEpoch)
+  }
+
+  private val countMergeFunc =
+    new util.function.BiFunction[java.lang.Long, java.lang.Long, java.lang.Long] {
+      override def apply(oldCount: java.lang.Long, newCount: java.lang.Long): java.lang.Long =
+        oldCount + newCount
+    }
 
   def handleRequestPartitionLocation(
       context: RequestLocationCallContext,
@@ -343,8 +375,21 @@ class ChangePartitionManager(
     }
 
     if (newPrimaryLocations.nonEmpty) {
-      val changes = newPrimaryLocations.map { partition =>
-        s"(partition ${partition.getId} epoch from ${partition.getEpoch - 1} to ${partition.getEpoch})"
+      // newPrimaryLocations may contain both the primary and the replica peer of one
+      // partition, dedupe by partition id before recording stats and logging.
+      val distinctPartitions = newPrimaryLocations.groupBy(_.getId).map(_._2.head)
+      val requestCauses = changePartitions.map(c => c.partitionId -> c.causes).toMap
+      val reviveCounts =
+        partitionReviveCounts.computeIfAbsent(shuffleId, reviveCountsRegisterFunc)
+      val causeCounts = reviveCauseCounts.computeIfAbsent(shuffleId, reviveCausesRegisterFunc)
+      val changes = distinctPartitions.map { partition =>
+        val partitionId = partition.getId
+        // The epoch of the new location equals the revive times of the partition.
+        reviveCounts.merge(partitionId, partition.getEpoch, maxEpochMergeFunc)
+        val cause = requestCauses.get(partitionId).flatten
+        cause.foreach(c => causeCounts.merge(c, 1L, countMergeFunc))
+        s"(partition $partitionId epoch from ${partition.getEpoch - 1} to ${partition.getEpoch}" +
+          s", cause ${cause.map(_.name()).getOrElse("NONE")})"
       }.mkString("[", ", ", "]")
       logInfo(s"[Update partition] success for " +
         s"shuffle $shuffleId, succeed partitions: " +
@@ -390,9 +435,36 @@ class ChangePartitionManager(
     slots
   }
 
+  def logReviveSummary(shuffleId: Int): Unit = {
+    val reviveCounts = partitionReviveCounts.get(shuffleId)
+    if (reviveCounts == null || reviveCounts.isEmpty) {
+      return
+    }
+
+    val totalReviveTimes = reviveCounts.values().asScala.map(_.toInt).sum
+    val causeCounts = reviveCauseCounts.get(shuffleId)
+    val causes =
+      if (causeCounts == null || causeCounts.isEmpty) {
+        "NONE"
+      } else {
+        causeCounts.asScala.map { case (cause, count) => s"${cause.name()}=$count" }
+          .mkString(", ")
+      }
+    val topRevivedPartitions = reviveCounts.asScala.toSeq
+      .sortBy(-_._2.toInt)
+      .take(20)
+      .map { case (partitionId, times) => s"(partition $partitionId, revive times $times)" }
+      .mkString("[", ", ", "]")
+    logInfo(s"Shuffle $shuffleId partition revive summary: total revive times " +
+      s"$totalReviveTimes, revived partition num ${reviveCounts.size()}, " +
+      s"causes: [$causes], top revived partitions: $topRevivedPartitions.")
+  }
+
   def removeExpiredShuffle(shuffleId: Int): Unit = {
     changePartitionRequests.remove(shuffleId)
     inBatchPartitions.remove(shuffleId)
     locks.remove(shuffleId)
+    partitionReviveCounts.remove(shuffleId)
+    reviveCauseCounts.remove(shuffleId)
   }
 }

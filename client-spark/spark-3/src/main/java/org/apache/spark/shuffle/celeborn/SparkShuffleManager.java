@@ -27,6 +27,10 @@ import org.apache.spark.internal.config.package$;
 import org.apache.spark.launcher.SparkLauncher;
 import org.apache.spark.rdd.DeterministicLevel;
 import org.apache.spark.shuffle.*;
+import org.apache.spark.shuffle.celeborn.events.CelebornReadMetricsEvent;
+import org.apache.spark.shuffle.celeborn.events.CelebornReassignEvent;
+import org.apache.spark.shuffle.celeborn.events.CelebornShuffleAssignmentEvent;
+import org.apache.spark.shuffle.celeborn.events.CelebornWriteMetricsEvent;
 import org.apache.spark.shuffle.sort.SortShuffleManager;
 import org.apache.spark.sql.internal.SQLConf;
 import org.slf4j.Logger;
@@ -34,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.listener.ReadMetricsCallback;
 import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.ShuffleMode;
@@ -162,6 +167,68 @@ public class SparkShuffleManager implements ShuffleManager {
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
           lifecycleManager.applicationCount().increment();
           lifecycleManager.registerCancelShuffleCallback(SparkUtils::cancelShuffle);
+          if (celebornConf.clientSparkUIEnabled()) {
+            lifecycleManager.registerShuffleAssignmentCallback(
+                (shuffleId, numPartitions) -> {
+                  SparkContext sc = SparkContext$.MODULE$.getActive().getOrElse(null);
+                  if (sc != null) {
+                    java.util.Map<String, ?> workers =
+                        lifecycleManager.shuffleAllocatedWorkers().get(shuffleId);
+                    java.util.List<String> workerIds = new java.util.ArrayList<>();
+                    if (workers != null) {
+                      workerIds.addAll(workers.keySet());
+                    }
+                    sc.listenerBus()
+                        .post(
+                            new CelebornShuffleAssignmentEvent(
+                                shuffleId,
+                                shuffleId,
+                                workerIds,
+                                numPartitions,
+                                System.currentTimeMillis()));
+                  }
+                });
+            lifecycleManager.registerReassignCallback(
+                state -> {
+                  SparkContext sc = SparkContext$.MODULE$.getActive().getOrElse(null);
+                  if (sc != null && state.size() >= 3) {
+                    sc.listenerBus()
+                        .post(
+                            new CelebornReassignEvent(
+                                state.get(0),
+                                state.get(1),
+                                state.get(2),
+                                System.currentTimeMillis()));
+                  }
+                });
+            lifecycleManager.registerMapperEndMetricsCallback(
+                (shuffleId, writeMetrics, pushWorkerStats) -> {
+                  SparkContext sc = SparkContext$.MODULE$.getActive().getOrElse(null);
+                  if (sc != null) {
+                    sc.listenerBus()
+                        .post(
+                            new CelebornWriteMetricsEvent(
+                                shuffleId,
+                                writeMetrics,
+                                pushWorkerStats,
+                                System.currentTimeMillis()));
+                  }
+                });
+            lifecycleManager.registerReadMetricsCallback(
+                (ReadMetricsCallback)
+                    (shuffleId, readMetrics, workerReadCosts) -> {
+                      SparkContext sc = SparkContext$.MODULE$.getActive().getOrElse(null);
+                      if (sc != null) {
+                        sc.listenerBus()
+                            .post(
+                                new CelebornReadMetricsEvent(
+                                    shuffleId,
+                                    readMetrics,
+                                    workerReadCosts,
+                                    System.currentTimeMillis()));
+                      }
+                    });
+          }
           if (celebornConf.clientStageRerunEnabled()) {
             MapOutputTrackerMaster mapOutputTracker =
                 (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();

@@ -119,6 +119,8 @@ enum MessageType {
   REGISTER_APPLICATION_INFO = 96;
   REQUEST_WORKERS = 97;
   REQUEST_WORKERS_RESPONSE = 98;
+  REPORT_SHUFFLE_READ_METRICS = 99;
+  REPORT_SHUFFLE_READ_METRICS_RESPONSE = 100;
 }
 
 enum StreamType {
@@ -394,6 +396,32 @@ message PbMapperEnd {
   int32 numPartitions = 7;
   repeated int32 crc32PerPartition = 8;
   repeated int64 bytesWrittenPerPartition = 9;
+  // Write-path timing breakdown (ms) for the UI. Optional — populated only when
+  // celeborn.client.spark.ui.enabled. Field numbers 10-19 reserved for write times.
+  int64 copyTimeMs = 10;
+  int64 serializeTimeMs = 11;
+  int64 compressTimeMs = 12;
+  int64 queueWaitTimeMs = 13;
+  int64 queueStallTimeMs = 14;
+  int64 inflightWaitTimeMs = 15;
+  int64 drainWaitTimeMs = 16;
+  int64 slowPushCount = 17;
+  int64 maxPushRttMs = 18;
+  repeated PbPushWorkerStats pushWorkerStats = 19;
+  int64 uncompressedBytes = 20;
+}
+
+// Per-(shuffle,mapId,attemptId,worker) push cost for the UI's Shuffle Servers section.
+message PbPushWorkerStats {
+  string workerId = 1;
+  int64 pushCount = 2;
+  int64 pushBytes = 3;
+  int64 totalPushRttNanos = 4;
+  int64 softSplitCount = 5;
+  int64 hardSplitCount = 6;
+  int64 primaryCongestedCount = 7;
+  int64 replicaCongestedCount = 8;
+  string lastPushFailureReason = 9;
 }
 
 message PbLocationPushFailedBatches {
@@ -1089,4 +1117,31 @@ message PbRegisterApplicationInfo {
   PbUserIdentifier userIdentifier = 2;
   map<string, string> extraInfo = 3;
   string requestId = 4;
+}
+
+message PbWorkerReadCost {
+  string workerId = 1;
+  int64 chunkCount = 2;
+  int64 bytes = 3;
+  int64 totalRttNanos = 4;
+  int64 maxRttNanos = 5;
+}
+
+message PbReportShuffleReadMetrics {
+  int32 shuffleId = 1;
+  int64 decompressTimeMs = 2;
+  int64 chunkWaitTimeMs = 3;
+  int64 deserializeTimeMs = 4;
+  int64 copyTimeMs = 5;
+  int64 retryCount = 6;
+  int64 retryWaitTimeMs = 7;
+  int64 peerSwitchCount = 8;
+  int64 excludeCount = 9;
+  int64 slowChunkCount = 10;
+  int64 maxChunkRttMs = 11;
+  repeated PbWorkerReadCost workerReadCosts = 12;
+}
+
+message PbReportShuffleReadMetricsResponse {
+  int32 status = 1;
 }

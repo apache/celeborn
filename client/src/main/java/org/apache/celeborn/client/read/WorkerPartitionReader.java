@@ -20,6 +20,7 @@ package org.apache.celeborn.client.read;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -80,6 +81,11 @@ public class WorkerPartitionReader implements PartitionReader {
 
   private Optional<PartitionReaderCheckpointMetadata> partitionReaderCheckpointMetadata;
 
+  private final ReadStreamStats streamStats;
+  private final long slowChunkThresholdNanos;
+  // chunkIndex -> fetch start time, used to compute per chunk fetch round trip time.
+  private final ConcurrentHashMap<Integer, Long> chunkFetchStartTimes = new ConcurrentHashMap<>();
+
   WorkerPartitionReader(
       CelebornConf conf,
       String shuffleKey,
@@ -93,7 +99,8 @@ public class WorkerPartitionReader implements PartitionReader {
       MetricsCallback metricsCallback,
       int startChunkIndex,
       int endChunkIndex,
-      Optional<PartitionReaderCheckpointMetadata> checkpointMetadata)
+      Optional<PartitionReaderCheckpointMetadata> checkpointMetadata,
+      ReadStreamStats streamStats)
       throws IOException, InterruptedException {
     this.shuffleKey = shuffleKey;
     fetchMaxReqsInFlight = conf.clientFetchMaxReqsInFlight();
@@ -103,6 +110,9 @@ public class WorkerPartitionReader implements PartitionReader {
     inflightRequestCount = 0;
     this.metricsCallback = metricsCallback;
     this.partitionReaderWaitLogThreshold = conf.clientPartitionReaderWaitLogThreshold();
+    this.streamStats = streamStats;
+    this.slowChunkThresholdNanos =
+        TimeUnit.MILLISECONDS.toNanos(conf.clientFetchSlowChunkThresholdMs());
     // only add the buffer to results queue if this reader is not closed.
     callback =
         new ChunkReceivedCallback() {
@@ -111,6 +121,25 @@ public class WorkerPartitionReader implements PartitionReader {
             // only add the buffer to results queue if this reader is not closed.
             synchronized (this) {
               ByteBuf buf = ((NettyManagedBuffer) buffer).getBuf();
+              Long fetchStartTime = chunkFetchStartTimes.remove(chunkIndex);
+              if (fetchStartTime != null) {
+                long rttNanos = System.nanoTime() - fetchStartTime;
+                streamStats.recordChunkRtt(rttNanos, slowChunkThresholdNanos);
+                streamStats.recordWorkerChunkRead(
+                    location.hostAndFetchPort(), buf.readableBytes(), rttNanos);
+                if (rttNanos > slowChunkThresholdNanos) {
+                  logger.warn(
+                      "Slow fetch chunk from {} for shuffle key {} stream {} chunk {}, "
+                          + "rtt {} ms, chunk size {}, inflight {}.",
+                      location.hostAndFetchPort(),
+                      shuffleKey,
+                      streamHandler.getStreamId(),
+                      chunkIndex,
+                      TimeUnit.NANOSECONDS.toMillis(rttNanos),
+                      buf.readableBytes(),
+                      inflightRequestCount);
+                }
+              }
               if (!closed) {
                 buf.retain();
                 results.add(Pair.of(chunkIndex, buf));
@@ -120,6 +149,7 @@ public class WorkerPartitionReader implements PartitionReader {
 
           @Override
           public void onFailure(int chunkIndex, Throwable e) {
+            chunkFetchStartTimes.remove(chunkIndex);
             String errorMsg =
                 String.format("Fetch chunk %d of shuffle key %s failed.", chunkIndex, shuffleKey);
             logger.error(errorMsg, e);
@@ -309,6 +339,7 @@ public class WorkerPartitionReader implements PartitionReader {
               throw e;
             }
           }
+          chunkFetchStartTimes.put(chunkIndex, System.nanoTime());
           client.fetchChunk(streamHandler.getStreamId(), chunkIndex, fetchTimeoutMs, callback);
           inflightRequestCount++;
           chunkIndex++;

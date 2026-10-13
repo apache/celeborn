@@ -132,6 +132,7 @@ public class InFlightRequestTracker {
       throw pushState.exception.get();
     }
 
+    long startTimeNanos = System.nanoTime();
     pushStrategy.limitPushSpeed(pushState, hostAndPushPort);
     int currentMaxReqsInFlight = pushStrategy.getCurrentMaxReqsInFlight(hostAndPushPort);
 
@@ -198,6 +199,7 @@ public class InFlightRequestTracker {
       throw pushState.exception.get();
     }
 
+    pushState.addInflightWaitTime(System.nanoTime() - startTimeNanos);
     return times <= 0;
   }
 
@@ -205,6 +207,7 @@ public class InFlightRequestTracker {
     if (pushState.exception.get() != null) {
       throw pushState.exception.get();
     }
+    long startTimeNanos = System.nanoTime();
     long times = waitInflightTimeoutMs / delta;
 
     try {
@@ -244,6 +247,7 @@ public class InFlightRequestTracker {
       throw pushState.exception.get();
     }
 
+    pushState.addDrainWaitTime(System.nanoTime() - startTimeNanos);
     return times <= 0;
   }
 

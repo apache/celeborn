@@ -18,7 +18,7 @@
 package org.apache.spark.shuffle.celeborn
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import org.apache.spark.util.kvstore.{KVIndex, KVStore}
+import org.apache.spark.util.kvstore.{KVIndex, KVStore, KVStoreView}
 
 private[celeborn] case class AggregatedTaskInfoUIData(
     shuffleWriteBytes: Long,
@@ -82,5 +82,105 @@ private[celeborn] class CelebornStatusStore(store: KVStore) {
     } catch {
       case _: NoSuchElementException => false
     }
+  }
+
+  /** Build info summary, or an empty entity if not yet written. */
+  def buildInfo(): CelebornBuildInfoUIData = {
+    val kClass = classOf[CelebornBuildInfoUIData]
+    try {
+      store.read(kClass, kClass.getName)
+    } catch {
+      case _: NoSuchElementException => new CelebornBuildInfoUIData(Seq.empty)
+    }
+  }
+
+  /** All recorded shuffle assignments (shuffle -> worker topology), newest last. */
+  def assignmentInfos(): Seq[CelebornShuffleAssignmentUIData] = {
+    viewToSeq(store.view(classOf[CelebornShuffleAssignmentUIData]))
+  }
+
+  /** Per-policy fallback counts snapshot, or empty if no fallback recorded. */
+  def fallbackStats(): CelebornFallbackStatsUIData = {
+    val kClass = classOf[CelebornFallbackStatsUIData]
+    try {
+      store.read(kClass, kClass.getName)
+    } catch {
+      case _: NoSuchElementException =>
+        new CelebornFallbackStatsUIData(new java.util.HashMap[String, java.lang.Long]())
+    }
+  }
+
+  /** Reassign status snapshot, or all-false if no reassign recorded. */
+  def reassignStats(): CelebornReassignStatsUIData = {
+    val kClass = classOf[CelebornReassignStatsUIData]
+    try {
+      store.read(kClass, kClass.getName)
+    } catch {
+      case _: NoSuchElementException =>
+        new CelebornReassignStatsUIData(false, false, false, 0L)
+    }
+  }
+
+  /** Aggregated write-path timing breakdown, or all-zero if none recorded. */
+  def writeTimes(): CelebornWriteTimesUIData = {
+    val kClass = classOf[CelebornWriteTimesUIData]
+    try {
+      store.read(kClass, kClass.getName)
+    } catch {
+      case _: NoSuchElementException => new CelebornWriteTimesUIData(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    }
+  }
+
+  /** Per-worker push stats, newest last. */
+  def perWorkerWriteStats(): Seq[CelebornPerWorkerWriteStatsUIData] = {
+    viewToSeq(store.view(classOf[CelebornPerWorkerWriteStatsUIData]))
+  }
+
+  /** Aggregated read-path timing breakdown, or all-zero if none recorded. */
+  def readTimes(): CelebornReadTimesUIData = {
+    val kClass = classOf[CelebornReadTimesUIData]
+    try {
+      store.read(kClass, kClass.getName)
+    } catch {
+      case _: NoSuchElementException =>
+        new CelebornReadTimesUIData(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    }
+  }
+
+  /** Per-worker read stats, newest last. */
+  def perWorkerReadStats(): Seq[CelebornPerWorkerReadStatsUIData] = {
+    viewToSeq(store.view(classOf[CelebornPerWorkerReadStatsUIData]))
+  }
+
+  /** Per-shuffle write metrics snapshot, or empty if none recorded. */
+  def aggregatedWriteMetrics(): CelebornAggregatedWriteMetricsUIData = {
+    val kClass = classOf[CelebornAggregatedWriteMetricsUIData]
+    try {
+      store.read(kClass, kClass.getName)
+    } catch {
+      case _: NoSuchElementException =>
+        new CelebornAggregatedWriteMetricsUIData(new java.util.HashMap[
+          Int,
+          AggregatedShuffleWriteMetric]())
+    }
+  }
+
+  /** Per-shuffle read metrics snapshot, or empty if none recorded. */
+  def aggregatedReadMetrics(): CelebornAggregatedReadMetricsUIData = {
+    val kClass = classOf[CelebornAggregatedReadMetricsUIData]
+    try {
+      store.read(kClass, kClass.getName)
+    } catch {
+      case _: NoSuchElementException =>
+        new CelebornAggregatedReadMetricsUIData(new java.util.HashMap[
+          Int,
+          AggregatedShuffleReadMetric]())
+    }
+  }
+
+  private def viewToSeq[T](view: KVStoreView[T]): Seq[T] = {
+    import scala.collection.JavaConverters._
+    org.apache.spark.util.Utils.tryWithResource(view.closeableIterator())(iter =>
+      iter.asScala.toList)
   }
 }

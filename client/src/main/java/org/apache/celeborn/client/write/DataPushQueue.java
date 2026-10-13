@@ -130,7 +130,13 @@ public class DataPushQueue {
       }
       try {
         // Reaching here means no available tasks can be pushed to any worker, wait for a while
+        long sleepStartNanos = System.nanoTime();
         Thread.sleep(takeTaskWaitIntervalMs);
+        if (!workingQueue.isEmpty()) {
+          // There are pending tasks but no target worker has remaining push allowance,
+          // i.e. the per-worker in-flight limit is reached.
+          pushState.addQueueStallTime(System.nanoTime() - sleepStartNanos);
+        }
         workerWaitAttempts.values().forEach(AtomicInteger::incrementAndGet);
       } catch (InterruptedException ie) {
         logger.info("Thread interrupted while waiting push task.");

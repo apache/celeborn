@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.read.CelebornInputStream;
 import org.apache.celeborn.client.read.MetricsCallback;
+import org.apache.celeborn.client.read.ReadStreamStats;
 import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.exception.CelebornIOException;
@@ -168,6 +169,9 @@ public class DummyShuffleClient extends ShuffleClient {
   @Override
   public void mapperEnd(
       int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions) {}
+
+  @Override
+  public void reportReadMetrics(int shuffleId, ReadStreamStats stats) {}
 
   @Override
   public void readReducerPartitionEnd(

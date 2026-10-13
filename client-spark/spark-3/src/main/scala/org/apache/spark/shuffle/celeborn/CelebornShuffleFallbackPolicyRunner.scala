@@ -22,6 +22,8 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
 
 import org.apache.spark.ShuffleDependency
+import org.apache.spark.SparkContext
+import org.apache.spark.shuffle.celeborn.events.CelebornFallbackEvent
 
 import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.CelebornConf
@@ -47,6 +49,15 @@ class CelebornShuffleFallbackPolicyRunner(conf: CelebornConf) extends Logging {
         val shuffleFallbackPolicy = fallbackPolicy.get.getClass.getName
         computeFallbackCounts(shuffleFallbackPolicy, lifecycleManager.shuffleFallbackCounts)
         computeFallbackCounts(shuffleFallbackPolicy, lifecycleManager.applicationFallbackCounts)
+        if (conf.clientSparkUIEnabled) {
+          val sc = SparkContext.getActive.orNull
+          if (sc != null) {
+            sc.listenerBus.post(CelebornFallbackEvent(
+              new java.util.HashMap[String, java.lang.Long](
+                lifecycleManager.shuffleFallbackCounts),
+              System.currentTimeMillis()))
+          }
+        }
       }
     }
     fallbackPolicy.isDefined
