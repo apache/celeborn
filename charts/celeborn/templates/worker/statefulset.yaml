@@ -24,6 +24,9 @@ metadata:
     {{- include "celeborn.worker.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.worker.replicas }}
+  {{- with .Values.worker.podManagementPolicy }}
+  podManagementPolicy: {{ . }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "celeborn.worker.selectorLabels" . | nindent 6 }}
@@ -128,6 +131,18 @@ spec:
           mountPath: /opt/celeborn/conf/metrics.properties
         {{- with .Values.worker.volumeMounts }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.worker.startupProbe }}
+        startupProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.worker.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.worker.readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 10 }}
         {{- end }}
         {{- with .Values.worker.resources }}
         resources:
