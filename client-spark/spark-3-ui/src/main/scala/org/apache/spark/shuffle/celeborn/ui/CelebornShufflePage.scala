@@ -53,6 +53,7 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
   private def renderBody(request: HttpServletRequest): Seq[Node] = {
     val taskInfo = store.aggregatedTaskInfo()
     val properties = store.celebornProperties()
+    val buildInfo = store.buildInfo()
 
     val writeBytes = taskInfo.shuffleWriteBytes
     val readBytes = taskInfo.shuffleReadBytes
@@ -100,9 +101,27 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
       fixedWidth = true,
       headerClasses = headerClasses)
 
+    val buildInfoTable = UIUtils.listingTable(
+      propertyHeader,
+      propertyRow,
+      buildInfo.info,
+      fixedWidth = true,
+      headerClasses = headerClasses)
+
     val content =
       <span>
         {summary}
+        <span class="collapse-aggregated-celebornBuildInfo collapse-table"
+            onClick="collapseTable('collapse-aggregated-celebornBuildInfo',
+            'aggregated-celebornBuildInfo')">
+          <h4>
+            <span class="collapse-table-arrow arrow-closed"></span>
+            <a>Celeborn Client Build Information</a>
+          </h4>
+        </span>
+        <div class="aggregated-celebornBuildInfo collapsible-table collapsed">
+          {buildInfoTable}
+        </div>
         <span class="collapse-aggregated-celebornProperties collapse-table"
             onClick="collapseTable('collapse-aggregated-celebornProperties',
             'aggregated-celebornProperties')">

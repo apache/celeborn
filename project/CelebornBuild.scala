@@ -725,16 +725,26 @@ object CelebornCommon {
           Seq(Dependencies.jdkTools) else Nil),
 
       Compile / sourceGenerators += Def.task {
-        val file = (Compile / sourceManaged).value / "org" / "apache" / "celeborn" / "package.scala"
-        streams.value.log.info(s"geneate version information file ${file.toPath}")
-        IO.write(file,
+        val dir = (Compile / sourceManaged).value / "org" / "apache" / "celeborn"
+        val packageFile = dir / "package.scala"
+        streams.value.log.info(s"geneate version information file ${packageFile.toPath}")
+        IO.write(packageFile,
           s"""package org.apache
              |
              |package object celeborn {
              |  val VERSION = "${version.value}"
              |}
              |""".stripMargin)
-        Seq(file)
+        // Filter the maven template (src/main/java-templates, processed by
+        // templating-maven-plugin in maven builds) the same way, so both build
+        // systems produce the same compile-time build info constants.
+        val constantsFile = dir / "ProjectConstants.java"
+        val template = baseDirectory.value / "src" / "main" / "java-templates" /
+          "org" / "apache" / "celeborn" / "ProjectConstants.java"
+        IO.write(constantsFile, IO.read(template)
+          .replace("${project.version}", version.value)
+          .replace("${git.revision}", gitHeadCommit.value.getOrElse("N/A")))
+        Seq(packageFile, constantsFile)
         // generate version task depends on PB generate to avoid concurrency generate source files
       }.dependsOn(Compile / PB.generate),
 

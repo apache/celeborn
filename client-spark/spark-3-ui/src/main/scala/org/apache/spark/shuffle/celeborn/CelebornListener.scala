@@ -30,9 +30,10 @@ import org.apache.spark.util.kvstore.KVStore
  * HistoryServer replay.
  *
  * When `requirePluginOptIn` is true (History Server replay), collection stays
- * disabled until the application's recorded `spark.plugins` or
- * `spark.plugins.defaultList` contains [[CelebornPlugin]], and an enable marker
- * is persisted so `setupUI` can decide whether to attach the Celeborn tab.
+ * disabled until the application opted in via its recorded `spark.plugins` or
+ * `spark.plugins.defaultList`, or until a [[CelebornBuildInfoEvent]] is
+ * replayed, and an enable marker is persisted so `setupUI` can decide whether
+ * to attach the Celeborn tab.
  */
 private[celeborn] class CelebornListener(
     val kvstore: KVStore,
@@ -102,6 +103,20 @@ private[celeborn] class CelebornListener(
     if (celebornProps.nonEmpty) {
       kvstore.write(new CelebornPropertiesUIData(celebornProps.toList))
     }
+  }
+
+  override def onOtherEvent(event: SparkListenerEvent): Unit = event match {
+    case e: CelebornBuildInfoEvent =>
+      // Receiving the event also proves the application loaded the plugin.
+      kvstore.write(new CelebornBuildInfoUIData(Seq(
+        "Version" -> e.version,
+        "Commit Id" -> e.commitId,
+        "Revision" -> e.revision)))
+      if (!pluginEnabled) {
+        pluginEnabled = true
+        kvstore.write(new CelebornExtensionEnabledUIData())
+      }
+    case _ =>
   }
 
   override def onApplicationEnd(applicationEnd: SparkListenerApplicationEnd): Unit = {
