@@ -161,9 +161,14 @@ object PbSerDeUtils {
       builder.setBufferSize(mapFileMeta.getBufferSize)
       builder.setNumSubpartitions(mapFileMeta.getNumSubpartitions)
       builder.setIsSegmentGranularityVisible(mapFileMeta.isSegmentGranularityVisible)
-      builder.putAllPartitionWritingSegment(mapFileMeta.getSubPartitionWritingSegmentId)
-      builder.addAllSegmentIndex(
-        mapFileMeta.getSubPartitionSegmentIndexes.asScala.map(toPbSegmentIndex).asJava)
+      // Both are created lazily on the first segment: null without segment granularity.
+      if (mapFileMeta.getSubPartitionWritingSegmentId != null) {
+        builder.putAllPartitionWritingSegment(mapFileMeta.getSubPartitionWritingSegmentId)
+      }
+      if (mapFileMeta.getSubPartitionSegmentIndexes != null) {
+        builder.addAllSegmentIndex(
+          mapFileMeta.getSubPartitionSegmentIndexes.asScala.map(toPbSegmentIndex).asJava)
+      }
     } else {
       val reduceFileMeta = fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta]
       builder.setPartitionType(PartitionType.REDUCE.getValue)
