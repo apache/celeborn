@@ -32,9 +32,9 @@ import java.util.function.BooleanSupplier;
 import scala.Tuple2;
 
 import com.google.common.collect.Lists;
-import org.apache.ratis.util.LifeCycle;
 import org.apache.ratis.protocol.TransferLeadershipRequest;
 import org.apache.ratis.rpc.CallId;
+import org.apache.ratis.util.LifeCycle;
 import org.junit.*;
 import org.mockito.Mockito;
 
