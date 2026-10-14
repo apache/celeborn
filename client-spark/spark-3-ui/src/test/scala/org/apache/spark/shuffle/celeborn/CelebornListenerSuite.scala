@@ -17,10 +17,11 @@
 
 package org.apache.spark.shuffle.celeborn
 
-import org.apache.spark.{SparkConf, Success, TaskState}
+import com.fasterxml.jackson.databind.ObjectMapper
+import org.apache.spark.{SparkConf, Success, TaskEndReason, TaskKilled, TaskState}
 import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.internal.config.Status.ASYNC_TRACKING_ENABLED
-import org.apache.spark.scheduler.{JobSucceeded, SparkListenerEnvironmentUpdate, SparkListenerJobEnd, SparkListenerTaskEnd, TaskInfo, TaskLocality}
+import org.apache.spark.scheduler.{JobSucceeded, SparkListenerEnvironmentUpdate, SparkListenerEvent, SparkListenerJobEnd, SparkListenerTaskEnd, TaskInfo, TaskLocality}
 import org.apache.spark.status.ElementTrackingStore
 import org.apache.spark.util.Utils
 import org.apache.spark.util.kvstore.InMemoryStore
@@ -38,7 +39,8 @@ class CelebornListenerSuite {
       writeBytes: Long,
       writeTimeMs: Long,
       fetchWaitMs: Long,
-      durationMs: Long): SparkListenerTaskEnd = {
+      durationMs: Long,
+      reason: TaskEndReason = Success): SparkListenerTaskEnd = {
     val metrics = TaskMetrics.empty
     metrics.shuffleWriteMetrics.incBytesWritten(writeBytes)
     metrics.shuffleWriteMetrics.incWriteTime(writeTimeMs * 1000000L)
@@ -54,11 +56,66 @@ class CelebornListenerSuite {
       TaskLocality.PROCESS_LOCAL,
       false)
     info.markFinished(TaskState.FINISHED, launchTime + durationMs)
-    SparkListenerTaskEnd(0, 0, "ShuffleMapTask", Success, info, null, metrics)
+    SparkListenerTaskEnd(0, 0, "ShuffleMapTask", reason, info, null, metrics)
   }
 
   private def envUpdate(sparkProps: (String, String)*): SparkListenerEnvironmentUpdate = {
     SparkListenerEnvironmentUpdate(Map("Spark Properties" -> sparkProps.toSeq))
+  }
+
+  @Test
+  def aggregateMapperMetricsEvents(): Unit = {
+    val store = new InMemoryStore()
+    val statusStore = new CelebornStatusStore(store)
+    val listener = new CelebornListener(store, new SparkConf())
+
+    listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 100L))
+    listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 250L))
+    // Unrelated events are ignored.
+    listener.onOtherEvent(new SparkListenerEvent {})
+    listener.flush()
+
+    assertEquals(350L, statusStore.aggregatedTaskInfo().uncompressedShuffleBytes)
+  }
+
+  @Test
+  def shuffleWriteMetricsCountOnlySuccessfulAttempts(): Unit = {
+    val store = new InMemoryStore()
+    val statusStore = new CelebornStatusStore(store)
+    val listener = new CelebornListener(store, new SparkConf())
+
+    listener.onTaskEnd(newTaskEnd(100L, 10L, 1L, 5L))
+    listener.onTaskEnd(newTaskEnd(200L, 20L, 2L, 6L))
+    // The killed attempt wrote bytes, but its MapperEnd is never reported.
+    listener.onTaskEnd(newTaskEnd(300L, 30L, 3L, 7L, TaskKilled("killed by test")))
+    listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 100L))
+    listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 200L))
+    listener.flush()
+
+    val agg = statusStore.aggregatedTaskInfo()
+    // The killed attempt's write metrics are excluded; read side counts every attempt.
+    assertEquals(300L, agg.shuffleWriteBytes)
+    assertEquals(30L, agg.shuffleWriteTimeMs)
+    assertEquals(6L, agg.shuffleFetchWaitTimeMs)
+    assertEquals(18L, agg.taskDurationMs)
+    assertEquals(300L, agg.uncompressedShuffleBytes)
+  }
+
+  @Test
+  def mapperMetricsEventJsonRoundtrip(): Unit = {
+    // SparkListenerEvent carries @JsonTypeInfo(property = "Event"), so the event log
+    // records the class name and History Server replay can restore the event (the
+    // same mechanism JsonProtocol uses for custom SparkListenerEvents).
+    val mapper = new ObjectMapper()
+    val event = new CelebornMapperMetricsEvent(1, 1024L)
+    val json = mapper.writeValueAsString(event)
+    assertTrue(json.contains(
+      s""""Event":"${classOf[CelebornMapperMetricsEvent].getName}"""))
+    val restored = mapper
+      .readValue(json, classOf[SparkListenerEvent])
+      .asInstanceOf[CelebornMapperMetricsEvent]
+    assertEquals(1, restored.getShuffleId)
+    assertEquals(1024L, restored.getUncompressedBytesWritten)
   }
 
   @Test

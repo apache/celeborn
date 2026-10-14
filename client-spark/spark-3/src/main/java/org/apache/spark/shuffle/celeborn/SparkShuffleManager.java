@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.spark.*;
+import org.apache.spark.SparkContext$;
 import org.apache.spark.internal.config.package$;
 import org.apache.spark.launcher.SparkLauncher;
 import org.apache.spark.rdd.DeterministicLevel;
@@ -162,6 +163,17 @@ public class SparkShuffleManager implements ShuffleManager {
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
           lifecycleManager.applicationCount().increment();
           lifecycleManager.registerCancelShuffleCallback(SparkUtils::cancelShuffle);
+          // Forward mapper metrics to the Celeborn UI extension.
+          lifecycleManager.registerMapperEndCallback(
+              (shuffleId, mapId, attemptId, metrics) -> {
+                SparkContext sc = SparkContext$.MODULE$.getActive().getOrElse(() -> null);
+                if (sc != null) {
+                  sc.listenerBus()
+                      .post(
+                          new CelebornMapperMetricsEvent(
+                              shuffleId, metrics.uncompressedBytesWritten()));
+                }
+              });
           if (celebornConf.clientStageRerunEnabled()) {
             MapOutputTrackerMaster mapOutputTracker =
                 (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();
