@@ -142,26 +142,32 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
     }
   }
 
-  test("IO_HANG disks retain their effective capacity but contribute no usable space") {
-    withFixture() { f =>
-      val hung = new DiskInfo("/hung", Long.MaxValue, 0L, 0L, 0L)
-      hung.configuredUsableSpace = 512L
-      hung.setTotalSpace(1024L).setStatus(DiskStatus.IO_HANG)
-      when(f.storage.localDisksSnapshot()).thenReturn(List(f.disk, hung))
-      val partial = f.collect()
-      assert(math.abs(partial(WorkerStats.DiskUsedRatio) - 2.0 / 3) < 1e-12)
-      assert(partial(WorkerStats.DiskRemainingSize) == 512.0)
+  Seq(
+    DiskStatus.IO_HANG,
+    DiskStatus.READ_OR_WRITE_FAILURE,
+    DiskStatus.CRITICAL_ERROR,
+    DiskStatus.HIGH_DISK_USAGE).foreach { status =>
+    test(s"$status disks retain their effective capacity but contribute no usable space") {
+      withFixture() { f =>
+        val unavailableDisk = new DiskInfo("/unavailable", 256L, 0L, 0L, 0L)
+        unavailableDisk.configuredUsableSpace = 512L
+        unavailableDisk.setTotalSpace(1024L).setStatus(status)
+        when(f.storage.localDisksSnapshot()).thenReturn(List(f.disk, unavailableDisk))
+        val partial = f.collect()
+        assert(math.abs(partial(WorkerStats.DiskUsedRatio) - 2.0 / 3) < 1e-12)
+        assert(partial(WorkerStats.DiskRemainingSize) == 512.0)
 
-      f.disk.setStatus(DiskStatus.IO_HANG)
-      val unavailable = f.collect()
-      assert(unavailable(WorkerStats.DiskUsedRatio) == 1.0)
-      assert(unavailable(WorkerStats.DiskRemainingSize) == 0.0)
+        f.disk.setStatus(status)
+        val unavailable = f.collect()
+        assert(unavailable(WorkerStats.DiskUsedRatio) == 1.0)
+        assert(unavailable(WorkerStats.DiskRemainingSize) == 0.0)
 
-      f.disk.setStatus(DiskStatus.HEALTHY)
-      hung.setUsableSpace(256L).setStatus(DiskStatus.HEALTHY)
-      val recovered = f.collect()
-      assert(recovered(WorkerStats.DiskUsedRatio) == 0.5)
-      assert(recovered(WorkerStats.DiskRemainingSize) == 768.0)
+        f.disk.setStatus(DiskStatus.HEALTHY)
+        unavailableDisk.setStatus(DiskStatus.HEALTHY)
+        val recovered = f.collect()
+        assert(recovered(WorkerStats.DiskUsedRatio) == 0.5)
+        assert(recovered(WorkerStats.DiskRemainingSize) == 768.0)
+      }
     }
   }
 
