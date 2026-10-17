@@ -104,12 +104,16 @@ object PbSerDeUtils {
       case PartitionType.REDUCE =>
         new ReduceFileMeta(pbFileInfo.getChunkOffsetsList)
       case PartitionType.MAP =>
+        // Protobuf cannot tell an empty field from an unset one; restore both as null, which
+        // is what MapFileMeta#hasPartitionSegmentIds reads as "no segments recorded".
         val fileMeta = new MapFileMeta(
           pbFileInfo.getBufferSize,
           pbFileInfo.getNumSubpartitions,
           pbFileInfo.getIsSegmentGranularityVisible,
-          pbFileInfo.getPartitionWritingSegmentMap,
-          fromPbSegmentIndexList(pbFileInfo.getSegmentIndexList))
+          if (pbFileInfo.getPartitionWritingSegmentCount == 0) null
+          else pbFileInfo.getPartitionWritingSegmentMap,
+          if (pbFileInfo.getSegmentIndexCount == 0) null
+          else fromPbSegmentIndexList(pbFileInfo.getSegmentIndexList))
         // writer always closed as this is committed file info.
         fileMeta.setIsWriterClosed(true)
         fileMeta

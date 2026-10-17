@@ -431,6 +431,8 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     assert(restoredMeta.getNumSubpartitions == 8)
     assert(!restoredMeta.isSegmentGranularityVisible)
     assert(restoredMeta.isWriterClosed)
+    assert(!restoredMeta.hasPartitionSegmentIds)
+    assert(restoredMeta.getSubPartitionSegmentIndexes == null)
     assert(restoredMeta.getSegmentIdByFirstBufferIndex(0, 0) == null)
 
     val files = JavaUtils.newConcurrentHashMap[String, DiskFileInfo]()
@@ -463,6 +465,7 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     val restoredMeta = PbSerDeUtils.fromPbFileInfo(PbSerDeUtils.toPbFileInfo(mapFileInfo))
       .getFileMeta.asInstanceOf[MapFileMeta]
     assert(restoredMeta.isSegmentGranularityVisible)
+    assert(restoredMeta.hasPartitionSegmentIds)
     assert(restoredMeta.getPartitionWritingSegmentId(1) == 3)
     assert(restoredMeta.getSegmentIdByFirstBufferIndex(1, 5) == 3)
     assert(restoredMeta.getSegmentIdByFirstBufferIndex(0, 5) == null)
