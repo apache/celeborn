@@ -62,7 +62,13 @@ acquire_sbt_jar () {
   if [ -n "$DEFAULT_ARTIFACT_REPOSITORY" ]; then
       export SBT_OPTS="$SBT_OPTS -Dceleborn.sbt.default.artifact.repository=${DEFAULT_ARTIFACT_REPOSITORY}"
   fi
-  URL1=${DEFAULT_ARTIFACT_REPOSITORY:-https://repo1.maven.org/maven2/}org/scala-sbt/sbt-launch/${SBT_VERSION}/sbt-launch-${SBT_VERSION}.jar
+  SBT_LAUNCH_PATH=org/scala-sbt/sbt-launch/${SBT_VERSION}/sbt-launch-${SBT_VERSION}.jar
+  if [ -n "$DEFAULT_ARTIFACT_REPOSITORY" ]; then
+    URLS="${DEFAULT_ARTIFACT_REPOSITORY}${SBT_LAUNCH_PATH}"
+  else
+    # Fall back to Google's Maven Central mirror when repo1 is unreachable or rate limited.
+    URLS="https://repo1.maven.org/maven2/${SBT_LAUNCH_PATH} https://maven-central.storage-download.googleapis.com/maven2/${SBT_LAUNCH_PATH}"
+  fi
   JAR=build/sbt-launch-${SBT_VERSION}.jar
 
   sbt_jar=$JAR
@@ -73,16 +79,25 @@ acquire_sbt_jar () {
     # Download
     printf "Attempting to fetch sbt\n"
     JAR_DL="${JAR}.part"
-    if [ $(command -v curl) ]; then
-      curl --fail --location --silent ${URL1} > "${JAR_DL}" &&\
-        mv "${JAR_DL}" "${JAR}"
-    elif [ $(command -v wget) ]; then
-      wget --quiet ${URL1} -O "${JAR_DL}" &&\
-        mv "${JAR_DL}" "${JAR}"
-    else
-      printf "You do not have curl or wget installed, please install sbt manually from https://www.scala-sbt.org/\n"
-      exit -1
+    CURL_RETRY_OPTS="--retry 3 --retry-delay 5"
+    # --retry alone skips DNS, connection and 403 errors; --retry-all-errors needs curl 7.71+.
+    if [ $(command -v curl) ] && curl --help all 2>/dev/null | grep -q -- "--retry-all-errors"; then
+      CURL_RETRY_OPTS="${CURL_RETRY_OPTS} --retry-all-errors"
     fi
+    for URL in ${URLS}; do
+      if [ $(command -v curl) ]; then
+        curl --fail --location --silent --show-error ${CURL_RETRY_OPTS} ${URL} > "${JAR_DL}" &&\
+          mv "${JAR_DL}" "${JAR}"
+      elif [ $(command -v wget) ]; then
+        wget --quiet --tries=4 --waitretry=5 ${URL} -O "${JAR_DL}" &&\
+          mv "${JAR_DL}" "${JAR}"
+      else
+        printf "You do not have curl or wget installed, please install sbt manually from https://www.scala-sbt.org/\n"
+        exit -1
+      fi
+      [ -f "${JAR}" ] && break
+      printf "Failed to fetch sbt from ${URL}\n"
+    done
     fi
     if [ ! -f "${JAR}" ]; then
     # We failed to download
