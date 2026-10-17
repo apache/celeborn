@@ -56,6 +56,10 @@ class ApplicationHeartbeater(
   private var appHeartbeat: ScheduledFuture[_] = _
 
   def start(): Unit = {
+    if (!conf.testAppHeartbeatEnabled) {
+      logInfo(s"Application heartbeat of $appId is disabled for test.")
+      return
+    }
     appHeartbeat = appHeartbeatHandlerThread.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = {
@@ -175,7 +179,9 @@ class ApplicationHeartbeater(
       if (!stopped) {
         // Stop appHeartbeat first
         logInfo(s"Stop Application heartbeat $appId")
-        appHeartbeat.cancel(true)
+        if (appHeartbeat != null) {
+          appHeartbeat.cancel(true)
+        }
         ThreadUtils.shutdown(appHeartbeatHandlerThread)
         if (applicationUnregisterEnabled) {
           unregisterApplication()
