@@ -59,6 +59,8 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   private final ConcurrentHashMap<Long, RpcResponseCallback> outstandingRpcs;
   private final ConcurrentHashMap<Long, PushRequestInfo> outstandingPushes;
 
+  private volatile StatusCode pushTimeoutCloseStatus;
+
   /** Records the time (in system nanoseconds) that the last fetch or RPC request was sent. */
   private final AtomicLong timeOfLastRequestNs;
 
@@ -129,6 +131,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
   }
 
   public void failExpiredPushRequest() {
+    StatusCode timeoutStatus = pushTimeoutStatus();
     long currentTime = System.currentTimeMillis();
     Iterator<Map.Entry<Long, PushRequestInfo>> iter = outstandingPushes.entrySet().iterator();
     while (iter.hasNext()) {
@@ -139,21 +142,36 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
           if (info.channelFuture != null) {
             info.channelFuture.cancel(true);
           }
+          if (timeoutStatus != null && info.hasTimeoutHandler()) {
+            pushTimeoutCloseStatus = timeoutStatus;
+          }
           info.handleTimeout();
-          String module = conf.getModuleName();
-          // When module name equals to DATA_MODULE, mean shuffle client push data, else means
-          // do data replication.
-          if (TransportModuleConstants.DATA_MODULE.equals(module)) {
-            info.callback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_TIMEOUT_PRIMARY));
-          } else if (TransportModuleConstants.PUSH_MODULE.equals(module)
-              || TransportModuleConstants.REPLICATE_MODULE.equals(module)) {
-            info.callback.onFailure(new CelebornIOException(StatusCode.PUSH_DATA_TIMEOUT_REPLICA));
+          if (timeoutStatus != null) {
+            info.callback.onFailure(new CelebornIOException(timeoutStatus));
           }
           info.channelFuture = null;
           info.callback = null;
         }
       }
     }
+  }
+
+  private StatusCode pushTimeoutStatus() {
+    String module = conf.getModuleName();
+    // When module name equals to DATA_MODULE, mean shuffle client push data, else means
+    // do data replication.
+    if (TransportModuleConstants.DATA_MODULE.equals(module)) {
+      return StatusCode.PUSH_DATA_TIMEOUT_PRIMARY;
+    } else if (TransportModuleConstants.PUSH_MODULE.equals(module)
+        || TransportModuleConstants.REPLICATE_MODULE.equals(module)) {
+      return StatusCode.PUSH_DATA_TIMEOUT_REPLICA;
+    }
+    return null;
+  }
+
+  private Throwable pushFailureCause(Throwable cause) {
+    StatusCode timeoutStatus = pushTimeoutCloseStatus;
+    return timeoutStatus == null ? cause : new CelebornIOException(timeoutStatus, cause);
   }
 
   public void failExpiredFetchRequest() {
@@ -256,7 +274,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
         long requestId = pushRequestIter.next();
         PushRequestInfo info = removePushRequest(requestId);
         if (info != null) {
-          info.callback.onFailure(cause);
+          info.callback.onFailure(pushFailureCause(cause));
         }
       } catch (Exception e) {
         logger.warn("RpcResponseCallback.onFailure throws exception", e);
@@ -437,7 +455,7 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
     if (info != null) {
       RpcResponseCallback callback = info.callback;
       if (callback != null) {
-        callback.onFailure(new CelebornIOException(errorMsg, cause));
+        callback.onFailure(pushFailureCause(new CelebornIOException(errorMsg, cause)));
       } else {
         logger.warn(
             "PushRequestInfo {} callback is null when handle push request failure", pushRequestId);
