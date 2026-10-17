@@ -41,6 +41,10 @@ public class PushRequestInfo {
     this.channelFuture = future;
   }
 
+  public boolean hasTimeoutHandler() {
+    return timeoutHandler != null;
+  }
+
   public void handleTimeout() {
     if (timeoutHandler != null) {
       timeoutHandler.run();
