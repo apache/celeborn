@@ -72,10 +72,8 @@ public class RemoteShuffleMasterSuiteJ {
     int startPort = Utils$.MODULE$.selectRandomInt(1024, 65535);
     configuration.setString("celeborn.master.port", String.valueOf(startPort));
     configuration.setString("celeborn.master.endpoints", "localhost:" + startPort);
-    // Set a large app heartbeat interval to avoid the app heartbeater resetting
-    // LifecycleManager#shuffleCount/shuffleFallbackCounts via sumThenReset in the
-    // middle of a test, which makes the count assertions below flaky.
-    configuration.setString("celeborn.client.application.heartbeatInterval", "1h");
+    configuration.setString(
+        CelebornConf.TEST_CLIENT_APPLICATION_HEARTBEAT_ENABLED().key(), "false");
     remoteShuffleMaster = createShuffleMaster(configuration);
   }
 
