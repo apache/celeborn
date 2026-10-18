@@ -254,13 +254,14 @@ class ReducePartitionCommitHandler(
 
     // collect result
     if (!dataLost) {
-      collectResult(
+      collectResultAndReleaseHdfsReplicas(
         shuffleId,
         shuffleCommittedInfo,
         getPartitionUniqueIds(shuffleCommittedInfo.committedPrimaryIds),
         getPartitionUniqueIds(shuffleCommittedInfo.committedReplicaIds),
-        parallelCommitResult.primaryPartitionLocationMap,
-        parallelCommitResult.replicaPartitionLocationMap)
+        parallelCommitResult,
+        allocatedWorkers,
+        lifecycleManager.releaseReplicaSlotsAsync(shuffleId, _))
     }
 
     (dataLost, parallelCommitResult.commitFilesFailedWorkers)
