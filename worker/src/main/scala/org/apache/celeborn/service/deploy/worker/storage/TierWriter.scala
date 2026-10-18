@@ -130,6 +130,7 @@ abstract class TierWriterBase(
   // close and destroy need to be invoked in synchronized blocks
   def close(): Long = {
     ensureNotClosed()
+    var closeStreamsError: IOException = null
     try {
       waitOnNoPending(numPendingWrites, false)
       closed = true
@@ -143,7 +144,13 @@ abstract class TierWriterBase(
       } catch {
         case e: IOException =>
           logWarning(s"close file writer $this failed", e)
+          if (failCommitOnCloseStreamsError) {
+            closeStreamsError = e
+          }
       }
+    }
+    if (closeStreamsError != null) {
+      throw closeStreamsError
     }
     committed = true
     notifyFileCommitted()
@@ -193,6 +200,8 @@ abstract class TierWriterBase(
   }
 
   def closeStreams(): Unit
+
+  protected def failCommitOnCloseStreamsError: Boolean = false
 
   def genFlushTask(finalFlush: Boolean, keepBuffer: Boolean): FlushTask
 
@@ -556,7 +565,6 @@ class DfsTierWriter(
   flusherBufferSize = conf.workerHdfsFlusherBufferSize
   private val flushWorkerIndex: Int = flusher.getWorkerIndex
   val hadoopFs: FileSystem = StorageManager.hadoopFs.get(storageType)
-  var deleted = false
   private var hdfsStream: FSDataOutputStream = null
   private val workerReuseHdfsOutputStreamEnabled = conf.workerReuseHdfsOuputSteamEnabled
   private var s3MultipartUploadHandler: MultipartUploadHandler = _
@@ -691,39 +699,36 @@ class DfsTierWriter(
     }
   }
 
+  // A copy whose data stream or index failed to close is unreadable, so it must not count as
+  // committed. S3/OSS upload completion failures are unchecked and already fail the commit.
+  override protected def failCommitOnCloseStreamsError: Boolean = true
+
+  // .success goes last, after the index and the upload are complete.
   override def closeStreams(): Unit = {
     closeHdfsStream()
-    if (hadoopFs.exists(dfsFileInfo.getDfsPeerWriterSuccessPath)) {
-      hadoopFs.delete(dfsFileInfo.getDfsPath, false)
-      deleted = true
-    } else {
-      val retryCount = conf.workerWriterHdfsCreateAuxiliaryFileMaxRetries
-      val retryWait = conf.workerWriterHdfsCreateAuxiliaryFileRetryWait
+    val retryCount = conf.workerWriterHdfsCreateAuxiliaryFileMaxRetries
+    val retryWait = conf.workerWriterHdfsCreateAuxiliaryFileRetryWait
+    if (dfsFileInfo.isReduceFileMeta) {
       Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
-        hadoopFs.create(dfsFileInfo.getDfsWriterSuccessPath).close()
-      }
-      if (dfsFileInfo.isReduceFileMeta) {
-        Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
-          if (hadoopFs.exists(dfsFileInfo.getDfsIndexPath)) {
-            hadoopFs.delete(dfsFileInfo.getDfsIndexPath, true)
+        if (hadoopFs.exists(dfsFileInfo.getDfsIndexPath)) {
+          hadoopFs.delete(dfsFileInfo.getDfsIndexPath, true)
+        }
+        val indexOutputStream = hadoopFs.create(dfsFileInfo.getDfsIndexPath)
+        hadoopFs.setReplication(
+          dfsFileInfo.getDfsIndexPath,
+          conf.workerDfsReplicationFactor.toShort)
+        val byteStream: ByteArrayOutputStream = new ByteArrayOutputStream()
+        val dataStream = new DataOutputStream(byteStream)
+        try {
+          dataStream.writeInt(dfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
+          dfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala.foreach(dataStream.writeLong(_))
+          indexOutputStream.write(byteStream.toByteArray)
+        } finally {
+          if (dataStream != null) {
+            dataStream.close()
           }
-          val indexOutputStream = hadoopFs.create(dfsFileInfo.getDfsIndexPath)
-          hadoopFs.setReplication(
-            dfsFileInfo.getDfsIndexPath,
-            conf.workerDfsReplicationFactor.toShort)
-          val byteStream: ByteArrayOutputStream = new ByteArrayOutputStream()
-          val dataStream = new DataOutputStream(byteStream)
-          try {
-            dataStream.writeInt(dfsFileInfo.getReduceFileMeta.getChunkOffsets.size)
-            dfsFileInfo.getReduceFileMeta.getChunkOffsets.asScala.foreach(dataStream.writeLong(_))
-            indexOutputStream.write(byteStream.toByteArray)
-          } finally {
-            if (dataStream != null) {
-              dataStream.close()
-            }
-            if (indexOutputStream != null) {
-              indexOutputStream.close()
-            }
+          if (indexOutputStream != null) {
+            indexOutputStream.close()
           }
         }
       }
@@ -735,6 +740,15 @@ class DfsTierWriter(
     if (ossMultipartUploadHandler != null) {
       ossMultipartUploadHandler.complete()
       ossMultipartUploadHandler.close()
+    }
+    try {
+      Utils.withRetryOnTimeoutOrIOException(retryCount, retryWait) {
+        hadoopFs.create(dfsFileInfo.getDfsWriterSuccessPath).close()
+      }
+    } catch {
+      // Readers do not need the marker, so a missing one must not fail a readable copy.
+      case e: IOException =>
+        logWarning(s"Failed to create ${dfsFileInfo.getDfsWriterSuccessPath}", e)
     }
   }
 

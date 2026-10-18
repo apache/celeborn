@@ -407,8 +407,9 @@ private[deploy] class Controller(
                   logDebug(
                     s"Commit file $shuffleKey $uniqueId ${fileWriter.getFilePath} success fileSize: $bytes")
                   if (fileWriter.getStorageInfo == null) {
-                    // Only HDFS can be null, means that this partition location is deleted.
-                    logDebug(s"Location $uniqueId is deleted.")
+                    // A non-empty file must be reported, or the client cannot detect its loss.
+                    logError(s"Location $uniqueId has no storage info, treat as failed.")
+                    failedIds.add(uniqueId)
                   } else {
                     val storageInfo = fileWriter.getStorageInfo
                     committedStorageInfos.put(uniqueId, storageInfo)
