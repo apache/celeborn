@@ -104,12 +104,16 @@ object PbSerDeUtils {
       case PartitionType.REDUCE =>
         new ReduceFileMeta(pbFileInfo.getChunkOffsetsList)
       case PartitionType.MAP =>
+        // Protobuf cannot tell an empty field from an unset one; restore both as null, which
+        // is what MapFileMeta#hasPartitionSegmentIds reads as "no segments recorded".
         val fileMeta = new MapFileMeta(
           pbFileInfo.getBufferSize,
           pbFileInfo.getNumSubpartitions,
           pbFileInfo.getIsSegmentGranularityVisible,
-          pbFileInfo.getPartitionWritingSegmentMap,
-          fromPbSegmentIndexList(pbFileInfo.getSegmentIndexList))
+          if (pbFileInfo.getPartitionWritingSegmentCount == 0) null
+          else pbFileInfo.getPartitionWritingSegmentMap,
+          if (pbFileInfo.getSegmentIndexCount == 0) null
+          else fromPbSegmentIndexList(pbFileInfo.getSegmentIndexList))
         // writer always closed as this is committed file info.
         fileMeta.setIsWriterClosed(true)
         fileMeta
@@ -161,9 +165,14 @@ object PbSerDeUtils {
       builder.setBufferSize(mapFileMeta.getBufferSize)
       builder.setNumSubpartitions(mapFileMeta.getNumSubpartitions)
       builder.setIsSegmentGranularityVisible(mapFileMeta.isSegmentGranularityVisible)
-      builder.putAllPartitionWritingSegment(mapFileMeta.getSubPartitionWritingSegmentId)
-      builder.addAllSegmentIndex(
-        mapFileMeta.getSubPartitionSegmentIndexes.asScala.map(toPbSegmentIndex).asJava)
+      // Both are created lazily on the first segment: null without segment granularity.
+      if (mapFileMeta.getSubPartitionWritingSegmentId != null) {
+        builder.putAllPartitionWritingSegment(mapFileMeta.getSubPartitionWritingSegmentId)
+      }
+      if (mapFileMeta.getSubPartitionSegmentIndexes != null) {
+        builder.addAllSegmentIndex(
+          mapFileMeta.getSubPartitionSegmentIndexes.asScala.map(toPbSegmentIndex).asJava)
+      }
     } else {
       val reduceFileMeta = fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta]
       builder.setPartitionType(PartitionType.REDUCE.getValue)
