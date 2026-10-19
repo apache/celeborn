@@ -1521,6 +1521,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testPushPrimaryDataTimeout: Boolean = get(TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT)
   def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
+  def testAppHeartbeatEnabled: Boolean = get(TEST_CLIENT_APPLICATION_HEARTBEAT_ENABLED)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
   def testProcessEndpointVerifierSeparate: Boolean = get(TEST_RPC_ENDPOINT_VERIFIER_SEPARATE)
   def clientFlinkMemoryPerResultPartition: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION)
@@ -5274,6 +5275,17 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
+
+  val TEST_CLIENT_APPLICATION_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.client.application.heartbeat.enabled")
+      .internal
+      .categories("test", "client")
+      .doc("Whether LifecycleManager schedules the application heartbeat to master. Only for " +
+        "tests without a master, whose assertions on shuffle metrics would otherwise race with " +
+        "the heartbeat resetting them.")
+      .version("1.0.0")
+      .booleanConf
+      .createWithDefault(true)
 
   val CLIENT_FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.timeout")
