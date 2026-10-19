@@ -139,11 +139,11 @@ public class TransportResponseHandler extends MessageHandler<ResponseMessage> {
       if (entry.getValue().dueTime <= currentTime) {
         PushRequestInfo info = removePushRequest(entry.getKey());
         if (info != null) {
-          if (info.channelFuture != null) {
-            info.channelFuture.cancel(true);
-          }
           if (timeoutStatus != null && info.hasTimeoutHandler()) {
             pushTimeoutCloseStatus = timeoutStatus;
+          }
+          if (info.channelFuture != null) {
+            info.channelFuture.cancel(true);
           }
           info.handleTimeout();
           if (timeoutStatus != null) {

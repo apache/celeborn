@@ -18,13 +18,17 @@
 package org.apache.celeborn.common.network;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.*;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelPromise;
+import io.netty.channel.DefaultChannelPromise;
 import io.netty.channel.local.LocalChannel;
+import io.netty.util.concurrent.ImmediateEventExecutor;
 import org.junit.Test;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
@@ -241,6 +245,42 @@ public class TransportResponseHandlerSuiteJ {
         3, "Failed to send request PUSH 3 to <unknown remote>", new ClosedChannelException());
     verify(writeFailedCallback)
         .onFailure(failureStartingWith(StatusCode.PUSH_DATA_TIMEOUT_PRIMARY));
+  }
+
+  @Test
+  public void failOtherPushesWithTimeoutStatusWhenCancelledWriteClosesChannel() {
+    TransportResponseHandler handler =
+        new TransportResponseHandler(
+            Utils.fromCelebornConf(new CelebornConf(), TransportModuleConstants.DATA_MODULE, 8),
+            new LocalChannel());
+    RpcResponseCallback expiredCallback = mock(RpcResponseCallback.class);
+    RpcResponseCallback pendingCallback = mock(RpcResponseCallback.class);
+    PushRequestInfo expiredInfo =
+        new PushRequestInfo(System.currentTimeMillis() - 1, expiredCallback, mock(Runnable.class));
+    // A still-queued write: cancelling it notifies the listener inline, which closes the channel
+    // like PushChannelListener does on write failure.
+    ChannelPromise pushFuture =
+        new DefaultChannelPromise(new LocalChannel(), ImmediateEventExecutor.INSTANCE);
+    pushFuture.addListener(
+        future -> {
+          if (!future.isSuccess()) {
+            handler.channelInactive();
+            handler.handlePushFailure(1, "Failed to send request PUSH 1", future.cause());
+          }
+        });
+    expiredInfo.setChannelFuture(pushFuture);
+    handler.addPushRequest(1, expiredInfo);
+    handler.addPushRequest(
+        2,
+        new PushRequestInfo(
+            System.currentTimeMillis() + 30000L, pendingCallback, mock(Runnable.class)));
+
+    handler.failExpiredPushRequest();
+
+    assertTrue(pushFuture.isCancelled());
+    verify(expiredCallback).onFailure(failureStartingWith(StatusCode.PUSH_DATA_TIMEOUT_PRIMARY));
+    verify(pendingCallback).onFailure(failureStartingWith(StatusCode.PUSH_DATA_TIMEOUT_PRIMARY));
+    assertEquals(0, handler.numOutstandingRequests());
   }
 
   @Test
