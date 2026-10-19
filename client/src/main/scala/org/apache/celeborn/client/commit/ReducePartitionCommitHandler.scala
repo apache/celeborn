@@ -154,7 +154,8 @@ class ReducePartitionCommitHandler(
       if (allocatedWorkers != null) {
         return workerStatusTracker.excludedWorkers.asScala.collect {
           case (workerId, (status, _))
-              if status == StatusCode.WORKER_UNKNOWN && allocatedWorkers.contains(workerId) =>
+              if status == StatusCode.WORKER_UNKNOWN &&
+                allocatedWorkers.containsKey(workerId.toUniqueId) =>
             workerId
         }.nonEmpty
       }
