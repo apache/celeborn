@@ -40,8 +40,8 @@ jobs:
       uses: actions/cache@v4
       with:
         path: build/apache-maven-*
-        key: maven-distribution-${{ hashFiles('pom.xml') }}
-        restore-keys: maven-distribution-
+        key: maven-distribution-${{ runner.os }}-${{ hashFiles('pom.xml') }}
+        restore-keys: maven-distribution-${{ runner.os }}-
     - name: Test Service with Maven
       run: build/mvn -Pgoogle-mirror test
     - name: Upload test log
@@ -108,8 +108,8 @@ jobs:
       uses: actions/cache@v4
       with:
         path: build/apache-maven-*
-        key: maven-distribution-${{ hashFiles('pom.xml') }}
-        restore-keys: maven-distribution-
+        key: maven-distribution-${{ runner.os }}-${{ hashFiles('pom.xml') }}
+        restore-keys: maven-distribution-${{ runner.os }}-
     - name: Test with Maven
       run: |
         SPARK_BINARY_VERSION=${{ matrix.spark }}
@@ -154,8 +154,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/apache-maven-*
-          key: maven-distribution-${{ hashFiles('pom.xml') }}
-          restore-keys: maven-distribution-
+          key: maven-distribution-${{ runner.os }}-${{ hashFiles('pom.xml') }}
+          restore-keys: maven-distribution-${{ runner.os }}-
       - name: Test with Maven
         run: |
           SPARK_BINARY_VERSION=${{ matrix.spark }}
@@ -199,8 +199,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/apache-maven-*
-          key: maven-distribution-${{ hashFiles('pom.xml') }}
-          restore-keys: maven-distribution-
+          key: maven-distribution-${{ runner.os }}-${{ hashFiles('pom.xml') }}
+          restore-keys: maven-distribution-${{ runner.os }}-
       - name: Test with Maven
         run: |
           PROFILES="-Pgoogle-mirror,flink-${{ matrix.flink }}"
@@ -242,8 +242,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/apache-maven-*
-          key: maven-distribution-${{ hashFiles('pom.xml') }}
-          restore-keys: maven-distribution-
+          key: maven-distribution-${{ runner.os }}-${{ hashFiles('pom.xml') }}
+          restore-keys: maven-distribution-${{ runner.os }}-
       - name: Test with Maven
         run: |
           PROFILES="-Pgoogle-mirror,flink-${{ matrix.flink }}"
@@ -280,8 +280,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/apache-maven-*
-          key: maven-distribution-${{ hashFiles('pom.xml') }}
-          restore-keys: maven-distribution-
+          key: maven-distribution-${{ runner.os }}-${{ hashFiles('pom.xml') }}
+          restore-keys: maven-distribution-${{ runner.os }}-
       - name: Test with Maven
         run: |
           PROFILES="-Pgoogle-mirror,mr"
