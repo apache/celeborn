@@ -86,7 +86,7 @@ acquire_sbt_jar () {
     fi
     for URL in ${URLS}; do
       if [ $(command -v curl) ]; then
-        curl --fail --location --silent --show-error ${CURL_RETRY_OPTS} ${URL} > "${JAR_DL}" &&\
+        curl --fail --location --silent --show-error ${CURL_RETRY_OPTS} --output "${JAR_DL}" ${URL} &&\
           mv "${JAR_DL}" "${JAR}"
       elif [ $(command -v wget) ]; then
         wget --quiet --tries=4 --waitretry=5 ${URL} -O "${JAR_DL}" &&\
