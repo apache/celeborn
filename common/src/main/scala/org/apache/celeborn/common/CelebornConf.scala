@@ -1493,6 +1493,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def columnarShuffleEnabled: Boolean = get(COLUMNAR_SHUFFLE_ENABLED)
   def columnarShuffleBatchSize: Int = get(COLUMNAR_SHUFFLE_BATCH_SIZE)
+  def columnarShuffleBatchSizeInBytesEnabled: Boolean =
+    get(COLUMNAR_SHUFFLE_BATCH_SIZE_IN_BYTES_ENABLED)
+  def columnarShuffleBatchSizeInBytesThreshold: Long =
+    get(COLUMNAR_SHUFFLE_BATCH_SIZE_IN_BYTES_THRESHOLD)
   def columnarShuffleOffHeapEnabled: Boolean = get(COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED)
   def columnarShuffleDictionaryEnabled: Boolean = get(COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_ENABLED)
   def columnarShuffleDictionaryMaxFactor: Double =
@@ -6265,6 +6269,31 @@ object CelebornConf extends Logging {
       .intConf
       .checkValue(v => v > 0, "Value must be positive")
       .createWithDefault(10000)
+
+  val COLUMNAR_SHUFFLE_BATCH_SIZE_IN_BYTES_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.columnarShuffle.batch.sizeInBytes.enabled")
+      .categories("columnar-shuffle")
+      .version("1.0.0")
+      .doc("Whether to also push a columnar batch once its estimated size in bytes reaches " +
+        "`celeborn.columnarShuffle.batch.sizeInBytes.threshold`, in addition to the row " +
+        s"limit `${COLUMNAR_SHUFFLE_BATCH_SIZE.key}`. This limits how much row data each " +
+        "partition buffers when rows are wide, e.g. with long strings. Column buffers are " +
+        s"still pre-sized for `${COLUMNAR_SHUFFLE_BATCH_SIZE.key}` rows.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_SHUFFLE_BATCH_SIZE_IN_BYTES_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.columnarShuffle.batch.sizeInBytes.threshold")
+      .categories("columnar-shuffle")
+      .version("1.0.0")
+      .doc("Estimated size in bytes at which a columnar batch is pushed, when " +
+        "`celeborn.columnarShuffle.batch.sizeInBytes.enabled` is true. The size is estimated " +
+        "from the uncompressed size of the rows added to the batch. The default matches " +
+        s"`${CLIENT_PUSH_BUFFER_MAX_SIZE.key}`, the per-partition buffer of the row-based " +
+        "hash writer.")
+      .bytesConf(ByteUnit.BYTE)
+      .checkValue(v => v > 0, "Value must be positive")
+      .createWithDefaultString("64k")
 
   val COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.columnarShuffle.offHeap.enabled")
