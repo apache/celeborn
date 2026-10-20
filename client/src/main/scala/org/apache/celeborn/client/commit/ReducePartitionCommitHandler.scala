@@ -152,12 +152,11 @@ class ReducePartitionCommitHandler(
     if (conf.clientShuffleDataLostOnUnknownWorkerEnabled && !conf.clientPushReplicateEnabled) {
       val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
       if (allocatedWorkers != null) {
-        return workerStatusTracker.excludedWorkers.asScala.collect {
-          case (workerId, (status, _))
-              if status == StatusCode.WORKER_UNKNOWN &&
-                allocatedWorkers.containsKey(workerId.toUniqueId) =>
-            workerId
-        }.nonEmpty
+        return workerStatusTracker.excludedWorkers.asScala.exists {
+          case (workerId, (status, _)) =>
+            status == StatusCode.WORKER_UNKNOWN &&
+              allocatedWorkers.containsKey(workerId.toUniqueId)
+        }
       }
     }
     false
