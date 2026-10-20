@@ -170,5 +170,7 @@ class LifecycleManagerReserveSlotsSuite extends AnyFunSuite
     assert(partitionLocationMap2.get(partitions(0)).getEpoch > 0)
     // epoch of partition(1) is 0 without split
     assert(partitionLocationMap2.get(partitions(1)).getEpoch == 0)
+
+    lifecycleManager.stop()
   }
 }
