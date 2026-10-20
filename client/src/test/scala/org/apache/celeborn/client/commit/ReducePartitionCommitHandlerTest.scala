@@ -25,14 +25,14 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Millis, Seconds, Span}
 
 import org.apache.celeborn.CelebornFunSuite
-import org.apache.celeborn.client.WorkerStatusTracker
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.ShuffleAllocatedWorkers
+import org.apache.celeborn.client.WorkerStatusTracker
 import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.util.ThreadUtils
 
 class ReducePartitionCommitHandlerTest extends CelebornFunSuite with Eventually {
-  override implicit val patienceConfig: PatienceConfig =
+  implicit override val patienceConfig: PatienceConfig =
     PatienceConfig(timeout = Span(10, Seconds), interval = Span(10, Millis))
 
   private var rpcPool: ThreadPoolExecutor = _
