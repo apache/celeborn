@@ -117,15 +117,9 @@ public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterS
 
     // Without it, only the row limit applies and all rows stay in one batch.
     assertArrayEquals(new int[] {30}, writeAndGetBatchRowCounts(new CelebornConf(), 30));
-  }
 
-  @Test
-  public void testRowLimitWithByteLimitEnabled() throws Exception {
-    final CelebornConf conf =
-        new CelebornConf()
-            .set(CelebornConf.COLUMNAR_SHUFFLE_BATCH_SIZE_IN_BYTES_ENABLED().key(), "true")
-            .set(CelebornConf.COLUMNAR_SHUFFLE_BATCH_SIZE_IN_BYTES_THRESHOLD().key(), "1k")
-            .set(CelebornConf.COLUMNAR_SHUFFLE_BATCH_SIZE().key(), "3");
+    // The row limit still applies when byte-based batching is enabled.
+    conf.set(CelebornConf.COLUMNAR_SHUFFLE_BATCH_SIZE().key(), "3");
     assertArrayEquals(new int[] {3, 3, 3, 1}, writeAndGetBatchRowCounts(conf, 10));
   }
 
@@ -208,16 +202,13 @@ public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterS
     for (Map.Entry<Integer, List<byte[]>> partition : batches.entrySet()) {
       List<UnsafeRow> actual = new ArrayList<>();
       for (byte[] batch : partition.getValue()) {
-        DeserializationStream stream =
+        try (DeserializationStream stream =
             newSerializerInstance(new UnsafeRowSerializer(2, null))
-                .deserializeStream(new ByteArrayInputStream(batch));
-        try {
+                .deserializeStream(new ByteArrayInputStream(batch))) {
           Iterator<Tuple2<Object, Object>> rows = stream.asKeyValueIterator();
           while (rows.hasNext()) {
             actual.add(((UnsafeRow) rows.next()._2()).copy());
           }
-        } finally {
-          stream.close();
         }
       }
       assertEquals(expected.get(partition.getKey()), actual);
