@@ -102,7 +102,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
           case StorageInfo.Type.MEMORY =>
             if (!memoryFileStorageReplicaEnabled
               && location.getMode == PartitionLocation.Mode.REPLICA) {
-              logDebug(s"Skip memory file for replica ${partitionDataWriterContext.getShuffleKey} ${location.getFileName}")
+              logDebug(s"Skip memory file for replica ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")
               null
             } else if (location.getStorageInfo.memoryAvailable() && MemoryManager.instance().memoryFileStorageAvailable()) {
               logDebug(s"Create memory file for ${partitionDataWriterContext.getShuffleKey} ${partitionDataWriterContext.getPartitionLocation.getFileName}")

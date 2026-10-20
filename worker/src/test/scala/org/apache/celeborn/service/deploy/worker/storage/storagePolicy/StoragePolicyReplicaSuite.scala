@@ -69,29 +69,71 @@ class StoragePolicyReplicaSuite extends CelebornFunSuite {
 
   private def createWriter(
       mode: PartitionLocation.Mode,
-      replicaEnabled: Option[Boolean]): TierWriterBase = {
+      replicaEnabled: Option[Boolean],
+      evict: Boolean = false): TierWriterBase = {
     val context = mock[PartitionDataWriterContext]
-    when(context.getPartitionLocation).thenAnswer(
-      new PartitionLocation(1, 1, "h1", 1, 2, 3, 4, mode))
+    val location = new PartitionLocation(1, 1, "h1", 1, 2, 3, 4, mode)
+    location.setStorageInfo(new StorageInfo(
+      "mountpoint",
+      StorageInfo.Type.SSD,
+      StorageInfo.MEMORY_MASK | StorageInfo.LOCAL_DISK_MASK))
+    when(context.getPartitionLocation).thenAnswer(location)
     when(context.getPartitionType).thenAnswer(PartitionType.REDUCE)
     val conf = new CelebornConf()
     conf.set("celeborn.worker.storage.storagePolicy.createFilePolicy", "MEMORY,SSD,HDD,HDFS,OSS,S3")
+    conf.set(CelebornConf.WORKER_STORAGE_EVICT_POLICY.key, "SSD,MEMORY,HDD")
     replicaEnabled.foreach(v =>
       conf.set(CelebornConf.WORKER_MEMORY_FILE_STORAGE_REPLICA_ENABLED.key, v.toString))
-    new StoragePolicy(conf, mockedStorageManager, mockedSource)
-      .createFileWriter(context, new AtomicInteger(), new FlushNotifier)
+    val storagePolicy = new StoragePolicy(conf, mockedStorageManager, mockedSource)
+    if (evict) {
+      val writer = mock[LocalTierWriter]
+      when(writer.storageType).thenAnswer(StorageInfo.Type.SSD)
+      storagePolicy.getEvictedFileWriter(
+        writer,
+        context,
+        new AtomicInteger(),
+        new FlushNotifier)
+    } else {
+      storagePolicy.createFileWriter(context, new AtomicInteger(), new FlushNotifier)
+    }
   }
 
   test("primary partition uses memory file storage") {
     assert(createWriter(PartitionLocation.Mode.PRIMARY, None).isInstanceOf[MemoryTierWriter])
   }
 
-  test("replica partition skips memory file storage by default") {
-    assert(createWriter(PartitionLocation.Mode.REPLICA, None).isInstanceOf[LocalTierWriter])
+  test("primary partition uses memory file storage when replica memory storage is disabled") {
+    assert(createWriter(PartitionLocation.Mode.PRIMARY, Some(false)).isInstanceOf[MemoryTierWriter])
+  }
+
+  test("replica partition uses memory file storage by default") {
+    assert(createWriter(PartitionLocation.Mode.REPLICA, None).isInstanceOf[MemoryTierWriter])
+  }
+
+  test("replica partition skips memory file storage when disabled") {
+    assert(createWriter(PartitionLocation.Mode.REPLICA, Some(false)).isInstanceOf[LocalTierWriter])
   }
 
   test("replica partition uses memory file storage when enabled") {
     assert(
       createWriter(PartitionLocation.Mode.REPLICA, Some(true)).isInstanceOf[MemoryTierWriter])
+  }
+
+  test("replica eviction can target memory file storage by default") {
+    assert(
+      createWriter(PartitionLocation.Mode.REPLICA, None, evict = true)
+        .isInstanceOf[MemoryTierWriter])
+  }
+
+  test("replica eviction skips memory file storage when disabled") {
+    assert(
+      createWriter(PartitionLocation.Mode.REPLICA, Some(false), evict = true)
+        .isInstanceOf[LocalTierWriter])
+  }
+
+  test("primary eviction can target memory when replica memory storage is disabled") {
+    assert(
+      createWriter(PartitionLocation.Mode.PRIMARY, Some(false), evict = true)
+        .isInstanceOf[MemoryTierWriter])
   }
 }

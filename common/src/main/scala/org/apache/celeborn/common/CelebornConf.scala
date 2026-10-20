@@ -4403,14 +4403,16 @@ object CelebornConf extends Logging {
   val WORKER_MEMORY_FILE_STORAGE_REPLICA_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.memoryFileStorage.replica.enabled")
       .categories("worker")
-      .doc("Whether replica partitions can be stored in memory file storage. Replica data is " +
-        "only read when fetching from the primary fails, so by default replica partitions " +
-        "skip memory file storage and are written to the next storage type in " +
+      .doc("Whether replica partitions can be stored in memory file storage. Enabled by default " +
+        "to preserve existing behavior. When disabled, replica partitions skip MEMORY and " +
+        "fall through to the next eligible storage type in " +
         "`celeborn.worker.storage.storagePolicy.createFilePolicy`, leaving memory for " +
-        "primary partitions.")
+        "primary partitions. This also applies when " +
+        "`celeborn.worker.storage.storagePolicy.evictPolicy` targets MEMORY for replicas. " +
+        "Primary partitions are unaffected.")
       .version("1.0.0")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val WORKER_PUSH_DATA_MERGE_BUFFER_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.pushdata.mergeBuffer.enabled")
