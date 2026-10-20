@@ -2100,7 +2100,8 @@ public class ShuffleClientImpl extends ShuffleClient {
 
     if (locations == null || locations.size() == 0) {
       logger.warn("Shuffle data is empty for shuffle {} partition {}.", shuffleId, partitionId);
-      return CelebornInputStream.empty();
+      return CelebornInputStream.empty(
+          conf, this, shuffleId, partitionId, startMapIndex, endMapIndex);
     } else {
       String shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId);
       assert dataClientFactory != null;
