@@ -338,6 +338,23 @@ class ReducePartitionCommitHandler(
 
       val attempts = shuffleMapperAttempts.get(shuffleId)
       if (attempts(mapId) < 0) {
+        // Aggregate metadata under the shuffle lock before publishing mapper completion.
+        // Otherwise another MapperEnd can finish the stage or acknowledge a duplicate
+        // while this mapper's integrity metadata is still incomplete.
+        if (shuffleIntegrityCheckEnabled) {
+          val commitMetadataArray = commitMetadataForReducer.get(shuffleId)
+          checkState(
+            commitMetadataArray != null,
+            "commitMetadataArray can only be null if shuffleId %s is not registered!",
+            shuffleId)
+          for (i <- 0 until numPartitions) {
+            if (bytesWrittenPerPartition(i) != 0) {
+              commitMetadataArray(i).addCommitData(
+                crc32PerPartition(i),
+                bytesWrittenPerPartition(i))
+            }
+          }
+        }
         attempts(mapId) = attemptId
         // increment completed mappers
         val completedMappers =
@@ -359,20 +376,6 @@ class ReducePartitionCommitHandler(
       } else {
         // Mapper with another attemptId finished, skip this request
         (false, false)
-      }
-    }
-    if (shuffleIntegrityCheckEnabled && mapperAttemptFinishedSuccess) {
-      val commitMetadataArray = commitMetadataForReducer.get(shuffleId)
-      checkState(
-        commitMetadataArray != null,
-        "commitMetadataArray can only be null if shuffleId %s is not registered!",
-        shuffleId)
-      for (i <- 0 until numPartitions) {
-        if (bytesWrittenPerPartition(i) != 0) {
-          commitMetadataArray(i).addCommitData(
-            crc32PerPartition(i),
-            bytesWrittenPerPartition(i))
-        }
       }
     }
     if (!mapperAttemptFinishedSuccess) {
