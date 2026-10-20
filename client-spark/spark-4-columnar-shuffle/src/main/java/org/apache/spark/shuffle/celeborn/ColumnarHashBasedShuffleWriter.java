@@ -53,6 +53,8 @@ public class ColumnarHashBasedShuffleWriter<K, V, C> extends HashBasedShuffleWri
   private final Serializer depSerializer;
   private final boolean isColumnarShuffle;
   private final int columnarShuffleBatchSize;
+  private final long columnarShuffleBatchSizeInBytes;
+  private final long[] celebornBatchBytes;
   private final boolean columnarShuffleCodeGenEnabled;
   private final boolean columnarShuffleDictionaryEnabled;
   private final double columnarShuffleDictionaryMaxFactor;
@@ -68,6 +70,10 @@ public class ColumnarHashBasedShuffleWriter<K, V, C> extends HashBasedShuffleWri
       throws IOException {
     super(shuffleId, handle, taskContext, conf, client, metrics, sendBufferPool);
     columnarShuffleBatchSize = conf.columnarShuffleBatchSize();
+    columnarShuffleBatchSizeInBytes =
+        conf.columnarShuffleBatchSizeInBytesEnabled()
+            ? conf.columnarShuffleBatchSizeInBytesThreshold()
+            : Long.MAX_VALUE;
     columnarShuffleCodeGenEnabled = conf.columnarShuffleCodeGenEnabled();
     columnarShuffleDictionaryEnabled = conf.columnarShuffleDictionaryEnabled();
     columnarShuffleDictionaryMaxFactor = conf.columnarShuffleDictionaryMaxFactor();
@@ -78,6 +84,7 @@ public class ColumnarHashBasedShuffleWriter<K, V, C> extends HashBasedShuffleWri
     this.depSerializer = handle.dependency().serializer();
     this.celebornBatchBuilders =
         new CelebornBatchBuilder[handle.dependency().partitioner().numPartitions()];
+    this.celebornBatchBytes = new long[celebornBatchBuilders.length];
     this.isColumnarShuffle = schema != null && CelebornBatchBuilder.supportsColumnarType(schema);
   }
 
@@ -119,13 +126,16 @@ public class ColumnarHashBasedShuffleWriter<K, V, C> extends HashBasedShuffleWri
       }
 
       celebornBatchBuilders[partitionId].writeRow(row);
-      if (celebornBatchBuilders[partitionId].getRowCnt() >= columnarShuffleBatchSize) {
+      celebornBatchBytes[partitionId] += row.getSizeInBytes();
+      if (celebornBatchBuilders[partitionId].getRowCnt() >= columnarShuffleBatchSize
+          || celebornBatchBytes[partitionId] >= columnarShuffleBatchSizeInBytes) {
         byte[] arr = celebornBatchBuilders[partitionId].buildColumnBytes();
         pushGiantRecord(partitionId, arr, arr.length);
         if (dataSize != null) {
           dataSize.add(arr.length);
         }
         celebornBatchBuilders[partitionId].newBuilders();
+        celebornBatchBytes[partitionId] = 0;
       }
       tmpRecordsWritten++;
     }
