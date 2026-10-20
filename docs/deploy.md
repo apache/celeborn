@@ -214,8 +214,12 @@ shuffle service or Spark shuffle decommissioning is configured. Shuffle decommis
 `spark.decommission.enabled=true` and `spark.storage.decommission.shuffleBlocks.enabled=true`;
 also enable `spark.storage.decommission.enabled` to migrate stored blocks.
 To keep all shuffle data on Celeborn, set `spark.celeborn.client.spark.shuffle.fallback.policy=NEVER`.
-With `CelebornShuffleDataIO` on Spark 3.5 or later, `NEVER` permits disabling shuffle tracking to
-release idle executors promptly, but fails rather than falling back when Celeborn cannot serve a shuffle.
+With `NEVER`, the application fails rather than falling back when Celeborn cannot serve a shuffle.
+Shuffle tracking can then be disabled to release idle executors promptly, but only when Spark's
+dynamic allocation check still passes without it: either use Spark 3.5 or later with
+`spark.shuffle.sort.io.plugin.class=org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO`, or
+enable Spark shuffle decommissioning as described above. Otherwise, for example on Spark 3.4 without
+an external shuffle service or shuffle decommissioning, Spark rejects dynamic allocation at startup.
 
 ## Deploy Flink client
 

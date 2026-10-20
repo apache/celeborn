@@ -60,7 +60,8 @@ public class SparkShuffleManager implements ShuffleManager {
   private static final String SORT_SHUFFLE_MANAGER_NAME =
       "org.apache.spark.shuffle.sort.SortShuffleManager";
 
-  // Decommissioning configs do not exist in Spark 3.0. Read Spark's entries to preserve its defaults.
+  // Decommissioning configs do not exist in Spark 3.0. Read Spark's entries to preserve its
+  // defaults.
   private static final ConfigEntry<Object> DECOMMISSION_ENABLED =
       DynMethods.builder("DECOMMISSION_ENABLED")
           .impl(package$.class)
@@ -141,6 +142,34 @@ public class SparkShuffleManager implements ShuffleManager {
         && !isDecommissionShuffleBlocksEnabled(conf);
   }
 
+  private static boolean isCelebornShuffleDataIOConfigured(SparkConf conf) {
+    String pluginClass = (String) conf.get(package$.MODULE$.SHUFFLE_IO_PLUGIN_CLASS());
+    if (CelebornShuffleDataIO.class.getName().equals(pluginClass)) {
+      return true;
+    }
+    try {
+      ClassLoader loader = Thread.currentThread().getContextClassLoader();
+      if (loader == null) {
+        loader = SparkShuffleManager.class.getClassLoader();
+      }
+      return CelebornShuffleDataIO.class.isAssignableFrom(
+          Class.forName(pluginClass, false, loader));
+    } catch (Throwable t) {
+      return false;
+    }
+  }
+
+  /**
+   * Whether Spark's dynamic-allocation validation still passes after disabling shuffle tracking
+   * under fallback policy NEVER. Without an external shuffle service, Spark requires shuffle
+   * decommissioning or, since Spark 3.5, an IO plugin reporting reliable storage such as {@link
+   * CelebornShuffleDataIO}.
+   */
+  static boolean canDisableShuffleTrackingWithNeverFallback(SparkConf conf) {
+    return isDecommissionShuffleBlocksEnabled(conf)
+        || (SparkVersionUtil.isGreaterThan(3, 4) && isCelebornShuffleDataIOConfigured(conf));
+  }
+
   public SparkShuffleManager(SparkConf conf, boolean isDriver) {
     if (conf.getBoolean(SQLConf.LOCAL_SHUFFLE_READER_ENABLED().key(), true)) {
       logger.warn(
@@ -158,12 +187,27 @@ public class SparkShuffleManager implements ShuffleManager {
               + "but {} is disabled and shuffle decommissioning is not enabled. Enable tracking so fallback "
               + "shuffle output is not lost when idle executors are reclaimed.",
           package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED().key());
-    } else if (neverFallback && shuffleTrackingEnabled) {
+    } else if (neverFallback
+        && shuffleTrackingEnabled
+        && conf.getBoolean("spark.dynamicAllocation.enabled", false)
+        && !conf.getBoolean("spark.shuffle.service.enabled", false)) {
       // Under NEVER all shuffle stays on Celeborn, so tracking only delays releasing executors.
-      logger.warn(
-          "{} is enabled with fallback policy NEVER; it is unnecessary and delays releasing idle "
-              + "executors, so it is recommended to disable it.",
-          package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED().key());
+      // Only recommend disabling it when Spark's DRA validation will still pass without it.
+      if (canDisableShuffleTrackingWithNeverFallback(conf)) {
+        logger.warn(
+            "{} is enabled with fallback policy NEVER; it is unnecessary and delays releasing idle "
+                + "executors, so it is recommended to disable it.",
+            package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED().key());
+      } else {
+        logger.info(
+            "{} is enabled with fallback policy NEVER. Keep it enabled: without the external "
+                + "shuffle service, disabling it requires {}={} on Spark 3.5 or later, or both "
+                + "spark.decommission.enabled and spark.storage.decommission.shuffleBlocks.enabled; "
+                + "otherwise Spark rejects dynamic allocation at startup.",
+            package$.MODULE$.DYN_ALLOCATION_SHUFFLE_TRACKING_ENABLED().key(),
+            package$.MODULE$.SHUFFLE_IO_PLUGIN_CLASS().key(),
+            CelebornShuffleDataIO.class.getName());
+      }
     }
     SparkCommonUtils.validateAttemptConfig(conf);
     this.conf = conf;
