@@ -90,12 +90,13 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
     (false, ((0, 0), new CommitMetadata()))
   }
 
-  override def processSubPartition(
+  override private[commit] def processSubPartition(
       partitionId: Int,
       startMapIndex: Int,
       endMapIndex: Int,
       actualCommitMetadata: CommitMetadata,
-      expectedTotalMapperCount: Int): (Boolean, String) = {
+      expectedTotalMapperCount: Int,
+      allowMetadataReplacement: Boolean): (Boolean, String) = {
     checkArgument(
       startMapIndex < endMapIndex,
       "startMapIndex %s must be less than endMapIndex %s",
@@ -141,11 +142,21 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
           endMapIndex - startMapIndex,
           mapCountMergeBiFunction)
       } else if (existingMetadata != actualCommitMetadata) {
-        val errorMessage = s"Commit Metadata for partition: $partitionId " +
-          s"not matching for sub-partition with startMapIndex: $startMapIndex endMapIndex: $endMapIndex " +
-          s"previous count: $existingMetadata new count: $actualCommitMetadata"
-        logError(errorMessage)
-        return (false, errorMessage)
+        if (!allowMetadataReplacement) {
+          val errorMessage = s"Commit Metadata for partition: $partitionId " +
+            s"not matching for sub-partition with startMapIndex: $startMapIndex endMapIndex: $endMapIndex " +
+            s"previous count: $existingMetadata new count: $actualCommitMetadata"
+          logError(errorMessage)
+          return (false, errorMessage)
+        }
+        subRangeToCommitMetadataMap.put(
+          rangeKey,
+          new CommitMetadata(actualCommitMetadata.getChecksum, actualCommitMetadata.getBytes))
+        // Preserve sibling reports and range coverage while replacing the failed contribution.
+        val updatedMetadata = new CommitMetadata()
+        subRangeToCommitMetadataMap.values().forEach(metadata =>
+          updatedMetadata.addCommitData(metadata))
+        currentCommitMetadataForReducer.put(partitionId, updatedMetadata)
       }
 
       validateState(partitionId, startMapIndex, endMapIndex)

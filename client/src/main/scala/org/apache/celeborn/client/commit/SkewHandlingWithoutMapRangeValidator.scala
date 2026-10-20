@@ -32,12 +32,13 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
   private val currentCommitMetadataForReducer =
     JavaUtils.newConcurrentHashMap[Int, CommitMetadata]()
 
-  override def processSubPartition(
+  override private[commit] def processSubPartition(
       partitionId: Int,
       startMapIndex: Int,
       endMapIndex: Int,
       actualCommitMetadata: CommitMetadata,
-      expectedTotalMapperCount: Int): (Boolean, String) = {
+      expectedTotalMapperCount: Int,
+      allowMetadataReplacement: Boolean): (Boolean, String) = {
     checkArgument(
       endMapIndex >= 0,
       "index of sub-partition %s must be greater than or equal to 0",
@@ -65,12 +66,21 @@ class SkewHandlingWithoutMapRangeValidator extends AbstractPartitionCompleteness
         // check if previous entry matches
         val existingCommitMetadata = subPartitionsProcessed.get(endMapIndex)
         if (existingCommitMetadata != actualCommitMetadata) {
-          return (
-            false,
-            s"Mismatch in metadata for the same chunk range on retry: $endMapIndex existing: $existingCommitMetadata new: $actualCommitMetadata")
-        } else {
-          return (true, "")
+          if (!allowMetadataReplacement) {
+            return (
+              false,
+              s"Mismatch in metadata for the same chunk range on retry: $endMapIndex existing: $existingCommitMetadata new: $actualCommitMetadata")
+          }
+          subPartitionsProcessed.put(
+            endMapIndex,
+            new CommitMetadata(actualCommitMetadata.getChecksum, actualCommitMetadata.getBytes))
+          // Replace the failed contribution without counting the sub-partition twice.
+          val updatedMetadata = new CommitMetadata()
+          subPartitionsProcessed.values().forEach(metadata =>
+            updatedMetadata.addCommitData(metadata))
+          currentCommitMetadataForReducer.put(partitionId, updatedMetadata)
         }
+        return (true, "")
       }
       updateCommitMetadata(partitionId, actualCommitMetadata)
       subPartitionsProcessed.put(endMapIndex, actualCommitMetadata)
