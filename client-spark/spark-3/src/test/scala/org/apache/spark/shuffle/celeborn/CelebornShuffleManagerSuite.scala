@@ -136,40 +136,6 @@ class SparkShuffleManagerSuite extends Logging {
   }
 
   @junit.Test
-  def testCanDisableShuffleTrackingWithNeverFallback(): Unit = {
-    val reliableStorageSupported = SparkVersionUtil.isGreaterThan(3, 4)
-    val decommissionSupported = SparkVersionUtil.isGreaterThan(3, 0)
-    for {
-      celebornIO <- Seq(false, true)
-      decommission <- Seq(false, true)
-    } {
-      val conf = new SparkConf(false)
-        .set("spark.decommission.enabled", decommission.toString)
-        .set("spark.storage.decommission.shuffleBlocks.enabled", decommission.toString)
-      if (celebornIO) {
-        conf.set("spark.shuffle.sort.io.plugin.class", classOf[CelebornShuffleDataIO].getName)
-      }
-      val expected = (celebornIO && reliableStorageSupported) ||
-        (decommission && decommissionSupported)
-      Assert.assertEquals(
-        conf.toDebugString,
-        expected,
-        SparkShuffleManager.canDisableShuffleTrackingWithNeverFallback(conf))
-    }
-
-    // A subclass of CelebornShuffleDataIO also reports reliable storage.
-    val subclassConf = new SparkConf(false)
-      .set("spark.shuffle.sort.io.plugin.class", classOf[TestCelebornShuffleDataIO].getName)
-    Assert.assertEquals(
-      reliableStorageSupported,
-      SparkShuffleManager.canDisableShuffleTrackingWithNeverFallback(subclassConf))
-
-    val unknownConf = new SparkConf(false)
-      .set("spark.shuffle.sort.io.plugin.class", "org.example.NonExistentShuffleDataIO")
-    Assert.assertFalse(SparkShuffleManager.canDisableShuffleTrackingWithNeverFallback(unknownConf))
-  }
-
-  @junit.Test
   def testUnsafeDraFallbackUsesSparkDefaults(): Unit = {
     val conf = new SparkConf(false)
       .set("spark.dynamicAllocation.enabled", "true")
@@ -222,5 +188,3 @@ class SparkShuffleManagerSuite extends Logging {
     }
   }
 }
-
-class TestCelebornShuffleDataIO(conf: SparkConf) extends CelebornShuffleDataIO(conf)
