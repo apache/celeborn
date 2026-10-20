@@ -28,6 +28,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -125,7 +126,9 @@ public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterS
 
   @Test
   public void testInterleavedByteLimitedBatchesRoundTrip() throws Exception {
-    // Uneven partition sizes exercise independent byte counts, resets and final partial batches.
+    // Every third row goes to partition 1 (10 rows) and the rest to partition 0 (18 rows). The
+    // uneven, interleaved split exercises independent byte counts, resets and final partial
+    // batches.
     final int[] partitions = new int[28];
     for (int i = 0; i < partitions.length; i++) {
       partitions[i] = i % 3 == 0 ? 1 : 0;
@@ -186,7 +189,7 @@ public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterS
     final ListBuffer<Product2<Integer, UnsafeRow>> records = new ListBuffer<>();
     for (int i = 0; i < partitions.length; i++) {
       // Repeated 100-byte strings keep rows at 128 bytes and allow dictionary encoding.
-      UTF8String value = UTF8String.fromString(String.format("%0100d", i % 2));
+      UTF8String value = UTF8String.fromString(String.format(Locale.ROOT, "%0100d", i % 2));
       UnsafeRow row = projection.apply(new GenericInternalRow(new Object[] {i, value})).copy();
       records.$plus$eq(new Tuple2<>(partitions[i], row));
       expected.computeIfAbsent(partitions[i], ignored -> new ArrayList<>()).add(row);
@@ -199,19 +202,19 @@ public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterS
     Map<Integer, List<byte[]>> batches =
         client.getPushDataByPartition(Utils.makeMapKey(shuffleId, 0, 0));
     assertEquals(expected.keySet(), batches.keySet());
+    final SerializerInstance deserializer = newSerializerInstance(new UnsafeRowSerializer(2, null));
     for (Map.Entry<Integer, List<byte[]>> partition : batches.entrySet()) {
       List<UnsafeRow> actual = new ArrayList<>();
       for (byte[] batch : partition.getValue()) {
         try (DeserializationStream stream =
-            newSerializerInstance(new UnsafeRowSerializer(2, null))
-                .deserializeStream(new ByteArrayInputStream(batch))) {
+            deserializer.deserializeStream(new ByteArrayInputStream(batch))) {
           Iterator<Tuple2<Object, Object>> rows = stream.asKeyValueIterator();
           while (rows.hasNext()) {
             actual.add(((UnsafeRow) rows.next()._2()).copy());
           }
         }
       }
-      assertEquals(expected.get(partition.getKey()), actual);
+      assertEquals("partition " + partition.getKey(), expected.get(partition.getKey()), actual);
     }
     return batches;
   }
