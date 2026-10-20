@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker.storage
 
-import java.io.IOException
+import java.io.{IOException, OutputStream}
 import java.net.URI
 import java.nio.file.Files
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
@@ -625,10 +625,11 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
   }
 
   /** Runs `body` on a DFS writer holding 1024 bytes; creating a file ending in `failOn` fails. */
-  private def withDfsTierWriter(failOn: String = null)(
+  private def withDfsTierWriter(failOn: String = null, failAppendClose: Boolean = false)(
       body: (DfsTierWriter, DiskFileInfo, FileSystem) => Unit): Unit = {
     val conf = new CelebornConf()
       .set(CelebornConf.WORKER_WRITER_HDFS_CREATE_AUXILIARY_FILE_MAX_RETRIES.key, "0")
+      .set(CelebornConf.WORKER_REUSE_HDFS_OUTPUT_STREAM_ENABLED.key, "false")
     val fs = new RawLocalFileSystem() {
       override def create(
           f: Path,
@@ -640,6 +641,16 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
         if (failOn != null && f.getName.endsWith(failOn)) throw new IOException("injected")
         super.create(f, overwrite, bufferSize, replication, blockSize, progress)
       }
+
+      // Drops the appended bytes and fails on close, like an append that never persisted.
+      override def append(f: Path, bufferSize: Int, progress: Progressable): FSDataOutputStream =
+        if (!failAppendClose) super.append(f, bufferSize, progress)
+        else new FSDataOutputStream(
+          new OutputStream {
+            override def write(b: Int): Unit = {}
+            override def close(): Unit = throw new IOException("append close failed")
+          },
+          null)
     }
     fs.initialize(URI.create("file:///"), new Configuration())
     val hadoopFsBefore = StorageManager.hadoopFs
@@ -712,6 +723,14 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
     withDfsTierWriter(failOn = Utils.INDEX_SUFFIX) { (dfsTierWriter, _, _) =>
       dfsTierWriter.notifier.setException(new IOException("flush failed"))
       assert(intercept[IOException](dfsTierWriter.close()).getMessage === "flush failed")
+    }
+  }
+
+  test("dfs tier writer fails close when its append stream cannot be closed") {
+    // Stream reuse is off, so each flush appends and closes its own stream.
+    withDfsTierWriter(failAppendClose = true) { (dfsTierWriter, fileInfo, fs) =>
+      assert(intercept[IOException](dfsTierWriter.close()).getMessage === "append close failed")
+      assert(fs.getFileStatus(fileInfo.getDfsPath).getLen === 0)
     }
   }
 
