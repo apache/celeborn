@@ -583,6 +583,24 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     null
   }
 
+  // The writer ignores delete failures and is destroyed only once, so check and retry here.
+  private def ensureDfsFileDeleted(info: DiskFileInfo): Unit = {
+    val fs = StorageManager.hadoopFs.get(info.getStorageType)
+    val paths = Seq(
+      info.getDfsPath,
+      info.getDfsWriterSuccessPath,
+      info.getDfsIndexPath,
+      info.getDfsSortedPath)
+    if (paths.exists(fs.exists)) {
+      info.deleteAllFiles(fs)
+      val remaining = paths.filter(fs.exists)
+      if (remaining.nonEmpty) {
+        logWarning(s"Failed to delete $remaining, keeping them for retry or shuffle expiry.")
+        throw new IOException(s"Failed to delete $remaining")
+      }
+    }
+  }
+
   private def removeFileInfo(shuffleKey: String, fileName: String): FileInfo = {
     val memoryShuffleMap = memoryFileInfos.get(shuffleKey)
     if (memoryShuffleMap != null) {
@@ -619,22 +637,32 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def cleanFile(shuffleKey: String, fileName: String): Unit = {
-    cleanFileInternal(shuffleKey, removeFileInfo(shuffleKey, fileName))
+    getFileInfo(shuffleKey, fileName) match {
+      case info: DiskFileInfo if info.isHdfs =>
+        // Untrack only after the delete succeeds, so a retry or shuffle expiry can still delete it.
+        cleanFileInternal(shuffleKey, info, failOnHdfsDeleteError = true)
+        removeFileInfo(shuffleKey, fileName)
+      case _ =>
+        cleanFileInternal(shuffleKey, removeFileInfo(shuffleKey, fileName))
+    }
   }
 
-  def cleanFileInternal(shuffleKey: String, fileInfo: FileInfo): Boolean = {
+  def cleanFileInternal(
+      shuffleKey: String,
+      fileInfo: FileInfo,
+      failOnHdfsDeleteError: Boolean = false): Boolean = {
     if (fileInfo == null) return false
     var isDfsExpired = false
     fileInfo match {
       case info: DiskFileInfo =>
         if (info.isHdfs) {
           isDfsExpired = true
-          val hdfsFileWriter = hdfsWriters.get(info.getFilePath)
+          val hdfsFileWriter = hdfsWriters.remove(info.getFilePath)
           if (hdfsFileWriter != null) {
             hdfsFileWriter.destroy(new IOException(
               s"Destroy FileWriter $hdfsFileWriter caused by shuffle $shuffleKey expired."))
-            hdfsWriters.remove(info.getFilePath)
           }
+          if (failOnHdfsDeleteError) ensureDfsFileDeleted(info)
         } else if (info.isS3) {
           isDfsExpired = true
           val s3FileWriter = s3Writers.get(info.getFilePath)
