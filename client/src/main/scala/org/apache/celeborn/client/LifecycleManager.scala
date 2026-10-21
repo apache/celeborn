@@ -33,6 +33,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 import scala.util.Random
+import scala.util.control.NonFatal
 
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
@@ -177,6 +178,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       conf.clientRpcSharedThreads,
       30)
   val ec = ExecutionContext.fromExecutor(rpcSharedThreadPool)
+  private val replicaReleasePool =
+    ThreadUtils.newDaemonCachedThreadPool("celeborn-client-lifecycle-manager-replica-release", 4)
 
   // init driver celeborn LifecycleManager rpc service
   override val rpcEnv: RpcEnv = RpcEnv.create(
@@ -295,6 +298,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     commitManager.stop()
     changePartitionManager.stop()
     releasePartitionManager.stop()
+    ThreadUtils.shutdown(replicaReleasePool)
     heartbeater.stop()
 
     masterClient.close()
@@ -1703,6 +1707,22 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       endpoint: RpcEndpointRef,
       var retryTimes: Int,
       var startTime: Long)
+
+  /** Best-effort: a failed or rejected release only leaves the replica until shuffle expiry. */
+  private[client] def releaseReplicaSlotsAsync(
+      shuffleId: Int,
+      replicaSlots: WorkerResource): Unit = {
+    try {
+      replicaReleasePool.submit(new Runnable {
+        override def run(): Unit = Utils.tryLogNonFatalError {
+          destroySlotsWithRetry(shuffleId, replicaSlots)
+        }
+      })
+    } catch {
+      case NonFatal(e) =>
+        logWarning(s"Skip releasing committed replicas for shuffle $shuffleId.", e)
+    }
+  }
 
   /**
    * For the slots that need to be destroyed, LifecycleManager will ask the corresponding worker

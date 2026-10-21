@@ -83,16 +83,20 @@ abstract private[worker] class DfsFlushTask(
     notifier: FlushNotifier,
     keepBuffer: Boolean,
     source: AbstractSource) extends FlushTask(buffer, notifier, keepBuffer, source) with Logging {
+  // Closing an HDFS append stream persists the data, so a close failure must fail the flush.
   def flush(stream: Closeable)(block: => Unit): Unit = {
     try {
       block
-    } finally {
-      try {
-        stream.close()
-      } catch {
-        case e: IOException => logWarning("Close flush dfs stream failed.", e)
-      }
+    } catch {
+      case t: Throwable =>
+        try {
+          stream.close()
+        } catch {
+          case e: IOException => t.addSuppressed(e)
+        }
+        throw t
     }
+    stream.close()
   }
 }
 

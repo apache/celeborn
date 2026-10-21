@@ -163,9 +163,7 @@ public class PartitionDataWriter implements DeviceObserver {
     if (fileInfo instanceof DiskFileInfo) {
       DiskFileInfo diskFileInfo = (DiskFileInfo) fileInfo;
       if (diskFileInfo.isDFS()) {
-        if (((DfsTierWriter) currentTierWriter).deleted()) {
-          return null;
-        } else if (diskFileInfo.isS3()) {
+        if (diskFileInfo.isS3()) {
           storageInfo = new StorageInfo(StorageInfo.Type.S3, true, diskFileInfo.getFilePath());
         } else if (diskFileInfo.isOSS()) {
           storageInfo = new StorageInfo(StorageInfo.Type.OSS, true, diskFileInfo.getFilePath());
