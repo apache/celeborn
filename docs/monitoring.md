@@ -235,6 +235,7 @@ These metrics are exposed by Celeborn worker.
     | CommitFilesTime                        | The time for a worker to flush buffers and close files related to specified shuffle.                            |
     | CommitFilesFailCount                   | The count of commit files request failed in current worker.                                                     |
     | SlotsAllocated                         | Slots allocated in last hour.                                                                                   |
+    | ReserveSlotsFailCount                  | The count of failed slot reservation requests, counted once per request rather than per slot.                  |
     | ActiveSlotsCount                       | The number of slots currently being used in a worker.                                                           |
     | ReserveSlotsTime                       | ReserveSlots means acquire a disk buffer and record partition location.                                         |
     | ActiveConnectionCount                  | The count of active network connection.                                                                         |
