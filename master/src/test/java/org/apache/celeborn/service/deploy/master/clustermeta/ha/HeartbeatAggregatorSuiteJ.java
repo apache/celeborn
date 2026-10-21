@@ -146,6 +146,8 @@ public class HeartbeatAggregatorSuiteJ {
         new HashMap<>(),
         new HashMap<>(),
         time2,
+        new HashMap<>(),
+        new HashMap<>(),
         UUID.randomUUID().toString() + "#4");
     metaSystem.handleWorkerHeartbeat(
         "host1",
@@ -185,12 +187,17 @@ public class HeartbeatAggregatorSuiteJ {
   }
 
   @Test
-  public void testDuplicateAppHeartbeatKeepsNewest() throws Exception {
-    // Duplicate heartbeats of the same app within one window are collapsed to the newest one.
+  public void testDuplicateAppHeartbeatAccumulatesDeltas() throws Exception {
+    // Duplicate heartbeats of the same app within one window are coalesced: delta counters
+    // are accumulated, while snapshots (time, client gauges) keep the newest value.
     java.util.Map<String, Long> fallback1 = new HashMap<>();
     fallback1.put("shuffle-1", 1L);
     java.util.Map<String, Long> fallback2 = new HashMap<>();
     fallback2.put("shuffle-1", 2L);
+    java.util.Map<String, Long> gauges1 = new HashMap<>();
+    gauges1.put("gauge-1", 1L);
+    java.util.Map<String, Long> gauges2 = new HashMap<>();
+    gauges2.put("gauge-1", 2L);
     long time1 = System.currentTimeMillis();
     long time2 = time1 + 10;
     metaSystem.handleAppHeartbeat(
@@ -202,6 +209,8 @@ public class HeartbeatAggregatorSuiteJ {
         fallback1,
         new HashMap<>(),
         time1,
+        gauges1,
+        new HashMap<>(),
         UUID.randomUUID().toString() + "#1");
     metaSystem.handleAppHeartbeat(
         "app-merge",
@@ -212,16 +221,98 @@ public class HeartbeatAggregatorSuiteJ {
         fallback2,
         new HashMap<>(),
         time2,
+        gauges2,
+        new HashMap<>(),
         UUID.randomUUID().toString() + "#2");
 
     Thread.sleep(4000);
 
-    Assert.assertEquals(200, metaSystem.partitionTotalWritten.sum());
-    Assert.assertEquals(20, metaSystem.partitionTotalFileCount.sum());
-    Assert.assertEquals(2, metaSystem.shuffleTotalCount.sum());
-    Assert.assertEquals(3, metaSystem.applicationTotalCount.sum());
-    Assert.assertEquals(Long.valueOf(2), metaSystem.shuffleFallbackCounts.get("shuffle-1"));
+    Assert.assertEquals(300, metaSystem.partitionTotalWritten.sum());
+    Assert.assertEquals(30, metaSystem.partitionTotalFileCount.sum());
+    Assert.assertEquals(3, metaSystem.shuffleTotalCount.sum());
+    Assert.assertEquals(4, metaSystem.applicationTotalCount.sum());
+    Assert.assertEquals(Long.valueOf(3), metaSystem.shuffleFallbackCounts.get("shuffle-1"));
     Assert.assertEquals(Long.valueOf(time2), metaSystem.appHeartbeatTime.get("app-merge"));
+  }
+
+  @Test
+  public void testAppLostFlushesPendingAppHeartbeatFirst() throws Exception {
+    // A buffered app heartbeat accepted before AppLost must be applied before the AppLost,
+    // so the app is not resurrected by a heartbeat flushed afterwards.
+    long time1 = System.currentTimeMillis();
+    metaSystem.handleAppHeartbeat(
+        "app-lost",
+        100,
+        10,
+        1,
+        1,
+        new HashMap<>(),
+        new HashMap<>(),
+        time1,
+        new HashMap<>(),
+        new HashMap<>(),
+        UUID.randomUUID().toString() + "#1");
+    metaSystem.handleAppLost("app-lost", UUID.randomUUID().toString() + "#2");
+
+    Thread.sleep(2000);
+
+    Assert.assertFalse(metaSystem.appHeartbeatTime.containsKey("app-lost"));
+    // The pending heartbeat is flushed before AppLost, so its delta counters are not lost.
+    Assert.assertEquals(100, metaSystem.partitionTotalWritten.sum());
+  }
+
+  @Test
+  public void testWorkerLostAndRegisterWorkerFlushPendingWorkerHeartbeatFirst() throws Exception {
+    metaSystem.handleRegisterWorker(
+        "host1",
+        1,
+        2,
+        3,
+        4,
+        5,
+        "networkLocation1",
+        new HashMap<>(),
+        new HashMap<>(),
+        UUID.randomUUID().toString() + "#1");
+    Thread.sleep(2000);
+    Assert.assertEquals(1, metaSystem.workersMap.size());
+
+    // A stale buffered heartbeat followed by WorkerLost and RegisterWorker for the same
+    // worker: the heartbeat must be applied before the lifecycle requests, so it cannot
+    // overwrite the freshly registered worker state.
+    long staleTime = 1000L;
+    metaSystem.handleWorkerHeartbeat(
+        "host1",
+        1,
+        2,
+        3,
+        4,
+        new HashMap<>(),
+        new HashMap<>(),
+        staleTime,
+        false,
+        WorkerStatus.normalWorkerStatus(),
+        UUID.randomUUID().toString() + "#2");
+    metaSystem.handleWorkerLost("host1", 1, 2, 3, 4, UUID.randomUUID().toString() + "#3");
+    metaSystem.handleRegisterWorker(
+        "host1",
+        1,
+        2,
+        3,
+        4,
+        5,
+        "networkLocation1",
+        new HashMap<>(),
+        new HashMap<>(),
+        UUID.randomUUID().toString() + "#4");
+
+    Thread.sleep(2000);
+
+    Assert.assertEquals(1, metaSystem.workersMap.size());
+    WorkerInfo workerInfo = metaSystem.workersMap.values().iterator().next();
+    Assert.assertTrue(
+        "Stale heartbeat should not overwrite the registered worker state",
+        workerInfo.lastHeartbeat() > staleTime);
   }
 
   private long lastAppliedIndex() {

@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -221,13 +222,20 @@ public class HAMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleAppLost(String appId, String requestId) {
+    ResourceRequest request =
+        ResourceRequest.newBuilder()
+            .setCmdType(Type.AppLost)
+            .setRequestId(requestId)
+            .setAppLostRequest(ResourceProtos.AppLostRequest.newBuilder().setAppId(appId).build())
+            .build();
     try {
-      ratisServer.submitRequest(
-          ResourceRequest.newBuilder()
-              .setCmdType(Type.AppLost)
-              .setRequestId(requestId)
-              .setAppLostRequest(ResourceProtos.AppLostRequest.newBuilder().setAppId(appId).build())
-              .build());
+      if (heartbeatAggregator != null) {
+        // Flush any pending heartbeat of this app first, so it is not applied after AppLost.
+        heartbeatAggregator.submitWithOrdering(
+            Collections.singletonList(appId), Collections.emptyList(), request);
+      } else {
+        ratisServer.submitRequest(request);
+      }
     } catch (CelebornRuntimeException e) {
       LOG.error("Handle app lost for {} failed!", appId, e);
       throw e;
@@ -287,7 +295,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   public void handleWorkerLost(
       String host, int rpcPort, int pushPort, int fetchPort, int replicatePort, String requestId) {
     try {
-      ratisServer.submitRequest(
+      ResourceRequest request =
           ResourceRequest.newBuilder()
               .setCmdType(Type.WorkerLost)
               .setRequestId(requestId)
@@ -299,7 +307,18 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setFetchPort(fetchPort)
                       .setReplicatePort(replicatePort)
                       .build())
-              .build());
+              .build();
+      if (heartbeatAggregator != null) {
+        // Flush any pending heartbeat of this worker first, so it is not applied after
+        // WorkerLost.
+        heartbeatAggregator.submitWithOrdering(
+            Collections.emptyList(),
+            Collections.singletonList(
+                HeartbeatAggregator.workerKey(host, rpcPort, pushPort, fetchPort, replicatePort)),
+            request);
+      } else {
+        ratisServer.submitRequest(request);
+      }
     } catch (CelebornRuntimeException e) {
       LOG.error("Handle worker lost for {} failed!", host, e);
       throw e;
@@ -386,7 +405,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
       String requestId) {
     try {
-      ratisServer.submitRequest(
+      ResourceRequest request =
           ResourceRequest.newBuilder()
               .setCmdType(Type.RegisterWorker)
               .setRequestId(requestId)
@@ -401,7 +420,18 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setNetworkLocation(networkLocation)
                       .putAllDisks(MetaUtil.toPbDiskInfos(disks))
                       .build())
-              .build());
+              .build();
+      if (heartbeatAggregator != null) {
+        // Flush any pending heartbeat of this worker first, so a stale heartbeat is not
+        // applied after the fresh registration.
+        heartbeatAggregator.submitWithOrdering(
+            Collections.emptyList(),
+            Collections.singletonList(
+                HeartbeatAggregator.workerKey(host, rpcPort, pushPort, fetchPort, replicatePort)),
+            request);
+      } else {
+        ratisServer.submitRequest(request);
+      }
       updateWorkerResourceConsumptions(
           host, rpcPort, pushPort, fetchPort, replicatePort, userResourceConsumption);
     } catch (CelebornRuntimeException e) {

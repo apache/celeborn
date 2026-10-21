@@ -18,6 +18,7 @@
 package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,11 @@ public class HeartbeatAggregator {
   private Map<String, ResourceProtos.WorkerHeartbeatRequest> workerHeartbeats = new HashMap<>();
   private Map<String, ResourceProtos.AppHeartbeatRequest> appHeartbeats = new HashMap<>();
 
+  // Serializes raft submissions of heartbeat batches and lifecycle requests so that a
+  // lifecycle request (e.g. AppLost, WorkerLost, RegisterWorker) is never applied before
+  // heartbeats that were accepted earlier.
+  private final ReentrantLock submissionLock = new ReentrantLock();
+
   private final ScheduledExecutorService flushExecutor;
 
   public HeartbeatAggregator(HARaftServer ratisServer, CelebornConf conf) {
@@ -69,22 +75,52 @@ public class HeartbeatAggregator {
   public void offerAppHeartbeat(ResourceProtos.AppHeartbeatRequest heartbeat) {
     pendingLock.lock();
     try {
-      appHeartbeats.put(heartbeat.getAppId(), heartbeat);
+      appHeartbeats.merge(heartbeat.getAppId(), heartbeat, HeartbeatAggregator::mergeAppHeartbeat);
     } finally {
       pendingLock.unlock();
     }
   }
 
+  // App heartbeat counters (totalWritten, fileCount, shuffle/application counts and fallback
+  // counts) are deltas reset by the client after each report, so coalescing must accumulate
+  // them instead of keeping only the newest one. Time and client gauges are snapshots, for
+  // which the newest value wins.
+  private static ResourceProtos.AppHeartbeatRequest mergeAppHeartbeat(
+      ResourceProtos.AppHeartbeatRequest pending, ResourceProtos.AppHeartbeatRequest latest) {
+    return latest
+        .toBuilder()
+        .setTotalWritten(pending.getTotalWritten() + latest.getTotalWritten())
+        .setFileCount(pending.getFileCount() + latest.getFileCount())
+        .setShuffleCount(pending.getShuffleCount() + latest.getShuffleCount())
+        .setApplicationCount(pending.getApplicationCount() + latest.getApplicationCount())
+        .putAllShuffleFallbackCounts(
+            mergeCounts(
+                pending.getShuffleFallbackCountsMap(), latest.getShuffleFallbackCountsMap()))
+        .putAllApplicationFallbackCounts(
+            mergeCounts(
+                pending.getApplicationFallbackCountsMap(),
+                latest.getApplicationFallbackCountsMap()))
+        .build();
+  }
+
+  private static Map<String, Long> mergeCounts(Map<String, Long> a, Map<String, Long> b) {
+    Map<String, Long> merged = new HashMap<>(a);
+    b.forEach((key, value) -> merged.merge(key, value, Long::sum));
+    return merged;
+  }
+
   private static String workerKey(ResourceProtos.WorkerHeartbeatRequest heartbeat) {
-    return heartbeat.getHost()
-        + ":"
-        + heartbeat.getRpcPort()
-        + ":"
-        + heartbeat.getPushPort()
-        + ":"
-        + heartbeat.getFetchPort()
-        + ":"
-        + heartbeat.getReplicatePort();
+    return workerKey(
+        heartbeat.getHost(),
+        heartbeat.getRpcPort(),
+        heartbeat.getPushPort(),
+        heartbeat.getFetchPort(),
+        heartbeat.getReplicatePort());
+  }
+
+  static String workerKey(
+      String host, int rpcPort, int pushPort, int fetchPort, int replicatePort) {
+    return host + ":" + rpcPort + ":" + pushPort + ":" + fetchPort + ":" + replicatePort;
   }
 
   public void stop() {
@@ -102,21 +138,70 @@ public class HeartbeatAggregator {
   }
 
   private void flush() {
-    List<ResourceProtos.WorkerHeartbeatRequest> drainedWorkers;
-    List<ResourceProtos.AppHeartbeatRequest> drainedApps;
-    pendingLock.lock();
+    submissionLock.lock();
     try {
-      if (workerHeartbeats.isEmpty() && appHeartbeats.isEmpty()) {
-        return;
+      List<ResourceProtos.WorkerHeartbeatRequest> drainedWorkers;
+      List<ResourceProtos.AppHeartbeatRequest> drainedApps;
+      pendingLock.lock();
+      try {
+        if (workerHeartbeats.isEmpty() && appHeartbeats.isEmpty()) {
+          return;
+        }
+        drainedWorkers = new ArrayList<>(workerHeartbeats.values());
+        workerHeartbeats.clear();
+        drainedApps = new ArrayList<>(appHeartbeats.values());
+        appHeartbeats.clear();
+      } finally {
+        pendingLock.unlock();
       }
-      drainedWorkers = new ArrayList<>(workerHeartbeats.values());
-      workerHeartbeats.clear();
-      drainedApps = new ArrayList<>(appHeartbeats.values());
-      appHeartbeats.clear();
+      submitBatch(drainedWorkers, drainedApps);
     } finally {
-      pendingLock.unlock();
+      submissionLock.unlock();
     }
+  }
 
+  /**
+   * Submits a lifecycle request (e.g. AppLost, WorkerLost, RegisterWorker) while preserving its
+   * order relative to buffered heartbeats: pending heartbeats of the affected apps and workers are
+   * drained and flushed first, and the submissionLock serializes this against in-flight batch
+   * flushes, so no earlier accepted heartbeat can be applied after the lifecycle request.
+   */
+  public void submitWithOrdering(
+      Collection<String> appIds, Collection<String> workerKeys, ResourceRequest lifecycleRequest) {
+    submissionLock.lock();
+    try {
+      List<ResourceProtos.WorkerHeartbeatRequest> drainedWorkers = new ArrayList<>();
+      List<ResourceProtos.AppHeartbeatRequest> drainedApps = new ArrayList<>();
+      pendingLock.lock();
+      try {
+        for (String appId : appIds) {
+          ResourceProtos.AppHeartbeatRequest heartbeat = appHeartbeats.remove(appId);
+          if (heartbeat != null) {
+            drainedApps.add(heartbeat);
+          }
+        }
+        for (String workerKey : workerKeys) {
+          ResourceProtos.WorkerHeartbeatRequest heartbeat = workerHeartbeats.remove(workerKey);
+          if (heartbeat != null) {
+            drainedWorkers.add(heartbeat);
+          }
+        }
+      } finally {
+        pendingLock.unlock();
+      }
+      if (!drainedWorkers.isEmpty() || !drainedApps.isEmpty()) {
+        submitBatch(drainedWorkers, drainedApps);
+      }
+      ratisServer.submitRequest(lifecycleRequest);
+    } finally {
+      submissionLock.unlock();
+    }
+  }
+
+  // Caller must hold submissionLock.
+  private void submitBatch(
+      List<ResourceProtos.WorkerHeartbeatRequest> drainedWorkers,
+      List<ResourceProtos.AppHeartbeatRequest> drainedApps) {
     if (!ratisServer.isLeader()) {
       return;
     }
