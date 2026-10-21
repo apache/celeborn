@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import io.netty.buffer.UnpooledByteBufAllocator
 import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito
 import org.mockito.MockitoSugar.{mock, when}
 
 import org.apache.celeborn.CelebornFunSuite
@@ -35,18 +36,6 @@ import org.apache.celeborn.service.deploy.worker.storage._
 class StoragePolicyReplicaSuite extends CelebornFunSuite {
   val mockedStorageManager: StorageManager = mock[StorageManager]
   val mockedSource: AbstractSource = mock[AbstractSource]
-
-  val memoryConf = new CelebornConf
-  memoryConf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE.key, "0.8")
-  memoryConf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE.key, "0.9")
-  memoryConf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_RESUME.key, "0.5")
-  memoryConf.set(CelebornConf.WORKER_PARTITION_SORTER_DIRECT_MEMORY_RATIO_THRESHOLD.key, "0.6")
-  memoryConf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER.key, "0.1")
-  memoryConf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE.key, "0.1")
-  memoryConf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL.key, "10")
-  memoryConf.set(CelebornConf.WORKER_DIRECT_MEMORY_REPORT_INTERVAL.key, "10")
-  memoryConf.set(CelebornConf.WORKER_READBUFFER_ALLOCATIONWAIT.key, "10ms")
-  MemoryManager.initialize(memoryConf)
 
   when(
     mockedStorageManager.createMemoryFileInfo(any(), any(), any(), any(), any(), any())).thenAnswer(
@@ -85,16 +74,25 @@ class StoragePolicyReplicaSuite extends CelebornFunSuite {
     replicaEnabled.foreach(v =>
       conf.set(CelebornConf.WORKER_MEMORY_FILE_STORAGE_REPLICA_ENABLED.key, v.toString))
     val storagePolicy = new StoragePolicy(conf, mockedStorageManager, mockedSource)
-    if (evict) {
-      val writer = mock[LocalTierWriter]
-      when(writer.storageType).thenAnswer(StorageInfo.Type.SSD)
-      storagePolicy.getEvictedFileWriter(
-        writer,
-        context,
-        new AtomicInteger(),
-        new FlushNotifier)
-    } else {
-      storagePolicy.createFileWriter(context, new AtomicInteger(), new FlushNotifier)
+    val memoryManager = mock[MemoryManager]
+    when(memoryManager.memoryFileStorageAvailable()).thenReturn(true)
+    val memoryManagerStatic = Mockito.mockStatic(classOf[MemoryManager])
+    try {
+      memoryManagerStatic.when[MemoryManager](() => MemoryManager.instance()).thenReturn(
+        memoryManager)
+      if (evict) {
+        val writer = mock[LocalTierWriter]
+        when(writer.storageType).thenAnswer(StorageInfo.Type.SSD)
+        storagePolicy.getEvictedFileWriter(
+          writer,
+          context,
+          new AtomicInteger(),
+          new FlushNotifier)
+      } else {
+        storagePolicy.createFileWriter(context, new AtomicInteger(), new FlushNotifier)
+      }
+    } finally {
+      memoryManagerStatic.close()
     }
   }
 
