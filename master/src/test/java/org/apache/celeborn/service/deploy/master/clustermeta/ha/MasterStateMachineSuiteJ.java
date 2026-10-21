@@ -166,7 +166,8 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     Map<UserIdentifier, ResourceConsumption> userResourceConsumption1 =
         JavaUtils.newConcurrentHashMap();
     userResourceConsumption1.put(
-        new UserIdentifier("tenant1", "name1"), new ResourceConsumption(1000, 1, 1000, 1, null));
+        new UserIdentifier("tenant1", "name1"),
+        new ResourceConsumption(1000, 1, 1000, 1, null, 0, 0, 0, 0));
     userResourceConsumption1.put(
         new UserIdentifier("tenant1", "name2"),
         new ResourceConsumption(
@@ -174,7 +175,12 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
             2,
             2000,
             2,
-            Collections.singletonMap("appId2", new ResourceConsumption(2000, 2, 2000, 2, null))));
+            Collections.singletonMap(
+                "appId2", new ResourceConsumption(2000, 2, 2000, 2, null, 0, 0, 0, 0)),
+            0,
+            0,
+            0,
+            0));
     userResourceConsumption1.put(
         new UserIdentifier("tenant1", "name3"),
         new ResourceConsumption(
@@ -182,7 +188,12 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
             3,
             3000,
             3,
-            Collections.singletonMap("appId3", new ResourceConsumption(2000, 2, 2000, 2, null))));
+            Collections.singletonMap(
+                "appId3", new ResourceConsumption(2000, 2, 2000, 2, null, 0, 0, 0, 0)),
+            0,
+            0,
+            0,
+            0));
 
     Map<String, DiskInfo> disks2 = new HashMap<>();
     disks2.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
@@ -191,7 +202,8 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     Map<UserIdentifier, ResourceConsumption> userResourceConsumption2 =
         JavaUtils.newConcurrentHashMap();
     userResourceConsumption2.put(
-        new UserIdentifier("tenant2", "name1"), new ResourceConsumption(1000, 1, 1000, 1, null));
+        new UserIdentifier("tenant2", "name1"),
+        new ResourceConsumption(1000, 1, 1000, 1, null, 0, 0, 0, 0));
     userResourceConsumption2.put(
         new UserIdentifier("tenant2", "name2"),
         new ResourceConsumption(
@@ -199,7 +211,12 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
             2,
             2000,
             2,
-            Collections.singletonMap("appId2", new ResourceConsumption(2000, 2, 2000, 2, null))));
+            Collections.singletonMap(
+                "appId2", new ResourceConsumption(2000, 2, 2000, 2, null, 0, 0, 0, 0)),
+            0,
+            0,
+            0,
+            0));
     userResourceConsumption2.put(
         new UserIdentifier("tenant2", "name3"),
         new ResourceConsumption(
@@ -207,7 +224,12 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
             3,
             3000,
             3,
-            Collections.singletonMap("appId3", new ResourceConsumption(2000, 2, 2000, 2, null))));
+            Collections.singletonMap(
+                "appId3", new ResourceConsumption(2000, 2, 2000, 2, null, 0, 0, 0, 0)),
+            0,
+            0,
+            0,
+            0));
 
     Map<String, DiskInfo> disks3 = new HashMap<>();
     disks3.put("disk1", new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 100, 0));
@@ -216,7 +238,8 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
     Map<UserIdentifier, ResourceConsumption> userResourceConsumption3 =
         JavaUtils.newConcurrentHashMap();
     userResourceConsumption3.put(
-        new UserIdentifier("tenant3", "name1"), new ResourceConsumption(1000, 1, 1000, 1, null));
+        new UserIdentifier("tenant3", "name1"),
+        new ResourceConsumption(1000, 1, 1000, 1, null, 0, 0, 0, 0));
     userResourceConsumption3.put(
         new UserIdentifier("tenant3", "name2"),
         new ResourceConsumption(
@@ -224,7 +247,12 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
             2,
             2000,
             2,
-            Collections.singletonMap("appId2", new ResourceConsumption(2000, 2, 2000, 2, null))));
+            Collections.singletonMap(
+                "appId2", new ResourceConsumption(2000, 2, 2000, 2, null, 0, 0, 0, 0)),
+            0,
+            0,
+            0,
+            0));
     userResourceConsumption3.put(
         new UserIdentifier("tenant3", "name3"),
         new ResourceConsumption(
@@ -232,7 +260,12 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
             3,
             3000,
             3,
-            Collections.singletonMap("appId3", new ResourceConsumption(2000, 2, 2000, 2, null))));
+            Collections.singletonMap(
+                "appId3", new ResourceConsumption(2000, 2, 2000, 2, null, 0, 0, 0, 0)),
+            0,
+            0,
+            0,
+            0));
 
     WorkerInfo info1 = new WorkerInfo("host1", 1, 2, 3, 10, 13, disks1, userResourceConsumption1);
     WorkerInfo info2 = new WorkerInfo("host2", 4, 5, 6, 11, 15, disks2, userResourceConsumption2);
