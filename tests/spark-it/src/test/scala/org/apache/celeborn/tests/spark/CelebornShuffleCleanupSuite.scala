@@ -17,15 +17,18 @@
 
 package org.apache.celeborn.tests.spark
 
-import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
+import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 
 import org.apache.spark.{SparkConf, SparkEnv, SparkException}
+import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent, SparkListenerJobStart}
 import org.apache.spark.shuffle.celeborn.SparkShuffleManager
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionEnd
+import org.apache.spark.sql.functions.{col, expr}
 import org.apache.spark.sql.internal.SQLConf
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
@@ -52,15 +55,45 @@ class CelebornShuffleCleanupSuite extends AnyFunSuite
     SparkEnv.get.shuffleManager.asInstanceOf[SparkShuffleManager].getLifecycleManager
   }
 
-  private def awaitShufflesUnregistered(lifecycleManager: LifecycleManager): Unit = {
+  private def awaitShufflesUnregistered(
+      lifecycleManager: LifecycleManager,
+      remaining: Int = 0): Unit = {
     val deadline = System.currentTimeMillis() + 60000
-    while (!lifecycleManager.registeredShuffle.isEmpty &&
+    while (lifecycleManager.registeredShuffle.size() > remaining &&
       System.currentTimeMillis() < deadline) {
       Thread.sleep(500)
     }
     assert(
-      lifecycleManager.registeredShuffle.isEmpty,
-      "Shuffles should be unregistered after the SQL query completes.")
+      lifecycleManager.registeredShuffle.size() <= remaining,
+      s"Shuffles should be unregistered after the SQL query completes, " +
+        s"remaining: ${lifecycleManager.registeredShuffle.size()}, expected: $remaining.")
+  }
+
+  // Runs a warmup query so that the cleanup listener is registered before the returned
+  // listener; the listener bus delivers events in registration order, so once the
+  // returned latch fires the cleanup listener has already processed the SQLExecutionEnd
+  // event of the query under test.
+  private def registerQueryEndLatch(spark: SparkSession): CountDownLatch = {
+    spark.range(0, 100, 1, 4).repartition(4).count()
+    awaitShufflesUnregistered(lifecycleManager())
+
+    val queryEndLatch = new CountDownLatch(1)
+    spark.sparkContext.addSparkListener(new SparkListener {
+      override def onOtherEvent(event: SparkListenerEvent): Unit = event match {
+        case _: SparkListenerSQLExecutionEnd => queryEndLatch.countDown()
+        case _ =>
+      }
+    })
+    queryEndLatch
+  }
+
+  private def registerFailUdf(spark: SparkSession): Unit = {
+    spark.udf.register(
+      "fail_udf",
+      (v: Long) => {
+        throw new RuntimeException("intentional failure for test")
+        v
+      })
   }
 
   private def shuffleCleanupConf(aqeEnabled: Boolean): SparkConf = {
@@ -69,7 +102,7 @@ class CelebornShuffleCleanupSuite extends AnyFunSuite
       ShuffleMode.HASH)
     sparkConf.set(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key, aqeEnabled.toString)
     sparkConf.set(
-      s"spark.${CelebornConf.CLIENT_SPARK_SHUFFLE_CLEANUP_ENABLED.key}",
+      s"spark.${CelebornConf.CLIENT_SPARK_SQL_QUERY_END_SHUFFLE_CLEANUP_ENABLED.key}",
       "true")
     // Speed up the delayed unregister inside LifecycleManager.
     sparkConf.set(s"spark.${CelebornConf.SHUFFLE_EXPIRED_CHECK_INTERVAL.key}", "1s")
@@ -110,7 +143,6 @@ class CelebornShuffleCleanupSuite extends AnyFunSuite
     try {
       // For CTAS / INSERT the executedPlan root is a DataWritingCommandExec wrapping an
       // AdaptiveSparkPlanExec, so exchanges are only reachable by unwrapping it.
-      import org.apache.spark.sql.functions._
       spark.range(0, 1000, 1, 4)
         .withColumn("k", expr("id % 10"))
         .groupBy("k")
@@ -145,6 +177,38 @@ class CelebornShuffleCleanupSuite extends AnyFunSuite
     awaitShufflesUnregistered(lifecycleManager())
   }
 
+  test("CELEBORN-2465: scalar subquery shuffles are unregistered, aqeEnabled: true") {
+    val spark = SparkSession.builder().config(shuffleCleanupConf(true)).getOrCreate()
+
+    spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
+    // With AQE the root is an AdaptiveSparkPlanExec leaf, so subquery shuffles are only
+    // reachable through the shared stage cache.
+    val result = spark.sql(
+      """
+        |SELECT COUNT(*) FROM ta
+        |WHERE id > (SELECT MAX(c) FROM (
+        |  SELECT id % 10 AS k, COUNT(1) AS c FROM ta GROUP BY id % 10
+        |))
+        |""".stripMargin).collect()
+    assert(result.head.getLong(0) == 899)
+    awaitShufflesUnregistered(lifecycleManager())
+  }
+
+  test("CELEBORN-2465: shuffles of stages dropped from the final AQE plan are unregistered") {
+    val spark = SparkSession.builder().config(shuffleCleanupConf(true)).getOrCreate()
+
+    spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
+    spark.range(0, 1000, 1, 4).createOrReplaceTempView("tb")
+    // The empty join side makes AQE drop stages from the final plan; their shuffles were
+    // still created and must be cleaned up through the stage cache.
+    spark.sql(
+      """
+        |SELECT COUNT(*) FROM ta
+        |JOIN (SELECT * FROM tb WHERE id < 0) b ON ta.id = b.id
+        |""".stripMargin).collect()
+    awaitShufflesUnregistered(lifecycleManager())
+  }
+
   test("CELEBORN-2465: shuffles are not unregistered on SQL query completion by default") {
     val sparkConf = updateSparkConf(
       new SparkConf().setAppName("celeborn-test").setMaster("local[2]"),
@@ -160,18 +224,17 @@ class CelebornShuffleCleanupSuite extends AnyFunSuite
       "Shuffles should still be registered when shuffle cleanup is disabled.")
   }
 
-  test("CELEBORN-2465: failed query only cleans up actually registered shuffles") {
+  test("CELEBORN-2465: failed non-AQE query leaves shuffles to GC cleanup") {
     val spark = SparkSession.builder().config(shuffleCleanupConf(false)).getOrCreate()
 
     spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
-    spark.udf.register(
-      "fail_udf",
-      (v: Long) => {
-        throw new RuntimeException("intentional failure for test")
-        v
-      })
+    registerFailUdf(spark)
+    val queryEndLatch = registerQueryEndLatch(spark)
 
-    // The query fails in the reduce stage after the shuffle has been written.
+    // The query fails in the reduce stage after the shuffle has been written. Shuffles of
+    // failed non-AQE queries are left to GC cleanup, since reading the lazy
+    // shuffleDependency of a possibly unexecuted exchange could run its child plan on the
+    // listener thread.
     assertThrows[SparkException] {
       spark.sql(
         """
@@ -181,21 +244,58 @@ class CelebornShuffleCleanupSuite extends AnyFunSuite
           |""".stripMargin).collect()
     }
 
-    // The listener must not break error propagation, and must clean up the materialized
-    // shuffle of the failed query without touching non-registered shuffle ids.
-    awaitShufflesUnregistered(lifecycleManager())
+    // The listener must not break error propagation, and must not unregister shuffles of
+    // the failed query.
+    assert(queryEndLatch.await(60, TimeUnit.SECONDS))
+    assert(
+      !lifecycleManager().registeredShuffle.isEmpty,
+      "Shuffles of a failed non-AQE query should be left to GC cleanup.")
+  }
+
+  test("CELEBORN-2465: failed non-AQE query does not launch jobs on the listener thread") {
+    val spark = SparkSession.builder().config(shuffleCleanupConf(false)).getOrCreate()
+
+    registerFailUdf(spark)
+    val queryEndLatch = registerQueryEndLatch(spark)
+
+    val jobCount = new AtomicInteger(0)
+    spark.sparkContext.addSparkListener(new SparkListener {
+      override def onJobStart(jobStart: SparkListenerJobStart): Unit = {
+        jobCount.incrementAndGet()
+      }
+    })
+
+    val base = spark.range(0, 1000, 1, 4)
+    val bad = base.select(expr("fail_udf(id) AS id"))
+      .repartitionByRange(4, col("id"))
+      .groupBy(col("id") % 10)
+      .count()
+    val good = base
+      .repartitionByRange(4, col("id"))
+      .groupBy(col("id") % 10)
+      .count()
+
+    assertThrows[SparkException] {
+      bad.union(good).collect()
+    }
+
+    assert(queryEndLatch.await(60, TimeUnit.SECONDS))
+    val jobsAtQueryEnd = jobCount.get()
+    // Reading the lazy shuffleDependency of an unexecuted exchange would launch new jobs
+    // (e.g. range-partition sampling) on the listener-bus thread; none may appear after
+    // the query has ended.
+    Thread.sleep(5000)
+    assert(
+      jobCount.get() == jobsAtQueryEnd,
+      s"No job should be launched after the failed query ends, " +
+        s"jobs at query end: $jobsAtQueryEnd, now: ${jobCount.get()}.")
   }
 
   test("CELEBORN-2465: failed AQE query only cleans up materialized shuffles") {
     val spark = SparkSession.builder().config(shuffleCleanupConf(true)).getOrCreate()
 
     spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
-    spark.udf.register(
-      "fail_udf",
-      (v: Long) => {
-        throw new RuntimeException("intentional failure for test")
-        v
-      })
+    registerFailUdf(spark)
 
     // The query fails in the reduce stage after the shuffle stage has been materialized.
     assertThrows[SparkException] {
@@ -210,6 +310,32 @@ class CelebornShuffleCleanupSuite extends AnyFunSuite
     // The materialized shuffle stage of the failed AQE query must be cleaned up without
     // touching exchanges that were never materialized.
     awaitShufflesUnregistered(lifecycleManager())
+  }
+
+  test("CELEBORN-2465: failed AQE query cleans materialized child stages of " +
+    "unmaterialized stages") {
+    val spark = SparkSession.builder().config(shuffleCleanupConf(true)).getOrCreate()
+
+    spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
+    registerFailUdf(spark)
+
+    // The first shuffle stage materializes; the second stage fails in its map tasks, so
+    // the second stage itself is never materialized.
+    assertThrows[SparkException] {
+      spark.sql(
+        """
+          |SELECT k, SUM(c2) FROM (
+          |  SELECT k, fail_udf(cnt) AS c2 FROM (
+          |    SELECT id % 10 AS k, COUNT(1) AS cnt FROM ta GROUP BY id % 10
+          |  ) t
+          |) t2 GROUP BY k
+          |""".stripMargin).collect()
+    }
+
+    // The materialized first stage must be cleaned up via the stage cache even though its
+    // parent stage never materialized; the partially written shuffle of the failed stage
+    // is left to GC cleanup.
+    awaitShufflesUnregistered(lifecycleManager(), remaining = 1)
   }
 
   test("CELEBORN-2465: re-executing the same DataFrame sequentially returns correct results") {
@@ -266,11 +392,11 @@ class CelebornShuffleCleanupSuite extends AnyFunSuite
   test("CELEBORN-2465: shuffle cleanup requires stage rerun to be enabled") {
     val sparkConf = shuffleCleanupConf(false)
     sparkConf.set(s"spark.${CelebornConf.CLIENT_STAGE_RERUN_ENABLED.key}", "false")
-    val spark = SparkSession.builder().config(sparkConf).getOrCreate()
 
-    spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
+    // The configuration is validated in the SparkShuffleManager constructor, so the
+    // SparkContext fails to start.
     val t = intercept[Throwable] {
-      spark.sql(groupByQuery).collect()
+      SparkSession.builder().config(sparkConf).getOrCreate()
     }
     val messages = Iterator.iterate(Option(t))(_.flatMap(cause => Option(cause.getCause)))
       .takeWhile(_.isDefined)

@@ -1309,12 +1309,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
   }
 
-  def isAppShuffleRegistered(appShuffleId: Int, hasMapping: Boolean): Boolean = {
-    if (hasMapping) {
-      shuffleIdMapping.containsKey(appShuffleId)
-    } else {
-      registeredShuffle.contains(appShuffleId)
-    }
+  def isAppShuffleRegistered(appShuffleId: Int): Boolean = {
+    shuffleIdMapping.containsKey(appShuffleId)
   }
 
   /* ========================================================== *

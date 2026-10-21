@@ -1050,8 +1050,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientFetchCleanFailedShuffle: Boolean = get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE)
   def clientFetchCleanFailedShuffleIntervalMS: Long =
     get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_INTERVAL)
-  def clientSparkShuffleCleanupEnabled: Boolean =
-    get(CLIENT_SPARK_SHUFFLE_CLEANUP_ENABLED)
+  def clientSparkSqlQueryEndShuffleCleanupEnabled: Boolean =
+    get(CLIENT_SPARK_SQL_QUERY_END_SHUFFLE_CLEANUP_ENABLED)
   def clientFetchExcludeWorkerOnFailureEnabled: Boolean =
     get(CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED)
   def clientFetchExcludedWorkerExpireTimeout: Long =
@@ -5353,8 +5353,8 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
-  val CLIENT_SPARK_SHUFFLE_CLEANUP_ENABLED: ConfigEntry[Boolean] =
-    buildConf("celeborn.client.spark.shuffleCleanup.enabled")
+  val CLIENT_SPARK_SQL_QUERY_END_SHUFFLE_CLEANUP_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.sql.queryEndShuffleCleanup.enabled")
       .categories("client")
       .version("1.0.0")
       .doc("When enabled, shuffles written by a SQL query (or Dataset action) are proactively " +
@@ -5362,7 +5362,10 @@ object CelebornConf extends Logging {
         "end. This is useful for long-running Spark applications such as ThriftServer, Kyuubi, " +
         "spark-sql and spark-connect-server. Note that if the same DataFrame reference is " +
         "executed again, the cleaned shuffles must be regenerated via stage retries, so " +
-        s"${CLIENT_STAGE_RERUN_ENABLED.key} has to be enabled together.")
+        s"${CLIENT_STAGE_RERUN_ENABLED.key} has to be enabled together. Limitations: this only " +
+        "applies to SQL/Dataset executions; non-vanilla shuffle exchanges such as Gluten's " +
+        "columnar exchange are not covered; shuffles of failed or cancelled queries (or " +
+        "stages) that were never materialized still fall back to GC cleanup.")
       .booleanConf
       .createWithDefault(false)
 
