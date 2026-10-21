@@ -94,7 +94,11 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
     }
 
     def tryCreateFileByType(storageInfoType: StorageInfo.Type): TierWriterBase = {
-      val overrideType = if (evict) storageInfoType else location.getStorageInfo.getType
+      val locationType = location.getStorageInfo.getType
+      // A MEMORY allocation hint does not identify a disk backend. If memory cannot
+      // be used, create the file on the backend selected by the storage policy.
+      val overrideType =
+        if (evict || locationType == StorageInfo.Type.MEMORY) storageInfoType else locationType
       try {
         storageInfoType match {
           case StorageInfo.Type.MEMORY =>
@@ -135,8 +139,7 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
                 partitionDataWriterContext.getUserIdentifier,
                 partitionDataWriterContext.getPartitionType,
                 partitionDataWriterContext.isPartitionSplitEnabled,
-                overrideType // this is different from location type, in case of eviction
-              )
+                overrideType)
               partitionDataWriterContext.setWorkingDir(workingDir)
               val metaHandler = getPartitionMetaHandler(diskFileInfo)
               if (flusher.isInstanceOf[LocalFlusher]
@@ -194,6 +197,10 @@ class StoragePolicy(conf: CelebornConf, storageManager: StorageManager, source: 
         // will not allocate slots on memory storage
         if (order.exists(_.contains(StorageInfo.Type.MEMORY.name()))) {
           order.get.indexOf(StorageInfo.Type.MEMORY.name())
+        } else if (location.getStorageInfo.getType == StorageInfo.Type.MEMORY) {
+          // The worker may disable memory in its creation policy even when the
+          // client supplies a MEMORY hint. Start with the first configured backend.
+          0
         } else {
           order.get.indexOf(
             partitionDataWriterContext.getPartitionLocation.getStorageInfo.getType.name())
