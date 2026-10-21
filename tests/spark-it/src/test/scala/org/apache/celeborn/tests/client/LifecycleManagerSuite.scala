@@ -127,6 +127,8 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
       assert(appInfo.extraInfo.get("k1") == "v1")
       assert(appInfo.registrationTime > 0 && appInfo.registrationTime < System.currentTimeMillis())
     }
+
+    lifecycleManager.stop()
   }
 
   test("CELEBORN-2479: mapper end callback reports every finished writer attempt once") {

@@ -18,12 +18,22 @@
 package org.apache.celeborn.service.deploy.master.clustermeta;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.io.File;
+import java.nio.file.Files;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.After;
@@ -38,11 +48,13 @@ import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.rpc.netty.NettyRpcEndpointRef;
+import org.apache.celeborn.service.deploy.master.ApplicationMetricsSource;
 
 public class DefaultMetaSystemSuiteJ {
 
@@ -644,12 +656,32 @@ public class DefaultMetaSystemSuiteJ {
   public void testHandleAppHeartbeat() {
     Long dummy = 1235L;
     statusSystem.handleAppHeartbeat(
-        APPID1, 1, 1, 1, 1, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
+        APPID1,
+        1,
+        1,
+        1,
+        1,
+        new HashMap<>(),
+        new HashMap<>(),
+        dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        getNewReqeustId());
     assertEquals(dummy, statusSystem.appHeartbeatTime.get(APPID1));
 
     String appId2 = "app02";
     statusSystem.handleAppHeartbeat(
-        appId2, 1, 1, 2, 2, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
+        appId2,
+        1,
+        1,
+        2,
+        2,
+        new HashMap<>(),
+        new HashMap<>(),
+        dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        getNewReqeustId());
     assertEquals(dummy, statusSystem.appHeartbeatTime.get(appId2));
 
     assertEquals(2, statusSystem.appHeartbeatTime.size());
@@ -997,28 +1029,88 @@ public class DefaultMetaSystemSuiteJ {
 
     Long dummy = 1235L;
     statusSystem.handleAppHeartbeat(
-        APPID1, 10000000000l, 1, 1, 1, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
+        APPID1,
+        10000000000l,
+        1,
+        1,
+        1,
+        new HashMap<>(),
+        new HashMap<>(),
+        dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        getNewReqeustId());
     String appId2 = "app02";
     statusSystem.handleAppHeartbeat(
-        appId2, 1, 1, 2, 2, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
+        appId2,
+        1,
+        1,
+        2,
+        2,
+        new HashMap<>(),
+        new HashMap<>(),
+        dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        getNewReqeustId());
 
     // Max size
     statusSystem.handleUpdatePartitionSize();
     Assert.assertEquals(statusSystem.estimatedPartitionSize, conf.maxPartitionSizeToEstimate());
 
     statusSystem.handleAppHeartbeat(
-        APPID1, 1000000000l, 1, 1, 1, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
+        APPID1,
+        1000000000l,
+        1,
+        1,
+        1,
+        new HashMap<>(),
+        new HashMap<>(),
+        dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        getNewReqeustId());
     statusSystem.handleAppHeartbeat(
-        appId2, 1, 1, 2, 2, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
+        appId2,
+        1,
+        1,
+        2,
+        2,
+        new HashMap<>(),
+        new HashMap<>(),
+        dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        getNewReqeustId());
 
     // Size between minEstimateSize -> maxEstimateSize
     statusSystem.handleUpdatePartitionSize();
     Assert.assertEquals(500000000, statusSystem.estimatedPartitionSize);
 
     statusSystem.handleAppHeartbeat(
-        APPID1, 1000l, 1, 1, 1, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
+        APPID1,
+        1000l,
+        1,
+        1,
+        1,
+        new HashMap<>(),
+        new HashMap<>(),
+        dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        getNewReqeustId());
     statusSystem.handleAppHeartbeat(
-        appId2, 1000l, 1, 2, 2, new HashMap<>(), new HashMap<>(), dummy, getNewReqeustId());
+        appId2,
+        1000l,
+        1,
+        2,
+        2,
+        new HashMap<>(),
+        new HashMap<>(),
+        dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        getNewReqeustId());
 
     // Min size
     statusSystem.handleUpdatePartitionSize();
@@ -1111,6 +1203,8 @@ public class DefaultMetaSystemSuiteJ {
         shuffleFallbackCounts,
         applicationFallbackCounts,
         dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
         getNewReqeustId());
     shuffleFallbackCounts.put(POLICY1, 1L);
     shuffleFallbackCounts.put(POLICY2, 2L);
@@ -1125,6 +1219,8 @@ public class DefaultMetaSystemSuiteJ {
         shuffleFallbackCounts,
         applicationFallbackCounts,
         dummy,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
         getNewReqeustId());
 
     assertEquals(5, statusSystem.shuffleTotalCount.longValue());
@@ -1146,5 +1242,198 @@ public class DefaultMetaSystemSuiteJ {
 
     assertEquals(statusSystem.applicationInfos.get(appId).userIdentifier(), userIdentifier);
     assertEquals(statusSystem.applicationInfos.get(appId).extraInfo(), extraInfo);
+  }
+
+  private static final String CLIENT_GAUGE = "ClientActiveShuffleCount";
+  private static final Map<String, String> CLIENT_LABELS =
+      Collections.singletonMap("team", "data-eng");
+
+  private static CelebornConf clientMetricsConf() {
+    CelebornConf metricsConf = new CelebornConf();
+    metricsConf.set(CelebornConf.MASTER_CLIENT_METRICS_ENABLED().key(), "true");
+    return metricsConf;
+  }
+
+  private AbstractMetaManager statusSystemWithMetrics(ApplicationMetricsSource source) {
+    return new SingleMasterMetaManager(mockRpcEnv, conf, new CelebornRackResolver(conf), source);
+  }
+
+  private void heartbeatWithGauge(AbstractMetaManager system, String appId, long value) {
+    system.handleAppHeartbeat(
+        appId,
+        1,
+        1,
+        1,
+        1,
+        new HashMap<>(),
+        new HashMap<>(),
+        System.currentTimeMillis(),
+        Collections.singletonMap(CLIENT_GAUGE, value),
+        CLIENT_LABELS,
+        getNewReqeustId());
+  }
+
+  /** Sum of the client gauge across apps as exported by the source, or null if not exported. */
+  private static Long exportedGauge(ApplicationMetricsSource source) {
+    if (source.gauges().isEmpty()) {
+      return null;
+    }
+    return ((Number) source.gauges().head().gauge().getValue()).longValue();
+  }
+
+  /** A metrics source that fails on every call, to exercise the apply-path guardrails. */
+  private static class FailingMetricsSource extends ApplicationMetricsSource {
+    FailingMetricsSource(CelebornConf conf) {
+      super(conf);
+    }
+
+    @Override
+    public void updateApplicationMetrics(
+        String appId, Map<String, String> metricLabels, Map<String, Long> gauges) {
+      throw new IllegalArgumentException("injected update failure");
+    }
+
+    @Override
+    public void removeApplicationMetrics(String appId) {
+      throw new IllegalStateException("injected remove failure");
+    }
+
+    @Override
+    public void clearApplicationMetrics() {
+      throw new IllegalStateException("injected clear failure");
+    }
+  }
+
+  @Test
+  public void testDefaultConstructorCreatesApplicationMetricsSource() {
+    AbstractMetaManager system = new SingleMasterMetaManager(mockRpcEnv, clientMetricsConf());
+    ApplicationMetricsSource source = system.applicationMetricsSource();
+    try {
+      assertNotNull(source);
+      assertNull(exportedGauge(source));
+
+      heartbeatWithGauge(system, APPID1, 7);
+      assertEquals(Long.valueOf(7), exportedGauge(source));
+
+      system.handleAppLost(APPID1, getNewReqeustId());
+      assertNull(exportedGauge(source));
+    } finally {
+      source.destroy();
+    }
+  }
+
+  @Test
+  public void testInjectedApplicationMetricsSourceIsExposed() {
+    ApplicationMetricsSource source = new ApplicationMetricsSource(clientMetricsConf());
+    try {
+      assertSame(source, statusSystemWithMetrics(source).applicationMetricsSource());
+    } finally {
+      source.destroy();
+    }
+  }
+
+  @Test
+  public void testClientMetricsFailureDoesNotFailMetaUpdates() throws Exception {
+    FailingMetricsSource source = new FailingMetricsSource(clientMetricsConf());
+    File snapshot = Files.createTempFile("celeborn-meta", ".snapshot").toFile();
+    try {
+      statusSystem = statusSystemWithMetrics(source);
+
+      // In HA mode these run inside the Ratis apply, where an exception terminates the master.
+      heartbeatWithGauge(statusSystem, APPID1, 7);
+      assertTrue(statusSystem.appHeartbeatTime.containsKey(APPID1));
+
+      statusSystem.writeMetaInfoToFile(snapshot);
+      statusSystem.restoreMetaFromFile(snapshot);
+      assertTrue(statusSystem.appHeartbeatTime.containsKey(APPID1));
+
+      statusSystem.handleAppLost(APPID1, getNewReqeustId());
+      Assert.assertFalse(statusSystem.appHeartbeatTime.containsKey(APPID1));
+    } finally {
+      source.destroy();
+      snapshot.delete();
+    }
+  }
+
+  @Test
+  public void testRestoreMetaFromSnapshotClearsClientMetrics() throws Exception {
+    ApplicationMetricsSource source = new ApplicationMetricsSource(clientMetricsConf());
+    File snapshot = Files.createTempFile("celeborn-meta", ".snapshot").toFile();
+    String appId2 = "app02";
+    String appId3 = "app03";
+    try {
+      // The snapshot only knows appId2: APPID1's AppLost is covered by it, so a master
+      // installing it never applies that AppLost.
+      SingleMasterMetaManager snapshotSource = new SingleMasterMetaManager(mockRpcEnv, conf);
+      heartbeatWithGauge(snapshotSource, appId2, 1);
+      snapshotSource.writeMetaInfoToFile(snapshot);
+
+      statusSystem = statusSystemWithMetrics(source);
+      heartbeatWithGauge(statusSystem, APPID1, 7);
+      heartbeatWithGauge(statusSystem, appId3, 2);
+      statusSystem.handleAppLost(appId3, getNewReqeustId());
+      assertEquals(Long.valueOf(7), exportedGauge(source));
+
+      statusSystem.restoreMetaFromFile(snapshot);
+
+      // Nothing from before the install survives, including APPID1 which would otherwise never
+      // be removed.
+      Assert.assertNull(exportedGauge(source));
+      Assert.assertFalse(statusSystem.appHeartbeatTime.containsKey(APPID1));
+
+      // Live apps repopulate on their next heartbeat; an app lost before the install stays
+      // ignored.
+      heartbeatWithGauge(statusSystem, appId2, 5);
+      heartbeatWithGauge(statusSystem, appId3, 9);
+      assertEquals(Long.valueOf(5), exportedGauge(source));
+    } finally {
+      source.destroy();
+      snapshot.delete();
+    }
+  }
+
+  @Test
+  public void testConcurrentHeartbeatsAndAppLostLeaveNoClientMetrics() throws Exception {
+    // Single-master mode applies heartbeats on RPC threads and AppLost on another thread, so
+    // unlike HA they are not serialized. Heartbeats still in flight when the app is lost must
+    // not leave a series behind.
+    ApplicationMetricsSource source = new ApplicationMetricsSource(clientMetricsConf());
+    int heartbeatThreads = 4;
+    ExecutorService pool = Executors.newFixedThreadPool(heartbeatThreads + 1);
+    try {
+      statusSystem = statusSystemWithMetrics(source);
+      for (int round = 0; round < 200; round++) {
+        String appId = "race-app-" + round;
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<?>> futures = new ArrayList<>();
+        for (int t = 0; t < heartbeatThreads; t++) {
+          long value = t + 1;
+          futures.add(
+              pool.submit(
+                  () -> {
+                    start.await();
+                    for (int i = 0; i < 20; i++) {
+                      heartbeatWithGauge(statusSystem, appId, value);
+                    }
+                    return null;
+                  }));
+        }
+        futures.add(
+            pool.submit(
+                () -> {
+                  start.await();
+                  statusSystem.handleAppLost(appId, getNewReqeustId());
+                  return null;
+                }));
+        start.countDown();
+        for (Future<?> future : futures) {
+          future.get(30, TimeUnit.SECONDS);
+        }
+        Assert.assertNull("series leaked for " + appId, exportedGauge(source));
+      }
+    } finally {
+      pool.shutdownNow();
+      source.destroy();
+    }
   }
 }

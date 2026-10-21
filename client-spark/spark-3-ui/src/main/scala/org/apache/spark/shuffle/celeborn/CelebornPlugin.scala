@@ -49,7 +49,14 @@ private class CelebornDriverPlugin extends DriverPlugin with Logging {
     logInfo("Initializing CelebornDriverPlugin...")
     this.sc = sc
     val kvStore = sc.statusStore.store
-    new CelebornListener(kvStore, sc.conf).register(sc)
+    val listener = new CelebornListener(kvStore, sc.conf)
+    listener.register(sc)
+    // The event is recorded in the event log and the listener persists it into
+    // the KVStore, for the live UI and History Server replay alike.
+    sc.listenerBus.post(CelebornBuildInfoEvent(
+      version = org.apache.celeborn.ProjectConstants.VERSION,
+      commitId = org.apache.celeborn.ProjectConstants.getGitCommitId,
+      revision = org.apache.celeborn.ProjectConstants.REVISION))
     java.util.Collections.emptyMap[String, String]()
   }
 

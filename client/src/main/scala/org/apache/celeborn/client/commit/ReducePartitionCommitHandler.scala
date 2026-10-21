@@ -152,11 +152,11 @@ class ReducePartitionCommitHandler(
     if (conf.clientShuffleDataLostOnUnknownWorkerEnabled && !conf.clientPushReplicateEnabled) {
       val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
       if (allocatedWorkers != null) {
-        return workerStatusTracker.excludedWorkers.asScala.collect {
-          case (workerId, (status, _))
-              if status == StatusCode.WORKER_UNKNOWN && allocatedWorkers.contains(workerId) =>
-            workerId
-        }.nonEmpty
+        return workerStatusTracker.excludedWorkers.asScala.exists {
+          case (workerId, (status, _)) =>
+            status == StatusCode.WORKER_UNKNOWN &&
+              allocatedWorkers.containsKey(workerId.toUniqueId)
+        }
       }
     }
     false
@@ -254,13 +254,14 @@ class ReducePartitionCommitHandler(
 
     // collect result
     if (!dataLost) {
-      collectResult(
+      collectResultAndReleaseHdfsReplicas(
         shuffleId,
         shuffleCommittedInfo,
         getPartitionUniqueIds(shuffleCommittedInfo.committedPrimaryIds),
         getPartitionUniqueIds(shuffleCommittedInfo.committedReplicaIds),
-        parallelCommitResult.primaryPartitionLocationMap,
-        parallelCommitResult.replicaPartitionLocationMap)
+        parallelCommitResult,
+        allocatedWorkers,
+        lifecycleManager.releaseReplicaSlotsAsync(shuffleId, _))
     }
 
     (dataLost, parallelCommitResult.commitFilesFailedWorkers)

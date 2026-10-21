@@ -140,7 +140,10 @@
     <shading.prefix>org.apache.celeborn.shaded</shading.prefix>
 
     <maven.plugin.antrun.version>3.0.0</maven.plugin.antrun.version>
+    <maven.plugin.buildnumber.version>1.4</maven.plugin.buildnumber.version>
     <maven.plugin.clean.version>3.2.0</maven.plugin.clean.version>
+    <maven.plugin.properties.version>1.1.0</maven.plugin.properties.version>
+    <maven.plugin.templating.version>1.0.0</maven.plugin.templating.version>
     <maven.plugin.compiler.version>3.12.1</maven.plugin.compiler.version>
     <maven.plugin.dependency.version>3.1.1</maven.plugin.dependency.version>
     <maven.plugin.flatten.version>1.3.0</maven.plugin.flatten.version>
@@ -1000,6 +1003,24 @@
               </configuration>
             </execution>
           </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>buildnumber-maven-plugin</artifactId>
+          <version>${maven.plugin.buildnumber.version}</version>
+        </plugin>
+
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>properties-maven-plugin</artifactId>
+          <version>${maven.plugin.properties.version}</version>
+        </plugin>
+
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>templating-maven-plugin</artifactId>
+          <version>${maven.plugin.templating.version}</version>
         </plugin>
 
         <plugin>

@@ -224,4 +224,62 @@ class CelebornListenerSuite {
     // Non-Celeborn properties are filtered out.
     assertFalse(props.contains("spark.executor.memory"))
   }
+
+  @Test
+  def buildInfoRestoredOnReplayFromRecordedEvent(): Unit = {
+    // History Server replay: the recorded event restores the build info from
+    // the application itself and acts as the opt-in marker.
+    val store = new InMemoryStore()
+    val statusStore = new CelebornStatusStore(store)
+    val listener = new CelebornListener(store, new SparkConf(), requirePluginOptIn = true)
+    assertTrue(statusStore.buildInfo().info.isEmpty)
+
+    listener.onOtherEvent(CelebornBuildInfoEvent(
+      version = "1.0.0-test",
+      commitId = "abcdef12",
+      revision = "abcdef1234567890"))
+
+    assertTrue(statusStore.extensionEnabled())
+    val info = statusStore.buildInfo().info.toMap
+    assertEquals(3, info.size)
+    assertEquals("1.0.0-test", info("Version"))
+    assertEquals("abcdef12", info("Commit Id"))
+    assertEquals("abcdef1234567890", info("Revision"))
+    assertTrue(statusStore.celebornProperties().info.isEmpty)
+  }
+
+  @Test
+  def buildInfoEnablesCollectionOnReplay(): Unit = {
+    // Metrics are collected once the build info event enabled the plugin.
+    val store = new InMemoryStore()
+    val statusStore = new CelebornStatusStore(store)
+    val listener = new CelebornListener(store, new SparkConf(), requirePluginOptIn = true)
+
+    listener.onOtherEvent(CelebornBuildInfoEvent(
+      version = "1.0.0-test",
+      commitId = "abcdef12",
+      revision = "abcdef1234567890"))
+    listener.onTaskEnd(newTaskEnd(100L, 10L, 1L, 5L))
+
+    assertEquals(100L, statusStore.aggregatedTaskInfo().shuffleWriteBytes)
+  }
+
+  @Test
+  def buildInfoPersistedByLiveListenerFromPostedEvent(): Unit = {
+    // Live path uses the same code path as History Server replay.
+    val store = new InMemoryStore()
+    val statusStore = new CelebornStatusStore(store)
+    val listener = new CelebornListener(store, new SparkConf())
+
+    listener.onOtherEvent(CelebornBuildInfoEvent(
+      version = "1.0.0-test",
+      commitId = "abcdef12",
+      revision = "abcdef1234567890"))
+
+    val info = statusStore.buildInfo().info.toMap
+    assertEquals(3, info.size)
+    assertEquals("1.0.0-test", info("Version"))
+    assertEquals("abcdef12", info("Commit Id"))
+    assertEquals("abcdef1234567890", info("Revision"))
+  }
 }

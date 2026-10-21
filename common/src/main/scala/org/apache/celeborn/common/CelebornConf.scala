@@ -917,6 +917,12 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def metricsConf: Option[String] = get(METRICS_CONF)
   def metricsSystemEnable: Boolean = get(METRICS_ENABLED)
+  def clientMetricsEnabled: Boolean = get(CLIENT_METRICS_ENABLED)
+  def masterClientMetricsEnabled: Boolean = get(MASTER_CLIENT_METRICS_ENABLED)
+  def masterClientMetricsRemovedAppRetentionMs: Long =
+    get(MASTER_CLIENT_METRICS_REMOVED_APP_RETENTION)
+  def masterClientMetricsSeriesCardinalityWarnThreshold: Int =
+    get(MASTER_CLIENT_METRICS_SERIES_CARDINALITY_WARN_THRESHOLD)
   def metricsSampleRate: Double = get(METRICS_SAMPLE_RATE)
   def metricsPrefix: String = get(METRICS_PREFIX)
   def metricsSlidingWindowSize: Int = get(METRICS_SLIDING_WINDOW_SIZE)
@@ -924,6 +930,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsCapacity: Int = get(METRICS_CAPACITY)
   def metricsExtraLabels: Map[String, String] =
     get(METRICS_EXTRA_LABELS).map(Utils.parseKeyValuePair).toMap
+  def clientMetricsAppLabels: Map[String, String] =
+    get(CLIENT_METRICS_APP_LABELS).map(Utils.parseKeyValuePair).toMap
   def metricsWorkerAppTopResourceConsumptionCount: Int =
     get(METRICS_WORKER_APP_TOP_RESOURCE_CONSUMPTION_COUNT)
   def metricsWorkerAppTopResourceConsumptionBytesWrittenThreshold: Long =
@@ -1503,6 +1511,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def columnarShuffleEnabled: Boolean = get(COLUMNAR_SHUFFLE_ENABLED)
   def columnarShuffleBatchSize: Int = get(COLUMNAR_SHUFFLE_BATCH_SIZE)
+  def columnarShuffleBatchSizeInBytesEnabled: Boolean =
+    get(COLUMNAR_SHUFFLE_BATCH_SIZE_IN_BYTES_ENABLED)
+  def columnarShuffleBatchSizeInBytesThreshold: Long =
+    get(COLUMNAR_SHUFFLE_BATCH_SIZE_IN_BYTES_THRESHOLD)
   def columnarShuffleOffHeapEnabled: Boolean = get(COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED)
   def columnarShuffleDictionaryEnabled: Boolean = get(COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_ENABLED)
   def columnarShuffleDictionaryMaxFactor: Double =
@@ -1521,6 +1533,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testPushPrimaryDataTimeout: Boolean = get(TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT)
   def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
+  def testAppHeartbeatEnabled: Boolean = get(TEST_CLIENT_APPLICATION_HEARTBEAT_ENABLED)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
   def testProcessEndpointVerifierSeparate: Boolean = get(TEST_RPC_ENDPOINT_VERIFIER_SEPARATE)
   def clientFlinkMemoryPerResultPartition: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION)
@@ -5275,6 +5288,17 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
+  val TEST_CLIENT_APPLICATION_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.client.application.heartbeat.enabled")
+      .internal
+      .categories("test", "client")
+      .doc("Whether LifecycleManager schedules the application heartbeat to master. Only for " +
+        "tests without a master, whose assertions on shuffle metrics would otherwise race with " +
+        "the heartbeat resetting them.")
+      .version("1.0.0")
+      .booleanConf
+      .createWithDefault(true)
+
   val CLIENT_FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.timeout")
       .withAlternative("celeborn.fetch.timeout")
@@ -6079,6 +6103,47 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(true)
 
+  val CLIENT_METRICS_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.metrics.enabled")
+      .categories("client", "metrics")
+      .doc("When true, the LifecycleManager collects client-side metrics. " +
+        "Requires `celeborn.metrics.enabled` to also be true. Note that client metrics are only " +
+        "emitted in application heartbeats when `celeborn.client.metrics.appLabels` is set.")
+      .version("0.7.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val MASTER_CLIENT_METRICS_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.metrics.master.clientMetrics.enabled")
+      .categories("master", "metrics")
+      .doc("When true, the master exposes client-side metrics forwarded in application " +
+        "heartbeats on its Prometheus endpoint.")
+      .version("0.7.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val MASTER_CLIENT_METRICS_REMOVED_APP_RETENTION: ConfigEntry[Long] =
+    buildConf("celeborn.metrics.master.clientMetrics.removedApp.retention")
+      .categories("master", "metrics")
+      .doc("How long to retain removed application IDs in the client metrics source to " +
+        "reject late heartbeats after an application is lost. Entries older than this are " +
+        "periodically evicted.")
+      .version("0.7.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
+
+  val MASTER_CLIENT_METRICS_SERIES_CARDINALITY_WARN_THRESHOLD: ConfigEntry[Int] =
+    buildConf("celeborn.metrics.master.clientMetrics.seriesCardinality.warnThreshold")
+      .categories("master", "metrics")
+      .doc("Client metric series are keyed only by their (low-cardinality) label set and are " +
+        "only reclaimed when an application is lost, so a high-cardinality " +
+        "`celeborn.client.metrics.appLabels` configuration can grow the number of distinct " +
+        "series without bound. If the number of tracked series exceeds this threshold, the " +
+        "master logs a one-time warning.")
+      .version("0.7.0")
+      .intConf
+      .createWithDefault(1000)
+
   val METRICS_SAMPLE_RATE: ConfigEntry[Double] =
     buildConf("celeborn.metrics.sample.rate")
       .categories("metrics")
@@ -6118,6 +6183,20 @@ object CelebornConf extends Logging {
       .doc("If default metric labels are not enough, extra metric labels can be customized. " +
         "Labels' pattern is: `<label1_key>=<label1_value>[,<label2_key>=<label2_value>]*`; e.g. `env=prod,version=1`")
       .version("0.3.0")
+      .stringConf
+      .toSequence
+      .checkValue(
+        labels => labels.map(_ => Try(Utils.parseKeyValuePair(_))).forall(_.isSuccess),
+        "Allowed pattern is: `<label1_key>=<label1_value>[,<label2_key>=<label2_value>]*`")
+      .createWithDefault(Seq.empty)
+
+  val CLIENT_METRICS_APP_LABELS: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.client.metrics.appLabels")
+      .categories("client", "metrics")
+      .doc("Custom metric labels sent from the client in each application heartbeat and applied " +
+        "to client metrics exposed on the master's Prometheus endpoint. " +
+        "Labels' pattern is: `<label1_key>=<label1_value>[,<label2_key>=<label2_value>]*`; e.g. `env=prod,version=1`")
+      .version("0.7.0")
       .stringConf
       .toSequence
       .checkValue(
@@ -6352,6 +6431,31 @@ object CelebornConf extends Logging {
       .intConf
       .checkValue(v => v > 0, "Value must be positive")
       .createWithDefault(10000)
+
+  val COLUMNAR_SHUFFLE_BATCH_SIZE_IN_BYTES_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.columnarShuffle.batch.sizeInBytes.enabled")
+      .categories("columnar-shuffle")
+      .version("1.0.0")
+      .doc("Whether to also push a columnar batch once its estimated size in bytes reaches " +
+        "`celeborn.columnarShuffle.batch.sizeInBytes.threshold`, in addition to the row " +
+        s"limit `${COLUMNAR_SHUFFLE_BATCH_SIZE.key}`. This limits how much row data each " +
+        "partition buffers when rows are wide, e.g. with long strings. Column buffers are " +
+        s"still pre-sized for `${COLUMNAR_SHUFFLE_BATCH_SIZE.key}` rows.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_SHUFFLE_BATCH_SIZE_IN_BYTES_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.columnarShuffle.batch.sizeInBytes.threshold")
+      .categories("columnar-shuffle")
+      .version("1.0.0")
+      .doc("Estimated size in bytes at which a columnar batch is pushed, when " +
+        "`celeborn.columnarShuffle.batch.sizeInBytes.enabled` is true. The size is estimated " +
+        "from the uncompressed size of the rows added to the batch. The default matches " +
+        s"`${CLIENT_PUSH_BUFFER_MAX_SIZE.key}`, the per-partition buffer of the row-based " +
+        "hash writer.")
+      .bytesConf(ByteUnit.BYTE)
+      .checkValue(v => v > 0, "Value must be positive")
+      .createWithDefaultString("64k")
 
   val COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.columnarShuffle.offHeap.enabled")

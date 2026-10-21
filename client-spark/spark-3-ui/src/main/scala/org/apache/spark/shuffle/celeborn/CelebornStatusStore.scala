@@ -42,6 +42,14 @@ private[celeborn] class CelebornPropertiesUIData(
   def id: String = classOf[CelebornPropertiesUIData].getName
 }
 
+private[celeborn] class CelebornBuildInfoUIData(
+    val info: Seq[(String, String)]) {
+
+  @JsonIgnore
+  @KVIndex
+  def id: String = classOf[CelebornBuildInfoUIData].getName
+}
+
 /**
  * Marker persisted during History Server replay when the application's recorded
  * `spark.plugins` or `spark.plugins.defaultList` contains [[CelebornPlugin]].
@@ -73,6 +81,15 @@ private[celeborn] class CelebornStatusStore(store: KVStore) {
       store.read(kClass, kClass.getName)
     } catch {
       case _: NoSuchElementException => new CelebornPropertiesUIData(Seq.empty)
+    }
+  }
+
+  def buildInfo(): CelebornBuildInfoUIData = {
+    val kClass = classOf[CelebornBuildInfoUIData]
+    try {
+      store.read(kClass, kClass.getName)
+    } catch {
+      case _: NoSuchElementException => new CelebornBuildInfoUIData(Seq.empty)
     }
   }
 
