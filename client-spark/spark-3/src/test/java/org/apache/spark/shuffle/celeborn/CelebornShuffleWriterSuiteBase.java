@@ -296,6 +296,8 @@ public abstract class CelebornShuffleWriterSuiteBase {
       totalBytesPushed += bytes;
     }
     assertEquals(totalBytesPushed, mapperMetrics.uncompressedBytesWritten());
+    // The dummy client applies no compression, so compressed bytes == bytes pushed.
+    assertEquals(totalBytesPushed, mapperMetrics.compressedBytesWritten());
 
     Map<Integer, List<byte[]>> crcData = client.getCrcDataByPartition(mapKey);
     Map<Integer, List<byte[]>> pushData = client.getPushDataByPartition(mapKey);
@@ -398,6 +400,7 @@ public abstract class CelebornShuffleWriterSuiteBase {
     assertNotNull(mapperMetrics);
     // The dummy client applies no compression, so uncompressed bytes == bytes written.
     assertEquals(tempFile.length(), mapperMetrics.uncompressedBytesWritten());
+    assertEquals(tempFile.length(), mapperMetrics.compressedBytesWritten());
 
     try (FileInputStream fis = new FileInputStream(tempFile)) {
       Iterator it = newSerializerInstance(serializer).deserializeStream(fis).asKeyValueIterator();

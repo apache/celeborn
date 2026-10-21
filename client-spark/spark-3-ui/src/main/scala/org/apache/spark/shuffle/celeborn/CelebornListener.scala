@@ -50,6 +50,9 @@ private[celeborn] class CelebornListener(
   private val totalTaskDurationMs = new AtomicLong(0L)
   // Total bytes pushed before compression, for the compression ratio.
   private val totalUncompressedWriteBytes = new AtomicLong(0L)
+  // Total bytes pushed after compression, from the same MapperEnd reports, so the
+  // compression ratio uses a single attempt set.
+  private val totalCompressedWriteBytes = new AtomicLong(0L)
 
   private val lastUpdateTimestamp = new AtomicLong(-1L)
   private val updateIntervalMillis = 5000L
@@ -66,8 +69,8 @@ private[celeborn] class CelebornListener(
     Option(taskEnd.taskMetrics).foreach { metrics =>
       taskEnd.reason match {
         case Success =>
-          // Write-side metrics only for successful attempts: failed ones never report
-          // MapperEnd, so counting them would skew the compression ratio.
+          // Write-side metrics only for successful attempts. The compression ratio
+          // instead derives both sides from MapperEnd reports.
           totalWriteBytes.addAndGet(metrics.shuffleWriteMetrics.bytesWritten)
           // writeTime is in nanoseconds; normalize to ms.
           totalWriteTimeMs.addAndGet(metrics.shuffleWriteMetrics.writeTime / 1000000L)
@@ -80,15 +83,24 @@ private[celeborn] class CelebornListener(
     mayUpdate()
   }
 
-  override def onOtherEvent(event: SparkListenerEvent): Unit = {
-    event match {
-      case e: CelebornMapperMetricsEvent =>
-        if (pluginEnabled) {
-          totalUncompressedWriteBytes.addAndGet(e.getUncompressedBytesWritten)
-          mayUpdate()
-        }
-      case _ =>
-    }
+  override def onOtherEvent(event: SparkListenerEvent): Unit = event match {
+    case e: CelebornBuildInfoEvent =>
+      // Receiving the event also proves the application loaded the plugin.
+      kvstore.write(new CelebornBuildInfoUIData(Seq(
+        "Version" -> e.version,
+        "Commit Id" -> e.commitId,
+        "Revision" -> e.revision)))
+      if (!pluginEnabled) {
+        pluginEnabled = true
+        kvstore.write(new CelebornExtensionEnabledUIData())
+      }
+    case e: CelebornMapperMetricsEvent =>
+      if (pluginEnabled) {
+        totalUncompressedWriteBytes.addAndGet(e.getUncompressedBytesWritten)
+        totalCompressedWriteBytes.addAndGet(e.getCompressedBytesWritten)
+        mayUpdate()
+      }
+    case _ =>
   }
 
   override def onJobEnd(jobEnd: SparkListenerJobEnd): Unit = {
@@ -124,20 +136,6 @@ private[celeborn] class CelebornListener(
     }
   }
 
-  override def onOtherEvent(event: SparkListenerEvent): Unit = event match {
-    case e: CelebornBuildInfoEvent =>
-      // Receiving the event also proves the application loaded the plugin.
-      kvstore.write(new CelebornBuildInfoUIData(Seq(
-        "Version" -> e.version,
-        "Commit Id" -> e.commitId,
-        "Revision" -> e.revision)))
-      if (!pluginEnabled) {
-        pluginEnabled = true
-        kvstore.write(new CelebornExtensionEnabledUIData())
-      }
-    case _ =>
-  }
-
   override def onApplicationEnd(applicationEnd: SparkListenerApplicationEnd): Unit = {
     mayUpdate(force = true)
     logInfo("CelebornListener: application ended, final flush completed")
@@ -171,7 +169,8 @@ private[celeborn] class CelebornListener(
         totalReadBytes.get(),
         totalFetchWaitTimeMs.get(),
         totalTaskDurationMs.get(),
-        totalUncompressedWriteBytes.get()))
+        totalUncompressedWriteBytes.get(),
+        totalCompressedWriteBytes.get()))
     } catch {
       case e: Exception =>
         logWarning("Failed to flush CelebornListener aggregations", e)

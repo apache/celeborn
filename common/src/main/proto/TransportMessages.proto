@@ -389,6 +389,8 @@ message PbPartitionSplit {
 message PbMapperMetrics {
   // Bytes pushed before compression/encryption; 0 means not reported.
   int64 uncompressedBytesWritten = 1;
+  // Bytes pushed after compression/encryption; 0 means not reported.
+  int64 compressedBytesWritten = 2;
 }
 
 message PbMapperEnd {

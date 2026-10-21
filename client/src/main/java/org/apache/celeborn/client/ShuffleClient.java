@@ -383,7 +383,7 @@ public abstract class ShuffleClient {
 
   public void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
       throws IOException {
-    mapperEnd(shuffleId, mapId, attemptId, numMappers, numPartitions, new MapperMetrics(0L));
+    mapperEnd(shuffleId, mapId, attemptId, numMappers, numPartitions, new MapperMetrics(0L, 0L));
   }
 
   public abstract void readReducerPartitionEnd(

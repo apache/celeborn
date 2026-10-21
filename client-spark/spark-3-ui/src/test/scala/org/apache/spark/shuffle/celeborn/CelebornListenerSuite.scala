@@ -69,13 +69,14 @@ class CelebornListenerSuite {
     val statusStore = new CelebornStatusStore(store)
     val listener = new CelebornListener(store, new SparkConf())
 
-    listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 100L))
-    listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 250L))
+    listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 100L, 40L))
+    listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 250L, 94L))
     // Unrelated events are ignored.
     listener.onOtherEvent(new SparkListenerEvent {})
     listener.flush()
 
     assertEquals(350L, statusStore.aggregatedTaskInfo().uncompressedShuffleBytes)
+    assertEquals(134L, statusStore.aggregatedTaskInfo().compressedShuffleBytes)
   }
 
   @Test
@@ -86,10 +87,10 @@ class CelebornListenerSuite {
 
     listener.onTaskEnd(newTaskEnd(100L, 10L, 1L, 5L))
     listener.onTaskEnd(newTaskEnd(200L, 20L, 2L, 6L))
-    // The killed attempt wrote bytes, but its MapperEnd is never reported.
+    // The killed attempt's write metrics are excluded from the task-end totals.
     listener.onTaskEnd(newTaskEnd(300L, 30L, 3L, 7L, TaskKilled("killed by test")))
-    listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 100L))
-    listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 200L))
+    listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 100L, 40L))
+    listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 200L, 80L))
     listener.flush()
 
     val agg = statusStore.aggregatedTaskInfo()
@@ -99,6 +100,35 @@ class CelebornListenerSuite {
     assertEquals(6L, agg.shuffleFetchWaitTimeMs)
     assertEquals(18L, agg.taskDurationMs)
     assertEquals(300L, agg.uncompressedShuffleBytes)
+    assertEquals(120L, agg.compressedShuffleBytes)
+  }
+
+  @Test
+  def compressionRatioSidesComeFromTheSameMapperEndAttemptSet(): Unit = {
+    // Regression: a task failing after its writer completed already reported
+    // MapperEnd. Both ratio sides derive from MapperEnd reports, so such attempts
+    // are counted consistently instead of skewing the ratio.
+    val store = new InMemoryStore()
+    val statusStore = new CelebornStatusStore(store)
+    val listener = new CelebornListener(store, new SparkConf())
+
+    // Partition 0 attempt 0: writer completed, then the task failed.
+    listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 20L, 94L))
+    // Partition 0 attempt 1 (retry) and partition 1 attempt 0: succeeded.
+    listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 20L, 94L))
+    listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 20L, 94L))
+    listener.onTaskEnd(newTaskEnd(94L, 10L, 1L, 5L))
+    listener.onTaskEnd(newTaskEnd(94L, 10L, 1L, 5L))
+    listener.onTaskEnd(newTaskEnd(94L, 10L, 1L, 5L, TaskKilled("failed after write")))
+    listener.flush()
+
+    val agg = statusStore.aggregatedTaskInfo()
+    // Task-end write bytes count only the two successful attempts...
+    assertEquals(188L, agg.shuffleWriteBytes)
+    // ...while the compression ratio uses the same attempt set on both sides:
+    // 60/282 has the same ratio as the successful-only 40/188.
+    assertEquals(60L, agg.uncompressedShuffleBytes)
+    assertEquals(282L, agg.compressedShuffleBytes)
   }
 
   @Test
@@ -107,7 +137,7 @@ class CelebornListenerSuite {
     // records the class name and History Server replay can restore the event (the
     // same mechanism JsonProtocol uses for custom SparkListenerEvents).
     val mapper = new ObjectMapper()
-    val event = new CelebornMapperMetricsEvent(1, 1024L)
+    val event = new CelebornMapperMetricsEvent(1, 1024L, 512L)
     val json = mapper.writeValueAsString(event)
     assertTrue(json.contains(
       s""""Event":"${classOf[CelebornMapperMetricsEvent].getName}"""))
@@ -116,6 +146,16 @@ class CelebornListenerSuite {
       .asInstanceOf[CelebornMapperMetricsEvent]
     assertEquals(1, restored.getShuffleId)
     assertEquals(1024L, restored.getUncompressedBytesWritten)
+    assertEquals(512L, restored.getCompressedBytesWritten)
+
+    // Event logs written before compressedBytesWritten existed still deserialize.
+    val legacy = mapper.readValue(
+      s"""{"Event":"${classOf[CelebornMapperMetricsEvent].getName}",""" +
+        """"shuffleId":1,"uncompressedBytesWritten":1024}""",
+      classOf[SparkListenerEvent])
+      .asInstanceOf[CelebornMapperMetricsEvent]
+    assertEquals(1024L, legacy.getUncompressedBytesWritten)
+    assertEquals(0L, legacy.getCompressedBytesWritten)
   }
 
   @Test

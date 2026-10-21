@@ -210,7 +210,9 @@ object ControlMessages extends Logging {
       serdeVersion: SerdeVersion) extends MasterMessage
 
   // Extensible per-mapper metrics carried by MapperEnd, mirrors PbMapperMetrics.
-  case class MapperMetrics(uncompressedBytesWritten: Long = 0L)
+  case class MapperMetrics(
+      uncompressedBytesWritten: Long = 0L,
+      compressedBytesWritten: Long = 0L)
 
   case class MapperEnd(
       shuffleId: Int,
@@ -770,7 +772,8 @@ object ControlMessages extends Logging {
         .addAllBytesWrittenPerPartition(bytesWrittenPerPartition.map(
           java.lang.Long.valueOf).toSeq.asJava)
         .setMetrics(PbMapperMetrics.newBuilder()
-          .setUncompressedBytesWritten(metrics.uncompressedBytesWritten))
+          .setUncompressedBytesWritten(metrics.uncompressedBytesWritten)
+          .setCompressedBytesWritten(metrics.compressedBytesWritten))
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END, payload, serdeVersion)
 
@@ -1282,7 +1285,9 @@ object ControlMessages extends Logging {
           crc32Array,
           bytesWrittenPerPartitionArray,
           message.getSerdeVersion,
-          MapperMetrics(pbMapperEnd.getMetrics.getUncompressedBytesWritten))
+          MapperMetrics(
+            pbMapperEnd.getMetrics.getUncompressedBytesWritten,
+            pbMapperEnd.getMetrics.getCompressedBytesWritten))
 
       case READ_REDUCER_PARTITION_END_VALUE =>
         val pbReadReducerPartitionEnd = PbReadReducerPartitionEnd.parseFrom(message.getPayload)

@@ -61,6 +61,7 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
     val readMs = taskInfo.shuffleFetchWaitTimeMs
     val durationMs = taskInfo.taskDurationMs
     val uncompressedBytes = taskInfo.uncompressedShuffleBytes
+    val compressedBytes = taskInfo.compressedShuffleBytes
 
     def mbps(bytes: Long, ms: Long): String =
       if (ms <= 0) "N/A" else f"${bytes.toDouble / 1000.0 / 1000.0 / (ms.toDouble / 1000.0)}%.2f"
@@ -68,10 +69,10 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
       if (total <= 0) "N/A" else f"${part.toDouble * 100.0 / total.toDouble}%.1f%%"
     // 0 when not reported, e.g. by old clients.
     def compressionRatio: String =
-      if (uncompressedBytes <= 0 || writeBytes <= 0) "N/A"
+      if (uncompressedBytes <= 0 || compressedBytes <= 0) "N/A"
       else {
-        s"${Utils.bytesToString(uncompressedBytes)}/${Utils.bytesToString(writeBytes)} = " +
-          f"${uncompressedBytes.toDouble / writeBytes}%.2f"
+        s"${Utils.bytesToString(uncompressedBytes)}/${Utils.bytesToString(compressedBytes)} = " +
+          f"${uncompressedBytes.toDouble / compressedBytes}%.2f"
       }
 
     val summary =

@@ -32,11 +32,16 @@ public class CelebornMapperMetricsEvent implements SparkListenerEvent {
   // Bytes pushed before compression/encryption; 0 means not reported.
   private long uncompressedBytesWritten;
 
+  // Bytes pushed after compression/encryption; 0 means not reported.
+  private long compressedBytesWritten;
+
   public CelebornMapperMetricsEvent() {}
 
-  public CelebornMapperMetricsEvent(int shuffleId, long uncompressedBytesWritten) {
+  public CelebornMapperMetricsEvent(
+      int shuffleId, long uncompressedBytesWritten, long compressedBytesWritten) {
     this.shuffleId = shuffleId;
     this.uncompressedBytesWritten = uncompressedBytesWritten;
+    this.compressedBytesWritten = compressedBytesWritten;
   }
 
   public int getShuffleId() {
@@ -53,6 +58,14 @@ public class CelebornMapperMetricsEvent implements SparkListenerEvent {
 
   public void setUncompressedBytesWritten(long uncompressedBytesWritten) {
     this.uncompressedBytesWritten = uncompressedBytesWritten;
+  }
+
+  public long getCompressedBytesWritten() {
+    return compressedBytesWritten;
+  }
+
+  public void setCompressedBytesWritten(long compressedBytesWritten) {
+    this.compressedBytesWritten = compressedBytesWritten;
   }
 
   @Override

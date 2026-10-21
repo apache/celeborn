@@ -27,7 +27,9 @@ private[celeborn] case class AggregatedTaskInfoUIData(
     shuffleFetchWaitTimeMs: Long,
     taskDurationMs: Long,
     // Bytes pushed before compression; 0 for records written by older versions.
-    uncompressedShuffleBytes: Long = 0L) {
+    uncompressedShuffleBytes: Long = 0L,
+    // Bytes pushed after compression; 0 for records written by older versions.
+    compressedShuffleBytes: Long = 0L) {
 
   @JsonIgnore
   @KVIndex

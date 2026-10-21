@@ -406,7 +406,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         encodedAttemptId,
         numMappers,
         numPartitions,
-        new MapperMetrics(uncompressedBytesWritten));
+        new MapperMetrics(
+            uncompressedBytesWritten, SparkCommonUtils.sumLongAdders(mapStatusLengths)));
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
 
     BlockManagerId bmId = SparkEnv.get().blockManager().shuffleServerId();

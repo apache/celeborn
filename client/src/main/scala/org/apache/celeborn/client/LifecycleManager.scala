@@ -91,6 +91,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   private val shufflePartitionType = JavaUtils.newConcurrentHashMap[Int, PartitionType]()
   private val rangeReadFilter = conf.shuffleRangeReadFilterEnabled
   private val unregisterShuffleTime = JavaUtils.newConcurrentHashMap[Int, Long]()
+  // shuffle id -> (mapId, attemptId) pairs already reported to mapperEndCallback,
+  // so every finished writer attempt is reported exactly once.
+  private val reportedMapperAttempts =
+    JavaUtils.newConcurrentHashMap[Int, util.Set[java.lang.Long]]()
 
   val registeredShuffle = ConcurrentHashMap.newKeySet[Int]()
   val shuffleCount = new LongAdder()
@@ -983,11 +987,15 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         numPartitions = numPartitions,
         crc32PerPartition = crc32PerPartition,
         bytesWrittenPerPartition = bytesWrittenPerPartition)
-    // Report every finished writer attempt, including ones the commit handler rejects
-    // (duplicate speculative attempts); a rejected MapperEnd with the same attemptId is
-    // just a retried RPC.
-    if (mapperAttemptFinishedSuccess ||
-      attemptId != commitManager.getMapperAttempts(shuffleId)(mapId)) {
+    // Report every finished writer attempt exactly once, including attempts the
+    // commit handler rejects; retried MapperEnd RPCs are suppressed.
+    val reportedAttempts = reportedMapperAttempts.computeIfAbsent(
+      shuffleId,
+      new function.Function[Int, util.Set[java.lang.Long]]() {
+        override def apply(id: Int): util.Set[java.lang.Long] =
+          ConcurrentHashMap.newKeySet[java.lang.Long]()
+      })
+    if (reportedAttempts.add((mapId.toLong << 32) | (attemptId & 0xFFFFFFFFL))) {
       mapperEndCallback.foreach(_.onMapperEnd(shuffleId, mapId, attemptId, metrics))
     }
     if (mapperAttemptFinishedSuccess && allMapperFinished) {
@@ -1871,6 +1879,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         latestPartitionLocation.remove(shuffleId)
         commitManager.removeExpiredShuffle(shuffleId)
         changePartitionManager.removeExpiredShuffle(shuffleId)
+        reportedMapperAttempts.remove(shuffleId)
         invalidatedBroadcastGetReducerFileGroupResponse(shuffleId)
       }
     }

@@ -171,7 +171,9 @@ public class SparkShuffleManager implements ShuffleManager {
                   sc.listenerBus()
                       .post(
                           new CelebornMapperMetricsEvent(
-                              shuffleId, metrics.uncompressedBytesWritten()));
+                              shuffleId,
+                              metrics.uncompressedBytesWritten(),
+                              metrics.compressedBytesWritten()));
                 }
               });
           if (celebornConf.clientStageRerunEnabled()) {

@@ -1904,7 +1904,7 @@ public class ShuffleClientImpl extends ShuffleClient {
                   crc32PerPartition,
                   bytesPerPartition,
                   SerdeVersion.V1,
-                  metrics == null ? new MapperMetrics(0L) : metrics),
+                  metrics == null ? new MapperMetrics(0L, 0L) : metrics),
               rpcMaxRetries,
               rpcRetryWait,
               ClassTag$.MODULE$.apply(MapperEndResponse.class));

@@ -139,9 +139,9 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     val mapId = 1
     val attemptId = 0
 
-    val reported = new util.concurrent.ConcurrentLinkedQueue[java.lang.Long]()
+    val reported = new util.concurrent.ConcurrentLinkedQueue[(Long, Long)]()
     lifecycleManager.registerMapperEndCallback((_, _, _, metrics) =>
-      reported.add(metrics.uncompressedBytesWritten))
+      reported.add((metrics.uncompressedBytesWritten, metrics.compressedBytesWritten)))
 
     // Register a REDUCE-partition shuffle.
     shuffleClient.getPartitionLocation(shuffleId, numMappers, numPartitions)
@@ -153,7 +153,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
       attemptId,
       numMappers,
       numPartitions,
-      new MapperMetrics(100L))
+      new MapperMetrics(100L, 40L))
     // Retried RPC of the same attempt: reported once.
     shuffleClient.mapperEnd(
       shuffleId,
@@ -161,7 +161,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
       attemptId,
       numMappers,
       numPartitions,
-      new MapperMetrics(100L))
+      new MapperMetrics(100L, 40L))
     // Duplicate speculative attempt: rejected by the commit handler, still reported.
     shuffleClient.mapperEnd(
       shuffleId,
@@ -169,11 +169,18 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
       attemptId + 1,
       numMappers,
       numPartitions,
-      new MapperMetrics(250L))
+      new MapperMetrics(250L, 94L))
+    // Retried RPC of the rejected attempt: must not be reported again.
+    shuffleClient.mapperEnd(
+      shuffleId,
+      mapId,
+      attemptId + 1,
+      numMappers,
+      numPartitions,
+      new MapperMetrics(250L, 94L))
 
     // The callback runs synchronously before the RPC reply.
-    assert(reported.asScala.map(_.toLong).toSet == Set(100L, 250L))
-    assert(reported.asScala.map(_.toLong).sum == 350L)
+    assert(reported.asScala.toList == List((100L, 40L), (250L, 94L)))
   }
 
   override def afterAll(): Unit = {
