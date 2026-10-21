@@ -680,7 +680,6 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       cleanDB: Boolean = true): Unit = {
     expiredShuffleKeys.asScala.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
-      committedFileInfos.remove(shuffleKey)
       if (diskFileInfos.containsKey(shuffleKey)) {
         val removedFileInfos = diskFileInfos.remove(shuffleKey)
         val expireStorageTypes = mutable.Set[StorageInfo.Type]()
@@ -715,6 +714,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           }
         })
         if (workerGracefulShutdown) {
+          // Writer cleanup waits for in-flight close calls to finish registering metadata.
+          committedFileInfos.remove(shuffleKey)
           if (cleanDB) {
             try {
               db.delete(dbShuffleKey(shuffleKey))
