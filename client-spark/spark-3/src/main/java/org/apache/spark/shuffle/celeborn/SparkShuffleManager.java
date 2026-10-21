@@ -167,6 +167,17 @@ public class SparkShuffleManager implements ShuffleManager {
     SparkCommonUtils.validateAttemptConfig(conf);
     this.conf = conf;
     this.isDriver = isDriver;
+    // Fail fast at SparkContext startup instead of lazily on the first registerShuffle,
+    // so that a misconfiguration never leaves later queries running with cleanup silently off.
+    if (isDriver
+        && celebornConf.clientSparkSqlQueryEndShuffleCleanupEnabled()
+        && !celebornConf.clientStageRerunEnabled()) {
+      throw new IllegalArgumentException(
+          CelebornConf.CLIENT_STAGE_RERUN_ENABLED().key()
+              + " has to be enabled, when "
+              + CelebornConf.CLIENT_SPARK_SQL_QUERY_END_SHUFFLE_CLEANUP_ENABLED().key()
+              + " is set to true");
+    }
     this.cores = executorCores(conf);
     this.fallbackPolicyRunner = new CelebornShuffleFallbackPolicyRunner(celebornConf);
     this.sendBufferPoolCheckInterval = celebornConf.clientPushSendBufferPoolExpireCheckInterval();
@@ -236,15 +247,7 @@ public class SparkShuffleManager implements ShuffleManager {
             }
           }
 
-          if (celebornConf.clientSparkShuffleCleanupEnabled()) {
-            if (!celebornConf.clientStageRerunEnabled()) {
-              throw new IllegalArgumentException(
-                  CelebornConf.CLIENT_STAGE_RERUN_ENABLED().key()
-                      + " has to be "
-                      + "enabled, when "
-                      + CelebornConf.CLIENT_SPARK_SHUFFLE_CLEANUP_ENABLED().key()
-                      + " is set to true");
-            }
+          if (celebornConf.clientSparkSqlQueryEndShuffleCleanupEnabled()) {
             SparkUtils.addSparkListener(new CelebornShuffleCleanupListener(lifecycleManager));
           }
 
