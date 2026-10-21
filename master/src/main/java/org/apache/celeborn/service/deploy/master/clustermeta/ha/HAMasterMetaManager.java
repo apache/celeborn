@@ -17,7 +17,6 @@
 
 package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -231,8 +230,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
     try {
       if (heartbeatAggregator != null) {
         // Flush any pending heartbeat of this app first, so it is not applied after AppLost.
-        heartbeatAggregator.submitWithOrdering(
-            Collections.singletonList(appId), Collections.emptyList(), request);
+        heartbeatAggregator.submitAppLifecycle(appId, request);
       } else {
         ratisServer.submitRequest(request);
       }
@@ -311,10 +309,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       if (heartbeatAggregator != null) {
         // Flush any pending heartbeat of this worker first, so it is not applied after
         // WorkerLost.
-        heartbeatAggregator.submitWithOrdering(
-            Collections.emptyList(),
-            Collections.singletonList(
-                HeartbeatAggregator.workerKey(host, rpcPort, pushPort, fetchPort, replicatePort)),
+        heartbeatAggregator.submitWorkerLifecycle(
+            HeartbeatAggregator.workerKey(host, rpcPort, pushPort, fetchPort, replicatePort),
             request);
       } else {
         ratisServer.submitRequest(request);
@@ -424,10 +420,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       if (heartbeatAggregator != null) {
         // Flush any pending heartbeat of this worker first, so a stale heartbeat is not
         // applied after the fresh registration.
-        heartbeatAggregator.submitWithOrdering(
-            Collections.emptyList(),
-            Collections.singletonList(
-                HeartbeatAggregator.workerKey(host, rpcPort, pushPort, fetchPort, replicatePort)),
+        heartbeatAggregator.submitWorkerLifecycle(
+            HeartbeatAggregator.workerKey(host, rpcPort, pushPort, fetchPort, replicatePort),
             request);
       } else {
         ratisServer.submitRequest(request);

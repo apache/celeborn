@@ -19,6 +19,7 @@ package org.apache.celeborn.service.deploy.master.clustermeta.ha;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,12 +44,12 @@ public class HeartbeatAggregator {
   private final long batchIntervalMs;
 
   private final ReentrantLock pendingLock = new ReentrantLock();
-  private Map<String, ResourceProtos.WorkerHeartbeatRequest> workerHeartbeats = new HashMap<>();
-  private Map<String, ResourceProtos.AppHeartbeatRequest> appHeartbeats = new HashMap<>();
+  private final Map<String, ResourceProtos.WorkerHeartbeatRequest> workerHeartbeats =
+      new HashMap<>();
+  private final Map<String, ResourceProtos.AppHeartbeatRequest> appHeartbeats = new HashMap<>();
 
-  // Serializes raft submissions of heartbeat batches and lifecycle requests so that a
-  // lifecycle request (e.g. AppLost, WorkerLost, RegisterWorker) is never applied before
-  // heartbeats that were accepted earlier.
+  // Serializes raft submissions so a lifecycle request is never applied before heartbeats
+  // accepted earlier.
   private final ReentrantLock submissionLock = new ReentrantLock();
 
   private final ScheduledExecutorService flushExecutor;
@@ -66,7 +67,14 @@ public class HeartbeatAggregator {
   public void offerWorkerHeartbeat(ResourceProtos.WorkerHeartbeatRequest heartbeat) {
     pendingLock.lock();
     try {
-      workerHeartbeats.put(workerKey(heartbeat), heartbeat);
+      workerHeartbeats.put(
+          workerKey(
+              heartbeat.getHost(),
+              heartbeat.getRpcPort(),
+              heartbeat.getPushPort(),
+              heartbeat.getFetchPort(),
+              heartbeat.getReplicatePort()),
+          heartbeat);
     } finally {
       pendingLock.unlock();
     }
@@ -81,10 +89,8 @@ public class HeartbeatAggregator {
     }
   }
 
-  // App heartbeat counters (totalWritten, fileCount, shuffle/application counts and fallback
-  // counts) are deltas reset by the client after each report, so coalescing must accumulate
-  // them instead of keeping only the newest one. Time and client gauges are snapshots, for
-  // which the newest value wins.
+  // Counter fields are client-side deltas and must be accumulated when coalescing; time and
+  // client gauges are snapshots where the newest value wins.
   private static ResourceProtos.AppHeartbeatRequest mergeAppHeartbeat(
       ResourceProtos.AppHeartbeatRequest pending, ResourceProtos.AppHeartbeatRequest latest) {
     return latest
@@ -104,18 +110,15 @@ public class HeartbeatAggregator {
   }
 
   private static Map<String, Long> mergeCounts(Map<String, Long> a, Map<String, Long> b) {
+    if (a.isEmpty()) {
+      return b;
+    }
+    if (b.isEmpty()) {
+      return a;
+    }
     Map<String, Long> merged = new HashMap<>(a);
     b.forEach((key, value) -> merged.merge(key, value, Long::sum));
     return merged;
-  }
-
-  private static String workerKey(ResourceProtos.WorkerHeartbeatRequest heartbeat) {
-    return workerKey(
-        heartbeat.getHost(),
-        heartbeat.getRpcPort(),
-        heartbeat.getPushPort(),
-        heartbeat.getFetchPort(),
-        heartbeat.getReplicatePort());
   }
 
   static String workerKey(
@@ -160,13 +163,20 @@ public class HeartbeatAggregator {
     }
   }
 
-  /**
-   * Submits a lifecycle request (e.g. AppLost, WorkerLost, RegisterWorker) while preserving its
-   * order relative to buffered heartbeats: pending heartbeats of the affected apps and workers are
-   * drained and flushed first, and the submissionLock serializes this against in-flight batch
-   * flushes, so no earlier accepted heartbeat can be applied after the lifecycle request.
-   */
-  public void submitWithOrdering(
+  /** AppLost etc.: flush the app's pending heartbeat before submitting. */
+  public void submitAppLifecycle(String appId, ResourceRequest lifecycleRequest) {
+    submitWithOrdering(Collections.singletonList(appId), Collections.emptyList(), lifecycleRequest);
+  }
+
+  /** WorkerLost/RegisterWorker etc.: flush the worker's pending heartbeat before submitting. */
+  public void submitWorkerLifecycle(String workerKey, ResourceRequest lifecycleRequest) {
+    submitWithOrdering(
+        Collections.emptyList(), Collections.singletonList(workerKey), lifecycleRequest);
+  }
+
+  // Flushes pending heartbeats of the affected apps/workers first, then submits the lifecycle
+  // request, all under submissionLock so earlier accepted heartbeats apply first.
+  private void submitWithOrdering(
       Collection<String> appIds, Collection<String> workerKeys, ResourceRequest lifecycleRequest) {
     submissionLock.lock();
     try {
