@@ -725,16 +725,26 @@ object CelebornCommon {
           Seq(Dependencies.jdkTools) else Nil),
 
       Compile / sourceGenerators += Def.task {
-        val file = (Compile / sourceManaged).value / "org" / "apache" / "celeborn" / "package.scala"
-        streams.value.log.info(s"geneate version information file ${file.toPath}")
-        IO.write(file,
+        val dir = (Compile / sourceManaged).value / "org" / "apache" / "celeborn"
+        val packageFile = dir / "package.scala"
+        streams.value.log.info(s"geneate version information file ${packageFile.toPath}")
+        IO.write(packageFile,
           s"""package org.apache
              |
              |package object celeborn {
              |  val VERSION = "${version.value}"
              |}
              |""".stripMargin)
-        Seq(file)
+        // Filter the maven template (src/main/java-templates, processed by
+        // templating-maven-plugin in maven builds) the same way, so both build
+        // systems produce the same compile-time build info constants.
+        val constantsFile = dir / "ProjectConstants.java"
+        val template = baseDirectory.value / "src" / "main" / "java-templates" /
+          "org" / "apache" / "celeborn" / "ProjectConstants.java"
+        IO.write(constantsFile, IO.read(template)
+          .replace("${project.version}", version.value)
+          .replace("${git.revision}", gitHeadCommit.value.getOrElse("N/A")))
+        Seq(packageFile, constantsFile)
         // generate version task depends on PB generate to avoid concurrency generate source files
       }.dependsOn(Compile / PB.generate),
 
@@ -1008,6 +1018,7 @@ object Spark40 extends SparkClientProjects {
   val zstdJniVersion = "1.5.6-9"
   val scalaBinaryVersion = "2.13"
 
+  override val servletSourceDir: String = "scala-spark4"
   override val sparkColumnarShuffleVersion: String = "4"
 }
 
@@ -1025,6 +1036,7 @@ object Spark41 extends SparkClientProjects {
   val zstdJniVersion = "1.5.7-6"
   val scalaBinaryVersion = "2.13"
 
+  override val servletSourceDir: String = "scala-spark4"
   override val sparkColumnarShuffleVersion: String = "4"
   override val paranamerVersionOverride: Option[String] = Some("2.8.3")
 }
@@ -1044,6 +1056,7 @@ object Spark42 extends SparkClientProjects {
   val scalaBinaryVersion = "2.13"
 
   override val lz4JavaGroup = "at.yawk.lz4"
+  override val servletSourceDir: String = "scala-spark4"
   override val sparkColumnarShuffleVersion: String = "4"
   override val paranamerVersionOverride: Option[String] = Some("2.8.3")
 }
@@ -1066,15 +1079,19 @@ trait SparkClientProjects {
 
   val includeColumnarShuffle: Boolean = true
 
+  // Mirrors Maven's `servlet.source.dir`: Spark 3.x uses javax.servlet,
+  // Spark 4.x uses jakarta.servlet.
+  val servletSourceDir: String = "scala-spark3"
+
   def modules: Seq[Project] = {
-    val seq = Seq(sparkCommon, sparkClient, sparkIt, sparkGroup, sparkClientShade)
+    val seq = Seq(sparkCommon, sparkClient, sparkClientUi, sparkIt, sparkGroup, sparkClientShade)
     if (includeColumnarShuffle) seq ++ Seq(sparkColumnarCommon, sparkColumnarShuffle) else seq
   }
 
   // for test only, don't use this group for any other projects
   lazy val sparkGroup = {
     val p = (project withId "celeborn-spark-group")
-      .aggregate(sparkCommon, sparkClient, sparkIt)
+      .aggregate(sparkCommon, sparkClient, sparkClientUi, sparkIt)
     if (includeColumnarShuffle) {
       p.aggregate(sparkColumnarCommon, sparkColumnarShuffle)
     } else {
@@ -1113,6 +1130,21 @@ trait SparkClientProjects {
         dependencyOverrides ++= paranamerVersionOverride
           .map(v => Seq("com.thoughtworks.paranamer" % "paranamer" % v))
           .getOrElse(Seq.empty)
+      )
+  }
+
+  def sparkClientUi: Project = {
+    Project("celeborn-client-spark-3-ui", file("client-spark/spark-3-ui"))
+      .dependsOn(sparkClient)
+      .settings (
+        commonSettings,
+        libraryDependencies ++= Seq(
+          "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
+          Dependencies.javaxServletApi % "provided",
+          Dependencies.jakartaServletApi % "provided"
+        ) ++ commonUnitTestDependencies,
+        // Mirrors Maven's build-helper-maven-plugin `add-servlet-source` execution.
+        Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / servletSourceDir
       )
   }
 
@@ -1190,6 +1222,7 @@ trait SparkClientProjects {
   def sparkClientShade: Project = {
     var p = Project(sparkClientShadedProjectName, file(sparkClientShadedProjectPath))
       .dependsOn(sparkClient)
+      .dependsOn(sparkClientUi)
 
     if (includeColumnarShuffle) {
       p = p.dependsOn(sparkColumnarShuffle)
@@ -1960,7 +1993,6 @@ object TezClientProjects {
           ShadeRule.rename("org.roaringbitmap.**" -> "org.apache.celeborn.shaded.org.roaringbitmap.@1").inAll,
           ShadeRule.rename("io.dropwizard.metrics.**" -> "org.apache.celeborn.shaded.io.dropwizard.metrics.@1").inAll,
           ShadeRule.rename("com.codahale.metrics.**" -> "org.apache.celeborn.shaded.com.codahale.metrics.@1").inAll,
-          ShadeRule.rename("com.github.luben.**" -> "org.apache.celeborn.shaded.com.github.luben.@1").inAll,
         ),
 
         (assembly / assemblyMergeStrategy) := {

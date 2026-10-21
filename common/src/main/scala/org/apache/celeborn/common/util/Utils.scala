@@ -1174,14 +1174,6 @@ object Utils extends Logging {
     }
   }
 
-  def getPeerPath(path: String): String = {
-    if (path.endsWith("0")) {
-      path.substring(0, path.length - 1) + "1"
-    } else {
-      path.substring(0, path.length - 1) + "0"
-    }
-  }
-
   val SORTED_SUFFIX = ".sorted"
   val INDEX_SUFFIX = ".index"
   val SUFFIX_HDFS_WRITE_SUCCESS = ".success"

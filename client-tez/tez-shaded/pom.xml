@@ -78,10 +78,6 @@
               <pattern>com.codahale.metrics</pattern>
               <shadedPattern>${shading.prefix}.com.codahale.metrics</shadedPattern>
             </relocation>
-            <relocation>
-              <pattern>com.github.luben</pattern>
-              <shadedPattern>${shading.prefix}.com.github.luben</shadedPattern>
-            </relocation>
           </relocations>
           <artifactSet>
             <includes>

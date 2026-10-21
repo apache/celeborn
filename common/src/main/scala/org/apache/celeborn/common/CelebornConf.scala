@@ -802,6 +802,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def haMasterRatisLogInstallSnapshotEnabled: Boolean =
     get(HA_MASTER_RATIS_LOG_INSTALL_SNAPSHOT_ENABLED)
   def haMasterRatisRpcRequestTimeout: Long = get(HA_MASTER_RATIS_RPC_REQUEST_TIMEOUT)
+  def haMasterRatisCloseThreshold: Long = get(HA_MASTER_RATIS_CLOSE_THRESHOLD)
   def haMasterRatisRetryCacheExpiryTime: Long = get(HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME)
   def haMasterRatisRpcTimeoutMin: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MIN)
   def haMasterRatisRpcTimeoutMax: Long = get(HA_MASTER_RATIS_RPC_TIMEOUT_MAX)
@@ -815,6 +816,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(HA_MASTER_RATIS_NOTIFICATION_NO_LEADER_TIMEOUT)
   def haMasterRatisRpcSlownessTimeout: Long = get(HA_MASTER_RATIS_RPC_SLOWNESS_TIMEOUT)
   def haMasterRatisRoleCheckInterval: Long = get(HA_MASTER_RATIS_ROLE_CHECK_INTERVAL)
+  def haMasterRatisUnexpectedCloseAction: String = get(HA_MASTER_RATIS_UNEXPECTED_CLOSE_ACTION)
   def haMasterRatisSnapshotAutoTriggerEnabled: Boolean =
     get(HA_MASTER_RATIS_SNAPSHOT_AUTO_TRIGGER_ENABLED)
   def haMasterRatisSnapshotAutoTriggerThreshold: Long =
@@ -915,12 +917,21 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def metricsConf: Option[String] = get(METRICS_CONF)
   def metricsSystemEnable: Boolean = get(METRICS_ENABLED)
+  def clientMetricsEnabled: Boolean = get(CLIENT_METRICS_ENABLED)
+  def masterClientMetricsEnabled: Boolean = get(MASTER_CLIENT_METRICS_ENABLED)
+  def masterClientMetricsRemovedAppRetentionMs: Long =
+    get(MASTER_CLIENT_METRICS_REMOVED_APP_RETENTION)
+  def masterClientMetricsSeriesCardinalityWarnThreshold: Int =
+    get(MASTER_CLIENT_METRICS_SERIES_CARDINALITY_WARN_THRESHOLD)
   def metricsSampleRate: Double = get(METRICS_SAMPLE_RATE)
+  def metricsPrefix: String = get(METRICS_PREFIX)
   def metricsSlidingWindowSize: Int = get(METRICS_SLIDING_WINDOW_SIZE)
   def metricsCollectCriticalEnabled: Boolean = get(METRICS_COLLECT_CRITICAL_ENABLED)
   def metricsCapacity: Int = get(METRICS_CAPACITY)
   def metricsExtraLabels: Map[String, String] =
     get(METRICS_EXTRA_LABELS).map(Utils.parseKeyValuePair).toMap
+  def clientMetricsAppLabels: Map[String, String] =
+    get(CLIENT_METRICS_APP_LABELS).map(Utils.parseKeyValuePair).toMap
   def metricsWorkerAppTopResourceConsumptionCount: Int =
     get(METRICS_WORKER_APP_TOP_RESOURCE_CONSUMPTION_COUNT)
   def metricsWorkerAppTopResourceConsumptionBytesWrittenThreshold: Long =
@@ -1094,6 +1105,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def clientPushSortRandomizePartitionIdEnabled: Boolean =
     get(CLIENT_PUSH_SORT_RANDOMIZE_PARTITION_ENABLED)
   def clientPushRetryThreads: Int = get(CLIENT_PUSH_RETRY_THREADS)
+  def clientPushRetryBackoffInitial: Long = get(CLIENT_PUSH_RETRY_BACKOFF_INITIAL)
+  def clientPushRetryBackoffMax: Long = get(CLIENT_PUSH_RETRY_BACKOFF_MAX)
+  def clientPushRetryBackoffJitter: Double = get(CLIENT_PUSH_RETRY_BACKOFF_JITTER)
   def clientPushStageEndTimeout: Long = get(CLIENT_PUSH_STAGE_END_TIMEOUT)
   def clientPushUnsafeRowFastWrite: Boolean = get(CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED)
   def clientRpcCacheExpireTime: Long = get(CLIENT_RPC_CACHE_EXPIRE_TIME)
@@ -1497,6 +1511,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def columnarShuffleEnabled: Boolean = get(COLUMNAR_SHUFFLE_ENABLED)
   def columnarShuffleBatchSize: Int = get(COLUMNAR_SHUFFLE_BATCH_SIZE)
+  def columnarShuffleBatchSizeInBytesEnabled: Boolean =
+    get(COLUMNAR_SHUFFLE_BATCH_SIZE_IN_BYTES_ENABLED)
+  def columnarShuffleBatchSizeInBytesThreshold: Long =
+    get(COLUMNAR_SHUFFLE_BATCH_SIZE_IN_BYTES_THRESHOLD)
   def columnarShuffleOffHeapEnabled: Boolean = get(COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED)
   def columnarShuffleDictionaryEnabled: Boolean = get(COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_ENABLED)
   def columnarShuffleDictionaryMaxFactor: Double =
@@ -1515,6 +1533,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def testPushPrimaryDataTimeout: Boolean = get(TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT)
   def testPushReplicaDataTimeout: Boolean = get(TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT)
   def testRetryRevive: Boolean = get(TEST_CLIENT_RETRY_REVIVE)
+  def testAppHeartbeatEnabled: Boolean = get(TEST_CLIENT_APPLICATION_HEARTBEAT_ENABLED)
   def testAlternative: String = get(TEST_ALTERNATIVE.key, "celeborn")
   def testProcessEndpointVerifierSeparate: Boolean = get(TEST_RPC_ENDPOINT_VERIFIER_SEPARATE)
   def clientFlinkMemoryPerResultPartition: Long = get(CLIENT_MEMORY_PER_RESULT_PARTITION)
@@ -2652,7 +2671,7 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .doc("A comma-separated list of master http auth supported schemes." +
         "<ul>" +
-        " <li>SPNEGO: Kerberos/GSSAPI authentication.</li>" +
+        " <li>NEGOTIATE: Kerberos/GSSAPI authentication.</li>" +
         " <li>BASIC: User-defined password authentication, the concreted implementation is" +
         " configurable via `celeborn.master.http.auth.basic.provider`.</li>" +
         " <li>BEARER: User-defined bearer token authentication, the concreted implementation is" +
@@ -2968,6 +2987,31 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .timeConf(TimeUnit.SECONDS)
       .createWithDefaultString("3s")
+
+  val HA_MASTER_RATIS_CLOSE_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.master.ha.ratis.raft.server.close.threshold")
+      .categories("ha")
+      .version("1.0.0")
+      .doc("Threshold for the Ratis JvmPauseMonitor to close the local raft server after " +
+        "a JVM/host pause, e.g. long GC, VM live migration or jmap -F. Maps to Ratis " +
+        "raft.server.close.threshold. Once exceeded, the master leaves the raft group " +
+        "until the process is restarted. Takes precedence over the " +
+        "celeborn.ratis.raft.server.close.threshold passthrough when both are set.")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("60s")
+
+  val HA_MASTER_RATIS_UNEXPECTED_CLOSE_ACTION: ConfigEntry[String] =
+    buildConf("celeborn.master.ha.ratis.unexpected.close.action")
+      .categories("ha")
+      .version("1.0.0")
+      .doc("Action when the local raft server is closed unexpectedly, i.e. not via the " +
+        "master stop flow, e.g. closed by the Ratis JvmPauseMonitor after a JVM pause " +
+        "longer than raft.server.close.threshold. 'exit' logs a fatal message and exits " +
+        "the master process so that supervisors (systemd/K8s) can restart it and the " +
+        "node rejoins the raft group; 'none' only logs.")
+      .stringConf
+      .checkValues(Set("exit", "none"))
+      .createWithDefault("exit")
 
   val HA_MASTER_RATIS_SERVER_RETRY_CACHE_EXPIRY_TIME: ConfigEntry[Long] =
     buildConf("celeborn.master.ha.ratis.raft.server.retrycache.expirytime")
@@ -3621,7 +3665,7 @@ object CelebornConf extends Logging {
       .version("0.6.0")
       .doc("A comma-separated list of worker http auth supported schemes." +
         "<ul>" +
-        " <li>SPNEGO: Kerberos/GSSAPI authentication.</li>" +
+        " <li>NEGOTIATE: Kerberos/GSSAPI authentication.</li>" +
         " <li>BASIC: User-defined password authentication, the concreted implementation is" +
         " configurable via `celeborn.worker.http.auth.basic.provider`.</li>" +
         " <li>BEARER: User-defined bearer token authentication, the concreted implementation is" +
@@ -5167,6 +5211,39 @@ object CelebornConf extends Logging {
       .intConf
       .createWithDefault(8)
 
+  val CLIENT_PUSH_RETRY_BACKOFF_MAX: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.retry.backoff.max")
+      .categories("client")
+      .doc("Upper bound of the push data retry delay, including jitter.")
+      .version("0.7.1")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(_ > 0, "Value must be positive!")
+      .createWithDefaultString("10s")
+
+  val CLIENT_PUSH_RETRY_BACKOFF_INITIAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.push.retry.backoff.initial")
+      .categories("client")
+      .doc("Initial delay before re-sending a push data request that was rejected with " +
+        s"HARD_SPLIT or failed. The delay grows exponentially up to " +
+        s"`${CLIENT_PUSH_RETRY_BACKOFF_MAX.key}` so that map tasks blocked on the same " +
+        "partition do not retry in lockstep. Set to 0 to disable backoff.")
+      .version("0.7.1")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(_ >= 0, "Value must be zero or positive!")
+      .createWithDefaultString("500ms")
+
+  val CLIENT_PUSH_RETRY_BACKOFF_JITTER: ConfigEntry[Double] =
+    buildConf("celeborn.client.push.retry.backoff.jitter")
+      .categories("client")
+      .doc("Fraction of the push data retry delay applied as random jitter. A value of 0.5 " +
+        "spreads retries uniformly over [0.5, 1.5] times the computed delay, capped at " +
+        s"`${CLIENT_PUSH_RETRY_BACKOFF_MAX.key}`. For example, once the computed delay reaches " +
+        "the default maximum of 10s, retries are spread over [5s, 10s].")
+      .version("0.7.1")
+      .doubleConf
+      .checkValue(v => v >= 0.0 && v <= 1.0, "Value must be in [0.0, 1.0]!")
+      .createWithDefault(0.5)
+
   val CLIENT_PUSH_TAKE_TASK_WAIT_INTERVAL: ConfigEntry[Long] =
     buildConf("celeborn.client.push.takeTaskWaitInterval")
       .categories("client")
@@ -5210,6 +5287,17 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .booleanConf
       .createWithDefault(false)
+
+  val TEST_CLIENT_APPLICATION_HEARTBEAT_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.test.client.application.heartbeat.enabled")
+      .internal
+      .categories("test", "client")
+      .doc("Whether LifecycleManager schedules the application heartbeat to master. Only for " +
+        "tests without a master, whose assertions on shuffle metrics would otherwise race with " +
+        "the heartbeat resetting them.")
+      .version("1.0.0")
+      .booleanConf
+      .createWithDefault(true)
 
   val CLIENT_FETCH_TIMEOUT: ConfigEntry[Long] =
     buildConf("celeborn.client.fetch.timeout")
@@ -5995,6 +6083,18 @@ object CelebornConf extends Logging {
       .stringConf
       .createOptional
 
+  val METRICS_PREFIX: ConfigEntry[String] =
+    buildConf("celeborn.metrics.prefix")
+      .categories("metrics")
+      .doc("Prefix metrics with this value. It must be a valid Prometheus metric name, " +
+        "matching the regex `[a-zA-Z_][a-zA-Z0-9_]*`.")
+      .version("1.0.0")
+      .stringConf
+      .checkValue(
+        p => p.matches("[a-zA-Z_][a-zA-Z0-9_]*"),
+        "metrics prefix must match the regex [a-zA-Z_][a-zA-Z0-9_]*")
+      .createWithDefault("metrics")
+
   val METRICS_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.metrics.enabled")
       .categories("metrics")
@@ -6002,6 +6102,47 @@ object CelebornConf extends Logging {
       .version("0.2.0")
       .booleanConf
       .createWithDefault(true)
+
+  val CLIENT_METRICS_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.metrics.enabled")
+      .categories("client", "metrics")
+      .doc("When true, the LifecycleManager collects client-side metrics. " +
+        "Requires `celeborn.metrics.enabled` to also be true. Note that client metrics are only " +
+        "emitted in application heartbeats when `celeborn.client.metrics.appLabels` is set.")
+      .version("0.7.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val MASTER_CLIENT_METRICS_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.metrics.master.clientMetrics.enabled")
+      .categories("master", "metrics")
+      .doc("When true, the master exposes client-side metrics forwarded in application " +
+        "heartbeats on its Prometheus endpoint.")
+      .version("0.7.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val MASTER_CLIENT_METRICS_REMOVED_APP_RETENTION: ConfigEntry[Long] =
+    buildConf("celeborn.metrics.master.clientMetrics.removedApp.retention")
+      .categories("master", "metrics")
+      .doc("How long to retain removed application IDs in the client metrics source to " +
+        "reject late heartbeats after an application is lost. Entries older than this are " +
+        "periodically evicted.")
+      .version("0.7.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("120s")
+
+  val MASTER_CLIENT_METRICS_SERIES_CARDINALITY_WARN_THRESHOLD: ConfigEntry[Int] =
+    buildConf("celeborn.metrics.master.clientMetrics.seriesCardinality.warnThreshold")
+      .categories("master", "metrics")
+      .doc("Client metric series are keyed only by their (low-cardinality) label set and are " +
+        "only reclaimed when an application is lost, so a high-cardinality " +
+        "`celeborn.client.metrics.appLabels` configuration can grow the number of distinct " +
+        "series without bound. If the number of tracked series exceeds this threshold, the " +
+        "master logs a one-time warning.")
+      .version("0.7.0")
+      .intConf
+      .createWithDefault(1000)
 
   val METRICS_SAMPLE_RATE: ConfigEntry[Double] =
     buildConf("celeborn.metrics.sample.rate")
@@ -6042,6 +6183,20 @@ object CelebornConf extends Logging {
       .doc("If default metric labels are not enough, extra metric labels can be customized. " +
         "Labels' pattern is: `<label1_key>=<label1_value>[,<label2_key>=<label2_value>]*`; e.g. `env=prod,version=1`")
       .version("0.3.0")
+      .stringConf
+      .toSequence
+      .checkValue(
+        labels => labels.map(_ => Try(Utils.parseKeyValuePair(_))).forall(_.isSuccess),
+        "Allowed pattern is: `<label1_key>=<label1_value>[,<label2_key>=<label2_value>]*`")
+      .createWithDefault(Seq.empty)
+
+  val CLIENT_METRICS_APP_LABELS: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.client.metrics.appLabels")
+      .categories("client", "metrics")
+      .doc("Custom metric labels sent from the client in each application heartbeat and applied " +
+        "to client metrics exposed on the master's Prometheus endpoint. " +
+        "Labels' pattern is: `<label1_key>=<label1_value>[,<label2_key>=<label2_value>]*`; e.g. `env=prod,version=1`")
+      .version("0.7.0")
       .stringConf
       .toSequence
       .checkValue(
@@ -6276,6 +6431,31 @@ object CelebornConf extends Logging {
       .intConf
       .checkValue(v => v > 0, "Value must be positive")
       .createWithDefault(10000)
+
+  val COLUMNAR_SHUFFLE_BATCH_SIZE_IN_BYTES_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.columnarShuffle.batch.sizeInBytes.enabled")
+      .categories("columnar-shuffle")
+      .version("1.0.0")
+      .doc("Whether to also push a columnar batch once its estimated size in bytes reaches " +
+        "`celeborn.columnarShuffle.batch.sizeInBytes.threshold`, in addition to the row " +
+        s"limit `${COLUMNAR_SHUFFLE_BATCH_SIZE.key}`. This limits how much row data each " +
+        "partition buffers when rows are wide, e.g. with long strings. Column buffers are " +
+        s"still pre-sized for `${COLUMNAR_SHUFFLE_BATCH_SIZE.key}` rows.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_SHUFFLE_BATCH_SIZE_IN_BYTES_THRESHOLD: ConfigEntry[Long] =
+    buildConf("celeborn.columnarShuffle.batch.sizeInBytes.threshold")
+      .categories("columnar-shuffle")
+      .version("1.0.0")
+      .doc("Estimated size in bytes at which a columnar batch is pushed, when " +
+        "`celeborn.columnarShuffle.batch.sizeInBytes.enabled` is true. The size is estimated " +
+        "from the uncompressed size of the rows added to the batch. The default matches " +
+        s"`${CLIENT_PUSH_BUFFER_MAX_SIZE.key}`, the per-partition buffer of the row-based " +
+        "hash writer.")
+      .bytesConf(ByteUnit.BYTE)
+      .checkValue(v => v > 0, "Value must be positive")
+      .createWithDefaultString("64k")
 
   val COLUMNAR_SHUFFLE_OFF_HEAP_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.columnarShuffle.offHeap.enabled")

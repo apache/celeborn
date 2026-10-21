@@ -27,7 +27,7 @@ import scala.collection.mutable
 
 import org.roaringbitmap.RoaringBitmap
 
-import org.apache.celeborn.client.{ShuffleCommittedInfo, WorkerStatusTracker}
+import org.apache.celeborn.client.{LifecycleManager, ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
@@ -58,7 +58,8 @@ class MapPartitionCommitHandler(
     committedPartitionInfo: CommittedPartitionInfo,
     workerStatusTracker: WorkerStatusTracker,
     sharedRpcPool: ThreadPoolExecutor,
-    commitRetryScheduler: ScheduledExecutorService)
+    commitRetryScheduler: ScheduledExecutorService,
+    lifecycleManager: LifecycleManager)
   extends CommitHandler(
     appId,
     conf,
@@ -171,13 +172,14 @@ class MapPartitionCommitHandler(
 
     // collect partition result
     if (!dataLost) {
-      collectResult(
+      collectResultAndReleaseHdfsReplicas(
         shuffleId,
         shuffleCommittedInfo,
         getPartitionUniqueIds(shuffleCommittedInfo.committedPrimaryIds, partitionId),
         getPartitionUniqueIds(shuffleCommittedInfo.committedReplicaIds, partitionId),
-        parallelCommitResult.primaryPartitionLocationMap,
-        parallelCommitResult.replicaPartitionLocationMap,
+        parallelCommitResult,
+        allocatedWorkers,
+        lifecycleManager.releaseReplicaSlotsAsync(shuffleId, _),
         shuffleIsSegmentGranularityVisible.get(shuffleId))
     }
 

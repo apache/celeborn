@@ -23,6 +23,10 @@ import java.nio.file.Files
 import java.util.concurrent.{Callable, ConcurrentHashMap, CountDownLatch, Executors, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 
+import scala.collection.JavaConverters._
+
+import org.apache.commons.io.FileUtils
+import org.apache.hadoop.fs.FileSystem
 import org.mockito.{Mockito, MockitoSugar}
 import org.mockito.ArgumentMatchersSugar.any
 import org.mockito.invocation.InvocationOnMock
@@ -124,7 +128,7 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
           cleanupStarted.countDown()
           invocation.callRealMethod().asInstanceOf[java.lang.Boolean]
         }
-      }).when(manager).cleanFileInternal("app-1-0", fileInfo)
+      }).when(manager).cleanFileInternal("app-1-0", fileInfo, failOnHdfsDeleteError = false)
 
       val expiredShuffleKeys = manager.shuffleKeySet()
       val pool = Executors.newFixedThreadPool(2)
@@ -245,6 +249,70 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
           s"No available disks! suggested mountPoint ${partitionLocation.getStorageInfo.getMountPoint}"))
       case e: Throwable =>
         fail(s"Should throw IOException, but got ${e.getClass.getSimpleName}", e)
+    }
+  }
+
+  test("cleanFile keeps an HDFS file it could not delete for a retry or shuffle expiry") {
+    val hdfsDir = Files.createTempDirectory("celeborn-hdfs")
+    val conf = new CelebornConf()
+      .set(CelebornConf.ACTIVE_STORAGE_TYPES.key, "HDFS")
+      .set(CelebornConf.HDFS_DIR.key, hdfsDir.toUri.toString)
+    val hadoopFsBefore = StorageManager.hadoopFs
+    val storageManager = new StorageManager(conf, new WorkerSource(conf))
+    val fs = mock[FileSystem]
+    StorageManager.hadoopFs = Map[StorageInfo.Type, FileSystem](StorageInfo.Type.HDFS -> fs).asJava
+    try {
+      val shuffleKey = "app-1"
+      def createReplicaFile(fileName: String): (DiskFileInfo, PartitionDataWriter) = {
+        val location =
+          new PartitionLocation(0, 0, "localhost", 0, 0, 0, 0, PartitionLocation.Mode.REPLICA)
+        location.setStorageInfo(
+          new StorageInfo("", StorageInfo.Type.HDFS, StorageInfo.ALL_TYPES_AVAILABLE_MASK))
+        val fileInfo = storageManager.createDiskFile(
+          location,
+          "app",
+          1,
+          fileName,
+          new UserIdentifier("t1", "u1"),
+          PartitionType.REDUCE,
+          partitionSplitEnabled = false,
+          StorageInfo.Type.HDFS)._2
+        val writer = mock[PartitionDataWriter]
+        storageManager.hdfsWriters.put(fileInfo.getFilePath, writer)
+        (fileInfo, writer)
+      }
+
+      // Every delete fails: the file stays tracked and each retry deletes again.
+      val (retried, writer) = createReplicaFile("0-0-1")
+      when(fs.exists(retried.getDfsPath)).thenReturn(true)
+      Seq(1, 2).foreach { attempt =>
+        intercept[IOException](storageManager.cleanFile(shuffleKey, "0-0-1"))
+        assert(storageManager.getFileInfo(shuffleKey, "0-0-1") != null)
+        verify(fs, times(attempt)).delete(retried.getDfsPath, false)
+      }
+      verify(writer).destroy(any[IOException])
+      assert(!storageManager.hdfsWriters.containsKey(retried.getFilePath))
+      // A leftover sidecar file also keeps it tracked.
+      when(fs.exists(retried.getDfsPath)).thenReturn(false)
+      when(fs.exists(retried.getDfsIndexPath)).thenReturn(true)
+      intercept[IOException](storageManager.cleanFile(shuffleKey, "0-0-1"))
+      assert(storageManager.getFileInfo(shuffleKey, "0-0-1") != null)
+      when(fs.exists(retried.getDfsIndexPath)).thenReturn(false)
+      storageManager.cleanFile(shuffleKey, "0-0-1")
+      assert(storageManager.getFileInfo(shuffleKey, "0-0-1") == null)
+
+      // Shuffle expiry during a failed delete still finds the file and deletes the directory.
+      val (expired, _) = createReplicaFile("1-0-1")
+      val expiredShuffles = new util.HashSet(Seq(shuffleKey).asJava)
+      when(fs.exists(expired.getDfsPath)).thenAnswer { (_: InvocationOnMock) =>
+        storageManager.cleanupExpiredShuffleKey(expiredShuffles)
+        true
+      }
+      intercept[IOException](storageManager.cleanFile(shuffleKey, "1-0-1"))
+      verify(fs).delete(expired.getDfsPath.getParent, true)
+    } finally {
+      StorageManager.hadoopFs = hadoopFsBefore
+      FileUtils.deleteDirectory(hdfsDir.toFile)
     }
   }
 

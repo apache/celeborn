@@ -62,6 +62,7 @@ class WorkerSource(conf: CelebornConf) extends AbstractSource(conf, Role.WORKER)
   addCounter(SEGMENT_START_FAIL_COUNT)
 
   addCounter(SLOTS_ALLOCATED)
+  addCounter(RESERVE_SLOTS_FAIL_COUNT)
   addCounter(REGISTER_WITH_MASTER_FAIL_COUNT)
 
   addCounter(COMMIT_FILES_FAIL_COUNT)
@@ -237,6 +238,7 @@ object WorkerSource {
 
   // slots
   val SLOTS_ALLOCATED = "SlotsAllocated"
+  val RESERVE_SLOTS_FAIL_COUNT = "ReserveSlotsFailCount"
   val ACTIVE_SLOTS_COUNT = "ActiveSlotsCount"
   val RESERVE_SLOTS_TIME = "ReserveSlotsTime"
 
@@ -278,6 +280,8 @@ object WorkerSource {
   val DEVICE_CELEBORN_FREE_CAPACITY = "DeviceCelebornFreeBytes"
   val DEVICE_CELEBORN_TOTAL_CAPACITY = "DeviceCelebornTotalBytes"
   val PARTITION_FILE_SIZE = "PartitionFileSizeBytes"
+  val DISK_STATUS = "DiskStatus"
+  val UNHEALTHY_DISK_COUNT = "UnhealthyDiskCount"
 
   // congestion control
   val POTENTIAL_CONSUME_SPEED = "PotentialConsumeSpeed"

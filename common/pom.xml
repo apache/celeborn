@@ -192,6 +192,59 @@
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
       </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>buildnumber-maven-plugin</artifactId>
+        <configuration>
+          <outputDirectory>${project.build.directory}/generated/build-metadata</outputDirectory>
+          <outputName>build.properties</outputName>
+          <revisionPropertyName>git.revision</revisionPropertyName>
+          <!-- Revision fallback when git metadata is unavailable, matching the
+               SBT fallback in project/CelebornBuild.scala. -->
+          <revisionOnScmFailure>N/A</revisionOnScmFailure>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>create-metadata</goal>
+            </goals>
+            <phase>initialize</phase>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>properties-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>read-project-properties</goal>
+            </goals>
+            <phase>initialize</phase>
+            <configuration>
+              <files>
+                <file>${project.build.directory}/generated/build-metadata/build.properties</file>
+              </files>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>templating-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>filter-src</id>
+            <goals>
+              <goal>filter-sources</goal>
+            </goals>
+            <configuration>
+              <sourceDirectory>${basedir}/src/main/java-templates</sourceDirectory>
+              <outputDirectory>${project.build.directory}/generated-sources/java-templates</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
     <extensions>
       <extension>
