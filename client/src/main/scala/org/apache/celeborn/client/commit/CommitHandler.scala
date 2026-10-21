@@ -35,8 +35,8 @@ import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
 import org.apache.celeborn.common.network.protocol.SerdeVersion
-import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType}
-import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles, CommitFilesResponse}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, StorageInfo}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFiles, CommitFilesResponse, WorkerResource}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.util.{CollectionUtils, JavaUtils, Utils}
@@ -565,6 +565,42 @@ abstract class CommitHandler(
     }
   }
 
+  /** Like collectResult, but leaves out and releases HDFS replicas whose primary also committed. */
+  protected def collectResultAndReleaseHdfsReplicas(
+      shuffleId: Int,
+      shuffleCommittedInfo: ShuffleCommittedInfo,
+      primaryPartitionUniqueIds: util.Iterator[String],
+      replicaPartitionUniqueIds: util.Iterator[String],
+      commitResult: CommitResult,
+      allocatedWorkers: util.Map[String, ShufflePartitionLocationInfo],
+      releaseReplicaSlots: WorkerResource => Unit,
+      isSegmentGranularityVisible: Boolean = false): Unit = {
+    val primaryIds = primaryPartitionUniqueIds.asScala.toSet
+    val replicaIds = replicaPartitionUniqueIds.asScala.toSeq
+    val replicaSlots = CommitHandler.selectHdfsReplicasToRelease(
+      primaryIds,
+      replicaIds,
+      shuffleCommittedInfo.committedPrimaryStorageInfos,
+      shuffleCommittedInfo.committedReplicaStorageInfos,
+      commitResult.replicaPartitionLocationMap,
+      allocatedWorkers)
+    val releasedReplicaIds =
+      replicaSlots.values().asScala.flatMap(_._2.asScala.map(_.getUniqueId)).toSet
+    collectResult(
+      shuffleId,
+      shuffleCommittedInfo,
+      primaryIds.iterator.asJava,
+      replicaIds.iterator.filterNot(releasedReplicaIds.contains).asJava,
+      commitResult.primaryPartitionLocationMap,
+      commitResult.replicaPartitionLocationMap,
+      isSegmentGranularityVisible)
+    if (!replicaSlots.isEmpty) {
+      logInfo(s"Releasing ${releasedReplicaIds.size} HDFS replicas of shuffle $shuffleId " +
+        "whose primary also committed.")
+      releaseReplicaSlots(replicaSlots)
+    }
+  }
+
   def collectResult(
       shuffleId: Int,
       shuffleCommittedInfo: ShuffleCommittedInfo,
@@ -659,4 +695,36 @@ abstract class CommitHandler(
       fileGroups.remove(partitionId)
     }
   }
+}
+
+object CommitHandler {
+
+  /** Replicas committed on HDFS alongside an HDFS primary, keyed by the allocated worker. */
+  private[client] def selectHdfsReplicasToRelease(
+      committedPrimaryIds: Set[String],
+      committedReplicaIds: Iterable[String],
+      primaryStorageInfos: util.Map[String, StorageInfo],
+      replicaStorageInfos: util.Map[String, StorageInfo],
+      replicaLocations: util.Map[String, PartitionLocation],
+      allocatedWorkers: util.Map[String, ShufflePartitionLocationInfo]): WorkerResource = {
+    val resource = new WorkerResource
+    committedReplicaIds.toSet.foreach { id: String =>
+      val replica = replicaLocations.get(id)
+      val allocated =
+        if (replica == null) null else allocatedWorkers.get(replica.getWorker.toUniqueId)
+      if (committedPrimaryIds.contains(id) &&
+        isHdfs(primaryStorageInfos.get(id)) && isHdfs(replicaStorageInfos.get(id)) &&
+        allocated != null && allocated.workerInfo.endpoint != null) {
+        resource.computeIfAbsent(
+          allocated.workerInfo,
+          (_: WorkerInfo) =>
+            (new util.ArrayList[PartitionLocation](), new util.ArrayList[PartitionLocation]()))
+          ._2.add(replica)
+      }
+    }
+    resource
+  }
+
+  private def isHdfs(storageInfo: StorageInfo): Boolean =
+    storageInfo != null && storageInfo.getType == StorageInfo.Type.HDFS
 }

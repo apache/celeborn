@@ -63,7 +63,8 @@ class MapPartitionCommitHandlerTest extends CelebornFunSuite {
       new CommittedPartitionInfo(),
       new WorkerStatusTracker(conf, null),
       rpcPool,
-      commitScheduler)
+      commitScheduler,
+      null)
   }
 
   /** Write-side per-subpartition checksum/byte arrays computed over the given payloads. */
