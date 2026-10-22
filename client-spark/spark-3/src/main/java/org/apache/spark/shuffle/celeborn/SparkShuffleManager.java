@@ -163,19 +163,23 @@ public class SparkShuffleManager implements ShuffleManager {
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
           lifecycleManager.applicationCount().increment();
           lifecycleManager.registerCancelShuffleCallback(SparkUtils::cancelShuffle);
-          // Forward mapper metrics to the Celeborn UI extension.
-          lifecycleManager.registerMapperEndCallback(
-              (shuffleId, mapId, attemptId, metrics) -> {
-                SparkContext sc = SparkContext$.MODULE$.getActive().getOrElse(() -> null);
-                if (sc != null) {
-                  sc.listenerBus()
-                      .post(
-                          new CelebornMapperMetricsEvent(
-                              shuffleId,
-                              metrics.uncompressedBytesWritten(),
-                              metrics.compressedBytesWritten()));
-                }
-              });
+          // Forward mapper metrics to the Celeborn UI extension. Only register the callback when
+          // the application opted in via spark.plugins, otherwise every map task would post an
+          // event nobody consumes (and each custom event forces an event-log flush).
+          if (SparkUtils.isCelebornPluginEnabled(conf)) {
+            lifecycleManager.registerMapperEndCallback(
+                (shuffleId, mapId, attemptId, metrics) -> {
+                  SparkContext sc = SparkContext$.MODULE$.getActive().getOrElse(() -> null);
+                  if (sc != null) {
+                    sc.listenerBus()
+                        .post(
+                            new CelebornMapperMetricsEvent(
+                                shuffleId,
+                                metrics.uncompressedBytesWritten(),
+                                metrics.compressedBytesWritten()));
+                  }
+                });
+          }
           if (celebornConf.clientStageRerunEnabled()) {
             MapOutputTrackerMaster mapOutputTracker =
                 (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();

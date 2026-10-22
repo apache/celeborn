@@ -570,6 +570,31 @@ public class SparkUtils {
     }
   }
 
+  /** UI plugin entry point; lives in the spark-3-ui module, referenced here by class name. */
+  private static final String CELEBORN_PLUGIN_CLASS_NAME =
+      "org.apache.spark.shuffle.celeborn.CelebornPlugin";
+
+  /**
+   * Whether the application opted in to the Celeborn UI extension by listing the {@code
+   * org.apache.spark.shuffle.celeborn.CelebornPlugin} in its plugin configuration. Spark loads
+   * plugins from both keys: {@code spark.plugins} and {@code spark.plugins.defaultList} (the latter
+   * allows a default plugin list in the config file that {@code spark.plugins} does not overwrite).
+   */
+  public static boolean isCelebornPluginEnabled(SparkConf conf) {
+    String[] keys = {"spark.plugins", "spark.plugins.defaultList"};
+    for (String key : keys) {
+      String value = conf.get(key, null);
+      if (value != null) {
+        for (String plugin : value.split(",")) {
+          if (plugin.trim().equals(CELEBORN_PLUGIN_CLASS_NAME)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
   /**
    * Lazy holder for isCelebornSkewedShuffle method. The method is initialized only when this class
    * is first accessed, ensuring lazy loading without explicit synchronization.
