@@ -20,6 +20,7 @@ package org.apache.spark.shuffle.celeborn.ui
 import scala.xml.Node
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.shuffle.celeborn.ShuffleAssignmentUIData
 import org.apache.spark.shuffle.celeborn.ui.SparkServletBridge.HttpServletRequest
 import org.apache.spark.ui.{UIUtils, WebUIPage}
 import org.apache.spark.util.Utils
@@ -54,6 +55,11 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
     val taskInfo = store.aggregatedTaskInfo()
     val properties = store.celebornProperties()
     val buildInfo = store.buildInfo()
+    val assignments = store.shuffleAssignments().sortBy(-_.shuffleId)
+    val workerSlots = store.workerSlots()
+    val workerRows = workerSlots.workerSlots.toSeq.map { case (worker, slots) =>
+      (worker, workerSlots.workerShuffles.getOrElse(worker, 0), slots)
+    }.sortBy { case (worker, _, slots) => (-slots, worker) }
 
     val writeBytes = taskInfo.shuffleWriteBytes
     val readBytes = taskInfo.shuffleReadBytes
@@ -65,6 +71,18 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
       if (ms <= 0) "N/A" else f"${bytes.toDouble / 1000.0 / 1000.0 / (ms.toDouble / 1000.0)}%.2f"
     def pct(part: Long, total: Long): String =
       if (total <= 0) "N/A" else f"${part.toDouble * 100.0 / total.toDouble}%.1f%%"
+    def assignmentSummary: String =
+      if (workerSlots.shuffles == 0) "N/A"
+      else {
+        s"Shuffles: ${workerSlots.shuffles} | Workers: ${workerRows.size} | " +
+          s"Reserved Slots: ${workerRows.map(_._3.toLong).sum}"
+      }
+    val assignmentsTitle =
+      if (workerSlots.shuffles > assignments.size) {
+        s"Shuffle Assignments (${workerSlots.shuffles}, only showing ${assignments.size})"
+      } else {
+        "Shuffle Assignments"
+      }
 
     val summary =
       <div>
@@ -91,6 +109,10 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
           durationMs)}, Read ${pct(readMs, durationMs)})"
       }
           </li>
+          <li>
+            <strong>Shuffle Assignments: </strong>
+            {assignmentSummary}
+          </li>
         </ul>
       </div>
 
@@ -100,6 +122,25 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
       properties.info,
       fixedWidth = true,
       headerClasses = headerClasses)
+
+    val shuffleAssignmentTable = UIUtils.listingTable(
+      Seq(
+        "Shuffle ID",
+        "Celeborn Shuffle ID",
+        "Workers",
+        "Reserved Slots",
+        "Slots per Worker (Min / Avg / Max)"),
+      shuffleAssignmentRow,
+      assignments,
+      fixedWidth = true,
+      headerClasses = Seq.fill(5)("sorttable_numeric"))
+
+    val workerSlotsTable = UIUtils.listingTable(
+      Seq("Worker", "Shuffles", "Reserved Slots"),
+      workerSlotsRow,
+      workerRows,
+      fixedWidth = true,
+      headerClasses = Seq("sorttable_alpha", "sorttable_numeric", "sorttable_numeric"))
 
     val buildInfoTable = UIUtils.listingTable(
       propertyHeader,
@@ -111,6 +152,28 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
     val content =
       <span>
         {summary}
+        <span class="collapse-aggregated-celebornShuffleAssignments collapse-table"
+            onClick="collapseTable('collapse-aggregated-celebornShuffleAssignments',
+            'aggregated-celebornShuffleAssignments')">
+          <h4>
+            <span class="collapse-table-arrow arrow-closed"></span>
+            <a>{assignmentsTitle}</a>
+          </h4>
+        </span>
+        <div class="aggregated-celebornShuffleAssignments collapsible-table collapsed">
+          {shuffleAssignmentTable}
+        </div>
+        <span class="collapse-aggregated-celebornWorkerSlots collapse-table"
+            onClick="collapseTable('collapse-aggregated-celebornWorkerSlots',
+            'aggregated-celebornWorkerSlots')">
+          <h4>
+            <span class="collapse-table-arrow arrow-closed"></span>
+            <a>Worker Slots</a>
+          </h4>
+        </span>
+        <div class="aggregated-celebornWorkerSlots collapsible-table collapsed">
+          {workerSlotsTable}
+        </div>
         <span class="collapse-aggregated-celebornBuildInfo collapse-table"
             onClick="collapseTable('collapse-aggregated-celebornBuildInfo',
             'aggregated-celebornBuildInfo')">
@@ -140,6 +203,29 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
 
   private def propertyHeader: Seq[String] = Seq("Name", "Value")
   private def headerClasses: Seq[String] = Seq("sorttable_alpha", "sorttable_alpha")
+
+  private def shuffleAssignmentRow(assignment: ShuffleAssignmentUIData): Seq[Node] = {
+    val perWorker =
+      if (assignment.workers == 0) "N/A"
+      else {
+        f"${assignment.minWorkerSlots} / ${assignment.slots.toDouble / assignment.workers}%.1f / " +
+          s"${assignment.maxWorkerSlots}"
+      }
+    <tr>
+      <td>{assignment.appShuffleId}</td>
+      <td>{assignment.shuffleId}</td>
+      <td>{assignment.workers}</td>
+      <td>{assignment.slots}</td>
+      <td sorttable_customkey={assignment.maxWorkerSlots.toString}>{perWorker}</td>
+    </tr>
+  }
+
+  private def workerSlotsRow(row: (String, Int, Int)): Seq[Node] =
+    <tr>
+      <td>{row._1}</td>
+      <td>{row._2}</td>
+      <td>{row._3}</td>
+    </tr>
 
   private def propertyRow(kv: (String, String)): Seq[Node] =
     <tr>

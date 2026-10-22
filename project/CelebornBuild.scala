@@ -1140,6 +1140,7 @@ trait SparkClientProjects {
         commonSettings,
         libraryDependencies ++= Seq(
           "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
+          "org.apache.spark" %% "spark-sql" % sparkVersion % "test",
           Dependencies.javaxServletApi % "provided",
           Dependencies.jakartaServletApi % "provided"
         ) ++ commonUnitTestDependencies,

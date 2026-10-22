@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.listener.ShuffleAssignmentListener;
 import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.protocol.ShuffleMode;
@@ -80,6 +81,7 @@ public class SparkShuffleManager implements ShuffleManager {
   private String appUniqueId;
 
   private LifecycleManager lifecycleManager;
+  private ShuffleAssignmentListener shuffleAssignmentListener;
   private ShuffleClient shuffleClient;
   private volatile SortShuffleManager _sortShuffleManager;
   private final ConcurrentHashMap.KeySetView<Integer, Boolean> sortShuffleIds =
@@ -162,6 +164,9 @@ public class SparkShuffleManager implements ShuffleManager {
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
           lifecycleManager.applicationCount().increment();
           lifecycleManager.registerCancelShuffleCallback(SparkUtils::cancelShuffle);
+          if (shuffleAssignmentListener != null) {
+            lifecycleManager.registerShuffleAssignmentListener(shuffleAssignmentListener);
+          }
           if (celebornConf.clientStageRerunEnabled()) {
             MapOutputTrackerMaster mapOutputTracker =
                 (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();
@@ -510,6 +515,16 @@ public class SparkShuffleManager implements ShuffleManager {
           key,
           defaultValue);
     }
+  }
+
+  /** Registers a listener for the LifecycleManager, which is created on the first shuffle. */
+  public synchronized void registerShuffleAssignmentListener(ShuffleAssignmentListener listener) {
+    shuffleAssignmentListener = listener;
+  }
+
+  // for testing
+  public synchronized ShuffleAssignmentListener getShuffleAssignmentListener() {
+    return shuffleAssignmentListener;
   }
 
   // for testing

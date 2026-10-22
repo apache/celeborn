@@ -19,7 +19,9 @@ package org.apache.spark.shuffle.celeborn
 
 import java.util
 
-import org.apache.spark.SparkContext
+import scala.collection.JavaConverters._
+
+import org.apache.spark.{SparkContext, SparkEnv}
 import org.apache.spark.api.plugin.{DriverPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.celeborn.ui.CelebornUITab
@@ -65,6 +67,18 @@ private class CelebornDriverPlugin extends DriverPlugin with Logging {
       ctx: PluginContext): Unit = {
     sc.ui.foreach { ui =>
       new CelebornUITab(new CelebornStatusStore(ui.store.store), ui)
+    }
+    // Not in init: Spark 4 initializes the shuffle manager after the driver plugins.
+    SparkEnv.get.shuffleManager match {
+      case manager: SparkShuffleManager =>
+        manager.registerShuffleAssignmentListener((shuffleId, appShuffleId, workerSlots) =>
+          sc.listenerBus.post(CelebornShuffleAssignmentEvent(
+            shuffleId,
+            appShuffleId,
+            workerSlots.asScala.map { case (worker, slots) => worker -> slots.intValue }.toMap)))
+      case other =>
+        logInfo("Shuffle assignments are not reported by shuffle manager " +
+          s"${Option(other).map(_.getClass.getName).orNull}.")
     }
   }
 

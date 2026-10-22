@@ -19,8 +19,12 @@ package org.apache.spark.shuffle.celeborn
 
 import java.util.concurrent.atomic.AtomicLong
 
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config.Status.MAX_RETAINED_STAGES
 import org.apache.spark.scheduler._
 import org.apache.spark.util.Utils
 import org.apache.spark.util.kvstore.KVStore
@@ -51,6 +55,13 @@ private[celeborn] class CelebornListener(
 
   private val lastUpdateTimestamp = new AtomicLong(-1L)
   private val updateIntervalMillis = 5000L
+
+  // Bound the retained shuffles like Spark bounds its retained stages.
+  private val retainedShuffles = conf.get(MAX_RETAINED_STAGES)
+  // Only accessed from the listener bus thread.
+  private var assignedShuffles = 0L
+  private val workerShuffles = mutable.HashMap[String, Int]()
+  private val workerSlots = mutable.HashMap[String, Int]()
 
   def register(sc: org.apache.spark.SparkContext): Unit = {
     sc.addSparkListener(this)
@@ -116,7 +127,40 @@ private[celeborn] class CelebornListener(
         pluginEnabled = true
         kvstore.write(new CelebornExtensionEnabledUIData())
       }
+    case e: CelebornShuffleAssignmentEvent => onShuffleAssignment(e)
     case _ =>
+  }
+
+  private def onShuffleAssignment(event: CelebornShuffleAssignmentEvent): Unit = {
+    val slots = event.workerSlots.values
+    kvstore.write(ShuffleAssignmentUIData(
+      event.shuffleId,
+      event.appShuffleId,
+      event.workerSlots.size,
+      slots.sum,
+      if (slots.isEmpty) 0 else slots.min,
+      if (slots.isEmpty) 0 else slots.max))
+    dropLowestShuffleAssignments()
+
+    assignedShuffles += 1
+    event.workerSlots.foreach { case (worker, numSlots) =>
+      workerShuffles(worker) = workerShuffles.getOrElse(worker, 0) + 1
+      workerSlots(worker) = workerSlots.getOrElse(worker, 0) + numSlots
+    }
+    kvstore.write(WorkerSlotsUIData(assignedShuffles, workerShuffles.toMap, workerSlots.toMap))
+  }
+
+  // Drops the lowest Celeborn shuffle ids, which roughly are the oldest shuffles.
+  private def dropLowestShuffleAssignments(): Unit = {
+    val uiDataClass = classOf[ShuffleAssignmentUIData]
+    val excess = kvstore.count(uiDataClass) - retainedShuffles
+    if (excess > 0) {
+      val dropped = Utils.tryWithResource(
+        kvstore.view(uiDataClass).max(excess).closeableIterator()) { iter =>
+        iter.asScala.map(_.shuffleId).toList
+      }
+      dropped.foreach(shuffleId => kvstore.delete(uiDataClass, shuffleId))
+    }
   }
 
   override def onApplicationEnd(applicationEnd: SparkListenerApplicationEnd): Unit = {
