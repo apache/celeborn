@@ -24,7 +24,6 @@ import scala.util.control.NonFatal
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
-import org.apache.celeborn.common.meta.DiskStatus
 import org.apache.celeborn.common.metrics.WorkerStats
 import org.apache.celeborn.common.util.{DiskUtils, ThreadUtils}
 import org.apache.celeborn.service.deploy.worker.Worker
@@ -96,7 +95,7 @@ class DefaultScaleMetricCollector private[metrics] (
   private def diskMetrics(worker: Worker): Map[String, Double] = {
     val storageManager = worker.storageManager
     val disks = storageManager.localDisksSnapshot()
-    val usableDisks = disks.filter(_.status != DiskStatus.IO_HANG)
+    val usableDisks = disks.filter(_.isHealthy)
     val usableBytes = usableDisks.map(_.actualUsableSpace.toDouble).sum
     val effectiveCapacityBytes = disks.map { disk =>
       val reserveSize = DiskUtils.getActualReserveSize(
