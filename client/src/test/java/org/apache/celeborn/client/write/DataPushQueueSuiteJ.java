@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.junit.AfterClass;
@@ -248,6 +249,47 @@ public class DataPushQueueSuiteJ {
       Assert.assertEquals(i % numPartitions, (int) pushedPartitions.get(i));
       Assert.assertEquals(i, (int) pushedValues.get(i));
     }
+    client.shutdown();
+  }
+
+  @Test
+  public void testAddTaskAndSwapBufferWithPooledTasksOfOtherSize() throws Exception {
+    int numPartitions = 1;
+    CelebornConf conf = new CelebornConf();
+    int size = conf.clientPushBufferMaxSize();
+    final File tempFile = new File(tempDir, UUID.randomUUID().toString());
+    DummyShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    LongAdder[] mapStatusLengths = new LongAdder[] {new LongAdder()};
+    // Tasks left in a pooled queue by a writer with a smaller push buffer size.
+    LinkedBlockingQueue<PushTask> pushTasks =
+        new LinkedBlockingQueue<>(conf.clientPushQueueCapacity());
+    for (int i = 0; i < conf.clientPushQueueCapacity(); i++) {
+      pushTasks.put(new PushTask(size / 2));
+    }
+    DataPusher dataPusher =
+        new DataPusher(
+            0,
+            0,
+            0,
+            0,
+            10,
+            numPartitions,
+            conf,
+            client,
+            pushTasks,
+            integer -> {},
+            mapStatusLengths) {
+          @Override
+          protected void pushData(PushTask task) {}
+        };
+
+    byte[] buffer = new byte[size];
+    for (int i = 0; i < 2 * conf.clientPushQueueCapacity(); i++) {
+      buffer = dataPusher.addTaskAndSwapBuffer(0, buffer, size);
+      Assert.assertEquals(size, buffer.length);
+    }
+
+    dataPusher.waitOnTermination();
     client.shutdown();
   }
 

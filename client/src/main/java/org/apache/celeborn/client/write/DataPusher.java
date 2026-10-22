@@ -159,7 +159,8 @@ public class DataPusher {
   /**
    * Like {@link #addTask(int, byte[], int)}, but hands {@code buffer} to the pusher instead of
    * copying it. The caller must not touch {@code buffer} afterwards and should continue with the
-   * returned buffer, which is an idle buffer taken from the pusher.
+   * returned buffer, which has the same length as {@code buffer}: an idle buffer taken from the
+   * pusher, or a new one if the idle buffer has another length.
    */
   public byte[] addTaskAndSwapBuffer(int partitionId, byte[] buffer, int size)
       throws IOException, InterruptedException {
@@ -178,6 +179,11 @@ public class DataPusher {
       byte[] idleBuffer = null;
       if (swapBuffer) {
         idleBuffer = task.getBuffer();
+        // Tasks reused through SendBufferPool may come from a writer with another push buffer
+        // size, so do not hand back a buffer of a different length than the caller's.
+        if (idleBuffer.length != buffer.length) {
+          idleBuffer = new byte[buffer.length];
+        }
         task.setBuffer(buffer);
         task.setSize(size);
       } else {
