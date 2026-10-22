@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.client.commit
 
+import java.util
+
 import org.apache.celeborn.common.CommitMetadata
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.JavaUtils
@@ -44,6 +46,20 @@ abstract class AbstractPartitionCompletenessValidator {
       actualCommitMetadata: CommitMetadata,
       expectedTotalMapperCount: Int,
       allowMetadataReplacement: Boolean): (Boolean, String)
+
+  // The caller must hold the lock protecting the sub-partition reports and their aggregate.
+  protected def replaceCommitMetadata[K](
+      subPartitionMetadata: util.Map[K, CommitMetadata],
+      subPartitionKey: K,
+      actualCommitMetadata: CommitMetadata): CommitMetadata = {
+    subPartitionMetadata.put(
+      subPartitionKey,
+      new CommitMetadata(actualCommitMetadata.getChecksum, actualCommitMetadata.getBytes))
+    // Preserve sibling reports and coverage without counting the replaced contribution twice.
+    val updatedMetadata = new CommitMetadata()
+    subPartitionMetadata.values().forEach(metadata => updatedMetadata.addCommitData(metadata))
+    updatedMetadata
+  }
 
   def currentCommitMetadata(partitionId: Int): CommitMetadata
 
@@ -102,8 +118,8 @@ class PartitionCompletenessValidator extends Logging {
         !CommitMetadata.checkCommitMetadata(expectedCommitMetadata, currentCommitMetadata)
       if (state.validationFailed) {
         val errorMsg =
-          s"AQE Partition $partitionId failed validation check" +
-            s"while processing range startMapIndex: $startMapIndex endMapIndex: $endMapIndex" +
+          s"AQE Partition $partitionId failed validation check " +
+            s"while processing range startMapIndex: $startMapIndex endMapIndex: $endMapIndex " +
             s"ExpectedCommitMetadata $expectedCommitMetadata, " +
             s"ActualCommitMetadata $currentCommitMetadata, "
         logError(errorMsg)

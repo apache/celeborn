@@ -149,14 +149,9 @@ class LegacySkewHandlingPartitionValidator extends AbstractPartitionCompleteness
           logError(errorMessage)
           return (false, errorMessage)
         }
-        subRangeToCommitMetadataMap.put(
-          rangeKey,
-          new CommitMetadata(actualCommitMetadata.getChecksum, actualCommitMetadata.getBytes))
-        // Preserve sibling reports and range coverage while replacing the failed contribution.
-        val updatedMetadata = new CommitMetadata()
-        subRangeToCommitMetadataMap.values().forEach(metadata =>
-          updatedMetadata.addCommitData(metadata))
-        currentCommitMetadataForReducer.put(partitionId, updatedMetadata)
+        currentCommitMetadataForReducer.put(
+          partitionId,
+          replaceCommitMetadata(subRangeToCommitMetadataMap, rangeKey, actualCommitMetadata))
       }
 
       validateState(partitionId, startMapIndex, endMapIndex)

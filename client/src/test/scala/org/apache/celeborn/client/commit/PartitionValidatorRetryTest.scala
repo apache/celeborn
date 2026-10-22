@@ -17,20 +17,13 @@
 
 package org.apache.celeborn.client.commit
 
-import java.lang.management.ManagementFactory
-import java.util.concurrent.{Callable, CountDownLatch, FutureTask, TimeUnit}
+import java.util.concurrent.{Callable, CountDownLatch, FutureTask, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
-
-import org.scalatest.concurrent.Eventually
-import org.scalatest.time.{Millis, Seconds, Span}
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CommitMetadata
 
-class PartitionValidatorRetryTest extends CelebornFunSuite with Eventually {
-
-  implicit override val patienceConfig: PatienceConfig =
-    PatienceConfig(timeout = Span(10, Seconds), interval = Span(10, Millis))
+class PartitionValidatorRetryTest extends CelebornFunSuite {
 
   private def report(
       validator: PartitionCompletenessValidator,
@@ -156,21 +149,20 @@ class PartitionValidatorRetryTest extends CelebornFunSuite with Eventually {
       }
       var staleThread: Thread = null
       try {
-        eventually {
-          assert(expected.entered.getCount == 0 || retry.isDone)
-        }
-        assert(expected.entered.getCount == 0, "correct retry did not reach aggregate validation")
+        assert(
+          expected.entered.await(10, TimeUnit.SECONDS),
+          "correct retry did not reach aggregate validation")
+        val staleStarted = new CountDownLatch(1)
         val (thread, stale) = startReport {
+          staleStarted.countDown()
           report(validator, withoutMapRange, 0, new CommitMetadata(11, 100), expected)
         }
         staleThread = thread
-        eventually {
-          val info = ManagementFactory.getThreadMXBean.getThreadInfo(thread.getId)
-          assert(stale.isDone || (info != null &&
-            info.getThreadState == Thread.State.BLOCKED &&
-            info.getLockOwnerId == retryThread.getId))
+        assert(staleStarted.await(10, TimeUnit.SECONDS), "stale report did not start")
+        // A stale report must wait for the paused validation to publish its recovery state.
+        intercept[TimeoutException] {
+          stale.get(100, TimeUnit.MILLISECONDS)
         }
-        assert(!stale.isDone, "stale report overtook the successful validation")
 
         expected.resume.countDown()
         assert(retry.get(10, TimeUnit.SECONDS) == ((true, "Partition is complete")))
