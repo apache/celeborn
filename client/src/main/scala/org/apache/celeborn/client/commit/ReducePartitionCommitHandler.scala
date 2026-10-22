@@ -25,6 +25,7 @@ import java.util.function
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
+import com.google.common.annotations.VisibleForTesting
 import com.google.common.base.Preconditions.checkState
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.google.common.collect.Sets
@@ -301,6 +302,11 @@ class ReducePartitionCommitHandler(
 
   override def getMapperAttempts(shuffleId: Int): Array[Int] = {
     shuffleMapperAttempts.get(shuffleId)
+  }
+
+  @VisibleForTesting
+  private[commit] def getReducerCommitMetadata(shuffleId: Int): Array[CommitMetadata] = {
+    commitMetadataForReducer.get(shuffleId)
   }
 
   override def areAllMapperAttemptsFinished(shuffleId: Int): Boolean = {

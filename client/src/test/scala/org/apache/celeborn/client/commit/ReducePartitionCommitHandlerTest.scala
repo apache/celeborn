@@ -18,7 +18,7 @@
 package org.apache.celeborn.client.commit
 
 import java.lang.management.ManagementFactory
-import java.util.concurrent.{Callable, ConcurrentHashMap, CountDownLatch, FutureTask, ScheduledExecutorService, ThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{Callable, CountDownLatch, FutureTask, ScheduledExecutorService, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 
 import org.scalatest.concurrent.Eventually
@@ -112,12 +112,8 @@ class ReducePartitionCommitHandlerTest extends CelebornFunSuite with Eventually 
       numMappers: Int = 1): PausedCommitMetadata = {
     handler.registerShuffle(1, numMappers, isSegmentGranularityVisible = false, numPartitions = 2)
     // Pause the last partition so the first partition has already been aggregated.
-    val field = classOf[ReducePartitionCommitHandler].getDeclaredField("commitMetadataForReducer")
-    field.setAccessible(true)
-    val metadata =
-      field.get(handler).asInstanceOf[ConcurrentHashMap[Integer, Array[CommitMetadata]]]
     val paused = new PausedCommitMetadata()
-    metadata.get(1)(1) = paused
+    handler.getReducerCommitMetadata(1)(1) = paused
     paused
   }
 
