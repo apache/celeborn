@@ -118,11 +118,7 @@ public class DummyShuffleClient extends ShuffleClient {
     return simulatedCompressedLength(length);
   }
 
-  /**
-   * Deterministic fake compression so tests can distinguish the pre-compression byte count (the
-   * writers' uncompressed counter) from the post-compression byte count (the push methods' return
-   * value the writers report as compressed bytes).
-   */
+  /** Deterministic fake compression so tests can tell the two byte counts apart. */
   public static int simulatedCompressedLength(int length) {
     return length * 3 / 4;
   }

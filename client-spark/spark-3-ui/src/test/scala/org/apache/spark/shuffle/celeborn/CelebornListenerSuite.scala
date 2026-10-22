@@ -81,8 +81,6 @@ class CelebornListenerSuite {
 
   @Test
   def shuffleWriteMetricsCountEveryAttempt(): Unit = {
-    // Write-side metrics count every attempt regardless of its end reason, matching
-    // Spark's own stage accounting in AppStatusListener.
     val store = new InMemoryStore()
     val statusStore = new CelebornStatusStore(store)
     val listener = new CelebornListener(store, new SparkConf())
@@ -95,7 +93,6 @@ class CelebornListenerSuite {
     listener.flush()
 
     val agg = statusStore.aggregatedTaskInfo()
-    // The killed attempt's write metrics are counted as well.
     assertEquals(600L, agg.shuffleWriteBytes)
     assertEquals(60L, agg.shuffleWriteTimeMs)
     assertEquals(6L, agg.shuffleFetchWaitTimeMs)
@@ -124,10 +121,7 @@ class CelebornListenerSuite {
     listener.flush()
 
     val agg = statusStore.aggregatedTaskInfo()
-    // Task-end write bytes count all three attempts, like Spark's stage accounting...
     assertEquals(282L, agg.shuffleWriteBytes)
-    // ...while the compression ratio uses the same MapperEnd attempt set on both
-    // sides: 60/282 has the same ratio as the successful-only 40/188.
     assertEquals(60L, agg.uncompressedShuffleBytes)
     assertEquals(282L, agg.compressedShuffleBytes)
   }

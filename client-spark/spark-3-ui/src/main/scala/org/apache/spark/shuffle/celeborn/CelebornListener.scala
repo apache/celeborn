@@ -67,9 +67,7 @@ private[celeborn] class CelebornListener(
       return
     }
     Option(taskEnd.taskMetrics).foreach { metrics =>
-      // Count every attempt regardless of its end reason, matching Spark's own stage
-      // accounting in AppStatusListener. The compression ratio instead derives both
-      // sides from MapperEnd reports.
+      // Count every attempt regardless of its end reason, like AppStatusListener.
       totalWriteBytes.addAndGet(metrics.shuffleWriteMetrics.bytesWritten)
       // writeTime is in nanoseconds; normalize to ms.
       totalWriteTimeMs.addAndGet(metrics.shuffleWriteMetrics.writeTime / 1000000L)

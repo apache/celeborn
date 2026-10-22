@@ -570,16 +570,11 @@ public class SparkUtils {
     }
   }
 
-  /** UI plugin entry point; lives in the spark-3-ui module, referenced here by class name. */
+  /** Lives in the spark-3-ui module, referenced here by class name. */
   private static final String CELEBORN_PLUGIN_CLASS_NAME =
       "org.apache.spark.shuffle.celeborn.CelebornPlugin";
 
-  /**
-   * Whether the application opted in to the Celeborn UI extension by listing the {@code
-   * org.apache.spark.shuffle.celeborn.CelebornPlugin} in its plugin configuration. Spark loads
-   * plugins from both keys: {@code spark.plugins} and {@code spark.plugins.defaultList} (the latter
-   * allows a default plugin list in the config file that {@code spark.plugins} does not overwrite).
-   */
+  /** Whether the app opted in to the Celeborn UI extension via its plugin configuration. */
   public static boolean isCelebornPluginEnabled(SparkConf conf) {
     String[] keys = {"spark.plugins", "spark.plugins.defaultList"};
     for (String key : keys) {

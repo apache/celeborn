@@ -302,8 +302,7 @@ public abstract class CelebornShuffleWriterSuiteBase {
       }
     }
     assertEquals(totalBytesPushed, mapperMetrics.uncompressedBytesWritten());
-    // The dummy client simulates a deterministic compression, so the two sides differ
-    // and a swap of the MapperMetrics fields would fail the assertions.
+    // Distinct expectations so a swap of the two fields would fail.
     assertEquals(expectedCompressedBytes, mapperMetrics.compressedBytesWritten());
     assertTrue(expectedCompressedBytes <= totalBytesPushed);
 
@@ -402,8 +401,7 @@ public abstract class CelebornShuffleWriterSuiteBase {
 
     ShuffleWriteMetrics metrics = taskContext.taskMetrics().shuffleWriteMetrics();
     assertEquals(metrics.recordsWritten(), total.intValue());
-    // The dummy client's simulated compression shrinks every pushed batch, so the
-    // write metrics total is the sum of the per-batch compressed lengths.
+    // Write metrics total the per-batch compressed lengths.
     String mapKey = Utils.makeMapKey(shuffleId, 0, 0);
     long expectedCompressedBytes = 0;
     for (List<byte[]> batches : client.getPushDataByPartition(mapKey).values()) {
@@ -416,8 +414,6 @@ public abstract class CelebornShuffleWriterSuiteBase {
     assertTrue(metrics.writeTime() > 0);
     MapperMetrics mapperMetrics = client.getMapperEndMetrics(shuffleId, 0, 0);
     assertNotNull(mapperMetrics);
-    // The two sides of the compression ratio come from different sources, so a swap of
-    // the MapperMetrics fields would fail the assertions.
     assertEquals(tempFile.length(), mapperMetrics.uncompressedBytesWritten());
     assertEquals(metrics.bytesWritten(), mapperMetrics.compressedBytesWritten());
 

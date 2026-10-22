@@ -983,9 +983,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         numPartitions = numPartitions,
         crc32PerPartition = crc32PerPartition,
         bytesWrittenPerPartition = bytesWrittenPerPartition)
-    // Report only the attempt accepted by the commit handler. finishMapperAttempt accepts at
-    // most one attempt per mapId (retried and duplicate attempts return false), so both sides
-    // of the compression ratio use the same attempt set and no extra dedup is needed here.
+    // finishMapperAttempt accepts at most one attempt per mapId, so the callback fires
+    // exactly once per accepted attempt and no extra dedup is needed.
     if (mapperAttemptFinishedSuccess) {
       mapperEndCallback.foreach(_.onMapperEnd(shuffleId, mapId, attemptId, metrics))
     }

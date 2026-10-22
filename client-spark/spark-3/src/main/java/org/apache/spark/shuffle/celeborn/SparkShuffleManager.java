@@ -163,9 +163,8 @@ public class SparkShuffleManager implements ShuffleManager {
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
           lifecycleManager.applicationCount().increment();
           lifecycleManager.registerCancelShuffleCallback(SparkUtils::cancelShuffle);
-          // Forward mapper metrics to the Celeborn UI extension. Only register the callback when
-          // the application opted in via spark.plugins, otherwise every map task would post an
-          // event nobody consumes (and each custom event forces an event-log flush).
+          // Register only when the UI plugin is opted in, otherwise every map task
+          // posts an event nobody consumes and each one flushes the event log.
           if (SparkUtils.isCelebornPluginEnabled(conf)) {
             lifecycleManager.registerMapperEndCallback(
                 (shuffleId, mapId, attemptId, metrics) -> {

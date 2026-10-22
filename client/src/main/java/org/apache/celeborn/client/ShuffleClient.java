@@ -377,9 +377,9 @@ public abstract class ShuffleClient {
       throws IOException;
 
   /**
-   * Same as {@link #mapperEnd(int, int, int, int, int)}, additionally reporting per-mapper write
-   * metrics. The default implementation discards the metrics and delegates to the 5-arg overload,
-   * so external subclasses only need to implement the abstract 5-arg method to stay compatible.
+   * Same as the 5-arg overload, additionally reporting per-mapper write metrics. The default
+   * implementation discards the metrics, so external subclasses only need the abstract 5-arg method
+   * to stay compatible.
    */
   public void mapperEnd(
       int shuffleId,
