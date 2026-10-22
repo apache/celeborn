@@ -198,6 +198,9 @@ public class DataPushQueueSuiteJ {
     CelebornConf conf = new CelebornConf();
     final File tempFile = new File(tempDir, UUID.randomUUID().toString());
     DummyShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    // Without partition locations the push thread takes tasks through a path that can drop a
+    // task added concurrently, which would hang waitOnTermination when tasks are added quickly.
+    client.initReducePartitionMap(shuffleId, numPartitions, 1);
     LongAdder[] mapStatusLengths = new LongAdder[numPartitions];
     for (int i = 0; i < numPartitions; i++) {
       mapStatusLengths[i] = new LongAdder();
@@ -259,6 +262,7 @@ public class DataPushQueueSuiteJ {
     int size = conf.clientPushBufferMaxSize();
     final File tempFile = new File(tempDir, UUID.randomUUID().toString());
     DummyShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    client.initReducePartitionMap(0, numPartitions, 1);
     LongAdder[] mapStatusLengths = new LongAdder[] {new LongAdder()};
     // Tasks left in a pooled queue by a writer with a smaller push buffer size.
     LinkedBlockingQueue<PushTask> pushTasks =
