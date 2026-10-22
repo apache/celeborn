@@ -291,7 +291,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     conf.workerGracefulShutdownSaveCommittedFileInfoInterval
   private val dbDeleteFailurePolicy =
     conf.workerGracefulShutdownDbDeleteFailurePolicy
-  private val committedFileInfos =
+  @VisibleForTesting
+  private[storage] val committedFileInfos =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, DiskFileInfo]]()
   // ShuffleClient can fetch data from a restarted worker only
   // when the worker's fetching port is stable.
@@ -741,6 +742,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           }
         })
         if (workerGracefulShutdown) {
+          // Writer cleanup waits for in-flight close calls to finish registering metadata.
           committedFileInfos.remove(shuffleKey)
           if (cleanDB) {
             try {
@@ -1071,7 +1073,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       shuffleKey: String,
       fileName: String,
       fileInfo: DiskFileInfo): Unit = {
-    committedFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(fileName, fileInfo)
+    if (workerGracefulShutdown) {
+      committedFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(fileName, fileInfo)
+    }
   }
 
   def getActiveShuffleSize: Long = {
