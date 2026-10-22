@@ -34,7 +34,7 @@ import org.mockito.stubbing.{Answer, Stubber}
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.{WORKER_DISK_RESERVE_SIZE, WORKER_GRACEFUL_SHUTDOWN_ENABLED, WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH, WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_INTERVAL, WORKER_STORAGE_DIRS}
+import org.apache.celeborn.common.CelebornConf.{WORKER_DISK_RESERVE_RATIO, WORKER_DISK_RESERVE_SIZE, WORKER_GRACEFUL_SHUTDOWN_ENABLED, WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH, WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_INTERVAL, WORKER_STORAGE_DIRS}
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{DiskFileInfo, DiskInfo, DiskStatus}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
@@ -217,6 +217,55 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
     diskInfo.setUsableSpace(-1L)
     spyStorageManager.updateDiskInfos()
     assert(diskInfo.actualUsableSpace == 0L)
+
+    conf.set(WORKER_STORAGE_DIRS, Seq("/mnt/disk1:capacity=100g"))
+    diskInfo.configuredUsableSpace = conf.workerBaseDirs.head._2
+    diskSetSpace = (Utils.byteStringAsBytes("1t"), Utils.byteStringAsBytes("1t"))
+    spyStorageManager.updateDiskInfos()
+    assert(diskInfo.actualUsableSpace == Utils.byteStringAsBytes("100g"))
+    assert(diskInfo.totalSpace == Utils.byteStringAsBytes("1t"))
+
+    diskSetSpace = (Utils.byteStringAsBytes("15g"), Utils.byteStringAsBytes("1t"))
+    spyStorageManager.updateDiskInfos()
+    assert(diskInfo.actualUsableSpace == Utils.byteStringAsBytes("10g"))
+
+    diskSetSpace = (Utils.byteStringAsBytes("5g"), Utils.byteStringAsBytes("1t"))
+    spyStorageManager.updateDiskInfos()
+    assert(diskInfo.actualUsableSpace == 0L)
+  }
+
+  test("disk reserve uses the same physical capacity snapshot as usable space") {
+    val conf = new CelebornConf()
+      .set(WORKER_DISK_RESERVE_SIZE, Utils.byteStringAsBytes("20g"))
+      .set(WORKER_DISK_RESERVE_RATIO, 0.25)
+    val storageManager = new StorageManager(conf, new WorkerSource(conf))
+    try {
+      val spyStorageManager = spy(storageManager)
+      val diskInfo = new DiskInfo("/mnt/disk1", List.empty, null, conf)
+      diskInfo.configuredUsableSpace = conf.workerBaseDirs.head._2
+      var diskSetSpace = (Utils.byteStringAsBytes("100g"), Utils.byteStringAsBytes("100g"))
+      doReturn(List(diskInfo)).when(spyStorageManager).localDisksSnapshot()
+      doAnswer(diskSetSpace).when(spyStorageManager).getFileSystemReportedSpace(any)
+
+      spyStorageManager.updateDiskInfos()
+      assert(diskInfo.actualUsableSpace == Utils.byteStringAsBytes("75g"))
+      assert(diskInfo.totalSpace == Utils.byteStringAsBytes("100g"))
+
+      diskSetSpace = (Utils.byteStringAsBytes("35g"), Utils.byteStringAsBytes("100g"))
+      spyStorageManager.updateDiskInfos()
+      assert(diskInfo.actualUsableSpace == Utils.byteStringAsBytes("10g"))
+
+      diskSetSpace = (Utils.byteStringAsBytes("40g"), Utils.byteStringAsBytes("40g"))
+      spyStorageManager.updateDiskInfos()
+      assert(diskInfo.actualUsableSpace == Utils.byteStringAsBytes("20g"))
+      assert(diskInfo.totalSpace == Utils.byteStringAsBytes("40g"))
+
+      diskSetSpace = (Utils.byteStringAsBytes("15g"), Utils.byteStringAsBytes("40g"))
+      spyStorageManager.updateDiskInfos()
+      assert(diskInfo.actualUsableSpace == 0L)
+    } finally {
+      storageManager.close(CelebornExitKind.EXIT_IMMEDIATELY)
+    }
   }
 
   test("[CELEBORN-2310] Ensure createFile rejected with disks are full, but status is HEALTHY") {

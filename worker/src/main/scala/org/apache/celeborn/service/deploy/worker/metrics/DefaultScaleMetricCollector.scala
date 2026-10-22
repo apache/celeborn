@@ -26,7 +26,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.DiskStatus
 import org.apache.celeborn.common.metrics.WorkerStats
-import org.apache.celeborn.common.util.ThreadUtils
+import org.apache.celeborn.common.util.{DiskUtils, ThreadUtils}
 import org.apache.celeborn.service.deploy.worker.Worker
 
 class DefaultScaleMetricCollector private[metrics] (
@@ -94,12 +94,19 @@ class DefaultScaleMetricCollector private[metrics] (
   }
 
   private def diskMetrics(worker: Worker): Map[String, Double] = {
-    val disks = worker.storageManager.localDisksSnapshot()
+    val storageManager = worker.storageManager
+    val disks = storageManager.localDisksSnapshot()
     val usableDisks = disks.filter(_.status != DiskStatus.IO_HANG)
     val usableBytes = usableDisks.map(_.actualUsableSpace.toDouble).sum
-    val totalBytes = disks.map(_.totalSpace.toDouble).sum
+    val effectiveCapacityBytes = disks.map { disk =>
+      val reserveSize = DiskUtils.getActualReserveSize(
+        disk.totalSpace,
+        storageManager.diskReserveSize,
+        storageManager.diskReserveRatio)
+      math.min(disk.configuredUsableSpace, math.max(disk.totalSpace - reserveSize, 0L)).toDouble
+    }.sum
     Map(
-      WorkerStats.DiskUsedRatio -> (1.0 - usableBytes / totalBytes),
+      WorkerStats.DiskUsedRatio -> (1.0 - usableBytes / effectiveCapacityBytes),
       WorkerStats.DiskRemainingSize -> usableBytes)
   }
 }
