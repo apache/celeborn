@@ -131,7 +131,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     lifecycleManager.stop()
   }
 
-  test("CELEBORN-2479: mapper end callback reports every finished writer attempt once") {
+  test("CELEBORN-2479: mapper end callback reports only the accepted attempt") {
     prepareService()
     val numMappers = 8
     val numPartitions = 9
@@ -154,7 +154,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
       numMappers,
       numPartitions,
       new MapperMetrics(100L, 40L))
-    // Retried RPC of the same attempt: reported once.
+    // Retried RPC of the same attempt: finishMapperAttempt is idempotent, not reported again.
     shuffleClient.mapperEnd(
       shuffleId,
       mapId,
@@ -162,7 +162,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
       numMappers,
       numPartitions,
       new MapperMetrics(100L, 40L))
-    // Duplicate speculative attempt: rejected by the commit handler, still reported.
+    // Duplicate speculative attempt: rejected by the commit handler, not reported.
     shuffleClient.mapperEnd(
       shuffleId,
       mapId,
@@ -170,7 +170,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
       numMappers,
       numPartitions,
       new MapperMetrics(250L, 94L))
-    // Retried RPC of the rejected attempt: must not be reported again.
+    // Retried RPC of the rejected attempt: not reported again.
     shuffleClient.mapperEnd(
       shuffleId,
       mapId,
@@ -180,7 +180,7 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
       new MapperMetrics(250L, 94L))
 
     // The callback runs synchronously before the RPC reply.
-    assert(reported.asScala.toList == List((100L, 40L), (250L, 94L)))
+    assert(reported.asScala.toList == List((100L, 40L)))
   }
 
   override def afterAll(): Unit = {
