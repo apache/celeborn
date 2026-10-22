@@ -230,9 +230,14 @@ public class ShuffleClientImpl extends ShuffleClient {
             Role.CLIENT(),
             scala.None$.empty());
 
-    String module = TransportModuleConstants.DATA_MODULE;
-    dataTransportConf = Utils.fromCelebornConf(conf, module, conf.networkIoThreads(module));
-    initDataClientFactoryIfNeeded();
+    try {
+      String module = TransportModuleConstants.DATA_MODULE;
+      dataTransportConf = Utils.fromCelebornConf(conf, module, conf.networkIoThreads(module));
+      initDataClientFactoryIfNeeded();
+    } catch (RuntimeException | Error e) {
+      rpcEnv.shutdown();
+      throw e;
+    }
     int pushDataRetryThreads = conf.clientPushRetryThreads();
     pushDataRetryPool =
         ThreadUtils.newDaemonCachedThreadPool("celeborn-retry-sender", pushDataRetryThreads, 60);
@@ -271,19 +276,20 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   private void initDataClientFactoryIfNeeded() {
-    if (dataClientFactory != null) {
+    if (dataClientFactory != null || (authEnabled && lifecycleManagerRef == null)) {
       return;
     }
-    this.transportContext =
+    TransportContext context =
         new TransportContext(
             dataTransportConf, new BaseMessageHandler(), conf.clientCloseIdleConnections());
-    if (!authEnabled) {
+    try {
       logger.info("Initializing data client factory for {}.", appUniqueId);
-      dataClientFactory = transportContext.createClientFactory();
-    } else if (lifecycleManagerRef != null) {
-      logger.info("Initializing data client factory for secured {}.", appUniqueId);
-      List<TransportClientBootstrap> bootstraps = createBootstraps();
-      dataClientFactory = transportContext.createClientFactory(bootstraps);
+      TransportClientFactory factory = context.createClientFactory(createBootstraps());
+      transportContext = context;
+      dataClientFactory = factory;
+    } catch (RuntimeException | Error e) {
+      context.close();
+      throw e;
     }
   }
 

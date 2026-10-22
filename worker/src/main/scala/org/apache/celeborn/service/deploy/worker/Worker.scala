@@ -24,6 +24,7 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
 import scala.collection.JavaConverters._
+import scala.util.control.NonFatal
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
@@ -40,7 +41,7 @@ import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, Resou
 import org.apache.celeborn.common.network.{CelebornRackResolver, TransportContext}
 import org.apache.celeborn.common.network.protocol.TransportMessagesHelper
 import org.apache.celeborn.common.network.sasl.SaslServerBootstrap
-import org.apache.celeborn.common.network.server.TransportServerBootstrap
+import org.apache.celeborn.common.network.server.{TransportServer, TransportServerBootstrap}
 import org.apache.celeborn.common.network.util.TransportConf
 import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants, WorkerEventType}
 import org.apache.celeborn.common.protocol.PbWorkerStatus.State
@@ -225,9 +226,15 @@ private[celeborn] class Worker(
         pushServerLimiter,
         conf.workerPushHeartbeatEnabled,
         workerSource)
-    (
-      transportContext,
-      transportContext.createServer(conf.workerPushPort, getServerBootstraps(transportConf)))
+    try {
+      (
+        transportContext,
+        transportContext.createServer(conf.workerPushPort, getServerBootstraps(transportConf)))
+    } catch {
+      case e: Throwable if NonFatal(e) || e.isInstanceOf[LinkageError] =>
+        Utils.tryLogNonFatalError { transportContext.close() }
+        throw e
+    }
   }
 
   val replicateHandler = new PushDataHandler(workerSource)
@@ -246,10 +253,19 @@ private[celeborn] class Worker(
         replicateLimiter,
         false,
         workerSource)
-    (
-      transportContext,
-      transportContext.createServer(conf.workerReplicatePort),
-      transportContext.createClientFactory())
+    var server: TransportServer = null
+    try {
+      server = transportContext.createServer(conf.workerReplicatePort)
+      val factory = transportContext.createClientFactory()
+      (transportContext, server, factory)
+    } catch {
+      case e: Throwable if NonFatal(e) || e.isInstanceOf[LinkageError] =>
+        if (server != null) {
+          Utils.tryLogNonFatalError { server.close() }
+        }
+        Utils.tryLogNonFatalError { transportContext.close() }
+        throw e
+    }
   }
 
   var fetchHandler: FetchHandler = _
@@ -267,9 +283,15 @@ private[celeborn] class Worker(
         conf.workerFetchHeartbeatEnabled,
         workerSource,
         conf.metricsCollectCriticalEnabled)
-    (
-      transportContext,
-      transportContext.createServer(conf.workerFetchPort, getServerBootstraps(transportConf)))
+    try {
+      (
+        transportContext,
+        transportContext.createServer(conf.workerFetchPort, getServerBootstraps(transportConf)))
+    } catch {
+      case e: Throwable if NonFatal(e) || e.isInstanceOf[LinkageError] =>
+        Utils.tryLogNonFatalError { transportContext.close() }
+        throw e
+    }
   }
 
   private val pushPort = pushServer.getPort
@@ -690,6 +712,7 @@ private[celeborn] class Worker(
       replicateServer.shutdown(exitKind)
       fetchServer.shutdown(exitKind)
       pushServer.shutdown(exitKind)
+      replicateClientFactory.close()
       replicateTransportContext.close()
       fetchServerTransportContext.close()
       pushServerTransportContext.close()

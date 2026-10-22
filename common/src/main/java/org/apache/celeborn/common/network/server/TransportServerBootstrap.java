@@ -24,13 +24,24 @@ import io.netty.channel.Channel;
  * server. This allows customizing the client channel to allow for things such as SASL
  * authentication.
  */
-public interface TransportServerBootstrap {
+public interface TransportServerBootstrap extends AutoCloseable {
   /**
-   * Customizes the channel to include new features, if needed.
+   * Customizes the channel to include new features, if needed. Configured instances are shared
+   * across connections; create a separate handler for each connection. Authentication handlers must
+   * establish identity before forwarding business requests and preserve the delegate's registration
+   * checks and channel lifecycle callbacks.
    *
    * @param channel The connected channel opened by the client.
    * @param baseMessageHandler The RPC handler for the server.
    * @return The base message handler to use for the channel.
    */
   BaseMessageHandler doBootstrap(Channel channel, BaseMessageHandler baseMessageHandler);
+
+  /**
+   * Releases resources owned by a configured bootstrap. The transport context owns the shared
+   * bootstrap and closes it after its factories and servers. Caller-supplied instances remain the
+   * caller's responsibility.
+   */
+  @Override
+  default void close() throws Exception {}
 }
