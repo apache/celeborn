@@ -19,7 +19,7 @@ package org.apache.spark.shuffle.celeborn
 
 import java.util.concurrent.atomic.AtomicLong
 
-import org.apache.spark.{SparkConf, Success}
+import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler._
 import org.apache.spark.util.Utils
@@ -67,15 +67,12 @@ private[celeborn] class CelebornListener(
       return
     }
     Option(taskEnd.taskMetrics).foreach { metrics =>
-      taskEnd.reason match {
-        case Success =>
-          // Write-side metrics only for successful attempts. The compression ratio
-          // instead derives both sides from MapperEnd reports.
-          totalWriteBytes.addAndGet(metrics.shuffleWriteMetrics.bytesWritten)
-          // writeTime is in nanoseconds; normalize to ms.
-          totalWriteTimeMs.addAndGet(metrics.shuffleWriteMetrics.writeTime / 1000000L)
-        case _ =>
-      }
+      // Count every attempt regardless of its end reason, matching Spark's own stage
+      // accounting in AppStatusListener. The compression ratio instead derives both
+      // sides from MapperEnd reports.
+      totalWriteBytes.addAndGet(metrics.shuffleWriteMetrics.bytesWritten)
+      // writeTime is in nanoseconds; normalize to ms.
+      totalWriteTimeMs.addAndGet(metrics.shuffleWriteMetrics.writeTime / 1000000L)
       totalReadBytes.addAndGet(metrics.shuffleReadMetrics.totalBytesRead)
       totalFetchWaitTimeMs.addAndGet(metrics.shuffleReadMetrics.fetchWaitTime)
       totalTaskDurationMs.addAndGet(taskEnd.taskInfo.duration)
@@ -116,6 +113,7 @@ private[celeborn] class CelebornListener(
       val pluginClass = classOf[CelebornPlugin].getName
       // Spark loads plugins from both keys: `spark.plugins.defaultList` allows a
       // default plugin list in the config file that `spark.plugins` does not overwrite.
+      // Keep in sync with SparkUtils.isCelebornPluginEnabled in the spark-3 module.
       val optedIn = sparkProps.exists { case (k, v) =>
         (k == "spark.plugins" || k == "spark.plugins.defaultList") &&
           v.split(",").exists(_.trim == pluginClass)

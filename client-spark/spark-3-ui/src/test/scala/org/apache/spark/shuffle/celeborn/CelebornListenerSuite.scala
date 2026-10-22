@@ -80,23 +80,24 @@ class CelebornListenerSuite {
   }
 
   @Test
-  def shuffleWriteMetricsCountOnlySuccessfulAttempts(): Unit = {
+  def shuffleWriteMetricsCountEveryAttempt(): Unit = {
+    // Write-side metrics count every attempt regardless of its end reason, matching
+    // Spark's own stage accounting in AppStatusListener.
     val store = new InMemoryStore()
     val statusStore = new CelebornStatusStore(store)
     val listener = new CelebornListener(store, new SparkConf())
 
     listener.onTaskEnd(newTaskEnd(100L, 10L, 1L, 5L))
     listener.onTaskEnd(newTaskEnd(200L, 20L, 2L, 6L))
-    // The killed attempt's write metrics are excluded from the task-end totals.
     listener.onTaskEnd(newTaskEnd(300L, 30L, 3L, 7L, TaskKilled("killed by test")))
     listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 100L, 40L))
     listener.onOtherEvent(new CelebornMapperMetricsEvent(0, 200L, 80L))
     listener.flush()
 
     val agg = statusStore.aggregatedTaskInfo()
-    // The killed attempt's write metrics are excluded; read side counts every attempt.
-    assertEquals(300L, agg.shuffleWriteBytes)
-    assertEquals(30L, agg.shuffleWriteTimeMs)
+    // The killed attempt's write metrics are counted as well.
+    assertEquals(600L, agg.shuffleWriteBytes)
+    assertEquals(60L, agg.shuffleWriteTimeMs)
     assertEquals(6L, agg.shuffleFetchWaitTimeMs)
     assertEquals(18L, agg.taskDurationMs)
     assertEquals(300L, agg.uncompressedShuffleBytes)
@@ -123,10 +124,10 @@ class CelebornListenerSuite {
     listener.flush()
 
     val agg = statusStore.aggregatedTaskInfo()
-    // Task-end write bytes count only the two successful attempts...
-    assertEquals(188L, agg.shuffleWriteBytes)
-    // ...while the compression ratio uses the same attempt set on both sides:
-    // 60/282 has the same ratio as the successful-only 40/188.
+    // Task-end write bytes count all three attempts, like Spark's stage accounting...
+    assertEquals(282L, agg.shuffleWriteBytes)
+    // ...while the compression ratio uses the same MapperEnd attempt set on both
+    // sides: 60/282 has the same ratio as the successful-only 40/188.
     assertEquals(60L, agg.uncompressedShuffleBytes)
     assertEquals(282L, agg.compressedShuffleBytes)
   }
