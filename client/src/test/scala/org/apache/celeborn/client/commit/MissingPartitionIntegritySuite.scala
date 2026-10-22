@@ -242,7 +242,7 @@ object MissingPartitionIntegrityTestSupport {
   }
 }
 
-class MissingPartitionIntegrityReproSuite extends CelebornFunSuite {
+class MissingPartitionIntegritySuite extends CelebornFunSuite {
 
   import MissingPartitionIntegrityTestSupport._
 
@@ -257,9 +257,6 @@ class MissingPartitionIntegrityReproSuite extends CelebornFunSuite {
         val outcome = scala.util.Try {
           readBytes = fixture.readToEnd(alreadyLoaded = alreadyLoaded)
         }
-        info(s"REPRO expectedBytes=${fixture.expected.getBytes}, " +
-          s"readBytes=$readBytes, fileGroupRequests=${fixture.fileGroupRequests.get()}, " +
-          s"integrityReports=${fixture.reports.size}, error=${outcome.failed.toOption}")
         assert(fixture.fileGroupRequests.get() == 1)
         assert(fixture.expected.getBytes > 0)
         assert(

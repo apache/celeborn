@@ -108,8 +108,6 @@ class MissingPartitionShuffleReaderSuite extends AnyFunSuite with BeforeAndAfter
         emptyLocationEntry = emptyLocationEntry,
         stageRerunEnabled = stageRerunEnabled) { (fixture, reader) =>
         val outcome = scala.util.Try(reader.read().toList)
-        info(s"SPARK REPRO expectedBytes=${fixture.expected.getBytes}, outcome=$outcome, " +
-          s"integrityReports=${fixture.reports.size}, fetchFailures=${fixture.fetchFailures.get()}")
         val error = outcome.failed.toOption.getOrElse(
           fail(s"Spark reader accepted missing output: ${outcome.get}"))
         if (stageRerunEnabled) {

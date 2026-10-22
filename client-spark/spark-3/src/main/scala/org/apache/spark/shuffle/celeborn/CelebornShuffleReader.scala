@@ -508,6 +508,7 @@ class CelebornShuffleReader[K, C](
         (partitionId, inputStream)
       } else {
         curIndex = curIndex + 1
+        // With no mappers, no shuffle output can be missing, so integrity validation is unnecessary.
         (partitionId, CelebornInputStream.empty())
       }
     }).filter {
