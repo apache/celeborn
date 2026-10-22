@@ -1852,6 +1852,12 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
+  public void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
+      throws IOException {
+    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, -1, null);
+  }
+
+  @Override
   public void mapperEnd(
       int shuffleId,
       int mapId,

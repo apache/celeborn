@@ -295,9 +295,17 @@ public abstract class CelebornShuffleWriterSuiteBase {
     for (long bytes : bytesPerPartition) {
       totalBytesPushed += bytes;
     }
+    long expectedCompressedBytes = 0;
+    for (List<byte[]> batches : client.getCrcDataByPartition(mapKey).values()) {
+      for (byte[] batch : batches) {
+        expectedCompressedBytes += DummyShuffleClient.simulatedCompressedLength(batch.length);
+      }
+    }
     assertEquals(totalBytesPushed, mapperMetrics.uncompressedBytesWritten());
-    // The dummy client applies no compression, so compressed bytes == bytes pushed.
-    assertEquals(totalBytesPushed, mapperMetrics.compressedBytesWritten());
+    // The dummy client simulates a deterministic compression, so the two sides differ
+    // and a swap of the MapperMetrics fields would fail the assertions.
+    assertEquals(expectedCompressedBytes, mapperMetrics.compressedBytesWritten());
+    assertTrue(expectedCompressedBytes <= totalBytesPushed);
 
     Map<Integer, List<byte[]>> crcData = client.getCrcDataByPartition(mapKey);
     Map<Integer, List<byte[]>> pushData = client.getPushDataByPartition(mapKey);
@@ -394,13 +402,24 @@ public abstract class CelebornShuffleWriterSuiteBase {
 
     ShuffleWriteMetrics metrics = taskContext.taskMetrics().shuffleWriteMetrics();
     assertEquals(metrics.recordsWritten(), total.intValue());
-    assertEquals(metrics.bytesWritten(), tempFile.length());
+    // The dummy client's simulated compression shrinks every pushed batch, so the
+    // write metrics total is the sum of the per-batch compressed lengths.
+    String mapKey = Utils.makeMapKey(shuffleId, 0, 0);
+    long expectedCompressedBytes = 0;
+    for (List<byte[]> batches : client.getPushDataByPartition(mapKey).values()) {
+      for (byte[] batch : batches) {
+        expectedCompressedBytes += DummyShuffleClient.simulatedCompressedLength(batch.length);
+      }
+    }
+    assertEquals(expectedCompressedBytes, metrics.bytesWritten());
+    assertTrue(metrics.bytesWritten() <= tempFile.length());
     assertTrue(metrics.writeTime() > 0);
     MapperMetrics mapperMetrics = client.getMapperEndMetrics(shuffleId, 0, 0);
     assertNotNull(mapperMetrics);
-    // The dummy client applies no compression, so uncompressed bytes == bytes written.
+    // The two sides of the compression ratio come from different sources, so a swap of
+    // the MapperMetrics fields would fail the assertions.
     assertEquals(tempFile.length(), mapperMetrics.uncompressedBytesWritten());
-    assertEquals(tempFile.length(), mapperMetrics.compressedBytesWritten());
+    assertEquals(metrics.bytesWritten(), mapperMetrics.compressedBytesWritten());
 
     try (FileInputStream fis = new FileInputStream(tempFile)) {
       Iterator it = newSerializerInstance(serializer).deserializeStream(fis).asKeyValueIterator();

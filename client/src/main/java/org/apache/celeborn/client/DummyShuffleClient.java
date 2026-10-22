@@ -115,7 +115,16 @@ public class DummyShuffleClient extends ShuffleClient {
         .add(Arrays.copyOfRange(data, offset, offset + length));
 
     os.write(data, offset, length);
-    return length;
+    return simulatedCompressedLength(length);
+  }
+
+  /**
+   * Deterministic fake compression so tests can distinguish the pre-compression byte count (the
+   * writers' uncompressed counter) from the post-compression byte count (the push methods' return
+   * value the writers report as compressed bytes).
+   */
+  public static int simulatedCompressedLength(int length) {
+    return length * 3 / 4;
   }
 
   @Override
@@ -161,11 +170,15 @@ public class DummyShuffleClient extends ShuffleClient {
         .add(Arrays.copyOfRange(data, offset, offset + length));
 
     os.write(data, offset, length);
-    return length;
+    return simulatedCompressedLength(length);
   }
 
   @Override
   public void pushMergedData(int shuffleId, int mapId, int attemptId) {}
+
+  @Override
+  public void mapperEnd(
+      int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions) {}
 
   @Override
   public void mapperEnd(

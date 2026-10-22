@@ -373,17 +373,23 @@ public abstract class ShuffleClient {
 
   // Report partition locations written by the completed map task of ReducePartition Shuffle Type.
   public abstract void mapperEnd(
+      int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
+      throws IOException;
+
+  /**
+   * Same as {@link #mapperEnd(int, int, int, int, int)}, additionally reporting per-mapper write
+   * metrics. The default implementation discards the metrics and delegates to the 5-arg overload,
+   * so external subclasses only need to implement the abstract 5-arg method to stay compatible.
+   */
+  public void mapperEnd(
       int shuffleId,
       int mapId,
       int attemptId,
       int numMappers,
       int numPartitions,
       MapperMetrics metrics)
-      throws IOException;
-
-  public void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
       throws IOException {
-    mapperEnd(shuffleId, mapId, attemptId, numMappers, numPartitions, new MapperMetrics(0L, 0L));
+    mapperEnd(shuffleId, mapId, attemptId, numMappers, numPartitions);
   }
 
   public abstract void readReducerPartitionEnd(
