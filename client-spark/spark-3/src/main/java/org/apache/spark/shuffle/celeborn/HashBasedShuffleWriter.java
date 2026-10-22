@@ -320,19 +320,21 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     }
 
     if ((buffer.length - offset) < serializedRecordSize) {
-      flushSendBuffer(partitionId, buffer, offset);
+      sendBuffers[partitionId] = flushSendBuffer(partitionId, buffer, offset);
       updateRecordsWrittenMetrics();
       offset = 0;
     }
     return offset;
   }
 
-  private void flushSendBuffer(int partitionId, byte[] buffer, int size)
+  /** Hands {@code buffer} to the data pusher and returns the buffer to continue writing into. */
+  private byte[] flushSendBuffer(int partitionId, byte[] buffer, int size)
       throws IOException, InterruptedException {
     long start = System.nanoTime();
     if (logger.isDebugEnabled()) logger.debug("Flush buffer, size {}.", Utils.bytesToString(size));
-    dataPusher.addTask(partitionId, buffer, size);
+    byte[] newBuffer = dataPusher.addTaskAndSwapBuffer(partitionId, buffer, size);
     writeMetrics.incWriteTime(System.nanoTime() - start);
+    return newBuffer;
   }
 
   protected void closeWrite() throws IOException {

@@ -20,6 +20,7 @@ package org.apache.celeborn.client.write;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -181,6 +182,71 @@ public class DataPushQueueSuiteJ {
       dataPusher.waitOnTermination();
     } catch (Throwable e) {
       Assert.assertTrue(e.getCause() instanceof OutOfMemoryError);
+    }
+    client.shutdown();
+  }
+
+  @Test
+  public void testAddTaskAndSwapBuffer() throws Exception {
+    int shuffleId = 0;
+    int mapId = 0;
+    int attemptId = 0;
+    int numMappers = 10;
+    int numPartitions = 10;
+    int numTasks = 1000;
+    CelebornConf conf = new CelebornConf();
+    final File tempFile = new File(tempDir, UUID.randomUUID().toString());
+    DummyShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    LongAdder[] mapStatusLengths = new LongAdder[numPartitions];
+    for (int i = 0; i < numPartitions; i++) {
+      mapStatusLengths[i] = new LongAdder();
+    }
+    List<Integer> pushedPartitions = new ArrayList<>();
+    List<Integer> pushedValues = new ArrayList<>();
+    DataPusher dataPusher =
+        new DataPusher(
+            shuffleId,
+            mapId,
+            attemptId,
+            0,
+            numMappers,
+            numPartitions,
+            conf,
+            client,
+            null,
+            integer -> {},
+            mapStatusLengths) {
+          @Override
+          protected void pushData(PushTask task) throws IOException {
+            byte[] buffer = task.getBuffer();
+            int value = bytesToInt(buffer);
+            for (int i = 4; i < task.getSize(); i += 4) {
+              Assert.assertEquals(value, bytesToInt(Arrays.copyOfRange(buffer, i, i + 4)));
+            }
+            pushedPartitions.add(task.getPartitionId());
+            pushedValues.add(value);
+          }
+        };
+
+    int size = conf.clientPushBufferMaxSize();
+    byte[] buffer = new byte[size];
+    for (int i = 0; i < numTasks; i++) {
+      byte[] value = intToBytes(i);
+      for (int j = 0; j < size; j += 4) {
+        System.arraycopy(value, 0, buffer, j, 4);
+      }
+      byte[] pushed = buffer;
+      buffer = dataPusher.addTaskAndSwapBuffer(i % numPartitions, pushed, size);
+      Assert.assertNotSame(pushed, buffer);
+      Assert.assertEquals(size, buffer.length);
+    }
+
+    dataPusher.waitOnTermination();
+
+    Assert.assertEquals(numTasks, pushedValues.size());
+    for (int i = 0; i < numTasks; i++) {
+      Assert.assertEquals(i % numPartitions, (int) pushedPartitions.get(i));
+      Assert.assertEquals(i, (int) pushedValues.get(i));
     }
     client.shutdown();
   }

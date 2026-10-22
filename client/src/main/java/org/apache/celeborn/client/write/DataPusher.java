@@ -153,6 +153,21 @@ public class DataPusher {
 
   public void addTask(int partitionId, byte[] buffer, int size)
       throws IOException, InterruptedException {
+    addTask(partitionId, buffer, size, false);
+  }
+
+  /**
+   * Like {@link #addTask(int, byte[], int)}, but hands {@code buffer} to the pusher instead of
+   * copying it. The caller must not touch {@code buffer} afterwards and should continue with the
+   * returned buffer, which is an idle buffer taken from the pusher.
+   */
+  public byte[] addTaskAndSwapBuffer(int partitionId, byte[] buffer, int size)
+      throws IOException, InterruptedException {
+    return addTask(partitionId, buffer, size, true);
+  }
+
+  private byte[] addTask(int partitionId, byte[] buffer, int size, boolean swapBuffer)
+      throws IOException, InterruptedException {
     client.computeBatchCRC(shuffleId, mapId, attemptId, partitionId, buffer, 0, size);
     try {
       PushTask task = null;
@@ -160,12 +175,20 @@ public class DataPusher {
         checkException();
         task = idleQueue.poll(WAIT_TIME_NANOS, TimeUnit.NANOSECONDS);
       }
-      task.setSize(size);
+      byte[] idleBuffer = null;
+      if (swapBuffer) {
+        idleBuffer = task.getBuffer();
+        task.setBuffer(buffer);
+        task.setSize(size);
+      } else {
+        task.setSize(size);
+        System.arraycopy(buffer, 0, task.getBuffer(), 0, size);
+      }
       task.setPartitionId(partitionId);
-      System.arraycopy(buffer, 0, task.getBuffer(), 0, size);
       while (!dataPushQueue.addPushTask(task)) {
         checkException();
       }
+      return idleBuffer;
     } catch (InterruptedException e) {
       logger.error("DataPusher thread interrupted while adding push task.");
       pushThread.interrupt();
