@@ -17,8 +17,11 @@
 
 package org.apache.celeborn.client.commit
 
+import java.util
+
 import org.apache.celeborn.common.CommitMetadata
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.util.JavaUtils
 
 abstract class AbstractPartitionCompletenessValidator {
   def processSubPartition(
@@ -26,7 +29,37 @@ abstract class AbstractPartitionCompletenessValidator {
       startMapIndex: Int,
       endMapIndex: Int,
       actualCommitMetadata: CommitMetadata,
-      expectedTotalMapperCount: Int): (Boolean, String)
+      expectedTotalMapperCount: Int): (Boolean, String) = {
+    processSubPartition(
+      partitionId,
+      startMapIndex,
+      endMapIndex,
+      actualCommitMetadata,
+      expectedTotalMapperCount,
+      allowMetadataReplacement = false)
+  }
+
+  private[commit] def processSubPartition(
+      partitionId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      actualCommitMetadata: CommitMetadata,
+      expectedTotalMapperCount: Int,
+      allowMetadataReplacement: Boolean): (Boolean, String)
+
+  // The caller must hold the lock protecting the sub-partition reports and their aggregate.
+  protected def replaceCommitMetadata[K](
+      subPartitionMetadata: util.Map[K, CommitMetadata],
+      subPartitionKey: K,
+      actualCommitMetadata: CommitMetadata): CommitMetadata = {
+    subPartitionMetadata.put(
+      subPartitionKey,
+      new CommitMetadata(actualCommitMetadata.getChecksum, actualCommitMetadata.getBytes))
+    // Preserve sibling reports and coverage without counting the replaced contribution twice.
+    val updatedMetadata = new CommitMetadata()
+    subPartitionMetadata.values().forEach(metadata => updatedMetadata.addCommitData(metadata))
+    updatedMetadata
+  }
 
   def currentCommitMetadata(partitionId: Int): CommitMetadata
 
@@ -39,6 +72,13 @@ class PartitionCompletenessValidator extends Logging {
     new SkewHandlingWithoutMapRangeValidator
   private val legacySkewHandlingValidator: AbstractPartitionCompletenessValidator =
     new LegacySkewHandlingPartitionValidator
+
+  private class PartitionValidationState {
+    var validationFailed = false
+  }
+
+  private val partitionValidationStates =
+    JavaUtils.newConcurrentHashMap[(Int, Boolean), PartitionValidationState]()
 
   def validateSubPartition(
       partitionId: Int,
@@ -55,32 +95,41 @@ class PartitionCompletenessValidator extends Logging {
         legacySkewHandlingValidator
       }
 
-    val (successfullyProcessed, error) = validator.processSubPartition(
-      partitionId,
-      startMapIndex,
-      endMapIndex,
-      actualCommitMetadata,
-      expectedTotalMapperCountForParent)
-    if (!successfullyProcessed) return (false, error)
+    val state = partitionValidationStates.computeIfAbsent(
+      (partitionId, skewPartitionHandlingWithoutMapRange),
+      _ => new PartitionValidationState)
+    // Keep replacing a failed report, checking the aggregate, and publishing recovery atomic.
+    state.synchronized {
+      val (successfullyProcessed, error) = validator.processSubPartition(
+        partitionId,
+        startMapIndex,
+        endMapIndex,
+        actualCommitMetadata,
+        expectedTotalMapperCountForParent,
+        state.validationFailed)
+      if (!successfullyProcessed) return (false, error)
 
-    if (!validator.isPartitionComplete(partitionId)) {
-      return (true, "Partition is valid but still waiting for more data")
-    }
+      if (!validator.isPartitionComplete(partitionId)) {
+        return (true, "Partition is valid but still waiting for more data")
+      }
 
-    val currentCommitMetadata = validator.currentCommitMetadata(partitionId)
-    if (!CommitMetadata.checkCommitMetadata(expectedCommitMetadata, currentCommitMetadata)) {
-      val errorMsg =
-        s"AQE Partition $partitionId failed validation check" +
-          s"while processing range startMapIndex: $startMapIndex endMapIndex: $endMapIndex" +
-          s"ExpectedCommitMetadata $expectedCommitMetadata, " +
-          s"ActualCommitMetadata $currentCommitMetadata, "
-      logError(errorMsg)
-      return (false, errorMsg)
+      val currentCommitMetadata = validator.currentCommitMetadata(partitionId)
+      state.validationFailed =
+        !CommitMetadata.checkCommitMetadata(expectedCommitMetadata, currentCommitMetadata)
+      if (state.validationFailed) {
+        val errorMsg =
+          s"AQE Partition $partitionId failed validation check " +
+            s"while processing range startMapIndex: $startMapIndex endMapIndex: $endMapIndex " +
+            s"ExpectedCommitMetadata $expectedCommitMetadata, " +
+            s"ActualCommitMetadata $currentCommitMetadata, "
+        logError(errorMsg)
+        return (false, errorMsg)
+      }
+      logInfo(
+        s"AQE Partition $partitionId completed validation check , " +
+          s"expectedCommitMetadata $expectedCommitMetadata, " +
+          s"actualCommitMetadata $currentCommitMetadata")
+      (true, "Partition is complete")
     }
-    logInfo(
-      s"AQE Partition $partitionId completed validation check , " +
-        s"expectedCommitMetadata $expectedCommitMetadata, " +
-        s"actualCommitMetadata $currentCommitMetadata")
-    (true, "Partition is complete")
   }
 }
