@@ -209,6 +209,11 @@ object ControlMessages extends Logging {
       newLocs: util.Map[Integer, (StatusCode, java.lang.Boolean, PartitionLocation)],
       serdeVersion: SerdeVersion) extends MasterMessage
 
+  // Extensible per-mapper metrics carried by MapperEnd, mirrors PbMapperMetrics.
+  case class MapperMetrics(
+      uncompressedBytesWritten: Long = 0L,
+      compressedBytesWritten: Long = 0L)
+
   case class MapperEnd(
       shuffleId: Int,
       mapId: Int,
@@ -219,7 +224,8 @@ object ControlMessages extends Logging {
       numPartitions: Int,
       crc32PerPartition: Array[Int],
       bytesWrittenPerPartition: Array[Long],
-      serdeVersion: SerdeVersion)
+      serdeVersion: SerdeVersion,
+      metrics: MapperMetrics = MapperMetrics())
     extends MasterMessage
 
   case class ReadReducerPartitionEnd(
@@ -748,7 +754,8 @@ object ControlMessages extends Logging {
           numPartitions,
           crc32PerPartition,
           bytesWrittenPerPartition,
-          serdeVersion) =>
+          serdeVersion,
+          metrics) =>
       val pushFailedMap = pushFailedBatch.asScala.map { case (k, v) =>
         val resultValue = PbSerDeUtils.toPbLocationPushFailedBatches(v)
         (k, resultValue)
@@ -764,6 +771,9 @@ object ControlMessages extends Logging {
         .addAllCrc32PerPartition(crc32PerPartition.map(Integer.valueOf).toSeq.asJava)
         .addAllBytesWrittenPerPartition(bytesWrittenPerPartition.map(
           java.lang.Long.valueOf).toSeq.asJava)
+        .setMetrics(PbMapperMetrics.newBuilder()
+          .setUncompressedBytesWritten(metrics.uncompressedBytesWritten)
+          .setCompressedBytesWritten(metrics.compressedBytesWritten))
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END, payload, serdeVersion)
 
@@ -1274,7 +1284,10 @@ object ControlMessages extends Logging {
           pbMapperEnd.getNumPartitions,
           crc32Array,
           bytesWrittenPerPartitionArray,
-          message.getSerdeVersion)
+          message.getSerdeVersion,
+          MapperMetrics(
+            pbMapperEnd.getMetrics.getUncompressedBytesWritten,
+            pbMapperEnd.getMetrics.getCompressedBytesWritten))
 
       case READ_REDUCER_PARTITION_END_VALUE =>
         val pbReadReducerPartitionEnd = PbReadReducerPartitionEnd.parseFrom(message.getPayload)

@@ -384,6 +384,15 @@ message PbPartitionSplit {
   PbPartitionLocation oldPartition = 4;
 }
 
+// Extensible per-mapper metrics carried by PbMapperEnd. New mapper-side metrics
+// must be added as fields here instead of top-level fields of PbMapperEnd.
+message PbMapperMetrics {
+  // Bytes pushed before compression/encryption; 0 means not reported.
+  int64 uncompressedBytesWritten = 1;
+  // Bytes pushed after compression/encryption; 0 means not reported.
+  int64 compressedBytesWritten = 2;
+}
+
 message PbMapperEnd {
   int32 shuffleId = 1;
   int32 mapId = 2;
@@ -394,6 +403,7 @@ message PbMapperEnd {
   int32 numPartitions = 7;
   repeated int32 crc32PerPartition = 8;
   repeated int64 bytesWrittenPerPartition = 9;
+  PbMapperMetrics metrics = 10;
 }
 
 message PbLocationPushFailedBatches {
