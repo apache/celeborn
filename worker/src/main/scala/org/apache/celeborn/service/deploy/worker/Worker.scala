@@ -571,6 +571,8 @@ private[celeborn] class Worker(
   }
 
   override def initialize(): Unit = {
+    // Exit requests can arrive as soon as the HTTP server or heartbeats start.
+    workerStatusManager.init(this)
     super.initialize()
     logInfo(s"Starting Worker $host:$pushPort:$fetchPort:$replicatePort" +
       s" with ${workerInfo.diskInfos} slots.")
@@ -619,7 +621,6 @@ private[celeborn] class Worker(
     pushDataHandler.init(this)
     replicateHandler.init(this)
     fetchHandler.init(this)
-    workerStatusManager.init(this)
 
     controller.init(this)
     rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
@@ -989,22 +990,34 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
-  @volatile private var decommissionTimeoutOverrideMs: Long = -1L
+  @volatile private var effectiveDecommissionTimeoutMs: Long =
+    conf.workerDecommissionForceExitTimeout
+
+  private[worker] def decommissionTimeoutMs: Long = effectiveDecommissionTimeoutMs
+
+  // Called under the status manager's lock, only for an accepted decommission request.
+  private[worker] def configureDecommissionTimeout(timeoutMs: Option[Long]): Unit = {
+    val effectiveTimeoutMs = timeoutMs.getOrElse(conf.workerDecommissionForceExitTimeout)
+    effectiveDecommissionTimeoutMs = effectiveTimeoutMs
+    ShutdownHookManager.get().updateTimeout(effectiveTimeoutMs, TimeUnit.MILLISECONDS)
+    logInfo(s"Worker decommission with forceExitTimeout=${effectiveTimeoutMs}ms " +
+      s"(source=${if (timeoutMs.isDefined) "exit API" else "config"}).")
+  }
 
   override def exit(exitType: String): String = exit(exitType, null)
 
   override def exit(exitType: String, timeout: String): String = {
     exitType.toUpperCase(Locale.ROOT) match {
       case "DECOMMISSION" =>
-        val overrideMs: Long =
+        val overrideMs: Option[Long] =
           if (timeout != null && timeout.nonEmpty) {
             try {
               val ms = Utils.timeStringAsMs(timeout)
-              if (ms > 0) ms
+              if (ms > 0) Some(ms)
               else {
                 logWarning(s"Invalid exit timeout '$timeout', falling back to config. " +
                   "Use a positive duration like 600s / 30m / 1h.")
-                -1L
+                None
               }
             } catch {
               case NonFatal(e) =>
@@ -1012,22 +1025,12 @@ private[celeborn] class Worker(
                   s"Unparseable exit timeout '$timeout', falling back to config. " +
                     "Use a positive duration like 600s / 30m / 1h.",
                   e)
-                -1L
+                None
             }
           } else {
-            -1L
+            None
           }
-        decommissionTimeoutOverrideMs = overrideMs
-        val effectiveTimeoutMs =
-          if (overrideMs > 0) {
-            overrideMs
-          } else {
-            conf.workerDecommissionForceExitTimeout
-          }
-        logInfo(s"Worker decommission with forceExitTimeout=${effectiveTimeoutMs}ms " +
-          s"(source=${if (overrideMs > 0) "exit API" else "config"}).")
-        ShutdownHookManager.get().updateTimeout(effectiveTimeoutMs, TimeUnit.MILLISECONDS)
-        workerStatusManager.doTransition(WorkerEventType.Decommission)
+        workerStatusManager.doTransition(WorkerEventType.Decommission, overrideMs)
       case "GRACEFUL" =>
         workerStatusManager.doTransition(WorkerEventType.Graceful)
       case "IMMEDIATELY" =>
@@ -1103,12 +1106,7 @@ private[celeborn] class Worker(
     sendWorkerDecommissionToMaster()
     shutdown.set(true)
     val interval = conf.workerDecommissionCheckInterval
-    val timeout =
-      if (decommissionTimeoutOverrideMs > 0) {
-        decommissionTimeoutOverrideMs
-      } else {
-        conf.workerDecommissionForceExitTimeout
-      }
+    val timeout = decommissionTimeoutMs
     var waitTimes = 0
 
     def waitTime: Long = waitTimes * interval
