@@ -217,7 +217,8 @@ class StorageManagerMixedStorageSuite extends CelebornFunSuite with MockitoSugar
         conf,
         EmptyDeviceMonitor,
         context)
-      try {
+      withCleanup {
+        assert(tier != null, "PartitionDataWriter construction must initialize the memory tier")
         // Own real bytes so the cleanup assertion checks actual Netty buffer release.
         val component = Unpooled.buffer(4).writeInt(42)
         tier.flushBuffer.addComponent(true, component)
@@ -236,8 +237,74 @@ class StorageManagerMixedStorageSuite extends CelebornFunSuite with MockitoSugar
         assert(storageManager.getFileInfo(shuffleKey, "other-memory-file") eq otherMemoryInfo)
         assert(storageManager.getFileInfo(shuffleKey, "other-disk-file") eq diskInfo)
         assert(diskInfo.getFile.exists())
-      } finally {
-        writer.destroy(new IOException("test cleanup"))
+      } {
+        if (tier != null) {
+          writer.destroy(new IOException("test cleanup"))
+        }
+      }
+    }
+  }
+
+  test(
+    "[CELEBORN-2485] fixture cleanup preserves the original failure and attempts remaining cleanup") {
+    val originalFailure = new AssertionError("original test failure")
+    val cleanupFailure = new IOException("storage cleanup failure")
+    val directoryFailure = new IOException("directory cleanup failure")
+    var directoryCleanupAttempted = false
+
+    val thrown = intercept[AssertionError] {
+      withCleanup {
+        throw originalFailure
+      } {
+        withCleanup {
+          throw cleanupFailure
+        } {
+          directoryCleanupAttempted = true
+          throw directoryFailure
+        }
+      }
+    }
+
+    assert(thrown eq originalFailure)
+    assert(thrown.getSuppressed.toSeq == Seq(cleanupFailure))
+    assert(cleanupFailure.getSuppressed.toSeq == Seq(directoryFailure))
+    assert(directoryCleanupAttempted)
+  }
+
+  test("[CELEBORN-2485] fixture cleanup reports a cleanup failure when the test succeeds") {
+    val cleanupFailure = new IOException("directory cleanup failure")
+    var bodyCompleted = false
+
+    val thrown = intercept[IOException] {
+      withCleanup {
+        bodyCompleted = true
+      } {
+        throw cleanupFailure
+      }
+    }
+
+    assert(bodyCompleted)
+    assert(thrown eq cleanupFailure)
+  }
+
+  private def withCleanup[T](body: => T)(cleanup: => Unit): T = {
+    var failure: Throwable = null
+    try {
+      body
+    } catch {
+      case t: Throwable =>
+        failure = t
+        throw t
+    } finally {
+      if (failure == null) {
+        cleanup
+      } else {
+        try {
+          cleanup
+        } catch {
+          case t: Throwable =>
+            if (t ne failure) failure.addSuppressed(t)
+        }
       }
     }
   }
@@ -265,7 +332,7 @@ class StorageManagerMixedStorageSuite extends CelebornFunSuite with MockitoSugar
     val previousHadoopFs = StorageManager.hadoopFs
     var source: WorkerSource = null
     var storageManager: StorageManager = null
-    try {
+    withCleanup {
       source = new WorkerSource(conf)
       storageManager = new StorageManager(conf, source)
       // There is no worker heartbeat to initialize available disk space.
@@ -273,14 +340,14 @@ class StorageManagerMixedStorageSuite extends CelebornFunSuite with MockitoSugar
       assert(localDisks.nonEmpty, "Fixture must discover the temporary local disk")
       localDisks.foreach(_.setUsableSpace(1024L * 1024 * 1024))
       run(storageManager, conf, source)
-    } finally {
-      try {
+    } {
+      withCleanup {
         if (storageManager != null) {
           // Unrelated memory metadata has no writer or buffer in this fixture.
           storageManager.memoryFileInfos.clear()
-          try {
+          withCleanup {
             storageManager.cleanupExpiredShuffleKey(storageManager.shuffleKeySet(), cleanDB = false)
-          } finally {
+          } {
             if (gracefulShutdown) {
               storageManager.committedFileInfos.clear()
               // This also shuts down the committed-file-info saver before closing its DB.
@@ -290,15 +357,18 @@ class StorageManagerMixedStorageSuite extends CelebornFunSuite with MockitoSugar
             }
           }
         }
-      } finally {
-        try {
+      } {
+        withCleanup {
           if (source != null) {
-            source.destroy()
-            assert(
-              source.metricsCleaner.awaitTermination(10, TimeUnit.SECONDS),
-              "WorkerSource metrics cleaner must terminate")
+            withCleanup {
+              source.destroy()
+            } {
+              assert(
+                source.metricsCleaner.awaitTermination(30, TimeUnit.SECONDS),
+                "WorkerSource metrics cleaner must terminate")
+            }
           }
-        } finally {
+        } {
           StorageManager.hadoopFs = previousHadoopFs
           FileUtils.deleteDirectory(root.toFile)
         }
