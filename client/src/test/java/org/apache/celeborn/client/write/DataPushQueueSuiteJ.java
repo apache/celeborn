@@ -115,6 +115,14 @@ public class DataPushQueueSuiteJ {
             byte[] buffer = task.getBuffer();
             int partitionId = task.getPartitionId();
             tarWorkerData.get(partitionId % numWorker).add(bytesToInt(buffer));
+            // Mirrors ShuffleClientImpl#pushData: the batch is registered as in-flight when it
+            // is actually pushed, not when the writer thread enqueues it. Pre-registering all
+            // batches on the writer side inflates per-worker in-flight counts past
+            // celeborn.client.push.maxReqsInFlightPerWorker and starves takePushTasks.
+            pushState.addBatch(
+                partitionBatchIdMap.get(partitionId),
+                task.getSize(),
+                reducePartitionMap.get(partitionId).hostAndPushPort());
             pushState.removeBatch(
                 partitionBatchIdMap.get(partitionId),
                 reducePartitionMap.get(partitionId).hostAndPushPort());
@@ -124,7 +132,6 @@ public class DataPushQueueSuiteJ {
     for (int i = 0; i < numPartitions; i++) {
       byte[] b = intToBytes(workerData.get(i % numWorker).get(i / numWorker));
       int batchId = pushState.nextBatchId();
-      pushState.addBatch(batchId, b.length, reducePartitionMap.get(i).hostAndPushPort());
       partitionBatchIdMap.put(i, batchId);
       dataPusher.addTask(i, b, b.length);
     }

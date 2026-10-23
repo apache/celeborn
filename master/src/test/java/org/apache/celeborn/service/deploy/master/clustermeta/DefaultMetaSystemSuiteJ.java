@@ -48,6 +48,7 @@ import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.metrics.source.NamedGauge;
 import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
@@ -1275,10 +1276,12 @@ public class DefaultMetaSystemSuiteJ {
 
   /** Sum of the client gauge across apps as exported by the source, or null if not exported. */
   private static Long exportedGauge(ApplicationMetricsSource source) {
-    if (source.gauges().isEmpty()) {
+    // Use one snapshot because application removal can empty the source between reads.
+    scala.collection.immutable.List<NamedGauge<?>> gauges = source.gauges();
+    if (gauges.isEmpty()) {
       return null;
     }
-    return ((Number) source.gauges().head().gauge().getValue()).longValue();
+    return ((Number) gauges.head().gauge().getValue()).longValue();
   }
 
   /** A metrics source that fails on every call, to exercise the apply-path guardrails. */
