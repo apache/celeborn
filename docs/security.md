@@ -143,3 +143,101 @@ celeborn.master.ha.node.3.ratis.port    9872
 spark.celeborn.auth.enabled             true
 ```
 
+## Configurable transport bootstraps
+
+Transport bootstraps let a plugin perform an additional handshake when a connection opens.
+Implement `org.apache.celeborn.common.network.client.TransportClientBootstrap` on the initiating
+side and `org.apache.celeborn.common.network.server.TransportServerBootstrap` on the accepting side.
+Celeborn's existing request authorization checks still apply after the handshake.
+
+### Configuration and deployment
+
+Compile the plugin against the matching Celeborn transport API and put its classes and dependencies
+on the classpath of every participating process. Celeborn uses the thread context class loader.
+Each class must implement the interface for its configured side and expose a public constructor
+taking `TransportConf`, or a public no-argument constructor. The `TransportConf` constructor takes
+precedence when both exist.
+
+Shaded Spark and Flink clients relocate dependencies such as Netty, including types in bootstrap
+method signatures. Build the plugin for the distribution that loads it, using matching relocated
+types for a shaded client. Keep Celeborn API classes out of the plugin JAR so the host supplies them.
+
+Configure comma-separated class names with these properties. Both default to an empty list:
+
+| Property | Meaning |
+| --- | --- |
+| `celeborn.<module>.client.bootstrap.classes` | Client bootstraps, in handshake execution order. |
+| `celeborn.<module>.server.bootstrap.classes` | Server bootstraps, in handshake execution order. |
+
+Bootstrap lists apply only to the exact module name and do not inherit parent module settings.
+Configure matching lists on both sides of each participating transport:
+
+| Transport | Initiating side | Accepting side |
+| --- | --- | --- |
+| LifecycleManager RPC to Master/Worker, with `celeborn.auth.enabled=false` | `rpc_app_lifecyclemanager` client | `rpc_service` server |
+| LifecycleManager RPC to Master/Worker, with `celeborn.auth.enabled=true` | `rpc_service` client | `rpc_service` server |
+| Service RPC between Master/Worker processes | `rpc_service` client | `rpc_service` server |
+| Shuffle push | Application `data` client | Worker `push` server |
+| Shuffle fetch | Application `data` client | Worker `fetch` server |
+| Worker replication | Worker `replicate` client | Worker `replicate` server |
+| RPC within an application | The initiating process's `rpc_app_client` or `rpc_app_lifecyclemanager` client | The receiving process's `rpc_app_client` or `rpc_app_lifecyclemanager` server |
+
+Public and internal Master/Worker RPC listeners both use `rpc_service`. Their bootstrap lists
+cannot be configured separately, so a plugin must support the peers using both listeners.
+
+For example, a plugin protecting shuffle data connections could use these settings.
+Replace the `com.example.security` placeholders with the installed plugin class names:
+
+```properties
+# Application-side Celeborn configuration.
+celeborn.data.client.bootstrap.classes com.example.security.TokenClientBootstrap
+
+# Worker-side Celeborn configuration.
+celeborn.push.server.bootstrap.classes com.example.security.TokenServerBootstrap
+celeborn.fetch.server.bootstrap.classes com.example.security.TokenServerBootstrap
+```
+
+When supplying Celeborn settings through Spark configuration, prefix the names with `spark.`.
+Configure RPC and replication separately if those transports use the plugin.
+
+### Handshake order and handler obligations
+
+For client and server lists `A,B`, a connection completes A's handshake, then B's. Configured client
+bootstraps run before caller-supplied bootstraps. Configured server wrappers receive requests in
+configuration order, before caller-supplied handlers. Caller-supplied lists retain their existing
+ordering behavior.
+
+Configured bootstraps run whether `celeborn.auth.enabled` is enabled or disabled. When native
+authentication is enabled, configured handshakes precede Celeborn's registration or SASL handshake
+on transports that use them. Each layer must finish its handshake before forwarding requests to
+the next layer. TLS remains a separate transport setting.
+
+The client bootstrap must finish authentication before `doBootstrap` returns and throw on failure.
+A failed client handshake closes the connection and prevents it from being returned or pooled.
+A server bootstrap must reject business requests until authentication completes, including one-way
+and data requests. Its handler must preserve the delegate's registration checks and lifecycle
+callbacks. If activation starts business traffic, defer `channelActive` until authentication
+succeeds; continue forwarding `channelInactive` and `exceptionCaught`, including failed handshakes.
+The plugin implements these server-side checks and callback rules.
+
+### Instance lifecycle
+
+Celeborn creates one instance per list entry and transport context, shared across that context's
+connections. Configuring the same class on both sides creates separate instances. Implementations
+must support concurrent connections and keep connection-specific state in separate handlers.
+Clients can read refreshed credentials in `doBootstrap` for each new connection; credential changes
+do not automatically reauthenticate existing connections.
+
+The transport context closes configured instances once, in reverse construction order. Owners
+close factories and servers before their context. Channel shutdown is asynchronous, so plugins
+must coordinate in-flight callbacks with resource cleanup. Caller-supplied bootstrap instances
+remain the caller's responsibility.
+
+An invalid class, constructor failure, or class-initialization failure prevents context creation
+and closes previously constructed instances. A constructor that fails must release its own
+resources before throwing. If an instance's `close` throws an exception, Celeborn logs it and
+continues closing the remaining instances.
+
+Validate successful and failed handshakes, reconnection, native SASL composition, and shutdown
+against the actual client and service JARs used in the deployment, including shaded clients.
+

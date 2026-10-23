@@ -63,12 +63,19 @@ class NettyRpcEnv(
 
   // Visible for tests
   private[netty] val transportContext =
-    new TransportContext(
-      transportConf,
-      new NettyRpcHandler(dispatcher, this),
-      false,
-      false,
-      config.source.orNull)
+    try {
+      new TransportContext(
+        transportConf,
+        new NettyRpcHandler(dispatcher, this),
+        false,
+        false,
+        config.source.orNull)
+    } catch {
+      case e: Throwable if NonFatal(e) || e.isInstanceOf[LinkageError] =>
+        Utils.tryLogNonFatalError { dispatcher.stop() }
+        Utils.tryLogNonFatalError { _rpcSource.destroy() }
+        throw e
+    }
 
   private def createClientBootstraps(): java.util.List[TransportClientBootstrap] = {
     val bootstrapOpt = securityContext.flatMap(_.clientSaslContext.map { clientSaslContext =>
@@ -90,7 +97,16 @@ class NettyRpcEnv(
     bootstrapOpt.toList.asJava
   }
 
-  val clientFactory = transportContext.createClientFactory(createClientBootstraps())
+  val clientFactory =
+    try {
+      transportContext.createClientFactory(createClientBootstraps())
+    } catch {
+      case e: Throwable if NonFatal(e) || e.isInstanceOf[LinkageError] =>
+        Utils.tryLogNonFatalError { transportContext.close() }
+        Utils.tryLogNonFatalError { dispatcher.stop() }
+        Utils.tryLogNonFatalError { _rpcSource.destroy() }
+        throw e
+    }
 
   private val timeoutScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-netty-rpc-env-timeout-checker")

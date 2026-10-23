@@ -84,7 +84,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       JavaUtils.newConcurrentHashMap();
   private long driverTimestamp;
 
-  private final TransportContext context;
+  private TransportContext context;
 
   /** The buffer size bytes in flink, default value is 32KB. */
   private final int bufferSizeBytes;
@@ -163,6 +163,9 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
     if (flinkTransportClientFactory != null) {
       flinkTransportClientFactory.close();
     }
+    if (context != null) {
+      context.close();
+    }
     if (readClientHandler != null) {
       readClientHandler.close();
     }
@@ -191,13 +194,12 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
               BATCH_HEADER_SIZE, BufferUtils.HEADER_LENGTH_PREFIX));
     }
     this.bufferSizeBytes = bufferSizeBytes;
-    String module = TransportModuleConstants.DATA_MODULE;
-    TransportConf dataTransportConf =
-        Utils.fromCelebornConf(conf, module, conf.networkIoThreads(module));
-    this.context =
-        new TransportContext(
-            dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());
-    this.setupLifecycleManagerRef(driverHost, port);
+    try {
+      this.setupLifecycleManagerRef(driverHost, port);
+    } catch (RuntimeException | Error e) {
+      super.shutdown();
+      throw e;
+    }
     this.driverTimestamp = driverTimestamp;
     this.openStreamThreadPool =
         ThreadUtils.newDaemonCachedThreadPool(
@@ -206,8 +208,21 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
 
   private void initializeTransportClientFactory() {
     if (null == flinkTransportClientFactory) {
-      flinkTransportClientFactory =
-          new FlinkTransportClientFactory(context, createBootstraps(), bufferSizeBytes);
+      String module = TransportModuleConstants.DATA_MODULE;
+      TransportConf dataTransportConf =
+          Utils.fromCelebornConf(conf, module, conf.networkIoThreads(module));
+      TransportContext newContext =
+          new TransportContext(
+              dataTransportConf, readClientHandler, conf.clientCloseIdleConnections());
+      try {
+        FlinkTransportClientFactory factory =
+            new FlinkTransportClientFactory(newContext, createBootstraps(), bufferSizeBytes);
+        context = newContext;
+        flinkTransportClientFactory = factory;
+      } catch (RuntimeException | Error e) {
+        newContext.close();
+        throw e;
+      }
     }
   }
 
