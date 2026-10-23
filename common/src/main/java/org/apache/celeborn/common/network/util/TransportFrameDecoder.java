@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.common.network.util;
 
-import java.util.LinkedList;
+import java.util.ArrayDeque;
 
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
@@ -51,7 +51,9 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implemen
   private static final int MAX_FRAME_SIZE = Integer.MAX_VALUE;
   private static final int UNKNOWN_FRAME_SIZE = -1;
 
-  private final LinkedList<ByteBuf> buffers = new LinkedList<>();
+  // Pending input buffers not yet consumed into a frame. ArrayDeque avoids a
+  // per-channelRead list-node allocation; used strictly FIFO.
+  private final ArrayDeque<ByteBuf> buffers = new ArrayDeque<>();
 
   private long totalSize = 0;
   private long nextFrameSize = UNKNOWN_FRAME_SIZE;

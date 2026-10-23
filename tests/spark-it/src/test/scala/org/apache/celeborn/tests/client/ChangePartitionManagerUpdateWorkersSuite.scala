@@ -468,9 +468,15 @@ class ChangePartitionManagerUpdateWorkersSuite extends WithShuffleClientSuite
     shuffles.values().asScala.foreach(it =>
       it.getPrimaryPartitions().asScala.foreach(loc =>
         assert(loc.getStorageInfo.availableStorageTypes == StorageInfo.LOCAL_DISK_MASK)))
+
+    lifecycleManager.stop()
   }
 
   override def afterEach(): Unit = {
+    // stop the lifecycleManager/shuffleClient created by WithShuffleClientSuite's
+    // base tests before shutting down the mini cluster, otherwise their heartbeat
+    // threads keep erroring against the stopped master for the rest of the run.
+    super.afterEach()
     logInfo("test complete, stop celeborn mini cluster")
     shutdownMiniCluster()
   }

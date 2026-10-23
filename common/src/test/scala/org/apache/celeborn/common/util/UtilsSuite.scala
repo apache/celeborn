@@ -32,9 +32,10 @@ import org.apache.celeborn.common.client.{MasterEndpointResolver, StaticMasterEn
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.{DefaultIdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.meta.WorkerInfo
+import org.apache.celeborn.common.metrics.{ClientMetric, MetricType}
 import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, PbRequestWorkers, PbRequestWorkersResponse, PbReviseLostShuffles, PbReviseLostShufflesResponse, StorageInfo, TransportModuleConstants}
-import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFilesResponse, GetReducerFileGroupResponse, MapperEnd, ReviseLostShuffles, ReviseLostShufflesResponse}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFilesResponse, GetReducerFileGroupResponse, HeartbeatFromApplication, MapperEnd, MapperMetrics, ReviseLostShuffles, ReviseLostShufflesResponse}
 import org.apache.celeborn.common.protocol.message.StatusCode
 
 class UtilsSuite extends CelebornFunSuite {
@@ -185,7 +186,8 @@ class UtilsSuite extends CelebornFunSuite {
         1,
         Array.emptyIntArray,
         Array.emptyLongArray,
-        SerdeVersion.V1)
+        SerdeVersion.V1,
+        MapperMetrics(123456L, 789L))
     val mapperEndTrans =
       Utils.fromTransportMessage(Utils.toTransportMessage(mapperEnd)).asInstanceOf[MapperEnd]
     assert(mapperEnd.shuffleId == mapperEndTrans.shuffleId)
@@ -195,6 +197,7 @@ class UtilsSuite extends CelebornFunSuite {
     assert(mapperEnd.partitionId == mapperEndTrans.partitionId)
     assert(mapperEnd.failedBatchSet == mapperEndTrans.failedBatchSet)
     assert(mapperEnd.numPartitions == mapperEndTrans.numPartitions)
+    assert(mapperEnd.metrics == mapperEndTrans.metrics)
     mapperEnd.crc32PerPartition.array should contain theSameElementsInOrderAs mapperEndTrans.crc32PerPartition
     mapperEnd.bytesWrittenPerPartition.array should contain theSameElementsInOrderAs mapperEndTrans.bytesWrittenPerPartition
   }
@@ -337,6 +340,34 @@ class UtilsSuite extends CelebornFunSuite {
     val concurrent = JavaUtils.newConcurrentHashMap[String, RoaringBitmap]()
     concurrent.putAll(responseTrans.committedMapIdBitMap)
     assert(concurrent.size() == 1)
+  }
+
+  test("HeartbeatFromApplication carries client metrics through pb serde") {
+    val clientMetrics = new util.HashMap[String, ClientMetric]()
+    clientMetrics.put("ClientExcludedWorkerCount", ClientMetric(2L, MetricType.Gauge))
+
+    val metricLabels = new util.HashMap[String, String]()
+    metricLabels.put("env", "prod")
+    metricLabels.put("team", "data-eng")
+
+    val heartbeat = HeartbeatFromApplication(
+      "app-1",
+      100L,
+      10L,
+      3L,
+      1L,
+      new util.HashMap[String, java.lang.Long](),
+      new util.HashMap[String, java.lang.Long](),
+      new util.ArrayList(),
+      shouldResponse = true,
+      clientMetrics = clientMetrics,
+      metricLabels = metricLabels)
+
+    val heartbeatTrans = Utils.fromTransportMessage(Utils.toTransportMessage(heartbeat))
+      .asInstanceOf[HeartbeatFromApplication]
+
+    assert(heartbeatTrans.clientMetrics == clientMetrics)
+    assert(heartbeatTrans.metricLabels == metricLabels)
   }
 
   test("validate number of client/server netty threads") {

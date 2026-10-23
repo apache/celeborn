@@ -87,6 +87,10 @@ jobs:
           java-version: 8
           cache: maven
           check-latest: false
+      # git inside the container cannot read the workspace (different uid);
+      # the safe.directory added by actions/checkout uses a temporary HOME.
+      - name: Configure git safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Compile & Install Celeborn Java
         run: build/mvn clean install -DskipTests
       - name: Run Java-Write Cpp-Read Hybrid Integration Test (NONE Decompression)

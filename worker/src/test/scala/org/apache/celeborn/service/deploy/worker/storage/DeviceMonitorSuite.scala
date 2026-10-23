@@ -468,4 +468,49 @@ class DeviceMonitorSuite extends AnyFunSuite {
       assertEquals(1264867868672L, metrics2.head.gauge.getValue)
     }
   }
+
+  test("monitor disk status metrics") {
+    withObjectMocked[org.apache.celeborn.service.deploy.worker.storage.DeviceMonitor.type] {
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk1"))).thenReturn(
+        dfBOut1DiskUsageInfo)
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk2"))).thenReturn(
+        dfBOut2DiskUsageInfo)
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk3"))).thenReturn(
+        dfBOut3DiskUsageInfo)
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk4"))).thenReturn(
+        dfBOut4DiskUsageInfo)
+      when(DeviceMonitor.getDiskUsageInfos(diskInfos2.get("/mnt/disk5"))).thenReturn(
+        dfBOut5DiskUsageInfo)
+
+      deviceMonitor2.init()
+
+      val unhealthyDiskCountMetrics =
+        workerSource2.gauges().filter(_.name == WorkerSource.UNHEALTHY_DISK_COUNT)
+      assertEquals(1, unhealthyDiskCountMetrics.size)
+      assertEquals(0, unhealthyDiskCountMetrics.head.gauge.getValue)
+
+      val diskStatusMetrics = workerSource2.gauges()
+        .filter(_.name == WorkerSource.DISK_STATUS)
+        .sortBy(_.labels("mountpoint"))
+      assertEquals(5, diskStatusMetrics.size)
+      diskStatusMetrics.foreach { m =>
+        assertEquals(DiskStatus.HEALTHY.getValue, m.gauge.getValue)
+      }
+
+      // mark one disk unhealthy, only its own gauge and the aggregate count should change
+      diskInfos2.get("/mnt/disk3").setStatus(DiskStatus.READ_OR_WRITE_FAILURE)
+      assertEquals(1, unhealthyDiskCountMetrics.head.gauge.getValue)
+      diskStatusMetrics.foreach { m =>
+        if (m.labels("mountpoint") == "/mnt/disk3") {
+          assertEquals(DiskStatus.READ_OR_WRITE_FAILURE.getValue, m.gauge.getValue)
+        } else {
+          assertEquals(DiskStatus.HEALTHY.getValue, m.gauge.getValue)
+        }
+      }
+
+      // recover, the aggregate count should drop back to 0
+      diskInfos2.get("/mnt/disk3").setStatus(DiskStatus.HEALTHY)
+      assertEquals(0, unhealthyDiskCountMetrics.head.gauge.getValue)
+    }
+  }
 }

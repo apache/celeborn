@@ -30,9 +30,10 @@ import org.apache.spark.util.kvstore.KVStore
  * HistoryServer replay.
  *
  * When `requirePluginOptIn` is true (History Server replay), collection stays
- * disabled until the application's recorded `spark.plugins` or
- * `spark.plugins.defaultList` contains [[CelebornPlugin]], and an enable marker
- * is persisted so `setupUI` can decide whether to attach the Celeborn tab.
+ * disabled until the application opted in via its recorded `spark.plugins` or
+ * `spark.plugins.defaultList`, or until a [[CelebornBuildInfoEvent]] is
+ * replayed, and an enable marker is persisted so `setupUI` can decide whether
+ * to attach the Celeborn tab.
  */
 private[celeborn] class CelebornListener(
     val kvstore: KVStore,
@@ -47,6 +48,11 @@ private[celeborn] class CelebornListener(
   private val totalReadBytes = new AtomicLong(0L)
   private val totalFetchWaitTimeMs = new AtomicLong(0L)
   private val totalTaskDurationMs = new AtomicLong(0L)
+  // Total bytes pushed before compression, for the compression ratio.
+  private val totalUncompressedWriteBytes = new AtomicLong(0L)
+  // Total bytes pushed after compression, from the same MapperEnd reports, so the
+  // compression ratio uses a single attempt set.
+  private val totalCompressedWriteBytes = new AtomicLong(0L)
 
   private val lastUpdateTimestamp = new AtomicLong(-1L)
   private val updateIntervalMillis = 5000L
@@ -61,6 +67,7 @@ private[celeborn] class CelebornListener(
       return
     }
     Option(taskEnd.taskMetrics).foreach { metrics =>
+      // Count every attempt regardless of its end reason, like AppStatusListener.
       totalWriteBytes.addAndGet(metrics.shuffleWriteMetrics.bytesWritten)
       // writeTime is in nanoseconds; normalize to ms.
       totalWriteTimeMs.addAndGet(metrics.shuffleWriteMetrics.writeTime / 1000000L)
@@ -69,6 +76,26 @@ private[celeborn] class CelebornListener(
       totalTaskDurationMs.addAndGet(taskEnd.taskInfo.duration)
     }
     mayUpdate()
+  }
+
+  override def onOtherEvent(event: SparkListenerEvent): Unit = event match {
+    case e: CelebornBuildInfoEvent =>
+      // Receiving the event also proves the application loaded the plugin.
+      kvstore.write(new CelebornBuildInfoUIData(Seq(
+        "Version" -> e.version,
+        "Commit Id" -> e.commitId,
+        "Revision" -> e.revision)))
+      if (!pluginEnabled) {
+        pluginEnabled = true
+        kvstore.write(new CelebornExtensionEnabledUIData())
+      }
+    case e: CelebornMapperMetricsEvent =>
+      if (pluginEnabled) {
+        totalUncompressedWriteBytes.addAndGet(e.getUncompressedBytesWritten)
+        totalCompressedWriteBytes.addAndGet(e.getCompressedBytesWritten)
+        mayUpdate()
+      }
+    case _ =>
   }
 
   override def onJobEnd(jobEnd: SparkListenerJobEnd): Unit = {
@@ -84,6 +111,7 @@ private[celeborn] class CelebornListener(
       val pluginClass = classOf[CelebornPlugin].getName
       // Spark loads plugins from both keys: `spark.plugins.defaultList` allows a
       // default plugin list in the config file that `spark.plugins` does not overwrite.
+      // Keep in sync with SparkUtils.isCelebornPluginEnabled in the spark-3 module.
       val optedIn = sparkProps.exists { case (k, v) =>
         (k == "spark.plugins" || k == "spark.plugins.defaultList") &&
           v.split(",").exists(_.trim == pluginClass)
@@ -136,7 +164,9 @@ private[celeborn] class CelebornListener(
         totalWriteTimeMs.get(),
         totalReadBytes.get(),
         totalFetchWaitTimeMs.get(),
-        totalTaskDurationMs.get()))
+        totalTaskDurationMs.get(),
+        totalUncompressedWriteBytes.get(),
+        totalCompressedWriteBytes.get()))
     } catch {
       case e: Exception =>
         logWarning("Failed to flush CelebornListener aggregations", e)

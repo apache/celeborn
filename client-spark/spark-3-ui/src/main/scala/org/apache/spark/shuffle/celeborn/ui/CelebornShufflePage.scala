@@ -53,17 +53,27 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
   private def renderBody(request: HttpServletRequest): Seq[Node] = {
     val taskInfo = store.aggregatedTaskInfo()
     val properties = store.celebornProperties()
+    val buildInfo = store.buildInfo()
 
     val writeBytes = taskInfo.shuffleWriteBytes
     val readBytes = taskInfo.shuffleReadBytes
     val writeMs = taskInfo.shuffleWriteTimeMs
     val readMs = taskInfo.shuffleFetchWaitTimeMs
     val durationMs = taskInfo.taskDurationMs
+    val uncompressedBytes = taskInfo.uncompressedShuffleBytes
+    val compressedBytes = taskInfo.compressedShuffleBytes
 
     def mbps(bytes: Long, ms: Long): String =
       if (ms <= 0) "N/A" else f"${bytes.toDouble / 1000.0 / 1000.0 / (ms.toDouble / 1000.0)}%.2f"
     def pct(part: Long, total: Long): String =
       if (total <= 0) "N/A" else f"${part.toDouble * 100.0 / total.toDouble}%.1f%%"
+    // 0 when not reported, e.g. by old clients.
+    def compressionRatio: String =
+      if (uncompressedBytes <= 0 || compressedBytes <= 0) "N/A"
+      else {
+        s"${Utils.bytesToString(uncompressedBytes)}/${Utils.bytesToString(compressedBytes)} = " +
+          f"${uncompressedBytes.toDouble / compressedBytes}%.2f"
+      }
 
     val summary =
       <div>
@@ -83,6 +93,10 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
       }
           </li>
           <li>
+            <strong>Compression Ratio (uncompressed/compressed): </strong>
+            {compressionRatio}
+          </li>
+          <li>
             <strong>Shuffle Duration (write+read) / Task Duration: </strong>
             {
         s"${pct(writeMs + readMs, durationMs)} (Write ${pct(
@@ -100,9 +114,27 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
       fixedWidth = true,
       headerClasses = headerClasses)
 
+    val buildInfoTable = UIUtils.listingTable(
+      propertyHeader,
+      propertyRow,
+      buildInfo.info,
+      fixedWidth = true,
+      headerClasses = headerClasses)
+
     val content =
       <span>
         {summary}
+        <span class="collapse-aggregated-celebornBuildInfo collapse-table"
+            onClick="collapseTable('collapse-aggregated-celebornBuildInfo',
+            'aggregated-celebornBuildInfo')">
+          <h4>
+            <span class="collapse-table-arrow arrow-closed"></span>
+            <a>Celeborn Client Build Information</a>
+          </h4>
+        </span>
+        <div class="aggregated-celebornBuildInfo collapsible-table collapsed">
+          {buildInfoTable}
+        </div>
         <span class="collapse-aggregated-celebornProperties collapse-table"
             onClick="collapseTable('collapse-aggregated-celebornProperties',
             'aggregated-celebornProperties')">
