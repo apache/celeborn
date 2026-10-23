@@ -229,9 +229,14 @@ class CelebornShuffleReader[K, C](
     val splitSkewPartitionWithoutMapRange =
       ClientUtils.readSkewPartitionWithoutMapRange(conf, startMapIndex, endMapIndex)
 
-    // filter empty partition
-    val partitionIdList = List.range(startPartition, endPartition).filter(p =>
-      fileGroups.partitionGroups.containsKey(p))
+    // Requested empty partitions must report zero metadata when integrity checking is enabled.
+    val requestedPartitionIds = List.range(startPartition, endPartition)
+    val partitionIdList =
+      if (conf.clientShuffleIntegrityCheckEnabled) {
+        requestedPartitionIds
+      } else {
+        requestedPartitionIds.filter(p => fileGroups.partitionGroups.containsKey(p))
+      }
 
     val parallelClientCreationEnabled = conf.batchOpenStreamParallelClientCreationEnabled
     val locationsByHostPort =
@@ -503,6 +508,7 @@ class CelebornShuffleReader[K, C](
         (partitionId, inputStream)
       } else {
         curIndex = curIndex + 1
+        // With no mappers, no shuffle output can be missing, so integrity validation is unnecessary.
         (partitionId, CelebornInputStream.empty())
       }
     }).filter {

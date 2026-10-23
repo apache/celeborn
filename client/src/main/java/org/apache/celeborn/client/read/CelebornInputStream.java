@@ -80,7 +80,8 @@ public abstract class CelebornInputStream extends InputStream {
       Optional<CryptoHandler> cryptoHandler)
       throws IOException {
     if (locations == null || locations.isEmpty()) {
-      return emptyInputStream;
+      return emptyWithIntegrityCheck(
+          conf, shuffleClient, shuffleId, partitionId, startMapIndex, endMapIndex);
     } else {
       // if startMapIndex > endMapIndex, means partition is skew partition and read by Celeborn
       // implementation.
@@ -142,6 +143,30 @@ public abstract class CelebornInputStream extends InputStream {
   }
 
   public static CelebornInputStream empty() {
+    return emptyInputStream;
+  }
+
+  /**
+   * Returns an empty stream after validating the empty read via a blocking RPC when integrity
+   * checking is enabled.
+   *
+   * @throws IOException if reporting or validating the empty read fails
+   */
+  public static CelebornInputStream emptyWithIntegrityCheck(
+      CelebornConf conf,
+      ShuffleClient shuffleClient,
+      int shuffleId,
+      int partitionId,
+      int startMapIndex,
+      int endMapIndex)
+      throws IOException {
+    // An empty location list can also mean missing output. Validate it before returning EOF.
+    // Keep the original map range or subpartition index so empty AQE splits count as reported.
+    if (conf.clientShuffleIntegrityCheckEnabled()) {
+      shuffleClient.readReducerPartitionEnd(
+          shuffleId, partitionId, startMapIndex, endMapIndex, 0, 0L);
+    }
+    // The Spark reader identifies empty streams by reference equality with this shared singleton.
     return emptyInputStream;
   }
 
