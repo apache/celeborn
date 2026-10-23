@@ -131,8 +131,10 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       mapStatusLengths[i] = new LongAdder();
     }
 
-    PUSH_BUFFER_INIT_SIZE = conf.clientPushBufferInitialSize();
     PUSH_BUFFER_MAX_SIZE = conf.clientPushBufferMaxSize();
+    // A full send buffer is swapped with a DataPusher buffer of the max size, so a send buffer
+    // must not start out larger than that.
+    PUSH_BUFFER_INIT_SIZE = Math.min(conf.clientPushBufferInitialSize(), PUSH_BUFFER_MAX_SIZE);
 
     this.sendBufferPool = sendBufferPool;
     sendBuffers = sendBufferPool.acquireBuffer(numPartitions);
