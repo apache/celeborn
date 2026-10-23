@@ -20,8 +20,8 @@ package org.apache.celeborn.client.listener;
 import org.apache.celeborn.common.protocol.message.ControlMessages.MapperMetrics;
 
 /**
- * Invoked once per finished mapper attempt, including duplicate speculative attempts; retried RPCs
- * of the same attempt are reported once.
+ * Invoked once per accepted mapper attempt; rejected speculative attempts and retried RPCs of the
+ * same attempt are not reported.
  */
 public interface MapperEndCallback {
 
