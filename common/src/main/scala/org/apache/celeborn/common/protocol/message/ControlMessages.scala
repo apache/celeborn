@@ -207,7 +207,9 @@ object ControlMessages extends Logging {
   case class ChangeLocationResponse(
       endedMapIds: util.List[Integer],
       newLocs: util.Map[Integer, (StatusCode, java.lang.Boolean, PartitionLocation)],
-      serdeVersion: SerdeVersion) extends MasterMessage
+      serdeVersion: SerdeVersion,
+      additionalLocs: util.Map[Integer, util.List[PartitionLocation]] =
+        new util.HashMap[Integer, util.List[PartitionLocation]]()) extends MasterMessage
 
   // Extensible per-mapper metrics carried by MapperEnd, mirrors PbMapperMetrics.
   case class MapperMetrics(
@@ -728,7 +730,7 @@ object ControlMessages extends Logging {
       val payload = builder.build().toByteArray
       new TransportMessage(MessageType.CHANGE_LOCATION, payload, serdeVersion)
 
-    case ChangeLocationResponse(mapIds, newLocs, serdeVersion) =>
+    case ChangeLocationResponse(mapIds, newLocs, serdeVersion, additionalLocs) =>
       val builder = PbChangeLocationResponse.newBuilder()
       builder.addAllEndedMapId(mapIds)
       newLocs.asScala.foreach { case (partitionId, (status, available, loc)) =>
@@ -738,6 +740,12 @@ object ControlMessages extends Logging {
           .setOldAvailable(available)
         if (loc != null) {
           pbChangeLocationPartitionInfoBuilder.setPartition(PbSerDeUtils.toPbPartitionLocation(loc))
+        }
+        if (additionalLocs != null && additionalLocs.get(partitionId) != null) {
+          additionalLocs.get(partitionId).asScala.filter(_ != null).foreach { additionalLoc =>
+            pbChangeLocationPartitionInfoBuilder.addAdditionalPartitions(
+              PbSerDeUtils.toPbPartitionLocation(additionalLoc))
+          }
         }
         builder.addPartitionInfo(pbChangeLocationPartitionInfoBuilder.build())
       }
@@ -1244,6 +1252,7 @@ object ControlMessages extends Logging {
         val pbChangeLocationResponse = PbChangeLocationResponse.parseFrom(message.getPayload)
         val newLocs =
           new util.HashMap[Integer, (StatusCode, java.lang.Boolean, PartitionLocation)]()
+        val additionalLocs = new util.HashMap[Integer, util.List[PartitionLocation]]()
         val partitionInfos = pbChangeLocationResponse.getPartitionInfoList
         (0 until partitionInfos.size).foreach { idx =>
           val info = partitionInfos.get(idx)
@@ -1254,11 +1263,19 @@ object ControlMessages extends Logging {
           newLocs.put(
             info.getPartitionId,
             (StatusCode.fromValue(info.getStatus), info.getOldAvailable, partition))
+          if (info.getAdditionalPartitionsCount > 0) {
+            val additionals = new util.ArrayList[PartitionLocation]()
+            info.getAdditionalPartitionsList.asScala.foreach { pbLoc =>
+              additionals.add(PbSerDeUtils.fromPbPartitionLocation(pbLoc))
+            }
+            additionalLocs.put(info.getPartitionId, additionals)
+          }
         }
         ChangeLocationResponse(
           pbChangeLocationResponse.getEndedMapIdList,
           newLocs,
-          message.getSerdeVersion)
+          message.getSerdeVersion,
+          additionalLocs)
 
       case MAPPER_END_VALUE =>
         val pbMapperEnd = PbMapperEnd.parseFrom(message.getPayload)
