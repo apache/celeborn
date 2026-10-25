@@ -76,8 +76,8 @@ class CelebornShuffleCleanupListener(lifecycleManager: LifecycleManager)
     def visit(p: SparkPlan, inAdaptivePlan: Boolean): Unit = {
       p match {
         case adaptivePlan: AdaptiveSparkPlanExec =>
-          // The stage cache is shared by the whole query, including subqueries, and holds
-          // every stage the query created -- even stages dropped from the final plan (e.g.
+          // The stage cache is shared by the whole query (including subqueries) and holds
+          // every stage the query created, even stages dropped from the final plan (e.g.
           // an empty join side) and children of unmaterialized stages. Only materialized
           // stages are read, since their shuffleDependency is already computed.
           adaptivePlan.context.stageCache.values.foreach {
@@ -95,10 +95,22 @@ class CelebornShuffleCleanupListener(lifecycleManager: LifecycleManager)
           // from a shared cache are only re-collected as duplicates, deduplicated later.
           visit(adaptivePlan.executedPlan, inAdaptivePlan = true)
 
-        // Shuffle stages encountered here were already collected from the stage cache
-        // above, so there is nothing more to do. This must be matched before the generic
-        // QueryStageExec case below.
-        case _: ShuffleQueryStageExec => ()
+        // The stage cache only fills when spark.sql.exchange.reuse is on; with reuse off
+        // the materialized stages are collected from the tree here instead (duplicates
+        // are removed by distinct later). Descend into the stage plan to reach nested
+        // child stages; the raw exchange of an unmaterialized stage is never touched
+        // because inAdaptivePlan stays true. Matched before the generic QueryStageExec
+        // case below.
+        case stage: ShuffleQueryStageExec =>
+          if (isStageMaterialized(stage)) {
+            // Non-vanilla ShuffleExchangeLike (e.g. Gluten's columnar exchange) is ignored.
+            stage.shuffle match {
+              case exchange: ShuffleExchangeExec =>
+                shuffleIds += exchange.shuffleDependency.shuffleId
+              case _ =>
+            }
+          }
+          visit(stage.plan, inAdaptivePlan = true)
 
         // Spark 4 wraps the final AQE plan in a ResultQueryStageExec leaf. Other query
         // stages may wrap plan subtrees holding nested adaptive plans.
