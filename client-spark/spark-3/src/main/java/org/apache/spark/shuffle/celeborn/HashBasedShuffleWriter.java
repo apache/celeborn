@@ -51,6 +51,7 @@ import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.client.write.DataPusher;
 import org.apache.celeborn.client.write.PushTask;
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.protocol.message.ControlMessages.MapperMetrics;
 import org.apache.celeborn.common.util.Utils;
 
 @Private
@@ -98,6 +99,9 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private DataPusher dataPusher;
 
   private final boolean unsafeRowFastWrite;
+
+  // Bytes written before compression, for the shuffle compression ratio.
+  private long uncompressedBytesWritten = 0;
 
   // In order to facilitate the writing of unit test code, ShuffleClient needs to be passed in as
   // parameters. By the way, simplify the passed parameters.
@@ -305,6 +309,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     mapStatusLengths[partitionId].add(bytesWritten);
     writeMetrics.incBytesWritten(bytesWritten);
     writeMetrics.incWriteTime(delta);
+    uncompressedBytesWritten += numBytes;
   }
 
   private int getOrUpdateOffset(int partitionId, int serializedRecordSize)
@@ -336,6 +341,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     if (logger.isDebugEnabled()) logger.debug("Flush buffer, size {}.", Utils.bytesToString(size));
     byte[] newBuffer = dataPusher.addTaskAndSwapBuffer(partitionId, buffer, size);
     writeMetrics.incWriteTime(System.nanoTime() - start);
+    uncompressedBytesWritten += size;
     return newBuffer;
   }
 
@@ -369,6 +375,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             numPartitions);
     mapStatusLengths[partitionId].add(bytesWritten);
     writeMetrics.incBytesWritten(bytesWritten);
+    uncompressedBytesWritten += length;
   }
 
   private void cleanupPusher() throws IOException {
@@ -397,7 +404,14 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     long waitStartTime = System.nanoTime();
     dataPusher.waitOnTermination();
     sendBufferPool.returnPushTaskQueue(dataPusher.getAndResetIdleQueue());
-    shuffleClient.mapperEnd(shuffleId, mapId, encodedAttemptId, numMappers, numPartitions);
+    shuffleClient.mapperEnd(
+        shuffleId,
+        mapId,
+        encodedAttemptId,
+        numMappers,
+        numPartitions,
+        new MapperMetrics(
+            uncompressedBytesWritten, SparkCommonUtils.sumLongAdders(mapStatusLengths)));
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
 
     BlockManagerId bmId = SparkEnv.get().blockManager().shuffleServerId();

@@ -19,6 +19,8 @@ package org.apache.celeborn.tests.client
 
 import java.util
 
+import scala.collection.JavaConverters._
+
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
@@ -26,6 +28,7 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.apache.celeborn.client.{LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.protocol.message.ControlMessages.MapperMetrics
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
@@ -126,6 +129,58 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     }
 
     lifecycleManager.stop()
+  }
+
+  test("CELEBORN-2479: mapper end callback reports only the accepted attempt") {
+    prepareService()
+    val numMappers = 8
+    val numPartitions = 9
+    val shuffleId = nextShuffleId
+    val mapId = 1
+    val attemptId = 0
+
+    val reported = new util.concurrent.ConcurrentLinkedQueue[(Long, Long)]()
+    lifecycleManager.registerMapperEndCallback((_, _, _, metrics) =>
+      reported.add((metrics.uncompressedBytesWritten, metrics.compressedBytesWritten)))
+
+    // Register a REDUCE-partition shuffle.
+    shuffleClient.getPartitionLocation(shuffleId, numMappers, numPartitions)
+
+    // Accepted attempt.
+    shuffleClient.mapperEnd(
+      shuffleId,
+      mapId,
+      attemptId,
+      numMappers,
+      numPartitions,
+      new MapperMetrics(100L, 40L))
+    // Retried RPC of the same attempt: finishMapperAttempt is idempotent, not reported again.
+    shuffleClient.mapperEnd(
+      shuffleId,
+      mapId,
+      attemptId,
+      numMappers,
+      numPartitions,
+      new MapperMetrics(100L, 40L))
+    // Duplicate speculative attempt: rejected by the commit handler, not reported.
+    shuffleClient.mapperEnd(
+      shuffleId,
+      mapId,
+      attemptId + 1,
+      numMappers,
+      numPartitions,
+      new MapperMetrics(250L, 94L))
+    // Retried RPC of the rejected attempt: not reported again.
+    shuffleClient.mapperEnd(
+      shuffleId,
+      mapId,
+      attemptId + 1,
+      numMappers,
+      numPartitions,
+      new MapperMetrics(250L, 94L))
+
+    // The callback runs synchronously before the RPC reply.
+    assert(reported.asScala.toList == List((100L, 40L)))
   }
 
   override def afterAll(): Unit = {

@@ -126,6 +126,9 @@ public class SortBasedPusher extends MemoryConsumer {
   private int[] inversedShuffledPartitions = null;
   private final SendBufferPool sendBufferPool;
 
+  // Bytes pushed before compression, for the shuffle compression ratio.
+  private long uncompressedBytesWritten = 0;
+
   final MemoryThresholdManager memoryThresholdManager;
 
   private final boolean useAdaptiveThreshold;
@@ -234,6 +237,7 @@ public class SortBasedPusher extends MemoryConsumer {
                   numPartitions);
           mapStatusLengths[currentPartition].add(bytesWritten);
           afterPush.accept(bytesWritten);
+          uncompressedBytesWritten += offSet;
           memoryThresholdManager.updateStats(offSet, offSet == pushBufferMaxSize);
           currentPartition = partition;
           offSet = 0;
@@ -247,6 +251,7 @@ public class SortBasedPusher extends MemoryConsumer {
       if (offSet + recordSize > dataBuf.length) {
         try {
           dataBuf = dataPusher.addTaskAndSwapBuffer(partition, dataBuf, offSet);
+          uncompressedBytesWritten += offSet;
           memoryThresholdManager.updateStats(offSet, true);
         } catch (InterruptedException e) {
           TaskInterruptedHelper.throwTaskKillException();
@@ -262,6 +267,7 @@ public class SortBasedPusher extends MemoryConsumer {
     if (offSet > 0) {
       try {
         dataPusher.addTaskAndSwapBuffer(currentPartition, dataBuf, offSet);
+        uncompressedBytesWritten += offSet;
         memoryThresholdManager.updateStats(offSet, offSet == pushBufferMaxSize);
       } catch (InterruptedException e) {
         TaskInterruptedHelper.throwTaskKillException();
@@ -473,6 +479,10 @@ public class SortBasedPusher extends MemoryConsumer {
   long getPeakMemoryUsedBytes() {
     updatePeakMemoryUsed();
     return peakMemoryUsedBytes;
+  }
+
+  public long getUncompressedBytesWritten() {
+    return uncompressedBytesWritten;
   }
 
   private long freeMemory() {

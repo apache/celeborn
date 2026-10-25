@@ -25,7 +25,11 @@ private[celeborn] case class AggregatedTaskInfoUIData(
     shuffleWriteTimeMs: Long,
     shuffleReadBytes: Long,
     shuffleFetchWaitTimeMs: Long,
-    taskDurationMs: Long) {
+    taskDurationMs: Long,
+    // Bytes pushed before compression; 0 for records written by older versions.
+    uncompressedShuffleBytes: Long = 0L,
+    // Bytes pushed after compression; 0 for records written by older versions.
+    compressedShuffleBytes: Long = 0L) {
 
   @JsonIgnore
   @KVIndex
@@ -69,7 +73,7 @@ private[celeborn] class CelebornStatusStore(store: KVStore) {
     try {
       store.read(kClass, kClass.getName)
     } catch {
-      case _: NoSuchElementException => AggregatedTaskInfoUIData(0L, 0L, 0L, 0L, 0L)
+      case _: NoSuchElementException => AggregatedTaskInfoUIData(0L, 0L, 0L, 0L, 0L, 0L)
     }
   }
 

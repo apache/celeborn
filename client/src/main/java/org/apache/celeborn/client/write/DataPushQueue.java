@@ -23,6 +23,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +63,29 @@ public class DataPushQueue {
       int attemptId,
       int numMappers,
       int numPartitions) {
+    this(
+        conf,
+        dataPusher,
+        client,
+        shuffleId,
+        mapId,
+        attemptId,
+        numMappers,
+        numPartitions,
+        new LinkedBlockingQueue<>(conf.clientPushQueueCapacity()));
+  }
+
+  @VisibleForTesting
+  DataPushQueue(
+      CelebornConf conf,
+      DataPusher dataPusher,
+      ShuffleClient client,
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int numPartitions,
+      LinkedBlockingQueue<PushTask> workingQueue) {
     this.shuffleId = shuffleId;
     this.numMappers = numMappers;
     this.numPartitions = numPartitions;
@@ -71,8 +95,7 @@ public class DataPushQueue {
     this.pushState = client.getPushState(mapKey);
     this.takeTaskWaitIntervalMs = conf.clientPushTakeTaskWaitIntervalMs();
     this.takeTaskMaxWaitAttempts = conf.clientPushTakeTaskMaxWaitAttempts();
-    final int capacity = conf.clientPushQueueCapacity();
-    workingQueue = new LinkedBlockingQueue<>(capacity);
+    this.workingQueue = workingQueue;
   }
 
   /*
@@ -91,8 +114,9 @@ public class DataPushQueue {
       Map<Integer, PartitionLocation> partitionLocationMap =
           client.getPartitionLocation(shuffleId, numMappers, numPartitions);
       if (partitionLocationMap == null) {
-        tasks.addAll(workingQueue);
-        workingQueue.clear();
+        // drainTo removes exactly the tasks it returns, so a task added concurrently by the
+        // writer thread is not dropped as it would be by addAll followed by clear.
+        workingQueue.drainTo(tasks);
       } else {
         Iterator<PushTask> iterator = workingQueue.iterator();
         while (iterator.hasNext()) {
