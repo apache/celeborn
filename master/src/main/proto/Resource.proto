@@ -42,6 +42,8 @@ enum Type {
   ReviseLostShuffles = 29;
 
   RegisterApplicationInfo = 30;
+
+  BatchHeartbeat = 31;
 }
 
 enum WorkerEventType {
@@ -74,6 +76,7 @@ message ResourceRequest {
   optional ReportWorkerDecommissionRequest reportWorkerDecommissionRequest = 24;
   optional BatchUnregisterShuffleRequest batchUnregisterShuffleRequest = 25;
   optional RegisterApplicationInfoRequest registerApplicationInfoRequest = 26;
+  optional BatchHeartbeatRequest batchHeartbeatRequest = 27;
   optional ReviseLostShufflesRequest reviseLostShufflesRequest = 102;
 }
 
@@ -104,6 +107,11 @@ message UnregisterShuffleRequest {
 
 message BatchUnregisterShuffleRequest {
   repeated string shuffleKeys = 1;
+}
+
+message BatchHeartbeatRequest {
+  repeated WorkerHeartbeatRequest workerHeartbeats = 1;
+  repeated AppHeartbeatRequest appHeartbeats = 2;
 }
 
 message HeartbeatInfo {
