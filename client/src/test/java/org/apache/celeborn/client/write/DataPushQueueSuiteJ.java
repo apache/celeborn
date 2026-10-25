@@ -20,15 +20,19 @@ package org.apache.celeborn.client.write;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -176,6 +180,58 @@ public class DataPushQueueSuiteJ {
       Assert.assertTrue(e.getCause() instanceof OutOfMemoryError);
     }
     client.shutdown();
+  }
+
+  @Test
+  public void testTaskAddedWhileTakingAllTasksIsNotLost() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    final File tempFile = new File(tempDir, UUID.randomUUID().toString());
+    // No reduce partition map is initialized, so getPartitionLocation returns null and
+    // takePushTasks takes every queued task.
+    DummyShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    DataPusher dataPusher = Mockito.mock(DataPusher.class);
+    Mockito.when(dataPusher.stillRunning()).thenReturn(true);
+
+    PushTask queuedTask = new PushTask(4);
+    PushTask concurrentTask = new PushTask(4);
+    // Adds concurrentTask right after takePushTasks reads the queued tasks, as the writer thread
+    // can. toArray is how ArrayList.addAll reads the queue, drainTo is how it is read with the fix.
+    LinkedBlockingQueue<PushTask> workingQueue =
+        new LinkedBlockingQueue<PushTask>(conf.clientPushQueueCapacity()) {
+          private boolean added = false;
+
+          private void addConcurrentTaskOnce() {
+            if (!added) {
+              added = true;
+              super.offer(concurrentTask);
+            }
+          }
+
+          @Override
+          public Object[] toArray() {
+            Object[] tasks = super.toArray();
+            addConcurrentTaskOnce();
+            return tasks;
+          }
+
+          @Override
+          public int drainTo(Collection<? super PushTask> c) {
+            int n = super.drainTo(c);
+            addConcurrentTaskOnce();
+            return n;
+          }
+        };
+    DataPushQueue dataPushQueue =
+        new DataPushQueue(conf, dataPusher, client, 0, 0, 0, 1, 1, workingQueue);
+
+    try {
+      Assert.assertTrue(dataPushQueue.addPushTask(queuedTask));
+      Assert.assertEquals(Collections.singletonList(queuedTask), dataPushQueue.takePushTasks());
+      // The task added while taking must stay queued for the next takePushTasks call.
+      Assert.assertEquals(Collections.singletonList(concurrentTask), new ArrayList<>(workingQueue));
+    } finally {
+      client.shutdown();
+    }
   }
 
   public static byte[] intToBytes(int value) {
