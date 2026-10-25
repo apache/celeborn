@@ -136,6 +136,26 @@ class CelebornShuffleCleanupSuite extends AnyFunSuite
     }
   }
 
+  test("CELEBORN-2465: shuffles are unregistered on SQL query completion " +
+    "with exchange reuse disabled, aqeEnabled: true") {
+    val sparkConf = shuffleCleanupConf(true)
+    sparkConf.set(SQLConf.EXCHANGE_REUSE_ENABLED.key, "false")
+    val spark = SparkSession.builder().config(sparkConf).getOrCreate()
+
+    // With exchange reuse off the AQE stage cache stays empty, so shuffles must be
+    // collected from materialized stages in the plan tree.
+    spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
+    spark.sql("SELECT id % 10 AS k, COUNT(1) AS cnt FROM ta GROUP BY id % 10").collect()
+    awaitShufflesUnregistered(lifecycleManager())
+
+    // A multi-stage query, so nested stages must be reached by descending into the
+    // stage plans in the tree.
+    spark.range(0, 1000, 1, 4).createOrReplaceTempView("tb")
+    val result = spark.sql("SELECT COUNT(*) FROM ta JOIN tb ON ta.id = tb.id").collect()
+    assert(result.head.getLong(0) == 1000)
+    awaitShufflesUnregistered(lifecycleManager())
+  }
+
   test("CELEBORN-2465: CTAS shuffles are unregistered on SQL query completion, " +
     "aqeEnabled: true") {
     val spark = SparkSession.builder().config(shuffleCleanupConf(true)).getOrCreate()
