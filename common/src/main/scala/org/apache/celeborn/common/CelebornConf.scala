@@ -6637,7 +6637,10 @@ object CelebornConf extends Logging {
       .doc("Ordered TransportClientBootstrap classes with a public TransportConf or no-argument " +
         "constructor. Run before the caller's bootstraps, including native SASL when enabled. " +
         "Applies only to the exact transport module; does not inherit parent module settings. " +
-        "Instances are owned and closed by the transport context.")
+        "Instances are owned and closed by the transport context. " +
+        "When composing with native authentication, leave `TransportClient.clientId` to the native " +
+        "layer or set the same Celeborn application ID. Keep independent plugin identities in " +
+        "per-connection state.")
       .stringConf
       .toSequence
       .createWithDefault(Seq.empty)
@@ -6650,7 +6653,10 @@ object CelebornConf extends Logging {
         "constructor. Receive requests in configuration order before the caller's handlers, " +
         "including native SASL when enabled. Applies only to the exact transport module; " +
         "does not inherit parent module settings. " +
-        "Instances are owned and closed by the transport context.")
+        "Instances are owned and closed by the transport context. " +
+        "When composing with native authentication, leave `TransportClient.clientId` to the native " +
+        "layer or set the same Celeborn application ID. Keep independent plugin identities in " +
+        "per-connection state.")
       .stringConf
       .toSequence
       .createWithDefault(Seq.empty)

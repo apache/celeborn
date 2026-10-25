@@ -212,6 +212,18 @@ authentication is enabled, configured handshakes precede Celeborn's registration
 on transports that use them. Each layer must finish its handshake before forwarding requests to
 the next layer. TLS remains a separate transport setting.
 
+`TransportClient.clientId` is reserved for the Celeborn application ID used by existing application
+authorization checks, including `BaseMessageHandler.checkAuth()`. A configured bootstrap must leave
+this field to native registration/SASL or establish the same application identity. Both layers can
+set the same application ID; setting it to an independent plugin principal prevents later native
+authentication with a different application ID. `setClientId()` rejects changing or clearing an
+assigned identity.
+
+Keep independent plugin principals and authentication-completion state in per-connection handler
+fields or channel attributes, not in `clientId` or shared bootstrap fields. A non-null `clientId`
+does not prove authentication succeeded: native SASL can assign it before credential validation
+finishes. Each authentication layer must still gate requests on its own completed handshake.
+
 The client bootstrap must finish authentication before `doBootstrap` returns and throw on failure.
 A failed client handshake closes the connection and prevents it from being returned or pooled.
 A server bootstrap must reject business requests until authentication completes, including one-way
