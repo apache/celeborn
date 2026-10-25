@@ -66,6 +66,8 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
     val writeMs = taskInfo.shuffleWriteTimeMs
     val readMs = taskInfo.shuffleFetchWaitTimeMs
     val durationMs = taskInfo.taskDurationMs
+    val uncompressedBytes = taskInfo.uncompressedShuffleBytes
+    val compressedBytes = taskInfo.compressedShuffleBytes
 
     def mbps(bytes: Long, ms: Long): String =
       if (ms <= 0) "N/A" else f"${bytes.toDouble / 1000.0 / 1000.0 / (ms.toDouble / 1000.0)}%.2f"
@@ -84,6 +86,14 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
         "Shuffle Assignments"
       }
 
+    // 0 when not reported, e.g. by old clients.
+    def compressionRatio: String =
+      if (uncompressedBytes <= 0 || compressedBytes <= 0) "N/A"
+      else {
+        s"${Utils.bytesToString(uncompressedBytes)}/${Utils.bytesToString(compressedBytes)} = " +
+          f"${uncompressedBytes.toDouble / compressedBytes}%.2f"
+      }
+
     val summary =
       <div>
         <ul class="list-unstyled">
@@ -100,6 +110,10 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
         s"${Utils.bytesToString(readBytes)} | Time: ${UIUtils.formatDuration(
           readMs)} | Speed: ${mbps(readBytes, readMs)} MB/s"
       }
+          </li>
+          <li>
+            <strong>Compression Ratio (uncompressed/compressed): </strong>
+            {compressionRatio}
           </li>
           <li>
             <strong>Shuffle Duration (write+read) / Task Duration: </strong>

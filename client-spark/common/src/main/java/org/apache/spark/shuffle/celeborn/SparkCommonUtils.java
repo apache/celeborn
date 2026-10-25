@@ -20,6 +20,7 @@ package org.apache.spark.shuffle.celeborn;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.LongAdder;
 
 import scala.Option;
 
@@ -72,6 +73,15 @@ public class SparkCommonUtils {
 
   public static int getEncodedAttemptNumber(TaskContext context) {
     return (context.stageAttemptNumber() << 16) | context.attemptNumber();
+  }
+
+  /** Sums per-partition pushed (post-compression/encryption) bytes. */
+  public static long sumLongAdders(LongAdder[] adders) {
+    long sum = 0;
+    for (LongAdder adder : adders) {
+      sum += adder.sum();
+    }
+    return sum;
   }
 
   public static void throwSparkOutOfMemoryError() {

@@ -46,6 +46,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.metrics.source.NamedGauge;
 import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.network.sasl.SaslCredentials;
 import org.apache.celeborn.common.network.sasl.SaslTestBase;
@@ -899,10 +900,12 @@ public class RatisMasterStatusSystemSuiteJ {
 
   /** Sum of the client gauge across apps as exported by the source, or null if not exported. */
   private static Long exportedGauge(ApplicationMetricsSource source) {
-    if (source.gauges().isEmpty()) {
+    // Use one snapshot because application removal can empty the source between reads.
+    scala.collection.immutable.List<NamedGauge<?>> gauges = source.gauges();
+    if (gauges.isEmpty()) {
       return null;
     }
-    return ((Number) source.gauges().head().gauge().getValue()).longValue();
+    return ((Number) gauges.head().gauge().getValue()).longValue();
   }
 
   private static void waitForAllMasters(ApplicationMetricsSource[] sources, Long expected)

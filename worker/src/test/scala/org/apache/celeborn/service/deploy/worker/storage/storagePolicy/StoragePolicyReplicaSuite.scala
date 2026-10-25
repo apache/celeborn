@@ -1,0 +1,137 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.celeborn.service.deploy.worker.storage.storagePolicy
+
+import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
+
+import io.netty.buffer.UnpooledByteBufAllocator
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito
+import org.mockito.MockitoSugar.{mock, when}
+
+import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.meta.{DiskFileInfo, MemoryFileInfo}
+import org.apache.celeborn.common.metrics.source.AbstractSource
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, StorageInfo}
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
+import org.apache.celeborn.service.deploy.worker.storage._
+
+class StoragePolicyReplicaSuite extends CelebornFunSuite {
+  val mockedStorageManager: StorageManager = mock[StorageManager]
+  val mockedSource: AbstractSource = mock[AbstractSource]
+
+  when(
+    mockedStorageManager.createMemoryFileInfo(any(), any(), any(), any(), any(), any())).thenAnswer(
+    mock[MemoryFileInfo])
+  when(mockedStorageManager.storageBufferAllocator).thenAnswer(UnpooledByteBufAllocator.DEFAULT)
+  when(mockedStorageManager.localOrDfsStorageAvailable).thenAnswer(true)
+
+  val mockedDiskFile: DiskFileInfo = mock[DiskFileInfo]
+  when(mockedDiskFile.getStorageType).thenAnswer(StorageInfo.Type.SSD)
+  when(
+    mockedStorageManager.createDiskFile(
+      any(),
+      any(),
+      any(),
+      any(),
+      any(),
+      any(),
+      any(),
+      any())).thenAnswer((mock[LocalFlusher], mockedDiskFile, mock[File]))
+
+  private def createWriter(
+      mode: PartitionLocation.Mode,
+      replicaEnabled: Option[Boolean],
+      evict: Boolean = false): TierWriterBase = {
+    val context = mock[PartitionDataWriterContext]
+    val location = new PartitionLocation(1, 1, "h1", 1, 2, 3, 4, mode)
+    location.setStorageInfo(new StorageInfo(
+      "mountpoint",
+      StorageInfo.Type.SSD,
+      StorageInfo.MEMORY_MASK | StorageInfo.LOCAL_DISK_MASK))
+    when(context.getPartitionLocation).thenAnswer(location)
+    when(context.getPartitionType).thenAnswer(PartitionType.REDUCE)
+    val conf = new CelebornConf()
+    conf.set("celeborn.worker.storage.storagePolicy.createFilePolicy", "MEMORY,SSD,HDD,HDFS,OSS,S3")
+    conf.set(CelebornConf.WORKER_STORAGE_EVICT_POLICY.key, "SSD,MEMORY,HDD")
+    replicaEnabled.foreach(v =>
+      conf.set(CelebornConf.WORKER_MEMORY_FILE_STORAGE_REPLICA_ENABLED.key, v.toString))
+    val storagePolicy = new StoragePolicy(conf, mockedStorageManager, mockedSource)
+    val memoryManager = mock[MemoryManager]
+    when(memoryManager.memoryFileStorageAvailable()).thenReturn(true)
+    val memoryManagerStatic = Mockito.mockStatic(classOf[MemoryManager])
+    try {
+      memoryManagerStatic.when[MemoryManager](() => MemoryManager.instance()).thenReturn(
+        memoryManager)
+      if (evict) {
+        val writer = mock[LocalTierWriter]
+        when(writer.storageType).thenAnswer(StorageInfo.Type.SSD)
+        storagePolicy.getEvictedFileWriter(
+          writer,
+          context,
+          new AtomicInteger(),
+          new FlushNotifier)
+      } else {
+        storagePolicy.createFileWriter(context, new AtomicInteger(), new FlushNotifier)
+      }
+    } finally {
+      memoryManagerStatic.close()
+    }
+  }
+
+  test("primary partition uses memory file storage") {
+    assert(createWriter(PartitionLocation.Mode.PRIMARY, None).isInstanceOf[MemoryTierWriter])
+  }
+
+  test("primary partition uses memory file storage when replica memory storage is disabled") {
+    assert(createWriter(PartitionLocation.Mode.PRIMARY, Some(false)).isInstanceOf[MemoryTierWriter])
+  }
+
+  test("replica partition uses memory file storage by default") {
+    assert(createWriter(PartitionLocation.Mode.REPLICA, None).isInstanceOf[MemoryTierWriter])
+  }
+
+  test("replica partition skips memory file storage when disabled") {
+    assert(createWriter(PartitionLocation.Mode.REPLICA, Some(false)).isInstanceOf[LocalTierWriter])
+  }
+
+  test("replica partition uses memory file storage when enabled") {
+    assert(
+      createWriter(PartitionLocation.Mode.REPLICA, Some(true)).isInstanceOf[MemoryTierWriter])
+  }
+
+  test("replica eviction can target memory file storage by default") {
+    assert(
+      createWriter(PartitionLocation.Mode.REPLICA, None, evict = true)
+        .isInstanceOf[MemoryTierWriter])
+  }
+
+  test("replica eviction skips memory file storage when disabled") {
+    assert(
+      createWriter(PartitionLocation.Mode.REPLICA, Some(false), evict = true)
+        .isInstanceOf[LocalTierWriter])
+  }
+
+  test("primary eviction can target memory when replica memory storage is disabled") {
+    assert(
+      createWriter(PartitionLocation.Mode.PRIMARY, Some(false), evict = true)
+        .isInstanceOf[MemoryTierWriter])
+  }
+}
