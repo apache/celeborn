@@ -6312,7 +6312,7 @@ object CelebornConf extends Logging {
       .createWithDefault(false)
 
   val SCALE_METRIC_COLLECTOR_CLASS_NAME: ConfigEntry[String] =
-    buildConf("celeborn.scale.metricCollectorClassName")
+    buildConf("celeborn.metrics.worker.scale.metricCollectorClassName")
       .categories("metrics")
       .version("1.0.0")
       .doc("Class name of the worker metric collector used by automatic scaling.")
@@ -6321,7 +6321,7 @@ object CelebornConf extends Logging {
         "org.apache.celeborn.service.deploy.worker.metrics.DefaultScaleMetricCollector")
 
   val SCALE_METRIC_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.scale.metricInterval")
+    buildConf("celeborn.metrics.worker.scale.metricInterval")
       .categories("metrics")
       .version("1.0.0")
       .doc("Interval between worker metric collection tasks.")
@@ -6330,7 +6330,7 @@ object CelebornConf extends Logging {
       .createWithDefaultString("5s")
 
   val SCALE_METRIC_WINDOW_SIZE: ConfigEntry[Int] =
-    buildConf("celeborn.scale.metricWindowSize")
+    buildConf("celeborn.metrics.worker.scale.metricWindowSize")
       .categories("metrics")
       .version("1.0.0")
       .doc("Number of samples in the sliding window used by worker metrics.")
