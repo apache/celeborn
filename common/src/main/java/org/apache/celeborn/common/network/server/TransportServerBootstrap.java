@@ -19,12 +19,14 @@ package org.apache.celeborn.common.network.server;
 
 import io.netty.channel.Channel;
 
+import org.apache.celeborn.common.network.TransportBootstrap;
+
 /**
  * A bootstrap which is executed on a TransportServer's client channel once a client connects to the
  * server. This allows customizing the client channel to allow for things such as SASL
  * authentication.
  */
-public interface TransportServerBootstrap extends AutoCloseable {
+public interface TransportServerBootstrap extends TransportBootstrap {
   /**
    * Customizes the channel to include new features, if needed. Configured instances are shared
    * across connections; create a separate handler for each connection. Authentication handlers must
@@ -36,12 +38,4 @@ public interface TransportServerBootstrap extends AutoCloseable {
    * @return The base message handler to use for the channel.
    */
   BaseMessageHandler doBootstrap(Channel channel, BaseMessageHandler baseMessageHandler);
-
-  /**
-   * Releases resources owned by a configured bootstrap. The transport context owns the shared
-   * bootstrap and closes it after its factories and servers. Caller-supplied instances remain the
-   * caller's responsibility.
-   */
-  @Override
-  default void close() throws Exception {}
 }

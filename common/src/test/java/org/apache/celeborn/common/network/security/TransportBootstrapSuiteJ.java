@@ -163,13 +163,17 @@ public class TransportBootstrapSuiteJ {
   public void contextOwnsConfiguredInstancesNotFactoriesOrServers() {
     CountingBootstrap.created.set(0);
     CountingBootstrap.closed.set(0);
+    NoArgBootstrap.created.set(0);
+    String bootstrapClasses =
+        CountingBootstrap.class.getName() + "," + NoArgBootstrap.class.getName();
     TransportConf conf =
         transportConf(
             configuration()
-                .set(CLIENT_CLASSES, CountingBootstrap.class.getName())
-                .set(SERVER_CLASSES, CountingBootstrap.class.getName()));
+                .set(CLIENT_CLASSES, bootstrapClasses)
+                .set(SERVER_CLASSES, bootstrapClasses));
     try (TransportContext context = new TransportContext(conf, new EchoHandler())) {
       assertEquals(2, CountingBootstrap.created.get());
+      assertEquals(2, NoArgBootstrap.created.get());
       try (TransportClientFactory first = context.createClientFactory();
           TransportClientFactory second = context.createClientFactory();
           TransportServer server = context.createServer("localhost", 0)) {
@@ -286,7 +290,7 @@ public class TransportBootstrapSuiteJ {
     }
   }
 
-  public static class NoArgBootstrap implements TransportClientBootstrap {
+  public static class NoArgBootstrap implements TransportClientBootstrap, TransportServerBootstrap {
     static final AtomicInteger created = new AtomicInteger();
 
     public NoArgBootstrap() {
@@ -295,6 +299,11 @@ public class TransportBootstrapSuiteJ {
 
     @Override
     public void doBootstrap(TransportClient client) {}
+
+    @Override
+    public BaseMessageHandler doBootstrap(Channel channel, BaseMessageHandler handler) {
+      return handler;
+    }
   }
 
   public static class FailingBootstrap extends CountingBootstrap {

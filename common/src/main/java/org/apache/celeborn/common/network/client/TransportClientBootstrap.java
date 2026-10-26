@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.network.client;
 
+import org.apache.celeborn.common.network.TransportBootstrap;
+
 /**
  * A bootstrap which is executed on a TransportClient before it is returned to the user. This
  * enables an initial exchange of information (e.g., SASL authentication tokens) on a once-per-
@@ -26,7 +28,7 @@ package org.apache.celeborn.common.network.client;
  * reasonable to perform an expensive bootstrapping operation, as they often share a lifespan with
  * the JVM itself.
  */
-public interface TransportClientBootstrap extends AutoCloseable {
+public interface TransportClientBootstrap extends TransportBootstrap {
   /**
    * Performs the bootstrapping operation, throwing an exception on failure. Authentication must
    * finish before this method returns. Configured instances are shared across connections and must
@@ -36,11 +38,4 @@ public interface TransportClientBootstrap extends AutoCloseable {
    * @throws RuntimeException
    */
   void doBootstrap(TransportClient client) throws RuntimeException;
-
-  /**
-   * Releases resources owned by a configured bootstrap. Configured instances are shared across a
-   * transport context's connections and closed by that context after its factories and servers.
-   */
-  @Override
-  default void close() throws Exception {}
 }
