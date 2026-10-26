@@ -1661,7 +1661,7 @@
         <lz4-java.version>1.8.0</lz4-java.version>
         <scala.version>2.12.18</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
-        <spark.version>3.5.8</spark.version>
+        <spark.version>3.5.9</spark.version>
         <zstd-jni.version>1.5.5-4</zstd-jni.version>
         <commons-lang3.version>3.17.0</commons-lang3.version>
         <servlet.source.dir>scala-spark3</servlet.source.dir>
