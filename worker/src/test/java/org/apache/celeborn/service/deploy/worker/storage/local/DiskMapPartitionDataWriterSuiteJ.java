@@ -93,7 +93,8 @@ public class DiskMapPartitionDataWriterSuiteJ {
             "disk1",
             StorageInfo.Type.HDD,
             null,
-            CONF.workerFlusherBufferSize());
+            CONF.workerFlusherBufferSize(),
+            CONF);
 
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE().key(), "0.8");

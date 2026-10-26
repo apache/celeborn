@@ -1412,6 +1412,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   //                      Flusher                        //
   // //////////////////////////////////////////////////////
   def workerFlusherBufferSize: Long = get(WORKER_FLUSHER_BUFFER_SIZE)
+  def workerFlusherCommittingWritersPriorityEnabled: Boolean =
+    get(WORKER_FLUSHER_COMMITTING_WRITERS_PRIORITY_ENABLED)
+  def workerFlusherCommittingTaskBatchSize: Int = get(WORKER_FLUSHER_COMMITTING_TASK_BATCH_SIZE)
+  def workerFlusherNormalTaskBatchSize: Int = get(WORKER_FLUSHER_NORMAL_TASK_BATCH_SIZE)
   def workerHdfsFlusherBufferSize: Long = get(WORKER_HDFS_FLUSHER_BUFFER_SIZE)
   def workerS3FlusherBufferSize: Long = get(WORKER_S3_FLUSHER_BUFFER_SIZE)
   def workerOssFlusherBufferSize: Long = get(WORKER_OSS_FLUSHER_BUFFER_SIZE)
@@ -4043,6 +4047,37 @@ object CelebornConf extends Logging {
       .doubleConf
       .checkValue(v => v >= 0.0 && v <= 1.0, "Should be in [0.0, 1.0].")
       .createWithDefault(0.25)
+
+  val WORKER_FLUSHER_COMMITTING_WRITERS_PRIORITY_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.worker.flusher.committingWriters.priority.enabled")
+      .categories("worker")
+      .version("1.0.0")
+      .doc("Prioritize pending flush tasks of REDUCE writers being committed, preserving each " +
+        "writer's flush order. Applies to local and DFS storage. Interleave FIFO tasks to allow " +
+        "ordinary writes to make progress. Disabling this restores FIFO flush scheduling.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val WORKER_FLUSHER_COMMITTING_TASK_BATCH_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.worker.flusher.committingTask.batch.size")
+      .categories("worker")
+      .version("1.0.0")
+      .doc("Maximum number of priority flush tasks to process before serving a FIFO batch " +
+        "when committing writer priority is enabled. A task already executing is not preempted.")
+      .intConf
+      .checkValue(_ > 0, "must be positive")
+      .createWithDefault(8)
+
+  val WORKER_FLUSHER_NORMAL_TASK_BATCH_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.worker.flusher.normalTask.batch.size")
+      .categories("worker")
+      .version("1.0.0")
+      .doc("Number of tasks to process in submission order between priority flush batches " +
+        "when committing writer priority is enabled. These tasks may also belong to committing " +
+        "writers. Without pending priority tasks, flushers process FIFO tasks continuously.")
+      .intConf
+      .checkValue(_ > 0, "must be positive")
+      .createWithDefault(4)
 
   val WORKER_FLUSHER_BUFFER_SIZE: ConfigEntry[Long] =
     buildConf("celeborn.worker.flusher.buffer.size")

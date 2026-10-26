@@ -26,13 +26,14 @@ import scala.util.Random
 
 import io.netty.buffer.{ByteBufAllocator, CompositeByteBuf, PooledByteBufAllocator}
 
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskStatus, TimeWindow}
 import org.apache.celeborn.common.metrics.source.{AbstractSource, ThreadPoolSource}
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.util.{ExceptionUtils, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.WorkerSource
-import org.apache.celeborn.service.deploy.worker.WorkerSource.FLUSH_WORKING_QUEUE_SIZE
+import org.apache.celeborn.service.deploy.worker.WorkerSource.{FLUSH_COMMITTING_QUEUE_SIZE, FLUSH_COMMITTING_WRITER_SIZE, FLUSH_WORKING_QUEUE_SIZE}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
@@ -44,9 +45,12 @@ abstract private[worker] class Flusher(
     flushTimeMetric: TimeWindow,
     mountPoint: String,
     val reuseCopyBuffer: Boolean,
-    val maxTaskSize: Long) extends Logging {
+    val maxTaskSize: Long,
+    conf: CelebornConf) extends Logging {
   protected lazy val flusherId: Int = System.identityHashCode(this)
+  private val committingPriorityEnabled = conf.workerFlusherCommittingWritersPriorityEnabled
   protected val workingQueues = new Array[LinkedBlockingQueue[FlushTask]](threadCount)
+  private val priorityQueues = new Array[FlushTaskQueue](threadCount)
   protected val bufferQueue = new LinkedBlockingQueue[CompositeByteBuf]()
   protected val workers = new Array[ExecutorService](threadCount)
   protected val nextWorkerIndex: AtomicInteger = new AtomicInteger(0)
@@ -64,7 +68,13 @@ abstract private[worker] class Flusher(
       lastBeginFlushTime.set(i, -1)
     }
     for (index <- 0 until threadCount) {
-      workingQueues(index) = new LinkedBlockingQueue[FlushTask]()
+      if (committingPriorityEnabled) {
+        priorityQueues(index) = new FlushTaskQueue(
+          conf.workerFlusherCommittingTaskBatchSize,
+          conf.workerFlusherNormalTaskBatchSize)
+      } else {
+        workingQueues(index) = new LinkedBlockingQueue[FlushTask]()
+      }
       workers(index) = ThreadUtils.newDaemonSingleThreadExecutor(s"$this-$index")
       workers(index).submit(new Runnable {
         override def run(): Unit = {
@@ -73,7 +83,12 @@ abstract private[worker] class Flusher(
             copyBytes = new Array[Byte](maxTaskSize.toInt)
           }
           while (!stopFlag.get()) {
-            val task = workingQueues(index).take()
+            val task =
+              if (committingPriorityEnabled) {
+                priorityQueues(index).take()
+              } else {
+                workingQueues(index).take()
+              }
             val key = s"Flusher-$this-${Random.nextInt()}"
             workerSource.sample(getFlushTimeMetric(), key) {
               if (!task.notifier.hasException) {
@@ -102,7 +117,17 @@ abstract private[worker] class Flusher(
       })
       workerSource.addGauge(FLUSH_WORKING_QUEUE_SIZE, Map("mountpoint" -> s"$mountPoint-$index")) {
         () =>
-          workingQueues(index).size()
+          if (committingPriorityEnabled) priorityQueues(index).size else workingQueues(index).size()
+      }
+      workerSource.addGauge(
+        FLUSH_COMMITTING_QUEUE_SIZE,
+        Map("mountpoint" -> s"$mountPoint-$index")) {
+        () => if (committingPriorityEnabled) priorityQueues(index).committingTaskCount else 0
+      }
+      workerSource.addGauge(
+        FLUSH_COMMITTING_WRITER_SIZE,
+        Map("mountpoint" -> s"$mountPoint-$index")) {
+        () => if (committingPriorityEnabled) priorityQueues(index).committingWriterCount else 0
       }
     }
     ThreadPoolSource.registerSource(s"$this", workers)
@@ -136,7 +161,16 @@ abstract private[worker] class Flusher(
   }
 
   def addTask(task: FlushTask, timeoutMs: Long, workerIndex: Int): Boolean = {
-    workingQueues(workerIndex).offer(task, timeoutMs, TimeUnit.MILLISECONDS)
+    if (committingPriorityEnabled) {
+      priorityQueues(workerIndex).add(task)
+      true
+    } else {
+      workingQueues(workerIndex).offer(task, timeoutMs, TimeUnit.MILLISECONDS)
+    }
+  }
+
+  def closeWriter(notifier: FlushNotifier, workerIndex: Int): Unit = {
+    if (committingPriorityEnabled) priorityQueues(workerIndex).markCommitting(notifier)
   }
 
   def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit
@@ -153,7 +187,8 @@ private[worker] class LocalFlusher(
     val mountPoint: String,
     val diskType: StorageInfo.Type,
     timeWindow: TimeWindow,
-    maxTaskSize: Long) extends Flusher(
+    maxTaskSize: Long,
+    conf: CelebornConf) extends Flusher(
     workerSource,
     threadCount,
     allocator,
@@ -161,7 +196,8 @@ private[worker] class LocalFlusher(
     timeWindow,
     mountPoint,
     false,
-    maxTaskSize)
+    maxTaskSize,
+    conf)
   with DeviceObserver with Logging {
 
   deviceMonitor.registerFlusher(this)
@@ -195,7 +231,8 @@ final private[worker] class HdfsFlusher(
     allocator: ByteBufAllocator,
     maxComponents: Int,
     reuseCopyBuffer: Boolean,
-    maxTaskSize: Long) extends Flusher(
+    maxTaskSize: Long,
+    conf: CelebornConf) extends Flusher(
     workerSource,
     hdfsFlusherThreads,
     allocator,
@@ -203,7 +240,8 @@ final private[worker] class HdfsFlusher(
     null,
     "HDFS",
     reuseCopyBuffer,
-    maxTaskSize) with Logging {
+    maxTaskSize,
+    conf) with Logging {
 
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
@@ -220,7 +258,8 @@ final private[worker] class S3Flusher(
     allocator: ByteBufAllocator,
     maxComponents: Int,
     reuseCopyBuffer: Boolean,
-    maxTaskSize: Long) extends Flusher(
+    maxTaskSize: Long,
+    conf: CelebornConf) extends Flusher(
     workerSource,
     s3FlusherThreads,
     allocator,
@@ -228,7 +267,8 @@ final private[worker] class S3Flusher(
     null,
     "S3",
     reuseCopyBuffer,
-    maxTaskSize) with Logging {
+    maxTaskSize,
+    conf) with Logging {
 
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
@@ -245,7 +285,8 @@ final private[worker] class OssFlusher(
     allocator: ByteBufAllocator,
     maxComponents: Int,
     reuseCopyBuffer: Boolean,
-    maxTaskSize: Long) extends Flusher(
+    maxTaskSize: Long,
+    conf: CelebornConf) extends Flusher(
     workerSource,
     ossFlusherThreads,
     allocator,
@@ -253,7 +294,8 @@ final private[worker] class OssFlusher(
     null,
     "OSS",
     reuseCopyBuffer,
-    maxTaskSize) with Logging {
+    maxTaskSize,
+    conf) with Logging {
 
   override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {
     logError(s"$this write failed, reason $deviceErrorType ,exception: $e")
