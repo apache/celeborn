@@ -39,7 +39,7 @@ import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
 
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
-import org.apache.celeborn.client.listener.{MapperEndCallback, WorkerStatusListener}
+import org.apache.celeborn.client.listener.{MapperEndCallback, ShuffleAssignmentListener, WorkerStatusListener}
 import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.CelebornConf.ACTIVE_STORAGE_TYPES
 import org.apache.celeborn.common.client.{ApplicationInfoProvider, MasterClient}
@@ -904,6 +904,28 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         StatusCode.SUCCESS,
         allPrimaryPartitionLocations,
         serdeVersion))
+      reportShuffleAssignment(shuffleId, slots)
+    }
+  }
+
+  private def reportShuffleAssignment(shuffleId: Int, slots: WorkerResource): Unit = {
+    shuffleAssignmentListener.foreach { listener =>
+      val workerSlots = new util.HashMap[String, Integer]()
+      slots.asScala.foreach { case (workerInfo, (primaryLocations, replicaLocations)) =>
+        val numSlots = primaryLocations.size + replicaLocations.size
+        if (numSlots > 0) {
+          workerSlots.put(workerInfo.toUniqueId, numSlots)
+        }
+      }
+      try {
+        listener.onShuffleAssigned(
+          shuffleId,
+          celebornShuffleIdToAppShuffleIdMap.getOrDefault(shuffleId, shuffleId),
+          workerSlots)
+      } catch {
+        case NonFatal(e) =>
+          logWarning(s"Failed to report the slot assignment of shuffle $shuffleId.", e)
+      }
     }
   }
 
@@ -2225,6 +2247,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   def registerCelebornSkewShuffleCheckCallback(callback: function.Function[Integer, Boolean])
       : Unit = {
     celebornSkewShuffleCheckCallback = Some(callback)
+  }
+
+  @volatile private var shuffleAssignmentListener: Option[ShuffleAssignmentListener] = None
+  def registerShuffleAssignmentListener(listener: ShuffleAssignmentListener): Unit = {
+    shuffleAssignmentListener = Some(listener)
   }
 
   // Initialize at the end of LifecycleManager construction.

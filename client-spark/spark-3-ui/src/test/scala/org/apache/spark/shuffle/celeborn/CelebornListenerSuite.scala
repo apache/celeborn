@@ -20,9 +20,10 @@ package org.apache.spark.shuffle.celeborn
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.spark.{SparkConf, Success, TaskEndReason, TaskKilled, TaskState}
 import org.apache.spark.executor.TaskMetrics
-import org.apache.spark.internal.config.Status.ASYNC_TRACKING_ENABLED
+import org.apache.spark.internal.config.Status.{ASYNC_TRACKING_ENABLED, MAX_RETAINED_STAGES}
 import org.apache.spark.scheduler.{JobSucceeded, SparkListenerEnvironmentUpdate, SparkListenerEvent, SparkListenerJobEnd, SparkListenerTaskEnd, TaskInfo, TaskLocality}
 import org.apache.spark.status.ElementTrackingStore
+import org.apache.spark.status.KVUtils.KVStoreScalaSerializer
 import org.apache.spark.util.Utils
 import org.apache.spark.util.kvstore.InMemoryStore
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
@@ -316,5 +317,52 @@ class CelebornListenerSuite {
     assertEquals("1.0.0-test", info("Version"))
     assertEquals("abcdef12", info("Commit Id"))
     assertEquals("abcdef1234567890", info("Revision"))
+  }
+
+  @Test
+  def shuffleAssignmentPersistedFromPostedEvent(): Unit = {
+    val store = new InMemoryStore()
+    val statusStore = new CelebornStatusStore(store)
+    val listener = new CelebornListener(store, new SparkConf())
+
+    listener.onOtherEvent(CelebornShuffleAssignmentEvent(3, 1, Map("w1" -> 2, "w2" -> 4)))
+    listener.onOtherEvent(CelebornShuffleAssignmentEvent(4, 2, Map("w2" -> 1)))
+
+    assertEquals(
+      Seq(ShuffleAssignmentUIData(3, 1, 2, 6, 2, 4), ShuffleAssignmentUIData(4, 2, 1, 1, 1, 1)),
+      statusStore.shuffleAssignments())
+    assertEquals(
+      WorkerSlotsUIData(2, Map("w1" -> 1, "w2" -> 2), Map("w1" -> 2, "w2" -> 5)),
+      statusStore.workerSlots())
+  }
+
+  @Test
+  def workerSlotsCoverShuffleAssignmentsBeyondRetainedStages(): Unit = {
+    val store = new InMemoryStore()
+    val statusStore = new CelebornStatusStore(store)
+    val listener = new CelebornListener(store, new SparkConf().set(MAX_RETAINED_STAGES, 2))
+
+    (0 until 3).foreach { id =>
+      listener.onOtherEvent(CelebornShuffleAssignmentEvent(id, id, Map("w1" -> 1)))
+    }
+
+    assertEquals(Seq(1, 2), statusStore.shuffleAssignments().map(_.shuffleId))
+    assertEquals(WorkerSlotsUIData(3, Map("w1" -> 3), Map("w1" -> 3)), statusStore.workerSlots())
+  }
+
+  @Test
+  def shuffleAssignmentKVStoreRoundTrip(): Unit = {
+    // History Server disk stores persist UI data through this serializer.
+    val serializer = new KVStoreScalaSerializer()
+    val assignment = ShuffleAssignmentUIData(5, 1, 2, 4, 1, 3)
+    val workerSlots = WorkerSlotsUIData(1, Map("w1" -> 1, "w2" -> 1), Map("w1" -> 3, "w2" -> 1))
+
+    assertEquals(
+      assignment,
+      serializer.deserialize(serializer.serialize(assignment), classOf[ShuffleAssignmentUIData]))
+    val restored =
+      serializer.deserialize(serializer.serialize(workerSlots), classOf[WorkerSlotsUIData])
+    assertEquals(workerSlots, restored)
+    assertEquals(4, restored.workerSlots.values.sum)
   }
 }

@@ -17,7 +17,10 @@
 
 package org.apache.spark.shuffle.celeborn
 
+import scala.collection.JavaConverters._
+
 import com.fasterxml.jackson.annotation.JsonIgnore
+import org.apache.spark.util.Utils
 import org.apache.spark.util.kvstore.{KVIndex, KVStore}
 
 private[celeborn] case class AggregatedTaskInfoUIData(
@@ -50,6 +53,30 @@ private[celeborn] class CelebornBuildInfoUIData(
   @JsonIgnore
   @KVIndex
   def id: String = classOf[CelebornBuildInfoUIData].getName
+}
+
+private[celeborn] case class ShuffleAssignmentUIData(
+    shuffleId: Int,
+    appShuffleId: Int,
+    workers: Int,
+    slots: Int,
+    minWorkerSlots: Int,
+    maxWorkerSlots: Int) {
+
+  @JsonIgnore
+  @KVIndex
+  def id: Int = shuffleId
+}
+
+/** Shuffles and slots of each worker, over all shuffles of the application. */
+private[celeborn] case class WorkerSlotsUIData(
+    shuffles: Long,
+    workerShuffles: Map[String, Int],
+    workerSlots: Map[String, Int]) {
+
+  @JsonIgnore
+  @KVIndex
+  def id: String = classOf[WorkerSlotsUIData].getName
 }
 
 /**
@@ -92,6 +119,21 @@ private[celeborn] class CelebornStatusStore(store: KVStore) {
       store.read(kClass, kClass.getName)
     } catch {
       case _: NoSuchElementException => new CelebornBuildInfoUIData(Seq.empty)
+    }
+  }
+
+  def shuffleAssignments(): Seq[ShuffleAssignmentUIData] = {
+    Utils.tryWithResource(store.view(classOf[ShuffleAssignmentUIData]).closeableIterator()) {
+      iter => iter.asScala.toList
+    }
+  }
+
+  def workerSlots(): WorkerSlotsUIData = {
+    val kClass = classOf[WorkerSlotsUIData]
+    try {
+      store.read(kClass, kClass.getName)
+    } catch {
+      case _: NoSuchElementException => WorkerSlotsUIData(0L, Map.empty, Map.empty)
     }
   }
 

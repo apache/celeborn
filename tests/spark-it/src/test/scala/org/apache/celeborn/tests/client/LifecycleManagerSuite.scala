@@ -18,6 +18,7 @@
 package org.apache.celeborn.tests.client
 
 import java.util
+import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.collection.JavaConverters._
 
@@ -129,6 +130,30 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     }
 
     lifecycleManager.stop()
+  }
+
+  test("CELEBORN-2499: report the slots reserved on each worker for a registered shuffle") {
+    prepareService()
+    val reported = new ConcurrentLinkedQueue[(Int, Int, Map[String, Int])]()
+    lifecycleManager.registerShuffleAssignmentListener { (shuffleId, appShuffleId, workerSlots) =>
+      val slots = workerSlots.asScala.map { case (worker, n) => worker -> n.intValue }.toMap
+      reported.add((shuffleId, appShuffleId, slots))
+    }
+    val shuffleId = nextShuffleId
+    val numPartitions = 9
+
+    shuffleClient.getPartitionLocation(shuffleId, 8, numPartitions)
+
+    eventually(timeout(3.seconds), interval(10.milliseconds)) {
+      assert(reported.size == 1)
+    }
+    val (reportedShuffleId, appShuffleId, workerSlots) = reported.peek()
+    assert(reportedShuffleId == shuffleId)
+    assert(appShuffleId == shuffleId)
+    // Replication is enabled: a primary and a replica slot per partition.
+    assert(workerSlots.values.sum == 2 * numPartitions)
+    assert(workerSlots.values.forall(_ > 0))
+    assert(workerSlots.keySet.subsetOf(workerInfos.keySet.map(_.workerInfo.toUniqueId)))
   }
 
   test("CELEBORN-2479: mapper end callback reports only the accepted attempt") {
