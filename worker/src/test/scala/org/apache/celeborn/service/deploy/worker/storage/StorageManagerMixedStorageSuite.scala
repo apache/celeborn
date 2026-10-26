@@ -118,7 +118,8 @@ class StorageManagerMixedStorageSuite extends CelebornFunSuite with MockitoSugar
           if (info.isHdfs) {
             storageManager.hdfsWriters.containsKey(info.getFilePath)
           } else {
-            storageManager.workingDirWriters.get(workingDir).containsKey(info.getFilePath)
+            Option(storageManager.workingDirWriters.get(workingDir))
+              .exists(_.containsKey(info.getFilePath))
           }
         val evidence = s"CELEBORN-2485 storage=$storageType memory=$memoryState " +
           s"writerDestroyed=${writerDestroyed.get()} dataExists=$dataExists " +
@@ -132,7 +133,8 @@ class StorageManagerMixedStorageSuite extends CelebornFunSuite with MockitoSugar
           assert(!writerRegistered, "cleanFile must unregister the target writer")
           if (gracefulShutdown) {
             assert(
-              storageManager.committedFileInfos.get(shuffleKey).get(fileName) == null,
+              Option(storageManager.committedFileInfos.get(shuffleKey))
+                .forall(files => !files.containsKey(fileName)),
               "cleanFile must remove the committed file metadata")
           }
           if (memoryMap != null) {
