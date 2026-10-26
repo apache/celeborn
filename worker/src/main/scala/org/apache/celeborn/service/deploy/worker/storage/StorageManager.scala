@@ -605,7 +605,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   private def removeFileInfo(shuffleKey: String, fileName: String): FileInfo = {
     val memoryShuffleMap = memoryFileInfos.get(shuffleKey)
     if (memoryShuffleMap != null) {
-      return memoryShuffleMap.remove(fileName)
+      val memoryFileInfo = memoryShuffleMap.remove(fileName)
+      if (memoryFileInfo != null) {
+        return memoryFileInfo
+      }
     }
 
     val diskShuffleMap = diskFileInfos.get(shuffleKey)
