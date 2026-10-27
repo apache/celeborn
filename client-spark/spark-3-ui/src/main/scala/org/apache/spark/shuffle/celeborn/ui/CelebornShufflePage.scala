@@ -166,6 +166,28 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
     val content =
       <span>
         {summary}
+        <span class="collapse-aggregated-celebornBuildInfo collapse-table"
+            onClick="collapseTable('collapse-aggregated-celebornBuildInfo',
+            'aggregated-celebornBuildInfo')">
+          <h4>
+            <span class="collapse-table-arrow arrow-closed"></span>
+            <a>Celeborn Build Information</a>
+          </h4>
+        </span>
+        <div class="aggregated-celebornBuildInfo collapsible-table collapsed">
+          {buildInfoTable}
+        </div>
+        <span class="collapse-aggregated-celebornProperties collapse-table"
+            onClick="collapseTable('collapse-aggregated-celebornProperties',
+            'aggregated-celebornProperties')">
+          <h4>
+            <span class="collapse-table-arrow arrow-closed"></span>
+            <a>Celeborn Properties</a>
+          </h4>
+        </span>
+        <div class="aggregated-celebornProperties collapsible-table collapsed">
+          {propertiesTable}
+        </div>
         <span class="collapse-aggregated-celebornShuffleAssignments collapse-table"
             onClick="collapseTable('collapse-aggregated-celebornShuffleAssignments',
             'aggregated-celebornShuffleAssignments')">
@@ -187,28 +209,6 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
         </span>
         <div class="aggregated-celebornWorkerSlots collapsible-table collapsed">
           {workerSlotsTable}
-        </div>
-        <span class="collapse-aggregated-celebornBuildInfo collapse-table"
-            onClick="collapseTable('collapse-aggregated-celebornBuildInfo',
-            'aggregated-celebornBuildInfo')">
-          <h4>
-            <span class="collapse-table-arrow arrow-closed"></span>
-            <a>Celeborn Client Build Information</a>
-          </h4>
-        </span>
-        <div class="aggregated-celebornBuildInfo collapsible-table collapsed">
-          {buildInfoTable}
-        </div>
-        <span class="collapse-aggregated-celebornProperties collapse-table"
-            onClick="collapseTable('collapse-aggregated-celebornProperties',
-            'aggregated-celebornProperties')">
-          <h4>
-            <span class="collapse-table-arrow arrow-open"></span>
-            <a>Celeborn Properties</a>
-          </h4>
-        </span>
-        <div class="aggregated-celebornProperties collapsible-table">
-          {propertiesTable}
         </div>
       </span>
 
