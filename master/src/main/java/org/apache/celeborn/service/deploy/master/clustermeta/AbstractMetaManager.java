@@ -127,7 +127,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       String shuffleKey, String hostName, Map<String, Map<String, Integer>> workerWithAllocations) {
     Tuple2<String, Object> appIdShuffleId = Utils.splitShuffleKey(shuffleKey);
     registeredAppAndShuffles
-        .computeIfAbsent(appIdShuffleId._1(), v -> new HashSet<>())
+        .computeIfAbsent(appIdShuffleId._1(), v -> ConcurrentHashMap.newKeySet())
         .add((Integer) appIdShuffleId._2);
 
     String appId = appIdShuffleId._1;
@@ -241,7 +241,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   }
 
   public void reviseLostShuffles(String appId, List<Integer> lostShuffles) {
-    registeredAppAndShuffles.computeIfAbsent(appId, v -> new HashSet<>()).addAll(lostShuffles);
+    registeredAppAndShuffles
+        .computeIfAbsent(appId, v -> ConcurrentHashMap.newKeySet())
+        .addAll(lostShuffles);
   }
 
   public void deleteApp(String appId) {
@@ -462,7 +464,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       for (String shuffleKey : snapshotMetaInfo.getRegisteredShuffleList()) {
         Tuple2<String, Object> appIdShuffleId = Utils.splitShuffleKey(shuffleKey);
         registeredAppAndShuffles
-            .computeIfAbsent(appIdShuffleId._1, v -> new HashSet<>())
+            .computeIfAbsent(appIdShuffleId._1, v -> ConcurrentHashMap.newKeySet())
             .add((Integer) appIdShuffleId._2);
       }
       hostnameSet.addAll(snapshotMetaInfo.getHostnameSetList());
