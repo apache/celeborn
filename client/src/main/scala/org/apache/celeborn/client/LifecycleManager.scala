@@ -24,7 +24,7 @@ import java.util
 import java.util.{function, List => JList}
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
-import java.util.function.{BiConsumer, BiFunction, Consumer}
+import java.util.function.{BiConsumer, BiFunction, Consumer, Function => JFunction}
 
 import scala.collection.JavaConverters._
 import scala.collection.generic.CanBuildFrom
@@ -458,7 +458,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         oldPartition,
         isSegmentGranularityVisible = commitManager.isSegmentGranularityVisible(shuffleId))
 
-    case MapperEnd(
+    case mapperEnd @ MapperEnd(
           shuffleId,
           mapId,
           attemptId,
@@ -469,24 +469,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           crc32PerPartition,
           bytesWrittenPerPartition,
           serdeVersion,
-          metrics) =>
+          metrics,
+          taskAttemptId) =>
       logTrace(s"Received MapperEnd TaskEnd request, " +
-        s"${Utils.makeMapKey(shuffleId, mapId, attemptId)}")
+        s"${Utils.makeMapKey(shuffleId, mapId, attemptId)}, taskAttemptId $taskAttemptId")
       val partitionType = getPartitionType(shuffleId)
       partitionType match {
         case PartitionType.REDUCE =>
-          handleMapperEnd(
-            context,
-            shuffleId,
-            mapId,
-            attemptId,
-            numMappers,
-            pushFailedBatch,
-            numPartitions,
-            crc32PerPartition,
-            bytesWrittenPerPartition,
-            serdeVersion,
-            metrics)
+          handleMapperEnd(context, mapperEnd)
         case PartitionType.MAP =>
           handleMapPartitionEnd(
             context,
@@ -982,33 +972,38 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
   }
 
-  private def handleMapperEnd(
-      context: RpcCallContext,
-      shuffleId: Int,
-      mapId: Int,
-      attemptId: Int,
-      numMappers: Int,
-      pushFailedBatches: util.Map[String, LocationPushFailedBatches],
-      numPartitions: Int,
-      crc32PerPartition: Array[Int],
-      bytesWrittenPerPartition: Array[Long],
-      serdeVersion: SerdeVersion,
-      metrics: MapperMetrics): Unit = {
+  private def handleMapperEnd(context: RpcCallContext, mapperEnd: MapperEnd): Unit = {
+    if (mapperEndConfirmationActive && mapperEnd.taskAttemptId >= 0) {
+      // Only count this attempt once Spark has accepted it. Reply right away though: the task
+      // can't finish, and so Spark can't accept it, until this call returns.
+      if (!commitManager.isMapperEnded(mapperEnd.shuffleId, mapperEnd.mapId)) {
+        mapperEndConfirmer.add(mapperEnd.shuffleId, PendingMapperEnd(mapperEnd, System.nanoTime()))
+      }
+    } else {
+      confirmMapperEnd(mapperEnd)
+    }
 
+    // reply success
+    context.reply(MapperEndResponse(StatusCode.SUCCESS, mapperEnd.serdeVersion))
+  }
+
+  private def confirmMapperEnd(mapperEnd: MapperEnd): Unit = {
+    val shuffleId = mapperEnd.shuffleId
     val (mapperAttemptFinishedSuccess, allMapperFinished) =
       commitManager.finishMapperAttempt(
         shuffleId,
-        mapId,
-        attemptId,
-        numMappers,
-        pushFailedBatches = pushFailedBatches,
-        numPartitions = numPartitions,
-        crc32PerPartition = crc32PerPartition,
-        bytesWrittenPerPartition = bytesWrittenPerPartition)
+        mapperEnd.mapId,
+        mapperEnd.attemptId,
+        mapperEnd.numMappers,
+        pushFailedBatches = mapperEnd.failedBatchSet,
+        numPartitions = mapperEnd.numPartitions,
+        crc32PerPartition = mapperEnd.crc32PerPartition,
+        bytesWrittenPerPartition = mapperEnd.bytesWrittenPerPartition)
     // finishMapperAttempt accepts at most one attempt per mapId, so the callback fires
     // exactly once per accepted attempt and no extra dedup is needed.
     if (mapperAttemptFinishedSuccess) {
-      mapperEndCallback.foreach(_.onMapperEnd(shuffleId, mapId, attemptId, metrics))
+      mapperEndCallback.foreach(
+        _.onMapperEnd(shuffleId, mapperEnd.mapId, mapperEnd.attemptId, mapperEnd.metrics))
     }
     if (mapperAttemptFinishedSuccess && allMapperFinished) {
       // last mapper finished. call mapper end
@@ -1016,9 +1011,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         s"shuffleId $shuffleId.")
       self.send(StageEnd(shuffleId))
     }
-
-    // reply success
-    context.reply(MapperEndResponse(StatusCode.SUCCESS, serdeVersion))
   }
 
   private def handleGetReducerFileGroup(
@@ -1037,6 +1029,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         Array.empty,
         serdeVersion = serdeVersion))
       return
+    }
+    if (mapperEndConfirmationActive && !commitManager.isStageEndOrInProcess(shuffleId)) {
+      // Reducers only run once Spark has registered every map output, so this confirms whatever
+      // the confirmer thread hasn't picked up yet.
+      mapperEndConfirmer.check(shuffleId)
     }
     commitManager.handleGetReducerFileGroup(context, shuffleId, serdeVersion)
   }
@@ -1326,6 +1323,12 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       // if StageEnd has not been handled, trigger StageEnd
       if (!commitManager.isStageEnd(shuffleId)) {
         logInfo(s"Call StageEnd before Unregister Shuffle $shuffleId.")
+        if (mapperEndConfirmationActive && mapperEndConfirmer.drainWithFallback(shuffleId) &&
+          isLatestShuffleGeneration(shuffleId)) {
+          logError(s"Spark accepted a map attempt of shuffle $shuffleId that never reported " +
+            s"MapperEnd, marking the shuffle data as lost.")
+          commitManager.markStageDataLost(shuffleId)
+        }
         // try call stage end
         handleStageEnd(shuffleId)
         // wait stage end
@@ -1891,6 +1894,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         latestPartitionLocation.remove(shuffleId)
         commitManager.removeExpiredShuffle(shuffleId)
         changePartitionManager.removeExpiredShuffle(shuffleId)
+        if (mapperEndConfirmerStarted) {
+          mapperEndConfirmer.remove(shuffleId)
+        }
         invalidatedBroadcastGetReducerFileGroupResponse(shuffleId)
       }
     }
@@ -2254,6 +2260,68 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     shuffleAssignmentListener = Some(listener)
   }
 
+  // Expecting app shuffle id, returning the task attempt id Spark registered for each map index
+  // (-1 where none), or null if Spark doesn't know the shuffle.
+  @volatile private var mapTaskIdResolver: Option[JFunction[Integer, Array[Long]]] = None
+  def registerMapTaskIdResolver(resolver: JFunction[Integer, Array[Long]]): Unit = {
+    mapTaskIdResolver = Some(resolver)
+  }
+
+  private def mapperEndConfirmationActive: Boolean =
+    conf.clientMapperEndConfirmationEnabled && mapTaskIdResolver.isDefined
+
+  @volatile private var mapperEndConfirmerStarted = false
+  private lazy val mapperEndConfirmer: MapperEndConfirmer = {
+    val confirmer = new MapperEndConfirmer(
+      conf.clientMapperEndConfirmationInterval,
+      resolveRegisteredMapTaskIds,
+      endedMapperAttempt,
+      commitManager.isStageEndOrInProcess,
+      (_, pending) => confirmMapperEnd(pending.request))
+    confirmer.start()
+    mapperEndConfirmerStarted = true
+    confirmer
+  }
+
+  private def appShuffleIdOf(shuffleId: Int): Option[Int] = {
+    if (conf.clientStageRerunEnabled) {
+      // Celeborn shuffle ids are generated per stage attempt and mapped back to Spark's id.
+      if (celebornShuffleIdToAppShuffleIdMap.containsKey(shuffleId)) {
+        Some(celebornShuffleIdToAppShuffleIdMap.get(shuffleId))
+      } else {
+        None
+      }
+    } else {
+      Some(shuffleId)
+    }
+  }
+
+  private def resolveRegisteredMapTaskIds(shuffleId: Int): Option[Array[Long]] = {
+    for {
+      resolver <- mapTaskIdResolver
+      appShuffleId <- appShuffleIdOf(shuffleId)
+      taskIds <- Option(resolver.apply(appShuffleId))
+    } yield taskIds
+  }
+
+  private def endedMapperAttempt(shuffleId: Int, mapId: Int): Int = {
+    val attempts = commitManager.getMapperAttempts(shuffleId)
+    if (attempts == null || mapId >= attempts.length) -1 else attempts(mapId)
+  }
+
+  // With stage rerun, older Celeborn shuffle ids of the same app shuffle are no longer read, and
+  // Spark's map statuses belong to the newest one.
+  private def isLatestShuffleGeneration(shuffleId: Int): Boolean = {
+    appShuffleIdOf(shuffleId) match {
+      case Some(appShuffleId) if conf.clientStageRerunEnabled =>
+        val shuffleIds = shuffleIdMapping.get(appShuffleId)
+        shuffleIds == null || shuffleIds.synchronized {
+          shuffleIds.isEmpty || shuffleIds.values.last._1 == shuffleId
+        }
+      case _ => true
+    }
+  }
+
   // Initialize at the end of LifecycleManager construction.
   initialize()
 
@@ -2263,6 +2331,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   override def stop(): Unit = {
     heartbeater.stop()
     clientSource.foreach(_.stop())
+    if (mapperEndConfirmerStarted) {
+      mapperEndConfirmer.stop()
+    }
     super.stop()
   }
 

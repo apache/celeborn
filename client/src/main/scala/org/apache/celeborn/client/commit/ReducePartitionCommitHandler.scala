@@ -163,6 +163,10 @@ class ReducePartitionCommitHandler(
     false
   }
 
+  override def markStageDataLost(shuffleId: Int): Unit = {
+    dataLostShuffleSet.add(shuffleId)
+  }
+
   override def isPartitionInProcess(shuffleId: Int, partitionId: Int): Boolean = {
     isStageEndOrInProcess(shuffleId)
   }

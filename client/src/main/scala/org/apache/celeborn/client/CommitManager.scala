@@ -222,6 +222,10 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
     getCommitHandler(shuffleId).areAllMapperAttemptsFinished(shuffleId)
   }
 
+  def markStageDataLost(shuffleId: Int): Unit = {
+    getCommitHandler(shuffleId).markStageDataLost(shuffleId)
+  }
+
   def finishMapperAttempt(
       shuffleId: Int,
       mapId: Int,

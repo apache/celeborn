@@ -1057,6 +1057,8 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
 
   def clientFetchMaxRetriesForEachReplica: Int = get(CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA)
   def clientStageRerunEnabled: Boolean = get(CLIENT_STAGE_RERUN_ENABLED)
+  def clientMapperEndConfirmationEnabled: Boolean = get(CLIENT_MAPPER_END_CONFIRMATION_ENABLED)
+  def clientMapperEndConfirmationInterval: Long = get(CLIENT_MAPPER_END_CONFIRMATION_INTERVAL)
   def clientFetchCleanFailedShuffle: Boolean = get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE)
   def clientFetchCleanFailedShuffleIntervalMS: Long =
     get(CLIENT_FETCH_CLEAN_FAILED_SHUFFLE_INTERVAL)
@@ -5416,6 +5418,25 @@ object CelebornConf extends Logging {
       .doc("Whether to enable stage rerun. If true, client throws FetchFailedException instead of CelebornIOException.")
       .booleanConf
       .createWithDefault(true)
+
+  val CLIENT_MAPPER_END_CONFIRMATION_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.client.spark.shuffle.mapperEndConfirmation.enabled")
+      .categories("client")
+      .version("1.0.0")
+      .doc("When true, a MapperEnd is only counted once Spark's MapOutputTracker has registered " +
+        "the same task attempt, so attempts that Spark considers failed (for example on " +
+        "preempted executors) are never read by reducers. Only takes effect for Spark 3.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CLIENT_MAPPER_END_CONFIRMATION_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.client.spark.shuffle.mapperEndConfirmation.interval")
+      .categories("client")
+      .version("1.0.0")
+      .doc("Interval at which pending MapperEnds are checked against Spark's MapOutputTracker, " +
+        s"when ${CLIENT_MAPPER_END_CONFIRMATION_ENABLED.key} is true.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
 
   val CLIENT_FETCH_CLEAN_FAILED_SHUFFLE: ConfigEntry[Boolean] =
     buildConf("celeborn.client.spark.fetch.cleanFailedShuffle")
