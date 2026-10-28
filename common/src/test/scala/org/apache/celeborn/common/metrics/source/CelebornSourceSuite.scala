@@ -99,6 +99,28 @@ class CelebornSourceSuite extends CelebornFunSuite {
     }
   }
 
+  test("test histogram with customized label") {
+    val conf = new CelebornConf()
+    val mockSource = new AbstractSource(conf, Role.WORKER) {
+      override def sourceName: String = "mockSource"
+    }
+    val histogram = "PartitionFileSize"
+    val disk1 = Map("disk" -> "disk1")
+    val disk2 = Map("disk" -> "disk2")
+    mockSource.addHistogram(histogram, disk1)
+    mockSource.addHistogram(histogram, disk2)
+    mockSource.updateHistogram(histogram, disk1, 10)
+    mockSource.updateHistogram(histogram, disk2, 100)
+
+    val res = mockSource.getMetrics
+    val maxPerDisk = """metrics_PartitionFileSize_Max\{disk="(disk\d)".*\} (\d+)""".r
+      .findAllMatchIn(res).map(m => m.group(1) -> m.group(2).toLong).toMap
+    // each labeled histogram owns its own reservoir instead of sharing a single one
+    assert(maxPerDisk("disk1") == 10)
+    assert(maxPerDisk("disk2") == 100)
+    assert(mockSource.getAllMetricsNum == 2)
+  }
+
   test("test getMetrics with customized label") {
     val conf = new CelebornConf()
     createAbstractSourceAndCheck(conf, "", Role.MASTER)
