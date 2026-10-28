@@ -19,6 +19,8 @@ package org.apache.celeborn.common.metrics.source
 
 import java.util.concurrent.{CyclicBarrier, TimeUnit}
 
+import scala.collection.JavaConverters._
+
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 
@@ -60,6 +62,9 @@ class CelebornSourceSuite extends CelebornFunSuite {
     }
     val histogram = "abc"
     mockSource.addHistogram(histogram)
+    // a histogram without customized labels stays exposed under the bare name in the
+    // Dropwizard registry, so CsvSink/JmxSink keep finding it under its historical name
+    assert(mockSource.metricRegistry.getMetrics.containsKey(histogram))
     for (i <- 1 to 100) {
       mockSource.updateHistogram(histogram, 10)
     }
@@ -97,6 +102,32 @@ class CelebornSourceSuite extends CelebornFunSuite {
       }
       assert(error.getMessage.contains(CelebornConf.METRICS_PREFIX.key))
     }
+  }
+
+  test("test histogram with customized label") {
+    val conf = new CelebornConf()
+    val mockSource = new AbstractSource(conf, Role.WORKER) {
+      override def sourceName: String = "mockSource"
+    }
+    val histogram = "PartitionFileSize"
+    val disk1 = Map("disk" -> "disk1")
+    val disk2 = Map("disk" -> "disk2")
+    mockSource.addHistogram(histogram, disk1)
+    mockSource.addHistogram(histogram, disk2)
+    mockSource.updateHistogram(histogram, disk1, 10)
+    mockSource.updateHistogram(histogram, disk2, 100)
+
+    val res = mockSource.getMetrics
+    val maxPerDisk = """metrics_PartitionFileSize_Max\{disk="(disk\d)".*\} (\d+)""".r
+      .findAllMatchIn(res).map(m => m.group(1) -> m.group(2).toLong).toMap
+    // each labeled histogram owns its own reservoir instead of sharing a single one
+    assert(maxPerDisk("disk1") == 10)
+    assert(maxPerDisk("disk2") == 100)
+    assert(mockSource.getAllMetricsNum == 2)
+    // labeled variants register under the label-aware key in the Dropwizard registry
+    val registryKeys = mockSource.metricRegistry.getMetrics.keySet.asScala
+    assert(registryKeys.exists(k => k.startsWith(histogram) && k.contains("""disk="disk1"""")))
+    assert(registryKeys.exists(k => k.startsWith(histogram) && k.contains("""disk="disk2"""")))
   }
 
   test("test getMetrics with customized label") {
