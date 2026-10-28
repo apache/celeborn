@@ -97,6 +97,19 @@ license: |
 | celeborn.quota.tenant.enabled | true | false | Whether to enable tenant-level quota. | 0.6.0 |  | 
 | celeborn.quota.user.enabled | true | false | Whether to enable user-level quota. | 0.6.0 |  | 
 | celeborn.redaction.regex | (?i)secret|password|token|access[.]key | false | Regex to decide which Celeborn configuration properties and environment variables in master and worker environments contain sensitive information. When this regex matches a property key or value, the value is redacted from the logging. | 0.5.0 |  | 
+| celeborn.scale.down.directMemory.ratio | 0.3 | true | Average Netty memory used ratio below which to consider scale-down. Must be below the scale-up ratio; also used to estimate the required worker count. | 1.0.0 |  | 
+| celeborn.scale.down.diskSpace.ratio | 0.3 | true | Average allocatable disk used ratio below which to consider scale-down. Must be below the scale-up ratio; also used to estimate the required worker count. | 1.0.0 |  | 
+| celeborn.scale.down.policy.percent | 0.1 | true | Scale-down budget as a fraction of the total current worker count, rounded down. Combined with the fixed budget and the estimated difference using the minimum. | 1.0.0 |  | 
+| celeborn.scale.down.policy.step.number | 5 | true | Maximum fixed scale-down budget. The policy uses the smallest of this value, the percentage budget, and the estimated difference, with at least one worker if needed. | 1.0.0 |  | 
+| celeborn.scale.down.systemLoad.ratio | 0.3 | true | Average normalized system load below which to consider scale-down. Must be below the scale-up ratio; also used to estimate the required worker count. | 1.0.0 |  | 
+| celeborn.scale.up.directMemory.ratio | 0.5 | true | Average Netty memory used ratio above which to consider scale-up. Also divides the sum of worker ratios to estimate the required worker count. | 1.0.0 |  | 
+| celeborn.scale.up.diskSpace.ratio | 0.5 | true | Average allocatable disk used ratio above which to consider scale-up. Also used to estimate the required worker count. | 1.0.0 |  | 
+| celeborn.scale.up.policy.percent | 0.1 | true | Scale-up budget as a fraction of the normal worker count, rounded down. Combined with the fixed budget and the three-worker minimum budget using the maximum. | 1.0.0 |  | 
+| celeborn.scale.up.policy.step.number | 5 | true | Fixed scale-up budget. The policy uses the largest of this value, three workers, and the scale-up percentage budget, capped by the estimated difference. | 1.0.0 |  | 
+| celeborn.scale.up.systemLoad.ratio | 0.5 | true | Average last-minute system load divided by processor count above which to consider scale-up. Also used to estimate the required worker count; values above one are allowed. | 1.0.0 |  | 
+| celeborn.scale.workerNumber.max | 2000 | true | Maximum worker count used for demand estimates and exclusion compensation. An existing target above this limit converges through the scale-down step budget. | 1.0.0 |  | 
+| celeborn.scale.workerNumber.min | 10 | true | Minimum worker count used for scale-down. Active alignment below this minimum is controlled by celeborn.scale.workerNumber.min.alignEnabled. Excluded workers increase the minimum for the corresponding decision branch. | 1.0.0 |  | 
+| celeborn.scale.workerNumber.min.alignEnabled | false | true | Whether to actively align a platform target below the minimum worker count. When enabled, minimum alignment can exceed the scale-up step budget. | 1.0.0 |  | 
 | celeborn.storage.availableTypes | HDD | false | Enabled storages. Available options: MEMORY,HDD,SSD,HDFS,S3,OSS. Note: HDD and SSD would be treated as identical. | 0.3.0 | celeborn.storage.activeTypes | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | false | HDFS base directory for Celeborn to store shuffle data. | 0.2.0 |  | 
 | celeborn.storage.hdfs.kerberos.keytab | &lt;undefined&gt; | false | Kerberos keytab file path for HDFS storage connection. | 0.3.2 |  | 
