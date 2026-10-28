@@ -111,6 +111,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     Int,
     scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)]]()
   private val celebornShuffleIdToAppShuffleIdMap = JavaUtils.newConcurrentHashMap[Int, Int]()
+  // Partial-read integrity failures must survive physical shuffle generations. Spark can retain
+  // successful sibling task results when rerunning a stage, including results from corrupt data.
+  private val failedIntegrityShuffles = JavaUtils.newConcurrentHashMap[Int, String]()
   private val shuffleIdGenerator = new AtomicInteger(0)
   // app shuffle id -> whether shuffle is determinate, rerun of a indeterminate shuffle gets different result
   private val appShuffleDeterminateMap = JavaUtils.newConcurrentHashMap[Int, Boolean]();
@@ -580,12 +583,20 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       endMapIndex: Int,
       crc32: Int,
       bytesWritten: Long): Unit = {
-    val (isValid, errorMessage) = commitManager.finishPartition(
-      shuffleId,
-      partitionId,
-      startMapIndex,
-      endMapIndex,
-      new CommitMetadata(crc32, bytesWritten))
+    val (isValid, errorMessage) = integrityFailureForShuffle(shuffleId) match {
+      case Some(error) => (false, error)
+      case None =>
+        val result = commitManager.finishPartition(
+          shuffleId,
+          partitionId,
+          startMapIndex,
+          endMapIndex,
+          new CommitMetadata(crc32, bytesWritten))
+        if (!result._1 && endMapIndex != Integer.MAX_VALUE) {
+          failedIntegrityShuffles.putIfAbsent(shuffleId, result._2)
+        }
+        result
+    }
     var response: PbReadReducerPartitionEndResponse = null
     if (isValid) {
       response =
@@ -596,6 +607,38 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         StatusCode.READ_REDUCER_PARTITION_END_FAILED.getValue).setErrorMsg(errorMessage).build()
     }
     context.reply(response)
+  }
+
+  private def integrityFailure(
+      shuffleIds: mutable.LinkedHashMap[String, (Int, Boolean)]): Option[String] = {
+    // Healthy applications do not scan shuffle mappings or allocate failure state per task.
+    if (failedIntegrityShuffles.isEmpty) {
+      None
+    } else {
+      shuffleIds.synchronized {
+        shuffleIds.valuesIterator
+          .map { case (shuffleId, _) => failedIntegrityShuffles.get(shuffleId) }
+          .find(_ != null)
+      }
+    }
+  }
+
+  private def integrityFailureForShuffle(shuffleId: Int): Option[String] = {
+    if (failedIntegrityShuffles.isEmpty) {
+      None
+    } else {
+      Option(failedIntegrityShuffles.get(shuffleId)).orElse {
+        shuffleIdMapping.values().asScala.flatMap { shuffleIds =>
+          shuffleIds.synchronized {
+            if (shuffleIds.valuesIterator.exists(_._1 == shuffleId)) {
+              integrityFailure(shuffleIds)
+            } else {
+              None
+            }
+          }
+        }.take(1).toList.headOption
+      }
+    }
   }
 
   def setupEndpoints(
@@ -1084,6 +1127,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
 
     shuffleIds.synchronized {
+      if (integrityFailure(shuffleIds).isDefined) {
+        context.reply(PbGetShuffleIdResponse.newBuilder()
+          .setShuffleId(UNKNOWN_APP_SHUFFLE_ID)
+          .setSuccess(false)
+          .build())
+        return
+      }
       if (isWriter) {
         shuffleIds.get(appShuffleIdentifier) match {
           case Some((shuffleId, _)) =>
@@ -1168,6 +1218,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
     var ret = true
     shuffleIds.synchronized {
+      if (integrityFailure(shuffleIds).isDefined) {
+        // A FetchFailed would allow Spark to keep results from corrupt sibling tasks.
+        // Return false so the reader surfaces the validation error as a task failure.
+        context.reply(PbReportShuffleFetchFailureResponse.newBuilder()
+          .setSuccess(false)
+          .build())
+        return
+      }
       shuffleIds.find(e => e._2._1 == shuffleId) match {
         case Some((appShuffleIdentifier, (shuffleId, true))) =>
           if (invokeReportTaskShuffleFetchFailurePreCheck(taskId)) {
@@ -1354,11 +1412,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           shuffleIds.values.map {
             case (shuffleId, _) =>
               unregisterShuffle(shuffleId)
+              failedIntegrityShuffles.remove(shuffleId)
               unregisterShuffleCallback.foreach(c => c.accept(shuffleId))
           })
       }
     } else {
       unregisterShuffle(appShuffleId)
+      failedIntegrityShuffles.remove(appShuffleId)
     }
   }
 
