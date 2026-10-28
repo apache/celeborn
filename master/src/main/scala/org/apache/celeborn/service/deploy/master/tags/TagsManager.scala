@@ -34,6 +34,25 @@ import org.apache.celeborn.server.common.service.config.ConfigService
 class TagsManager(configService: Option[ConfigService]) extends Logging {
   private val defaultTagStore = JavaUtils.newConcurrentHashMap[String, JSet[String]]()
 
+  /**
+   * The tag store built from [[ConfigService]], together with the tags map it was built from.
+   * The store is a defensive copy of the config service's tags map. It is only rebuilt when
+   * the source map changes, rather than on every tag lookup. The snapshot is invalidated when
+   * the config service publishes a new tags map (detected by comparing the source map), or
+   * when a config update is notified, which also covers config services that update their
+   * tags map in place.
+   */
+  private class TagStoreSnapshot(
+      val source: util.Map[String, JSet[String]],
+      val store: ConcurrentHashMap[String, JSet[String]])
+
+  @volatile private var tagStoreSnapshot: TagStoreSnapshot = _
+
+  configService.foreach(
+    _.registerListenerOnConfigUpdate(new Runnable {
+      override def run(): Unit = tagStoreSnapshot = null
+    }))
+
   private val addNewTagFunc =
     new util.function.Function[String, ConcurrentHashMap.KeySetView[String, java.lang.Boolean]]() {
       override def apply(t: String): ConcurrentHashMap.KeySetView[String, java.lang.Boolean] =
@@ -43,8 +62,17 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
   private def getTagStore: ConcurrentHashMap[String, JSet[String]] = {
     configService match {
       case Some(cs) =>
-        // TODO: Make configStore.getTags return ConcurrentMap
-        JavaUtils.newConcurrentHashMap(cs.getSystemConfigFromCache.getTags)
+        val tags = cs.getSystemConfigFromCache.getTags
+        val snapshot = tagStoreSnapshot
+        if (snapshot != null && (snapshot.source eq tags)) {
+          snapshot.store
+        } else {
+          val store: ConcurrentHashMap[String, JSet[String]] =
+            if (tags == null) JavaUtils.newConcurrentHashMap()
+            else JavaUtils.newConcurrentHashMap(tags)
+          tagStoreSnapshot = new TagStoreSnapshot(tags, store)
+          store
+        }
       case _ =>
         defaultTagStore
     }
@@ -72,9 +100,11 @@ class TagsManager(configService: Option[ConfigService]) extends Logging {
 
     val tags = tagsExpr.split(",").map(_.trim)
 
+    val tagStore = getTagStore
+
     var workersForTags: Option[JSet[String]] = None
     tags.foreach { tag =>
-      val taggedWorkers = getTagStore.getOrDefault(tag, Collections.emptySet())
+      val taggedWorkers = tagStore.getOrDefault(tag, Collections.emptySet())
       workersForTags match {
         case Some(w) =>
           w.retainAll(taggedWorkers)
