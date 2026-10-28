@@ -6338,6 +6338,153 @@ object CelebornConf extends Logging {
       .checkValue(_ > 0, "Worker metric window size must be positive")
       .createWithDefault(6)
 
+  val SCALE_WORKER_NUMBER_MIN: ConfigEntry[Int] =
+    buildConf("celeborn.scale.workerNumber.min")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Minimum worker count used for scale-down. Active alignment below this minimum " +
+        "is controlled by celeborn.scale.workerNumber.min.alignEnabled. " +
+        "Excluded workers increase the minimum for the corresponding decision branch.")
+      .intConf
+      .checkValue(_ > 0, "Minimum worker count must be positive")
+      .createWithDefault(10)
+
+  val SCALE_WORKER_NUMBER_MAX: ConfigEntry[Int] =
+    buildConf("celeborn.scale.workerNumber.max")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Maximum worker count used for demand estimates and exclusion compensation. " +
+        "An existing target above this limit converges through the scale-down step budget.")
+      .intConf
+      .checkValue(_ > 0, "Maximum worker count must be positive")
+      .createWithDefault(2000)
+
+  val SCALE_WORKER_NUMBER_MIN_ALIGN_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.scale.workerNumber.min.alignEnabled")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Whether to actively align a platform target below the minimum worker count. " +
+        "When enabled, minimum alignment can exceed the scale-up step budget.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val SCALE_UP_MEMORY_RATIO: ConfigEntry[Double] =
+    buildConf("celeborn.scale.up.directMemory.ratio")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Average Netty memory used ratio above which to consider scale-up. " +
+        "Also divides the sum of worker ratios to estimate the required worker count.")
+      .doubleConf
+      .checkValue(v => v > 0 && v <= 1, "Scale-up memory ratio must be in (0, 1]")
+      .createWithDefault(0.5)
+
+  val SCALE_DOWN_MEMORY_RATIO: ConfigEntry[Double] =
+    buildConf("celeborn.scale.down.directMemory.ratio")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Average Netty memory used ratio below which to consider scale-down. " +
+        "Must be below the scale-up ratio; also used to estimate the required worker count.")
+      .doubleConf
+      .checkValue(v => v > 0 && v <= 1, "Scale-down memory ratio must be in (0, 1]")
+      .createWithDefault(0.3)
+
+  val SCALE_UP_SYSTEM_LOAD_RATIO: ConfigEntry[Double] =
+    buildConf("celeborn.scale.up.systemLoad.ratio")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Average last-minute system load divided by processor count above which to consider " +
+        "scale-up. Also used to estimate the required worker count; values above one are allowed.")
+      .doubleConf
+      .checkValue(
+        v => v > 0 && !v.isInfinity,
+        "Scale-up system load ratio must be finite and positive")
+      .createWithDefault(0.5)
+
+  val SCALE_DOWN_SYSTEM_LOAD_RATIO: ConfigEntry[Double] =
+    buildConf("celeborn.scale.down.systemLoad.ratio")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Average normalized system load below which to consider scale-down. " +
+        "Must be below the scale-up ratio; also used to estimate the required worker count.")
+      .doubleConf
+      .checkValue(
+        v => v > 0 && !v.isInfinity,
+        "Scale-down system load ratio must be finite and positive")
+      .createWithDefault(0.3)
+
+  val SCALE_UP_DISK_RATIO: ConfigEntry[Double] =
+    buildConf("celeborn.scale.up.diskSpace.ratio")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Average allocatable disk used ratio above which to consider scale-up. " +
+        "Also used to estimate the required worker count.")
+      .doubleConf
+      .checkValue(v => v > 0 && v <= 1, "Scale-up disk ratio must be in (0, 1]")
+      .createWithDefault(0.5)
+
+  val SCALE_DOWN_DISK_RATIO: ConfigEntry[Double] =
+    buildConf("celeborn.scale.down.diskSpace.ratio")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Average allocatable disk used ratio below which to consider scale-down. " +
+        "Must be below the scale-up ratio; also used to estimate the required worker count.")
+      .doubleConf
+      .checkValue(v => v > 0 && v <= 1, "Scale-down disk ratio must be in (0, 1]")
+      .createWithDefault(0.3)
+
+  val SCALE_UP_POLICY_STEP_NUMBER: ConfigEntry[Int] =
+    buildConf("celeborn.scale.up.policy.step.number")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Fixed scale-up budget. The policy uses the largest of this value, three workers, " +
+        "and the scale-up percentage budget, capped by the estimated difference.")
+      .intConf
+      .checkValue(_ > 0, "Scale-up step number must be positive")
+      .createWithDefault(5)
+
+  val SCALE_DOWN_POLICY_STEP_NUMBER: ConfigEntry[Int] =
+    buildConf("celeborn.scale.down.policy.step.number")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Maximum fixed scale-down budget. The policy uses the smallest of this value, " +
+        "the percentage budget, and the estimated difference, with at least one worker if needed.")
+      .intConf
+      .checkValue(_ > 0, "Scale-down step number must be positive")
+      .createWithDefault(5)
+
+  val SCALE_UP_POLICY_PERCENT: ConfigEntry[Double] =
+    buildConf("celeborn.scale.up.policy.percent")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Scale-up budget as a fraction of the normal worker count, rounded down. " +
+        "Combined with the fixed budget and the three-worker minimum budget using the maximum.")
+      .doubleConf
+      .checkValue(v => v > 0 && v <= 1, "Scale-up percent must be in (0, 1]")
+      .createWithDefault(0.1)
+
+  val SCALE_DOWN_POLICY_PERCENT: ConfigEntry[Double] =
+    buildConf("celeborn.scale.down.policy.percent")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Scale-down budget as a fraction of the total current worker count, rounded down. " +
+        "Combined with the fixed budget and the estimated difference using the minimum.")
+      .doubleConf
+      .checkValue(v => v > 0 && v <= 1, "Scale-down percent must be in (0, 1]")
+      .createWithDefault(0.1)
+
   val IDENTITY_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.identity.provider")
       .withAlternative("celeborn.quota.identity.provider")
