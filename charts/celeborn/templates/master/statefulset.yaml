@@ -54,8 +54,13 @@ spec:
       {{- end }}
       {{- end }}
       {{- end }}
-      {{- if $paths }}
+      {{- if or .Values.master.extraInitContainers $paths }}
       initContainers:
+      {{- end }}
+      {{- with .Values.master.extraInitContainers }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- if $paths }}
       - name: chown-celeborn-master-volume
         image: {{ include "celeborn.image" . }}
         {{- with .Values.image.pullPolicy }}
