@@ -204,7 +204,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
    * the Celeborn Spark UI. The values are cumulative since this LifecycleManager started.
    */
   def rpcMetricsSnapshot(): Option[RpcMetricsSnapshot] =
-    Option(rpcEnv).flatMap(_.rpcMetricsSnapshot(RpcNameConstants.LIFECYCLE_MANAGER_EP))
+    rpcEnv.rpcMetricsSnapshot(RpcNameConstants.LIFECYCLE_MANAGER_EP)
 
   private var masterRpcEnvInUse = rpcEnv
   private var workerRpcEnvInUse = rpcEnv

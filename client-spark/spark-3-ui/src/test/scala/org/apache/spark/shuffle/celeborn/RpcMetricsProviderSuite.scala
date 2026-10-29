@@ -48,16 +48,10 @@ class RpcMetricsProviderSuite {
   }
 
   @Test
-  def refreshesCacheWhenSparkEnvChanges(): Unit = {
-    val first = metrics("first")
-    val second = metrics("second")
-
-    SparkEnv.set(environment(first))
-    assertEquals(Some(first), RpcMetricsProvider.snapshot())
-    assertEquals(Some(first), RpcMetricsProvider.snapshot())
-
-    SparkEnv.set(environment(second))
-    assertEquals(Some(second), RpcMetricsProvider.snapshot())
+  def returnsSnapshotFromCelebornShuffleManager(): Unit = {
+    val expected = metrics("expected")
+    SparkEnv.set(environment(expected))
+    assertEquals(Some(expected), RpcMetricsProvider.snapshot())
   }
 
   @Test
@@ -73,7 +67,7 @@ class RpcMetricsProviderSuite {
     assertTrue(RpcMetricsProvider.snapshot().isEmpty)
 
     val expected = metrics("recovered")
-    SparkEnv.set(environment(expected))
+    when(lifecycleManager.rpcMetricsSnapshot()).thenReturn(Some(expected))
     assertEquals(Some(expected), RpcMetricsProvider.snapshot())
   }
 

@@ -373,7 +373,8 @@ class NettyRpcEnv(
 
   override def rpcSource(): RpcSource = _rpcSource
 
-  override def rpcMetricsSnapshot(endpointName: String): Option[RpcMetricsSnapshot] =
+  override private[celeborn] def rpcMetricsSnapshot(
+      endpointName: String): Option[RpcMetricsSnapshot] =
     dispatcher.endpointRpcMetrics(endpointName)
 }
 
