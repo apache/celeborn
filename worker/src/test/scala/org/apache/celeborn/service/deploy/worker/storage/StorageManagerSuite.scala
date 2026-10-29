@@ -61,7 +61,10 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
     val conf = new CelebornConf()
     val storageManager = new StorageManager(conf, new WorkerSource(conf))
     val fileInfo =
-      new MemoryFileInfo(UserIdentifier("tenant", "user"), false, new ReduceFileMeta(8 * 1024 * 1024))
+      new MemoryFileInfo(
+        UserIdentifier("tenant", "user"),
+        false,
+        new ReduceFileMeta(8 * 1024 * 1024))
     storageManager.memoryFileInfos
       .computeIfAbsent("app-1-0", _ => JavaUtils.newConcurrentHashMap[String, MemoryFileInfo]())
       .put("0-0-0", fileInfo)
