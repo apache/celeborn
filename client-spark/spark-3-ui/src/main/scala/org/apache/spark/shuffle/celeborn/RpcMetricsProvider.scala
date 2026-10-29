@@ -17,9 +17,10 @@
 
 package org.apache.spark.shuffle.celeborn
 
-import scala.util.Try
+import scala.util.control.NonFatal
 
 import org.apache.spark.SparkEnv
+import org.apache.spark.internal.Logging
 
 import org.apache.celeborn.client.LifecycleManager
 import org.apache.celeborn.common.rpc.RpcMetricsSnapshot
@@ -31,23 +32,44 @@ import org.apache.celeborn.common.rpc.RpcMetricsSnapshot
  * looked up lazily instead of being captured when the plugin initializes. Snapshots are cached
  * for a short while because taking one sorts every histogram reservoir.
  */
-private[celeborn] object RpcMetricsProvider {
+private[celeborn] object RpcMetricsProvider extends Logging {
 
   private val cacheTtlMs = 1000L
 
   @volatile private var cached: Option[RpcMetricsSnapshot] = None
   @volatile private var cachedAt = 0L
+  @volatile private var cachedEnv: SparkEnv = _
+
+  // Accessed only while synchronized on this object. Log once per consecutive failure streak.
+  private var failureLogged = false
 
   def snapshot(): Option[RpcMetricsSnapshot] = {
+    val env = SparkEnv.get
     val now = System.currentTimeMillis()
-    if (now - cachedAt < cacheTtlMs) {
+    if (cacheValid(env, now)) {
       cached
     } else {
       synchronized {
-        if (now - cachedAt < cacheTtlMs) {
+        val currentEnv = SparkEnv.get
+        val currentTime = System.currentTimeMillis()
+        if (cacheValid(currentEnv, currentTime)) {
           cached
         } else {
-          cached = Try(lifecycleManager().flatMap(_.rpcMetricsSnapshot())).getOrElse(None)
+          if (!(currentEnv eq cachedEnv)) {
+            failureLogged = false
+          }
+          try {
+            cached = lifecycleManager(currentEnv).flatMap(_.rpcMetricsSnapshot())
+            failureLogged = false
+          } catch {
+            case NonFatal(e) =>
+              cached = None
+              if (!failureLogged) {
+                logWarning("Failed to collect LifecycleManager RPC metrics", e)
+              }
+              failureLogged = true
+          }
+          cachedEnv = currentEnv
           cachedAt = System.currentTimeMillis()
           cached
         }
@@ -55,24 +77,29 @@ private[celeborn] object RpcMetricsProvider {
     }
   }
 
-  private def lifecycleManager(): Option[LifecycleManager] = {
-    val env = SparkEnv.get
+  private def cacheValid(env: SparkEnv, now: Long): Boolean =
+    (env eq cachedEnv) && now - cachedAt < cacheTtlMs
+
+  private def lifecycleManager(env: SparkEnv): Option[LifecycleManager] = {
     if (env == null) {
       return None
     }
     env.shuffleManager match {
+      case null => None
       case sm: SparkShuffleManager => Option(sm.getLifecycleManager())
       // Integrations such as Gluten or Auron bring their own ShuffleManager. Use their
       // LifecycleManager accessor when they expose one with the same signature.
       case other =>
-        Try {
+        try {
           val method = other.getClass.getMethod("getLifecycleManager")
           if (classOf[LifecycleManager].isAssignableFrom(method.getReturnType)) {
             Option(method.invoke(other).asInstanceOf[LifecycleManager])
           } else {
             None
           }
-        }.getOrElse(None)
+        } catch {
+          case _: NoSuchMethodException => None
+        }
     }
   }
 }

@@ -18,7 +18,7 @@
 package org.apache.spark.shuffle.celeborn.ui
 
 import java.text.SimpleDateFormat
-import java.util.Date
+import java.util.{Date, Locale}
 
 import scala.xml.Node
 
@@ -63,7 +63,8 @@ private[celeborn] object CelebornRpcMetricsSection {
   private def summaryLine(methods: Seq[RpcMethodMetrics]): Seq[Node] = {
     val slowest = methods.maxBy(_.p99)
     val totalCalls = methods.map(_.count).sum
-    val text = methods.size + " types / " + formatCount(totalCalls) + " calls, slowest P99 " +
+    val text = methods.size + " types / " + formatCount(totalCalls) +
+      " calls, slowest processing P99 " +
       displayName(slowest.name) + " " + formatMs(slowest.p99) + " ms"
     <li>
       <strong>LifecycleManager RPC: </strong>{text}
@@ -94,7 +95,8 @@ private[celeborn] object CelebornRpcMetricsSection {
         <li>
           <strong>Note: </strong>
           Times are in milliseconds and are cumulative since the LifecycleManager started;
-          the histograms are never reset.
+          the histograms are never reset. Per-method times include processing only and exclude
+          queueing, network, and client wait time.
         </li>
       </ul>
 
@@ -122,11 +124,11 @@ private[celeborn] object CelebornRpcMetricsSection {
       <div class={s"$sectionId collapsible-table collapsed"}>
         {summary}
         <h4>
-          <strong>Aggregate latency</strong>
+          <strong>Aggregate queue/process time</strong>
         </h4>
         {aggregateTable}
         <h4>
-          <strong>Per RPC method (sorted by P99 desc)</strong>
+          <strong>Per RPC method processing time (sorted by P99 desc)</strong>
         </h4>
         {methodTable}
       </div>
@@ -149,10 +151,12 @@ private[celeborn] object CelebornRpcMetricsSection {
   /** Histogram keys are JVM class names or protobuf full names; only show the simple name. */
   def displayName(rawName: String): String = rawName.split('.').last.split('$').last
 
-  def formatMs(nanos: Double): String = f"${nanos / 1000000.0}%.2f"
+  def formatMs(nanos: Double): String =
+    String.format(Locale.ROOT, "%.2f", Double.box(nanos / 1000000.0))
 
-  def formatCount(count: Long): String = "%,d".format(count)
+  def formatCount(count: Long): String =
+    String.format(Locale.ROOT, "%,d", Long.box(count))
 
   def formatTimestamp(timestamp: Long): String =
-    new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(timestamp))
+    new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ROOT).format(new Date(timestamp))
 }

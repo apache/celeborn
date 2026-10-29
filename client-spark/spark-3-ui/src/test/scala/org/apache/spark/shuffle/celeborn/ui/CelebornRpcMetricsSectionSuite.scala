@@ -17,6 +17,8 @@
 
 package org.apache.spark.shuffle.celeborn.ui
 
+import java.util.Locale
+
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,10 +43,16 @@ class CelebornRpcMetricsSectionSuite {
   }
 
   @Test
-  def formatsTimesAndCounts(): Unit = {
-    assertEquals("1.50", CelebornRpcMetricsSection.formatMs(1500000.0))
-    assertEquals("0.00", CelebornRpcMetricsSection.formatMs(0.0))
-    assertEquals("12,345", CelebornRpcMetricsSection.formatCount(12345L))
+  def formatsTimesAndCountsIndependentOfDefaultLocale(): Unit = {
+    val previous = Locale.getDefault
+    try {
+      Locale.setDefault(Locale.GERMANY)
+      assertEquals("1.50", CelebornRpcMetricsSection.formatMs(1500000.0))
+      assertEquals("0.00", CelebornRpcMetricsSection.formatMs(0.0))
+      assertEquals("12,345", CelebornRpcMetricsSection.formatCount(12345L))
+    } finally {
+      Locale.setDefault(previous)
+    }
   }
 
   @Test
@@ -98,11 +106,14 @@ class CelebornRpcMetricsSectionSuite {
     val (summary, section) = CelebornRpcMetricsSection.render(Some(snapshot))
     val summaryText = summary.map(_.toString).mkString
     assertTrue(summaryText.contains("2 types / 3 calls"))
-    assertTrue(summaryText.contains("Revive 3.00 ms"))
+    assertTrue(summaryText.contains("slowest processing P99 Revive 3.00 ms"))
 
     val sectionText = section.map(_.toString).mkString
     assertTrue(sectionText.contains("LifecycleManager RPC Metrics"))
     assertTrue(sectionText.contains("aggregated-celebornRpcMetrics"))
-    assertTrue(sectionText.contains("MapperEnd"))
+    assertTrue(sectionText.contains("Aggregate queue/process time"))
+    assertTrue(sectionText.contains("Per RPC method processing time (sorted by P99 desc)"))
+    assertTrue(sectionText.contains("queueing, network, and client wait time"))
+    assertTrue(sectionText.indexOf("Revive") < sectionText.indexOf("MapperEnd"))
   }
 }
