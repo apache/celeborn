@@ -41,3 +41,5 @@ Once enabled, the Spark Web UI shows a **Celeborn** tab with a shuffle summary p
 ## Spark History Server
 
 The plugin also works with the Spark History Server. `CelebornHistoryServerPlugin` is registered through Spark's `AppHistoryServerPlugin` SPI, so finished applications are replayed with the same Celeborn tab. Make sure the shaded Celeborn client jar is on the History Server classpath.
+
+**Note**: the application must have enabled `CelebornPlugin` and set `spark.eventLog.enabled=true` while it was running, so that the Celeborn UI data is recorded in the event log. Adding the jar only to the History Server will not add the Celeborn tab to applications that did not enable the plugin.
