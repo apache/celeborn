@@ -29,7 +29,9 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import org.apache.celeborn.client.{LifecycleManager, WithShuffleClientSuite}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.protocol.message.ControlMessages.MapperMetrics
+import org.apache.celeborn.common.network.protocol.SerdeVersion
+import org.apache.celeborn.common.protocol.{PartitionLocation, ReviveRequest}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{ChangeLocationResponse, MapperMetrics, Revive}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
@@ -154,6 +156,45 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     assert(workerSlots.values.sum == 2 * numPartitions)
     assert(workerSlots.values.forall(_ > 0))
     assert(workerSlots.keySet.subsetOf(workerInfos.keySet.map(_.workerInfo.toUniqueId)))
+  }
+
+  test("report revived partitions by worker and revive cause") {
+    prepareService()
+    val reported = new ConcurrentLinkedQueue[(Int, Int, Map[String, Map[StatusCode, Int]])]()
+    lifecycleManager.registerPartitionReviveListener { (shuffleId, appShuffleId, workerRevives) =>
+      val revives = workerRevives.asScala.map { case (worker, causes) =>
+        worker -> causes.asScala.map { case (cause, n) => cause -> n.intValue }.toMap
+      }.toMap
+      reported.add((shuffleId, appShuffleId, revives))
+    }
+    val shuffleId = nextShuffleId
+    val locations = shuffleClient.getPartitionLocation(shuffleId, 2, 2)
+    val (loc0, loc1) = (locations.get(0), locations.get(1))
+    assert(loc1.hasPeer)
+
+    def revive(mapId: Int, loc: PartitionLocation, cause: StatusCode): Unit = {
+      val request = new ReviveRequest(shuffleId, mapId, 0, loc.getId, loc.getEpoch, loc, cause)
+      lifecycleManager.self.askSync[ChangeLocationResponse](Revive(
+        shuffleId,
+        util.Arrays.asList[Integer](mapId),
+        util.Arrays.asList(request),
+        SerdeVersion.V1))
+    }
+    revive(0, loc0, StatusCode.HARD_SPLIT)
+    revive(0, loc1, StatusCode.PUSH_DATA_TIMEOUT_REPLICA)
+    // Another map task hits the same hard split, which was already revived.
+    revive(1, loc0, StatusCode.HARD_SPLIT)
+
+    // Reported before the reply.
+    assert(reported.asScala.forall { case (id, appId, _) => id == shuffleId && appId == shuffleId })
+    val revives = reported.asScala.toSeq.flatMap(_._3.toSeq.flatMap { case (worker, causes) =>
+      causes.toSeq.map { case (cause, n) => (worker, cause, n) }
+    })
+    assert(revives.map(_._3).sum == 2)
+    assert(revives.contains((loc0.getWorker.toUniqueId, StatusCode.HARD_SPLIT, 1)))
+    // A replica push failure counts against the replica worker.
+    assert(revives.contains(
+      (loc1.getPeer.getWorker.toUniqueId, StatusCode.PUSH_DATA_TIMEOUT_REPLICA, 1)))
   }
 
   test("CELEBORN-2479: mapper end callback reports only the accepted attempt") {

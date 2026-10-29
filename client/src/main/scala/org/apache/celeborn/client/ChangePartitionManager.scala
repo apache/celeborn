@@ -253,6 +253,7 @@ class ChangePartitionManager(
           changePartition.causes.get)
       }
     }
+    lifecycleManager.reportPartitionRevives(shuffleId, changePartitions)
 
     // remove together to reduce lock time
     def replySuccess(locations: Array[PartitionLocation]): Unit = {

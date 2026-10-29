@@ -25,6 +25,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
 
+import org.apache.celeborn.common.protocol.message.StatusCode
+
 @RunWith(classOf[JUnit4])
 class CelebornPluginSuite {
 
@@ -46,6 +48,30 @@ class CelebornPluginSuite {
       assertEquals(
         Seq(ShuffleAssignmentUIData(3, 1, 2, 6, 2, 4)),
         new CelebornStatusStore(sc.statusStore.store).shuffleAssignments())
+    } finally {
+      sc.stop()
+    }
+  }
+
+  @Test
+  def partitionRevivesReportedThroughSparkShuffleManager(): Unit = {
+    val conf = new SparkConf()
+      .setMaster("local")
+      .setAppName("CelebornPluginSuite")
+      .set("spark.plugins", classOf[CelebornPlugin].getName)
+      .set("spark.shuffle.manager", classOf[SparkShuffleManager].getName)
+      .set("spark.ui.enabled", "false")
+    val sc = new SparkContext(conf)
+    try {
+      val listener =
+        SparkEnv.get.shuffleManager.asInstanceOf[SparkShuffleManager].getPartitionReviveListener
+      val causes = Map[StatusCode, Integer](StatusCode.HARD_SPLIT -> 2).asJava
+      listener.onPartitionsRevived(3, 1, Map("w1" -> causes).asJava)
+      sc.listenerBus.waitUntilEmpty()
+
+      assertEquals(
+        WorkerRevivesUIData(Map("w1" -> Map("HARD_SPLIT" -> 2))),
+        new CelebornStatusStore(sc.statusStore.store).workerRevives())
     } finally {
       sc.stop()
     }

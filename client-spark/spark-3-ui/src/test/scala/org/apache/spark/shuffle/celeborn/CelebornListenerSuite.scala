@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle.celeborn
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.apache.spark.{SparkConf, Success, TaskEndReason, TaskKilled, TaskState}
 import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.internal.config.Status.{ASYNC_TRACKING_ENABLED, MAX_RETAINED_STAGES}
@@ -364,5 +365,56 @@ class CelebornListenerSuite {
       serializer.deserialize(serializer.serialize(workerSlots), classOf[WorkerSlotsUIData])
     assertEquals(workerSlots, restored)
     assertEquals(4, restored.workerSlots.values.sum)
+  }
+
+  @Test
+  def workerRevivesAggregatedFromPostedEvents(): Unit = {
+    val store = new InMemoryStore()
+    val statusStore = new CelebornStatusStore(store)
+    val listener = new CelebornListener(store, new SparkConf())
+
+    listener.onOtherEvent(CelebornPartitionReviveEvent(
+      3,
+      1,
+      Map("w1" -> Map("SOFT_SPLIT" -> 2), "w2" -> Map("PUSH_DATA_TIMEOUT_REPLICA" -> 1))))
+    listener.onOtherEvent(CelebornPartitionReviveEvent(
+      4,
+      2,
+      Map("w1" -> Map("SOFT_SPLIT" -> 1, "HARD_SPLIT" -> 1))))
+
+    assertEquals(
+      WorkerRevivesUIData(Map(
+        "w1" -> Map("SOFT_SPLIT" -> 3, "HARD_SPLIT" -> 1),
+        "w2" -> Map("PUSH_DATA_TIMEOUT_REPLICA" -> 1))),
+      statusStore.workerRevives())
+  }
+
+  @Test
+  def partitionReviveEventJsonRoundTrip(): Unit = {
+    // Same mapper setup as Spark's JsonProtocol for events it does not know.
+    val mapper = new ObjectMapper().registerModule(DefaultScalaModule)
+    val event = CelebornPartitionReviveEvent(3, 1, Map("w1" -> Map("HARD_SPLIT" -> 2)))
+    val restored = mapper
+      .readValue(mapper.writeValueAsString(event), classOf[SparkListenerEvent])
+      .asInstanceOf[CelebornPartitionReviveEvent]
+
+    val store = new InMemoryStore()
+    new CelebornListener(store, new SparkConf()).onOtherEvent(restored)
+    assertEquals(
+      WorkerRevivesUIData(Map("w1" -> Map("HARD_SPLIT" -> 2))),
+      new CelebornStatusStore(store).workerRevives())
+  }
+
+  @Test
+  def workerRevivesKVStoreRoundTrip(): Unit = {
+    val serializer = new KVStoreScalaSerializer()
+    val revives = WorkerRevivesUIData(Map(
+      "w1" -> Map("SOFT_SPLIT" -> 3, "HARD_SPLIT" -> 1),
+      "w2" -> Map("PUSH_DATA_TIMEOUT_REPLICA" -> 1)))
+
+    val restored =
+      serializer.deserialize(serializer.serialize(revives), classOf[WorkerRevivesUIData])
+    assertEquals(revives, restored)
+    assertEquals(4, restored.workerRevives("w1").values.sum)
   }
 }

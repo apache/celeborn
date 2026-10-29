@@ -67,6 +67,8 @@ private[celeborn] class CelebornListener(
   private var assignedShuffles = 0L
   private val workerShuffles = mutable.HashMap[String, Int]()
   private val workerSlots = mutable.HashMap[String, Int]()
+  // worker -> revive cause -> revived partitions
+  private val workerRevives = mutable.HashMap[String, mutable.HashMap[String, Int]]()
 
   def register(sc: org.apache.spark.SparkContext): Unit = {
     sc.addSparkListener(this)
@@ -107,6 +109,7 @@ private[celeborn] class CelebornListener(
         mayUpdate()
       }
     case e: CelebornShuffleAssignmentEvent => onShuffleAssignment(e)
+    case e: CelebornPartitionReviveEvent => onPartitionRevive(e)
     case _ =>
   }
 
@@ -161,6 +164,16 @@ private[celeborn] class CelebornListener(
       workerSlots(worker) = workerSlots.getOrElse(worker, 0) + numSlots
     }
     kvstore.write(WorkerSlotsUIData(assignedShuffles, workerShuffles.toMap, workerSlots.toMap))
+  }
+
+  private def onPartitionRevive(event: CelebornPartitionReviveEvent): Unit = {
+    event.workerRevives.foreach { case (worker, causes) =>
+      val totals = workerRevives.getOrElseUpdate(worker, mutable.HashMap[String, Int]())
+      causes.foreach { case (cause, n) => totals(cause) = totals.getOrElse(cause, 0) + n }
+    }
+    kvstore.write(WorkerRevivesUIData(workerRevives.map { case (worker, causes) =>
+      worker -> causes.toMap
+    }.toMap))
   }
 
   // Drops the lowest Celeborn shuffle ids, which roughly are the oldest shuffles.
