@@ -290,6 +290,8 @@ These metrics are exposed by Celeborn worker.
     | DirectMemoryUsageRatio                 | Ratio of direct memory used and max direct memory.                                                              |
     | RegisterWithMasterFailCount            | The count of failures in register with master request.                                                          |
     | FlushWorkingQueueSize                  | The size of flush working queue for mount point.                                                                |
+    | FlushCommittingQueueSize               | Queued flush tasks of committing REDUCE writers per flusher thread; excludes executing tasks.                    |
+    | FlushCommittingWriterSize              | Committing REDUCE writers with queued flush tasks per flusher thread.                                            |
     | LocalFlushCount                        | The amount of data flushed to local.                                                                            |
     | LocalFlushSize                         | The size of data flushed to local.                                                                              |
     | HdfsFlushCount                         | The amount of data flushed to HDFS.                                                                             |
