@@ -26,6 +26,7 @@ import org.scalatest.BeforeAndAfter
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.source.Role
+import org.apache.celeborn.common.protocol.RpcNameConstants
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcMetricsTracker, RpcSource, TestRpcEndpoint}
 import org.apache.celeborn.common.util.ThreadUtils
 
@@ -79,6 +80,38 @@ class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
     assert(inbox.isEmpty)
     endpoint.verifyStarted()
     endpoint.verifyStopped()
+  }
+
+  test("rpc metrics snapshot") {
+    val conf = new CelebornConf()
+    val source = new RpcSource(conf, Role.CLIENT)
+    val histogramTracker =
+      new RpcMetricsTracker(RpcNameConstants.LIFECYCLE_MANAGER_EP, source, conf)
+    val plainTracker = new RpcMetricsTracker("testRpc", source, conf)
+
+    // Histogram based metrics are only collected for the LifecycleManager endpoint.
+    assert(plainTracker.snapshot().isEmpty)
+    assert(histogramTracker.snapshot().exists(_.methods.isEmpty))
+
+    histogramTracker.record("hi", 100L, 200L)
+
+    val snapshot = histogramTracker.snapshot().get
+    assert(snapshot.endpointName == RpcNameConstants.LIFECYCLE_MANAGER_EP)
+    val names = snapshot.methods.map(_.name)
+    assert(names.contains(RpcSource.QUEUE_TIME))
+    assert(names.contains(RpcSource.PROCESS_TIME))
+    assert(names.contains("unknown"))
+
+    val processTime = snapshot.methods.find(_.name == RpcSource.PROCESS_TIME).get
+    assert(processTime.count == 1L)
+    assert(processTime.min == 200L)
+    assert(processTime.max == 200L)
+    val queueTime = snapshot.methods.find(_.name == RpcSource.QUEUE_TIME).get
+    assert(queueTime.min == 100L)
+
+    // close() only clears the histograms, the endpoint still reports an empty snapshot.
+    histogramTracker.close()
+    assert(histogramTracker.snapshot().exists(_.methods.isEmpty))
   }
 
   test("post: with reply") {

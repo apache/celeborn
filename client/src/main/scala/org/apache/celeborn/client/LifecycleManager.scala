@@ -199,6 +199,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   logInfo(s"Starting LifecycleManager on ${rpcEnv.address}")
 
+  /**
+   * Point-in-time RPC metrics of the LifecycleManager endpoint, exposed for engine UIs such as
+   * the Celeborn Spark UI. The values are cumulative since this LifecycleManager started.
+   */
+  def rpcMetricsSnapshot(): Option[RpcMetricsSnapshot] =
+    Option(rpcEnv).flatMap(_.rpcMetricsSnapshot(RpcNameConstants.LIFECYCLE_MANAGER_EP))
+
   private var masterRpcEnvInUse = rpcEnv
   private var workerRpcEnvInUse = rpcEnv
   if (authEnabled) {

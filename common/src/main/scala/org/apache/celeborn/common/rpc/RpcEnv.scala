@@ -186,6 +186,13 @@ abstract class RpcEnv(config: RpcEnvConfig) {
   def deserialize[T](deserializationAction: () => T): T
 
   def rpcSource(): RpcSource
+
+  /**
+   * Point-in-time RPC metrics of the given endpoint, or None if the endpoint does not exist or
+   * does not collect histogram based metrics. Default implementation returns None so that
+   * existing [[RpcEnv]] mocks and custom implementations keep working.
+   */
+  def rpcMetricsSnapshot(endpointName: String): Option[RpcMetricsSnapshot] = None
 }
 
 /**

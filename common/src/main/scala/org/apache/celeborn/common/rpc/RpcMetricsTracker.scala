@@ -146,27 +146,57 @@ private[celeborn] class RpcMetricsTracker(
     }
   }
 
-  def dump(): Unit = {
-    if (!useHistogram)
-      return
-
-    val builder = new StringBuilder()
-    builder.append(s"RPC statistics for $name (time unit: ns)").append("\n")
-    builder.append(s"current queue size = ${queueLengthFunc()}").append("\n")
-    builder.append(s"max queue length = ${maxQueueLength.get()}").append("\n")
-    histogramMap.entrySet.asScala.foreach(entry => {
+  /**
+   * Point-in-time view of the collected RPC metrics, or None when histogram based metrics are
+   * not collected for this endpoint (see [[useHistogram]]). The histograms are never reset, so
+   * the values are cumulative since the endpoint started.
+   */
+  def snapshot(): Option[RpcMetricsSnapshot] = {
+    if (!useHistogram) {
+      return None
+    }
+    val queueSize = if (queueLengthFunc == null) 0L else queueLengthFunc()
+    val methods = histogramMap.entrySet.asScala.map { entry =>
       val histogram = entry.getValue
-      val snapshot = histogram.getSnapshot;
-      builder.append(s"histogram for $name RPC metrics: ").append(entry.getKey).append("\n")
-      builder.append("count: ").append(histogram.getCount).append("\n")
-        .append("min: ").append(snapshot.getMin).append("\n")
-        .append("mean: ").append(snapshot.getMean).append("\n")
-        .append("p50: ").append(snapshot.getMedian).append("\n")
-        .append("p75: ").append(snapshot.get75thPercentile).append("\n")
-        .append("p95: ").append(snapshot.get95thPercentile).append("\n")
-        .append("p99: ").append(snapshot.get99thPercentile()).append("\n")
-        .append("max: ").append(snapshot.getMax).append("\n")
-    })
-    logInfo(builder.toString())
+      val snapshot = histogram.getSnapshot
+      RpcMethodMetrics(
+        entry.getKey,
+        histogram.getCount,
+        snapshot.getMin,
+        snapshot.getMean,
+        snapshot.getMedian,
+        snapshot.get75thPercentile,
+        snapshot.get95thPercentile,
+        snapshot.get99thPercentile(),
+        snapshot.getMax)
+    }.toSeq.sortBy(_.name)
+    Some(RpcMetricsSnapshot(
+      name,
+      queueSize,
+      maxQueueLength.get(),
+      methods,
+      System.currentTimeMillis()))
+  }
+
+  def dump(): Unit = snapshot().foreach(s => logInfo(renderSnapshot(s)))
+
+  private def renderSnapshot(snapshot: RpcMetricsSnapshot): String = {
+    val builder = new StringBuilder()
+    builder.append(s"RPC statistics for ${snapshot.endpointName} (time unit: ns)").append("\n")
+    builder.append(s"current queue size = ${snapshot.queueSize}").append("\n")
+    builder.append(s"max queue length = ${snapshot.maxQueueLength}").append("\n")
+    snapshot.methods.foreach { method =>
+      builder.append(s"histogram for ${snapshot.endpointName} RPC metrics: ")
+        .append(method.name).append("\n")
+      builder.append("count: ").append(method.count).append("\n")
+        .append("min: ").append(method.min).append("\n")
+        .append("mean: ").append(method.mean).append("\n")
+        .append("p50: ").append(method.p50).append("\n")
+        .append("p75: ").append(method.p75).append("\n")
+        .append("p95: ").append(method.p95).append("\n")
+        .append("p99: ").append(method.p99).append("\n")
+        .append("max: ").append(method.max).append("\n")
+    }
+    builder.toString()
   }
 }
