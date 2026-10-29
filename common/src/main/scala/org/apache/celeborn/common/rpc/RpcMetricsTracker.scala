@@ -146,11 +146,7 @@ private[celeborn] class RpcMetricsTracker(
     }
   }
 
-  /**
-   * Point-in-time view of the collected RPC metrics, or None when histogram based metrics are
-   * not collected for this endpoint (see [[useHistogram]]). The histograms are never reset, so
-   * the values are cumulative since the endpoint started.
-   */
+  /** Returns cumulative RPC metrics, or None when histogram collection is disabled. */
   def snapshot(): Option[RpcMetricsSnapshot] = {
     if (!useHistogram) {
       return None

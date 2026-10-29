@@ -187,10 +187,7 @@ abstract class RpcEnv(config: RpcEnvConfig) {
 
   def rpcSource(): RpcSource
 
-  /**
-   * Point-in-time RPC metrics of the given local endpoint, or None if the endpoint does not exist
-   * or does not collect histogram based metrics. The default implementation returns None.
-   */
+  /** Returns local endpoint RPC metrics, or None if unavailable. */
   private[celeborn] def rpcMetricsSnapshot(endpointName: String): Option[RpcMetricsSnapshot] = None
 }
 

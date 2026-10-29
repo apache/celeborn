@@ -67,7 +67,7 @@ class RpcMetricsProviderSuite {
     assertTrue(RpcMetricsProvider.snapshot().isEmpty)
 
     val expected = metrics("recovered")
-    when(lifecycleManager.rpcMetricsSnapshot()).thenReturn(Some(expected))
+    SparkEnv.set(environment(expected))
     assertEquals(Some(expected), RpcMetricsProvider.snapshot())
   }
 

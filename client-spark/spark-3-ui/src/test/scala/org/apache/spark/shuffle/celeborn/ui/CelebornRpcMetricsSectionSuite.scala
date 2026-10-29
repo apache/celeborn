@@ -61,7 +61,6 @@ class CelebornRpcMetricsSectionSuite {
     assertTrue(noSummary.isEmpty)
     assertTrue(noSection.isEmpty)
 
-    // Only the aggregate histograms are present: nothing per method to show.
     val onlyAggregates = RpcMetricsSnapshot(
       "LifecycleManagerEndpoint",
       0,

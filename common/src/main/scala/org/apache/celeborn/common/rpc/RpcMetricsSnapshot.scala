@@ -17,10 +17,7 @@
 
 package org.apache.celeborn.common.rpc
 
-/**
- * Latency statistics of a single RPC message type, derived from the endpoint's histogram.
- * All time fields are in nanoseconds.
- */
+/** RPC histogram statistics; all time fields are in nanoseconds. */
 case class RpcMethodMetrics(
     name: String,
     count: Long,
@@ -32,10 +29,7 @@ case class RpcMethodMetrics(
     p99: Double,
     max: Long)
 
-/**
- * Point-in-time RPC metrics of one registered endpoint. The histograms are never reset, so the
- * values are cumulative since the endpoint started.
- */
+/** Cumulative point-in-time metrics for one RPC endpoint. */
 case class RpcMetricsSnapshot(
     endpointName: String,
     queueSize: Long,

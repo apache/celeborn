@@ -24,18 +24,32 @@ import org.apache.spark.internal.Logging
 
 import org.apache.celeborn.common.rpc.RpcMetricsSnapshot
 
-/**
- * Resolves the driver side LifecycleManager on demand and exposes its RPC metrics to the UI.
- *
- * The LifecycleManager is only created when the first shuffle is registered, so it has to be
- * looked up lazily instead of being captured when the plugin initializes.
- */
+/** Resolves the driver's LifecycleManager on demand and caches RPC metrics briefly. */
 private[celeborn] object RpcMetricsProvider extends Logging {
 
-  def snapshot(): Option[RpcMetricsSnapshot] = {
+  private val cacheTtlMs = 5000L
+
+  private var cached: Option[RpcMetricsSnapshot] = None
+  private var cachedAt = 0L
+  private var cachedEnv: SparkEnv = _
+
+  def snapshot(): Option[RpcMetricsSnapshot] = synchronized {
+    val env = SparkEnv.get
+    val now = System.currentTimeMillis()
+    if ((env eq cachedEnv) && now - cachedAt < cacheTtlMs) {
+      cached
+    } else {
+      cached = readSnapshot(env)
+      cachedEnv = env
+      cachedAt = System.currentTimeMillis()
+      cached
+    }
+  }
+
+  private def readSnapshot(env: SparkEnv): Option[RpcMetricsSnapshot] = {
     try {
-      Option(SparkEnv.get)
-        .flatMap(env => Option(env.shuffleManager))
+      Option(env)
+        .flatMap(e => Option(e.shuffleManager))
         .collect { case sm: SparkShuffleManager => sm }
         .flatMap(sm => Option(sm.getLifecycleManager()))
         .flatMap(_.rpcMetricsSnapshot())

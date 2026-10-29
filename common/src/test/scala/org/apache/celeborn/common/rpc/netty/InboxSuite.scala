@@ -89,7 +89,6 @@ class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
       new RpcMetricsTracker(RpcNameConstants.LIFECYCLE_MANAGER_EP, source, conf)
     val plainTracker = new RpcMetricsTracker("testRpc", source, conf)
 
-    // Histogram based metrics are only collected for the LifecycleManager endpoint.
     assert(plainTracker.snapshot().isEmpty)
     assert(histogramTracker.snapshot().exists(_.methods.isEmpty))
 
@@ -109,7 +108,6 @@ class InboxSuite extends CelebornFunSuite with BeforeAndAfter {
     val queueTime = snapshot.methods.find(_.name == RpcSource.QUEUE_TIME).get
     assert(queueTime.min == 100L)
 
-    // close() only clears the histograms, the endpoint still reports an empty snapshot.
     histogramTracker.close()
     assert(histogramTracker.snapshot().exists(_.methods.isEmpty))
   }

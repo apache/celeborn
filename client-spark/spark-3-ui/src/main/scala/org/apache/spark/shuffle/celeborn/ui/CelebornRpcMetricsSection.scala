@@ -26,26 +26,16 @@ import org.apache.spark.ui.UIUtils
 
 import org.apache.celeborn.common.rpc.{RpcMethodMetrics, RpcMetricsSnapshot, RpcSource}
 
-/**
- * Renders the RPC latency histograms of the driver's LifecycleManager as part of the Celeborn
- * tab: a one line summary plus a collapsible section, using the same markup as the other
- * sections of the tab. The data is read when the page is rendered because it is process local
- * and is not part of the Spark event log.
- */
+/** Renders driver-local LifecycleManager RPC metrics in the Celeborn tab. */
 private[celeborn] object CelebornRpcMetricsSection {
 
-  /** Queue and process time are tracked next to the per method histograms in the same map. */
   val aggregateKeys: Set[String] = Set(RpcSource.QUEUE_TIME, RpcSource.PROCESS_TIME)
 
   private val sectionId = "aggregated-celebornRpcMetrics"
   private val timeColumns = Seq("Min", "Mean", "P50", "P75", "P95", "P99", "Max")
   private val headerClasses = Seq("sorttable_alpha") ++ Seq.fill(8)("sorttable_numeric")
 
-  /**
-   * Returns the summary line and the collapsible section for the given snapshot. Both are empty
-   * when no per method RPC data is available, e.g. in the History Server, before the first
-   * shuffle, or after the LifecycleManager has stopped.
-   */
+  /** Returns empty content when no per-method RPC data is available. */
   def render(snapshot: Option[RpcMetricsSnapshot]): (Seq[Node], Seq[Node]) = {
     snapshot.flatMap { s =>
       val methods = perMethod(s)
@@ -78,9 +68,6 @@ private[celeborn] object CelebornRpcMetricsSection {
 
     val summary =
       <ul class="list-unstyled">
-        <li>
-          <strong>Endpoint: </strong>{snapshot.endpointName} (driver)
-        </li>
         <li>
           <strong>Snapshot time: </strong>{formatTimestamp(snapshot.timestamp)}
         </li>
