@@ -81,9 +81,8 @@ private[celeborn] object CelebornRpcMetricsSection {
         </li>
         <li>
           <strong>Note: </strong>
-          Times are in milliseconds and are cumulative since the LifecycleManager started;
-          the histograms are never reset. Per-method times include processing only and exclude
-          queueing, network, and client wait time.
+          Times in ms, cumulative since the LifecycleManager started; per-method times cover
+          processing only. Min/Mean/Max and percentiles are sampled; Count is exact.
         </li>
       </ul>
 

@@ -112,7 +112,8 @@ class CelebornRpcMetricsSectionSuite {
     assertTrue(sectionText.contains("aggregated-celebornRpcMetrics"))
     assertTrue(sectionText.contains("Aggregate queue/process time"))
     assertTrue(sectionText.contains("Per RPC method processing time (sorted by P99 desc)"))
-    assertTrue(sectionText.contains("queueing, network, and client wait time"))
+    assertTrue(sectionText.contains("processing only"))
+    assertTrue(sectionText.contains("are sampled"))
     assertTrue(sectionText.indexOf("Revive") < sectionText.indexOf("MapperEnd"))
   }
 }
