@@ -1854,7 +1854,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   @Override
   public void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
       throws IOException {
-    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, -1, null);
+    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, -1, null, -1L);
   }
 
   @Override
@@ -1866,14 +1866,28 @@ public class ShuffleClientImpl extends ShuffleClient {
       int numPartitions,
       MapperMetrics metrics)
       throws IOException {
-    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, -1, metrics);
+    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, -1, metrics, -1L);
+  }
+
+  @Override
+  public void mapperEnd(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int numPartitions,
+      MapperMetrics metrics,
+      long taskAttemptId)
+      throws IOException {
+    mapEndInternal(
+        shuffleId, mapId, attemptId, numMappers, numPartitions, -1, metrics, taskAttemptId);
   }
 
   @Override
   public void mapPartitionMapperEnd(
       int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions, int partitionId)
       throws IOException {
-    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, partitionId, null);
+    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, partitionId, null, -1L);
   }
 
   private void mapEndInternal(
@@ -1883,7 +1897,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       int numMappers,
       int numPartitions,
       Integer partitionId,
-      MapperMetrics metrics)
+      MapperMetrics metrics,
+      long taskAttemptId)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = getPushState(mapKey);
@@ -1910,7 +1925,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                   crc32PerPartition,
                   bytesPerPartition,
                   SerdeVersion.V1,
-                  metrics == null ? new MapperMetrics(0L, 0L) : metrics),
+                  metrics == null ? new MapperMetrics(0L, 0L) : metrics,
+                  taskAttemptId),
               rpcMaxRetries,
               rpcRetryWait,
               ClassTag$.MODULE$.apply(MapperEndResponse.class));

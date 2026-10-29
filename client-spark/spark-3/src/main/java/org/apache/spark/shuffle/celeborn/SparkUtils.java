@@ -34,10 +34,12 @@ import java.util.stream.Collectors;
 import scala.Option;
 import scala.Some;
 import scala.Tuple2;
+import scala.runtime.AbstractFunction1;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.spark.BarrierTaskContext;
 import org.apache.spark.MapOutputTrackerMaster;
+import org.apache.spark.ShuffleStatus;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.SparkContext$;
@@ -330,6 +332,31 @@ public class SparkUtils {
 
   private static final DynFields.UnboundField shuffleIdToMapStage_FIELD =
       DynFields.builder().hiddenImpl(DAGScheduler.class, "shuffleIdToMapStage").build();
+
+  /**
+   * Returns the task attempt id (MapStatus.mapId) Spark registered for each map index of the
+   * shuffle, -1 where no map output is registered, or null if the shuffle is unknown.
+   */
+  public static long[] getRegisteredMapTaskIds(
+      MapOutputTrackerMaster mapOutputTracker, int shuffleId) {
+    Option<ShuffleStatus> shuffleStatus = mapOutputTracker.shuffleStatuses().get(shuffleId);
+    if (shuffleStatus.isEmpty()) {
+      return null;
+    }
+    return shuffleStatus
+        .get()
+        .withMapStatuses(
+            new AbstractFunction1<MapStatus[], long[]>() {
+              @Override
+              public long[] apply(MapStatus[] mapStatuses) {
+                long[] taskIds = new long[mapStatuses.length];
+                for (int i = 0; i < mapStatuses.length; i++) {
+                  taskIds[i] = mapStatuses[i] == null ? -1L : mapStatuses[i].mapId();
+                }
+                return taskIds;
+              }
+            });
+  }
 
   public static void unregisterAllMapOutput(
       MapOutputTrackerMaster mapOutputTracker, int shuffleId) {
