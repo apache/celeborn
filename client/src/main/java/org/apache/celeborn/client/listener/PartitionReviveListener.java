@@ -25,8 +25,9 @@ import org.apache.celeborn.common.protocol.message.StatusCode;
 public interface PartitionReviveListener {
 
   /**
-   * Notifies the partitions that the LifecycleManager moves to new locations. A partition is
-   * reported once per revive, however many map tasks requested it.
+   * Notifies the partitions that the LifecycleManager moved to new locations. A partition is
+   * reported once per revive, however many map tasks requested it, with the cause of one of those
+   * requests. Revives that fail to reserve new slots are not reported.
    *
    * @param shuffleId the Celeborn shuffle id
    * @param appShuffleId the application shuffle id, which differs on stage rerun

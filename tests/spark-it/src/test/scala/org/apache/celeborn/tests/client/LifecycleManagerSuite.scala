@@ -168,17 +168,17 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
       reported.add((shuffleId, appShuffleId, revives))
     }
     val shuffleId = nextShuffleId
-    val locations = shuffleClient.getPartitionLocation(shuffleId, 2, 2)
-    val (loc0, loc1) = (locations.get(0), locations.get(1))
+    val locations = shuffleClient.getPartitionLocation(shuffleId, 2, 3)
+    val (loc0, loc1, loc2) = (locations.get(0), locations.get(1), locations.get(2))
     assert(loc1.hasPeer)
 
-    def revive(mapId: Int, loc: PartitionLocation, cause: StatusCode): Unit = {
+    def revive(mapId: Int, loc: PartitionLocation, cause: StatusCode): StatusCode = {
       val request = new ReviveRequest(shuffleId, mapId, 0, loc.getId, loc.getEpoch, loc, cause)
       lifecycleManager.self.askSync[ChangeLocationResponse](Revive(
         shuffleId,
         util.Arrays.asList[Integer](mapId),
         util.Arrays.asList(request),
-        SerdeVersion.V1))
+        SerdeVersion.V1)).newLocs.get(loc.getId)._1
     }
     revive(0, loc0, StatusCode.HARD_SPLIT)
     revive(0, loc1, StatusCode.PUSH_DATA_TIMEOUT_REPLICA)
@@ -195,6 +195,16 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
     // A replica push failure counts against the replica worker.
     assert(revives.contains(
       (loc1.getPeer.getWorker.toUniqueId, StatusCode.PUSH_DATA_TIMEOUT_REPLICA, 1)))
+
+    // A revive that gets no new slots is not reported, as the client retries it.
+    val failedWorkers = new LifecycleManager.ShuffleFailedWorkers()
+    workerInfos.keySet.foreach(worker =>
+      failedWorkers.put(
+        worker.workerInfo,
+        (StatusCode.PUSH_DATA_TIMEOUT_PRIMARY, System.currentTimeMillis())))
+    lifecycleManager.workerStatusTracker.recordWorkerFailure(failedWorkers)
+    assert(revive(0, loc2, StatusCode.HARD_SPLIT) == StatusCode.SLOT_NOT_AVAILABLE)
+    assert(reported.asScala.flatMap(_._3.values.flatMap(_.values)).sum == 2)
   }
 
   test("CELEBORN-2479: mapper end callback reports only the accepted attempt") {

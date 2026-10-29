@@ -253,7 +253,6 @@ class ChangePartitionManager(
           changePartition.causes.get)
       }
     }
-    lifecycleManager.reportPartitionRevives(shuffleId, changePartitions)
 
     // remove together to reduce lock time
     def replySuccess(locations: Array[PartitionLocation]): Unit = {
@@ -351,6 +350,7 @@ class ChangePartitionManager(
         s"shuffle $shuffleId, succeed partitions: " +
         s"$changes.")
     }
+    lifecycleManager.reportPartitionRevives(shuffleId, changePartitions)
     replySuccess(newPrimaryLocations.toArray)
   }
 

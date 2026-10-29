@@ -100,10 +100,14 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
         s"Shuffles: ${workerSlots.shuffles} | Workers: ${workerRows.size} | " +
           s"Reserved Slots: ${workerRows.map(_._3.toLong).sum}"
       }
+    // Revives are reported along with shuffle assignments, e.g. not by old clients.
     def reviveSummary: String =
-      s"Soft Splits: ${reviveRows.map(_.softSplits.toLong).sum} | " +
-        s"Hard Splits: ${reviveRows.map(_.hardSplits.toLong).sum} | " +
-        s"Push Failures: ${reviveRows.map(_.pushFailures.toLong).sum}"
+      if (workerSlots.shuffles == 0) "N/A"
+      else {
+        s"Soft Splits: ${reviveRows.map(_.softSplits.toLong).sum} | " +
+          s"Hard Splits: ${reviveRows.map(_.hardSplits.toLong).sum} | " +
+          s"Push Failures: ${reviveRows.map(_.pushFailures.toLong).sum}"
+      }
     val assignmentsTitle =
       if (workerSlots.shuffles > assignments.size) {
         s"Shuffle Assignments (${workerSlots.shuffles}, only showing ${assignments.size})"

@@ -381,6 +381,7 @@ class CelebornListenerSuite {
       4,
       2,
       Map("w1" -> Map("SOFT_SPLIT" -> 1, "HARD_SPLIT" -> 1))))
+    listener.flush()
 
     assertEquals(
       WorkerRevivesUIData(Map(
@@ -399,7 +400,9 @@ class CelebornListenerSuite {
       .asInstanceOf[CelebornPartitionReviveEvent]
 
     val store = new InMemoryStore()
-    new CelebornListener(store, new SparkConf()).onOtherEvent(restored)
+    val listener = new CelebornListener(store, new SparkConf())
+    listener.onOtherEvent(restored)
+    listener.flush()
     assertEquals(
       WorkerRevivesUIData(Map("w1" -> Map("HARD_SPLIT" -> 2))),
       new CelebornStatusStore(store).workerRevives())

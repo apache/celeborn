@@ -74,6 +74,16 @@ object LifecycleManager {
   type ShuffleAllocatedWorkers =
     ConcurrentHashMap[Int, ConcurrentHashMap[String, ShufflePartitionLocationInfo]]
   type ShuffleFailedWorkers = ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]
+
+  // Push failures caused by the replica, which count against the replica worker.
+  private val replicaReviveCauses = Set(
+    StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA,
+    StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA,
+    StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA,
+    StatusCode.PUSH_DATA_TIMEOUT_REPLICA,
+    StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA,
+    StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED,
+    StatusCode.REPLICATE_DATA_FAILED)
 }
 
 class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends RpcEndpoint
@@ -929,16 +939,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
   }
 
-  // Push failures caused by the replica, which count against the replica worker.
-  private val replicaReviveCauses = Set(
-    StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA,
-    StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA,
-    StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA,
-    StatusCode.PUSH_DATA_TIMEOUT_REPLICA,
-    StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA,
-    StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED,
-    StatusCode.REPLICATE_DATA_FAILED)
-
   private[client] def reportPartitionRevives(
       shuffleId: Int,
       requests: Array[ChangePartitionRequest]): Unit = {
@@ -948,8 +948,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         // Requests without a cause or an old location do not come from Revive.
         for (cause <- request.causes; oldPartition <- Option(request.oldPartition)) {
           val location =
-            if (replicaReviveCauses.contains(cause) && oldPartition.hasPeer) oldPartition.getPeer
-            else oldPartition
+            if (LifecycleManager.replicaReviveCauses.contains(cause) && oldPartition.hasPeer) {
+              oldPartition.getPeer
+            } else {
+              oldPartition
+            }
           val causes = workerRevives.computeIfAbsent(
             location.getWorker.toUniqueId,
             _ => new util.HashMap[StatusCode, Integer]())
