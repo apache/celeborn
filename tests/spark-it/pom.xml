@@ -190,6 +190,17 @@
   </dependencies>
   <profiles>
     <profile>
+      <id>aws</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.celeborn</groupId>
+          <artifactId>celeborn-multipart-uploader-s3_${scala.binary.version}</artifactId>
+          <version>${project.version}</version>
+          <scope>test</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
       <id>spark-3.0</id>
       <dependencies>
         <dependency>
