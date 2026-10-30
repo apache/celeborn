@@ -23,9 +23,9 @@ jobs:
   source-archive:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Setup JDK 8
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         distribution: zulu
         java-version: 8
@@ -50,16 +50,16 @@ jobs:
           - 11
           - 17
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Setup JDK ${{ matrix.java }}
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         distribution: zulu
         java-version: ${{ matrix.java }}
         cache: maven
         check-latest: false
     - name: Cache Maven distribution
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: build/apache-maven-*
         key: maven-distribution-${{ runner.os }}-${{ hashFiles('pom.xml') }}
@@ -118,16 +118,16 @@ jobs:
           - shuffle-plugin-class: 'org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO'
             spark: '3.4'
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Setup JDK ${{ matrix.java }}
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         distribution: zulu
         java-version: ${{ matrix.java }}
         cache: maven
         check-latest: false
     - name: Cache Maven distribution
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: build/apache-maven-*
         key: maven-distribution-${{ runner.os }}-${{ hashFiles('pom.xml') }}
@@ -164,16 +164,16 @@ jobs:
         shuffle-plugin-class:
           - 'org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup JDK ${{ matrix.java }}
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: ${{ matrix.java }}
           cache: maven
           check-latest: false
       - name: Cache Maven distribution
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/apache-maven-*
           key: maven-distribution-${{ runner.os }}-${{ hashFiles('pom.xml') }}
@@ -209,16 +209,16 @@ jobs:
           - '1.19'
           - '1.20'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup JDK ${{ matrix.java }}
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: ${{ matrix.java }}
           cache: maven
           check-latest: false
       - name: Cache Maven distribution
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/apache-maven-*
           key: maven-distribution-${{ runner.os }}-${{ hashFiles('pom.xml') }}
@@ -252,16 +252,16 @@ jobs:
           - '2.2'
           - '2.3'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup JDK ${{ matrix.java }}
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: ${{ matrix.java }}
           cache: maven
           check-latest: false
       - name: Cache Maven distribution
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/apache-maven-*
           key: maven-distribution-${{ runner.os }}-${{ hashFiles('pom.xml') }}
@@ -290,16 +290,16 @@ jobs:
           - 8
           - 11
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup JDK ${{ matrix.java }}
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: ${{ matrix.java }}
           cache: maven
           check-latest: false
       - name: Cache Maven distribution
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/apache-maven-*
           key: maven-distribution-${{ runner.os }}-${{ hashFiles('pom.xml') }}
