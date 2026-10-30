@@ -55,7 +55,7 @@ public class SparkCryptoHandlerSuiteJ {
 
   @Test
   public void testRoundTrip() throws IOException {
-    byte[] plaintext = "hello world, this is a test of encryption".getBytes();
+    byte[] plaintext = "hello world, this is a test of encryption".getBytes(UTF_8);
 
     byte[] encrypted = handler.encrypt(plaintext, 0, plaintext.length);
     assertFalse(
@@ -67,7 +67,7 @@ public class SparkCryptoHandlerSuiteJ {
 
   @Test
   public void testEncryptedDiffersFromPlaintext() throws IOException {
-    byte[] plaintext = "deterministic test data for comparison".getBytes();
+    byte[] plaintext = "deterministic test data for comparison".getBytes(UTF_8);
 
     byte[] encrypted = handler.encrypt(plaintext, 0, plaintext.length);
     assertFalse(
@@ -76,7 +76,7 @@ public class SparkCryptoHandlerSuiteJ {
 
   @Test
   public void testSameDataEncryptsThenDecrypts() throws IOException {
-    byte[] plaintext = "same data encrypted twice".getBytes();
+    byte[] plaintext = "same data encrypted twice".getBytes(UTF_8);
 
     byte[] encrypted1 = handler.encrypt(plaintext, 0, plaintext.length);
     byte[] encrypted2 = handler.encrypt(plaintext, 0, plaintext.length);
@@ -91,7 +91,7 @@ public class SparkCryptoHandlerSuiteJ {
 
   @Test
   public void testEncryptWithOffset() throws IOException {
-    byte[] actual = "offset test data".getBytes();
+    byte[] actual = "offset test data".getBytes(UTF_8);
     int offset = 10;
     byte[] padded = new byte[offset + actual.length + 20];
     System.arraycopy(actual, 0, padded, offset, actual.length);
@@ -104,7 +104,7 @@ public class SparkCryptoHandlerSuiteJ {
 
   @Test
   public void testDecryptWithWrongKeyFails() throws IOException {
-    byte[] plaintext = "secret data".getBytes();
+    byte[] plaintext = "secret data".getBytes(UTF_8);
     byte[] encrypted = handler.encrypt(plaintext, 0, plaintext.length);
 
     byte[] wrongKey = new byte[16];
