@@ -422,6 +422,19 @@ class CelebornShuffleReader[K, C](
         } else null
       if (exceptionRef.get() == null) {
         try {
+          // Chunk boundaries can leave an AQE child empty even though its parent has files.
+          // Its zero report is still required to complete the parent's integrity validation.
+          if (splitSkewPartitionWithoutMapRange && locationList.isEmpty &&
+            conf.clientShuffleIntegrityCheckEnabled &&
+            !fileGroups.partitionGroups.get(partitionId).isEmpty) {
+            shuffleClient.readReducerPartitionEnd(
+              shuffleId,
+              partitionId,
+              startMapIndex,
+              endMapIndex,
+              0,
+              0L)
+          }
           val inputStream = shuffleClient.readPartition(
             shuffleId,
             handle.shuffleId,

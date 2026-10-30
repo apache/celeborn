@@ -324,7 +324,8 @@ class CommitManager(appUniqueId: String, val conf: CelebornConf, lifecycleManage
               committedPartitionInfo,
               lifecycleManager.workerStatusTracker,
               lifecycleManager.rpcSharedThreadPool,
-              commitRetryScheduler)
+              commitRetryScheduler,
+              lifecycleManager)
           case _ => throw new UnsupportedOperationException(
               s"Unexpected ShufflePartitionType for CommitManager: $partitionType")
         }

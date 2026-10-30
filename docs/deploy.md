@@ -112,6 +112,14 @@ celeborn.worker.replicate.fastFail.duration 240s
 celeborn.worker.monitor.disk.enabled false
 ```
 
+Note: In an HA cluster, each master runs a Ratis JvmPauseMonitor. If the JVM or the host is paused
+longer than `celeborn.master.ha.ratis.raft.server.close.threshold` (default 60s), the local raft
+server is closed and the master leaves the raft group; the process must be restarted to recover.
+Avoid operations that suspend the JVM for a long time on production masters, e.g. `jmap -F`,
+heap dumps, or `jcmd <pid> GC.class_histogram` (which forces a full GC by default; the `all=true`
+form skips the forced GC but still walks the whole heap). Prefer low-intrusion diagnostics such as
+`jstat -gcutil <pid> <interval>` for GC observation.
+
 Flink engine related configurations:
 ```properties
 # If you are using Celeborn for flink, these settings will be needed.
@@ -200,13 +208,26 @@ spark.sql.adaptive.skewJoin.enabled true
 # Support Spark Dynamic Resource Allocation
 # Required Spark version >= 3.5.0
 spark.shuffle.sort.io.plugin.class org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO
-# Required Spark version >= 3.4.0, highly recommended to disable
-spark.dynamicAllocation.shuffleTracking.enabled false
+# Available since Spark 3.0; enabled by default since Spark 3.4.
+# With AUTO (default) or ALWAYS fallback, keep tracking enabled to protect local-disk shuffle data.
+spark.dynamicAllocation.shuffleTracking.enabled true
 
 # Support ShuffleManager when defined in user jars
 # Required Spark version < 4.0.0 or without SPARK-45762, highly recommended to false for ShuffleManager in user-defined jar specified by --jars or spark.jars
 spark.executor.userClassPathFirst false
 ```
+
+With DRA enabled, `AUTO` and `ALWAYS` fallback policies require shuffle tracking unless an external
+shuffle service or Spark shuffle decommissioning is configured. Shuffle decommissioning requires
+`spark.decommission.enabled=true` and `spark.storage.decommission.shuffleBlocks.enabled=true`;
+also enable `spark.storage.decommission.enabled` to migrate stored blocks.
+To keep all shuffle data on Celeborn, set `spark.celeborn.client.spark.shuffle.fallback.policy=NEVER`.
+With `NEVER`, the application fails rather than falling back when Celeborn cannot serve a shuffle.
+Shuffle tracking can then be disabled to release idle executors promptly, but only when Spark's
+dynamic allocation check still passes without it: either use Spark 3.5 or later with
+`spark.shuffle.sort.io.plugin.class=org.apache.spark.shuffle.celeborn.CelebornShuffleDataIO`, or
+enable Spark shuffle decommissioning as described above. Otherwise, for example on Spark 3.4 without
+an external shuffle service or shuffle decommissioning, Spark rejects dynamic allocation at startup.
 
 ## Deploy Flink client
 

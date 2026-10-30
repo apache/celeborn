@@ -256,6 +256,12 @@ public class ReloadingX509TrustManagerSuiteJ {
     certs.put("cert1", cert1);
     certs.put("cert2", cert2);
     createTrustStore(trustStore2, "password", certs);
+    // The reload check compares modification times, so a rewrite landing within the same
+    // timestamp tick as the last load is indistinguishable from no change (e.g. JDK 8 on
+    // macOS truncates mtime to whole seconds). Backdate trustStore2 before it is first
+    // loaded, so the cert3 rewrite below always carries a newer timestamp and no post-write
+    // mtime nudge (which could trigger an extra, racy reload) is needed.
+    trustStore2.setLastModified(trustStore2.lastModified() - 5000);
 
     File trustStoreSymlink = File.createTempFile("testreloadsymlink", "jks");
     trustStoreSymlink.delete();

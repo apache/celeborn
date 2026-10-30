@@ -52,6 +52,8 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
 
   private static final String MASTER_ENDPOINTS_ENV = "CELEBORN_MASTER_ENDPOINTS";
 
+  private LifecycleManager lifecycleManager;
+
   public MRAppMasterWithCeleborn(
       ApplicationAttemptId applicationAttemptId,
       ContainerId containerId,
@@ -67,7 +69,7 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
     if (numReducers > 0) {
       CelebornConf conf = HadoopUtils.fromYarnConf(jobConf);
       String appUniqueId = conf.appUniqueIdWithUUIDSuffix(applicationAttemptId.toString());
-      LifecycleManager lifecycleManager = new LifecycleManager(appUniqueId, conf);
+      this.lifecycleManager = new LifecycleManager(appUniqueId, conf);
       String lmHost = lifecycleManager.getHost();
       int lmPort = lifecycleManager.getPort();
       logger.info("MRAppMaster initialized with {} {} {}", lmHost, lmPort, appUniqueId);
@@ -124,6 +126,30 @@ public class MRAppMasterWithCeleborn extends MRAppMaster {
       throw new CelebornIOException(msg);
     }
     return value;
+  }
+
+  /**
+   * In addition to the standard MR AppMaster teardown, stop the Celeborn LifecycleManager so the
+   * application is explicitly unregistered from the Celeborn master and its shuffle data is
+   * released. Without this, the Celeborn master only frees the application (and the worker's
+   * shuffle files) via heartbeat timeout, leaking disk space after the job finishes.
+   *
+   * <p>This is overridden in {@code serviceStop()} rather than {@code stop()}: the service
+   * transition is state-guarded and runs exactly once, whereas {@code stop()} can be reached twice
+   * on the AM ({@code MRAppMaster#shutDownJob()} then the JVM-shutdown hook), which would stop the
+   * LifecycleManager twice. {@code serviceStop()} mirrors the Tez client ({@code
+   * CelebornDagAppMaster#serviceStop()}).
+   */
+  @Override
+  protected void serviceStop() throws Exception {
+    if (lifecycleManager != null) {
+      try {
+        lifecycleManager.stop();
+      } catch (Throwable t) {
+        logger.warn("Error stopping Celeborn LifecycleManager", t);
+      }
+    }
+    super.serviceStop();
   }
 
   public static void main(String[] args) {

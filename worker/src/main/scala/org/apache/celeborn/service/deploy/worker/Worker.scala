@@ -587,11 +587,7 @@ private[celeborn] class Worker(
     checkFastFailTask = forwardMessageScheduler.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError {
-          unavailablePeers.entrySet().forEach { entry: JMap.Entry[WorkerInfo, Long] =>
-            if (System.currentTimeMillis() - entry.getValue > replicaFastFailDuration) {
-              unavailablePeers.remove(entry.getKey)
-            }
-          }
+          removeExpiredUnavailablePeers(System.currentTimeMillis())
         }
       },
       0,
@@ -869,6 +865,14 @@ private[celeborn] class Worker(
       })
     }
 
+  private[worker] def removeExpiredUnavailablePeers(currentTime: Long): Unit = {
+    unavailablePeers.entrySet().forEach { entry: JMap.Entry[WorkerInfo, Long] =>
+      if (currentTime - entry.getValue > replicaFastFailDuration) {
+        unavailablePeers.remove(entry.getKey)
+      }
+    }
+  }
+
   private def removeAppResourceConsumption(applicationIds: Iterable[String]): Unit = {
     applicationIds.foreach { applicationId => removeAppResourceConsumption(applicationId) }
   }
@@ -1060,7 +1064,9 @@ private[celeborn] class Worker(
 
   def decommissionWorker(): Unit = {
     logInfo("Worker start to decommission")
-    workerStatusManager.transitionState(State.InDecommission)
+    if (workerStatusManager.currentWorkerStatus.getState != State.InDecommission) {
+      workerStatusManager.transitionState(State.InDecommission)
+    }
     sendWorkerDecommissionToMaster()
     shutdown.set(true)
     val interval = conf.workerDecommissionCheckInterval

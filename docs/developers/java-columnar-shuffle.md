@@ -54,3 +54,9 @@ If you require further performance optimization, consider enabling code generati
 ```
 spark.celeborn.columnarShuffle.codegen.enabled true
 ```
+
+Each partition buffers rows in memory until `spark.celeborn.columnarShuffle.batch.size` rows are reached. If rows can be wide, e.g. with long strings, also cap each batch by its estimated size in bytes to limit how much data each partition buffers:
+
+```
+spark.celeborn.columnarShuffle.batch.sizeInBytes.enabled true
+```

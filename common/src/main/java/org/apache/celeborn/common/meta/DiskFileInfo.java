@@ -118,10 +118,6 @@ public class DiskFileInfo extends FileInfo {
     return new Path(Utils.getWriteSuccessFilePath(filePath));
   }
 
-  public Path getDfsPeerWriterSuccessPath() {
-    return new Path(Utils.getWriteSuccessFilePath(Utils.getPeerPath(filePath)));
-  }
-
   public void deleteAllFiles(FileSystem dfsFs) {
     if (isDFS()) {
       try {
