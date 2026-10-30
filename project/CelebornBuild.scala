@@ -1216,7 +1216,10 @@ trait SparkClientProjects {
             ExclusionRule("org.glassfish.jersey.media", "*")),
           Dependencies.javaxServletApi % "test",
           Dependencies.jakartaServletApi % "test"
-        ) ++ commonUnitTestDependencies
+        ) ++ commonUnitTestDependencies,
+        dependencyOverrides ++= Seq(
+          Dependencies.hadoopClientApi,
+          Dependencies.hadoopClientRuntime)
       )
   }
 
