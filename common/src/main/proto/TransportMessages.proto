@@ -539,6 +539,7 @@ message PbHeartbeatFromApplication {
 
 enum PbMetricType {
   GAUGE = 0;
+  COUNTER = 1;
 }
 
 message PbClientMetric {
@@ -1085,6 +1086,7 @@ message PbMetaAppHeartbeatRequest {
   map<string, int64> applicationFallbackCounts = 9;
   map<string, int64> clientGauges = 10;
   map<string, string> clientMetricLabels = 11;
+  map<string, int64> clientCounters = 12;
 }
 
 message PbMetaWorkerExcludeRequest {

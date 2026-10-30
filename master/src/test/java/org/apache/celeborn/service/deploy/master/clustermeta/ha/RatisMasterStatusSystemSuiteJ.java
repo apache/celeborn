@@ -894,6 +894,7 @@ public class RatisMasterStatusSystemSuiteJ {
                 new HashMap<>(),
                 System.currentTimeMillis(),
                 gauges,
+                new HashMap<>(),
                 CLIENT_LABELS,
                 getNewReqeustId()));
   }
@@ -1029,7 +1030,10 @@ public class RatisMasterStatusSystemSuiteJ {
 
     @Override
     public void updateApplicationMetrics(
-        String appId, Map<String, String> metricLabels, Map<String, Long> gauges) {
+        String appId,
+        Map<String, String> metricLabels,
+        Map<String, Long> gauges,
+        Map<String, Long> counters) {
       throw new IllegalArgumentException("injected update failure");
     }
 
@@ -1281,6 +1285,7 @@ public class RatisMasterStatusSystemSuiteJ {
         new HashMap<>(),
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
     Thread.sleep(3000L);
@@ -1299,6 +1304,7 @@ public class RatisMasterStatusSystemSuiteJ {
         new HashMap<>(),
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
     Thread.sleep(3000L);
@@ -1991,6 +1997,7 @@ public class RatisMasterStatusSystemSuiteJ {
         new HashMap<>(),
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
     String appId2 = "app02";
@@ -2004,6 +2011,7 @@ public class RatisMasterStatusSystemSuiteJ {
         new HashMap<>(),
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
 
@@ -2021,6 +2029,7 @@ public class RatisMasterStatusSystemSuiteJ {
         new HashMap<>(),
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
     statusSystem.handleAppHeartbeat(
@@ -2033,6 +2042,7 @@ public class RatisMasterStatusSystemSuiteJ {
         new HashMap<>(),
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
 
@@ -2050,6 +2060,7 @@ public class RatisMasterStatusSystemSuiteJ {
         new HashMap<>(),
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
     statusSystem.handleAppHeartbeat(
@@ -2062,6 +2073,7 @@ public class RatisMasterStatusSystemSuiteJ {
         new HashMap<>(),
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
 
@@ -2469,6 +2481,7 @@ public class RatisMasterStatusSystemSuiteJ {
         applicationFallbackCounts,
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
     shuffleFallbackCounts.put(POLICY1, 1L);
@@ -2485,6 +2498,7 @@ public class RatisMasterStatusSystemSuiteJ {
         applicationFallbackCounts,
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
 
