@@ -510,10 +510,11 @@ public class HARaftServer {
       return null;
     }
 
-    String sslModule = MasterClusterInfo.ratisSslModule(conf);
     // This is used only for querying state after initialization - not actual SSL
     // also why nThreads does not matter
-    SSLFactory factory = SSLFactory.createSslFactory(Utils.fromCelebornConf(conf, sslModule, 1));
+    SSLFactory factory =
+        SSLFactory.createSslFactory(
+            Utils.fromCelebornConf(conf, MasterClusterInfo.ratisSslModule(conf), 1));
 
     assert (null != factory);
     assert (factory.hasKeyManagers());
