@@ -23,7 +23,7 @@ import javax.ws.rs.core.{Application, UriBuilder}
 
 import org.glassfish.jersey.client.ClientConfig
 import org.glassfish.jersey.media.multipart.MultiPartFeature
-import org.glassfish.jersey.server.ResourceConfig
+import org.glassfish.jersey.server.{ResourceConfig, ServerProperties}
 import org.glassfish.jersey.test.JerseyTest
 import org.glassfish.jersey.test.jetty.JettyTestContainerFactory
 import org.glassfish.jersey.test.spi.TestContainerFactory
@@ -40,6 +40,7 @@ object HttpTestHelper {
   class RestApiBaseSuite extends JerseyTest {
 
     override def configure: Application = new ResourceConfig(getClass)
+      .property(ServerProperties.WADL_FEATURE_DISABLE, true)
       .register(classOf[MultiPartFeature])
 
     override def configureClient(config: ClientConfig): Unit = {
