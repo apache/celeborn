@@ -345,6 +345,7 @@ class UtilsSuite extends CelebornFunSuite {
   test("HeartbeatFromApplication carries client metrics through pb serde") {
     val clientMetrics = new util.HashMap[String, ClientMetric]()
     clientMetrics.put("ClientExcludedWorkerCount", ClientMetric(2L, MetricType.Gauge))
+    clientMetrics.put("ClientReviveCount", ClientMetric(17L, MetricType.Counter))
 
     val metricLabels = new util.HashMap[String, String]()
     metricLabels.put("env", "prod")

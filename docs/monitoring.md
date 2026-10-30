@@ -179,12 +179,20 @@ These metrics are exposed by Celeborn master.
     - **notes:**
         - These are client-side metrics forwarded to the master via application heartbeats. They are exposed on the master's Prometheus endpoint when `celeborn.metrics.master.clientMetrics.enabled` is true and `celeborn.client.metrics.appLabels` is set on the client.
         - Gauge values are aggregated (summed) across all reporting applications that share the same label set.
+        - Clients report counters as cumulative values, never as deltas. The master remembers each application's last reported value and advances one monotonic counter per label set by how much that value grew, so duplicated or late heartbeats are not counted twice and counters never decrease when an application finishes. After a master restart, each running application's next report is counted in full, which can show as a one-time spike.
     
-    | Metric Name                  | Description                                                                    |
-    |------------------------------|--------------------------------------------------------------------------------|
-    | ClientActiveShuffleCount     | The number of active shuffles on the client.                                   |
-    | ClientExcludedWorkerCount    | The number of workers excluded by the client.                                  |
-    | ClientShuttingWorkerCount    | The number of workers in shutting-down state as seen by the client.            |
+    | Metric Name                      | Description                                                                                                                 |
+    |----------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+    | ClientActiveShuffleCount         | The number of active shuffles on the client.                                                                                |
+    | ClientExcludedWorkerCount        | The number of workers excluded by the client.                                                                               |
+    | ClientShuttingWorkerCount        | The number of workers in shutting-down state as seen by the client.                                                         |
+    | ClientRegisteredShuffleCount     | The count of shuffles registered by the client.                                                                             |
+    | ClientReviveCount                | The count of partitions revived by the client because of push failures or partition splits.                                 |
+    | ClientShuffleFetchFailureCount   | The count of shuffle fetch failures accepted by the client.                                                                 |
+    | ClientStageRerunCount            | The count of stage reruns triggered by the client from fetch failures or barrier stage failures.                            |
+    | ClientShuffleDataLostCount       | The count of shuffle data loss events detected by the client during commit.                                                 |
+    | ClientReserveSlotsFailureCount   | The count of times the client failed to reserve slots on workers after all retries.                                         |
+    | ClientRequestSlotsFailureCount   | The count of slot requests from the client to the master that failed after retry.                                           |
 
 #### Worker
 These metrics are exposed by Celeborn worker.

@@ -1305,17 +1305,20 @@ private[celeborn] class Master(
       shouldResponse: Boolean,
       clientMetrics: util.Map[String, ClientMetric],
       metricLabels: util.Map[String, String]): Unit = {
-    val (clientGauges, clientMetricLabels) =
+    val (clientGauges, clientCounters, clientMetricLabels) =
       if (masterClientMetricsEnabled && !metricLabels.isEmpty) {
         val gauges = new util.HashMap[String, java.lang.Long]()
+        val counters = new util.HashMap[String, java.lang.Long]()
         clientMetrics.asScala.foreach { case (name, metric) =>
           metric.metricType match {
             case MetricType.Gauge => gauges.put(name, metric.value)
+            case MetricType.Counter => counters.put(name, metric.value)
           }
         }
-        (gauges, metricLabels)
+        (gauges, counters, metricLabels)
       } else {
         (
+          Collections.emptyMap[String, java.lang.Long](),
           Collections.emptyMap[String, java.lang.Long](),
           Collections.emptyMap[String, String]())
       }
@@ -1329,6 +1332,7 @@ private[celeborn] class Master(
       applicationFallbackCounts,
       System.currentTimeMillis(),
       clientGauges,
+      clientCounters,
       clientMetricLabels,
       requestId)
 

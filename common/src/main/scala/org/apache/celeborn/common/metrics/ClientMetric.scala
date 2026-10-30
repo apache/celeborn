@@ -20,6 +20,7 @@ package org.apache.celeborn.common.metrics
 sealed trait MetricType
 object MetricType {
   case object Gauge extends MetricType
+  case object Counter extends MetricType
 }
 
 case class ClientMetric(value: Long, metricType: MetricType)
