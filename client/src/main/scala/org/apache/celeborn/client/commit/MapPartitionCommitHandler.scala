@@ -27,7 +27,7 @@ import scala.collection.mutable
 
 import org.roaringbitmap.RoaringBitmap
 
-import org.apache.celeborn.client.{LifecycleManager, ShuffleCommittedInfo, WorkerStatusTracker}
+import org.apache.celeborn.client.{CelebornClientSource, LifecycleManager, ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
 import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
@@ -169,6 +169,9 @@ class MapPartitionCommitHandler(
       getPartitionIds(shuffleCommittedInfo.failedReplicaPartitionIds, partitionId)
     val dataLost =
       checkDataLost(shuffleId, failedPrimaryPartitionUniqueIds, failedReplicaPartitionUniqueIds)
+    if (dataLost && lifecycleManager != null) {
+      lifecycleManager.incClientCounter(CelebornClientSource.SHUFFLE_DATA_LOST_COUNT)
+    }
 
     // collect partition result
     if (!dataLost) {

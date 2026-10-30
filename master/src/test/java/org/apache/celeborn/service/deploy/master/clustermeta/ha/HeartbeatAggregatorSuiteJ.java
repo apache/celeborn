@@ -148,6 +148,7 @@ public class HeartbeatAggregatorSuiteJ {
         time2,
         new HashMap<>(),
         new HashMap<>(),
+        new HashMap<>(),
         UUID.randomUUID().toString() + "#4");
     metaSystem.handleWorkerHeartbeat(
         "host1",
@@ -211,6 +212,7 @@ public class HeartbeatAggregatorSuiteJ {
         time1,
         gauges1,
         new HashMap<>(),
+        new HashMap<>(),
         UUID.randomUUID().toString() + "#1");
     metaSystem.handleAppHeartbeat(
         "app-merge",
@@ -222,6 +224,7 @@ public class HeartbeatAggregatorSuiteJ {
         new HashMap<>(),
         time2,
         gauges2,
+        new HashMap<>(),
         new HashMap<>(),
         UUID.randomUUID().toString() + "#2");
 
@@ -249,6 +252,7 @@ public class HeartbeatAggregatorSuiteJ {
         new HashMap<>(),
         new HashMap<>(),
         time1,
+        new HashMap<>(),
         new HashMap<>(),
         new HashMap<>(),
         UUID.randomUUID().toString() + "#1");

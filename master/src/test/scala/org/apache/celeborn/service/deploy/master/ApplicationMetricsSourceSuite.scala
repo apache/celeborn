@@ -17,8 +17,8 @@
 
 package org.apache.celeborn.service.deploy.master
 
-import java.util.{HashMap => JHashMap}
-import java.util.concurrent.{CountDownLatch, Delayed, ScheduledThreadPoolExecutor, TimeUnit}
+import java.util.{Collections, HashMap => JHashMap}
+import java.util.concurrent.{CountDownLatch, Delayed, Executors, ScheduledThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.JavaConverters._
@@ -45,12 +45,28 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
     super.afterEach()
   }
 
+  /** Exposes per-app counter state so tests can assert nothing is left behind. */
+  private class InspectableSource(conf: CelebornConf) extends ApplicationMetricsSource(conf) {
+    def trackedCounterApps(labels: Map[String, String], name: String = CounterName): Set[String] =
+      Option(namedCountersWithDetails.get(metricNameWithCustomizedLabels(name, labels)))
+        .map(_.perAppValues.keySet().asScala.toSet)
+        .getOrElse(Set.empty)
+
+    def removeIdleCounters(idleBeforeMs: Long): Unit = removeIdleAppCounters(idleBeforeMs)
+  }
+
+  private def newInspectableSource(conf: CelebornConf): InspectableSource = {
+    val source = new InspectableSource(conf)
+    createdSources += source
+    source
+  }
+
   /**
    * A source whose first isAppRemoved call (made inside compute, before a new series is
    * published) blocks until the test releases it, so cleanup can be run deterministically in
    * the window between the removal check and the map insertion.
    */
-  private class PausingSource(conf: CelebornConf) extends ApplicationMetricsSource(conf) {
+  private class PausingSource(conf: CelebornConf) extends InspectableSource(conf) {
     val paused = new CountDownLatch(1)
     val release = new CountDownLatch(1)
     private val firstCall = new AtomicBoolean(true)
@@ -68,8 +84,11 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
   /** Runs the first heartbeat of an absent series, firing `cleanup` mid-insertion. */
   private def raceFirstInsertion(
       source: PausingSource,
-      labels: Map[String, String])(cleanup: => Unit): Unit = {
-    val heartbeat = new Thread(() => update(source, gaugeMetrics(7), labels))
+      labels: Map[String, String],
+      heartbeatBody: () => Unit = null)(cleanup: => Unit): Unit = {
+    val body =
+      if (heartbeatBody != null) heartbeatBody else () => update(source, gaugeMetrics(7), labels)
+    val heartbeat = new Thread(() => body())
     heartbeat.start()
     assert(source.paused.await(10, TimeUnit.SECONDS))
     cleanup
@@ -98,7 +117,35 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
       metrics: JHashMap[String, java.lang.Long],
       labels: Map[String, String] = Map.empty,
       appId: String = "app-1"): Unit =
-    source.updateApplicationMetrics(appId, labels.asJava, metrics)
+    source.updateApplicationMetrics(
+      appId,
+      labels.asJava,
+      metrics,
+      Collections.emptyMap[String, java.lang.Long]())
+
+  private val CounterName = "ClientReviveCount"
+
+  private def updateCounter(
+      source: ApplicationMetricsSource,
+      value: Long,
+      labels: Map[String, String],
+      appId: String = "app-1"): Unit = {
+    val counters = new JHashMap[String, java.lang.Long]()
+    counters.put(CounterName, value)
+    source.updateApplicationMetrics(
+      appId,
+      labels.asJava,
+      Collections.emptyMap[String, java.lang.Long](),
+      counters)
+  }
+
+  private def counterValue(
+      source: ApplicationMetricsSource,
+      labels: Map[String, String],
+      name: String = CounterName): Option[Long] =
+    source.counters()
+      .find(c => c.name == name && hasLabels(c.labels, labels))
+      .map(_.counter.getCount)
 
   private def gaugeValue(
       source: ApplicationMetricsSource,
@@ -288,5 +335,154 @@ class ApplicationMetricsSourceSuite extends CelebornFunSuite {
 
     assert(gaugeValue(source, labels).isEmpty)
     assert(source.gauges().isEmpty)
+  }
+
+  test("counter from a new app counts its full cumulative value") {
+    val source = newSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+
+    updateCounter(source, 5, labels)
+
+    assert(counterValue(source, labels).contains(5L))
+    assert(source.getMetrics.contains("metrics_ClientReviveCount_Count"))
+  }
+
+  test("duplicated counter heartbeats are not double counted") {
+    val source = newSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+
+    updateCounter(source, 5, labels)
+    updateCounter(source, 5, labels)
+    updateCounter(source, 8, labels)
+    updateCounter(source, 8, labels)
+
+    assert(counterValue(source, labels).contains(8L))
+  }
+
+  test("late counter heartbeat with a lower value is ignored") {
+    val source = newSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+
+    updateCounter(source, 8, labels)
+    updateCounter(source, 5, labels)
+    assert(counterValue(source, labels).contains(8L))
+
+    // The stale report must not lower the stored value, or the next report would recount 5..8.
+    updateCounter(source, 10, labels)
+    assert(counterValue(source, labels).contains(10L))
+  }
+
+  test("counters aggregate across apps and never decrease when an app is removed") {
+    val source = newInspectableSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+
+    updateCounter(source, 3, labels, "app-1")
+    updateCounter(source, 7, labels, "app-2")
+    assert(counterValue(source, labels).contains(10L))
+
+    source.removeApplicationMetrics("app-1")
+    assert(counterValue(source, labels).contains(10L))
+    assert(source.trackedCounterApps(labels) == Set("app-2"))
+
+    source.removeApplicationMetrics("app-2")
+    // The series outlives its last app so the final increments are still scraped.
+    assert(counterValue(source, labels).contains(10L))
+    assert(source.trackedCounterApps(labels).isEmpty)
+  }
+
+  test("late counter heartbeats for removed apps are ignored") {
+    val source = newSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+
+    updateCounter(source, 3, labels)
+    source.removeApplicationMetrics("app-1")
+    updateCounter(source, 9, labels)
+
+    assert(counterValue(source, labels).contains(3L))
+  }
+
+  test("idle counters are dropped only after their idle period") {
+    val source = newInspectableSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+
+    updateCounter(source, 3, labels)
+    source.removeIdleCounters(System.currentTimeMillis() + 1)
+    assert(counterValue(source, labels).contains(3L), "a counter with live apps is never idle")
+
+    val beforeRemoval = System.currentTimeMillis() - 1
+    source.removeApplicationMetrics("app-1")
+    source.removeIdleCounters(beforeRemoval)
+    assert(counterValue(source, labels).contains(3L))
+
+    source.removeIdleCounters(System.currentTimeMillis() + 1)
+    assert(counterValue(source, labels).isEmpty)
+  }
+
+  test("an app reporting again before idle cleanup keeps the counter") {
+    val source = newInspectableSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+
+    updateCounter(source, 3, labels, "app-1")
+    source.removeApplicationMetrics("app-1")
+    updateCounter(source, 2, labels, "app-2")
+
+    source.removeIdleCounters(System.currentTimeMillis() + 1)
+    assert(counterValue(source, labels).contains(5L))
+  }
+
+  test("clearApplicationMetrics drops counters and apps repopulate from their next report") {
+    val source = newSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+    updateCounter(source, 3, labels)
+
+    source.clearApplicationMetrics()
+    assert(counterValue(source, labels).isEmpty)
+
+    updateCounter(source, 6, labels)
+    assert(counterValue(source, labels).contains(6L))
+    updateCounter(source, 9, labels)
+    assert(counterValue(source, labels).contains(9L))
+  }
+
+  test("removal racing the first counter insertion leaves no per-app state") {
+    val source = new PausingSource(enabledConf())
+    createdSources += source
+    val labels = Map("team" -> "data-eng")
+
+    raceFirstInsertion(source, labels, () => updateCounter(source, 7, labels)) {
+      source.removeApplicationMetrics("app-1")
+    }
+
+    assert(source.trackedCounterApps(labels).isEmpty)
+    updateCounter(source, 9, labels)
+    assert(counterValue(source, labels).forall(_ <= 7L))
+  }
+
+  test("concurrent, duplicated and reordered counter heartbeats count each increment once") {
+    val source = newSource(enabledConf())
+    val labels = Map("team" -> "data-eng")
+    val apps = 8
+    val reportsPerApp = 200
+    val pool = Executors.newFixedThreadPool(apps * 2)
+    try {
+      val start = new CountDownLatch(1)
+      // Two senders per app replay the same cumulative series in opposite orders.
+      val futures = (0 until apps).flatMap { app =>
+        Seq(1 to reportsPerApp, reportsPerApp to 1 by -1).map { series =>
+          pool.submit(new Runnable {
+            override def run(): Unit = {
+              start.await()
+              series.foreach(v => updateCounter(source, v, labels, s"app-$app"))
+            }
+          })
+        }
+      }
+      start.countDown()
+      futures.foreach(_.get(30, TimeUnit.SECONDS))
+    } finally {
+      pool.shutdownNow()
+    }
+
+    assert(counterValue(source, labels).contains(apps.toLong * reportsPerApp))
   }
 }
