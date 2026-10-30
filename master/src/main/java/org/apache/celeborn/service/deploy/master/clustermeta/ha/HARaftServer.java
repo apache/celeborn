@@ -62,7 +62,6 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.network.ssl.SSLFactory;
-import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
@@ -446,12 +445,7 @@ public class HARaftServer {
       return null;
     }
 
-    // Prefer the dedicated `ratis` SSL module when explicitly enabled, else fall back to the
-    // client-facing `rpc_service` module. Whether TLS is on at all is MasterClusterInfo's call.
-    String sslModule =
-        conf.sslEnabled(TransportModuleConstants.RATIS_MODULE)
-            ? TransportModuleConstants.RATIS_MODULE
-            : TransportModuleConstants.RPC_SERVICE_MODULE;
+    String sslModule = MasterClusterInfo.ratisSslModule(conf);
     // This is used only for querying state after initialization - not actual SSL
     // also why nThreads does not matter
     SSLFactory factory = SSLFactory.createSslFactory(Utils.fromCelebornConf(conf, sslModule, 1));

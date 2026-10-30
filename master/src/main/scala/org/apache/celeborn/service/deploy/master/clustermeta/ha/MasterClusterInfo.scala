@@ -72,12 +72,23 @@ object MasterClusterInfo extends Logging {
   }
 
   /**
-   * Whether TLS is enabled for the inter-master Ratis channel: true if either the dedicated
-   * `ratis` module or the legacy `rpc_service` module has SSL enabled.
+   * SSL module for the inter-master Ratis channel. The dedicated `ratis` module is used only when
+   * `celeborn.ssl.ratis.enabled` is explicitly true; the global `celeborn.ssl.enabled` default
+   * does not select it, so deployments configuring only `rpc_service` keep its enablement and
+   * certificates.
    */
+  def ratisSslModule(conf: CelebornConf): String = {
+    val ratisEnabledKey = SSL_ENABLED.key.replace("<module>", TransportModuleConstants.RATIS_MODULE)
+    if (conf.getOption(ratisEnabledKey).exists(SSL_ENABLED.valueConverter)) {
+      TransportModuleConstants.RATIS_MODULE
+    } else {
+      TransportModuleConstants.RPC_SERVICE_MODULE
+    }
+  }
+
+  /** Whether TLS is enabled for the inter-master Ratis channel. */
   def ratisSslEnabled(conf: CelebornConf): Boolean = {
-    conf.sslEnabled(TransportModuleConstants.RATIS_MODULE) ||
-    conf.sslEnabled(TransportModuleConstants.RPC_SERVICE_MODULE)
+    conf.sslEnabled(ratisSslModule(conf))
   }
 
   private def isLocalAddress(addr: InetAddress): Boolean = {
