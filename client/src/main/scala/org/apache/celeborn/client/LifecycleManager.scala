@@ -592,7 +592,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           startMapIndex,
           endMapIndex,
           new CommitMetadata(crc32, bytesWritten))
-        if (!result._1 && endMapIndex != Integer.MAX_VALUE) {
+        // MAP readers also use finite ranges, but validate each subpartition range independently.
+        if (!result._1 && endMapIndex != Integer.MAX_VALUE &&
+          getPartitionType(shuffleId) == PartitionType.REDUCE) {
           failedIntegrityShuffles.putIfAbsent(shuffleId, result._2)
         }
         result
