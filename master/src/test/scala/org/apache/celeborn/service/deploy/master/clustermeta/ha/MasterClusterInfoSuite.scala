@@ -42,6 +42,10 @@ class MasterClusterInfoSuite extends CelebornFunSuite {
     entries.asScala.foreach { case (k, v) => conf.set(k, v) }
   }
 
+  private def ratisSslEnabled(conf: CelebornConf): Boolean = {
+    conf.sslEnabled(MasterClusterInfo.ratisSslModule(conf))
+  }
+
   // Certificate presented by the key manager that Ratis TLS would be configured with.
   private def selectedCertificate(conf: CelebornConf): Certificate = {
     val module = MasterClusterInfo.ratisSslModule(conf)
@@ -68,21 +72,21 @@ class MasterClusterInfoSuite extends CelebornFunSuite {
   }
 
   test("ratis ssl is disabled when neither ratis nor rpc_service module is enabled") {
-    assert(!MasterClusterInfo.ratisSslEnabled(new CelebornConf()))
+    assert(!ratisSslEnabled(new CelebornConf()))
   }
 
   test("ratis ssl stays enabled when only rpc_service is enabled") {
     // Legacy deployments configure only rpc_service; they must keep securing Ratis as before.
     val conf = new CelebornConf()
     conf.set(rpcServiceKey, "true")
-    assert(MasterClusterInfo.ratisSslEnabled(conf))
+    assert(ratisSslEnabled(conf))
     assert(MasterClusterInfo.ratisSslModule(conf) === TransportModuleConstants.RPC_SERVICE_MODULE)
   }
 
   test("ratis ssl is enabled by the dedicated ratis module alone") {
     val conf = new CelebornConf()
     conf.set(ratisKey, "true")
-    assert(MasterClusterInfo.ratisSslEnabled(conf))
+    assert(ratisSslEnabled(conf))
     assert(MasterClusterInfo.ratisSslModule(conf) === TransportModuleConstants.RATIS_MODULE)
   }
 
@@ -90,14 +94,14 @@ class MasterClusterInfoSuite extends CelebornFunSuite {
     val conf = new CelebornConf()
     conf.set(ratisKey, "true")
     conf.set(rpcServiceKey, "false")
-    assert(MasterClusterInfo.ratisSslEnabled(conf))
+    assert(ratisSslEnabled(conf))
   }
 
   test("explicitly disabled ratis module falls back to rpc_service") {
     val conf = new CelebornConf()
     conf.set(ratisKey, "false")
     conf.set(rpcServiceKey, "true")
-    assert(MasterClusterInfo.ratisSslEnabled(conf))
+    assert(ratisSslEnabled(conf))
     assert(MasterClusterInfo.ratisSslModule(conf) === TransportModuleConstants.RPC_SERVICE_MODULE)
   }
 
@@ -108,7 +112,7 @@ class MasterClusterInfoSuite extends CelebornFunSuite {
       conf,
       SslSampleConfigs.createDefaultConfigMapForModule(TransportModuleConstants.RPC_SERVICE_MODULE))
     assert(MasterClusterInfo.ratisSslModule(conf) === TransportModuleConstants.RPC_SERVICE_MODULE)
-    assert(MasterClusterInfo.ratisSslEnabled(conf))
+    assert(ratisSslEnabled(conf))
     assert(
       selectedCertificate(conf) === keyStoreCertificate(SslSampleConfigs.DEFAULT_KEY_STORE_PATH))
   }
@@ -118,7 +122,7 @@ class MasterClusterInfoSuite extends CelebornFunSuite {
     conf.set(globalSslKey, "true")
     conf.set(rpcServiceKey, "false")
     assert(MasterClusterInfo.ratisSslModule(conf) === TransportModuleConstants.RPC_SERVICE_MODULE)
-    assert(!MasterClusterInfo.ratisSslEnabled(conf))
+    assert(!ratisSslEnabled(conf))
   }
 
   test("explicitly enabled ratis module uses its own certificate") {
