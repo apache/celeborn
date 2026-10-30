@@ -36,7 +36,7 @@ end="<!--end-include-->"
 
 When SSL is enabled for `rpc_service`, Raft communication between masters are secured **only when** `celeborn.master.ha.ratis.raft.rpc.type` is set to `grpc`.
 
-By default, Raft communication uses the `rpc_service` SSL configuration. To secure it with a separate certificate, set `celeborn.ssl.ratis.enabled` to `true` explicitly and configure the `ratis` module. The global `celeborn.ssl.enabled` default does not enable the `ratis` module.
+By default, Raft communication uses the `rpc_service` SSL configuration. To secure it with a separate certificate, set `celeborn.ssl.ratis.enabled` to `true` explicitly and configure the `ratis` module. The global `celeborn.ssl.enabled` default does not enable the `ratis` module. Setting `celeborn.ssl.ratis.enabled` to `false` does not disable TLS for Raft communication; it keeps using the `rpc_service` SSL configuration.
 
 Note that `celeborn.ssl`, **without any module**, can be used to set SSL default values which applies to all modules.
 
