@@ -451,6 +451,61 @@ class QuotaManagerSuite extends CelebornFunSuite
     clearUserConsumption()
   }
 
+  test("test user resource consumption metrics include S3 and OSS") {
+    val user = UserIdentifier("tenant_s3", "s3User")
+    val appConsumption = ResourceConsumption(
+      100,
+      1,
+      200,
+      2,
+      s3BytesWritten = 3000,
+      s3FileCount = 3,
+      ossBytesWritten = 4000,
+      ossFileCount = 4)
+    val userConsumption = ResourceConsumption(
+      100,
+      1,
+      200,
+      2,
+      Map("s3App" -> appConsumption).asJava,
+      s3BytesWritten = 3000,
+      s3FileCount = 3,
+      ossBytesWritten = 4000,
+      ossFileCount = 4)
+    val diskUser = UserIdentifier("tenant_s3", "diskUser")
+    statusSystem.updateApplicationInfo("s3App", user, extraInfo)
+    statusSystem.updateApplicationInfo("diskApp", diskUser, extraInfo)
+    addUserConsumption(user, userConsumption)
+    addUserConsumption(
+      diskUser,
+      ResourceConsumption(
+        100,
+        1,
+        200,
+        2,
+        Map("diskApp" -> ResourceConsumption(100, 1, 200, 2)).asJava))
+
+    try {
+      quotaManager.updateResourceConsumption()
+
+      val res = resourceConsumptionSource.getMetrics
+      val labels = s"""$metricsInstanceLabel,name="s3User",role="Master",tenantId="tenant_s3""""
+      assert(res.contains(s"""metrics_s3FileCount_Value{$labels} 3"""))
+      assert(res.contains(s"""metrics_s3BytesWritten_Value{$labels} 3000"""))
+      assert(res.contains(s"""metrics_ossFileCount_Value{$labels} 4"""))
+      assert(res.contains(s"""metrics_ossBytesWritten_Value{$labels} 4000"""))
+
+      // A user without S3/OSS usage gets no S3/OSS gauges.
+      val diskLabels =
+        s"""$metricsInstanceLabel,name="diskUser",role="Master",tenantId="tenant_s3""""
+      assert(res.contains(s"""metrics_diskFileCount_Value{$diskLabels} 1"""))
+      assert(!res.contains(s"""metrics_s3FileCount_Value{$diskLabels}"""))
+      assert(!res.contains(s"""metrics_ossFileCount_Value{$diskLabels}"""))
+    } finally {
+      clearUserConsumption()
+    }
+  }
+
   test("test user level conf") {
     val conf1 = new CelebornConf()
     conf1.set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "FS")
