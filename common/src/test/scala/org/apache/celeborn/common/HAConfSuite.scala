@@ -36,6 +36,11 @@ class HAConfSuite extends CelebornFunSuite {
     assert(conf.haMasterRatisHost("2") === "clb-2")
     assert(conf.haMasterRatisHost("3") === "clb-3")
 
+    // client.host is unset in these configs, so it falls back to the node host
+    assert(conf.haMasterClientHost("1") === "clb-1")
+    assert(conf.haMasterClientHost("2") === "clb-2")
+    assert(conf.haMasterClientHost("3") === "clb-3")
+
     assert(conf.haMasterRatisPort("1") === 11111)
     assert(conf.haMasterRatisPort("2") === 22222)
     assert(conf.haMasterRatisPort("3") === 33333)
@@ -91,5 +96,18 @@ class HAConfSuite extends CelebornFunSuite {
       .set(s"$OLD_HA_PREFIX.node.3.port", "30000")
       .set(s"$OLD_HA_PREFIX.node.3.ratis.port", "33333")
     verifyConf(conf)
+  }
+
+  test("client host overrides node host for the client-facing redirect only") {
+    val conf = new CelebornConf()
+      .set(s"$NEW_HA_PREFIX.node.id", "1")
+      .set(s"$NEW_HA_PREFIX.node.1.host", "clb-1")
+      .set(s"$NEW_HA_PREFIX.node.1.port", "10000")
+      .set(s"$NEW_HA_PREFIX.node.1.ratis.port", "11111")
+      .set(s"$NEW_HA_PREFIX.node.1.client.host", "clb-1.external")
+    assert(conf.haMasterClientHost("1") === "clb-1.external")
+    // Node + Ratis hosts are unaffected by the client-host override.
+    assert(conf.haMasterNodeHost("1") === "clb-1")
+    assert(conf.haMasterRatisHost("1") === "clb-1")
   }
 }

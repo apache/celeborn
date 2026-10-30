@@ -188,7 +188,7 @@ public class HARaftServer {
         RaftPeer.newBuilder()
             .setId(localRaftPeerId)
             .setAddress(ratisAddr)
-            .setClientAddress(localNode.rpcEndpoint())
+            .setClientAddress(localNode.clientEndpoint())
             // We use admin address to host the internal rpc address
             .setAdminAddress(localNode.internalRpcEndpoint())
             .build();
@@ -205,7 +205,7 @@ public class HARaftServer {
                 RaftPeer.newBuilder()
                     .setId(raftPeerId)
                     .setAddress(peer.ratisEndpoint())
-                    .setClientAddress(peer.rpcEndpoint())
+                    .setClientAddress(peer.clientEndpoint())
                     // We use admin address to host the internal rpc address
                     .setAdminAddress(peer.internalRpcEndpoint())
                     .build();
@@ -215,7 +215,7 @@ public class HARaftServer {
                 RaftPeer.newBuilder()
                     .setId(raftPeerId)
                     .setAddress(peerRatisAddr)
-                    .setClientAddress(peer.rpcEndpoint())
+                    .setClientAddress(peer.clientEndpoint())
                     // We use admin address to host the internal rpc address
                     .setAdminAddress(peer.internalRpcEndpoint())
                     .build();
@@ -640,14 +640,11 @@ public class HARaftServer {
           String clientAddress =
               roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getClientAddress();
           leaderPeerRpcEndpoint = Utils.addressToIpHostAddressPair(clientAddress);
-          // We use admin address to host the internal rpc address
-          if (conf.internalPortEnabled()) {
-            String adminAddress =
-                roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getAdminAddress();
-            leaderPeerInternalRpcEndpoint = Utils.addressToIpHostAddressPair(adminAddress);
-          } else {
-            leaderPeerInternalRpcEndpoint = leaderPeerRpcEndpoint;
-          }
+          // We use admin address to host the internal rpc address. It is the rpc address when the
+          // internal port is disabled, and unlike the client address it is never the client host.
+          String adminAddress =
+              roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getAdminAddress();
+          leaderPeerInternalRpcEndpoint = Utils.addressToIpHostAddressPair(adminAddress);
         }
 
         setServerRole(thisNodeRole, leaderPeerRpcEndpoint, leaderPeerInternalRpcEndpoint);
