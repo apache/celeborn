@@ -20,15 +20,20 @@ package org.apache.celeborn.client.write;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,6 +120,14 @@ public class DataPushQueueSuiteJ {
             byte[] buffer = task.getBuffer();
             int partitionId = task.getPartitionId();
             tarWorkerData.get(partitionId % numWorker).add(bytesToInt(buffer));
+            // Mirrors ShuffleClientImpl#pushData: the batch is registered as in-flight when it
+            // is actually pushed, not when the writer thread enqueues it. Pre-registering all
+            // batches on the writer side inflates per-worker in-flight counts past
+            // celeborn.client.push.maxReqsInFlightPerWorker and starves takePushTasks.
+            pushState.addBatch(
+                partitionBatchIdMap.get(partitionId),
+                task.getSize(),
+                reducePartitionMap.get(partitionId).hostAndPushPort());
             pushState.removeBatch(
                 partitionBatchIdMap.get(partitionId),
                 reducePartitionMap.get(partitionId).hostAndPushPort());
@@ -124,7 +137,6 @@ public class DataPushQueueSuiteJ {
     for (int i = 0; i < numPartitions; i++) {
       byte[] b = intToBytes(workerData.get(i % numWorker).get(i / numWorker));
       int batchId = pushState.nextBatchId();
-      pushState.addBatch(batchId, b.length, reducePartitionMap.get(i).hostAndPushPort());
       partitionBatchIdMap.put(i, batchId);
       dataPusher.addTask(i, b, b.length);
     }
@@ -176,6 +188,167 @@ public class DataPushQueueSuiteJ {
       Assert.assertTrue(e.getCause() instanceof OutOfMemoryError);
     }
     client.shutdown();
+  }
+
+  @Test
+  public void testAddTaskAndSwapBuffer() throws Exception {
+    int shuffleId = 0;
+    int mapId = 0;
+    int attemptId = 0;
+    int numMappers = 10;
+    int numPartitions = 10;
+    int numTasks = 1000;
+    CelebornConf conf = new CelebornConf();
+    final File tempFile = new File(tempDir, UUID.randomUUID().toString());
+    DummyShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    // Initialize partition locations to exercise the normal worker-selection path.
+    client.initReducePartitionMap(shuffleId, numPartitions, 1);
+    LongAdder[] mapStatusLengths = new LongAdder[numPartitions];
+    for (int i = 0; i < numPartitions; i++) {
+      mapStatusLengths[i] = new LongAdder();
+    }
+    List<Integer> pushedPartitions = new ArrayList<>();
+    List<Integer> pushedValues = new ArrayList<>();
+    DataPusher dataPusher =
+        new DataPusher(
+            shuffleId,
+            mapId,
+            attemptId,
+            0,
+            numMappers,
+            numPartitions,
+            conf,
+            client,
+            null,
+            integer -> {},
+            mapStatusLengths) {
+          @Override
+          protected void pushData(PushTask task) throws IOException {
+            byte[] buffer = task.getBuffer();
+            int value = bytesToInt(buffer);
+            for (int i = 4; i < task.getSize(); i += 4) {
+              Assert.assertEquals(value, bytesToInt(Arrays.copyOfRange(buffer, i, i + 4)));
+            }
+            pushedPartitions.add(task.getPartitionId());
+            pushedValues.add(value);
+          }
+        };
+
+    int size = conf.clientPushBufferMaxSize();
+    byte[] buffer = new byte[size];
+    for (int i = 0; i < numTasks; i++) {
+      byte[] value = intToBytes(i);
+      for (int j = 0; j < size; j += 4) {
+        System.arraycopy(value, 0, buffer, j, 4);
+      }
+      byte[] pushed = buffer;
+      buffer = dataPusher.addTaskAndSwapBuffer(i % numPartitions, pushed, size);
+      Assert.assertNotSame(pushed, buffer);
+      Assert.assertEquals(size, buffer.length);
+    }
+
+    dataPusher.waitOnTermination();
+
+    Assert.assertEquals(numTasks, pushedValues.size());
+    for (int i = 0; i < numTasks; i++) {
+      Assert.assertEquals(i % numPartitions, (int) pushedPartitions.get(i));
+      Assert.assertEquals(i, (int) pushedValues.get(i));
+    }
+    client.shutdown();
+  }
+
+  @Test
+  public void testAddTaskAndSwapBufferWithPooledTasksOfOtherSize() throws Exception {
+    int numPartitions = 1;
+    CelebornConf conf = new CelebornConf();
+    int size = conf.clientPushBufferMaxSize();
+    final File tempFile = new File(tempDir, UUID.randomUUID().toString());
+    DummyShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    client.initReducePartitionMap(0, numPartitions, 1);
+    LongAdder[] mapStatusLengths = new LongAdder[] {new LongAdder()};
+    // Tasks left in a pooled queue by a writer with a smaller push buffer size.
+    LinkedBlockingQueue<PushTask> pushTasks =
+        new LinkedBlockingQueue<>(conf.clientPushQueueCapacity());
+    for (int i = 0; i < conf.clientPushQueueCapacity(); i++) {
+      pushTasks.put(new PushTask(size / 2));
+    }
+    DataPusher dataPusher =
+        new DataPusher(
+            0,
+            0,
+            0,
+            0,
+            10,
+            numPartitions,
+            conf,
+            client,
+            pushTasks,
+            integer -> {},
+            mapStatusLengths) {
+          @Override
+          protected void pushData(PushTask task) {}
+        };
+
+    byte[] buffer = new byte[size];
+    for (int i = 0; i < 2 * conf.clientPushQueueCapacity(); i++) {
+      buffer = dataPusher.addTaskAndSwapBuffer(0, buffer, size);
+      Assert.assertEquals(size, buffer.length);
+    }
+
+    dataPusher.waitOnTermination();
+    client.shutdown();
+  }
+
+  @Test
+  public void testTaskAddedWhileTakingAllTasksIsNotLost() throws Exception {
+    CelebornConf conf = new CelebornConf();
+    final File tempFile = new File(tempDir, UUID.randomUUID().toString());
+    // No reduce partition map is initialized, so getPartitionLocation returns null and
+    // takePushTasks takes every queued task.
+    DummyShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    DataPusher dataPusher = Mockito.mock(DataPusher.class);
+    Mockito.when(dataPusher.stillRunning()).thenReturn(true);
+
+    PushTask queuedTask = new PushTask(4);
+    PushTask concurrentTask = new PushTask(4);
+    // Adds concurrentTask right after takePushTasks reads the queued tasks, as the writer thread
+    // can. toArray is how ArrayList.addAll reads the queue, drainTo is how it is read with the fix.
+    LinkedBlockingQueue<PushTask> workingQueue =
+        new LinkedBlockingQueue<PushTask>(conf.clientPushQueueCapacity()) {
+          private boolean added = false;
+
+          private void addConcurrentTaskOnce() {
+            if (!added) {
+              added = true;
+              super.offer(concurrentTask);
+            }
+          }
+
+          @Override
+          public Object[] toArray() {
+            Object[] tasks = super.toArray();
+            addConcurrentTaskOnce();
+            return tasks;
+          }
+
+          @Override
+          public int drainTo(Collection<? super PushTask> c) {
+            int n = super.drainTo(c);
+            addConcurrentTaskOnce();
+            return n;
+          }
+        };
+    DataPushQueue dataPushQueue =
+        new DataPushQueue(conf, dataPusher, client, 0, 0, 0, 1, 1, workingQueue);
+
+    try {
+      Assert.assertTrue(dataPushQueue.addPushTask(queuedTask));
+      Assert.assertEquals(Collections.singletonList(queuedTask), dataPushQueue.takePushTasks());
+      // The task added while taking must stay queued for the next takePushTasks call.
+      Assert.assertEquals(Collections.singletonList(concurrentTask), new ArrayList<>(workingQueue));
+    } finally {
+      client.shutdown();
+    }
   }
 
   public static byte[] intToBytes(int value) {

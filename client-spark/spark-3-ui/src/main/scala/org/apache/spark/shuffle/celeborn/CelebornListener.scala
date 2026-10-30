@@ -1,0 +1,219 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.spark.shuffle.celeborn
+
+import java.util.concurrent.atomic.AtomicLong
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+
+import org.apache.spark.SparkConf
+import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config.Status.MAX_RETAINED_STAGES
+import org.apache.spark.scheduler._
+import org.apache.spark.util.Utils
+import org.apache.spark.util.kvstore.KVStore
+
+/**
+ * Collects Celeborn shuffle metrics into the Spark KVStore for live UI and
+ * HistoryServer replay.
+ *
+ * When `requirePluginOptIn` is true (History Server replay), collection stays
+ * disabled until the application opted in via its recorded `spark.plugins` or
+ * `spark.plugins.defaultList`, or until a [[CelebornBuildInfoEvent]] is
+ * replayed, and an enable marker is persisted so `setupUI` can decide whether
+ * to attach the Celeborn tab.
+ */
+private[celeborn] class CelebornListener(
+    val kvstore: KVStore,
+    val conf: SparkConf,
+    requirePluginOptIn: Boolean = false)
+  extends SparkListener with Logging {
+
+  @volatile private var pluginEnabled = !requirePluginOptIn
+
+  private val totalWriteBytes = new AtomicLong(0L)
+  private val totalWriteTimeMs = new AtomicLong(0L)
+  private val totalReadBytes = new AtomicLong(0L)
+  private val totalFetchWaitTimeMs = new AtomicLong(0L)
+  private val totalTaskDurationMs = new AtomicLong(0L)
+  // Total bytes pushed before compression, for the compression ratio.
+  private val totalUncompressedWriteBytes = new AtomicLong(0L)
+  // Total bytes pushed after compression, from the same MapperEnd reports, so the
+  // compression ratio uses a single attempt set.
+  private val totalCompressedWriteBytes = new AtomicLong(0L)
+
+  private val lastUpdateTimestamp = new AtomicLong(-1L)
+  private val updateIntervalMillis = 5000L
+
+  // Bound the retained shuffles like Spark bounds its retained stages.
+  private val retainedShuffles = conf.get(MAX_RETAINED_STAGES)
+  // Only accessed from the listener bus thread.
+  private var assignedShuffles = 0L
+  private val workerShuffles = mutable.HashMap[String, Int]()
+  private val workerSlots = mutable.HashMap[String, Int]()
+
+  def register(sc: org.apache.spark.SparkContext): Unit = {
+    sc.addSparkListener(this)
+    logInfo("CelebornListener registered successfully")
+  }
+
+  override def onTaskEnd(taskEnd: SparkListenerTaskEnd): Unit = {
+    if (!pluginEnabled) {
+      return
+    }
+    Option(taskEnd.taskMetrics).foreach { metrics =>
+      // Count every attempt regardless of its end reason, like AppStatusListener.
+      totalWriteBytes.addAndGet(metrics.shuffleWriteMetrics.bytesWritten)
+      // writeTime is in nanoseconds; normalize to ms.
+      totalWriteTimeMs.addAndGet(metrics.shuffleWriteMetrics.writeTime / 1000000L)
+      totalReadBytes.addAndGet(metrics.shuffleReadMetrics.totalBytesRead)
+      totalFetchWaitTimeMs.addAndGet(metrics.shuffleReadMetrics.fetchWaitTime)
+      totalTaskDurationMs.addAndGet(taskEnd.taskInfo.duration)
+    }
+    mayUpdate()
+  }
+
+  override def onOtherEvent(event: SparkListenerEvent): Unit = event match {
+    case e: CelebornBuildInfoEvent =>
+      // Receiving the event also proves the application loaded the plugin.
+      kvstore.write(new CelebornBuildInfoUIData(Seq(
+        "Version" -> e.version,
+        "Commit Id" -> e.commitId,
+        "Revision" -> e.revision)))
+      if (!pluginEnabled) {
+        pluginEnabled = true
+        kvstore.write(new CelebornExtensionEnabledUIData())
+      }
+    case e: CelebornMapperMetricsEvent =>
+      if (pluginEnabled) {
+        totalUncompressedWriteBytes.addAndGet(e.getUncompressedBytesWritten)
+        totalCompressedWriteBytes.addAndGet(e.getCompressedBytesWritten)
+        mayUpdate()
+      }
+    case e: CelebornShuffleAssignmentEvent => onShuffleAssignment(e)
+    case _ =>
+  }
+
+  override def onJobEnd(jobEnd: SparkListenerJobEnd): Unit = {
+    // Flush per-job so that tasks finishing within the throttle interval of the
+    // previous flush are not lost when the application stays alive but idle.
+    mayUpdate(force = true)
+  }
+
+  override def onEnvironmentUpdate(environmentUpdate: SparkListenerEnvironmentUpdate): Unit = {
+    val sparkProps = environmentUpdate.environmentDetails
+      .getOrElse("Spark Properties", Seq.empty)
+    if (!pluginEnabled) {
+      val pluginClass = classOf[CelebornPlugin].getName
+      // Spark loads plugins from both keys: `spark.plugins.defaultList` allows a
+      // default plugin list in the config file that `spark.plugins` does not overwrite.
+      // Keep in sync with SparkUtils.isCelebornPluginEnabled in the spark-3 module.
+      val optedIn = sparkProps.exists { case (k, v) =>
+        (k == "spark.plugins" || k == "spark.plugins.defaultList") &&
+          v.split(",").exists(_.trim == pluginClass)
+      }
+      if (optedIn) {
+        pluginEnabled = true
+        kvstore.write(new CelebornExtensionEnabledUIData())
+      } else {
+        return
+      }
+    }
+    val celebornProps = Utils.redact(
+      conf,
+      sparkProps.filter { case (k, _) => k.startsWith("spark.celeborn.") })
+      .sortBy(_._1)
+    if (celebornProps.nonEmpty) {
+      kvstore.write(new CelebornPropertiesUIData(celebornProps.toList))
+    }
+  }
+
+  private def onShuffleAssignment(event: CelebornShuffleAssignmentEvent): Unit = {
+    val slots = event.workerSlots.values
+    kvstore.write(ShuffleAssignmentUIData(
+      event.shuffleId,
+      event.appShuffleId,
+      event.workerSlots.size,
+      slots.sum,
+      if (slots.isEmpty) 0 else slots.min,
+      if (slots.isEmpty) 0 else slots.max))
+    dropLowestShuffleAssignments()
+
+    assignedShuffles += 1
+    event.workerSlots.foreach { case (worker, numSlots) =>
+      workerShuffles(worker) = workerShuffles.getOrElse(worker, 0) + 1
+      workerSlots(worker) = workerSlots.getOrElse(worker, 0) + numSlots
+    }
+    kvstore.write(WorkerSlotsUIData(assignedShuffles, workerShuffles.toMap, workerSlots.toMap))
+  }
+
+  // Drops the lowest Celeborn shuffle ids, which roughly are the oldest shuffles.
+  private def dropLowestShuffleAssignments(): Unit = {
+    val uiDataClass = classOf[ShuffleAssignmentUIData]
+    val excess = kvstore.count(uiDataClass) - retainedShuffles
+    if (excess > 0) {
+      val dropped = Utils.tryWithResource(
+        kvstore.view(uiDataClass).max(excess).closeableIterator()) { iter =>
+        iter.asScala.map(_.shuffleId).toList
+      }
+      dropped.foreach(shuffleId => kvstore.delete(uiDataClass, shuffleId))
+    }
+  }
+
+  override def onApplicationEnd(applicationEnd: SparkListenerApplicationEnd): Unit = {
+    mayUpdate(force = true)
+    logInfo("CelebornListener: application ended, final flush completed")
+  }
+
+  /** Flushes the current aggregations immediately, bypassing the throttle. */
+  def flush(): Unit = {
+    lastUpdateTimestamp.set(System.currentTimeMillis())
+    flushAggregations()
+  }
+
+  private def mayUpdate(force: Boolean = false): Unit = {
+    val now = System.currentTimeMillis()
+    val last = lastUpdateTimestamp.get()
+    if (!force && (last != -1L && (now - last) < updateIntervalMillis)) {
+      return
+    }
+    if (lastUpdateTimestamp.compareAndSet(last, now) || force) {
+      flushAggregations()
+    }
+  }
+
+  private def flushAggregations(): Unit = {
+    if (!pluginEnabled) {
+      return
+    }
+    try {
+      kvstore.write(AggregatedTaskInfoUIData(
+        totalWriteBytes.get(),
+        totalWriteTimeMs.get(),
+        totalReadBytes.get(),
+        totalFetchWaitTimeMs.get(),
+        totalTaskDurationMs.get(),
+        totalUncompressedWriteBytes.get(),
+        totalCompressedWriteBytes.get()))
+    } catch {
+      case e: Exception =>
+        logWarning("Failed to flush CelebornListener aggregations", e)
+    }
+  }
+}

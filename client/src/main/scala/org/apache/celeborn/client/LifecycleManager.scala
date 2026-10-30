@@ -33,18 +33,20 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 import scala.util.Random
+import scala.util.control.NonFatal
 
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
 
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
-import org.apache.celeborn.client.listener.WorkerStatusListener
+import org.apache.celeborn.client.listener.{MapperEndCallback, ShuffleAssignmentListener, WorkerStatusListener}
 import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.CelebornConf.ACTIVE_STORAGE_TYPES
 import org.apache.celeborn.common.client.{ApplicationInfoProvider, MasterClient}
 import org.apache.celeborn.common.identity.{IdentityProvider, UserIdentifier}
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{ApplicationMeta, ShufflePartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.metrics.ClientMetric
 import org.apache.celeborn.common.metrics.source.Role
 import org.apache.celeborn.common.network.protocol.{SerdeVersion, TransportMessagesHelper}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
@@ -109,6 +111,9 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     Int,
     scala.collection.mutable.LinkedHashMap[String, (Int, Boolean)]]()
   private val celebornShuffleIdToAppShuffleIdMap = JavaUtils.newConcurrentHashMap[Int, Int]()
+  // Partial-read integrity failures must survive physical shuffle generations. Spark can retain
+  // successful sibling task results when rerunning a stage, including results from corrupt data.
+  private val failedIntegrityShuffles = JavaUtils.newConcurrentHashMap[Int, String]()
   private val shuffleIdGenerator = new AtomicInteger(0)
   // app shuffle id -> whether shuffle is determinate, rerun of a indeterminate shuffle gets different result
   private val appShuffleDeterminateMap = JavaUtils.newConcurrentHashMap[Int, Boolean]();
@@ -181,6 +186,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       conf.clientRpcSharedThreads,
       30)
   val ec = ExecutionContext.fromExecutor(rpcSharedThreadPool)
+  private val replicaReleasePool =
+    ThreadUtils.newDaemonCachedThreadPool("celeborn-client-lifecycle-manager-replica-release", 4)
 
   // init driver celeborn LifecycleManager rpc service
   override val rpcEnv: RpcEnv = RpcEnv.create(
@@ -226,8 +233,23 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   }
 
   private val masterClient = new MasterClient(masterRpcEnvInUse, conf, false)
+  private val clientMetricsEnabled = conf.metricsSystemEnable && conf.clientMetricsEnabled
+  val clientSource: Option[CelebornClientSource] =
+    if (clientMetricsEnabled) Some(new CelebornClientSource(conf)) else None
+
   val commitManager = new CommitManager(appUniqueId, conf, this)
   val workerStatusTracker = new WorkerStatusTracker(conf, this)
+  clientSource.foreach { source =>
+    source.addGauge(CelebornClientSource.ACTIVE_SHUFFLE_COUNT) { () =>
+      registeredShuffle.size
+    }
+    source.addGauge(CelebornClientSource.EXCLUDED_WORKER_COUNT) { () =>
+      workerStatusTracker.excludedWorkers.size
+    }
+    source.addGauge(CelebornClientSource.SHUTTING_WORKER_COUNT) { () =>
+      workerStatusTracker.shuttingWorkers.size
+    }
+  }
   private val heartbeater =
     new ApplicationHeartbeater(
       appUniqueId,
@@ -240,7 +262,10 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       },
       workerStatusTracker,
       registeredShuffle,
-      reason => cancelAllActiveStages(reason))
+      reason => cancelAllActiveStages(reason),
+      () =>
+        clientSource.map(_.getMetricsSnapshot().asJava)
+          .getOrElse(java.util.Collections.emptyMap[String, ClientMetric]()))
   private def resetFallbackCounts(counts: ConcurrentHashMap[String, java.lang.Long])
       : Map[String, java.lang.Long] = {
     val fallbackCounts = new util.HashMap[String, java.lang.Long]()
@@ -299,6 +324,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     commitManager.stop()
     changePartitionManager.stop()
     releasePartitionManager.stop()
+    ThreadUtils.shutdown(replicaReleasePool)
     heartbeater.stop()
 
     masterClient.close()
@@ -445,7 +471,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           numPartitions,
           crc32PerPartition,
           bytesWrittenPerPartition,
-          serdeVersion) =>
+          serdeVersion,
+          metrics) =>
       logTrace(s"Received MapperEnd TaskEnd request, " +
         s"${Utils.makeMapKey(shuffleId, mapId, attemptId)}")
       val partitionType = getPartitionType(shuffleId)
@@ -461,7 +488,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
             numPartitions,
             crc32PerPartition,
             bytesWrittenPerPartition,
-            serdeVersion)
+            serdeVersion,
+            metrics)
         case PartitionType.MAP =>
           handleMapPartitionEnd(
             context,
@@ -555,12 +583,22 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       endMapIndex: Int,
       crc32: Int,
       bytesWritten: Long): Unit = {
-    val (isValid, errorMessage) = commitManager.finishPartition(
-      shuffleId,
-      partitionId,
-      startMapIndex,
-      endMapIndex,
-      new CommitMetadata(crc32, bytesWritten))
+    val (isValid, errorMessage) = integrityFailureForShuffle(shuffleId) match {
+      case Some(error) => (false, error)
+      case None =>
+        val result = commitManager.finishPartition(
+          shuffleId,
+          partitionId,
+          startMapIndex,
+          endMapIndex,
+          new CommitMetadata(crc32, bytesWritten))
+        // MAP readers also use finite ranges, but validate each subpartition range independently.
+        if (!result._1 && endMapIndex != Integer.MAX_VALUE &&
+          getPartitionType(shuffleId) == PartitionType.REDUCE) {
+          failedIntegrityShuffles.putIfAbsent(shuffleId, result._2)
+        }
+        result
+    }
     var response: PbReadReducerPartitionEndResponse = null
     if (isValid) {
       response =
@@ -571,6 +609,38 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         StatusCode.READ_REDUCER_PARTITION_END_FAILED.getValue).setErrorMsg(errorMessage).build()
     }
     context.reply(response)
+  }
+
+  private def integrityFailure(
+      shuffleIds: mutable.LinkedHashMap[String, (Int, Boolean)]): Option[String] = {
+    // Healthy applications do not scan shuffle mappings or allocate failure state per task.
+    if (failedIntegrityShuffles.isEmpty) {
+      None
+    } else {
+      shuffleIds.synchronized {
+        shuffleIds.valuesIterator
+          .map { case (shuffleId, _) => failedIntegrityShuffles.get(shuffleId) }
+          .find(_ != null)
+      }
+    }
+  }
+
+  private def integrityFailureForShuffle(shuffleId: Int): Option[String] = {
+    if (failedIntegrityShuffles.isEmpty) {
+      None
+    } else {
+      Option(failedIntegrityShuffles.get(shuffleId)).orElse {
+        shuffleIdMapping.values().asScala.flatMap { shuffleIds =>
+          shuffleIds.synchronized {
+            if (shuffleIds.valuesIterator.exists(_._1 == shuffleId)) {
+              integrityFailure(shuffleIds)
+            } else {
+              None
+            }
+          }
+        }.take(1).toList.headOption
+      }
+    }
   }
 
   def setupEndpoints(
@@ -879,6 +949,28 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         StatusCode.SUCCESS,
         allPrimaryPartitionLocations,
         serdeVersion))
+      reportShuffleAssignment(shuffleId, slots)
+    }
+  }
+
+  private def reportShuffleAssignment(shuffleId: Int, slots: WorkerResource): Unit = {
+    shuffleAssignmentListener.foreach { listener =>
+      val workerSlots = new util.HashMap[String, Integer]()
+      slots.asScala.foreach { case (workerInfo, (primaryLocations, replicaLocations)) =>
+        val numSlots = primaryLocations.size + replicaLocations.size
+        if (numSlots > 0) {
+          workerSlots.put(workerInfo.toUniqueId, numSlots)
+        }
+      }
+      try {
+        listener.onShuffleAssigned(
+          shuffleId,
+          celebornShuffleIdToAppShuffleIdMap.getOrDefault(shuffleId, shuffleId),
+          workerSlots)
+      } catch {
+        case NonFatal(e) =>
+          logWarning(s"Failed to report the slot assignment of shuffle $shuffleId.", e)
+      }
     }
   }
 
@@ -945,7 +1037,8 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       numPartitions: Int,
       crc32PerPartition: Array[Int],
       bytesWrittenPerPartition: Array[Long],
-      serdeVersion: SerdeVersion): Unit = {
+      serdeVersion: SerdeVersion,
+      metrics: MapperMetrics): Unit = {
 
     val (mapperAttemptFinishedSuccess, allMapperFinished) =
       commitManager.finishMapperAttempt(
@@ -957,6 +1050,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
         numPartitions = numPartitions,
         crc32PerPartition = crc32PerPartition,
         bytesWrittenPerPartition = bytesWrittenPerPartition)
+    // finishMapperAttempt accepts at most one attempt per mapId, so the callback fires
+    // exactly once per accepted attempt and no extra dedup is needed.
+    if (mapperAttemptFinishedSuccess) {
+      mapperEndCallback.foreach(_.onMapperEnd(shuffleId, mapId, attemptId, metrics))
+    }
     if (mapperAttemptFinishedSuccess && allMapperFinished) {
       // last mapper finished. call mapper end
       logInfo(s"Last MapperEnd, call StageEnd with shuffleKey:" +
@@ -1031,6 +1129,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
 
     shuffleIds.synchronized {
+      if (integrityFailure(shuffleIds).isDefined) {
+        context.reply(PbGetShuffleIdResponse.newBuilder()
+          .setShuffleId(UNKNOWN_APP_SHUFFLE_ID)
+          .setSuccess(false)
+          .build())
+        return
+      }
       if (isWriter) {
         shuffleIds.get(appShuffleIdentifier) match {
           case Some((shuffleId, _)) =>
@@ -1115,6 +1220,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     }
     var ret = true
     shuffleIds.synchronized {
+      if (integrityFailure(shuffleIds).isDefined) {
+        // A FetchFailed would allow Spark to keep results from corrupt sibling tasks.
+        // Return false so the reader surfaces the validation error as a task failure.
+        context.reply(PbReportShuffleFetchFailureResponse.newBuilder()
+          .setSuccess(false)
+          .build())
+        return
+      }
       shuffleIds.find(e => e._2._1 == shuffleId) match {
         case Some((appShuffleIdentifier, (shuffleId, true))) =>
           if (invokeReportTaskShuffleFetchFailurePreCheck(taskId)) {
@@ -1301,11 +1414,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
           shuffleIds.values.map {
             case (shuffleId, _) =>
               unregisterShuffle(shuffleId)
+              failedIntegrityShuffles.remove(shuffleId)
               unregisterShuffleCallback.foreach(c => c.accept(shuffleId))
           })
       }
     } else {
       unregisterShuffle(appShuffleId)
+      failedIntegrityShuffles.remove(appShuffleId)
     }
   }
 
@@ -1708,6 +1823,22 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       endpoint: RpcEndpointRef,
       var retryTimes: Int,
       var startTime: Long)
+
+  /** Best-effort: a failed or rejected release only leaves the replica until shuffle expiry. */
+  private[client] def releaseReplicaSlotsAsync(
+      shuffleId: Int,
+      replicaSlots: WorkerResource): Unit = {
+    try {
+      replicaReleasePool.submit(new Runnable {
+        override def run(): Unit = Utils.tryLogNonFatalError {
+          destroySlotsWithRetry(shuffleId, replicaSlots)
+        }
+      })
+    } catch {
+      case NonFatal(e) =>
+        logWarning(s"Skip releasing committed replicas for shuffle $shuffleId.", e)
+    }
+  }
 
   /**
    * For the slots that need to be destroyed, LifecycleManager will ask the corresponding worker
@@ -2139,6 +2270,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     unregisterShuffleCallback = Some(callback)
   }
 
+  @volatile private var mapperEndCallback: Option[MapperEndCallback] = None
+  def registerMapperEndCallback(callback: MapperEndCallback): Unit = {
+    mapperEndCallback = Some(callback)
+  }
+
   def registerAppShuffleDeterminate(appShuffleId: Int, determinate: Boolean): Unit = {
     appShuffleDeterminateMap.put(appShuffleId, determinate)
   }
@@ -2175,6 +2311,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     celebornSkewShuffleCheckCallback = Some(callback)
   }
 
+  @volatile private var shuffleAssignmentListener: Option[ShuffleAssignmentListener] = None
+  def registerShuffleAssignmentListener(listener: ShuffleAssignmentListener): Unit = {
+    shuffleAssignmentListener = Some(listener)
+  }
+
   // Initialize at the end of LifecycleManager construction.
   initialize()
 
@@ -2183,6 +2324,7 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
    */
   override def stop(): Unit = {
     heartbeater.stop()
+    clientSource.foreach(_.stop())
     super.stop()
   }
 

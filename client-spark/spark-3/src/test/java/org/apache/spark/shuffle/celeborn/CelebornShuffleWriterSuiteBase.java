@@ -83,6 +83,7 @@ import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.CommitMetadata;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.protocol.message.ControlMessages.MapperMetrics;
 import org.apache.celeborn.common.util.JavaUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.write.PushState;
@@ -288,6 +289,23 @@ public abstract class CelebornShuffleWriterSuiteBase {
     int[] crcPerPartition = pushState.getCRC32PerPartition(true, numPartitions);
     long[] bytesPerPartition = pushState.getBytesWrittenPerPartition(true, numPartitions);
 
+    MapperMetrics mapperMetrics = client.getMapperEndMetrics(shuffleId, 0, 0);
+    assertNotNull(mapperMetrics);
+    long totalBytesPushed = 0;
+    for (long bytes : bytesPerPartition) {
+      totalBytesPushed += bytes;
+    }
+    long expectedCompressedBytes = 0;
+    for (List<byte[]> batches : client.getCrcDataByPartition(mapKey).values()) {
+      for (byte[] batch : batches) {
+        expectedCompressedBytes += DummyShuffleClient.simulatedCompressedLength(batch.length);
+      }
+    }
+    assertEquals(totalBytesPushed, mapperMetrics.uncompressedBytesWritten());
+    // Distinct expectations so a swap of the two fields would fail.
+    assertEquals(expectedCompressedBytes, mapperMetrics.compressedBytesWritten());
+    assertTrue(expectedCompressedBytes <= totalBytesPushed);
+
     Map<Integer, List<byte[]>> crcData = client.getCrcDataByPartition(mapKey);
     Map<Integer, List<byte[]>> pushData = client.getPushDataByPartition(mapKey);
 
@@ -353,8 +371,8 @@ public abstract class CelebornShuffleWriterSuiteBase {
     final CelebornShuffleHandle<Integer, String, String> handle =
         new CelebornShuffleHandle<>(
             appId, host, port, userIdentifier, shuffleId, false, numMaps, dependency);
-    final ShuffleClient client = new DummyShuffleClient(conf, tempFile);
-    ((DummyShuffleClient) client).initReducePartitionMap(shuffleId, numPartitions, 1);
+    final DummyShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    client.initReducePartitionMap(shuffleId, numPartitions, 1);
 
     final ShuffleWriter<Integer, String> writer =
         createShuffleWriter(handle, taskContext, conf, client, metrics.shuffleWriteMetrics());
@@ -383,8 +401,21 @@ public abstract class CelebornShuffleWriterSuiteBase {
 
     ShuffleWriteMetrics metrics = taskContext.taskMetrics().shuffleWriteMetrics();
     assertEquals(metrics.recordsWritten(), total.intValue());
-    assertEquals(metrics.bytesWritten(), tempFile.length());
+    // Write metrics total the per-batch compressed lengths.
+    String mapKey = Utils.makeMapKey(shuffleId, 0, 0);
+    long expectedCompressedBytes = 0;
+    for (List<byte[]> batches : client.getPushDataByPartition(mapKey).values()) {
+      for (byte[] batch : batches) {
+        expectedCompressedBytes += DummyShuffleClient.simulatedCompressedLength(batch.length);
+      }
+    }
+    assertEquals(expectedCompressedBytes, metrics.bytesWritten());
+    assertTrue(metrics.bytesWritten() <= tempFile.length());
     assertTrue(metrics.writeTime() > 0);
+    MapperMetrics mapperMetrics = client.getMapperEndMetrics(shuffleId, 0, 0);
+    assertNotNull(mapperMetrics);
+    assertEquals(tempFile.length(), mapperMetrics.uncompressedBytesWritten());
+    assertEquals(metrics.bytesWritten(), mapperMetrics.compressedBytesWritten());
 
     try (FileInputStream fis = new FileInputStream(tempFile)) {
       Iterator it = newSerializerInstance(serializer).deserializeStream(fis).asKeyValueIterator();

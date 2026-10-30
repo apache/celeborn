@@ -50,6 +50,8 @@ public interface IMetadataHandler {
       Map<String, Long> shuffleFallbackCounts,
       Map<String, Long> applicationFallbackCounts,
       long time,
+      Map<String, Long> clientGauges,
+      Map<String, String> clientMetricLabels,
       String requestId);
 
   void handleAppLost(String appId, String requestId);

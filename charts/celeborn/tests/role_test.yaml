@@ -48,3 +48,55 @@ tests:
           kind: Role
           name: default
           namespace: celeborn
+
+  - it: Should not grant statefulset scale access as default
+    asserts:
+      - equal:
+          path: rules
+          value:
+            - apiGroups: [""]
+              resources: ["pods"]
+              verbs: ["create", "list", "delete"]
+
+  - it: Should grant statefulset scale access when the drain is enabled
+    set:
+      worker:
+        drain:
+          enabled: true
+    asserts:
+      - equal:
+          path: rules[1]
+          value:
+            apiGroups: ["apps"]
+            resources: ["statefulsets/scale"]
+            resourceNames: ["celeborn-worker"]
+            verbs: ["get"]
+
+  - it: Should not grant statefulset scale access when the drain always decommissions
+    set:
+      worker:
+        drain:
+          enabled: true
+          alwaysDecommission: true
+    asserts:
+      - equal:
+          path: rules
+          value:
+            - apiGroups: [""]
+              resources: ["pods"]
+              verbs: ["create", "list", "delete"]
+
+  - it: Should scope the scale access to every zone statefulset
+    set:
+      worker:
+        zoneAwareReplication:
+          enabled: true
+          zones:
+            - name: us-east-1a
+            - name: us-east-1b
+        drain:
+          enabled: true
+    asserts:
+      - equal:
+          path: rules[1].resourceNames
+          value: ["celeborn-worker-us-east-1a", "celeborn-worker-us-east-1b"]

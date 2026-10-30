@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.protocol.CompressionCodec;
 import org.apache.celeborn.plugin.flink.utils.Utils;
 
 /** Factory class to create {@link RemoteShuffleInputGate}. */
@@ -96,9 +97,11 @@ public class RemoteShuffleInputGateFactory {
     SupplierWithException<BufferPool, IOException> bufferPoolFactory =
         createBufferPoolFactory(networkBufferPool, numBuffersPerGate, supportFloatingBuffers);
 
+    String compressionCodec = celebornConf.shuffleCompressionCodec().name();
     BufferDecompressor bufferDecompressor =
-        CelebornFlinkShim.createBufferDecompressor(
-            networkBufferSize, celebornConf.shuffleCompressionCodec().name());
+        CompressionCodec.NONE.name().equals(compressionCodec)
+            ? null
+            : CelebornFlinkShim.createBufferDecompressor(networkBufferSize, compressionCodec);
     return new RemoteShuffleInputGate(
         celebornConf,
         ownerContext,
@@ -118,7 +121,9 @@ public class RemoteShuffleInputGateFactory {
       String compressionCodec,
       Map<Integer, ShuffleIOMetricGroup> shuffleIOMetricGroupMap) {
     BufferDecompressor bufferDecompressor =
-        CelebornFlinkShim.createBufferDecompressor(networkBufferSize, compressionCodec);
+        CompressionCodec.NONE.name().equals(compressionCodec)
+            ? null
+            : CelebornFlinkShim.createBufferDecompressor(networkBufferSize, compressionCodec);
     return new RemoteShuffleInputGate(
         celebornConf,
         ownerContext,

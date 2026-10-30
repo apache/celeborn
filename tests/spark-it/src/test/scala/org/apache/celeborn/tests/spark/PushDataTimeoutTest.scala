@@ -39,7 +39,8 @@ class PushDataTimeoutTest extends AnyFunSuite
     logInfo("test initialized, setup celeborn mini cluster")
     val workerConf = Map(
       CelebornConf.TEST_CLIENT_PUSH_PRIMARY_DATA_TIMEOUT.key -> "true",
-      CelebornConf.TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT.key -> "true")
+      CelebornConf.TEST_WORKER_PUSH_REPLICA_DATA_TIMEOUT.key -> "true",
+      CelebornConf.WORKER_REPLICATE_FAST_FAIL_DURATION.key -> "10m")
     // required at least 4 workers, the reason behind this requirement is that when replication is
     // enabled, there is a possibility that two workers might be added to the excluded list due to
     // primary/replica timeout issues, then there are not enough workers to do replication if
@@ -53,6 +54,7 @@ class PushDataTimeoutTest extends AnyFunSuite
     PushDataHandler.pushReplicaDataTimeoutTested.set(false)
     PushDataHandler.pushPrimaryMergeDataTimeoutTested.set(false)
     PushDataHandler.pushReplicaMergeDataTimeoutTested.set(false)
+    workerInfos.keys.foreach(_.unavailablePeers.clear())
   }
 
   override def afterEach(): Unit = {
@@ -65,7 +67,7 @@ class PushDataTimeoutTest extends AnyFunSuite
         .set(s"spark.${CelebornConf.CLIENT_PUSH_DATA_TIMEOUT.key}", "5s")
         .set(s"spark.celeborn.data.push.timeoutCheck.interval", "2s")
         .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", enabled.toString)
-        .set(s"spark.${CelebornConf.CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED.key}", "false")
+        .set(s"spark.${CelebornConf.CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED.key}", "true")
         // make sure PushDataHandler.handlePushData be triggered
         .set(s"spark.${CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE.key}", "5")
 
@@ -87,6 +89,7 @@ class PushDataTimeoutTest extends AnyFunSuite
       assert(PushDataHandler.pushPrimaryDataTimeoutTested.get())
       if (enabled) {
         assert(PushDataHandler.pushReplicaDataTimeoutTested.get())
+        assert(workerInfos.keys.exists(!_.unavailablePeers.isEmpty))
       }
     }
   }
@@ -97,7 +100,7 @@ class PushDataTimeoutTest extends AnyFunSuite
         .set(s"spark.${CelebornConf.CLIENT_PUSH_DATA_TIMEOUT.key}", "5s")
         .set(s"spark.celeborn.data.push.timeoutCheck.interval", "2s")
         .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", enabled.toString)
-        .set(s"spark.${CelebornConf.CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED.key}", "false")
+        .set(s"spark.${CelebornConf.CLIENT_EXCLUDE_PEER_WORKER_ON_FAILURE_ENABLED.key}", "true")
 
       val sparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
       val sqlResult = runsql(sparkSession)
@@ -116,6 +119,7 @@ class PushDataTimeoutTest extends AnyFunSuite
       assert(PushDataHandler.pushPrimaryMergeDataTimeoutTested.get())
       if (enabled) {
         assert(PushDataHandler.pushReplicaMergeDataTimeoutTested.get())
+        assert(workerInfos.keys.exists(!_.unavailablePeers.isEmpty))
       }
     }
   }

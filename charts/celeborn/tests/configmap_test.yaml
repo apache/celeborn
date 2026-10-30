@@ -57,3 +57,21 @@ tests:
       - notMatchRegex:
           path: data["celeborn-defaults.conf"]
           pattern: "(?m)^\\s*[^#\\s][^=\\n]*\\s+=.*"
+
+  - it: Should not ship the worker drain script as default
+    asserts:
+      - notExists:
+          path: data["worker-drain.sh"]
+
+  - it: Should ship the worker drain script when the drain is enabled
+    set:
+      worker:
+        drain:
+          enabled: true
+    asserts:
+      - matchRegex:
+          path: data["worker-drain.sh"]
+          pattern: EXIT_TYPE=DECOMMISSION
+      - matchRegex:
+          path: data["worker-drain.sh"]
+          pattern: \$\{POD_NAME:-\}
