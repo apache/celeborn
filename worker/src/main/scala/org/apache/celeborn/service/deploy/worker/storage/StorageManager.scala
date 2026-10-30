@@ -637,6 +637,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def shuffleKeySet(): util.HashSet[String] = {
     val hashSet = new util.HashSet[String]()
     hashSet.addAll(diskFileInfos.keySet())
+    // A shuffle can live only in memory files; decommission and graceful shutdown wait on it too.
+    hashSet.addAll(memoryFileInfos.keySet())
     hashSet
   }
 

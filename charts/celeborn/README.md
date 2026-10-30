@@ -171,6 +171,11 @@ drain, so the chart refuses to render `worker.drain` together with either settin
 `celeborn`. It can only see what is set there: enabling TLS or authentication some other way,
 such as an extra config file, still bypasses the drain.
 
+A terminating pod is dropped from its headless service straight away, so a draining worker
+would stop resolving the moment the drain starts, and clients still fetching from it would fail
+with `UnknownHostException`. With the drain enabled the worker service therefore sets
+`publishNotReadyAddresses: true`, keeping the worker's DNS record until the pod is gone.
+
 It is off by default. Turn it on alongside `worker.autoscaling`, or leave it off and treat
 scale-in as destructive, only letting it happen when the fleet is idle.
 

@@ -36,7 +36,7 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.{WORKER_DISK_RESERVE_SIZE, WORKER_GRACEFUL_SHUTDOWN_ENABLED, WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH, WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_INTERVAL, WORKER_STORAGE_DIRS}
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{DiskFileInfo, DiskInfo, DiskStatus}
+import org.apache.celeborn.common.meta.{DiskFileInfo, DiskInfo, DiskStatus, MemoryFileInfo, ReduceFileMeta}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.WorkerSource
@@ -55,6 +55,20 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
     val storageManager = new StorageManager(conf, new WorkerSource(conf))
     // should not throw IllegalMonitorStateException exception
     storageManager.saveAllCommittedFileInfosToDB()
+  }
+
+  test("shuffleKeySet includes shuffles held only in memory files") {
+    val conf = new CelebornConf()
+    val storageManager = new StorageManager(conf, new WorkerSource(conf))
+    val fileInfo =
+      new MemoryFileInfo(
+        UserIdentifier("tenant", "user"),
+        false,
+        new ReduceFileMeta(8 * 1024 * 1024))
+    storageManager.memoryFileInfos
+      .computeIfAbsent("app-1-0", _ => JavaUtils.newConcurrentHashMap[String, MemoryFileInfo]())
+      .put("0-0-0", fileInfo)
+    assert(storageManager.shuffleKeySet().asScala == Set("app-1-0"))
   }
 
   test("[CELEBORN-2495] committedFileInfos should not leak when graceful shutdown is disabled") {
