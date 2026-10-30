@@ -179,11 +179,17 @@ public class RocksDBRecoverySuiteJ {
 
     // All operations after close should throw IllegalStateException
     DB closedDb = db;
-    assertThrows(IllegalStateException.class, () -> closedDb.put("k".getBytes(), "v".getBytes()));
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            closedDb.put(
+                "k".getBytes(StandardCharsets.UTF_8), "v".getBytes(StandardCharsets.UTF_8)));
 
-    assertThrows(IllegalStateException.class, () -> closedDb.get("k".getBytes()));
+    assertThrows(
+        IllegalStateException.class, () -> closedDb.get("k".getBytes(StandardCharsets.UTF_8)));
 
-    assertThrows(IllegalStateException.class, () -> closedDb.delete("k".getBytes()));
+    assertThrows(
+        IllegalStateException.class, () -> closedDb.delete("k".getBytes(StandardCharsets.UTF_8)));
 
     assertThrows(IllegalStateException.class, closedDb::iterator);
   }

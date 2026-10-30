@@ -24,6 +24,7 @@ import static org.mockito.Mockito.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Optional;
@@ -242,7 +243,7 @@ public class CelebornInputStreamCryptoRoundTripSuiteJ {
 
   @Test
   public void testEncryptDecryptRoundTrip() throws IOException, InterruptedException {
-    byte[] plaintext = "hello, EAR round-trip without compression".getBytes();
+    byte[] plaintext = "hello, EAR round-trip without compression".getBytes(StandardCharsets.UTF_8);
     CelebornConf conf = new CelebornConf();
     XorCryptoHandler handler = new XorCryptoHandler((byte) 0x5A);
 
@@ -255,7 +256,7 @@ public class CelebornInputStreamCryptoRoundTripSuiteJ {
 
   @Test
   public void testNoEncryptionRoundTrip() throws IOException, InterruptedException {
-    byte[] plaintext = "unencrypted shuffle data sanity check".getBytes();
+    byte[] plaintext = "unencrypted shuffle data sanity check".getBytes(StandardCharsets.UTF_8);
     CelebornConf conf = new CelebornConf();
 
     // Baseline: with no CryptoHandler the data flows through unchanged
@@ -268,7 +269,9 @@ public class CelebornInputStreamCryptoRoundTripSuiteJ {
   @Test
   public void testCompressThenEncryptRoundTrip() throws IOException, InterruptedException {
     // Reproduce the compress-then-encrypt ordering used in ShuffleClientImpl.
-    byte[] plaintext = "shuffle data with compression and encryption enabled for EAR".getBytes();
+    byte[] plaintext =
+        "shuffle data with compression and encryption enabled for EAR"
+            .getBytes(StandardCharsets.UTF_8);
     CelebornConf conf = new CelebornConf();
     // Use LZ4 (default)
     conf.set(CelebornConf.SHUFFLE_COMPRESSION_CODEC().key(), "lz4");
@@ -286,7 +289,8 @@ public class CelebornInputStreamCryptoRoundTripSuiteJ {
     // Verify that EAR + shuffle integrity check work together: the checksum must be computed
     // over the *decrypted* plaintext, not the ciphertext. We capture the crc32/bytes passed to
     // readReducerPartitionEnd and assert they match an independently-computed plaintext checksum.
-    byte[] plaintext = "integrity check should pass after decryption".getBytes();
+    byte[] plaintext =
+        "integrity check should pass after decryption".getBytes(StandardCharsets.UTF_8);
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED().key(), "true");
     XorCryptoHandler handler = new XorCryptoHandler((byte) 0x7F);
