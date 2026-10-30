@@ -782,6 +782,11 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(key, get(legacyKey, haMasterNodeHost(nodeId)))
   }
 
+  def haMasterClientHost(nodeId: String): String = {
+    val key = HA_MASTER_NODE_CLIENT_HOST.key.replace("<id>", nodeId)
+    get(key, haMasterNodeHost(nodeId))
+  }
+
   def haMasterRatisPort(nodeId: String): Int = {
     val key = HA_MASTER_NODE_RATIS_PORT.key.replace("<id>", nodeId)
     val legacyKey = HA_MASTER_NODE_RATIS_PORT.alternatives.head._1.replace("<id>", nodeId)
@@ -2879,6 +2884,17 @@ object CelebornConf extends Logging {
       .doc("Ratis host to bind of master node <id> in HA mode. If not provided, " +
         s"fallback to ${HA_MASTER_NODE_HOST.key}.")
       .version("0.3.0")
+      .stringConf
+      .createOptional
+
+  val HA_MASTER_NODE_CLIENT_HOST: OptionalConfigEntry[String] =
+    buildConf("celeborn.master.ha.node.<id>.client.host")
+      .categories("ha")
+      .doc("Externally-reachable host advertised to clients as the leader-redirect address for " +
+        s"master node <id> in HA mode. Only the client-facing redirect hint uses it; Raft peer " +
+        s"traffic keeps using ${HA_MASTER_NODE_RATIS_HOST.key} / ${HA_MASTER_NODE_HOST.key}. If " +
+        s"not provided, fallback to ${HA_MASTER_NODE_HOST.key}.")
+      .version("1.0.0")
       .stringConf
       .createOptional
 
