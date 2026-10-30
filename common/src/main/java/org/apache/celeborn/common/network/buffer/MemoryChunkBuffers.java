@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.network.buffer;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import scala.Tuple2;
 
 import io.netty.buffer.CompositeByteBuf;
@@ -26,10 +28,16 @@ import org.apache.celeborn.common.meta.ReduceFileMeta;
 
 public class MemoryChunkBuffers extends ChunkBuffers {
   private final CompositeByteBuf buffer;
+  private final AtomicBoolean closed = new AtomicBoolean(false);
 
-  public MemoryChunkBuffers(MemoryFileInfo memoryFileInfo) {
+  /**
+   * @param takeOwnership whether to take over the existing buffer reference. If false, retain the
+   *     shared buffer and own the new reference.
+   */
+  public MemoryChunkBuffers(MemoryFileInfo memoryFileInfo, boolean takeOwnership) {
     super((ReduceFileMeta) memoryFileInfo.getFileMeta());
-    buffer = memoryFileInfo.getBuffer();
+    CompositeByteBuf buffer = memoryFileInfo.getBuffer();
+    this.buffer = takeOwnership ? buffer : buffer.retain();
   }
 
   @Override
@@ -37,5 +45,12 @@ public class MemoryChunkBuffers extends ChunkBuffers {
     Tuple2<Long, Long> offsetLen = getChunkOffsetLength(chunkIndex, offset, len);
     return new NettyManagedBuffer(
         buffer.retainedSlice(offsetLen._1.intValue(), offsetLen._2.intValue()));
+  }
+
+  @Override
+  public void close() {
+    if (closed.compareAndSet(false, true)) {
+      buffer.release();
+    }
   }
 }

@@ -75,6 +75,11 @@ public class MemoryFileInfo extends FileInfo {
     int bufferSize = 0;
     if (buffer != null) {
       bufferSize = buffer.writerIndex();
+    }
+    if (sortedBuffer != null) {
+      sortedBuffer.release();
+    }
+    if (buffer != null) {
       buffer.release();
     }
     logger.info("Memory File Info {} expire, removed {}", this, bufferSize);
