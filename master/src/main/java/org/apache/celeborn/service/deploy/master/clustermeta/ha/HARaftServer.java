@@ -100,8 +100,15 @@ public class HARaftServer {
 
   private final CelebornConf conf;
   private final AtomicBoolean stopped = new AtomicBoolean(false);
+  private final AtomicBoolean unexpectedCloseHandled = new AtomicBoolean(false);
   private long workerTimeoutDeadline;
   private long appTimeoutDeadline;
+
+  private Runnable unexpectedCloseHandler =
+      () -> {
+        LOG.error("Exiting master process because the raft server was closed unexpectedly.");
+        System.exit(1);
+      };
 
   /**
    * Returns a Master Ratis server.
@@ -157,6 +164,7 @@ public class HARaftServer {
     // Run a scheduler to check and update the server role on the leader periodically
     this.scheduledRoleChecker.scheduleWithFixedDelay(
         () -> {
+          checkRaftServerState();
           // Run this check only on the leader OM
           if (cachedPeerRole.isPresent()
               && cachedPeerRole.get() == RaftProtos.RaftPeerRole.LEADER) {
@@ -310,6 +318,46 @@ public class HARaftServer {
     }
   }
 
+  @VisibleForTesting
+  void checkRaftServerState() {
+    if (stopped.get() || unexpectedCloseHandled.get()) {
+      return;
+    }
+    handleRaftServerState(server.getLifeCycleState());
+  }
+
+  @VisibleForTesting
+  void handleRaftServerState(LifeCycle.State state) {
+    // Recheck stopped after the lifecycle state was observed: a concurrent stop() may
+    // have set stopped and closed the server in between. Treating an intentional
+    // shutdown as an unexpected close would exit the process as a failure and trigger
+    // a spurious restart under a restart-on-failure supervisor.
+    if (stopped.get() || unexpectedCloseHandled.get()) {
+      return;
+    }
+    if ((state == LifeCycle.State.CLOSED || state == LifeCycle.State.EXCEPTION)
+        && unexpectedCloseHandled.compareAndSet(false, true)) {
+      LOG.error(
+          "Raft server {} was closed unexpectedly (state {}), e.g. by the Ratis "
+              + "JvmPauseMonitor after a long JVM pause. Action: {}.",
+          server.getId(),
+          state,
+          conf.haMasterRatisUnexpectedCloseAction());
+      onUnexpectedRaftServerClose();
+    }
+  }
+
+  void onUnexpectedRaftServerClose() {
+    if ("exit".equals(conf.haMasterRatisUnexpectedCloseAction())) {
+      unexpectedCloseHandler.run();
+    }
+  }
+
+  @VisibleForTesting
+  void setUnexpectedCloseHandler(Runnable handler) {
+    this.unexpectedCloseHandler = handler;
+  }
+
   private RaftProperties newRaftProperties(CelebornConf conf, RpcType rpc) {
     final RaftProperties properties = new RaftProperties();
     // Set RPC type
@@ -373,6 +421,10 @@ public class HARaftServer {
         TimeDuration.valueOf(conf.haMasterRatisRpcRequestTimeout(), TimeUnit.SECONDS);
     RaftServerConfigKeys.Rpc.setRequestTimeout(properties, serverRequestTimeout);
 
+    // Set the threshold for JvmPauseMonitor to close the local raft server
+    RaftServerConfigKeys.setCloseThreshold(
+        properties, TimeDuration.valueOf(conf.haMasterRatisCloseThreshold(), TimeUnit.SECONDS));
+
     // Set timeout for server retry cache entry
     TimeDuration retryCacheExpiryTime =
         TimeDuration.valueOf(conf.haMasterRatisRetryCacheExpiryTime(), TimeUnit.SECONDS);
@@ -431,6 +483,19 @@ public class HARaftServer {
 
     for (Map.Entry<String, String> ratisEntry : conf.haRatisCustomConfigs().entrySet()) {
       properties.set(ratisEntry.getKey().replace("celeborn.ratis.", ""), ratisEntry.getValue());
+    }
+
+    // The dedicated config takes precedence over the celeborn.ratis.raft.server.close.threshold
+    // passthrough above when explicitly set; otherwise the passthrough (if any) still applies.
+    if (conf.contains(CelebornConf.HA_MASTER_RATIS_CLOSE_THRESHOLD().key())) {
+      if (conf.haRatisCustomConfigs().containsKey("celeborn.ratis.raft.server.close.threshold")) {
+        LOG.warn(
+            "Both {} and celeborn.ratis.raft.server.close.threshold are set; "
+                + "the dedicated config takes precedence.",
+            CelebornConf.HA_MASTER_RATIS_CLOSE_THRESHOLD().key());
+      }
+      RaftServerConfigKeys.setCloseThreshold(
+          properties, TimeDuration.valueOf(conf.haMasterRatisCloseThreshold(), TimeUnit.SECONDS));
     }
 
     return properties;
@@ -538,6 +603,19 @@ public class HARaftServer {
    * Get the group info (peer role and leader peer id) from Ratis server and update the server role.
    */
   public void updateServerRole() {
+    LifeCycle.State state = server.getLifeCycleState();
+    if (state != LifeCycle.State.RUNNING) {
+      // Only log on role change to avoid flooding logs on every metrics scrape.
+      if (cachedPeerRole.isPresent()) {
+        LOG.warn(
+            "Raft server {} is not RUNNING (state {}). Setting cached role to UNRECOGNIZED "
+                + "and resetting leader info.",
+            server.getId(),
+            state);
+      }
+      setServerRole(null, null, null);
+      return;
+    }
     try {
       GroupInfoReply groupInfo = getGroupInfo();
       RaftProtos.RoleInfoProto roleInfoProto = groupInfo.getRoleInfoProto();

@@ -48,6 +48,7 @@ import org.apache.celeborn.common.exception.CelebornIOException;
 import org.apache.celeborn.common.network.client.TransportClientFactory;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.PbStreamHandler;
+import org.apache.celeborn.common.protocol.message.ControlMessages.MapperMetrics;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
 import org.apache.celeborn.common.util.ExceptionMaker;
 import org.apache.celeborn.common.util.JavaUtils;
@@ -72,6 +73,7 @@ public class DummyShuffleClient extends ShuffleClient {
       JavaUtils.newConcurrentHashMap();
   private final Map<String, Map<Integer, List<byte[]>>> pushDataByMapKey =
       JavaUtils.newConcurrentHashMap();
+  private final Map<String, MapperMetrics> mapperEndMetrics = JavaUtils.newConcurrentHashMap();
 
   public AtomicInteger fetchFailureCount = new AtomicInteger();
 
@@ -113,7 +115,12 @@ public class DummyShuffleClient extends ShuffleClient {
         .add(Arrays.copyOfRange(data, offset, offset + length));
 
     os.write(data, offset, length);
-    return length;
+    return simulatedCompressedLength(length);
+  }
+
+  /** Deterministic fake compression so tests can tell the two byte counts apart. */
+  public static int simulatedCompressedLength(int length) {
+    return length * 3 / 4;
   }
 
   @Override
@@ -159,7 +166,7 @@ public class DummyShuffleClient extends ShuffleClient {
         .add(Arrays.copyOfRange(data, offset, offset + length));
 
     os.write(data, offset, length);
-    return length;
+    return simulatedCompressedLength(length);
   }
 
   @Override
@@ -168,6 +175,17 @@ public class DummyShuffleClient extends ShuffleClient {
   @Override
   public void mapperEnd(
       int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions) {}
+
+  @Override
+  public void mapperEnd(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int numPartitions,
+      MapperMetrics metrics) {
+    mapperEndMetrics.put(Utils.makeMapKey(shuffleId, mapId, attemptId), metrics);
+  }
 
   @Override
   public void readReducerPartitionEnd(
@@ -251,6 +269,10 @@ public class DummyShuffleClient extends ShuffleClient {
 
   public Map<Integer, List<byte[]>> getPushDataByPartition(String mapKey) {
     return pushDataByMapKey.getOrDefault(mapKey, Collections.emptyMap());
+  }
+
+  public MapperMetrics getMapperEndMetrics(int shuffleId, int mapId, int attemptId) {
+    return mapperEndMetrics.get(Utils.makeMapKey(shuffleId, mapId, attemptId));
   }
 
   @Override

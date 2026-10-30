@@ -291,7 +291,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     conf.workerGracefulShutdownSaveCommittedFileInfoInterval
   private val dbDeleteFailurePolicy =
     conf.workerGracefulShutdownDbDeleteFailurePolicy
-  private val committedFileInfos =
+  @VisibleForTesting
+  private[storage] val committedFileInfos =
     JavaUtils.newConcurrentHashMap[String, ConcurrentHashMap[String, DiskFileInfo]]()
   // ShuffleClient can fetch data from a restarted worker only
   // when the worker's fetching port is stable.
@@ -583,10 +584,31 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
     null
   }
 
+  // The writer ignores delete failures and is destroyed only once, so check and retry here.
+  private def ensureDfsFileDeleted(info: DiskFileInfo): Unit = {
+    val fs = StorageManager.hadoopFs.get(info.getStorageType)
+    val paths = Seq(
+      info.getDfsPath,
+      info.getDfsWriterSuccessPath,
+      info.getDfsIndexPath,
+      info.getDfsSortedPath)
+    if (paths.exists(fs.exists)) {
+      info.deleteAllFiles(fs)
+      val remaining = paths.filter(fs.exists)
+      if (remaining.nonEmpty) {
+        logWarning(s"Failed to delete $remaining, keeping them for retry or shuffle expiry.")
+        throw new IOException(s"Failed to delete $remaining")
+      }
+    }
+  }
+
   private def removeFileInfo(shuffleKey: String, fileName: String): FileInfo = {
     val memoryShuffleMap = memoryFileInfos.get(shuffleKey)
     if (memoryShuffleMap != null) {
-      return memoryShuffleMap.remove(fileName)
+      val memoryFileInfo = memoryShuffleMap.remove(fileName)
+      if (memoryFileInfo != null) {
+        return memoryFileInfo
+      }
     }
 
     val diskShuffleMap = diskFileInfos.get(shuffleKey)
@@ -615,26 +637,38 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def shuffleKeySet(): util.HashSet[String] = {
     val hashSet = new util.HashSet[String]()
     hashSet.addAll(diskFileInfos.keySet())
+    // A shuffle can live only in memory files; decommission and graceful shutdown wait on it too.
+    hashSet.addAll(memoryFileInfos.keySet())
     hashSet
   }
 
   def cleanFile(shuffleKey: String, fileName: String): Unit = {
-    cleanFileInternal(shuffleKey, removeFileInfo(shuffleKey, fileName))
+    getFileInfo(shuffleKey, fileName) match {
+      case info: DiskFileInfo if info.isHdfs =>
+        // Untrack only after the delete succeeds, so a retry or shuffle expiry can still delete it.
+        cleanFileInternal(shuffleKey, info, failOnHdfsDeleteError = true)
+        removeFileInfo(shuffleKey, fileName)
+      case _ =>
+        cleanFileInternal(shuffleKey, removeFileInfo(shuffleKey, fileName))
+    }
   }
 
-  def cleanFileInternal(shuffleKey: String, fileInfo: FileInfo): Boolean = {
+  def cleanFileInternal(
+      shuffleKey: String,
+      fileInfo: FileInfo,
+      failOnHdfsDeleteError: Boolean = false): Boolean = {
     if (fileInfo == null) return false
     var isDfsExpired = false
     fileInfo match {
       case info: DiskFileInfo =>
         if (info.isHdfs) {
           isDfsExpired = true
-          val hdfsFileWriter = hdfsWriters.get(info.getFilePath)
+          val hdfsFileWriter = hdfsWriters.remove(info.getFilePath)
           if (hdfsFileWriter != null) {
             hdfsFileWriter.destroy(new IOException(
               s"Destroy FileWriter $hdfsFileWriter caused by shuffle $shuffleKey expired."))
-            hdfsWriters.remove(info.getFilePath)
           }
+          if (failOnHdfsDeleteError) ensureDfsFileDeleted(info)
         } else if (info.isS3) {
           isDfsExpired = true
           val s3FileWriter = s3Writers.get(info.getFilePath)
@@ -713,6 +747,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
           }
         })
         if (workerGracefulShutdown) {
+          // Writer cleanup waits for in-flight close calls to finish registering metadata.
           committedFileInfos.remove(shuffleKey)
           if (cleanDB) {
             try {
@@ -1043,7 +1078,9 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       shuffleKey: String,
       fileName: String,
       fileInfo: DiskFileInfo): Unit = {
-    committedFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(fileName, fileInfo)
+    if (workerGracefulShutdown) {
+      committedFileInfos.computeIfAbsent(shuffleKey, diskFileInfoMapFunc).put(fileName, fileInfo)
+    }
   }
 
   def getActiveShuffleSize: Long = {

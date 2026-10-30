@@ -25,6 +25,7 @@ import java.util.function
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
+import com.google.common.annotations.VisibleForTesting
 import com.google.common.base.Preconditions.checkState
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.google.common.collect.Sets
@@ -152,11 +153,11 @@ class ReducePartitionCommitHandler(
     if (conf.clientShuffleDataLostOnUnknownWorkerEnabled && !conf.clientPushReplicateEnabled) {
       val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
       if (allocatedWorkers != null) {
-        return workerStatusTracker.excludedWorkers.asScala.collect {
-          case (workerId, (status, _))
-              if status == StatusCode.WORKER_UNKNOWN && allocatedWorkers.contains(workerId) =>
-            workerId
-        }.nonEmpty
+        return workerStatusTracker.excludedWorkers.asScala.exists {
+          case (workerId, (status, _)) =>
+            status == StatusCode.WORKER_UNKNOWN &&
+              allocatedWorkers.containsKey(workerId.toUniqueId)
+        }
       }
     }
     false
@@ -210,23 +211,28 @@ class ReducePartitionCommitHandler(
       }
     }
 
-    // ask allLocations workers holding partitions to commit files
-    val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
-    val (dataLost, commitFailedWorkers) = handleFinalCommitFiles(shuffleId, allocatedWorkers)
-    recordWorkerFailure(commitFailedWorkers)
-    // reply
-    if (!dataLost) {
-      logInfo(s"Succeed to handle stageEnd for $shuffleId.")
-      // record in stageEndShuffleSet
-      setStageEnd(shuffleId)
-    } else {
-      logError(s"Failed to handle stageEnd for $shuffleId, lost file!")
-      dataLostShuffleSet.add(shuffleId)
-      // record in stageEndShuffleSet
-      setStageEnd(shuffleId)
+    try {
+      // ask allLocations workers holding partitions to commit files
+      val allocatedWorkers = shuffleAllocatedWorkers.get(shuffleId)
+      val (dataLost, commitFailedWorkers) = handleFinalCommitFiles(shuffleId, allocatedWorkers)
+      recordWorkerFailure(commitFailedWorkers)
+      // reply
+      if (!dataLost) {
+        logInfo(s"Succeed to handle stageEnd for $shuffleId.")
+        // record in stageEndShuffleSet
+        setStageEnd(shuffleId)
+      } else {
+        logError(s"Failed to handle stageEnd for $shuffleId, lost file!")
+        dataLostShuffleSet.add(shuffleId)
+        // record in stageEndShuffleSet
+        setStageEnd(shuffleId)
+      }
+      true
+    } finally {
+      // Clear the in-process marker even if the commit threw, so stage-end can be retried
+      // instead of parking every GetReducerFileGroup until the RPC timeout.
+      inProcessStageEndShuffleSet.remove(shuffleId)
     }
-    inProcessStageEndShuffleSet.remove(shuffleId)
-    true
   }
 
   private def handleFinalCommitFiles(
@@ -249,13 +255,14 @@ class ReducePartitionCommitHandler(
 
     // collect result
     if (!dataLost) {
-      collectResult(
+      collectResultAndReleaseHdfsReplicas(
         shuffleId,
         shuffleCommittedInfo,
         getPartitionUniqueIds(shuffleCommittedInfo.committedPrimaryIds),
         getPartitionUniqueIds(shuffleCommittedInfo.committedReplicaIds),
-        parallelCommitResult.primaryPartitionLocationMap,
-        parallelCommitResult.replicaPartitionLocationMap)
+        parallelCommitResult,
+        allocatedWorkers,
+        lifecycleManager.releaseReplicaSlotsAsync(shuffleId, _))
     }
 
     (dataLost, parallelCommitResult.commitFilesFailedWorkers)
@@ -298,6 +305,11 @@ class ReducePartitionCommitHandler(
     shuffleMapperAttempts.get(shuffleId)
   }
 
+  @VisibleForTesting
+  private[commit] def getReducerCommitMetadata(shuffleId: Int): Array[CommitMetadata] = {
+    commitMetadataForReducer.get(shuffleId)
+  }
+
   override def areAllMapperAttemptsFinished(shuffleId: Int): Boolean = {
     val attempts = shuffleMapperAttempts.get(shuffleId)
     if (null != attempts) {
@@ -333,6 +345,23 @@ class ReducePartitionCommitHandler(
 
       val attempts = shuffleMapperAttempts.get(shuffleId)
       if (attempts(mapId) < 0) {
+        // Aggregate metadata under the shuffle lock before publishing mapper completion.
+        // Otherwise another MapperEnd can finish the stage or acknowledge a duplicate
+        // while this mapper's integrity metadata is still incomplete.
+        if (shuffleIntegrityCheckEnabled) {
+          val commitMetadataArray = commitMetadataForReducer.get(shuffleId)
+          checkState(
+            commitMetadataArray != null,
+            "commitMetadataArray can only be null if shuffleId %s is not registered!",
+            shuffleId)
+          for (i <- 0 until numPartitions) {
+            if (bytesWrittenPerPartition(i) != 0) {
+              commitMetadataArray(i).addCommitData(
+                crc32PerPartition(i),
+                bytesWrittenPerPartition(i))
+            }
+          }
+        }
         attempts(mapId) = attemptId
         // increment completed mappers
         val completedMappers =
@@ -354,20 +383,6 @@ class ReducePartitionCommitHandler(
       } else {
         // Mapper with another attemptId finished, skip this request
         (false, false)
-      }
-    }
-    if (shuffleIntegrityCheckEnabled && mapperAttemptFinishedSuccess) {
-      val commitMetadataArray = commitMetadataForReducer.get(shuffleId)
-      checkState(
-        commitMetadataArray != null,
-        "commitMetadataArray can only be null if shuffleId %s is not registered!",
-        shuffleId)
-      for (i <- 0 until numPartitions) {
-        if (bytesWrittenPerPartition(i) != 0) {
-          commitMetadataArray(i).addCommitData(
-            crc32PerPartition(i),
-            bytesWrittenPerPartition(i))
-        }
       }
     }
     if (!mapperAttemptFinishedSuccess) {

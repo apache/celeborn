@@ -32,6 +32,7 @@ import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
+import org.apache.celeborn.service.deploy.master.ApplicationMetricsSource;
 
 public class SingleMasterMetaManager extends AbstractMetaManager {
   private static final Logger LOG = LoggerFactory.getLogger(SingleMasterMetaManager.class);
@@ -42,6 +43,15 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
 
   public SingleMasterMetaManager(
       RpcEnv rpcEnv, CelebornConf conf, CelebornRackResolver rackResolver) {
+    this(rpcEnv, conf, rackResolver, new ApplicationMetricsSource(conf));
+  }
+
+  public SingleMasterMetaManager(
+      RpcEnv rpcEnv,
+      CelebornConf conf,
+      CelebornRackResolver rackResolver,
+      ApplicationMetricsSource applicationMetricsSource) {
+    super(applicationMetricsSource);
     this.rpcEnv = rpcEnv;
     this.conf = conf;
     this.initialEstimatedPartitionSize = conf.initialEstimatedPartitionSize();
@@ -92,6 +102,8 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       Map<String, Long> shuffleFallbackCounts,
       Map<String, Long> applicationFallbackCounts,
       long time,
+      Map<String, Long> clientGauges,
+      Map<String, String> clientMetricLabels,
       String requestId) {
     updateAppHeartbeatMeta(
         appId,
@@ -101,7 +113,9 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
         shuffleCount,
         applicationCount,
         shuffleFallbackCounts,
-        applicationFallbackCounts);
+        applicationFallbackCounts,
+        clientGauges,
+        clientMetricLabels);
   }
 
   @Override

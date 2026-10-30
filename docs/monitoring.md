@@ -115,6 +115,7 @@ These metrics are exposed by Celeborn master.
     | WorkerCount                  | The count of active workers.                                                              |
     | LostWorkerCount              | The count of workers in lost list.                                                        |
     | ExcludedWorkerCount          | The count of workers in excluded list.                                                    |
+    | ManuallyExcludedWorkerCount  | The count of workers in manually excluded list.                                           |
     | AvailableWorkerCount         | The count of workers in available list.                                                   |
     | ShutdownWorkerCount          | The count of workers in shutdown list.                                                    |
     | DecommissionWorkerCount      | The count of workers in decommission list.                                                |
@@ -173,6 +174,17 @@ These metrics are exposed by Celeborn master.
     | thread_count                 | The thread count of current thread group.                                                                                   |
     | thread_is_terminated_count   | The terminated thread count of current thread group.                                                                        |
     | thread_is_shutdown_count     | The shutdown thread count of current thread group.                                                                          |
+
+  - namespace=application
+    - **notes:**
+        - These are client-side metrics forwarded to the master via application heartbeats. They are exposed on the master's Prometheus endpoint when `celeborn.metrics.master.clientMetrics.enabled` is true and `celeborn.client.metrics.appLabels` is set on the client.
+        - Gauge values are aggregated (summed) across all reporting applications that share the same label set.
+    
+    | Metric Name                  | Description                                                                    |
+    |------------------------------|--------------------------------------------------------------------------------|
+    | ClientActiveShuffleCount     | The number of active shuffles on the client.                                   |
+    | ClientExcludedWorkerCount    | The number of workers excluded by the client.                                  |
+    | ClientShuttingWorkerCount    | The number of workers in shutting-down state as seen by the client.            |
 
 #### Worker
 These metrics are exposed by Celeborn worker.
@@ -235,6 +247,7 @@ These metrics are exposed by Celeborn worker.
     | CommitFilesTime                        | The time for a worker to flush buffers and close files related to specified shuffle.                            |
     | CommitFilesFailCount                   | The count of commit files request failed in current worker.                                                     |
     | SlotsAllocated                         | Slots allocated in last hour.                                                                                   |
+    | ReserveSlotsFailCount                  | The count of failed slot reservation requests, counted once per request rather than per slot.                  |
     | ActiveSlotsCount                       | The number of slots currently being used in a worker.                                                           |
     | ReserveSlotsTime                       | ReserveSlots means acquire a disk buffer and record partition location.                                         |
     | ActiveConnectionCount                  | The count of active network connection.                                                                         |
@@ -260,6 +273,8 @@ These metrics are exposed by Celeborn worker.
     | DeviceOSTotalBytes                     | The total usable space of OS for device monitor.                                                                |
     | DeviceCelebornFreeBytes                | The actual usable space of Celeborn for device.                                                                 |
     | DeviceCelebornTotalBytes               | The total space of Celeborn for device.                                                                         |
+    | DiskStatus                             | The status of the disk on the worker. 0:HEALTHY 1:READ_OR_WRITE_FAILURE 2:IO_HANG 3:HIGH_DISK_USAGE 4:CRITICAL_ERROR. Label: mountpoint |
+    | UnhealthyDiskCount                     | The number of disks whose status is not HEALTHY on the worker.                                                  |
     | PotentialConsumeSpeed                  | The speed of potential consumption for congestion control.                                                      |
     | UserProduceSpeed                       | The speed of user production for congestion control.                                                            |
     | WorkerConsumeSpeed                     | The speed of worker consumption for congestion control.                                                         |

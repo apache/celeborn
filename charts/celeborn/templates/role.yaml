@@ -27,5 +27,24 @@ rules:
 - apiGroups: [""]
   resources: ["pods"]
   verbs: ["create", "list", "delete"]
+{{- if and .Values.worker.drain.enabled (not .Values.worker.drain.alwaysDecommission) }}
+{{- /*
+The worker's preStop hook reads its own statefulset's desired replica count, to tell a
+scale-in from a rollout. With alwaysDecommission it never asks, so it needs no access.
+*/}}
+{{- $root := . }}
+{{- $stsNames := list (include "celeborn.worker.statefulSet.name" .) }}
+{{- if .Values.worker.zoneAwareReplication.enabled }}
+{{- $stsNames = list }}
+{{- range .Values.worker.zoneAwareReplication.zones }}
+{{- $ctx := dict "Values" $root.Values "Release" $root.Release "Chart" $root.Chart "zone" . }}
+{{- $stsNames = append $stsNames (include "celeborn.worker.statefulSet.name" $ctx) }}
+{{- end }}
+{{- end }}
+- apiGroups: ["apps"]
+  resources: ["statefulsets/scale"]
+  resourceNames: [{{ range $i, $n := $stsNames }}{{ if $i }}, {{ end }}{{ $n | quote }}{{ end }}]
+  verbs: ["get"]
+{{- end }}
 {{- end }}
 

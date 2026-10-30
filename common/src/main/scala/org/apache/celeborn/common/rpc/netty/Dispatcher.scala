@@ -171,9 +171,7 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) 
       endpointName: String,
       message: InboxMessage,
       callbackIfStopped: Exception => Unit): Unit = {
-    val data = synchronized {
-      endpoints.get(endpointName)
-    }
+    val data = endpoints.get(endpointName)
     if (data != null) {
       data.inbox.waitOnFull()
     }

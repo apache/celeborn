@@ -42,8 +42,7 @@ class BearerAuthenticationHandler(providerClass: String)
   override def authenticationSupported: Boolean = {
     Option(providerClass).exists { _ =>
       try {
-        Class.forName(providerClass).isAssignableFrom(classOf[TokenAuthenticationProvider])
-        true
+        classOf[TokenAuthenticationProvider].isAssignableFrom(Class.forName(providerClass))
       } catch {
         case _: Throwable => false
       }

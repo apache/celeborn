@@ -29,6 +29,7 @@ import org.roaringbitmap.RoaringBitmap
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
+import org.apache.celeborn.common.metrics.{ClientMetric, MetricType}
 import org.apache.celeborn.common.network.protocol.{SerdeVersion, TransportMessage}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.MessageType._
@@ -208,6 +209,11 @@ object ControlMessages extends Logging {
       newLocs: util.Map[Integer, (StatusCode, java.lang.Boolean, PartitionLocation)],
       serdeVersion: SerdeVersion) extends MasterMessage
 
+  // Extensible per-mapper metrics carried by MapperEnd, mirrors PbMapperMetrics.
+  case class MapperMetrics(
+      uncompressedBytesWritten: Long = 0L,
+      compressedBytesWritten: Long = 0L)
+
   case class MapperEnd(
       shuffleId: Int,
       mapId: Int,
@@ -218,7 +224,8 @@ object ControlMessages extends Logging {
       numPartitions: Int,
       crc32PerPartition: Array[Int],
       bytesWrittenPerPartition: Array[Long],
-      serdeVersion: SerdeVersion)
+      serdeVersion: SerdeVersion,
+      metrics: MapperMetrics = MapperMetrics())
     extends MasterMessage
 
   case class ReadReducerPartitionEnd(
@@ -389,7 +396,11 @@ object ControlMessages extends Logging {
       applicationFallbackCounts: util.Map[String, java.lang.Long],
       needCheckedWorkerList: util.List[WorkerInfo],
       override var requestId: String = ZERO_UUID,
-      shouldResponse: Boolean = false) extends MasterRequestMessage
+      shouldResponse: Boolean = false,
+      clientMetrics: util.Map[String, ClientMetric] =
+        java.util.Collections.emptyMap[String, ClientMetric](),
+      metricLabels: util.Map[String, String] = java.util.Collections.emptyMap[String, String]())
+    extends MasterRequestMessage
 
   case class HeartbeatFromApplicationResponse(
       statusCode: StatusCode,
@@ -743,7 +754,8 @@ object ControlMessages extends Logging {
           numPartitions,
           crc32PerPartition,
           bytesWrittenPerPartition,
-          serdeVersion) =>
+          serdeVersion,
+          metrics) =>
       val pushFailedMap = pushFailedBatch.asScala.map { case (k, v) =>
         val resultValue = PbSerDeUtils.toPbLocationPushFailedBatches(v)
         (k, resultValue)
@@ -759,6 +771,9 @@ object ControlMessages extends Logging {
         .addAllCrc32PerPartition(crc32PerPartition.map(Integer.valueOf).toSeq.asJava)
         .addAllBytesWrittenPerPartition(bytesWrittenPerPartition.map(
           java.lang.Long.valueOf).toSeq.asJava)
+        .setMetrics(PbMapperMetrics.newBuilder()
+          .setUncompressedBytesWritten(metrics.uncompressedBytesWritten)
+          .setCompressedBytesWritten(metrics.compressedBytesWritten))
         .build().toByteArray
       new TransportMessage(MessageType.MAPPER_END, payload, serdeVersion)
 
@@ -874,7 +889,9 @@ object ControlMessages extends Logging {
           applicationFallbackCounts,
           needCheckedWorkerList,
           requestId,
-          shouldResponse) =>
+          shouldResponse,
+          clientMetrics,
+          metricLabels) =>
       val payload = PbHeartbeatFromApplication.newBuilder()
         .setAppId(appId)
         .setRequestId(requestId)
@@ -887,6 +904,13 @@ object ControlMessages extends Logging {
         .addAllNeedCheckedWorkerList(needCheckedWorkerList.asScala.map(
           PbSerDeUtils.toPbWorkerInfo(_, true, true)).toList.asJava)
         .setShouldResponse(shouldResponse)
+        .putAllClientMetrics(clientMetrics.asScala.map { case (name, metric) =>
+          val pbType = metric.metricType match {
+            case MetricType.Gauge => PbMetricType.GAUGE
+          }
+          name -> PbClientMetric.newBuilder().setValue(metric.value).setType(pbType).build()
+        }.asJava)
+        .putAllMetricLabels(metricLabels)
         .build().toByteArray
       new TransportMessage(MessageType.HEARTBEAT_FROM_APPLICATION, payload)
 
@@ -1260,7 +1284,10 @@ object ControlMessages extends Logging {
           pbMapperEnd.getNumPartitions,
           crc32Array,
           bytesWrittenPerPartitionArray,
-          message.getSerdeVersion)
+          message.getSerdeVersion,
+          MapperMetrics(
+            pbMapperEnd.getMetrics.getUncompressedBytesWritten,
+            pbMapperEnd.getMetrics.getCompressedBytesWritten))
 
       case READ_REDUCER_PARTITION_END_VALUE =>
         val pbReadReducerPartitionEnd = PbReadReducerPartitionEnd.parseFrom(message.getPayload)
@@ -1377,7 +1404,19 @@ object ControlMessages extends Logging {
             pbHeartbeatFromApplication.getNeedCheckedWorkerListList.asScala
               .map(PbSerDeUtils.fromPbWorkerInfo).toList.asJava),
           pbHeartbeatFromApplication.getRequestId,
-          pbHeartbeatFromApplication.getShouldResponse)
+          pbHeartbeatFromApplication.getShouldResponse,
+          new util.HashMap[String, ClientMetric](
+            pbHeartbeatFromApplication.getClientMetricsMap.asScala.flatMap {
+              case (name, pbMetric) =>
+                pbMetric.getType match {
+                  case PbMetricType.GAUGE =>
+                    Some(name -> ClientMetric(pbMetric.getValue, MetricType.Gauge))
+                  case unknown =>
+                    logWarning(s"Unknown PbMetricType $unknown for metric $name, skipping")
+                    None
+                }
+            }.asJava),
+          new util.HashMap[String, String](pbHeartbeatFromApplication.getMetricLabelsMap))
 
       case HEARTBEAT_FROM_APPLICATION_RESPONSE_VALUE =>
         val pbHeartbeatFromApplicationResponse =
@@ -1492,7 +1531,12 @@ object ControlMessages extends Logging {
         pbCommitFilesResponse.getCommittedReplicaStorageInfosMap.asScala.foreach(entry =>
           committedReplicaStorageInfos.put(entry._1, StorageInfo.fromPb(entry._2)))
         pbCommitFilesResponse.getMapIdBitmapMap.asScala.foreach { entry =>
-          committedBitMap.put(entry._1, Utils.byteStringToRoaringBitmap(entry._2))
+          // An empty bitmap is serialized as ByteString.EMPTY and deserializes back to null.
+          // Skip it: null values break the ConcurrentHashMap.putAll in processResponse.
+          val bitmap = Utils.byteStringToRoaringBitmap(entry._2)
+          if (bitmap != null) {
+            committedBitMap.put(entry._1, bitmap)
+          }
         }
         CommitFilesResponse(
           StatusCode.fromValue(pbCommitFilesResponse.getStatus),
