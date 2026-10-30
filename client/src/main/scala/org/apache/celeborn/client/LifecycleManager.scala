@@ -340,7 +340,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     masterClient.close()
     if (rpcEnv != null) {
       rpcEnv.shutdown()
-      rpcEnv.awaitTermination()
     }
     if (authEnabled) {
       if (masterRpcEnvInUse != null) {
