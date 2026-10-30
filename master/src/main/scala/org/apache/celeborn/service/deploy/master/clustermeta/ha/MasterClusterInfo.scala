@@ -78,8 +78,7 @@ object MasterClusterInfo extends Logging {
    * certificates.
    */
   def ratisSslModule(conf: CelebornConf): String = {
-    val ratisEnabledKey = SSL_ENABLED.key.replace("<module>", TransportModuleConstants.RATIS_MODULE)
-    if (conf.getOption(ratisEnabledKey).exists(SSL_ENABLED.valueConverter)) {
+    if (conf.sslEnabledExplicitly(TransportModuleConstants.RATIS_MODULE)) {
       TransportModuleConstants.RATIS_MODULE
     } else {
       TransportModuleConstants.RPC_SERVICE_MODULE
