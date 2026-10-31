@@ -1217,9 +1217,16 @@ trait SparkClientProjects {
           Dependencies.javaxServletApi % "test",
           Dependencies.jakartaServletApi % "test"
         ) ++ commonUnitTestDependencies,
-        dependencyOverrides ++= Seq(
-          Dependencies.hadoopClientApi,
-          Dependencies.hadoopClientRuntime)
+        // Only Spark 4.2 enables the AWS profile and needs the explicit Hadoop
+        // client override for the S3 integration tests. Applying it to older
+        // Spark versions mixes incompatible Hadoop client versions.
+        dependencyOverrides ++= {
+          if (sparkVersion.startsWith("4.2")) {
+            Seq(Dependencies.hadoopClientApi, Dependencies.hadoopClientRuntime)
+          } else {
+            Seq.empty
+          }
+        }
       )
   }
 
