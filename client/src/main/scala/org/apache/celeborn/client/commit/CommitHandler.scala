@@ -333,13 +333,13 @@ abstract class CommitHandler(
     val timeout = clientRpcCommitFilesAskTimeout.duration.toMillis
     var remainingTime = timeout * maxRetries
     val delta = 50
+    val shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId)
     while (remainingTime >= 0 && !futures.isEmpty) {
       val currentTime = System.currentTimeMillis()
       val iter = futures.iterator()
       while (iter.hasNext) {
         val status = iter.next()
         val worker = status.workerInfo
-        val shuffleKey = Utils.makeShuffleKey(appUniqueId, shuffleId)
         if (status.future.isCompleted) {
           status.future.value.get match {
             case scala.util.Success(res) =>
