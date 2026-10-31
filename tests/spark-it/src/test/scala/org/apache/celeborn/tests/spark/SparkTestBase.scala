@@ -155,6 +155,13 @@ trait SparkTestBase extends AnyFunSuite
       true
     } catch {
       case _: ClassNotFoundException => false
+      case e: LinkageError =>
+        // The class exists but its dependencies are incompatible with this
+        // Spark/Hadoop combination (for example, an older Hadoop runtime being
+        // loaded with a newer hadoop-aws). Treat it as unavailable instead of
+        // aborting the whole integration-test module.
+        logWarning(s"Class $className failed to link: ${e.getMessage}")
+        false
     }
   }
 
