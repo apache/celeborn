@@ -39,7 +39,7 @@ import com.google.common.annotations.VisibleForTesting
 import com.google.common.cache.{Cache, CacheBuilder}
 
 import org.apache.celeborn.client.LifecycleManager.{ShuffleAllocatedWorkers, ShuffleFailedWorkers}
-import org.apache.celeborn.client.listener.{MapperEndCallback, ShuffleAssignmentListener, WorkerStatusListener}
+import org.apache.celeborn.client.listener.{MapperEndCallback, PartitionReviveListener, ShuffleAssignmentListener, WorkerStatusListener}
 import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
 import org.apache.celeborn.common.CelebornConf.ACTIVE_STORAGE_TYPES
 import org.apache.celeborn.common.client.{ApplicationInfoProvider, MasterClient}
@@ -74,6 +74,16 @@ object LifecycleManager {
   type ShuffleAllocatedWorkers =
     ConcurrentHashMap[Int, ConcurrentHashMap[String, ShufflePartitionLocationInfo]]
   type ShuffleFailedWorkers = ConcurrentHashMap[WorkerInfo, (StatusCode, Long)]
+
+  // Push failures caused by the replica, which count against the replica worker.
+  private val replicaReviveCauses = Set(
+    StatusCode.PUSH_DATA_WRITE_FAIL_REPLICA,
+    StatusCode.PUSH_DATA_CREATE_CONNECTION_FAIL_REPLICA,
+    StatusCode.PUSH_DATA_CONNECTION_EXCEPTION_REPLICA,
+    StatusCode.PUSH_DATA_TIMEOUT_REPLICA,
+    StatusCode.PUSH_DATA_FAIL_NON_CRITICAL_CAUSE_REPLICA,
+    StatusCode.PUSH_DATA_REPLICA_WORKER_EXCLUDED,
+    StatusCode.REPLICATE_DATA_FAILED)
 }
 
 class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends RpcEndpoint
@@ -970,6 +980,40 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       } catch {
         case NonFatal(e) =>
           logWarning(s"Failed to report the slot assignment of shuffle $shuffleId.", e)
+      }
+    }
+  }
+
+  private[client] def reportPartitionRevives(
+      shuffleId: Int,
+      requests: Array[ChangePartitionRequest]): Unit = {
+    partitionReviveListener.foreach { listener =>
+      val workerRevives = new util.HashMap[String, util.Map[StatusCode, Integer]]()
+      requests.foreach { request =>
+        // Requests without a cause or an old location do not come from Revive.
+        for (cause <- request.causes; oldPartition <- Option(request.oldPartition)) {
+          val location =
+            if (LifecycleManager.replicaReviveCauses.contains(cause) && oldPartition.hasPeer) {
+              oldPartition.getPeer
+            } else {
+              oldPartition
+            }
+          val causes = workerRevives.computeIfAbsent(
+            location.getWorker.toUniqueId,
+            _ => new util.HashMap[StatusCode, Integer]())
+          causes.put(cause, causes.getOrDefault(cause, 0) + 1)
+        }
+      }
+      if (!workerRevives.isEmpty) {
+        try {
+          listener.onPartitionsRevived(
+            shuffleId,
+            celebornShuffleIdToAppShuffleIdMap.getOrDefault(shuffleId, shuffleId),
+            workerRevives)
+        } catch {
+          case NonFatal(e) =>
+            logWarning(s"Failed to report the partition revives of shuffle $shuffleId.", e)
+        }
       }
     }
   }
@@ -2314,6 +2358,11 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
   @volatile private var shuffleAssignmentListener: Option[ShuffleAssignmentListener] = None
   def registerShuffleAssignmentListener(listener: ShuffleAssignmentListener): Unit = {
     shuffleAssignmentListener = Some(listener)
+  }
+
+  @volatile private var partitionReviveListener: Option[PartitionReviveListener] = None
+  def registerPartitionReviveListener(listener: PartitionReviveListener): Unit = {
+    partitionReviveListener = Some(listener)
   }
 
   // Initialize at the end of LifecycleManager construction.

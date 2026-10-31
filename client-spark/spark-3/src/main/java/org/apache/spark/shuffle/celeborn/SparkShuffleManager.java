@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.client.listener.PartitionReviveListener;
 import org.apache.celeborn.client.listener.ShuffleAssignmentListener;
 import org.apache.celeborn.client.security.CryptoHandler;
 import org.apache.celeborn.common.CelebornConf;
@@ -101,6 +102,7 @@ public class SparkShuffleManager implements ShuffleManager {
 
   private LifecycleManager lifecycleManager;
   private ShuffleAssignmentListener shuffleAssignmentListener;
+  private PartitionReviveListener partitionReviveListener;
   private ShuffleClient shuffleClient;
   private volatile SortShuffleManager _sortShuffleManager;
   private final ConcurrentHashMap.KeySetView<Integer, Boolean> sortShuffleIds =
@@ -196,6 +198,9 @@ public class SparkShuffleManager implements ShuffleManager {
           lifecycleManager.registerCancelShuffleCallback(SparkUtils::cancelShuffle);
           if (shuffleAssignmentListener != null) {
             lifecycleManager.registerShuffleAssignmentListener(shuffleAssignmentListener);
+          }
+          if (partitionReviveListener != null) {
+            lifecycleManager.registerPartitionReviveListener(partitionReviveListener);
           }
           // Register only when the UI plugin is opted in, otherwise every map task
           // posts an event nobody consumes and each one flushes the event log.
@@ -572,6 +577,16 @@ public class SparkShuffleManager implements ShuffleManager {
   // for testing
   public synchronized ShuffleAssignmentListener getShuffleAssignmentListener() {
     return shuffleAssignmentListener;
+  }
+
+  /** Registers a listener for the LifecycleManager, which is created on the first shuffle. */
+  public synchronized void registerPartitionReviveListener(PartitionReviveListener listener) {
+    partitionReviveListener = listener;
+  }
+
+  // for testing
+  public synchronized PartitionReviveListener getPartitionReviveListener() {
+    return partitionReviveListener;
   }
 
   // for testing

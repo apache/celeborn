@@ -76,8 +76,15 @@ private class CelebornDriverPlugin extends DriverPlugin with Logging {
             shuffleId,
             appShuffleId,
             workerSlots.asScala.map { case (worker, slots) => worker -> slots.intValue }.toMap)))
+        manager.registerPartitionReviveListener((shuffleId, appShuffleId, workerRevives) =>
+          sc.listenerBus.post(CelebornPartitionReviveEvent(
+            shuffleId,
+            appShuffleId,
+            workerRevives.asScala.map { case (worker, causes) =>
+              worker -> causes.asScala.map { case (cause, n) => cause.name -> n.intValue }.toMap
+            }.toMap)))
       case other =>
-        logInfo("Shuffle assignments are not reported by shuffle manager " +
+        logInfo("Shuffle assignments and partition revives are not reported by shuffle manager " +
           s"${Option(other).map(_.getClass.getName).orNull}.")
     }
   }

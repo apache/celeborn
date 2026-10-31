@@ -350,6 +350,7 @@ class ChangePartitionManager(
         s"shuffle $shuffleId, succeed partitions: " +
         s"$changes.")
     }
+    lifecycleManager.reportPartitionRevives(shuffleId, changePartitions)
     replySuccess(newPrimaryLocations.toArray)
   }
 
