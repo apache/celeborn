@@ -18,7 +18,8 @@
 package org.apache.celeborn.tests.client
 
 import java.util
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.{ConcurrentLinkedQueue, CountDownLatch, TimeUnit}
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.JavaConverters._
 
@@ -206,6 +207,54 @@ class LifecycleManagerSuite extends WithShuffleClientSuite with MiniClusterFeatu
 
     // The callback runs synchronously before the RPC reply.
     assert(reported.asScala.toList == List((100L, 40L)))
+  }
+
+  test("LifecycleManager stop should terminate its RPC dispatcher") {
+    val onStopStarted = new CountDownLatch(1)
+    val onStopCompleted = new CountDownLatch(1)
+    val onStopThread = new AtomicReference[Thread]()
+    val onStopError = new AtomicReference[Throwable]()
+    val manager = new LifecycleManager(APP, celebornConf) {
+      override def onStop(): Unit = {
+        onStopThread.set(Thread.currentThread())
+        onStopStarted.countDown()
+        try {
+          super.onStop()
+        } catch {
+          case t: Throwable =>
+            onStopError.set(t)
+            throw t
+        } finally {
+          onStopCompleted.countDown()
+        }
+      }
+    }
+    val waiter = new Thread(
+      new Runnable {
+        override def run(): Unit = manager.rpcEnv.awaitTermination()
+      },
+      "lifecycle-manager-stop-test-waiter")
+    waiter.setDaemon(true)
+
+    try {
+      manager.stop()
+      assert(onStopStarted.await(10, TimeUnit.SECONDS))
+      waiter.start()
+      waiter.join(10000)
+      assert(!waiter.isAlive, "LifecycleManager RPC dispatcher did not terminate")
+      assert(onStopCompleted.await(10, TimeUnit.SECONDS))
+      assert(onStopError.get == null)
+    } finally {
+      val dispatcherThread = onStopThread.get
+      if (waiter.isAlive && dispatcherThread != null) {
+        dispatcherThread.interrupt()
+      }
+      manager.rpcEnv.shutdown()
+      waiter.join(10000)
+      if (waiter.isAlive) {
+        waiter.interrupt()
+      }
+    }
   }
 
   override def afterAll(): Unit = {
