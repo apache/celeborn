@@ -62,7 +62,7 @@ public class ReadData extends RequestMessage {
 
   @Override
   public int hashCode() {
-    return Objects.hash(streamId, super.hashCode());
+    return Objects.hash(streamId, body());
   }
 
   @Override
