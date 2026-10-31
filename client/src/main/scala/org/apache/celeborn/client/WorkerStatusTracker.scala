@@ -139,10 +139,7 @@ class WorkerStatusTracker(
       val failedWorkersMsg = failedWorkers.asScala.map { case (worker, (status, time)) =>
         s"${worker.readableAddress()}   ${status.name()}   ${Utils.formatTimestamp(time)}"
       }.mkString("\n")
-      logError(
-        s"""
-           |Reporting failed workers:
-           |$failedWorkersMsg$currentFailedWorkers""".stripMargin)
+      logError(s"Reporting failed workers:\n$failedWorkersMsg$currentFailedWorkers")
       failedWorkers.asScala.foreach {
         case (worker, (StatusCode.WORKER_SHUTDOWN, _)) =>
           shuttingWorkers.add(worker)
