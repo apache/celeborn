@@ -414,6 +414,68 @@ public class MasterClientSuiteJ {
   }
 
   @Test
+  public void testFailedPassOverAllMastersRetriesInHA() {
+    final CelebornConf conf = prepareForCelebornConfWithHA();
+
+    Mockito.doReturn(Future$.MODULE$.successful(mockResponse))
+        .when(endpointRef)
+        .ask(Mockito.any(), Mockito.any(), Mockito.any());
+
+    // The first pass fails to connect to all three masters, as while they are still starting.
+    final AtomicInteger numSetups = new AtomicInteger(0);
+    Mockito.doAnswer(
+            invocation -> {
+              if (numSetups.getAndIncrement() < 3) {
+                throw new IOException("Test IOException");
+              }
+              return endpointRef;
+            })
+        .when(rpcEnv)
+        .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
+
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
+    HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
+
+    HeartbeatFromWorkerResponse response = null;
+    try {
+      response = client.askSync(message, HeartbeatFromWorkerResponse.class);
+    } catch (Throwable t) {
+      LOG.error("It should retry after a failed pass over all masters.", t);
+      fail("It should retry after a failed pass over all masters.");
+    }
+
+    assertEquals(mockResponse, response);
+    assertEquals(4, numSetups.get());
+  }
+
+  @Test
+  public void testFailedPassesOverAllMastersStopAfterMaxRetriesInHA() {
+    final CelebornConf conf = prepareForCelebornConfWithHA();
+
+    final AtomicInteger numSetups = new AtomicInteger(0);
+    Mockito.doAnswer(
+            invocation -> {
+              numSetups.incrementAndGet();
+              throw new IOException("Test IOException");
+            })
+        .when(rpcEnv)
+        .setupEndpointRef(Mockito.any(RpcAddress.class), Mockito.anyString());
+
+    MasterClient client = new MasterClient(rpcEnv, conf, false);
+    HeartbeatFromWorker message = Mockito.mock(HeartbeatFromWorker.class);
+
+    try {
+      client.askSync(message, HeartbeatFromWorkerResponse.class);
+      fail("It should fail after maxRetries failed passes over all masters.");
+    } catch (Throwable t) {
+      assertTrue(t instanceof IllegalStateException);
+    }
+
+    // One initial pass plus maxRetries retried passes, each over all three masters.
+    assertEquals((client.getMaxRetries() + 1) * 3, numSetups.get());
+  }
+
+  @Test
   public void testSuggestedLeaderSetupFailureRetriesAnotherMasterInHA() {
     final CelebornConf conf =
         conf()
