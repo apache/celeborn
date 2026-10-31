@@ -747,9 +747,17 @@ private[celeborn] class Worker(
     throw new CelebornException("Register worker failed.", exception)
   }
 
-  private def handleResourceConsumption(): util.Map[UserIdentifier, ResourceConsumption] = {
+  private[worker] def handleResourceConsumption(): util.Map[UserIdentifier, ResourceConsumption] = {
     val resourceConsumptionSnapshot = storageManager.userResourceConsumptionSnapshot().asJava
+    // Users that disappeared from the snapshot no longer have any data on this worker, so their
+    // gauges and metadata must be released. Otherwise both the metric cardinality and the worker
+    // side map grow with every user this worker has ever seen. The diff must be taken before the
+    // map is updated.
+    val disappearedUsers = workerInfo.userResourceConsumption.keySet().asScala
+      .filterNot(resourceConsumptionSnapshot.containsKey)
+      .toList
     workerInfo.updateThenGetUserResourceConsumption(resourceConsumptionSnapshot)
+    disappearedUsers.foreach(removeUserResourceConsumption)
     resourceConsumptionSnapshot.asScala.foreach { case (userIdentifier, _) =>
       gaugeResourceConsumption(userIdentifier)
     }
@@ -788,7 +796,7 @@ private[celeborn] class Worker(
       }
   }
 
-  private def gaugeResourceConsumption(
+  private[worker] def gaugeResourceConsumption(
       userIdentifier: UserIdentifier,
       applicationId: String = null,
       resourceConsumption: ResourceConsumption = null): Unit = {
@@ -880,12 +888,15 @@ private[celeborn] class Worker(
   private def removeAppResourceConsumption(applicationId: String): Unit = {
     val userIdentifier = topApplicationUserIdentifiers.remove(applicationId)
     if (userIdentifier != null) {
-      removeAppResourceConsumption(
+      removeResourceConsumption(
         userIdentifier.toMap + (resourceConsumptionSource.applicationLabel -> applicationId))
     }
   }
 
-  private def removeAppResourceConsumption(resourceConsumptionLabel: Map[String, String]): Unit = {
+  private[worker] def removeUserResourceConsumption(userIdentifier: UserIdentifier): Unit =
+    removeResourceConsumption(userIdentifier.toMap)
+
+  private def removeResourceConsumption(resourceConsumptionLabel: Map[String, String]): Unit = {
     resourceConsumptionSource.removeGauge(
       ResourceConsumptionSource.DISK_FILE_COUNT,
       resourceConsumptionLabel)
