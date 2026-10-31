@@ -248,10 +248,12 @@ class WorkerInfo(
   def updateThenGetUserResourceConsumption(resourceConsumptions: util.Map[
     UserIdentifier,
     ResourceConsumption]): util.Map[UserIdentifier, ResourceConsumption] = {
-    userResourceConsumption.keys().asScala.filterNot(resourceConsumptions.containsKey).foreach {
-      identifier =>
-        userResourceConsumption.put(identifier, ResourceConsumption(0, 0, 0, 0))
-    }
+    // Users absent from the new snapshot no longer occupy any resource on this worker, so drop
+    // them instead of keeping a zero-valued entry forever. Otherwise the map grows monotonically
+    // with every user this worker has ever seen.
+    userResourceConsumption.keys().asScala.toList
+      .filterNot(resourceConsumptions.containsKey)
+      .foreach(identifier => userResourceConsumption.remove(identifier))
     userResourceConsumption.putAll(resourceConsumptions)
     userResourceConsumption
   }
