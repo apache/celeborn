@@ -197,6 +197,38 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
     assert(worker.resourceConsumptionSource.gauges().size == 4)
   }
 
+  test("remove gauges of users disappeared from resource consumption snapshot") {
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
+    conf.set(CelebornConf.ACTIVE_STORAGE_TYPES.key, "HDD")
+    worker = new Worker(conf, workerArgs)
+
+    def userGaugeCount(userIdentifier: UserIdentifier): Int = {
+      worker.resourceConsumptionSource
+        .gauges()
+        .count(_.labels.get("name").contains(userIdentifier.name))
+    }
+
+    val user1 = new UserIdentifier("tenant1", "name1")
+    val user2 = new UserIdentifier("tenant2", "name2")
+    // Simulate the users registered by previous heartbeats.
+    Seq(user1, user2).foreach { userIdentifier =>
+      worker.workerInfo.userResourceConsumption.put(
+        userIdentifier,
+        ResourceConsumption(0, 0, 0, 0))
+      worker.gaugeResourceConsumption(userIdentifier)
+    }
+    assert(userGaugeCount(user1) == 2)
+    assert(userGaugeCount(user2) == 2)
+
+    // No shuffle data is left on this worker, so the snapshot is empty and both users must be
+    // released instead of being kept at 0.
+    worker.handleResourceConsumption()
+
+    assert(worker.workerInfo.userResourceConsumption.isEmpty)
+    assert(userGaugeCount(user1) == 0)
+    assert(userGaugeCount(user2) == 0)
+  }
+
   test("test checkCommitTimeout in controller") {
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, "/tmp")
     conf.set(CelebornConf.WORKER_SHUFFLE_COMMIT_TIMEOUT.key, "1000")
