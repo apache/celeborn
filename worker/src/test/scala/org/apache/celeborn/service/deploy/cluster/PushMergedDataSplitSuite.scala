@@ -147,15 +147,18 @@ class PushMergedDataSplitSuite extends AnyFunSuite
             PARTITION_NUM)
           Thread.sleep(5 * 1000) // wait for flush
         }
+        // getPartitionLocation returns a snapshot, re-fetch to observe the revive update
+        val partitionLocationMapAfterSplit =
+          shuffleClient.getPartitionLocation(SHUFFLE_ID, MAP_NUM, PARTITION_NUM)
         assert(
-          partitionLocationMap.get(partitions(0)).getEpoch > 0
+          partitionLocationMapAfterSplit.get(partitions(0)).getEpoch > 0
         ) // means partition(0) will be split
 
         // push merged data, we expect that partition(0) will be split, while partition(1) will not be split
         shuffleClient.pushMergedData(SHUFFLE_ID, MAP_ID, ATTEMPT_ID)
         shuffleClient.mapperEnd(SHUFFLE_ID, MAP_ID, ATTEMPT_ID, MAP_NUM, PARTITION_NUM)
         assert(
-          partitionLocationMap.get(partitions(1)).getEpoch == 0
+          partitionLocationMapAfterSplit.get(partitions(1)).getEpoch == 0
         ) // means partition(1) will not be split
     }
   }
