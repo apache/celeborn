@@ -24,6 +24,13 @@ metadata:
     {{- include "celeborn.master.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.master.replicas }}
+  {{- with .Values.master.podManagementPolicy }}
+  podManagementPolicy: {{ . }}
+  {{- end }}
+  {{- /* A master waits for every peer's DNS record, so a probe gating readiness deadlocks OrderedReady. See README.md. */}}
+  {{- if and (or .Values.master.startupProbe .Values.master.readinessProbe) (gt (.Values.master.replicas | int) 1) (ne .Values.master.podManagementPolicy "Parallel") }}
+  {{- fail "master.startupProbe and master.readinessProbe require master.podManagementPolicy: Parallel: a master waits for all its peers before serving, and OrderedReady does not create the next master until the previous one is ready" }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "celeborn.master.selectorLabels" . | nindent 6 }}
@@ -127,6 +134,18 @@ spec:
           mountPath: /opt/celeborn/conf/ratis-log4j.properties
         {{- with .Values.master.volumeMounts }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.master.startupProbe }}
+        startupProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.master.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.master.readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 10 }}
         {{- end }}
         {{- with .Values.master.resources }}
         resources:
