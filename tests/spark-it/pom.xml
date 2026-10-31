@@ -349,6 +349,15 @@
           <type>test-jar</type>
           <scope>test</scope>
         </dependency>
+        <!-- S3 e2e tests are only enabled on Spark 4.2, whose Hadoop client is
+             compatible with the hadoop-aws version pulled by the uploader. Spark
+             3.0/3.1 use an older Hadoop and must keep the S3 suites skipped. -->
+        <dependency>
+          <groupId>org.apache.celeborn</groupId>
+          <artifactId>celeborn-multipart-uploader-s3_${scala.binary.version}</artifactId>
+          <version>${project.version}</version>
+          <scope>test</scope>
+        </dependency>
       </dependencies>
     </profile>
   </profiles>
