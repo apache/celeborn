@@ -665,7 +665,7 @@ public class ShuffleClientSuiteJ {
   }
 
   @Test
-  public void testUpdateReducerFileGroupNonFetchFailureExceptions() {
+  public void testUpdateReducerFileGroupNonFetchFailureExceptions() throws CelebornIOException {
     CelebornConf conf = new CelebornConf();
     conf.set("celeborn.client.spark.stageRerun.enabled", "true");
     Map<Integer, Set<PartitionLocation>> locations = new HashMap<>();
@@ -699,11 +699,9 @@ public class ShuffleClientSuiteJ {
         new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
     shuffleClient.setupLifecycleManagerRef(endpointRef);
 
-    try {
-      shuffleClient.updateFileGroup(0, 0);
-    } catch (CelebornIOException e) {
-      Assert.assertTrue(e.getCause() == null);
-    }
+    ShuffleClientImpl.ReduceFileGroups result = shuffleClient.updateFileGroup(0, 0);
+    assertNotNull(result);
+    assertTrue(result.partitionGroups.isEmpty());
 
     when(endpointRef.askSync(any(), any(), any()))
         .thenAnswer(
@@ -735,11 +733,9 @@ public class ShuffleClientSuiteJ {
         new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
     shuffleClient.setupLifecycleManagerRef(endpointRef);
 
-    try {
-      shuffleClient.updateFileGroup(0, 0);
-    } catch (CelebornIOException e) {
-      Assert.assertTrue(e.getCause() == null);
-    }
+    CelebornIOException e =
+        assertThrows(CelebornIOException.class, () -> shuffleClient.updateFileGroup(0, 0));
+    Assert.assertTrue(e.getCause() == null);
 
     when(endpointRef.askSync(any(), any(), any()))
         .thenAnswer(
@@ -771,11 +767,9 @@ public class ShuffleClientSuiteJ {
         new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
     shuffleClient.setupLifecycleManagerRef(endpointRef);
 
-    try {
-      shuffleClient.updateFileGroup(0, 0);
-    } catch (CelebornIOException e) {
-      Assert.assertTrue(e.getCause() == null);
-    }
+    CelebornIOException exception =
+        assertThrows(CelebornIOException.class, () -> shuffleClient.updateFileGroup(0, 0));
+    Assert.assertTrue(exception.getCause() == null);
   }
 
   @Test
@@ -902,11 +896,11 @@ public class ShuffleClientSuiteJ {
     when(endpointRef.askSync(any(PbReadReducerPartitionEnd.class), any(), eq(classTag)))
         .thenReturn(mockResponse);
 
-    try {
-      shuffleClient.readReducerPartitionEnd(1, 2, 3, 4, 12345, 10000L);
-    } catch (CelebornIOException e) {
-      Assert.assertEquals(errorMsg, e.getMessage());
-    }
+    CelebornIOException e =
+        assertThrows(
+            CelebornIOException.class,
+            () -> shuffleClient.readReducerPartitionEnd(1, 2, 3, 4, 12345, 10000L));
+    Assert.assertEquals(errorMsg, e.getMessage());
   }
 
   @Test
