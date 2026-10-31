@@ -29,6 +29,9 @@ import org.apache.celeborn.common.meta.ReduceFileMeta;
 public class MemoryChunkBuffers extends ChunkBuffers {
   private final CompositeByteBuf buffer;
   private final AtomicBoolean closed = new AtomicBoolean(false);
+  // close() and chunk() must not race: chunk() takes a retained slice of buffer,
+  // and close() must not release the last reference before that retain happens.
+  private final Object lock = new Object();
 
   /**
    * @param takeOwnership whether to take over the existing buffer reference. If false, retain the
@@ -42,15 +45,22 @@ public class MemoryChunkBuffers extends ChunkBuffers {
 
   @Override
   public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
-    Tuple2<Long, Long> offsetLen = getChunkOffsetLength(chunkIndex, offset, len);
-    return new NettyManagedBuffer(
-        buffer.retainedSlice(offsetLen._1.intValue(), offsetLen._2.intValue()));
+    synchronized (lock) {
+      if (closed.get()) {
+        throw new IllegalStateException("MemoryChunkBuffers has already been closed");
+      }
+      Tuple2<Long, Long> offsetLen = getChunkOffsetLength(chunkIndex, offset, len);
+      return new NettyManagedBuffer(
+          buffer.retainedSlice(offsetLen._1.intValue(), offsetLen._2.intValue()));
+    }
   }
 
   @Override
   public void close() {
-    if (closed.compareAndSet(false, true)) {
-      buffer.release();
+    synchronized (lock) {
+      if (closed.compareAndSet(false, true)) {
+        buffer.release();
+      }
     }
   }
 }
