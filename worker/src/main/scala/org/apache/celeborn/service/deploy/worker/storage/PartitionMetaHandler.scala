@@ -286,7 +286,13 @@ class MapPartitionMetaHandler(
   }
 
   override def afterClose(): Unit = {
-    flushIndex()
+    try {
+      flushIndex()
+    } finally {
+      // The index channel is only needed while the writer is active. Release it even if
+      // flushIndex fails, otherwise a failed close would leak the channel until the worker exits.
+      releaseIndexResources()
+    }
   }
 
   override def beforeWrite(bytes: ByteBuf): Unit = {
@@ -319,12 +325,26 @@ class MapPartitionMetaHandler(
   }
 
   override def beforeDestroy(): Unit = {
-    try if (indexChannel != null) indexChannel.close()
-    catch {
-      case e: IOException =>
-        logger.warn(
-          s"Close channel failed for file ${diskFileInfo.getIndexPath} caused by {}.",
-          e.getMessage)
+    releaseIndexResources()
+  }
+
+  /**
+   * Release the index file channel and buffer. This is idempotent: afterClose() may release them
+   * first, and beforeDestroy() is also called on the destroy-before-close path.
+   */
+  private def releaseIndexResources(): Unit = {
+    val channel = indexChannel
+    indexChannel = null
+    indexBuffer = null
+    if (channel != null) {
+      try {
+        channel.close()
+      } catch {
+        case e: IOException =>
+          logger.warn(
+            s"Close index channel failed for file ${diskFileInfo.getIndexPath} caused by {}.",
+            e.getMessage)
+      }
     }
   }
 
