@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -31,7 +32,7 @@ public class CommitMetadataTest {
   @Test
   public void testAddDataWithOffsetAndLength() {
     CommitMetadata metadata = new CommitMetadata();
-    byte[] data = "testdata".getBytes();
+    byte[] data = "testdata".getBytes(StandardCharsets.UTF_8);
     metadata.addDataWithOffsetAndLength(data, 4, 4);
     assertEquals(4, metadata.getBytes());
     assertEquals(CelebornCRC32.compute(data, 4, 4), metadata.getChecksum());
@@ -40,11 +41,11 @@ public class CommitMetadataTest {
   @Test
   public void testAddCommitData() {
     CommitMetadata metadata1 = new CommitMetadata();
-    byte[] data1 = "test".getBytes();
+    byte[] data1 = "test".getBytes(StandardCharsets.UTF_8);
     metadata1.addDataWithOffsetAndLength(data1, 0, data1.length);
 
     CommitMetadata metadata2 = new CommitMetadata();
-    byte[] data2 = "data".getBytes();
+    byte[] data2 = "data".getBytes(StandardCharsets.UTF_8);
     metadata2.addDataWithOffsetAndLength(data2, 0, data2.length);
 
     metadata1.addCommitData(metadata2);
@@ -58,7 +59,7 @@ public class CommitMetadataTest {
 
   @Test
   public void testAddDataByteBuffer() {
-    byte[] data = "testdata".getBytes();
+    byte[] data = "testdata".getBytes(StandardCharsets.UTF_8);
     // The ByteBuffer overload (read path) must match the byte[] overload (write path).
     CommitMetadata fromBuffer = new CommitMetadata();
     fromBuffer.addData(ByteBuffer.wrap(data));
@@ -70,13 +71,13 @@ public class CommitMetadataTest {
 
   @Test
   public void testAddDataTwoByteBuffers() {
-    byte[] header = "test".getBytes();
-    byte[] body = "data".getBytes();
+    byte[] header = "test".getBytes(StandardCharsets.UTF_8);
+    byte[] body = "data".getBytes(StandardCharsets.UTF_8);
     // A split header/data buffer must hash equal to its concatenation.
     CommitMetadata fromTwoBuffers = new CommitMetadata();
     fromTwoBuffers.addData(ByteBuffer.wrap(header), ByteBuffer.wrap(body));
     CommitMetadata fromConcatenation = new CommitMetadata();
-    fromConcatenation.addData(ByteBuffer.wrap("testdata".getBytes()));
+    fromConcatenation.addData(ByteBuffer.wrap("testdata".getBytes(StandardCharsets.UTF_8)));
     assertEquals(fromConcatenation.getBytes(), fromTwoBuffers.getBytes());
     assertEquals(fromConcatenation.getChecksum(), fromTwoBuffers.getChecksum());
   }
@@ -86,7 +87,9 @@ public class CommitMetadataTest {
     // Mirror the map-partition flow: per-subpartition write checksums combined vs read bytes
     // served.
     byte[][] perSubpartition = {
-      "sub-0-bytes".getBytes(), "sub-1-bytes".getBytes(), "sub-2-bytes".getBytes()
+      "sub-0-bytes".getBytes(StandardCharsets.UTF_8),
+      "sub-1-bytes".getBytes(StandardCharsets.UTF_8),
+      "sub-2-bytes".getBytes(StandardCharsets.UTF_8)
     };
     int startSubIndex = 0;
     int endSubIndex = 1;
@@ -107,7 +110,7 @@ public class CommitMetadataTest {
 
     // A single flipped byte on the read path is detected.
     byte[] corrupted = perSubpartition[endSubIndex].clone();
-    corrupted[0] ^= 0x01;
+    corrupted[0] = (byte) (corrupted[0] ^ 0x01);
     CommitMetadata corruptedRead = new CommitMetadata();
     corruptedRead.addData(ByteBuffer.wrap(perSubpartition[startSubIndex]));
     corruptedRead.addData(ByteBuffer.wrap(corrupted));
@@ -119,7 +122,9 @@ public class CommitMetadataTest {
     // Tiered reads accumulate interleaved buffers while the driver combines per-subpartition
     // checksums in order; the combine must be order-independent for the two to match.
     byte[][] perSubpartition = {
-      "sub-0-bytes".getBytes(), "sub-1-bytes".getBytes(), "sub-2-bytes".getBytes()
+      "sub-0-bytes".getBytes(StandardCharsets.UTF_8),
+      "sub-1-bytes".getBytes(StandardCharsets.UTF_8),
+      "sub-2-bytes".getBytes(StandardCharsets.UTF_8)
     };
 
     CommitMetadata expected = new CommitMetadata();
@@ -141,15 +146,16 @@ public class CommitMetadataTest {
 
   @Test
   public void testCheckCommitMetadata() {
-    CommitMetadata expected = new CommitMetadata(CelebornCRC32.compute("testdata".getBytes()), 8);
+    CommitMetadata expected =
+        new CommitMetadata(CelebornCRC32.compute("testdata".getBytes(StandardCharsets.UTF_8)), 8);
     CommitMetadata actualMatching =
-        new CommitMetadata(CelebornCRC32.compute("testdata".getBytes()), 8);
+        new CommitMetadata(CelebornCRC32.compute("testdata".getBytes(StandardCharsets.UTF_8)), 8);
     CommitMetadata actualNonMatchingBytesOnly =
-        new CommitMetadata(CelebornCRC32.compute("testdata".getBytes()), 12);
+        new CommitMetadata(CelebornCRC32.compute("testdata".getBytes(StandardCharsets.UTF_8)), 12);
     CommitMetadata actualNonMatchingChecksumOnly =
-        new CommitMetadata(CelebornCRC32.compute("foo".getBytes()), 8);
+        new CommitMetadata(CelebornCRC32.compute("foo".getBytes(StandardCharsets.UTF_8)), 8);
     CommitMetadata actualNonMatching =
-        new CommitMetadata(CelebornCRC32.compute("bar".getBytes()), 16);
+        new CommitMetadata(CelebornCRC32.compute("bar".getBytes(StandardCharsets.UTF_8)), 16);
 
     Assert.assertTrue(CommitMetadata.checkCommitMetadata(expected, actualMatching));
     Assert.assertFalse(CommitMetadata.checkCommitMetadata(expected, actualNonMatchingBytesOnly));

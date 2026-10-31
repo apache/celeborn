@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 import org.junit.Test;
 
@@ -29,14 +30,14 @@ public class CelebornCRC32Test {
 
   @Test
   public void testCompute() {
-    byte[] data = "test".getBytes();
+    byte[] data = "test".getBytes(StandardCharsets.UTF_8);
     int checksum = CelebornCRC32.compute(data);
     assertEquals(3632233996L, checksum & 0xFFFFFFFFL);
   }
 
   @Test
   public void testComputeWithOffset() {
-    byte[] data = "testdata".getBytes();
+    byte[] data = "testdata".getBytes(StandardCharsets.UTF_8);
     int checksum = CelebornCRC32.compute(data, 4, 4);
     assertEquals(2918445923L, checksum & 0xFFFFFFFFL);
   }
@@ -60,14 +61,14 @@ public class CelebornCRC32Test {
   @Test
   public void testAddDataWithOffset() {
     CelebornCRC32 crc = new CelebornCRC32();
-    byte[] data = "testdata".getBytes();
+    byte[] data = "testdata".getBytes(StandardCharsets.UTF_8);
     crc.addData(data, 4, 4);
     assertEquals(2918445923L, crc.get() & 0xFFFFFFFFL);
   }
 
   @Test
   public void testComputeByteBuffer() {
-    byte[] data = "testdata".getBytes();
+    byte[] data = "testdata".getBytes(StandardCharsets.UTF_8);
     // A ByteBuffer view must hash to the same value as the byte[] overload.
     assertEquals(CelebornCRC32.compute(data), CelebornCRC32.compute(ByteBuffer.wrap(data)));
     // A sliced view (offset 4, length 4) must match the offset/length overload.
@@ -77,9 +78,9 @@ public class CelebornCRC32Test {
 
   @Test
   public void testComputeTwoByteBuffers() {
-    byte[] first = "test".getBytes();
-    byte[] second = "data".getBytes();
-    byte[] concatenated = "testdata".getBytes();
+    byte[] first = "test".getBytes(StandardCharsets.UTF_8);
+    byte[] second = "data".getBytes(StandardCharsets.UTF_8);
+    byte[] concatenated = "testdata".getBytes(StandardCharsets.UTF_8);
     // Hashing two buffers must equal hashing their concatenation.
     assertEquals(
         CelebornCRC32.compute(concatenated),
@@ -88,7 +89,7 @@ public class CelebornCRC32Test {
 
   @Test
   public void testAddDataByteBuffer() {
-    byte[] data = "testdata".getBytes();
+    byte[] data = "testdata".getBytes(StandardCharsets.UTF_8);
     CelebornCRC32 fromBuffer = new CelebornCRC32();
     fromBuffer.addData(ByteBuffer.wrap(data, 4, 4));
     CelebornCRC32 fromBytes = new CelebornCRC32();
@@ -98,12 +99,12 @@ public class CelebornCRC32Test {
 
   @Test
   public void testAddDataTwoByteBuffers() {
-    byte[] first = "test".getBytes();
-    byte[] second = "data".getBytes();
+    byte[] first = "test".getBytes(StandardCharsets.UTF_8);
+    byte[] second = "data".getBytes(StandardCharsets.UTF_8);
     CelebornCRC32 fromTwoBuffers = new CelebornCRC32();
     fromTwoBuffers.addData(ByteBuffer.wrap(first), ByteBuffer.wrap(second));
     CelebornCRC32 fromConcatenation = new CelebornCRC32();
-    fromConcatenation.addData("testdata".getBytes(), 0, 8);
+    fromConcatenation.addData("testdata".getBytes(StandardCharsets.UTF_8), 0, 8);
     assertEquals(fromConcatenation.get(), fromTwoBuffers.get());
   }
 
