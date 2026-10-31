@@ -41,7 +41,7 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
-import org.apache.celeborn.common.metrics.{ClientMetric, MetricsSystem, MetricType}
+import org.apache.celeborn.common.metrics.{ClientMetric, MetricsSystem, MetricType, WorkerStats}
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, Role, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.CelebornRackResolver
 import org.apache.celeborn.common.network.protocol.{TransportMessage, TransportMessagesHelper}
@@ -176,6 +176,7 @@ private[celeborn] class Master(
     } else {
       new SingleMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
     }
+  private[master] val workerStatsStore = new WorkerStatsStore
   metricsSystem.registerSource(statusSystem.applicationMetricsSource())
   secretRegistry.setMetadataHandler(statusSystem)
 
@@ -580,6 +581,7 @@ private[celeborn] class Master(
           activeShuffleKey,
           highWorkload,
           workerStatus,
+          workerStats,
           requestId) =>
       logDebug(s"Received heartbeat from" +
         s" worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort with $disks.")
@@ -597,6 +599,7 @@ private[celeborn] class Master(
           activeShuffleKey,
           highWorkload,
           workerStatus,
+          workerStats,
           requestId))
 
     case ReportWorkerUnavailable(failedWorkers: util.List[WorkerInfo], requestId: String) =>
@@ -740,12 +743,14 @@ private[celeborn] class Master(
       activeShuffleKeys: util.Set[String],
       highWorkload: Boolean,
       workerStatus: WorkerStatus,
+      workerStats: Option[WorkerStats],
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
     val registered = statusSystem.workersMap.containsKey(targetWorker.toUniqueId)
     if (!registered) {
       logWarning(s"Received heartbeat from unknown worker " +
         s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
+      workerStatsStore.remove(targetWorker)
     } else {
       statusSystem.handleWorkerHeartbeat(
         host,
@@ -759,6 +764,10 @@ private[celeborn] class Master(
         highWorkload,
         workerStatus,
         requestId)
+      workerStats match {
+        case Some(stats) => workerStatsStore.update(targetWorker, stats)
+        case None => workerStatsStore.remove(targetWorker)
+      }
     }
 
     val expiredShuffleKeys = new util.HashSet[String]
@@ -843,6 +852,7 @@ private[celeborn] class Master(
         s" for WorkerLost handler!")
     } else {
       statusSystem.handleWorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId)
+      workerStatsStore.remove(worker)
     }
     if (context != null) {
       context.reply(WorkerLostResponse(true))
@@ -882,6 +892,7 @@ private[celeborn] class Master(
       return
     }
 
+    workerStatsStore.remove(workerToRegister)
     if (statusSystem.workersMap.containsKey(workerToRegister.toUniqueId)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")
