@@ -154,6 +154,10 @@ These metrics are exposed by Celeborn master.
     | diskBytesWritten  | The amount of disk files consumption by each user.  |
     | hdfsFileCount     | The count of hdfs files consumption by each user.   |
     | hdfsBytesWritten  | The amount of hdfs files consumption by each user.  |
+    | s3FileCount       | The count of s3 files consumption by each user. Registered once the user has s3 consumption.     |
+    | s3BytesWritten    | The amount of s3 files consumption by each user. Registered once the user has s3 consumption.    |
+    | ossFileCount      | The count of oss files consumption by each user. Registered once the user has oss consumption.   |
+    | ossBytesWritten   | The amount of oss files consumption by each user. Registered once the user has oss consumption.  |
 
   - namespace=ThreadPool
     - **notes:**
@@ -389,6 +393,10 @@ These metrics are exposed by Celeborn worker.
     | diskBytesWritten  | The amount of disk files consumption by each user.  |
     | hdfsFileCount     | The count of hdfs files consumption by each user.   |
     | hdfsBytesWritten  | The amount of hdfs files consumption by each user.  |
+    | s3FileCount       | The count of s3 files consumption by each user.     |
+    | s3BytesWritten    | The amount of s3 files consumption by each user.    |
+    | ossFileCount      | The count of oss files consumption by each user.    |
+    | ossBytesWritten   | The amount of oss files consumption by each user.   |
 
   - namespace=ThreadPool
     - **notes:**

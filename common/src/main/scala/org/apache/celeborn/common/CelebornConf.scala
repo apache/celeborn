@@ -6046,7 +6046,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.metrics.worker.app.topResourceConsumption.count")
       .categories("metrics")
       .doc("Size for top items about top resource consumption applications list of worker. " +
-        "The top resource consumption is determined by sum of diskBytesWritten and hdfsBytesWritten. " +
+        "The top resource consumption is determined by sum of diskBytesWritten, hdfsBytesWritten, " +
+        "s3BytesWritten and ossBytesWritten. " +
         "The top resource consumption count prevents the total number of metrics from exceeding the metrics capacity. " +
         "Note: This will add applicationId as label which is considered as a high cardinality label, " +
         "be careful enabling it on metrics systems that are not optimized for high cardinality columns.")
@@ -6059,7 +6060,8 @@ object CelebornConf extends Logging {
       .categories("metrics")
       .doc("Threshold of bytes written for top resource consumption applications list of worker. " +
         "The application which has bytes written less than this threshold will not be included " +
-        "in the top resource consumption list, including diskBytesWritten and hdfsBytesWritten.")
+        "in the top resource consumption list, including diskBytesWritten, hdfsBytesWritten, " +
+        "s3BytesWritten and ossBytesWritten.")
       .version("0.6.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefault(0)
