@@ -681,6 +681,29 @@ class QuotaManagerSuite extends CelebornFunSuite
     clearUserConsumption()
   }
 
+  test("test user quota state is cleared after the user disappears from the snapshot") {
+    val user = UserIdentifier("tenant_01", "disappeared-user")
+    clearUserConsumption()
+    quotaManager.userQuotaStatus.clear()
+    quotaManager.userResourceConsumptionCache.clear()
+
+    addUserConsumption(user, ResourceConsumption(1024, 1, 1024, 1))
+    quotaManager.updateResourceConsumption()
+    assert(quotaManager.userQuotaStatus.containsKey(user))
+    assert(quotaManager.userResourceConsumptionCache.containsKey(user))
+
+    // Simulate a worker heartbeat whose resource-consumption snapshot no longer
+    // contains this user. The stale zero-valued entry must not keep the user active.
+    worker.updateThenGetUserResourceConsumption(
+      new util.HashMap[UserIdentifier, ResourceConsumption]())
+    assert(worker.userResourceConsumption.isEmpty)
+    quotaManager.updateResourceConsumption()
+
+    assert(!quotaManager.userQuotaStatus.containsKey(user))
+    assert(!quotaManager.userResourceConsumptionCache.containsKey(user))
+    clearUserConsumption()
+  }
+
   def checkUserQuota(userIdentifier: UserIdentifier): CheckQuotaResponse = {
     quotaManager.checkUserQuotaStatus(userIdentifier)
   }
