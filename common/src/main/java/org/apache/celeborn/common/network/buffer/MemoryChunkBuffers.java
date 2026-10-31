@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.network.buffer;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import scala.Tuple2;
 
 import io.netty.buffer.CompositeByteBuf;
@@ -26,16 +28,39 @@ import org.apache.celeborn.common.meta.ReduceFileMeta;
 
 public class MemoryChunkBuffers extends ChunkBuffers {
   private final CompositeByteBuf buffer;
+  private final AtomicBoolean closed = new AtomicBoolean(false);
+  // close() and chunk() must not race: chunk() takes a retained slice of buffer,
+  // and close() must not release the last reference before that retain happens.
+  private final Object lock = new Object();
 
-  public MemoryChunkBuffers(MemoryFileInfo memoryFileInfo) {
+  /**
+   * @param takeOwnership whether to take over the existing buffer reference. If false, retain the
+   *     shared buffer and own the new reference.
+   */
+  public MemoryChunkBuffers(MemoryFileInfo memoryFileInfo, boolean takeOwnership) {
     super((ReduceFileMeta) memoryFileInfo.getFileMeta());
-    buffer = memoryFileInfo.getBuffer();
+    CompositeByteBuf buffer = memoryFileInfo.getBuffer();
+    this.buffer = takeOwnership ? buffer : buffer.retain();
   }
 
   @Override
   public ManagedBuffer chunk(int chunkIndex, int offset, int len) {
-    Tuple2<Long, Long> offsetLen = getChunkOffsetLength(chunkIndex, offset, len);
-    return new NettyManagedBuffer(
-        buffer.retainedSlice(offsetLen._1.intValue(), offsetLen._2.intValue()));
+    synchronized (lock) {
+      if (closed.get()) {
+        throw new IllegalStateException("MemoryChunkBuffers has already been closed");
+      }
+      Tuple2<Long, Long> offsetLen = getChunkOffsetLength(chunkIndex, offset, len);
+      return new NettyManagedBuffer(
+          buffer.retainedSlice(offsetLen._1.intValue(), offsetLen._2.intValue()));
+    }
+  }
+
+  @Override
+  public void close() {
+    synchronized (lock) {
+      if (closed.compareAndSet(false, true)) {
+        buffer.release();
+      }
+    }
   }
 }

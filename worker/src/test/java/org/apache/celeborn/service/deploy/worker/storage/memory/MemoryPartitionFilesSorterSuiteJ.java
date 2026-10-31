@@ -37,6 +37,8 @@ import org.apache.celeborn.common.meta.FileInfo;
 import org.apache.celeborn.common.meta.MemoryFileInfo;
 import org.apache.celeborn.common.meta.ReduceFileMeta;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
+import org.apache.celeborn.common.network.buffer.ManagedBuffer;
+import org.apache.celeborn.common.network.buffer.MemoryChunkBuffers;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.unsafe.Platform;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
@@ -148,7 +150,12 @@ public class MemoryPartitionFilesSorterSuiteJ {
         ((ReduceFileMeta) info.getFileMeta()).getLastChunkOffset()
             - ((ReduceFileMeta) info.getFileMeta()).getChunkOffsets().get(0);
     Assert.assertEquals(totalSizeToFetch, actualTotalChunkSize);
-    fileInfo.getBuffer().release();
+    MemoryChunkBuffers chunkBuffers = new MemoryChunkBuffers((MemoryFileInfo) info, true);
+    chunkBuffers.close();
+    fileInfo.releaseMemoryBuffers();
+    Assert.assertEquals(0, ((MemoryFileInfo) info).getBuffer().refCnt());
+    Assert.assertEquals(0, fileInfo.getSortedBuffer().refCnt());
+    Assert.assertEquals(0, fileInfo.getBuffer().refCnt());
   }
 
   @Test
@@ -156,5 +163,114 @@ public class MemoryPartitionFilesSorterSuiteJ {
     int startMapIndex = random.nextInt(5);
     int endMapIndex = startMapIndex + random.nextInt(5) + 5;
     check(1000, startMapIndex, endMapIndex);
+  }
+
+  @Test
+  public void testSortedBufferLifecycleWithMultipleTargets() throws IOException {
+    prepare(1000);
+    CelebornConf conf = new CelebornConf();
+    conf.set(CelebornConf.SHUFFLE_CHUNK_SIZE().key(), "64k");
+    PartitionFilesSorter partitionFilesSorter =
+        new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
+    CompositeByteBuf originBuffer = fileInfo.getBuffer();
+    int originReaderIndex = originBuffer.readerIndex();
+    int originWriterIndex = originBuffer.writerIndex();
+    MemoryChunkBuffers chunkBuffers1 = null;
+    MemoryChunkBuffers chunkBuffers2 = null;
+    ManagedBuffer inFlightChunk = null;
+    boolean fileInfoReleased = false;
+    boolean chunkReleased = false;
+    try {
+      MemoryFileInfo info1 =
+          (MemoryFileInfo)
+              partitionFilesSorter.getSortedFileInfo("application-1", "", fileInfo, 0, MAX_MAP_ID);
+      MemoryFileInfo info2 =
+          (MemoryFileInfo)
+              partitionFilesSorter.getSortedFileInfo("application-1", "", fileInfo, 0, MAX_MAP_ID);
+      CompositeByteBuf sortedBuffer = fileInfo.getSortedBuffer();
+      CompositeByteBuf targetBuffer1 = info1.getBuffer();
+      CompositeByteBuf targetBuffer2 = info2.getBuffer();
+      Assert.assertTrue(sortedBuffer.numComponents() > 1);
+      Assert.assertTrue(targetBuffer1.numComponents() > 1);
+      Assert.assertEquals(originReaderIndex, originBuffer.readerIndex());
+      Assert.assertEquals(originWriterIndex, originBuffer.writerIndex());
+
+      chunkBuffers1 = new MemoryChunkBuffers(info1, true);
+      chunkBuffers2 = new MemoryChunkBuffers(info2, true);
+      Assert.assertEquals(1, targetBuffer1.refCnt());
+      Assert.assertEquals(1, targetBuffer2.refCnt());
+      inFlightChunk = chunkBuffers1.chunk(0, 0, Integer.MAX_VALUE);
+      Assert.assertEquals(2, targetBuffer1.refCnt());
+
+      fileInfo.releaseMemoryBuffers();
+      fileInfoReleased = true;
+      Assert.assertTrue(originBuffer.refCnt() > 0);
+      Assert.assertTrue(sortedBuffer.refCnt() > 0);
+
+      chunkBuffers2.close();
+      Assert.assertEquals(0, targetBuffer2.refCnt());
+      Assert.assertTrue(sortedBuffer.refCnt() > 0);
+      chunkBuffers1.close();
+      Assert.assertEquals(1, targetBuffer1.refCnt());
+      Assert.assertNotNull(inFlightChunk.nioByteBuffer());
+
+      inFlightChunk.release();
+      chunkReleased = true;
+      Assert.assertEquals(0, targetBuffer1.refCnt());
+      Assert.assertEquals(0, sortedBuffer.refCnt());
+      Assert.assertEquals(0, originBuffer.refCnt());
+    } finally {
+      if (chunkBuffers1 != null) {
+        chunkBuffers1.close();
+      }
+      if (chunkBuffers2 != null) {
+        chunkBuffers2.close();
+      }
+      if (!fileInfoReleased) {
+        fileInfo.releaseMemoryBuffers();
+      }
+      if (inFlightChunk != null && !chunkReleased) {
+        inFlightChunk.release();
+      }
+    }
+  }
+
+  @Test
+  public void testSharedBufferLifecycle() throws IOException {
+    prepare(1);
+    CompositeByteBuf originBuffer = fileInfo.getBuffer();
+    MemoryChunkBuffers chunkBuffers = null;
+    ManagedBuffer inFlightChunk = null;
+    boolean fileInfoReleased = false;
+    boolean chunkReleased = false;
+    try {
+      chunkBuffers = new MemoryChunkBuffers(fileInfo, false);
+      Assert.assertEquals(2, originBuffer.refCnt());
+      inFlightChunk = chunkBuffers.chunk(0, 0, Integer.MAX_VALUE);
+      Assert.assertEquals(3, originBuffer.refCnt());
+
+      fileInfo.releaseMemoryBuffers();
+      fileInfoReleased = true;
+      Assert.assertEquals(2, originBuffer.refCnt());
+      chunkBuffers.close();
+      Assert.assertEquals(1, originBuffer.refCnt());
+      chunkBuffers.close();
+      Assert.assertEquals(1, originBuffer.refCnt());
+      Assert.assertNotNull(inFlightChunk.nioByteBuffer());
+
+      inFlightChunk.release();
+      chunkReleased = true;
+      Assert.assertEquals(0, originBuffer.refCnt());
+    } finally {
+      if (chunkBuffers != null) {
+        chunkBuffers.close();
+      }
+      if (!fileInfoReleased) {
+        fileInfo.releaseMemoryBuffers();
+      }
+      if (inFlightChunk != null && !chunkReleased) {
+        inFlightChunk.release();
+      }
+    }
   }
 }

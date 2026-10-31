@@ -221,18 +221,28 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
               shuffleChunkSize);
       CompositeByteBuf targetBuffer =
           MemoryManager.instance().getStorageByteBufAllocator().compositeBuffer(Integer.MAX_VALUE);
-      ShuffleBlockInfoUtils.sliceSortedBufferByMapRange(
-          startMapIndex,
-          endMapIndex,
-          indexesMap,
-          memoryFileInfo.getSortedBuffer(),
-          targetBuffer,
-          shuffleChunkSize);
-      return new MemoryFileInfo(
-          memoryFileInfo.getUserIdentifier(),
-          memoryFileInfo.isPartitionSplitEnabled(),
-          reduceFileMeta,
-          targetBuffer);
+      boolean success = false;
+      try {
+        ShuffleBlockInfoUtils.sliceSortedBufferByMapRange(
+            startMapIndex,
+            endMapIndex,
+            indexesMap,
+            memoryFileInfo.getSortedBuffer(),
+            targetBuffer,
+            shuffleChunkSize);
+        MemoryFileInfo sortedFileInfo =
+            new MemoryFileInfo(
+                memoryFileInfo.getUserIdentifier(),
+                memoryFileInfo.isPartitionSplitEnabled(),
+                reduceFileMeta,
+                targetBuffer);
+        success = true;
+        return sortedFileInfo;
+      } finally {
+        if (!success) {
+          targetBuffer.release();
+        }
+      }
     } else {
       DiskFileInfo diskFileInfo = ((DiskFileInfo) fileInfo);
       String fileId = shuffleKey + "-" + fileName;
@@ -326,51 +336,61 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
         int index = 0;
         ByteBuffer headerBuf = ByteBuffer.allocate(16);
 
-        while (index != bufLength) {
-          headerBuf.rewind();
-          originBuffer.readerIndex(index);
-          originBuffer.readBytes(headerBuf);
-          byte[] batchHeader = headerBuf.array();
-          int mapId = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET);
-          int compressedSize = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 12);
-          ShuffleBlockInfo shuffleBlockInfo = new ShuffleBlockInfo();
-          shuffleBlockInfo.offset = index;
-          shuffleBlockInfo.length = 16L + compressedSize;
-          List<ShuffleBlockInfo> singleMapIdShuffleBlockList =
-              blocksMap.computeIfAbsent(mapId, v -> new ArrayList<>());
-          singleMapIdShuffleBlockList.add(shuffleBlockInfo);
-          index += 16 + compressedSize;
+        try {
+          while (index != bufLength) {
+            headerBuf.rewind();
+            originBuffer.readerIndex(index);
+            originBuffer.readBytes(headerBuf);
+            byte[] batchHeader = headerBuf.array();
+            int mapId = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET);
+            int compressedSize = Platform.getInt(batchHeader, Platform.BYTE_ARRAY_OFFSET + 12);
+            ShuffleBlockInfo shuffleBlockInfo = new ShuffleBlockInfo();
+            shuffleBlockInfo.offset = index;
+            shuffleBlockInfo.length = 16L + compressedSize;
+            List<ShuffleBlockInfo> singleMapIdShuffleBlockList =
+                blocksMap.computeIfAbsent(mapId, v -> new ArrayList<>());
+            singleMapIdShuffleBlockList.add(shuffleBlockInfo);
+            index += 16 + compressedSize;
+          }
+        } finally {
+          originBuffer.setIndex(originReaderIndex, originWriterIndex);
         }
-        originBuffer.setIndex(originReaderIndex, originWriterIndex);
 
-        // sorted buffer should not consolidate
-        // because this will affect origin buffer's reference count
+        // Do not consolidate the sorted buffer to avoid copying the origin buffer.
         CompositeByteBuf sortedBuffer =
             MemoryManager.instance()
                 .getStorageByteBufAllocator()
                 .compositeBuffer(Integer.MAX_VALUE - 1);
-        Map<Integer, List<ShuffleBlockInfo>> sortedBlocks = new TreeMap<>();
-        int sortedBufferIndex = 0;
-        for (Map.Entry<Integer, List<ShuffleBlockInfo>> entry : blocksMap.entrySet()) {
-          int mapId = entry.getKey();
-          List<ShuffleBlockInfo> blockInfos = entry.getValue();
-          List<ShuffleBlockInfo> sortedMapBlocks = new ArrayList<>(blockInfos.size());
-          sortedBlocks.put(mapId, sortedMapBlocks);
-          for (ShuffleBlockInfo blockInfo : blockInfos) {
-            int offset = (int) blockInfo.offset;
-            int length = (int) blockInfo.length;
-            ByteBuf slice = originBuffer.slice(offset, length);
-            sortedBuffer.addComponent(true, slice);
-            ShuffleBlockInfo shuffleBlockInfo = new ShuffleBlockInfo();
-            shuffleBlockInfo.offset = sortedBufferIndex;
-            shuffleBlockInfo.length = blockInfo.length;
-            sortedBufferIndex += (int) blockInfo.length;
-            sortedMapBlocks.add(shuffleBlockInfo);
+        boolean success = false;
+        try {
+          Map<Integer, List<ShuffleBlockInfo>> sortedBlocks = new TreeMap<>();
+          int sortedBufferIndex = 0;
+          for (Map.Entry<Integer, List<ShuffleBlockInfo>> entry : blocksMap.entrySet()) {
+            int mapId = entry.getKey();
+            List<ShuffleBlockInfo> blockInfos = entry.getValue();
+            List<ShuffleBlockInfo> sortedMapBlocks = new ArrayList<>(blockInfos.size());
+            sortedBlocks.put(mapId, sortedMapBlocks);
+            for (ShuffleBlockInfo blockInfo : blockInfos) {
+              int offset = (int) blockInfo.offset;
+              int length = (int) blockInfo.length;
+              ByteBuf slice = originBuffer.retainedSlice(offset, length);
+              sortedBuffer.addComponent(true, slice);
+              ShuffleBlockInfo shuffleBlockInfo = new ShuffleBlockInfo();
+              shuffleBlockInfo.offset = sortedBufferIndex;
+              shuffleBlockInfo.length = blockInfo.length;
+              sortedBufferIndex += (int) blockInfo.length;
+              sortedMapBlocks.add(shuffleBlockInfo);
+            }
+          }
+          memoryFileInfo.setSortedBuffer(sortedBuffer);
+          memoryFileInfo.setSortedIndexes(sortedBlocks);
+          reduceFileMeta.setSorted();
+          success = true;
+        } finally {
+          if (!success) {
+            sortedBuffer.release();
           }
         }
-        memoryFileInfo.setSortedBuffer(sortedBuffer);
-        memoryFileInfo.setSortedIndexes(sortedBlocks);
-        reduceFileMeta.setSorted();
       }
     }
   }

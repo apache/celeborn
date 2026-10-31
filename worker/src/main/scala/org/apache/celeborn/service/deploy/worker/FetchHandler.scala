@@ -261,7 +261,8 @@ class FetchHandler(
         s"$endIndex get file name $fileName from client channel " +
         s"${NettyUtils.getRemoteAddress(client.getChannel)}")
 
-      var fileInfo = getRawFileInfo(shuffleKey, fileName)
+      val rawFileInfo = getRawFileInfo(shuffleKey, fileName)
+      var fileInfo = rawFileInfo
       val streamId = chunkStreamManager.nextStreamId()
       // we must get sorted fileInfo for the following cases.
       // 1. when the current request is a non-range openStream, but the original unsorted file
@@ -312,7 +313,7 @@ class FetchHandler(
               case df: DiskFileInfo =>
                 new FileChunkBuffers(df, transportConf)
               case mf: MemoryFileInfo =>
-                new MemoryChunkBuffers(mf)
+                new MemoryChunkBuffers(mf, mf ne rawFileInfo)
             }
             val fetchTimeMetric =
               fileInfo match {
