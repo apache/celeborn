@@ -1595,6 +1595,14 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   }
 
   /**
+   * Whether SSL is explicitly enabled for the module itself, ignoring the global
+   * `celeborn.ssl.enabled` default and parent module fallbacks.
+   */
+  def sslEnabledExplicitly(module: String): Boolean = {
+    getOption(SSL_ENABLED.key.replace("<module>", module)).exists(SSL_ENABLED.valueConverter)
+  }
+
+  /**
    * SSL protocol (remember that SSLv3 was compromised) supported by Java
    */
   def sslProtocol(module: String): String = {

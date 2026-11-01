@@ -29,6 +29,7 @@ The various transport modules which can be configured are:
 | fetch | - | Configure transport module for handling data fetch at Celeborn workers |
 | data | - | Configure transport module for handling data push and fetch at Celeborn apps |
 | replicate | - | Configure transport module for handling data replication between Celeborn workers |
+| ratis | - | Configure SSL for Raft communication between Celeborn masters. Used only when `celeborn.ssl.ratis.enabled` is explicitly set to `true`, otherwise Raft communication uses the `rpc_service` SSL configuration |
 
 
 <!--end-include-->
