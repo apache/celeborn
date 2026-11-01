@@ -120,6 +120,43 @@ class DecommissionSignalMonitorSuite extends AnyFunSuite with BeforeAndAfterEach
     assert(statusManager.getWorkerState() == State.InDecommission)
   }
 
+  test("LinkageError from the checker is treated as no signal") {
+    val m = newMonitor(
+      new ThrowingThenTrueDecommissionSignalChecker(1, () => new NoClassDefFoundError("missing")))
+    m.checkOnce()
+    assert(triggerCount.get == 0)
+    m.checkOnce()
+    assert(triggerCount.get == 1)
+  }
+
+  test("no trigger when stopped while a poll is in flight") {
+    lazy val m: DecommissionSignalMonitor = newMonitor(new DecommissionSignalChecker {
+      override def shouldDecommission(): Boolean = {
+        m.stop()
+        true
+      }
+    })
+    m.checkOnce()
+    assert(!m.isTriggered)
+    assert(triggerCount.get == 0)
+  }
+
+  test("a failing trigger is not retried") {
+    val calls = new AtomicInteger(0)
+    val m = new DecommissionSignalMonitor(
+      new AlwaysDecommissionSignalChecker,
+      100,
+      () => false,
+      () => {
+        calls.incrementAndGet()
+        throw new IllegalStateException("trigger failed")
+      })
+    m.checkOnce()
+    m.checkOnce()
+    assert(m.isTriggered)
+    assert(calls.get == 1)
+  }
+
   test("skip while the worker is exiting, escalate from DecommissionThenIdle") {
     val m = newMonitor(new AlwaysDecommissionSignalChecker)
     statusManager.doTransition(WorkerEventType.Graceful)
