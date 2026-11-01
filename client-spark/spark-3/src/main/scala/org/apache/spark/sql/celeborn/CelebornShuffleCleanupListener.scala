@@ -39,6 +39,8 @@ import org.apache.celeborn.client.LifecycleManager
  * shuffle data while waiting for driver GC. Stage rerun must be enabled so that a
  * re-executed DataFrame can regenerate its cleaned shuffles. Shuffles of failed or
  * cancelled queries (or stages) that were never materialized are left to GC cleanup.
+ * With spark.sql.exchange.reuse disabled, stages that AQE materializes and then drops from
+ * the final plan are not reachable from the executed plan and are also left to GC cleanup.
  */
 class CelebornShuffleCleanupListener(lifecycleManager: LifecycleManager)
   extends SparkListener with Logging {
@@ -99,8 +101,9 @@ class CelebornShuffleCleanupListener(lifecycleManager: LifecycleManager)
         // the materialized stages are collected from the tree here instead (duplicates
         // are removed by distinct later). Descend into the stage plan to reach nested
         // child stages; the raw exchange of an unmaterialized stage is never touched
-        // because inAdaptivePlan stays true. Matched before the generic QueryStageExec
-        // case below.
+        // because inAdaptivePlan stays true. A stage that AQE materializes and then drops
+        // from the final plan is not in this tree, so with reuse off its shuffle still
+        // falls back to GC cleanup. Matched before the generic QueryStageExec case below.
         case stage: ShuffleQueryStageExec =>
           if (isStageMaterialized(stage)) {
             // Non-vanilla ShuffleExchangeLike (e.g. Gluten's columnar exchange) is ignored.
