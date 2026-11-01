@@ -28,6 +28,7 @@ import org.apache.celeborn.common.CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKE
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
+import org.apache.celeborn.service.deploy.worker.decommission.DecommissionSignalMonitor.isRecoverable
 
 /**
  * Polls a [[DecommissionSignalChecker]] on a dedicated daemon thread and calls
@@ -61,7 +62,15 @@ class DecommissionSignalMonitor(
       ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-decommission-signal-checker")
     task = scheduler.scheduleWithFixedDelay(
       new Runnable {
-        override def run(): Unit = checkOnce()
+        override def run(): Unit = {
+          try {
+            checkOnce()
+          } catch {
+            case t: Throwable =>
+              logError("Decommission signal polling stopped due to a fatal error", t)
+              throw t
+          }
+        }
       },
       intervalMs,
       intervalMs,
@@ -69,23 +78,31 @@ class DecommissionSignalMonitor(
     logInfo(s"Started decommission signal checker $checkerName with interval ${intervalMs}ms")
   }
 
-  private[worker] def checkOnce(): Unit = Utils.tryLogNonFatalError {
-    if (!triggered.get && !closed.get) {
-      if (isWorkerExiting()) {
-        logDebug("Worker is already exiting, skip polling the decommission signal checker.")
-      } else if (pollChecker() && triggered.compareAndSet(false, true)) {
-        val reason = Try(checker.getReason).toOption.flatMap(Option(_)).getOrElse("unspecified")
-        logInfo(
-          s"Self-decommission triggered by decommission signal checker $checkerName, " +
-            s"reason: $reason")
-        try {
-          triggerDecommission()
-        } finally {
-          if (task != null) {
-            task.cancel(false)
+  private[worker] def checkOnce(): Unit = {
+    try {
+      if (!triggered.get && !closed.get) {
+        if (isWorkerExiting()) {
+          logDebug("Worker is already exiting, skip polling the decommission signal checker.")
+        } else if (pollChecker() && !closed.get && triggered.compareAndSet(false, true)) {
+          val reason = Try(checker.getReason).toOption.flatMap(Option(_)).getOrElse("unspecified")
+          logInfo(
+            s"Self-decommission triggered by decommission signal checker $checkerName, " +
+              s"reason: $reason")
+          try {
+            triggerDecommission()
+          } catch {
+            case e: Throwable if isRecoverable(e) =>
+              logError("Self-decommission trigger failed and will not be retried", e)
+          } finally {
+            if (task != null) {
+              task.cancel(false)
+            }
           }
         }
       }
+    } catch {
+      case e: Throwable if isRecoverable(e) =>
+        logError(s"Unexpected error while checking decommission signal from $checkerName", e)
     }
   }
 
@@ -93,7 +110,7 @@ class DecommissionSignalMonitor(
     try {
       checker.shouldDecommission()
     } catch {
-      case NonFatal(e) =>
+      case e: Throwable if isRecoverable(e) =>
         logWarning(s"Decommission signal checker $checkerName failed; treating as no signal", e)
         false
     }
@@ -116,6 +133,10 @@ class DecommissionSignalMonitor(
 
 object DecommissionSignalMonitor {
 
+  // Plugins commonly fail with LinkageError (e.g. a missing dependency jar), which NonFatal
+  // does not match; treat it as recoverable so it is logged or reported with the config key.
+  private def isRecoverable(e: Throwable): Boolean = NonFatal(e) || e.isInstanceOf[LinkageError]
+
   /**
    * Instantiates and initialises the checker named by
    * `celeborn.worker.decommission.signal.checker.class`. Any failure is rethrown as a
@@ -134,7 +155,7 @@ object DecommissionSignalMonitor {
       checker.init(conf)
       checker
     } catch {
-      case NonFatal(e) =>
+      case e: Throwable if isRecoverable(e) =>
         throw new CelebornException(s"Failed to instantiate $key = $className: ${e.getMessage}", e)
     }
   }

@@ -459,4 +459,26 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
       conf.unset(key)
     }
   }
+
+  test("decommission signal triggers the Worker DECOMMISSION exit path") {
+    val key = CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKER_CLASS.key
+    val tmpFile =
+      Files.createTempDirectory(Paths.get("/tmp"), "celeborn" + System.currentTimeMillis())
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, tmpFile.toString)
+    conf.set(key, classOf[AlwaysDecommissionSignalChecker].getName)
+    try {
+      worker = new Worker(conf, workerArgs) {
+        override protected[worker] def createWorkerStatusManager(): WorkerStatusManager =
+          new WorkerStatusManager(conf) {
+            override protected[worker] def scheduleSystemExit(): Unit = {}
+          }
+      }
+      worker.decommissionSignalMonitor.checkOnce()
+      assert(worker.decommissionSignalMonitor.isTriggered)
+      assert(worker.workerStatusManager.getWorkerState() == PbWorkerStatus.State.InDecommission)
+      assert(worker.workerStatusManager.exitEventType == WorkerEventType.Decommission)
+    } finally {
+      conf.unset(key)
+    }
+  }
 }

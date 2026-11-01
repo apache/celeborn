@@ -67,6 +67,10 @@ private[celeborn] class Worker(
 
   @volatile private var stopped = false
 
+  // Test seam: overridden in tests to avoid scheduling a real System.exit.
+  protected[worker] def createWorkerStatusManager(): WorkerStatusManager =
+    new WorkerStatusManager(conf)
+
   override def serviceName: String = Service.WORKER
 
   // Created first so that a misconfigured checker fails startup before any resource is allocated.
@@ -95,7 +99,7 @@ private[celeborn] class Worker(
   private val topApplicationUserIdentifiers =
     JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
 
-  val workerStatusManager = new WorkerStatusManager(conf)
+  val workerStatusManager: WorkerStatusManager = createWorkerStatusManager()
   private[worker] val decommissionSignalMonitor = new DecommissionSignalMonitor(
     decommissionSignalChecker,
     conf.workerDecommissionSignalCheckInterval,

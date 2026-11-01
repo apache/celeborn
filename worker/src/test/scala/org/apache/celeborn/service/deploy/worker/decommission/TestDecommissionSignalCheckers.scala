@@ -33,12 +33,15 @@ object AlwaysDecommissionSignalChecker {
   val closeCount = new AtomicInteger(0)
 }
 
-class ThrowingThenTrueDecommissionSignalChecker(failures: Int) extends DecommissionSignalChecker {
+class ThrowingThenTrueDecommissionSignalChecker(
+    failures: Int,
+    newError: () => Throwable = () => new RuntimeException("checker failure"))
+  extends DecommissionSignalChecker {
   private val calls = new AtomicInteger(0)
 
   override def shouldDecommission(): Boolean = {
     if (calls.incrementAndGet() <= failures) {
-      throw new RuntimeException("checker failure")
+      throw newError()
     }
     true
   }
