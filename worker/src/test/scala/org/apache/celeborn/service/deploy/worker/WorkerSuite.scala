@@ -37,6 +37,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
+import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol._
@@ -46,6 +47,7 @@ import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, ThreadUtils}
 import org.apache.celeborn.service.deploy.MiniClusterFeature
+import org.apache.celeborn.service.deploy.worker.decommission.{AlwaysDecommissionSignalChecker, NoOpDecommissionSignalChecker, NotADecommissionSignalChecker}
 import org.apache.celeborn.service.deploy.worker.storage.PartitionDataWriter
 
 class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFeature {
@@ -417,6 +419,44 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
     } finally {
       shutdownMiniCluster()
       mockedMasterClient.close()
+    }
+  }
+
+  test("worker loads the configured decommission signal checker") {
+    val key = CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKER_CLASS.key
+    val tmpFile =
+      Files.createTempDirectory(Paths.get("/tmp"), "celeborn" + System.currentTimeMillis())
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, tmpFile.toString)
+    try {
+      worker = new Worker(conf, workerArgs)
+      assert(worker.decommissionSignalChecker.isInstanceOf[NoOpDecommissionSignalChecker])
+      worker.rpcEnv.shutdown()
+      worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
+      worker = null
+
+      conf.set(key, classOf[AlwaysDecommissionSignalChecker].getName)
+      worker = new Worker(conf, workerArgs)
+      assert(worker.decommissionSignalChecker.isInstanceOf[AlwaysDecommissionSignalChecker])
+    } finally {
+      conf.unset(key)
+    }
+  }
+
+  test("worker fails fast on an invalid decommission signal checker") {
+    val key = CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKER_CLASS.key
+    val tmpFile =
+      Files.createTempDirectory(Paths.get("/tmp"), "celeborn" + System.currentTimeMillis())
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, tmpFile.toString)
+    try {
+      Seq("does.not.Exist", classOf[NotADecommissionSignalChecker].getName).foreach {
+        className =>
+          conf.set(key, className)
+          val e = intercept[CelebornException](new Worker(conf, workerArgs))
+          assert(e.getMessage.contains(key))
+          assert(e.getMessage.contains(className))
+      }
+    } finally {
+      conf.unset(key)
     }
   }
 }

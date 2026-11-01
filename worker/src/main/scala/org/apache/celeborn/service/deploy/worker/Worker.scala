@@ -54,6 +54,7 @@ import org.apache.celeborn.common.util.{CelebornExitKind, CollectionUtils, JavaU
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
+import org.apache.celeborn.service.deploy.worker.decommission.{DecommissionSignalChecker, DecommissionSignalMonitor}
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingState
 import org.apache.celeborn.service.deploy.worker.metrics.{ScaleMetricCollector, ScaleMetricCollectorContext}
@@ -69,6 +70,10 @@ private[celeborn] class Worker(
   @volatile private var stopped = false
 
   override def serviceName: String = Service.WORKER
+
+  // Created first so that a misconfigured checker fails startup before any resource is allocated.
+  private[worker] val decommissionSignalChecker: DecommissionSignalChecker =
+    DecommissionSignalMonitor.createChecker(conf)
 
   override val metricsSystem: MetricsSystem =
     MetricsSystem.createMetricsSystem(serviceName, conf)
@@ -93,6 +98,11 @@ private[celeborn] class Worker(
     JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
 
   val workerStatusManager = new WorkerStatusManager(conf)
+  private[worker] val decommissionSignalMonitor = new DecommissionSignalMonitor(
+    decommissionSignalChecker,
+    conf.workerDecommissionSignalCheckInterval,
+    () => workerStatusManager.inExitStatus(),
+    () => exit("DECOMMISSION"))
   private val authEnabled = conf.authEnabled
   private val secretRegistry = new WorkerSecretRegistryImpl(conf.workerApplicationRegistryCacheSize)
 
@@ -666,6 +676,7 @@ private[celeborn] class Worker(
     pushDataHandler.init(this)
     replicateHandler.init(this)
     fetchHandler.init(this)
+    decommissionSignalMonitor.start()
 
     controller.init(this)
     rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
@@ -690,6 +701,7 @@ private[celeborn] class Worker(
       if (jvmQuake != null) {
         jvmQuake.stop()
       }
+      decommissionSignalMonitor.stop()
       if (sendHeartbeatTask != null) {
         if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
           sendHeartbeatTask.cancel(false)
