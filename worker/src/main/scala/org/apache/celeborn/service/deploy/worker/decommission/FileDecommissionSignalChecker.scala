@@ -31,11 +31,9 @@ class FileDecommissionSignalChecker extends DecommissionSignalChecker {
 
   override def init(conf: CelebornConf): Unit = {
     val configured = conf.workerDecommissionSignalFilePath.map(_.trim).filter(_.nonEmpty)
-    if (configured.isEmpty) {
-      throw new IllegalArgumentException(
-        s"${WORKER_DECOMMISSION_SIGNAL_FILE_PATH.key} must be set when using ${getClass.getName}")
-    }
-    path = Paths.get(configured.get)
+      .getOrElse(throw new IllegalArgumentException(
+        s"${WORKER_DECOMMISSION_SIGNAL_FILE_PATH.key} must be set when using ${getClass.getName}"))
+    path = Paths.get(configured)
   }
 
   override def shouldDecommission(): Boolean = Files.exists(path)
