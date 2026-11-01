@@ -466,10 +466,13 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
       Files.createTempDirectory(Paths.get("/tmp"), "celeborn" + System.currentTimeMillis())
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, tmpFile.toString)
     conf.set(key, classOf[AlwaysDecommissionSignalChecker].getName)
+    // exit("DECOMMISSION") also updates the timeout of every hook in the JVM-wide
+    // ShutdownHookManager. It is not restored here: ShutdownHookManager exposes no getter for
+    // per-hook timeouts, and the change only affects hook timing at test JVM exit.
     try {
       worker = new Worker(conf, workerArgs) {
         override protected[worker] def createWorkerStatusManager(): WorkerStatusManager =
-          new WorkerStatusManager(conf) {
+          new WorkerStatusManager(this.conf) {
             override protected[worker] def scheduleSystemExit(): Unit = {}
           }
       }

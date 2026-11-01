@@ -66,8 +66,16 @@ class DecommissionSignalMonitor(
           try {
             checkOnce()
           } catch {
+            case _: InterruptedException =>
+              // Expected when stop() interrupts an in-flight poll via shutdownNow().
+              logDebug("Decommission signal polling interrupted")
+              Thread.currentThread().interrupt()
             case t: Throwable =>
-              logError("Decommission signal polling stopped due to a fatal error", t)
+              if (closed.get) {
+                logDebug("Decommission signal polling stopped during shutdown", t)
+              } else {
+                logError("Decommission signal polling stopped due to a fatal error", t)
+              }
               throw t
           }
         }
@@ -111,7 +119,11 @@ class DecommissionSignalMonitor(
       checker.shouldDecommission()
     } catch {
       case e: Throwable if isRecoverable(e) =>
-        logWarning(s"Decommission signal checker $checkerName failed; treating as no signal", e)
+        if (closed.get) {
+          logDebug(s"Decommission signal checker $checkerName failed during shutdown", e)
+        } else {
+          logWarning(s"Decommission signal checker $checkerName failed; treating as no signal", e)
+        }
         false
     }
   }
