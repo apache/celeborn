@@ -114,8 +114,12 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
       case _ => // ignore
     }
 
-    // Compatible with current exit logic
-    // trigger shutdown hook to exit
+    scheduleSystemExit()
+  }
+
+  // Compatible with current exit logic
+  // trigger shutdown hook to exit
+  protected[worker] def scheduleSystemExit(): Unit = {
     ThreadUtils.newThread(
       new Runnable {
         override def run(): Unit = {
@@ -160,7 +164,7 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
     currentWorkerStatus.getState
   }
 
-  private def inExitStatus(): Boolean = {
+  private[worker] def inExitStatus(): Boolean = {
     exitStatus.contains(currentWorkerStatus.getState)
   }
 }
