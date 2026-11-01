@@ -1393,6 +1393,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def workerDecommissionCheckInterval: Long = get(WORKER_DECOMMISSION_CHECK_INTERVAL)
   def workerDecommissionForceExitTimeout: Long = get(WORKER_DECOMMISSION_FORCE_EXIT_TIMEOUT)
+  def workerDecommissionSignalCheckerClass: String = get(WORKER_DECOMMISSION_SIGNAL_CHECKER_CLASS)
+  def workerDecommissionSignalCheckInterval: Long = get(WORKER_DECOMMISSION_SIGNAL_CHECK_INTERVAL)
+  def workerDecommissionSignalFilePath: Option[String] = get(WORKER_DECOMMISSION_SIGNAL_FILE_PATH)
 
   // //////////////////////////////////////////////////////
   //            Graceful Shutdown & Recover              //
@@ -4631,6 +4634,38 @@ object CelebornConf extends Logging {
       .version("0.4.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("6h")
+
+  val WORKER_DECOMMISSION_SIGNAL_CHECKER_CLASS: ConfigEntry[String] =
+    buildConf("celeborn.worker.decommission.signal.checker.class")
+      .categories("worker")
+      .doc("Fully qualified class name of the `DecommissionSignalChecker` implementation the " +
+        "worker polls to decide whether to decommission itself. The worker triggers the same " +
+        "decommission as `POST /api/v1/workers/exit` with type `Decommission` when the checker " +
+        "returns true. The default no-op checker never signals. Built-in alternative: " +
+        "`org.apache.celeborn.service.deploy.worker.decommission.FileDecommissionSignalChecker`.")
+      .version("1.0.0")
+      .stringConf
+      .createWithDefault(
+        "org.apache.celeborn.service.deploy.worker.decommission.NoOpDecommissionSignalChecker")
+
+  val WORKER_DECOMMISSION_SIGNAL_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.worker.decommission.signal.check.interval")
+      .categories("worker")
+      .doc("Interval at which the worker polls the configured " +
+        "`celeborn.worker.decommission.signal.checker.class`.")
+      .version("1.0.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(v => v > 0, "must be positive")
+      .createWithDefaultString("30s")
+
+  val WORKER_DECOMMISSION_SIGNAL_FILE_PATH: OptionalConfigEntry[String] =
+    buildConf("celeborn.worker.decommission.signal.file.path")
+      .categories("worker")
+      .doc("Path polled by `FileDecommissionSignalChecker`: the worker decommissions itself " +
+        "once this file exists. Required when that checker is configured.")
+      .version("1.0.0")
+      .stringConf
+      .createOptional
 
   val WORKER_GRACEFUL_SHUTDOWN_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.worker.graceful.shutdown.enabled")
