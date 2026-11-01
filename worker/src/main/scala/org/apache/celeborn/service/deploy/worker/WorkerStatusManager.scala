@@ -171,7 +171,7 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
     currentWorkerStatus.getState
   }
 
-  private def inExitStatus(): Boolean = {
+  private[worker] def inExitStatus(): Boolean = {
     exitStatus.contains(currentWorkerStatus.getState)
   }
 }
