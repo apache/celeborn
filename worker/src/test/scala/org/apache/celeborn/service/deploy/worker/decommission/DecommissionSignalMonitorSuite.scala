@@ -151,10 +151,14 @@ class DecommissionSignalMonitorSuite extends AnyFunSuite with BeforeAndAfterEach
         calls.incrementAndGet()
         throw new IllegalStateException("trigger failed")
       })
-    m.checkOnce()
-    m.checkOnce()
-    assert(m.isTriggered)
-    assert(calls.get == 1)
+    try {
+      m.checkOnce()
+      m.checkOnce()
+      assert(m.isTriggered)
+      assert(calls.get == 1)
+    } finally {
+      m.stop()
+    }
   }
 
   test("skip while the worker is exiting, escalate from DecommissionThenIdle") {
