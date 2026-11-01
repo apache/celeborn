@@ -107,6 +107,10 @@ class CelebornShuffleCleanupSuite extends AnyFunSuite
     // Speed up the delayed unregister inside LifecycleManager.
     sparkConf.set(s"spark.${CelebornConf.SHUFFLE_EXPIRED_CHECK_INTERVAL.key}", "1s")
     sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+    // ContextCleaner calls the same shuffleDriverComponents.removeShuffle after a GC, which
+    // would let awaitShufflesUnregistered pass even if the query-end listener did nothing.
+    // Disable it so that the assertions below can only succeed through the listener.
+    sparkConf.set("spark.cleaner.referenceTracking", "false")
     sparkConf
   }
 
@@ -220,7 +224,9 @@ class CelebornShuffleCleanupSuite extends AnyFunSuite
     spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
     spark.range(0, 1000, 1, 4).createOrReplaceTempView("tb")
     // The empty join side makes AQE drop stages from the final plan; their shuffles were
-    // still created and must be cleaned up through the stage cache.
+    // still created and must be cleaned up through the stage cache. The cache only holds
+    // them because exchange reuse is on (the default here); with reuse off the dropped
+    // stage is unreachable from the final plan and falls back to GC cleanup.
     spark.sql(
       """
         |SELECT COUNT(*) FROM ta
