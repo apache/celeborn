@@ -73,31 +73,29 @@ class DecommissionSignalMonitor(
     if (!triggered.get && !closed.get) {
       if (isWorkerExiting()) {
         logDebug("Worker is already exiting, skip polling the decommission signal checker.")
-      } else {
-        val signal =
-          try {
-            checker.shouldDecommission()
-          } catch {
-            case NonFatal(e) =>
-              logWarning(
-                s"Decommission signal checker $checkerName failed; treating as no signal",
-                e)
-              false
-          }
-        if (signal && triggered.compareAndSet(false, true)) {
-          val reason = Try(checker.getReason).toOption.flatMap(Option(_)).getOrElse("unspecified")
-          logInfo(
-            s"Self-decommission triggered by decommission signal checker $checkerName, " +
-              s"reason: $reason")
-          try {
-            triggerDecommission()
-          } finally {
-            if (task != null) {
-              task.cancel(false)
-            }
+      } else if (pollChecker() && triggered.compareAndSet(false, true)) {
+        val reason = Try(checker.getReason).toOption.flatMap(Option(_)).getOrElse("unspecified")
+        logInfo(
+          s"Self-decommission triggered by decommission signal checker $checkerName, " +
+            s"reason: $reason")
+        try {
+          triggerDecommission()
+        } finally {
+          if (task != null) {
+            task.cancel(false)
           }
         }
       }
+    }
+  }
+
+  private def pollChecker(): Boolean = {
+    try {
+      checker.shouldDecommission()
+    } catch {
+      case NonFatal(e) =>
+        logWarning(s"Decommission signal checker $checkerName failed; treating as no signal", e)
+        false
     }
   }
 
