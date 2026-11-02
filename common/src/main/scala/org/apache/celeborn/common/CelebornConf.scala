@@ -1393,7 +1393,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   // //////////////////////////////////////////////////////
   def workerDecommissionCheckInterval: Long = get(WORKER_DECOMMISSION_CHECK_INTERVAL)
   def workerDecommissionForceExitTimeout: Long = get(WORKER_DECOMMISSION_FORCE_EXIT_TIMEOUT)
-  def workerDecommissionSignalCheckerClass: String = get(WORKER_DECOMMISSION_SIGNAL_CHECKER_CLASS)
+  def workerDecommissionSignalChecker: String = get(WORKER_DECOMMISSION_SIGNAL_CHECKER)
   def workerDecommissionSignalCheckInterval: Long = get(WORKER_DECOMMISSION_SIGNAL_CHECK_INTERVAL)
   def workerDecommissionSignalFilePath: Option[String] = get(WORKER_DECOMMISSION_SIGNAL_FILE_PATH)
 
@@ -4635,11 +4635,12 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("6h")
 
-  val WORKER_DECOMMISSION_SIGNAL_CHECKER_CLASS: ConfigEntry[String] =
-    buildConf("celeborn.worker.decommission.signal.checker.class")
+  val WORKER_DECOMMISSION_SIGNAL_CHECKER: ConfigEntry[String] =
+    buildConf("celeborn.worker.decommission.signal.checker")
       .categories("worker")
       .doc("Fully qualified class name of the `DecommissionSignalChecker` implementation the " +
-        "worker polls to decide whether to decommission itself. The worker triggers the same " +
+        "worker polls to decide whether to decommission itself. The class must have a public " +
+        "constructor that takes a `CelebornConf`. The worker triggers the same " +
         "decommission as `POST /api/v1/workers/exit` with type `Decommission` when the checker " +
         "returns true. The default no-op checker never signals. Built-in alternative: " +
         "`org.apache.celeborn.service.deploy.worker.decommission.FileDecommissionSignalChecker`.")
@@ -4649,10 +4650,10 @@ object CelebornConf extends Logging {
         "org.apache.celeborn.service.deploy.worker.decommission.NoOpDecommissionSignalChecker")
 
   val WORKER_DECOMMISSION_SIGNAL_CHECK_INTERVAL: ConfigEntry[Long] =
-    buildConf("celeborn.worker.decommission.signal.check.interval")
+    buildConf("celeborn.worker.decommission.signal.checkInterval")
       .categories("worker")
       .doc("Interval at which the worker polls the configured " +
-        "`celeborn.worker.decommission.signal.checker.class`.")
+        "`celeborn.worker.decommission.signal.checker`.")
       .version("1.0.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .checkValue(v => v > 0, "must be positive")

@@ -53,8 +53,8 @@ to meet varying workload demands.
 |---------------------------------------------------|-------| 
 | celeborn.worker.decommission.forceExitTimeout     | 6h    |
 | celeborn.worker.decommission.checkInterval        | 30s   |
-| celeborn.worker.decommission.signal.checker.class | org.apache.celeborn.service.deploy.worker.decommission.NoOpDecommissionSignalChecker |
-| celeborn.worker.decommission.signal.check.interval | 30s  |
+| celeborn.worker.decommission.signal.checker       | org.apache.celeborn.service.deploy.worker.decommission.NoOpDecommissionSignalChecker |
+| celeborn.worker.decommission.signal.checkInterval | 30s   |
 | celeborn.worker.decommission.signal.file.path     | (none) |
 
 > `forceExitTimeout` is read once at decommission start and is **not dynamically changeable**
@@ -89,9 +89,9 @@ Details of decommissioning interface can refer to [REST API](../restapi/#rest-ap
 
 A worker can decommission itself when something outside Celeborn says the host is going away,
 such as a spot-instance interruption notice, a Kubernetes node drain, or a maintenance agent.
-Set `celeborn.worker.decommission.signal.checker.class` to an implementation of
+Set `celeborn.worker.decommission.signal.checker` to an implementation of
 `org.apache.celeborn.service.deploy.worker.decommission.DecommissionSignalChecker`. The worker
-calls it every `celeborn.worker.decommission.signal.check.interval`. The first time it returns
+calls it every `celeborn.worker.decommission.signal.checkInterval`. The first time it returns
 `true`, the worker runs the same decommission as the worker REST API with type `Decommission`,
 and polling stops.
 
@@ -101,36 +101,66 @@ Things to know:
 - The worker does not poll the checker while it is already decommissioning or shutting down.
   A worker in `DecommissionThenIdle` is still polled, and a signal moves it to `Decommission`.
 - An exception from the checker is logged and treated as "no signal".
-- If the class can't be loaded, doesn't implement the interface, or its `init` throws, the worker
-  fails to start with an error that names the config key and the class.
+- If the class can't be loaded, doesn't implement the interface, or its constructor throws, the
+  worker fails to start with an error that names the config key and the class.
 - The default `NoOpDecommissionSignalChecker` never signals, and the worker starts no polling
   thread for it.
 
 ### File-based checker
 
 Celeborn ships `FileDecommissionSignalChecker`, which signals once a file exists. For example, a
-Kubernetes `preStop` hook or a spot-notice agent can run `touch /var/run/celeborn/decommission`,
-with this in `celeborn-defaults.conf`:
+spot-notice agent can run `touch /var/run/celeborn/decommission`, with this in
+`celeborn-defaults.conf`:
 
 ```properties
-celeborn.worker.decommission.signal.checker.class org.apache.celeborn.service.deploy.worker.decommission.FileDecommissionSignalChecker
+celeborn.worker.decommission.signal.checker org.apache.celeborn.service.deploy.worker.decommission.FileDecommissionSignalChecker
 celeborn.worker.decommission.signal.file.path /var/run/celeborn/decommission
-celeborn.worker.decommission.signal.check.interval 10s
+celeborn.worker.decommission.signal.checkInterval 10s
 ```
+
+On Kubernetes, a `preStop` hook that only touches the file is not enough. Kubernetes sends
+SIGTERM as soon as the hook returns, usually before the next poll, and the worker then shuts down
+without decommissioning. The hook must touch the file and then wait until the worker reports
+`InDecommission`. The worker's `GET /api/v1/workers` REST API returns its state in the
+`workerState` field. Sleeping for longer than the check interval also works if `curl` isn't
+available.
+
+```yaml
+spec:
+  # Longer than celeborn.worker.decommission.forceExitTimeout (6h by default) plus preStop time.
+  terminationGracePeriodSeconds: 22200
+  containers:
+    - name: celeborn-worker
+      lifecycle:
+        preStop:
+          exec:
+            command:
+              - /bin/sh
+              - -c
+              - |
+                touch /var/run/celeborn/decommission
+                until curl -s http://localhost:9096/api/v1/workers | grep -Eq '"workerState" *: *"InDecommission"'
+                do
+                  sleep 1
+                done
+```
+
+The decommission itself runs after SIGTERM and waits up to
+`celeborn.worker.decommission.forceExitTimeout` for shuffle data to expire. Kubernetes kills the
+pod once `terminationGracePeriodSeconds` runs out, so set it larger than that timeout.
 
 ### Custom checker
 
-Put a class like the one below on the worker classpath. It needs a public no-arg constructor.
-`init` is called once before the first poll, `shouldDecommission` is called from a single
-dedicated thread and should return quickly, and `close` is called once when the worker stops.
+Put a class like the one below on the worker classpath. It needs a public constructor that takes
+a `CelebornConf`. `shouldDecommission` is called from a single dedicated thread and should return
+quickly, and `close` is called once when the worker stops.
 
 ```java
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.service.deploy.worker.decommission.DecommissionSignalChecker;
 
 public class SpotNoticeChecker implements DecommissionSignalChecker {
-  @Override
-  public void init(CelebornConf conf) {
+  public SpotNoticeChecker(CelebornConf conf) {
     // read settings from conf, open clients
   }
 
