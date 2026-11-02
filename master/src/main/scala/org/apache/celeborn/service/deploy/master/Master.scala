@@ -176,7 +176,6 @@ private[celeborn] class Master(
     } else {
       new SingleMasterMetaManager(internalRpcEnvInUse, conf, rackResolver)
     }
-  private[master] val workerStatsStore = new WorkerStatsStore
   metricsSystem.registerSource(statusSystem.applicationMetricsSource())
   secretRegistry.setMetadataHandler(statusSystem)
 
@@ -746,11 +745,11 @@ private[celeborn] class Master(
       workerStats: Option[WorkerStats],
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
+    val statsRef = Option(statusSystem.workerStats.get(targetWorker))
     val registered = statusSystem.workersMap.containsKey(targetWorker.toUniqueId)
     if (!registered) {
       logWarning(s"Received heartbeat from unknown worker " +
         s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
-      workerStatsStore.remove(targetWorker)
     } else {
       statusSystem.handleWorkerHeartbeat(
         host,
@@ -764,10 +763,8 @@ private[celeborn] class Master(
         highWorkload,
         workerStatus,
         requestId)
-      workerStats match {
-        case Some(stats) => workerStatsStore.update(targetWorker, stats)
-        case None => workerStatsStore.remove(targetWorker)
-      }
+      // Worker loss or re-registration detaches this reference from the current cache.
+      statsRef.foreach(_.set(workerStats.orNull))
     }
 
     val expiredShuffleKeys = new util.HashSet[String]
@@ -852,7 +849,6 @@ private[celeborn] class Master(
         s" for WorkerLost handler!")
     } else {
       statusSystem.handleWorkerLost(host, rpcPort, pushPort, fetchPort, replicatePort, requestId)
-      workerStatsStore.remove(worker)
     }
     if (context != null) {
       context.reply(WorkerLostResponse(true))
@@ -892,7 +888,6 @@ private[celeborn] class Master(
       return
     }
 
-    workerStatsStore.remove(workerToRegister)
     if (statusSystem.workersMap.containsKey(workerToRegister.toUniqueId)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")

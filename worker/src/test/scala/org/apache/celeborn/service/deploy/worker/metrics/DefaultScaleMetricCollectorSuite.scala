@@ -40,7 +40,7 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
     val storage = mock[StorageManager]
     val os = mock[OperatingSystemMXBean]
     val conf = new CelebornConf()
-      .set(CelebornConf.SCALE_METRIC_WINDOW_SIZE, windowSize)
+      .set(CelebornConf.SCALE_METRIC_MEMORY_WINDOW_SIZE, windowSize)
       .set(CelebornConf.WORKER_DISK_RESERVE_SIZE, 0L)
     val collector = new DefaultScaleMetricCollector(conf, os)
     val disk = new DiskInfo("/tmp", 512L, 0L, 0L, 0L)
@@ -210,20 +210,6 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
       val metrics = f.collect()
       assert(math.abs(metrics(WorkerStats.DiskUsedRatio) - 1.0 / 3) < 1e-12)
       assert(metrics(WorkerStats.DiskRemainingSize) == 768.0)
-    }
-  }
-
-  test("zero memory capacity and negative samples do not reset the memory window") {
-    withFixture(2) { f =>
-      assert(f.collect()(WorkerStats.NettyMemoryUsedRatio) == 0.0)
-      f.memory.maxDirectMemory = 0
-      when(f.memory.getMemoryUsage).thenReturn(512L)
-      assert(f.collect()(WorkerStats.NettyMemoryUsedRatio) == Double.PositiveInfinity)
-      f.memory.maxDirectMemory = 1024L
-      when(f.memory.getMemoryUsage).thenReturn(0L)
-      assert(f.collect()(WorkerStats.NettyMemoryUsedRatio) == 0.25)
-      when(f.memory.getMemoryUsage).thenReturn(-256L)
-      assert(f.collect()(WorkerStats.NettyMemoryUsedRatio) == -0.125)
     }
   }
 

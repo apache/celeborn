@@ -27,6 +27,7 @@ import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 
 import scala.Tuple2;
@@ -46,6 +47,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.metrics.WorkerStats;
 import org.apache.celeborn.common.metrics.source.NamedGauge;
 import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.network.sasl.SaslCredentials;
@@ -874,6 +876,56 @@ public class RatisMasterStatusSystemSuiteJ {
           }
         },
         "new leader to accept writes");
+  }
+
+  @Test
+  public void testWorkerStatsRemovedOnFormerLeaderAcrossLeadershipChanges() throws Exception {
+    HARaftServer[] servers = {RATISSERVER1, RATISSERVER2, RATISSERVER3};
+    HAMasterMetaManager[] systems = {STATUSSYSTEM1, STATUSSYSTEM2, STATUSSYSTEM3};
+    int a = RATISSERVER1.isLeader() ? 0 : (RATISSERVER2.isLeader() ? 1 : 2);
+    int b = (a + 1) % 3;
+    WorkerInfo worker = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1);
+    submitWhenLeaderReady(
+        () ->
+            systems[a].handleRegisterWorker(
+                HOSTNAME1,
+                RPCPORT1,
+                PUSHPORT1,
+                FETCHPORT1,
+                REPLICATEPORT1,
+                INTERNALPORT1,
+                NETWORK_LOCATION1,
+                disks1,
+                userResourceConsumption1,
+                getNewReqeustId()));
+    waitFor(
+        () -> Arrays.stream(systems).allMatch(s -> s.workerStats.containsKey(worker)),
+        "worker registration on every master");
+
+    AtomicReference<WorkerStats> statsRef = systems[a].workerStats.get(worker);
+    WorkerStats stats = new WorkerStats(scala.collection.immutable.Map$.MODULE$.empty());
+    statsRef.set(stats);
+    assertNull("Observations must stay local", systems[b].workerStats.get(worker).get());
+
+    transferLeadership(servers[a], servers[b]);
+    submitWhenLeaderReady(
+        () ->
+            systems[b].handleWorkerLost(
+                HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, getNewReqeustId()));
+    waitFor(
+        () ->
+            Arrays.stream(systems)
+                .allMatch(
+                    s ->
+                        !s.workersMap.containsKey(worker.toUniqueId())
+                            && !s.workerStats.containsKey(worker)),
+        "worker loss and local cache cleanup on every master");
+    transferLeadership(servers[b], servers[a]);
+    statsRef.set(stats);
+    assertFalse(systems[a].workersMap.containsKey(worker.toUniqueId()));
+    assertFalse(
+        "Old heartbeats must not restore stats on the returning leader",
+        systems[a].workerStats.containsKey(worker));
   }
 
   private static final Map<String, String> CLIENT_LABELS =
@@ -1740,6 +1792,7 @@ public class RatisMasterStatusSystemSuiteJ {
     STATUSSYSTEM1.registeredAppAndShuffles.clear();
     STATUSSYSTEM1.hostnameSet.clear();
     STATUSSYSTEM1.workersMap.clear();
+    STATUSSYSTEM1.workerStats.clear();
     STATUSSYSTEM1.availableWorkers.clear();
     STATUSSYSTEM1.appHeartbeatTime.clear();
     STATUSSYSTEM1.excludedWorkers.clear();
@@ -1748,6 +1801,7 @@ public class RatisMasterStatusSystemSuiteJ {
     STATUSSYSTEM2.registeredAppAndShuffles.clear();
     STATUSSYSTEM2.hostnameSet.clear();
     STATUSSYSTEM2.workersMap.clear();
+    STATUSSYSTEM2.workerStats.clear();
     STATUSSYSTEM2.availableWorkers.clear();
     STATUSSYSTEM2.appHeartbeatTime.clear();
     STATUSSYSTEM2.excludedWorkers.clear();
@@ -1756,6 +1810,7 @@ public class RatisMasterStatusSystemSuiteJ {
     STATUSSYSTEM3.registeredAppAndShuffles.clear();
     STATUSSYSTEM3.hostnameSet.clear();
     STATUSSYSTEM3.workersMap.clear();
+    STATUSSYSTEM3.workerStats.clear();
     STATUSSYSTEM3.availableWorkers.clear();
     STATUSSYSTEM3.appHeartbeatTime.clear();
     STATUSSYSTEM3.excludedWorkers.clear();

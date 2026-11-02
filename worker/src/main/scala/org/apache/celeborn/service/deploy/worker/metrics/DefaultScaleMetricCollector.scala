@@ -36,7 +36,7 @@ class DefaultScaleMetricCollector private[metrics] (
   def this(conf: CelebornConf) =
     this(conf, ManagementFactory.getOperatingSystemMXBean)
 
-  private val memoryWindow = new MetricSlidingWindow(conf.scaleMetricWindowSize)
+  private val memoryWindow = new MetricSlidingWindow(conf.scaleMetricMemoryWindowSize)
   private val executor =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("scale-metric-collector")
   private var scheduledTask: ScheduledFuture[_] = _

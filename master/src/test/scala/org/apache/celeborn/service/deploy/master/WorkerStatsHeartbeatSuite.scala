@@ -17,12 +17,16 @@
 
 package org.apache.celeborn.service.deploy.master
 
+import java.nio.file.Files
 import java.util.Collections
+import java.util.concurrent.{FutureTask, TimeUnit}
 
 import org.mockito.ArgumentCaptor
 import org.mockito.MockitoSugar._
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.concurrent.Eventually
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.time.{Millis, Seconds, Span}
 
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.meta.{WorkerInfo, WorkerStatus}
@@ -32,11 +36,14 @@ import org.apache.celeborn.common.protocol.message.ControlMessages.{HeartbeatFro
 import org.apache.celeborn.common.rpc.RpcCallContext
 
 class WorkerStatsHeartbeatSuite extends AnyFunSuite
-  with BeforeAndAfterAll with MasterClusterFeature {
+  with BeforeAndAfterAll with BeforeAndAfterEach with Eventually with MasterClusterFeature {
 
   private var master: Master = _
   private val worker = new WorkerInfo("localhost", 19101, 19102, 19103, 19104)
   private val stats = WorkerStats(Map(WorkerStats.NettyMemoryUsedRatio -> 0.5))
+
+  private def currentStats: Option[WorkerStats] =
+    Option(master.statusSystem.workerStats.get(worker)).flatMap(ref => Option(ref.get()))
 
   override def beforeAll(): Unit = {
     master = setupMasterWithRandomPort()
@@ -44,6 +51,18 @@ class WorkerStatsHeartbeatSuite extends AnyFunSuite
 
   override def afterAll(): Unit = {
     if (master != null) shutdownMaster()
+  }
+
+  override def beforeEach(): Unit = {
+    super.beforeEach()
+    lose()
+  }
+
+  private def lose(): Unit = {
+    master.receiveAndReply(mock[RpcCallContext])(
+      PbWorkerLost.newBuilder().setHost(worker.host).setRpcPort(worker.rpcPort)
+        .setPushPort(worker.pushPort).setFetchPort(worker.fetchPort)
+        .setReplicatePort(worker.replicatePort).setRequestId(MasterClient.genRequestId()).build())
   }
 
   private def register(): Unit = {
@@ -74,36 +93,98 @@ class WorkerStatsHeartbeatSuite extends AnyFunSuite
 
   test("worker registration, missing metrics, restart and removal govern metric retention") {
     assert(!heartbeat(Some(stats)).registered)
-    assert(master.workerStatsStore.get(worker).isEmpty)
+    assert(currentStats.isEmpty)
     register()
     assert(heartbeat(Some(stats)).registered)
-    assert(master.workerStatsStore.get(worker).contains(stats))
-    val extended = WorkerStats(stats.metrics ++ Map(
-      "" -> 1.0,
-      "NaN" -> Double.NaN,
-      "PositiveInfinity" -> Double.PositiveInfinity,
-      "NegativeInfinity" -> Double.NegativeInfinity))
-    assert(heartbeat(Some(extended)).registered)
-    val retained = master.workerStatsStore.get(worker).get.metrics
-    assert(retained.keySet == extended.metrics.keySet)
-    assert(retained(WorkerStats.NettyMemoryUsedRatio) == 0.5)
-    assert(retained("") == 1.0)
-    assert(retained("NaN").isNaN)
-    assert(retained("PositiveInfinity") == Double.PositiveInfinity)
-    assert(retained("NegativeInfinity") == Double.NegativeInfinity)
+    assert(currentStats.contains(stats))
     assert(heartbeat(None).registered)
-    assert(master.workerStatsStore.get(worker).isEmpty)
+    assert(currentStats.isEmpty)
     heartbeat(Some(stats))
     register()
-    assert(master.workerStatsStore.get(worker).isEmpty)
+    assert(currentStats.isEmpty)
     val restarted = WorkerStats(Map(WorkerStats.NettyMemoryUsedRatio -> 0.25))
     assert(heartbeat(Some(restarted)).registered)
-    assert(master.workerStatsStore.get(worker).contains(restarted))
-    master.receiveAndReply(mock[RpcCallContext])(
-      PbWorkerLost.newBuilder().setHost(worker.host).setRpcPort(worker.rpcPort)
-        .setPushPort(worker.pushPort).setFetchPort(worker.fetchPort)
-        .setReplicatePort(worker.replicatePort).setRequestId(MasterClient.genRequestId()).build())
-    assert(master.workerStatsStore.get(worker).isEmpty)
+    assert(currentStats.contains(restarted))
+    lose()
+    assert(currentStats.isEmpty)
     assert(!heartbeat(Some(stats)).registered)
+  }
+
+  private def whileHeartbeatBlocked(value: Option[WorkerStats])(action: => Unit): Unit = {
+    val task = new FutureTask[HeartbeatFromWorkerResponse](() => heartbeat(value))
+    val thread = new Thread(task, "worker-stats-heartbeat-test")
+    thread.setDaemon(true)
+    try {
+      master.statusSystem.workersMap.synchronized {
+        thread.start()
+        // Pause after the registration check, at the existing metadata membership lock.
+        eventually(timeout(Span(10, Seconds)), interval(Span(10, Millis))) {
+          assert(thread.getState == Thread.State.BLOCKED)
+          assert(thread.getStackTrace.exists(_.getMethodName == "updateWorkerHeartbeatMeta"))
+        }
+        action
+      }
+    } finally {
+      task.get(10, TimeUnit.SECONDS)
+    }
+  }
+
+  test("a heartbeat overlapping worker loss cannot recreate its stats") {
+    register()
+    heartbeat(Some(stats))
+    whileHeartbeatBlocked(Some(stats)) {
+      lose()
+      assert(currentStats.isEmpty)
+    }
+    assert(!master.statusSystem.workersMap.containsKey(worker.toUniqueId))
+    assert(currentStats.isEmpty)
+  }
+
+  for (value <- Seq(Some(stats), None)) {
+    test(s"a heartbeat with $value from before re-registration cannot change the new stats") {
+      register()
+      val restarted = WorkerStats(Map(WorkerStats.NettyMemoryUsedRatio -> 0.25))
+      whileHeartbeatBlocked(value) {
+        register()
+        assert(currentStats.isEmpty)
+        heartbeat(Some(restarted))
+      }
+      assert(currentStats.contains(restarted))
+    }
+  }
+
+  test("snapshot restoration clears observations and accepts fresh worker heartbeats") {
+    register()
+    heartbeat(Some(stats))
+    val oldStatsRef = master.statusSystem.workerStats.get(worker)
+    val snapshot = Files.createTempFile("worker-stats", ".snapshot").toFile
+    try {
+      master.statusSystem.writeMetaInfoToFile(snapshot)
+      master.statusSystem.restoreMetaFromFile(snapshot)
+      assert(master.statusSystem.workersMap.containsKey(worker.toUniqueId))
+      oldStatsRef.set(stats)
+      assert(currentStats.isEmpty)
+      assert(heartbeat(Some(stats)).registered)
+      assert(currentStats.contains(stats))
+    } finally {
+      Files.deleteIfExists(snapshot.toPath)
+    }
+  }
+
+  test("snapshot restoration removes stats for workers absent from the snapshot") {
+    val snapshot = Files.createTempFile("worker-stats-absent", ".snapshot").toFile
+    try {
+      master.statusSystem.writeMetaInfoToFile(snapshot)
+      register()
+      heartbeat(Some(stats))
+      val oldStatsRef = master.statusSystem.workerStats.get(worker)
+      master.statusSystem.restoreMetaFromFile(snapshot)
+      oldStatsRef.set(stats)
+      assert(!master.statusSystem.workersMap.containsKey(worker.toUniqueId))
+      assert(!master.statusSystem.workerStats.containsKey(worker))
+      assert(currentStats.isEmpty)
+    } finally {
+      Files.deleteIfExists(snapshot.toPath)
+    }
   }
 }

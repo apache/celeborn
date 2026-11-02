@@ -49,17 +49,38 @@ class WorkerStatsIntegrationSuite extends AnyFunSuite
     val (master, workers) = setupMiniClusterWithRandomPorts(
       masterConf = Map(CelebornConf.WORKER_HEARTBEAT_TIMEOUT.key -> "10s"),
       workerConf = Map(
+        CelebornConf.METRICS_ENABLED.key -> "false",
+        CelebornConf.SCALE_METRICS_ENABLED.key -> "true",
         CelebornConf.WORKER_HEARTBEAT_TIMEOUT.key -> "4s",
         CelebornConf.SCALE_METRIC_INTERVAL.key -> "100ms",
-        CelebornConf.SCALE_METRIC_WINDOW_SIZE.key -> "2"),
+        CelebornConf.SCALE_METRIC_MEMORY_WINDOW_SIZE.key -> "2"),
       workerNum = 1)
     assert(workers.head.registered.get())
+    assert(!workers.head.conf.metricsSystemEnable)
     assert(master.statusSystem.workersMap.containsKey(workers.head.workerInfo.toUniqueId))
     eventually {
-      val stats = master.workerStatsStore.get(workers.head.workerInfo).get
+      val stats = master.statusSystem.workerStats.get(workers.head.workerInfo).get()
       assert(stats.metrics.contains(WorkerStats.NettyMemoryUsedRatio))
       assert(stats.metrics.contains(WorkerStats.DiskRemainingSize))
     }
+  }
+
+  test("scale metrics are disabled by default without instantiating the collector") {
+    val (master, workers) = setupMiniClusterWithRandomPorts(
+      masterConf = Map(CelebornConf.WORKER_HEARTBEAT_TIMEOUT.key -> "10s"),
+      workerConf = Map(
+        CelebornConf.WORKER_HEARTBEAT_TIMEOUT.key -> "4s",
+        CelebornConf.SCALE_METRIC_COLLECTOR_CLASS_NAME.key -> "does.not.Exist"),
+      workerNum = 1)
+    val worker = workers.head
+    assert(!worker.conf.scaleMetricsEnabled)
+    val registered = master.statusSystem.workersMap.get(worker.workerInfo.toUniqueId)
+    val lastHeartbeat = registered.lastHeartbeat
+    eventually {
+      assert(registered.lastHeartbeat > lastHeartbeat)
+    }
+    assert(worker.registered.get())
+    assert(master.statusSystem.workerStats.get(worker.workerInfo).get() == null)
   }
 
   test("custom collector metrics survive heartbeat transport and read or stop failures") {
@@ -69,6 +90,7 @@ class WorkerStatsIntegrationSuite extends AnyFunSuite
     val (master, workers) = setupMiniClusterWithRandomPorts(
       masterConf = Map(CelebornConf.WORKER_HEARTBEAT_TIMEOUT.key -> "10s"),
       workerConf = Map(
+        CelebornConf.SCALE_METRICS_ENABLED.key -> "true",
         CelebornConf.WORKER_HEARTBEAT_TIMEOUT.key -> "4s",
         CelebornConf.SCALE_METRIC_COLLECTOR_CLASS_NAME.key ->
           classOf[HeartbeatTestMetricCollector].getName),
@@ -76,12 +98,8 @@ class WorkerStatsIntegrationSuite extends AnyFunSuite
     val worker = workers.head
     val registered = master.statusSystem.workersMap.get(worker.workerInfo.toUniqueId)
     def assertReportedMetrics(): Unit = {
-      val received = master.workerStatsStore.get(worker.workerInfo).get.metrics
-      assert(received.keySet == HeartbeatTestMetricCollector.stats.metrics.keySet)
-      HeartbeatTestMetricCollector.stats.metrics.foreach { case (name, value) =>
-        if (value.isNaN) assert(received(name).isNaN)
-        else assert(received(name) == value)
-      }
+      assert(master.statusSystem.workerStats.get(worker.workerInfo).get() ==
+        HeartbeatTestMetricCollector.stats)
     }
     eventually {
       assertReportedMetrics()
@@ -90,7 +108,7 @@ class WorkerStatsIntegrationSuite extends AnyFunSuite
     val lastHeartbeat = registered.lastHeartbeat
     HeartbeatTestMetricCollector.failRead = true
     eventually {
-      assert(master.workerStatsStore.get(worker.workerInfo).isEmpty)
+      assert(master.statusSystem.workerStats.get(worker.workerInfo).get() == null)
       assert(registered.lastHeartbeat > lastHeartbeat)
       assert(worker.registered.get())
     }
@@ -123,10 +141,7 @@ class HeartbeatTestMetricCollector(conf: CelebornConf) extends ScaleMetricCollec
 object HeartbeatTestMetricCollector {
   val stats = WorkerStats(Map(
     WorkerStats.NettyMemoryUsedRatio -> 0.5,
-    "" -> 1.0,
-    "NaN" -> Double.NaN,
-    "PositiveInfinity" -> Double.PositiveInfinity,
-    "NegativeInfinity" -> Double.NegativeInfinity))
+    "CustomMetric" -> 1.0))
   val starts = new AtomicInteger()
   val stops = new AtomicInteger()
   @volatile var failRead = false

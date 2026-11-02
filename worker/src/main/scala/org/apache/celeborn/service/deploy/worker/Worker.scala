@@ -190,9 +190,14 @@ private[celeborn] class Worker(
   val memoryManager: MemoryManager = MemoryManager.initialize(conf, storageManager, workerSource)
   memoryManager.registerMemoryListener(storageManager)
 
-  private val scaleMetricCollector = Utils.instantiateClassWithCelebornConf[ScaleMetricCollector](
-    conf.scaleMetricCollectorClassName,
-    conf)
+  private val scaleMetricCollector =
+    if (conf.scaleMetricsEnabled) {
+      Some(Utils.instantiateClassWithCelebornConf[ScaleMetricCollector](
+        conf.scaleMetricCollectorClassName,
+        conf))
+    } else {
+      None
+    }
 
   val partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource)
 
@@ -541,7 +546,7 @@ private[celeborn] class Worker(
     workerStatusManager.checkIfNeedTransitionStatus()
     val workerStats: Option[WorkerStats] =
       try {
-        scaleMetricCollector.currentWorkerStats()
+        scaleMetricCollector.flatMap(_.currentWorkerStats())
       } catch {
         case NonFatal(e) =>
           logWarning("Failed to read worker scaling metrics", e)
@@ -589,7 +594,7 @@ private[celeborn] class Worker(
     logInfo(s"Starting Worker $host:$pushPort:$fetchPort:$replicatePort" +
       s" with ${workerInfo.diskInfos} slots.")
     registerWithMaster()
-    scaleMetricCollector.init(this)
+    scaleMetricCollector.foreach(_.init(this))
 
     // start heartbeat
     sendHeartbeatTask = forwardMessageScheduler.scheduleWithFixedDelay(
@@ -651,7 +656,7 @@ private[celeborn] class Worker(
     if (!stopped) {
       logInfo("Stopping Worker.")
 
-      Utils.tryLogNonFatalError(scaleMetricCollector.stop())
+      scaleMetricCollector.foreach(collector => Utils.tryLogNonFatalError(collector.stop()))
 
       if (jvmProfiler != null) {
         jvmProfiler.stop()
