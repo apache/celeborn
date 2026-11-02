@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 
-import org.apache.spark.{SparkConf, SparkEnv, SparkException}
+import org.apache.spark.{SPARK_VERSION, SparkConf, SparkEnv, SparkException}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent, SparkListenerJobStart}
 import org.apache.spark.shuffle.celeborn.SparkShuffleManager
 import org.apache.spark.sql.SparkSession
@@ -224,9 +224,30 @@ class CelebornShuffleCleanupSuite extends AnyFunSuite
     spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
     spark.range(0, 1000, 1, 4).createOrReplaceTempView("tb")
     // The empty join side makes AQE drop stages from the final plan; their shuffles were
-    // still created and must be cleaned up through the stage cache. The cache only holds
-    // them because exchange reuse is on (the default here); with reuse off the dropped
-    // stage is unreachable from the final plan and falls back to GC cleanup.
+    // still created and must be cleaned up through the stage cache, which holds them
+    // because exchange reuse is on (the default here). With reuse off the dropped stage is
+    // unreachable from the final plan; that case is covered by the Spark 4 test below.
+    spark.sql(
+      """
+        |SELECT COUNT(*) FROM ta
+        |JOIN (SELECT * FROM tb WHERE id < 0) b ON ta.id = b.id
+        |""".stripMargin).collect()
+    awaitShufflesUnregistered(lifecycleManager())
+  }
+
+  test("CELEBORN-2465: shuffles of stages dropped from the final AQE plan are unregistered " +
+    "with exchange reuse disabled") {
+    // Only Spark 4 records the shuffle ids of materialized stages per query.
+    assume(SPARK_VERSION >= "4.0", "Spark 4 records materialized shuffle ids per query")
+    val sparkConf = shuffleCleanupConf(true)
+    sparkConf.set(SQLConf.EXCHANGE_REUSE_ENABLED.key, "false")
+    val spark = SparkSession.builder().config(sparkConf).getOrCreate()
+
+    spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
+    spark.range(0, 1000, 1, 4).createOrReplaceTempView("tb")
+    // The empty join side makes AQE drop stages from the final plan. With exchange reuse off
+    // the stage cache stays empty, so these shuffles are only covered by the shuffle ids
+    // that Spark records when the stages materialize.
     spark.sql(
       """
         |SELECT COUNT(*) FROM ta
