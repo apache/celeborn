@@ -26,15 +26,11 @@ import org.apache.celeborn.common.CelebornConf.WORKER_DECOMMISSION_SIGNAL_FILE_P
  * Signals decommission once the file at `celeborn.worker.decommission.signal.file.path` exists,
  * for example after a Kubernetes preStop hook or a spot-notice agent touches it.
  */
-class FileDecommissionSignalChecker extends DecommissionSignalChecker {
-  @volatile private var path: Path = _
-
-  override def init(conf: CelebornConf): Unit = {
-    val configured = conf.workerDecommissionSignalFilePath.map(_.trim).filter(_.nonEmpty)
+class FileDecommissionSignalChecker(conf: CelebornConf) extends DecommissionSignalChecker {
+  private val path: Path = Paths.get(
+    conf.workerDecommissionSignalFilePath.map(_.trim).filter(_.nonEmpty)
       .getOrElse(throw new IllegalArgumentException(
-        s"${WORKER_DECOMMISSION_SIGNAL_FILE_PATH.key} must be set when using ${getClass.getName}"))
-    path = Paths.get(configured)
-  }
+        s"${WORKER_DECOMMISSION_SIGNAL_FILE_PATH.key} must be set when using ${getClass.getName}")))
 
   override def shouldDecommission(): Boolean = Files.exists(path)
 

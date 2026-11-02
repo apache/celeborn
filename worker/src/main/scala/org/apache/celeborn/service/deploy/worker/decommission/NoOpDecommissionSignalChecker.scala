@@ -17,7 +17,9 @@
 
 package org.apache.celeborn.service.deploy.worker.decommission
 
+import org.apache.celeborn.common.CelebornConf
+
 /** The default checker: never signals, and the worker starts no polling thread for it. */
-class NoOpDecommissionSignalChecker extends DecommissionSignalChecker {
+class NoOpDecommissionSignalChecker(conf: CelebornConf) extends DecommissionSignalChecker {
   override def shouldDecommission(): Boolean = false
 }

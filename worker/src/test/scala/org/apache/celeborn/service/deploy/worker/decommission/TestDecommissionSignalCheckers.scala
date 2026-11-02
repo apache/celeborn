@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.celeborn.common.CelebornConf
 
-class AlwaysDecommissionSignalChecker extends DecommissionSignalChecker {
+class AlwaysDecommissionSignalChecker(conf: CelebornConf) extends DecommissionSignalChecker {
   override def shouldDecommission(): Boolean = true
 
   override def getReason: String = "test reason"
@@ -47,10 +47,15 @@ class ThrowingThenTrueDecommissionSignalChecker(
   }
 }
 
-class NotADecommissionSignalChecker
+class NotADecommissionSignalChecker(conf: CelebornConf)
 
-class InitFailingDecommissionSignalChecker extends DecommissionSignalChecker {
-  override def init(conf: CelebornConf): Unit = throw new IllegalStateException("init failed")
+class NoConfConstructorDecommissionSignalChecker extends DecommissionSignalChecker {
+  override def shouldDecommission(): Boolean = false
+}
+
+class ConstructorFailingDecommissionSignalChecker(conf: CelebornConf)
+  extends DecommissionSignalChecker {
+  throw new IllegalStateException("constructor failed")
 
   override def shouldDecommission(): Boolean = false
 }

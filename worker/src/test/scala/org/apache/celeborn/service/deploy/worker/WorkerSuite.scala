@@ -423,35 +423,38 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
   }
 
   test("worker loads the configured decommission signal checker") {
-    val key = CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKER_CLASS.key
+    val key = CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKER.key
     val tmpFile =
       Files.createTempDirectory(Paths.get("/tmp"), "celeborn" + System.currentTimeMillis())
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, tmpFile.toString)
     try {
       worker = new Worker(conf, workerArgs)
-      assert(worker.decommissionSignalChecker.isInstanceOf[NoOpDecommissionSignalChecker])
-      worker.rpcEnv.shutdown()
-      worker.stop(CelebornExitKind.EXIT_IMMEDIATELY)
-      worker = null
+      assert(worker.decommissionSignalMonitor == null)
+      worker.createDecommissionSignalMonitor()
+      assert(worker.decommissionSignalMonitor.checker.isInstanceOf[NoOpDecommissionSignalChecker])
+      worker.decommissionSignalMonitor.stop()
 
       conf.set(key, classOf[AlwaysDecommissionSignalChecker].getName)
-      worker = new Worker(conf, workerArgs)
-      assert(worker.decommissionSignalChecker.isInstanceOf[AlwaysDecommissionSignalChecker])
+      worker.createDecommissionSignalMonitor()
+      assert(
+        worker.decommissionSignalMonitor.checker.isInstanceOf[AlwaysDecommissionSignalChecker])
     } finally {
       conf.unset(key)
     }
   }
 
   test("worker fails fast on an invalid decommission signal checker") {
-    val key = CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKER_CLASS.key
+    val key = CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKER.key
     val tmpFile =
       Files.createTempDirectory(Paths.get("/tmp"), "celeborn" + System.currentTimeMillis())
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, tmpFile.toString)
     try {
+      worker = new Worker(conf, workerArgs)
       Seq("does.not.Exist", classOf[NotADecommissionSignalChecker].getName).foreach {
         className =>
           conf.set(key, className)
-          val e = intercept[CelebornException](new Worker(conf, workerArgs))
+          // initialize() creates the monitor first, so this fails startup before registration.
+          val e = intercept[CelebornException](worker.initialize())
           assert(e.getMessage.contains(key))
           assert(e.getMessage.contains(className))
       }
@@ -461,27 +464,25 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
   }
 
   test("decommission signal triggers the Worker DECOMMISSION exit path") {
-    val key = CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKER_CLASS.key
+    val key = CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKER.key
+    val timeoutKey = CelebornConf.WORKER_DECOMMISSION_FORCE_EXIT_TIMEOUT.key
     val tmpFile =
       Files.createTempDirectory(Paths.get("/tmp"), "celeborn" + System.currentTimeMillis())
     conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, tmpFile.toString)
     conf.set(key, classOf[AlwaysDecommissionSignalChecker].getName)
-    // exit("DECOMMISSION") also updates the timeout of every hook in the JVM-wide
-    // ShutdownHookManager. It is not restored here: ShutdownHookManager exposes no getter for
-    // per-hook timeouts, and the change only affects hook timing at test JVM exit.
+    // exit("DECOMMISSION") sets this as the timeout of every JVM-wide shutdown hook.
+    conf.set(timeoutKey, "30s")
     try {
-      worker = new Worker(conf, workerArgs) {
-        override protected[worker] def createWorkerStatusManager(): WorkerStatusManager =
-          new WorkerStatusManager(this.conf) {
-            override protected[worker] def scheduleSystemExit(): Unit = {}
-          }
-      }
+      worker = new Worker(conf, workerArgs)
+      worker.workerStatusManager.systemExitAction = () => ()
+      worker.createDecommissionSignalMonitor()
       worker.decommissionSignalMonitor.checkOnce()
       assert(worker.decommissionSignalMonitor.isTriggered)
       assert(worker.workerStatusManager.getWorkerState() == PbWorkerStatus.State.InDecommission)
       assert(worker.workerStatusManager.exitEventType == WorkerEventType.Decommission)
     } finally {
       conf.unset(key)
+      conf.unset(timeoutKey)
     }
   }
 }

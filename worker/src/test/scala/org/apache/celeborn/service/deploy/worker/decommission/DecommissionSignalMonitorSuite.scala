@@ -17,7 +17,8 @@
 
 package org.apache.celeborn.service.deploy.worker.decommission
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 
 import scala.concurrent.duration._
 
@@ -28,7 +29,7 @@ import org.scalatest.concurrent.Eventually.{eventually, interval, timeout}
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKER_CLASS
+import org.apache.celeborn.common.CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKER
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.WorkerInfo
@@ -40,10 +41,6 @@ import org.apache.celeborn.service.deploy.worker.{Worker, WorkerStatusManager}
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager
 
 class DecommissionSignalMonitorSuite extends AnyFunSuite with BeforeAndAfterEach {
-
-  private class NoExitWorkerStatusManager(conf: CelebornConf) extends WorkerStatusManager(conf) {
-    override protected[worker] def scheduleSystemExit(): Unit = {}
-  }
 
   private val conf = new CelebornConf()
   private var statusManager: WorkerStatusManager = _
@@ -66,7 +63,8 @@ class DecommissionSignalMonitorSuite extends AnyFunSuite with BeforeAndAfterEach
     when(worker.storageManager).thenReturn(storageManager)
     when(worker.shutdown).thenReturn(new AtomicBoolean())
     when(worker.workerInfo).thenReturn(workerInfo)
-    statusManager = new NoExitWorkerStatusManager(conf)
+    statusManager = new WorkerStatusManager(conf)
+    statusManager.systemExitAction = () => ()
     statusManager.init(worker)
     triggerCount = new AtomicInteger(0)
   }
@@ -93,7 +91,7 @@ class DecommissionSignalMonitorSuite extends AnyFunSuite with BeforeAndAfterEach
   }
 
   test("polling thread decommissions the worker once the checker signals") {
-    newMonitor(new AlwaysDecommissionSignalChecker).start()
+    newMonitor(new AlwaysDecommissionSignalChecker(conf)).start()
     eventually(timeout(5.seconds), interval(50.milliseconds)) {
       assert(statusManager.getWorkerState() == State.InDecommission)
     }
@@ -102,7 +100,7 @@ class DecommissionSignalMonitorSuite extends AnyFunSuite with BeforeAndAfterEach
   }
 
   test("decommission is triggered at most once") {
-    val m = newMonitor(new AlwaysDecommissionSignalChecker)
+    val m = newMonitor(new AlwaysDecommissionSignalChecker(conf))
     (1 to 5).foreach(_ => m.checkOnce())
     assert(triggerCount.get == 1)
     assert(statusManager.getWorkerState() == State.InDecommission)
@@ -129,6 +127,42 @@ class DecommissionSignalMonitorSuite extends AnyFunSuite with BeforeAndAfterEach
     assert(triggerCount.get == 1)
   }
 
+  test("a failing getReason does not lose the trigger") {
+    val m = newMonitor(new DecommissionSignalChecker {
+      override def shouldDecommission(): Boolean = true
+      override def getReason: String = throw new NoClassDefFoundError("missing")
+    })
+    m.checkOnce()
+    assert(m.isTriggered)
+    assert(triggerCount.get == 1)
+    assert(statusManager.getWorkerState() == State.InDecommission)
+  }
+
+  test("stop waits for an in-flight check before closing the checker") {
+    val inCheck = new CountDownLatch(1)
+    val checkDone = new AtomicBoolean(false)
+    val checkDoneAtClose = new AtomicReference[java.lang.Boolean]()
+    val m = newMonitor(
+      new DecommissionSignalChecker {
+        override def shouldDecommission(): Boolean = {
+          inCheck.countDown()
+          try {
+            Thread.sleep(60000)
+          } catch {
+            case _: InterruptedException => Thread.sleep(500)
+          }
+          checkDone.set(true)
+          false
+        }
+        override def close(): Unit = checkDoneAtClose.set(checkDone.get)
+      },
+      intervalMs = 10)
+    m.start()
+    assert(inCheck.await(5, TimeUnit.SECONDS))
+    m.stop()
+    assert(checkDoneAtClose.get == java.lang.Boolean.TRUE)
+  }
+
   test("no trigger when stopped while a poll is in flight") {
     lazy val m: DecommissionSignalMonitor = newMonitor(new DecommissionSignalChecker {
       override def shouldDecommission(): Boolean = {
@@ -144,7 +178,7 @@ class DecommissionSignalMonitorSuite extends AnyFunSuite with BeforeAndAfterEach
   test("a failing trigger is not retried") {
     val calls = new AtomicInteger(0)
     val m = new DecommissionSignalMonitor(
-      new AlwaysDecommissionSignalChecker,
+      new AlwaysDecommissionSignalChecker(conf),
       100,
       () => false,
       () => {
@@ -162,7 +196,7 @@ class DecommissionSignalMonitorSuite extends AnyFunSuite with BeforeAndAfterEach
   }
 
   test("skip while the worker is exiting, escalate from DecommissionThenIdle") {
-    val m = newMonitor(new AlwaysDecommissionSignalChecker)
+    val m = newMonitor(new AlwaysDecommissionSignalChecker(conf))
     statusManager.doTransition(WorkerEventType.Graceful)
     assert(statusManager.getWorkerState() == State.InGraceFul)
     m.checkOnce()
@@ -170,7 +204,7 @@ class DecommissionSignalMonitorSuite extends AnyFunSuite with BeforeAndAfterEach
     assert(!m.isTriggered)
 
     beforeEach()
-    val escalating = newMonitor(new AlwaysDecommissionSignalChecker)
+    val escalating = newMonitor(new AlwaysDecommissionSignalChecker(conf))
     statusManager.doTransition(WorkerEventType.DecommissionThenIdle)
     assert(statusManager.getWorkerState() == State.InDecommissionThenIdle)
     escalating.checkOnce()
@@ -180,7 +214,7 @@ class DecommissionSignalMonitorSuite extends AnyFunSuite with BeforeAndAfterEach
 
   test("stop closes the checker once and disables further checks") {
     AlwaysDecommissionSignalChecker.closeCount.set(0)
-    val m = newMonitor(new AlwaysDecommissionSignalChecker, intervalMs = 60000)
+    val m = newMonitor(new AlwaysDecommissionSignalChecker(conf), intervalMs = 60000)
     m.start()
     m.stop()
     m.stop()
@@ -193,7 +227,7 @@ class DecommissionSignalMonitorSuite extends AnyFunSuite with BeforeAndAfterEach
   test("createChecker instantiates the configured class") {
     val c = conf.clone
     c.set(
-      WORKER_DECOMMISSION_SIGNAL_CHECKER_CLASS.key,
+      WORKER_DECOMMISSION_SIGNAL_CHECKER.key,
       classOf[AlwaysDecommissionSignalChecker].getName)
     assert(DecommissionSignalMonitor.createChecker(c).isInstanceOf[AlwaysDecommissionSignalChecker])
     assert(DecommissionSignalMonitor.createChecker(new CelebornConf())
@@ -204,11 +238,12 @@ class DecommissionSignalMonitorSuite extends AnyFunSuite with BeforeAndAfterEach
     Seq(
       "does.not.Exist",
       classOf[NotADecommissionSignalChecker].getName,
-      classOf[InitFailingDecommissionSignalChecker].getName).foreach { className =>
+      classOf[NoConfConstructorDecommissionSignalChecker].getName,
+      classOf[ConstructorFailingDecommissionSignalChecker].getName).foreach { className =>
       val c = conf.clone
-      c.set(WORKER_DECOMMISSION_SIGNAL_CHECKER_CLASS.key, className)
+      c.set(WORKER_DECOMMISSION_SIGNAL_CHECKER.key, className)
       val e = intercept[CelebornException](DecommissionSignalMonitor.createChecker(c))
-      assert(e.getMessage.contains(WORKER_DECOMMISSION_SIGNAL_CHECKER_CLASS.key))
+      assert(e.getMessage.contains(WORKER_DECOMMISSION_SIGNAL_CHECKER.key))
       assert(e.getMessage.contains(className))
     }
   }

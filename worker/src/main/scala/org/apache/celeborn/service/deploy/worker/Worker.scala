@@ -53,7 +53,7 @@ import org.apache.celeborn.common.util.{CelebornExitKind, CollectionUtils, JavaU
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
-import org.apache.celeborn.service.deploy.worker.decommission.{DecommissionSignalChecker, DecommissionSignalMonitor}
+import org.apache.celeborn.service.deploy.worker.decommission.DecommissionSignalMonitor
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingState
 import org.apache.celeborn.service.deploy.worker.monitor.JVMQuake
@@ -67,15 +67,7 @@ private[celeborn] class Worker(
 
   @volatile private var stopped = false
 
-  // Test seam: overridden in tests to avoid scheduling a real System.exit.
-  protected[worker] def createWorkerStatusManager(): WorkerStatusManager =
-    new WorkerStatusManager(conf)
-
   override def serviceName: String = Service.WORKER
-
-  // Created first so that a misconfigured checker fails startup before any resource is allocated.
-  private[worker] val decommissionSignalChecker: DecommissionSignalChecker =
-    DecommissionSignalMonitor.createChecker(conf)
 
   override val metricsSystem: MetricsSystem =
     MetricsSystem.createMetricsSystem(serviceName, conf)
@@ -99,12 +91,10 @@ private[celeborn] class Worker(
   private val topApplicationUserIdentifiers =
     JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
 
-  val workerStatusManager: WorkerStatusManager = createWorkerStatusManager()
-  private[worker] val decommissionSignalMonitor = new DecommissionSignalMonitor(
-    decommissionSignalChecker,
-    conf.workerDecommissionSignalCheckInterval,
-    () => workerStatusManager.inExitStatus(),
-    () => exit("DECOMMISSION"))
+  val workerStatusManager = new WorkerStatusManager(conf)
+  // Created at the start of initialize() so a failing constructor never leaks the checker, while a
+  // misconfigured checker still fails startup before the worker registers with the master.
+  @volatile private[worker] var decommissionSignalMonitor: DecommissionSignalMonitor = _
   private val authEnabled = conf.authEnabled
   private val secretRegistry = new WorkerSecretRegistryImpl(conf.workerApplicationRegistryCacheSize)
 
@@ -585,7 +575,16 @@ private[celeborn] class Worker(
     }
   }
 
+  private[worker] def createDecommissionSignalMonitor(): Unit = {
+    decommissionSignalMonitor = new DecommissionSignalMonitor(
+      DecommissionSignalMonitor.createChecker(conf),
+      conf.workerDecommissionSignalCheckInterval,
+      () => workerStatusManager.inExitStatus(),
+      () => exit("DECOMMISSION"))
+  }
+
   override def initialize(): Unit = {
+    createDecommissionSignalMonitor()
     super.initialize()
     logInfo(s"Starting Worker $host:$pushPort:$fetchPort:$replicatePort" +
       s" with ${workerInfo.diskInfos} slots.")
@@ -658,7 +657,9 @@ private[celeborn] class Worker(
       if (jvmQuake != null) {
         jvmQuake.stop()
       }
-      decommissionSignalMonitor.stop()
+      if (decommissionSignalMonitor != null) {
+        decommissionSignalMonitor.stop()
+      }
       if (sendHeartbeatTask != null) {
         if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {
           sendHeartbeatTask.cancel(false)

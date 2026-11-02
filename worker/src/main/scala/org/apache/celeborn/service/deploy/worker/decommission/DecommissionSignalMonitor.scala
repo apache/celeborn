@@ -20,15 +20,14 @@ package org.apache.celeborn.service.deploy.worker.decommission
 import java.util.concurrent.{ScheduledExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 
-import scala.util.Try
 import scala.util.control.NonFatal
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKER_CLASS
+import org.apache.celeborn.common.CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKER
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.util.{ThreadUtils, Utils}
-import org.apache.celeborn.service.deploy.worker.decommission.DecommissionSignalMonitor.isRecoverable
+import org.apache.celeborn.service.deploy.worker.decommission.DecommissionSignalMonitor.{isRecoverable, STOP_TIMEOUT_MS}
 
 /**
  * Polls a [[DecommissionSignalChecker]] on a dedicated daemon thread and calls
@@ -36,7 +35,7 @@ import org.apache.celeborn.service.deploy.worker.decommission.DecommissionSignal
  * already exiting.
  */
 class DecommissionSignalMonitor(
-    checker: DecommissionSignalChecker,
+    private[worker] val checker: DecommissionSignalChecker,
     intervalMs: Long,
     isWorkerExiting: () => Boolean,
     triggerDecommission: () => Unit) extends Logging {
@@ -92,11 +91,10 @@ class DecommissionSignalMonitor(
         if (isWorkerExiting()) {
           logDebug("Worker is already exiting, skip polling the decommission signal checker.")
         } else if (pollChecker() && !closed.get && triggered.compareAndSet(false, true)) {
-          val reason = Try(checker.getReason).toOption.flatMap(Option(_)).getOrElse("unspecified")
-          logInfo(
-            s"Self-decommission triggered by decommission signal checker $checkerName, " +
-              s"reason: $reason")
           try {
+            logInfo(
+              s"Self-decommission triggered by decommission signal checker $checkerName, " +
+                s"reason: ${reason()}")
             triggerDecommission()
           } catch {
             case e: Throwable if isRecoverable(e) =>
@@ -128,14 +126,40 @@ class DecommissionSignalMonitor(
     }
   }
 
+  private def reason(): String = {
+    try {
+      Option(checker.getReason).getOrElse("unspecified")
+    } catch {
+      case e: Throwable if isRecoverable(e) =>
+        logWarning(s"Decommission signal checker $checkerName failed to report a reason", e)
+        "unspecified"
+    }
+  }
+
+  /**
+   * Stops polling and closes the checker. Waits up to a few seconds for an in-flight check to
+   * return before closing, so it never blocks indefinitely on a stuck checker.
+   */
   def stop(): Unit = {
     if (closed.compareAndSet(false, true)) {
-      synchronized {
+      val executor = synchronized {
         if (task != null) {
           task.cancel(false)
         }
         if (scheduler != null) {
           scheduler.shutdownNow()
+        }
+        scheduler
+      }
+      if (executor != null) {
+        try {
+          if (!executor.awaitTermination(STOP_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+            logWarning(s"Decommission signal checker $checkerName did not finish within " +
+              s"${STOP_TIMEOUT_MS}ms, closing it anyway")
+          }
+        } catch {
+          case _: InterruptedException =>
+            Thread.currentThread().interrupt()
         }
       }
       Utils.tryLogNonFatalError(checker.close())
@@ -145,30 +169,35 @@ class DecommissionSignalMonitor(
 
 object DecommissionSignalMonitor {
 
+  private val STOP_TIMEOUT_MS = 5000L
+
   // Plugins commonly fail with LinkageError (e.g. a missing dependency jar), which NonFatal
-  // does not match; treat it as recoverable so it is logged or reported with the config key.
+  // does not match. Treat it as recoverable so it is logged or reported with the config key.
   private def isRecoverable(e: Throwable): Boolean = NonFatal(e) || e.isInstanceOf[LinkageError]
 
   /**
-   * Instantiates and initialises the checker named by
-   * `celeborn.worker.decommission.signal.checker.class`. Any failure is rethrown as a
-   * [[CelebornException]] naming the config key and the class, so the worker fails fast.
+   * Instantiates the checker named by `celeborn.worker.decommission.signal.checker` through its
+   * public `CelebornConf` constructor. Any failure is rethrown as a [[CelebornException]] naming
+   * the config key and the class, so the worker fails fast.
    */
   def createChecker(conf: CelebornConf): DecommissionSignalChecker = {
-    val key = WORKER_DECOMMISSION_SIGNAL_CHECKER_CLASS.key
-    val className = conf.workerDecommissionSignalCheckerClass
+    val key = WORKER_DECOMMISSION_SIGNAL_CHECKER.key
+    val className = conf.workerDecommissionSignalChecker
     try {
-      val clazz = Utils.classForName(className)
       require(
-        classOf[DecommissionSignalChecker].isAssignableFrom(clazz),
+        classOf[DecommissionSignalChecker].isAssignableFrom(Utils.classForName(className)),
         s"$className does not implement ${classOf[DecommissionSignalChecker].getName}")
-      val checker =
-        clazz.getDeclaredConstructor().newInstance().asInstanceOf[DecommissionSignalChecker]
-      checker.init(conf)
-      checker
+      Utils.instantiateClassWithCelebornConf[DecommissionSignalChecker](className, conf)
     } catch {
       case e: Throwable if isRecoverable(e) =>
-        throw new CelebornException(s"Failed to instantiate $key = $className: ${e.getMessage}", e)
+        // Unwrap the generic error from instantiateClassWithCelebornConf to report the real cause.
+        val cause = e match {
+          case ce: CelebornException if ce.getCause != null => ce.getCause
+          case _ => e
+        }
+        throw new CelebornException(
+          s"Failed to instantiate $key = $className: ${cause.getMessage}",
+          cause)
     }
   }
 }

@@ -17,27 +17,24 @@
 
 package org.apache.celeborn.service.deploy.worker.decommission;
 
-import org.apache.celeborn.common.CelebornConf;
-
 /**
  * Decides whether a worker should decommission itself, based on a signal from outside Celeborn (for
  * example a cloud spot-instance notice, a Kubernetes node drain, or a marker file).
  *
  * <p>The worker loads the implementation named by {@code
- * celeborn.worker.decommission.signal.checker.class} through its public no-arg constructor, calls
- * {@link #init(CelebornConf)} once, and then calls {@link #shouldDecommission()} every {@code
- * celeborn.worker.decommission.signal.check.interval} from a single dedicated thread. When it
- * returns {@code true}, the worker runs the same decommission as {@code POST /api/v1/workers/exit}
- * with type {@code Decommission} and stops polling. The decommission is one-way: a later {@code
- * false} does not recommission the worker.
+ * celeborn.worker.decommission.signal.checker} through a public constructor that takes a single
+ * {@code org.apache.celeborn.common.CelebornConf} argument, and then calls {@link
+ * #shouldDecommission()} every {@code celeborn.worker.decommission.signal.checkInterval} from a
+ * single dedicated thread. When it returns {@code true}, the worker runs the same decommission as
+ * {@code POST /api/v1/workers/exit} with type {@code Decommission} and stops polling. The
+ * decommission is one-way: a later {@code false} does not recommission the worker.
  *
  * <p>{@link #shouldDecommission()} must not block for long. An exception thrown from it is logged
- * and treated as "no signal". {@link #close()} is called once when the worker stops.
+ * and treated as "no signal". {@link #close()} is called once when the worker stops. The worker
+ * waits only briefly for an in-flight {@link #shouldDecommission()} call to return before calling
+ * {@link #close()}, so the two may overlap if a check blocks.
  */
 public interface DecommissionSignalChecker {
-
-  /** Called once, before the first {@link #shouldDecommission()} call. */
-  default void init(CelebornConf conf) throws Exception {}
 
   /** Returns {@code true} when the worker should decommission itself. */
   boolean shouldDecommission() throws Exception;

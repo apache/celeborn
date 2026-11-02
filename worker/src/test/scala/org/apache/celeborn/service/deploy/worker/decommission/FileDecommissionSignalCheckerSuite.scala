@@ -33,8 +33,7 @@ class FileDecommissionSignalCheckerSuite extends AnyFunSuite {
       val signalFile = dir.resolve("decommission")
       val conf =
         new CelebornConf().set(WORKER_DECOMMISSION_SIGNAL_FILE_PATH.key, signalFile.toString)
-      val checker = new FileDecommissionSignalChecker
-      checker.init(conf)
+      val checker = new FileDecommissionSignalChecker(conf)
 
       assert(!checker.shouldDecommission())
       Files.createFile(signalFile)
@@ -45,11 +44,11 @@ class FileDecommissionSignalCheckerSuite extends AnyFunSuite {
     }
   }
 
-  test("init fails when the file path is unset or blank") {
+  test("construction fails when the file path is unset or blank") {
     Seq(new CelebornConf(), new CelebornConf().set(WORKER_DECOMMISSION_SIGNAL_FILE_PATH.key, "  "))
       .foreach { conf =>
         val e = intercept[IllegalArgumentException] {
-          new FileDecommissionSignalChecker().init(conf)
+          new FileDecommissionSignalChecker(conf)
         }
         assert(e.getMessage.contains(WORKER_DECOMMISSION_SIGNAL_FILE_PATH.key))
       }
