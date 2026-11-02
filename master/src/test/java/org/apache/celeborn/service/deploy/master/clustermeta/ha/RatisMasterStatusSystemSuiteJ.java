@@ -853,7 +853,17 @@ public class RatisMasterStatusSystemSuiteJ {
                 CallId.getAndIncrement(),
                 to.getServer().getId(),
                 30_000L));
-    waitFor(to::isLeader, "leadership to transfer");
+    // The shared cluster must accept writes before the next test starts.
+    waitFor(
+        () -> {
+          try {
+            return to.isLeader()
+                && to.getServer().getDivision(to.getGroupId()).getInfo().isLeaderReady();
+          } catch (IOException e) {
+            return false;
+          }
+        },
+        "new leader to accept writes");
     // isLeader() trusts a cached LEADER role, so force a refresh on the old leader to make sure
     // it has observed the step-down (and fired its leadership listeners) before asserting.
     waitFor(
