@@ -18,8 +18,10 @@
 package org.apache.spark.sql.celeborn
 
 import java.lang.reflect.Method
+import java.util.{Map => JMap}
 import java.util.concurrent.atomic.AtomicReference
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 import scala.util.control.NonFatal
@@ -27,7 +29,7 @@ import scala.util.control.NonFatal
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, QueryStageExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveExecutionContext, AdaptiveSparkPlanExec, QueryStageExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.exchange.{ReusedExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionEnd
 
@@ -39,8 +41,10 @@ import org.apache.celeborn.client.LifecycleManager
  * shuffle data while waiting for driver GC. Stage rerun must be enabled so that a
  * re-executed DataFrame can regenerate its cleaned shuffles. Shuffles of failed or
  * cancelled queries (or stages) that were never materialized are left to GC cleanup.
- * With spark.sql.exchange.reuse disabled, stages that AQE materializes and then drops from
- * the final plan are not reachable from the executed plan and are also left to GC cleanup.
+ * Stages that AQE materializes and then drops from the final plan are covered by the
+ * per-query stage cache when spark.sql.exchange.reuse is enabled, and by the shuffle ids
+ * that Spark 4 records on materialization when reuse is disabled. Spark 3 has no such
+ * collection, so on Spark 3 those stages are still left to GC cleanup.
  */
 class CelebornShuffleCleanupListener(lifecycleManager: LifecycleManager)
   extends SparkListener with Logging {
@@ -78,6 +82,11 @@ class CelebornShuffleCleanupListener(lifecycleManager: LifecycleManager)
     def visit(p: SparkPlan, inAdaptivePlan: Boolean): Unit = {
       p match {
         case adaptivePlan: AdaptiveSparkPlanExec =>
+          // Spark 4 records the shuffle ids of successfully materialized stages in the
+          // per-query AdaptiveExecutionContext, independently of spark.sql.exchange.reuse,
+          // so stages that AQE later drops from the final plan are still covered. Spark 3
+          // has no such collection; the reflective lookup then returns None.
+          shuffleIds ++= recordedShuffleIds(adaptivePlan)
           // The stage cache is shared by the whole query (including subqueries) and holds
           // every stage the query created, even stages dropped from the final plan (e.g.
           // an empty join side) and children of unmaterialized stages. Only materialized
@@ -102,8 +111,9 @@ class CelebornShuffleCleanupListener(lifecycleManager: LifecycleManager)
         // are removed by distinct later). Descend into the stage plan to reach nested
         // child stages; the raw exchange of an unmaterialized stage is never touched
         // because inAdaptivePlan stays true. A stage that AQE materializes and then drops
-        // from the final plan is not in this tree, so with reuse off its shuffle still
-        // falls back to GC cleanup. Matched before the generic QueryStageExec case below.
+        // from the final plan is not in this tree; on Spark 4 recordedShuffleIds covers it,
+        // on Spark 3 its shuffle is left to GC cleanup. Matched before the generic
+        // QueryStageExec case below.
         case stage: ShuffleQueryStageExec =>
           if (isStageMaterialized(stage)) {
             // Non-vanilla ShuffleExchangeLike (e.g. Gluten's columnar exchange) is ignored.
@@ -169,6 +179,22 @@ class CelebornShuffleCleanupListener(lifecycleManager: LifecycleManager)
 }
 
 private object CelebornShuffleCleanupListener {
+
+  // Spark 4 records the shuffle ids of successfully materialized stages in the per-query
+  // AdaptiveExecutionContext (from AdaptiveSparkPlanExec's materialization callback), which
+  // is independent of spark.sql.exchange.reuse. Spark 3 has no such collection, and this
+  // module also compiles against Spark 3.x, so the accessor is resolved reflectively.
+  private val recordedShuffleIdsMethod: Option[Method] =
+    Try(classOf[AdaptiveExecutionContext].getMethod("shuffleIds")).toOption
+
+  private def recordedShuffleIds(adaptivePlan: AdaptiveSparkPlanExec): Seq[Int] =
+    recordedShuffleIdsMethod.toSeq.flatMap { method =>
+      Try(method.invoke(adaptivePlan.context)).toOption
+        .collect { case ids: JMap[_, _] =>
+          ids.keySet().asScala.map(_.asInstanceOf[Int]).toSeq
+        }
+        .getOrElse(Seq.empty)
+    }
 
   // QueryStageExec.isMaterialized only exists since Spark 3.2; on Spark 3.0/3.1 the
   // materialization result is read from resultOption instead (an Option on 3.0, an
