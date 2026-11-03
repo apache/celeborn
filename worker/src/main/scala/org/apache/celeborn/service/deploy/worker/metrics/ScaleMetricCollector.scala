@@ -18,10 +18,9 @@
 package org.apache.celeborn.service.deploy.worker.metrics
 
 import org.apache.celeborn.common.metrics.WorkerStats
-import org.apache.celeborn.service.deploy.worker.Worker
 
 trait ScaleMetricCollector {
-  def init(worker: Worker): Unit
+  def init(context: ScaleMetricCollectorContext): Unit
 
   def stop(): Unit
 

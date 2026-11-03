@@ -17,8 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master
 
-import java.util.concurrent.atomic.AtomicInteger
-
+import com.example.metrics.HeartbeatTestMetricCollector
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
 import org.scalatest.funsuite.AnyFunSuite
@@ -27,8 +26,6 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.metrics.WorkerStats
 import org.apache.celeborn.service.deploy.MiniClusterFeature
-import org.apache.celeborn.service.deploy.worker.Worker
-import org.apache.celeborn.service.deploy.worker.metrics.ScaleMetricCollector
 
 class WorkerStatsIntegrationSuite extends AnyFunSuite
   with BeforeAndAfterEach with Eventually with MiniClusterFeature {
@@ -83,7 +80,7 @@ class WorkerStatsIntegrationSuite extends AnyFunSuite
     assert(master.statusSystem.workerStats.get(worker.workerInfo).get() == null)
   }
 
-  test("custom collector metrics survive heartbeat transport and read or stop failures") {
+  test("external Scala collector metrics survive heartbeat transport and read or stop failures") {
     HeartbeatTestMetricCollector.starts.set(0)
     HeartbeatTestMetricCollector.stops.set(0)
     HeartbeatTestMetricCollector.failRead = false
@@ -120,29 +117,4 @@ class WorkerStatsIntegrationSuite extends AnyFunSuite
     masterInfo = null
     assert(HeartbeatTestMetricCollector.stops.get() == 1)
   }
-}
-
-class HeartbeatTestMetricCollector(conf: CelebornConf) extends ScaleMetricCollector {
-  override def init(worker: Worker): Unit = {
-    HeartbeatTestMetricCollector.starts.incrementAndGet()
-  }
-
-  override def currentWorkerStats(): Option[WorkerStats] = {
-    if (HeartbeatTestMetricCollector.failRead) throw new IllegalStateException("test read failure")
-    Some(HeartbeatTestMetricCollector.stats)
-  }
-
-  override def stop(): Unit = {
-    HeartbeatTestMetricCollector.stops.incrementAndGet()
-    throw new IllegalStateException("test stop failure")
-  }
-}
-
-object HeartbeatTestMetricCollector {
-  val stats = WorkerStats(Map(
-    WorkerStats.NettyMemoryUsedRatio -> 0.5,
-    "CustomMetric" -> 1.0))
-  val starts = new AtomicInteger()
-  val stops = new AtomicInteger()
-  @volatile var failRead = false
 }

@@ -56,7 +56,7 @@ import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingState
-import org.apache.celeborn.service.deploy.worker.metrics.ScaleMetricCollector
+import org.apache.celeborn.service.deploy.worker.metrics.{ScaleMetricCollector, ScaleMetricCollectorContext}
 import org.apache.celeborn.service.deploy.worker.monitor.JVMQuake
 import org.apache.celeborn.service.deploy.worker.profiler.JVMProfiler
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
@@ -594,7 +594,9 @@ private[celeborn] class Worker(
     logInfo(s"Starting Worker $host:$pushPort:$fetchPort:$replicatePort" +
       s" with ${workerInfo.diskInfos} slots.")
     registerWithMaster()
-    scaleMetricCollector.foreach(_.init(this))
+    scaleMetricCollector.foreach(_.init(new ScaleMetricCollectorContext(
+      memoryManager,
+      storageManager)))
 
     // start heartbeat
     sendHeartbeatTask = forwardMessageScheduler.scheduleWithFixedDelay(

@@ -29,15 +29,14 @@ import org.apache.celeborn.common.meta.{DiskInfo, DiskStatus}
 import org.apache.celeborn.common.metrics.WorkerStats
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.util.Utils
-import org.apache.celeborn.service.deploy.worker.Worker
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager
 
 class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
   private class Fixture(windowSize: Int) {
-    val worker = mock[Worker]
     val memory = mock[MemoryManager]
     val storage = mock[StorageManager]
+    val context = new ScaleMetricCollectorContext(memory, storage)
     val os = mock[OperatingSystemMXBean]
     val conf = new CelebornConf()
       .set(CelebornConf.SCALE_METRIC_MEMORY_WINDOW_SIZE, windowSize)
@@ -46,8 +45,6 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
     val disk = new DiskInfo("/tmp", 512L, 0L, 0L, 0L)
     disk.configuredUsableSpace = 1024L
     disk.setTotalSpace(1024L)
-    when(worker.memoryManager).thenReturn(memory)
-    when(worker.storageManager).thenReturn(storage)
     memory.maxDirectMemory = 1024L
     when(memory.getMemoryUsage).thenReturn(256L)
     when(storage.localDisksSnapshot()).thenReturn(List(disk))
@@ -57,7 +54,7 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
     when(os.getSystemLoadAverage).thenReturn(2.0)
 
     def collect(): Map[String, Double] = {
-      collector.collectOnce(worker)
+      collector.collectOnce(context)
       collector.currentWorkerStats().get.metrics
     }
   }
@@ -224,7 +221,7 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
         256L
       }
       val startedAt = System.nanoTime()
-      f.collector.init(f.worker)
+      f.collector.init(f.context)
       assert(firstSample.await(10, TimeUnit.SECONDS))
       assert(sampledAt.get() - startedAt >=
         TimeUnit.MILLISECONDS.toNanos(f.conf.scaleMetricInterval))
@@ -241,7 +238,7 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
       when(f.os.getSystemLoadAverage).thenReturn(6.0)
       when(f.storage.localDisksSnapshot()).thenThrow(new IllegalStateException(
         "unavailable disk stats"))
-      f.collector.collectOnce(f.worker)
+      f.collector.collectOnce(f.context)
       assert(f.collector.currentWorkerStats() == cached)
       doReturn(List(f.disk)).when(f.storage).localDisksSnapshot()
       when(f.memory.getMemoryUsage).thenReturn(1024L)

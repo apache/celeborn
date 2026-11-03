@@ -25,8 +25,7 @@ import scala.util.control.NonFatal
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.metrics.WorkerStats
-import org.apache.celeborn.common.util.{DiskUtils, ThreadUtils}
-import org.apache.celeborn.service.deploy.worker.Worker
+import org.apache.celeborn.common.util.ThreadUtils
 
 class DefaultScaleMetricCollector private[metrics] (
     conf: CelebornConf,
@@ -44,11 +43,11 @@ class DefaultScaleMetricCollector private[metrics] (
   @volatile private var stopped = false
   @volatile private var currentStats: Option[WorkerStats] = None
 
-  override def init(worker: Worker): Unit = synchronized {
+  override def init(context: ScaleMetricCollectorContext): Unit = synchronized {
     require(!stopped && scheduledTask == null, "Metric collector can only be initialized once")
     scheduledTask = executor.scheduleWithFixedDelay(
       new Runnable {
-        override def run(): Unit = collectOnce(worker)
+        override def run(): Unit = collectOnce(context)
       },
       conf.scaleMetricInterval,
       conf.scaleMetricInterval,
@@ -69,9 +68,9 @@ class DefaultScaleMetricCollector private[metrics] (
     else currentStats
   }
 
-  private[metrics] def collectOnce(worker: Worker): Unit = {
+  private[metrics] def collectOnce(context: ScaleMetricCollectorContext): Unit = {
     try {
-      val metrics = memoryMetrics(worker) ++ systemLoadMetrics() ++ diskMetrics(worker)
+      val metrics = memoryMetrics(context) ++ systemLoadMetrics() ++ diskMetrics(context)
       currentStats = Some(WorkerStats(metrics))
     } catch {
       case NonFatal(e) =>
@@ -79,9 +78,9 @@ class DefaultScaleMetricCollector private[metrics] (
     }
   }
 
-  private def memoryMetrics(worker: Worker): Map[String, Double] = {
-    val capacity = worker.memoryManager.maxDirectMemory
-    val used = worker.memoryManager.getMemoryUsage
+  private def memoryMetrics(context: ScaleMetricCollectorContext): Map[String, Double] = {
+    val capacity = context.maxDirectMemory
+    val used = context.memoryUsage
     memoryWindow.update(used)
     Map(WorkerStats.NettyMemoryUsedRatio -> (memoryWindow.average / capacity))
   }
@@ -92,20 +91,10 @@ class DefaultScaleMetricCollector private[metrics] (
     Map(WorkerStats.LastMinuteSystemLoadRatio -> (load / processors))
   }
 
-  private def diskMetrics(worker: Worker): Map[String, Double] = {
-    val storageManager = worker.storageManager
-    val disks = storageManager.localDisksSnapshot()
-    val usableDisks = disks.filter(_.isHealthy)
-    val usableBytes = usableDisks.map(_.actualUsableSpace.toDouble).sum
-    val effectiveCapacityBytes = disks.map { disk =>
-      val reserveSize = DiskUtils.getActualReserveSize(
-        disk.totalSpace,
-        storageManager.diskReserveSize,
-        storageManager.diskReserveRatio)
-      math.min(disk.configuredUsableSpace, math.max(disk.totalSpace - reserveSize, 0L)).toDouble
-    }.sum
+  private def diskMetrics(context: ScaleMetricCollectorContext): Map[String, Double] = {
+    val usage = context.localDiskUsage()
     Map(
-      WorkerStats.DiskUsedRatio -> (1.0 - usableBytes / effectiveCapacityBytes),
-      WorkerStats.DiskRemainingSize -> usableBytes)
+      WorkerStats.DiskUsedRatio -> (1.0 - usage.usableBytes / usage.effectiveCapacityBytes),
+      WorkerStats.DiskRemainingSize -> usage.usableBytes)
   }
 }
