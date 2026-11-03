@@ -38,7 +38,8 @@ class DecommissionSignalMonitor(
     private[worker] val checker: DecommissionSignalChecker,
     intervalMs: Long,
     isWorkerExiting: () => Boolean,
-    triggerDecommission: () => Unit) extends Logging {
+    triggerDecommission: () => Unit,
+    stopTimeoutMs: Long = STOP_TIMEOUT_MS) extends Logging {
 
   private val triggered = new AtomicBoolean(false)
   private val closed = new AtomicBoolean(false)
@@ -92,9 +93,7 @@ class DecommissionSignalMonitor(
           logDebug("Worker is already exiting, skip polling the decommission signal checker.")
         } else if (pollChecker() && !closed.get && triggered.compareAndSet(false, true)) {
           try {
-            logInfo(
-              s"Self-decommission triggered by decommission signal checker $checkerName, " +
-                s"reason: ${reason()}")
+            logInfo(s"Self-decommission triggered by decommission signal checker $checkerName")
             triggerDecommission()
           } catch {
             case e: Throwable if isRecoverable(e) =>
@@ -104,6 +103,8 @@ class DecommissionSignalMonitor(
               task.cancel(false)
             }
           }
+          // Only after the trigger, so a slow getReason() can't hold back the decommission.
+          logInfo(s"Self-decommission reason from $checkerName: ${reason()}")
         }
       }
     } catch {
@@ -137,8 +138,9 @@ class DecommissionSignalMonitor(
   }
 
   /**
-   * Stops polling and closes the checker. Waits up to a few seconds for an in-flight check to
-   * return before closing, so it never blocks indefinitely on a stuck checker.
+   * Stops polling and closes the checker. Waits up to `stopTimeoutMs` for an in-flight check to
+   * return, then calls close() once and waits up to `stopTimeoutMs` for it. A stuck checker never
+   * blocks the worker's shutdown for longer than that.
    */
   def stop(): Unit = {
     if (closed.compareAndSet(false, true)) {
@@ -153,23 +155,42 @@ class DecommissionSignalMonitor(
       }
       if (executor != null) {
         try {
-          if (!executor.awaitTermination(STOP_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+          if (!executor.awaitTermination(stopTimeoutMs, TimeUnit.MILLISECONDS)) {
             logWarning(s"Decommission signal checker $checkerName did not finish within " +
-              s"${STOP_TIMEOUT_MS}ms, closing it anyway")
+              s"${stopTimeoutMs}ms, closing it anyway")
           }
         } catch {
           case _: InterruptedException =>
             Thread.currentThread().interrupt()
         }
       }
-      Utils.tryLogNonFatalError(checker.close())
+      closeChecker()
+    }
+  }
+
+  private def closeChecker(): Unit = {
+    val closer = ThreadUtils.newDaemonThread(
+      new Runnable {
+        override def run(): Unit = Utils.tryLogNonFatalError(checker.close())
+      },
+      "worker-decommission-signal-checker-close")
+    closer.start()
+    try {
+      closer.join(stopTimeoutMs)
+    } catch {
+      case _: InterruptedException =>
+        Thread.currentThread().interrupt()
+    }
+    if (closer.isAlive) {
+      logWarning(s"Decommission signal checker $checkerName did not close within " +
+        s"${stopTimeoutMs}ms, continuing shutdown")
     }
   }
 }
 
 object DecommissionSignalMonitor {
 
-  private val STOP_TIMEOUT_MS = 5000L
+  private[decommission] val STOP_TIMEOUT_MS = 5000L
 
   // Plugins commonly fail with LinkageError (e.g. a missing dependency jar), which NonFatal
   // does not match. Treat it as recoverable so it is logged or reported with the config key.
