@@ -77,4 +77,38 @@ class WorkerStatusManagerSuite extends AnyFunSuite {
     statusManager.doTransition(WorkerEventType.Recommission)
     Assert.assertEquals(statusManager.getWorkerState(), PbWorkerStatus.State.Normal)
   }
+
+  test("only the first accepted exit sets the exit mode and the shutdown hook timeout") {
+    worker = mock[Worker]
+    when(worker.storageManager).thenReturn(mock[StorageManager])
+    when(worker.shutdown).thenReturn(new AtomicBoolean())
+    when(worker.workerInfo).thenReturn(new WorkerInfo(
+      "host",
+      0,
+      0,
+      0,
+      0,
+      0,
+      Maps.newHashMap(),
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]))
+    val statusManager = new WorkerStatusManager(conf)
+    statusManager.init(worker)
+    val timeouts = new java.util.ArrayList[Long]()
+    var exits = 0
+    statusManager.updateShutdownHookTimeout = t => timeouts.add(t)
+    statusManager.systemExitAction = () => exits += 1
+
+    statusManager.doTransition(WorkerEventType.Decommission)
+    Assert.assertEquals(PbWorkerStatus.State.InDecommission, statusManager.getWorkerState())
+    Assert.assertEquals(WorkerEventType.Decommission, statusManager.exitEventType)
+    Assert.assertEquals(java.util.Arrays.asList(conf.workerDecommissionForceExitTimeout), timeouts)
+    Assert.assertEquals(1, exits)
+
+    statusManager.doTransition(WorkerEventType.Graceful)
+    statusManager.doTransition(WorkerEventType.Decommission)
+    Assert.assertEquals(PbWorkerStatus.State.InDecommission, statusManager.getWorkerState())
+    Assert.assertEquals(WorkerEventType.Decommission, statusManager.exitEventType)
+    Assert.assertEquals(1, timeouts.size())
+    Assert.assertEquals(1, exits)
+  }
 }

@@ -18,6 +18,7 @@
 package org.apache.celeborn.service.deploy.worker
 
 import java.util
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.immutable.HashSet
@@ -29,7 +30,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerStatus
 import org.apache.celeborn.common.protocol.PbWorkerStatus.State
 import org.apache.celeborn.common.protocol.WorkerEventType
-import org.apache.celeborn.common.util.ThreadUtils
+import org.apache.celeborn.common.util.{ShutdownHookManager, ThreadUtils}
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager
 
 private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging {
@@ -106,16 +107,28 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
   }
 
   private def exit(eventType: WorkerEventType): Unit = {
-    exitEventType = eventType
-    exitEventType match {
-      case WorkerEventType.Immediately => transitionState(State.InExit)
-      case WorkerEventType.Graceful => transitionState(State.InGraceFul)
-      case WorkerEventType.Decommission => transitionState(State.InDecommission)
-      case _ => // ignore
+    val targetState = eventType match {
+      case WorkerEventType.Immediately => State.InExit
+      case WorkerEventType.Graceful => State.InGraceFul
+      case WorkerEventType.Decommission => State.InDecommission
+      case other => throw new IllegalArgumentException(s"Unsupported exit event type: $other")
     }
+    // Only an accepted exit may change the exit mode and the shutdown hook timeout.
+    if (transitionState(targetState)) {
+      exitEventType = eventType
+      if (eventType == WorkerEventType.Decommission) {
+        updateShutdownHookTimeout(conf.workerDecommissionForceExitTimeout)
+      }
+      systemExitAction()
+    }
+  }
 
-    // Compatible with current exit logic
-    // trigger shutdown hook to exit
+  @volatile private[worker] var updateShutdownHookTimeout: Long => Unit = timeoutMs =>
+    ShutdownHookManager.get().updateTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+
+  // Compatible with current exit logic
+  // trigger shutdown hook to exit. Tests replace it to avoid a real System.exit.
+  @volatile private[worker] var systemExitAction: () => Unit = () =>
     ThreadUtils.newThread(
       new Runnable {
         override def run(): Unit = {
@@ -124,9 +137,8 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
         }
       },
       "worker-exit-thread").start()
-  }
 
-  def transitionState(state: State): Unit = this.synchronized {
+  def transitionState(state: State): Boolean = this.synchronized {
     val allowStates = transitionStateMap.get(currentWorkerStatus.getState)
     if (allowStates != null && allowStates.contains(state)) {
       logInfo(s"Worker transition status from ${currentWorkerStatus.getState} to $state.")
@@ -134,9 +146,11 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
       if (worker != null && worker.workerInfo != null) {
         worker.workerInfo.setWorkerStatus(currentWorkerStatus)
       }
+      true
     } else {
       logWarning(
         s"Worker transition status from ${currentWorkerStatus.getState} to $state is not allowed.")
+      false
     }
   }
 
