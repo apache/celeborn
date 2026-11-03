@@ -1111,8 +1111,9 @@ private[celeborn] class Worker(
     if (workerStatusManager.currentWorkerStatus.getState != State.InDecommission) {
       workerStatusManager.transitionState(State.InDecommission)
     }
-    sendWorkerDecommissionToMaster()
+    // Reject new writes before the master report, which can block on retries.
     shutdown.set(true)
+    sendWorkerDecommissionToMaster()
     val interval = conf.workerDecommissionCheckInterval
     val timeout = conf.workerDecommissionForceExitTimeout
     var waitTimes = 0
