@@ -1035,9 +1035,6 @@ private[celeborn] class Worker(
   override def exit(exitType: String): String = {
     exitType.toUpperCase(Locale.ROOT) match {
       case "DECOMMISSION" =>
-        ShutdownHookManager.get().updateTimeout(
-          conf.workerDecommissionForceExitTimeout,
-          TimeUnit.MILLISECONDS)
         workerStatusManager.doTransition(WorkerEventType.Decommission)
       case "GRACEFUL" =>
         workerStatusManager.doTransition(WorkerEventType.Graceful)
