@@ -299,13 +299,18 @@ class CelebornShuffleReader[K, C](
         // a different physical chunk range for the same logical sub-partition, causing
         // CRC/byte-count mismatches on retry. So we skip the replica preference in that case
         // and always stick with the primary (or previously chosen) location.
+        // CELEBORN-2183. Likewise, open the stream on the peer of a worker that is excluded
+        // after a fetch failure, instead of connecting to the excluded worker again.
         val originLocations = fileGroups.partitionGroups.get(partitionId)
         val hasReplicate = pushReplicateEnabled &&
           originLocations.asScala.exists(p => p != null && p.hasPeer)
+        val isFetchExcluded = (p: PartitionLocation) => shuffleClient.isFetchExcluded(p)
         var locations =
-          if (preferReplicaRead && hasReplicate && !splitSkewPartitionWithoutMapRange) {
+          if (hasReplicate && !splitSkewPartitionWithoutMapRange &&
+            (preferReplicaRead || originLocations.asScala.exists(p =>
+              p != null && p.hasPeer && isFetchExcluded(p)))) {
             originLocations.asScala.map { p =>
-              if (p != null && p.hasPeer) p.getPeer else p
+              CelebornShuffleReader.chooseReadLocation(p, preferReplicaRead, isFetchExcluded)
             }.asJava
           } else {
             originLocations
@@ -651,6 +656,25 @@ class CelebornShuffleReader[K, C](
 
 object CelebornShuffleReader {
   var streamCreatorPool: ThreadPoolExecutor = null
+
+  /**
+   * Chooses which copy of a replicated location to open a stream on. A task attempt with
+   * `preferReplica` starts from the peer (CELEBORN-2032). If the chosen worker is excluded after a
+   * fetch failure, use its peer instead: CelebornInputStream would not read from the excluded
+   * worker anyway, and connecting to it again costs every task the full connection retry budget.
+   */
+  @VisibleForTesting
+  private[celeborn] def chooseReadLocation(
+      location: PartitionLocation,
+      preferReplica: Boolean,
+      isFetchExcluded: PartitionLocation => Boolean): PartitionLocation = {
+    if (location == null || !location.hasPeer) {
+      location
+    } else {
+      val preferred = if (preferReplica) location.getPeer else location
+      if (preferred.hasPeer && isFetchExcluded(preferred)) preferred.getPeer else preferred
+    }
+  }
 
   @VisibleForTesting
   private[celeborn] def tryCreateClient(

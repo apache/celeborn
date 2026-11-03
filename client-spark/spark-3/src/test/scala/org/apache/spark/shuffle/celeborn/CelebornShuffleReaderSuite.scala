@@ -18,9 +18,10 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
+import java.lang.{Long => JLong}
 import java.nio.file.Files
 import java.util.HashSet
-import java.util.concurrent.{CountDownLatch, TimeoutException, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, CountDownLatch, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 
 import org.apache.spark.{Dependency, ShuffleDependency, TaskContext}
@@ -32,6 +33,7 @@ import org.mockito.Mockito._
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.client.{DummyShuffleClient, ShuffleClient}
+import org.apache.celeborn.client.read.CelebornInputStream
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.identity.UserIdentifier
@@ -354,6 +356,39 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
       caller.interrupt()
       caller.join(TimeUnit.SECONDS.toMillis(5))
     }
+  }
+
+  test("open the stream on the peer of a fetch-excluded worker") {
+    val primary = newLocation(0, "worker-0", 19098)
+    val replica =
+      new PartitionLocation(0, 0, "worker-1", 0, 0, 19098, 0, PartitionLocation.Mode.REPLICA)
+    primary.setPeer(replica)
+    replica.setPeer(primary)
+    val excludedWorkers = new ConcurrentHashMap[String, JLong]()
+    val isFetchExcluded = (location: PartitionLocation) =>
+      CelebornInputStream.isExcluded(excludedWorkers, TimeUnit.MINUTES.toMillis(10), location)
+
+    // Nothing excluded: the primary, or the replica for a task attempt that prefers it.
+    assert(CelebornShuffleReader.chooseReadLocation(primary, false, isFetchExcluded) eq primary)
+    assert(CelebornShuffleReader.chooseReadLocation(primary, true, isFetchExcluded) eq replica)
+
+    excludedWorkers.put(primary.hostAndFetchPort, System.currentTimeMillis())
+    assert(CelebornShuffleReader.chooseReadLocation(primary, false, isFetchExcluded) eq replica)
+    assert(CelebornShuffleReader.chooseReadLocation(primary, true, isFetchExcluded) eq replica)
+
+    excludedWorkers.clear()
+    excludedWorkers.put(replica.hostAndFetchPort, System.currentTimeMillis())
+    assert(CelebornShuffleReader.chooseReadLocation(primary, false, isFetchExcluded) eq primary)
+    assert(CelebornShuffleReader.chooseReadLocation(primary, true, isFetchExcluded) eq primary)
+
+    // Both excluded: keep the one excluded earlier, as CelebornInputStream does.
+    excludedWorkers.put(primary.hostAndFetchPort, System.currentTimeMillis() - 1000)
+    assert(CelebornShuffleReader.chooseReadLocation(primary, false, isFetchExcluded) eq primary)
+    assert(CelebornShuffleReader.chooseReadLocation(primary, true, isFetchExcluded) eq primary)
+
+    // Without a peer there is nothing to switch to.
+    val single = newLocation(1, "worker-0", 19098)
+    assert(CelebornShuffleReader.chooseReadLocation(single, false, isFetchExcluded) eq single)
   }
 
   test("FetchFailureException message includes workerHost") {

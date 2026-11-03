@@ -500,6 +500,14 @@ public abstract class ShuffleClient {
 
   public abstract void excludeFailedFetchLocation(String hostAndFetchPort, Exception e);
 
+  /**
+   * Whether reading {@code location} would be skipped because its worker was excluded by {@link
+   * #excludeFailedFetchLocation}.
+   */
+  public boolean isFetchExcluded(PartitionLocation location) {
+    return false;
+  }
+
   public static void registerDeserializeReducerFileGroupResponseFunction(
       BiFunction<Integer, byte[], ControlMessages.GetReducerFileGroupResponse> function) {
     if (!deserializeReducerFileGroupResponseFunction.isPresent()) {
