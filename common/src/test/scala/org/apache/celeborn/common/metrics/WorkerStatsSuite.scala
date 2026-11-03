@@ -35,7 +35,7 @@ class WorkerStatsSuite extends AnyFunSuite {
   private val status = new WorkerStatus(PbWorkerStatus.State.InDecommissionThenIdle_VALUE, 42L)
   private val stats = WorkerStats(
     Map(
-      WorkerStats.NettyMemoryUsedRatio -> 0.0,
+      WorkerStats.MemoryPressureRatio -> 0.0,
       WorkerStats.DiskRemainingSize -> 1024.0,
       "CustomMetric" -> 0.75))
 

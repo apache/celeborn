@@ -20,7 +20,13 @@ package org.apache.celeborn.common.metrics
 case class WorkerStats(metrics: Map[String, Double])
 
 object WorkerStats {
-  val NettyMemoryUsedRatio = "NettyMemoryUsedRatio"
+
+  /**
+   * The default collector uses MemoryManager's pressure accounting: Netty-tracked direct memory
+   * plus sorting reservations, averaged and divided by the worker's maximum direct memory.
+   * This is not a measurement of total actual direct memory usage.
+   */
+  val MemoryPressureRatio = "MemoryPressureRatio"
   val LastMinuteSystemLoadRatio = "LastMinuteSystemLoadRatio"
   val DiskUsedRatio = "DiskUsedRatio"
   val DiskRemainingSize = "DiskRemainingSize"

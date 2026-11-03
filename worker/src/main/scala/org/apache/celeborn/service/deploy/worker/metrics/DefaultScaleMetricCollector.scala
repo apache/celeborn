@@ -82,7 +82,7 @@ class DefaultScaleMetricCollector private[metrics] (
     val capacity = context.maxDirectMemory
     val used = context.memoryUsage
     memoryWindow.update(used)
-    Map(WorkerStats.NettyMemoryUsedRatio -> (memoryWindow.average / capacity))
+    Map(WorkerStats.MemoryPressureRatio -> (memoryWindow.average / capacity))
   }
 
   private def systemLoadMetrics(): Map[String, Double] = {

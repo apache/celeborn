@@ -57,7 +57,7 @@ class WorkerStatsIntegrationSuite extends AnyFunSuite
     assert(master.statusSystem.workersMap.containsKey(workers.head.workerInfo.toUniqueId))
     eventually {
       val stats = master.statusSystem.workerStats.get(workers.head.workerInfo).get()
-      assert(stats.metrics.contains(WorkerStats.NettyMemoryUsedRatio))
+      assert(stats.metrics.contains(WorkerStats.MemoryPressureRatio))
       assert(stats.metrics.contains(WorkerStats.DiskRemainingSize))
     }
   }

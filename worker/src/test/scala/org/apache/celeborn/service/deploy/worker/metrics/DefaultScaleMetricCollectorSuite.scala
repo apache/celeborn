@@ -17,12 +17,14 @@
 
 package org.apache.celeborn.service.deploy.worker.metrics
 
-import java.lang.management.OperatingSystemMXBean
-import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.lang.management.{ManagementFactory, OperatingSystemMXBean}
+import java.util.concurrent.{CountDownLatch, FutureTask, TimeUnit}
 import java.util.concurrent.atomic.AtomicLong
 
 import org.mockito.MockitoSugar._
+import org.scalatest.concurrent.Eventually
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.time.{Millis, Seconds, Span}
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.{DiskInfo, DiskStatus}
@@ -32,7 +34,7 @@ import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager
 
-class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
+class DefaultScaleMetricCollectorSuite extends AnyFunSuite with Eventually {
   private class Fixture(windowSize: Int) {
     val memory = mock[MemoryManager]
     val storage = mock[StorageManager]
@@ -72,7 +74,7 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
       second.setTotalSpace(1024L)
       when(f.storage.localDisksSnapshot()).thenReturn(List(f.disk, second))
       assert(f.collect() == Map(
-        WorkerStats.NettyMemoryUsedRatio -> 0.25,
+        WorkerStats.MemoryPressureRatio -> 0.25,
         WorkerStats.LastMinuteSystemLoadRatio -> 0.5,
         WorkerStats.DiskUsedRatio -> 0.625,
         WorkerStats.DiskRemainingSize -> 768.0))
@@ -168,15 +170,30 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
     }
   }
 
+  test("memory pressure ratio includes sorting reservations") {
+    withFixture() { f =>
+      when(f.memory.getNettyUsedDirectMemory).thenReturn(256L)
+      // The combined usage includes 256 bytes reserved for sorting.
+      when(f.memory.getMemoryUsage).thenReturn(512L)
+      val reserved = f.collect()
+      assert(reserved("MemoryPressureRatio") == 0.5)
+      assert(!reserved.contains("NettyMemoryUsedRatio"))
+
+      // Releasing the reservation lowers the ratio while Netty usage stays constant.
+      when(f.memory.getMemoryUsage).thenReturn(256L)
+      assert(f.collect()(WorkerStats.MemoryPressureRatio) == 0.25)
+    }
+  }
+
   test("reports zero until the memory window fills, then reports the sliding average") {
     withFixture(2) { f =>
       when(f.memory.getMemoryUsage).thenReturn(512L)
-      assert(f.collect()(WorkerStats.NettyMemoryUsedRatio) == 0.0)
+      assert(f.collect()(WorkerStats.MemoryPressureRatio) == 0.0)
       when(f.memory.getMemoryUsage).thenReturn(1024L)
-      assert(f.collect()(WorkerStats.NettyMemoryUsedRatio) == 0.75)
+      assert(f.collect()(WorkerStats.MemoryPressureRatio) == 0.75)
       when(f.memory.getMemoryUsage).thenReturn(0L)
-      assert(f.collect()(WorkerStats.NettyMemoryUsedRatio) == 0.5)
-      assert(f.collect()(WorkerStats.NettyMemoryUsedRatio) == 0.0)
+      assert(f.collect()(WorkerStats.MemoryPressureRatio) == 0.5)
+      assert(f.collect()(WorkerStats.MemoryPressureRatio) == 0.0)
     }
   }
 
@@ -187,11 +204,11 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
       when(f.storage.localDisksSnapshot()).thenReturn(List.empty)
       val metrics = f.collect()
       assert(metrics.keySet == Set(
-        WorkerStats.NettyMemoryUsedRatio,
+        WorkerStats.MemoryPressureRatio,
         WorkerStats.LastMinuteSystemLoadRatio,
         WorkerStats.DiskUsedRatio,
         WorkerStats.DiskRemainingSize))
-      assert(metrics(WorkerStats.NettyMemoryUsedRatio) == Double.PositiveInfinity)
+      assert(metrics(WorkerStats.MemoryPressureRatio) == Double.PositiveInfinity)
       assert(metrics(WorkerStats.LastMinuteSystemLoadRatio) == -0.25)
       assert(metrics(WorkerStats.DiskUsedRatio).isNaN)
       assert(metrics(WorkerStats.DiskRemainingSize) == 0.0)
@@ -207,6 +224,62 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
       val metrics = f.collect()
       assert(math.abs(metrics(WorkerStats.DiskUsedRatio) - 1.0 / 3) < 1e-12)
       assert(metrics(WorkerStats.DiskRemainingSize) == 768.0)
+    }
+  }
+
+  test("disk sampling waits for a complete capacity refresh during expansion") {
+    withFixture() { f =>
+      val usableSpaceUpdated = new CountDownLatch(1)
+      val finishRefresh = new CountDownLatch(1)
+      val disk = new DiskInfo("/expanding", List.empty, null, f.conf) {
+        override def setTotalSpace(totalSpace: Long): this.type = {
+          if (totalSpace == 200L) {
+            // updateDiskInfos has already written the new usable space at this point.
+            usableSpaceUpdated.countDown()
+            assert(finishRefresh.await(30, TimeUnit.SECONDS))
+          }
+          super.setTotalSpace(totalSpace)
+        }
+      }
+      disk.configuredUsableSpace = Long.MaxValue
+      disk.setTotalSpace(100L).setUsableSpace(50L)
+      when(f.storage.localDisksSnapshot()).thenReturn(List(disk))
+      when(f.storage.getFileSystemReportedSpace(disk.mountPoint)).thenReturn((150L, 200L))
+      doCallRealMethod.when(f.storage).updateDiskInfos()
+      val before = f.collect()
+      assert(before(WorkerStats.DiskUsedRatio) == 0.5)
+
+      val refreshTask = new FutureTask[Unit](() => f.storage.updateDiskInfos())
+      val refreshThread = new Thread(refreshTask, "scale-metric-disk-refresh-test")
+      val sampleTask = new FutureTask[Map[String, Double]](() => f.collect())
+      val sampleThread = new Thread(sampleTask, "scale-metric-disk-sample-test")
+      refreshThread.setDaemon(true)
+      sampleThread.setDaemon(true)
+      try {
+        refreshThread.start()
+        assert(usableSpaceUpdated.await(10, TimeUnit.SECONDS))
+        sampleThread.start()
+        eventually(timeout(Span(10, Seconds)), interval(Span(10, Millis))) {
+          val threadInfo = ManagementFactory.getThreadMXBean.getThreadInfo(sampleThread.getId)
+          assert(sampleTask.isDone ||
+            (threadInfo != null && threadInfo.getThreadState == Thread.State.BLOCKED &&
+              threadInfo.getLockOwnerId == refreshThread.getId))
+        }
+        if (sampleTask.isDone) {
+          fail(s"Sampled an incomplete disk refresh: ${sampleTask.get(10, TimeUnit.SECONDS)}")
+        }
+        assert(f.collector.currentWorkerStats().get.metrics == before)
+
+        finishRefresh.countDown()
+        refreshTask.get(10, TimeUnit.SECONDS)
+        val after = sampleTask.get(10, TimeUnit.SECONDS)
+        assert(after(WorkerStats.DiskUsedRatio) == 0.25)
+        assert(after(WorkerStats.DiskRemainingSize) == 150.0)
+      } finally {
+        finishRefresh.countDown()
+        refreshThread.join(10000)
+        sampleThread.join(10000)
+      }
     }
   }
 
@@ -232,7 +305,7 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
     withFixture(2) { f =>
       f.collect()
       when(f.memory.getMemoryUsage).thenReturn(512L)
-      assert(f.collect()(WorkerStats.NettyMemoryUsedRatio) == 0.375)
+      assert(f.collect()(WorkerStats.MemoryPressureRatio) == 0.375)
       val cached = f.collector.currentWorkerStats()
       when(f.memory.getMemoryUsage).thenReturn(768L)
       when(f.os.getSystemLoadAverage).thenReturn(6.0)
@@ -243,7 +316,7 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite {
       doReturn(List(f.disk)).when(f.storage).localDisksSnapshot()
       when(f.memory.getMemoryUsage).thenReturn(1024L)
       val recovered = f.collect()
-      assert(recovered(WorkerStats.NettyMemoryUsedRatio) == 0.875)
+      assert(recovered(WorkerStats.MemoryPressureRatio) == 0.875)
       assert(recovered(WorkerStats.LastMinuteSystemLoadRatio) == 1.5)
     }
   }

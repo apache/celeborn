@@ -40,7 +40,7 @@ class WorkerStatsHeartbeatSuite extends AnyFunSuite
 
   private var master: Master = _
   private val worker = new WorkerInfo("localhost", 19101, 19102, 19103, 19104)
-  private val stats = WorkerStats(Map(WorkerStats.NettyMemoryUsedRatio -> 0.5))
+  private val stats = WorkerStats(Map(WorkerStats.MemoryPressureRatio -> 0.5))
 
   private def currentStats: Option[WorkerStats] =
     Option(master.statusSystem.workerStats.get(worker)).flatMap(ref => Option(ref.get()))
@@ -102,7 +102,7 @@ class WorkerStatsHeartbeatSuite extends AnyFunSuite
     heartbeat(Some(stats))
     register()
     assert(currentStats.isEmpty)
-    val restarted = WorkerStats(Map(WorkerStats.NettyMemoryUsedRatio -> 0.25))
+    val restarted = WorkerStats(Map(WorkerStats.MemoryPressureRatio -> 0.25))
     assert(heartbeat(Some(restarted)).registered)
     assert(currentStats.contains(restarted))
     lose()
@@ -143,7 +143,7 @@ class WorkerStatsHeartbeatSuite extends AnyFunSuite
   for (value <- Seq(Some(stats), None)) {
     test(s"a heartbeat with $value from before re-registration cannot change the new stats") {
       register()
-      val restarted = WorkerStats(Map(WorkerStats.NettyMemoryUsedRatio -> 0.25))
+      val restarted = WorkerStats(Map(WorkerStats.MemoryPressureRatio -> 0.25))
       whileHeartbeatBlocked(value) {
         register()
         assert(currentStats.isEmpty)

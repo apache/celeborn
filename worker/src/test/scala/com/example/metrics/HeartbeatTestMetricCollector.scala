@@ -47,7 +47,7 @@ class HeartbeatTestMetricCollector(conf: CelebornConf) extends ScaleMetricCollec
 
 object HeartbeatTestMetricCollector {
   val stats = WorkerStats(Map(
-    WorkerStats.NettyMemoryUsedRatio -> 0.5,
+    WorkerStats.MemoryPressureRatio -> 0.5,
     "CustomMetric" -> 1.0))
   val starts = new AtomicInteger()
   val stops = new AtomicInteger()

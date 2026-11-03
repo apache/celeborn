@@ -6347,8 +6347,11 @@ object CelebornConf extends Logging {
       .categories("metrics")
       .version("1.0.0")
       .doc("Number of memory usage samples averaged by the default worker scaling metric " +
-        "collector. Only NettyMemoryUsedRatio uses this window; disk and system load metrics " +
-        "do not. The memory ratio is zero until the window fills, so zero during warm-up " +
+        "collector. Only MemoryPressureRatio uses this window; disk and system load metrics " +
+        "do not. Each sample follows MemoryManager pressure accounting: Netty-tracked direct " +
+        "memory plus memory reserved for sorting. The averaged value is divided by the worker's " +
+        "maximum direct memory. This is not a measurement of total actual direct memory usage. " +
+        "The memory pressure ratio is zero until the window fills, so zero during warm-up " +
         "does not indicate idle memory.")
       .intConf
       .checkValue(_ > 0, "Worker metric memory window size must be positive")

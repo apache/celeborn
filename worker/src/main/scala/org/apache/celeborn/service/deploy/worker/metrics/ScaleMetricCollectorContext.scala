@@ -29,7 +29,7 @@ final class ScaleMetricCollectorContext private[worker] (
 
   def maxDirectMemory: Long = memoryManager.maxDirectMemory
 
-  /** Current Netty direct memory usage plus memory reserved for sorting. */
+  /** MemoryManager pressure accounting: Netty-tracked direct memory plus sorting reservations. */
   def memoryUsage: Long = memoryManager.getMemoryUsage
 
   /** Current local disk capacity, accounting for configured limits, reserves and disk health. */
