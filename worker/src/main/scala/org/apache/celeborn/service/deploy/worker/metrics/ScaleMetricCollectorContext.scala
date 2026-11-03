@@ -33,7 +33,8 @@ final class ScaleMetricCollectorContext private[worker] (
   def memoryUsage: Long = memoryManager.getMemoryUsage
 
   /** Current local disk capacity, accounting for configured limits, reserves and disk health. */
-  def localDiskUsage(): DiskUsage = {
+  def localDiskUsage(): DiskUsage = storageManager.synchronized {
+    // Share the updateDiskInfos monitor so usable space and capacity come from a complete refresh.
     val disks = storageManager.localDisksSnapshot()
     val usableBytes = disks.filter(_.isHealthy).map(_.actualUsableSpace.toDouble).sum
     val effectiveCapacityBytes = disks.map { disk =>
