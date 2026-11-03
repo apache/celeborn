@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReferenc
 import scala.concurrent.duration._
 
 import com.google.common.collect.{Maps, Sets}
+import com.google.common.util.concurrent.Uninterruptibles
 import org.mockito.MockitoSugar.{mock, when}
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually.{eventually, interval, timeout}
@@ -78,7 +79,8 @@ class DecommissionSignalMonitorSuite extends AnyFunSuite with BeforeAndAfterEach
 
   private def newMonitor(
       checker: DecommissionSignalChecker,
-      intervalMs: Long = 100): DecommissionSignalMonitor = {
+      intervalMs: Long = 100,
+      stopTimeoutMs: Long = 5000): DecommissionSignalMonitor = {
     monitor = new DecommissionSignalMonitor(
       checker,
       intervalMs,
@@ -86,7 +88,8 @@ class DecommissionSignalMonitorSuite extends AnyFunSuite with BeforeAndAfterEach
       () => {
         triggerCount.incrementAndGet()
         statusManager.doTransition(WorkerEventType.Decommission)
-      })
+      },
+      stopTimeoutMs)
     monitor
   }
 
@@ -136,6 +139,90 @@ class DecommissionSignalMonitorSuite extends AnyFunSuite with BeforeAndAfterEach
     assert(m.isTriggered)
     assert(triggerCount.get == 1)
     assert(statusManager.getWorkerState() == State.InDecommission)
+  }
+
+  test("a blocked getReason does not hold back the trigger") {
+    val inReason = new CountDownLatch(1)
+    val release = new CountDownLatch(1)
+    val m = newMonitor(new DecommissionSignalChecker {
+      override def shouldDecommission(): Boolean = true
+      override def getReason: String = {
+        inReason.countDown()
+        Uninterruptibles.awaitUninterruptibly(release)
+        "late reason"
+      }
+    })
+    val poller = new Thread(new Runnable {
+      override def run(): Unit = m.checkOnce()
+    })
+    poller.setDaemon(true)
+    poller.start()
+    try {
+      assert(inReason.await(5, TimeUnit.SECONDS))
+      assert(triggerCount.get == 1)
+      assert(statusManager.getWorkerState() == State.InDecommission)
+    } finally {
+      release.countDown()
+      poller.join(5000)
+    }
+  }
+
+  test("stop does not wait forever on a check that ignores interrupts") {
+    val inCheck = new CountDownLatch(1)
+    val release = new CountDownLatch(1)
+    val checkRunning = new AtomicBoolean(false)
+    val closedDuringCheck = new AtomicBoolean(false)
+    val m = newMonitor(
+      new DecommissionSignalChecker {
+        override def shouldDecommission(): Boolean = {
+          checkRunning.set(true)
+          inCheck.countDown()
+          Uninterruptibles.awaitUninterruptibly(release)
+          checkRunning.set(false)
+          false
+        }
+        override def close(): Unit = closedDuringCheck.set(checkRunning.get)
+      },
+      intervalMs = 10,
+      stopTimeoutMs = 200)
+    m.start()
+    try {
+      assert(inCheck.await(5, TimeUnit.SECONDS))
+      val start = System.nanoTime()
+      m.stop()
+      assert(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start) < 3000)
+      assert(closedDuringCheck.get)
+    } finally {
+      release.countDown()
+    }
+  }
+
+  test("stop does not wait forever on a blocked close") {
+    val inClose = new CountDownLatch(1)
+    val release = new CountDownLatch(1)
+    val m = newMonitor(
+      new DecommissionSignalChecker {
+        override def shouldDecommission(): Boolean = false
+        override def close(): Unit = {
+          inClose.countDown()
+          Uninterruptibles.awaitUninterruptibly(release)
+        }
+      },
+      intervalMs = 60000,
+      stopTimeoutMs = 200)
+    m.start()
+    val stopper = new Thread(new Runnable {
+      override def run(): Unit = m.stop()
+    })
+    stopper.setDaemon(true)
+    stopper.start()
+    try {
+      stopper.join(3000)
+      assert(inClose.getCount == 0)
+      assert(!stopper.isAlive)
+    } finally {
+      release.countDown()
+    }
   }
 
   test("stop waits for an in-flight check before closing the checker") {

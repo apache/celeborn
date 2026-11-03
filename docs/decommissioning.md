@@ -94,6 +94,9 @@ Things to know:
   worker fails to start with an error that names the config key and the class.
 - The default `NoOpDecommissionSignalChecker` never signals, and the worker starts no polling
   thread for it.
+- Clear the signal before restarting a decommissioned worker. If it's still there (for example,
+  the marker file still exists), the restarted worker decommissions itself again after one check
+  interval.
 
 ### File-based checker
 
@@ -141,8 +144,23 @@ pod once `terminationGracePeriodSeconds` runs out, so set it larger than that ti
 ### Custom checker
 
 Put a class like the one below on the worker classpath. It needs a public constructor that takes
-a `CelebornConf`. `shouldDecommission` is called from a single dedicated thread and should return
-quickly, and `close` is called once when the worker stops.
+a `CelebornConf`. The worker calls the checker like this:
+
+1. `shouldDecommission` runs every check interval on a single dedicated thread, so calls never
+   overlap.
+2. The first time it returns `true`, the worker triggers the decommission, stops polling, and then
+   calls `getReason` once for its log.
+3. When the worker stops, it interrupts the polling thread, waits up to 5s for an in-flight check,
+   and then calls `close` once.
+
+Implementations must follow these rules:
+
+- `shouldDecommission`, `getReason` and `close` must all return quickly and put their own timeouts
+  on any I/O, such as an HTTP call to a metadata endpoint. The worker doesn't time them out, and a
+  check that blocks forever means the signal is never acted on.
+- `close` can run while a `shouldDecommission` call is still in flight, if that call ignored the
+  interrupt and outlived the 5s wait. So `close` must be thread-safe against that call and must not
+  wait for it. The worker also stops waiting for `close` after 5s and keeps shutting down.
 
 ```java
 import org.apache.celeborn.common.CelebornConf;
