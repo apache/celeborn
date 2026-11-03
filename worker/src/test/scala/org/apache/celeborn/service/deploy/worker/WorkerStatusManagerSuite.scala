@@ -77,4 +77,34 @@ class WorkerStatusManagerSuite extends AnyFunSuite {
     statusManager.doTransition(WorkerEventType.Recommission)
     Assert.assertEquals(statusManager.getWorkerState(), PbWorkerStatus.State.Normal)
   }
+
+  test("an accepted decommission rejects new writes and reports to the master right away") {
+    worker = mock[Worker]
+    val shutdown = new AtomicBoolean()
+    when(worker.storageManager).thenReturn(mock[StorageManager])
+    when(worker.shutdown).thenReturn(shutdown)
+    when(worker.workerInfo).thenReturn(new WorkerInfo(
+      "host",
+      0,
+      0,
+      0,
+      0,
+      0,
+      Maps.newHashMap(),
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]))
+    val statusManager = new WorkerStatusManager(conf)
+    statusManager.init(worker)
+    statusManager.systemExitAction = () => ()
+
+    statusManager.doTransition(WorkerEventType.Graceful)
+    Assert.assertFalse(shutdown.get())
+
+    val decommissioning = new WorkerStatusManager(conf)
+    decommissioning.init(worker)
+    decommissioning.systemExitAction = () => ()
+    decommissioning.doTransition(WorkerEventType.Decommission)
+    Assert.assertEquals(PbWorkerStatus.State.InDecommission, decommissioning.getWorkerState())
+    Assert.assertTrue(shutdown.get())
+    verify(worker, timeout(5000).times(1)).sendWorkerDecommissionToMaster()
+  }
 }
