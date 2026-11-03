@@ -31,7 +31,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 import org.junit.After;
 import org.junit.Before;
@@ -43,35 +42,24 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.common.util.Utils;
-import org.apache.celeborn.service.deploy.master.ApplicationMetricsSource;
 
 public class RegisteredShuffleSetSuiteJ {
   @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   private CelebornRackResolver rackResolver;
-  private ApplicationMetricsSource metricsSource;
   private AbstractMetaManager metaManager;
 
   @Before
   public void setUp() {
     CelebornConf conf = new CelebornConf();
     rackResolver = new CelebornRackResolver(conf);
-    metricsSource = new ApplicationMetricsSource(conf);
-    metaManager =
-        new SingleMasterMetaManager(mock(RpcEnv.class), conf, rackResolver, metricsSource);
+    metaManager = new SingleMasterMetaManager(mock(RpcEnv.class), conf, rackResolver);
   }
 
   @After
-  public void tearDown() throws InterruptedException {
-    try {
-      if (metricsSource != null) {
-        metricsSource.destroy();
-        assertTrue(metricsSource.metricsCleaner().awaitTermination(5, TimeUnit.SECONDS));
-      }
-    } finally {
-      if (rackResolver != null) {
-        rackResolver.stop();
-      }
+  public void tearDown() {
+    if (rackResolver != null) {
+      rackResolver.stop();
     }
   }
 
