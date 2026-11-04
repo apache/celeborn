@@ -787,6 +787,9 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
     get(key, haMasterNodeHost(nodeId))
   }
 
+  def haMasterClientHostConfigured(nodeId: String): Boolean =
+    getOption(HA_MASTER_NODE_CLIENT_HOST.key.replace("<id>", nodeId)).exists(_.nonEmpty)
+
   def haMasterRatisPort(nodeId: String): Int = {
     val key = HA_MASTER_NODE_RATIS_PORT.key.replace("<id>", nodeId)
     val legacyKey = HA_MASTER_NODE_RATIS_PORT.alternatives.head._1.replace("<id>", nodeId)

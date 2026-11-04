@@ -110,4 +110,13 @@ class HAConfSuite extends CelebornFunSuite {
     assert(conf.haMasterNodeHost("1") === "clb-1")
     assert(conf.haMasterRatisHost("1") === "clb-1")
   }
+
+  test("client host is reported as configured only when set explicitly") {
+    val conf = new CelebornConf()
+      .set(s"$NEW_HA_PREFIX.node.1.host", "clb-1")
+      .set(s"$NEW_HA_PREFIX.node.2.host", "clb-2")
+      .set(s"$NEW_HA_PREFIX.node.2.client.host", "clb-2.external")
+    assert(!conf.haMasterClientHostConfigured("1"))
+    assert(conf.haMasterClientHostConfigured("2"))
+  }
 }
