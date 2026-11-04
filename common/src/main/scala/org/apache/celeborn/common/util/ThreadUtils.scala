@@ -463,9 +463,9 @@ case class ThreadStackTrace(
       s""""$threadName" Id=$threadId $threadState""")
     lockName.foreach(lock => sb.append(s" on $lock"))
     lockOwnerName.foreach {
-      owner => sb.append(s"""owned by "$owner"""")
+      owner => sb.append(s""" owned by "$owner"""")
     }
-    blockedByThreadId.foreach(id => s" Id=$id")
+    blockedByThreadId.foreach(id => sb.append(s" Id=$id"))
     if (suspended) sb.append(" (suspended)")
     if (inNative) sb.append(" (in native)")
     sb.append('\n')
