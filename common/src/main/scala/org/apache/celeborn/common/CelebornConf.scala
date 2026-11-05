@@ -6423,7 +6423,8 @@ object CelebornConf extends Logging {
       .dynamic
       .version("1.0.0")
       .doc("Maximum worker count used for demand estimates and exclusion compensation. " +
-        "An existing target above this limit converges through the scale-down step budget.")
+        "An existing target above this limit converges through the scale-down step budget, " +
+        "including workers not yet registered.")
       .intConf
       .checkValue(_ > 0, "Maximum worker count must be positive")
       .createWithDefault(2000)
@@ -6438,26 +6439,30 @@ object CelebornConf extends Logging {
       .booleanConf
       .createWithDefault(false)
 
-  val SCALE_UP_MEMORY_RATIO: ConfigEntry[Double] =
-    buildConf("celeborn.scale.up.directMemory.ratio")
+  val SCALE_UP_MEMORY_PRESSURE_RATIO: ConfigEntry[Double] =
+    buildConf("celeborn.scale.up.memoryPressure.ratio")
       .categories("master")
       .dynamic
       .version("1.0.0")
-      .doc("Average Netty memory used ratio above which to consider scale-up. " +
+      .doc("Average MemoryPressureRatio above which to consider scale-up. The metric averages " +
+        "Netty-tracked direct memory plus sorting reservations over the memory window and divides " +
+        "by maximum direct memory; it does not measure total actual direct memory usage. " +
         "Also divides the sum of worker ratios to estimate the required worker count.")
       .doubleConf
-      .checkValue(v => v > 0 && v <= 1, "Scale-up memory ratio must be in (0, 1]")
+      .checkValue(v => v > 0 && v <= 1, "Scale-up memory pressure ratio must be in (0, 1]")
       .createWithDefault(0.5)
 
-  val SCALE_DOWN_MEMORY_RATIO: ConfigEntry[Double] =
-    buildConf("celeborn.scale.down.directMemory.ratio")
+  val SCALE_DOWN_MEMORY_PRESSURE_RATIO: ConfigEntry[Double] =
+    buildConf("celeborn.scale.down.memoryPressure.ratio")
       .categories("master")
       .dynamic
       .version("1.0.0")
-      .doc("Average Netty memory used ratio below which to consider scale-down. " +
+      .doc("Average MemoryPressureRatio below which to consider scale-down. The metric averages " +
+        "Netty-tracked direct memory plus sorting reservations over the memory window and divides " +
+        "by maximum direct memory; it does not measure total actual direct memory usage. " +
         "Must be below the scale-up ratio; also used to estimate the required worker count.")
       .doubleConf
-      .checkValue(v => v > 0 && v <= 1, "Scale-down memory ratio must be in (0, 1]")
+      .checkValue(v => v > 0 && v <= 1, "Scale-down memory pressure ratio must be in (0, 1]")
       .createWithDefault(0.3)
 
   val SCALE_UP_SYSTEM_LOAD_RATIO: ConfigEntry[Double] =
@@ -6546,7 +6551,8 @@ object CelebornConf extends Logging {
       .categories("master")
       .dynamic
       .version("1.0.0")
-      .doc("Scale-down budget as a fraction of the total current worker count, rounded down. " +
+      .doc("Scale-down budget as a fraction of the registered worker count, or the platform " +
+        "target when it exceeds the maximum worker count, rounded down. " +
         "Combined with the fixed budget and the estimated difference using the minimum.")
       .doubleConf
       .checkValue(v => v > 0 && v <= 1, "Scale-down percent must be in (0, 1]")
