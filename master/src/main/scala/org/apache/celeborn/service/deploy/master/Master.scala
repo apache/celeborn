@@ -41,7 +41,7 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
-import org.apache.celeborn.common.metrics.{ClientMetric, MetricsSystem, MetricType}
+import org.apache.celeborn.common.metrics.{ClientMetric, MetricsSystem, MetricType, WorkerStats}
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, Role, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.CelebornRackResolver
 import org.apache.celeborn.common.network.protocol.{TransportMessage, TransportMessagesHelper}
@@ -580,6 +580,7 @@ private[celeborn] class Master(
           activeShuffleKey,
           highWorkload,
           workerStatus,
+          workerStats,
           requestId) =>
       logDebug(s"Received heartbeat from" +
         s" worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort with $disks.")
@@ -597,6 +598,7 @@ private[celeborn] class Master(
           activeShuffleKey,
           highWorkload,
           workerStatus,
+          workerStats,
           requestId))
 
     case ReportWorkerUnavailable(failedWorkers: util.List[WorkerInfo], requestId: String) =>
@@ -740,8 +742,10 @@ private[celeborn] class Master(
       activeShuffleKeys: util.Set[String],
       highWorkload: Boolean,
       workerStatus: WorkerStatus,
+      workerStats: Option[WorkerStats],
       requestId: String): Unit = {
     val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
+    val statsRef = Option(statusSystem.workerStats.get(targetWorker))
     val registered = statusSystem.workersMap.containsKey(targetWorker.toUniqueId)
     if (!registered) {
       logWarning(s"Received heartbeat from unknown worker " +
@@ -759,6 +763,8 @@ private[celeborn] class Master(
         highWorkload,
         workerStatus,
         requestId)
+      // Worker loss or re-registration detaches this reference from the current cache.
+      statsRef.foreach(_.set(workerStats.orNull))
     }
 
     val expiredShuffleKeys = new util.HashSet[String]

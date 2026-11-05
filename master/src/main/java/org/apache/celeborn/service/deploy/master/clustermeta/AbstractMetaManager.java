@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
@@ -47,6 +48,7 @@ import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerEventInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.metrics.WorkerStats;
 import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.protocol.PbSnapshotMetaInfo;
 import org.apache.celeborn.common.protocol.PbWorkerStatus;
@@ -73,6 +75,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       JavaUtils.newConcurrentHashMap();
   public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
   public final Map<String, WorkerInfo> workersMap = JavaUtils.newConcurrentHashMap();
+  public final Map<WorkerInfo, AtomicReference<WorkerStats>> workerStats =
+      JavaUtils.newConcurrentHashMap();
   public final Set<WorkerInfo> availableWorkers = ConcurrentHashMap.newKeySet();
 
   public final ConcurrentHashMap<WorkerInfo, Long> lostWorkers = JavaUtils.newConcurrentHashMap();
@@ -257,6 +261,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     // remove worker from workers
     synchronized (workersMap) {
       workersMap.remove(worker.toUniqueId());
+      workerStats.remove(worker);
       lostWorkers.put(worker, System.currentTimeMillis());
       availableWorkers.remove(worker);
     }
@@ -406,6 +411,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     workerInfo.updateDiskSlots(estimatedPartitionSize);
     synchronized (workersMap) {
       workersMap.putIfAbsent(workerInfo.toUniqueId(), workerInfo);
+      workerStats.put(workerInfo, new AtomicReference<>());
       shutdownWorkers.remove(workerInfo);
       lostWorkers.remove(workerInfo);
       excludedWorkers.remove(workerInfo);
@@ -511,6 +517,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                     }
                   })
               .collect(Collectors.toMap(WorkerInfo::toUniqueId, w -> w)));
+      workersMap.values().forEach(worker -> workerStats.put(worker, new AtomicReference<>()));
 
       snapshotMetaInfo
           .getLostWorkersMap()
@@ -576,6 +583,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     registeredAppAndShuffles.clear();
     hostnameSet.clear();
     workersMap.clear();
+    workerStats.clear();
     availableWorkers.clear();
     lostWorkers.clear();
     appHeartbeatTime.clear();
