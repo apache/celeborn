@@ -28,6 +28,9 @@ import scala.collection.mutable
 import com.example.metrics.ControlledWorkerStatsCollector
 import org.apache.ratis.protocol.TransferLeadershipRequest
 import org.apache.ratis.rpc.CallId
+import org.mockito.AdditionalAnswers.delegatesTo
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito
 import org.scalatest.concurrent.Eventually
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.time.{Millis, Seconds, Span}
@@ -35,13 +38,16 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.apache.celeborn.RandomPortSupport
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
+import org.apache.celeborn.common.exception.CelebornRuntimeException
 import org.apache.celeborn.common.meta.WorkerStatus
 import org.apache.celeborn.common.metrics.WorkerStats
 import org.apache.celeborn.common.protocol.RpcNameConstants
 import org.apache.celeborn.common.protocol.message.ControlMessages.{HeartbeatFromWorker, HeartbeatFromWorkerResponse}
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcCallContext, RpcEndpointRef}
 import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, Utils}
+import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceRequest
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.HAMasterMetaManager
+import org.apache.celeborn.service.deploy.master.clustermeta.ha.HARaftServer
 import org.apache.celeborn.service.deploy.worker.WorkerStatsTestWorker
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
@@ -335,6 +341,33 @@ class WorkerStatsHASuite extends AnyFunSuite with Eventually with RandomPortSupp
           cluster.stats(master).contains(pressure(0.7)),
           "Completion order must not replace the latest admitted observation")
       }
+    }
+  }
+
+  test("failed Raft submission cannot publish metrics or block later recovery") {
+    withCluster(internalPorts = true) { cluster =>
+      val master = cluster.leader
+      cluster.report(master, Some(pressure(0.4)))
+      val system = master.statusSystem.asInstanceOf[HAMasterMetaManager]
+      val original = system.getRatisServer
+      val failing = Mockito.mock(classOf[HARaftServer], delegatesTo(original))
+      Mockito.doThrow(new CelebornRuntimeException("test replication failure"))
+        .when(failing).submitRequest(any(classOf[ResourceRequest]))
+      val before = system.workersMap.get(cluster.worker.workerInfo.toUniqueId).lastHeartbeat
+      system.setRatisServer(failing)
+      try {
+        intercept[Exception] {
+          cluster.endpoint(master).askSync[HeartbeatFromWorkerResponse](
+            cluster.heartbeat(Some(pressure(0.8))))
+        }
+        assert(
+          cluster.stats(master).contains(pressure(0.4)),
+          "Uncommitted metadata must not publish an observation")
+        assert(system.workersMap.get(cluster.worker.workerInfo.toUniqueId).lastHeartbeat == before)
+      } finally {
+        system.setRatisServer(original)
+      }
+      cluster.report(master, Some(pressure(0.9)))
     }
   }
 
