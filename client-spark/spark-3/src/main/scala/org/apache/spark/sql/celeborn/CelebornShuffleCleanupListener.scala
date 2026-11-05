@@ -22,13 +22,15 @@ import java.util.{Map => JMap}
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 import scala.util.control.NonFatal
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent, SparkListenerJobEnd, SparkListenerJobStart}
+import org.apache.spark.shuffle.api.ShuffleDriverComponents
+import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveExecutionContext, AdaptiveSparkPlanExec, QueryStageExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.exchange.{ReusedExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionEnd
@@ -45,11 +47,35 @@ import org.apache.celeborn.client.LifecycleManager
  * per-query stage cache when spark.sql.exchange.reuse is enabled, and by the shuffle ids
  * that Spark 4 records on materialization when reuse is disabled. Spark 3 has no such
  * collection, so on Spark 3 those stages are still left to GC cleanup.
+ *
+ * AQE can also drop a stage while its job is still running: the query completes as soon as
+ * the remaining stages are materialized, and the dropped stage materializes afterwards. Its
+ * shuffle is registered before the query ends but neither reachable from the executed plan
+ * nor recorded yet, so it cannot be collected at query end. The listener tracks the shuffle
+ * stages of running Spark jobs and unregisters such a shuffle when its job ends, provided the
+ * query that submitted it has already completed successfully.
  */
 class CelebornShuffleCleanupListener(lifecycleManager: LifecycleManager)
   extends SparkListener with Logging {
 
   import CelebornShuffleCleanupListener._
+
+  // Jobs that are still running, keyed by Spark job id. Only jobs that carry a SQL execution id
+  // and run at least one shuffle stage are tracked.
+  private val runningJobs = new mutable.HashMap[Int, RunningJob]()
+
+  // Shuffle ids of jobs that ended while their SQL execution was still running. The query-end
+  // cleanup unions them with the ids collected from the plan, which covers a dropped stage whose
+  // job ends before the query but whose materialization callback (and so its shuffle id) is only
+  // recorded afterwards.
+  private val finishedJobShuffles = new mutable.HashMap[Long, mutable.Set[Int]]()
+
+  // SQL executions that already completed, in completion order, together with the driver
+  // components used to unregister the shuffles of their late stages. A failed execution maps to
+  // None: its shuffles are left to GC cleanup, like for a query that failed before this listener
+  // could clean it up.
+  private val finishedExecutions =
+    new java.util.LinkedHashMap[Long, Option[ShuffleDriverComponents]]()
 
   override def onOtherEvent(event: SparkListenerEvent): Unit = {
     event match {
@@ -63,6 +89,58 @@ class CelebornShuffleCleanupListener(lifecycleManager: LifecycleManager)
               t)
         }
       case _ =>
+    }
+  }
+
+  override def onJobStart(jobStart: SparkListenerJobStart): Unit = {
+    try {
+      trackRunningJob(jobStart)
+    } catch {
+      case NonFatal(t) =>
+        logWarning(s"Failed to track the shuffle stages of job ${jobStart.jobId}.", t)
+    }
+  }
+
+  override def onJobEnd(jobEnd: SparkListenerJobEnd): Unit = {
+    try {
+      cleanupLateStageShuffles(jobEnd.jobId)
+    } catch {
+      case NonFatal(t) =>
+        logWarning(s"Failed to cleanup the shuffles of job ${jobEnd.jobId}.", t)
+    }
+  }
+
+  private def trackRunningJob(start: SparkListenerJobStart): Unit = {
+    val executionId = Option(start.properties)
+      .flatMap(properties => Option(properties.getProperty(SQLExecution.EXECUTION_ID_KEY)))
+      .flatMap(id => Try(id.toLong).toOption)
+    val shuffleIds = start.stageInfos.flatMap(_.shuffleDepId).distinct
+    if (shuffleIds.nonEmpty) {
+      executionId.foreach(id => runningJobs.put(start.jobId, RunningJob(id, shuffleIds)))
+    }
+  }
+
+  private def cleanupLateStageShuffles(jobId: Int): Unit = {
+    runningJobs.remove(jobId).foreach { job =>
+      val state = finishedExecutions.get(job.executionId)
+      if (state == null) {
+        // The query is still running; its query-end cleanup picks these ids up when it ends.
+        finishedJobShuffles.getOrElseUpdate(job.executionId, mutable.Set.empty[Int]) ++=
+          job.shuffleIds
+      } else {
+        state.foreach { cleaner =>
+          // The query completed before this stage did. The stage was dropped from the final
+          // plan while it was still materializing, so its shuffle was registered too late to be
+          // collected at query end. All of the stage's map tasks have finished by now.
+          val shuffleIds = registeredShuffleIds(job.shuffleIds)
+          if (shuffleIds.nonEmpty) {
+            logInfo(
+              s"Cleaning up shuffles [${shuffleIds.mkString(", ")}] of job $jobId, whose " +
+                s"SQL execution ${job.executionId} already completed.")
+            shuffleIds.foreach(shuffleId => cleaner.removeShuffle(shuffleId, false))
+          }
+        }
+      }
     }
   }
 
@@ -160,25 +238,65 @@ class CelebornShuffleCleanupListener(lifecycleManager: LifecycleManager)
     if (qe == null) {
       logDebug(
         s"QueryExecution is null in SparkListenerSQLExecutionEnd ${end.executionId}, skipping.")
+      rememberExecution(end.executionId, None)
+      finishedJobShuffles.remove(end.executionId)
       return
     }
 
+    val queryFailed = end.executionFailure.isDefined
+    val cleaner = qe.sparkSession.sparkContext.shuffleDriverComponents
+    // Remember the execution before collecting the ids below, so that a job that ends after
+    // this point is recognized as a late stage of an already completed query.
+    rememberExecution(end.executionId, if (queryFailed) None else Some(cleaner))
+
     // If planning itself failed, qe.executedPlan re-triggers planning and re-throws;
     // that is caught as NonFatal by the caller.
-    val shuffleIds = extractShuffleIds(qe.executedPlan, end.executionFailure.isDefined)
-      .filter(lifecycleManager.isAppShuffleRegistered(_))
+    val planShuffleIds = extractShuffleIds(qe.executedPlan, queryFailed)
+    // Shuffle ids of stages whose jobs ended before this query. They are usually collected from
+    // the plan as well, but a stage that AQE dropped from the final plan may have finished its
+    // job before the query ended and still be recorded only afterwards.
+    val jobShuffleIds = finishedJobShuffles.remove(end.executionId)
+      .map(_.toSeq)
+      .getOrElse(Seq.empty)
+    // Shuffles of a failed query are left to GC cleanup, even if their stages ran. The ids
+    // collected from the plan above still cover the materialized stages of a failed AQE query.
+    val shuffleIds = registeredShuffleIds(
+      if (queryFailed) planShuffleIds else planShuffleIds ++ jobShuffleIds)
 
     if (shuffleIds.nonEmpty) {
       logInfo(
         s"Cleaning up shuffles [${shuffleIds.mkString(", ")}] on completion of " +
           s"SQL execution ${end.executionId}.")
-      shuffleIds.foreach(shuffleId =>
-        qe.sparkSession.sparkContext.shuffleDriverComponents.removeShuffle(shuffleId, false))
+      shuffleIds.foreach(shuffleId => cleaner.removeShuffle(shuffleId, false))
+    }
+  }
+
+  private def registeredShuffleIds(shuffleIds: Seq[Int]): Seq[Int] = {
+    shuffleIds.distinct.filter(lifecycleManager.isAppShuffleRegistered(_))
+  }
+
+  private def rememberExecution(
+      executionId: Long,
+      cleaner: Option[ShuffleDriverComponents]): Unit = {
+    finishedExecutions.put(executionId, cleaner)
+    while (finishedExecutions.size() > MaxRememberedExecutions) {
+      val oldest = finishedExecutions.keySet().iterator()
+      val evicted = oldest.next()
+      oldest.remove()
+      finishedJobShuffles.remove(evicted)
     }
   }
 }
 
 private object CelebornShuffleCleanupListener {
+
+  // Number of completed SQL executions tracked for cleaning up shuffle stages that are still
+  // running when their query ends. Bounds the memory held by the listener in long-running
+  // applications while comfortably covering the time a dropped stage can take to finish.
+  private val MaxRememberedExecutions = 1024
+
+  // A Spark job that runs the shuffle stage(s) of a SQL execution.
+  private case class RunningJob(executionId: Long, shuffleIds: Seq[Int])
 
   // Spark 4 records the shuffle ids of successfully materialized stages in the per-query
   // AdaptiveExecutionContext (from AdaptiveSparkPlanExec's materialization callback), which
