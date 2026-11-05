@@ -118,7 +118,7 @@ public class TransportConfSuiteJ {
     conf.set("celeborn.ssl." + module1 + ".protocol", module1Protocol);
     conf.set("celeborn.ssl." + module2 + ".protocol", module2Protocol);
 
-    // setting at celeborn.ssl should inherit for module2 as it is not overriden
+    // setting at celeborn.ssl should inherit for module2 as it is not overridden
     conf.set(
         "celeborn.ssl." + module1 + ".trustStoreReloadIntervalMs",
         Long.toString(module1ReloadIntervalMs));
