@@ -26,7 +26,7 @@ import org.apache.celeborn.service.deploy.worker.metrics.{ScaleMetricCollector, 
 
 class ControlledWorkerStatsCollector(conf: CelebornConf) extends ScaleMetricCollector {
   val initializations = new AtomicInteger()
-  private val observations = new LinkedBlockingQueue[Option[WorkerStats]]()
+  private val observations = new LinkedBlockingQueue[Either[Exception, Option[WorkerStats]]]()
   @volatile private var stopped = false
 
   override def init(context: ScaleMetricCollectorContext): Unit = {
@@ -34,19 +34,25 @@ class ControlledWorkerStatsCollector(conf: CelebornConf) extends ScaleMetricColl
     ControlledWorkerStatsCollector.instances.add(this)
   }
 
-  def report(stats: Option[WorkerStats]): Unit = observations.add(stats)
+  def report(stats: Option[WorkerStats]): Unit = observations.add(Right(stats))
+
+  def failNextRead(): Unit =
+    observations.add(Left(new IllegalStateException("metric read failure")))
 
   override def currentWorkerStats(): Option[WorkerStats] = {
     if (stopped) return None
     // The test controls heartbeat progress through the collector's public extension interface.
     val observation = observations.poll(30, TimeUnit.SECONDS)
     require(observation != null, "Timed out waiting for the test's next observation")
-    observation
+    observation match {
+      case Right(stats) => stats
+      case Left(error) => throw error
+    }
   }
 
   override def stop(): Unit = {
     stopped = true
-    observations.offer(None)
+    observations.offer(Right(None))
   }
 }
 

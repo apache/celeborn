@@ -41,8 +41,8 @@ import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.exception.CelebornRuntimeException
 import org.apache.celeborn.common.meta.WorkerStatus
 import org.apache.celeborn.common.metrics.WorkerStats
-import org.apache.celeborn.common.protocol.RpcNameConstants
-import org.apache.celeborn.common.protocol.message.ControlMessages.{HeartbeatFromWorker, HeartbeatFromWorkerResponse}
+import org.apache.celeborn.common.protocol.{PbWorkerLostResponse, RpcNameConstants}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{HeartbeatFromWorker, HeartbeatFromWorkerResponse, WorkerLost}
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcCallContext, RpcEndpointRef}
 import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, Utils}
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceRequest
@@ -81,6 +81,7 @@ class WorkerStatsHASuite extends AnyFunSuite with Eventually with RandomPortSupp
     private val root = Files.createTempDirectory("worker-stats-ha")
     val masters = mutable.ArrayBuffer.empty[GatedMaster]
     private val stoppedMasters = mutable.Set.empty[GatedMaster]
+    private val configs = mutable.ArrayBuffer.empty[CelebornConf]
     private val gates = mutable.ArrayBuffer.empty[AdmissionGate]
     var worker: WorkerStatsTestWorker = _
     var collector: ControlledWorkerStatsCollector = _
@@ -124,6 +125,7 @@ class WorkerStatsHASuite extends AnyFunSuite with Eventually with RandomPortSupp
           conf.set(s"celeborn.master.ha.node.$peer.internal.port", internalPort.toString)
           conf.set(s"celeborn.master.ha.node.$peer.ratis.port", raftPort.toString)
         }
+        configs += conf
         masters += new GatedMaster(conf)
       }
       val firstLeader = leader
@@ -226,11 +228,38 @@ class WorkerStatsHASuite extends AnyFunSuite with Eventually with RandomPortSupp
       gate
     }
 
+    def loseWorker(master: Master): Unit = {
+      val info = worker.workerInfo
+      val response = endpoint(master).askSync[PbWorkerLostResponse](WorkerLost(
+        info.host,
+        info.rpcPort,
+        info.pushPort,
+        info.fetchPort,
+        info.replicatePort,
+        MasterClient.genRequestId()))
+      assert(response.getSuccess)
+      eventually {
+        masters.filterNot(stoppedMasters).foreach { node =>
+          assert(!node.statusSystem.workersMap.containsKey(info.toUniqueId))
+          assert(stats(node).isEmpty)
+        }
+      }
+    }
+
     def stopMaster(master: GatedMaster): Unit = {
       master.stop(CelebornExitKind.EXIT_IMMEDIATELY)
       master.internalRpcEnvInUse.shutdown()
       if (master.internalRpcEnvInUse ne master.rpcEnv) master.rpcEnv.shutdown()
       stoppedMasters += master
+    }
+
+    def restartMaster(master: GatedMaster): GatedMaster = {
+      val index = masters.indexOf(master)
+      val restarted = new GatedMaster(configs(index))
+      masters.update(index, restarted)
+      eventually { assertRegistered() }
+      assert(stats(restarted).isEmpty, "Restarted master must not restore local observations")
+      restarted
     }
 
     override def close(): Unit = {
@@ -371,4 +400,38 @@ class WorkerStatsHASuite extends AnyFunSuite with Eventually with RandomPortSupp
     }
   }
 
+  test("worker read failures, re-registration and leader restart recover through HA RPCs") {
+    withCluster(internalPorts = true) { cluster =>
+      val a = cluster.leader
+      cluster.report(a, Some(pressure(0.4)))
+      val beforeFailure =
+        a.statusSystem.workersMap.get(cluster.worker.workerInfo.toUniqueId).lastHeartbeat
+      cluster.collector.failNextRead()
+      eventually {
+        assert(cluster.stats(a).isEmpty)
+        assert(a.statusSystem.workersMap.get(cluster.worker.workerInfo.toUniqueId)
+          .lastHeartbeat > beforeFailure)
+      }
+      cluster.assertRegistered()
+      cluster.report(a, Some(pressure(0.6)))
+      cluster.loseWorker(a)
+      cluster.collector.report(None)
+      eventually { cluster.assertRegistered() }
+      assert(cluster.stats(a).isEmpty)
+      assert(
+        cluster.collector.initializations.get() == 1,
+        "Worker re-registration must not reinitialize the collector")
+      cluster.report(a, Some(pressure(0.8)))
+
+      cluster.stopMaster(a)
+      val b = cluster.leader
+      assert(cluster.stats(b).isEmpty)
+      cluster.report(b, Some(pressure(0.9)))
+      val restarted = cluster.restartMaster(a)
+      assert(cluster.stats(restarted).isEmpty)
+      cluster.transfer(b, restarted)
+      cluster.report(restarted, Some(pressure(0.3)))
+      cluster.assertRegistered()
+    }
+  }
 }
