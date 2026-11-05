@@ -447,14 +447,9 @@ private[celeborn] class Master(
       if (!origin.receivingRpcEnv.contains(rpcEnv)) {
         throw new SecurityException("Master RPC request has no recognized receiver origin.")
       }
-      message match {
-        case _: RegisterApplicationInfo | _: HeartbeatFromApplication | _: RequestSlots |
-            _: PbRequestWorkers | _: PbBatchUnregisterShuffles | _: PbUnregisterShuffle |
-            _: ApplicationLost | _: PbReviseLostShuffles | _: CheckQuota |
-            _: PbCheckWorkersAvailable | _: PbApplicationMetaRequest =>
-        case _ =>
-          throw new SecurityException(
-            s"External Master RPC is not authorized to handle ${message.getClass.getSimpleName}.")
+      if (!Master.ExternalApplicationOperations.exists(_.isInstance(message))) {
+        throw new SecurityException(
+          s"External Master RPC is not authorized to handle ${message.getClass.getSimpleName}.")
       }
     }
   }
@@ -1761,6 +1756,20 @@ private[celeborn] class Master(
 }
 
 private[deploy] object Master extends Logging {
+  // Keep this allowlist in sync when adding application messages to the external Master RPC endpoint.
+  private val ExternalApplicationOperations: Set[Class[_]] = Set(
+    classOf[RegisterApplicationInfo],
+    classOf[HeartbeatFromApplication],
+    classOf[RequestSlots],
+    classOf[PbRequestWorkers],
+    classOf[PbBatchUnregisterShuffles],
+    classOf[PbUnregisterShuffle],
+    classOf[ApplicationLost],
+    classOf[PbReviseLostShuffles],
+    classOf[CheckQuota],
+    classOf[PbCheckWorkersAvailable],
+    classOf[PbApplicationMetaRequest])
+
   def main(args: Array[String]): Unit = {
     SignalUtils.registerLogger(log)
     val conf = new CelebornConf()
