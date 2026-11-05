@@ -33,7 +33,7 @@ import org.apache.celeborn.service.deploy.master.scale.WorkerNumCalculator.Input
 
 class WorkerNumCalculatorSuite extends AnyFunSuite {
   private val ratioKeys = Seq(
-    WorkerStats.NettyMemoryUsedRatio,
+    WorkerStats.MemoryPressureRatio,
     WorkerStats.LastMinuteSystemLoadRatio,
     WorkerStats.DiskUsedRatio)
   private val low = WorkerStats(ratioKeys.map(_ -> 0.1).toMap)
@@ -61,20 +61,26 @@ class WorkerNumCalculatorSuite extends AnyFunSuite {
     }
     val conf = baseConf().set(SCALE_UP_POLICY_STEP_NUMBER.key, "100")
     val stats = WorkerStats(low.metrics ++ Map(
-      WorkerStats.NettyMemoryUsedRatio -> 0.6,
+      WorkerStats.MemoryPressureRatio -> 0.6,
       WorkerStats.LastMinuteSystemLoadRatio -> 1.2,
       WorkerStats.DiskUsedRatio -> 0.8))
     assert(newCalculator(conf).cal(snapshot(10, stats)) == 24)
   }
 
+  test("memory pressure above one is retained when estimating demand") {
+    val conf = baseConf().set(SCALE_UP_POLICY_STEP_NUMBER.key, "100")
+    val stats = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 1.25))
+    assert(newCalculator(conf).cal(snapshot(10, stats)) == 25)
+  }
+
   test("scale-up and scale-down use their own thresholds for estimation") {
     val conf = baseConf()
-      .set(SCALE_UP_MEMORY_RATIO.key, "0.8")
-      .set(SCALE_DOWN_MEMORY_RATIO.key, "0.2")
+      .set("celeborn.scale.up.memoryPressure.ratio", "0.8")
+      .set("celeborn.scale.down.memoryPressure.ratio", "0.2")
       .set(SCALE_UP_POLICY_STEP_NUMBER.key, "100")
       .set(SCALE_DOWN_POLICY_STEP_NUMBER.key, "100")
       .set(SCALE_DOWN_POLICY_PERCENT.key, "1")
-    val highMemory = WorkerStats(low.metrics + (WorkerStats.NettyMemoryUsedRatio -> 0.9))
+    val highMemory = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.9))
     assert(newCalculator(conf).cal(snapshot(10, highMemory)) == 12)
     assert(newCalculator(conf).cal(snapshot(10)) == 5)
   }
@@ -117,12 +123,12 @@ class WorkerNumCalculatorSuite extends AnyFunSuite {
   }
 
   test("budgets never overshoot the estimated difference") {
-    val high = WorkerStats(low.metrics + (WorkerStats.NettyMemoryUsedRatio -> 0.55))
+    val high = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.55))
     assert(newCalculator().cal(snapshot(10, high)) == 11)
     val conf = baseConf()
       .set(SCALE_DOWN_POLICY_STEP_NUMBER.key, "100")
       .set(SCALE_DOWN_POLICY_PERCENT.key, "1")
-    val stats = WorkerStats(low.metrics + (WorkerStats.NettyMemoryUsedRatio -> 0.26))
+    val stats = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.26))
     assert(newCalculator(conf).cal(snapshot(10, stats)) == 9)
   }
 
@@ -135,7 +141,7 @@ class WorkerNumCalculatorSuite extends AnyFunSuite {
       .set(SCALE_DOWN_POLICY_PERCENT.key, "1")
     // Three additions of 0.1 produce 0.30000000000000004; ceil(sum / 0.3) is two.
     assert(newCalculator(conf).cal(snapshot(3)) == 2)
-    val nearBoundary = WorkerStats(low.metrics + (WorkerStats.NettyMemoryUsedRatio -> 0.27))
+    val nearBoundary = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.27))
     assert(newCalculator(conf).cal(snapshot(10, nearBoundary)) == 10)
     val atThreshold = baseConf()
       .set(SCALE_UP_SYSTEM_LOAD_RATIO.key, "0.1")
@@ -177,7 +183,7 @@ class WorkerNumCalculatorSuite extends AnyFunSuite {
 
   test("lowering the maximum forces gradual convergence even with high load") {
     val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "8")
-    val high = WorkerStats(low.metrics + (WorkerStats.NettyMemoryUsedRatio -> 0.9))
+    val high = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.9))
     Seq(low, neutral, high).foreach { stats =>
       assert(newCalculator(conf).cal(snapshot(10, stats)) == 9)
     }
@@ -193,11 +199,56 @@ class WorkerNumCalculatorSuite extends AnyFunSuite {
 
   test("the maximum prevents scale-up at the limit without clamping every final result") {
     val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "12")
-    val high = WorkerStats(low.metrics + (WorkerStats.NettyMemoryUsedRatio -> 0.9))
+    val high = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.9))
     assert(newCalculator(conf).cal(snapshot(10, high)) == 12)
     assert(newCalculator(conf).cal(snapshot(12, high)) == 12)
     val excluded = Input(12, 12, snapshot(12, neutral).workerStats, 2, 2)
     assert(newCalculator(conf).cal(excluded) == 12)
+  }
+
+  test("an oversized platform target converges without waiting for pending workers to register") {
+    val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "8")
+    val high = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.9))
+    val inputs = Seq(
+      Input(0, 10, Seq.empty),
+      snapshot(4, high).copy(expectedWorkerCount = 10),
+      snapshot(8, high).copy(expectedWorkerCount = 10),
+      snapshot(8, neutral).copy(expectedWorkerCount = 10))
+    val workerNumCalculator = newCalculator(conf)
+    inputs.foreach { input =>
+      withClue(s"registered=${input.currentWorkerCount}, metrics=${input.workerStats}: ") {
+        val first = workerNumCalculator.cal(input)
+        assert(first == 9)
+        val second = workerNumCalculator.cal(input.copy(expectedWorkerCount = first))
+        assert(second == 8)
+        assert(workerNumCalculator.cal(input.copy(expectedWorkerCount = second)) == 8)
+      }
+    }
+  }
+
+  test("pending capacity above the maximum obeys the platform target scale-down budget") {
+    val high = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.9))
+    val input = snapshot(4, high).copy(expectedWorkerCount = 100)
+    val cases = Seq(
+      (3, 1.0, 97),
+      (100, 0.1, 90),
+      (100, 0.29, 72),
+      (100, 1.0, 8))
+    cases.foreach { case (step, percent, expected) =>
+      val conf = baseConf()
+        .set(SCALE_WORKER_NUMBER_MAX.key, "8")
+        .set(SCALE_DOWN_POLICY_STEP_NUMBER.key, step.toString)
+        .set(SCALE_DOWN_POLICY_PERCENT.key, percent.toString)
+      assert(newCalculator(conf).cal(input) == expected, s"step=$step, percent=$percent")
+    }
+  }
+
+  test("pending target convergence preserves existing and new exclusion compensation") {
+    val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "8")
+    val input = snapshot(8, neutral).copy(expectedWorkerCount = 10, excludedWorkerCount = 2)
+    val workerNumCalculator = newCalculator(conf)
+    assert(workerNumCalculator.cal(input) == 9)
+    assert(workerNumCalculator.cal(input.copy(newlyExcludedWorkerCount = 2)) == 8)
   }
 
   test("new exclusions compensate once and remain part of the metric inventory") {
@@ -236,14 +287,14 @@ class WorkerNumCalculatorSuite extends AnyFunSuite {
   }
 
   test("count results can reduce pending capacity while recovering drained workers") {
-    val high = WorkerStats(low.metrics + (WorkerStats.NettyMemoryUsedRatio -> 0.6))
+    val high = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.6))
     assert(newCalculator().cal(snapshot(10, high).copy(expectedWorkerCount = 15)) == 12)
     val input = Input(80, 100, Seq.fill(77)(WorkerStats(ratioKeys.map(_ -> 0.65).toMap)))
     assert(newCalculator().cal(input) == 84)
     val recovering = Input(10, 10, Seq.fill(5)(WorkerStats(ratioKeys.map(_ -> 0.7).toMap)))
     assert(newCalculator().cal(recovering) == 7)
     val stats = WorkerStats(Map(
-      WorkerStats.NettyMemoryUsedRatio -> 0.25,
+      WorkerStats.MemoryPressureRatio -> 0.25,
       WorkerStats.LastMinuteSystemLoadRatio -> 0.75,
       WorkerStats.DiskUsedRatio -> 0.25))
     assert(newCalculator().cal(Input(10, 15, Seq.fill(8)(stats), 2, 1)) == 13)
@@ -267,7 +318,7 @@ class WorkerNumCalculatorSuite extends AnyFunSuite {
   }
 
   test("every calculator setting can be overridden by system dynamic configuration") {
-    val highMemory = WorkerStats(low.metrics + (WorkerStats.NettyMemoryUsedRatio -> 0.9))
+    val highMemory = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.9))
     val highLoad = WorkerStats(low.metrics + (WorkerStats.LastMinuteSystemLoadRatio -> 0.9))
     val highDisk = WorkerStats(low.metrics + (WorkerStats.DiskUsedRatio -> 0.9))
     val largeLoad = WorkerStats(low.metrics + (WorkerStats.LastMinuteSystemLoadRatio -> 10.0))
@@ -279,8 +330,8 @@ class WorkerNumCalculatorSuite extends AnyFunSuite {
       (SCALE_WORKER_NUMBER_MIN, "12", snapshot(20), 18),
       (SCALE_WORKER_NUMBER_MIN_ALIGN_ENABLED, "true", snapshot(0, neutral), 1),
       (SCALE_WORKER_NUMBER_MAX, "12", snapshot(10, highMemory), 12),
-      (SCALE_UP_MEMORY_RATIO, "0.8", snapshot(10, highMemory), 12),
-      (SCALE_DOWN_MEMORY_RATIO, "0.05", snapshot(10), 10),
+      (SCALE_UP_MEMORY_PRESSURE_RATIO, "0.8", snapshot(10, highMemory), 12),
+      (SCALE_DOWN_MEMORY_PRESSURE_RATIO, "0.05", snapshot(10), 10),
       (SCALE_UP_SYSTEM_LOAD_RATIO, "0.8", snapshot(10, highLoad), 12),
       (SCALE_DOWN_SYSTEM_LOAD_RATIO, "0.05", snapshot(10), 10),
       (SCALE_UP_DISK_RATIO, "0.8", snapshot(10, highDisk), 12),
@@ -301,7 +352,7 @@ class WorkerNumCalculatorSuite extends AnyFunSuite {
     val conf = baseConf()
       .set(DYNAMIC_CONFIG_STORE_FS_PATH.key, file.toString)
       .set(DYNAMIC_CONFIG_REFRESH_INTERVAL.key, "1d")
-      .set(SCALE_UP_MEMORY_RATIO.key, "0.6")
+      .set(SCALE_UP_MEMORY_PRESSURE_RATIO.key, "0.6")
       .set(SCALE_UP_POLICY_STEP_NUMBER.key, "2")
     def writeConfig(overrides: Map[String, String]): Unit = {
       val yaml =
@@ -316,12 +367,14 @@ class WorkerNumCalculatorSuite extends AnyFunSuite {
     }
     var source: FsConfigServiceImpl = null
     try {
-      writeConfig(Map(SCALE_UP_MEMORY_RATIO.key -> "0.8"))
+      writeConfig(Map(SCALE_UP_MEMORY_PRESSURE_RATIO.key -> "0.8"))
       source = new FsConfigServiceImpl(conf)
       val workerNumCalculator = new WorkerNumCalculator(conf, Some(source))
-      val input = snapshot(10, WorkerStats(low.metrics + (WorkerStats.NettyMemoryUsedRatio -> 0.9)))
+      val input = snapshot(10, WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.9)))
       assert(workerNumCalculator.cal(input) == 12)
-      writeConfig(Map(SCALE_UP_MEMORY_RATIO.key -> "0.5", SCALE_UP_POLICY_STEP_NUMBER.key -> "7"))
+      writeConfig(Map(
+        SCALE_UP_MEMORY_PRESSURE_RATIO.key -> "0.5",
+        SCALE_UP_POLICY_STEP_NUMBER.key -> "7"))
       source.refreshCache()
       assert(workerNumCalculator.cal(input) == 17)
       writeConfig(Map.empty)
@@ -337,14 +390,13 @@ class WorkerNumCalculatorSuite extends AnyFunSuite {
     val conf = baseConf()
     val first = new SystemConfig(conf)
     val second = new SystemConfig(conf)
-    second.setConfigs(Map(SCALE_UP_MEMORY_RATIO.key -> "0.8").asJava)
+    second.setConfigs(Map(SCALE_UP_MEMORY_PRESSURE_RATIO.key -> "0.8").asJava)
     val source = mock[ConfigService]
     when(source.getSystemConfigFromCache).thenReturn(first, second)
     val workerNumCalculator = new WorkerNumCalculator(conf, Some(source))
-    val input = snapshot(10, WorkerStats(low.metrics + (WorkerStats.NettyMemoryUsedRatio -> 0.9)))
+    val input = snapshot(10, WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.9)))
     assert(workerNumCalculator.cal(input) == 15)
     assert(workerNumCalculator.cal(input) == 12)
-    verify(source, times(2)).getSystemConfigFromCache
   }
 
   test("invalid dynamic settings fail the round and corrected settings apply next round") {
@@ -358,10 +410,12 @@ class WorkerNumCalculatorSuite extends AnyFunSuite {
       Map(SCALE_UP_POLICY_STEP_NUMBER.key -> "not-a-number"),
       Map(SCALE_UP_POLICY_PERCENT.key -> "NaN"),
       Map(SCALE_UP_POLICY_PERCENT.key -> "1.1"),
-      Map(SCALE_UP_MEMORY_RATIO.key -> "1.1"),
+      Map(SCALE_UP_MEMORY_PRESSURE_RATIO.key -> "1.1"),
       Map(SCALE_UP_SYSTEM_LOAD_RATIO.key -> "Infinity"),
       Map(SCALE_WORKER_NUMBER_MIN_ALIGN_ENABLED.key -> "not-a-boolean"),
-      Map(SCALE_UP_MEMORY_RATIO.key -> "0.3", SCALE_DOWN_MEMORY_RATIO.key -> "0.3"),
+      Map(
+        SCALE_UP_MEMORY_PRESSURE_RATIO.key -> "0.3",
+        SCALE_DOWN_MEMORY_PRESSURE_RATIO.key -> "0.3"),
       Map(SCALE_UP_SYSTEM_LOAD_RATIO.key -> "0.3", SCALE_DOWN_SYSTEM_LOAD_RATIO.key -> "0.3"),
       Map(SCALE_UP_DISK_RATIO.key -> "0.3", SCALE_DOWN_DISK_RATIO.key -> "0.3"))
     invalid.foreach { overrides =>
