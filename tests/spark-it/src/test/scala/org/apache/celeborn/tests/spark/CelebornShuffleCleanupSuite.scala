@@ -256,6 +256,32 @@ class CelebornShuffleCleanupSuite extends AnyFunSuite
     awaitShufflesUnregistered(lifecycleManager())
   }
 
+  test("CELEBORN-2465: shuffles of stages still materializing at query completion are " +
+    "unregistered when the stage finishes") {
+    val sparkConf = shuffleCleanupConf(true)
+    sparkConf.set(SQLConf.EXCHANGE_REUSE_ENABLED.key, "false")
+    val spark = SparkSession.builder().config(sparkConf).getOrCreate()
+
+    // Slow down the map side of the non-empty join input so that AQE drops that stage from the
+    // final plan while it is still materializing. The query completes as soon as the empty side
+    // is materialized, so the dropped stage finishes (and records its shuffle) only after the
+    // SQL execution has ended; the shuffle must still be unregistered once the stage finishes.
+    spark.udf.register(
+      "slow_id",
+      (v: Long) => {
+        Thread.sleep(10)
+        v
+      })
+    spark.range(0, 1000, 1, 4).createOrReplaceTempView("ta")
+    spark.range(0, 1000, 1, 4).createOrReplaceTempView("tb")
+    spark.sql(
+      """
+        |SELECT COUNT(*) FROM (SELECT slow_id(id) AS id FROM ta) a
+        |JOIN (SELECT * FROM tb WHERE id < 0) b ON a.id = b.id
+        |""".stripMargin).collect()
+    awaitShufflesUnregistered(lifecycleManager())
+  }
+
   test("CELEBORN-2465: shuffles are not unregistered on SQL query completion by default") {
     val sparkConf = updateSparkConf(
       new SparkConf().setAppName("celeborn-test").setMaster("local[2]"),

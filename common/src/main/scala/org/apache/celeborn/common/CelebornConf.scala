@@ -5405,10 +5405,9 @@ object CelebornConf extends Logging {
         s"${CLIENT_STAGE_RERUN_ENABLED.key} has to be enabled together. Limitations: this only " +
         "applies to SQL/Dataset executions; non-vanilla shuffle exchanges such as Gluten's " +
         "columnar exchange are not covered; shuffles of failed or cancelled queries (or " +
-        "stages) that were never materialized still fall back to GC cleanup; when " +
-        "spark.sql.exchange.reuse is disabled, stages that AQE materializes and then drops " +
-        "from the final plan are not reachable from the executed plan and also fall back to " +
-        "GC cleanup.")
+        "stages) that were never materialized still fall back to GC cleanup; with Spark 3 and " +
+        "spark.sql.exchange.reuse disabled, stages that AQE materializes and then drops from " +
+        "the final plan also fall back to GC cleanup.")
       .booleanConf
       .createWithDefault(false)
 
