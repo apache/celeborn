@@ -437,6 +437,21 @@ private[celeborn] class Master(
     }
   }
 
+  // Authentication requires a dedicated internal port. Its service traffic and local management
+  // calls remain trusted; external callers may only use the existing application operations.
+  override def authorize(origin: RpcMessageOrigin, message: Any): Unit = {
+    if (authEnabled && !origin.isLocal &&
+      !origin.receivingRpcEnv.contains(internalRpcEnvInUse)) {
+      if (!origin.receivingRpcEnv.contains(rpcEnv)) {
+        throw new SecurityException("Master RPC request has no recognized receiver origin.")
+      }
+      if (!Master.ExternalApplicationOperations.exists(_.isInstance(message))) {
+        throw new SecurityException(
+          s"External Master RPC is not authorized to handle ${message.getClass.getSimpleName}.")
+      }
+    }
+  }
+
   override def receive: PartialFunction[Any, Unit] = {
     case _: PbCheckForWorkerTimeout =>
       executeWithLeaderChecker(null, timeoutDeadWorkers())
@@ -1643,6 +1658,20 @@ private[celeborn] class Master(
 }
 
 private[deploy] object Master extends Logging {
+  // Keep this allowlist in sync when adding application messages to the external Master RPC endpoint.
+  private val ExternalApplicationOperations: Set[Class[_]] = Set(
+    classOf[RegisterApplicationInfo],
+    classOf[HeartbeatFromApplication],
+    classOf[RequestSlots],
+    classOf[PbRequestWorkers],
+    classOf[PbBatchUnregisterShuffles],
+    classOf[PbUnregisterShuffle],
+    classOf[ApplicationLost],
+    classOf[PbReviseLostShuffles],
+    classOf[CheckQuota],
+    classOf[PbCheckWorkersAvailable],
+    classOf[PbApplicationMetaRequest])
+
   def main(args: Array[String]): Unit = {
     SignalUtils.registerLogger(log)
     val conf = new CelebornConf()
