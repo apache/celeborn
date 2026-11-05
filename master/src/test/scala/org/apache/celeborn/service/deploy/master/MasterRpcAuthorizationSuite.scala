@@ -77,12 +77,11 @@ class MasterRpcAuthorizationSuite extends AnyFunSuite with MasterClusterFeature 
               if (auth) {
                 intercept[SecurityException](master.authorize(external, message))
               } else {
-                assert(master.authorize(external, message) == message)
+                master.authorize(external, message)
               }
-              assert(master.authorize(remote(master.internalRpcEnvInUse, clientId), message)
-                == message)
+              master.authorize(remote(master.internalRpcEnvInUse, clientId), message)
             }
-            assert(master.authorize(RpcMessageOrigin.local(), message) == message)
+            master.authorize(RpcMessageOrigin.local(), message)
             if (auth) {
               intercept[SecurityException](master.authorize(new RpcMessageOrigin {}, message))
             }

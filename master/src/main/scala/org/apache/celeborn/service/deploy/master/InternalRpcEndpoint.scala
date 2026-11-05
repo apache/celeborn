@@ -44,7 +44,7 @@ private[celeborn] class InternalRpcEndpoint(
     logDebug(s"Client $address got disconnected.")
   }
 
-  override def authorize(origin: RpcMessageOrigin, message: Any): Any =
+  override def authorize(origin: RpcMessageOrigin, message: Any): Unit =
     master.authorize(origin, message)
 
   override def receive: PartialFunction[Any, Unit] = {

@@ -152,12 +152,11 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
       "origin-authorization",
       new ThreadSafeRpcEndpoint {
         override val rpcEnv: RpcEnv = env
-        override def authorize(origin: RpcMessageOrigin, message: Any): Any = {
+        override def authorize(origin: RpcMessageOrigin, message: Any): Unit = {
           observed.add(origin)
           if (!origin.isLocal) {
             throw new SecurityException("Remote request denied")
           }
-          s"authorized-$message"
         }
         override def receive: PartialFunction[Any, Unit] = {
           case message: String => received.add(message)
@@ -195,9 +194,9 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
       assert(received.isEmpty)
 
       local.send("local-send")
-      assert(local.askSync[String]("local-ask") == "authorized-local-ask")
-      assert(received.poll(5, TimeUnit.SECONDS) == "authorized-local-send")
-      assert(received.poll(5, TimeUnit.SECONDS) == "authorized-local-ask")
+      assert(local.askSync[String]("local-ask") == "local-ask")
+      assert(received.poll(5, TimeUnit.SECONDS) == "local-send")
+      assert(received.poll(5, TimeUnit.SECONDS) == "local-ask")
       assert(observed.poll(5, TimeUnit.SECONDS).isLocal)
       assert(observed.poll(5, TimeUnit.SECONDS).isLocal)
     } finally {

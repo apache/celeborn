@@ -126,9 +126,9 @@ private[celeborn] class Inbox(
     message match {
       case RpcMessage(_sender, content, context) =>
         try {
-          val authorized = endpoint.authorize(context, content)
+          endpoint.authorize(context, content)
           endpoint.receiveAndReply(context).applyOrElse[Any, Unit](
-            authorized,
+            content,
             { msg =>
               throw new CelebornException(s"Unsupported message $message from ${_sender}")
             })
@@ -141,9 +141,9 @@ private[celeborn] class Inbox(
         }
 
       case OneWayMessage(_sender, content, origin) =>
-        val authorized = endpoint.authorize(origin, content)
+        endpoint.authorize(origin, content)
         endpoint.receive.applyOrElse[Any, Unit](
-          authorized,
+          content,
           { msg =>
             throw new CelebornException(s"Unsupported message $message from ${_sender}")
           })

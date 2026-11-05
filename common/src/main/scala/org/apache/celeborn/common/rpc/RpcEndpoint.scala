@@ -80,8 +80,11 @@ trait RpcEndpoint {
     case _ => context.sendFailure(new CelebornException(self + " won't reply anything"))
   }
 
-  /** Checks a message before either receive path runs. Forwarders must retain its origin. */
-  def authorize(origin: RpcMessageOrigin, message: Any): Any = message
+  /**
+   * Checks a message before either receive path runs. Throw to reject it; otherwise the original
+   * message is dispatched. Forwarders must retain its origin.
+   */
+  def authorize(origin: RpcMessageOrigin, message: Any): Unit = ()
 
   def checkRegistered(): Boolean = true
 
