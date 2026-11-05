@@ -89,6 +89,10 @@ Even though Celeborn does not transmit the secret, in the clear, as part of auth
 
 Note: SASL **requires use of internal port**.
 
+When authentication is enabled, the Master's regular RPC port accepts only application
+operations. Worker lifecycle and cluster management operations require the internal RPC
+port or a local call, such as one issued by the Master's HTTP management API.
+
 | Property Name | Default | Description |
 | ------ | ------------- | ----------- |
 | celeborn.auth.enabled | false | Enables Authentication |

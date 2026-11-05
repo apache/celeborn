@@ -439,6 +439,27 @@ private[celeborn] class Master(
     }
   }
 
+  // Authentication requires a dedicated internal port. Its service traffic and local management
+  // calls remain trusted; external callers may only use the existing application operations.
+  override def authorize(origin: RpcMessageOrigin, message: Any): Any = {
+    if (authEnabled && !origin.isLocal &&
+      !origin.receivingRpcEnv.contains(internalRpcEnvInUse)) {
+      if (!origin.receivingRpcEnv.contains(rpcEnv)) {
+        throw new SecurityException("Master RPC request has no recognized receiver origin.")
+      }
+      message match {
+        case _: RegisterApplicationInfo | _: HeartbeatFromApplication | _: RequestSlots |
+            _: PbRequestWorkers | _: PbBatchUnregisterShuffles | _: PbUnregisterShuffle |
+            _: ApplicationLost | _: PbReviseLostShuffles | _: CheckQuota |
+            _: PbCheckWorkersAvailable | _: PbApplicationMetaRequest =>
+        case _ =>
+          throw new SecurityException(
+            s"External Master RPC is not authorized to handle ${message.getClass.getSimpleName}.")
+      }
+    }
+    message
+  }
+
   override def receive: PartialFunction[Any, Unit] = {
     case _: PbCheckForWorkerTimeout =>
       executeWithLeaderChecker(null, timeoutDeadWorkers())
