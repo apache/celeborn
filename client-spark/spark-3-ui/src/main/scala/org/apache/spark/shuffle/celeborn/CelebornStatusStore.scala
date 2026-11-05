@@ -145,12 +145,13 @@ private[celeborn] class CelebornStatusStore(store: KVStore) {
     }
   }
 
-  def workerRevives(): WorkerRevivesUIData = {
+  // None means reporting was unavailable; an empty record means no revives occurred.
+  def workerRevives(): Option[WorkerRevivesUIData] = {
     val kClass = classOf[WorkerRevivesUIData]
     try {
-      store.read(kClass, kClass.getName)
+      Some(store.read(kClass, kClass.getName))
     } catch {
-      case _: NoSuchElementException => WorkerRevivesUIData(Map.empty)
+      case _: NoSuchElementException => None
     }
   }
 

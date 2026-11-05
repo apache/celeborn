@@ -32,7 +32,9 @@ public interface PartitionReviveListener {
    * @param shuffleId the Celeborn shuffle id
    * @param appShuffleId the application shuffle id, which differs on stage rerun
    * @param workerRevives revived partitions by worker unique id and revive cause. Replica push
-   *     failures count against the replica worker, other causes against the primary worker.
+   *     failures count against the replica worker, other causes against the primary worker. This
+   *     includes splits triggered by the replica, as the primary forwards the replica's split
+   *     status unchanged.
    */
   void onPartitionsRevived(
       int shuffleId, int appShuffleId, Map<String, Map<StatusCode, Integer>> workerRevives);

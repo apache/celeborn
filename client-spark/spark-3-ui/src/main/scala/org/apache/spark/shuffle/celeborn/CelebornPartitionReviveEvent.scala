@@ -29,3 +29,9 @@ private[celeborn] case class CelebornPartitionReviveEvent(
     appShuffleId: Int,
     workerRevives: Map[String, Map[String, Int]])
   extends SparkListenerEvent
+
+/**
+ * Recorded once when the driver plugin registers the revive listener, so that the UI shows zero
+ * for applications without revives, but N/A for event logs of clients that did not report them.
+ */
+private[celeborn] case class CelebornPartitionReviveReportingEvent() extends SparkListenerEvent

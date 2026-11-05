@@ -74,13 +74,15 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
     val workerRows = workerSlots.workerSlots.toSeq.map { case (worker, slots) =>
       (worker, workerSlots.workerShuffles.getOrElse(worker, 0), slots)
     }.sortBy { case (worker, _, slots) => (-slots, worker) }
-    val reviveRows = store.workerRevives().workerRevives.toSeq.map { case (worker, causes) =>
-      WorkerReviveRow(
-        worker,
-        causes.getOrElse(SoftSplit, 0),
-        causes.getOrElse(HardSplit, 0),
-        (causes - SoftSplit - HardSplit).toSeq.sortBy { case (cause, n) => (-n, cause) })
-    }.sortBy(row => (-row.total, row.worker))
+    val workerRevives = store.workerRevives()
+    val reviveRows =
+      workerRevives.toSeq.flatMap(_.workerRevives.toSeq).map { case (worker, causes) =>
+        WorkerReviveRow(
+          worker,
+          causes.getOrElse(SoftSplit, 0),
+          causes.getOrElse(HardSplit, 0),
+          (causes - SoftSplit - HardSplit).toSeq.sortBy { case (cause, n) => (-n, cause) })
+      }.sortBy(row => (-row.total, row.worker))
 
     val writeBytes = taskInfo.shuffleWriteBytes
     val readBytes = taskInfo.shuffleReadBytes
@@ -100,13 +102,13 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
         s"Shuffles: ${workerSlots.shuffles} | Workers: ${workerRows.size} | " +
           s"Reserved Slots: ${workerRows.map(_._3.toLong).sum}"
       }
-    // Revives are reported along with shuffle assignments, e.g. not by old clients.
+    // Revived partitions by cause, not individual pushes.
     def reviveSummary: String =
-      if (workerSlots.shuffles == 0) "N/A"
+      if (workerRevives.isEmpty) "N/A"
       else {
-        s"Soft Splits: ${reviveRows.map(_.softSplits.toLong).sum} | " +
-          s"Hard Splits: ${reviveRows.map(_.hardSplits.toLong).sum} | " +
-          s"Push Failures: ${reviveRows.map(_.pushFailures.toLong).sum}"
+        s"Soft Split: ${reviveRows.map(_.softSplits.toLong).sum} | " +
+          s"Hard Split: ${reviveRows.map(_.hardSplits.toLong).sum} | " +
+          s"Push Failure: ${reviveRows.map(_.pushFailures.toLong).sum}"
       }
     val assignmentsTitle =
       if (workerSlots.shuffles > assignments.size) {
@@ -157,7 +159,7 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
             {assignmentSummary}
           </li>
           <li>
-            <strong>Partition Revives: </strong>
+            <strong>Revived Partitions: </strong>
             {reviveSummary}
           </li>
         </ul>
@@ -190,12 +192,39 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
       headerClasses = Seq("sorttable_alpha", "sorttable_numeric", "sorttable_numeric"))
 
     val workerRevivesTable = UIUtils.listingTable(
-      Seq("Worker", "Soft Splits", "Hard Splits", "Push Failures", "Push Failure Causes"),
+      Seq(
+        "Worker",
+        "Soft Split (Primary)",
+        "Hard Split (Primary)",
+        "Push Failure",
+        "Push Failure Causes"),
       workerReviveRow,
       reviveRows,
       fixedWidth = true,
       headerClasses = Seq("sorttable_alpha") ++ Seq.fill(3)("sorttable_numeric") ++
         Seq("sorttable_alpha"))
+    // Most applications revive no partitions, so the empty table is left out.
+    val workerRevivesSection: Seq[Node] =
+      if (reviveRows.isEmpty) Nil
+      else {
+        <span class="collapse-aggregated-celebornWorkerRevives collapse-table"
+            onClick="collapseTable('collapse-aggregated-celebornWorkerRevives',
+            'aggregated-celebornWorkerRevives')">
+          <h4>
+            <span class="collapse-table-arrow arrow-closed"></span>
+            <a>Worker Revives</a>
+          </h4>
+        </span> ++
+          <div class="aggregated-celebornWorkerRevives collapsible-table collapsed">
+            {workerRevivesTable}
+            <p>
+              Counts are revived partitions, not individual pushes: each revive of a partition
+              counts once, however many map tasks hit the split or push failure. Splits are
+              counted against the primary worker, even when its replica triggered the split.
+              Replica push failures are counted against the replica worker.
+            </p>
+          </div>
+      }
 
     val buildInfoTable = UIUtils.listingTable(
       propertyHeader,
@@ -251,17 +280,7 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
         <div class="aggregated-celebornWorkerSlots collapsible-table collapsed">
           {workerSlotsTable}
         </div>
-        <span class="collapse-aggregated-celebornWorkerRevives collapse-table"
-            onClick="collapseTable('collapse-aggregated-celebornWorkerRevives',
-            'aggregated-celebornWorkerRevives')">
-          <h4>
-            <span class="collapse-table-arrow arrow-closed"></span>
-            <a>Worker Revives</a>
-          </h4>
-        </span>
-        <div class="aggregated-celebornWorkerRevives collapsible-table collapsed">
-          {workerRevivesTable}
-        </div>
+        {workerRevivesSection}
       </span>
 
     UIUtils.headerSparkPage(request, "Celeborn Shuffle", content, parent)

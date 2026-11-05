@@ -387,7 +387,7 @@ class CelebornListenerSuite {
       WorkerRevivesUIData(Map(
         "w1" -> Map("SOFT_SPLIT" -> 3, "HARD_SPLIT" -> 1),
         "w2" -> Map("PUSH_DATA_TIMEOUT_REPLICA" -> 1))),
-      statusStore.workerRevives())
+      statusStore.workerRevives().get)
   }
 
   @Test
@@ -405,7 +405,7 @@ class CelebornListenerSuite {
     listener.flush()
     assertEquals(
       WorkerRevivesUIData(Map("w1" -> Map("HARD_SPLIT" -> 2))),
-      new CelebornStatusStore(store).workerRevives())
+      new CelebornStatusStore(store).workerRevives().get)
   }
 
   @Test
@@ -419,5 +419,13 @@ class CelebornListenerSuite {
       serializer.deserialize(serializer.serialize(revives), classOf[WorkerRevivesUIData])
     assertEquals(revives, restored)
     assertEquals(4, restored.workerRevives("w1").values.sum)
+
+    // A persisted empty record must still distinguish zero from unavailable on replay.
+    val empty = WorkerRevivesUIData(Map.empty)
+    val store = new InMemoryStore()
+    val statusStore = new CelebornStatusStore(store)
+    assertEquals(None, statusStore.workerRevives())
+    store.write(serializer.deserialize(serializer.serialize(empty), classOf[WorkerRevivesUIData]))
+    assertEquals(Some(empty), statusStore.workerRevives())
   }
 }

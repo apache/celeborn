@@ -110,7 +110,9 @@ private[celeborn] class CelebornListener(
         mayUpdate()
       }
     case e: CelebornShuffleAssignmentEvent => onShuffleAssignment(e)
-    case e: CelebornPartitionReviveEvent => onPartitionRevive(e)
+    // Persists an empty record, which tells no revives apart from unreported revives.
+    case _: CelebornPartitionReviveReportingEvent => onPartitionRevive(Map.empty)
+    case e: CelebornPartitionReviveEvent => onPartitionRevive(e.workerRevives)
     case _ =>
   }
 
@@ -167,9 +169,9 @@ private[celeborn] class CelebornListener(
     kvstore.write(WorkerSlotsUIData(assignedShuffles, workerShuffles.toMap, workerSlots.toMap))
   }
 
-  private def onPartitionRevive(event: CelebornPartitionReviveEvent): Unit = {
+  private def onPartitionRevive(revives: Map[String, Map[String, Int]]): Unit = {
     workerRevives.synchronized {
-      event.workerRevives.foreach { case (worker, causes) =>
+      revives.foreach { case (worker, causes) =>
         val totals = workerRevives.getOrElseUpdate(worker, mutable.HashMap[String, Int]())
         causes.foreach { case (cause, n) => totals(cause) = totals.getOrElse(cause, 0) + n }
       }
