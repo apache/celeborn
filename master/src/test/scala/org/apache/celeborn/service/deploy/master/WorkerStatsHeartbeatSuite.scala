@@ -19,26 +19,49 @@ package org.apache.celeborn.service.deploy.master
 
 import java.nio.file.Files
 import java.util.Collections
-import java.util.concurrent.{FutureTask, TimeUnit}
+import java.util.concurrent.{CountDownLatch, FutureTask, TimeUnit}
+import java.util.concurrent.atomic.AtomicReference
 
 import org.mockito.ArgumentCaptor
 import org.mockito.MockitoSugar._
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import org.scalatest.concurrent.Eventually
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.time.{Millis, Seconds, Span}
 
+import org.apache.celeborn.RandomPortSupport
+import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.meta.{WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.metrics.WorkerStats
 import org.apache.celeborn.common.protocol.{PbRegisterWorker, PbWorkerLost}
 import org.apache.celeborn.common.protocol.message.ControlMessages.{HeartbeatFromWorker, HeartbeatFromWorkerResponse}
 import org.apache.celeborn.common.rpc.RpcCallContext
+import org.apache.celeborn.common.util.CelebornExitKind
 
 class WorkerStatsHeartbeatSuite extends AnyFunSuite
-  with BeforeAndAfterAll with BeforeAndAfterEach with Eventually with MasterClusterFeature {
+  with BeforeAndAfterAll with BeforeAndAfterEach with RandomPortSupport {
 
-  private var master: Master = _
+  private class AdmissionGate {
+    val entered = new CountDownLatch(1)
+    val release = new CountDownLatch(1)
+  }
+
+  private class GatedMaster(conf: CelebornConf)
+    extends Master(conf, new MasterArguments(Array.empty, conf)) {
+    val nextAdmission = new AtomicReference[AdmissionGate]()
+
+    override def executeWithLeaderChecker[T](context: RpcCallContext, f: => T): Unit =
+      super.executeWithLeaderChecker(
+        context, {
+          val gate = if (context == null) null else nextAdmission.getAndSet(null)
+          if (gate != null) {
+            gate.entered.countDown()
+            assert(gate.release.await(10, TimeUnit.SECONDS))
+          }
+          f
+        })
+  }
+
+  private var master: GatedMaster = _
   private val worker = new WorkerInfo("localhost", 19101, 19102, 19103, 19104)
   private val stats = WorkerStats(Map(WorkerStats.MemoryPressureRatio -> 0.5))
 
@@ -46,11 +69,24 @@ class WorkerStatsHeartbeatSuite extends AnyFunSuite
     Option(master.statusSystem.workerStats.get(worker)).flatMap(ref => Option(ref.get()))
 
   override def beforeAll(): Unit = {
-    master = setupMasterWithRandomPort()
+    super.beforeAll()
+    val conf = new CelebornConf()
+      .set(CelebornConf.METRICS_ENABLED, false)
+      .set(CelebornConf.MASTER_HOST, "localhost")
+      .set(CelebornConf.MASTER_PORT, selectRandomPort())
+      .set(CelebornConf.PORT_MAX_RETRY, 0)
+    master = new GatedMaster(conf)
   }
 
   override def afterAll(): Unit = {
-    if (master != null) shutdownMaster()
+    try {
+      if (master != null) {
+        master.stop(CelebornExitKind.EXIT_IMMEDIATELY)
+        master.rpcEnv.shutdown()
+      }
+    } finally {
+      super.afterAll()
+    }
   }
 
   override def beforeEach(): Unit = {
@@ -111,21 +147,20 @@ class WorkerStatsHeartbeatSuite extends AnyFunSuite
   }
 
   private def whileHeartbeatBlocked(value: Option[WorkerStats])(action: => Unit): Unit = {
+    val gate = new AdmissionGate
+    assert(master.nextAdmission.compareAndSet(null, gate))
     val task = new FutureTask[HeartbeatFromWorkerResponse](() => heartbeat(value))
     val thread = new Thread(task, "worker-stats-heartbeat-test")
     thread.setDaemon(true)
     try {
-      master.statusSystem.workersMap.synchronized {
-        thread.start()
-        // Pause after the registration check, at the existing metadata membership lock.
-        eventually(timeout(Span(10, Seconds)), interval(Span(10, Millis))) {
-          assert(thread.getState == Thread.State.BLOCKED)
-          assert(thread.getStackTrace.exists(_.getMethodName == "updateWorkerHeartbeatMeta"))
-        }
-        action
-      }
+      thread.start()
+      assert(gate.entered.await(10, TimeUnit.SECONDS))
+      action
     } finally {
+      gate.release.countDown()
       task.get(10, TimeUnit.SECONDS)
+      thread.join(10000)
+      assert(!thread.isAlive)
     }
   }
 
@@ -153,19 +188,32 @@ class WorkerStatsHeartbeatSuite extends AnyFunSuite
     }
   }
 
+  for (value <- Seq(Some(stats), None)) {
+    test(s"an earlier heartbeat with $value cannot replace a later observation") {
+      register()
+      heartbeat(Some(stats))
+      val fresh = WorkerStats(Map(WorkerStats.MemoryPressureRatio -> 0.75))
+      whileHeartbeatBlocked(value) {
+        assert(heartbeat(Some(fresh)).registered)
+      }
+      assert(currentStats.contains(fresh))
+    }
+  }
+
   test("snapshot restoration clears observations and accepts fresh worker heartbeats") {
     register()
     heartbeat(Some(stats))
-    val oldStatsRef = master.statusSystem.workerStats.get(worker)
+    val fresh = WorkerStats(Map(WorkerStats.MemoryPressureRatio -> 0.75))
     val snapshot = Files.createTempFile("worker-stats", ".snapshot").toFile
     try {
       master.statusSystem.writeMetaInfoToFile(snapshot)
-      master.statusSystem.restoreMetaFromFile(snapshot)
-      assert(master.statusSystem.workersMap.containsKey(worker.toUniqueId))
-      oldStatsRef.set(stats)
-      assert(currentStats.isEmpty)
-      assert(heartbeat(Some(stats)).registered)
-      assert(currentStats.contains(stats))
+      whileHeartbeatBlocked(Some(stats)) {
+        master.statusSystem.restoreMetaFromFile(snapshot)
+        assert(master.statusSystem.workersMap.containsKey(worker.toUniqueId))
+        assert(currentStats.isEmpty)
+        assert(heartbeat(Some(fresh)).registered)
+      }
+      assert(currentStats.contains(fresh))
     } finally {
       Files.deleteIfExists(snapshot.toPath)
     }
@@ -177,9 +225,10 @@ class WorkerStatsHeartbeatSuite extends AnyFunSuite
       master.statusSystem.writeMetaInfoToFile(snapshot)
       register()
       heartbeat(Some(stats))
-      val oldStatsRef = master.statusSystem.workerStats.get(worker)
-      master.statusSystem.restoreMetaFromFile(snapshot)
-      oldStatsRef.set(stats)
+      whileHeartbeatBlocked(Some(stats)) {
+        master.statusSystem.restoreMetaFromFile(snapshot)
+        assert(currentStats.isEmpty)
+      }
       assert(!master.statusSystem.workersMap.containsKey(worker.toUniqueId))
       assert(!master.statusSystem.workerStats.containsKey(worker))
       assert(currentStats.isEmpty)

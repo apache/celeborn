@@ -75,7 +75,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       JavaUtils.newConcurrentHashMap();
   public final Set<String> hostnameSet = ConcurrentHashMap.newKeySet();
   public final Map<String, WorkerInfo> workersMap = JavaUtils.newConcurrentHashMap();
-  public final Map<WorkerInfo, AtomicReference<WorkerStats>> workerStats =
+  public final ConcurrentHashMap<WorkerInfo, AtomicReference<WorkerStats>> workerStats =
       JavaUtils.newConcurrentHashMap();
   public final Set<WorkerInfo> availableWorkers = ConcurrentHashMap.newKeySet();
 
@@ -250,6 +250,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
 
   public void deleteApp(String appId) {
     registeredAppAndShuffles.remove(appId);
+  }
+
+  public AtomicReference<WorkerStats> prepareWorkerStatsUpdate(WorkerInfo worker) {
+    // Admission order determines the latest observation, not completion order after Raft.
+    return workerStats.computeIfPresent(
+        worker, (key, previous) -> new AtomicReference<>(previous.get()));
   }
 
   public void updateWorkerLostMeta(

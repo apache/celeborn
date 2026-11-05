@@ -23,7 +23,7 @@ import java.util
 import java.util.{Map => JMap}
 import java.util.Collections
 import java.util.concurrent.{ExecutorService, ScheduledFuture, ThreadLocalRandom, TimeUnit}
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.function.ToLongFunction
 
 import scala.collection.JavaConverters._
@@ -584,15 +584,14 @@ private[celeborn] class Master(
           requestId) =>
       logDebug(s"Received heartbeat from" +
         s" worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort with $disks.")
+      val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
+      val statsRef = Option(statusSystem.prepareWorkerStatsUpdate(targetWorker))
       executeWithLeaderChecker(
         context,
         handleHeartbeatFromWorker(
           context,
-          host,
-          rpcPort,
-          pushPort,
-          fetchPort,
-          replicatePort,
+          targetWorker,
+          statsRef,
           disks,
           userResourceConsumption,
           activeShuffleKey,
@@ -732,11 +731,8 @@ private[celeborn] class Master(
 
   private def handleHeartbeatFromWorker(
       context: RpcCallContext,
-      host: String,
-      rpcPort: Int,
-      pushPort: Int,
-      fetchPort: Int,
-      replicatePort: Int,
+      targetWorker: WorkerInfo,
+      statsRef: Option[AtomicReference[WorkerStats]],
       disks: Seq[DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       activeShuffleKeys: util.Set[String],
@@ -744,26 +740,23 @@ private[celeborn] class Master(
       workerStatus: WorkerStatus,
       workerStats: Option[WorkerStats],
       requestId: String): Unit = {
-    val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
-    val statsRef = Option(statusSystem.workerStats.get(targetWorker))
     val registered = statusSystem.workersMap.containsKey(targetWorker.toUniqueId)
     if (!registered) {
-      logWarning(s"Received heartbeat from unknown worker " +
-        s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
+      logWarning(s"Received heartbeat from unknown worker ${targetWorker.toUniqueId}.")
     } else {
       statusSystem.handleWorkerHeartbeat(
-        host,
-        rpcPort,
-        pushPort,
-        fetchPort,
-        replicatePort,
+        targetWorker.host,
+        targetWorker.rpcPort,
+        targetWorker.pushPort,
+        targetWorker.fetchPort,
+        targetWorker.replicatePort,
         disks.map { disk => disk.mountPoint -> disk }.toMap.asJava,
         userResourceConsumption,
         System.currentTimeMillis(),
         highWorkload,
         workerStatus,
         requestId)
-      // Worker loss or re-registration detaches this reference from the current cache.
+      // Later admissions or membership changes detach this reference.
       statsRef.foreach(_.set(workerStats.orNull))
     }
 
