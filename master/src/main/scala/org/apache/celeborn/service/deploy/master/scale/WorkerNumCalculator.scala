@@ -94,18 +94,21 @@ private[master] class WorkerNumCalculator(
       compensate(computed, alignedMinimum)
     } else if (scaleDown || maxWorkers < input.expectedWorkerCount) {
       val desired = math.max(minWorkers, math.min(maxWorkers, estimate(up = false)))
-      val difference = input.currentWorkerCount - desired
+      val scaleDownBase =
+        if (input.expectedWorkerCount > maxWorkers) input.expectedWorkerCount
+        else input.currentWorkerCount
+      val difference = scaleDownBase - desired
       val decrement =
         if (difference > 0) {
           math.max(
             1,
             math.min(
               difference,
-              math.min(downStep, (downPercent * input.currentWorkerCount).toInt)))
+              math.min(downStep, (downPercent * scaleDownBase).toInt)))
         } else {
           0
         }
-      val candidate = input.currentWorkerCount - decrement
+      val candidate = scaleDownBase - decrement
       val computed =
         if (decrement > 0) {
           candidate
@@ -154,9 +157,9 @@ private[master] object WorkerNumCalculator {
 
     val dimensions: Seq[Dimension] = Seq(
       Dimension(
-        WorkerStats.NettyMemoryUsedRatio,
-        get(CelebornConf.SCALE_UP_MEMORY_RATIO),
-        get(CelebornConf.SCALE_DOWN_MEMORY_RATIO)),
+        WorkerStats.MemoryPressureRatio,
+        get(CelebornConf.SCALE_UP_MEMORY_PRESSURE_RATIO),
+        get(CelebornConf.SCALE_DOWN_MEMORY_PRESSURE_RATIO)),
       Dimension(
         WorkerStats.LastMinuteSystemLoadRatio,
         get(CelebornConf.SCALE_UP_SYSTEM_LOAD_RATIO),
@@ -175,6 +178,7 @@ private[master] object WorkerNumCalculator {
    * workerStats contains the remaining workers, including any excluded workers. Exclusion counts
    * refer to this metric inventory. The caller retains the exclusion list and compensation
    * checkpoint across rounds, and supplies only exclusions not yet compensated as newly excluded.
+   * The caller establishes metric completeness, freshness and readiness before constructing input.
    */
   case class Input(
       currentWorkerCount: Int,
