@@ -20,6 +20,7 @@ package org.apache.spark.shuffle.celeborn.ui
 import scala.xml.Node
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.shuffle.celeborn.RpcMetricsProvider
 import org.apache.spark.shuffle.celeborn.ShuffleAssignmentUIData
 import org.apache.spark.shuffle.celeborn.ui.SparkServletBridge.HttpServletRequest
 import org.apache.spark.ui.{UIUtils, WebUIPage}
@@ -60,6 +61,9 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
     val workerRows = workerSlots.workerSlots.toSeq.map { case (worker, slots) =>
       (worker, workerSlots.workerShuffles.getOrElse(worker, 0), slots)
     }.sortBy { case (worker, _, slots) => (-slots, worker) }
+
+    val (rpcSummary, rpcSection) =
+      CelebornRpcMetricsSection.render(RpcMetricsProvider.snapshot())
 
     val writeBytes = taskInfo.shuffleWriteBytes
     val readBytes = taskInfo.shuffleReadBytes
@@ -127,6 +131,7 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
             <strong>Shuffle Assignments: </strong>
             {assignmentSummary}
           </li>
+          {rpcSummary}
         </ul>
       </div>
 
@@ -166,6 +171,7 @@ private[celeborn] class CelebornShufflePage(parent: CelebornUITab)
     val content =
       <span>
         {summary}
+        {rpcSection}
         <span class="collapse-aggregated-celebornBuildInfo collapse-table"
             onClick="collapseTable('collapse-aggregated-celebornBuildInfo',
             'aggregated-celebornBuildInfo')">
