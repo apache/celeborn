@@ -258,6 +258,13 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         worker, (key, previous) -> new AtomicReference<>(previous.get()));
   }
 
+  public void invalidateWorkerStats() {
+    synchronized (workersMap) {
+      // Detach in-flight heartbeats without removing the entries used by fresh heartbeats.
+      workerStats.replaceAll((worker, stats) -> new AtomicReference<>());
+    }
+  }
+
   public void updateWorkerLostMeta(
       String host, int rpcPort, int pushPort, int fetchPort, int replicatePort) {
     WorkerInfo worker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort);

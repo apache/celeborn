@@ -200,6 +200,21 @@ class WorkerStatsHeartbeatSuite extends AnyFunSuite
     }
   }
 
+  for (value <- Seq(Some(stats), None)) {
+    test(s"a heartbeat with $value from before invalidation cannot change fresh observations") {
+      register()
+      heartbeat(Some(stats))
+      val fresh = WorkerStats(Map(WorkerStats.MemoryPressureRatio -> 0.75))
+      whileHeartbeatBlocked(value) {
+        master.statusSystem.invalidateWorkerStats()
+        assert(master.statusSystem.workersMap.containsKey(worker.toUniqueId))
+        assert(currentStats.isEmpty)
+        assert(heartbeat(Some(fresh)).registered)
+      }
+      assert(currentStats.contains(fresh))
+    }
+  }
+
   test("snapshot restoration clears observations and accepts fresh worker heartbeats") {
     register()
     heartbeat(Some(stats))

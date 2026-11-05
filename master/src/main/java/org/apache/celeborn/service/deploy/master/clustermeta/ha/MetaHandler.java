@@ -48,6 +48,10 @@ public class MetaHandler {
     this.metaSystem = metaSystem;
   }
 
+  public void invalidateWorkerStats() {
+    metaSystem.invalidateWorkerStats();
+  }
+
   public void setUpMasterRatisServer(CelebornConf conf, MasterClusterInfo masterClusterInfo)
       throws IOException {
     metaSystem.setRatisServer(

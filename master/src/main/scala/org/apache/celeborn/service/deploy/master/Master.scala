@@ -756,7 +756,7 @@ private[celeborn] class Master(
         highWorkload,
         workerStatus,
         requestId)
-      // Later admissions or membership changes detach this reference.
+      // Later admissions, membership changes and leadership changes detach this reference.
       statsRef.foreach(_.set(workerStats.orNull))
     }
 
