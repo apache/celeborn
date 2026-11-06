@@ -956,6 +956,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsWorkerAppLevelEnabled: Boolean = get(METRICS_WORKER_APP_LEVEL_ENABLED)
   def metricsLoggerSinkScrapeInterval: Long = get(METRICS_LOGGERSINK_SCRAPE_INTERVAL)
   def metricsLoggerSinkScrapeOutputEnabled: Boolean = get(METRICS_LOGGERSINK_SCRAPE_OUTPUT_ENABLED)
+  def scaleMetricsEnabled: Boolean = get(SCALE_METRICS_ENABLED)
+  def scaleMetricCollectorClassName: String = get(SCALE_METRIC_COLLECTOR_CLASS_NAME)
+  def scaleMetricInterval: Long = get(SCALE_METRIC_INTERVAL)
+  def scaleMetricMemoryWindowSize: Int = get(SCALE_METRIC_MEMORY_WINDOW_SIZE)
 
   // //////////////////////////////////////////////////////
   //                      Quota                         //
@@ -6355,6 +6359,51 @@ object CelebornConf extends Logging {
         " do add `org.apache.celeborn.common.metrics.sink.LoggerSink` to metrics.properties.")
       .booleanConf
       .createWithDefault(false)
+
+  val SCALE_METRICS_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.metrics.worker.scale.enabled")
+      .categories("metrics")
+      .version("1.0.0")
+      .doc("Whether to collect worker metrics for automatic scaling and report them through " +
+        "worker heartbeats. Independent of celeborn.metrics.enabled. " +
+        "When false, the collector is not created or started.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val SCALE_METRIC_COLLECTOR_CLASS_NAME: ConfigEntry[String] =
+    buildConf("celeborn.metrics.worker.scale.collector.class")
+      .categories("metrics")
+      .version("1.0.0")
+      .doc("Class name of the worker metric collector used by automatic scaling.")
+      .stringConf
+      .createWithDefault(
+        "org.apache.celeborn.service.deploy.worker.metrics.DefaultScaleMetricCollector")
+
+  val SCALE_METRIC_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.metrics.worker.scale.collect.interval")
+      .categories("metrics")
+      .version("1.0.0")
+      .doc("Delay between collection tasks in the default worker scaling metric collector. " +
+        "The first sample is collected after this delay. " +
+        "Reporting follows the worker heartbeat schedule, independently of this interval.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(_ > 0, "Worker metric interval must be positive")
+      .createWithDefaultString("5s")
+
+  val SCALE_METRIC_MEMORY_WINDOW_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.metrics.worker.scale.memory.slidingWindow.size")
+      .categories("metrics")
+      .version("1.0.0")
+      .doc("Number of memory usage samples averaged by the default worker scaling metric " +
+        "collector. Only MemoryPressureRatio uses this window; disk and system load metrics " +
+        "do not. Each sample follows MemoryManager pressure accounting: Netty-tracked direct " +
+        "memory plus memory reserved for sorting. The averaged value is divided by the worker's " +
+        "maximum direct memory. This is not a measurement of total actual direct memory usage. " +
+        "The memory pressure ratio is zero until the window fills, so zero during warm-up " +
+        "does not indicate idle memory.")
+      .intConf
+      .checkValue(_ > 0, "Worker metric memory window size must be positive")
+      .createWithDefault(6)
 
   val IDENTITY_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.identity.provider")
