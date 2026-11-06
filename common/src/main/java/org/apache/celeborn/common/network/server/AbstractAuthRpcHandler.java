@@ -27,6 +27,12 @@ import org.apache.celeborn.common.network.protocol.RequestMessage;
 /**
  * RPC Handler which performs authentication, and when it's successful, delegates further calls to
  * another RPC handler. The authentication handshake itself should be implemented by subclasses.
+ *
+ * <p>Each instance owns completion of one authentication layer. Binding a native application ID or
+ * installing a security context on the client does not complete this handler. Only a successful
+ * {@link #doAuthChallenge} permits subsequent request delegation; an authentication handler used as
+ * the delegate still enforces its own handshake before forwarding business traffic. Channel
+ * lifecycle callbacks are delegated independently of this authentication state.
  */
 public abstract class AbstractAuthRpcHandler extends BaseMessageHandler {
   /** RpcHandler we will delegate to for authenticated connections. */
@@ -43,7 +49,7 @@ public abstract class AbstractAuthRpcHandler extends BaseMessageHandler {
   /**
    * Responds to an authentication challenge.
    *
-   * @return Whether the client is authenticated.
+   * @return Whether this layer's required authentication handshake has completed successfully.
    */
   protected abstract boolean doAuthChallenge(
       TransportClient client, RequestMessage message, RpcResponseCallback callback);

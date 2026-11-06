@@ -618,8 +618,6 @@ private[celeborn] class NettyRpcHandler(
     dispatcher: Dispatcher,
     nettyEnv: NettyRpcEnv) extends BaseMessageHandler with Logging {
 
-  private val remoteOrigin = RpcMessageOrigin.remote(nettyEnv)
-
   // A variable to track the remote RpcEnv addresses of all clients
   private val remoteAddresses = JavaUtils.newConcurrentHashMap[RpcAddress, RpcAddress]()
 
@@ -629,7 +627,7 @@ private[celeborn] class NettyRpcHandler(
     try {
       val message = requestMessage.body().nioByteBuffer()
       val messageToDispatch = internalReceive(client, message)
-      dispatcher.postOneWayMessage(messageToDispatch, remoteOrigin)
+      dispatcher.postOneWayMessage(messageToDispatch, RpcMessageOrigin.remote(nettyEnv, client))
     } catch {
       case e: Exception =>
         logError("Error while invoking NettyRpcHandler#receive() for one-way message.", e)

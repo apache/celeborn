@@ -50,6 +50,8 @@ import org.apache.celeborn.common.metrics.ClientMetric
 import org.apache.celeborn.common.metrics.source.Role
 import org.apache.celeborn.common.network.protocol.{SerdeVersion, TransportMessagesHelper}
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
+import org.apache.celeborn.common.network.security.AuthorizationRequest
+import org.apache.celeborn.common.network.security.SecurityOperation._
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.RpcNameConstants.WORKER_EP
 import org.apache.celeborn.common.protocol.message.ControlMessages._
@@ -381,6 +383,34 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
 
   def getPartitionType(shuffleId: Int): PartitionType = {
     shufflePartitionType.getOrDefault(shuffleId, partitionType)
+  }
+
+  // Resources and secrets belong to this LM's appUniqueId, regardless of a request's app claim.
+  // Cleanup and stage completion require a local origin.
+  override def authorize(origin: RpcMessageOrigin, message: Any): Unit = message match {
+    case RemoveExpiredShuffle | _: StageEnd =>
+      RpcAuthorization.requireLocal(origin)
+    case _ =>
+      val operation = message match {
+        case _: RegisterShuffle => REGISTER_SHUFFLE
+        case _: PbRegisterMapPartitionTask => REGISTER_MAP_PARTITION_TASK
+        case _: Revive => REVIVE
+        case _: PbPartitionSplit => PARTITION_SPLIT
+        case _: MapperEnd => MAPPER_END
+        case _: ReadReducerPartitionEnd => READ_REDUCER_PARTITION_END
+        case _: GetReducerFileGroup => GET_REDUCER_FILE_GROUP
+        case _: PbGetStageEnd => GET_STAGE_END
+        case _: PbGetShuffleId => GET_SHUFFLE_ID
+        case _: PbReportShuffleFetchFailure => REPORT_SHUFFLE_FETCH_FAILURE
+        case _: PbReportBarrierStageAttemptFailure => REPORT_BARRIER_STAGE_ATTEMPT_FAILURE
+        case _: PbApplicationMetaRequest => GET_APPLICATION_META
+        case _ =>
+          throw new SecurityException(
+            s"Unsupported LifecycleManager request: ${message.getClass.getName}")
+      }
+      RpcAuthorization.authorize(
+        origin,
+        AuthorizationRequest.forApplication(operation, appUniqueId))
   }
 
   override def receive: PartialFunction[Any, Unit] = {

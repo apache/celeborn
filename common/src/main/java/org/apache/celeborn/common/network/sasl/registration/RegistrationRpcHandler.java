@@ -39,6 +39,8 @@ import org.apache.celeborn.common.network.protocol.TransportMessage;
 import org.apache.celeborn.common.network.sasl.CelebornSaslServer;
 import org.apache.celeborn.common.network.sasl.SaslRpcHandler;
 import org.apache.celeborn.common.network.sasl.SecretRegistry;
+import org.apache.celeborn.common.network.security.AuthorizationRequest;
+import org.apache.celeborn.common.network.security.SecurityOperation;
 import org.apache.celeborn.common.network.server.BaseMessageHandler;
 import org.apache.celeborn.common.network.util.TransportConf;
 import org.apache.celeborn.common.protocol.PbAuthType;
@@ -185,9 +187,13 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
               "Application " + registerApplicationRequest.getId() + " failed to register.");
         }
 
+        client.authorize(
+            AuthorizationRequest.forApplication(
+                SecurityOperation.REGISTER_APPLICATION, registerApplicationRequest.getId()));
+        // Bind the native application before storing its credentials.
+        client.setClientId(registerApplicationRequest.getId());
         processRegisterApplicationRequest(registerApplicationRequest, callback);
         registrationState = RegistrationState.REGISTERED;
-        client.setClientId(registerApplicationRequest.getId());
         LOG.info(
             "Application registered: appId {} rpcId {}",
             registerApplicationRequest.getId(),

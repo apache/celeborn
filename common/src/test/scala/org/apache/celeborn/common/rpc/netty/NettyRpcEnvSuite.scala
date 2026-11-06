@@ -176,12 +176,14 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
       assert(errors.poll(5, TimeUnit.SECONDS).isInstanceOf[SecurityException])
       val sendOrigin = observed.poll(5, TimeUnit.SECONDS)
       assert(sendOrigin != null && !sendOrigin.isLocal && sendOrigin.receivingRpcEnv.contains(env))
+      assert(sendOrigin.client.nonEmpty)
 
       val failure = intercept[CelebornException](remote.askSync[String]("remote-ask"))
       assert(failure.getCause.isInstanceOf[SecurityException])
       assert(errors.poll(5, TimeUnit.SECONDS).isInstanceOf[SecurityException])
       val askOrigin = observed.poll(5, TimeUnit.SECONDS)
       assert(askOrigin != null && !askOrigin.isLocal && askOrigin.receivingRpcEnv.contains(env))
+      assert(askOrigin.client.nonEmpty)
 
       val connection = remoteEnv.createClient(env.address)
       val forged =
@@ -191,7 +193,22 @@ class NettyRpcEnvSuite extends RpcEnvSuite with TimeLimits {
       val forgedOrigin = observed.poll(5, TimeUnit.SECONDS)
       assert(forgedOrigin != null)
       assert(!forgedOrigin.isLocal && forgedOrigin.receivingRpcEnv.contains(env))
+      assert(forgedOrigin.client.nonEmpty)
       assert(received.isEmpty)
+
+      val otherEnv = createRpcEnv(createCelebornConf(), "other-origin-client", 0)
+      try {
+        otherEnv.setupEndpointRef(env.address, "origin-authorization").send("other-connection")
+        assert(errors.poll(5, TimeUnit.SECONDS).isInstanceOf[SecurityException])
+        val otherOrigin = observed.poll(5, TimeUnit.SECONDS)
+        assert(otherOrigin != null && otherOrigin.receivingRpcEnv.contains(env))
+        assert(otherOrigin.client.nonEmpty)
+        assert(otherOrigin.client.get ne sendOrigin.client.get)
+        assert(received.isEmpty)
+      } finally {
+        otherEnv.shutdown()
+        otherEnv.awaitTermination()
+      }
 
       local.send("local-send")
       assert(local.askSync[String]("local-ask") == "local-ask")

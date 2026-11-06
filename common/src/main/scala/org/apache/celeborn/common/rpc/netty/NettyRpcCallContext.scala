@@ -65,6 +65,8 @@ private[celeborn] class RemoteNettyRpcCallContext(
 
   override def receivingRpcEnv: Option[RpcEnv] = Option(nettyEnv)
 
+  override def client: Option[TransportClient] = Option(transportClient)
+
   override protected def send(message: Any): Unit = {
     val reply = nettyEnv.serialize(message)
     callback.onSuccess(reply)
