@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.service.deploy.worker.storage
 
-import java.io.{File, FileInputStream}
+import java.io.{File, FileInputStream, IOException}
 import java.nio.ByteBuffer
 import java.nio.file.Files
 
@@ -81,7 +81,12 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
     assert(1024 === len)
 
     assert(mapMetaHandler.indexChannel !== null)
+    val indexChannel = mapMetaHandler.indexChannel
     mapMetaHandler.afterClose()
+
+    assert(!indexChannel.isOpen)
+    assert(mapMetaHandler.indexChannel == null)
+    assert(mapMetaHandler.indexBuffer == null)
 
     val file = new File(diskFileInfo.getIndexPath)
     assert(file.length() == 160)
@@ -96,6 +101,38 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
     assert(0 === start2)
     assert(1024 === len2)
 
+  }
+
+  test("map partition meta handler releases index resources when close fails") {
+    val tmpFilePath = Files.createTempFile("abc", "def")
+    val fileMeta = new MapFileMeta()
+    val notifier = new FlushNotifier()
+    val diskFileInfo = new DiskFileInfo(
+      UserIdentifier.apply("`a`.`b`"),
+      true,
+      fileMeta,
+      tmpFilePath.toString,
+      StorageInfo.Type.HDD)
+
+    val mapMetaHandler = new MapPartitionMetaHandler(diskFileInfo, notifier)
+    mapMetaHandler.handleEvent(
+      PbPushDataHandShake.newBuilder().setNumPartitions(10).setBufferSize(1024).build())
+    mapMetaHandler.handleEvent(
+      PbRegionStart.newBuilder().setCurrentRegionIndex(0).setIsBroadcast(true).build())
+    mapMetaHandler.beforeWrite(generateFlinkFormatData(UnpooledByteBufAllocator.DEFAULT, 0))
+    mapMetaHandler.handleEvent(PbRegionFinish.newBuilder().build())
+
+    val indexChannel = mapMetaHandler.indexChannel
+    assert(indexChannel !== null)
+    notifier.setException(new IOException("index flush failed"))
+
+    intercept[IOException](mapMetaHandler.afterClose())
+
+    assert(!indexChannel.isOpen)
+    assert(mapMetaHandler.indexChannel == null)
+    assert(mapMetaHandler.indexBuffer == null)
+    // beforeDestroy() is also used on the destroy-before-close path; it must be idempotent.
+    mapMetaHandler.beforeDestroy()
   }
 
   test("test reduce partition meta handler") {
@@ -201,7 +238,12 @@ class PartitionMetaHandlerSuite extends CelebornFunSuite with MockitoHelper {
     assert(10240 === len)
 
     assert(mapMetaHandler.indexChannel !== null)
+    val indexChannel = mapMetaHandler.indexChannel
     mapMetaHandler.afterClose()
+
+    assert(!indexChannel.isOpen)
+    assert(mapMetaHandler.indexChannel == null)
+    assert(mapMetaHandler.indexBuffer == null)
 
     val file = new File(diskFileInfo.getIndexPath)
     assert(file.length() == 160)
