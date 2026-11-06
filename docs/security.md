@@ -160,7 +160,7 @@ spark.celeborn.auth.enabled             true
 Transport bootstraps let a plugin perform an additional handshake when a connection opens.
 Implement `org.apache.celeborn.common.network.client.TransportClientBootstrap` on the initiating
 side and `org.apache.celeborn.common.network.server.TransportServerBootstrap` on the accepting side.
-Celeborn's existing request authorization checks still apply after the handshake.
+After the handshake, built-in handlers use the connection policy described below when one is installed.
 
 ### Configuration and deployment
 
@@ -231,8 +231,8 @@ set the same application ID; setting it to an independent plugin principal preve
 authentication with a different application ID. `setClientId()` rejects changing or clearing an
 assigned identity.
 
-Keep independent plugin principals and authentication-completion state in per-connection handler
-fields or channel attributes, not in `clientId` or shared bootstrap fields. A non-null `clientId`
+Keep independent plugin principals in a connection security context, and authentication-completion
+state in per-connection handlers, not in `clientId` or shared bootstrap fields. A non-null `clientId`
 does not prove authentication succeeded: native SASL can assign it before credential validation
 finishes. Each authentication layer must still gate requests on its own completed handshake.
 
@@ -265,3 +265,87 @@ continues closing the remaining instances.
 Validate successful and failed handshakes, reconnection, native SASL composition, and shutdown
 against the actual client and service JARs used in the deployment, including shaded clients.
 
+
+## Connection authorization policies
+
+An accepting bootstrap can install a
+`org.apache.celeborn.common.network.security.ConnectionSecurityContext` with
+`TransportClient.setSecurityContext(context)` after authenticating the peer and before forwarding
+business requests. Keep the mechanism's verified principal or session in the context's private,
+immutable state. Contexts must support concurrent authorization calls. A connection accepts one
+context only; attempting to install another, including the same instance, fails. Multiple required
+authentication layers must designate one context owner and complete their own handshakes.
+Installing a context does not complete native registration or SASL.
+
+### Requests and policy decisions
+
+`ConnectionSecurityContext.authorize(AuthorizationRequest)` permits an operation by returning
+normally and rejects it by throwing `SecurityException`. Policies should reject unknown operations.
+`AuthorizationRequest` and `SecurityOperation` are in
+`org.apache.celeborn.common.network.security`.
+
+| Request field | Meaning |
+| --- | --- |
+| `getOperation()` | Operation selected by the receiving handler, such as `REQUEST_SLOTS`, `PUSH_DATA`, or `CHUNK_FETCH`. |
+| `getScope()` | `APPLICATION` for application resources or `SERVICE` for internal service operations. |
+| `getApplicationId()` | Target application, when present. |
+| `getUserIdentifier()` | Original user claim from the request, when present. It is not an authenticated principal. |
+
+Scope describes the requested access, not the caller's role. Replica push has `SERVICE` scope and
+an application target: the policy must check that the verified peer may replicate that application's
+data. `CHECK_QUOTA` carries a user claim without an application ID, while `CHECK_WORKERS_AVAILABLE`
+carries neither. Handle each supported operation with the available resource facts. Private
+endpoints may define additional operation strings and must enforce their policy before side effects.
+
+The framework preserves user claims and existing ownership and quota behavior. It does not derive
+or replace the accounting user from the authenticated session. A mechanism that requires verified
+users must validate those claims in its policy before permitting the request.
+
+### Native authorization and composition
+
+Without a context, `TransportClient.authorize(request)` applies native connection rules. A bound
+native application may access only that application's resources and cannot perform service
+operations, except for its own application metadata lookup. Connections without a native application
+binding retain the existing behavior for internal channels and authentication-disabled deployments.
+
+An installed context replaces these connection rules. To require both policies, the plugin calls
+`client.checkNativeAuthorization(request)` from its own policy before applying its additional rules.
+This is explicit because native exact-application matching may conflict with a policy that permits
+several applications in one tenant. If plugin and native identities coexist, the plugin must define
+which associations are permitted; completing native SASL must not grant access outside its policy.
+
+Host restrictions remain in force. With `celeborn.auth.enabled=true`, the Master's external RPC
+listener accepts only its application-operation allowlist before consulting the connection policy.
+A permissive plugin cannot admit Worker lifecycle or cluster-management messages through that
+listener, even when `clientId` is null. Remote service traffic must use the dedicated internal
+listener. Stream handlers continue deriving application targets from server-held stream state;
+this policy API does not expose a stream ID or creator channel and cannot replace channel ownership
+checks with an application-only decision.
+
+### Enforcement paths
+
+RPC endpoints use the existing `authorize(origin, message): Unit` hook before both request/reply
+and one-way dispatch. `RpcMessageOrigin` carries receiver-assigned local/remote facts, the receiving
+`RpcEnv`, and the receiving `TransportClient`. A serialized sender address cannot change those facts.
+Forwarding endpoints retain the origin. `RpcAuthorization.authorize` rejects remote origins without
+a receiver or connection; local dispatch does not invoke a connection policy. Custom endpoints
+must implement their own authorization hook.
+
+Master, Worker, and LifecycleManager classify operations before their business handlers. Master
+maintenance requests retain native behavior without a plugin; with an installed context they require
+a local or dedicated internal origin. LifecycleManager's `StageEnd` and `RemoveExpiredShuffle`
+require a local origin. Data handlers authorize push, replication, stream opening, and subsequent
+chunk and credit operations before protected work. Later stream requests obtain their target from
+server-owned stream state rather than a caller-supplied application ID.
+
+Denied request/reply operations return a failure. One-way requests have no reply callback: rejection
+prevents the state change and follows existing error handling. In particular, a denied raw credit
+control is logged without closing the shared connection or notifying its sender immediately.
+
+### Validation
+
+Validate allocation, ordinary and merged push, replication, mapper completion, and reads using the
+actual mechanism and packaged clients, including shaded distributions. Check allowed bytes and
+unchanged state after denial. Distinguish failed authentication from authenticated access denial;
+a timeout does not prove an authorization check ran. Verify native-only behavior, required native
+SASL composition, reconnection, and the fixed external Master boundary with a permissive policy.

@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.rpc
 
+import org.apache.celeborn.common.network.client.TransportClient
+
 /**
  * The origin of an RPC message as determined by the receiver: local dispatch or the receiving RpcEnv.
  * This is independent of the sender address in the message and does not authenticate the caller.
@@ -27,6 +29,9 @@ trait RpcMessageOrigin {
 
   /** The receiving environment, assigned by the network handler rather than the wire message. */
   def receivingRpcEnv: Option[RpcEnv] = None
+
+  /** The receiving connection; its presence does not imply that authentication has completed. */
+  def client: Option[TransportClient] = None
 }
 
 private[celeborn] object RpcMessageOrigin {
@@ -36,10 +41,12 @@ private[celeborn] object RpcMessageOrigin {
 
   def local(): RpcMessageOrigin = localOrigin
 
-  def remote(receiver: RpcEnv): RpcMessageOrigin = {
+  def remote(receiver: RpcEnv, connection: TransportClient): RpcMessageOrigin = {
     require(receiver != null, "A remote message requires its receiving RPC environment")
+    require(connection != null, "A remote message requires its transport connection")
     new RpcMessageOrigin {
       override val receivingRpcEnv: Option[RpcEnv] = Some(receiver)
+      override val client: Option[TransportClient] = Some(connection)
     }
   }
 }

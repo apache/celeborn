@@ -19,12 +19,16 @@ package org.apache.celeborn.service.deploy.master
 
 import java.util
 
+import scala.collection.mutable.ArrayBuffer
+
+import io.netty.channel.embedded.EmbeddedChannel
 import org.mockito.Mockito.{mock, when}
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.WorkerStatus
-import org.apache.celeborn.common.network.client.TransportClient
+import org.apache.celeborn.common.network.client.{TransportClient, TransportResponseHandler}
+import org.apache.celeborn.common.network.security.{AuthorizationRequest, ConnectionSecurityContext, SecurityOperation}
 import org.apache.celeborn.common.protocol._
 import org.apache.celeborn.common.protocol.message.ControlMessages._
 import org.apache.celeborn.common.rpc.{RpcEnv, RpcMessageOrigin}
@@ -89,7 +93,7 @@ class MasterRpcAuthorizationSuite extends AnyFunSuite with MasterClusterFeature 
         }
         if (auth) {
           intercept[SecurityException] {
-            master.authorize(RpcMessageOrigin.remote(master.rpcEnv), "unknown request")
+            master.authorize(remote(master.rpcEnv, null), "unknown request")
           }
         }
       } finally {
@@ -101,6 +105,56 @@ class MasterRpcAuthorizationSuite extends AnyFunSuite with MasterClusterFeature 
             master.internalRpcEnvInUse.awaitTermination()
           }
         }
+      }
+    }
+  }
+
+  test("plugin policy cannot widen external Master worker-event access") {
+    val master = setupMasterWithRandomPort(Map(
+      CelebornConf.AUTH_ENABLED.key -> "true",
+      CelebornConf.INTERNAL_PORT_ENABLED.key -> "true"))
+    val message = PbWorkerEventRequest.getDefaultInstance
+    try {
+      Seq(null, "native-application").foreach { clientId =>
+        withClue(s"native clientId=$clientId: ") {
+          val channel = new EmbeddedChannel()
+          try {
+            val client = new TransportClient(channel, mock(classOf[TransportResponseHandler]))
+            // Supply the native binding directly; this test does not perform a SASL handshake.
+            if (clientId != null) {
+              client.setClientId(clientId)
+            }
+            val requests = ArrayBuffer.empty[AuthorizationRequest]
+            client.setSecurityContext(new ConnectionSecurityContext {
+              override def authorize(request: AuthorizationRequest): Unit = {
+                requests += request
+              }
+            })
+
+            intercept[SecurityException] {
+              master.authorize(RpcMessageOrigin.remote(master.rpcEnv, client), message)
+            }
+            assert(requests.isEmpty)
+
+            master.authorize(RpcMessageOrigin.remote(master.internalRpcEnvInUse, client), message)
+            assert(requests.map(_.getOperation) == Seq(SecurityOperation.WORKER_EVENT))
+            assert(requests.head.getScope == AuthorizationRequest.Scope.SERVICE)
+
+            master.authorize(RpcMessageOrigin.local(), message)
+            assert(requests.size == 1)
+          } finally {
+            channel.finishAndReleaseAll()
+          }
+        }
+      }
+    } finally {
+      try {
+        shutdownMaster()
+      } finally {
+        master.rpcEnv.shutdown()
+        master.internalRpcEnvInUse.shutdown()
+        master.rpcEnv.awaitTermination()
+        master.internalRpcEnvInUse.awaitTermination()
       }
     }
   }
