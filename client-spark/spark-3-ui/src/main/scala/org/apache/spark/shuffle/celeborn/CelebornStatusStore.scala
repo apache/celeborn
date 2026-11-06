@@ -79,6 +79,14 @@ private[celeborn] case class WorkerSlotsUIData(
   def id: String = classOf[WorkerSlotsUIData].getName
 }
 
+/** Revived partitions of each worker by revive cause, over all shuffles of the application. */
+private[celeborn] case class WorkerRevivesUIData(workerRevives: Map[String, Map[String, Int]]) {
+
+  @JsonIgnore
+  @KVIndex
+  def id: String = classOf[WorkerRevivesUIData].getName
+}
+
 /**
  * Marker persisted during History Server replay when the application's recorded
  * `spark.plugins` or `spark.plugins.defaultList` contains [[CelebornPlugin]].
@@ -134,6 +142,16 @@ private[celeborn] class CelebornStatusStore(store: KVStore) {
       store.read(kClass, kClass.getName)
     } catch {
       case _: NoSuchElementException => WorkerSlotsUIData(0L, Map.empty, Map.empty)
+    }
+  }
+
+  // None means reporting was unavailable; an empty record means no revives occurred.
+  def workerRevives(): Option[WorkerRevivesUIData] = {
+    val kClass = classOf[WorkerRevivesUIData]
+    try {
+      Some(store.read(kClass, kClass.getName))
+    } catch {
+      case _: NoSuchElementException => None
     }
   }
 
