@@ -404,6 +404,8 @@ message PbMapperEnd {
   repeated int32 crc32PerPartition = 8;
   repeated int64 bytesWrittenPerPartition = 9;
   PbMapperMetrics metrics = 10;
+  // Engine task attempt id (Spark TaskContext.taskAttemptId()); unset for other clients.
+  optional int64 taskAttemptId = 11;
 }
 
 message PbLocationPushFailedBatches {

@@ -409,7 +409,8 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
         numPartitions,
         new MapperMetrics(
             pusher.getUncompressedBytesWritten() + giantRecordBytesWritten,
-            SparkCommonUtils.sumLongAdders(mapStatusLengths)));
+            SparkCommonUtils.sumLongAdders(mapStatusLengths)),
+        taskContext.taskAttemptId());
     writeMetrics.incWriteTime(System.nanoTime() - waitStartTime);
   }
 

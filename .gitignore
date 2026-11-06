@@ -12,6 +12,7 @@
 .cache
 .classpath
 .ensime
+.claude/
 .ensime_cache/
 .ensime_lucene
 .flattened-pom.xml

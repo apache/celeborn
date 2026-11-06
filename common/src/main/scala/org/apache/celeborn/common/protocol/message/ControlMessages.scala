@@ -225,7 +225,8 @@ object ControlMessages extends Logging {
       crc32PerPartition: Array[Int],
       bytesWrittenPerPartition: Array[Long],
       serdeVersion: SerdeVersion,
-      metrics: MapperMetrics = MapperMetrics())
+      metrics: MapperMetrics = MapperMetrics(),
+      taskAttemptId: Long = -1L)
     extends MasterMessage
 
   case class ReadReducerPartitionEnd(
@@ -755,12 +756,13 @@ object ControlMessages extends Logging {
           crc32PerPartition,
           bytesWrittenPerPartition,
           serdeVersion,
-          metrics) =>
+          metrics,
+          taskAttemptId) =>
       val pushFailedMap = pushFailedBatch.asScala.map { case (k, v) =>
         val resultValue = PbSerDeUtils.toPbLocationPushFailedBatches(v)
         (k, resultValue)
       }.toMap.asJava
-      val payload = PbMapperEnd.newBuilder()
+      val builder = PbMapperEnd.newBuilder()
         .setShuffleId(shuffleId)
         .setMapId(mapId)
         .setAttemptId(attemptId)
@@ -774,8 +776,10 @@ object ControlMessages extends Logging {
         .setMetrics(PbMapperMetrics.newBuilder()
           .setUncompressedBytesWritten(metrics.uncompressedBytesWritten)
           .setCompressedBytesWritten(metrics.compressedBytesWritten))
-        .build().toByteArray
-      new TransportMessage(MessageType.MAPPER_END, payload, serdeVersion)
+      if (taskAttemptId >= 0) {
+        builder.setTaskAttemptId(taskAttemptId)
+      }
+      new TransportMessage(MessageType.MAPPER_END, builder.build().toByteArray, serdeVersion)
 
     case MapperEndResponse(status, serdeVersion) =>
       val payload = PbMapperEndResponse.newBuilder()
@@ -1287,7 +1291,8 @@ object ControlMessages extends Logging {
           message.getSerdeVersion,
           MapperMetrics(
             pbMapperEnd.getMetrics.getUncompressedBytesWritten,
-            pbMapperEnd.getMetrics.getCompressedBytesWritten))
+            pbMapperEnd.getMetrics.getCompressedBytesWritten),
+          if (pbMapperEnd.hasTaskAttemptId) pbMapperEnd.getTaskAttemptId else -1L)
 
       case READ_REDUCER_PARTITION_END_VALUE =>
         val pbReadReducerPartitionEnd = PbReadReducerPartitionEnd.parseFrom(message.getPayload)
