@@ -67,6 +67,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final ShuffleDependency<K, V, C> dep;
   private final Partitioner partitioner;
   private final ShuffleWriteMetricsReporter writeMetrics;
+  private final Object bytesWrittenLock = new Object();
   private final int shuffleId;
   private final int mapId;
   private final int encodedAttemptId;
@@ -157,7 +158,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
               conf,
               shuffleClient,
               pushTaskQueue,
-              writeMetrics::incBytesWritten,
+              this::incBytesWritten,
               mapStatusLengths);
     } catch (InterruptedException e) {
       TaskInterruptedHelper.throwTaskKillException();
@@ -307,7 +308,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             numPartitions);
     long delta = System.nanoTime() - start;
     mapStatusLengths[partitionId].add(bytesWritten);
-    writeMetrics.incBytesWritten(bytesWritten);
+    incBytesWritten(bytesWritten);
     writeMetrics.incWriteTime(delta);
     uncompressedBytesWritten += numBytes;
   }
@@ -347,8 +348,8 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
 
   protected void closeWrite() throws IOException {
     // merge and push residual data to reduce network traffic
-    // NB: since dataPusher thread have no in-flight data at this point,
-    //     we now push merged data by task thread will not introduce any contention
+    // NB: the dataPusher thread may still have in-flight push tasks at this point, so any state
+    //     shared with it (e.g. the bytes-written metric) must be updated thread-safely.
     for (int i = 0; i < numPartitions; i++) {
       final int size = sendOffsets[i];
       if (size > 0) {
@@ -374,7 +375,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             numMappers,
             numPartitions);
     mapStatusLengths[partitionId].add(bytesWritten);
-    writeMetrics.incBytesWritten(bytesWritten);
+    incBytesWritten(bytesWritten);
     uncompressedBytesWritten += length;
   }
 
@@ -418,6 +419,17 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     mapStatus =
         SparkUtils.createMapStatus(
             bmId, SparkUtils.unwrap(mapStatusLengths), taskContext.taskAttemptId());
+  }
+
+  /**
+   * Adds to the bytes-written metric. Called from both the task thread and the {@link
+   * org.apache.celeborn.client.write.DataPusher} thread, while Spark's metric accumulators are not
+   * thread-safe, so updates are serialized to avoid losing increments.
+   */
+  private void incBytesWritten(long bytes) {
+    synchronized (bytesWrittenLock) {
+      writeMetrics.incBytesWritten(bytes);
+    }
   }
 
   private void updateRecordsWrittenMetrics() {
