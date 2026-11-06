@@ -40,7 +40,7 @@ import org.apache.celeborn.common.client.MasterClient
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol._
-import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFilesResponse, HeartbeatFromWorkerResponse}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{CommitFilesResponse, HeartbeatFromWorkerResponse, ReportWorkerDecommission}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.RpcCallContext
@@ -416,6 +416,35 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
       case e: Throwable => throw e;
     } finally {
       shutdownMiniCluster()
+      mockedMasterClient.close()
+    }
+  }
+
+  test("decommission rejects new writes before the blocking master report") {
+    val tmpFile =
+      Files.createTempDirectory(Paths.get("/tmp"), "celeborn" + System.currentTimeMillis())
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, tmpFile.toString)
+    var shutdownWhenReported: Option[Boolean] = None
+    val mockInitializer = new MockInitializer[MasterClient] {
+      override def prepare(instance: MasterClient, context: MockedConstruction.Context): Unit = {
+        Mockito.doAnswer(new Answer[AnyRef] {
+          override def answer(invocation: InvocationOnMock): AnyRef = {
+            shutdownWhenReported = Some(worker.shutdown.get())
+            null
+          }
+        }).when(instance).askSync(
+          ArgumentMatchers.any(classOf[ReportWorkerDecommission]),
+          ArgumentMatchers.any[Class[AnyRef]]())
+      }
+    }
+    val mockedMasterClient = mockConstruction(classOf[MasterClient], mockInitializer)
+    try {
+      worker = new Worker(conf, workerArgs)
+      worker.decommissionWorker()
+
+      assert(shutdownWhenReported.contains(true))
+      assert(worker.workerStatusManager.getWorkerState() == PbWorkerStatus.State.Exit)
+    } finally {
       mockedMasterClient.close()
     }
   }

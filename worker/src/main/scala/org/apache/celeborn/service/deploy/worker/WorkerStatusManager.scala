@@ -110,12 +110,29 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
     exitEventType match {
       case WorkerEventType.Immediately => transitionState(State.InExit)
       case WorkerEventType.Graceful => transitionState(State.InGraceFul)
-      case WorkerEventType.Decommission => transitionState(State.InDecommission)
+      case WorkerEventType.Decommission =>
+        transitionState(State.InDecommission)
+        startDecommission()
       case _ => // ignore
     }
 
-    // Compatible with current exit logic
-    // trigger shutdown hook to exit
+    systemExitAction()
+  }
+
+  // Stop taking new writes and tell the master right away, instead of waiting for the shutdown
+  // hook that only starts after the exit delay. The hook reports to the master again.
+  private def startDecommission(): Unit = {
+    shutdown.set(true)
+    ThreadUtils.newDaemonThread(
+      new Runnable {
+        override def run(): Unit = worker.sendWorkerDecommissionToMaster()
+      },
+      "worker-decommission-reporter").start()
+  }
+
+  // Compatible with current exit logic
+  // trigger shutdown hook to exit. Tests replace it to avoid a real System.exit.
+  @volatile private[worker] var systemExitAction: () => Unit = () =>
     ThreadUtils.newThread(
       new Runnable {
         override def run(): Unit = {
@@ -124,7 +141,6 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
         }
       },
       "worker-exit-thread").start()
-  }
 
   def transitionState(state: State): Unit = this.synchronized {
     val allowStates = transitionStateMap.get(currentWorkerStatus.getState)
