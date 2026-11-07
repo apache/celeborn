@@ -284,7 +284,8 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
       "disk1",
       StorageInfo.Type.HDD,
       null,
-      celebornConf.workerFlusherBufferSize)
+      celebornConf.workerFlusherBufferSize,
+      celebornConf)
     val storageManager: StorageManager = Mockito.mock(classOf[StorageManager])
 
     MemoryManager.initialize(celebornConf, storageManager, null)
@@ -604,7 +605,8 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
       null,
       "HDFS",
       false,
-      conf.workerHdfsFlusherBufferSize) {
+      conf.workerHdfsFlusherBufferSize,
+      conf) {
     override def processIOException(e: IOException, deviceErrorType: DiskStatus): Unit = {}
 
     override def getFlushTimeMetric(): String = WorkerSource.FLUSH_HDFS_DATA_TIME
