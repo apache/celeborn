@@ -66,3 +66,5 @@ spec:
     name: celeborn-master
   type: {{ .Values.service.type }}
   clusterIP: None
+  # Masters discover each other through this service before they are ready. See README.md.
+  publishNotReadyAddresses: true

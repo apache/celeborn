@@ -391,6 +391,98 @@ KEDA has settled, or pass `--set worker.replicas=<current>` when upgrading.
 For a continuous-delivery tool, tell it to ignore the field - in Argo CD, `ignoreDifferences`
 on `/spec/replicas` for the worker statefulsets, with `RespectIgnoreDifferences=true`.
 
+## Health probes
+
+Both the master and the worker serve `GET /healthz` on their HTTP port, returning `200` when the
+process can serve and `503` when it cannot. The chart wires probes to that endpoint through
+`master.startupProbe`, `master.livenessProbe`, `master.readinessProbe` and the matching `worker.*`
+values. Each value is a complete Kubernetes probe object, passed through as it is.
+
+All probes are off by default. `/healthz` was added after Celeborn 0.7.0, the release the chart
+deploys by default, so probes pointed at it would never pass against that image: workers would
+stay NotReady and masters would be restarted. Enable them only with an image that serves
+`/healthz`.
+
+With such an image, a working setup looks like this:
+
+```yaml
+master:
+  podManagementPolicy: Parallel   # immutable - see "Readiness and pod management policy"
+  startupProbe:
+    httpGet:
+      path: /healthz
+      port: metrics
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: metrics
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+
+worker:
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: metrics
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+```
+
+The reasoning behind that shape:
+
+- The master check is shallow - it reports healthy once the master HTTP service is up - so it is
+  safe to restart on. Pair the liveness probe with a startup probe, which holds it off while a
+  master waits for the DNS records of its peers; that can take a while if one replica is slow to
+  be scheduled. The startup probe allows `failureThreshold` x `periodSeconds` - 300s above.
+- The worker readiness check is the reason the probes exist: it reports healthy only after the
+  worker has finished initializing and registered with the master, which stops a rolling update
+  from moving on to the next worker while the previous one still rejects traffic.
+- Leave the worker liveness probe off. Worker `/healthz` fails while the worker is not registered
+  with the master, so a liveness probe on it would restart every worker in the cluster during a
+  master outage or failover. If one is wanted, use a `tcpSocket` check on the RPC port.
+
+### Parked workers and rolling updates
+
+A worker parked with `DecommissionThenIdle` reports state `Idle`, which `/healthz` treats as not
+serving, because the master does not schedule to an `Idle` worker either. Its pod therefore stays
+NotReady and a rolling update will not advance past that ordinal. Recommission parked workers
+before upgrading, or set `worker.readinessProbe: null` for that rollout.
+
+### Readiness and pod management policy
+
+The master and worker statefulsets leave `podManagementPolicy` unset, which means
+`OrderedReady`: no replica is created until the previous one is ready. A master does not start
+serving until the DNS records of all master replicas resolve, so a ready-gated master-0 would wait for a master-1 that the
+statefulset controller will not create until master-0 is ready. A startup probe gates readiness
+as much as a readiness probe does - a container is not ready until its startup probe passes - so
+the chart refuses to render `master.startupProbe` or `master.readinessProbe` with more than one
+master unless `master.podManagementPolicy` is `Parallel`.
+
+Worker readiness has no such cycle - workers wait on master DNS, not on each other - but under
+`OrderedReady` it does serialize a cold start, since each worker is created only after the
+previous one has registered. Set `worker.podManagementPolicy: Parallel` to start them all at
+once; rolling updates stay gated by readiness either way. With zone-aware replication the policy
+applies to every zone's statefulset.
+
+`podManagementPolicy` is immutable. Changing it on an existing release makes `helm upgrade` fail,
+and the statefulset - each zone's, with zone-aware replication - has to be deleted with
+`--cascade=orphan` and re-applied first.
+
+The master headless service always sets `publishNotReadyAddresses: true`. This is
+required rather than cosmetic: a headless service only publishes the per-pod DNS record of a pod
+once it is ready, and both the startup wait and `celeborn.master.endpoints` address masters by
+those per-pod names, so a ready-gated master would withhold the very record its peers wait for.
+The worker service sets it whenever `worker.startupProbe` or `worker.readinessProbe` is set, to
+keep DNS and endpoints behaving as they did before readiness was gated, so that a worker
+recovering from deregistration stays addressable. It also sets it when `worker.drain` is enabled -
+see [Draining a worker before it is removed](#draining-a-worker-before-it-is-removed).
+
 ## Documentation
 
 For additional details on deploying the Celeborn Kubernetes Helm chart, please refer to the [Celeborn on Kubernetes](https://celeborn.apache.org/docs/latest/deploy_on_k8s/) documentation.

@@ -82,3 +82,12 @@ tests:
         equal:
           path: spec.ports[0].nodePort
           value: 30102
+
+  - it: Should publish not ready addresses on the headless service
+    asserts:
+      - documentSelector:
+          path: metadata.name
+          value: celeborn-master-svc
+        equal:
+          path: spec.publishNotReadyAddresses
+          value: true
