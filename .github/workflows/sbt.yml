@@ -211,6 +211,7 @@ jobs:
             scala: '2.13.17'
           - spark: '4.2'
             scala: '2.13.18'
+            aws-profile: '-Paws'
     steps:
       - uses: actions/checkout@v4
       - name: Setup JDK ${{ matrix.java }}
@@ -231,7 +232,7 @@ jobs:
             sbt-
       - name: Test with SBT
         run: |
-          build/sbt -Dspark.shuffle.plugin.class=${{ matrix.shuffle-plugin-class }} -Pspark-${{ matrix.spark }} ++${{ matrix.scala }} "clean; celeborn-spark-group/test"
+          build/sbt -Dspark.shuffle.plugin.class=${{ matrix.shuffle-plugin-class }} -Pspark-${{ matrix.spark }} ${{ matrix.aws-profile }} ++${{ matrix.scala }} "clean; celeborn-spark-group/test"
       - name: Upload test log
         if: failure()
         uses: actions/upload-artifact@v4
