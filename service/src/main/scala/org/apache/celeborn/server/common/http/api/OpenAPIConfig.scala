@@ -17,11 +17,12 @@
 
 package org.apache.celeborn.server.common.http.api
 
-import org.glassfish.jersey.server.ResourceConfig
+import org.glassfish.jersey.server.{ResourceConfig, ServerProperties}
 
 import org.apache.celeborn.server.common.Service
 
 class OpenAPIConfig(serviceName: String) extends ResourceConfig {
+  property(ServerProperties.WADL_FEATURE_DISABLE, true)
   packages(OpenAPIConfig.packages(serviceName): _*)
   register(classOf[CelebornOpenApiResource])
   register(classOf[CelebornScalaObjectMapper])
