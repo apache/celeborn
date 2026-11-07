@@ -390,6 +390,12 @@ class MemoryTierWriter(
 
   override def returnBufferInternal(destroy: Boolean): Unit = {
     if (destroy && flushBuffer != null) {
+      // An uncommitted memory file never hands its buffer to the file info,
+      // so release its accounted bytes here.
+      val numBytes = flushBuffer.readableBytes()
+      if (numBytes > 0) {
+        MemoryManager.instance().releaseMemoryFileStorage(numBytes)
+      }
       flushBuffer.removeComponents(0, flushBuffer.numComponents)
       flushBuffer.release()
     }

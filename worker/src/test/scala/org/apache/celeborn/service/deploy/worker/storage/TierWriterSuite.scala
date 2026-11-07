@@ -212,6 +212,29 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
 
   }
 
+  test("destroying an uncommitted memory tier writer releases memory file storage") {
+    val memoryTierWriter = prepareMemoryWriter
+    val memoryManager = MemoryManager.instance()
+    val memoryCounterBefore = memoryManager.getMemoryFileStorageCounter
+    val diskCounterBefore = memoryManager.getDiskBufferCounter.get()
+    try {
+      for (_ <- 1 to 3) {
+        memoryTierWriter.numPendingWrites.incrementAndGet()
+        memoryTierWriter.write(WriterUtils.generateSparkFormatData(
+          UnpooledByteBufAllocator.DEFAULT,
+          0))
+      }
+      assert(memoryManager.getMemoryFileStorageCounter === memoryCounterBefore + 3 * 1024)
+
+      memoryTierWriter.destroy(new IOException("shuffle expired"))
+
+      assert(memoryManager.getMemoryFileStorageCounter === memoryCounterBefore)
+      assert(memoryTierWriter.fileInfo.asInstanceOf[MemoryFileInfo].releaseMemoryBuffers() === 0)
+    } finally {
+      restoreCounters(memoryCounterBefore, diskCounterBefore)
+    }
+  }
+
   test("test memory tier writer case2") {
 
     val memoryTierWriter: MemoryTierWriter = prepareMemoryWriter
