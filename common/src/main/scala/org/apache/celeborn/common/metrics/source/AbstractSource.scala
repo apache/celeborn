@@ -235,7 +235,7 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       metricNameWithLabel,
       NamedHistogram(
         name,
-        metricRegistry.histogram(name, histogramSupplier),
+        metricRegistry.histogram(metricNameWithLabel, histogramSupplier),
         labelsWithCustomizedLabels(labels)))
   }
 
@@ -746,7 +746,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       namedMeters.size() +
       namedGauges.size() +
       namedGaugesWithDetails.size() +
-      namedCounters.size()
+      namedCounters.size() +
+      namedHistogram.size()
     sum
   }
 
