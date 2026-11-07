@@ -6068,12 +6068,12 @@
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
               },
-              "expr": "metrics_LocalFetchChunkTime_Max{instance=~\"${instance}\"}",
+              "expr": "metrics_FetchLocalChunkTime_Max{instance=~\"${instance}\"}",
               "legendFormat": "${baseLegend}",
               "refId": "A"
             }
           ],
-          "title": "metrics_LocalFetchChunkTime_Max",
+          "title": "metrics_FetchLocalChunkTime_Max",
           "type": "timeseries"
         },
         {
