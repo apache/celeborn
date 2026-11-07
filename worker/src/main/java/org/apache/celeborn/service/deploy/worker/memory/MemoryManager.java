@@ -624,6 +624,9 @@ public class MemoryManager {
             getNettyPinnedDirectMemory());
         resumePush();
         break;
+      case NONE_PAUSED:
+        // Nothing to resume.
+        break;
     }
   }
 
