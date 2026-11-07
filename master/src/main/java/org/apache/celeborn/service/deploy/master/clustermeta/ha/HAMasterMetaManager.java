@@ -187,6 +187,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       Map<String, Long> applicationFallbackCounts,
       long time,
       Map<String, Long> clientGauges,
+      Map<String, Long> clientCounters,
       Map<String, String> clientMetricLabels,
       String requestId) {
     ResourceProtos.AppHeartbeatRequest appHeartbeatRequest =
@@ -201,6 +202,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
             .putAllApplicationFallbackCounts(applicationFallbackCounts)
             .putAllClientGauges(clientGauges)
             .putAllClientMetricLabels(clientMetricLabels)
+            .putAllClientCounters(clientCounters)
             .build();
     if (heartbeatAggregator != null) {
       heartbeatAggregator.offerAppHeartbeat(appHeartbeatRequest);
