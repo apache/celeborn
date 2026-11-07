@@ -17,13 +17,18 @@
 
 package org.apache.celeborn.service.deploy.master.tags
 
+import java.util
+
 import scala.collection.JavaConverters.seqAsJavaListConverter
+
+import org.mockito.ArgumentCaptor
+import org.mockito.Mockito.{mock, verify, when}
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.WorkerInfo
-import org.apache.celeborn.server.common.service.config.DynamicConfigServiceFactory
+import org.apache.celeborn.server.common.service.config.{ConfigService, DynamicConfigServiceFactory, SystemConfig, TenantConfig}
 
 class TagsManagerSuite extends CelebornFunSuite {
   private var tagsManager: TagsManager = _
@@ -197,6 +202,93 @@ class TagsManagerSuite extends CelebornFunSuite {
       assert(taggedWorkers.contains(WORKER1))
       assert(taggedWorkers.contains(WORKER2))
       assert(taggedWorkers.contains(WORKER3))
+    }
+  }
+
+  test("test tags manager with config service that has no tags") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "FS")
+    conf.set(
+      CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH.key,
+      getTestResourceFile("dynamicConfig-no-tags.yaml").getPath)
+    val configService = DynamicConfigServiceFactory.getConfigService(conf)
+
+    tagsManager = new TagsManager(Option(configService))
+
+    // The dynamic config has no `tags` section, so no worker is tagged
+    val taggedWorkers = tagsManager.getTaggedWorkers(user, TAG1, workers)
+    assert(taggedWorkers.isEmpty)
+  }
+
+  test("test tags manager picks up refreshed tags") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "FS")
+    conf.set(
+      CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH.key,
+      getTestResourceFile("dynamicConfig-tags.yaml").getPath)
+    val configService = DynamicConfigServiceFactory.getConfigService(conf)
+
+    tagsManager = new TagsManager(Option(configService))
+
+    {
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, TAG1, workers)
+      assert(taggedWorkers.size == 2)
+      assert(taggedWorkers.contains(WORKER1))
+      assert(taggedWorkers.contains(WORKER2))
+    }
+
+    {
+      // Simulate a config refresh that publishes a new tags map
+      val refreshedTags = new util.HashMap[String, util.Set[String]]()
+      refreshedTags.put(TAG1, util.Collections.singleton(WORKER3.toUniqueId))
+      configService.getSystemConfigFromCache.setTags(refreshedTags)
+
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, TAG1, workers)
+      assert(taggedWorkers.size == 1)
+      assert(taggedWorkers.contains(WORKER3))
+    }
+  }
+
+  test("test tags store is invalidated on config update notification") {
+    val configService = mock(classOf[ConfigService])
+    val systemConfig = new SystemConfig(new CelebornConf())
+    when(configService.getSystemConfigFromCache).thenReturn(systemConfig)
+
+    val userConfigs = new util.HashMap[String, String]()
+    userConfigs.put(CelebornConf.PREFER_CLIENT_TAGS_EXPR.key, "true")
+    val tenantConfig = new TenantConfig(configService, user.tenantId, user.name, userConfigs)
+    when(configService.getTenantUserConfigFromCache(user.tenantId, user.name))
+      .thenReturn(tenantConfig)
+
+    val tags = new util.HashMap[String, util.Set[String]]()
+    tags.put(TAG1, new util.HashSet[String](util.Collections.singleton(WORKER1.toUniqueId)))
+    systemConfig.setTags(tags)
+
+    tagsManager = new TagsManager(Option(configService))
+
+    val listener = ArgumentCaptor.forClass(classOf[Runnable])
+    verify(configService).registerListenerOnConfigUpdate(listener.capture())
+
+    {
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, TAG1, workers)
+      assert(taggedWorkers.size == 1)
+      assert(taggedWorkers.contains(WORKER1))
+    }
+
+    // Add a tag to the same map instance, so the source map identity does not change
+    tags.put(TAG2, new util.HashSet[String](util.Collections.singleton(WORKER2.toUniqueId)))
+
+    {
+      // Without a config update notification the snapshot is still used
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, TAG2, workers)
+      assert(taggedWorkers.isEmpty)
+    }
+
+    {
+      listener.getValue.run()
+      val taggedWorkers = tagsManager.getTaggedWorkers(user, TAG2, workers)
+      assert(taggedWorkers.size == 1)
+      assert(taggedWorkers.contains(WORKER2))
     }
   }
 }
