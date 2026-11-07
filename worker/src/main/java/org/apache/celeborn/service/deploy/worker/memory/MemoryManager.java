@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.meta.MemoryFileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
@@ -252,27 +253,7 @@ public class MemoryManager {
       memoryFileStorageService.scheduleWithFixedDelay(
           () -> {
             try {
-              if (shouldEvict(aggressiveEvictModeEnabled, evictRatio)) {
-                List<PartitionDataWriter> memoryWriters =
-                    new ArrayList<>(storageManager.memoryWriters().values());
-                if (memoryWriters.isEmpty()) {
-                  return;
-                }
-                logger.info("Start evicting {} memory file infos", memoryWriters.size());
-                // always evict the largest memory file info first
-                memoryWriters.sort(
-                    Comparator.comparingLong(
-                            (PartitionDataWriter o) -> o.getMemoryFileInfo().getFileLength())
-                        .reversed());
-                for (PartitionDataWriter writer : memoryWriters) {
-                  // this branch means that there is no memory pressure
-                  if (!shouldEvict(aggressiveEvictModeEnabled, evictRatio)) {
-                    break;
-                  }
-                  logger.debug("Evict writer {}", writer);
-                  writer.evict(true);
-                }
-              }
+              evictMemoryFiles(aggressiveEvictModeEnabled, evictRatio);
             } catch (Exception e) {
               logger.error("Evict thread encounter error", e);
             }
@@ -304,6 +285,55 @@ public class MemoryManager {
     return servingState != ServingState.NONE_PAUSED
         && (aggressiveMemoryFileEvictEnabled
             || (memoryFileStorageCounter.sum() >= evictRatio * memoryFileStorageThreshold));
+  }
+
+  @VisibleForTesting
+  public void evictMemoryFiles(boolean aggressiveEvictModeEnabled, double evictRatio) {
+    if (shouldEvict(aggressiveEvictModeEnabled, evictRatio)) {
+      List<PartitionDataWriter> memoryWriters =
+          new ArrayList<>(storageManager.memoryWriters().values());
+      if (memoryWriters.isEmpty()) {
+        return;
+      }
+      logger.info("Start evicting {} memory file infos", memoryWriters.size());
+      // always evict the largest memory file info first
+      memoryWriters.sort(
+          Comparator.comparingLong((PartitionDataWriter o) -> o.getMemoryFileInfo().getFileLength())
+              .reversed());
+      for (PartitionDataWriter writer : memoryWriters) {
+        // this branch means that there is no memory pressure
+        if (!shouldEvict(aggressiveEvictModeEnabled, evictRatio)) {
+          break;
+        }
+        logger.debug("Evict writer {}", writer);
+        writer.evict(true);
+      }
+    } else if (servingState != ServingState.NONE_PAUSED && diskBufferCounter.get() <= 0) {
+      // Still paused, memory files are already below the evict target, and all evicted data has
+      // been flushed. The target counts the bytes memory files hold, but resuming depends on the
+      // direct memory the worker uses, which can be much larger: memory files keep zero-copy
+      // slices of network receive buffers, and a buffer is only freed once every file sharing it
+      // has let go. Nothing else frees memory while push is paused, so evict the largest
+      // remaining file and check again once its data has been flushed.
+      PartitionDataWriter largest = null;
+      long largestLength = -1;
+      for (Map.Entry<MemoryFileInfo, PartitionDataWriter> entry :
+          storageManager.memoryWriters().entrySet()) {
+        long length = entry.getKey().getFileLength();
+        if (length > largestLength && !entry.getValue().isClosed()) {
+          largest = entry.getValue();
+          largestLength = length;
+        }
+      }
+      if (largest != null) {
+        logger.info(
+            "Worker is still {} with memory file storage {} below the evict target, evict {}",
+            servingState,
+            Utils.bytesToString(memoryFileStorageCounter.sum()),
+            largest);
+        largest.evict(true);
+      }
+    }
   }
 
   public ServingState currentServingState() {
