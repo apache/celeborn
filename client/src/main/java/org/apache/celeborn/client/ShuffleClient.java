@@ -501,10 +501,20 @@ public abstract class ShuffleClient {
   public abstract void excludeFailedFetchLocation(String hostAndFetchPort, Exception e);
 
   /**
-   * Whether reading {@code location} would be skipped because its worker was excluded by {@link
-   * #excludeFailedFetchLocation}.
+   * Whether a stream on {@code location} should be opened on its peer instead, because its worker
+   * was excluded by {@link #excludeFailedFetchLocation}. This is not a plain lookup of the excluded
+   * workers: when both copies of a replicated location are excluded, the copy excluded earlier is
+   * read again, so this returns {@code false} for it although its worker is excluded.
    */
-  public boolean isFetchExcluded(PartitionLocation location) {
+  public boolean shouldSkipFetchLocation(PartitionLocation location) {
+    return false;
+  }
+
+  /**
+   * Whether any worker may be excluded by {@link #excludeFailedFetchLocation}, so that callers can
+   * skip {@link #shouldSkipFetchLocation} when none is.
+   */
+  public boolean hasFetchExcludedWorkers() {
     return false;
   }
 

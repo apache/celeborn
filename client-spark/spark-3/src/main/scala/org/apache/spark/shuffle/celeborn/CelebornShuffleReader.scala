@@ -301,20 +301,12 @@ class CelebornShuffleReader[K, C](
         // and always stick with the primary (or previously chosen) location.
         // CELEBORN-2183. Likewise, open the stream on the peer of a worker that is excluded
         // after a fetch failure, instead of connecting to the excluded worker again.
-        val originLocations = fileGroups.partitionGroups.get(partitionId)
-        val hasReplicate = pushReplicateEnabled &&
-          originLocations.asScala.exists(p => p != null && p.hasPeer)
-        val isFetchExcluded = (p: PartitionLocation) => shuffleClient.isFetchExcluded(p)
-        var locations =
-          if (hasReplicate && !splitSkewPartitionWithoutMapRange &&
-            (preferReplicaRead || originLocations.asScala.exists(p =>
-              p != null && p.hasPeer && isFetchExcluded(p)))) {
-            originLocations.asScala.map { p =>
-              CelebornShuffleReader.chooseReadLocation(p, preferReplicaRead, isFetchExcluded)
-            }.asJava
-          } else {
-            originLocations
-          }
+        var locations = CelebornShuffleReader.selectReadLocations(
+          fileGroups.partitionGroups.get(partitionId),
+          pushReplicateEnabled,
+          splitSkewPartitionWithoutMapRange,
+          preferReplicaRead,
+          shuffleClient)
 
         if (splitSkewPartitionWithoutMapRange) {
           val partitionLocation2ChunkRange = CelebornPartitionUtil.splitSkewedPartitionLocations(
@@ -658,6 +650,31 @@ object CelebornShuffleReader {
   var streamCreatorPool: ThreadPoolExecutor = null
 
   /**
+   * Chooses the locations of a partition to open streams on: the peers of replicated locations for
+   * a task attempt that prefers the replica (CELEBORN-2032) or when a location's worker is excluded
+   * after a fetch failure (CELEBORN-2183), and the original locations otherwise. Skew partitions
+   * read without a map range always keep the original locations.
+   */
+  @VisibleForTesting
+  private[celeborn] def selectReadLocations(
+      originLocations: JSet[PartitionLocation],
+      pushReplicateEnabled: Boolean,
+      splitSkewPartitionWithoutMapRange: Boolean,
+      preferReplicaRead: Boolean,
+      shuffleClient: ShuffleClient): JSet[PartitionLocation] = {
+    val hasReplicate = pushReplicateEnabled &&
+      originLocations.asScala.exists(p => p != null && p.hasPeer)
+    val shouldSkip = (p: PartitionLocation) => shuffleClient.shouldSkipFetchLocation(p)
+    val preferPeer = preferReplicaRead || (shuffleClient.hasFetchExcludedWorkers &&
+      originLocations.asScala.exists(p => p != null && p.hasPeer && shouldSkip(p)))
+    if (hasReplicate && !splitSkewPartitionWithoutMapRange && preferPeer) {
+      originLocations.asScala.map(p => chooseReadLocation(p, preferReplicaRead, shouldSkip)).asJava
+    } else {
+      originLocations
+    }
+  }
+
+  /**
    * Chooses which copy of a replicated location to open a stream on. A task attempt with
    * `preferReplica` starts from the peer (CELEBORN-2032). If the chosen worker is excluded after a
    * fetch failure, use its peer instead: CelebornInputStream would not read from the excluded
@@ -667,12 +684,12 @@ object CelebornShuffleReader {
   private[celeborn] def chooseReadLocation(
       location: PartitionLocation,
       preferReplica: Boolean,
-      isFetchExcluded: PartitionLocation => Boolean): PartitionLocation = {
+      shouldSkip: PartitionLocation => Boolean): PartitionLocation = {
     if (location == null || !location.hasPeer) {
       location
     } else {
       val preferred = if (preferReplica) location.getPeer else location
-      if (preferred.hasPeer && isFetchExcluded(preferred)) preferred.getPeer else preferred
+      if (preferred.hasPeer && shouldSkip(preferred)) preferred.getPeer else preferred
     }
   }
 

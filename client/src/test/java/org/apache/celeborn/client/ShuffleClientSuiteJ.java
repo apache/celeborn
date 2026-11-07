@@ -171,7 +171,7 @@ public class ShuffleClientSuiteJ {
   }
 
   @Test
-  public void testIsFetchExcludedAfterFetchFailure() {
+  public void testShouldSkipFetchLocationAfterFetchFailure() {
     CelebornConf conf = new CelebornConf();
     conf.set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED().key(), "true");
     conf.set(CelebornConf.CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED().key(), "true");
@@ -184,14 +184,45 @@ public class ShuffleClientSuiteJ {
     primary.setPeer(replica);
     replica.setPeer(primary);
     try {
-      assertFalse(client.isFetchExcluded(primary));
+      assertFalse(client.hasFetchExcludedWorkers());
+      assertFalse(client.shouldSkipFetchLocation(primary));
 
       client.excludeFailedFetchLocation(
           primary.hostAndFetchPort(),
           new CelebornIOException("Connecting to worker-0:3 timed out (10000 ms)"));
 
-      assertTrue(client.isFetchExcluded(primary));
-      assertFalse(client.isFetchExcluded(replica));
+      assertTrue(client.hasFetchExcludedWorkers());
+      assertTrue(client.shouldSkipFetchLocation(primary));
+      assertFalse(client.shouldSkipFetchLocation(replica));
+    } finally {
+      client.shutdown();
+    }
+  }
+
+  @Test
+  public void testShouldSkipFetchLocationAfterExclusionExpires() throws InterruptedException {
+    CelebornConf conf = new CelebornConf();
+    conf.set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED().key(), "true");
+    conf.set(CelebornConf.CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED().key(), "true");
+    conf.set(CelebornConf.CLIENT_FETCH_EXCLUDED_WORKER_EXPIRE_TIMEOUT().key(), "1ms");
+    ShuffleClientImpl client =
+        new ShuffleClientImpl(TEST_APPLICATION_ID, conf, new UserIdentifier("mock", "mock"));
+    PartitionLocation primary =
+        new PartitionLocation(0, 0, "worker-0", 1, 2, 3, 4, PartitionLocation.Mode.PRIMARY);
+    PartitionLocation replica =
+        new PartitionLocation(0, 0, "worker-1", 1, 2, 3, 4, PartitionLocation.Mode.REPLICA);
+    primary.setPeer(replica);
+    replica.setPeer(primary);
+    try {
+      client.excludeFailedFetchLocation(
+          primary.hostAndFetchPort(),
+          new CelebornIOException("Connecting to worker-0:3 timed out (10000 ms)"));
+      assertTrue(client.hasFetchExcludedWorkers());
+      Thread.sleep(10);
+
+      // The expired exclusion no longer applies, and the lookup drops the stale entry.
+      assertFalse(client.shouldSkipFetchLocation(primary));
+      assertFalse(client.hasFetchExcludedWorkers());
     } finally {
       client.shutdown();
     }

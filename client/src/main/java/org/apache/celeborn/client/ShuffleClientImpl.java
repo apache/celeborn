@@ -2278,8 +2278,13 @@ public class ShuffleClientImpl extends ShuffleClient {
   }
 
   @Override
-  public boolean isFetchExcluded(PartitionLocation location) {
+  public boolean shouldSkipFetchLocation(PartitionLocation location) {
     return CelebornInputStream.isExcluded(
         fetchExcludedWorkers, conf.clientFetchExcludedWorkerExpireTimeout(), location);
+  }
+
+  @Override
+  public boolean hasFetchExcludedWorkers() {
+    return !fetchExcludedWorkers.isEmpty();
   }
 }
