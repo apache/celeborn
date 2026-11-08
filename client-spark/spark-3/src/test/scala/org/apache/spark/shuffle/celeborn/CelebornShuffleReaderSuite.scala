@@ -507,7 +507,10 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
         }
       })
     val client = new ShuffleClientImpl("excluded-peer-test", conf, UserIdentifier("test", "test")) {
-      override def getDataClientFactory(): TransportClientFactory = workerFactory
+      // Replace the factory itself, so that both the batch open stream and the partition read
+      // use the mock and no real worker connection is attempted.
+      dataClientFactory.close()
+      dataClientFactory = workerFactory
     }
     client.setupLifecycleManagerRef(endpoint)
     client.excludeFailedFetchLocation(
