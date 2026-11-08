@@ -24,7 +24,7 @@ public abstract class AbstractFileRegion extends AbstractReferenceCounted implem
 
   @Override
   @SuppressWarnings("deprecation")
-  public final long transfered() {
+  public final long transferred() {
     return transferred();
   }
 
