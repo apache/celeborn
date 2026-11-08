@@ -189,6 +189,12 @@ public class MasterClient {
     } else if (isRetryableRpcFailure(e)) {
       resetRpcEndpointRef(oldRef);
       return true;
+    } else if (e instanceof MasterUnavailableException) {
+      // A full pass over the master addresses connected to none of them, e.g. while the masters
+      // are still starting or electing a leader. Retry within maxRetries instead of failing the
+      // caller on the first pass.
+      resetRpcEndpointRef(oldRef);
+      return true;
     }
     return false;
   }
@@ -317,7 +323,7 @@ public class MasterClient {
       currentIndex.set(index);
 
       if (endpointRef == null) {
-        throw new IllegalStateException(
+        throw new MasterUnavailableException(
             "After trying all the available Master Addresses("
                 + String.join(",", activeMasterEndpoints)
                 + "), an usable link still couldn't be created.");
@@ -354,5 +360,12 @@ public class MasterClient {
   @VisibleForTesting
   public int getMaxRetries() {
     return maxRetries;
+  }
+
+  /** Thrown when a full pass over the master addresses fails to connect to any of them. */
+  private static class MasterUnavailableException extends IllegalStateException {
+    MasterUnavailableException(String message) {
+      super(message);
+    }
   }
 }
