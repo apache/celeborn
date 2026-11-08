@@ -89,8 +89,6 @@ public class HeartbeatAggregator {
     }
   }
 
-  // Counter fields are client-side deltas and must be accumulated when coalescing; time and
-  // client gauges are snapshots where the newest value wins.
   private static ResourceProtos.AppHeartbeatRequest mergeAppHeartbeat(
       ResourceProtos.AppHeartbeatRequest pending, ResourceProtos.AppHeartbeatRequest latest) {
     return latest
@@ -106,6 +104,8 @@ public class HeartbeatAggregator {
             mergeCounts(
                 pending.getApplicationFallbackCountsMap(),
                 latest.getApplicationFallbackCountsMap()))
+        .putAllClientCounters(
+            mergeCumulativeMax(pending.getClientCountersMap(), latest.getClientCountersMap()))
         .build();
   }
 
@@ -118,6 +118,18 @@ public class HeartbeatAggregator {
     }
     Map<String, Long> merged = new HashMap<>(a);
     b.forEach((key, value) -> merged.merge(key, value, Long::sum));
+    return merged;
+  }
+
+  private static Map<String, Long> mergeCumulativeMax(Map<String, Long> a, Map<String, Long> b) {
+    if (a.isEmpty()) {
+      return b;
+    }
+    if (b.isEmpty()) {
+      return a;
+    }
+    Map<String, Long> merged = new HashMap<>(a);
+    b.forEach((key, value) -> merged.merge(key, value, Math::max));
     return merged;
   }
 

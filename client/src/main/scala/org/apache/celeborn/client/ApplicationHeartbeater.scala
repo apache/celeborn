@@ -83,36 +83,7 @@ class ApplicationHeartbeater(
       new Runnable {
         override def run(): Unit = {
           try {
-            require(masterClient != null, "When sending a heartbeat, client shouldn't be null.")
-            val (
-              (tmpTotalWritten, tmpTotalFileCount),
-              (
-                tmpShuffleCount,
-                tmpApplicationCount,
-                tmpShuffleFallbackCounts,
-                tmpApplicationFallbackCounts)) = shuffleMetrics()
-            logInfo("Send app heartbeat with " +
-              s"written: ${Utils.bytesToString(tmpTotalWritten)}, file count: $tmpTotalFileCount, " +
-              s"shuffle count: $tmpShuffleCount, shuffle fallback counts: $tmpShuffleFallbackCounts, " +
-              s"application count: $tmpApplicationCount, application fallback counts: $tmpApplicationFallbackCounts")
-            // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
-            // during serialization of HeartbeatFromApplication
-            val appHeartbeat =
-              HeartbeatFromApplication(
-                appId,
-                tmpTotalWritten,
-                tmpTotalFileCount,
-                tmpShuffleCount,
-                tmpApplicationCount,
-                tmpShuffleFallbackCounts.asJava,
-                tmpApplicationFallbackCounts.asJava,
-                workerStatusTracker.getNeedCheckedWorkers().toList.asJava,
-                ZERO_UUID,
-                true,
-                if (appMetricLabels.isEmpty) java.util.Collections.emptyMap[String, ClientMetric]()
-                else clientMetrics(),
-                appMetricLabels)
-            val response = requestHeartbeat(appHeartbeat)
+            val response = sendHeartbeat()
             if (response.statusCode == StatusCode.SUCCESS) {
               logDebug("Successfully send app heartbeat.")
               workerStatusTracker.handleHeartbeatResponse(response)
@@ -157,6 +128,39 @@ class ApplicationHeartbeater(
       TimeUnit.MILLISECONDS)
   }
 
+  private def sendHeartbeat(): HeartbeatFromApplicationResponse = {
+    require(masterClient != null, "When sending a heartbeat, client shouldn't be null.")
+    val (
+      (tmpTotalWritten, tmpTotalFileCount),
+      (
+        tmpShuffleCount,
+        tmpApplicationCount,
+        tmpShuffleFallbackCounts,
+        tmpApplicationFallbackCounts)) = shuffleMetrics()
+    logInfo("Send app heartbeat with " +
+      s"written: ${Utils.bytesToString(tmpTotalWritten)}, file count: $tmpTotalFileCount, " +
+      s"shuffle count: $tmpShuffleCount, shuffle fallback counts: $tmpShuffleFallbackCounts, " +
+      s"application count: $tmpApplicationCount, application fallback counts: $tmpApplicationFallbackCounts")
+    // UserResourceConsumption and DiskInfo are eliminated from WorkerInfo
+    // during serialization of HeartbeatFromApplication
+    val appHeartbeat =
+      HeartbeatFromApplication(
+        appId,
+        tmpTotalWritten,
+        tmpTotalFileCount,
+        tmpShuffleCount,
+        tmpApplicationCount,
+        tmpShuffleFallbackCounts.asJava,
+        tmpApplicationFallbackCounts.asJava,
+        workerStatusTracker.getNeedCheckedWorkers().toList.asJava,
+        ZERO_UUID,
+        true,
+        if (appMetricLabels.isEmpty) java.util.Collections.emptyMap[String, ClientMetric]()
+        else clientMetrics(),
+        appMetricLabels)
+    requestHeartbeat(appHeartbeat)
+  }
+
   private def requestHeartbeat(message: HeartbeatFromApplication)
       : HeartbeatFromApplicationResponse = {
     try {
@@ -189,6 +193,17 @@ class ApplicationHeartbeater(
     }
   }
 
+  private def sendFinalHeartbeat(): Unit = {
+    if (appHeartbeat == null) return
+    try {
+      val response = sendHeartbeat()
+      logInfo(s"Sent final app heartbeat of $appId with response status: ${response.statusCode}")
+    } catch {
+      case t: Throwable =>
+        logWarning("Failed to send final app heartbeat.", t)
+    }
+  }
+
   private def checkQuotaExceeds(response: CheckQuotaResponse): Unit = {
     if (conf.quotaInterruptShuffleEnabled && !response.isAvailable) {
       cancelAllActiveStages(
@@ -206,6 +221,7 @@ class ApplicationHeartbeater(
         }
         ThreadUtils.shutdown(appHeartbeatHandlerThread)
         if (applicationUnregisterEnabled) {
+          sendFinalHeartbeat()
           unregisterApplication()
         }
         stopped = true

@@ -1013,7 +1013,6 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       return
     }
 
-    incClientCounter(CelebornClientSource.REVIVE_COUNT, partitionIds.size())
     mapIds.asScala.foreach { mapId =>
       if (commitManager.isMapperEnded(shuffleId, mapId)) {
         logWarning(s"[handleRevive] Mapper ended, mapId $mapId, ended attemptId ${commitManager.getMapperAttempts(
