@@ -100,6 +100,9 @@ public class MemoryManager {
   private long pinnedMemoryCheckInterval;
   private long pinnedMemoryLastCheckTime = 0;
   private boolean resumingByPinnedMemory = false;
+  // Whether push is actually paused. servingState can stay paused while push has been resumed by
+  // pinned memory, and this is read by the memory file eviction thread.
+  private volatile boolean pushPaused = false;
   private long workerPinnedMemoryResumeKeepTime;
 
   @VisibleForTesting
@@ -308,7 +311,7 @@ public class MemoryManager {
         logger.debug("Evict writer {}", writer);
         writer.evict(true);
       }
-    } else if (servingState != ServingState.NONE_PAUSED && diskBufferCounter.get() <= 0) {
+    } else if (pushPaused && diskBufferCounter.get() <= 0) {
       // Still paused, memory files are already below the evict target, and all evicted data has
       // been flushed. The target counts the bytes memory files hold, but resuming depends on the
       // direct memory the worker uses, which can be much larger: memory files keep zero-copy
@@ -382,6 +385,7 @@ public class MemoryManager {
               logger.info("Trigger action: PAUSE PUSH");
             }
             resumingByPinnedMemory = false;
+            pushPaused = true;
             memoryPressureListeners.forEach(
                 memoryPressureListener ->
                     memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
@@ -410,6 +414,7 @@ public class MemoryManager {
             }
           }
           resumingByPinnedMemory = false;
+          pushPaused = true;
           memoryPressureListeners.forEach(
               memoryPressureListener ->
                   memoryPressureListener.onPause(TransportModuleConstants.PUSH_MODULE));
@@ -687,6 +692,7 @@ public class MemoryManager {
 
   private void resumePush() {
     logger.info("Trigger action: RESUME PUSH");
+    pushPaused = false;
     memoryPressureListeners.forEach(
         memoryPressureListener ->
             memoryPressureListener.onResume(TransportModuleConstants.PUSH_MODULE));
