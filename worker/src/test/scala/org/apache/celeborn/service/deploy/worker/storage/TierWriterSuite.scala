@@ -217,12 +217,12 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
     val memoryManager = MemoryManager.instance()
     val memoryCounterBefore = memoryManager.getMemoryFileStorageCounter
     val diskCounterBefore = memoryManager.getDiskBufferCounter.get()
+    val bufs = (1 to 3).map(_ =>
+      WriterUtils.generateSparkFormatData(UnpooledByteBufAllocator.DEFAULT, 0))
     try {
-      for (_ <- 1 to 3) {
+      bufs.foreach { buf =>
         memoryTierWriter.numPendingWrites.incrementAndGet()
-        memoryTierWriter.write(WriterUtils.generateSparkFormatData(
-          UnpooledByteBufAllocator.DEFAULT,
-          0))
+        memoryTierWriter.write(buf)
       }
       assert(memoryManager.getMemoryFileStorageCounter === memoryCounterBefore + 3 * 1024)
 
@@ -230,7 +230,11 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
 
       assert(memoryManager.getMemoryFileStorageCounter === memoryCounterBefore)
       assert(memoryTierWriter.fileInfo.asInstanceOf[MemoryFileInfo].releaseMemoryBuffers() === 0)
+      // The writer has dropped its references; only the caller's remain.
+      assert(bufs.forall(_.refCnt() === 1))
     } finally {
+      memoryTierWriter.destroy(new IOException("test cleanup"))
+      bufs.filter(_.refCnt() > 0).foreach(_.release())
       restoreCounters(memoryCounterBefore, diskCounterBefore)
     }
   }
