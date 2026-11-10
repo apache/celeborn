@@ -325,8 +325,8 @@ class MemoryTierWriter(
     storageManager) {
   assert(storageType == StorageInfo.Type.MEMORY)
   val memoryFileStorageMaxFileSize: Long = conf.workerMemoryFileStorageMaxFileSize
-  private[storage] var copyAllocator: ByteBufAllocator =
-    MemoryManager.instance().getMemoryFileStorageAllocator
+  // Resolved on first write, so constructing a writer does not require an initialized MemoryManager.
+  private[storage] var copyAllocator: ByteBufAllocator = _
 
   storageManager.registerMemoryPartitionWriter(
     partitionDataWriterContext.getPartitionDataWriter,
@@ -396,6 +396,9 @@ class MemoryTierWriter(
     val numBytes = buf.readableBytes()
     var ownedBuf: ByteBuf = null
     try {
+      if (copyAllocator == null) {
+        copyAllocator = MemoryManager.instance().getMemoryFileStorageAllocator
+      }
       ownedBuf = copyAllocator.directBuffer(numBytes, numBytes)
       ownedBuf.writeBytes(buf, buf.readerIndex(), numBytes)
       ownedBuf
