@@ -39,7 +39,30 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 class ApplicationHeartbeaterSuite extends CelebornFunSuite {
 
   test("stop sends a final heartbeat with the latest metrics before ApplicationLost") {
+    val messages = runStopAfterIncrement(unregisterEnabled = true)
+    assert(messages.last.isInstanceOf[ApplicationLost])
+    val heartbeats = messages.collect { case h: HeartbeatFromApplication => h }
+    assert(heartbeats.size == 2)
+    assert(messages.dropRight(1).last eq heartbeats.last)
+    assert(heartbeats.last.clientMetrics.get("counter").value == 5L)
+  }
+
+  test("stop sends a final heartbeat without ApplicationLost when unregister is disabled") {
+    val messages = runStopAfterIncrement(unregisterEnabled = false)
+    assert(!messages.exists(_.isInstanceOf[ApplicationLost]))
+    val heartbeats = messages.collect { case h: HeartbeatFromApplication => h }
+    assert(heartbeats.size == 2)
+    assert(messages.last eq heartbeats.last)
+    assert(heartbeats.last.clientMetrics.get("counter").value == 5L)
+  }
+
+  /**
+   * Starts a heartbeater, waits for the first heartbeat, bumps the counter to 5 and stops it.
+   * Returns all messages sent to the master, in order.
+   */
+  private def runStopAfterIncrement(unregisterEnabled: Boolean): List[AnyRef] = {
     val conf = new CelebornConf()
+    conf.set(CelebornConf.APPLICATION_UNREGISTER_ENABLED.key, unregisterEnabled.toString)
     // Only the immediate first heartbeat fires; later increments must be flushed by stop().
     conf.set(CelebornConf.APPLICATION_HEARTBEAT_INTERVAL.key, "1h")
     conf.set(CelebornConf.METRICS_ENABLED.key, "true")
@@ -87,11 +110,6 @@ class ApplicationHeartbeaterSuite extends CelebornFunSuite {
     counter = 5L
     heartbeater.stop()
 
-    val messages = sent.asScala.toList
-    assert(messages.last.isInstanceOf[ApplicationLost])
-    val heartbeats = messages.collect { case h: HeartbeatFromApplication => h }
-    assert(heartbeats.size == 2)
-    assert(messages.dropRight(1).last eq heartbeats.last)
-    assert(heartbeats.last.clientMetrics.get("counter").value == 5L)
+    sent.asScala.toList
   }
 }

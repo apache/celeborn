@@ -220,8 +220,9 @@ class ApplicationHeartbeater(
           appHeartbeat.cancel(true)
         }
         ThreadUtils.shutdown(appHeartbeatHandlerThread)
+        // Send final heartbeat for the client side counters
+        sendFinalHeartbeat()
         if (applicationUnregisterEnabled) {
-          sendFinalHeartbeat()
           unregisterApplication()
         }
         stopped = true
