@@ -67,7 +67,7 @@ public class SubPartitionReadData extends ReadData {
 
   @Override
   public int hashCode() {
-    return Objects.hash(streamId, subPartitionId, super.hashCode());
+    return Objects.hash(streamId, subPartitionId, body());
   }
 
   @Override

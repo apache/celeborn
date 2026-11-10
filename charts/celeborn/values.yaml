@@ -180,6 +180,9 @@ master:
     # runAsGroup: 10006
     # fsGroup: 10006
 
+  # Add additional init containers into masters.
+  extraInitContainers: []
+
   # -- Volumes for Celeborn master pods.
   volumes:
   - name: celeborn-ratis
@@ -457,7 +460,7 @@ worker:
     # runAsGroup: 10006
     # fsGroup: 10006
 
-  # Add additional init containers into workers (templated).
+  # Add additional init containers into workers.
   extraInitContainers: []
 
   # --Volumes for Celeborn worker pods.

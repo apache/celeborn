@@ -61,6 +61,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
   private final ShuffleDependency<K, V, C> dep;
   private final Partitioner partitioner;
   private final ShuffleWriteMetricsReporter writeMetrics;
+  private final Object bytesWrittenLock = new Object();
   private final int shuffleId;
   private final int mapId;
   private final int encodedAttemptId;
@@ -154,7 +155,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
               numMappers,
               numPartitions,
               conf,
-              writeMetrics::incBytesWritten,
+              this::incBytesWritten,
               mapStatusLengths,
               conf.clientPushSortMemoryThreshold(),
               sendBufferPool);
@@ -372,9 +373,20 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
             numPartitions);
     long delta = System.nanoTime() - start;
     mapStatusLengths[partitionId].add(bytesWritten);
-    writeMetrics.incBytesWritten(bytesWritten);
+    incBytesWritten(bytesWritten);
     writeMetrics.incWriteTime(delta);
     giantRecordBytesWritten += numBytes;
+  }
+
+  /**
+   * Adds to the bytes-written metric. Called from both the task thread and the {@link
+   * org.apache.celeborn.client.write.DataPusher} thread, while Spark's metric accumulators are not
+   * thread-safe, so updates are serialized to avoid losing increments.
+   */
+  private void incBytesWritten(long bytes) {
+    synchronized (bytesWrittenLock) {
+      writeMetrics.incBytesWritten(bytes);
+    }
   }
 
   private void cleanupPusher() throws IOException {

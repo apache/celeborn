@@ -548,6 +548,18 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
       CelebornConf.networkIoMode())
   }
 
+  def clientBootstrapClasses(module: String): java.util.List[String] = {
+    val entry = TRANSPORT_CLIENT_BOOTSTRAP_CLASSES
+    entry.valueConverter(
+      get(entry.key.replace("<module>", module), entry.defaultValueString)).asJava
+  }
+
+  def serverBootstrapClasses(module: String): java.util.List[String] = {
+    val entry = TRANSPORT_SERVER_BOOTSTRAP_CLASSES
+    entry.valueConverter(
+      get(entry.key.replace("<module>", module), entry.defaultValueString)).asJava
+  }
+
   def networkIoPreferDirectBufs(module: String): Boolean = {
     getTransportConfBoolean(module, NETWORK_IO_PREFER_DIRECT_BUFS)
   }
@@ -944,6 +956,10 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def metricsWorkerAppLevelEnabled: Boolean = get(METRICS_WORKER_APP_LEVEL_ENABLED)
   def metricsLoggerSinkScrapeInterval: Long = get(METRICS_LOGGERSINK_SCRAPE_INTERVAL)
   def metricsLoggerSinkScrapeOutputEnabled: Boolean = get(METRICS_LOGGERSINK_SCRAPE_OUTPUT_ENABLED)
+  def scaleMetricsEnabled: Boolean = get(SCALE_METRICS_ENABLED)
+  def scaleMetricCollectorClassName: String = get(SCALE_METRIC_COLLECTOR_CLASS_NAME)
+  def scaleMetricInterval: Long = get(SCALE_METRIC_INTERVAL)
+  def scaleMetricMemoryWindowSize: Int = get(SCALE_METRIC_MEMORY_WINDOW_SIZE)
 
   // //////////////////////////////////////////////////////
   //                      Quota                         //
@@ -1592,6 +1608,14 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
    */
   def sslEnabled(module: String): Boolean = {
     getSslConfig(SSL_ENABLED, module)
+  }
+
+  /**
+   * Whether SSL is explicitly enabled for the module itself, ignoring the global
+   * `celeborn.ssl.enabled` default and parent module fallbacks.
+   */
+  def sslEnabledExplicitly(module: String): Boolean = {
+    getOption(SSL_ENABLED.key.replace("<module>", module)).exists(SSL_ENABLED.valueConverter)
   }
 
   /**
@@ -6250,7 +6274,8 @@ object CelebornConf extends Logging {
     buildConf("celeborn.metrics.worker.app.topResourceConsumption.count")
       .categories("metrics")
       .doc("Size for top items about top resource consumption applications list of worker. " +
-        "The top resource consumption is determined by sum of diskBytesWritten and hdfsBytesWritten. " +
+        "The top resource consumption is determined by sum of diskBytesWritten, hdfsBytesWritten, " +
+        "s3BytesWritten and ossBytesWritten. " +
         "The top resource consumption count prevents the total number of metrics from exceeding the metrics capacity. " +
         "Note: This will add applicationId as label which is considered as a high cardinality label, " +
         "be careful enabling it on metrics systems that are not optimized for high cardinality columns.")
@@ -6263,7 +6288,8 @@ object CelebornConf extends Logging {
       .categories("metrics")
       .doc("Threshold of bytes written for top resource consumption applications list of worker. " +
         "The application which has bytes written less than this threshold will not be included " +
-        "in the top resource consumption list, including diskBytesWritten and hdfsBytesWritten.")
+        "in the top resource consumption list, including diskBytesWritten, hdfsBytesWritten, " +
+        "s3BytesWritten and ossBytesWritten.")
       .version("0.6.0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefault(0)
@@ -6333,6 +6359,51 @@ object CelebornConf extends Logging {
         " do add `org.apache.celeborn.common.metrics.sink.LoggerSink` to metrics.properties.")
       .booleanConf
       .createWithDefault(false)
+
+  val SCALE_METRICS_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.metrics.worker.scale.enabled")
+      .categories("metrics")
+      .version("1.0.0")
+      .doc("Whether to collect worker metrics for automatic scaling and report them through " +
+        "worker heartbeats. Independent of celeborn.metrics.enabled. " +
+        "When false, the collector is not created or started.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val SCALE_METRIC_COLLECTOR_CLASS_NAME: ConfigEntry[String] =
+    buildConf("celeborn.metrics.worker.scale.collector.class")
+      .categories("metrics")
+      .version("1.0.0")
+      .doc("Class name of the worker metric collector used by automatic scaling.")
+      .stringConf
+      .createWithDefault(
+        "org.apache.celeborn.service.deploy.worker.metrics.DefaultScaleMetricCollector")
+
+  val SCALE_METRIC_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.metrics.worker.scale.collect.interval")
+      .categories("metrics")
+      .version("1.0.0")
+      .doc("Delay between collection tasks in the default worker scaling metric collector. " +
+        "The first sample is collected after this delay. " +
+        "Reporting follows the worker heartbeat schedule, independently of this interval.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(_ > 0, "Worker metric interval must be positive")
+      .createWithDefaultString("5s")
+
+  val SCALE_METRIC_MEMORY_WINDOW_SIZE: ConfigEntry[Int] =
+    buildConf("celeborn.metrics.worker.scale.memory.slidingWindow.size")
+      .categories("metrics")
+      .version("1.0.0")
+      .doc("Number of memory usage samples averaged by the default worker scaling metric " +
+        "collector. Only MemoryPressureRatio uses this window; disk and system load metrics " +
+        "do not. Each sample follows MemoryManager pressure accounting: Netty-tracked direct " +
+        "memory plus memory reserved for sorting. The averaged value is divided by the worker's " +
+        "maximum direct memory. This is not a measurement of total actual direct memory usage. " +
+        "The memory pressure ratio is zero until the window fills, so zero during warm-up " +
+        "does not indicate idle memory.")
+      .intConf
+      .checkValue(_ > 0, "Worker metric memory window size must be positive")
+      .createWithDefault(6)
 
   val IDENTITY_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.identity.provider")
@@ -6839,6 +6910,37 @@ object CelebornConf extends Logging {
       .version("0.5.0")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
+
+  val TRANSPORT_CLIENT_BOOTSTRAP_CLASSES: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.<module>.client.bootstrap.classes")
+      .categories("network", "security")
+      .version("1.0.0")
+      .doc("Ordered TransportClientBootstrap classes with a public TransportConf or no-argument " +
+        "constructor. Run before the caller's bootstraps, including native SASL when enabled. " +
+        "Applies only to the exact transport module; does not inherit parent module settings. " +
+        "Instances are owned and closed by the transport context. " +
+        "When composing with native authentication, leave `TransportClient.clientId` to the native " +
+        "layer or set the same Celeborn application ID. Keep independent plugin identities in " +
+        "per-connection state.")
+      .stringConf
+      .toSequence
+      .createWithDefault(Seq.empty)
+
+  val TRANSPORT_SERVER_BOOTSTRAP_CLASSES: ConfigEntry[Seq[String]] =
+    buildConf("celeborn.<module>.server.bootstrap.classes")
+      .categories("network", "security")
+      .version("1.0.0")
+      .doc("Ordered TransportServerBootstrap classes with a public TransportConf or no-argument " +
+        "constructor. Receive requests in configuration order before the caller's handlers, " +
+        "including native SASL when enabled. Applies only to the exact transport module; " +
+        "does not inherit parent module settings. " +
+        "Instances are owned and closed by the transport context. " +
+        "When composing with native authentication, leave `TransportClient.clientId` to the native " +
+        "layer or set the same Celeborn application ID. Keep independent plugin identities in " +
+        "per-connection state.")
+      .stringConf
+      .toSequence
+      .createWithDefault(Seq.empty)
 
   val INTERNAL_PORT_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.internal.port.enabled")

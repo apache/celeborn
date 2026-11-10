@@ -2294,6 +2294,14 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
     broadcastGetReducerFileGroupResponseCallback = Some(call)
   }
 
+  @volatile private var cachedBroadcastGetReducerFileGroupResponseCallback
+      : Option[function.Function[Integer, Array[Byte]]] =
+    None
+  def registerCachedBroadcastGetReducerFileGroupResponseCallback(
+      call: function.Function[Integer, Array[Byte]]): Unit = {
+    cachedBroadcastGetReducerFileGroupResponseCallback = Some(call)
+  }
+
   @volatile private var invalidatedBroadcastCallback: Option[Consumer[Integer]] =
     None
   def registerInvalidatedBroadcastCallback(call: Consumer[Integer]): Unit = {
@@ -2353,6 +2361,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf) extends 
       response: GetReducerFileGroupResponse): Option[Array[Byte]] = {
     broadcastGetReducerFileGroupResponseCallback match {
       case Some(c) => Option(c.apply(shuffleId, response))
+      case _ => None
+    }
+  }
+
+  def cachedBroadcastGetReducerFileGroupResponse(shuffleId: Int): Option[Array[Byte]] = {
+    cachedBroadcastGetReducerFileGroupResponseCallback match {
+      case Some(c) => Option(c.apply(shuffleId))
       case _ => None
     }
   }

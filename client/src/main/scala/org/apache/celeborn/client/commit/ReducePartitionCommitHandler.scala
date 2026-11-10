@@ -38,6 +38,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.ShufflePartitionLocationInfo
 import org.apache.celeborn.common.network.protocol.SerdeVersion
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionType, PbGetStageEndResponse}
+import org.apache.celeborn.common.protocol.message.ControlMessages
 import org.apache.celeborn.common.protocol.message.ControlMessages.GetReducerFileGroupResponse
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.rpc.RpcCallContext
@@ -501,10 +502,23 @@ class ReducePartitionCommitHandler(
 
         context.reply(response)
       } else {
+        val nettyEnv = context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv
         val cachedMsg = getReducerFileGroupRpcCache.get(
           shuffleId,
           new Callable[ByteBuffer]() {
             override def call(): ByteBuffer = {
+              // Reuse a live broadcast before building anything
+              reusableBroadcast(shuffleId) match {
+                case Some(broadcastBytes) =>
+                  logInfo(s"Shuffle $shuffleId reuses the live GetReducerFileGroupResponse" +
+                    s" broadcast of ${broadcastBytes.length} bytes.")
+                  return nettyEnv.serialize(GetReducerFileGroupResponse(
+                    StatusCode.SUCCESS,
+                    broadcast = broadcastBytes,
+                    serdeVersion = serdeVersion))
+                case None =>
+              }
+
               val returnedMsg = GetReducerFileGroupResponse(
                 StatusCode.SUCCESS,
                 reducerFileGroupsMap.getOrDefault(shuffleId, JavaUtils.newConcurrentHashMap()),
@@ -515,32 +529,39 @@ class ReducePartitionCommitHandler(
                     new util.HashMap[String, LocationPushFailedBatches]()),
                 serdeVersion = serdeVersion)
 
-              val serializedMsg =
-                context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(returnedMsg)
-              logInfo(
-                s"Shuffle $shuffleId GetReducerFileGroupResponse size " + serializedMsg.capacity())
+              // Size the payload that is sent, not a throwaway serialization of the response.
+              val transportMsg = ControlMessages.toTransportMessage(returnedMsg)
+              val responseSize = transportMsg.getPayload.length
+              logInfo(s"Shuffle $shuffleId GetReducerFileGroupResponse size $responseSize")
 
               if (getReducerFileGroupResponseBroadcastEnabled &&
-                serializedMsg.capacity() >= getReducerFileGroupResponseBroadcastMiniSize) {
+                responseSize >= getReducerFileGroupResponseBroadcastMiniSize) {
                 val broadcastMsg = broadcastGetReducerFileGroup(shuffleId, returnedMsg)
-                if (broadcastMsg != returnedMsg) {
-                  val serializedBroadcastMsg =
-                    context.asInstanceOf[RemoteNettyRpcCallContext].nettyEnv.serialize(broadcastMsg)
+                if (broadcastMsg ne returnedMsg) {
+                  val serializedBroadcastMsg = nettyEnv.serialize(broadcastMsg)
                   logInfo(s"Shuffle $shuffleId GetReducerFileGroupResponse size" +
-                    s" ${serializedMsg.capacity()} reached the broadcast threshold" +
+                    s" $responseSize reached the broadcast threshold" +
                     s" $getReducerFileGroupResponseBroadcastMiniSize," +
                     s" the broadcast response size is ${serializedBroadcastMsg.capacity()}.")
                   serializedBroadcastMsg
                 } else {
-                  serializedMsg
+                  nettyEnv.serialize(transportMsg)
                 }
               } else {
-                serializedMsg
+                nettyEnv.serialize(transportMsg)
               }
             }
           })
         context.asInstanceOf[RemoteNettyRpcCallContext].callback.onSuccess(cachedMsg)
       }
+    }
+  }
+
+  private def reusableBroadcast(shuffleId: Int): Option[Array[Byte]] = {
+    if (getReducerFileGroupResponseBroadcastEnabled) {
+      lifecycleManager.cachedBroadcastGetReducerFileGroupResponse(shuffleId).filter(_.nonEmpty)
+    } else {
+      None
     }
   }
 

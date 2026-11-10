@@ -24,6 +24,7 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicIntegerArray}
 
 import scala.collection.JavaConverters._
+import scala.util.control.NonFatal
 
 import com.google.common.annotations.VisibleForTesting
 import io.netty.util.HashedWheelTimer
@@ -35,12 +36,12 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerPartitionLocationInfo}
-import org.apache.celeborn.common.metrics.MetricsSystem
+import org.apache.celeborn.common.metrics.{MetricsSystem, WorkerStats}
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, Role, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.{CelebornRackResolver, TransportContext}
 import org.apache.celeborn.common.network.protocol.TransportMessagesHelper
 import org.apache.celeborn.common.network.sasl.SaslServerBootstrap
-import org.apache.celeborn.common.network.server.TransportServerBootstrap
+import org.apache.celeborn.common.network.server.{TransportServer, TransportServerBootstrap}
 import org.apache.celeborn.common.network.util.TransportConf
 import org.apache.celeborn.common.protocol.{PartitionType, PbRegisterWorkerResponse, PbWorkerLostResponse, RpcNameConstants, TransportModuleConstants, WorkerEventType}
 import org.apache.celeborn.common.protocol.PbWorkerStatus.State
@@ -55,6 +56,7 @@ import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingState
+import org.apache.celeborn.service.deploy.worker.metrics.{ScaleMetricCollector, ScaleMetricCollectorContext}
 import org.apache.celeborn.service.deploy.worker.monitor.JVMQuake
 import org.apache.celeborn.service.deploy.worker.profiler.JVMProfiler
 import org.apache.celeborn.service.deploy.worker.storage.{PartitionFilesSorter, StorageManager}
@@ -95,6 +97,8 @@ private[celeborn] class Worker(
   private val secretRegistry = new WorkerSecretRegistryImpl(conf.workerApplicationRegistryCacheSize)
 
   private val hasHDFSStorage = conf.hasHDFSStorage
+  private val hasS3Storage = conf.hasS3Storage
+  private val hasOssStorage = conf.hasOssStorage
 
   if (conf.logCelebornConfEnabled) {
     logInfo(getConf)
@@ -188,6 +192,15 @@ private[celeborn] class Worker(
   val memoryManager: MemoryManager = MemoryManager.initialize(conf, storageManager, workerSource)
   memoryManager.registerMemoryListener(storageManager)
 
+  private val scaleMetricCollector =
+    if (conf.scaleMetricsEnabled) {
+      Some(Utils.instantiateClassWithCelebornConf[ScaleMetricCollector](
+        conf.scaleMetricCollectorClassName,
+        conf))
+    } else {
+      None
+    }
+
   val partitionsSorter = new PartitionFilesSorter(memoryManager, conf, workerSource)
 
   if (conf.workerCongestionControlEnabled) {
@@ -225,9 +238,15 @@ private[celeborn] class Worker(
         pushServerLimiter,
         conf.workerPushHeartbeatEnabled,
         workerSource)
-    (
-      transportContext,
-      transportContext.createServer(conf.workerPushPort, getServerBootstraps(transportConf)))
+    try {
+      (
+        transportContext,
+        transportContext.createServer(conf.workerPushPort, getServerBootstraps(transportConf)))
+    } catch {
+      case e: Throwable if NonFatal(e) || e.isInstanceOf[LinkageError] =>
+        Utils.tryLogNonFatalError { transportContext.close() }
+        throw e
+    }
   }
 
   val replicateHandler = new PushDataHandler(workerSource)
@@ -246,10 +265,19 @@ private[celeborn] class Worker(
         replicateLimiter,
         false,
         workerSource)
-    (
-      transportContext,
-      transportContext.createServer(conf.workerReplicatePort),
-      transportContext.createClientFactory())
+    var server: TransportServer = null
+    try {
+      server = transportContext.createServer(conf.workerReplicatePort)
+      val factory = transportContext.createClientFactory()
+      (transportContext, server, factory)
+    } catch {
+      case e: Throwable if NonFatal(e) || e.isInstanceOf[LinkageError] =>
+        if (server != null) {
+          Utils.tryLogNonFatalError { server.close() }
+        }
+        Utils.tryLogNonFatalError { transportContext.close() }
+        throw e
+    }
   }
 
   var fetchHandler: FetchHandler = _
@@ -267,9 +295,15 @@ private[celeborn] class Worker(
         conf.workerFetchHeartbeatEnabled,
         workerSource,
         conf.metricsCollectCriticalEnabled)
-    (
-      transportContext,
-      transportContext.createServer(conf.workerFetchPort, getServerBootstraps(transportConf)))
+    try {
+      (
+        transportContext,
+        transportContext.createServer(conf.workerFetchPort, getServerBootstraps(transportConf)))
+    } catch {
+      case e: Throwable if NonFatal(e) || e.isInstanceOf[LinkageError] =>
+        Utils.tryLogNonFatalError { transportContext.close() }
+        throw e
+    }
   }
 
   private val pushPort = pushServer.getPort
@@ -533,6 +567,14 @@ private[celeborn] class Worker(
     }.toMap.asJava
     val diskInfos = workerInfo.updateThenGetDiskInfos(currentDiskMap).asScala.values.toSeq
     workerStatusManager.checkIfNeedTransitionStatus()
+    val workerStats: Option[WorkerStats] =
+      try {
+        scaleMetricCollector.flatMap(_.currentWorkerStats())
+      } catch {
+        case NonFatal(e) =>
+          logWarning("Failed to read worker scaling metrics", e)
+          None
+      }
     val response = masterClient.askSync[HeartbeatFromWorkerResponse](
       HeartbeatFromWorker(
         host,
@@ -544,7 +586,8 @@ private[celeborn] class Worker(
         handleResourceConsumption(),
         activeShuffleKeys,
         highWorkload,
-        workerStatusManager.currentWorkerStatus),
+        workerStatusManager.currentWorkerStatus,
+        workerStats),
       classOf[HeartbeatFromWorkerResponse])
     handleHeartbeatResponse(response)
   }
@@ -574,6 +617,9 @@ private[celeborn] class Worker(
     logInfo(s"Starting Worker $host:$pushPort:$fetchPort:$replicatePort" +
       s" with ${workerInfo.diskInfos} slots.")
     registerWithMaster()
+    scaleMetricCollector.foreach(_.init(new ScaleMetricCollectorContext(
+      memoryManager,
+      storageManager)))
 
     // start heartbeat
     sendHeartbeatTask = forwardMessageScheduler.scheduleWithFixedDelay(
@@ -635,6 +681,8 @@ private[celeborn] class Worker(
     if (!stopped) {
       logInfo("Stopping Worker.")
 
+      scaleMetricCollector.foreach(collector => Utils.tryLogNonFatalError(collector.stop()))
+
       if (jvmProfiler != null) {
         jvmProfiler.stop()
       }
@@ -686,6 +734,7 @@ private[celeborn] class Worker(
       replicateServer.shutdown(exitKind)
       fetchServer.shutdown(exitKind)
       pushServer.shutdown(exitKind)
+      replicateClientFactory.close()
       replicateTransportContext.close()
       fetchServerTransportContext.close()
       pushServerTransportContext.close()
@@ -764,7 +813,7 @@ private[celeborn] class Worker(
     ResourceConsumption]): Unit = {
     // Remove application top resource consumption gauges to refresh top resource consumption metrics.
     removeAppResourceConsumption(topApplicationUserIdentifiers.keySet().asScala)
-    // Top resource consumption is determined by diskBytesWritten+hdfsBytesWritten.
+    // Top resource consumption is determined by total bytes written across all storage types.
     userResourceConsumptions.asScala.filter { case (_, resourceConsumption) =>
       CollectionUtils.isNotEmpty(resourceConsumption.subResourceConsumptions)
     }.flatMap { case (userIdentifier, resourceConsumption) =>
@@ -773,12 +822,14 @@ private[celeborn] class Worker(
       }
     }.toSeq
       .sortBy { case (_, _, appConsumption) =>
-        appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten
+        appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten +
+          appConsumption.s3BytesWritten + appConsumption.ossBytesWritten
       }
       .reverse
       .take(topAppResourceConsumptionCount).foreach {
         case (appId, userIdentifier, appConsumption) =>
-          if (appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten >=
+          if (appConsumption.diskBytesWritten + appConsumption.hdfsBytesWritten +
+              appConsumption.s3BytesWritten + appConsumption.ossBytesWritten >=
               topAppResourceConsumptionBytesWrittenThreshold) {
             topApplicationUserIdentifiers.put(appId, userIdentifier)
             gaugeResourceConsumption(userIdentifier, appId, appConsumption)
@@ -815,6 +866,30 @@ private[celeborn] class Worker(
         ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
         resourceConsumptionLabel) { () =>
         computeResourceConsumption(userIdentifier, resourceConsumption).hdfsBytesWritten
+      }
+    }
+    if (hasS3Storage) {
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.S3_FILE_COUNT,
+        resourceConsumptionLabel) { () =>
+        computeResourceConsumption(userIdentifier, resourceConsumption).s3FileCount
+      }
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.S3_BYTES_WRITTEN,
+        resourceConsumptionLabel) { () =>
+        computeResourceConsumption(userIdentifier, resourceConsumption).s3BytesWritten
+      }
+    }
+    if (hasOssStorage) {
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.OSS_FILE_COUNT,
+        resourceConsumptionLabel) { () =>
+        computeResourceConsumption(userIdentifier, resourceConsumption).ossFileCount
+      }
+      resourceConsumptionSource.addGauge(
+        ResourceConsumptionSource.OSS_BYTES_WRITTEN,
+        resourceConsumptionLabel) { () =>
+        computeResourceConsumption(userIdentifier, resourceConsumption).ossBytesWritten
       }
     }
   }
@@ -898,6 +973,22 @@ private[celeborn] class Worker(
         resourceConsumptionLabel)
       resourceConsumptionSource.removeGauge(
         ResourceConsumptionSource.HDFS_BYTES_WRITTEN,
+        resourceConsumptionLabel)
+    }
+    if (hasS3Storage) {
+      resourceConsumptionSource.removeGauge(
+        ResourceConsumptionSource.S3_FILE_COUNT,
+        resourceConsumptionLabel)
+      resourceConsumptionSource.removeGauge(
+        ResourceConsumptionSource.S3_BYTES_WRITTEN,
+        resourceConsumptionLabel)
+    }
+    if (hasOssStorage) {
+      resourceConsumptionSource.removeGauge(
+        ResourceConsumptionSource.OSS_FILE_COUNT,
+        resourceConsumptionLabel)
+      resourceConsumptionSource.removeGauge(
+        ResourceConsumptionSource.OSS_BYTES_WRITTEN,
         resourceConsumptionLabel)
     }
   }

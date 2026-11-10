@@ -23,7 +23,7 @@ import java.util
 import java.util.{Map => JMap}
 import java.util.Collections
 import java.util.concurrent.{ExecutorService, ScheduledFuture, ThreadLocalRandom, TimeUnit}
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.function.ToLongFunction
 
 import scala.collection.JavaConverters._
@@ -41,7 +41,7 @@ import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
-import org.apache.celeborn.common.metrics.{ClientMetric, MetricsSystem, MetricType}
+import org.apache.celeborn.common.metrics.{ClientMetric, MetricsSystem, MetricType, WorkerStats}
 import org.apache.celeborn.common.metrics.source.{JVMCPUSource, JVMSource, ResourceConsumptionSource, Role, SystemMiscSource, ThreadPoolSource}
 import org.apache.celeborn.common.network.CelebornRackResolver
 import org.apache.celeborn.common.network.protocol.{TransportMessage, TransportMessagesHelper}
@@ -439,6 +439,21 @@ private[celeborn] class Master(
     }
   }
 
+  // Authentication requires a dedicated internal port. Its service traffic and local management
+  // calls remain trusted; external callers may only use the existing application operations.
+  override def authorize(origin: RpcMessageOrigin, message: Any): Unit = {
+    if (authEnabled && !origin.isLocal &&
+      !origin.receivingRpcEnv.contains(internalRpcEnvInUse)) {
+      if (!origin.receivingRpcEnv.contains(rpcEnv)) {
+        throw new SecurityException("Master RPC request has no recognized receiver origin.")
+      }
+      if (!Master.ExternalApplicationOperations.exists(_.isInstance(message))) {
+        throw new SecurityException(
+          s"External Master RPC is not authorized to handle ${message.getClass.getSimpleName}.")
+      }
+    }
+  }
+
   override def receive: PartialFunction[Any, Unit] = {
     case _: PbCheckForWorkerTimeout =>
       executeWithLeaderChecker(null, timeoutDeadWorkers())
@@ -580,23 +595,24 @@ private[celeborn] class Master(
           activeShuffleKey,
           highWorkload,
           workerStatus,
+          workerStats,
           requestId) =>
       logDebug(s"Received heartbeat from" +
         s" worker $host:$rpcPort:$pushPort:$fetchPort:$replicatePort with $disks.")
+      val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
+      val statsRef = Option(statusSystem.prepareWorkerStatsUpdate(targetWorker))
       executeWithLeaderChecker(
         context,
         handleHeartbeatFromWorker(
           context,
-          host,
-          rpcPort,
-          pushPort,
-          fetchPort,
-          replicatePort,
+          targetWorker,
+          statsRef,
           disks,
           userResourceConsumption,
           activeShuffleKey,
           highWorkload,
           workerStatus,
+          workerStats,
           requestId))
 
     case ReportWorkerUnavailable(failedWorkers: util.List[WorkerInfo], requestId: String) =>
@@ -730,35 +746,33 @@ private[celeborn] class Master(
 
   private def handleHeartbeatFromWorker(
       context: RpcCallContext,
-      host: String,
-      rpcPort: Int,
-      pushPort: Int,
-      fetchPort: Int,
-      replicatePort: Int,
+      targetWorker: WorkerInfo,
+      statsRef: Option[AtomicReference[WorkerStats]],
       disks: Seq[DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
       activeShuffleKeys: util.Set[String],
       highWorkload: Boolean,
       workerStatus: WorkerStatus,
+      workerStats: Option[WorkerStats],
       requestId: String): Unit = {
-    val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
     val registered = statusSystem.workersMap.containsKey(targetWorker.toUniqueId)
     if (!registered) {
-      logWarning(s"Received heartbeat from unknown worker " +
-        s"$host:$rpcPort:$pushPort:$fetchPort:$replicatePort.")
+      logWarning(s"Received heartbeat from unknown worker ${targetWorker.toUniqueId}.")
     } else {
       statusSystem.handleWorkerHeartbeat(
-        host,
-        rpcPort,
-        pushPort,
-        fetchPort,
-        replicatePort,
+        targetWorker.host,
+        targetWorker.rpcPort,
+        targetWorker.pushPort,
+        targetWorker.fetchPort,
+        targetWorker.replicatePort,
         disks.map { disk => disk.mountPoint -> disk }.toMap.asJava,
         userResourceConsumption,
         System.currentTimeMillis(),
         highWorkload,
         workerStatus,
         requestId)
+      // Later admissions, membership changes and leadership changes detach this reference.
+      statsRef.foreach(_.set(workerStats.orNull))
     }
 
     val expiredShuffleKeys = new util.HashSet[String]
@@ -1741,6 +1755,20 @@ private[celeborn] class Master(
 }
 
 private[deploy] object Master extends Logging {
+  // Keep this allowlist in sync when adding application messages to the external Master RPC endpoint.
+  private val ExternalApplicationOperations: Set[Class[_]] = Set(
+    classOf[RegisterApplicationInfo],
+    classOf[HeartbeatFromApplication],
+    classOf[RequestSlots],
+    classOf[PbRequestWorkers],
+    classOf[PbBatchUnregisterShuffles],
+    classOf[PbUnregisterShuffle],
+    classOf[ApplicationLost],
+    classOf[PbReviseLostShuffles],
+    classOf[CheckQuota],
+    classOf[PbCheckWorkersAvailable],
+    classOf[PbApplicationMetaRequest])
+
   def main(args: Array[String]): Unit = {
     SignalUtils.registerLogger(log)
     val conf = new CelebornConf()
