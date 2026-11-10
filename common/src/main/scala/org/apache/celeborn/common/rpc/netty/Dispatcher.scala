@@ -157,10 +157,10 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) 
   }
 
   /** Posts a one-way message. */
-  def postOneWayMessage(message: RequestMessage): Unit = {
+  def postOneWayMessage(message: RequestMessage, origin: RpcMessageOrigin): Unit = {
     postMessage(
       message.receiver.name,
-      OneWayMessage(message.senderAddress, message.content),
+      OneWayMessage(message.senderAddress, message.content, origin),
       e => throw e)
   }
 

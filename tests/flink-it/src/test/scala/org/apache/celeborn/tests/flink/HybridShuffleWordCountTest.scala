@@ -39,6 +39,7 @@ import org.apache.celeborn.service.deploy.worker.Worker
 class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClusterFeature
   with BeforeAndAfterAll {
   var workers: collection.Set[Worker] = null
+  var port = 0
 
   val NUM_PARALLELISM = 8
 
@@ -48,11 +49,9 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
 
   override def beforeAll(): Unit = {
     logInfo("test initialized , setup celeborn mini cluster")
-    val masterConf = Map(
-      "celeborn.master.host" -> "localhost",
-      "celeborn.master.port" -> "9097")
-    val workerConf = Map("celeborn.master.endpoints" -> "localhost:9097")
-    workers = setupMiniClusterWithRandomPorts(masterConf, workerConf)._2
+    val (m, w) = setupMiniClusterWithRandomPorts()
+    workers = w
+    port = m.conf.get(CelebornConf.MASTER_PORT)
   }
 
   override def afterAll(): Unit = {
@@ -101,7 +100,7 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
     configuration.setString(
       "taskmanager.network.hybrid-shuffle.external-remote-tier-factory.class",
       "org.apache.celeborn.plugin.flink.tiered.CelebornTierFactory")
-    configuration.setString("celeborn.master.endpoints", "localhost:9097")
+    configuration.setString(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$port")
     if (integrityCheckEnabled) {
       configuration.setString(CelebornConf.CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED.key, "true")
     }
@@ -142,7 +141,7 @@ class HybridShuffleWordCountTest extends AnyFunSuite with Logging with MiniClust
     configuration.setString(
       "taskmanager.network.hybrid-shuffle.external-remote-tier-factory.class",
       "org.apache.celeborn.plugin.flink.tiered.CelebornTierFactory")
-    configuration.setString("celeborn.master.endpoints", "localhost:9097")
+    configuration.setString(CelebornConf.MASTER_ENDPOINTS.key, s"localhost:$port")
     if (integrityCheckEnabled) {
       configuration.setString(CelebornConf.CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED.key, "true")
     }

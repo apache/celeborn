@@ -19,12 +19,23 @@ package org.apache.celeborn.client.commit
 
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue, CountDownLatch, ScheduledExecutorService, ThreadPoolExecutor, TimeUnit}
 
+import scala.collection.mutable
+
+import org.mockito.ArgumentCaptor
+import org.mockito.ArgumentMatchers.{any, anyInt}
+import org.mockito.Mockito._
+import org.mockito.invocation.InvocationOnMock
+
 import org.apache.celeborn.CelebornFunSuite
-import org.apache.celeborn.client.{ShuffleCommittedInfo, WorkerStatusTracker}
+import org.apache.celeborn.client.{CommitManager, LifecycleManager, ShuffleCommittedInfo, WorkerStatusTracker}
 import org.apache.celeborn.client.CommitManager.CommittedPartitionInfo
 import org.apache.celeborn.client.LifecycleManager.ShuffleAllocatedWorkers
 import org.apache.celeborn.common.{CelebornConf, CommitMetadata}
-import org.apache.celeborn.common.util.ThreadUtils
+import org.apache.celeborn.common.protocol.{PartitionType, PbReadReducerPartitionEndResponse}
+import org.apache.celeborn.common.protocol.message.ControlMessages.ReadReducerPartitionEnd
+import org.apache.celeborn.common.protocol.message.StatusCode
+import org.apache.celeborn.common.rpc.RpcCallContext
+import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
 
 class MapPartitionCommitHandlerTest extends CelebornFunSuite {
 
@@ -295,6 +306,76 @@ class MapPartitionCommitHandlerTest extends CelebornFunSuite {
       val (isValid, message) =
         handler.finishPartition(shuffleId, mapPartition, 0, numPartitions - 1, actual)
       assert(isValid, s"map partition $mapPartition failed validation: $message")
+    }
+  }
+
+  Seq((0, 0), (0, 1)).foreach { case (startSubIndex, endSubIndex) =>
+    test(s"MAP integrity failure preserves independent reads and retry for range [$startSubIndex, $endSubIndex]") {
+      val handler = newHandler(integrityCheckEnabled = true)
+      val (checksums, bytesWritten) = writeSideMetadata(payloads)
+      Seq(mapPartitionId, mapPartitionId + 1).foreach { id =>
+        handler.recordMapPartitionCommitMetadata(
+          shuffleId,
+          id,
+          numPartitions,
+          checksums,
+          bytesWritten)
+      }
+
+      val manager = mock(classOf[LifecycleManager], CALLS_REAL_METHODS)
+      val commit = mock(classOf[CommitManager])
+      when(commit.finishPartition(anyInt(), anyInt(), anyInt(), anyInt(), any[CommitMetadata]))
+        .thenAnswer((invocation: InvocationOnMock) =>
+          handler.finishPartition(
+            invocation.getArgument[Int](0),
+            invocation.getArgument[Int](1),
+            invocation.getArgument[Int](2),
+            invocation.getArgument[Int](3),
+            invocation.getArgument[CommitMetadata](4)))
+      val partitionTypes = JavaUtils.newConcurrentHashMap[Int, PartitionType]()
+      partitionTypes.put(shuffleId, PartitionType.MAP)
+      val fields = Map[String, AnyRef](
+        "commitManager" -> commit,
+        "shufflePartitionType" -> partitionTypes,
+        "failedIntegrityShuffles" -> JavaUtils.newConcurrentHashMap[Int, String](),
+        "shuffleIdMapping" -> JavaUtils.newConcurrentHashMap[
+          Int,
+          mutable.LinkedHashMap[String, (Int, Boolean)]]())
+      fields.foreach { case (name, value) =>
+        val field = classOf[LifecycleManager].getDeclaredFields
+          .find(f => f.getName == name || f.getName.endsWith("$$" + name)).get
+        field.setAccessible(true)
+        field.set(manager, value)
+      }
+
+      def report(
+          partitionId: Int,
+          start: Int,
+          end: Int,
+          metadata: CommitMetadata): PbReadReducerPartitionEndResponse = {
+        val context = mock(classOf[RpcCallContext])
+        manager.receiveAndReply(context)(ReadReducerPartitionEnd(
+          shuffleId,
+          partitionId,
+          start,
+          end,
+          metadata.getChecksum,
+          metadata.getBytes))
+        val response = ArgumentCaptor.forClass(classOf[Object])
+        verify(context).reply(response.capture())
+        response.getValue.asInstanceOf[PbReadReducerPartitionEndResponse]
+      }
+
+      val valid = readSideMetadata(payloads, startSubIndex, endSubIndex)
+      val corrupt = new CommitMetadata(valid.getChecksum ^ 1, valid.getBytes)
+      assert(report(mapPartitionId, startSubIndex, endSubIndex, corrupt)
+        .getStatus == StatusCode.READ_REDUCER_PARTITION_END_FAILED.getValue)
+      val otherRange = readSideMetadata(payloads, 2, 2)
+      assert(report(mapPartitionId, 2, 2, otherRange).getStatus == StatusCode.SUCCESS.getValue)
+      assert(report(mapPartitionId + 1, startSubIndex, endSubIndex, valid)
+        .getStatus == StatusCode.SUCCESS.getValue)
+      assert(report(mapPartitionId, startSubIndex, endSubIndex, valid)
+        .getStatus == StatusCode.SUCCESS.getValue)
     }
   }
 }

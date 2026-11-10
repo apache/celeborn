@@ -22,6 +22,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -155,5 +157,51 @@ public class CommitMetadataTest {
     Assert.assertFalse(CommitMetadata.checkCommitMetadata(expected, actualNonMatchingBytesOnly));
     Assert.assertFalse(CommitMetadata.checkCommitMetadata(expected, actualNonMatchingChecksumOnly));
     Assert.assertFalse(CommitMetadata.checkCommitMetadata(expected, actualNonMatching));
+  }
+
+  @Test
+  public void testEqualsComparesBytesAndChecksum() {
+    byte[] data = "testdata".getBytes();
+    CommitMetadata first = new CommitMetadata();
+    first.addDataWithOffsetAndLength(data, 0, data.length);
+    CommitMetadata second = new CommitMetadata();
+    second.addDataWithOffsetAndLength(data, 0, data.length);
+
+    Assert.assertEquals(first, second);
+    Assert.assertNotEquals(first, new CommitMetadata());
+  }
+
+  @Test
+  public void testHashCodeIsSameForEqualInstances() {
+    byte[] data = "testdata".getBytes();
+    CommitMetadata first = new CommitMetadata();
+    first.addDataWithOffsetAndLength(data, 0, data.length);
+    CommitMetadata second = new CommitMetadata();
+    second.addDataWithOffsetAndLength(data, 0, data.length);
+
+    Assert.assertEquals(first, second);
+    Assert.assertEquals(first.hashCode(), second.hashCode());
+  }
+
+  @Test
+  public void testHashCodeDiffersWhenChecksumDiffers() {
+    CommitMetadata first = new CommitMetadata(CelebornCRC32.compute("testdata".getBytes()), 8);
+    CommitMetadata second = new CommitMetadata(CelebornCRC32.compute("foo".getBytes()), 8);
+
+    Assert.assertNotEquals(first, second);
+    Assert.assertNotEquals(first.hashCode(), second.hashCode());
+  }
+
+  @Test
+  public void testHashCodeAndEqualsWorkInSet() {
+    byte[] data = "testdata".getBytes();
+    CommitMetadata first = new CommitMetadata();
+    first.addDataWithOffsetAndLength(data, 0, data.length);
+    CommitMetadata second = new CommitMetadata();
+    second.addDataWithOffsetAndLength(data, 0, data.length);
+
+    Set<CommitMetadata> metadata = new HashSet<>();
+    metadata.add(first);
+    assertTrue(metadata.contains(second));
   }
 }

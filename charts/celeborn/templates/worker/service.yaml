@@ -29,4 +29,8 @@ spec:
     {{- include "celeborn.worker.selectorLabels" . | nindent 4 }}
   type: {{ .Values.service.type }}
   clusterIP: None
+  {{- if .Values.worker.drain.enabled }}
+  # Keep a draining worker resolvable until it exits. See README.md.
+  publishNotReadyAddresses: true
+  {{- end }}
   {{- include "celeborn.worker.service.port" . | nindent 2 }}

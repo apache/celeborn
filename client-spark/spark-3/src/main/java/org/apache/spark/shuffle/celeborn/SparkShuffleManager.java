@@ -248,6 +248,8 @@ public class SparkShuffleManager implements ShuffleManager {
           }
 
           if (celebornConf.getReducerFileGroupBroadcastEnabled()) {
+            lifecycleManager.registerCachedBroadcastGetReducerFileGroupResponseCallback(
+                SparkUtils::getCachedSerializedGetReducerFileGroupResponse);
             lifecycleManager.registerBroadcastGetReducerFileGroupResponseCallback(
                 (shuffleId, getReducerFileGroupResponse) ->
                     SparkUtils.serializeGetReducerFileGroupResponse(

@@ -61,12 +61,25 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
     val conf = new CelebornConf()
 
     val tmpFile = Files.createTempFile("test", ".tmp").toFile
-    mockStatic(classOf[ShuffleClient]).when(() =>
-      ShuffleClient.get(any(), any(), any(), any(), any(), any(), any())).thenReturn(
-      new DummyShuffleClient(conf, tmpFile))
-
+    val clientFactory = mockStatic(classOf[ShuffleClient])
     val shuffleReader =
-      new CelebornShuffleReader[Int, Int](handler, 0, 0, 0, 0, context, conf, metricReporter, null)
+      try {
+        clientFactory.when(() =>
+          ShuffleClient.get(any(), any(), any(), any(), any(), any(), any())).thenReturn(
+          new DummyShuffleClient(conf, tmpFile))
+        new CelebornShuffleReader[Int, Int](
+          handler,
+          0,
+          0,
+          0,
+          0,
+          context,
+          conf,
+          metricReporter,
+          null)
+      } finally {
+        clientFactory.close()
+      }
 
     val exception1: Throwable = new CelebornIOException("test1", new InterruptedException("test1"))
     val exception2: Throwable = new CelebornIOException("test2", new TimeoutException("test2"))

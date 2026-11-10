@@ -62,7 +62,6 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.network.ssl.SSLFactory;
-import org.apache.celeborn.common.protocol.TransportModuleConstants;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
@@ -515,7 +514,7 @@ public class HARaftServer {
     // also why nThreads does not matter
     SSLFactory factory =
         SSLFactory.createSslFactory(
-            Utils.fromCelebornConf(conf, TransportModuleConstants.RPC_SERVICE_MODULE, 1));
+            Utils.fromCelebornConf(conf, MasterClusterInfo.ratisSslModule(conf), 1));
 
     assert (null != factory);
     assert (factory.hasKeyManagers());

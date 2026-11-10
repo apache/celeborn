@@ -47,3 +47,18 @@ tests:
       - equal:
           path: spec.type
           value: NodePort
+
+  - it: Should not publish not-ready addresses by default
+    asserts:
+      - notExists:
+          path: spec.publishNotReadyAddresses
+
+  - it: Should publish not-ready addresses when the worker drain is enabled
+    set:
+      worker:
+        drain:
+          enabled: true
+    asserts:
+      - equal:
+          path: spec.publishNotReadyAddresses
+          value: true

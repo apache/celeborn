@@ -19,16 +19,27 @@ package org.apache.celeborn.common.network.ssl;
 
 import static org.apache.celeborn.common.util.JavaUtils.getLocalHost;
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import javax.net.ssl.ExtendedSSLSession;
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SNIServerName;
+import javax.net.ssl.SSLSession;
+
+import io.netty.handler.ssl.SslHandler;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Test;
 
@@ -105,6 +116,13 @@ public class SslConnectivitySuiteJ {
       return clientFactory.createClient(getLocalHost(), server.getPort());
     }
 
+    TransportClient createClient(String host, boolean unmanaged)
+        throws IOException, InterruptedException {
+      return unmanaged
+          ? clientFactory.createUnmanagedClient(host, server.getPort())
+          : clientFactory.createClient(host, server.getPort());
+    }
+
     @Override
     public void close() throws IOException {
       JavaUtils.closeQuietly(server);
@@ -126,6 +144,28 @@ public class SslConnectivitySuiteJ {
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
+    }
+
+    @Override
+    public boolean checkRegistered() {
+      return true;
+    }
+  }
+
+  // Replies with the SNI host names the server observed on the client's connection.
+  private static class SniEchoMessageHandler extends BaseMessageHandler {
+
+    @Override
+    public void receive(
+        TransportClient client, RequestMessage requestMessage, RpcResponseCallback callback) {
+      SSLSession session =
+          client.getChannel().pipeline().get(SslHandler.class).engine().getSession();
+      List<SNIServerName> serverNames = ((ExtendedSSLSession) session).getRequestedServerNames();
+      String response =
+          serverNames.stream()
+              .map(name -> ((SNIHostName) name).getAsciiName())
+              .collect(Collectors.joining(","));
+      callback.onSuccess(JavaUtils.stringToBytes(response));
     }
 
     @Override
@@ -391,6 +431,45 @@ public class SslConnectivitySuiteJ {
       assertNotNull(response.getRight());
     } catch (IOException ioEx) {
       // this is fine - expected to fail
+    }
+  }
+
+  // Connects through TransportClientFactory using a host name, and verifies the server observes
+  // it as SNI - i.e. the peer host and port reach the client SSLEngine.
+  @Test
+  public void testSniHostNameReachesServer() throws Exception {
+    // The JDK sends SNI only for host names containing a dot, so "localhost" is not enough.
+    // Names under ".localhost" resolve to loopback (RFC 6761) on most resolvers.
+    final String sniHost = "sni.localhost";
+    assumeTrue(sniHost + " does not resolve", resolves(sniHost));
+
+    for (String protocol : new String[] {"TLSv1.2", "TLSv1.3"}) {
+      final Function<CelebornConf, CelebornConf> updateConf =
+          conf -> {
+            conf.set("celeborn.ssl." + TEST_MODULE + ".protocol", protocol);
+            return conf;
+          };
+      for (boolean unmanaged : new boolean[] {false, true}) {
+        try (TestTransportState state =
+                new TestTransportState(
+                    new SniEchoMessageHandler(),
+                    createTransportConf(TEST_MODULE, true, true, updateConf),
+                    createTransportConf(TEST_MODULE, true, true, updateConf));
+            TransportClient client = state.createClient(sniHost, unmanaged)) {
+          Pair<String, String> response = sendRPC(client, "sni", false);
+          assertNull(response.getRight());
+          assertEquals(protocol + ", unmanaged=" + unmanaged, sniHost, response.getLeft());
+        }
+      }
+    }
+  }
+
+  private static boolean resolves(String host) {
+    try {
+      InetAddress.getByName(host);
+      return true;
+    } catch (UnknownHostException e) {
+      return false;
     }
   }
 

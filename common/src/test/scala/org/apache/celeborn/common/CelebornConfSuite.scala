@@ -423,6 +423,21 @@ class CelebornConfSuite extends CelebornFunSuite {
     validateDefaultTransportConfValue(conf, "rpc_app")
   }
 
+  test("sslEnabledExplicitly ignores global and parent module defaults") {
+    val conf = new CelebornConf()
+    conf.set("celeborn.ssl.enabled", "true")
+    conf.set("celeborn.ssl.rpc.enabled", "true")
+    assert(conf.sslEnabled("rpc_service"))
+    assert(!conf.sslEnabledExplicitly("rpc_service"))
+    assert(!conf.sslEnabledExplicitly("ratis"))
+
+    conf.set("celeborn.ssl.ratis.enabled", "true")
+    assert(conf.sslEnabledExplicitly("ratis"))
+
+    conf.set("celeborn.ssl.ratis.enabled", "false")
+    assert(!conf.sslEnabledExplicitly("ratis"))
+  }
+
   test("Test fallback config works even with parent") {
     // Using NETWORK_IO_CONNECT_TIMEOUT since it has fallback to NETWORK_CONNECT_TIMEOUT
 
