@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.util.control.NonFatal
 
-import io.netty.buffer.{ByteBuf, ByteBufAllocator, CompositeByteBuf, UnpooledByteBufAllocator}
+import io.netty.buffer.{ByteBuf, ByteBufAllocator, CompositeByteBuf}
 import org.apache.hadoop.fs.{FileSystem, FSDataOutputStream}
 
 import org.apache.celeborn.common.CelebornConf
@@ -325,7 +325,8 @@ class MemoryTierWriter(
     storageManager) {
   assert(storageType == StorageInfo.Type.MEMORY)
   val memoryFileStorageMaxFileSize: Long = conf.workerMemoryFileStorageMaxFileSize
-  private[storage] var copyAllocator: ByteBufAllocator = MemoryTierWriter.ownedBufferAllocator
+  private[storage] var copyAllocator: ByteBufAllocator =
+    MemoryManager.instance().getMemoryFileStorageAllocator
 
   storageManager.registerMemoryPartitionWriter(
     partitionDataWriterContext.getPartitionDataWriter,
@@ -436,13 +437,6 @@ class MemoryTierWriter(
   }
 
   override def handleException(): Unit = {}
-}
-
-object MemoryTierWriter {
-  // Memory files keep their data until they are evicted or their shuffle expires. Unpooled buffers
-  // return that memory as soon as they are released, instead of pinning partially used pool chunks.
-  private[storage] val ownedBufferAllocator: UnpooledByteBufAllocator =
-    new UnpooledByteBufAllocator(true)
 }
 
 class LocalTierWriter(

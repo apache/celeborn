@@ -537,7 +537,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
     val memoryManager = MemoryManager.instance()
     val memoryCounterBefore = memoryManager.getMemoryFileStorageCounter
     val diskCounterBefore = memoryManager.getDiskBufferCounter.get()
-    val ownedMemoryBefore = MemoryTierWriter.ownedBufferAllocator.metric.usedDirectMemory()
+    val ownedMemoryBefore = memoryManager.getMemoryFileStorageAllocator.metric.usedDirectMemory()
     val pushed = (1 to 3).map(_ =>
       WriterUtils.generateSparkFormatData(UnpooledByteBufAllocator.DEFAULT, 0))
     val expected = pushed.flatMap(buf => ByteBufUtil.getBytes(buf)).toArray
@@ -552,7 +552,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
       assert(memoryTierWriter.fileInfo.getFileLength === 3 * 1024)
       assert(memoryManager.getMemoryFileStorageCounter === memoryCounterBefore + 3 * 1024)
       assert(
-        MemoryTierWriter.ownedBufferAllocator.metric.usedDirectMemory() ===
+        memoryManager.getMemoryFileStorageAllocator.metric.usedDirectMemory() ===
           ownedMemoryBefore + 3 * 1024)
 
       assert(memoryTierWriter.close() === 3 * 1024)
@@ -562,7 +562,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
 
       assert(memoryFileInfo.releaseMemoryBuffers() === 3 * 1024)
       assert(
-        MemoryTierWriter.ownedBufferAllocator.metric.usedDirectMemory() === ownedMemoryBefore)
+        memoryManager.getMemoryFileStorageAllocator.metric.usedDirectMemory() === ownedMemoryBefore)
     } finally {
       if (!memoryTierWriter.closed) {
         memoryTierWriter.destroy(new IOException("test cleanup"))

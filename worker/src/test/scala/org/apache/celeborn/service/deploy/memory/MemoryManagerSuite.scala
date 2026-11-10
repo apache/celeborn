@@ -261,6 +261,7 @@ class MemoryManagerSuite extends CelebornFunSuite {
     val conf = new CelebornConf()
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL.key, "300s")
     conf.set(CelebornConf.WORKER_PINNED_MEMORY_CHECK_INTERVAL.key, "0")
+    conf.set(CelebornConf.WORKER_PINNED_MEMORY_RATIO_RESUME.key, "0.001")
     val memoryManager = MockitoSugar.spy(MemoryManager.initialize(conf))
     val maxDirectorMemory = memoryManager.maxDirectMemory
     val pushThreshold =
@@ -269,24 +270,32 @@ class MemoryManagerSuite extends CelebornFunSuite {
       (conf.workerPinnedMemoryRatioToResume * maxDirectorMemory).longValue()
     val pushListener = new MockMemoryPressureListener(TransportModuleConstants.PUSH_MODULE)
     memoryManager.registerMemoryListener(pushListener)
+    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(0L)
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(pushThreshold + 1)
+
+    // Without memory files, pinned memory is only what the pooled allocators and sorter hold.
+    assert(memoryManager.getPinnedMemory === 0L)
 
     // Memory files hold their data in unpooled buffers, which pooled allocators do not report.
     val memoryFileBytes = Math.toIntExact(pinnedMemoryResumeThreshold + 1)
-    memoryManager.incrementMemoryFileStorage(memoryFileBytes)
+    val memoryFileBuffer =
+      memoryManager.getMemoryFileStorageAllocator.directBuffer(memoryFileBytes, memoryFileBytes)
     try {
-      Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(0L)
-      Mockito.when(memoryManager.getMemoryUsage).thenReturn(pushThreshold + 1)
       assert(memoryManager.getPinnedMemory === memoryFileBytes)
       memoryManager.switchServingState()
       assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
-      // Memory file storage is held, so it must not resume push by pinned memory.
+      // Memory file data is held, so push must not resume by pinned memory.
       assert(pushListener.isPause)
 
-      memoryManager.releaseMemoryFileStorage(memoryFileBytes)
+      memoryFileBuffer.release()
+      assert(memoryManager.getPinnedMemory === 0L)
       memoryManager.switchServingState()
       assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
       assert(!pushListener.isPause)
     } finally {
+      if (memoryFileBuffer.refCnt() > 0) {
+        memoryFileBuffer.release()
+      }
       MemoryManager.reset()
     }
   }
