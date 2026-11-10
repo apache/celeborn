@@ -388,8 +388,15 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       }
     }
 
-    // try to update the available workers if the worker status is Normal
+    // A Normal worker is no longer decommissioned (e.g. recommissioned after
+    // DecommissionThenIdle), so drop it from decommissionWorkers and try to make it available.
     if (workerStatus.getState() == PbWorkerStatus.State.Normal) {
+      synchronized (workersMap) {
+        if (decommissionWorkers.remove(worker)) {
+          LOG.info(
+              "Worker {} is Normal again, removed from decommission workers", worker.toUniqueId());
+        }
+      }
       updateAvailableWorkers(worker);
     }
   }
