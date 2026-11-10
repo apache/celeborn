@@ -391,6 +391,22 @@ class CelebornListenerSuite {
   }
 
   @Test
+  def workerRevivesPersistedWithoutFlushAfterJobEnd(): Unit = {
+    val store = new InMemoryStore()
+    val statusStore = new CelebornStatusStore(store)
+    val listener = new CelebornListener(store, new SparkConf())
+
+    listener.onOtherEvent(CelebornPartitionReviveReportingEvent())
+    listener.onJobEnd(SparkListenerJobEnd(0, 0L, JobSucceeded))
+    // A revive finishing right after the job's flush, with the application then staying idle.
+    listener.onOtherEvent(CelebornPartitionReviveEvent(3, 1, Map("w1" -> Map("SOFT_SPLIT" -> 1))))
+
+    assertEquals(
+      Some(WorkerRevivesUIData(Map("w1" -> Map("SOFT_SPLIT" -> 1)))),
+      statusStore.workerRevives())
+  }
+
+  @Test
   def partitionReviveEventJsonRoundTrip(): Unit = {
     // Same mapper setup as Spark's JsonProtocol for events it does not know.
     val mapper = new ObjectMapper().registerModule(DefaultScalaModule)
