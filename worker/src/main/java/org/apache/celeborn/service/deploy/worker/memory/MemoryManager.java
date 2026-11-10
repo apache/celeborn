@@ -462,7 +462,8 @@ public class MemoryManager {
   }
 
   public long getPinnedMemory() {
-    return getNettyPinnedDirectMemory() + sortMemoryCounter.get();
+    // Memory files store their data in unpooled buffers, which pooled allocators do not count.
+    return getNettyPinnedDirectMemory() + sortMemoryCounter.get() + memoryFileStorageCounter.sum();
   }
 
   public long getNettyPinnedDirectMemory() {

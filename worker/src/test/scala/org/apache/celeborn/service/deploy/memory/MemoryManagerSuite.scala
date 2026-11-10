@@ -257,6 +257,40 @@ class MemoryManagerSuite extends CelebornFunSuite {
     MemoryManager.reset()
   }
 
+  test("Pinned memory includes memory file storage") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL.key, "300s")
+    conf.set(CelebornConf.WORKER_PINNED_MEMORY_CHECK_INTERVAL.key, "0")
+    val memoryManager = MockitoSugar.spy(MemoryManager.initialize(conf))
+    val maxDirectorMemory = memoryManager.maxDirectMemory
+    val pushThreshold =
+      (conf.workerDirectMemoryRatioToPauseReceive * maxDirectorMemory).longValue()
+    val pinnedMemoryResumeThreshold =
+      (conf.workerPinnedMemoryRatioToResume * maxDirectorMemory).longValue()
+    val pushListener = new MockMemoryPressureListener(TransportModuleConstants.PUSH_MODULE)
+    memoryManager.registerMemoryListener(pushListener)
+
+    // Memory files hold their data in unpooled buffers, which pooled allocators do not report.
+    val memoryFileBytes = Math.toIntExact(pinnedMemoryResumeThreshold + 1)
+    memoryManager.incrementMemoryFileStorage(memoryFileBytes)
+    try {
+      Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(0L)
+      Mockito.when(memoryManager.getMemoryUsage).thenReturn(pushThreshold + 1)
+      assert(memoryManager.getPinnedMemory === memoryFileBytes)
+      memoryManager.switchServingState()
+      assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
+      // Memory file storage is held, so it must not resume push by pinned memory.
+      assert(pushListener.isPause)
+
+      memoryManager.releaseMemoryFileStorage(memoryFileBytes)
+      memoryManager.switchServingState()
+      assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
+      assert(!pushListener.isPause)
+    } finally {
+      MemoryManager.reset()
+    }
+  }
+
   test("[CELEBORN-1792] Test MemoryManager keep resume a while by pinned memory") {
     val conf = new CelebornConf()
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL.key, "300s")
