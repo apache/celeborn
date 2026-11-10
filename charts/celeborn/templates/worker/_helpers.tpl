@@ -113,39 +113,87 @@ zone gets `ceil(replicas / zones)` unless the zone overrides it.
 Label selector used by the built-in autoscaling triggers. Scoped by pod name to this
 statefulset's own workers, so releases sharing a namespace - or sharing a zone name - never
 scale on each other's workers. The `zone` metric label is not enough on its own: it says
-nothing about which release a worker belongs to.
+nothing about which release a worker belongs to. Neither says which Kubernetes cluster it runs
+in, so a Prometheus holding several clusters needs `worker.autoscaling.extraSelector` as well.
 */}}
 {{- define "celeborn.worker.autoscaling.selector" -}}
 {{- /* Anchored on the ordinal, so statefulset `x-a` does not also match the pods of `x-a-y`. */ -}}
-{{ printf "role=\"Worker\",namespace=\"%s\",pod=~\"%s-[0-9]+\"" .Release.Namespace (include "celeborn.worker.statefulSet.name" .) }}
+{{- $selector := printf "role=\"Worker\",namespace=\"%s\",pod=~\"%s-[0-9]+\"" .Release.Namespace (include "celeborn.worker.statefulSet.name" .) -}}
+{{- with .Values.worker.autoscaling.extraSelector | toString | trim | trimPrefix "," | trimSuffix "," -}}
+{{- $selector = printf "%s,%s" $selector . -}}
+{{- end -}}
+{{ $selector }}
 {{- end }}
 
 {{/*
-Built-in autoscaling triggers, in front of any the user adds. Both exclude a decommissioning
+One gauge as the built-in triggers read it: the instant value, or its average over
+`worker.autoscaling.window`. Takes a dict with `metric`, `selector` and `window`.
+*/}}
+{{- define "celeborn.worker.autoscaling.gauge" -}}
+{{- $series := printf "metrics_%s_Value{%s}" .metric .selector -}}
+{{- if .window -}}
+{{ printf "avg_over_time(%s[%s])" $series .window }}
+{{- else -}}
+{{ $series }}
+{{- end -}}
+{{- end }}
+
+{{/*
+Built-in autoscaling triggers, in front of any the user adds. All exclude a decommissioning
 worker, whose disk stays full and whose slots stay allocated while it drains - counting it
-would have the fleet scale out to replace capacity it is still holding.
+would have the fleet scale out to replace capacity it is still holding. That check reads the
+instant value even with a window, so a worker drops out as soon as its drain starts.
 */}}
 {{- define "celeborn.worker.autoscaling.defaultTriggers" -}}
+{{- $autoscaling := .Values.worker.autoscaling -}}
 {{- $selector := include "celeborn.worker.autoscaling.selector" . -}}
+{{- $window := $autoscaling.window | toString | trim -}}
+{{- if and $window (not (regexMatch "^[0-9]+(ms|s|m|h|d|w|y)$" $window)) -}}
+{{- fail (printf "worker.autoscaling.window must be a PromQL duration such as 5m, got %q" $window) -}}
+{{- end -}}
+{{- $gauge := dict "selector" $selector "window" $window -}}
 {{- $live := printf "and on (instance) metrics_IsDecommissioningWorker_Value{%s} == 0" $selector -}}
-{{- if .Values.worker.autoscaling.diskUsage.enabled }}
+{{- if $autoscaling.diskUsage.enabled }}
 - type: prometheus
   {{- /* Value, not KEDA's AverageValue default: a ratio must not be divided by the replicas. */}}
   metricType: Value
   metadata:
-    serverAddress: {{ required "worker.autoscaling.prometheusAddress is required by the built-in triggers" .Values.worker.autoscaling.prometheusAddress }}
-    query: max((1 - metrics_DeviceCelebornFreeBytes_Value{{ printf "{%s}" $selector }} / metrics_DeviceCelebornTotalBytes_Value{{ printf "{%s}" $selector }}) {{ $live }})
-    threshold: {{ .Values.worker.autoscaling.diskUsage.threshold | quote }}
+    serverAddress: {{ required "worker.autoscaling.prometheusAddress is required by the built-in triggers" $autoscaling.prometheusAddress }}
+    query: max((1 - {{ include "celeborn.worker.autoscaling.gauge" (merge (dict "metric" "DeviceCelebornFreeBytes") $gauge) }} / {{ include "celeborn.worker.autoscaling.gauge" (merge (dict "metric" "DeviceCelebornTotalBytes") $gauge) }}) {{ $live }})
+    threshold: {{ $autoscaling.diskUsage.threshold | quote }}
 {{- end }}
-{{- if .Values.worker.autoscaling.memoryUsage.enabled }}
+{{- if $autoscaling.memoryUsage.enabled }}
 - type: prometheus
   {{- /* Value, not KEDA's AverageValue default: a ratio must not be divided by the replicas. */}}
   metricType: Value
   metadata:
-    serverAddress: {{ required "worker.autoscaling.prometheusAddress is required by the built-in triggers" .Values.worker.autoscaling.prometheusAddress }}
-    query: max(metrics_DirectMemoryUsageRatio_Value{{ printf "{%s}" $selector }} {{ $live }})
-    threshold: {{ .Values.worker.autoscaling.memoryUsage.threshold | quote }}
+    serverAddress: {{ required "worker.autoscaling.prometheusAddress is required by the built-in triggers" $autoscaling.prometheusAddress }}
+    query: max({{ include "celeborn.worker.autoscaling.gauge" (merge (dict "metric" "DirectMemoryUsageRatio") $gauge) }} {{ $live }})
+    threshold: {{ $autoscaling.memoryUsage.threshold | quote }}
 {{- end }}
+{{- if $autoscaling.activeSlots.enabled }}
+- type: prometheus
+  {{- /* AverageValue: a count, so KEDA divides the total by the replicas and compares it per worker. */}}
+  metricType: AverageValue
+  metadata:
+    serverAddress: {{ required "worker.autoscaling.prometheusAddress is required by the built-in triggers" $autoscaling.prometheusAddress }}
+    query: sum({{ include "celeborn.worker.autoscaling.gauge" (merge (dict "metric" "ActiveSlotsCount") $gauge) }} {{ $live }})
+    threshold: {{ required "worker.autoscaling.activeSlots.threshold is required when the active slots trigger is enabled" $autoscaling.activeSlots.threshold | toString | quote }}
+{{- end }}
+{{- end }}
+
+{{/*
+HPA behavior for the scaled object. With `worker.drain.enabled` every scale-in waits for a
+drain and the statefulset cannot grow meanwhile, so unless `behavior.scaleDown` is set it is
+paced as slowly as the HPA allows: the highest recommendation of the past hour, then at most
+one worker per 30 minutes.
+*/}}
+{{- define "celeborn.worker.autoscaling.behavior" -}}
+{{- $behavior := deepCopy (.Values.worker.autoscaling.behavior | default dict) -}}
+{{- if and .Values.worker.drain.enabled (not (hasKey $behavior "scaleDown")) -}}
+{{- $_ := set $behavior "scaleDown" (dict "stabilizationWindowSeconds" 3600 "policies" (list (dict "type" "Pods" "value" 1 "periodSeconds" 1800))) -}}
+{{- end -}}
+{{- with $behavior }}{{ toYaml . }}{{ end -}}
 {{- end }}
 
 {{/*

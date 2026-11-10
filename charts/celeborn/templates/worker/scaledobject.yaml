@@ -16,8 +16,8 @@ limitations under the License.
 */ -}}
 
 {{- if .Values.worker.autoscaling.enabled }}
-{{- if not (or .Values.worker.autoscaling.diskUsage.enabled .Values.worker.autoscaling.memoryUsage.enabled .Values.worker.autoscaling.triggers) }}
-{{- fail "worker.autoscaling.enabled is true but no trigger is: enable worker.autoscaling.diskUsage or memoryUsage, or set worker.autoscaling.triggers" }}
+{{- if not (or .Values.worker.autoscaling.diskUsage.enabled .Values.worker.autoscaling.memoryUsage.enabled .Values.worker.autoscaling.activeSlots.enabled .Values.worker.autoscaling.triggers) }}
+{{- fail "worker.autoscaling.enabled is true but no trigger is: enable worker.autoscaling.diskUsage, memoryUsage or activeSlots, or set worker.autoscaling.triggers" }}
 {{- end }}
 {{- /* The built-in triggers read metrics from the workers themselves, so at zero replicas nothing can wake the statefulset. */}}
 {{- $min := .Values.worker.autoscaling.minReplicaCount }}
@@ -51,11 +51,11 @@ spec:
   maxReplicaCount: {{ .Values.worker.autoscaling.maxReplicaCount }}
   pollingInterval: {{ .Values.worker.autoscaling.pollingInterval }}
   cooldownPeriod: {{ .Values.worker.autoscaling.cooldownPeriod }}
-  {{- with .Values.worker.autoscaling.behavior }}
+  {{- with include "celeborn.worker.autoscaling.behavior" . | trim }}
   advanced:
     horizontalPodAutoscalerConfig:
       behavior:
-        {{- toYaml . | nindent 8 }}
+        {{- . | nindent 8 }}
   {{- end }}
   triggers:
     {{- with include "celeborn.worker.autoscaling.defaultTriggers" . | trim }}

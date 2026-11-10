@@ -328,7 +328,7 @@ tests:
           triggers: []
     asserts:
       - failedTemplate:
-          errorMessage: "worker.autoscaling.enabled is true but no trigger is: enable worker.autoscaling.diskUsage or memoryUsage, or set worker.autoscaling.triggers"
+          errorMessage: "worker.autoscaling.enabled is true but no trigger is: enable worker.autoscaling.diskUsage, memoryUsage or activeSlots, or set worker.autoscaling.triggers"
 
   - it: Should allow scaling to zero with a trigger of its own
     set:
@@ -359,3 +359,199 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "worker.autoscaling.minReplicaCount: 0 needs a trigger in worker.autoscaling.triggers that does not depend on the workers' own metrics: the built-in ones go silent once the last worker is gone, and the statefulset could never scale back up"
+
+  - it: Should append `worker.autoscaling.extraSelector` to every built-in selector
+    set:
+      worker:
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+          extraSelector: cluster="prod"
+    asserts:
+      - matchRegex:
+          path: spec.triggers[0].metadata.query
+          pattern: metrics_DeviceCelebornFreeBytes_Value\{role="Worker",namespace="NAMESPACE",pod=~"celeborn-worker-\[0-9\]\+",cluster="prod"\}
+      - matchRegex:
+          path: spec.triggers[0].metadata.query
+          pattern: metrics_IsDecommissioningWorker_Value\{role="Worker",namespace="NAMESPACE",pod=~"celeborn-worker-\[0-9\]\+",cluster="prod"\} == 0
+      - matchRegex:
+          path: spec.triggers[1].metadata.query
+          pattern: metrics_DirectMemoryUsageRatio_Value\{role="Worker",namespace="NAMESPACE",pod=~"celeborn-worker-\[0-9\]\+",cluster="prod"\}
+
+  - it: Should not leave a stray comma around `worker.autoscaling.extraSelector`
+    set:
+      worker:
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+          extraSelector: ' ,cluster="prod",env="a", '
+    asserts:
+      - matchRegex:
+          path: spec.triggers[1].metadata.query
+          pattern: pod=~"celeborn-worker-\[0-9\]\+",cluster="prod",env="a"\}
+
+  - it: Should read instant values when `worker.autoscaling.window` is empty
+    set:
+      worker:
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+    asserts:
+      - notMatchRegex:
+          path: spec.triggers[0].metadata.query
+          pattern: avg_over_time
+      - notMatchRegex:
+          path: spec.triggers[1].metadata.query
+          pattern: avg_over_time
+
+  - it: Should average the built-in gauges over `worker.autoscaling.window`
+    set:
+      worker:
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+          window: 5m
+    asserts:
+      - matchRegex:
+          path: spec.triggers[0].metadata.query
+          pattern: 1 - avg_over_time\(metrics_DeviceCelebornFreeBytes_Value\{[^}]*\}\[5m\]\) / avg_over_time\(metrics_DeviceCelebornTotalBytes_Value\{[^}]*\}\[5m\]\)
+      - matchRegex:
+          path: spec.triggers[1].metadata.query
+          pattern: max\(avg_over_time\(metrics_DirectMemoryUsageRatio_Value\{[^}]*\}\[5m\]\) and on
+      - notMatchRegex:
+          path: spec.triggers[1].metadata.query
+          pattern: avg_over_time\(metrics_IsDecommissioningWorker_Value
+
+  - it: Should fail on a `worker.autoscaling.window` that is not a PromQL duration
+    set:
+      worker:
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+          window: 5 minutes
+    asserts:
+      - failedTemplate:
+          errorMessage: worker.autoscaling.window must be a PromQL duration such as 5m, got "5 minutes"
+
+  - it: Should pace scale-in by default when the drain is enabled
+    set:
+      rbac:
+        create: true
+      worker:
+        drain:
+          enabled: true
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+    asserts:
+      - equal:
+          path: spec.advanced.horizontalPodAutoscalerConfig.behavior.scaleDown
+          value:
+            stabilizationWindowSeconds: 3600
+            policies:
+              - type: Pods
+                value: 1
+                periodSeconds: 1800
+
+  - it: Should keep the default scale-in pacing alongside a user scaleUp
+    set:
+      rbac:
+        create: true
+      worker:
+        drain:
+          enabled: true
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+          behavior:
+            scaleUp:
+              stabilizationWindowSeconds: 60
+    asserts:
+      - equal:
+          path: spec.advanced.horizontalPodAutoscalerConfig.behavior.scaleUp.stabilizationWindowSeconds
+          value: 60
+      - equal:
+          path: spec.advanced.horizontalPodAutoscalerConfig.behavior.scaleDown.stabilizationWindowSeconds
+          value: 3600
+
+  - it: Should not override a user scaleDown when the drain is enabled
+    set:
+      rbac:
+        create: true
+      worker:
+        drain:
+          enabled: true
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+          behavior:
+            scaleDown:
+              stabilizationWindowSeconds: 600
+    asserts:
+      - equal:
+          path: spec.advanced.horizontalPodAutoscalerConfig.behavior.scaleDown
+          value:
+            stabilizationWindowSeconds: 600
+
+  - it: Should not add a behavior when the drain is disabled and none is set
+    set:
+      worker:
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+    asserts:
+      - notExists:
+          path: spec.advanced
+
+  - it: Should add the active slots trigger when enabled
+    set:
+      worker:
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+          activeSlots:
+            enabled: true
+            threshold: 2000
+    asserts:
+      - lengthEqual:
+          path: spec.triggers
+          count: 3
+      - equal:
+          path: spec.triggers[2].metricType
+          value: AverageValue
+      - matchRegex:
+          path: spec.triggers[2].metadata.query
+          pattern: ^sum\(metrics_ActiveSlotsCount_Value\{role="Worker",namespace="NAMESPACE",pod=~"celeborn-worker-\[0-9\]\+"\} and on \(instance\) metrics_IsDecommissioningWorker_Value\{[^}]*\} == 0\)$
+      - equal:
+          path: spec.triggers[2].metadata.threshold
+          value: "2000"
+
+  - it: Should count the active slots trigger as a trigger on its own
+    set:
+      worker:
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+          diskUsage:
+            enabled: false
+          memoryUsage:
+            enabled: false
+          activeSlots:
+            enabled: true
+            threshold: "2000"
+    asserts:
+      - lengthEqual:
+          path: spec.triggers
+          count: 1
+
+  - it: Should fail if the active slots trigger has no threshold
+    set:
+      worker:
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+          activeSlots:
+            enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: worker.autoscaling.activeSlots.threshold is required when the active slots trigger is enabled

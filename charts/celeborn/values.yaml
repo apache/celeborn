@@ -295,11 +295,20 @@ worker:
     # -- Seconds before scaling to zero. Only applies with `minReplicaCount: 0`; pace
     # ordinary scale-in with `behavior.scaleDown` instead.
     cooldownPeriod: 300
-    # -- Scaling behaviour, passed through to the underlying HPA.
+    # -- Scaling behaviour, passed through to the underlying HPA. With `worker.drain.enabled`
+    # and no `scaleDown` here, scale-in is paced at one worker per 30 minutes after an hour of
+    # low load. See README.md.
     behavior: {}
     # -- Prometheus-compatible endpoint the built-in triggers below query. Required unless
-    # both are disabled.
+    # all of them are disabled.
     prometheusAddress: ""
+    # -- Extra label matchers appended to the built-in triggers' selector, e.g. `cluster="prod"`.
+    # Needed when one Prometheus holds several Kubernetes clusters whose releases share a
+    # namespace and name: their pod names match, so the selector alone cannot tell them apart.
+    extraSelector: ""
+    # -- Average each gauge the built-in triggers read over this PromQL range, e.g. `5m`, so
+    # a spike shorter than the range does not scale the fleet out. Empty reads the instant value.
+    window: ""
 
     # Scale out when the fullest worker runs out of disk. This is the signal that bites
     # first: a worker that fills up stops accepting pushes.
@@ -321,6 +330,16 @@ worker:
       # `celeborn.worker.directMemoryRatioToPauseReceive` (0.85) so capacity arrives before
       # pushes pause.
       threshold: "0.70"
+
+    # Scale out on slots allocated per worker. Slots are taken when a stage starts, before its
+    # data is written, so this leads the disk trigger. Off by default: the right target depends
+    # on the workers' disks and the estimated partition size. See README.md.
+    activeSlots:
+      # -- Whether to add the active slots trigger.
+      enabled: false
+      # -- Active slots one worker should hold. KEDA divides the total by the replica count.
+      # Required when enabled.
+      threshold: ""
 
     # -- Extra KEDA triggers, appended to the built-in ones. Rendered through `tpl`, so
     # `{{ .zone.name }}` resolves to the zone of the statefulset being scaled and one
