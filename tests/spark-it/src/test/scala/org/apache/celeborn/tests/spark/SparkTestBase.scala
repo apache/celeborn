@@ -25,6 +25,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
+import org.testcontainers.utility.DockerImageName
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
@@ -41,6 +42,14 @@ trait SparkTestBase extends AnyFunSuite
   println(s"Spark version is $SPARK_VERSION, Spark3OrNewer: $Spark3OrNewer")
 
   val isS3LibraryAvailable = isClassPresent("org.apache.hadoop.fs.s3a.S3AFileSystem")
+
+  // The previously pinned official image (minio/minio:RELEASE.2023-09-04T19-57-37Z) was removed
+  // from Docker Hub. This substitute serves the same MinIO API and bundles the `mc` client the
+  // S3 suites exec in-container to create the test bucket. DockerImageName has no digest support,
+  // so the image is pinned by tag.
+  val minioImage: DockerImageName =
+    DockerImageName.parse("pgsty/minio:RELEASE.2026-08-04T00-00-00Z")
+      .asCompatibleSubstituteFor("minio/minio")
 
   private val sampleSeq: immutable.Seq[(Char, Int)] = (1 to 78)
     .map(Random.alphanumeric)
