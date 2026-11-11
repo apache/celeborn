@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 
 import scala.collection.JavaConverters._
 
-import io.netty.buffer.{AbstractByteBufAllocator, ByteBuf, CompositeByteBuf, DuplicatedByteBuf, UnpooledByteBufAllocator}
+import io.netty.buffer.{AbstractByteBufAllocator, ByteBuf, ByteBufUtil, CompositeByteBuf, DuplicatedByteBuf, UnpooledByteBufAllocator}
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, FSDataOutputStream, Path, RawLocalFileSystem}
@@ -504,7 +504,7 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
       assert(failingBuffer.numComponents() === numComponentsBefore + 1)
       assert(memoryManager.getMemoryFileStorageCounter === memoryCounterBefore + numBytes)
       assert(memoryTierWriter.fileInfo.getFileLength === fileLengthBefore + numBytes)
-      assert(buf.refCnt() === refCntBeforeWrite + 1)
+      assert(buf.refCnt() === refCntBeforeWrite)
 
       memoryTierWriter.numPendingWrites.set(0)
       assert(memoryTierWriter.close() === fileLengthBefore + numBytes)
@@ -526,6 +526,72 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
       }
       restoreCounters(memoryCounterBefore, diskCounterBefore)
       if (!callerReferenceReleased && buf.refCnt() > 0) {
+        buf.release(buf.refCnt())
+      }
+    }
+  }
+
+  test("memory tier writer should store its own copy of pushed data") {
+    val memoryTierWriter = prepareMemoryWriter
+    val memoryFileInfo = memoryTierWriter.fileInfo.asInstanceOf[MemoryFileInfo]
+    val memoryManager = MemoryManager.instance()
+    val memoryCounterBefore = memoryManager.getMemoryFileStorageCounter
+    val diskCounterBefore = memoryManager.getDiskBufferCounter.get()
+    val ownedMemoryBefore = memoryManager.getMemoryFileStorageAllocator.metric.usedDirectMemory()
+    val pushed = (1 to 3).map(_ =>
+      WriterUtils.generateSparkFormatData(UnpooledByteBufAllocator.DEFAULT, 0))
+    val expected = pushed.flatMap(buf => ByteBufUtil.getBytes(buf)).toArray
+
+    try {
+      pushed.foreach { buf =>
+        memoryTierWriter.numPendingWrites.incrementAndGet()
+        memoryTierWriter.write(buf)
+        // The writer must not keep a reference to the network buffer it was given.
+        assert(buf.refCnt() === 1)
+      }
+      assert(memoryTierWriter.fileInfo.getFileLength === 3 * 1024)
+      assert(memoryManager.getMemoryFileStorageCounter === memoryCounterBefore + 3 * 1024)
+      assert(
+        memoryManager.getMemoryFileStorageAllocator.metric.usedDirectMemory() ===
+          ownedMemoryBefore + 3 * 1024)
+
+      assert(memoryTierWriter.close() === 3 * 1024)
+      // Commit must not copy the file again: each write stays a separate owned component.
+      assert(memoryFileInfo.getBuffer.numComponents() === 3)
+      assert(ByteBufUtil.getBytes(memoryFileInfo.getBuffer) === expected)
+
+      assert(memoryFileInfo.releaseMemoryBuffers() === 3 * 1024)
+      assert(
+        memoryManager.getMemoryFileStorageAllocator.metric.usedDirectMemory() === ownedMemoryBefore)
+    } finally {
+      if (!memoryTierWriter.closed) {
+        memoryTierWriter.destroy(new IOException("test cleanup"))
+      }
+      restoreCounters(memoryCounterBefore, diskCounterBefore)
+      pushed.foreach(buf => if (buf.refCnt() > 0) buf.release(buf.refCnt()))
+    }
+  }
+
+  test("memory tier writer should retain pushed data when it cannot be copied") {
+    val memoryTierWriter = prepareMemoryWriter
+    val memoryManager = MemoryManager.instance()
+    val memoryCounterBefore = memoryManager.getMemoryFileStorageCounter
+    val diskCounterBefore = memoryManager.getDiskBufferCounter.get()
+    memoryTierWriter.copyAllocator = new OomByteBufAllocator(new OutOfMemoryError("copy failed"))
+    val buf = WriterUtils.generateSparkFormatData(UnpooledByteBufAllocator.DEFAULT, 0)
+
+    try {
+      memoryTierWriter.numPendingWrites.incrementAndGet()
+      memoryTierWriter.write(buf)
+
+      assert(memoryTierWriter.fileInfo.getFileLength === 1024)
+      assert(memoryManager.getMemoryFileStorageCounter === memoryCounterBefore + 1024)
+      assert(memoryTierWriter.flushBuffer.numComponents() === 1)
+      assert(buf.refCnt() === 2)
+    } finally {
+      memoryTierWriter.destroy(new IOException("test cleanup"))
+      restoreCounters(memoryCounterBefore, diskCounterBefore)
+      if (buf.refCnt() > 0) {
         buf.release(buf.refCnt())
       }
     }

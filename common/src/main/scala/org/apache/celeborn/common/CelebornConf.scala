@@ -4461,7 +4461,11 @@ object CelebornConf extends Logging {
       .categories("worker")
       .doc("If pinned memory usage is less than this limit, worker will resume, " +
         "only takes effect when celeborn.network.memory.allocator.pooled and " +
-        "celeborn.worker.monitor.pinnedMemory.check.enabled are enabled")
+        "celeborn.worker.monitor.pinnedMemory.check.enabled are enabled. " +
+        "Pinned memory includes data held by memory shuffle files, so while they hold more " +
+        "than this ratio of direct memory, the worker resumes only after memory files are " +
+        "evicted. Tune it together with " +
+        s"`${WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE.key}`.")
       .version("0.6.0")
       .doubleConf
       .createWithDefault(0.3)

@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.util.control.NonFatal
 
-import io.netty.buffer.{ByteBuf, CompositeByteBuf}
+import io.netty.buffer.{ByteBuf, ByteBufAllocator, CompositeByteBuf}
 import org.apache.hadoop.fs.{FileSystem, FSDataOutputStream}
 
 import org.apache.celeborn.common.CelebornConf
@@ -325,6 +325,8 @@ class MemoryTierWriter(
     storageManager) {
   assert(storageType == StorageInfo.Type.MEMORY)
   val memoryFileStorageMaxFileSize: Long = conf.workerMemoryFileStorageMaxFileSize
+  // Resolved on first write, so constructing a writer does not require an initialized MemoryManager.
+  private[storage] var copyAllocator: ByteBufAllocator = _
 
   storageManager.registerMemoryPartitionWriter(
     partitionDataWriterContext.getPartitionDataWriter,
@@ -367,21 +369,55 @@ class MemoryTierWriter(
     MemoryManager.instance().incrementMemoryFileStorage(numBytes)
   }
 
-  override def writeInternal(buf: ByteBuf): Unit = appendToFlushBuffer(buf)
+  override def writeInternal(buf: ByteBuf): Unit = {
+    val ownedBuf = copyToOwnedBuffer(buf)
+    if (ownedBuf == null) {
+      appendToFlushBuffer(buf)
+    } else {
+      try {
+        appendToFlushBuffer(ownedBuf)
+      } finally {
+        ownedBuf.release()
+      }
+    }
+  }
 
-  override def closeStreams(): Unit = {
+  /**
+   * Pushed data is a slice of a network receive buffer that is shared with other pushes, and that
+   * buffer shares a pooled chunk with other receive buffers. Retaining the slice would keep all of
+   * that memory alive for as long as this file stays in memory, so memory files would hold far more
+   * direct memory than they account for, and evicting them would free little of it. Copy the data
+   * into an exact-size buffer owned by this file instead.
+   *
+   * @return the copy, or null if it could not be allocated, in which case the caller falls back to
+   *         retaining `buf`.
+   */
+  private def copyToOwnedBuffer(buf: ByteBuf): ByteBuf = {
+    val numBytes = buf.readableBytes()
+    var ownedBuf: ByteBuf = null
     try {
-      flushBuffer.consolidate()
+      if (copyAllocator == null) {
+        copyAllocator = MemoryManager.instance().getMemoryFileStorageAllocator
+      }
+      ownedBuf = copyAllocator.directBuffer(numBytes, numBytes)
+      ownedBuf.writeBytes(buf, buf.readerIndex(), numBytes)
+      ownedBuf
     } catch {
       case oom: OutOfMemoryError =>
-        logError(
-          s"MemoryTierWriter shuffleKey:${partitionDataWriterContext.getShuffleKey}, " +
-            s"partitionId:${partitionDataWriterContext.getPartitionLocation.getFileName} " +
-            s"failed to consolidate flush buffer due to OutOfMemoryError.",
-          oom)
-    } finally {
-      fileInfo.setBuffer(flushBuffer)
+        if (ownedBuf != null) {
+          ownedBuf.release()
+        }
+        logWarning(
+          s"Failed to copy $numBytes bytes for memory file $filename of shuffle $shuffleKey, " +
+            s"retaining the pushed buffer instead: ${oom.getMessage}")
+        null
     }
+  }
+
+  override def closeStreams(): Unit = {
+    // The flush buffer's components are already owned, exact-size buffers, so there is no need to
+    // consolidate them. Doing so would copy the whole file again at commit.
+    fileInfo.setBuffer(flushBuffer)
   }
 
   override def takeBufferInternal(): CompositeByteBuf = {
