@@ -467,6 +467,10 @@ public class MemoryManager {
   }
 
   public long getPinnedMemory() {
+    // Memory file data lives in unpooled buffers that pooled allocators don't count. Including it
+    // here means the pinned resume check only fires while memory files hold less than
+    // celeborn.worker.pinnedMemoryRatioToResume of direct memory; above that, resume relies on
+    // memory file eviction lowering direct memory usage.
     return getNettyPinnedDirectMemory()
         + sortMemoryCounter.get()
         + memoryFileStorageAllocator.metric().usedDirectMemory();
