@@ -170,8 +170,13 @@ public class HeartbeatAggregator {
 
   /** WorkerLost/RegisterWorker etc.: flush the worker's pending heartbeat before submitting. */
   public void submitWorkerLifecycle(String workerKey, ResourceRequest lifecycleRequest) {
-    submitWithOrdering(
-        Collections.emptyList(), Collections.singletonList(workerKey), lifecycleRequest);
+    submitWorkersLifecycle(Collections.singletonList(workerKey), lifecycleRequest);
+  }
+
+  /** ReportWorkerDecommission etc.: flush the workers' pending heartbeats before submitting. */
+  public void submitWorkersLifecycle(
+      Collection<String> workerKeys, ResourceRequest lifecycleRequest) {
+    submitWithOrdering(Collections.emptyList(), workerKeys, lifecycleRequest);
   }
 
   // Flushes pending heartbeats of the affected apps/workers first, then submits the lifecycle

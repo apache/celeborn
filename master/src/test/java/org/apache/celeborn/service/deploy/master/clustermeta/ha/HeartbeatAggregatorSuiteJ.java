@@ -31,6 +31,7 @@ import org.junit.Test;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.protocol.PbWorkerStatus;
 
 public class HeartbeatAggregatorSuiteJ {
   private HARaftServer ratisServer;
@@ -313,6 +314,62 @@ public class HeartbeatAggregatorSuiteJ {
     Assert.assertTrue(
         "Stale heartbeat should not overwrite the registered worker state",
         workerInfo.lastHeartbeat() > staleTime);
+  }
+
+  @Test
+  public void testReportWorkerDecommissionFlushesPendingWorkerHeartbeatFirst() throws Exception {
+    metaSystem.handleRegisterWorker(
+        "host1",
+        1,
+        2,
+        3,
+        4,
+        5,
+        "networkLocation1",
+        new HashMap<>(),
+        new HashMap<>(),
+        UUID.randomUUID().toString() + "#1");
+    Thread.sleep(2000);
+    Assert.assertEquals(1, metaSystem.workersMap.size());
+    WorkerInfo worker = new WorkerInfo("host1", 1, 2, 3, 4);
+
+    // The worker gets DecommissionThenIdle in the response to a Normal heartbeat that is still
+    // buffered, and reports the decommission before the next flush. The buffered Normal
+    // heartbeat must be applied before the report, not after it.
+    metaSystem.handleWorkerHeartbeat(
+        "host1",
+        1,
+        2,
+        3,
+        4,
+        new HashMap<>(),
+        new HashMap<>(),
+        System.currentTimeMillis(),
+        false,
+        WorkerStatus.normalWorkerStatus(),
+        UUID.randomUUID().toString() + "#2");
+    metaSystem.handleReportWorkerDecommission(
+        Collections.singletonList(worker), UUID.randomUUID().toString() + "#3");
+
+    Thread.sleep(2000);
+    Assert.assertTrue(metaSystem.decommissionWorkers.contains(worker));
+
+    metaSystem.handleWorkerHeartbeat(
+        "host1",
+        1,
+        2,
+        3,
+        4,
+        new HashMap<>(),
+        new HashMap<>(),
+        System.currentTimeMillis(),
+        false,
+        new WorkerStatus(
+            PbWorkerStatus.State.InDecommissionThenIdle.getNumber(), System.currentTimeMillis()),
+        UUID.randomUUID().toString() + "#4");
+
+    Thread.sleep(2000);
+    Assert.assertTrue(metaSystem.decommissionWorkers.contains(worker));
   }
 
   private long lastAppliedIndex() {
