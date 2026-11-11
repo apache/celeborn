@@ -21,14 +21,18 @@ import java.util
 
 import scala.collection.JavaConverters._
 
-import org.mockito.Mockito.{doAnswer, mock, verify, when}
+import org.mockito.ArgumentMatchers.{any, anyBoolean, anyInt, anyLong, anyString}
+import org.mockito.Mockito.{doAnswer, mock, never, verify, when}
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.meta.{ShufflePartitionLocationInfo, WorkerInfo}
+import org.apache.celeborn.common.protocol.PartitionLocation
+import org.apache.celeborn.common.protocol.message.ControlMessages.WorkerResource
 import org.apache.celeborn.common.protocol.message.StatusCode
+import org.apache.celeborn.common.util.JavaUtils
 
 class ChangePartitionManagerSuite extends CelebornFunSuite {
   test("collectCandidateWorkers combines snapshot and endpoint-ready workers") {
@@ -72,6 +76,102 @@ class ChangePartitionManagerSuite extends CelebornFunSuite {
     val manager = new ChangePartitionManager(conf, lifecycleManager)
 
     assert(manager.collectCandidateWorkers(1).isEmpty)
+  }
+
+  test("revive count ignores duplicate requests served by an existing newer location") {
+    val (lifecycleManager, manager) = reviveFixture(reserveResult = true)
+    val latest = new util.concurrent.ConcurrentHashMap[Int, PartitionLocation]()
+    latest.put(0, new PartitionLocation(0, 1, "host", 1, 2, 3, 4, PartitionLocation.Mode.PRIMARY))
+    lifecycleManager.latestPartitionLocation.put(1, latest)
+
+    (0 until 40).foreach(_ => requestRevive(manager, epoch = 0))
+
+    verify(lifecycleManager, never()).reserveSlotsWithRetry(
+      anyInt(),
+      any[util.HashSet[WorkerInfo]](),
+      any[WorkerResource](),
+      anyBoolean(),
+      anyBoolean())
+    verify(lifecycleManager, never()).incClientCounter(anyString(), anyLong())
+  }
+
+  test("revive count is not incremented when slot reservation fails") {
+    val (lifecycleManager, manager) = reviveFixture(reserveResult = false)
+
+    requestRevive(manager, epoch = 0)
+
+    verify(lifecycleManager, never()).incClientCounter(anyString(), anyLong())
+  }
+
+  test("revive count is incremented after successful slot reservation") {
+    val (lifecycleManager, manager) = reviveFixture(reserveResult = true)
+
+    requestRevive(manager, epoch = 0)
+    verify(lifecycleManager).incClientCounter(CelebornClientSource.REVIVE_COUNT, 1L)
+  }
+
+  test("revive count includes successful soft splits with no cause") {
+    val (lifecycleManager, manager) = reviveFixture(reserveResult = true)
+
+    requestRevive(manager, epoch = 0, cause = None)
+
+    verify(lifecycleManager).incClientCounter(CelebornClientSource.REVIVE_COUNT, 1L)
+  }
+
+  test("revive count excludes initial allocations") {
+    val (lifecycleManager, manager) = reviveFixture(reserveResult = true)
+
+    manager.handleRequestPartitionLocation(
+      mock(classOf[RequestLocationCallContext]),
+      1,
+      0,
+      -1,
+      null,
+      None,
+      isSegmentGranularityVisible = false)
+
+    verify(lifecycleManager).reserveSlotsWithRetry(
+      anyInt(),
+      any[util.HashSet[WorkerInfo]](),
+      any[WorkerResource](),
+      anyBoolean(),
+      anyBoolean())
+    verify(lifecycleManager, never()).incClientCounter(anyString(), anyLong())
+  }
+
+  private def reviveFixture(reserveResult: Boolean): (LifecycleManager, ChangePartitionManager) = {
+    val conf = new CelebornConf()
+      .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED, false)
+    val lifecycleManager = mock(classOf[LifecycleManager])
+    val statusTracker = new WorkerStatusTracker(conf, lifecycleManager)
+    when(lifecycleManager.workerStatusTracker).thenReturn(statusTracker)
+    when(lifecycleManager.latestPartitionLocation).thenReturn(
+      JavaUtils.newConcurrentHashMap[
+        Int,
+        util.concurrent.ConcurrentHashMap[Int, PartitionLocation]]())
+    when(lifecycleManager.commitManager).thenReturn(mock(classOf[CommitManager]))
+    when(lifecycleManager.workerSnapshots(1)).thenReturn(snapshot(worker("w1")))
+    when(lifecycleManager.reserveSlotsWithRetry(
+      anyInt(),
+      any[util.HashSet[WorkerInfo]](),
+      any[WorkerResource](),
+      anyBoolean(),
+      anyBoolean())).thenReturn(reserveResult)
+    (lifecycleManager, new ChangePartitionManager(conf, lifecycleManager))
+  }
+
+  private def requestRevive(
+      manager: ChangePartitionManager,
+      epoch: Int,
+      cause: Option[StatusCode] = Some(StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY)): Unit = {
+    manager.handleRequestPartitionLocation(
+      mock(classOf[RequestLocationCallContext]),
+      1,
+      0,
+      epoch,
+      new PartitionLocation(0, epoch, "host", 1, 2, 3, 4, PartitionLocation.Mode.PRIMARY),
+      cause,
+      isSegmentGranularityVisible = false)
   }
 
   private def dynamicResourceConf(): CelebornConf = {

@@ -356,6 +356,7 @@ public class MetaHandler {
         shuffleFallbackCounts,
         applicationFallbackCounts,
         appHeartbeat.getClientGaugesMap(),
+        appHeartbeat.getClientCountersMap(),
         appHeartbeat.getClientMetricLabelsMap());
   }
 

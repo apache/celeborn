@@ -21,20 +21,25 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.service.deploy.master.ApplicationMetricsSource;
 
 public class HeartbeatAggregatorSuiteJ {
   private HARaftServer ratisServer;
   private HAMasterMetaManager metaSystem;
+  private ApplicationMetricsSource metricsSource;
 
   @Before
   public void init() throws Exception {
@@ -43,7 +48,8 @@ public class HeartbeatAggregatorSuiteJ {
     // Use a 1s window (not shorter): on oversubscribed CI runners the handler calls below can
     // be scheduled far apart, and a short window would split the offers into several batches.
     conf.set(CelebornConf.MASTER_HA_HEARTBEAT_BATCH_INTERVAL().key(), "1s");
-    metaSystem = new HAMasterMetaManager(null, conf);
+    metricsSource = Mockito.mock(ApplicationMetricsSource.class);
+    metaSystem = new HAMasterMetaManager(null, conf, null, metricsSource);
     MetaHandler handler = new MetaHandler(metaSystem);
     File tmpDir = File.createTempFile("celeborn-ratis-tmp", "for-test-only");
     tmpDir.delete();
@@ -148,6 +154,7 @@ public class HeartbeatAggregatorSuiteJ {
         time2,
         new HashMap<>(),
         new HashMap<>(),
+        new HashMap<>(),
         UUID.randomUUID().toString() + "#4");
     metaSystem.handleWorkerHeartbeat(
         "host1",
@@ -211,6 +218,7 @@ public class HeartbeatAggregatorSuiteJ {
         time1,
         gauges1,
         new HashMap<>(),
+        new HashMap<>(),
         UUID.randomUUID().toString() + "#1");
     metaSystem.handleAppHeartbeat(
         "app-merge",
@@ -223,6 +231,7 @@ public class HeartbeatAggregatorSuiteJ {
         time2,
         gauges2,
         new HashMap<>(),
+        new HashMap<>(),
         UUID.randomUUID().toString() + "#2");
 
     Thread.sleep(4000);
@@ -233,6 +242,44 @@ public class HeartbeatAggregatorSuiteJ {
     Assert.assertEquals(4, metaSystem.applicationTotalCount.sum());
     Assert.assertEquals(Long.valueOf(3), metaSystem.shuffleFallbackCounts.get("shuffle-1"));
     Assert.assertEquals(Long.valueOf(time2), metaSystem.appHeartbeatTime.get("app-merge"));
+  }
+
+  @Test
+  public void testReorderedClientCountersMergedByMax() throws Exception {
+    // Counters are cumulative: a delayed older report (5) arriving after a newer one (8) in the
+    // same window must not lower the value, and keys absent from the latest report are kept.
+    Map<String, Long> counters1 = new HashMap<>();
+    counters1.put("counter-a", 8L);
+    counters1.put("counter-b", 3L);
+    Map<String, Long> counters2 = new HashMap<>();
+    counters2.put("counter-a", 5L);
+    Map<String, String> labels = Collections.singletonMap("env", "test");
+    long time = System.currentTimeMillis();
+    for (int i = 0; i < 2; i++) {
+      metaSystem.handleAppHeartbeat(
+          "app-counters",
+          0,
+          0,
+          0,
+          0,
+          new HashMap<>(),
+          new HashMap<>(),
+          time + i,
+          new HashMap<>(),
+          i == 0 ? counters1 : counters2,
+          labels,
+          UUID.randomUUID().toString() + "#" + i);
+    }
+
+    Thread.sleep(4000);
+
+    ArgumentCaptor<Map<String, Long>> captor = ArgumentCaptor.forClass(Map.class);
+    Mockito.verify(metricsSource)
+        .updateApplicationMetrics(
+            Mockito.eq("app-counters"), Mockito.eq(labels), Mockito.anyMap(), captor.capture());
+    Map<String, Long> forwarded = captor.getValue();
+    Assert.assertEquals(Long.valueOf(8), forwarded.get("counter-a"));
+    Assert.assertEquals(Long.valueOf(3), forwarded.get("counter-b"));
   }
 
   @Test
@@ -249,6 +296,7 @@ public class HeartbeatAggregatorSuiteJ {
         new HashMap<>(),
         new HashMap<>(),
         time1,
+        new HashMap<>(),
         new HashMap<>(),
         new HashMap<>(),
         UUID.randomUUID().toString() + "#1");

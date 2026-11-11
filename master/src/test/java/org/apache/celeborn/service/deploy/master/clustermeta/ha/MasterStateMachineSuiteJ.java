@@ -143,6 +143,7 @@ public class MasterStateMachineSuiteJ extends RatisBaseSuiteJ {
           new HashMap<>(),
           new HashMap<>(),
           Collections.singletonMap("ClientActiveShuffleCount", 5L),
+          new HashMap<>(),
           Collections.singletonMap("team", "data-eng"));
       Assert.assertFalse(source.gauges().isEmpty());
 
