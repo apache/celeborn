@@ -67,6 +67,8 @@ private[celeborn] class CelebornListener(
   private var assignedShuffles = 0L
   private val workerShuffles = mutable.HashMap[String, Int]()
   private val workerSlots = mutable.HashMap[String, Int]()
+  // worker -> revive cause -> revived partitions.
+  private val workerRevives = mutable.HashMap[String, mutable.HashMap[String, Int]]()
 
   def register(sc: org.apache.spark.SparkContext): Unit = {
     sc.addSparkListener(this)
@@ -107,6 +109,9 @@ private[celeborn] class CelebornListener(
         mayUpdate()
       }
     case e: CelebornShuffleAssignmentEvent => onShuffleAssignment(e)
+    // Persists an empty record, which tells no revives apart from unreported revives.
+    case _: CelebornPartitionReviveReportingEvent => onPartitionRevive(Map.empty)
+    case e: CelebornPartitionReviveEvent => onPartitionRevive(e.workerRevives)
     case _ =>
   }
 
@@ -161,6 +166,18 @@ private[celeborn] class CelebornListener(
       workerSlots(worker) = workerSlots.getOrElse(worker, 0) + numSlots
     }
     kvstore.write(WorkerSlotsUIData(assignedShuffles, workerShuffles.toMap, workerSlots.toMap))
+  }
+
+  // Written right away like shuffle assignments, since a revive can arrive after the last
+  // throttled flush of an application that then stays idle.
+  private def onPartitionRevive(revives: Map[String, Map[String, Int]]): Unit = {
+    revives.foreach { case (worker, causes) =>
+      val totals = workerRevives.getOrElseUpdate(worker, mutable.HashMap[String, Int]())
+      causes.foreach { case (cause, n) => totals(cause) = totals.getOrElse(cause, 0) + n }
+    }
+    kvstore.write(WorkerRevivesUIData(workerRevives.map { case (worker, causes) =>
+      worker -> causes.toMap
+    }.toMap))
   }
 
   // Drops the lowest Celeborn shuffle ids, which roughly are the oldest shuffles.
