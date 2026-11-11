@@ -428,4 +428,26 @@ class WorkerInfoSuite extends CelebornFunSuite {
     val hashCode2 = workerInfo.hashCode()
     assert(hashCode1 === hashCode2)
   }
+
+  test("updateThenGetUserResourceConsumption removes disappeared users") {
+    val workerInfo =
+      new WorkerInfo("localhost", 10000, 10001, 10002, 10003, 10004)
+    val user1 = UserIdentifier("tenant1", "name1")
+    val user2 = UserIdentifier("tenant2", "name2")
+
+    val firstSnapshot = new util.HashMap[UserIdentifier, ResourceConsumption]()
+    firstSnapshot.put(user1, ResourceConsumption(1, 1, 1, 1))
+    firstSnapshot.put(user2, ResourceConsumption(2, 2, 2, 2))
+    workerInfo.updateThenGetUserResourceConsumption(firstSnapshot)
+    assert(workerInfo.userResourceConsumption.size() === 2)
+
+    // user2 no longer holds any data on this worker, so it must be dropped instead of kept at 0.
+    val secondSnapshot = new util.HashMap[UserIdentifier, ResourceConsumption]()
+    secondSnapshot.put(user1, ResourceConsumption(3, 3, 3, 3))
+    val merged = workerInfo.updateThenGetUserResourceConsumption(secondSnapshot)
+
+    assert(merged.size() === 1)
+    assert(merged.get(user1) === ResourceConsumption(3, 3, 3, 3))
+    assert(!merged.containsKey(user2))
+  }
 }
