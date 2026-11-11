@@ -110,6 +110,35 @@ class ChangePartitionManagerSuite extends CelebornFunSuite {
     verify(lifecycleManager).incClientCounter(CelebornClientSource.REVIVE_COUNT, 1L)
   }
 
+  test("revive count includes successful soft splits with no cause") {
+    val (lifecycleManager, manager) = reviveFixture(reserveResult = true)
+
+    requestRevive(manager, epoch = 0, cause = None)
+
+    verify(lifecycleManager).incClientCounter(CelebornClientSource.REVIVE_COUNT, 1L)
+  }
+
+  test("revive count excludes initial allocations") {
+    val (lifecycleManager, manager) = reviveFixture(reserveResult = true)
+
+    manager.handleRequestPartitionLocation(
+      mock(classOf[RequestLocationCallContext]),
+      1,
+      0,
+      -1,
+      null,
+      None,
+      isSegmentGranularityVisible = false)
+
+    verify(lifecycleManager).reserveSlotsWithRetry(
+      anyInt(),
+      any[util.HashSet[WorkerInfo]](),
+      any[WorkerResource](),
+      anyBoolean(),
+      anyBoolean())
+    verify(lifecycleManager, never()).incClientCounter(anyString(), anyLong())
+  }
+
   private def reviveFixture(reserveResult: Boolean): (LifecycleManager, ChangePartitionManager) = {
     val conf = new CelebornConf()
       .set(CelebornConf.CLIENT_BATCH_HANDLE_CHANGE_PARTITION_ENABLED, false)
@@ -131,14 +160,17 @@ class ChangePartitionManagerSuite extends CelebornFunSuite {
     (lifecycleManager, new ChangePartitionManager(conf, lifecycleManager))
   }
 
-  private def requestRevive(manager: ChangePartitionManager, epoch: Int): Unit = {
+  private def requestRevive(
+      manager: ChangePartitionManager,
+      epoch: Int,
+      cause: Option[StatusCode] = Some(StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY)): Unit = {
     manager.handleRequestPartitionLocation(
       mock(classOf[RequestLocationCallContext]),
       1,
       0,
       epoch,
       new PartitionLocation(0, epoch, "host", 1, 2, 3, 4, PartitionLocation.Mode.PRIMARY),
-      Some(StatusCode.PUSH_DATA_WRITE_FAIL_PRIMARY),
+      cause,
       isSegmentGranularityVisible = false)
   }
 
