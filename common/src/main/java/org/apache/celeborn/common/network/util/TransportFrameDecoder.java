@@ -69,7 +69,14 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter implemen
       if (frame == null) {
         break;
       }
-      Message msg = Message.decode(curType, frame);
+      Message msg;
+      try {
+        msg = Message.decode(curType, frame);
+      } catch (RuntimeException | Error e) {
+        // The frame has been removed from buffers, so handlerRemoved cannot release it.
+        frame.release();
+        throw e;
+      }
       if (msg.body() == null) {
         frame.release();
       }
