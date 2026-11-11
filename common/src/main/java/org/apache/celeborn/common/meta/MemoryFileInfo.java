@@ -73,14 +73,23 @@ public class MemoryFileInfo extends FileInfo {
 
   public int releaseMemoryBuffers() {
     int bufferSize = 0;
-    if (buffer != null) {
-      bufferSize = buffer.writerIndex();
-    }
-    if (sortedBuffer != null) {
-      sortedBuffer.release();
-    }
-    if (buffer != null) {
-      buffer.release();
+    // Synchronize on the sort lock so cleanup cannot interleave with sortMemoryShuffleFile
+    // building the sorted buffer: either the sort completes first and this method releases
+    // the completed sorted buffer, or this method runs first and the sort fails cleanly
+    // instead of leaking the sorted buffer's references forever. The buffers are nulled
+    // out so a later reader observes the cleaned-up state rather than freed memory.
+    synchronized (((ReduceFileMeta) getFileMeta()).getSorted()) {
+      if (buffer != null) {
+        bufferSize = buffer.writerIndex();
+      }
+      if (sortedBuffer != null) {
+        sortedBuffer.release();
+        sortedBuffer = null;
+      }
+      if (buffer != null) {
+        buffer.release();
+        buffer = null;
+      }
     }
     logger.info("Memory File Info {} expire, removed {}", this, bufferSize);
     return bufferSize;

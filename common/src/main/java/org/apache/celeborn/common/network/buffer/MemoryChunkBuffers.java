@@ -40,6 +40,11 @@ public class MemoryChunkBuffers extends ChunkBuffers {
   public MemoryChunkBuffers(MemoryFileInfo memoryFileInfo, boolean takeOwnership) {
     super((ReduceFileMeta) memoryFileInfo.getFileMeta());
     CompositeByteBuf buffer = memoryFileInfo.getBuffer();
+    if (buffer == null) {
+      // The file was cleaned up (releaseMemoryBuffers) before this stream was registered.
+      throw new IllegalStateException(
+          "Memory file " + memoryFileInfo + " has been cleaned up, no buffer to serve");
+    }
     this.buffer = takeOwnership ? buffer : buffer.retain();
   }
 

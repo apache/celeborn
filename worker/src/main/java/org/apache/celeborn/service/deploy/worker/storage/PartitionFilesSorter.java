@@ -210,37 +210,44 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
       throws IOException {
     if (fileInfo instanceof MemoryFileInfo) {
       MemoryFileInfo memoryFileInfo = ((MemoryFileInfo) fileInfo);
-      Map<Integer, List<ShuffleBlockInfo>> indexesMap;
-      sortMemoryShuffleFile(memoryFileInfo);
-      indexesMap = memoryFileInfo.getSortedIndexes();
+      // Hold the sort lock from sorting through building the range target so that expiry
+      // cleanup (releaseMemoryBuffers) cannot release the origin and sorted buffers in the
+      // middle of a sorted read: either the target is fully built and owns its retained
+      // references, or cleanup runs first and this fails with a clear error.
+      synchronized (((ReduceFileMeta) memoryFileInfo.getFileMeta()).getSorted()) {
+        sortMemoryShuffleFile(memoryFileInfo);
+        CompositeByteBuf sortedBuffer = memoryFileInfo.getSortedBuffer();
+        if (sortedBuffer == null) {
+          throw new IllegalStateException(
+              "Memory file " + memoryFileInfo + " has been cleaned up, cannot serve sorted read");
+        }
+        Map<Integer, List<ShuffleBlockInfo>> indexesMap = memoryFileInfo.getSortedIndexes();
 
-      ReduceFileMeta reduceFileMeta =
-          new ReduceFileMeta(
-              ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
-                  startMapIndex, endMapIndex, shuffleChunkSize, indexesMap, true),
-              shuffleChunkSize);
-      CompositeByteBuf targetBuffer =
-          MemoryManager.instance().getStorageByteBufAllocator().compositeBuffer(Integer.MAX_VALUE);
-      boolean success = false;
-      try {
-        ShuffleBlockInfoUtils.sliceSortedBufferByMapRange(
-            startMapIndex,
-            endMapIndex,
-            indexesMap,
-            memoryFileInfo.getSortedBuffer(),
-            targetBuffer,
-            shuffleChunkSize);
-        MemoryFileInfo sortedFileInfo =
-            new MemoryFileInfo(
-                memoryFileInfo.getUserIdentifier(),
-                memoryFileInfo.isPartitionSplitEnabled(),
-                reduceFileMeta,
-                targetBuffer);
-        success = true;
-        return sortedFileInfo;
-      } finally {
-        if (!success) {
-          targetBuffer.release();
+        ReduceFileMeta reduceFileMeta =
+            new ReduceFileMeta(
+                ShuffleBlockInfoUtils.getChunkOffsetsFromShuffleBlockInfos(
+                    startMapIndex, endMapIndex, shuffleChunkSize, indexesMap, true),
+                shuffleChunkSize);
+        CompositeByteBuf targetBuffer =
+            MemoryManager.instance()
+                .getStorageByteBufAllocator()
+                .compositeBuffer(Integer.MAX_VALUE);
+        boolean success = false;
+        try {
+          ShuffleBlockInfoUtils.sliceSortedBufferByMapRange(
+              startMapIndex, endMapIndex, indexesMap, sortedBuffer, targetBuffer, shuffleChunkSize);
+          MemoryFileInfo sortedFileInfo =
+              new MemoryFileInfo(
+                  memoryFileInfo.getUserIdentifier(),
+                  memoryFileInfo.isPartitionSplitEnabled(),
+                  reduceFileMeta,
+                  targetBuffer);
+          success = true;
+          return sortedFileInfo;
+        } finally {
+          if (!success) {
+            targetBuffer.release();
+          }
         }
       }
     } else {
@@ -329,6 +336,11 @@ public class PartitionFilesSorter extends ShuffleRecoverHelper {
     synchronized (reduceFileMeta.getSorted()) {
       if (!reduceFileMeta.getSorted().get()) {
         CompositeByteBuf originBuffer = memoryFileInfo.getBuffer();
+        if (originBuffer == null) {
+          // releaseMemoryBuffers cleaned the file up before this sort started.
+          throw new IllegalStateException(
+              "Memory file " + memoryFileInfo + " has been cleaned up, cannot sort");
+        }
         Map<Integer, List<ShuffleBlockInfo>> blocksMap = new TreeMap<>();
         int originReaderIndex = originBuffer.readerIndex();
         int originWriterIndex = originBuffer.writerIndex();
