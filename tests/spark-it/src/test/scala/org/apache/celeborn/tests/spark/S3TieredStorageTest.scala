@@ -38,7 +38,7 @@ class S3TieredStorageTest extends AnyFunSuite
     if (!isS3LibraryAvailable)
       return
 
-    container = new MinIOContainer("minio/minio:RELEASE.2023-09-04T19-57-37Z");
+    container = new MinIOContainer(minioImage)
     container.start()
 
     // create bucket using Minio command line tool
@@ -47,7 +47,7 @@ class S3TieredStorageTest extends AnyFunSuite
       "alias",
       "set",
       "dockerminio",
-      "http://minio:9000",
+      "http://localhost:9000",
       container.getUserName,
       container.getPassword)
     container.execInContainer("mc", "mb", "dockerminio/sample-bucket")
