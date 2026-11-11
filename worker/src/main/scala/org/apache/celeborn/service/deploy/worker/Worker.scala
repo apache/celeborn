@@ -1106,6 +1106,8 @@ private[celeborn] class Worker(
     // make master remove this worker from excluded list.
     logInfo("Worker start to shutdown gracefully")
     workerStatusManager.transitionState(State.InGraceFul)
+    // Reject new writes before the master report, which can block on retries.
+    shutdown.set(true)
     try {
       masterClient.askSync(
         ReportWorkerUnavailable(List(workerInfo).asJava),
@@ -1116,7 +1118,6 @@ private[celeborn] class Worker(
           s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
           e)
     }
-    shutdown.set(true)
     val interval = conf.workerGracefulShutdownCheckSlotsFinishedInterval
     val timeout = conf.workerGracefulShutdownCheckSlotsFinishedTimeoutMs
     var waitTimes = 0
@@ -1188,6 +1189,8 @@ private[celeborn] class Worker(
     // make master remove this worker from excluded list.
     logInfo("Worker start to exit immediately")
     workerStatusManager.transitionState(State.InExit)
+    // Reject new writes before the master report, which can block on retries.
+    shutdown.set(true)
     try {
       masterClient.askSync[PbWorkerLostResponse](
         WorkerLost(
@@ -1204,7 +1207,6 @@ private[celeborn] class Worker(
           s"Fail report to master, need wait PartitionLocation auto release: \n$partitionLocationInfo",
           e)
     }
-    shutdown.set(true)
     workerStatusManager.transitionState(State.Exit)
   }
 
