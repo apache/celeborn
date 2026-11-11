@@ -166,7 +166,15 @@ public class MemoryManager {
     Preconditions.checkArgument(pausePushDataRatio > directMemoryResumeRatio);
     if (memoryFileStorageRatio > 0) {
       Preconditions.checkArgument(
-          directMemoryResumeRatio > (readBufferRatio + memoryFileStorageRatio));
+          directMemoryResumeRatio > (readBufferRatio + memoryFileStorageRatio),
+          String.format(
+              "Invalid config, %s(%s) should be greater than %s(%s) + %s(%s)",
+              CelebornConf.WORKER_DIRECT_MEMORY_RATIO_RESUME().key(),
+              directMemoryResumeRatio,
+              CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER().key(),
+              readBufferRatio,
+              CelebornConf.WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE().key(),
+              memoryFileStorageRatio));
     }
 
     maxSortMemory = ((long) (maxDirectMemory * maxSortMemRatio));
