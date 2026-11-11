@@ -179,8 +179,9 @@ instant value even with a window, so a worker drops out as soon as its drain sta
 {{- $autoscaling := .Values.worker.autoscaling -}}
 {{- $selector := include "celeborn.worker.autoscaling.selector" . -}}
 {{- $window := $autoscaling.window | toString | trim -}}
-{{- if and $window (not (regexMatch "^[0-9]+(ms|s|m|h|d|w|y)$" $window)) -}}
-{{- fail (printf "worker.autoscaling.window must be a PromQL duration such as 5m, got %q" $window) -}}
+{{- /* A PromQL range: units largest first, each at most once (1m30s), and not zero. */ -}}
+{{- if and $window (not (and (regexMatch "^([0-9]+y)?([0-9]+w)?([0-9]+d)?([0-9]+h)?([0-9]+m)?([0-9]+s)?([0-9]+ms)?$" $window) (regexMatch "[1-9]" $window))) -}}
+{{- fail (printf "worker.autoscaling.window must be a positive PromQL duration such as 5m or 1m30s, got %q" $window) -}}
 {{- end -}}
 {{- $gauge := dict "selector" $selector "window" $window -}}
 {{- $live := printf "and on (instance) metrics_IsDecommissioningWorker_Value{%s} == 0" $selector -}}

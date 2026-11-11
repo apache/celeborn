@@ -380,7 +380,8 @@ worker:
 max(avg_over_time(metrics_DirectMemoryUsageRatio_Value{...}[5m]) and on (instance) ...)
 ```
 
-Choose a window of several scrape intervals, so each average covers enough samples. The
+The window must be a positive PromQL duration, such as `5m` or `1m30s`; anything else fails
+the render. Choose a window of several scrape intervals, so each average covers enough samples. The
 decommission check is not averaged: a worker drops out of the triggers as soon as its drain
 starts. A window delays the reaction to sustained load by up to its own length, which matters
 little next to the time a new worker takes to start.

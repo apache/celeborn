@@ -431,7 +431,44 @@ tests:
           window: 5 minutes
     asserts:
       - failedTemplate:
-          errorMessage: worker.autoscaling.window must be a PromQL duration such as 5m, got "5 minutes"
+          errorMessage: worker.autoscaling.window must be a positive PromQL duration such as 5m or 1m30s, got "5 minutes"
+
+  - it: Should fail on a zero `worker.autoscaling.window`
+    set:
+      worker:
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+          window: 000ms
+    asserts:
+      - failedTemplate:
+          errorMessage: worker.autoscaling.window must be a positive PromQL duration such as 5m or 1m30s, got "000ms"
+
+  - it: Should fail on a `worker.autoscaling.window` with its units out of order
+    set:
+      worker:
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+          window: 30s1m
+    asserts:
+      - failedTemplate:
+          errorMessage: worker.autoscaling.window must be a positive PromQL duration such as 5m or 1m30s, got "30s1m"
+
+  - it: Should accept a compound `worker.autoscaling.window`
+    set:
+      worker:
+        autoscaling:
+          enabled: true
+          prometheusAddress: http://prometheus:9090
+          window: 1m30s
+    asserts:
+      - matchRegex:
+          path: spec.triggers[0].metadata.query
+          pattern: avg_over_time\(metrics_DeviceCelebornFreeBytes_Value\{[^}]*\}\[1m30s\]\)
+      - matchRegex:
+          path: spec.triggers[1].metadata.query
+          pattern: avg_over_time\(metrics_DirectMemoryUsageRatio_Value\{[^}]*\}\[1m30s\]\)
 
   - it: Should pace scale-in by default when the drain is enabled
     set:

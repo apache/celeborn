@@ -306,8 +306,9 @@ worker:
     # Needed when one Prometheus holds several Kubernetes clusters whose releases share a
     # namespace and name: their pod names match, so the selector alone cannot tell them apart.
     extraSelector: ""
-    # -- Average each gauge the built-in triggers read over this PromQL range, e.g. `5m`, so
-    # a spike shorter than the range does not scale the fleet out. Empty reads the instant value.
+    # -- Average each gauge the built-in triggers read over this PromQL range, e.g. `5m` or
+    # `1m30s`, so a spike shorter than the range does not scale the fleet out. It must be
+    # positive. Empty reads the instant value.
     window: ""
 
     # Scale out when the fullest worker runs out of disk. This is the signal that bites
