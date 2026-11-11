@@ -150,12 +150,16 @@ public class MemoryPartitionFilesSorterSuiteJ {
         ((ReduceFileMeta) info.getFileMeta()).getLastChunkOffset()
             - ((ReduceFileMeta) info.getFileMeta()).getChunkOffsets().get(0);
     Assert.assertEquals(totalSizeToFetch, actualTotalChunkSize);
+    // releaseMemoryBuffers nulls out its buffers, so keep local references to assert the
+    // reference counts afterwards.
+    CompositeByteBuf sortedBuffer = fileInfo.getSortedBuffer();
+    CompositeByteBuf originBuffer = fileInfo.getBuffer();
     MemoryChunkBuffers chunkBuffers = new MemoryChunkBuffers((MemoryFileInfo) info, true);
     chunkBuffers.close();
     fileInfo.releaseMemoryBuffers();
     Assert.assertEquals(0, ((MemoryFileInfo) info).getBuffer().refCnt());
-    Assert.assertEquals(0, fileInfo.getSortedBuffer().refCnt());
-    Assert.assertEquals(0, fileInfo.getBuffer().refCnt());
+    Assert.assertEquals(0, sortedBuffer.refCnt());
+    Assert.assertEquals(0, originBuffer.refCnt());
   }
 
   @Test
@@ -232,6 +236,65 @@ public class MemoryPartitionFilesSorterSuiteJ {
       if (inFlightChunk != null && !chunkReleased) {
         inFlightChunk.release();
       }
+    }
+  }
+
+  @Test
+  public void testReleaseMemoryBuffersWaitsForSortLock() throws Exception {
+    prepare(100);
+    CelebornConf conf = new CelebornConf();
+    conf.set(CelebornConf.SHUFFLE_CHUNK_SIZE().key(), "8m");
+    PartitionFilesSorter partitionFilesSorter =
+        new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
+    MemoryFileInfo sortedInfo =
+        (MemoryFileInfo)
+            partitionFilesSorter.getSortedFileInfo("application-1", "", fileInfo, 0, MAX_MAP_ID);
+    CompositeByteBuf sortedBuffer = fileInfo.getSortedBuffer();
+    CompositeByteBuf originBuffer = fileInfo.getBuffer();
+    // Drop the temporary sorted target's references so the only remaining references are
+    // the ones owned by the file itself.
+    new MemoryChunkBuffers(sortedInfo, true).close();
+    Assert.assertEquals(1, sortedBuffer.refCnt());
+
+    Object sortLock = ((ReduceFileMeta) fileInfo.getFileMeta()).getSorted();
+    Thread cleanup = new Thread(fileInfo::releaseMemoryBuffers);
+    try {
+      synchronized (sortLock) {
+        cleanup.start();
+        // While a sort holds the lock, cleanup must not release anything underneath it.
+        cleanup.join(500);
+        Assert.assertTrue(
+            "releaseMemoryBuffers should block while the sort lock is held", cleanup.isAlive());
+        Assert.assertTrue(sortedBuffer.refCnt() > 0);
+        Assert.assertTrue(originBuffer.refCnt() > 0);
+      }
+      cleanup.join(5000);
+      Assert.assertFalse(cleanup.isAlive());
+      Assert.assertEquals(0, sortedBuffer.refCnt());
+      Assert.assertEquals(0, originBuffer.refCnt());
+      Assert.assertNull(fileInfo.getSortedBuffer());
+      Assert.assertNull(fileInfo.getBuffer());
+      // Releasing an already cleaned-up file must be a no-op.
+      fileInfo.releaseMemoryBuffers();
+    } finally {
+      cleanup.join(5000);
+    }
+  }
+
+  @Test
+  public void testGetSortedFileInfoAfterCleanupFailsCleanly() throws IOException {
+    prepare(100);
+    CelebornConf conf = new CelebornConf();
+    conf.set(CelebornConf.SHUFFLE_CHUNK_SIZE().key(), "8m");
+    PartitionFilesSorter partitionFilesSorter =
+        new PartitionFilesSorter(MemoryManager.instance(), conf, new WorkerSource(conf));
+    fileInfo.releaseMemoryBuffers();
+    try {
+      partitionFilesSorter.getSortedFileInfo("application-1", "", fileInfo, 0, MAX_MAP_ID);
+      Assert.fail("Expected getSortedFileInfo to fail after the file was cleaned up");
+    } catch (IllegalStateException e) {
+      // expected: the sorted read observes the cleaned-up state instead of touching
+      // freed memory or leaking the sorted buffer.
     }
   }
 
