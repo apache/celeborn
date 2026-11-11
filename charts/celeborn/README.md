@@ -307,6 +307,12 @@ max((1 - metrics_DeviceCelebornFreeBytes_Value{...} / metrics_DeviceCelebornTota
 
 It uses `metricType: Value`, because a ratio must not be divided across replicas.
 
+The total is capped at the largest `capacity=` in `celeborn.worker.storage.dirs`, as
+`clamp_max(metrics_DeviceCelebornTotalBytes_Value{...}, <capacity bytes>)`. Celeborn caps a
+disk's free bytes at its configured capacity but reports the filesystem's size as its total,
+so a 600Gi capacity on a 1.7Ti disk would otherwise read as 65% used while empty, and hold the
+statefulset at that size. If any dir has no `capacity=`, the total is not capped.
+
 This trigger is also the slot utilization target. Celeborn sizes a disk's slot capacity from
 its space - `maxSlots = totalSpace / estimatedPartitionSize` in `WorkerInfo` - so slots and
 bytes fill in step, and `activeSlots / maxSlots` reduces to the disk fraction above. A slot

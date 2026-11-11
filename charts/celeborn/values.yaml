@@ -317,7 +317,8 @@ worker:
     diskUsage:
       # -- Whether to add the disk usage trigger.
       enabled: true
-      # -- Fraction of the worker's Celeborn disk capacity in use, between 0 and 1.
+      # -- Fraction of the worker's Celeborn disk capacity in use, between 0 and 1. The capacity
+      # is the largest `capacity=` in `celeborn.worker.storage.dirs`, else the disk size.
       threshold: "0.70"
 
     # Scale out when workers run short of off-heap memory. A worker stops accepting pushes at

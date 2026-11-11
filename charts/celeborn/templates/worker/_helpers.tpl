@@ -139,6 +139,37 @@ One gauge as the built-in triggers read it: the instant value, or its average ov
 {{- end }}
 
 {{/*
+The largest `capacity=` in `celeborn.worker.storage.dirs`, in bytes, or empty when a dir has
+none (Celeborn then takes the whole disk). DeviceCelebornFreeBytes is capped by that capacity
+but DeviceCelebornTotalBytes is the filesystem's size, so on a disk larger than its capacity
+the disk trigger would read the unconfigured part as used.
+*/}}
+{{- define "celeborn.worker.autoscaling.diskCapacityBytes" -}}
+{{- $units := dict "" 1 "b" 1 "k" 1024 "kb" 1024 "ki" 1024 "kib" 1024 "m" 1048576 "mb" 1048576 "mi" 1048576 "mib" 1048576 "g" 1073741824 "gb" 1073741824 "gi" 1073741824 "gib" 1073741824 "t" 1099511627776 "tb" 1099511627776 "ti" 1099511627776 "tib" 1099511627776 "p" 1125899906842624 "pb" 1125899906842624 "pi" 1125899906842624 "pib" 1125899906842624 -}}
+{{- $dirs := index (.Values.celeborn | default dict) "celeborn.worker.storage.dirs" | default "" | toString | trim -}}
+{{- $max := 0 -}}
+{{- $complete := ne $dirs "" -}}
+{{- range splitList "," $dirs -}}
+{{- $capacity := regexFind "(?i):capacity=[0-9]+[a-z]*" . | lower | trimPrefix ":capacity=" -}}
+{{- if not $capacity -}}
+{{- $complete = false -}}
+{{- else -}}
+{{- $unit := regexFind "[a-z]+$" $capacity -}}
+{{- if not (hasKey $units $unit) -}}
+{{- fail (printf "celeborn.worker.storage.dirs: unknown capacity unit in %q" .) -}}
+{{- end -}}
+{{- $bytes := mul (trimSuffix $unit $capacity | int64) (get $units $unit) -}}
+{{- if gt $bytes $max -}}
+{{- $max = $bytes -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- if $complete -}}
+{{ $max }}
+{{- end -}}
+{{- end }}
+
+{{/*
 Built-in autoscaling triggers, in front of any the user adds. All exclude a decommissioning
 worker, whose disk stays full and whose slots stay allocated while it drains - counting it
 would have the fleet scale out to replace capacity it is still holding. That check reads the
@@ -159,7 +190,11 @@ instant value even with a window, so a worker drops out as soon as its drain sta
   metricType: Value
   metadata:
     serverAddress: {{ required "worker.autoscaling.prometheusAddress is required by the built-in triggers" $autoscaling.prometheusAddress }}
-    query: max((1 - {{ include "celeborn.worker.autoscaling.gauge" (merge (dict "metric" "DeviceCelebornFreeBytes") $gauge) }} / {{ include "celeborn.worker.autoscaling.gauge" (merge (dict "metric" "DeviceCelebornTotalBytes") $gauge) }}) {{ $live }})
+    {{- $total := include "celeborn.worker.autoscaling.gauge" (merge (dict "metric" "DeviceCelebornTotalBytes") $gauge) }}
+    {{- with include "celeborn.worker.autoscaling.diskCapacityBytes" . }}
+    {{- $total = printf "clamp_max(%s, %s)" $total . }}
+    {{- end }}
+    query: max((1 - {{ include "celeborn.worker.autoscaling.gauge" (merge (dict "metric" "DeviceCelebornFreeBytes") $gauge) }} / {{ $total }}) {{ $live }})
     threshold: {{ $autoscaling.diskUsage.threshold | quote }}
 {{- end }}
 {{- if $autoscaling.memoryUsage.enabled }}
