@@ -31,7 +31,6 @@ import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 import org.testcontainers.containers.MinIOContainer
-import org.testcontainers.utility.DockerImageName
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
@@ -53,9 +52,7 @@ class EvictMemoryToTieredStorageTest extends AnyFunSuite
     if (!isS3LibraryAvailable)
       return
 
-    container = new MinIOContainer(
-      DockerImageName.parse("pgsty/minio:RELEASE.2026-08-04T00-00-00Z")
-        .asCompatibleSubstituteFor("minio/minio"));
+    container = new MinIOContainer(minioImage)
     container.start()
 
     // create bucket using Minio command line tool
