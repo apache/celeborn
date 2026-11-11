@@ -151,9 +151,7 @@ public class ShuffleBlockInfoUtils {
           }
           length += (int) blockInfo.length;
           if (length - offset > shuffleChunkSize) {
-            // Do not retain this buffer because this buffer
-            // will be released when the fileinfo is released
-            targetByteBuf.addComponent(sortedByteBuf.slice(offset, length));
+            targetByteBuf.addComponent(sortedByteBuf.retainedSlice(offset, length));
             blockBoundary = true;
             length = 0;
           }
@@ -162,9 +160,7 @@ public class ShuffleBlockInfoUtils {
     }
     // process last small block
     if (length != 0) {
-      // Do not retain this buffer because this buffer
-      // will be released when the fileinfo is released
-      targetByteBuf.addComponent(sortedByteBuf.slice(offset, length));
+      targetByteBuf.addComponent(sortedByteBuf.retainedSlice(offset, length));
     }
   }
 }

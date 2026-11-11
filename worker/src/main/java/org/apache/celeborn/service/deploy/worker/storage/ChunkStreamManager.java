@@ -183,7 +183,7 @@ public class ChunkStreamManager {
 
       // normally expiredStreamIds set will be empty as streamId will be removed when be fully read
       if (expiredStreamIds != null && !expiredStreamIds.isEmpty()) {
-        expiredStreamIds.forEach(streams::remove);
+        expiredStreamIds.forEach(this::removeStreamState);
       }
     }
     logger.info(
@@ -197,7 +197,11 @@ public class ChunkStreamManager {
   }
 
   public StreamState removeStreamState(long streamId) {
-    return streams.remove(streamId);
+    StreamState streamState = streams.remove(streamId);
+    if (streamState != null && streamState.buffers != null) {
+      streamState.buffers.close();
+    }
+    return streamState;
   }
 
   public int getStreamsCount() {
