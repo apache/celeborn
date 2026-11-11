@@ -186,6 +186,9 @@ abstract class RpcEnv(config: RpcEnvConfig) {
   def deserialize[T](deserializationAction: () => T): T
 
   def rpcSource(): RpcSource
+
+  /** Returns local endpoint RPC metrics, or None if unavailable. */
+  private[celeborn] def rpcMetricsSnapshot(endpointName: String): Option[RpcMetricsSnapshot] = None
 }
 
 /**
