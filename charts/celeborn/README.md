@@ -452,7 +452,13 @@ The reasoning behind that shape:
 A worker parked with `DecommissionThenIdle` reports state `Idle`, which `/healthz` treats as not
 serving, because the master does not schedule to an `Idle` worker either. Its pod therefore stays
 NotReady and a rolling update will not advance past that ordinal. Recommission parked workers
-before upgrading, or set `worker.readinessProbe: null` for that rollout.
+before upgrading.
+
+Setting `worker.readinessProbe: null` does not unblock a rollout that a parked worker is already
+holding. It changes only the pod template: the parked pod keeps the probe it was created with,
+and with the default `OrderedReady` policy the controller waits for that pod to become Ready
+before it updates anything. Either recommission the worker, so its readiness returns, or delete
+its pod, so the statefulset recreates it from the current template.
 
 ### Readiness and pod management policy
 
