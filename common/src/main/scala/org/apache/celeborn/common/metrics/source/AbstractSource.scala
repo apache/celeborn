@@ -342,8 +342,11 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def removeGauge[T](name: String): Unit = removeGauge(name, Map.empty[String, String])
 
-  def removeTimer[T](name: String): Unit =
+  def removeTimer(name: String): Unit =
     namedTimers.remove(removeMetric(name, Map.empty[String, String]))
+
+  def removeTimer(name: String, labels: Map[String, String]): Unit =
+    namedTimers.remove(removeMetric(name, labels))
 
   def removeMetric(name: String, labels: Map[String, String]): String = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
