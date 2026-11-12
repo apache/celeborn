@@ -81,6 +81,10 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
           assert(
             !e.getMessage.contains("CommitMetadata mismatch"),
             s"Integrity check ran even though it is disabled: ${e.getMessage}")
+          assert(
+            e.getMessage.contains("IndexOutOfBounds") ||
+              e.getMessage.contains("com.esotericsoftware.kryo"),
+            s"App aborted for a reason other than Kryo deserialization: ${e.getMessage}")
       } finally {
         sparkSession.stop()
       }
