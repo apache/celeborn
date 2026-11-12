@@ -297,23 +297,23 @@ With the drain enabled the chart paces scale-in on its own - see
 [Pacing scale-in](#pacing-scale-in).
 
 **Disk usage** is the signal that bites first, since a worker that fills up stops accepting
-pushes. It scales on the fullest worker in the statefulset, as a fraction of Celeborn disk
+pushes. It scales on the average use of the statefulset's disks, as a fraction of Celeborn disk
 capacity:
 
 ```promql
-max((1 - metrics_DeviceCelebornFreeBytes_Value{...} / metrics_DeviceCelebornTotalBytes_Value{...})
+avg((1 - metrics_DeviceCelebornFreeBytes_Value{...} / metrics_DeviceCelebornTotalBytes_Value{...})
     and on (instance) metrics_IsDecommissioningWorker_Value{...} == 0)
 ```
 
 It uses `metricType: Value`, because a ratio must not be divided across replicas.
 
-Shuffle files never move to a worker added later, so the fullest disk only empties when its
-application ends. A long application that filled the first workers before the scale-out keeps
-`max` above the threshold however many workers join, and the zone climbs to
-`maxReplicaCount`. `worker.autoscaling.diskUsage.aggregation: avg` scales on the average across
-the statefulset's disks instead, which new, empty workers do bring down. A full disk is still
-protected by `celeborn.worker.storage.disk.reserve.size`: the worker stops writing to it and the
-master stops offering its slots.
+The average, not the fullest disk, because shuffle files never move to a worker added later: the
+fullest disk only empties when its application ends. A long application that filled the first
+workers before a scale-out would keep `max` above the threshold however many workers join, and the
+statefulset would climb to `maxReplicaCount`. New, empty workers do bring the average down. A full
+disk is still protected by `celeborn.worker.storage.disk.reserve.size`: the worker stops writing
+to it and the master stops offering its slots. `worker.autoscaling.diskUsage.aggregation: max`
+scales on the fullest disk instead.
 
 The total is capped at the largest `capacity=` in `celeborn.worker.storage.dirs`, as
 `clamp_max(metrics_DeviceCelebornTotalBytes_Value{...}, <capacity bytes>)`. Celeborn caps a

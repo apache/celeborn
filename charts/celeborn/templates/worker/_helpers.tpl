@@ -186,7 +186,7 @@ instant value even with a window, so a worker drops out as soon as its drain sta
 {{- $gauge := dict "selector" $selector "window" $window -}}
 {{- $live := printf "and on (instance) metrics_IsDecommissioningWorker_Value{%s} == 0" $selector -}}
 {{- if $autoscaling.diskUsage.enabled }}
-{{- $aggregation := $autoscaling.diskUsage.aggregation | default "max" | toString -}}
+{{- $aggregation := $autoscaling.diskUsage.aggregation | default "avg" | toString -}}
 {{- if not (has $aggregation (list "max" "avg")) -}}
 {{- fail (printf "worker.autoscaling.diskUsage.aggregation must be max or avg, got %q" $aggregation) -}}
 {{- end }}
