@@ -6434,7 +6434,8 @@ object CelebornConf extends Logging {
       .categories("master")
       .dynamic
       .version("1.0.0")
-      .doc("Whether to actively align a platform target below the minimum worker count. " +
+      .doc("Whether to enforce the minimum worker count on every platform target. " +
+        "Excluded workers are added to this floor, which is capped by the maximum worker count. " +
         "When enabled, minimum alignment can exceed the scale-up step budget.")
       .booleanConf
       .createWithDefault(false)
@@ -6540,7 +6541,8 @@ object CelebornConf extends Logging {
       .categories("master")
       .dynamic
       .version("1.0.0")
-      .doc("Scale-up budget as a fraction of the normal worker count, rounded down. " +
+      .doc("Scale-up budget as a fraction of the registered workers selected for metric " +
+        "calculation (including excluded workers), rounded down. " +
         "Combined with the fixed budget and the three-worker minimum budget using the maximum.")
       .doubleConf
       .checkValue(v => v > 0 && v <= 1, "Scale-up percent must be in (0, 1]")
@@ -6551,8 +6553,8 @@ object CelebornConf extends Logging {
       .categories("master")
       .dynamic
       .version("1.0.0")
-      .doc("Scale-down budget as a fraction of the registered worker count, or the platform " +
-        "target when it exceeds the maximum worker count, rounded down. " +
+      .doc("Scale-down budget as a fraction of the platform's current spec worker count " +
+        "(total desired instances, including pending and excluded workers), rounded down. " +
         "Combined with the fixed budget and the estimated difference using the minimum.")
       .doubleConf
       .checkValue(v => v > 0 && v <= 1, "Scale-down percent must be in (0, 1]")
