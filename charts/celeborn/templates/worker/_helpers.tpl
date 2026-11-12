@@ -186,6 +186,10 @@ instant value even with a window, so a worker drops out as soon as its drain sta
 {{- $gauge := dict "selector" $selector "window" $window -}}
 {{- $live := printf "and on (instance) metrics_IsDecommissioningWorker_Value{%s} == 0" $selector -}}
 {{- if $autoscaling.diskUsage.enabled }}
+{{- $aggregation := $autoscaling.diskUsage.aggregation | default "max" | toString -}}
+{{- if not (has $aggregation (list "max" "avg")) -}}
+{{- fail (printf "worker.autoscaling.diskUsage.aggregation must be max or avg, got %q" $aggregation) -}}
+{{- end }}
 - type: prometheus
   {{- /* Value, not KEDA's AverageValue default: a ratio must not be divided by the replicas. */}}
   metricType: Value
@@ -195,7 +199,7 @@ instant value even with a window, so a worker drops out as soon as its drain sta
     {{- with include "celeborn.worker.autoscaling.diskCapacityBytes" . }}
     {{- $total = printf "clamp_max(%s, %s)" $total . }}
     {{- end }}
-    query: max((1 - {{ include "celeborn.worker.autoscaling.gauge" (merge (dict "metric" "DeviceCelebornFreeBytes") $gauge) }} / {{ $total }}) {{ $live }})
+    query: {{ $aggregation }}((1 - {{ include "celeborn.worker.autoscaling.gauge" (merge (dict "metric" "DeviceCelebornFreeBytes") $gauge) }} / {{ $total }}) {{ $live }})
     threshold: {{ $autoscaling.diskUsage.threshold | quote }}
 {{- end }}
 {{- if $autoscaling.memoryUsage.enabled }}

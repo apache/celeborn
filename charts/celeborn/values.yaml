@@ -321,6 +321,9 @@ worker:
       # -- Fraction of the worker's Celeborn disk capacity in use, between 0 and 1. The capacity
       # is the largest `capacity=` in `celeborn.worker.storage.dirs`, else the disk size.
       threshold: "0.70"
+      # -- How the zone's disks are combined: `max` (the fullest disk) or `avg`. Shuffle files
+      # never move to new workers, so under `max` one full disk can hold the zone at its ceiling.
+      aggregation: max
 
     # Scale out when workers run short of off-heap memory. A worker stops accepting pushes at
     # `celeborn.worker.directMemoryRatioToPauseReceive`, so this is the other way a worker
