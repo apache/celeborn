@@ -39,6 +39,9 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
   }
 
   override def afterEach(): Unit = {
+    // A session left behind by a failed test would otherwise be reused by the next test's
+    // getOrCreate() with the previous test's configs.
+    stopActiveSparkSessions()
     System.gc()
   }
 
@@ -61,19 +64,23 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
       val hook = new ShuffleReaderGetHookForCorruptedData(celebornConf, workerDirs)
       TestCelebornShuffleManager.registerReaderGetHook(hook)
 
-      val value = Range(1, 10000).mkString(",")
-      val tuples = sparkSession.sparkContext.parallelize(1 to 1000, 2)
-        .map { i => (i, value) }.groupByKey(16).collect()
-
-      assert(tuples.length == 1000)
-
       try {
-        for (elem <- tuples) {
-          assert(elem._2.mkString(",").equals(value))
-        }
+        val value = Range(1, 10000).mkString(",")
+        val tuples = sparkSession.sparkContext.parallelize(1 to 1000, 2)
+          .map { i => (i, value) }.groupByKey(16).collect()
+
+        // Usually the flipped bit lands inside a string value and the wrong data is returned
+        // silently, which is what this test is about.
+        assert(tuples.length == 1000)
       } catch {
-        case e: Throwable =>
-          e.getMessage.contains("elem._2.mkString(\",\").equals(value) was false")
+        // The flipped bit can also land on a Kryo reference id or length, in which case
+        // deserialization fails and the job aborts. That is still fine with integrity checks
+        // off, as long as it is not the integrity check that failed the job.
+        case e: SparkException if e.getMessage.contains("Job aborted") =>
+          logger.warn("Job aborted on corrupted data with integrity checks disabled", e)
+          assert(
+            !e.getMessage.contains("CommitMetadata mismatch"),
+            s"Integrity check ran even though it is disabled: ${e.getMessage}")
       } finally {
         sparkSession.stop()
       }
