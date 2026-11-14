@@ -1663,7 +1663,6 @@ private[deploy] object Master extends Logging {
     classOf[RegisterApplicationInfo],
     classOf[HeartbeatFromApplication],
     classOf[RequestSlots],
-    classOf[PbRequestWorkers],
     classOf[PbBatchUnregisterShuffles],
     classOf[PbUnregisterShuffle],
     classOf[ApplicationLost],
