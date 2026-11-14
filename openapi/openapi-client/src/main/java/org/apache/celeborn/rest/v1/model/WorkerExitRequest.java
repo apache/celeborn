@@ -32,7 +32,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
  * WorkerExitRequest
  */
 @JsonPropertyOrder({
-  WorkerExitRequest.JSON_PROPERTY_TYPE
+  WorkerExitRequest.JSON_PROPERTY_TYPE,
+  WorkerExitRequest.JSON_PROPERTY_TIMEOUT
 })
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.8.0")
 public class WorkerExitRequest {
@@ -78,6 +79,9 @@ public class WorkerExitRequest {
   public static final String JSON_PROPERTY_TYPE = "type";
   private TypeEnum type = TypeEnum.NONE;
 
+  public static final String JSON_PROPERTY_TIMEOUT = "timeout";
+  private String timeout;
+
   public WorkerExitRequest() {
   }
 
@@ -106,6 +110,31 @@ public class WorkerExitRequest {
     this.type = type;
   }
 
+  public WorkerExitRequest timeout(String timeout) {
+    
+    this.timeout = timeout;
+    return this;
+  }
+
+  /**
+   * Optional decommission forceExitTimeout override for this single decommission (e.g. 600s/30m/1h); ignored for non-Decommission types.
+   * @return timeout
+   */
+  @javax.annotation.Nullable
+  @JsonProperty(JSON_PROPERTY_TIMEOUT)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+
+  public String getTimeout() {
+    return timeout;
+  }
+
+
+  @JsonProperty(JSON_PROPERTY_TIMEOUT)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public void setTimeout(String timeout) {
+    this.timeout = timeout;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -115,12 +144,13 @@ public class WorkerExitRequest {
       return false;
     }
     WorkerExitRequest workerExitRequest = (WorkerExitRequest) o;
-    return Objects.equals(this.type, workerExitRequest.type);
+    return Objects.equals(this.type, workerExitRequest.type) &&
+        Objects.equals(this.timeout, workerExitRequest.timeout);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(type);
+    return Objects.hash(type, timeout);
   }
 
   @Override
@@ -128,6 +158,7 @@ public class WorkerExitRequest {
     StringBuilder sb = new StringBuilder();
     sb.append("class WorkerExitRequest {\n");
     sb.append("    type: ").append(toIndentedString(type)).append("\n");
+    sb.append("    timeout: ").append(toIndentedString(timeout)).append("\n");
     sb.append("}");
     return sb.toString();
   }
