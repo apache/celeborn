@@ -37,6 +37,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.client.MasterClient
+import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.WorkerInfo
 import org.apache.celeborn.common.protocol._
@@ -46,6 +47,7 @@ import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.RpcCallContext
 import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, ThreadUtils}
 import org.apache.celeborn.service.deploy.MiniClusterFeature
+import org.apache.celeborn.service.deploy.worker.decommission.{AlwaysDecommissionSignalChecker, NoOpDecommissionSignalChecker, NotADecommissionSignalChecker}
 import org.apache.celeborn.service.deploy.worker.storage.PartitionDataWriter
 
 class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFeature {
@@ -417,6 +419,71 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
     } finally {
       shutdownMiniCluster()
       mockedMasterClient.close()
+    }
+  }
+
+  test("worker loads the configured decommission signal checker") {
+    val key = CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKER.key
+    val tmpFile =
+      Files.createTempDirectory(Paths.get("/tmp"), "celeborn" + System.currentTimeMillis())
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, tmpFile.toString)
+    try {
+      worker = new Worker(conf, workerArgs)
+      assert(worker.decommissionSignalMonitor == null)
+      worker.createDecommissionSignalMonitor()
+      assert(worker.decommissionSignalMonitor.checker.isInstanceOf[NoOpDecommissionSignalChecker])
+      worker.decommissionSignalMonitor.stop()
+
+      conf.set(key, classOf[AlwaysDecommissionSignalChecker].getName)
+      worker.createDecommissionSignalMonitor()
+      assert(
+        worker.decommissionSignalMonitor.checker.isInstanceOf[AlwaysDecommissionSignalChecker])
+    } finally {
+      conf.unset(key)
+    }
+  }
+
+  test("worker fails fast on an invalid decommission signal checker") {
+    val key = CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKER.key
+    val tmpFile =
+      Files.createTempDirectory(Paths.get("/tmp"), "celeborn" + System.currentTimeMillis())
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, tmpFile.toString)
+    try {
+      worker = new Worker(conf, workerArgs)
+      Seq("does.not.Exist", classOf[NotADecommissionSignalChecker].getName).foreach {
+        className =>
+          conf.set(key, className)
+          // initialize() creates the monitor first, so this fails startup before registration.
+          val e = intercept[CelebornException](worker.initialize())
+          assert(e.getMessage.contains(key))
+          assert(e.getMessage.contains(className))
+      }
+    } finally {
+      conf.unset(key)
+    }
+  }
+
+  test("decommission signal triggers the Worker DECOMMISSION exit path") {
+    val key = CelebornConf.WORKER_DECOMMISSION_SIGNAL_CHECKER.key
+    val timeoutKey = CelebornConf.WORKER_DECOMMISSION_FORCE_EXIT_TIMEOUT.key
+    val tmpFile =
+      Files.createTempDirectory(Paths.get("/tmp"), "celeborn" + System.currentTimeMillis())
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, tmpFile.toString)
+    conf.set(key, classOf[AlwaysDecommissionSignalChecker].getName)
+    // exit("DECOMMISSION") sets this as the timeout of every JVM-wide shutdown hook.
+    conf.set(timeoutKey, "30s")
+    try {
+      worker = new Worker(conf, workerArgs)
+      worker.workerStatusManager.systemExitAction = () => ()
+      worker.createDecommissionSignalMonitor()
+      worker.workerStatusManager.init(worker)
+      worker.decommissionSignalMonitor.checkOnce()
+      assert(worker.decommissionSignalMonitor.isTriggered)
+      assert(worker.workerStatusManager.getWorkerState() == PbWorkerStatus.State.InDecommission)
+      assert(worker.workerStatusManager.exitEventType == WorkerEventType.Decommission)
+    } finally {
+      conf.unset(key)
+      conf.unset(timeoutKey)
     }
   }
 }

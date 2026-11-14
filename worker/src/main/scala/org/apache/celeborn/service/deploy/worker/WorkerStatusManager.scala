@@ -121,12 +121,12 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
       case _ => // ignore
     }
 
-    startExitThread()
+    systemExitAction()
   }
 
-  protected def startExitThread(): Unit = {
-    // Compatible with current exit logic
-    // trigger shutdown hook to exit
+  // Compatible with current exit logic
+  // trigger shutdown hook to exit. Tests replace it to avoid a real System.exit.
+  @volatile private[worker] var systemExitAction: () => Unit = () =>
     ThreadUtils.newThread(
       new Runnable {
         override def run(): Unit = {
@@ -135,7 +135,6 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
         }
       },
       "worker-exit-thread").start()
-  }
 
   def transitionState(state: State): Unit = this.synchronized {
     val allowStates = transitionStateMap.get(currentWorkerStatus.getState)
@@ -171,7 +170,7 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
     currentWorkerStatus.getState
   }
 
-  private def inExitStatus(): Boolean = {
+  private[worker] def inExitStatus(): Boolean = {
     exitStatus.contains(currentWorkerStatus.getState)
   }
 }
