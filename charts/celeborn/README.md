@@ -276,9 +276,10 @@ statefulset. With zone-aware replication enabled that is one per zone, so each z
 on its own load - which is what you want when applications are pinned to a zone, because
 their load is genuinely uneven across zones.
 
-The chart ships two triggers - disk and off-heap memory, the two resources whose exhaustion
-takes a worker out of service - both querying metrics the worker already exports. Point them at
-a Prometheus-compatible endpoint and they work as they are:
+The chart ships two triggers on by default - disk and off-heap memory, the two resources whose
+exhaustion takes a worker out of service - and an opt-in third on active slots, all querying
+metrics the worker already exports. Point them at a Prometheus-compatible endpoint and they work
+as they are:
 
 ```yaml
 worker:
@@ -289,35 +290,64 @@ worker:
     enabled: true
     prometheusAddress: http://prometheus.monitoring.svc.cluster.local:9090
     maxReplicaCount: 6
-    behavior:
-      scaleDown:
-        stabilizationWindowSeconds: 1800
-        policies:
-          - type: Pods
-            value: 1
-            periodSeconds: 900
+    window: 5m
 ```
 
+With the drain enabled the chart paces scale-in on its own - see
+[Pacing scale-in](#pacing-scale-in).
+
 **Disk usage** is the signal that bites first, since a worker that fills up stops accepting
-pushes. It scales on the fullest worker in the statefulset, as a fraction of Celeborn disk
+pushes. It scales on the average use of the statefulset's disks, as a fraction of Celeborn disk
 capacity:
 
 ```promql
-max((1 - metrics_DeviceCelebornFreeBytes_Value{...} / metrics_DeviceCelebornTotalBytes_Value{...})
+avg((1 - metrics_DeviceCelebornFreeBytes_Value{...} / metrics_DeviceCelebornTotalBytes_Value{...})
     and on (instance) metrics_IsDecommissioningWorker_Value{...} == 0)
 ```
 
 It uses `metricType: Value`, because a ratio must not be divided across replicas.
 
-This trigger is also the slot utilization target, which is why there is no separate one for
-slots. Celeborn sizes a disk's slot capacity from its space -
-`maxSlots = totalSpace / estimatedPartitionSize` in `WorkerInfo` - so slots and bytes fill in
-step, and `activeSlots / maxSlots` reduces to the disk fraction above. A slot percentage could
-not be computed anyway: `maxSlots` lives in the master's `DiskInfo` and no metric exports it.
-If you want the raw count as a leading signal - slots are allocated when a stage starts, before
-its data is written - add it yourself through `worker.autoscaling.triggers` using
-`sum(metrics_ActiveSlotsCount_Value{role="Worker"})` with `metricType: AverageValue` and a
-per-worker target.
+The average, not the fullest disk, because shuffle files never move to a worker added later: the
+fullest disk only empties when its application ends. A long application that filled the first
+workers before a scale-out would keep `max` above the threshold however many workers join, and the
+statefulset would climb to `maxReplicaCount`. New, empty workers do bring the average down. A full
+disk is still protected by `celeborn.worker.storage.disk.reserve.size`: the worker stops writing
+to it and the master stops offering its slots. `worker.autoscaling.diskUsage.aggregation: max`
+scales on the fullest disk instead.
+
+The total is capped at the largest `capacity=` in `celeborn.worker.storage.dirs`, as
+`clamp_max(metrics_DeviceCelebornTotalBytes_Value{...}, <capacity bytes>)`. Celeborn caps a
+disk's free bytes at its configured capacity but reports the filesystem's size as its total,
+so a 600Gi capacity on a 1.7Ti disk would otherwise read as 65% used while empty, and hold the
+statefulset at that size. If any dir has no `capacity=`, the total is not capped.
+
+This trigger is also the slot utilization target. Celeborn sizes a disk's slot capacity from
+its space - `maxSlots = totalSpace / estimatedPartitionSize` in `WorkerInfo` - so slots and
+bytes fill in step, and `activeSlots / maxSlots` reduces to the disk fraction above. A slot
+percentage could not be computed anyway: `maxSlots` lives in the master's `DiskInfo` and no
+metric exports it.
+
+**Active slots** is the raw count, as a leading signal: slots are allocated when a stage starts,
+before its data is written, so it moves before disk usage does. It is off by default, because
+its target is a number of slots per worker that depends on the workers' disks and the estimated
+partition size, so no default fits every fleet:
+
+```yaml
+worker:
+  autoscaling:
+    activeSlots:
+      enabled: true
+      threshold: "2000"   # slots one worker should hold
+```
+
+```promql
+sum(metrics_ActiveSlotsCount_Value{...} and on (instance) metrics_IsDecommissioningWorker_Value{...} == 0)
+```
+
+It uses `metricType: AverageValue`: a count, so KEDA divides it by the replica count and
+compares the result with the per-worker threshold. A draining worker still counts in that
+replica count while its slots are left out of the sum, so the figure reads slightly low during
+a drain.
 
 **Off-heap memory** is the other way a worker takes itself out of service: it stops accepting
 pushes at `celeborn.worker.directMemoryRatioToPauseReceive` (0.85) and replication at 0.95.
@@ -331,17 +361,60 @@ max(metrics_DirectMemoryUsageRatio_Value{...} and on (instance) metrics_IsDecomm
 Also `metricType: Value`. Keep the threshold below 0.85 so capacity arrives before pushes
 pause; the 0.70 default leaves the gap between scaling out and throttling.
 
-Both exclude decommissioning workers. A worker that is draining still holds its disk and its
-slots for as long as it takes, and counting it would have the fleet scale out to replace
-capacity it has not released yet.
+All built-in triggers exclude decommissioning workers. A worker that is draining still holds its
+disk and its slots for as long as it takes, and counting it would have the fleet scale out to
+replace capacity it has not released yet.
 
-Disable either with `diskUsage.enabled: false` / `memoryUsage.enabled: false`, and add your own
-with `worker.autoscaling.triggers`, which are appended to the built-in ones and rendered
-through `tpl` against the zone's context, so `{{ .zone.name }}` resolves per zone.
+Disable any of them with `diskUsage.enabled: false`, `memoryUsage.enabled: false` or
+`activeSlots.enabled: false`, and add your own with `worker.autoscaling.triggers`, which are
+appended to the built-in ones and rendered through `tpl` against the zone's context, so
+`{{ .zone.name }}` resolves per zone.
+
+### Smoothing out spikes
+
+By default the built-in triggers read each gauge's instant value. Off-heap memory in particular
+moves in bursts - a stage's pushes can take a worker close to the pause threshold for seconds -
+and a scale-out on such a spike adds a worker that the paced scale-in then keeps for an hour or
+more. `worker.autoscaling.window` averages every gauge the built-in triggers read over a PromQL
+range instead:
+
+```yaml
+worker:
+  autoscaling:
+    window: 5m
+```
+
+```promql
+max(avg_over_time(metrics_DirectMemoryUsageRatio_Value{...}[5m]) and on (instance) ...)
+```
+
+The window must be a positive PromQL duration, such as `5m` or `1m30s`; anything else fails
+the render. Choose a window of several scrape intervals, so each average covers enough samples. The
+decommission check is not averaged: a worker drops out of the triggers as soon as its drain
+starts. A window delays the reaction to sustained load by up to its own length, which matters
+little next to the time a new worker takes to start.
+
+### Several clusters, one Prometheus
 
 The built-in queries select on `role="Worker"`, the release namespace and the pod names of the
-statefulset they scale, so several Celeborn clusters can share one Prometheus - or one
-namespace - without scaling on each other's workers.
+statefulset they scale, so several Celeborn releases in one Kubernetes cluster can share one
+Prometheus - or one namespace - without scaling on each other's workers.
+
+That selector cannot tell Kubernetes clusters apart. Two clusters running the same release in
+the same namespace produce the same pod names, and a central Prometheus, Mimir or Thanos holding
+both would have each cluster scale on the other's load. Add the label your collector stamps on
+each cluster's series:
+
+```yaml
+worker:
+  autoscaling:
+    extraSelector: cluster="prod"
+```
+
+It is appended to every built-in selector, the decommission check included. It does not touch
+`worker.autoscaling.triggers`; put the same matcher in those yourself.
+
+### Other metrics
 
 Celeborn exports gauges as `metrics_<Name>_Value` and counters as `metrics_<Name>_Count`. Other
 metrics worth scaling on are `ActiveShuffleSize` and `ActiveShuffleFileCount` (data held),
@@ -354,10 +427,12 @@ label says nothing about which release a worker belongs to - but it is there for
 own. `role="Worker"` matters too: masters report the device gauges for whichever volume holds
 the Ratis directory.
 
+### Floors, scaling to zero and the drain
+
 `minReplicaCount` defaults to the statefulset's own replica count, so a zone never scales
 below the size it was deployed at unless you set it explicitly.
 
-Scaling to zero needs a trigger that does not come from the workers. Both built-in queries read
+Scaling to zero needs a trigger that does not come from the workers. The built-in queries read
 metrics the statefulset's own workers emit, so once the last one is gone they return nothing and
 KEDA has no signal to scale back up on. The chart refuses `minReplicaCount: 0` unless
 `worker.autoscaling.triggers` has an entry - a `cron` schedule, or a query on something outside
@@ -373,8 +448,26 @@ usually needs a new node, and it starts with no shuffle data on it, so autoscali
 sustained load changes rather than bursts. Scaling in always removes the highest ordinal,
 which is not necessarily the least busy worker. And while a worker drains, its statefulset
 cannot grow - so a scale-in decided at low load leaves that zone one worker short until the
-drain finishes. Pace scale-in conservatively with `behavior.scaleDown`, and consider
-excluding draining workers from the trigger query.
+drain finishes.
+
+### Pacing scale-in
+
+For that reason, with `worker.drain.enabled` and no `behavior.scaleDown` set, the chart paces
+scale-in as slowly as the HPA allows:
+
+```yaml
+scaleDown:
+  stabilizationWindowSeconds: 3600   # act on the highest recommendation of the past hour
+  policies:
+    - type: Pods
+      value: 1
+      periodSeconds: 1800            # then remove at most one worker per 30 minutes
+```
+
+Both are the HPA's upper limits for those fields. A zone four replicas above its floor takes
+about two and a half hours to reach it. Set `behavior.scaleDown` to replace this; a
+`behavior.scaleUp` of your own leaves it in place. Without the drain the chart adds no default,
+and the HPA's own five-minute scale-down window applies.
 
 ### Helm and the autoscaler both own `replicas`
 
