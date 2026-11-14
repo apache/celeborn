@@ -18,6 +18,7 @@
 package org.apache.celeborn.service.deploy.master.clustermeta;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -50,6 +51,7 @@ import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.metrics.source.NamedGauge;
 import org.apache.celeborn.common.network.CelebornRackResolver;
+import org.apache.celeborn.common.protocol.PbWorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEndpointAddress;
 import org.apache.celeborn.common.rpc.RpcEndpointRef;
@@ -1181,6 +1183,98 @@ public class DefaultMetaSystemSuiteJ {
     assertEquals(1, statusSystem.decommissionWorkers.size());
     assertTrue(statusSystem.excludedWorkers.isEmpty());
     assertEquals(2, statusSystem.availableWorkers.size());
+  }
+
+  @Test
+  public void testWorkerHeartbeatNormalRemovesDecommissionWorker() {
+    statusSystem.handleRegisterWorker(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        INTERNALPORT1,
+        NETWORK_LOCATION1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        INTERNALPORT2,
+        NETWORK_LOCATION2,
+        disks2,
+        userResourceConsumption2,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        INTERNALPORT3,
+        NETWORK_LOCATION3,
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
+    WorkerInfo worker1 = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1);
+    WorkerInfo worker2 = new WorkerInfo(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2);
+    statusSystem.handleReportWorkerDecommission(Arrays.asList(worker1, worker2), getNewReqeustId());
+    assertEquals(2, statusSystem.decommissionWorkers.size());
+    assertEquals(1, statusSystem.availableWorkers.size());
+
+    for (PbWorkerStatus.State state :
+        Arrays.asList(PbWorkerStatus.State.InDecommissionThenIdle, PbWorkerStatus.State.Idle)) {
+      statusSystem.handleWorkerHeartbeat(
+          HOSTNAME1,
+          RPCPORT1,
+          PUSHPORT1,
+          FETCHPORT1,
+          REPLICATEPORT1,
+          disks1,
+          userResourceConsumption1,
+          1,
+          false,
+          new WorkerStatus(state.getNumber(), System.currentTimeMillis()),
+          getNewReqeustId());
+      assertEquals(
+          new HashSet<>(Arrays.asList(worker1, worker2)),
+          new HashSet<>(statusSystem.decommissionWorkers));
+      assertFalse(statusSystem.availableWorkers.contains(worker1));
+    }
+
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceConsumption1,
+        1,
+        false,
+        WorkerStatus.normalWorkerStatus(),
+        getNewReqeustId());
+    assertEquals(Collections.singleton(worker2), new HashSet<>(statusSystem.decommissionWorkers));
+    assertTrue(statusSystem.availableWorkers.contains(worker1));
+    assertEquals(2, statusSystem.availableWorkers.size());
+
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        disks3,
+        userResourceConsumption3,
+        1,
+        false,
+        WorkerStatus.normalWorkerStatus(),
+        getNewReqeustId());
+    assertEquals(Collections.singleton(worker2), new HashSet<>(statusSystem.decommissionWorkers));
   }
 
   @Test

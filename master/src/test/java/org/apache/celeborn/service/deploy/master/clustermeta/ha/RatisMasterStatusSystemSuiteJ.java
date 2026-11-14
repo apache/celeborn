@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -57,6 +58,7 @@ import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBo
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo;
 import org.apache.celeborn.common.network.sasl.registration.RegistrationServerBootstrap;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.protocol.PbWorkerStatus;
 import org.apache.celeborn.common.protocol.WorkerEventType;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcAddress;
@@ -2448,6 +2450,100 @@ public class RatisMasterStatusSystemSuiteJ {
     Assert.assertEquals(2, STATUSSYSTEM1.availableWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM2.availableWorkers.size());
     Assert.assertEquals(2, STATUSSYSTEM3.availableWorkers.size());
+  }
+
+  @Test
+  public void testWorkerHeartbeatNormalRemovesDecommissionWorker()
+      throws InterruptedException, IOException {
+    AbstractMetaManager statusSystem = pickLeaderStatusSystem();
+    Assert.assertNotNull(statusSystem);
+
+    statusSystem.handleRegisterWorker(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        INTERNALPORT1,
+        NETWORK_LOCATION1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        INTERNALPORT2,
+        NETWORK_LOCATION2,
+        disks2,
+        userResourceConsumption2,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        INTERNALPORT3,
+        NETWORK_LOCATION3,
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
+
+    WorkerInfo worker1 = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1);
+    WorkerInfo worker2 = new WorkerInfo(HOSTNAME2, RPCPORT2, PUSHPORT2, FETCHPORT2, REPLICATEPORT2);
+    statusSystem.handleReportWorkerDecommission(Arrays.asList(worker1, worker2), getNewReqeustId());
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceConsumption1,
+        1,
+        false,
+        new WorkerStatus(
+            PbWorkerStatus.State.InDecommissionThenIdle.getNumber(), System.currentTimeMillis()),
+        getNewReqeustId());
+    Thread.sleep(3000L);
+    Set<WorkerInfo> bothWorkers = new HashSet<>(Arrays.asList(worker1, worker2));
+    for (HAMasterMetaManager system : Arrays.asList(STATUSSYSTEM1, STATUSSYSTEM2, STATUSSYSTEM3)) {
+      Assert.assertEquals(bothWorkers, new HashSet<>(system.decommissionWorkers));
+      Assert.assertFalse(system.availableWorkers.contains(worker1));
+    }
+
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceConsumption1,
+        1,
+        false,
+        WorkerStatus.normalWorkerStatus(),
+        getNewReqeustId());
+    Thread.sleep(3000L);
+    for (HAMasterMetaManager system : Arrays.asList(STATUSSYSTEM1, STATUSSYSTEM2, STATUSSYSTEM3)) {
+      Assert.assertEquals(
+          Collections.singleton(worker2), new HashSet<>(system.decommissionWorkers));
+      Assert.assertTrue(system.availableWorkers.contains(worker1));
+    }
+
+    File snapshot = Files.createTempFile("celeborn-meta", ".snapshot").toFile();
+    try {
+      STATUSSYSTEM1.writeMetaInfoToFile(snapshot);
+      HAMasterMetaManager restored = new HAMasterMetaManager(mockRpcEnv, new CelebornConf());
+      restored.restoreMetaFromFile(snapshot);
+      Assert.assertEquals(
+          Collections.singleton(worker2), new HashSet<>(restored.decommissionWorkers));
+    } finally {
+      snapshot.delete();
+    }
   }
 
   @Test
