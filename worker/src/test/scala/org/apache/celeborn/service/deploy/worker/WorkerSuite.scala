@@ -419,4 +419,23 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
       mockedMasterClient.close()
     }
   }
+
+  test("a rejected decommission does not change an accepted exit's shutdown hook timeout") {
+    val tmpFile =
+      Files.createTempDirectory(Paths.get("/tmp"), "celeborn" + System.currentTimeMillis())
+    conf.set(CelebornConf.WORKER_STORAGE_DIRS.key, tmpFile.toString)
+    worker = new Worker(conf, workerArgs)
+    val timeouts = new util.ArrayList[Long]()
+    var exits = 0
+    worker.workerStatusManager.updateShutdownHookTimeout = t => timeouts.add(t)
+    worker.workerStatusManager.systemExitAction = () => exits += 1
+
+    worker.exit("GRACEFUL")
+    worker.exit("DECOMMISSION")
+
+    assert(worker.workerStatusManager.getWorkerState() == PbWorkerStatus.State.InGraceFul)
+    assert(worker.workerStatusManager.exitEventType == WorkerEventType.Graceful)
+    assert(timeouts.isEmpty)
+    assert(exits == 1)
+  }
 }
