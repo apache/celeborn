@@ -62,3 +62,15 @@ tests:
       - equal:
           path: spec.publishNotReadyAddresses
           value: true
+
+  - it: Should publish not-ready addresses when a worker readiness probe is set
+    set:
+      worker:
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: metrics
+    asserts:
+      - equal:
+          path: spec.publishNotReadyAddresses
+          value: true
