@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import com.google.common.collect.{Maps, Sets}
 import org.junit.Assert
+import org.mockito.ArgumentMatchers.any
 import org.mockito.MockitoSugar._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -91,24 +92,23 @@ class WorkerStatusManagerSuite extends AnyFunSuite {
       0,
       Maps.newHashMap(),
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]))
-    val statusManager = new WorkerStatusManager(conf)
-    statusManager.init(worker)
-    val timeouts = new java.util.ArrayList[Long]()
     var exits = 0
-    statusManager.updateShutdownHookTimeout = t => timeouts.add(t)
-    statusManager.systemExitAction = () => exits += 1
+    val statusManager = new WorkerStatusManager(conf) {
+      override protected def startExitThread(): Unit = exits += 1
+    }
+    statusManager.init(worker)
 
     statusManager.doTransition(WorkerEventType.Decommission)
     Assert.assertEquals(PbWorkerStatus.State.InDecommission, statusManager.getWorkerState())
     Assert.assertEquals(WorkerEventType.Decommission, statusManager.exitEventType)
-    Assert.assertEquals(java.util.Arrays.asList(conf.workerDecommissionForceExitTimeout), timeouts)
+    verify(worker, times(1)).configureDecommissionTimeout(None)
     Assert.assertEquals(1, exits)
 
     statusManager.doTransition(WorkerEventType.Graceful)
-    statusManager.doTransition(WorkerEventType.Decommission)
+    statusManager.doTransition(WorkerEventType.Decommission, Some(5000L))
     Assert.assertEquals(PbWorkerStatus.State.InDecommission, statusManager.getWorkerState())
     Assert.assertEquals(WorkerEventType.Decommission, statusManager.exitEventType)
-    Assert.assertEquals(1, timeouts.size())
+    verify(worker, times(1)).configureDecommissionTimeout(any[Option[Long]]())
     Assert.assertEquals(1, exits)
   }
 }

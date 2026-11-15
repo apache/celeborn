@@ -18,7 +18,6 @@
 package org.apache.celeborn.service.deploy.worker
 
 import java.util
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.immutable.HashSet
@@ -30,7 +29,7 @@ import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.WorkerStatus
 import org.apache.celeborn.common.protocol.PbWorkerStatus.State
 import org.apache.celeborn.common.protocol.WorkerEventType
-import org.apache.celeborn.common.util.{ShutdownHookManager, ThreadUtils}
+import org.apache.celeborn.common.util.ThreadUtils
 import org.apache.celeborn.service.deploy.worker.storage.StorageManager
 
 private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging {
@@ -77,7 +76,11 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
     storageManager = worker.storageManager
   }
 
-  def doTransition(eventType: WorkerEventType): Unit = this.synchronized {
+  def doTransition(eventType: WorkerEventType): Unit = doTransition(eventType, None)
+
+  def doTransition(
+      eventType: WorkerEventType,
+      decommissionTimeoutMs: Option[Long]): Unit = this.synchronized {
     if (inExitStatus()) {
       logDebug(s"Worker receive event: $eventType, but in exit State: ${getWorkerState()} ")
     } else {
@@ -91,7 +94,7 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
             if currentState == State.InDecommissionThenIdle || currentState == State.Idle =>
           recommissionWorker()
         case WorkerEventType.Graceful | WorkerEventType.Immediately | WorkerEventType.Decommission =>
-          exit(eventType)
+          exit(eventType, decommissionTimeoutMs)
         case _ =>
           logDebug(s"Worker receive event: $eventType, and has nothing to do ")
       }
@@ -106,7 +109,7 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
     }
   }
 
-  private def exit(eventType: WorkerEventType): Unit = {
+  private def exit(eventType: WorkerEventType, decommissionTimeoutMs: Option[Long]): Unit = {
     val targetState = eventType match {
       case WorkerEventType.Immediately => State.InExit
       case WorkerEventType.Graceful => State.InGraceFul
@@ -117,18 +120,15 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
     if (transitionState(targetState)) {
       exitEventType = eventType
       if (eventType == WorkerEventType.Decommission) {
-        updateShutdownHookTimeout(conf.workerDecommissionForceExitTimeout)
+        worker.configureDecommissionTimeout(decommissionTimeoutMs)
       }
-      systemExitAction()
+      startExitThread()
     }
   }
 
-  @volatile private[worker] var updateShutdownHookTimeout: Long => Unit = timeoutMs =>
-    ShutdownHookManager.get().updateTimeout(timeoutMs, TimeUnit.MILLISECONDS)
-
-  // Compatible with current exit logic
-  // trigger shutdown hook to exit. Tests replace it to avoid a real System.exit.
-  @volatile private[worker] var systemExitAction: () => Unit = () =>
+  protected def startExitThread(): Unit = {
+    // Compatible with current exit logic
+    // trigger shutdown hook to exit
     ThreadUtils.newThread(
       new Runnable {
         override def run(): Unit = {
@@ -137,6 +137,7 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
         }
       },
       "worker-exit-thread").start()
+  }
 
   def transitionState(state: State): Boolean = this.synchronized {
     val allowStates = transitionStateMap.get(currentWorkerStatus.getState)
