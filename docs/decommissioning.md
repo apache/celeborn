@@ -111,9 +111,9 @@ Things to know:
 
 ### File-based checker
 
-Celeborn ships `FileDecommissionSignalChecker`, which signals once a file exists. For example, a
-spot-notice agent can run `touch /var/run/celeborn/decommission`, with this in
-`celeborn-defaults.conf`:
+Celeborn ships `FileDecommissionSignalChecker`, which signals once the file at
+`celeborn.worker.decommission.signal.file.path` exists. For example, with this in
+`celeborn-defaults.conf`, a spot-notice agent can run `touch /var/run/celeborn/decommission`:
 
 ```properties
 celeborn.worker.decommission.signal.checker org.apache.celeborn.service.deploy.worker.decommission.FileDecommissionSignalChecker
@@ -121,19 +121,32 @@ celeborn.worker.decommission.signal.file.path /var/run/celeborn/decommission
 celeborn.worker.decommission.signal.checkInterval 10s
 ```
 
+Whatever creates the file must be able to write to that directory, and the worker must be able to
+see the file there. The default image runs as the non-root `celeborn` user and doesn't create
+`/var/run/celeborn`, so on Kubernetes mount a writable volume there, such as an `emptyDir`. If a
+sidecar creates the file, mount the same volume in the sidecar too.
+
 On Kubernetes, a `preStop` hook that only touches the file is not enough. Kubernetes sends
 SIGTERM as soon as the hook returns, usually before the next poll, and the worker then shuts down
 without decommissioning. The hook must touch the file and then wait until the worker reports
 `InDecommission`. The worker's `GET /api/v1/workers` REST API returns its state in the
 `workerState` field. Sleeping for longer than the check interval also works if `curl` isn't
-available.
+available. If the hook can't create the file, it exits right away instead of waiting out the
+grace period.
 
 ```yaml
 spec:
   # Longer than celeborn.worker.decommission.forceExitTimeout (6h by default) plus preStop time.
   terminationGracePeriodSeconds: 22200
+  volumes:
+    - name: decommission-signal
+      emptyDir: {}
   containers:
     - name: celeborn-worker
+      volumeMounts:
+        # Parent directory of celeborn.worker.decommission.signal.file.path.
+        - name: decommission-signal
+          mountPath: /var/run/celeborn
       lifecycle:
         preStop:
           exec:
@@ -141,7 +154,9 @@ spec:
               - /bin/sh
               - -c
               - |
-                touch /var/run/celeborn/decommission
+                # Must match celeborn.worker.decommission.signal.file.path.
+                SIGNAL_FILE=/var/run/celeborn/decommission
+                touch "$SIGNAL_FILE" || exit 1
                 until curl -s http://localhost:9096/api/v1/workers | grep -Eq '"workerState" *: *"InDecommission"'
                 do
                   sleep 1
