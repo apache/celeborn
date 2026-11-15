@@ -31,6 +31,7 @@ import org.apache.hadoop.fs.{FileSystem, FSDataOutputStream}
 
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.AlreadyClosedException
+import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.meta.{DiskFileInfo, FileInfo, MemoryFileInfo}
 import org.apache.celeborn.common.metrics.source.AbstractSource
@@ -53,7 +54,8 @@ abstract class TierWriterBase(
     val storageType: StorageInfo.Type,
     val filename: String,
     val shuffleKey: String,
-    val storageManager: StorageManager) extends Logging {
+    val storageManager: StorageManager,
+    userIdentifier: UserIdentifier) extends Logging {
   val metricsCollectCriticalEnabled: Boolean = conf.metricsCollectCriticalEnabled
   private val WAIT_INTERVAL_MS = 5
 
@@ -67,6 +69,14 @@ abstract class TierWriterBase(
   @volatile private var destroyed: Boolean = false
   @volatile var committed: Boolean = false
 
+  // Every tier reports its pushed bytes here so congestion control sees all incoming data,
+  // whether it lands in memory, on local disk, or in HDFS/S3/OSS.
+  private val userCongestionControlContext: UserCongestionControlContext =
+    if (CongestionController.instance != null)
+      CongestionController.instance.getUserCongestionContext(userIdentifier)
+    else
+      null
+
   takeBuffer()
 
   def write(buf: ByteBuf): Unit = {
@@ -79,6 +89,8 @@ abstract class TierWriterBase(
     flushLock.synchronized {
       metaHandler.beforeWrite(buf)
       ensureNotClosed()
+      if (userCongestionControlContext != null)
+        userCongestionControlContext.updateProduceBytes(buf.readableBytes())
       writeInternal(buf)
     }
 
@@ -322,7 +334,8 @@ class MemoryTierWriter(
     storageType,
     partitionDataWriterContext.getPartitionLocation.getFileName,
     partitionDataWriterContext.getShuffleKey,
-    storageManager) {
+    storageManager,
+    partitionDataWriterContext.getUserIdentifier) {
   assert(storageType == StorageInfo.Type.MEMORY)
   val memoryFileStorageMaxFileSize: Long = conf.workerMemoryFileStorageMaxFileSize
 
@@ -427,16 +440,11 @@ class LocalTierWriter(
     storageType,
     partitionDataWriterContext.getPartitionLocation.getFileName,
     partitionDataWriterContext.getShuffleKey,
-    storageManager) {
+    storageManager,
+    partitionDataWriterContext.getUserIdentifier) {
   assert(storageType == StorageInfo.Type.HDD || storageType == StorageInfo.Type.SSD)
   flusherBufferSize = conf.workerFlusherBufferSize
   private val flushWorkerIndex: Int = flusher.getWorkerIndex
-  val userCongestionControlContext: UserCongestionControlContext =
-    if (CongestionController.instance != null)
-      CongestionController.instance.getUserCongestionContext(
-        partitionDataWriterContext.getUserIdentifier)
-    else
-      null
   storageManager.registerDiskFilePartitionWriter(
     partitionDataWriterContext.getPartitionDataWriter,
     partitionDataWriterContext.getWorkingDir,
@@ -459,8 +467,6 @@ class LocalTierWriter(
 
   override def writeInternal(buf: ByteBuf): Unit = {
     val numBytes = buf.readableBytes()
-    if (userCongestionControlContext != null)
-      userCongestionControlContext.updateProduceBytes(numBytes)
     val flushBufferReadableBytes = flushBuffer.readableBytes
     if (flushBufferReadableBytes != 0 && flushBufferReadableBytes + numBytes >= flusherBufferSize) {
       flush(false)
@@ -559,7 +565,8 @@ class DfsTierWriter(
     storageType,
     partitionDataWriterContext.getPartitionLocation.getFileName,
     partitionDataWriterContext.getShuffleKey,
-    storageManager) {
+    storageManager,
+    partitionDataWriterContext.getUserIdentifier) {
   assert(
     storageType == StorageInfo.Type.HDFS || storageType == StorageInfo.Type.OSS || storageType == StorageInfo.Type.S3)
   flusherBufferSize = conf.workerHdfsFlusherBufferSize

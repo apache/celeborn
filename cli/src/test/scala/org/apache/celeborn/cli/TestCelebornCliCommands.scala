@@ -138,6 +138,23 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     captureOutputAndValidateResponse(args, "true")
   }
 
+  test("worker --exit with --exit-timeout") {
+    val args = Array(
+      "worker",
+      "--hostport",
+      "localhost:1",
+      "--exit",
+      "DECOMMISSION",
+      "--exit-timeout",
+      "30m")
+    captureOutputAndValidateResponse(args, "Sending worker exit type: DECOMMISSION, timeout: 30m")
+  }
+
+  test("worker --exit-timeout without --exit is rejected") {
+    val args = prepareWorkerArgs() ++ Array("--exit-timeout", "30m")
+    captureErrorAndValidateResponse(args, "Missing required argument(s): --exit=exit_type")
+  }
+
   test("worker --show-conf") {
     val args = prepareWorkerArgs() :+ "--show-conf"
     captureOutputAndValidateResponse(args, "ConfResponse")

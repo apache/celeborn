@@ -42,6 +42,7 @@ import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.util.Utils
 import org.apache.celeborn.service.deploy.worker.WorkerSource
+import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 
 class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndAfterEach {
@@ -738,6 +739,51 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
     withDfsTierWriter(failOn = Utils.SUFFIX_HDFS_WRITE_SUCCESS) { (dfsTierWriter, fileInfo, fs) =>
       assert(dfsTierWriter.close() === 1024)
       assert(fs.exists(fileInfo.getDfsIndexPath))
+    }
+  }
+
+  test("every storage tier reports pushed bytes to congestion control") {
+    val conf = new CelebornConf()
+    val congestionController =
+      CongestionController.initialize(new WorkerSource(conf), 60, conf, null)
+    try {
+      val user = UserIdentifier("`aa`.`bb`")
+      def userBytes: Long =
+        congestionController.getUserBuffer(user).getBufferStatusHub.sum().getKey.numBytes()
+      def workerBytes: Long =
+        congestionController.getProducedBufferStatusHub.sum().getKey.numBytes()
+      def push(writer: TierWriterBase): Unit = {
+        val buf = WriterUtils.generateSparkFormatData(UnpooledByteBufAllocator.DEFAULT, 0)
+        writer.numPendingWrites.incrementAndGet()
+        writer.write(buf)
+        buf.release()
+      }
+
+      // Memory tier: 81 pushes of 1 KiB.
+      val memoryTierWriter = prepareMemoryWriter
+      (1 to 81).foreach(_ => push(memoryTierWriter))
+      assert(userBytes === 81 * 1024)
+      assert(workerBytes === 81 * 1024)
+
+      // Moving the memory file to disk must not count the same bytes again.
+      val localTierWriter = prepareLocalTierWriter(false)
+      assert(memoryTierWriter.needEvict())
+      memoryTierWriter.evict(localTierWriter)
+      assert(userBytes === 81 * 1024)
+
+      // Local disk tier: one more push.
+      push(localTierWriter)
+      assert(userBytes === 82 * 1024)
+      localTierWriter.close()
+
+      // DFS tier (HDFS/S3/OSS): the helper pushes 1 KiB.
+      withDfsTierWriter() { (dfsTierWriter, _, _) =>
+        assert(userBytes === 83 * 1024)
+        assert(workerBytes === 83 * 1024)
+        dfsTierWriter.close()
+      }
+    } finally {
+      CongestionController.destroy()
     }
   }
 }

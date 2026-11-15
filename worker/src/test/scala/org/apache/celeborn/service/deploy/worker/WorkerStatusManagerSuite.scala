@@ -92,19 +92,21 @@ class WorkerStatusManagerSuite extends AnyFunSuite {
       0,
       Maps.newHashMap(),
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]))
-    val statusManager = new WorkerStatusManager(conf)
+    val statusManager = new NoExitWorkerStatusManager(conf)
     statusManager.init(worker)
-    statusManager.systemExitAction = () => ()
 
     statusManager.doTransition(WorkerEventType.Graceful)
     Assert.assertFalse(shutdown.get())
 
-    val decommissioning = new WorkerStatusManager(conf)
+    val decommissioning = new NoExitWorkerStatusManager(conf)
     decommissioning.init(worker)
-    decommissioning.systemExitAction = () => ()
     decommissioning.doTransition(WorkerEventType.Decommission)
     Assert.assertEquals(PbWorkerStatus.State.InDecommission, decommissioning.getWorkerState())
     Assert.assertTrue(shutdown.get())
     verify(worker, timeout(5000).times(1)).sendWorkerDecommissionToMaster()
   }
+}
+
+private class NoExitWorkerStatusManager(conf: CelebornConf) extends WorkerStatusManager(conf) {
+  override protected def startExitThread(): Unit = {}
 }
