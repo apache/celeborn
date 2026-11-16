@@ -269,7 +269,7 @@ These metrics are exposed by Celeborn worker.
     | AvailableReadBuffer                    | The available memory for credit stream read buffer.                                                             |
     | ReadBufferUsageRatio                   | Ratio of credit stream read buffer used and max direct memory.                                                  |
     | ActiveCreditStreamCount                | Active stream count for map partition reading streams.                                                          |
-    | ActiveMapPartitionCount                | The number of map partition files currently managed for reading by the credit stream manager.                   |
+    | ActiveMapPartitionCount                | The number of map partition files managed for reading.                                                          |
     | SorterCacheHitRate                     | The cache hit rate for worker partition sorter index.                                                           |
     | CleanTaskQueueSize                     | The count of task for cleaning up expired shuffle keys.                                                         |
     | CleanExpiredShuffleKeysTime            | The time for a worker to clean up shuffle data of expired shuffle keys.                                         |
