@@ -27,7 +27,7 @@ import org.scalatest.concurrent.Futures.{interval, timeout}
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.CelebornConf.{WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE, WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE}
+import org.apache.celeborn.common.CelebornConf.{WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE, WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER, WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE, WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE, WORKER_DIRECT_MEMORY_RATIO_RESUME}
 import org.apache.celeborn.common.protocol.TransportModuleConstants
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.{MemoryPressureListener, ServingState}
@@ -50,6 +50,19 @@ class MemoryManagerSuite extends CelebornFunSuite {
     assert(
       caught.getMessage == s"Invalid config, ${WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE.key}(0.85) " +
         s"should be greater than ${WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE.key}(0.95)")
+  }
+
+  test("Init MemoryManager with too large memory file storage ratio") {
+    // resume (0.7) must be greater than read buffer (0.35) + memory file storage (0.5)
+    val conf = new CelebornConf().set(WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE, 0.5)
+    val caught =
+      intercept[IllegalArgumentException] {
+        MemoryManager.initialize(conf)
+      }
+    assert(
+      caught.getMessage == s"Invalid config, ${WORKER_DIRECT_MEMORY_RATIO_RESUME.key}(0.7) " +
+        s"should be greater than ${WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER.key}(0.35) + " +
+        s"${WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE.key}(0.5)")
   }
 
   test("[CELEBORN-888] Test MemoryManager#currentServingState trigger case") {

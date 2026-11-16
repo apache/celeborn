@@ -73,6 +73,9 @@ metadata:
     {{- include "celeborn.worker.labels" . | nindent 4 }}
 spec:
   replicas: {{ include "celeborn.worker.replicas" . }}
+  {{- with .Values.worker.podManagementPolicy }}
+  podManagementPolicy: {{ . }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "celeborn.worker.selectorLabels" . | nindent 6 }}
@@ -218,6 +221,18 @@ spec:
         {{- end }}
         {{- with .Values.worker.volumeMounts }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.worker.startupProbe }}
+        startupProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.worker.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.worker.readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 10 }}
         {{- end }}
         {{- if $drain }}
         {{- /* The drain logic lives in files/worker-drain.sh, shipped in the config map. */}}

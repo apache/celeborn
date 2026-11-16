@@ -18,25 +18,38 @@
 package org.apache.spark.shuffle.celeborn
 
 import java.io.IOException
+import java.lang.{Long => JLong}
 import java.nio.file.Files
+import java.util
 import java.util.HashSet
-import java.util.concurrent.{CountDownLatch, TimeoutException, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, CopyOnWriteArrayList, CountDownLatch, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 
-import org.apache.spark.{Dependency, ShuffleDependency, TaskContext}
+import scala.collection.JavaConverters._
+
+import org.apache.spark.{Dependency, ShuffleDependency, SparkConf, TaskContext}
 import org.apache.spark.celeborn.ExceptionMakerHelper
+import org.apache.spark.executor.TaskMetrics
+import org.apache.spark.serializer.JavaSerializer
 import org.apache.spark.shuffle.ShuffleReadMetricsReporter
-import org.mockito.ArgumentMatchers.any
+import org.mockito.Answers
+import org.mockito.ArgumentMatchers.{any, anyInt, anyString}
 import org.mockito.Mockito
 import org.mockito.Mockito._
+import org.mockito.invocation.InvocationOnMock
+import org.mockito.stubbing.Answer
 import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.client.{DummyShuffleClient, ShuffleClient}
+import org.apache.celeborn.client.{DummyShuffleClient, ShuffleClient, ShuffleClientImpl}
+import org.apache.celeborn.client.read.CelebornInputStream
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornIOException
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.network.client.TransportClient
-import org.apache.celeborn.common.protocol.PartitionLocation
+import org.apache.celeborn.common.network.client.{TransportClient, TransportClientFactory}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PbGetShuffleId, PbGetShuffleIdResponse, PbGetStageEnd, PbGetStageEndResponse, PbReportShuffleFetchFailure, PbReportShuffleFetchFailureResponse}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{GetReducerFileGroup, GetReducerFileGroupResponse}
+import org.apache.celeborn.common.protocol.message.StatusCode
+import org.apache.celeborn.common.rpc.RpcEndpointRef
 import org.apache.celeborn.common.util.ThreadUtils
 
 class CelebornShuffleReaderSuite extends AnyFunSuite {
@@ -353,6 +366,197 @@ class CelebornShuffleReaderSuite extends AnyFunSuite {
       streamCreatorPool.shutdownNow()
       caller.interrupt()
       caller.join(TimeUnit.SECONDS.toMillis(5))
+    }
+  }
+
+  test("open the stream on the peer of a fetch-excluded worker") {
+    val primary = newLocation(0, "worker-0", 19098)
+    val replica =
+      new PartitionLocation(0, 0, "worker-1", 0, 0, 19098, 0, PartitionLocation.Mode.REPLICA)
+    primary.setPeer(replica)
+    replica.setPeer(primary)
+    val excludedWorkers = new ConcurrentHashMap[String, JLong]()
+    val shouldSkip = (location: PartitionLocation) =>
+      CelebornInputStream.isExcluded(excludedWorkers, TimeUnit.MINUTES.toMillis(10), location)
+
+    // Nothing excluded: the primary, or the replica for a task attempt that prefers it.
+    assert(CelebornShuffleReader.chooseReadLocation(primary, false, shouldSkip) eq primary)
+    assert(CelebornShuffleReader.chooseReadLocation(primary, true, shouldSkip) eq replica)
+
+    excludedWorkers.put(primary.hostAndFetchPort, System.currentTimeMillis())
+    assert(CelebornShuffleReader.chooseReadLocation(primary, false, shouldSkip) eq replica)
+    assert(CelebornShuffleReader.chooseReadLocation(primary, true, shouldSkip) eq replica)
+
+    excludedWorkers.clear()
+    excludedWorkers.put(replica.hostAndFetchPort, System.currentTimeMillis())
+    assert(CelebornShuffleReader.chooseReadLocation(primary, false, shouldSkip) eq primary)
+    assert(CelebornShuffleReader.chooseReadLocation(primary, true, shouldSkip) eq primary)
+
+    // Both excluded: keep the one excluded earlier, as CelebornInputStream does.
+    excludedWorkers.put(primary.hostAndFetchPort, System.currentTimeMillis() - 1000)
+    assert(CelebornShuffleReader.chooseReadLocation(primary, false, shouldSkip) eq primary)
+    assert(CelebornShuffleReader.chooseReadLocation(primary, true, shouldSkip) eq primary)
+
+    // Without a peer there is nothing to switch to.
+    val single = newLocation(1, "worker-0", 19098)
+    assert(CelebornShuffleReader.chooseReadLocation(single, false, shouldSkip) eq single)
+  }
+
+  test("select read locations for a partition") {
+    val primary = newLocation(0, "worker-0", 19098)
+    val replica =
+      new PartitionLocation(0, 0, "worker-1", 0, 0, 19098, 0, PartitionLocation.Mode.REPLICA)
+    primary.setPeer(replica)
+    replica.setPeer(primary)
+    val originLocations: util.Set[PartitionLocation] = new HashSet[PartitionLocation]()
+    originLocations.add(primary)
+
+    def select(
+        client: ShuffleClient,
+        pushReplicateEnabled: Boolean = true,
+        splitSkewPartitionWithoutMapRange: Boolean = false,
+        preferReplicaRead: Boolean = false): util.Set[PartitionLocation] =
+      CelebornShuffleReader.selectReadLocations(
+        originLocations,
+        pushReplicateEnabled,
+        splitSkewPartitionWithoutMapRange,
+        preferReplicaRead,
+        client)
+
+    // Nothing excluded: the per-location lookup is skipped altogether.
+    val noneExcluded = mock(classOf[ShuffleClient])
+    assert(select(noneExcluded) eq originLocations)
+    verify(noneExcluded, never()).shouldSkipFetchLocation(any[PartitionLocation]())
+    assert(select(noneExcluded, preferReplicaRead = true).asScala.toSet == Set(replica))
+
+    val primaryExcluded = mock(classOf[ShuffleClient])
+    when(primaryExcluded.hasFetchExcludedWorkers).thenReturn(true)
+    when(primaryExcluded.shouldSkipFetchLocation(primary)).thenReturn(true)
+    assert(select(primaryExcluded).asScala.toSet == Set(replica))
+    assert(select(primaryExcluded, pushReplicateEnabled = false) eq originLocations)
+    // Skew partitions read without a map range keep their locations (CELEBORN-2032).
+    assert(select(primaryExcluded, splitSkewPartitionWithoutMapRange = true) eq originLocations)
+    assert(select(
+      primaryExcluded,
+      splitSkewPartitionWithoutMapRange = true,
+      preferReplicaRead = true) eq originLocations)
+  }
+
+  test("batch open stream connects to the peer of a fetch-excluded worker") {
+    val shuffleId = 3
+    val partitionId = 0
+    val primary =
+      new PartitionLocation(
+        partitionId,
+        0,
+        "worker-0",
+        0,
+        0,
+        19098,
+        0,
+        PartitionLocation.Mode.PRIMARY)
+    val replica =
+      new PartitionLocation(
+        partitionId,
+        0,
+        "worker-1",
+        0,
+        0,
+        19098,
+        0,
+        PartitionLocation.Mode.REPLICA)
+    primary.setPeer(replica)
+    replica.setPeer(primary)
+    val fileGroups = new util.HashMap[Integer, util.Set[PartitionLocation]]()
+    fileGroups.put(partitionId, util.Collections.singleton(primary))
+    val conf = new CelebornConf()
+      .set(CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key, "true")
+      .set(CelebornConf.CLIENT_FETCH_EXCLUDE_WORKER_ON_FAILURE_ENABLED.key, "true")
+      .set(CelebornConf.CLIENT_FETCH_MAX_RETRIES_FOR_EACH_REPLICA.key, "1")
+      .set("celeborn.data.io.retryWait", "0ms")
+
+    // Every worker connection fails, so the read ends with an error; what matters is which worker
+    // the batch open stream connects to first.
+    val connectedHosts = new CopyOnWriteArrayList[String]()
+    val workerFactory = mock(classOf[TransportClientFactory])
+    when(workerFactory.createClient(anyString(), anyInt())).thenAnswer(new Answer[TransportClient] {
+      override def answer(invocation: InvocationOnMock): TransportClient = {
+        connectedHosts.add(invocation.getArgument[String](0))
+        throw new IOException("Connection refused")
+      }
+    })
+    val endpoint = mock(
+      classOf[RpcEndpointRef],
+      new Answer[AnyRef] {
+        override def answer(invocation: InvocationOnMock): AnyRef = {
+          if (invocation.getMethod.getName != "askSync") {
+            Answers.RETURNS_DEFAULTS.answer(invocation)
+          } else {
+            invocation.getArgument[AnyRef](0) match {
+              case _: GetReducerFileGroup =>
+                GetReducerFileGroupResponse(StatusCode.SUCCESS, fileGroups, Array(0))
+              case _: PbGetShuffleId =>
+                PbGetShuffleIdResponse.newBuilder().setShuffleId(shuffleId).setSuccess(true).build()
+              case _: PbReportShuffleFetchFailure =>
+                PbReportShuffleFetchFailureResponse.newBuilder().setSuccess(true).build()
+              case _: PbGetStageEnd =>
+                PbGetStageEndResponse.newBuilder().setStageEnd(true).build()
+              case other => throw new AssertionError(s"Unexpected RPC: $other")
+            }
+          }
+        }
+      })
+    val client = new ShuffleClientImpl("excluded-peer-test", conf, UserIdentifier("test", "test")) {
+      // Replace the factory itself, so that both the batch open stream and the partition read
+      // use the mock and no real worker connection is attempted.
+      dataClientFactory.close()
+      dataClientFactory = workerFactory
+    }
+    client.setupLifecycleManagerRef(endpoint)
+    client.excludeFailedFetchLocation(
+      primary.hostAndFetchPort,
+      new CelebornIOException("Connecting to worker-0:19098 timed out (10000 ms)"))
+
+    val dependency = mock(classOf[ShuffleDependency[Int, Int, Int]])
+    when(dependency.serializer).thenReturn(new JavaSerializer(new SparkConf(false)))
+    when(dependency.keyOrdering).thenReturn(None)
+    when(dependency.aggregator).thenReturn(None)
+    val handle = new CelebornShuffleHandle[Int, Int, Int](
+      "excluded-peer-test",
+      "localhost",
+      0,
+      UserIdentifier("test", "test"),
+      shuffleId,
+      false,
+      1,
+      dependency)
+    val context = mock(classOf[TaskContext])
+    when(context.taskMetrics()).thenReturn(TaskMetrics.empty)
+    try {
+      val factory = mockStatic(classOf[ShuffleClient])
+      val reader =
+        try {
+          factory.when(() => ShuffleClient.get(any(), any(), any(), any(), any(), any(), any()))
+            .thenReturn(client)
+          new CelebornShuffleReader[Int, Int](
+            handle,
+            partitionId,
+            partitionId + 1,
+            0,
+            Int.MaxValue,
+            context,
+            conf,
+            mock(classOf[ShuffleReadMetricsReporter]),
+            new ExecutorShuffleIdTracker())
+        } finally {
+          factory.close()
+        }
+
+      intercept[Exception](reader.read().foreach(_ => ()))
+      assert(!connectedHosts.isEmpty)
+      assert(connectedHosts.get(0) === replica.getHost)
+    } finally {
+      client.shutdown()
     }
   }
 

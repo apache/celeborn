@@ -79,13 +79,17 @@ class ApiWorkerResource extends ApiRequestContext {
 
   @Path("/exit")
   @Operation(description =
-    "Trigger this worker to exit. Legal types are 'Decommission', 'Graceful' and 'Immediately'.")
+    "Trigger this worker to exit. Legal types are 'Decommission', 'Graceful' and 'Immediately'. " +
+      "Optional 'timeout' (e.g. 600s/30m/1h) overrides the decommission forceExitTimeout " +
+      "for this single decommission; ignored for non-Decommission types.")
   @ApiResponse(
     responseCode = "200",
     content = Array(new Content(
       mediaType = MediaType.APPLICATION_FORM_URLENCODED)))
   @POST
-  def exit(@FormParam("type") exitType: String): String = {
-    httpService.exit(normalizeParam(exitType))
+  def exit(
+      @FormParam("type") exitType: String,
+      @FormParam("timeout") timeout: String): String = {
+    httpService.exit(normalizeParam(exitType), normalizeParam(timeout))
   }
 }
