@@ -498,7 +498,7 @@ class ChangePartitionManager(
         s"shuffle $shuffleId, succeed partitions: " +
         s"$changes.")
     }
-
+    lifecycleManager.reportPartitionRevives(shuffleId, changePartitions)
     if (adaptivePartitionWriteParallelismEnabled) {
       registerReservedEpochs(shuffleId, newlyAllocatedLocations)
       replySuccessActiveSet()

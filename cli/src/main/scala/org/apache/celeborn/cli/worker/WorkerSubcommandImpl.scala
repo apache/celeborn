@@ -34,7 +34,7 @@ class WorkerSubcommandImpl extends WorkerSubcommand {
     if (workerOptions.isShutdown) log(runIsShutdown)
     if (workerOptions.isDecommissioning) log(runIsDecommissioning)
     if (workerOptions.isRegistered) log(runIsRegistered)
-    if (workerOptions.exitType != null && workerOptions.exitType.nonEmpty) log(runExit)
+    if (workerOptions.exitOptions != null) log(runExit)
     if (workerOptions.showConf) log(runShowConf)
     if (workerOptions.showContainerInfo) log(runShowContainerInfo)
     if (workerOptions.showDynamicConf) log(runShowDynamicConf)
@@ -67,9 +67,17 @@ class WorkerSubcommandImpl extends WorkerSubcommand {
   private[worker] def runIsRegistered: Boolean = runShowWorkerInfo.getIsRegistered
 
   private[worker] def runExit: HandleResponse = {
-    val workerExitType: TypeEnum = TypeEnum.valueOf(workerOptions.exitType)
-    val workerExitRequest: WorkerExitRequest = new WorkerExitRequest().`type`(workerExitType)
-    logInfo(s"Sending worker exit type: ${workerExitType.getValue}")
+    val exitOptions = workerOptions.exitOptions
+    val workerExitType: TypeEnum = TypeEnum.valueOf(exitOptions.exitType)
+    val workerExitRequest: WorkerExitRequest =
+      new WorkerExitRequest().`type`(workerExitType)
+    if (exitOptions.exitTimeout != null) {
+      workerExitRequest.timeout(exitOptions.exitTimeout)
+      logInfo(s"Sending worker exit type: ${workerExitType.getValue}, " +
+        s"timeout: ${exitOptions.exitTimeout}")
+    } else {
+      logInfo(s"Sending worker exit type: ${workerExitType.getValue}")
+    }
     workerApi.workerExit(workerExitRequest, commonOptions.getAuthHeader)
   }
 
