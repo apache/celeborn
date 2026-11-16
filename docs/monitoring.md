@@ -294,14 +294,14 @@ These metrics are exposed by Celeborn worker.
     | DirectMemoryUsageRatio                 | Ratio of direct memory used and max direct memory.                                                              |
     | RegisterWithMasterFailCount            | The count of failures in register with master request.                                                          |
     | FlushWorkingQueueSize                  | The size of flush working queue for mount point.                                                                |
-    | LocalFlushCount                        | The amount of data flushed to local.                                                                            |
-    | LocalFlushSize                         | The size of data flushed to local.                                                                              |
-    | HdfsFlushCount                         | The amount of data flushed to HDFS.                                                                             |
-    | HdfsFlushSize                          | The size of data flushed to HDFS.                                                                               |
-    | OssFlushCount                          | The amount of data flushed to OSS.                                                                              |
-    | OssFlushSize                           | The size of data flushed to OSS.                                                                                |
-    | S3FlushCount                           | The amount of data flushed to S3.                                                                               |
-    | S3FlushSize                            | The size of data flushed to S3.                                                                                 |
+    | LocalFlushCount                        | The number of flushes to local storage.                                                                         |
+    | LocalFlushSize                         | The number of bytes flushed to local storage.                                                                   |
+    | HdfsFlushCount                         | The number of flushes to HDFS.                                                                                  |
+    | HdfsFlushSize                          | The number of bytes flushed to HDFS.                                                                            |
+    | OssFlushCount                          | The number of flushes to OSS.                                                                                   |
+    | OssFlushSize                           | The number of bytes flushed to OSS.                                                                             |
+    | S3FlushCount                           | The number of flushes to S3.                                                                                    |
+    | S3FlushSize                            | The number of bytes flushed to S3.                                                                              |
     | MetadataOperationStatusCount           | The count of metadata DB operations performed by the worker |
     | push_usedHeapMemory                    |                                                                                                                 |
     | push_usedDirectMemory                  |                                                                                                                 |
