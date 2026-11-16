@@ -185,7 +185,7 @@ spark.shuffle.service.enabled false
 
 # options: hash, sort
 # Hash shuffle writer use (partition count) * (celeborn.push.buffer.max.size) * (spark.executor.cores) memory.
-# Sort shuffle writer uses less memory than hash shuffle writer, if your shuffle partition count is large, try to use sort shuffle writer.  
+# Sort shuffle writer uses less memory than hash shuffle writer, if your shuffle partition count is large, try to use sort shuffle writer.
 spark.celeborn.client.spark.shuffle.writer hash
 
 # We recommend setting `spark.celeborn.client.push.replicate.enabled` to true to enable server-side data replication
