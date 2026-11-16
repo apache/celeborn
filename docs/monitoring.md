@@ -250,12 +250,12 @@ These metrics are exposed by Celeborn worker.
     | FlushS3DataTime                        | The time for a worker to write a buffer to s3 storage.                                                          |
     | CommitFilesTime                        | The time for a worker to flush buffers and close files related to specified shuffle.                            |
     | CommitFilesFailCount                   | The count of commit files request failed in current worker.                                                     |
-    | SlotsAllocated                         | Slots allocated in last hour.                                                                                   |
+    | SlotsAllocated                         | Cumulative number of slots successfully reserved by the worker, including primary and replica slots.            |
     | ReserveSlotsFailCount                  | The count of failed slot reservation requests, counted once per request rather than per slot.                  |
     | ActiveSlotsCount                       | The number of slots currently being used in a worker.                                                           |
     | ReserveSlotsTime                       | ReserveSlots means acquire a disk buffer and record partition location.                                         |
     | ActiveConnectionCount                  | The count of active network connection.                                                                         |
-    | NettyMemory                            | The total amount of off-heap memory used by celeborn worker.                                                    |
+    | NettyMemory                            | Direct memory usage in bytes reported by Netty's `PlatformDependent.usedDirectMemory()`.                        |
     | SortTime                               | The time for a worker to sort a shuffle file.                                                                   |
     | SortMemory                             | The memory used by sorting shuffle files.                                                                       |
     | SortingFiles                           | The count of sorting shuffle files.                                                                             |
@@ -269,7 +269,7 @@ These metrics are exposed by Celeborn worker.
     | AvailableReadBuffer                    | The available memory for credit stream read buffer.                                                             |
     | ReadBufferUsageRatio                   | Ratio of credit stream read buffer used and max direct memory.                                                  |
     | ActiveCreditStreamCount                | Active stream count for map partition reading streams.                                                          |
-    | ActiveMapPartitionCount                | The count of active map partition reading streams.                                                              |
+    | ActiveMapPartitionCount                | The number of map partition files currently managed for reading by the credit stream manager.                   |
     | SorterCacheHitRate                     | The cache hit rate for worker partition sorter index.                                                           |
     | CleanTaskQueueSize                     | The count of task for cleaning up expired shuffle keys.                                                         |
     | CleanExpiredShuffleKeysTime            | The time for a worker to clean up shuffle data of expired shuffle keys.                                         |
