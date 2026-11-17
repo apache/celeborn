@@ -38,6 +38,7 @@ import org.apache.celeborn.common.util.CollectionUtils;
 import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
+import org.apache.celeborn.service.deploy.master.scale.ScaleOperation$;
 
 public class MetaHandler {
   private static final Logger LOG = LoggerFactory.getLogger(MetaHandler.class);
@@ -289,6 +290,18 @@ public class MetaHandler {
           List<WorkerInfo> decommissionWorkers =
               decommissionList.stream().map(MetaUtil::pbInfoToInfo).collect(Collectors.toList());
           metaSystem.updateMetaByReportWorkerDecommission(decommissionWorkers);
+          break;
+
+        case DoScaleOperation:
+          PbScaleOperationRequest scaleOperationRequest = request.getScaleOperationRequest();
+          metaSystem.updateScaleOperation(
+              scaleOperationRequest.getOperationId(),
+              ScaleOperation$.MODULE$.fromPb(scaleOperationRequest.getScaleOperation()));
+          break;
+
+        case RemoveScaleOperation:
+          metaSystem.removeScaleOperation(
+              request.getRemoveScaleOperationRequest().getOperationId());
           break;
 
         default:

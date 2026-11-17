@@ -33,6 +33,7 @@ import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.service.deploy.master.ApplicationMetricsSource;
+import org.apache.celeborn.service.deploy.master.scale.ScaleOperation;
 
 public class SingleMasterMetaManager extends AbstractMetaManager {
   private static final Logger LOG = LoggerFactory.getLogger(SingleMasterMetaManager.class);
@@ -197,6 +198,16 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   @Override
   public void handleUpdatePartitionSize() {
     updatePartitionSize();
+  }
+
+  @Override
+  public void handleUpdateScaleOperation(String operationId, ScaleOperation scaleOperation) {
+    updateScaleOperation(operationId, scaleOperation);
+  }
+
+  @Override
+  public void handleRemoveScaleOperation(String operationId) {
+    removeScaleOperation(operationId);
   }
 
   @Override

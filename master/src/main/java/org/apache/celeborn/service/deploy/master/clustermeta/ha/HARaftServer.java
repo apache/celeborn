@@ -26,6 +26,7 @@ import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.net.ssl.KeyManager;
@@ -101,6 +102,7 @@ public class HARaftServer {
   private final CelebornConf conf;
   private final AtomicBoolean stopped = new AtomicBoolean(false);
   private final AtomicBoolean unexpectedCloseHandled = new AtomicBoolean(false);
+  private final AtomicLong leaderVersion = new AtomicLong();
   private long workerTimeoutDeadline;
   private long appTimeoutDeadline;
 
@@ -748,6 +750,11 @@ public class HARaftServer {
   public void setDeadlineTime(long increaseWorkerTime, long increaseAppTime) {
     this.workerTimeoutDeadline = System.currentTimeMillis() + increaseWorkerTime;
     this.appTimeoutDeadline = System.currentTimeMillis() + increaseAppTime;
+    leaderVersion.incrementAndGet();
+  }
+
+  public long getLeaderVersion() {
+    return leaderVersion.get();
   }
 
   public long getWorkerTimeoutDeadline() {

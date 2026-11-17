@@ -6423,6 +6423,44 @@ object CelebornConf extends Logging {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefaultString("30s")
 
+  val AUTO_SCALE_UP_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.scale.up.enabled")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Whether the default scale manager may activate workers or add capacity.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val AUTO_SCALE_DOWN_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.scale.down.enabled")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Whether the default scale manager may drain workers or reduce capacity.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val SCALE_UP_STABILIZATION_WINDOW_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.scale.up.stabilizationWindowInterval")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc(
+        "Waiting time before a new scale-up decision after the previous scaling plan was created.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("360s")
+
+  val SCALE_DOWN_STABILIZATION_WINDOW_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.scale.down.stabilizationWindowInterval")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc(
+        "Waiting time before a new scale-down decision after the previous scaling plan was created.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("3600s")
+
   val IDENTITY_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.identity.provider")
       .withAlternative("celeborn.quota.identity.provider")

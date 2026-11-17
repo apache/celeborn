@@ -26,12 +26,14 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.apache.celeborn.RandomPortSupport
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
+import org.apache.celeborn.common.meta.WorkerInfo
+import org.apache.celeborn.common.metrics.WorkerStats
 import org.apache.celeborn.common.protocol.PbCheckWorkersAvailableResponse
 import org.apache.celeborn.common.protocol.message.ControlMessages.CheckWorkersAvailable
 import org.apache.celeborn.common.util.CelebornExitKind
 import org.apache.celeborn.service.deploy.master.{Master, MasterArguments}
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager
-import org.apache.celeborn.service.deploy.master.scale.{AbstractScaleManager, ScaleManager}
+import org.apache.celeborn.service.deploy.master.scale.{AbstractScaleManager, BaseK8sScaleManager, ClusterInfo, OperationResult, ScaleManager, ScaleOperation}
 
 class ScaleManagerExtensionSuite extends AnyFunSuite with RandomPortSupport {
   test("Master loads an external manager and invokes its lifecycle in order") {
@@ -104,6 +106,22 @@ class ScaleManagerExtensionSuite extends AnyFunSuite with RandomPortSupport {
     assert(!schedulerThread.isAlive)
   }
 
+  test("an external K8s subclass supplies its own count policy") {
+    ExternalK8sScaleManager.instances.clear()
+    val conf = masterConf()
+      .set(SCALE_MANAGER_CLASS_NAME.key, classOf[ExternalK8sScaleManager].getName)
+      .set(AUTO_SCALE_UP_ENABLED, true)
+    withMaster(conf) { master =>
+      master.self.askSync[PbCheckWorkersAvailableResponse](CheckWorkersAvailable())
+      val manager = ExternalK8sScaleManager.instances.poll(5, TimeUnit.SECONDS)
+      assert(manager != null)
+      manager.tick()
+      manager.tick()
+      assert(manager.operations.asScala.map(_.specWorkerCnt).toSeq == Seq(1))
+      assert(master.statusSystem.lastScaleOperation.getLeft == "external-operation")
+    }
+  }
+
   private def masterConf(): CelebornConf = {
     new CelebornConf(false)
       .set(HA_ENABLED, false)
@@ -161,4 +179,30 @@ class FailingStopScaleManager(conf: CelebornConf) extends ExternalScaleManager(c
     super.stop()
     throw new IllegalStateException("ScaleManager stop failed")
   }
+}
+
+class ExternalK8sScaleManager(conf: CelebornConf) extends BaseK8sScaleManager(conf) {
+  val operations = new LinkedBlockingQueue[ScaleOperation]()
+  ExternalK8sScaleManager.instances.add(this)
+
+  def tick(): Unit = checkScale()
+
+  override protected def getCurrentClusterInfo(): ClusterInfo = ClusterInfo(0, Seq.empty, true)
+  override protected def getWorkerIndex(worker: WorkerInfo): Int = 0
+  override protected def doScaleOperation(operation: ScaleOperation): String = {
+    operations.add(operation)
+    "external-operation"
+  }
+  override protected def checkOperation(operationId: String): OperationResult =
+    OperationResult(true, true)
+  override protected def calculateSpecWorkerCnt(
+      registeredWorkerCnt: Int,
+      specWorkerCnt: Int,
+      workerStats: Seq[WorkerStats],
+      excludedWorkerCnt: Int,
+      newExcludedWorkerCnt: Int): Int = specWorkerCnt + 1
+}
+
+object ExternalK8sScaleManager {
+  val instances = new LinkedBlockingQueue[ExternalK8sScaleManager]()
 }
