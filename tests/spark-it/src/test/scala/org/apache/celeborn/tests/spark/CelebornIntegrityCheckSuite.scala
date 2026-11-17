@@ -88,6 +88,7 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
       } finally {
         sparkSession.stop()
       }
+      assert(hook.corruptedCount == 1, "hook did not corrupt any data file; test passed vacuously")
     }
   }
 
@@ -148,6 +149,7 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
       } finally {
         sparkSession.stop()
       }
+      assert(hook.corruptedCount == 1, "hook did not corrupt any data file; test passed vacuously")
     }
   }
 
@@ -185,6 +187,7 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
       } finally {
         sparkSession.stop()
       }
+      assert(hook.corruptedCount == 1, "hook did not corrupt any data file; test passed vacuously")
     }
   }
 }
