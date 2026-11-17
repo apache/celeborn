@@ -34,6 +34,7 @@ import org.apache.celeborn.server.common.http.authentication.{UserDefinedPasswor
 abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
   val administers = Seq("celeborn", "celeborn2")
   celebornConf
+    .set("celeborn.test.http.authentication.marker", "authentication-test-value")
     .set(CelebornConf.METRICS_ENABLED.key, "true")
     .set(
       CelebornConf.METRICS_CONF.key,
@@ -175,5 +176,29 @@ abstract class ApiBaseResourceAuthenticationSuite extends HttpTestHelper {
       .header(AUTHORIZATION_HEADER, "Digest realm=\"x\"")
       .get()
     assert(HttpServletResponse.SC_UNAUTHORIZED == response.getStatus)
+  }
+
+  test("incomplete Basic credentials keep the challenge and do not return resource data") {
+    val authenticated = webTarget.path("conf").request(MediaType.TEXT_PLAIN)
+      .header(AUTHORIZATION_HEADER, basicAuthorizationHeader("user", "password")).get()
+    try {
+      assert(authenticated.getStatus == HttpServletResponse.SC_OK)
+      assert(authenticated.readEntity(classOf[String])
+        .contains("celeborn.test.http.authentication.marker"))
+    } finally authenticated.close()
+
+    Seq("user", "user:", ":password", " : ").foreach { credentials =>
+      val authorization = "Basic " + Base64.getEncoder.encodeToString(
+        credentials.getBytes(StandardCharsets.UTF_8))
+      val response = webTarget.path("conf").request(MediaType.TEXT_PLAIN)
+        .header(AUTHORIZATION_HEADER, authorization).get()
+      try {
+        assert(response.getStatus == HttpServletResponse.SC_UNAUTHORIZED)
+        assert(response.getHeaderString(HttpAuthUtils.WWW_AUTHENTICATE_HEADER) ==
+          "Basic realm=\"Celeborn\"")
+        assert(!response.readEntity(classOf[String])
+          .contains("celeborn.test.http.authentication.marker"))
+      } finally response.close()
+    }
   }
 }
