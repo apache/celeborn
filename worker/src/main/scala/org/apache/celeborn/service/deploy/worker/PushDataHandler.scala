@@ -263,15 +263,12 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       softSplit = true
     }
 
-    fileWriter.incrementPendingWrites()
-
-    if (fileWriter.isClosed) {
+    if (!fileWriter.tryIncrementPendingWrites()) {
       val fileInfo = fileWriter.getCurrentFileInfo
       logWarning(
-        s"[handlePushData] FileWriter is already closed! File path ${fileInfo.getFilePath} " +
+        s"[handlePushData] FileWriter is closing or already closed! File path ${fileInfo.getFilePath} " +
           s"length ${fileInfo.getFileLength}")
       callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
-      fileWriter.decrementPendingWrites()
       return
     }
     val writePromise = Promise[Array[StatusCode]]()
@@ -599,8 +596,9 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.SOFT_SPLIT)
           }
         }
-        if (!pushMergedDataCallback.isHardSplitPartition(fileWriterIndex)) {
-          fileWriter.incrementPendingWrites()
+        if (!pushMergedDataCallback.isHardSplitPartition(fileWriterIndex) &&
+          !fileWriter.tryIncrementPendingWrites()) {
+          pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.HARD_SPLIT)
         }
       }
       fileWriterIndex += 1
@@ -1047,15 +1045,12 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
     // for mappartition we will not check whether disk full or split partition
 
-    fileWriter.incrementPendingWrites()
-
-    if (fileWriter.isClosed) {
+    if (!fileWriter.tryIncrementPendingWrites()) {
       val fileInfo = fileWriter.getCurrentFileInfo
       logWarning(
-        s"[handleMapPartitionPushData] FileWriter is already closed! File path ${fileInfo.getFilePath} " +
+        s"[handleMapPartitionPushData] FileWriter is closing or already closed! File path ${fileInfo.getFilePath} " +
           s"length ${fileInfo.getFileLength}")
       callback.onFailure(new CelebornIOException("File already closed!"))
-      fileWriter.decrementPendingWrites()
       return
     }
     val writePromise = Promise[Array[StatusCode]]()
