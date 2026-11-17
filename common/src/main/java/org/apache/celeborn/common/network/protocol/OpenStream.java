@@ -70,12 +70,8 @@ public final class OpenStream extends RequestMessage {
   }
 
   public static OpenStream decode(ByteBuf buf) {
-    int shuffleKeySize = buf.readInt();
-    byte[] shuffleKey = new byte[shuffleKeySize];
-    buf.readBytes(shuffleKey);
-    int fileNameSize = buf.readInt();
-    byte[] fileName = new byte[fileNameSize];
-    buf.readBytes(fileName);
+    byte[] shuffleKey = Encoders.decodeBytes(buf);
+    byte[] fileName = Encoders.decodeBytes(buf);
     return new OpenStream(shuffleKey, fileName, buf.readInt(), buf.readInt());
   }
 

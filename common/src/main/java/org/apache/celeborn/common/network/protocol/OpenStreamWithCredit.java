@@ -73,12 +73,8 @@ public final class OpenStreamWithCredit extends RequestMessage {
   }
 
   public static OpenStreamWithCredit decode(ByteBuf in) {
-    int shuffleKeyLength = in.readInt();
-    byte[] tmpShuffleKey = new byte[shuffleKeyLength];
-    in.readBytes(tmpShuffleKey);
-    int fileNameLength = in.readInt();
-    byte[] tmpFileName = new byte[fileNameLength];
-    in.readBytes(tmpFileName);
+    byte[] tmpShuffleKey = Encoders.decodeBytes(in);
+    byte[] tmpFileName = Encoders.decodeBytes(in);
     int startSubIndex = in.readInt();
     int endSubIndex = in.readInt();
     int initialCredit = in.readInt();

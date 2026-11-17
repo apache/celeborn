@@ -58,9 +58,7 @@ public class TransportableError extends RequestMessage {
 
   public static TransportableError decode(ByteBuf buf) {
     long streamId = buf.readLong();
-    int msgLen = buf.readInt();
-    byte[] errorMsg = new byte[msgLen];
-    buf.readBytes(errorMsg);
+    byte[] errorMsg = Encoders.decodeBytes(buf);
     return new TransportableError(streamId, errorMsg);
   }
 
