@@ -18,7 +18,6 @@
 package org.apache.celeborn.common;
 
 import java.nio.ByteBuffer;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.CRC32;
 
@@ -108,6 +107,6 @@ public class CelebornCRC32 {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(current);
+    return Integer.hashCode(current.get());
   }
 }

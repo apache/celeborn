@@ -19,8 +19,11 @@ package org.apache.celeborn.common;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.junit.Test;
 
@@ -111,5 +114,45 @@ public class CelebornCRC32Test {
   public void testToString() {
     CelebornCRC32 crc = new CelebornCRC32(123456789);
     assertEquals("CelebornCRC32{current=123456789}", crc.toString());
+  }
+
+  @Test
+  public void testEqualsComparesChecksumValue() {
+    CelebornCRC32 withChecksum = new CelebornCRC32();
+    withChecksum.addChecksum(123456789);
+    CelebornCRC32 sameChecksum = new CelebornCRC32();
+    sameChecksum.addChecksum(123456789);
+
+    assertEquals(withChecksum, sameChecksum);
+    assertNotEquals(withChecksum, new CelebornCRC32());
+  }
+
+  @Test
+  public void testHashCodeIsSameForEqualInstances() {
+    CelebornCRC32 withChecksum = new CelebornCRC32();
+    withChecksum.addChecksum(123456789);
+    CelebornCRC32 sameChecksum = new CelebornCRC32();
+    sameChecksum.addChecksum(123456789);
+
+    assertEquals(withChecksum, sameChecksum);
+    assertEquals(withChecksum.hashCode(), sameChecksum.hashCode());
+  }
+
+  @Test
+  public void testHashCodeIsHashOfChecksumValue() {
+    CelebornCRC32 crc = new CelebornCRC32(123456789);
+    assertEquals(Integer.hashCode(123456789), crc.hashCode());
+  }
+
+  @Test
+  public void testHashCodeAndEqualsWorkInSet() {
+    CelebornCRC32 withChecksum = new CelebornCRC32();
+    withChecksum.addChecksum(123456789);
+    CelebornCRC32 sameChecksum = new CelebornCRC32();
+    sameChecksum.addChecksum(123456789);
+
+    Set<CelebornCRC32> checksums = new HashSet<>();
+    checksums.add(withChecksum);
+    assertTrue(checksums.contains(sameChecksum));
   }
 }

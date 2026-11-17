@@ -25,8 +25,14 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.*;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 
 import scala.Tuple2;
@@ -43,9 +49,11 @@ import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.client.MasterNotLeaderException;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.metrics.WorkerStats;
 import org.apache.celeborn.common.metrics.source.NamedGauge;
 import org.apache.celeborn.common.network.CelebornRackResolver;
 import org.apache.celeborn.common.network.sasl.SaslCredentials;
@@ -330,6 +338,82 @@ public class RatisMasterStatusSystemSuiteJ {
       if (!raftServer.isLeader()) {
         raftServer.stop();
       }
+    }
+  }
+
+  @Test
+  public void testConcurrentApplicationRegistrationSurvivesLeaderChange() throws Exception {
+    HAMasterMetaManager leader = pickLeaderStatusSystem();
+    assertNotNull(leader);
+    String appId = "registration-race-" + UUID.randomUUID();
+    CyclicBarrier start = new CyclicBarrier(2);
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    List<Future<Boolean>> registrations = new ArrayList<>();
+    try {
+      for (String secret : Arrays.asList("first-secret", "second-secret")) {
+        registrations.add(
+            executor.submit(
+                () -> {
+                  start.await(10, TimeUnit.SECONDS);
+                  try {
+                    leader.handleApplicationMeta(new ApplicationMeta(appId, secret));
+                    return true;
+                  } catch (CelebornRuntimeException e) {
+                    assertTrue(e.getMessage(), e.getMessage().contains("already registered"));
+                    return false;
+                  }
+                }));
+      }
+      boolean first = registrations.get(0).get(30, TimeUnit.SECONDS);
+      boolean second = registrations.get(1).get(30, TimeUnit.SECONDS);
+      assertTrue("Exactly one registration must succeed", first ^ second);
+      String secret = first ? "first-secret" : "second-secret";
+      HAMasterMetaManager[] systems = {STATUSSYSTEM1, STATUSSYSTEM2, STATUSSYSTEM3};
+      waitFor(
+          () ->
+              Arrays.stream(systems)
+                  .allMatch(
+                      s ->
+                          s.applicationMetas.containsKey(appId)
+                              && secret.equals(s.applicationMetas.get(appId).secret())),
+          "the winning registration on every master");
+
+      HAMasterMetaManager nextLeader = leader == STATUSSYSTEM1 ? STATUSSYSTEM2 : STATUSSYSTEM1;
+      transferLeadership(leader.getRatisServer(), nextLeader.getRatisServer());
+      for (String duplicateSecret : Arrays.asList(secret, "another-secret")) {
+        ResourceProtos.ResourceResponse response =
+            nextLeader
+                .getRatisServer()
+                .submitRequest(
+                    ResourceProtos.ResourceRequest.newBuilder()
+                        .setCmdType(ResourceProtos.Type.ApplicationMeta)
+                        .setRequestId(getNewReqeustId())
+                        .setApplicationMetaRequest(
+                            ResourceProtos.ApplicationMetaRequest.newBuilder()
+                                .setAppId(appId)
+                                .setSecret(duplicateSecret))
+                        .build());
+        assertFalse(response.getSuccess());
+        assertEquals(ResourceProtos.Status.ALREADY_EXISTS, response.getStatus());
+        CelebornRuntimeException failure =
+            assertThrows(
+                CelebornRuntimeException.class,
+                () ->
+                    nextLeader.handleApplicationMeta(new ApplicationMeta(appId, duplicateSecret)));
+        assertTrue(failure.getMessage().contains("already registered"));
+      }
+      // Rejections must neither replace the secret nor stop any replica from applying later writes.
+      String nextAppId = appId + "-next";
+      nextLeader.handleApplicationMeta(new ApplicationMeta(nextAppId, "next-secret"));
+      waitFor(
+          () -> Arrays.stream(systems).allMatch(s -> s.applicationMetas.containsKey(nextAppId)),
+          "a registration after the rejected duplicates on every master");
+      for (HAMasterMetaManager system : systems) {
+        assertEquals(secret, system.applicationMetas.get(appId).secret());
+      }
+    } finally {
+      executor.shutdownNow();
+      assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
     }
   }
 
@@ -851,7 +935,17 @@ public class RatisMasterStatusSystemSuiteJ {
                 CallId.getAndIncrement(),
                 to.getServer().getId(),
                 30_000L));
-    waitFor(to::isLeader, "leadership to transfer");
+    // The shared cluster must accept writes before the next test starts.
+    waitFor(
+        () -> {
+          try {
+            return to.isLeader()
+                && to.getServer().getDivision(to.getGroupId()).getInfo().isLeaderReady();
+          } catch (IOException e) {
+            return false;
+          }
+        },
+        "new leader to accept writes");
     // isLeader() trusts a cached LEADER role, so force a refresh on the old leader to make sure
     // it has observed the step-down (and fired its leadership listeners) before asserting.
     waitFor(
@@ -874,6 +968,56 @@ public class RatisMasterStatusSystemSuiteJ {
           }
         },
         "new leader to accept writes");
+  }
+
+  @Test
+  public void testWorkerStatsRemovedOnFormerLeaderAcrossLeadershipChanges() throws Exception {
+    HARaftServer[] servers = {RATISSERVER1, RATISSERVER2, RATISSERVER3};
+    HAMasterMetaManager[] systems = {STATUSSYSTEM1, STATUSSYSTEM2, STATUSSYSTEM3};
+    int a = RATISSERVER1.isLeader() ? 0 : (RATISSERVER2.isLeader() ? 1 : 2);
+    int b = (a + 1) % 3;
+    WorkerInfo worker = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1);
+    submitWhenLeaderReady(
+        () ->
+            systems[a].handleRegisterWorker(
+                HOSTNAME1,
+                RPCPORT1,
+                PUSHPORT1,
+                FETCHPORT1,
+                REPLICATEPORT1,
+                INTERNALPORT1,
+                NETWORK_LOCATION1,
+                disks1,
+                userResourceConsumption1,
+                getNewReqeustId()));
+    waitFor(
+        () -> Arrays.stream(systems).allMatch(s -> s.workerStats.containsKey(worker)),
+        "worker registration on every master");
+
+    AtomicReference<WorkerStats> statsRef = systems[a].workerStats.get(worker);
+    WorkerStats stats = new WorkerStats(scala.collection.immutable.Map$.MODULE$.empty());
+    statsRef.set(stats);
+    assertNull("Observations must stay local", systems[b].workerStats.get(worker).get());
+
+    transferLeadership(servers[a], servers[b]);
+    submitWhenLeaderReady(
+        () ->
+            systems[b].handleWorkerLost(
+                HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1, getNewReqeustId()));
+    waitFor(
+        () ->
+            Arrays.stream(systems)
+                .allMatch(
+                    s ->
+                        !s.workersMap.containsKey(worker.toUniqueId())
+                            && !s.workerStats.containsKey(worker)),
+        "worker loss and local cache cleanup on every master");
+    transferLeadership(servers[b], servers[a]);
+    statsRef.set(stats);
+    assertFalse(systems[a].workersMap.containsKey(worker.toUniqueId()));
+    assertFalse(
+        "Old heartbeats must not restore stats on the returning leader",
+        systems[a].workerStats.containsKey(worker));
   }
 
   private static final Map<String, String> CLIENT_LABELS =
@@ -1740,6 +1884,7 @@ public class RatisMasterStatusSystemSuiteJ {
     STATUSSYSTEM1.registeredAppAndShuffles.clear();
     STATUSSYSTEM1.hostnameSet.clear();
     STATUSSYSTEM1.workersMap.clear();
+    STATUSSYSTEM1.workerStats.clear();
     STATUSSYSTEM1.availableWorkers.clear();
     STATUSSYSTEM1.appHeartbeatTime.clear();
     STATUSSYSTEM1.excludedWorkers.clear();
@@ -1748,6 +1893,7 @@ public class RatisMasterStatusSystemSuiteJ {
     STATUSSYSTEM2.registeredAppAndShuffles.clear();
     STATUSSYSTEM2.hostnameSet.clear();
     STATUSSYSTEM2.workersMap.clear();
+    STATUSSYSTEM2.workerStats.clear();
     STATUSSYSTEM2.availableWorkers.clear();
     STATUSSYSTEM2.appHeartbeatTime.clear();
     STATUSSYSTEM2.excludedWorkers.clear();
@@ -1756,6 +1902,7 @@ public class RatisMasterStatusSystemSuiteJ {
     STATUSSYSTEM3.registeredAppAndShuffles.clear();
     STATUSSYSTEM3.hostnameSet.clear();
     STATUSSYSTEM3.workersMap.clear();
+    STATUSSYSTEM3.workerStats.clear();
     STATUSSYSTEM3.availableWorkers.clear();
     STATUSSYSTEM3.appHeartbeatTime.clear();
     STATUSSYSTEM3.excludedWorkers.clear();

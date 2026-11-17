@@ -21,7 +21,7 @@ import scala.concurrent.Promise
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
-import org.apache.celeborn.common.rpc.{RpcAddress, RpcCallContext}
+import org.apache.celeborn.common.rpc.{RpcAddress, RpcCallContext, RpcEnv}
 
 abstract private[celeborn] class NettyRpcCallContext(override val senderAddress: RpcAddress)
   extends RpcCallContext with Logging {
@@ -46,6 +46,8 @@ private[celeborn] class LocalNettyRpcCallContext(
     p: Promise[Any])
   extends NettyRpcCallContext(senderAddress) {
 
+  override val isLocal: Boolean = true
+
   override protected def send(message: Any): Unit = {
     p.success(message)
   }
@@ -60,6 +62,8 @@ private[celeborn] class RemoteNettyRpcCallContext(
     senderAddress: RpcAddress,
     val transportClient: TransportClient)
   extends NettyRpcCallContext(senderAddress) {
+
+  override def receivingRpcEnv: Option[RpcEnv] = Option(nettyEnv)
 
   override protected def send(message: Any): Unit = {
     val reply = nettyEnv.serialize(message)

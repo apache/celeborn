@@ -623,6 +623,19 @@ public class SparkUtils {
   public static Map<Integer, Tuple2<Broadcast<TransportMessage>, byte[]>>
       getReducerFileGroupResponseBroadcasts = JavaUtils.newConcurrentHashMap();
 
+  /** The serialized handle of the shuffle's existing broadcast, or null if it has none. */
+  public static byte[] getCachedSerializedGetReducerFileGroupResponse(Integer shuffleId) {
+    return shuffleBroadcastLock.withLock(
+        shuffleId,
+        () -> {
+          Tuple2<Broadcast<TransportMessage>, byte[]> cachedSerializeGetReducerFileGroupResponse =
+              getReducerFileGroupResponseBroadcasts.get(shuffleId);
+          return cachedSerializeGetReducerFileGroupResponse != null
+              ? cachedSerializeGetReducerFileGroupResponse._2
+              : null;
+        });
+  }
+
   public static byte[] serializeGetReducerFileGroupResponse(
       Integer shuffleId, GetReducerFileGroupResponse response) {
     SparkContext sparkContext = SparkContext$.MODULE$.getActive().getOrElse(null);

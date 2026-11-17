@@ -93,6 +93,9 @@ This backend reads [worker tags and configurations](#configuration) settings fro
 user-specified dynamic config file. For more information on using the FileSystem config store
 backend, refer to [filesystem config service](../developers/configuration#filesystem-config-service).
 
+Worker IDs use the format `host:rpcPort:pushPort:fetchPort:replicatePort`. Use the host and
+ports reported by each registered worker.
+
 Here is an example of worker tags assignment and configuration via YAML file:
 
 ```yaml
@@ -102,15 +105,15 @@ Here is an example of worker tags assignment and configuration via YAML file:
      celeborn.tags.tagsExpr: 'env=production'
    tags:
      env=production:
-       - 'host1:1111'
-       - 'host2:2222'
+       - 'host1:1111:1112:1113:1114'
+       - 'host2:2221:2222:2223:2224'
      env=staging:
-       - 'host3:3333'
+       - 'host3:3331:3332:3333:3334'
      region=us-east:
-       - 'host1:1111'
-       - 'host3:3333'
+       - 'host1:1111:1112:1113:1114'
+       - 'host3:3331:3332:3333:3334'
      region=us-west:
-       - 'host2:2222'
+       - 'host2:2221:2222:2223:2224'
 -  tenantId: tenant_01
    level: TENANT
    config:
@@ -134,25 +137,25 @@ Here is an example SQL of worker tags assignment and configuration:
 # SYSTEM level configuration
 INSERT INTO `celeborn_cluster_system_config` ( `id`, `cluster_id`, `config_key`, `config_value`, `type`, `gmt_create`, `gmt_modify` )
 VALUES
-    ( 1, 1, 'celeborn.tags.preferClientTagsExpr', 'true', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
-    ( 2, 1, 'celeborn.tags.tagsExpr', 'env=production', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
+    ( 1, 1, 'celeborn.tags.preferClientTagsExpr', 'false', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
+    ( 2, 1, 'celeborn.tags.tagsExpr', 'env=production', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' );
 
 # TENANT/TENANT_USER level configuration
 INSERT INTO `celeborn_cluster_tenant_config` ( `id`, `cluster_id`, `tenant_id`, `level`, `name`, `config_key`, `config_value`, `type`, `gmt_create`, `gmt_modify` )
 VALUES
-    ( 1, 1, 'tenant_01', 'TENANT', '', 'celeborn.tags.preferClientTagsExpr', 'true', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
+    ( 1, 1, 'tenant_01', 'TENANT', '', 'celeborn.tags.preferClientTagsExpr', 'false', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
     ( 2, 1, 'tenant_01', 'TENANT', '', 'celeborn.tags.tagsExpr', 'env=production,region=us-east', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
-    ( 3, 1, 'tenant_01', 'TENANT_USER', 'Jerry', 'celeborn.tags.preferClientTagsExpr', 'true', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
+    ( 3, 1, 'tenant_01', 'TENANT_USER', 'Jerry', 'celeborn.tags.preferClientTagsExpr', 'true', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' );
 
 # Worker Tags Assignment
 INSERT INTO `celeborn_cluster_tags` ( `id`, `cluster_id`, `tag`, `worker_id`, `gmt_create`, `gmt_modify` )
 VALUES
-    ( 1, 1, 'env=production', 'host1:1111', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
-    ( 2, 1, 'env=production', 'host2:2222', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
-    ( 3, 1, 'env=staging',    'host3:3333', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
-    ( 4, 1, 'region=us-east', 'host1:1111', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
-    ( 5, 1, 'region=us-east', 'host3:3333', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
-    ( 6, 1, 'region=us-west', 'host2:2222', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 1, 1, 'env=production', 'host1:1111:1112:1113:1114', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 2, 1, 'env=production', 'host2:2221:2222:2223:2224', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 3, 1, 'env=staging',    'host3:3331:3332:3333:3334', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 4, 1, 'region=us-east', 'host1:1111:1112:1113:1114', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 5, 1, 'region=us-east', 'host3:3331:3332:3333:3334', '2023-08-26 22:08:30', '2023-08-26 22:08:30' ),
+    ( 6, 1, 'region=us-west', 'host2:2221:2222:2223:2224', '2023-08-26 22:08:30', '2023-08-26 22:08:30' );
 ```
 
 ## FAQ

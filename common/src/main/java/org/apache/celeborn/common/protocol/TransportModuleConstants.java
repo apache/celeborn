@@ -45,6 +45,11 @@ public class TransportModuleConstants {
 
   public static final String DATA_MODULE = "data";
 
+  // SSL module for the inter-master Ratis channel, letting it use a certificate separate from
+  // the client-facing RPC_SERVICE_MODULE. Used only when celeborn.ssl.ratis.enabled is explicitly
+  // true, otherwise Ratis keeps using RPC_SERVICE_MODULE.
+  public static final String RATIS_MODULE = "ratis";
+
   // When using null, InetSocketAddress will resolve to a wildcard address for bind operations.
   public static final String WILDCARD_BIND_ADDRESS = null;
 }

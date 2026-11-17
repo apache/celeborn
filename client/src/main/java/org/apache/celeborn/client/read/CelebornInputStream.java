@@ -200,6 +200,34 @@ public abstract class CelebornInputStream extends InputStream {
     return true;
   }
 
+  /**
+   * Whether {@code location} must not be read because its worker was excluded after a fetch
+   * failure. If its peer was excluded earlier, the location is tried again instead.
+   */
+  public static boolean isExcluded(
+      ConcurrentHashMap<String, Long> fetchExcludedWorkers,
+      long fetchExcludedWorkerExpireTimeout,
+      PartitionLocation location) {
+    Long timestamp = fetchExcludedWorkers.get(location.hostAndFetchPort());
+    if (timestamp == null) {
+      return false;
+    } else if (System.currentTimeMillis() - timestamp > fetchExcludedWorkerExpireTimeout) {
+      fetchExcludedWorkers.remove(location.hostAndFetchPort());
+      return false;
+    } else if (location.getPeer() != null) {
+      Long peerTimestamp = fetchExcludedWorkers.get(location.getPeer().hostAndFetchPort());
+      // To avoid both replicate locations is excluded, if peer add to excluded list earlier,
+      // change to try peer.
+      if (peerTimestamp == null || peerTimestamp < timestamp) {
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      return true;
+    }
+  }
+
   private static final class CelebornInputStreamImpl extends CelebornInputStream {
     private static final Random RAND = new Random();
 
@@ -443,24 +471,8 @@ public abstract class CelebornInputStream extends InputStream {
     }
 
     private boolean isExcluded(PartitionLocation location) {
-      Long timestamp = fetchExcludedWorkers.get(location.hostAndFetchPort());
-      if (timestamp == null) {
-        return false;
-      } else if (System.currentTimeMillis() - timestamp > fetchExcludedWorkerExpireTimeout) {
-        fetchExcludedWorkers.remove(location.hostAndFetchPort());
-        return false;
-      } else if (location.getPeer() != null) {
-        Long peerTimestamp = fetchExcludedWorkers.get(location.getPeer().hostAndFetchPort());
-        // To avoid both replicate locations is excluded, if peer add to excluded list earlier,
-        // change to try peer.
-        if (peerTimestamp == null || peerTimestamp < timestamp) {
-          return true;
-        } else {
-          return false;
-        }
-      } else {
-        return true;
-      }
+      return CelebornInputStream.isExcluded(
+          fetchExcludedWorkers, fetchExcludedWorkerExpireTimeout, location);
     }
 
     private static boolean isInterruption(Throwable throwable) {

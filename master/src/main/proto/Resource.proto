@@ -231,12 +231,17 @@ message ResourceConsumption {
   int64 hdfsBytesWritten = 3;
   int64 hdfsFileCount = 4;
   map<string, ResourceConsumption> subResourceConsumption = 5;
+  int64 s3BytesWritten = 6;
+  int64 s3FileCount = 7;
+  int64 ossBytesWritten = 8;
+  int64 ossFileCount = 9;
 }
 
 enum Status {
   UNKNOWN = 0;
   OK = 1;
   INTERNAL_ERROR= 2;
+  ALREADY_EXISTS = 3;
 }
 
 message ResourceResponse {

@@ -155,6 +155,10 @@ These metrics are exposed by Celeborn master.
     | diskBytesWritten  | The amount of disk files consumption by each user.  |
     | hdfsFileCount     | The count of hdfs files consumption by each user.   |
     | hdfsBytesWritten  | The amount of hdfs files consumption by each user.  |
+    | s3FileCount       | The count of s3 files consumption by each user. Registered once the user has s3 consumption.     |
+    | s3BytesWritten    | The amount of s3 files consumption by each user. Registered once the user has s3 consumption.    |
+    | ossFileCount      | The count of oss files consumption by each user. Registered once the user has oss consumption.   |
+    | ossBytesWritten   | The amount of oss files consumption by each user. Registered once the user has oss consumption.  |
 
   - namespace=ThreadPool
     - **notes:**
@@ -246,12 +250,12 @@ These metrics are exposed by Celeborn worker.
     | FlushS3DataTime                        | The time for a worker to write a buffer to s3 storage.                                                          |
     | CommitFilesTime                        | The time for a worker to flush buffers and close files related to specified shuffle.                            |
     | CommitFilesFailCount                   | The count of commit files request failed in current worker.                                                     |
-    | SlotsAllocated                         | Slots allocated in last hour.                                                                                   |
+    | SlotsAllocated                         | Cumulative number of slots successfully reserved by the worker, including primary and replica slots.            |
     | ReserveSlotsFailCount                  | The count of failed slot reservation requests, counted once per request rather than per slot.                  |
     | ActiveSlotsCount                       | The number of slots currently being used in a worker.                                                           |
     | ReserveSlotsTime                       | ReserveSlots means acquire a disk buffer and record partition location.                                         |
     | ActiveConnectionCount                  | The count of active network connection.                                                                         |
-    | NettyMemory                            | The total amount of off-heap memory used by celeborn worker.                                                    |
+    | NettyMemory                            | Direct memory usage in bytes reported by Netty's `PlatformDependent.usedDirectMemory()`.                        |
     | SortTime                               | The time for a worker to sort a shuffle file.                                                                   |
     | SortMemory                             | The memory used by sorting shuffle files.                                                                       |
     | SortingFiles                           | The count of sorting shuffle files.                                                                             |
@@ -292,14 +296,14 @@ These metrics are exposed by Celeborn worker.
     | FlushWorkingQueueSize                  | The size of flush working queue for mount point.                                                                |
     | FlushCommittingQueueSize               | Queued flush tasks of committing REDUCE writers per flusher thread; excludes executing tasks.                    |
     | FlushCommittingWriterSize              | Committing REDUCE writers with queued flush tasks per flusher thread.                                            |
-    | LocalFlushCount                        | The amount of data flushed to local.                                                                            |
-    | LocalFlushSize                         | The size of data flushed to local.                                                                              |
-    | HdfsFlushCount                         | The amount of data flushed to HDFS.                                                                             |
-    | HdfsFlushSize                          | The size of data flushed to HDFS.                                                                               |
-    | OssFlushCount                          | The amount of data flushed to OSS.                                                                              |
-    | OssFlushSize                           | The size of data flushed to OSS.                                                                                |
-    | S3FlushCount                           | The amount of data flushed to S3.                                                                               |
-    | S3FlushSize                            | The size of data flushed to S3.                                                                                 |
+    | LocalFlushCount                        | The number of flushes to local storage.                                                                         |
+    | LocalFlushSize                         | The number of bytes flushed to local storage.                                                                   |
+    | HdfsFlushCount                         | The number of flushes to HDFS.                                                                                  |
+    | HdfsFlushSize                          | The number of bytes flushed to HDFS.                                                                            |
+    | OssFlushCount                          | The number of flushes to OSS.                                                                                   |
+    | OssFlushSize                           | The number of bytes flushed to OSS.                                                                             |
+    | S3FlushCount                           | The number of flushes to S3.                                                                                    |
+    | S3FlushSize                            | The number of bytes flushed to S3.                                                                              |
     | MetadataOperationStatusCount           | The count of metadata DB operations performed by the worker |
     | push_usedHeapMemory                    |                                                                                                                 |
     | push_usedDirectMemory                  |                                                                                                                 |
@@ -406,6 +410,10 @@ These metrics are exposed by Celeborn worker.
     | diskBytesWritten  | The amount of disk files consumption by each user.  |
     | hdfsFileCount     | The count of hdfs files consumption by each user.   |
     | hdfsBytesWritten  | The amount of hdfs files consumption by each user.  |
+    | s3FileCount       | The count of s3 files consumption by each user.     |
+    | s3BytesWritten    | The amount of s3 files consumption by each user.    |
+    | ossFileCount      | The count of oss files consumption by each user.    |
+    | ossBytesWritten   | The amount of oss files consumption by each user.   |
 
   - namespace=ThreadPool
     - **notes:**
