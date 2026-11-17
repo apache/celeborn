@@ -250,12 +250,12 @@ These metrics are exposed by Celeborn worker.
     | FlushS3DataTime                        | The time for a worker to write a buffer to s3 storage.                                                          |
     | CommitFilesTime                        | The time for a worker to flush buffers and close files related to specified shuffle.                            |
     | CommitFilesFailCount                   | The count of commit files request failed in current worker.                                                     |
-    | SlotsAllocated                         | Slots allocated in last hour.                                                                                   |
+    | SlotsAllocated                         | Cumulative number of slots successfully reserved by the worker, including primary and replica slots.            |
     | ReserveSlotsFailCount                  | The count of failed slot reservation requests, counted once per request rather than per slot.                  |
     | ActiveSlotsCount                       | The number of slots currently being used in a worker.                                                           |
     | ReserveSlotsTime                       | ReserveSlots means acquire a disk buffer and record partition location.                                         |
     | ActiveConnectionCount                  | The count of active network connection.                                                                         |
-    | NettyMemory                            | The total amount of off-heap memory used by celeborn worker.                                                    |
+    | NettyMemory                            | Direct memory usage in bytes reported by Netty's `PlatformDependent.usedDirectMemory()`.                        |
     | SortTime                               | The time for a worker to sort a shuffle file.                                                                   |
     | SortMemory                             | The memory used by sorting shuffle files.                                                                       |
     | SortingFiles                           | The count of sorting shuffle files.                                                                             |
@@ -294,14 +294,14 @@ These metrics are exposed by Celeborn worker.
     | DirectMemoryUsageRatio                 | Ratio of direct memory used and max direct memory.                                                              |
     | RegisterWithMasterFailCount            | The count of failures in register with master request.                                                          |
     | FlushWorkingQueueSize                  | The size of flush working queue for mount point.                                                                |
-    | LocalFlushCount                        | The amount of data flushed to local.                                                                            |
-    | LocalFlushSize                         | The size of data flushed to local.                                                                              |
-    | HdfsFlushCount                         | The amount of data flushed to HDFS.                                                                             |
-    | HdfsFlushSize                          | The size of data flushed to HDFS.                                                                               |
-    | OssFlushCount                          | The amount of data flushed to OSS.                                                                              |
-    | OssFlushSize                           | The size of data flushed to OSS.                                                                                |
-    | S3FlushCount                           | The amount of data flushed to S3.                                                                               |
-    | S3FlushSize                            | The size of data flushed to S3.                                                                                 |
+    | LocalFlushCount                        | The number of flushes to local storage.                                                                         |
+    | LocalFlushSize                         | The number of bytes flushed to local storage.                                                                   |
+    | HdfsFlushCount                         | The number of flushes to HDFS.                                                                                  |
+    | HdfsFlushSize                          | The number of bytes flushed to HDFS.                                                                            |
+    | OssFlushCount                          | The number of flushes to OSS.                                                                                   |
+    | OssFlushSize                           | The number of bytes flushed to OSS.                                                                             |
+    | S3FlushCount                           | The number of flushes to S3.                                                                                    |
+    | S3FlushSize                            | The number of bytes flushed to S3.                                                                              |
     | MetadataOperationStatusCount           | The count of metadata DB operations performed by the worker |
     | push_usedHeapMemory                    |                                                                                                                 |
     | push_usedDirectMemory                  |                                                                                                                 |
