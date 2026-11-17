@@ -413,7 +413,7 @@ public class HeartbeatAggregatorSuiteJ {
     Thread.sleep(2000);
     Assert.assertTrue(metaSystem.decommissionWorkers.contains(worker));
     Assert.assertEquals(
-        PbWorkerStatus.State.InDecommissionThenIdle,
+        PbWorkerStatus.State.Normal,
         metaSystem.workersMap.get(worker.toUniqueId()).getWorkerStatus().getState());
 
     sendHeartbeat(

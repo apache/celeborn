@@ -1226,8 +1226,10 @@ public class DefaultMetaSystemSuiteJ {
     assertEquals(2, statusSystem.decommissionWorkers.size());
     assertEquals(1, statusSystem.availableWorkers.size());
 
+    long stateStart = System.currentTimeMillis();
     for (PbWorkerStatus.State state :
         Arrays.asList(PbWorkerStatus.State.InDecommissionThenIdle, PbWorkerStatus.State.Idle)) {
+      stateStart += 1_000;
       statusSystem.handleWorkerHeartbeat(
           HOSTNAME1,
           RPCPORT1,
@@ -1238,7 +1240,7 @@ public class DefaultMetaSystemSuiteJ {
           userResourceConsumption1,
           1,
           false,
-          new WorkerStatus(state.getNumber(), System.currentTimeMillis()),
+          new WorkerStatus(state.getNumber(), stateStart),
           getNewReqeustId());
       assertEquals(
           new HashSet<>(Arrays.asList(worker1, worker2)),
@@ -1256,7 +1258,7 @@ public class DefaultMetaSystemSuiteJ {
         userResourceConsumption1,
         1,
         false,
-        WorkerStatus.normalWorkerStatus(),
+        new WorkerStatus(PbWorkerStatus.State.Normal.getNumber(), stateStart + 1_000),
         getNewReqeustId());
     assertEquals(Collections.singleton(worker2), new HashSet<>(statusSystem.decommissionWorkers));
     assertTrue(statusSystem.availableWorkers.contains(worker1));
@@ -1277,45 +1279,62 @@ public class DefaultMetaSystemSuiteJ {
     assertEquals(Collections.singleton(worker2), new HashSet<>(statusSystem.decommissionWorkers));
   }
 
+  private WorkerInfo registerAndReportDecommissionWorker1() {
+    statusSystem.handleRegisterWorker(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        INTERNALPORT1,
+        NETWORK_LOCATION1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
+    WorkerInfo worker1 = new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1);
+    statusSystem.handleReportWorkerDecommission(
+        Collections.singletonList(worker1), getNewReqeustId());
+    assertTrue(statusSystem.decommissionWorkers.contains(worker1));
+    return worker1;
+  }
+
   @Test
-  public void testRestoredMasterIgnoresStaleNormalHeartbeat() throws Exception {
-    File snapshot = Files.createTempFile("celeborn-meta", ".snapshot").toFile();
-    try {
-      statusSystem.handleRegisterWorker(
-          HOSTNAME1,
-          RPCPORT1,
-          PUSHPORT1,
-          FETCHPORT1,
-          REPLICATEPORT1,
-          INTERNALPORT1,
-          NETWORK_LOCATION1,
-          disks1,
-          userResourceConsumption1,
-          getNewReqeustId());
-      WorkerInfo worker1 =
-          new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1);
-      long normalStart = System.currentTimeMillis() - 10_000;
-      long drainStart = normalStart + 5_000;
-      statusSystem.handleReportWorkerDecommission(
-          Collections.singletonList(worker1), getNewReqeustId());
-      heartbeatWorker1(PbWorkerStatus.State.InDecommissionThenIdle, drainStart);
-      statusSystem.writeMetaInfoToFile(snapshot);
+  public void testNormalHeartbeatWithoutDrainStateKeepsDecommissionWorker() {
+    WorkerInfo worker1 = registerAndReportDecommissionWorker1();
+    long now = System.currentTimeMillis();
 
-      SingleMasterMetaManager restored = new SingleMasterMetaManager(mockRpcEnv, conf);
-      restored.restoreMetaFromFile(snapshot);
-      statusSystem = restored;
-      assertEquals(
-          PbWorkerStatus.State.InDecommissionThenIdle,
-          restored.workersMap.get(worker1.toUniqueId()).getWorkerStatus().getState());
-      assertFalse(restored.availableWorkers.contains(worker1));
+    // Normal heartbeats sent before the drain heartbeat lands, compared only to the
+    // register-time placeholder, older and newer than it.
+    heartbeatWorker1(PbWorkerStatus.State.Normal, now - 60_000);
+    assertTrue(statusSystem.decommissionWorkers.contains(worker1));
+    heartbeatWorker1(PbWorkerStatus.State.Normal, now + 60_000);
+    assertTrue(statusSystem.decommissionWorkers.contains(worker1));
+  }
 
-      // The worker's Normal heartbeat from before the drain, applied late.
-      heartbeatWorker1(PbWorkerStatus.State.Normal, normalStart);
-      assertTrue(restored.decommissionWorkers.contains(worker1));
-      assertFalse(restored.availableWorkers.contains(worker1));
-    } finally {
-      snapshot.delete();
-    }
+  @Test
+  public void testLateNormalHeartbeatAfterDrainKeepsDecommissionWorker() {
+    WorkerInfo worker1 = registerAndReportDecommissionWorker1();
+    long drainStart = System.currentTimeMillis();
+    heartbeatWorker1(PbWorkerStatus.State.InDecommissionThenIdle, drainStart);
+    assertFalse(statusSystem.availableWorkers.contains(worker1));
+
+    // Also covers a worker clock stepping backward: the Normal status is still applied.
+    heartbeatWorker1(PbWorkerStatus.State.Normal, drainStart - 5_000);
+    assertTrue(statusSystem.decommissionWorkers.contains(worker1));
+    assertTrue(statusSystem.availableWorkers.contains(worker1));
+    assertEquals(
+        PbWorkerStatus.State.Normal,
+        statusSystem.workersMap.get(worker1.toUniqueId()).getWorkerStatus().getState());
+  }
+
+  @Test
+  public void testNormalHeartbeatAfterDrainRemovesDecommissionWorker() {
+    WorkerInfo worker1 = registerAndReportDecommissionWorker1();
+    long drainStart = System.currentTimeMillis();
+    heartbeatWorker1(PbWorkerStatus.State.InDecommissionThenIdle, drainStart);
+    heartbeatWorker1(PbWorkerStatus.State.Normal, drainStart + 5_000);
+    assertFalse(statusSystem.decommissionWorkers.contains(worker1));
+    assertTrue(statusSystem.availableWorkers.contains(worker1));
   }
 
   private void heartbeatWorker1(PbWorkerStatus.State state, long stateStartTime) {

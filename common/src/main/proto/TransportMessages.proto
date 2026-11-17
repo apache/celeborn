@@ -789,8 +789,6 @@ message PbSnapshotMetaInfo {
   int64 applicationTotalCount = 20;
   map<string, int64> applicationFallbackCounts = 21;
   map<string, PbApplicationInfo> applicationInfos = 22;
-  // Latest applied worker status, keyed by worker unique id.
-  map<string, PbWorkerStatus> workerStatuses = 23;
 }
 
 message PbOpenStream {
