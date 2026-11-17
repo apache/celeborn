@@ -40,6 +40,42 @@ import org.apache.celeborn.common.protocol.message.StatusCode
 
 class UtilsSuite extends CelebornFunSuite {
 
+  test("RPC application identifiers are checked even when authentication is disabled") {
+    val endpoint = new org.apache.celeborn.common.rpc.RpcEndpoint {
+      override val rpcEnv: org.apache.celeborn.common.rpc.RpcEnv = null
+    }
+    endpoint.checkAuth(null, "application_123_0001")
+    Seq("", "..", "../outside", "file:outside").foreach { appId =>
+      intercept[IllegalArgumentException] {
+        endpoint.checkAuth(null, appId)
+      }
+    }
+  }
+
+  test("application identifiers must be single directory names") {
+    Seq("application_123_0001", "app-1", "app.v2", "app..v2", "作业-1").foreach {
+      Utils.validateApplicationId
+    }
+    Seq(
+      null,
+      "",
+      ".",
+      "..",
+      "../outside",
+      "/absolute",
+      "app/child",
+      "app\\child",
+      "file:outside",
+      "app\u0000id",
+      "app\nid",
+      "app\n",
+      "app\r\n").foreach { appId =>
+      intercept[IllegalArgumentException] {
+        Utils.validateApplicationId(appId)
+      }
+    }
+  }
+
   test("stringToSeq") {
     val seq1 = Seq("asd", "bcd", "def")
     assert(seq1 == Utils.stringToSeq("asd,bcd,def"))

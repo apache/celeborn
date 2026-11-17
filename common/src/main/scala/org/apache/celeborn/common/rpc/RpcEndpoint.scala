@@ -20,6 +20,7 @@ package org.apache.celeborn.common.rpc
 import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.network.client.TransportClient
 import org.apache.celeborn.common.rpc.netty.RemoteNettyRpcCallContext
+import org.apache.celeborn.common.util.Utils
 
 /**
  * A factory class to create the [[RpcEnv]]. It must have an empty constructor so that it can be
@@ -144,6 +145,7 @@ trait RpcEndpoint {
   }
 
   def checkAuth(context: RpcCallContext, appId: String): Unit = {
+    Utils.validateApplicationId(appId)
     context match {
       case remoteContext: RemoteNettyRpcCallContext =>
         checkAuth(remoteContext.transportClient, appId)

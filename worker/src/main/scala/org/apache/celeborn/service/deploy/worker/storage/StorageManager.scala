@@ -352,6 +352,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
           val shuffleKey = parseDbShuffleKey(key)
           try {
+            validateShufflePaths(shuffleKey)
             val files = PbSerDeUtils.fromPbFileInfoMap(entry.getValue, cache, mountPoints)
             logDebug(s"Reload DB: $shuffleKey -> $files")
             diskFileInfos.put(shuffleKey, files)
@@ -396,6 +397,22 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   private def getNextIndex = counter.getAndUpdate(counterOperator)
+
+  private def validateLocalPath(workingDir: File, file: File): Unit = {
+    if (!file.getCanonicalFile.toPath.startsWith(workingDir.getCanonicalFile.toPath)) {
+      throw new IOException("Shuffle path must remain within its working directory")
+    }
+  }
+
+  private def validateShufflePaths(shuffleKey: String): Unit = {
+    val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
+    Utils.validateApplicationId(appId)
+    localDisksSnapshot().foreach { diskInfo =>
+      diskInfo.dirs.foreach { dir =>
+        validateLocalPath(dir, new File(dir, s"$appId/$shuffleId"))
+      }
+    }
+  }
 
   private val diskFileInfoMapFunc =
     new java.util.function.Function[String, ConcurrentHashMap[String, DiskFileInfo]]() {
@@ -470,6 +487,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
    * is that we send a little bit more requests to S3
    */
   def ensureS3DirectoryForShuffleKey(appId: String, shuffleId: Int): Unit = {
+    Utils.validateApplicationId(appId)
 
     ensureS3MultipartUploaderSharedState()
 
@@ -494,6 +512,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       userIdentifier: UserIdentifier,
       partitionSplitEnabled: Boolean,
       isSegmentGranularityVisible: Boolean): PartitionDataWriter = {
+    Utils.validateApplicationId(appId)
     if (healthyLocalWorkingDirs().isEmpty && remoteStorageDirs.isEmpty) {
       throw new IOException("No available working dirs!")
     }
@@ -711,7 +730,17 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def cleanupExpiredShuffleKey(
       expiredShuffleKeys: util.HashSet[String],
       cleanDB: Boolean = true): Unit = {
-    expiredShuffleKeys.asScala.foreach { shuffleKey =>
+    val validShuffleKeys = expiredShuffleKeys.asScala.filter { shuffleKey =>
+      try {
+        validateShufflePaths(shuffleKey)
+        true
+      } catch {
+        case scala.util.control.NonFatal(e) =>
+          logWarning("Skipping cleanup of a shuffle with invalid storage paths.", e)
+          false
+      }
+    }
+    validShuffleKeys.foreach { shuffleKey =>
       logInfo(s"Cleanup expired shuffle $shuffleKey.")
       if (diskFileInfos.containsKey(shuffleKey)) {
         val removedFileInfos = diskFileInfos.remove(shuffleKey)
@@ -1145,6 +1174,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       userIdentifier: UserIdentifier,
       partitionType: PartitionType,
       partitionSplitEnabled: Boolean): MemoryFileInfo = {
+    Utils.validateApplicationId(appId)
     val fileMeta = partitionType match {
       case PartitionType.REDUCE =>
         new ReduceFileMeta(conf.shuffleChunkSize)
@@ -1176,6 +1206,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       partitionType: PartitionType,
       partitionSplitEnabled: Boolean,
       overrideStorageType: StorageInfo.Type = null): (Flusher, DiskFileInfo, File) = {
+    Utils.validateApplicationId(appId)
     val suggestedMountPoint = location.getStorageInfo.getMountPoint
 
     val storageType =
@@ -1207,6 +1238,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         throw new IOException(s"No available disks! suggested mountPoint $suggestedMountPoint")
       }
 
+      // Identifier validation above also protects DFS paths; canonical containment is local-only.
       if (storageType == Type.HDFS && location.getStorageInfo.HDFSAvailable()) {
         val shuffleDir =
           new Path(new Path(hdfsDir, conf.workerWorkingDir), s"$appId/$shuffleId")
@@ -1262,8 +1294,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val dir = dirs(getNextIndex % dirs.size)
         val mountPoint = DeviceInfo.getMountPoint(dir.getAbsolutePath, mountPoints)
         val shuffleDir = new File(dir, s"$appId/$shuffleId")
-        shuffleDir.mkdirs()
         val file = new File(shuffleDir, fileName)
+        validateLocalPath(dir, shuffleDir)
+        validateLocalPath(dir, file)
+        shuffleDir.mkdirs()
         try {
           if (file.exists()) {
             throw new FileAlreadyExistsException(

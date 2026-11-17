@@ -49,6 +49,182 @@ trait MockitoHelper extends MockitoSugar {
 
 class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
 
+  test("local file creation checks canonical paths before creating directories") {
+    withDiskFile(gracefulShutdown = false) { (manager, fileInfo, _) =>
+      val workingDir = fileInfo.getFile.getParentFile.getParentFile.getParentFile.toPath
+      // A sibling whose name shares the working-directory prefix is still outside it.
+      val outside =
+        Files.createDirectory(workingDir.resolveSibling(workingDir.getFileName + "-other"))
+      val link = Files.createSymbolicLink(workingDir.resolve("linked-app"), outside)
+      try {
+        intercept[IOException] {
+          manager.createDiskFile(
+            genPartitionLocation(0, Array(0L)),
+            "linked-app",
+            1,
+            "0-0-0",
+            UserIdentifier("tenant", "user"),
+            PartitionType.REDUCE,
+            partitionSplitEnabled = false)
+        }
+        assert(!Files.exists(outside.resolve("1")))
+        assert(!manager.shuffleKeySet().contains("linked-app-1"))
+      } finally {
+        Files.delete(link)
+      }
+      val (_, compatible, _) = manager.createDiskFile(
+        genPartitionLocation(0, Array(0L)),
+        "作业.v2",
+        0,
+        "0-0-0",
+        UserIdentifier("tenant", "user"),
+        PartitionType.REDUCE,
+        partitionSplitEnabled = false)
+      assert(compatible.getFile.isFile)
+    }
+  }
+
+  test("shuffle cleanup checks canonical paths before removing metadata") {
+    withDiskFile(gracefulShutdown = false) { (manager, fileInfo, _) =>
+      val appDir = fileInfo.getFile.getParentFile.getParentFile.toPath
+      val movedAppDir = appDir.resolveSibling("moved-app")
+      Files.move(appDir, movedAppDir)
+      val outside = Files.createTempDirectory("shuffle-cleanup-")
+      try {
+        Files.createSymbolicLink(appDir, outside)
+        val shuffleDir = Files.createDirectory(outside.resolve("0"))
+        val file = Files.write(shuffleDir.resolve("0-0-0"), Array[Byte](1, 2, 3))
+        manager.cleanupExpiredShuffleKey(manager.shuffleKeySet(), cleanDB = false)
+        assert(Files.exists(file))
+        assert(manager.getFileInfo("app-1-0", "0-0-0") eq fileInfo)
+      } finally {
+        Files.delete(appDir)
+        Files.move(movedAppDir, appDir)
+        JavaUtils.deleteRecursively(outside.toFile)
+      }
+    }
+  }
+
+  test("recovery skips invalid application identifiers and retains valid shuffles") {
+    val root = Files.createTempDirectory("application-id-recovery-")
+    val recoveryDir = Files.createDirectory(root.resolve("recovery"))
+    val conf = new CelebornConf()
+      .set(WORKER_STORAGE_DIRS, Seq(root.resolve("data").toString))
+      .set(WORKER_GRACEFUL_SHUTDOWN_ENABLED, true)
+      .set(WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH, recoveryDir.toString)
+      .set(WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_INTERVAL, TimeUnit.HOURS.toMillis(1))
+    var manager = new StorageManager(conf, new WorkerSource(conf))
+    try {
+      manager.localDisksSnapshot().foreach(_.setUsableSpace(Long.MaxValue))
+      val (_, fileInfo, _) = manager.createDiskFile(
+        genPartitionLocation(0, Array(0L)),
+        "app-1",
+        0,
+        "0-0-0",
+        UserIdentifier("tenant", "user"),
+        PartitionType.REDUCE,
+        partitionSplitEnabled = false)
+      manager.notifyFileInfoCommitted("app-1-0", "0-0-0", fileInfo)
+      manager.notifyFileInfoCommitted("../old-app-0", "0-0-0", fileInfo)
+      manager.notifyFileInfoCommitted("malformed", "0-0-0", fileInfo)
+      manager.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
+      manager = null
+      manager = new StorageManager(conf, new WorkerSource(conf))
+      assert(manager.shuffleKeySet().asScala == Set("app-1-0"))
+      assert(manager.getFileInfo("../old-app-0", "0-0-0") == null)
+      assert(manager.getFileInfo("app-1-0", "0-0-0") != null)
+      assert(fileInfo.getFile.isFile)
+    } finally {
+      if (manager != null) {
+        manager.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
+      }
+      JavaUtils.deleteRecursively(root.toFile)
+    }
+  }
+
+  test("reject invalid application identifiers before creating files or S3 directories") {
+    withDiskFile(gracefulShutdown = false) { (manager, _, _) =>
+      Seq("", ".", "..", "../outside", "/outside", "app/child", "app\\child", "file:outside")
+        .foreach { appId =>
+          Seq(
+            StorageInfo.Type.HDD,
+            StorageInfo.Type.HDFS,
+            StorageInfo.Type.S3,
+            StorageInfo.Type.OSS)
+            .foreach { storageType =>
+              intercept[IllegalArgumentException] {
+                manager.createDiskFile(
+                  genPartitionLocation(0, Array(0L)),
+                  appId,
+                  0,
+                  "0-0-0",
+                  UserIdentifier("tenant", "user"),
+                  PartitionType.REDUCE,
+                  partitionSplitEnabled = false,
+                  overrideStorageType = storageType)
+              }
+            }
+          intercept[IllegalArgumentException] {
+            manager.createPartitionDataWriter(
+              appId,
+              0,
+              null,
+              0L,
+              PartitionSplitMode.HARD,
+              PartitionType.REDUCE,
+              rangeReadFilter = false,
+              userIdentifier = UserIdentifier("tenant", "user"),
+              partitionSplitEnabled = false,
+              isSegmentGranularityVisible = false)
+          }
+          intercept[IllegalArgumentException] {
+            manager.ensureS3DirectoryForShuffleKey(appId, 0)
+          }
+          intercept[IllegalArgumentException] {
+            manager.createMemoryFileInfo(
+              appId,
+              0,
+              "0-0-0",
+              UserIdentifier("tenant", "user"),
+              PartitionType.REDUCE,
+              partitionSplitEnabled = false)
+          }
+        }
+      assert(manager.shuffleKeySet().asScala == Set("app-1-0"))
+    }
+  }
+
+  test("skip invalid persisted shuffle identifiers before deleting files") {
+    withDiskFile(gracefulShutdown = false) { (manager, _, _) =>
+      val outside = Files.createTempDirectory("shuffle-cleanup-canary-")
+      val canary = Files.write(outside.resolve("keep"), Array[Byte](1, 2, 3))
+      val invalidKey = "../outside-0"
+      val info = new DiskFileInfo(
+        UserIdentifier("tenant", "user"),
+        false,
+        new ReduceFileMeta(1024),
+        canary.toString,
+        StorageInfo.Type.HDD)
+      // Model metadata recovered from an older version without exposing a production mutator.
+      val field = classOf[StorageManager].getDeclaredField("diskFileInfos")
+      field.setAccessible(true)
+      val diskFileInfos = field.get(manager).asInstanceOf[
+        ConcurrentHashMap[String, ConcurrentHashMap[String, DiskFileInfo]]]
+      diskFileInfos.computeIfAbsent(
+        invalidKey,
+        _ => JavaUtils.newConcurrentHashMap[String, DiskFileInfo]()).put("0-0-0", info)
+      try {
+        manager.cleanupExpiredShuffleKey(manager.shuffleKeySet(), cleanDB = false)
+        assert(Files.exists(canary))
+        assert(diskFileInfos.containsKey(invalidKey))
+        assert(!diskFileInfos.containsKey("app-1-0"))
+      } finally {
+        diskFileInfos.remove(invalidKey)
+        JavaUtils.deleteRecursively(outside.toFile)
+      }
+    }
+  }
+
   test("[CELEBORN-926] saveAllCommittedFileInfosToDB cause IllegalMonitorStateException") {
     val conf = new CelebornConf().set(WORKER_GRACEFUL_SHUTDOWN_ENABLED, true)
       .set(WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH, "/tmp/recover")

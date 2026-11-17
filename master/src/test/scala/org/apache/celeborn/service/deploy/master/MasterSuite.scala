@@ -39,11 +39,42 @@ import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcCallContext}
 import org.apache.celeborn.common.rpc.netty.{NettyRpcEnv, RemoteNettyRpcCallContext}
 import org.apache.celeborn.common.util.{CelebornExitKind, PbSerDeUtils, ThreadUtils}
+import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 
 class MasterSuite extends AnyFunSuite
   with BeforeAndAfterAll
   with BeforeAndAfterEach
   with MasterClusterFeature {
+
+  test("reject invalid application identifiers before scheduling application cleanup") {
+    val master = mock(classOf[Master], org.mockito.Mockito.CALLS_REAL_METHODS)
+    Seq(null, "", ".", "..", "../outside", "/outside", "app/child", "app\\child", "file:outside")
+      .foreach { appId =>
+        intercept[IllegalArgumentException] {
+          master.handleApplicationLost(null, appId, "request")
+        }
+      }
+  }
+
+  test("application timeout processing skips invalid recovered identifiers") {
+    val master = mock(classOf[Master], org.mockito.Mockito.CALLS_REAL_METHODS)
+    val statusSystem = new SingleMasterMetaManager(null, new CelebornConf(), null, null)
+    when(master.statusSystem).thenReturn(statusSystem)
+    statusSystem.appHeartbeatTime.put("../old-app", 0L)
+    statusSystem.appHeartbeatTime.put("app-1", 0L)
+    org.mockito.Mockito.doNothing().when(master).handleApplicationLost(
+      org.mockito.ArgumentMatchers.isNull[RpcCallContext](),
+      org.mockito.ArgumentMatchers.eq("app-1"),
+      org.mockito.ArgumentMatchers.anyString())
+    val timeout = classOf[Master].getDeclaredMethods
+      .find(_.getName.endsWith("timeoutDeadApplications")).get
+    timeout.setAccessible(true)
+    timeout.invoke(master)
+    verify(master).handleApplicationLost(
+      org.mockito.ArgumentMatchers.isNull[RpcCallContext](),
+      org.mockito.ArgumentMatchers.eq("app-1"),
+      org.mockito.ArgumentMatchers.anyString())
+  }
 
   // Builds a remote call context whose connection is authenticated as `clientId`;
   // null models a connection when authentication is disabled or an internal worker connection.

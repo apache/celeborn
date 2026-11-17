@@ -676,8 +676,8 @@ private[celeborn] class Master(
 
     case pb: PbApplicationMetaRequest =>
       // Workers fetch application meta over the internal channel, where no client id
-      // is set, so the check is a no-op for them; it only rejects an external
-      // application that asks for another application's secret.
+      // is set. Identifier validation still applies; the identity check also rejects
+      // an external application that asks for another application's secret.
       checkAuth(context, pb.getAppId)
       executeWithLeaderChecker(context, handleRequestForApplicationMeta(context, pb))
 
@@ -739,7 +739,12 @@ private[celeborn] class Master(
       if (heartbeatTime < currentTime - appHeartbeatTimeoutMs) {
         logWarning(s"Application $appId timeout, trigger applicationLost event.")
         val requestId = MasterClient.genRequestId()
-        handleApplicationLost(null, appId, requestId)
+        try {
+          handleApplicationLost(null, appId, requestId)
+        } catch {
+          case e: IllegalArgumentException =>
+            logWarning("Skipping cleanup for an invalid recovered application identifier.", e)
+        }
       }
     }
   }
@@ -1234,6 +1239,7 @@ private[celeborn] class Master(
   }
 
   def handleApplicationLost(context: RpcCallContext, appId: String, requestId: String): Unit = {
+    Utils.validateApplicationId(appId)
     nonEagerHandler.submit(new Runnable {
       override def run(): Unit = {
         workersAssignedToApp.remove(appId)
@@ -1251,6 +1257,9 @@ private[celeborn] class Master(
   }
 
   private def checkAndCleanExpiredAppDirsOnDFS(expiredDir: String = ""): Unit = {
+    if (expiredDir.nonEmpty) {
+      Utils.validateApplicationId(expiredDir)
+    }
     if (hadoopFs == null) {
       try {
         hadoopFs = CelebornHadoopUtils.getHadoopFS(conf)
