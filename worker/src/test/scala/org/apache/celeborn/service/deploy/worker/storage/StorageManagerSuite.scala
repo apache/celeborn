@@ -86,6 +86,8 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
 
   test("shuffle cleanup checks canonical paths before removing metadata") {
     withDiskFile(gracefulShutdown = false) { (manager, fileInfo, _) =>
+      // Warm java.io.File's canonical-path cache before changing the directory target.
+      assert(fileInfo.getFile.getCanonicalFile.isFile)
       val appDir = fileInfo.getFile.getParentFile.getParentFile.toPath
       val movedAppDir = appDir.resolveSibling("moved-app")
       Files.move(appDir, movedAppDir)

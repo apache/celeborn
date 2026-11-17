@@ -19,7 +19,7 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.{File, IOException}
 import java.nio.charset.StandardCharsets
-import java.nio.file.{FileAlreadyExistsException, Files, Paths}
+import java.nio.file.{FileAlreadyExistsException, Files, LinkOption, Paths}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
@@ -398,8 +398,22 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   private def getNextIndex = counter.getAndUpdate(counterOperator)
 
+  private def resolveLocalPath(file: File): java.nio.file.Path = {
+    val path = file.toPath.toAbsolutePath
+    var existing = path
+    while (existing != null && !Files.exists(existing, LinkOption.NOFOLLOW_LINKS)) {
+      existing = existing.getParent
+    }
+    if (existing == null) {
+      throw new IOException("Unable to resolve shuffle path")
+    }
+    // Resolve existing components without java.io.File's canonical-path cache, then append
+    // components that may not exist yet when validating a file before directory creation.
+    existing.toRealPath().resolve(existing.relativize(path)).normalize()
+  }
+
   private def validateLocalPath(workingDir: File, file: File): Unit = {
-    if (!file.getCanonicalFile.toPath.startsWith(workingDir.getCanonicalFile.toPath)) {
+    if (!resolveLocalPath(file).startsWith(resolveLocalPath(workingDir))) {
       throw new IOException("Shuffle path must remain within its working directory")
     }
   }
