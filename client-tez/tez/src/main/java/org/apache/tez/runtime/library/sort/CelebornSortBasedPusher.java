@@ -105,16 +105,17 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
         sendKVAndUpdateWritePos();
       }
       int dataLen = insertRecordInternal(key, value, partition);
+      // Match OUTPUT_BYTES: count serialized key and value bytes without framing.
       if (numOutputs == 1 && !needSort) {
         recordsPerPartition.putIfAbsent(0, new AtomicInteger());
         bytesPerPartition.putIfAbsent(0, new AtomicLong());
         recordsPerPartition.get(0).incrementAndGet();
-        bytesPerPartition.get(0).incrementAndGet();
+        bytesPerPartition.get(0).addAndGet(dataLen);
       } else {
         recordsPerPartition.computeIfAbsent(partition, p -> new AtomicInteger());
         bytesPerPartition.computeIfAbsent(partition, p -> new AtomicLong());
         recordsPerPartition.get(partition).incrementAndGet();
-        bytesPerPartition.get(partition).incrementAndGet();
+        bytesPerPartition.get(partition).addAndGet(dataLen);
       }
       if (logger.isDebugEnabled()) {
         logger.debug(
