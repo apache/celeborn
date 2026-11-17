@@ -358,7 +358,7 @@ spark.celeborn.storage.oss.endpoint oss-cn-<region>[-internal].aliyuncs.com
 Copy `$CELEBORN_HOME/flink/*.jar` to `$FLINK_HOME/lib/`.
 
 #### Flink Configuration
-Celeborn supports two Flink integration strategies: remote shuffle service (since Flink 1.16) and [hybrid shuffle](https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/batch/batch_shuffle/#hybrid-shuffle) (since Flink 1.20).
+Celeborn supports two Flink integration strategies: remote shuffle service (since Flink 1.18) and [hybrid shuffle](https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/batch/batch_shuffle/#hybrid-shuffle) (since Flink 1.20).
 
 To use Celeborn, you can choose one of them and add the following Flink configurations.
 
