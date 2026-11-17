@@ -372,6 +372,79 @@ public class HeartbeatAggregatorSuiteJ {
     Assert.assertTrue(metaSystem.decommissionWorkers.contains(worker));
   }
 
+  @Test
+  public void testLateOriginalNormalHeartbeatKeepsDecommissionWorker() throws Exception {
+    metaSystem.handleRegisterWorker(
+        "host1",
+        1,
+        2,
+        3,
+        4,
+        5,
+        "networkLocation1",
+        new HashMap<>(),
+        new HashMap<>(),
+        UUID.randomUUID().toString() + "#1");
+    Thread.sleep(2000);
+    Assert.assertEquals(1, metaSystem.workersMap.size());
+    WorkerInfo worker = new WorkerInfo("host1", 1, 2, 3, 4);
+
+    // The worker was Normal since normalStart and went draining at drainStart. A Normal
+    // heartbeat RPC times out and is retried with the same request id. The retry is answered
+    // with DecommissionThenIdle, the worker reports the decommission and sends a draining
+    // heartbeat, and only then does the original RPC reach the aggregator.
+    long normalStart = System.currentTimeMillis() - 10_000;
+    long drainStart = normalStart + 5_000;
+    String normalHeartbeatRequestId = UUID.randomUUID().toString() + "#2";
+    sendHeartbeat(PbWorkerStatus.State.Normal, normalStart, normalHeartbeatRequestId);
+    metaSystem.handleReportWorkerDecommission(
+        Collections.singletonList(worker), UUID.randomUUID().toString() + "#3");
+    Thread.sleep(2000);
+    Assert.assertTrue(metaSystem.decommissionWorkers.contains(worker));
+
+    sendHeartbeat(
+        PbWorkerStatus.State.InDecommissionThenIdle,
+        drainStart,
+        UUID.randomUUID().toString() + "#4");
+    Thread.sleep(2000);
+    Assert.assertTrue(metaSystem.decommissionWorkers.contains(worker));
+
+    sendHeartbeat(PbWorkerStatus.State.Normal, normalStart, normalHeartbeatRequestId);
+    Thread.sleep(2000);
+    Assert.assertTrue(metaSystem.decommissionWorkers.contains(worker));
+    Assert.assertEquals(
+        PbWorkerStatus.State.InDecommissionThenIdle,
+        metaSystem.workersMap.get(worker.toUniqueId()).getWorkerStatus().getState());
+
+    sendHeartbeat(
+        PbWorkerStatus.State.InDecommissionThenIdle,
+        drainStart,
+        UUID.randomUUID().toString() + "#5");
+    Thread.sleep(2000);
+    Assert.assertTrue(metaSystem.decommissionWorkers.contains(worker));
+
+    // Recommissioned: a Normal state newer than the draining one does remove it.
+    sendHeartbeat(
+        PbWorkerStatus.State.Normal, drainStart + 5_000, UUID.randomUUID().toString() + "#6");
+    Thread.sleep(2000);
+    Assert.assertFalse(metaSystem.decommissionWorkers.contains(worker));
+  }
+
+  private void sendHeartbeat(PbWorkerStatus.State state, long stateStartTime, String requestId) {
+    metaSystem.handleWorkerHeartbeat(
+        "host1",
+        1,
+        2,
+        3,
+        4,
+        new HashMap<>(),
+        new HashMap<>(),
+        System.currentTimeMillis(),
+        false,
+        new WorkerStatus(state.getNumber(), stateStartTime),
+        requestId);
+  }
+
   private long lastAppliedIndex() {
     return ratisServer.getMasterStateMachine().getLastAppliedTermIndex().getIndex();
   }

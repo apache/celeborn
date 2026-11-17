@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
@@ -337,6 +338,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     WorkerInfo worker =
         new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, -1, disks, null);
     AtomicLong availableSlots = new AtomicLong();
+    AtomicBoolean staleStatus = new AtomicBoolean();
+    AtomicBoolean newNormalStatus = new AtomicBoolean();
     LOG.debug("update worker {}:{} heartbeat {}", host, rpcPort, disks);
     synchronized (workersMap) {
       Optional<WorkerInfo> workerInfo = Optional.ofNullable(workersMap.get(worker.toUniqueId()));
@@ -345,13 +348,34 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             info.updateThenGetDiskInfos(disks, Option.apply(estimatedPartitionSize));
             availableSlots.set(info.totalAvailableSlots());
             info.lastHeartbeat_$eq(time);
-            info.setWorkerStatus(workerStatus);
+            WorkerStatus previous = info.getWorkerStatus();
+            // A heartbeat RPC can finish after a newer one (e.g. after its own retry), so its
+            // state may be older than one already applied. Only a non-Normal previous state is
+            // compared: a Normal one may be the master's placeholder, stamped by its own clock.
+            boolean previousNormal = previous.getState() == PbWorkerStatus.State.Normal;
+            if (!previousNormal
+                && workerStatus.getStateStartTime() < previous.getStateStartTime()) {
+              staleStatus.set(true);
+            } else {
+              newNormalStatus.set(
+                  workerStatus.getState() == PbWorkerStatus.State.Normal
+                      && (!previousNormal
+                          || workerStatus.getStateStartTime() != previous.getStateStartTime()));
+              info.setWorkerStatus(workerStatus);
+            }
             info.setWorkLoad(highWorkload);
           });
     }
+    if (staleStatus.get()) {
+      LOG.info(
+          "Ignore stale status {} of worker {}, a newer status was already applied",
+          workerStatus,
+          worker.toUniqueId());
+    }
 
     WorkerEventInfo workerEventInfo = workerEventInfos.get(worker);
-    if (workerEventInfo != null
+    if (!staleStatus.get()
+        && workerEventInfo != null
         && WorkerStatusUtils.meetFinalState(workerEventInfo, workerStatus)) {
       workerEventInfos.remove(worker);
       if (workerStatus.getState() == PbWorkerStatus.State.Normal) {
@@ -388,11 +412,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       }
     }
 
-    // A Normal worker is no longer decommissioned (e.g. recommissioned after
-    // DecommissionThenIdle), so drop it from decommissionWorkers and try to make it available.
-    if (workerStatus.getState() == PbWorkerStatus.State.Normal) {
+    // A worker that entered Normal after its decommission report (e.g. recommissioned after
+    // DecommissionThenIdle) is no longer decommissioned. A Normal state that started before the
+    // report, delivered late, is not a new transition and must keep the worker listed.
+    if (!staleStatus.get() && workerStatus.getState() == PbWorkerStatus.State.Normal) {
       synchronized (workersMap) {
-        if (decommissionWorkers.remove(worker)) {
+        if (newNormalStatus.get() && decommissionWorkers.remove(worker)) {
           LOG.info(
               "Worker {} is Normal again, removed from decommission workers", worker.toUniqueId());
         }
@@ -470,6 +495,15 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 applicationMetas,
                 applicationInfos,
                 decommissionWorkers)
+            .toBuilder()
+            // Restored masters need the applied statuses to reject the same stale heartbeats.
+            .putAllWorkerStatuses(
+                workersMap.entrySet().stream()
+                    .collect(
+                        Collectors.toMap(
+                            Map.Entry::getKey,
+                            e -> PbSerDeUtils.toPbWorkerStatus(e.getValue().getWorkerStatus()))))
+            .build()
             .toByteArray();
     Files.write(file.toPath(), snapshotBytes);
   }
@@ -538,6 +572,15 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                   })
               .collect(Collectors.toMap(WorkerInfo::toUniqueId, w -> w)));
       workersMap.values().forEach(worker -> workerStats.put(worker, new AtomicReference<>()));
+      snapshotMetaInfo
+          .getWorkerStatusesMap()
+          .forEach(
+              (uniqueId, status) -> {
+                WorkerInfo worker = workersMap.get(uniqueId);
+                if (worker != null) {
+                  worker.setWorkerStatus(PbSerDeUtils.fromPbWorkerStatus(status));
+                }
+              });
 
       snapshotMetaInfo
           .getLostWorkersMap()

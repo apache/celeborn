@@ -1278,6 +1278,62 @@ public class DefaultMetaSystemSuiteJ {
   }
 
   @Test
+  public void testRestoredMasterIgnoresStaleNormalHeartbeat() throws Exception {
+    File snapshot = Files.createTempFile("celeborn-meta", ".snapshot").toFile();
+    try {
+      statusSystem.handleRegisterWorker(
+          HOSTNAME1,
+          RPCPORT1,
+          PUSHPORT1,
+          FETCHPORT1,
+          REPLICATEPORT1,
+          INTERNALPORT1,
+          NETWORK_LOCATION1,
+          disks1,
+          userResourceConsumption1,
+          getNewReqeustId());
+      WorkerInfo worker1 =
+          new WorkerInfo(HOSTNAME1, RPCPORT1, PUSHPORT1, FETCHPORT1, REPLICATEPORT1);
+      long normalStart = System.currentTimeMillis() - 10_000;
+      long drainStart = normalStart + 5_000;
+      statusSystem.handleReportWorkerDecommission(
+          Collections.singletonList(worker1), getNewReqeustId());
+      heartbeatWorker1(PbWorkerStatus.State.InDecommissionThenIdle, drainStart);
+      statusSystem.writeMetaInfoToFile(snapshot);
+
+      SingleMasterMetaManager restored = new SingleMasterMetaManager(mockRpcEnv, conf);
+      restored.restoreMetaFromFile(snapshot);
+      statusSystem = restored;
+      assertEquals(
+          PbWorkerStatus.State.InDecommissionThenIdle,
+          restored.workersMap.get(worker1.toUniqueId()).getWorkerStatus().getState());
+      assertFalse(restored.availableWorkers.contains(worker1));
+
+      // The worker's Normal heartbeat from before the drain, applied late.
+      heartbeatWorker1(PbWorkerStatus.State.Normal, normalStart);
+      assertTrue(restored.decommissionWorkers.contains(worker1));
+      assertFalse(restored.availableWorkers.contains(worker1));
+    } finally {
+      snapshot.delete();
+    }
+  }
+
+  private void heartbeatWorker1(PbWorkerStatus.State state, long stateStartTime) {
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceConsumption1,
+        1,
+        false,
+        new WorkerStatus(state.getNumber(), stateStartTime),
+        getNewReqeustId());
+  }
+
+  @Test
   public void testShuffleAndApplicationCountWithFallback() {
     statusSystem.shuffleTotalCount.reset();
     statusSystem.applicationTotalCount.reset();
