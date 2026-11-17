@@ -187,7 +187,10 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
 
   @Override
   public void handleApplicationMeta(ApplicationMeta applicationMeta) {
-    updateApplicationMeta(applicationMeta);
+    if (!updateApplicationMeta(applicationMeta)) {
+      throw new IllegalStateException(
+          "Application is already registered " + applicationMeta.appId());
+    }
   }
 
   @Override

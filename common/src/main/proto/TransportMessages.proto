@@ -1062,6 +1062,7 @@ enum PbMetaRequestStatus {
   UNKNOWN = 0;
   OK = 1;
   INTERNAL_ERROR= 2;
+  ALREADY_EXISTS = 3;
 }
 
 message PbMetaRequestResponse {

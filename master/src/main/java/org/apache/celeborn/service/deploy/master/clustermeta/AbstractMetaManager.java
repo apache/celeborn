@@ -657,8 +657,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
   }
 
-  public void updateApplicationMeta(ApplicationMeta applicationMeta) {
-    applicationMetas.putIfAbsent(applicationMeta.appId(), applicationMeta);
+  /** Returns whether this registration inserted the application's metadata. */
+  public boolean updateApplicationMeta(ApplicationMeta applicationMeta) {
+    return applicationMetas.putIfAbsent(applicationMeta.appId(), applicationMeta) == null;
   }
 
   public void removeApplicationMeta(String appId) {

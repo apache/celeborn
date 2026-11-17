@@ -309,7 +309,14 @@ public class MetaHandler {
         case ApplicationMeta:
           appId = request.getApplicationMetaRequest().getAppId();
           String secret = request.getApplicationMetaRequest().getSecret();
-          metaSystem.updateApplicationMeta(new ApplicationMeta(appId, secret));
+          if (!metaSystem.updateApplicationMeta(new ApplicationMeta(appId, secret))) {
+            // A registration conflict is a business failure, not a fatal state-machine error.
+            return responseBuilder
+                .setSuccess(false)
+                .setStatus(PbMetaRequestStatus.ALREADY_EXISTS)
+                .setMessage("Application is already registered " + appId)
+                .build();
+          }
           break;
 
         case ReportWorkerDecommission:
