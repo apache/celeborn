@@ -37,6 +37,10 @@ class CelebornCli extends BaseCommand {
 
 object CelebornCli {
   def main(args: Array[String]): Unit = {
+    System.exit(execute(args))
+  }
+
+  private[cli] def execute(args: Array[String]): Int = {
     val cmd = new CommandLine(new CelebornCli())
     cmd.setOptionsCaseInsensitive(false)
     cmd.setSubcommandsCaseInsensitive(false)
