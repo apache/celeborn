@@ -6405,6 +6405,24 @@ object CelebornConf extends Logging {
       .checkValue(_ > 0, "Worker metric memory window size must be positive")
       .createWithDefault(6)
 
+  val SCALE_MANAGER_CLASS_NAME: OptionalConfigEntry[String] =
+    buildConf("celeborn.scale.manager.class")
+      .categories("master")
+      .version("1.0.0")
+      .doc("ScaleManager implementation class with a CelebornConf constructor. " +
+        "Master calls init, run and stop; the implementation must handle HA leadership. " +
+        "Unset disables autoscaling.")
+      .stringConf
+      .createOptional
+
+  val SCALE_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.scale.check.interval")
+      .categories("master")
+      .version("1.0.0")
+      .doc("Interval between checks in AbstractScaleManager.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
   val IDENTITY_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.identity.provider")
       .withAlternative("celeborn.quota.identity.provider")

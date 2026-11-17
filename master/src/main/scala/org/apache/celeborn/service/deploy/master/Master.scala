@@ -57,6 +57,7 @@ import org.apache.celeborn.service.deploy.master.audit.ShuffleAuditLogger
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 import org.apache.celeborn.service.deploy.master.quota.QuotaManager
+import org.apache.celeborn.service.deploy.master.scale.ScaleManager
 import org.apache.celeborn.service.deploy.master.slotsalloc.{SlotsAllocator, SlotsAssignStrategyManager}
 import org.apache.celeborn.service.deploy.master.tags.TagsManager
 
@@ -178,6 +179,10 @@ private[celeborn] class Master(
     }
   metricsSystem.registerSource(statusSystem.applicationMetricsSource())
   secretRegistry.setMetadataHandler(statusSystem)
+
+  private val scaleManager = conf.get(CelebornConf.SCALE_MANAGER_CLASS_NAME).map { className =>
+    Utils.instantiateClassWithCelebornConf[ScaleManager](className, conf)
+  }
 
   // Threads
   private val forwardMessageThread =
@@ -361,6 +366,11 @@ private[celeborn] class Master(
         scheduleCheckTask(dfsExpireDirsTimeoutMS, CheckForDFSExpiredDirsTimeout)
     }
 
+    scaleManager.foreach { manager =>
+      manager.init(statusSystem)
+      manager.run()
+    }
+
   }
 
   private def scheduleCheckTask[T](timeoutMS: Long, message: T): ScheduledFuture[_] = {
@@ -380,6 +390,8 @@ private[celeborn] class Master(
       return
     }
     logInfo("Stopping Celeborn Master.")
+
+    scaleManager.foreach(manager => Utils.tryLogNonFatalError(manager.stop()))
 
     Option(checkForWorkerTimeoutTask).foreach(_.cancel(true))
     Option(checkForUnavailableWorkerTimeOutTask).foreach(_.cancel(true))
