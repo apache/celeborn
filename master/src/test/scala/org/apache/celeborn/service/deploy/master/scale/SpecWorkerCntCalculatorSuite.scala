@@ -154,22 +154,54 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     assert(newCalculator(conf).calSpecWorkerCnt(snapshot(10, stats)) == 9)
   }
 
-  test("ratio sums and averages retain double rounding at integer boundaries") {
+  test("permuting worker reports at the scale-up threshold keeps the same spec") {
+    val calculator = newCalculator()
+    Seq(0.8, 0.3, 0.4).permutations.foreach { memoryRatios =>
+      val stats = memoryRatios.map { ratio =>
+        WorkerStats(neutral.metrics + (WorkerStats.MemoryPressureRatio -> ratio))
+      }
+      assert(calculator.cal(Input(3, 20, stats)) == Result(20, 0), s"memory ratios=$memoryRatios")
+    }
+  }
+
+  test("permuting worker reports at integer demand gives the same rounded demand") {
+    val calculator = newCalculator()
+    val cases = Seq(
+      (Seq(0.1, 0.2, 2.2), neutral, 5),
+      (Seq(0.1, 0.2, 0.3), low, 2))
+    cases.foreach { case (values, otherRatios, expected) =>
+      values.permutations.foreach { memoryRatios =>
+        val stats = memoryRatios.map { ratio =>
+          WorkerStats(otherRatios.metrics + (WorkerStats.MemoryPressureRatio -> ratio))
+        }
+        assert(
+          calculator.calSpecWorkerCnt(Input(3, 20, stats)) == expected,
+          s"memory ratios=$memoryRatios")
+      }
+    }
+  }
+
+  test("demand rounds up only across integer boundaries") {
     val high = WorkerStats(low.metrics + (WorkerStats.LastMinuteSystemLoadRatio -> 0.7))
-    // Ten additions of 0.7 produce 7.000000000000001, whose estimate is fifteen workers.
-    assert(newCalculator().calSpecWorkerCnt(snapshot(10, high)) == 15)
+    assert(newCalculator().calSpecWorkerCnt(snapshot(10, high)) == 14)
     val conf = baseConf()
       .set(SCALE_DOWN_POLICY_STEP_NUMBER.key, "100")
       .set(SCALE_DOWN_POLICY_PERCENT.key, "1")
-    // Three additions of 0.1 produce 0.30000000000000004; ceil(sum / 0.3) is two.
-    assert(newCalculator(conf).calSpecWorkerCnt(snapshot(3)) == 2)
+    assert(newCalculator(conf).calSpecWorkerCnt(snapshot(3)) == 1)
     val nearBoundary = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.27))
-    assert(newCalculator(conf).calSpecWorkerCnt(snapshot(10, nearBoundary)) == 10)
-    val atThreshold = baseConf()
+    assert(newCalculator(conf).calSpecWorkerCnt(snapshot(10, nearBoundary)) == 9)
+  }
+
+  test("scale-up only triggers when the average is strictly above its configured threshold") {
+    val conf = baseConf()
       .set(SCALE_UP_SYSTEM_LOAD_RATIO.key, "0.1")
       .set(SCALE_DOWN_SYSTEM_LOAD_RATIO.key, "0.05")
-    val stats = WorkerStats(low.metrics + (WorkerStats.LastMinuteSystemLoadRatio -> 0.1))
-    assert(newCalculator(atThreshold).calSpecWorkerCnt(snapshot(3, stats)) == 4)
+    val calculator = newCalculator(conf)
+    val atThreshold = WorkerStats(low.metrics + (WorkerStats.LastMinuteSystemLoadRatio -> 0.1))
+    val aboveThreshold = WorkerStats(
+      low.metrics + (WorkerStats.LastMinuteSystemLoadRatio -> Math.nextUp(0.1)))
+    assert(calculator.calSpecWorkerCnt(snapshot(3, atThreshold)) == 3)
+    assert(calculator.calSpecWorkerCnt(snapshot(3, aboveThreshold)) == 4)
   }
 
   test("missing and invalid ratio metrics reject the decision instead of becoming zero") {
