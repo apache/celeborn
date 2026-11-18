@@ -57,6 +57,7 @@ class LifecycleManagerIntegrityFailureSuite extends CelebornFunSuite {
       JavaUtils.newConcurrentHashMap[Int, Int]())
     setField(manager, "unregisterShuffleCallback", None)
     setField(manager, "validateCelebornShuffleIdForClean", None)
+    setField(manager, "clientSource", None)
     manager.registerReportTaskShuffleFetchFailurePreCheck(new java.util.function.Function[
       java.lang.Long,
       Boolean] {

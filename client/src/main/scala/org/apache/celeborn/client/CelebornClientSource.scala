@@ -25,7 +25,18 @@ import org.apache.celeborn.common.metrics.source.{AbstractSource, Role}
  * Metrics source for the Celeborn client
  */
 class CelebornClientSource(conf: CelebornConf) extends AbstractSource(conf, Role.CLIENT) {
+  import CelebornClientSource._
+
   override val sourceName = "client"
+
+  Seq(
+    REGISTERED_SHUFFLE_COUNT,
+    REVIVE_COUNT,
+    SHUFFLE_FETCH_FAILURE_COUNT,
+    STAGE_RERUN_COUNT,
+    SHUFFLE_DATA_LOST_COUNT,
+    RESERVE_SLOTS_FAILURE_COUNT,
+    REQUEST_SLOTS_FAILURE_COUNT).foreach(name => addCounter(name))
 
   def getMetricsSnapshot(): Map[String, ClientMetric] = {
     val snapshot = Map.newBuilder[String, ClientMetric]
@@ -33,6 +44,9 @@ class CelebornClientSource(conf: CelebornConf) extends AbstractSource(conf, Role
       snapshot += g.name -> ClientMetric(
         g.gauge.getValue.asInstanceOf[Number].longValue(),
         MetricType.Gauge)
+    }
+    counters().foreach { c =>
+      snapshot += c.name -> ClientMetric(c.counter.getCount, MetricType.Counter)
     }
     snapshot.result()
   }
@@ -44,4 +58,12 @@ object CelebornClientSource {
   val EXCLUDED_WORKER_COUNT = "ClientExcludedWorkerCount"
   val SHUTTING_WORKER_COUNT = "ClientShuttingWorkerCount"
   val ACTIVE_SHUFFLE_COUNT = "ClientActiveShuffleCount"
+
+  val REGISTERED_SHUFFLE_COUNT = "ClientRegisteredShuffleCount"
+  val REVIVE_COUNT = "ClientReviveCount"
+  val SHUFFLE_FETCH_FAILURE_COUNT = "ClientShuffleFetchFailureCount"
+  val STAGE_RERUN_COUNT = "ClientStageRerunCount"
+  val SHUFFLE_DATA_LOST_COUNT = "ClientShuffleDataLostCount"
+  val RESERVE_SLOTS_FAILURE_COUNT = "ClientReserveSlotsFailureCount"
+  val REQUEST_SLOTS_FAILURE_COUNT = "ClientRequestSlotsFailureCount"
 }

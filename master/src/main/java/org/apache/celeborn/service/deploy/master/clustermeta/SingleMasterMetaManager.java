@@ -103,6 +103,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       Map<String, Long> applicationFallbackCounts,
       long time,
       Map<String, Long> clientGauges,
+      Map<String, Long> clientCounters,
       Map<String, String> clientMetricLabels,
       String requestId) {
     updateAppHeartbeatMeta(
@@ -115,6 +116,7 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
         shuffleFallbackCounts,
         applicationFallbackCounts,
         clientGauges,
+        clientCounters,
         clientMetricLabels);
   }
 

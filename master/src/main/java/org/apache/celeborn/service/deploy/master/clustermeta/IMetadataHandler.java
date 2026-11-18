@@ -51,6 +51,7 @@ public interface IMetadataHandler {
       Map<String, Long> applicationFallbackCounts,
       long time,
       Map<String, Long> clientGauges,
+      Map<String, Long> clientCounters,
       Map<String, String> clientMetricLabels,
       String requestId);
 

@@ -186,6 +186,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       Map<String, Long> shuffleFallbackCounts,
       Map<String, Long> applicationFallbackCounts,
       Map<String, Long> clientGauges,
+      Map<String, Long> clientCounters,
       Map<String, String> clientMetricLabels) {
     appHeartbeatTime.put(appId, time);
     partitionTotalWritten.add(totalWritten);
@@ -196,7 +197,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     addFallbackCounts(this.applicationFallbackCounts, applicationFallbackCounts);
     if (!clientMetricLabels.isEmpty()) {
       try {
-        applicationMetricsSource.updateApplicationMetrics(appId, clientMetricLabels, clientGauges);
+        applicationMetricsSource.updateApplicationMetrics(
+            appId, clientMetricLabels, clientGauges, clientCounters);
       } catch (Throwable t) {
         LOG.warn("Failed to update client metrics for app {}", appId, t);
       }

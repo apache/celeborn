@@ -666,6 +666,7 @@ public class DefaultMetaSystemSuiteJ {
         new HashMap<>(),
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
     assertEquals(dummy, statusSystem.appHeartbeatTime.get(APPID1));
@@ -681,6 +682,7 @@ public class DefaultMetaSystemSuiteJ {
         new HashMap<>(),
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
     assertEquals(dummy, statusSystem.appHeartbeatTime.get(appId2));
@@ -1039,6 +1041,7 @@ public class DefaultMetaSystemSuiteJ {
         new HashMap<>(),
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
     String appId2 = "app02";
@@ -1052,6 +1055,7 @@ public class DefaultMetaSystemSuiteJ {
         new HashMap<>(),
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
 
@@ -1069,6 +1073,7 @@ public class DefaultMetaSystemSuiteJ {
         new HashMap<>(),
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
     statusSystem.handleAppHeartbeat(
@@ -1081,6 +1086,7 @@ public class DefaultMetaSystemSuiteJ {
         new HashMap<>(),
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
 
@@ -1098,6 +1104,7 @@ public class DefaultMetaSystemSuiteJ {
         new HashMap<>(),
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
     statusSystem.handleAppHeartbeat(
@@ -1110,6 +1117,7 @@ public class DefaultMetaSystemSuiteJ {
         new HashMap<>(),
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
 
@@ -1205,6 +1213,7 @@ public class DefaultMetaSystemSuiteJ {
         applicationFallbackCounts,
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
     shuffleFallbackCounts.put(POLICY1, 1L);
@@ -1221,6 +1230,7 @@ public class DefaultMetaSystemSuiteJ {
         applicationFallbackCounts,
         dummy,
         Collections.emptyMap(),
+        new HashMap<>(),
         Collections.emptyMap(),
         getNewReqeustId());
 
@@ -1270,6 +1280,7 @@ public class DefaultMetaSystemSuiteJ {
         new HashMap<>(),
         System.currentTimeMillis(),
         Collections.singletonMap(CLIENT_GAUGE, value),
+        new HashMap<>(),
         CLIENT_LABELS,
         getNewReqeustId());
   }
@@ -1292,7 +1303,10 @@ public class DefaultMetaSystemSuiteJ {
 
     @Override
     public void updateApplicationMetrics(
-        String appId, Map<String, String> metricLabels, Map<String, Long> gauges) {
+        String appId,
+        Map<String, String> metricLabels,
+        Map<String, Long> gauges,
+        Map<String, Long> counters) {
       throw new IllegalArgumentException("injected update failure");
     }
 

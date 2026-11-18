@@ -59,6 +59,7 @@ class ApplicationMetricsSource(conf: CelebornConf)
             removedAppIds.remove(entry.getKey, entry.getValue)
           }
         }
+        removeIdleAppCounters(cutoff)
       }
     }
     metricsCleaner.scheduleWithFixedDelay(
@@ -71,7 +72,8 @@ class ApplicationMetricsSource(conf: CelebornConf)
   def updateApplicationMetrics(
       appId: String,
       metricLabels: JMap[String, String],
-      gauges: JMap[String, java.lang.Long]): Unit = {
+      gauges: JMap[String, java.lang.Long],
+      counters: JMap[String, java.lang.Long]): Unit = {
     if (!masterClientMetricsEnabled) {
       return
     }
@@ -90,6 +92,9 @@ class ApplicationMetricsSource(conf: CelebornConf)
     gauges.asScala.foreach { case (name, value) =>
       addOrUpdateGaugeForApp(name, labels, appId, value)
     }
+    counters.asScala.foreach { case (name, value) =>
+      addOrUpdateCounterForApp(name, labels, appId, value)
+    }
 
     warnIfSeriesCardinalityHigh()
   }
@@ -106,6 +111,7 @@ class ApplicationMetricsSource(conf: CelebornConf)
 
   def clearApplicationMetrics(): Unit = {
     removeAllAppGauges()
+    removeAllAppCounters()
   }
 
   private def validateLabels(labels: Map[String, String]): Boolean = {
@@ -118,7 +124,8 @@ class ApplicationMetricsSource(conf: CelebornConf)
     if (seriesCardinalityWarned.get()) {
       return
     }
-    val trackedSeries = namedGauges.size() + namedGaugesWithDetails.size() + namedCounters.size()
+    val trackedSeries = namedGauges.size() + namedGaugesWithDetails.size() + namedCounters.size() +
+      namedCountersWithDetails.size()
     if (trackedSeries > seriesCardinalityWarnThreshold && seriesCardinalityWarned.compareAndSet(
         false,
         true)) {

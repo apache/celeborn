@@ -39,4 +39,19 @@ class CelebornClientSourceSuite extends CelebornFunSuite {
     assert(snapshot(CelebornClientSource.EXCLUDED_WORKER_COUNT).value == 5)
     assert(snapshot(CelebornClientSource.EXCLUDED_WORKER_COUNT).metricType == MetricType.Gauge)
   }
+
+  test("counters are reported as cumulative values, not deltas") {
+    val source = new CelebornClientSource(new CelebornConf())
+
+    val initial = source.getMetricsSnapshot()(CelebornClientSource.REVIVE_COUNT)
+    assert(initial.value == 0)
+    assert(initial.metricType == MetricType.Counter)
+
+    source.incCounter(CelebornClientSource.REVIVE_COUNT, 3)
+    assert(source.getMetricsSnapshot()(CelebornClientSource.REVIVE_COUNT).value == 3)
+    // Taking a snapshot must not reset the counter.
+    source.incCounter(CelebornClientSource.REVIVE_COUNT, 2)
+    assert(source.getMetricsSnapshot()(CelebornClientSource.REVIVE_COUNT).value == 5)
+    assert(source.getMetrics.contains("metrics_ClientReviveCount_Count"))
+  }
 }

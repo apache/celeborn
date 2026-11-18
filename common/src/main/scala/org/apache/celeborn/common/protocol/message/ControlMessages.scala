@@ -909,6 +909,7 @@ object ControlMessages extends Logging {
         .putAllClientMetrics(clientMetrics.asScala.map { case (name, metric) =>
           val pbType = metric.metricType match {
             case MetricType.Gauge => PbMetricType.GAUGE
+            case MetricType.Counter => PbMetricType.COUNTER
           }
           name -> PbClientMetric.newBuilder().setValue(metric.value).setType(pbType).build()
         }.asJava)
@@ -1415,6 +1416,8 @@ object ControlMessages extends Logging {
                 pbMetric.getType match {
                   case PbMetricType.GAUGE =>
                     Some(name -> ClientMetric(pbMetric.getValue, MetricType.Gauge))
+                  case PbMetricType.COUNTER =>
+                    Some(name -> ClientMetric(pbMetric.getValue, MetricType.Counter))
                   case unknown =>
                     logWarning(s"Unknown PbMetricType $unknown for metric $name, skipping")
                     None

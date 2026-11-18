@@ -320,6 +320,11 @@ class ChangePartitionManager(
       return
     }
 
+    val revived = changePartitions.count(_.oldPartition != null)
+    if (revived > 0) {
+      lifecycleManager.incClientCounter(CelebornClientSource.REVIVE_COUNT, revived)
+    }
+
     val newPrimaryLocations = newlyAllocatedLocations.asScala.flatMap {
       case (workInfo, (primaryLocations, replicaLocations)) =>
         // Add all re-allocated slots to worker snapshots.
