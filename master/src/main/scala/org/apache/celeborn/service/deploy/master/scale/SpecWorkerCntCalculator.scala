@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.service.deploy.master.scale
 
+import java.math.{BigDecimal, RoundingMode}
+
 import scala.collection.JavaConverters._
 
 import org.apache.celeborn.common.CelebornConf
@@ -93,17 +95,23 @@ private[master] class SpecWorkerCntCalculator(
   }
 
   private def classifyLoad(metrics: MetricRatios): Load = {
+    val workerCnt = BigDecimal.valueOf(metrics.registeredWorkerWithMetricCnt.toLong)
     val ratios = metrics.values.iterator
     var allBelowDown = true
 
     while (ratios.hasNext) {
       val (dimension, values) = ratios.next()
-      val avg = values.sum / metrics.registeredWorkerWithMetricCnt
-
-      if (avg > dimension.up) {
-        return Load.High
+      sumRatios(values) match {
+        case Some(sum) =>
+          val up = BigDecimal.valueOf(dimension.up).multiply(workerCnt)
+          if (sum.compareTo(up) > 0) {
+            return Load.High
+          }
+          allBelowDown = allBelowDown &&
+            sum.compareTo(BigDecimal.valueOf(dimension.down).multiply(workerCnt)) < 0
+        case None =>
+          allBelowDown = false
       }
-      allBelowDown = allBelowDown && avg < dimension.down
     }
 
     if (allBelowDown) Load.Low else Load.Normal
@@ -168,10 +176,26 @@ private[master] class SpecWorkerCntCalculator(
   }
 
   private def estimate(metrics: MetricRatios, up: Boolean): Int = {
+    val maxInt = BigDecimal.valueOf(Int.MaxValue.toLong)
     metrics.values.map { case (dimension, values) =>
-      val threshold = if (up) dimension.up else dimension.down
-      math.ceil(values.sum / threshold).toInt
+      val threshold = BigDecimal.valueOf(if (up) dimension.up else dimension.down)
+      sumRatios(values).fold(0) { sum =>
+        sum.divide(threshold, 0, RoundingMode.CEILING).min(maxInt).intValueExact()
+      }
     }.max
+  }
+
+  private def sumRatios(values: Seq[Double]): Option[BigDecimal] = {
+    var total = BigDecimal.ZERO
+    var available = true
+    values.foreach { value =>
+      if (value.isNaN) {
+        available = false
+      } else if (available) {
+        total = total.add(BigDecimal.valueOf(value))
+      }
+    }
+    if (available) Some(total) else None
   }
 
   private def compensateExcluded(
