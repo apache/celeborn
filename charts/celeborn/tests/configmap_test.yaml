@@ -75,3 +75,117 @@ tests:
       - matchRegex:
           path: data["worker-drain.sh"]
           pattern: \$\{POD_NAME:-\}
+
+  - it: Should not render S3 settings by default
+    asserts:
+      - notMatchRegex:
+          path: data["celeborn-defaults.conf"]
+          pattern: 'celeborn\.storage\.(s3|availableTypes)'
+
+  - it: Should render S3 settings and add S3 to the default storage types when s3 is enabled
+    set:
+      s3:
+        enabled: true
+        dir: s3a://celeborn-shuffle/celeborn
+        region: us-east-1
+    asserts:
+      - matchRegex:
+          path: data["celeborn-defaults.conf"]
+          pattern: '(?m)^\s*celeborn\.storage\.availableTypes=HDD,S3$'
+      - matchRegex:
+          path: data["celeborn-defaults.conf"]
+          pattern: '(?m)^\s*celeborn\.storage\.s3\.dir=s3a://celeborn-shuffle/celeborn$'
+      - matchRegex:
+          path: data["celeborn-defaults.conf"]
+          pattern: '(?m)^\s*celeborn\.storage\.s3\.endpoint\.region=us-east-1$'
+
+  - it: Should append S3 to configured storage types once, without a duplicate key
+    set:
+      celeborn:
+        celeborn.storage.availableTypes: memory,SSD
+      s3:
+        enabled: true
+        dir: s3://celeborn-shuffle
+        region: us-east-1
+    asserts:
+      - matchRegex:
+          path: data["celeborn-defaults.conf"]
+          pattern: '(?m)^\s*celeborn\.storage\.availableTypes=MEMORY,SSD,S3$'
+      - notMatchRegex:
+          path: data["celeborn-defaults.conf"]
+          pattern: '(?s)availableTypes=.*availableTypes='
+
+  - it: Should not add S3 twice when it is already a configured storage type
+    set:
+      celeborn:
+        celeborn.storage.availableTypes: SSD,S3
+      s3:
+        enabled: true
+        dir: s3a://celeborn-shuffle
+        region: us-east-1
+    asserts:
+      - matchRegex:
+          path: data["celeborn-defaults.conf"]
+          pattern: '(?m)^\s*celeborn\.storage\.availableTypes=SSD,S3$'
+
+  - it: Should fail when s3 is enabled without a dir
+    set:
+      s3:
+        enabled: true
+        region: us-east-1
+    asserts:
+      - failedTemplate:
+          errorMessage: s3.dir is required when s3.enabled is true
+
+  - it: Should fail when s3 is enabled without a region
+    set:
+      s3:
+        enabled: true
+        dir: s3a://celeborn-shuffle
+    asserts:
+      - failedTemplate:
+          errorMessage: s3.region is required when s3.enabled is true
+
+  - it: Should fail on an S3 dir Celeborn would reject
+    set:
+      s3:
+        enabled: true
+        dir: s3a://celeborn.shuffle/celeborn
+        region: us-east-1
+    asserts:
+      - failedTemplate:
+          errorMessage: s3.dir "s3a://celeborn.shuffle/celeborn" must look like s3a://<bucket>/<path>, with no dots in the bucket name
+
+  - it: Should not add S3 again when it is configured in lowercase
+    set:
+      celeborn:
+        celeborn.storage.availableTypes: memory,s3
+      s3:
+        enabled: true
+        dir: s3a://celeborn-shuffle
+        region: us-east-1
+    asserts:
+      - matchRegex:
+          path: data["celeborn-defaults.conf"]
+          pattern: '(?m)^\s*celeborn\.storage\.availableTypes=MEMORY,S3$'
+
+  - it: Should start from the deprecated activeTypes key when availableTypes is not set
+    set:
+      celeborn:
+        celeborn.storage.activeTypes: MEMORY,SSD
+      s3:
+        enabled: true
+        dir: s3a://celeborn-shuffle
+        region: us-east-1
+    asserts:
+      - matchRegex:
+          path: data["celeborn-defaults.conf"]
+          pattern: '(?m)^\s*celeborn\.storage\.availableTypes=MEMORY,SSD,S3$'
+
+  - it: Should render when s3 is null
+    set:
+      s3: null
+    asserts:
+      - notMatchRegex:
+          path: data["celeborn-defaults.conf"]
+          pattern: 'celeborn\.storage\.s3'
