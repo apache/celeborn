@@ -34,7 +34,9 @@ private[master] class SpecWorkerCntCalculator(
    * Calculates the next platform spec count. A spec change and the gap to registered workers
    * can have opposite signs; worker lifecycle reconciliation belongs to the caller.
    */
-  def calculateSpecWorkerCnt(input: Input): Int = {
+  def calculateSpecWorkerCnt(input: Input): Int = calculate(input).targetSpecWorkerCnt
+
+  def calculate(input: Input): Result = {
     val scaleConf = new ScaleConf(conf, configService)
     import scaleConf._
 
@@ -49,9 +51,9 @@ private[master] class SpecWorkerCntCalculator(
       input.excludedWorkerCnt >= 0 && input.excludedWorkerCnt <= input.workerStats.size,
       "Excluded worker count must be within the worker metric inventory")
     require(
-      input.newExcludedWorkerCnt >= 0 &&
-        input.newExcludedWorkerCnt <= input.excludedWorkerCnt,
-      "New excluded worker count must be between zero and total excluded worker count")
+      input.unaccountedExcludedWorkerCnt >= 0 &&
+        input.unaccountedExcludedWorkerCnt <= input.excludedWorkerCnt,
+      "Unaccounted excluded worker count must be between zero and total excluded worker count")
 
     val ratios = dimensions.map { dimension =>
       input.workerStats.map(dimension.value)
@@ -59,6 +61,8 @@ private[master] class SpecWorkerCntCalculator(
     // The metric inventory includes excluded workers, so this is not the available worker count.
     val registeredWorkerWithMetricCnt = input.workerStats.size
     val alignedMinimum = if (alignMinimum) minWorkers else 0
+    val previouslyAccountedExcludedWorkerCnt =
+      input.excludedWorkerCnt - input.unaccountedExcludedWorkerCnt
 
     def estimate(up: Boolean): Int = {
       dimensions.zip(ratios).map { case (dimension, values) =>
@@ -69,17 +73,20 @@ private[master] class SpecWorkerCntCalculator(
 
     def compensateExcludedWorkers(
         candidateSpecWorkerCnt: Int,
-        minimum: Int,
-        excludedCompensationCnt: Int): Int = {
+        minimumWorkerCnt: Int,
+        inheritedAccountedExcludedWorkerCnt: Int): Result = {
       // Excluded workers still occupy platform instances but cannot accept new allocations.
-      val compensatedSpecWorkerCnt =
-        if (excludedCompensationCnt > 0) {
-          math.min(maxWorkers.toLong, candidateSpecWorkerCnt.toLong + excludedCompensationCnt)
-        } else {
-          candidateSpecWorkerCnt.toLong
-        }
-      val floor = math.min(maxWorkers.toLong, minimum.toLong + input.excludedWorkerCnt)
-      math.max(compensatedSpecWorkerCnt, floor).toInt
+      val requestedReplacementCnt = input.excludedWorkerCnt - inheritedAccountedExcludedWorkerCnt
+      val availableReplacementSlots = math.max(0, maxWorkers - candidateSpecWorkerCnt)
+      val addedReplacementCnt = math.min(requestedReplacementCnt, availableReplacementSlots)
+      val floor =
+        math.min(maxWorkers.toLong, minimumWorkerCnt.toLong + input.excludedWorkerCnt).toInt
+      val targetSpecWorkerCnt = math.max(candidateSpecWorkerCnt + addedReplacementCnt, floor)
+      val specWorkerCntWithoutReplacements =
+        math.max(minimumWorkerCnt, candidateSpecWorkerCnt - inheritedAccountedExcludedWorkerCnt)
+      val accountedExcludedWorkerCnt =
+        math.min(input.excludedWorkerCnt, targetSpecWorkerCnt - specWorkerCntWithoutReplacements)
+      Result(targetSpecWorkerCnt, accountedExcludedWorkerCnt)
     }
 
     val upThresholdExceeded = dimensions.zip(ratios).exists { case (dimension, values) =>
@@ -97,9 +104,9 @@ private[master] class SpecWorkerCntCalculator(
         math.min(stepBudget, math.max(0, requiredWorkerCnt - registeredWorkerWithMetricCnt))
       val candidateSpecWorkerCnt =
         if (deltaUp > 0) registeredWorkerWithMetricCnt + deltaUp else oldSpecWorkerCnt
-      val excludedCompensationCnt =
-        if (deltaUp > 0) input.excludedWorkerCnt else input.newExcludedWorkerCnt
-      (math.max(alignedMinimum, candidateSpecWorkerCnt), excludedCompensationCnt)
+      val inheritedAccountedExcludedWorkerCnt =
+        if (deltaUp > 0) 0 else previouslyAccountedExcludedWorkerCnt
+      (math.max(alignedMinimum, candidateSpecWorkerCnt), inheritedAccountedExcludedWorkerCnt)
     }
 
     def computeWithDownThreshold(): Int = {
@@ -116,20 +123,19 @@ private[master] class SpecWorkerCntCalculator(
     val useUpThreshold = oldSpecWorkerCnt < maxWorkers &&
       (upThresholdExceeded || oldSpecWorkerCnt < alignedMinimum)
     val useDownThreshold = allBelowDownThresholds || oldSpecWorkerCnt > maxWorkers
-    val (candidateSpecWorkerCnt, minimumWorkerCnt, excludedCompensationCnt) =
+    val (candidateSpecWorkerCnt, minimumWorkerCnt, inheritedAccountedExcludedWorkerCnt) =
       if (useUpThreshold) {
-        val (candidate, compensation) = computeWithUpThreshold()
-        (candidate, alignedMinimum, compensation)
+        val (candidate, accounted) = computeWithUpThreshold()
+        (candidate, alignedMinimum, accounted)
       } else if (useDownThreshold) {
-        (computeWithDownThreshold(), minWorkers, input.newExcludedWorkerCnt)
+        (computeWithDownThreshold(), minWorkers, previouslyAccountedExcludedWorkerCnt)
       } else {
-        (oldSpecWorkerCnt, alignedMinimum, input.newExcludedWorkerCnt)
+        (oldSpecWorkerCnt, alignedMinimum, previouslyAccountedExcludedWorkerCnt)
       }
-    val newSpecWorkerCnt = compensateExcludedWorkers(
+    compensateExcludedWorkers(
       candidateSpecWorkerCnt,
       minimumWorkerCnt,
-      excludedCompensationCnt)
-    newSpecWorkerCnt
+      inheritedAccountedExcludedWorkerCnt)
   }
 }
 
@@ -191,14 +197,16 @@ private[master] object SpecWorkerCntCalculator {
    *                    decommissioning workers but including excluded workers and their existing load
    * @param excludedWorkerCnt total excluded workers in the metric inventory; these still occupy
    *                          platform instances but cannot accept new allocations
-   * @param newExcludedWorkerCnt excluded workers in the metric inventory whose replacement has not
-   *                             yet been accounted for in specWorkerCnt; the caller advances its
-   *                             checkpoint after the new spec worker count is accepted
+   * @param unaccountedExcludedWorkerCnt excluded workers whose replacements are still due, including
+   *                                     those capped in earlier rounds; the caller updates its
+   *                                     checkpoint after accepting the result's target
    */
   case class Input(
       registeredWorkerCnt: Int,
       specWorkerCnt: Int,
       workerStats: Seq[WorkerStats],
       excludedWorkerCnt: Int = 0,
-      newExcludedWorkerCnt: Int = 0)
+      unaccountedExcludedWorkerCnt: Int = 0)
+
+  case class Result(targetSpecWorkerCnt: Int, accountedExcludedWorkerCnt: Int)
 }
