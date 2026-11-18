@@ -104,10 +104,13 @@ private[master] class SpecWorkerCntCalculator(
 
     def computeWithDownThreshold(): Int = {
       val requiredWorkerCnt = math.max(minWorkers, math.min(maxWorkers, estimate(up = false)))
-      // Apply the budget to the platform target while registration or draining is still in flight.
-      val stepBudget = math.max(1, math.min(downStep, (downPercent * oldSpecWorkerCnt).toInt))
-      val deltaDown = math.min(stepBudget, math.max(0, oldSpecWorkerCnt - requiredWorkerCnt))
-      oldSpecWorkerCnt - deltaDown
+      val stepBudget =
+        math.max(1, math.min(downStep, (downPercent * input.registeredWorkerCnt).toInt))
+      val deltaDown =
+        math.min(stepBudget, math.max(0, input.registeredWorkerCnt - requiredWorkerCnt))
+      val candidateSpecWorkerCnt =
+        math.max(requiredWorkerCnt, input.registeredWorkerCnt - deltaDown)
+      math.min(oldSpecWorkerCnt, candidateSpecWorkerCnt)
     }
 
     val useUpThreshold = oldSpecWorkerCnt < maxWorkers &&
