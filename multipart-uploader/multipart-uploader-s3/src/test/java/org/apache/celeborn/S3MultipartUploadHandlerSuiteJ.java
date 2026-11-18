@@ -22,6 +22,8 @@ import org.apache.hadoop.fs.s3a.AWSCredentialProviderList;
 import org.apache.hadoop.fs.s3a.Constants;
 import org.junit.Assert;
 import org.junit.Test;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 public class S3MultipartUploadHandlerSuiteJ {
 
@@ -34,14 +36,24 @@ public class S3MultipartUploadHandlerSuiteJ {
   }
 
   @Test
-  public void testGetCredentialsProviderShouldReturnWebIdentityTokenCredentialsProvider()
+  public void testGetCredentialsProviderShouldReturnWebIdentityTokenFileCredentialsProvider()
       throws Exception {
     Configuration conf = new Configuration();
     conf.set(
         Constants.AWS_CREDENTIALS_PROVIDER,
-        "com.amazonaws.auth.WebIdentityTokenCredentialsProvider");
+        "software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider");
     AWSCredentialProviderList providers =
         S3MultipartUploadHandler.getCredentialsProvider(null, conf);
-    Assert.assertEquals("WebIdentityTokenCredentialsProvider ", providers.listProviderNames());
+    Assert.assertEquals("WebIdentityTokenFileCredentialsProvider ", providers.listProviderNames());
+  }
+
+  @Test
+  public void testIsRetryable() {
+    Assert.assertTrue(
+        S3MultipartUploadHandler.isRetryable(SdkClientException.create("connection reset")));
+    Assert.assertTrue(
+        S3MultipartUploadHandler.isRetryable(S3Exception.builder().statusCode(503).build()));
+    Assert.assertFalse(
+        S3MultipartUploadHandler.isRetryable(S3Exception.builder().statusCode(403).build()));
   }
 }

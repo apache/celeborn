@@ -217,15 +217,44 @@
           <version>${hadoop.version}</version>
           <exclusions>
             <exclusion>
-              <groupId>com.amazonaws</groupId>
-              <artifactId>aws-java-sdk-bundle</artifactId>
+              <groupId>software.amazon.awssdk</groupId>
+              <artifactId>bundle</artifactId>
             </exclusion>
           </exclusions>
         </dependency>
         <dependency>
-          <groupId>com.amazonaws</groupId>
-          <artifactId>aws-java-sdk-s3</artifactId>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>s3</artifactId>
           <version>${aws.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>software.amazon.awssdk</groupId>
+              <artifactId>netty-nio-client</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <!-- S3AFileSystem loads the transfer manager's classes when it initializes. -->
+        <dependency>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>s3-transfer-manager</artifactId>
+          <version>${aws.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>software.amazon.awssdk</groupId>
+              <artifactId>netty-nio-client</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>sts</artifactId>
+          <version>${aws.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>software.amazon.awssdk</groupId>
+              <artifactId>netty-nio-client</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
       </dependencies>
     </profile>

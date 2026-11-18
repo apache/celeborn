@@ -75,7 +75,7 @@ package_binary() {
 
   echo "Creating binary release tarball ${BIN_TGZ_FILE}"
 
-  ${PROJECT_DIR}/build/make-distribution.sh --sbt-enabled --release
+  ${PROJECT_DIR}/build/make-distribution.sh --sbt-enabled --release -Paws
 
   cp "${BIN_TGZ_FILE}" "${RELEASE_DIR}"
 
