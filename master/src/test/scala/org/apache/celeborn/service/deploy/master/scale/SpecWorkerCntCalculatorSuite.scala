@@ -310,10 +310,52 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     assert(specWorkerCntCalculator.calculateSpecWorkerCnt(snapshot(12)) == 11)
   }
 
+  test("metric-derived targets retain exclusion replacements while registration lags") {
+    val stats = WorkerStats(ratioKeys.map(_ -> 0.6).toMap)
+    val cases = Seq(
+      (1, false, 2000, 14),
+      (13, true, 2000, 15),
+      (1, false, 13, 13))
+    cases.foreach { case (minimum, align, maximum, expected) =>
+      val conf = baseConf()
+        .set(SCALE_WORKER_NUMBER_MIN.key, minimum.toString)
+        .set(SCALE_WORKER_NUMBER_MIN_ALIGN_ENABLED.key, align.toString)
+        .set(SCALE_WORKER_NUMBER_MAX.key, maximum.toString)
+      val specWorkerCntCalculator = newCalculator(conf)
+      var input = snapshot(10, stats).copy(excludedWorkerCnt = 2, newExcludedWorkerCnt = 2)
+      (1 to 3).foreach { round =>
+        withClue(s"minimum=$minimum, align=$align, maximum=$maximum, round=$round: ") {
+          val newSpecWorkerCnt = specWorkerCntCalculator.calculateSpecWorkerCnt(input)
+          assert(newSpecWorkerCnt == expected)
+          input = input.copy(specWorkerCnt = newSpecWorkerCnt, newExcludedWorkerCnt = 0)
+        }
+      }
+      assert(specWorkerCntCalculator.calculateSpecWorkerCnt(input.copy(workerStats =
+        Seq.fill(10)(neutral))) == expected)
+    }
+  }
+
+  test("zero scale-up delta compensates only new exclusions in the retained spec") {
+    val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "10")
+    val specWorkerCntCalculator = newCalculator(conf)
+    val stats = WorkerStats(ratioKeys.map(_ -> 0.6).toMap)
+    Seq(0, 1, 2).foreach { newlyExcluded =>
+      val input = snapshot(10, stats).copy(
+        specWorkerCnt = 8,
+        excludedWorkerCnt = 2,
+        newExcludedWorkerCnt = newlyExcluded)
+      val target = specWorkerCntCalculator.calculateSpecWorkerCnt(input)
+      assert(target == 8 + newlyExcluded)
+      assert(specWorkerCntCalculator.calculateSpecWorkerCnt(input.copy(
+        specWorkerCnt = target,
+        newExcludedWorkerCnt = 0)) == target)
+    }
+  }
+
   test("excluded workers retain their existing pressure in demand and trigger calculations") {
     val busy = WorkerStats(neutral.metrics + (WorkerStats.LastMinuteSystemLoadRatio -> 3.0))
     val input = Input(10, 10, Seq.fill(2)(busy) ++ Seq.fill(8)(neutral), 2, 0)
-    assert(newCalculator().calculateSpecWorkerCnt(input) == 15)
+    assert(newCalculator().calculateSpecWorkerCnt(input) == 17)
     assert(newCalculator().calculateSpecWorkerCnt(snapshot(10, neutral).copy(excludedWorkerCnt =
       10)) == 10)
   }
@@ -336,6 +378,9 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     val high = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.6))
     assert(
       newCalculator().calculateSpecWorkerCnt(snapshot(10, high).copy(specWorkerCnt = 15)) == 12)
+    assert(newCalculator().calculateSpecWorkerCnt(snapshot(10, high).copy(
+      specWorkerCnt = 16,
+      excludedWorkerCnt = 2)) == 14)
     val input = Input(80, 100, Seq.fill(77)(WorkerStats(ratioKeys.map(_ -> 0.65).toMap)))
     assert(newCalculator().calculateSpecWorkerCnt(input) == 84)
     val recovering = Input(10, 10, Seq.fill(5)(WorkerStats(ratioKeys.map(_ -> 0.7).toMap)))
@@ -344,7 +389,7 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
       WorkerStats.MemoryPressureRatio -> 0.25,
       WorkerStats.LastMinuteSystemLoadRatio -> 0.75,
       WorkerStats.DiskUsedRatio -> 0.25))
-    assert(newCalculator().calculateSpecWorkerCnt(Input(10, 15, Seq.fill(8)(stats), 2, 1)) == 13)
+    assert(newCalculator().calculateSpecWorkerCnt(Input(10, 15, Seq.fill(8)(stats), 2, 1)) == 14)
   }
 
   test("empty metrics and automatically draining workers retain the reference count semantics") {

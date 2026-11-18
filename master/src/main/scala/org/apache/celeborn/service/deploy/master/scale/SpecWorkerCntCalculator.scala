@@ -67,11 +67,14 @@ private[master] class SpecWorkerCntCalculator(
       }.max
     }
 
-    def compensateExcludedWorkers(candidateSpecWorkerCnt: Int, minimum: Int): Int = {
+    def compensateExcludedWorkers(
+        candidateSpecWorkerCnt: Int,
+        minimum: Int,
+        excludedCompensationCnt: Int): Int = {
       // Excluded workers still occupy platform instances but cannot accept new allocations.
       val compensatedSpecWorkerCnt =
-        if (input.newExcludedWorkerCnt > 0) {
-          math.min(maxWorkers.toLong, candidateSpecWorkerCnt.toLong + input.newExcludedWorkerCnt)
+        if (excludedCompensationCnt > 0) {
+          math.min(maxWorkers.toLong, candidateSpecWorkerCnt.toLong + excludedCompensationCnt)
         } else {
           candidateSpecWorkerCnt.toLong
         }
@@ -86,7 +89,7 @@ private[master] class SpecWorkerCntCalculator(
       values.sum / registeredWorkerWithMetricCnt < dimension.down
     }
 
-    def computeWithUpThreshold(): Int = {
+    def computeWithUpThreshold(): (Int, Int) = {
       val requiredWorkerCnt = math.max(alignedMinimum, math.min(maxWorkers, estimate(up = true)))
       val stepBudget =
         math.max(3, math.max(upStep, (upPercent * registeredWorkerWithMetricCnt).toInt))
@@ -94,7 +97,9 @@ private[master] class SpecWorkerCntCalculator(
         math.min(stepBudget, math.max(0, requiredWorkerCnt - registeredWorkerWithMetricCnt))
       val candidateSpecWorkerCnt =
         if (deltaUp > 0) registeredWorkerWithMetricCnt + deltaUp else oldSpecWorkerCnt
-      math.max(alignedMinimum, candidateSpecWorkerCnt)
+      val excludedCompensationCnt =
+        if (deltaUp > 0) input.excludedWorkerCnt else input.newExcludedWorkerCnt
+      (math.max(alignedMinimum, candidateSpecWorkerCnt), excludedCompensationCnt)
     }
 
     def computeWithDownThreshold(): Int = {
@@ -108,15 +113,19 @@ private[master] class SpecWorkerCntCalculator(
     val useUpThreshold = oldSpecWorkerCnt < maxWorkers &&
       (upThresholdExceeded || oldSpecWorkerCnt < alignedMinimum)
     val useDownThreshold = allBelowDownThresholds || oldSpecWorkerCnt > maxWorkers
-    val (candidateSpecWorkerCnt, minimumWorkerCnt) =
+    val (candidateSpecWorkerCnt, minimumWorkerCnt, excludedCompensationCnt) =
       if (useUpThreshold) {
-        (computeWithUpThreshold(), alignedMinimum)
+        val (candidate, compensation) = computeWithUpThreshold()
+        (candidate, alignedMinimum, compensation)
       } else if (useDownThreshold) {
-        (computeWithDownThreshold(), minWorkers)
+        (computeWithDownThreshold(), minWorkers, input.newExcludedWorkerCnt)
       } else {
-        (oldSpecWorkerCnt, alignedMinimum)
+        (oldSpecWorkerCnt, alignedMinimum, input.newExcludedWorkerCnt)
       }
-    val newSpecWorkerCnt = compensateExcludedWorkers(candidateSpecWorkerCnt, minimumWorkerCnt)
+    val newSpecWorkerCnt = compensateExcludedWorkers(
+      candidateSpecWorkerCnt,
+      minimumWorkerCnt,
+      excludedCompensationCnt)
     newSpecWorkerCnt
   }
 }
