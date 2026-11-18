@@ -25,11 +25,11 @@ import java.nio.file.StandardOpenOption;
 public class FileChannelUtils {
 
   public static FileChannel createWritableFileChannel(String filePath) throws IOException {
-    return FileChannel.open(
+    return SecureLocalFileOperations.openFileChannel(
         Paths.get(filePath), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
   }
 
   public static FileChannel openReadableFileChannel(String filePath) throws IOException {
-    return FileChannel.open(Paths.get(filePath), StandardOpenOption.READ);
+    return SecureLocalFileOperations.openFileChannel(Paths.get(filePath), StandardOpenOption.READ);
   }
 }

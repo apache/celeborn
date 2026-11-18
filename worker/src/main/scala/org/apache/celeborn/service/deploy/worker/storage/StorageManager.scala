@@ -19,7 +19,7 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.{File, IOException}
 import java.nio.charset.StandardCharsets
-import java.nio.file.{FileAlreadyExistsException, Files, LinkOption, Paths}
+import java.nio.file.{FileAlreadyExistsException, Files, Paths}
 import java.util
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
@@ -45,7 +45,7 @@ import org.apache.celeborn.common.network.util.{NettyUtils, TransportConf}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
 import org.apache.celeborn.common.protocol.StorageInfo.Type
 import org.apache.celeborn.common.quota.ResourceConsumption
-import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, CollectionUtils, DiskUtils, JavaUtils, PbSerDeUtils, ThreadUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, CelebornHadoopUtils, CollectionUtils, DiskUtils, JavaUtils, PbSerDeUtils, SecureLocalFileOperations, ThreadUtils, Utils}
 import org.apache.celeborn.service.deploy.worker._
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.MemoryPressureListener
@@ -281,6 +281,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   // shuffleKey -> (fileName -> file info)
+  private val localRootAliases = JavaUtils.newConcurrentHashMap[String, File]()
   private val RECOVERY_FILE_NAME_PREFIX = "recovery"
   private var RECOVERY_FILE_NAME = "recovery.ldb"
   private var db: DB = _
@@ -350,17 +351,21 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val entry = itr.next
         val key = new String(entry.getKey, StandardCharsets.UTF_8)
         if (key.startsWith(SHUFFLE_KEY_PREFIX)) {
-          val shuffleKey = parseDbShuffleKey(key)
           try {
-            validateShufflePaths(shuffleKey)
+            val shuffleKey = parseDbShuffleKey(key)
+            val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
+            Utils.validateApplicationId(appId)
             val files = PbSerDeUtils.fromPbFileInfoMap(entry.getValue, cache, mountPoints)
+            files.asScala.foreach { case (fileName, info) =>
+              validateRecoveredFile(appId, shuffleId, fileName, info)
+            }
             logDebug(s"Reload DB: $shuffleKey -> $files")
             diskFileInfos.put(shuffleKey, files)
             committedFileInfos.put(shuffleKey, files)
             db.delete(entry.getKey)
           } catch {
             case exception: Exception =>
-              logError(s"Reload DB: $shuffleKey failed.", exception)
+              logError(s"Reload DB: $key failed.", exception)
           }
         } else {
           return
@@ -398,33 +403,46 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
 
   private def getNextIndex = counter.getAndUpdate(counterOperator)
 
-  private def resolveLocalPath(file: File): java.nio.file.Path = {
-    val path = file.toPath.toAbsolutePath
-    var existing = path
-    while (existing != null && !Files.exists(existing, LinkOption.NOFOLLOW_LINKS)) {
-      existing = existing.getParent
-    }
-    if (existing == null) {
-      throw new IOException("Unable to resolve shuffle path")
-    }
-    // Resolve existing components without java.io.File's canonical-path cache, then append
-    // components that may not exist yet when validating a file before directory creation.
-    existing.toRealPath().resolve(existing.relativize(path)).normalize()
+  private def localWorkingDirectory(file: File, recovering: Boolean = false): File = {
+    val root = file.toPath.toAbsolutePath.normalize().getParent.getParent.getParent
+    val dirs = localDisksSnapshot().flatMap(_.dirs)
+    Option(localRootAliases.get(root.toString)).filter(dirs.contains)
+      .orElse(dirs.find(_.toPath.toAbsolutePath.normalize() == root))
+      .orElse(if (recovering) dirs.find(_.toPath.toRealPath() == root) else None)
+      .getOrElse(throw new IOException("File does not belong to a configured local root"))
   }
 
-  private def validateLocalPath(workingDir: File, file: File): Unit = {
-    if (!resolveLocalPath(file).startsWith(resolveLocalPath(workingDir))) {
-      throw new IOException("Shuffle path must remain within its working directory")
-    }
-  }
-
-  private def validateShufflePaths(shuffleKey: String): Unit = {
-    val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
-    Utils.validateApplicationId(appId)
-    localDisksSnapshot().foreach { diskInfo =>
-      diskInfo.dirs.foreach { dir =>
-        validateLocalPath(dir, new File(dir, s"$appId/$shuffleId"))
+  private def validateRecoveredFile(
+      appId: String,
+      shuffleId: Int,
+      fileName: String,
+      info: DiskFileInfo,
+      requireFileExists: Boolean = true,
+      localRoot: Option[File] = None): Unit = {
+    Utils.validateApplicationId(fileName)
+    if (info.isDFS) {
+      val base = info.getStorageType match {
+        case StorageInfo.Type.HDFS if hdfsFlusher.isDefined => hdfsDir
+        case StorageInfo.Type.S3 if s3Flusher.isDefined => s3Dir
+        case StorageInfo.Type.OSS if ossFlusher.isDefined => ossDir
+        case _ => throw new IOException("Recovered file uses an unconfigured storage backend")
       }
+      val expected =
+        new Path(new Path(new Path(base, conf.workerWorkingDir), s"$appId/$shuffleId"), fileName)
+      if (info.getFilePath != expected.toString) {
+        throw new IOException("Recovered DFS file does not belong to its application and shuffle")
+      }
+    } else {
+      val dir = localRoot.getOrElse(localWorkingDirectory(info.getFile, recovering = true))
+      val actual = info.getFile.toPath.toAbsolutePath
+      val expected = dir.toPath.toRealPath().resolve(appId)
+        .resolve(shuffleId.toString).resolve(fileName)
+      if (actual != expected) {
+        throw new IOException("Recovered local file does not belong to its application and shuffle")
+      }
+      if (requireFileExists) SecureLocalFileOperations.validateFile(dir.toPath, actual)
+      else SecureLocalFileOperations.validatePathForDeletion(dir.toPath, actual)
+      localRootAliases.put(expected.getParent.getParent.getParent.toString, dir)
     }
   }
 
@@ -676,13 +694,21 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   def cleanFile(shuffleKey: String, fileName: String): Unit = {
-    getFileInfo(shuffleKey, fileName) match {
-      case info: DiskFileInfo if info.isHdfs =>
-        // Untrack only after the delete succeeds, so a retry or shuffle expiry can still delete it.
-        cleanFileInternal(shuffleKey, info, failOnHdfsDeleteError = true)
+    val info = getFileInfo(shuffleKey, fileName)
+    info match {
+      case disk: DiskFileInfo =>
+        val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
+        Utils.validateApplicationId(appId)
+        validateRecoveredFile(
+          appId,
+          shuffleId,
+          fileName,
+          disk,
+          requireFileExists = false,
+          localRoot = if (disk.isDFS) None else Some(localWorkingDirectory(disk.getFile)))
+        cleanFileInternal(shuffleKey, disk, failOnHdfsDeleteError = true)
         removeFileInfo(shuffleKey, fileName)
-      case _ =>
-        cleanFileInternal(shuffleKey, removeFileInfo(shuffleKey, fileName))
+      case _ => cleanFileInternal(shuffleKey, removeFileInfo(shuffleKey, fileName))
     }
   }
 
@@ -719,8 +745,7 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             ossWriters.remove(info.getFilePath)
           }
         } else {
-          val workingDir =
-            info.getFile.getParentFile.getParentFile.getParentFile
+          val workingDir = localWorkingDirectory(info.getFile)
           val writers = workingDirWriters.get(workingDir)
           if (writers != null) {
             val fileWriter = writers.get(info.getFilePath)
@@ -730,85 +755,114 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
               writers.remove(info.getFilePath)
             }
           }
+          info.deleteLocalFiles()
         }
       case mInfo: MemoryFileInfo =>
         val memoryWriter = memoryWriters.remove(mInfo)
-        memoryWriter.destroy(new IOException(
-          s"Destroy FileWriter $memoryWriter caused by shuffle $shuffleKey expired."))
+        if (memoryWriter != null) {
+          memoryWriter.destroy(new IOException(
+            s"Destroy FileWriter $memoryWriter caused by shuffle $shuffleKey expired."))
+        }
       case _ =>
     }
 
     isDfsExpired
   }
 
+  private def finishShuffleCleanup(shuffleKey: String, cleanDB: Boolean): Unit = {
+    val files = diskFileInfos.get(shuffleKey)
+    if (files == null || files.isEmpty) {
+      if (files != null) diskFileInfos.remove(shuffleKey, files)
+      if (workerGracefulShutdown) {
+        committedFileInfos.remove(shuffleKey)
+        if (cleanDB) {
+          try db.delete(dbShuffleKey(shuffleKey))
+          catch {
+            case e: Exception =>
+              logError(s"Failed to delete DB entry for shuffle key $shuffleKey", e)
+              handleDbDeleteFailure(e, shuffleKey)
+          }
+        }
+      }
+    }
+  }
+
   def cleanupExpiredShuffleKey(
       expiredShuffleKeys: util.HashSet[String],
       cleanDB: Boolean = true): Unit = {
-    val validShuffleKeys = expiredShuffleKeys.asScala.filter { shuffleKey =>
+    expiredShuffleKeys.asScala.foreach { shuffleKey =>
       try {
-        validateShufflePaths(shuffleKey)
-        true
-      } catch {
-        case scala.util.control.NonFatal(e) =>
-          logWarning("Skipping cleanup of a shuffle with invalid storage paths.", e)
-          false
-      }
-    }
-    validShuffleKeys.foreach { shuffleKey =>
-      logInfo(s"Cleanup expired shuffle $shuffleKey.")
-      if (diskFileInfos.containsKey(shuffleKey)) {
-        val removedFileInfos = diskFileInfos.remove(shuffleKey)
-        val expireStorageTypes = mutable.Set[StorageInfo.Type]()
-        if (removedFileInfos != null) {
-          removedFileInfos.asScala.foreach {
-            case (_, fileInfo) =>
-              if (cleanFileInternal(shuffleKey, fileInfo)) {
-                expireStorageTypes.add(fileInfo.getStorageType)
+        val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
+        Utils.validateApplicationId(appId)
+        val memoryFiles = memoryFileInfos.remove(shuffleKey)
+        if (memoryFiles != null) {
+          memoryFiles.asScala.foreach { case (_, info) =>
+            cleanFileInternal(shuffleKey, info)
+            MemoryManager.instance().releaseMemoryFileStorage(info.releaseMemoryBuffers())
+          }
+        }
+        val files = diskFileInfos.get(shuffleKey)
+        if (files != null) {
+          files.asScala.filter(_._2.isDFS).foreach { case (fileName, info) =>
+            try {
+              validateRecoveredFile(appId, shuffleId, fileName, info)
+              cleanFileInternal(shuffleKey, info)
+              val base = if (info.isHdfs) hdfsDir else if (info.isOSS) ossDir else s3Dir
+              StorageManager.hadoopFs.get(info.getStorageType).delete(
+                new Path(new Path(base, conf.workerWorkingDir), s"$appId/$shuffleId"),
+                true)
+              files.remove(fileName, info)
+            } catch {
+              case scala.util.control.NonFatal(e) =>
+                logWarning("Unable to clean a DFS shuffle on its configured backend.", e)
+            }
+          }
+          if (files.values().asScala.exists(info => !info.isDFS)) {
+            localDisksSnapshot().filter(disk =>
+              disk.status == DiskStatus.HEALTHY || disk.status == DiskStatus.HIGH_DISK_USAGE)
+              .foreach { disk =>
+                disk.dirs.foreach { dir =>
+                  val operator = diskOperators.get(disk.mountPoint)
+                  operator.submit(new Runnable {
+                    override def run(): Unit = {
+                      try {
+                        val root = dir.toPath.toRealPath()
+                        val localFiles = files.asScala.filter { case (_, info) =>
+                          !info.isDFS && info.getFile.toPath.toAbsolutePath.normalize()
+                            .getParent.getParent.getParent == root
+                        }.toSeq
+                        if (localFiles.nonEmpty) {
+                          // Validate the directory and files on this disk before untracking any of them.
+                          localFiles.foreach { case (name, info) =>
+                            validateRecoveredFile(
+                              appId,
+                              shuffleId,
+                              name,
+                              info,
+                              requireFileExists = false,
+                              localRoot = Some(dir))
+                          }
+                          localFiles.foreach { case (_, info) =>
+                            cleanFileInternal(shuffleKey, info)
+                          }
+                          deleteDirectoryWithRetry(dir, new File(dir, s"$appId/$shuffleId"))
+                          localFiles.foreach { case (name, info) => files.remove(name, info) }
+                          finishShuffleCleanup(shuffleKey, cleanDB)
+                        }
+                      } catch {
+                        case scala.util.control.NonFatal(e) =>
+                          logWarning("Retaining shuffle metadata after local cleanup failed.", e)
+                      }
+                    }
+                  })
+                }
               }
           }
         }
-        val (appId, shuffleId) = Utils.splitShuffleKey(shuffleKey)
-        localDisksSnapshot().filter(diskInfo =>
-          diskInfo.status == DiskStatus.HEALTHY
-            || diskInfo.status == DiskStatus.HIGH_DISK_USAGE).foreach { diskInfo =>
-          diskInfo.dirs.foreach { dir =>
-            val file = new File(dir, s"$appId/$shuffleId")
-            deleteDirectory(file, diskOperators.get(diskInfo.mountPoint))
-          }
-        }
-        expireStorageTypes.foreach(storageType => {
-          try {
-            val dir =
-              if (storageType == StorageInfo.Type.HDFS) hdfsDir
-              else if (storageType == StorageInfo.Type.OSS) ossDir
-              else s3Dir
-            StorageManager.hadoopFs.get(storageType).delete(
-              new Path(new Path(dir, conf.workerWorkingDir), s"$appId/$shuffleId"),
-              true)
-          } catch {
-            case e: Exception => logWarning(s"Clean expired $storageType shuffle failed.", e)
-          }
-        })
-        if (workerGracefulShutdown) {
-          // Writer cleanup waits for in-flight close calls to finish registering metadata.
-          committedFileInfos.remove(shuffleKey)
-          if (cleanDB) {
-            try {
-              db.delete(dbShuffleKey(shuffleKey))
-            } catch {
-              case e: Exception =>
-                logError(s"Failed to delete DB entry for shuffle key $shuffleKey", e)
-                handleDbDeleteFailure(e, shuffleKey)
-            }
-          }
-        }
-      }
-      if (memoryFileInfos.containsKey(shuffleKey)) {
-        val memoryFileMaps = memoryFileInfos.remove(shuffleKey)
-        memoryFileMaps.asScala.foreach(u => {
-          cleanFileInternal(shuffleKey, u._2)
-          MemoryManager.instance().releaseMemoryFileStorage(u._2.releaseMemoryBuffers())
-        })
+        finishShuffleCleanup(shuffleKey, cleanDB)
+      } catch {
+        case scala.util.control.NonFatal(e) =>
+          logWarning("Skipping cleanup for an invalid shuffle identifier.", e)
       }
     }
   }
@@ -854,25 +908,28 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   }
 
   private def deleteDirectory(dir: File, threadPool: ThreadPoolExecutor): Unit = {
-    if (dir.exists()) {
-      threadPool.submit(new Runnable {
-        override def run(): Unit = {
-          deleteDirectoryWithRetry(dir)
+    // Resolve and open application components on the disk executor, including every retry.
+    threadPool.submit(new Runnable {
+      override def run(): Unit = {
+        try deleteDirectoryWithRetry(dir.getParentFile, dir)
+        catch {
+          case scala.util.control.NonFatal(e) =>
+            logWarning("Unable to safely delete application data.", e)
         }
-      })
-    }
+      }
+    })
   }
 
-  private def deleteDirectoryWithRetry(dir: File): Unit = {
+  private def deleteDirectoryWithRetry(workingDir: File, dir: File): Unit = {
     var retryCount = 0
-    var deleteSuccess = false
-    while (!deleteSuccess && retryCount <= 3) {
+    while (true) {
       try {
-        FileUtils.deleteDirectory(dir)
-        deleteSuccess = true
+        SecureLocalFileOperations.deleteDirectory(workingDir.toPath, dir.toPath)
+        return
       } catch {
-        case _: IOException =>
-          retryCount = retryCount + 1
+        case e: IOException =>
+          if (retryCount >= 3) throw e
+          retryCount += 1
       }
     }
   }
@@ -1309,21 +1366,16 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
         val mountPoint = DeviceInfo.getMountPoint(dir.getAbsolutePath, mountPoints)
         val shuffleDir = new File(dir, s"$appId/$shuffleId")
         val file = new File(shuffleDir, fileName)
-        validateLocalPath(dir, shuffleDir)
-        validateLocalPath(dir, file)
-        shuffleDir.mkdirs()
         try {
-          if (file.exists()) {
-            throw new FileAlreadyExistsException(
-              s"Shuffle data file ${file.getAbsolutePath} already exists.")
-          } else {
-            val createFileSuccess = file.createNewFile()
-            if (!createFileSuccess) {
-              throw new CelebornException(
-                s"Create shuffle data file ${file.getAbsolutePath} failed!")
-            }
-          }
-          val filePath = file.getAbsolutePath
+          // The configured root is trusted; application-controlled components are created
+          // only through the secure directory handles below.
+          Files.createDirectories(dir.toPath)
+          val filePath = SecureLocalFileOperations.createFile(
+            dir.toPath,
+            appId,
+            shuffleId,
+            fileName).toString
+          localRootAliases.put(Paths.get(filePath).getParent.getParent.getParent.toString, dir)
           val fileMeta = getFileMeta(partitionType, mountPoint, conf.shuffleChunkSize)
           val storageType = diskInfos.get(mountPoint).storageType
           val diskFileInfo = new DiskFileInfo(
@@ -1341,6 +1393,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             diskFileInfo,
             dir)
         } catch {
+          case invalid: SecureLocalFileOperations.InvalidStoragePathException =>
+            throw invalid
           case fe: FileAlreadyExistsException =>
             logError("Failed to create fileWriter because of existed file", fe)
             throw fe

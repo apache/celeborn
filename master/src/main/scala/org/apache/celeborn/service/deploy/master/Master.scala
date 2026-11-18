@@ -1239,14 +1239,22 @@ private[celeborn] class Master(
   }
 
   def handleApplicationLost(context: RpcCallContext, appId: String, requestId: String): Unit = {
-    Utils.validateApplicationId(appId)
+    val validStorageId =
+      try {
+        Utils.validateApplicationId(appId)
+        true
+      } catch {
+        case e: IllegalArgumentException if context == null =>
+          logWarning("Retiring an application with an invalid recovered storage identifier.", e)
+          false
+      }
     nonEagerHandler.submit(new Runnable {
       override def run(): Unit = {
         workersAssignedToApp.remove(appId)
         statusSystem.handleAppLost(appId, requestId)
         quotaManager.handleAppLost(appId)
         logInfo(s"Removed application $appId")
-        if (remoteStorageDirs.isDefined) {
+        if (validStorageId && remoteStorageDirs.isDefined) {
           checkAndCleanExpiredAppDirsOnDFS(appId)
         }
         if (context != null) {

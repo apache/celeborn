@@ -51,29 +51,57 @@ class MasterSuite extends AnyFunSuite
     Seq(null, "", ".", "..", "../outside", "/outside", "app/child", "app\\child", "file:outside")
       .foreach { appId =>
         intercept[IllegalArgumentException] {
-          master.handleApplicationLost(null, appId, "request")
+          master.handleApplicationLost(contextForClient(null), appId, "request")
         }
       }
   }
 
-  test("application timeout processing skips invalid recovered identifiers") {
+  test("application timeout retires invalid recovered identifiers and their shuffles") {
     val master = mock(classOf[Master], org.mockito.Mockito.CALLS_REAL_METHODS)
     val statusSystem = new SingleMasterMetaManager(null, new CelebornConf(), null, null)
     when(master.statusSystem).thenReturn(statusSystem)
-    statusSystem.appHeartbeatTime.put("../old-app", 0L)
-    statusSystem.appHeartbeatTime.put("app-1", 0L)
-    org.mockito.Mockito.doNothing().when(master).handleApplicationLost(
-      org.mockito.ArgumentMatchers.isNull[RpcCallContext](),
-      org.mockito.ArgumentMatchers.eq("app-1"),
-      org.mockito.ArgumentMatchers.anyString())
+    val quota = mock(classOf[org.apache.celeborn.service.deploy.master.quota.QuotaManager])
+    val executor = new java.util.concurrent.ThreadPoolExecutor(
+      1,
+      1,
+      0L,
+      java.util.concurrent.TimeUnit.MILLISECONDS,
+      new java.util.concurrent.LinkedBlockingQueue[Runnable]()) {
+      override def execute(task: Runnable): Unit = task.run()
+    }
+    def field(name: String, value: AnyRef): Unit = {
+      val f = classOf[Master].getDeclaredFields.find(x =>
+        x.getName == name ||
+          x.getName.endsWith("$$" + name)).get
+      f.setAccessible(true)
+      f.set(master, value)
+    }
+    field("nonEagerHandler", executor)
+    field("quotaManager", quota)
+    field("workersAssignedToApp", new java.util.concurrent.ConcurrentHashMap[String, Object]())
+    field("remoteStorageDirs", None)
+    Seq("../old-app", "app-1").foreach { appId =>
+      statusSystem.appHeartbeatTime.put(appId, 0L)
+      statusSystem.registeredAppAndShuffles.put(
+        appId,
+        new java.util.HashSet[Integer](java.util.Arrays.asList(Int.box(1))))
+    }
     val timeout = classOf[Master].getDeclaredMethods
       .find(_.getName.endsWith("timeoutDeadApplications")).get
     timeout.setAccessible(true)
-    timeout.invoke(master)
-    verify(master).handleApplicationLost(
-      org.mockito.ArgumentMatchers.isNull[RpcCallContext](),
-      org.mockito.ArgumentMatchers.eq("app-1"),
-      org.mockito.ArgumentMatchers.anyString())
+    try {
+      timeout.invoke(master)
+      assert(statusSystem.appHeartbeatTime.isEmpty)
+      assert(statusSystem.registeredAppAndShuffles.isEmpty)
+      timeout.invoke(master)
+      Seq("../old-app", "app-1").foreach { appId =>
+        verify(quota).handleAppLost(appId)
+        verify(master).handleApplicationLost(
+          org.mockito.ArgumentMatchers.isNull[RpcCallContext](),
+          org.mockito.ArgumentMatchers.eq(appId),
+          org.mockito.ArgumentMatchers.anyString())
+      }
+    } finally executor.shutdownNow()
   }
 
   // Builds a remote call context whose connection is authenticated as `clientId`;

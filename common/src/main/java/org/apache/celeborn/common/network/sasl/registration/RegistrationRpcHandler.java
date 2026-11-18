@@ -48,6 +48,7 @@ import org.apache.celeborn.common.protocol.PbRegisterApplicationRequest;
 import org.apache.celeborn.common.protocol.PbRegisterApplicationResponse;
 import org.apache.celeborn.common.protocol.PbSaslMechanism;
 import org.apache.celeborn.common.protocol.PbSaslRequest;
+import org.apache.celeborn.common.util.Utils;
 
 /**
  * RPC Handler which registers an application. If an application is registered or the connection is
@@ -236,6 +237,7 @@ public class RegistrationRpcHandler extends BaseMessageHandler {
 
   private void processRegisterApplicationRequest(
       PbRegisterApplicationRequest registerApplicationRequest, RpcResponseCallback callback) {
+    Utils.validateApplicationId(registerApplicationRequest.getId());
     if (secretRegistry.isRegistered(registerApplicationRequest.getId())) {
       // Re-registration is not allowed.
       throw new IllegalStateException(

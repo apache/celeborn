@@ -699,7 +699,8 @@ object Utils extends Logging {
       applicationId != null && applicationId.nonEmpty &&
         applicationId != "." && applicationId != ".." &&
         !applicationId.exists(c => c == '/' || c == '\\' || c == ':' || Character.isISOControl(c)),
-      "Application identifier must be a single non-empty directory name")
+      "Application identifier must be non-empty, must not be . or .., and must not contain " +
+        "slashes (/ or \\), colons (:), or control characters")
   }
 
   def makeShuffleKey(applicationId: String, shuffleId: Int): String = {

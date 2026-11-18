@@ -44,10 +44,19 @@ class UtilsSuite extends CelebornFunSuite {
     val endpoint = new org.apache.celeborn.common.rpc.RpcEndpoint {
       override val rpcEnv: org.apache.celeborn.common.rpc.RpcEnv = null
     }
-    endpoint.checkAuth(null, "application_123_0001")
+    val client =
+      org.mockito.Mockito.mock(classOf[org.apache.celeborn.common.network.client.TransportClient])
+    org.mockito.Mockito.when(client.getClientId).thenReturn(null)
+    val context = new org.apache.celeborn.common.rpc.netty.RemoteNettyRpcCallContext(
+      org.mockito.Mockito.mock(classOf[org.apache.celeborn.common.rpc.netty.NettyRpcEnv]),
+      org.mockito.Mockito.mock(
+        classOf[org.apache.celeborn.common.network.client.RpcResponseCallback]),
+      org.apache.celeborn.common.rpc.RpcAddress("localhost", 1234),
+      client)
+    endpoint.checkAuth(context, "application_123_0001")
     Seq("", "..", "../outside", "file:outside").foreach { appId =>
       intercept[IllegalArgumentException] {
-        endpoint.checkAuth(null, appId)
+        endpoint.checkAuth(context, appId)
       }
     }
   }
