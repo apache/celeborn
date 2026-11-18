@@ -185,10 +185,13 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite with Eventually {
     }
   }
 
-  test("reports zero until the memory window fills, then reports the sliding average") {
+  test("reports unavailable memory until its window fills, then reports the sliding average") {
     withFixture(2) { f =>
       when(f.memory.getMemoryUsage).thenReturn(512L)
-      assert(f.collect()(WorkerStats.MemoryPressureRatio) == 0.0)
+      val warming = f.collect()
+      assert(warming(WorkerStats.MemoryPressureRatio).isNaN)
+      assert(warming(WorkerStats.LastMinuteSystemLoadRatio) == 0.5)
+      assert(warming(WorkerStats.DiskUsedRatio) == 0.5)
       when(f.memory.getMemoryUsage).thenReturn(1024L)
       assert(f.collect()(WorkerStats.MemoryPressureRatio) == 0.75)
       when(f.memory.getMemoryUsage).thenReturn(0L)
