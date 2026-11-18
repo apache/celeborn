@@ -313,11 +313,44 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     assert(newCalculator(conf).calSpecWorkerCnt(excluded) == 12)
   }
 
+  test("exceeding max without a low-load signal converges to max") {
+    val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "100")
+    val calculator = newCalculator(conf)
+    val high = WorkerStats(neutral.metrics + (WorkerStats.MemoryPressureRatio -> 0.9))
+    Seq(neutral, high).foreach { stats =>
+      val atMax = snapshot(20, stats).copy(specWorkerCnt = 100)
+      assert(calculator.cal(atMax) == Result(100, 0))
+      val oversized = atMax.copy(specWorkerCnt = 101)
+      val target = calculator.cal(oversized)
+      assert(target == Result(100, 0))
+      assert(calculator.cal(oversized.copy(specWorkerCnt = target.targetSpecWorkerCnt)) == target)
+    }
+  }
+
+  test("low load can reduce an oversized target below max") {
+    val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "100")
+    val input = snapshot(20).copy(specWorkerCnt = 101)
+    assert(newCalculator(conf).cal(input) == Result(18, 0))
+  }
+
+  test("convergence to max respects the registered-worker retirement budget") {
+    val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "100")
+    val calculator = newCalculator(conf)
+    var specWorkerCnt = 112
+    Seq((112, 107), (107, 102), (102, 100), (100, 100)).foreach {
+      case (registeredWorkerCnt, expected) =>
+        val input = Input(registeredWorkerCnt, specWorkerCnt, Seq.empty)
+        val target = calculator.calSpecWorkerCnt(input)
+        assert(target == expected, s"registered=$registeredWorkerCnt, spec=$specWorkerCnt")
+        specWorkerCnt = target
+    }
+  }
+
   test("oversized targets cancel pending replicas without waiting for registrations") {
     val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "8")
     val high = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.9))
     val cases = Seq(
-      (Input(0, 10, Seq.empty), 1),
+      (Input(0, 10, Seq.empty), 8),
       (snapshot(4, high).copy(specWorkerCnt = 10), 8),
       (snapshot(8, high).copy(specWorkerCnt = 10), 8),
       (snapshot(8, neutral).copy(specWorkerCnt = 10), 8))

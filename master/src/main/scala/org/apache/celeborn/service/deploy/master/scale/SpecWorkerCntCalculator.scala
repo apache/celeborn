@@ -69,7 +69,7 @@ private[master] class SpecWorkerCntCalculator(
       case ScaleRule.ScaleDownForLoad =>
         calDownCandidate(input, downDemand(metrics, scaleConf), scaleConf)
       case ScaleRule.ConvergeToMax =>
-        calDownCandidate(input, downDemand(metrics, scaleConf), scaleConf)
+        calDownCandidate(input, maxWorkers, scaleConf)
       case ScaleRule.KeepSpec =>
         SpecCandidate(oldSpecWorkerCnt, alignedMin, ExcludedCompensation.UnaccountedOnly)
     }
