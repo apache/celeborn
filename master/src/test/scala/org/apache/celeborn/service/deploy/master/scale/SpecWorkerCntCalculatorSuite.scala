@@ -156,7 +156,7 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
       intercept[IllegalArgumentException] {
         newCalculator().calculateSpecWorkerCnt(snapshot(10, missing))
       }
-      Seq(Double.NaN, Double.PositiveInfinity, Double.NegativeInfinity, -0.1).foreach { value =>
+      Seq(Double.PositiveInfinity, Double.NegativeInfinity, -0.1).foreach { value =>
         intercept[IllegalArgumentException] {
           newCalculator().calculateSpecWorkerCnt(snapshot(
             10,
@@ -164,6 +164,33 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
         }
       }
     }
+  }
+
+  test("unavailable ratios allow observed scale-up and prevent load-driven scale-down") {
+    ratioKeys.foreach { unavailableKey =>
+      val input = snapshot(20).copy(workerStats = Seq.fill(19)(low) :+
+        WorkerStats(low.metrics + (unavailableKey -> Double.NaN)))
+      assert(newCalculator().calculateSpecWorkerCnt(input) == 20, unavailableKey)
+      ratioKeys.filterNot(_ == unavailableKey).foreach { overloadedKey =>
+        val overloaded = input.copy(workerStats = input.workerStats.map { stats =>
+          WorkerStats(stats.metrics + (overloadedKey -> 0.9))
+        })
+        assert(
+          newCalculator().calculateSpecWorkerCnt(overloaded) == 25,
+          s"unavailable=$unavailableKey, overloaded=$overloadedKey")
+      }
+    }
+  }
+
+  test("unavailable ratios preserve explicit minimum and maximum constraints") {
+    val unavailable = WorkerStats(ratioKeys.map(_ -> Double.NaN).toMap)
+    assert(newCalculator().calculateSpecWorkerCnt(snapshot(20, unavailable)) == 20)
+    val aligned = baseConf()
+      .set(SCALE_WORKER_NUMBER_MIN.key, "30")
+      .set(SCALE_WORKER_NUMBER_MIN_ALIGN_ENABLED.key, "true")
+    assert(newCalculator(aligned).calculateSpecWorkerCnt(snapshot(20, unavailable)) == 30)
+    val limited = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "8")
+    assert(newCalculator(limited).calculateSpecWorkerCnt(snapshot(10, unavailable)) == 9)
   }
 
   test("remaining disk bytes do not change the ratio calculation") {

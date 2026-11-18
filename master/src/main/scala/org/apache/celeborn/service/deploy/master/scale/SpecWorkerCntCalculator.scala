@@ -139,8 +139,8 @@ private[master] object SpecWorkerCntCalculator {
         key,
         throw new IllegalArgumentException(s"Missing worker metric: $key"))
       require(
-        !ratio.isNaN && !ratio.isInfinity && ratio >= 0,
-        s"Worker metric $key must be finite and non-negative")
+        !ratio.isInfinity && (ratio.isNaN || ratio >= 0),
+        s"Worker metric $key must be finite and non-negative, or NaN")
       ratio
     }
   }
