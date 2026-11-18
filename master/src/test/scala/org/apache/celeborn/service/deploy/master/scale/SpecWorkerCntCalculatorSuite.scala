@@ -109,6 +109,28 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     }
   }
 
+  test("high load can restore the spec to demand already covered by reporting workers") {
+    val conf = baseConf()
+      .set(SCALE_WORKER_NUMBER_MAX.key, "20")
+      .set(SCALE_UP_POLICY_STEP_NUMBER.key, "3")
+    val calculator = newCalculator(conf)
+    val high = WorkerStats(neutral.metrics + (WorkerStats.MemoryPressureRatio -> 0.9))
+    Seq((20, 20), (19, 20), (15, 18)).foreach { case (reportingWorkerCnt, target) =>
+      val input = snapshot(reportingWorkerCnt, high).copy(specWorkerCnt = 15)
+      assert(calculator.calculateSpecWorkerCnt(input) == target, s"reporting=$reportingWorkerCnt")
+    }
+    assert(calculator.calculateSpecWorkerCnt(snapshot(19, high).copy(specWorkerCnt = 20)) == 20)
+  }
+
+  test("minimum alignment with neutral load keeps the minimum target") {
+    val conf = baseConf()
+      .set(SCALE_WORKER_NUMBER_MIN.key, "10")
+      .set(SCALE_WORKER_NUMBER_MIN_ALIGN_ENABLED.key, "true")
+      .set(SCALE_WORKER_NUMBER_MAX.key, "20")
+    val input = snapshot(20, neutral).copy(specWorkerCnt = 5)
+    assert(newCalculator(conf).calculateSpecWorkerCnt(input) == 10)
+  }
+
   test("scale-down budget uses the minimum and removes at least one when needed") {
     val cases = Seq(
       (10, 5, 0.01, 9),
@@ -422,20 +444,21 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     }
   }
 
-  test("zero scale-up delta compensates only new exclusions in the retained spec") {
+  test("restoring the spec to demand recomputes accounted excluded replacements") {
     val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "10")
-    val specWorkerCntCalculator = newCalculator(conf)
+    val calculator = newCalculator(conf)
     val stats = WorkerStats(ratioKeys.map(_ -> 0.6).toMap)
-    Seq(0, 1, 2).foreach { newlyExcluded =>
+    (0 to 2).foreach { unaccountedExcludedWorkerCnt =>
       val input = snapshot(10, stats).copy(
         specWorkerCnt = 8,
         excludedWorkerCnt = 2,
-        unaccountedExcludedWorkerCnt = newlyExcluded)
-      val target = specWorkerCntCalculator.calculateSpecWorkerCnt(input)
-      assert(target == 8 + newlyExcluded)
-      assert(specWorkerCntCalculator.calculateSpecWorkerCnt(input.copy(
-        specWorkerCnt = target,
-        unaccountedExcludedWorkerCnt = 0)) == target)
+        unaccountedExcludedWorkerCnt = unaccountedExcludedWorkerCnt)
+      val result = calculator.calculate(input)
+      assert(result == Result(10, 0))
+      val accepted = input.copy(
+        specWorkerCnt = result.targetSpecWorkerCnt,
+        unaccountedExcludedWorkerCnt = input.excludedWorkerCnt - result.accountedExcludedWorkerCnt)
+      assert(calculator.calculate(accepted) == result)
     }
   }
 

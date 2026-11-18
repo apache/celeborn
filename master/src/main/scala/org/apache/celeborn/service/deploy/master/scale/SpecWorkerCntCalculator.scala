@@ -102,11 +102,13 @@ private[master] class SpecWorkerCntCalculator(
         math.max(3, math.max(upStep, (upPercent * registeredWorkerWithMetricCnt).toInt))
       val deltaUp =
         math.min(stepBudget, math.max(0, requiredWorkerCnt - registeredWorkerWithMetricCnt))
-      val candidateSpecWorkerCnt =
-        if (deltaUp > 0) registeredWorkerWithMetricCnt + deltaUp else oldSpecWorkerCnt
-      val inheritedAccountedExcludedWorkerCnt =
-        if (deltaUp > 0) 0 else previouslyAccountedExcludedWorkerCnt
-      (math.max(alignedMinimum, candidateSpecWorkerCnt), inheritedAccountedExcludedWorkerCnt)
+      if (deltaUp > 0) {
+        (math.max(alignedMinimum, registeredWorkerWithMetricCnt + deltaUp), 0)
+      } else if (upThresholdExceeded && requiredWorkerCnt > oldSpecWorkerCnt) {
+        (requiredWorkerCnt, 0)
+      } else {
+        (math.max(alignedMinimum, oldSpecWorkerCnt), previouslyAccountedExcludedWorkerCnt)
+      }
     }
 
     def computeWithDownThreshold(): Int = {
