@@ -29,7 +29,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
 import org.apache.celeborn.common.metrics.WorkerStats
 import org.apache.celeborn.server.common.service.config.{ConfigService, FsConfigServiceImpl, SystemConfig}
-import org.apache.celeborn.service.deploy.master.scale.SpecWorkerCntCalculator.Input
+import org.apache.celeborn.service.deploy.master.scale.SpecWorkerCntCalculator.{Input, Result}
 
 class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
   private val ratioKeys = Seq(
@@ -239,9 +239,47 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     assert(newCalculator(conf).calculateSpecWorkerCnt(snapshot(100)) == 95)
     conf.set(SCALE_WORKER_NUMBER_MAX.key, "1500")
     val oversized = snapshot(1600, high)
-    assert(newCalculator(conf).calculateSpecWorkerCnt(oversized) == 1595)
-    assert(newCalculator(conf).calculateSpecWorkerCnt(
-      oversized.copy(excludedWorkerCnt = 2, newExcludedWorkerCnt = 2)) == 1500)
+    val calculator = newCalculator(conf)
+    assert(calculator.calculate(oversized) == Result(1595, 0))
+    assert(calculator.calculate(
+      oversized.copy(excludedWorkerCnt = 1, unaccountedExcludedWorkerCnt = 1)) == Result(1595, 0))
+  }
+
+  test("a capped replacement remains due after the maximum is raised") {
+    val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "11")
+    val calculator = newCalculator(conf)
+    val input = snapshot(10, neutral).copy(excludedWorkerCnt = 2, unaccountedExcludedWorkerCnt = 2)
+
+    def afterAccepting(result: Result): Input = input.copy(
+      specWorkerCnt = result.targetSpecWorkerCnt,
+      unaccountedExcludedWorkerCnt = input.excludedWorkerCnt - result.accountedExcludedWorkerCnt)
+
+    val first = calculator.calculate(input)
+    assert(first == Result(11, 1))
+    assert(calculator.calculate(afterAccepting(first)) == first)
+
+    conf.set(SCALE_WORKER_NUMBER_MAX.key, "20")
+    val second = calculator.calculate(afterAccepting(first))
+    assert(second == Result(12, 2))
+    assert(calculator.calculate(afterAccepting(second)) == second)
+  }
+
+  test("accounts for the replacements covered by the minimum floor") {
+    val conf = baseConf()
+      .set(SCALE_WORKER_NUMBER_MIN.key, "10")
+      .set(SCALE_WORKER_NUMBER_MAX.key, "11")
+    val input = snapshot(9, low).copy(excludedWorkerCnt = 2, unaccountedExcludedWorkerCnt = 2)
+    val calculator = newCalculator(conf)
+    assert(calculator.calculate(input) == Result(11, 1))
+    conf.set(SCALE_WORKER_NUMBER_MAX.key, "20")
+    assert(calculator.calculate(input) == Result(12, 2))
+  }
+
+  test("a metric rebuild can reduce the count of accounted excluded replacements") {
+    val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "13")
+    val high = WorkerStats(ratioKeys.map(_ -> 0.66).toMap)
+    val input = snapshot(10, high).copy(specWorkerCnt = 12, excludedWorkerCnt = 2)
+    assert(newCalculator(conf).calculate(input) == Result(13, 0))
   }
 
   test("the maximum prevents scale-up at the limit without clamping every final result") {
@@ -339,16 +377,18 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     val specWorkerCntCalculator = newCalculator(conf)
     assert(specWorkerCntCalculator.calculateSpecWorkerCnt(input) == 8)
     assert(
-      specWorkerCntCalculator.calculateSpecWorkerCnt(input.copy(newExcludedWorkerCnt = 2)) == 8)
+      specWorkerCntCalculator.calculateSpecWorkerCnt(
+        input.copy(unaccountedExcludedWorkerCnt = 2)) == 8)
   }
 
   test("new exclusions compensate once and remain part of the metric inventory") {
-    val initial = snapshot(10, neutral).copy(excludedWorkerCnt = 2, newExcludedWorkerCnt = 2)
+    val initial =
+      snapshot(10, neutral).copy(excludedWorkerCnt = 2, unaccountedExcludedWorkerCnt = 2)
     val specWorkerCntCalculator = newCalculator()
     val target = specWorkerCntCalculator.calculateSpecWorkerCnt(initial)
     assert(target == 12)
     assert(specWorkerCntCalculator.calculateSpecWorkerCnt(initial) == 12)
-    val pending = initial.copy(specWorkerCnt = target, newExcludedWorkerCnt = 0)
+    val pending = initial.copy(specWorkerCnt = target, unaccountedExcludedWorkerCnt = 0)
     assert(specWorkerCntCalculator.calculateSpecWorkerCnt(pending) == 12)
     val accepted = snapshot(12, neutral).copy(excludedWorkerCnt = 2)
     assert(specWorkerCntCalculator.calculateSpecWorkerCnt(accepted) == 12)
@@ -369,12 +409,12 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
         .set(SCALE_WORKER_NUMBER_MIN_ALIGN_ENABLED.key, align.toString)
         .set(SCALE_WORKER_NUMBER_MAX.key, maximum.toString)
       val specWorkerCntCalculator = newCalculator(conf)
-      var input = snapshot(10, stats).copy(excludedWorkerCnt = 2, newExcludedWorkerCnt = 2)
+      var input = snapshot(10, stats).copy(excludedWorkerCnt = 2, unaccountedExcludedWorkerCnt = 2)
       (1 to 3).foreach { round =>
         withClue(s"minimum=$minimum, align=$align, maximum=$maximum, round=$round: ") {
           val newSpecWorkerCnt = specWorkerCntCalculator.calculateSpecWorkerCnt(input)
           assert(newSpecWorkerCnt == expected)
-          input = input.copy(specWorkerCnt = newSpecWorkerCnt, newExcludedWorkerCnt = 0)
+          input = input.copy(specWorkerCnt = newSpecWorkerCnt, unaccountedExcludedWorkerCnt = 0)
         }
       }
       assert(specWorkerCntCalculator.calculateSpecWorkerCnt(input.copy(workerStats =
@@ -390,12 +430,12 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
       val input = snapshot(10, stats).copy(
         specWorkerCnt = 8,
         excludedWorkerCnt = 2,
-        newExcludedWorkerCnt = newlyExcluded)
+        unaccountedExcludedWorkerCnt = newlyExcluded)
       val target = specWorkerCntCalculator.calculateSpecWorkerCnt(input)
       assert(target == 8 + newlyExcluded)
       assert(specWorkerCntCalculator.calculateSpecWorkerCnt(input.copy(
         specWorkerCnt = target,
-        newExcludedWorkerCnt = 0)) == target)
+        unaccountedExcludedWorkerCnt = 0)) == target)
     }
   }
 
@@ -573,10 +613,10 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
       input.copy(registeredWorkerCnt = -1),
       input.copy(specWorkerCnt = -1),
       input.copy(excludedWorkerCnt = -1),
-      input.copy(newExcludedWorkerCnt = 1),
+      input.copy(unaccountedExcludedWorkerCnt = 1),
       input.copy(excludedWorkerCnt = 11),
       input.copy(registeredWorkerCnt = 9),
-      input.copy(newExcludedWorkerCnt = -1)).foreach { invalid =>
+      input.copy(unaccountedExcludedWorkerCnt = -1)).foreach { invalid =>
       intercept[IllegalArgumentException] {
         newCalculator().calculateSpecWorkerCnt(invalid)
       }
