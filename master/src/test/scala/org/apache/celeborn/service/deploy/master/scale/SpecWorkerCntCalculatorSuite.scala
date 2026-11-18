@@ -253,39 +253,19 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     assert(newCalculator(conf).calculateSpecWorkerCnt(excluded) == 12)
   }
 
-  test("an oversized platform target converges without waiting for pending workers to register") {
+  test("oversized targets cancel pending replicas without waiting for registrations") {
     val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "8")
     val high = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.9))
-    val inputs = Seq(
-      Input(0, 10, Seq.empty),
-      snapshot(4, high).copy(specWorkerCnt = 10),
-      snapshot(8, high).copy(specWorkerCnt = 10),
-      snapshot(8, neutral).copy(specWorkerCnt = 10))
-    val specWorkerCntCalculator = newCalculator(conf)
-    inputs.foreach { input =>
-      withClue(s"registered=${input.registeredWorkerCnt}, metrics=${input.workerStats}: ") {
-        val first = specWorkerCntCalculator.calculateSpecWorkerCnt(input)
-        assert(first == 9)
-        val second =
-          specWorkerCntCalculator.calculateSpecWorkerCnt(input.copy(specWorkerCnt = first))
-        assert(second == 8)
-        assert(
-          specWorkerCntCalculator.calculateSpecWorkerCnt(input.copy(specWorkerCnt = second)) == 8)
-      }
-    }
-  }
-
-  test("scale-down follows the platform target across rounds while registration lags") {
     val cases = Seq(
-      (Input(10, 10, Seq.fill(8)(low)), 8, Seq(9, 8, 7, 6, 5, 4, 3, 3)),
-      (Input(100, 90, Seq.fill(90)(low)), 2000, Seq(85, 80, 75)),
-      (Input(4, 10, Seq.fill(4)(low)), 8, Seq(9, 8, 7, 6)))
-    cases.foreach { case (initial, maximum, targets) =>
-      val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, maximum.toString)
-      val specWorkerCntCalculator = newCalculator(conf)
+      (Input(0, 10, Seq.empty), 1),
+      (snapshot(4, high).copy(specWorkerCnt = 10), 8),
+      (snapshot(8, high).copy(specWorkerCnt = 10), 8),
+      (snapshot(8, neutral).copy(specWorkerCnt = 10), 8))
+    val specWorkerCntCalculator = newCalculator(conf)
+    cases.foreach { case (initial, expected) =>
       var input = initial
-      targets.foreach { expected =>
-        withClue(s"registered=${input.registeredWorkerCnt}, target=${input.specWorkerCnt}: ") {
+      (1 to 3).foreach { round =>
+        withClue(s"registered=${input.registeredWorkerCnt}, round=$round: ") {
           val newSpecWorkerCnt = specWorkerCntCalculator.calculateSpecWorkerCnt(input)
           assert(newSpecWorkerCnt == expected)
           input = input.copy(specWorkerCnt = newSpecWorkerCnt)
@@ -294,30 +274,70 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     }
   }
 
-  test("pending capacity above the maximum obeys the platform target scale-down budget") {
+  test("scale-down budgets retire registered workers while allowing pending cancellation") {
+    val cases = Seq(
+      (20, 5, 0.1, 50),
+      (0, 5, 0.1, 50),
+      (50, 5, 0.1, 50),
+      (80, 5, 0.1, 75),
+      (100, 5, 0.1, 95),
+      (80, 100, 0.1, 72),
+      (80, 100, 0.29, 57))
+    cases.foreach { case (registeredWorkerCnt, step, percent, expected) =>
+      val conf = baseConf()
+        .set(SCALE_WORKER_NUMBER_MIN.key, "50")
+        .set(SCALE_WORKER_NUMBER_MAX.key, "50")
+        .set(SCALE_DOWN_POLICY_STEP_NUMBER.key, step.toString)
+        .set(SCALE_DOWN_POLICY_PERCENT.key, percent.toString)
+      val input = snapshot(registeredWorkerCnt).copy(specWorkerCnt = 100)
+      assert(
+        newCalculator(conf).calculateSpecWorkerCnt(input) == expected,
+        s"registered=$registeredWorkerCnt, step=$step, percent=$percent")
+    }
+  }
+
+  test("scale-down does not increase a target while excess workers remain registered") {
+    val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "8")
+    val specWorkerCntCalculator = newCalculator(conf)
+    var input = Input(10, 8, Seq.fill(8)(low))
+    (1 to 3).foreach { _ =>
+      val newSpecWorkerCnt = specWorkerCntCalculator.calculateSpecWorkerCnt(input)
+      assert(newSpecWorkerCnt == 8)
+      input = input.copy(specWorkerCnt = newSpecWorkerCnt)
+    }
+  }
+
+  test("the retirement budget advances after registered workers finish draining") {
+    val conf = baseConf()
+      .set(SCALE_WORKER_NUMBER_MIN.key, "50")
+      .set(SCALE_WORKER_NUMBER_MAX.key, "50")
+    val specWorkerCntCalculator = newCalculator(conf)
+    assert(specWorkerCntCalculator.calculateSpecWorkerCnt(snapshot(100)) == 95)
+    val draining = Input(100, 100, Seq.fill(95)(low))
+    assert(specWorkerCntCalculator.calculateSpecWorkerCnt(draining) == 95)
+    assert(specWorkerCntCalculator.calculateSpecWorkerCnt(snapshot(95)) == 90)
+  }
+
+  test("pending capacity does not consume the registered-worker retirement budget") {
     val high = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.9))
     val input = snapshot(4, high).copy(specWorkerCnt = 100)
-    val cases = Seq(
-      (3, 1.0, 97),
-      (100, 0.1, 90),
-      (100, 0.29, 72),
-      (100, 1.0, 8))
-    cases.foreach { case (step, percent, expected) =>
+    val cases = Seq((3, 1.0), (100, 0.1), (100, 0.29), (100, 1.0))
+    cases.foreach { case (step, percent) =>
       val conf = baseConf()
         .set(SCALE_WORKER_NUMBER_MAX.key, "8")
         .set(SCALE_DOWN_POLICY_STEP_NUMBER.key, step.toString)
         .set(SCALE_DOWN_POLICY_PERCENT.key, percent.toString)
       assert(
-        newCalculator(conf).calculateSpecWorkerCnt(input) == expected,
+        newCalculator(conf).calculateSpecWorkerCnt(input) == 8,
         s"step=$step, percent=$percent")
     }
   }
 
-  test("pending target convergence preserves existing and new exclusion compensation") {
+  test("pending cancellation respects the maximum with existing and new exclusions") {
     val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "8")
     val input = snapshot(8, neutral).copy(specWorkerCnt = 10, excludedWorkerCnt = 2)
     val specWorkerCntCalculator = newCalculator(conf)
-    assert(specWorkerCntCalculator.calculateSpecWorkerCnt(input) == 9)
+    assert(specWorkerCntCalculator.calculateSpecWorkerCnt(input) == 8)
     assert(
       specWorkerCntCalculator.calculateSpecWorkerCnt(input.copy(newExcludedWorkerCnt = 2)) == 8)
   }

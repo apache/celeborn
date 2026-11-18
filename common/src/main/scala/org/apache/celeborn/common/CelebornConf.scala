@@ -6423,8 +6423,8 @@ object CelebornConf extends Logging {
       .dynamic
       .version("1.0.0")
       .doc("Maximum worker count used for demand estimates and exclusion compensation. " +
-        "An existing target above this limit converges through the scale-down step budget, " +
-        "including workers not yet registered.")
+        "Excess pending replicas can be canceled directly. Retirement of registered workers " +
+        "follows the scale-down step budget.")
       .intConf
       .checkValue(_ > 0, "Maximum worker count must be positive")
       .createWithDefault(2000)
@@ -6530,8 +6530,9 @@ object CelebornConf extends Logging {
       .categories("master")
       .dynamic
       .version("1.0.0")
-      .doc("Maximum fixed scale-down budget. The policy uses the smallest of this value, " +
-        "the percentage budget, and the estimated difference, with at least one worker if needed.")
+      .doc("Maximum fixed budget for retiring registered workers. The policy uses the smallest " +
+        "of this value, the percentage budget, and the estimated difference, with at least one " +
+        "worker if needed. Pending replicas can be canceled without consuming this budget.")
       .intConf
       .checkValue(_ > 0, "Scale-down step number must be positive")
       .createWithDefault(5)
@@ -6553,9 +6554,10 @@ object CelebornConf extends Logging {
       .categories("master")
       .dynamic
       .version("1.0.0")
-      .doc("Scale-down budget as a fraction of the platform's current spec worker count " +
-        "(total desired instances, including pending and excluded workers), rounded down. " +
-        "Combined with the fixed budget and the estimated difference using the minimum.")
+      .doc("Scale-down budget as a fraction of registered workers (including Idle, automatically " +
+        "decommissioning and excluded workers), rounded down. Combined with the fixed budget " +
+        "and the estimated difference using the minimum. Pending replicas can be canceled " +
+        "without consuming this budget.")
       .doubleConf
       .checkValue(v => v > 0 && v <= 1, "Scale-down percent must be in (0, 1]")
       .createWithDefault(0.1)
