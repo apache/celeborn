@@ -102,7 +102,7 @@ abstract class HttpService extends Service with Logging {
       if (tenant.isEmpty) {
         configService.listRawTenantConfigsFromCache().asScala
       } else {
-        List(configService.getRawTenantConfigFromCache(tenant))
+        Option(configService.getRawTenantConfigFromCache(tenant)).toSeq
       }
     tenantConfigs.sortBy(_.getTenantId).map { tenantConfig =>
       s"""
@@ -118,7 +118,7 @@ abstract class HttpService extends Service with Logging {
       if (tenant.isEmpty && name.isEmpty) {
         configService.listRawTenantUserConfigsFromCache().asScala
       } else if (tenant.nonEmpty && name.nonEmpty) {
-        List(configService.getRawTenantUserConfigFromCache(tenant, name))
+        Option(configService.getRawTenantUserConfigFromCache(tenant, name)).toSeq
       } else {
         List()
       }
