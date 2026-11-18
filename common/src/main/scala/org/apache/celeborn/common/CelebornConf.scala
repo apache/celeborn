@@ -6433,9 +6433,12 @@ object CelebornConf extends Logging {
       .categories("master")
       .dynamic
       .version("1.0.0")
-      .doc("Whether to enforce the minimum worker count on every platform target. " +
+      .doc("Whether to use the configured minimum as a floor for calculated replica targets. " +
         "Excluded workers are added to this floor, which is capped by the maximum worker count. " +
-        "When enabled, minimum alignment can exceed the scale-up step budget.")
+        "Minimum alignment can exceed the scale-up step budget. " +
+        "Worker count limits, load thresholds, and step budgets take effect only when a scale " +
+        "manager uses the worker-count calculator and applies its targets to the platform. " +
+        "Worker metric collection supplies inputs to the calculator.")
       .booleanConf
       .createWithDefault(false)
 
