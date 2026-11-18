@@ -162,7 +162,7 @@ private[api] class ConfResource extends ApiRequestContext {
       val tenantUserConfigs =
         if (StringUtils.isEmpty(tenant) && StringUtils.isEmpty(name)) {
           configService.listRawTenantUserConfigsFromCache().asScala
-        } else if (tenant.nonEmpty && name.nonEmpty) {
+        } else if (StringUtils.isNotEmpty(tenant) && StringUtils.isNotEmpty(name)) {
           Option(configService.getRawTenantUserConfigFromCache(tenant, name)).toSeq
         } else {
           List()
