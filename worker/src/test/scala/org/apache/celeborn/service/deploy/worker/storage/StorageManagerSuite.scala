@@ -19,11 +19,12 @@ package org.apache.celeborn.service.deploy.worker.storage
 
 import java.{lang, util}
 import java.io.IOException
-import java.nio.file.Files
-import java.util.concurrent.{Callable, ConcurrentHashMap, CountDownLatch, Executors, TimeUnit}
+import java.nio.file.{Files, Paths}
+import java.util.concurrent.{Callable, ConcurrentHashMap, CountDownLatch, Executors, LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.FileSystem
@@ -38,7 +39,7 @@ import org.apache.celeborn.common.CelebornConf.{WORKER_DISK_RESERVE_RATIO, WORKE
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{DiskFileInfo, DiskInfo, DiskStatus, MemoryFileInfo, ReduceFileMeta}
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
-import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, Utils}
+import org.apache.celeborn.common.util.{CelebornExitKind, JavaUtils, PbSerDeUtils, Utils}
 import org.apache.celeborn.service.deploy.worker.WorkerSource
 
 trait MockitoHelper extends MockitoSugar {
@@ -48,6 +49,365 @@ trait MockitoHelper extends MockitoSugar {
 }
 
 class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
+
+  test("local file creation checks canonical paths before creating directories") {
+    withDiskFile(gracefulShutdown = false) { (manager, fileInfo, _) =>
+      val workingDir = fileInfo.getFile.getParentFile.getParentFile.getParentFile.toPath
+      // A sibling whose name shares the working-directory prefix is still outside it.
+      val outside =
+        Files.createDirectory(workingDir.resolveSibling(workingDir.getFileName + "-other"))
+      val link = Files.createSymbolicLink(workingDir.resolve("linked-app"), outside)
+      try {
+        intercept[IOException] {
+          manager.createDiskFile(
+            genPartitionLocation(0, Array(0L)),
+            "linked-app",
+            1,
+            "0-0-0",
+            UserIdentifier("tenant", "user"),
+            PartitionType.REDUCE,
+            partitionSplitEnabled = false)
+        }
+        assert(!Files.exists(outside.resolve("1")))
+        assert(!manager.shuffleKeySet().contains("linked-app-1"))
+      } finally {
+        Files.delete(link)
+      }
+      val (_, compatible, _) = manager.createDiskFile(
+        genPartitionLocation(0, Array(0L)),
+        "作业.v2",
+        0,
+        "0-0-0",
+        UserIdentifier("tenant", "user"),
+        PartitionType.REDUCE,
+        partitionSplitEnabled = false)
+      assert(compatible.getFile.isFile)
+    }
+  }
+
+  test("shuffle cleanup checks canonical paths before removing metadata") {
+    withDiskFile(gracefulShutdown = false) { (manager, fileInfo, _) =>
+      // Warm java.io.File's canonical-path cache before changing the directory target.
+      assert(fileInfo.getFile.getCanonicalFile.isFile)
+      val appDir = fileInfo.getFile.getParentFile.getParentFile.toPath
+      val movedAppDir = appDir.resolveSibling("moved-app")
+      Files.move(appDir, movedAppDir)
+      val outside = Files.createTempDirectory("shuffle-cleanup-")
+      try {
+        Files.createSymbolicLink(appDir, outside)
+        val shuffleDir = Files.createDirectory(outside.resolve("0"))
+        val file = Files.write(shuffleDir.resolve("0-0-0"), Array[Byte](1, 2, 3))
+        withControlledDiskExecutor(manager) { (queued, drain) =>
+          manager.cleanupExpiredShuffleKey(manager.shuffleKeySet(), cleanDB = false)
+          assert(queued.size == 1)
+          drain()
+        }
+        assert(Files.exists(file))
+        assert(manager.getFileInfo("app-1-0", "0-0-0") eq fileInfo)
+      } finally {
+        Files.delete(appDir)
+        Files.move(movedAppDir, appDir)
+        JavaUtils.deleteRecursively(outside.toFile)
+      }
+    }
+  }
+
+  test("recovery skips invalid application identifiers and retains valid shuffles") {
+    val root = Files.createTempDirectory("application-id-recovery-")
+    val recoveryDir = Files.createDirectory(root.resolve("recovery"))
+    val conf = new CelebornConf()
+      .set(WORKER_STORAGE_DIRS, Seq(root.resolve("data").toString))
+      .set(WORKER_GRACEFUL_SHUTDOWN_ENABLED, true)
+      .set(WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH, recoveryDir.toString)
+      .set(WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_INTERVAL, TimeUnit.HOURS.toMillis(1))
+    var manager = new StorageManager(conf, new WorkerSource(conf))
+    try {
+      manager.localDisksSnapshot().foreach(_.setUsableSpace(Long.MaxValue))
+      val (_, fileInfo, _) = manager.createDiskFile(
+        genPartitionLocation(0, Array(0L)),
+        "app-1",
+        0,
+        "0-0-0",
+        UserIdentifier("tenant", "user"),
+        PartitionType.REDUCE,
+        partitionSplitEnabled = false)
+      manager.notifyFileInfoCommitted("app-1-0", "0-0-0", fileInfo)
+      manager.notifyFileInfoCommitted("../old-app-0", "0-0-0", fileInfo)
+      manager.notifyFileInfoCommitted("malformed", "0-0-0", fileInfo)
+      manager.notifyFileInfoCommitted("app-1-1", "0-0-0", fileInfo)
+      manager.notifyFileInfoCommitted("other-app-0", "0-0-0", fileInfo)
+      val (_, rawFile, _) = manager.createDiskFile(
+        genPartitionLocation(0, Array(0L)),
+        "raw-app",
+        0,
+        "0-0-0",
+        UserIdentifier("tenant", "user"),
+        PartitionType.REDUCE,
+        partitionSplitEnabled = false)
+      val workingDir = rawFile.getFile.getParentFile.getParentFile.getParentFile.toPath
+      val nonNormalized = workingDir.resolve("unused/../raw-app/0/0-0-0")
+      manager.notifyFileInfoCommitted(
+        "raw-app-0",
+        "0-0-0",
+        new DiskFileInfo(
+          rawFile.getUserIdentifier,
+          false,
+          rawFile.getFileMeta,
+          nonNormalized.toString,
+          rawFile.getStorageType))
+      val dbField = classOf[StorageManager].getDeclaredFields.find(f =>
+        f.getName == "db" || f.getName.endsWith("$$db")).get
+      dbField.setAccessible(true)
+      dbField.get(manager).asInstanceOf[org.apache.celeborn.service.deploy.worker.shuffledb.DB]
+        .put(
+          "SHUFFLE-KEY".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+          PbSerDeUtils.toPbFileInfoMap(new ConcurrentHashMap[String, DiskFileInfo]()),
+          true)
+      manager.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
+      manager = null
+      manager = new StorageManager(conf, new WorkerSource(conf))
+      assert(manager.shuffleKeySet().asScala == Set("app-1-0"))
+      assert(manager.getFileInfo("../old-app-0", "0-0-0") == null)
+      assert(manager.getFileInfo("app-1-0", "0-0-0") != null)
+      assert(fileInfo.getFile.isFile)
+    } finally {
+      if (manager != null) {
+        manager.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
+      }
+      JavaUtils.deleteRecursively(root.toFile)
+    }
+  }
+
+  test("recovery rejects files from an old root or an unconfigured DFS backend") {
+    val root = Files.createTempDirectory("changed-recovery-root-")
+    val conf = new CelebornConf()
+      .set(WORKER_STORAGE_DIRS, Seq(root.resolve("old-data").toString))
+      .set(WORKER_GRACEFUL_SHUTDOWN_ENABLED, true)
+      .set(WORKER_GRACEFUL_SHUTDOWN_RECOVER_PATH, root.resolve("recovery").toString)
+      .set(WORKER_GRACEFUL_SHUTDOWN_SAVE_COMMITTED_FILEINFO_INTERVAL, TimeUnit.HOURS.toMillis(1))
+    var manager = new StorageManager(conf, new WorkerSource(conf))
+    try {
+      manager.localDisksSnapshot().foreach(_.setUsableSpace(Long.MaxValue))
+      val (_, info, _) = manager.createDiskFile(
+        genPartitionLocation(0, Array(0L)),
+        "app-1",
+        0,
+        "0-0-0",
+        UserIdentifier("t", "u"),
+        PartitionType.REDUCE,
+        partitionSplitEnabled = false)
+      manager.notifyFileInfoCommitted("app-1-0", "0-0-0", info)
+      val dfs = new DiskFileInfo(
+        UserIdentifier("t", "u"),
+        false,
+        new ReduceFileMeta(1024),
+        "hdfs://other/celeborn-worker/shuffle_data/dfs-app/0/0-0-0",
+        StorageInfo.Type.HDFS)
+      manager.notifyFileInfoCommitted("dfs-app-0", "0-0-0", dfs)
+      manager.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
+      manager = null
+      conf.set(WORKER_STORAGE_DIRS, Seq(root.resolve("new-data").toString))
+      manager = new StorageManager(conf, new WorkerSource(conf))
+      assert(manager.shuffleKeySet().isEmpty)
+      assert(manager.committedFileInfos.isEmpty)
+      assert(info.getFile.isFile)
+    } finally {
+      if (manager != null) manager.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
+      JavaUtils.deleteRecursively(root.toFile)
+    }
+  }
+
+  test("reject invalid application identifiers before creating files or S3 directories") {
+    withDiskFile(gracefulShutdown = false) { (manager, _, _) =>
+      Seq("", ".", "..", "../outside", "/outside", "app/child", "app\\child", "file:outside")
+        .foreach { appId =>
+          Seq(
+            StorageInfo.Type.HDD,
+            StorageInfo.Type.HDFS,
+            StorageInfo.Type.S3,
+            StorageInfo.Type.OSS)
+            .foreach { storageType =>
+              intercept[IllegalArgumentException] {
+                manager.createDiskFile(
+                  genPartitionLocation(0, Array(0L)),
+                  appId,
+                  0,
+                  "0-0-0",
+                  UserIdentifier("tenant", "user"),
+                  PartitionType.REDUCE,
+                  partitionSplitEnabled = false,
+                  overrideStorageType = storageType)
+              }
+            }
+          intercept[IllegalArgumentException] {
+            manager.createPartitionDataWriter(
+              appId,
+              0,
+              null,
+              0L,
+              PartitionSplitMode.HARD,
+              PartitionType.REDUCE,
+              rangeReadFilter = false,
+              userIdentifier = UserIdentifier("tenant", "user"),
+              partitionSplitEnabled = false,
+              isSegmentGranularityVisible = false)
+          }
+          intercept[IllegalArgumentException] {
+            manager.ensureS3DirectoryForShuffleKey(appId, 0)
+          }
+          intercept[IllegalArgumentException] {
+            manager.createMemoryFileInfo(
+              appId,
+              0,
+              "0-0-0",
+              UserIdentifier("tenant", "user"),
+              PartitionType.REDUCE,
+              partitionSplitEnabled = false)
+          }
+        }
+      assert(manager.shuffleKeySet().asScala == Set("app-1-0"))
+    }
+  }
+
+  test("skip invalid persisted shuffle identifiers before deleting files") {
+    withDiskFile(gracefulShutdown = false) { (manager, _, _) =>
+      val outside = Files.createTempDirectory("shuffle-cleanup-canary-")
+      val canary = Files.write(outside.resolve("keep"), Array[Byte](1, 2, 3))
+      val invalidKey = "../outside-0"
+      val info = new DiskFileInfo(
+        UserIdentifier("tenant", "user"),
+        false,
+        new ReduceFileMeta(1024),
+        canary.toString,
+        StorageInfo.Type.HDD)
+      // Model metadata recovered from an older version without exposing a production mutator.
+      val field = classOf[StorageManager].getDeclaredField("diskFileInfos")
+      field.setAccessible(true)
+      val diskFileInfos = field.get(manager).asInstanceOf[
+        ConcurrentHashMap[String, ConcurrentHashMap[String, DiskFileInfo]]]
+      diskFileInfos.computeIfAbsent(
+        invalidKey,
+        _ => JavaUtils.newConcurrentHashMap[String, DiskFileInfo]()).put("0-0-0", info)
+      try {
+        withControlledDiskExecutor(manager) { (queued, drain) =>
+          manager.cleanupExpiredShuffleKey(manager.shuffleKeySet(), cleanDB = false)
+          assert(queued.size == 1) // Only the valid shuffle schedules disk work.
+          drain()
+        }
+        assert(Files.exists(canary))
+        assert(diskFileInfos.containsKey(invalidKey))
+        assert(!diskFileInfos.containsKey("app-1-0"))
+      } finally {
+        diskFileInfos.remove(invalidKey)
+        JavaUtils.deleteRecursively(outside.toFile)
+      }
+    }
+  }
+
+  test("queued shuffle deletion cannot be redirected to another application's directory") {
+    withDiskFile(gracefulShutdown = false) { (manager, info, _) =>
+      val app = info.getFile.getParentFile.getParentFile.toPath
+      val original = app.resolveSibling("original-app")
+      val other = Files.createDirectories(app.resolveSibling("other-app").resolve("0"))
+      val live = Files.write(other.resolve("0-0-0"), Array[Byte](9, 8, 7))
+      withControlledDiskExecutor(manager) { (queued, drain) =>
+        manager.cleanupExpiredShuffleKey(manager.shuffleKeySet(), cleanDB = false)
+        assert(queued.size == 1)
+        Files.move(app, original)
+        Files.createSymbolicLink(app, other.getParent)
+        try {
+          drain()
+          assert(Files.readAllBytes(live).sameElements(Array[Byte](9, 8, 7)))
+          assert(manager.getFileInfo("app-1-0", "0-0-0") eq info)
+        } finally {
+          Files.delete(app)
+          Files.move(original, app)
+        }
+      }
+    }
+  }
+
+  test("individual release cannot follow a replaced application directory") {
+    withDiskFile(gracefulShutdown = false) { (manager, info, _) =>
+      val app = info.getFile.getParentFile.getParentFile.toPath
+      val moved = app.resolveSibling("original-app")
+      Files.move(app, moved)
+      val outside = Files.createTempDirectory("release-canary-")
+      val target = Files.createDirectories(outside.resolve("0"))
+      val canary = Files.write(target.resolve("0-0-0"), Array[Byte](1))
+      Files.createSymbolicLink(app, outside)
+      try {
+        intercept[IOException](manager.cleanFile("app-1-0", "0-0-0"))
+        assert(manager.getFileInfo("app-1-0", "0-0-0") eq info)
+        assert(Files.readAllBytes(canary).sameElements(Array[Byte](1)))
+      } finally {
+        Files.delete(app)
+        Files.move(moved, app)
+        JavaUtils.deleteRecursively(outside.toFile)
+      }
+    }
+  }
+
+  test("MAP writer rejects a pre-existing index symlink") {
+    withDiskFile(gracefulShutdown = false) { (manager, info, _) =>
+      val root = info.getFile.getParentFile.getParentFile.getParentFile.toPath
+      val location = genPartitionLocation(0, Array(0L))
+      val shuffle = Files.createDirectories(root.resolve("map-app/0"))
+      val outside = Files.createTempFile("index-canary-", ".data")
+      Files.write(outside, Array[Byte](3, 4, 5))
+      Files.createSymbolicLink(
+        Paths.get(Utils.getIndexFilePath(
+          shuffle.resolve(location.getFileName).toString)),
+        outside)
+      try {
+        intercept[IOException] {
+          manager.createPartitionDataWriter(
+            "map-app",
+            0,
+            location,
+            Long.MaxValue,
+            PartitionSplitMode.HARD,
+            PartitionType.MAP,
+            rangeReadFilter = false,
+            UserIdentifier("tenant", "user"),
+            partitionSplitEnabled = false,
+            isSegmentGranularityVisible = false)
+        }
+        assert(Files.readAllBytes(outside).sameElements(Array[Byte](3, 4, 5)))
+      } finally Files.deleteIfExists(outside)
+    }
+  }
+
+  test("an IO_HANG disk is not probed before memory cleanup") {
+    val root = Files.createTempDirectory("hung-disk-")
+    val conf = new CelebornConf().set(WORKER_STORAGE_DIRS, Seq(root.toString))
+    val manager = new StorageManager(conf, new WorkerSource(conf))
+    val disk = manager.localDisksSnapshot().head
+    val originalDirs = disk.dirs
+    val badPath = mock[java.io.File]
+    when(badPath.toPath).thenThrow(new AssertionError("IO_HANG mount was probed"))
+    val dirsField = classOf[DiskInfo].getDeclaredField("dirs")
+    dirsField.setAccessible(true)
+    dirsField.set(disk, List(badPath))
+    disk.setStatus(DiskStatus.IO_HANG)
+    val info = new MemoryFileInfo(UserIdentifier("t", "u"), false, new ReduceFileMeta(1024))
+    manager.memoryFileInfos.computeIfAbsent(
+      "memory-app-0",
+      _ => JavaUtils.newConcurrentHashMap[String, MemoryFileInfo]()).put("0-0-0", info)
+    try {
+      withControlledDiskExecutor(manager) { (queued, drain) =>
+        manager.cleanupExpiredShuffleKey(manager.shuffleKeySet(), cleanDB = false)
+        assert(queued.isEmpty)
+        assert(manager.memoryFileInfos.isEmpty)
+        org.mockito.Mockito.verify(badPath, org.mockito.Mockito.never()).toPath
+      }
+    } finally {
+      dirsField.set(disk, originalDirs)
+      disk.setStatus(DiskStatus.HEALTHY)
+      manager.close(CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN)
+      JavaUtils.deleteRecursively(root.toFile)
+    }
+  }
 
   test("[CELEBORN-926] saveAllCommittedFileInfosToDB cause IllegalMonitorStateException") {
     val conf = new CelebornConf().set(WORKER_GRACEFUL_SHUTDOWN_ENABLED, true)
@@ -85,6 +445,8 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
       storageManager.notifyFileInfoCommitted("app-1-0", "0-0-0", fileInfo)
       assert(storageManager.committedFileInfos.get("app-1-0").get("0-0-0") eq fileInfo)
       storageManager.cleanupExpiredShuffleKey(storageManager.shuffleKeySet())
+      awaitCondition(
+        storageManager.shuffleKeySet().isEmpty && storageManager.committedFileInfos.isEmpty)
       assert(storageManager.committedFileInfos.isEmpty)
       assert(storageManager.shuffleKeySet().isEmpty)
     }
@@ -158,6 +520,7 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
         finishClose.countDown()
         closeResult.get(30, TimeUnit.SECONDS)
         cleanupResult.get(30, TimeUnit.SECONDS)
+        awaitCondition(manager.shuffleKeySet().isEmpty && manager.committedFileInfos.isEmpty)
         assert(manager.shuffleKeySet().isEmpty)
         assert(manager.committedFileInfos.isEmpty)
       } finally {
@@ -376,6 +739,35 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
     } finally {
       StorageManager.hadoopFs = hadoopFsBefore
       FileUtils.deleteDirectory(hdfsDir.toFile)
+    }
+  }
+
+  private def awaitCondition(condition: => Boolean): Unit = {
+    val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+    while (!condition && System.nanoTime() < deadline) Thread.sleep(10)
+    assert(condition)
+  }
+
+  private def withControlledDiskExecutor(manager: StorageManager)(
+      run: (mutable.ArrayBuffer[Runnable], () => Unit) => Unit): Unit = {
+    val field = classOf[StorageManager].getDeclaredField("diskOperators")
+    field.setAccessible(true)
+    val operators = field.get(manager).asInstanceOf[ConcurrentHashMap[String, ThreadPoolExecutor]]
+    val original = operators.asScala.toMap
+    val queued = mutable.ArrayBuffer.empty[Runnable]
+    val executor =
+      new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue[Runnable]()) {
+        override def execute(task: Runnable): Unit = queued.synchronized { queued += task }
+      }
+    original.keys.foreach(operators.put(_, executor))
+    def drain(): Unit = {
+      while (queued.nonEmpty) queued.remove(0).run()
+    }
+    try run(queued, () => drain())
+    finally {
+      drain()
+      original.foreach { case (mount, operator) => operators.put(mount, operator) }
+      executor.shutdownNow()
     }
   }
 
