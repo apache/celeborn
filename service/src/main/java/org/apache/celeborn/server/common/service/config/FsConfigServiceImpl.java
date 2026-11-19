@@ -44,16 +44,17 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
   @Override
   public synchronized void refreshCache() {
     try (FileInputStream fileInputStream = new FileInputStream(getConfigFile(System.getenv()))) {
+      SystemConfig systemConfig = new SystemConfig(celebornConf);
       Map<String, TenantConfig> tenantConfigs = new HashMap<>();
       Map<Pair<String, String>, TenantConfig> tenantUserConfigs = new HashMap<>();
       List<Map<String, Object>> configs = new Yaml().load(fileInputStream);
       for (Map<String, Object> configMap : configs) {
         if (ConfigLevel.SYSTEM.name().equals(configMap.get(CONF_LEVEL))) {
           if (configMap.containsKey(CONF_CONFIG)) {
-            systemConfigAtomicReference.get().setConfigs(getConfigs(configMap));
+            systemConfig.setConfigs(getConfigs(configMap));
           }
           if (configMap.containsKey(TAGS_CONFIG)) {
-            systemConfigAtomicReference.get().setTags(getTags(configMap));
+            systemConfig.setTags(getTags(configMap));
           }
         } else {
           if (configMap.containsKey(CONF_TENANT_ID)) {
@@ -76,9 +77,11 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
             }
           }
         }
-        tenantConfigAtomicReference.set(tenantConfigs);
-        tenantUserConfigAtomicReference.set(tenantUserConfigs);
       }
+      // Publish only after every record has been parsed; readers must not see maps being built.
+      systemConfigAtomicReference.set(systemConfig);
+      tenantConfigAtomicReference.set(tenantConfigs);
+      tenantUserConfigAtomicReference.set(tenantUserConfigs);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
