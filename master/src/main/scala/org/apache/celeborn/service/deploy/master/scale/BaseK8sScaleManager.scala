@@ -229,9 +229,10 @@ abstract class BaseK8sScaleManager(conf: CelebornConf) extends AbstractScaleMana
       worker.getWorkerStatus.getState != PbWorkerStatus.State.Normal
     }
     val unaccountedExcludedWorkerCnt = math.max(0, excludedWorkerCnt - accountedExcludedWorkerCnt)
+    val oldSpecWorkerCnt = clusterInfo.specWorkerCnt
     val target = calculateScaleTarget(
       workers.size,
-      clusterInfo.specWorkerCnt,
+      oldSpecWorkerCnt,
       normal.map(workerStats),
       excludedWorkerCnt,
       unaccountedExcludedWorkerCnt)
@@ -253,52 +254,55 @@ abstract class BaseK8sScaleManager(conf: CelebornConf) extends AbstractScaleMana
     // Keep draining workers in the platform spec until they report Idle.
     val pendingDrainCnt = allDraining.size - activate.size + decommission.size - removable.size
     val scaleDownSpecWorkerCnt =
-      math.min(clusterInfo.specWorkerCnt, targetSpecWorkerCnt + pendingDrainCnt)
+      math.min(oldSpecWorkerCnt, targetSpecWorkerCnt + pendingDrainCnt)
     val currentReserved = clusterInfo.reservedWorkerIndices
       .filter(index => expectedIndices.lastOption.exists(index < _))
     val reserved = (currentReserved ++ removable.map(getWorkerIndex)).distinct.sorted
 
-    val operation =
-      if (targetSpecWorkerCnt > clusterInfo.specWorkerCnt || activate.nonEmpty) {
-        val specWorkerCnt =
-          if (targetSpecWorkerCnt < clusterInfo.specWorkerCnt) {
-            math.max(targetSpecWorkerCnt, workers.size)
-          } else {
-            targetSpecWorkerCnt
-          }
-        val reservedWorkerIndices =
-          if (targetSpecWorkerCnt < clusterInfo.specWorkerCnt) {
-            scaleDownReservedIndices(specWorkerCnt, expectedIndices, reserved, workers)
-          } else {
-            reserved.dropRight(math.min(
-              targetSpecWorkerCnt - clusterInfo.specWorkerCnt,
-              reserved.size))
-          }
-        ScaleOperation(
-          specWorkerCnt,
-          reservedWorkerIndices,
-          activate,
-          decommission,
-          PbScaleType.SCALE_UP,
-          currentTimeMillis)
+    val kind =
+      if (targetSpecWorkerCnt > oldSpecWorkerCnt) {
+        ScaleOpKind.ExpandSpec
+      } else if (activate.nonEmpty) {
+        ScaleOpKind.RecommissionWorkers
       } else if (removable.nonEmpty || decommission.nonEmpty ||
-        scaleDownSpecWorkerCnt < clusterInfo.specWorkerCnt) {
-        ScaleOperation(
-          scaleDownSpecWorkerCnt,
-          scaleDownReservedIndices(scaleDownSpecWorkerCnt, expectedIndices, reserved, workers),
-          activate,
-          decommission,
-          PbScaleType.SCALE_DOWN,
-          currentTimeMillis)
+        scaleDownSpecWorkerCnt < oldSpecWorkerCnt) {
+        ScaleOpKind.ScaleDown
       } else {
-        ScaleOperation(
-          expectedIndices.size,
-          reserved,
-          activate,
-          decommission,
-          PbScaleType.NO_SCALE,
-          currentTimeMillis)
+        ScaleOpKind.KeepSpec
       }
+
+    val (specWorkerCnt, reservedWorkerIndices) = kind match {
+      case ScaleOpKind.ExpandSpec =>
+        val addedReplicaCnt = targetSpecWorkerCnt - oldSpecWorkerCnt
+        val newReserved = reserved.dropRight(math.min(addedReplicaCnt, reserved.size))
+        (targetSpecWorkerCnt, newReserved)
+      case ScaleOpKind.RecommissionWorkers if targetSpecWorkerCnt < oldSpecWorkerCnt =>
+        val newSpecWorkerCnt = math.max(targetSpecWorkerCnt, workers.size)
+        val newReserved =
+          scaleDownReservedIndices(newSpecWorkerCnt, expectedIndices, reserved, workers)
+        (newSpecWorkerCnt, newReserved)
+      case ScaleOpKind.RecommissionWorkers =>
+        (oldSpecWorkerCnt, reserved)
+      case ScaleOpKind.ScaleDown =>
+        val newReserved =
+          scaleDownReservedIndices(scaleDownSpecWorkerCnt, expectedIndices, reserved, workers)
+        (scaleDownSpecWorkerCnt, newReserved)
+      case ScaleOpKind.KeepSpec =>
+        (expectedIndices.size, reserved)
+    }
+    val scaleType = kind match {
+      case ScaleOpKind.ExpandSpec | ScaleOpKind.RecommissionWorkers => PbScaleType.SCALE_UP
+      case ScaleOpKind.ScaleDown => PbScaleType.SCALE_DOWN
+      case ScaleOpKind.KeepSpec => PbScaleType.NO_SCALE
+    }
+
+    val operation = ScaleOperation(
+      specWorkerCnt,
+      reservedWorkerIndices,
+      activate,
+      decommission,
+      scaleType,
+      currentTimeMillis)
     (operation, target)
   }
 
@@ -315,4 +319,13 @@ abstract class BaseK8sScaleManager(conf: CelebornConf) extends AbstractScaleMana
       .takeWhile(_ => retained.size < specWorkerCnt).foreach(retained.add)
     (0 until retained.lastOption.map(_ + 1).getOrElse(0)).filterNot(retained).toVector
   }
+}
+
+private sealed trait ScaleOpKind
+
+private object ScaleOpKind {
+  case object ExpandSpec extends ScaleOpKind
+  case object RecommissionWorkers extends ScaleOpKind
+  case object ScaleDown extends ScaleOpKind
+  case object KeepSpec extends ScaleOpKind
 }
