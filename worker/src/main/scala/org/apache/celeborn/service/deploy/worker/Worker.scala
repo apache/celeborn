@@ -54,6 +54,7 @@ import org.apache.celeborn.common.util.{CelebornExitKind, CollectionUtils, JavaU
 import org.apache.celeborn.common.util.FunctionConverter._
 import org.apache.celeborn.server.common.{HttpService, Service}
 import org.apache.celeborn.service.deploy.worker.congestcontrol.CongestionController
+import org.apache.celeborn.service.deploy.worker.decommission.DecommissionSignalMonitor
 import org.apache.celeborn.service.deploy.worker.memory.{ChannelsLimiter, MemoryManager}
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.ServingState
 import org.apache.celeborn.service.deploy.worker.metrics.{ScaleMetricCollector, ScaleMetricCollectorContext}
@@ -93,6 +94,9 @@ private[celeborn] class Worker(
     JavaUtils.newConcurrentHashMap[String, UserIdentifier]()
 
   val workerStatusManager = new WorkerStatusManager(conf)
+  // Created at the start of initialize() so a failing constructor never leaks the checker, while a
+  // misconfigured checker still fails startup before the worker registers with the master.
+  @volatile private[worker] var decommissionSignalMonitor: DecommissionSignalMonitor = _
   private val authEnabled = conf.authEnabled
   private val secretRegistry = new WorkerSecretRegistryImpl(conf.workerApplicationRegistryCacheSize)
 
@@ -612,7 +616,16 @@ private[celeborn] class Worker(
     }
   }
 
+  private[worker] def createDecommissionSignalMonitor(): Unit = {
+    decommissionSignalMonitor = new DecommissionSignalMonitor(
+      DecommissionSignalMonitor.createChecker(conf),
+      conf.workerDecommissionSignalCheckInterval,
+      () => workerStatusManager.inExitStatus(),
+      () => exit("DECOMMISSION"))
+  }
+
   override def initialize(): Unit = {
+    createDecommissionSignalMonitor()
     // Exit requests can arrive as soon as the HTTP server or heartbeats start.
     workerStatusManager.init(this)
     super.initialize()
@@ -666,6 +679,7 @@ private[celeborn] class Worker(
     pushDataHandler.init(this)
     replicateHandler.init(this)
     fetchHandler.init(this)
+    decommissionSignalMonitor.start()
 
     controller.init(this)
     rpcEnv.setupEndpoint(RpcNameConstants.WORKER_EP, controller)
@@ -689,6 +703,9 @@ private[celeborn] class Worker(
       }
       if (jvmQuake != null) {
         jvmQuake.stop()
+      }
+      if (decommissionSignalMonitor != null) {
+        decommissionSignalMonitor.stop()
       }
       if (sendHeartbeatTask != null) {
         if (exitKind == CelebornExitKind.WORKER_GRACEFUL_SHUTDOWN) {

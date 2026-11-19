@@ -42,12 +42,9 @@ class WorkerExitSuite extends AnyFunSuite {
     val worker = mock[Worker]
     val shutdownHooks = mock[ShutdownHookManager]
     val exitTimeouts = new ConcurrentLinkedQueue[Long]()
-    val statusManager = new WorkerStatusManager(conf) {
-      override protected def startExitThread(): Unit = {
-        // Keep the real transition but do not start a thread that terminates the test JVM.
-        exitTimeouts.add(ExitFixture.this.worker.decommissionTimeoutMs)
-      }
-    }
+    val statusManager = new WorkerStatusManager(conf)
+    // Keep the real transition but do not start a thread that terminates the test JVM.
+    statusManager.systemExitAction = () => exitTimeouts.add(worker.decommissionTimeoutMs)
 
     when(worker.conf).thenReturn(conf)
     when(worker.workerStatusManager).thenReturn(statusManager)
