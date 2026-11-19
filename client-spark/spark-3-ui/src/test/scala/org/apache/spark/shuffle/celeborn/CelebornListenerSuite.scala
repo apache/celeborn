@@ -104,6 +104,32 @@ class CelebornListenerSuite {
   }
 
   @Test
+  def aggregateSubMillisecondShuffleWriteTimes(): Unit = {
+    val store = new InMemoryStore()
+    val statusStore = new CelebornStatusStore(store)
+    val listener = new CelebornListener(store, new SparkConf())
+
+    def taskWithWriteTime(nanos: Long): SparkListenerTaskEnd = {
+      val task = newTaskEnd(100L, 0L, 0L, 1L)
+      task.taskMetrics.shuffleWriteMetrics.incWriteTime(nanos)
+      task
+    }
+
+    listener.onTaskEnd(taskWithWriteTime(600000L))
+    listener.flush()
+    assertEquals(0L, statusStore.aggregatedTaskInfo().shuffleWriteTimeMs)
+
+    listener.onTaskEnd(taskWithWriteTime(600000L))
+    listener.flush()
+    assertEquals(1L, statusStore.aggregatedTaskInfo().shuffleWriteTimeMs)
+
+    listener.onTaskEnd(taskWithWriteTime(800000L))
+    listener.onTaskEnd(taskWithWriteTime(2000000L))
+    listener.flush()
+    assertEquals(4L, statusStore.aggregatedTaskInfo().shuffleWriteTimeMs)
+  }
+
+  @Test
   def compressionRatioSidesComeFromTheSameMapperEndAttemptSet(): Unit = {
     // Regression: a task failing after its writer completed already reported
     // MapperEnd. Both ratio sides derive from MapperEnd reports, so such attempts

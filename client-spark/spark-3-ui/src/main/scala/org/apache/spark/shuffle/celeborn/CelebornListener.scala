@@ -17,6 +17,7 @@
 
 package org.apache.spark.shuffle.celeborn
 
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.JavaConverters._
@@ -48,7 +49,7 @@ private[celeborn] class CelebornListener(
   @volatile private var pluginEnabled = !requirePluginOptIn
 
   private val totalWriteBytes = new AtomicLong(0L)
-  private val totalWriteTimeMs = new AtomicLong(0L)
+  private val totalWriteTimeNs = new AtomicLong(0L)
   private val totalReadBytes = new AtomicLong(0L)
   private val totalFetchWaitTimeMs = new AtomicLong(0L)
   private val totalTaskDurationMs = new AtomicLong(0L)
@@ -82,8 +83,7 @@ private[celeborn] class CelebornListener(
     Option(taskEnd.taskMetrics).foreach { metrics =>
       // Count every attempt regardless of its end reason, like AppStatusListener.
       totalWriteBytes.addAndGet(metrics.shuffleWriteMetrics.bytesWritten)
-      // writeTime is in nanoseconds; normalize to ms.
-      totalWriteTimeMs.addAndGet(metrics.shuffleWriteMetrics.writeTime / 1000000L)
+      totalWriteTimeNs.addAndGet(metrics.shuffleWriteMetrics.writeTime)
       totalReadBytes.addAndGet(metrics.shuffleReadMetrics.totalBytesRead)
       totalFetchWaitTimeMs.addAndGet(metrics.shuffleReadMetrics.fetchWaitTime)
       totalTaskDurationMs.addAndGet(taskEnd.taskInfo.duration)
@@ -222,7 +222,7 @@ private[celeborn] class CelebornListener(
     try {
       kvstore.write(AggregatedTaskInfoUIData(
         totalWriteBytes.get(),
-        totalWriteTimeMs.get(),
+        TimeUnit.NANOSECONDS.toMillis(totalWriteTimeNs.get()),
         totalReadBytes.get(),
         totalFetchWaitTimeMs.get(),
         totalTaskDurationMs.get(),
