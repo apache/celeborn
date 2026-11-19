@@ -24,6 +24,21 @@ import io.netty.buffer.ByteBuf;
 /** Provides a canonical set of Encoders for simple types. */
 public class Encoders {
 
+  // Bound allocations by the bytes in this message, using division to avoid integer overflow.
+  private static int decodeLength(ByteBuf buf, int elementSize) {
+    int length = buf.readInt();
+    if (length < 0 || length > buf.readableBytes() / elementSize) {
+      throw new IllegalArgumentException("Invalid encoded length: " + length);
+    }
+    return length;
+  }
+
+  static byte[] decodeBytes(ByteBuf buf) {
+    byte[] bytes = new byte[decodeLength(buf, 1)];
+    buf.readBytes(bytes);
+    return bytes;
+  }
+
   /** Strings are encoded with their length followed by UTF-8 bytes. */
   public static class Strings {
     public static int encodedLength(String s) {
@@ -37,10 +52,7 @@ public class Encoders {
     }
 
     public static String decode(ByteBuf buf) {
-      int length = buf.readInt();
-      byte[] bytes = new byte[length];
-      buf.readBytes(bytes);
-      return new String(bytes, StandardCharsets.UTF_8);
+      return new String(decodeBytes(buf), StandardCharsets.UTF_8);
     }
   }
 
@@ -58,7 +70,7 @@ public class Encoders {
     }
 
     public static int[] decode(ByteBuf buf) {
-      int length = buf.readInt();
+      int length = decodeLength(buf, Integer.BYTES);
       int[] ints = new int[length];
       for (int i = 0; i < ints.length; i++) {
         ints[i] = buf.readInt();
@@ -85,7 +97,8 @@ public class Encoders {
     }
 
     public static String[] decode(ByteBuf buf) {
-      int numStrings = buf.readInt();
+      // Each string requires at least its four-byte length prefix.
+      int numStrings = decodeLength(buf, Integer.BYTES);
       String[] strings = new String[numStrings];
       for (int i = 0; i < strings.length; i++) {
         strings[i] = Strings.decode(buf);

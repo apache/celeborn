@@ -155,6 +155,9 @@ public class TransportMessage implements Serializable {
       throw new CelebornIOException("Decode failed, fallback to legacy messages.");
     }
     int payloadLen = buffer.getInt();
+    if (payloadLen < 0 || payloadLen > buffer.remaining()) {
+      throw new CelebornIOException("Invalid payload length: " + payloadLen);
+    }
     byte[] payload = new byte[payloadLen];
     buffer.get(payload);
     MessageType msgType = MessageType.forNumber(messageTypeValue);
