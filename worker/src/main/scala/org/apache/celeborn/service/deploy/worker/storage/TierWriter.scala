@@ -217,6 +217,9 @@ abstract class TierWriterBase(
 
   def genFlushTask(finalFlush: Boolean, keepBuffer: Boolean): FlushTask
 
+  /** Flush asked for by the memory manager to release off-heap memory. */
+  def flushOnMemoryPressure(): Unit = flush(false)
+
   def flush(finalFlush: Boolean, rebuildChunkOffsets: Boolean = false): Unit = {
     if (flushBuffer != null) {
       val numBytes = flushBuffer.readableBytes()
@@ -706,6 +709,19 @@ class DfsTierWriter(
     }
   }
 
+  // Every flush of an S3 or OSS file uploads one multipart part, and the store rejects the
+  // upload on completion if a part other than the last is below its minimum part size. A
+  // memory-pressure flush can come at any buffer size, so it is skipped until the buffer
+  // reaches that minimum; the buffer is still flushed when it fills or the file is closed.
+  override def flushOnMemoryPressure(): Unit = {
+    flushLock.synchronized {
+      val bufferedBytes = if (flushBuffer == null) 0 else flushBuffer.readableBytes()
+      if (DfsTierWriter.canFlushOnMemoryPressure(storageType, bufferedBytes)) {
+        flush(false)
+      }
+    }
+  }
+
   // A copy whose data stream or index failed to close is unreadable, so it must not count as
   // committed. S3/OSS upload completion failures are unchecked and already fail the commit.
   override protected def failCommitOnCloseStreamsError: Boolean = true
@@ -810,4 +826,19 @@ class DfsTierWriter(
       ossMultipartUploadHandler.close()
     }
   }
+}
+
+object DfsTierWriter {
+  // Smallest part a multipart upload accepts for every part but the last.
+  val S3_MIN_PART_SIZE: Long = 5L * 1024 * 1024
+  val OSS_MIN_PART_SIZE: Long = 100L * 1024
+
+  def minPartSize(storageType: StorageInfo.Type): Long = storageType match {
+    case StorageInfo.Type.S3 => S3_MIN_PART_SIZE
+    case StorageInfo.Type.OSS => OSS_MIN_PART_SIZE
+    case _ => 0L
+  }
+
+  def canFlushOnMemoryPressure(storageType: StorageInfo.Type, bufferedBytes: Long): Boolean =
+    bufferedBytes >= minPartSize(storageType)
 }

@@ -742,6 +742,27 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
     }
   }
 
+  test("memory pressure cuts S3 and OSS parts only at the store's minimum part size") {
+    import DfsTierWriter.{canFlushOnMemoryPressure, OSS_MIN_PART_SIZE, S3_MIN_PART_SIZE}
+    assert(!canFlushOnMemoryPressure(StorageInfo.Type.S3, 1024))
+    assert(!canFlushOnMemoryPressure(StorageInfo.Type.S3, S3_MIN_PART_SIZE - 1))
+    assert(canFlushOnMemoryPressure(StorageInfo.Type.S3, S3_MIN_PART_SIZE))
+    assert(!canFlushOnMemoryPressure(StorageInfo.Type.OSS, OSS_MIN_PART_SIZE - 1))
+    assert(canFlushOnMemoryPressure(StorageInfo.Type.OSS, OSS_MIN_PART_SIZE))
+    // HDFS appends to one file, so any buffer size can be flushed.
+    assert(canFlushOnMemoryPressure(StorageInfo.Type.HDFS, 1))
+  }
+
+  test("hdfs tier writer still flushes a small buffer on memory pressure") {
+    withDfsTierWriter() { (dfsTierWriter, fileInfo, fs) =>
+      assert(dfsTierWriter.flushBuffer.readableBytes() === 1024)
+      dfsTierWriter.flushOnMemoryPressure()
+      assert(dfsTierWriter.flushBuffer.readableBytes() === 0)
+      assert(dfsTierWriter.close() === 1024)
+      assert(fs.getFileStatus(fileInfo.getDfsPath).getLen === 1024)
+    }
+  }
+
   test("every storage tier reports pushed bytes to congestion control") {
     val conf = new CelebornConf()
     val congestionController =
