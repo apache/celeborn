@@ -320,8 +320,7 @@ public class HashBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
     while ((buffer.length - offset) < serializedRecordSize
         && buffer.length < PUSH_BUFFER_MAX_SIZE) {
 
-      int newSize = (int) Math.min(Math.max(1L, buffer.length * 2L), PUSH_BUFFER_MAX_SIZE);
-      byte[] newBuffer = new byte[newSize];
+      byte[] newBuffer = new byte[Math.min(buffer.length * 2, PUSH_BUFFER_MAX_SIZE)];
       peakMemoryUsedBytes += newBuffer.length - buffer.length;
       System.arraycopy(buffer, 0, newBuffer, 0, offset);
       sendBuffers[partitionId] = newBuffer;

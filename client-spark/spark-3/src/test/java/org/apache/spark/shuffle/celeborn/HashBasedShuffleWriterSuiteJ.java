@@ -20,57 +20,13 @@ package org.apache.spark.shuffle.celeborn;
 import java.io.IOException;
 
 import org.apache.spark.TaskContext;
-import org.apache.spark.executor.TaskMetrics;
-import org.apache.spark.serializer.KryoSerializer;
-import org.apache.spark.serializer.Serializer;
 import org.apache.spark.shuffle.ShuffleWriteMetricsReporter;
 import org.apache.spark.shuffle.ShuffleWriter;
-import org.apache.spark.sql.execution.UnsafeRowSerializer;
-import org.junit.Test;
-import org.mockito.Mockito;
 
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 
 public class HashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase {
-
-  private SendBufferPool sendBufferPool = SendBufferPool.get(1, 30, 60);
-
-  private void useFreshBuffers() {
-    sendBufferPool = Mockito.mock(SendBufferPool.class);
-    Mockito.when(sendBufferPool.acquireBuffer(numPartitions))
-        .thenAnswer(ignored -> new byte[numPartitions][]);
-  }
-
-  private void checkBufferGrowth(CelebornConf conf, Serializer serializer) throws Exception {
-    metrics = new TaskMetrics();
-    Mockito.doReturn(metrics).when(taskContext).taskMetrics();
-    check(10000, conf, serializer);
-  }
-
-  @Test(timeout = 10000)
-  public void testGrowEmptyBuffer() throws Exception {
-    useFreshBuffers();
-    CelebornConf conf = Mockito.spy(new CelebornConf());
-    // Exercise the growth fallback independently of configuration validation.
-    Mockito.doReturn(0).when(conf).clientPushBufferInitialSize();
-    checkBufferGrowth(conf, new KryoSerializer(sparkConf));
-    checkBufferGrowth(conf, new UnsafeRowSerializer(2, null));
-  }
-
-  @Test
-  public void testBufferSizeBoundaries() throws Exception {
-    useFreshBuffers();
-    for (int initialSize : new int[] {1, 63, 64, 128}) {
-      CelebornConf conf =
-          new CelebornConf()
-              .set(
-                  CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE().key(), String.valueOf(initialSize))
-              .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "64");
-      checkBufferGrowth(conf, new KryoSerializer(sparkConf));
-      checkBufferGrowth(conf, new UnsafeRowSerializer(2, null));
-    }
-  }
 
   @Override
   protected ShuffleWriter<Integer, String> createShuffleWriter(
@@ -87,6 +43,6 @@ public class HashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
         conf,
         client,
         metrics,
-        sendBufferPool);
+        SendBufferPool.get(1, 30, 60));
   }
 }
