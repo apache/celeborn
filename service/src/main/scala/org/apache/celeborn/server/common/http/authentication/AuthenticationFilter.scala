@@ -184,8 +184,12 @@ class AuthenticationFilter(conf: CelebornConf, serviceName: String) extends Filt
         }
       } else {
         HTTP_AUTH_TYPE.set(matchedHandler.authScheme.toString)
-        HTTP_CLIENT_IDENTIFIER.set(matchedHandler.authenticate(httpRequest, httpResponse))
-        doFilter(filterChain, httpRequest, httpResponse)
+        val authenticatedUser = matchedHandler.authenticate(httpRequest, httpResponse)
+        HTTP_CLIENT_IDENTIFIER.set(authenticatedUser)
+        // The handler owns the response until authentication completes.
+        if (authenticatedUser != null) {
+          doFilter(filterChain, httpRequest, httpResponse)
+        }
       }
     } catch {
       case e: AuthenticationException =>
