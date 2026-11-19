@@ -87,8 +87,10 @@ class DefaultScaleMetricCollector private[metrics] (
 
   private def systemLoadMetrics(): Map[String, Double] = {
     val load = operatingSystem.getSystemLoadAverage
-    val processors = operatingSystem.getAvailableProcessors
-    Map(WorkerStats.LastMinuteSystemLoadRatio -> (load / processors))
+    val ratio =
+      if (load < 0 && !load.isInfinity) Double.NaN
+      else load / operatingSystem.getAvailableProcessors
+    Map(WorkerStats.LastMinuteSystemLoadRatio -> ratio)
   }
 
   private def diskMetrics(context: ScaleMetricCollectorContext): Map[String, Double] = {
