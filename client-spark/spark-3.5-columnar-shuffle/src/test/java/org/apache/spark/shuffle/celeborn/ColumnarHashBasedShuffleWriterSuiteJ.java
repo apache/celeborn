@@ -220,6 +220,11 @@ public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterS
   }
 
   @Override
+  protected boolean isColumnarShuffle(ShuffleWriter<Integer, String> writer) {
+    return ((ColumnarHashBasedShuffleWriter<?, ?, ?>) writer).isColumnarShuffle();
+  }
+
+  @Override
   protected SerializerInstance newSerializerInstance(Serializer serializer) {
     if (serializer instanceof UnsafeRowSerializer
         && CelebornBatchBuilder.supportsColumnarType(schema)) {

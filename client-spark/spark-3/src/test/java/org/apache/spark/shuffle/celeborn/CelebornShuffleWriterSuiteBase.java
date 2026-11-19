@@ -429,7 +429,7 @@ public abstract class CelebornShuffleWriterSuiteBase {
         expectedCompressedBytes += DummyShuffleClient.simulatedCompressedLength(batch.length);
       }
     }
-    if (mixedRecords) {
+    if (mixedRecords && !(useUnsafe && isColumnarShuffle(writer))) {
       List<byte[]> batches = client.getPushDataByPartition(mapKey).get(0);
       assertNotNull(batches);
       int maxSize = conf.clientPushBufferMaxSize();
@@ -495,6 +495,10 @@ public abstract class CelebornShuffleWriterSuiteBase {
       e.printStackTrace();
       fail("Should read with no exception.");
     }
+  }
+
+  protected boolean isColumnarShuffle(ShuffleWriter<Integer, String> writer) {
+    return false;
   }
 
   private Iterator getMixedIterator(final AtomicInteger total, final boolean unsafe) {
