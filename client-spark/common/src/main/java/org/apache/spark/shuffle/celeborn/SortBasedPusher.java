@@ -202,7 +202,7 @@ public class SortBasedPusher extends MemoryConsumer {
     this.memoryThresholdManager =
         new MemoryThresholdManager(maxMemoryFactor, conf.clientPushSortSmallPushTolerateFactor());
 
-    int initialSize = Math.min((int) pushSortMemoryThreshold / 8, 1024 * 1024);
+    long initialSize = Math.min(pushSortMemoryThreshold / Long.BYTES, 1024L * 1024);
     this.inMemSorter = new ShuffleInMemorySorter(this, initialSize);
     this.peakMemoryUsedBytes = getMemoryUsage();
   }
