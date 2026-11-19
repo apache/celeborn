@@ -5062,7 +5062,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
-      .checkValue(_ > 0, "Must be positive.")
+      .checkValue(_ > 0, "Initial push buffer size must be positive.")
       .createWithDefaultString("8k")
 
   val CLIENT_PUSH_BUFFER_MAX_SIZE: ConfigEntry[Long] =
@@ -5076,6 +5076,7 @@ object CelebornConf extends Logging {
         "2000, buffer size is 64K, then each task will consume up to `64KiB * 2000 = 125MiB` " +
         "heap memory.")
       .bytesConf(ByteUnit.BYTE)
+      .checkValue(_ > 0, "Maximum push buffer size must be positive.")
       .createWithDefaultString("64k")
 
   val CLIENT_PUSH_QUEUE_CAPACITY: ConfigEntry[Int] =
