@@ -50,6 +50,7 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
   private final Counters.Counter mapOutputRecordCounter;
   private final Map<Integer, List<SerializedKV>> partitionedKVs;
   private int writePos;
+  private int recordStart = -1;
   private byte[] serializedKV;
   private final int maxPushDataSize;
 
@@ -256,26 +257,28 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
   }
 
   private int insertRecordInternal(K key, V value, int partition) throws IOException {
-    int offset = writePos;
-    int keyLen;
-    int valLen;
-    kSer.serialize(key);
-    keyLen = writePos - offset;
-    vSer.serialize(value);
-    valLen = writePos - keyLen - offset;
-    List<SerializedKV> serializedKVs =
-        partitionedKVs.computeIfAbsent(partition, v -> new ArrayList<>());
-    serializedKVs.add(new SerializedKV(offset, keyLen, valLen));
-    if (logger.isDebugEnabled()) {
-      logger.debug(
-          "Pusher insert into buffer partition:{} offset:{} keyLen:{} valueLen:{} size:{}",
-          partition,
-          offset,
-          keyLen,
-          valLen,
-          partitionedKVs.size());
+    recordStart = writePos;
+    try {
+      kSer.serialize(key);
+      int keyLen = writePos - recordStart;
+      vSer.serialize(value);
+      int valLen = writePos - keyLen - recordStart;
+      List<SerializedKV> serializedKVs =
+          partitionedKVs.computeIfAbsent(partition, v -> new ArrayList<>());
+      serializedKVs.add(new SerializedKV(recordStart, keyLen, valLen));
+      if (logger.isDebugEnabled()) {
+        logger.debug(
+            "Pusher insert into buffer partition:{} offset:{} keyLen:{} valueLen:{} size:{}",
+            partition,
+            recordStart,
+            keyLen,
+            valLen,
+            partitionedKVs.size());
+      }
+      return keyLen + valLen;
+    } finally {
+      recordStart = -1;
     }
-    return keyLen + valLen;
   }
 
   public void checkException() throws IOException {
@@ -286,13 +289,23 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
 
   @Override
   public void write(int b) throws IOException {
-    if (writePos < maxIOBufferSize) {
-      serializedKV[writePos] = (byte) b;
-      writePos++;
-    } else {
-      logger.warn("Sort push memory high, write pos {} max size {}", writePos, maxIOBufferSize);
-      throw new IOException("Sort pusher memory exhausted.");
+    if (writePos == maxIOBufferSize) {
+      if (recordStart <= 0 || partitionedKVs.isEmpty()) {
+        logger.warn("Sort push memory high, write pos {} max size {}", writePos, maxIOBufferSize);
+        throw new IOException("Sort pusher memory exhausted.");
+      }
+      // Only complete records have entries in partitionedKVs. Preserve the current partial
+      // record while they are sorted and sent, then continue serializing it at offset zero.
+      int partialLength = writePos - recordStart;
+      int partialOffset = recordStart;
+      sortKVs();
+      sendKVAndUpdateWritePos();
+      System.arraycopy(serializedKV, partialOffset, serializedKV, 0, partialLength);
+      writePos = partialLength;
+      recordStart = 0;
     }
+    serializedKV[writePos] = (byte) b;
+    writePos++;
   }
 
   @Override
