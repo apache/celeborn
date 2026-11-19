@@ -53,8 +53,7 @@ public class PartitionDataWriter implements DeviceObserver {
   private final long memoryFileStorageMaxFileSize;
   private final AtomicInteger numPendingWrites = new AtomicInteger(0);
   private final Object closeLock = new Object();
-  // Guarded by this, together with write admission and tier changes.
-  private boolean closing = false;
+  private volatile boolean closing = false;
   // Latches on the first hard split of this file so the hard split cause is logged once per
   // split file instead of once per push. Dies with the writer, so it needs no cleanup.
   private final AtomicBoolean hardSplitLogged = new AtomicBoolean(false);
@@ -121,11 +120,18 @@ public class PartitionDataWriter implements DeviceObserver {
   }
 
   /** Admit a push only while the writer is open and has not started closing. */
-  public synchronized boolean tryIncrementPendingWrites() {
+  public boolean tryIncrementPendingWrites() {
     if (closing || isClosed()) {
       return false;
     }
+    // Register before the final closing check. If this check admits the push, its pending count
+    // precedes close publishing closing=true and draining writes. Otherwise return the count
+    // without acquiring the writer monitor, even if final close is already doing I/O.
     numPendingWrites.incrementAndGet();
+    if (closing || isClosed()) {
+      numPendingWrites.decrementAndGet();
+      return false;
+    }
     return true;
   }
 
@@ -226,18 +232,25 @@ public class PartitionDataWriter implements DeviceObserver {
     currentTierWriter = newTierWriter;
   }
 
-  public synchronized void destroy(IOException ioException) {
-    currentTierWriter.destroy(ioException);
+  private void stopWriteAdmission() {
+    closing = true;
+  }
+
+  public void destroy(IOException ioException) {
+    stopWriteAdmission();
+    synchronized (this) {
+      currentTierWriter.destroy(ioException);
+    }
   }
 
   public long close() {
     synchronized (closeLock) {
+      stopWriteAdmission();
       synchronized (this) {
         if (isClosed()) {
           // Preserve the already-closed failure without waiting on outstanding writes again.
           return currentTierWriter.close(false);
         }
-        closing = true;
       }
       long length;
       try {

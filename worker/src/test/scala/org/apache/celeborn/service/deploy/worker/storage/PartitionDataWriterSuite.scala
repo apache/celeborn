@@ -18,10 +18,16 @@
 package org.apache.celeborn.service.deploy.worker.storage
 
 import java.io.IOException
+import java.nio.ByteBuffer
 import java.util.concurrent.{Callable, CountDownLatch, ExecutionException, Executors, TimeUnit}
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
+
+import scala.concurrent.{Await, Promise}
+import scala.concurrent.duration._
 
 import io.netty.buffer.{ByteBuf, CompositeByteBuf, Unpooled}
+import io.netty.channel.{ChannelHandlerContext, ChannelInboundHandlerAdapter, DefaultEventLoopGroup}
+import io.netty.channel.local.LocalChannel
 import org.mockito.ArgumentMatchers.any
 import org.mockito.MockitoSugar._
 import org.mockito.invocation.InvocationOnMock
@@ -30,9 +36,13 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.AlreadyClosedException
 import org.apache.celeborn.common.identity.UserIdentifier
-import org.apache.celeborn.common.meta.{MemoryFileInfo, ReduceFileMeta}
+import org.apache.celeborn.common.meta.{MemoryFileInfo, ReduceFileMeta, WorkerPartitionLocationInfo}
+import org.apache.celeborn.common.network.buffer.NettyManagedBuffer
+import org.apache.celeborn.common.network.client.RpcResponseCallback
+import org.apache.celeborn.common.network.protocol.PushData
 import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
-import org.apache.celeborn.service.deploy.worker.WorkerSource
+import org.apache.celeborn.common.protocol.message.StatusCode
+import org.apache.celeborn.service.deploy.worker.{PushDataHandler, Worker, WorkerSource, WorkingPartition}
 
 class PartitionDataWriterSuite extends AnyFunSuite {
   private class TestTierWriter(
@@ -56,6 +66,12 @@ class PartitionDataWriterSuite extends AnyFunSuite {
       fileInfo.getUserIdentifier) {
     val draining = new CountDownLatch(1)
     val drainCalls = new AtomicInteger()
+    val finalFlushStarted = new CountDownLatch(1)
+    val closeStreamsStarted = new CountDownLatch(1)
+    val finishCloseStreams = new CountDownLatch(1)
+    @volatile var blockCloseStreams = false
+    @volatile var owner: PartitionDataWriter = _
+    @volatile var finalCloseHoldsWriter = false
 
     override def waitOnNoPendingWrites(): Unit = {
       drainCalls.incrementAndGet()
@@ -75,7 +91,16 @@ class PartitionDataWriterSuite extends AnyFunSuite {
     override def needEvict(): Boolean = false
     override def evict(writer: TierWriterBase): Unit = {}
     override def handleException(): Unit = {}
-    override def closeStreams(): Unit = {}
+    override def finalFlush(): Unit = {
+      finalCloseHoldsWriter = owner != null && Thread.holdsLock(owner)
+      finalFlushStarted.countDown()
+    }
+    override def closeStreams(): Unit = {
+      closeStreamsStarted.countDown()
+      if (blockCloseStreams) {
+        assert(finishCloseStreams.await(10, TimeUnit.SECONDS))
+      }
+    }
     override def genFlushTask(finalFlush: Boolean, keepBuffer: Boolean): FlushTask = null
     override def addFlushTask(task: FlushTask): Unit = {}
     override def takeBufferInternal(): CompositeByteBuf = Unpooled.compositeBuffer()
@@ -88,7 +113,8 @@ class PartitionDataWriterSuite extends AnyFunSuite {
     override def getFlusher(): Flusher = null
   }
 
-  private def prepareWriter(): (PartitionDataWriter, TestTierWriter) = {
+  private def prepareWriter(onClosedCheck: () => Unit = () => ())
+      : (PartitionDataWriter, TestTierWriter) = {
     val conf = new CelebornConf()
     conf.set("celeborn.worker.writer.close.timeout", "5s")
     val source = mock[WorkerSource]
@@ -126,8 +152,231 @@ class PartitionDataWriterSuite extends AnyFunSuite {
       source,
       conf,
       DeviceMonitor.EmptyMonitor(),
-      context)
+      context) {
+      override def isClosed(): Boolean = {
+        val closed = super.isClosed()
+        onClosedCheck()
+        closed
+      }
+    }
+    tier.owner = writer
     (writer, tier)
+  }
+
+  for (pausedCheck <- Seq(1, 2)) {
+    test(s"close racing with admission check $pausedCheck preserves pending ownership") {
+      val admissionThread = new AtomicReference[Thread]()
+      val checks = new AtomicInteger()
+      val checked = new CountDownLatch(1)
+      val continueAdmission = new CountDownLatch(1)
+      val (writer, tier) = prepareWriter(() => {
+        if ((Thread.currentThread() eq admissionThread.get()) &&
+          checks.incrementAndGet() == pausedCheck) {
+          checked.countDown()
+          assert(continueAdmission.await(10, TimeUnit.SECONDS))
+        }
+      })
+      val executor = Executors.newFixedThreadPool(2)
+      val body = Unpooled.wrappedBuffer(Array[Byte](1, 2, 3))
+      tier.blockCloseStreams = true
+      try {
+        val admitted = executor.submit(new Callable[Boolean] {
+          override def call(): Boolean = {
+            admissionThread.set(Thread.currentThread())
+            writer.tryIncrementPendingWrites()
+          }
+        })
+        assert(checked.await(2, TimeUnit.SECONDS))
+        val close = executor.submit(new Callable[Long] {
+          override def call(): Long = writer.close()
+        })
+        if (pausedCheck == 1) {
+          // The initial open check does not reserve a write. Close may finish draining first.
+          assert(tier.closeStreamsStarted.await(2, TimeUnit.SECONDS))
+          continueAdmission.countDown()
+          assert(!admitted.get(2, TimeUnit.SECONDS))
+          assert(tier.numPendingWrites.get() == 0)
+        } else {
+          // A push that passed its final closing check must already be visible to the drain.
+          assert(tier.draining.await(2, TimeUnit.SECONDS))
+          assert(tier.numPendingWrites.get() == 1)
+          assert(tier.finalFlushStarted.getCount == 1)
+          continueAdmission.countDown()
+          assert(admitted.get(2, TimeUnit.SECONDS))
+          writer.write(body)
+          assert(tier.closeStreamsStarted.await(2, TimeUnit.SECONDS))
+          assert(tier.numPendingWrites.get() == 0)
+        }
+        assert(!close.isDone)
+        tier.finishCloseStreams.countDown()
+        assert(close.get(2, TimeUnit.SECONDS) == (if (pausedCheck == 1) 0 else 3))
+      } finally {
+        continueAdmission.countDown()
+        tier.finishCloseStreams.countDown()
+        executor.shutdownNow()
+        assert(executor.awaitTermination(2, TimeUnit.SECONDS))
+        body.release()
+        writer.destroy(new IOException("test cleanup"))
+      }
+    }
+  }
+
+  test("admission does not wait for the write monitor") {
+    val (writer, tier) = prepareWriter()
+    val executor = Executors.newFixedThreadPool(2)
+    val locked = new CountDownLatch(1)
+    val release = new CountDownLatch(1)
+    try {
+      val holder = executor.submit(new Runnable {
+        override def run(): Unit = writer.synchronized {
+          locked.countDown()
+          assert(release.await(10, TimeUnit.SECONDS))
+        }
+      })
+      assert(locked.await(2, TimeUnit.SECONDS))
+      val admitted = executor.submit(new Callable[Boolean] {
+        override def call(): Boolean = writer.tryIncrementPendingWrites()
+      })
+      assert(admitted.get(2, TimeUnit.SECONDS))
+      assert(tier.numPendingWrites.get() == 1)
+      writer.decrementPendingWrites()
+      release.countDown()
+      holder.get(2, TimeUnit.SECONDS)
+    } finally {
+      release.countDown()
+      executor.shutdownNow()
+      assert(executor.awaitTermination(2, TimeUnit.SECONDS))
+      writer.destroy(new IOException("test cleanup"))
+    }
+  }
+
+  test("late admission is rejected while final close waits for pending flushes") {
+    val (writer, tier) = prepareWriter()
+    val executor = Executors.newFixedThreadPool(2)
+    tier.notifier.numPendingFlushes.incrementAndGet()
+    try {
+      val close = executor.submit(new Callable[Long] {
+        override def call(): Long = writer.close()
+      })
+      assert(tier.finalFlushStarted.await(2, TimeUnit.SECONDS))
+      assert(tier.finalCloseHoldsWriter)
+      assert(writer.isClosed)
+      val admitted = executor.submit(new Callable[Boolean] {
+        override def call(): Boolean = writer.tryIncrementPendingWrites()
+      })
+      assert(!admitted.get(2, TimeUnit.SECONDS))
+      assert(!close.isDone)
+      assert(tier.numPendingWrites.get() == 0)
+      assert(tier.notifier.numPendingFlushes.get() == 1)
+      tier.notifier.numPendingFlushes.decrementAndGet()
+      assert(close.get(2, TimeUnit.SECONDS) == 0)
+    } finally {
+      tier.notifier.numPendingFlushes.set(0)
+      executor.shutdownNow()
+      assert(executor.awaitTermination(2, TimeUnit.SECONDS))
+      writer.destroy(new IOException("test cleanup"))
+    }
+  }
+
+  test("late admission is rejected while storage streams are closing") {
+    val (writer, tier) = prepareWriter()
+    val executor = Executors.newFixedThreadPool(2)
+    tier.blockCloseStreams = true
+    try {
+      val close = executor.submit(new Callable[Long] {
+        override def call(): Long = writer.close()
+      })
+      assert(tier.closeStreamsStarted.await(2, TimeUnit.SECONDS))
+      assert(tier.finalCloseHoldsWriter)
+      val admitted = executor.submit(new Callable[Boolean] {
+        override def call(): Boolean = writer.tryIncrementPendingWrites()
+      })
+      assert(!admitted.get(2, TimeUnit.SECONDS))
+      assert(!close.isDone)
+      assert(tier.numPendingWrites.get() == 0)
+      tier.finishCloseStreams.countDown()
+      assert(close.get(2, TimeUnit.SECONDS) == 0)
+    } finally {
+      tier.finishCloseStreams.countDown()
+      executor.shutdownNow()
+      assert(executor.awaitTermination(2, TimeUnit.SECONDS))
+      writer.destroy(new IOException("test cleanup"))
+    }
+  }
+
+  test("a late push does not stall another channel on the same event loop during final close") {
+    val (writer, tier) = prepareWriter()
+    val locations = mock[WorkerPartitionLocationInfo]
+    val location = new WorkingPartition(
+      new PartitionLocation(0, 0, "localhost", 1, 2, 3, 4, PartitionLocation.Mode.PRIMARY),
+      writer)
+    when(locations.getPrimaryLocation("app-1", location.getUniqueId)).thenReturn(location)
+    val worker = mock[Worker]
+    when(worker.conf).thenReturn(tier.conf)
+    when(worker.partitionLocationInfo).thenReturn(locations)
+    when(worker.shutdown).thenReturn(new AtomicBoolean(false))
+    when(worker.registered).thenReturn(new AtomicBoolean(true))
+    val handler = new PushDataHandler(mock[WorkerSource])
+    handler.init(worker)
+
+    val group = new DefaultEventLoopGroup(1)
+    val first = new LocalChannel()
+    val second = new LocalChannel()
+    val executor = Executors.newSingleThreadExecutor()
+    val response = Promise[Byte]()
+    val otherChannelProcessed = Promise[Boolean]()
+    val body = Unpooled.buffer(16).writeZero(16)
+    tier.blockCloseStreams = true
+    try {
+      group.register(first).syncUninterruptibly()
+      group.register(second).syncUninterruptibly()
+      assert(first.eventLoop() eq second.eventLoop())
+      first.pipeline().addLast(new ChannelInboundHandlerAdapter {
+        override def channelRead(ctx: ChannelHandlerContext, message: Object): Unit = {
+          try {
+            handler.handlePushData(
+              message.asInstanceOf[PushData],
+              new RpcResponseCallback {
+                override def onSuccess(result: ByteBuffer): Unit = response.success(result.get())
+                override def onFailure(error: Throwable): Unit = response.failure(error)
+              })
+          } catch {
+            case error: Throwable => response.tryFailure(error)
+          }
+        }
+      })
+      second.pipeline().addLast(new ChannelInboundHandlerAdapter {
+        override def channelRead(ctx: ChannelHandlerContext, message: Object): Unit = {
+          otherChannelProcessed.success(true)
+        }
+      })
+      val close = executor.submit(new Callable[Long] {
+        override def call(): Long = writer.close()
+      })
+      assert(tier.closeStreamsStarted.await(2, TimeUnit.SECONDS))
+      assert(tier.finalCloseHoldsWriter)
+      first.pipeline().fireChannelRead(new PushData(
+        PartitionLocation.Mode.PRIMARY.mode(),
+        "app-1",
+        location.getUniqueId,
+        new NettyManagedBuffer(body)))
+      second.pipeline().fireChannelRead("unrelated channel")
+      assert(Await.result(response.future, 2.seconds) == StatusCode.HARD_SPLIT.getValue)
+      assert(Await.result(otherChannelProcessed.future, 2.seconds))
+      assert(!close.isDone)
+      assert(tier.numPendingWrites.get() == 0)
+      tier.finishCloseStreams.countDown()
+      assert(close.get(2, TimeUnit.SECONDS) == 0)
+    } finally {
+      tier.finishCloseStreams.countDown()
+      executor.shutdownNow()
+      assert(executor.awaitTermination(2, TimeUnit.SECONDS))
+      first.close().syncUninterruptibly()
+      second.close().syncUninterruptibly()
+      group.shutdownGracefully(0, 2, TimeUnit.SECONDS).syncUninterruptibly()
+      body.release()
+      writer.destroy(new IOException("test cleanup"))
+    }
   }
 
   test("close drains admitted pushes and rejects late pushes without changing pending writes") {

@@ -254,15 +254,6 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
       return
     }
 
-    val splitStatus = checkDiskFullAndSplit(fileWriter, isPrimary)
-    if (splitStatus == StatusCode.HARD_SPLIT) {
-      workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
-      callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
-      return
-    } else if (splitStatus == StatusCode.SOFT_SPLIT) {
-      softSplit = true
-    }
-
     if (!fileWriter.tryIncrementPendingWrites()) {
       val fileInfo = fileWriter.getCurrentFileInfo
       logWarning(
@@ -270,6 +261,24 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
           s"length ${fileInfo.getFileLength}")
       callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
       return
+    }
+
+    // Admission precedes split checks, which can acquire the writer monitor for memory files.
+    val splitStatus =
+      try {
+        checkDiskFullAndSplit(fileWriter, isPrimary)
+      } catch {
+        case t: Throwable =>
+          fileWriter.decrementPendingWrites()
+          throw t
+      }
+    if (splitStatus == StatusCode.HARD_SPLIT) {
+      fileWriter.decrementPendingWrites()
+      workerSource.incCounter(WorkerSource.WRITE_DATA_HARD_SPLIT_COUNT)
+      callbackWithTimer.onSuccess(ByteBuffer.wrap(Array[Byte](StatusCode.HARD_SPLIT.getValue)))
+      return
+    } else if (splitStatus == StatusCode.SOFT_SPLIT) {
+      softSplit = true
     }
     val writePromise = Promise[Array[StatusCode]]()
     // for primary, send data to replica
@@ -568,25 +577,40 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
 
     var fileWriterIndex = 0
     val totalFileWriters = fileWriters.length
-    while (fileWriterIndex < totalFileWriters) {
-      val fileWriter = fileWriters(fileWriterIndex)
-      if (fileWriter == null) {
-        if (!pushMergedDataCallback.isHardSplitPartition(fileWriterIndex)) {
-          pushMergedDataCallback.onFailure(
-            new CelebornIOException(s"Partition $fileWriterIndex's fileWriter not found," +
-              s" but it hasn't been identified in the previous validation step."))
-          return
+    var currentAdmitted = false
+    var admissionsCancelled = false
+    def cancelAdmittedWrites(processed: Int, includeCurrent: Boolean): Unit = {
+      var index = 0
+      while (index < processed) {
+        if (fileWriters(index) != null && !pushMergedDataCallback.isHardSplitPartition(index)) {
+          fileWriters(index).decrementPendingWrites()
         }
-      } else {
-        if (fileWriter.isClosed) {
-          val fileInfo = fileWriter.getCurrentFileInfo
-          logWarning(
-            s"[handlePushMergedData] FileWriter is already closed! File path ${fileInfo.getFilePath} " +
-              s"length ${fileInfo.getFileLength}")
+        index += 1
+      }
+      if (includeCurrent) {
+        fileWriters(processed).decrementPendingWrites()
+      }
+    }
+    try {
+      while (fileWriterIndex < totalFileWriters) {
+        val fileWriter = fileWriters(fileWriterIndex)
+        if (fileWriter == null) {
+          if (!pushMergedDataCallback.isHardSplitPartition(fileWriterIndex)) {
+            cancelAdmittedWrites(fileWriterIndex, currentAdmitted)
+            admissionsCancelled = true
+            pushMergedDataCallback.onFailure(
+              new CelebornIOException(s"Partition $fileWriterIndex's fileWriter not found," +
+                s" but it hasn't been identified in the previous validation step."))
+            return
+          }
+        } else if (!fileWriter.tryIncrementPendingWrites()) {
           pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.HARD_SPLIT)
         } else {
+          currentAdmitted = true
           val splitStatus = checkDiskFullAndSplit(fileWriter, isPrimary)
           if (splitStatus == StatusCode.HARD_SPLIT) {
+            fileWriter.decrementPendingWrites()
+            currentAdmitted = false
             logDebug(
               s"return hard split for shuffle $shuffleKey map $mapId attempt $attemptId; " +
                 s"see the CheckDiskFullAndSplit log for the cause")
@@ -596,12 +620,15 @@ class PushDataHandler(val workerSource: WorkerSource) extends BaseMessageHandler
             pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.SOFT_SPLIT)
           }
         }
-        if (!pushMergedDataCallback.isHardSplitPartition(fileWriterIndex) &&
-          !fileWriter.tryIncrementPendingWrites()) {
-          pushMergedDataCallback.addSplitPartition(fileWriterIndex, StatusCode.HARD_SPLIT)
-        }
+        fileWriterIndex += 1
+        currentAdmitted = false
       }
-      fileWriterIndex += 1
+    } catch {
+      case t: Throwable =>
+        if (!admissionsCancelled) {
+          cancelAdmittedWrites(fileWriterIndex, currentAdmitted)
+        }
+        throw t
     }
 
     val hardSplitIndexes = pushMergedDataCallback.getHardSplitIndexes
