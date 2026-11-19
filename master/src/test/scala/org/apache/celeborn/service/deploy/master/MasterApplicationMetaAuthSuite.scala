@@ -17,7 +17,8 @@
 
 package org.apache.celeborn.service.deploy.master
 
-import java.io.{PrintWriter, StringWriter}
+import java.io.{ByteArrayOutputStream, DataOutputStream, ObjectOutputStream, PrintWriter, StringWriter}
+import java.nio.ByteBuffer
 import java.util
 
 import scala.collection.mutable.ArrayBuffer
@@ -26,11 +27,16 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo, WorkerStatus}
 import org.apache.celeborn.common.metrics.source.Role
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo
-import org.apache.celeborn.common.protocol.{PbApplicationMeta, PbApplicationMetaRequest, PbReviseLostShufflesResponse, RpcNameConstants, TransportModuleConstants}
-import org.apache.celeborn.common.protocol.message.ControlMessages.ReviseLostShuffles
+import org.apache.celeborn.common.protocol.{PbApplicationMeta, PbApplicationMetaRequest, PbRegisterWorkerResponse, PbReviseLostShufflesResponse, PbWorkerEventResponse, RpcNameConstants, StorageInfo, TransportModuleConstants, WorkerEventType}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{CheckQuota, CheckQuotaResponse, CheckWorkersAvailable, HeartbeatFromWorker, HeartbeatFromWorkerResponse, RegisterWorker, RemoveWorkersUnavailableInfo, ReportWorkerDecommission, ReportWorkerUnavailable, ReviseLostShuffles, WorkerEventRequest, WorkerExclude, WorkerLost}
 import org.apache.celeborn.common.rpc.{ClientSaslContextBuilder, RpcAddress, RpcEndpointRef, RpcEnv, RpcSecurityContextBuilder}
+import org.apache.celeborn.common.rpc.netty.{NettyRpcEnv, RpcFailure}
+import org.apache.celeborn.common.serializer.JavaSerializer
+import org.apache.celeborn.common.util.ByteBufferInputStream
 
 /**
  * End-to-end authorization checks for application-scoped Master RPCs with auth enabled,
@@ -48,6 +54,9 @@ class MasterApplicationMetaAuthSuite extends AnyFunSuite
   private val conf = new CelebornConf()
     .set(CelebornConf.AUTH_ENABLED.key, "true")
     .set(CelebornConf.INTERNAL_PORT_ENABLED.key, "true")
+    // A single dispatcher makes the reply after a one-way message a completion barrier.
+    .set("celeborn.rpc.dispatcher.threads", "1")
+    .set("celeborn.rpc.RpcEndpointVerifier.separate.enabled", "false")
 
   private var master: Master = _
   private var externalAddress: RpcAddress = _
@@ -64,7 +73,12 @@ class MasterApplicationMetaAuthSuite extends AnyFunSuite
   override def afterAll(): Unit = {
     clientEnvs.foreach(_.shutdown())
     if (master != null) {
-      shutdownMaster()
+      try {
+        shutdownMaster()
+      } finally {
+        master.internalRpcEnvInUse.shutdown()
+        master.internalRpcEnvInUse.awaitTermination()
+      }
     }
     super.afterAll()
   }
@@ -171,5 +185,218 @@ class MasterApplicationMetaAuthSuite extends AnyFunSuite
     assert(stackTraceOf(e).contains(s"not authorized for application $victimApp"))
     assert(victimShuffles.size() == 1)
     assert(!victimShuffles.contains(3))
+  }
+
+  test("registered applications cannot issue worker events") {
+    val worker = new WorkerInfo("localhost", 18001, 18002, 18003, 18004, 18005)
+    val disk = new DiskInfo("/event-test", 1024L * 1024 * 1024, 0L, 0L, 0L, StorageInfo.Type.HDD)
+    val internal = workerInternalRef()
+    assert(internal.askSync[PbRegisterWorkerResponse](RegisterWorker(
+      worker.host,
+      worker.rpcPort,
+      worker.pushPort,
+      worker.fetchPort,
+      worker.replicatePort,
+      worker.internalPort,
+      "/default-rack",
+      Map(disk.mountPoint -> disk),
+      Map.empty,
+      "event-register-worker")).getSuccess)
+
+    val appId = "worker-event-app"
+    val secret = "worker-event-secret"
+    val app = registeredAppRef(appId, secret)
+    assert(app.askSync[PbApplicationMeta](metaRequest(appId)).getSecret == secret)
+    assert(master.statusSystem.availableWorkers.contains(worker))
+
+    val heartbeat = HeartbeatFromWorker(
+      worker.host,
+      worker.rpcPort,
+      worker.pushPort,
+      worker.fetchPort,
+      worker.replicatePort,
+      Seq(disk),
+      util.Collections.emptyMap(),
+      util.Collections.emptySet(),
+      false,
+      WorkerStatus.normalWorkerStatus())
+
+    try {
+      Seq(WorkerEventType.Immediately, WorkerEventType.Decommission).foreach { event =>
+        val failure = intercept[Exception] {
+          app.askSync[PbWorkerEventResponse](WorkerEventRequest(
+            util.Arrays.asList(worker),
+            event,
+            "app-worker-event"))
+        }
+        assertSecurityFailure(failure)
+      }
+      assert(master.statusSystem.workersMap.containsKey(worker.toUniqueId))
+      assert(master.statusSystem.availableWorkers.contains(worker))
+      assert(!master.statusSystem.workerEventInfos.containsKey(worker))
+      val unchanged = internal.askSync[HeartbeatFromWorkerResponse](heartbeat)
+      assert(unchanged.registered)
+      assert(unchanged.workerEvent == WorkerEventType.None)
+
+      // The HTTP management path issues the same event through local self.askSync.
+      assert(master.handleWorkerEvent(WorkerEventType.Immediately, Seq(worker))._1)
+      assert(!master.statusSystem.availableWorkers.contains(worker))
+      val delivered = internal.askSync[HeartbeatFromWorkerResponse](heartbeat)
+      assert(delivered.registered)
+      assert(delivered.workerEvent == WorkerEventType.Immediately)
+    } finally {
+      master.statusSystem.workersMap.remove(worker.toUniqueId)
+      master.statusSystem.availableWorkers.remove(worker)
+      master.statusSystem.workerEventInfos.remove(worker)
+    }
+  }
+
+  private def assertSecurityFailure(failure: Throwable): Unit = {
+    val causes = Iterator.iterate[Throwable](failure)(_.getCause).takeWhile(_ != null).toSeq
+    assert(causes.exists(_.isInstanceOf[SecurityException]), stackTraceOf(failure))
+    assert(stackTraceOf(failure).contains("External Master RPC is not authorized"))
+  }
+
+  private def registration(worker: WorkerInfo, disk: DiskInfo) = RegisterWorker(
+    worker.host,
+    worker.rpcPort,
+    worker.pushPort,
+    worker.fetchPort,
+    worker.replicatePort,
+    worker.internalPort,
+    "/default-rack",
+    Map(disk.mountPoint -> disk),
+    Map.empty,
+    "origin-register-worker")
+
+  private def workerLost(worker: WorkerInfo) = WorkerLost(
+    worker.host,
+    worker.rpcPort,
+    worker.pushPort,
+    worker.fetchPort,
+    worker.replicatePort,
+    "origin-worker-lost")
+
+  private def withWorker(f: (WorkerInfo, DiskInfo, RpcEndpointRef) => Unit): Unit = {
+    val worker = new WorkerInfo("localhost", 18101, 18102, 18103, 18104, 18105)
+    val disk = new DiskInfo("/origin-test", 1024L * 1024 * 1024, 0L, 0L, 0L, StorageInfo.Type.HDD)
+    val internal = workerInternalRef()
+    assert(internal.askSync[PbRegisterWorkerResponse](registration(worker, disk)).getSuccess)
+    try {
+      f(worker, disk, internal)
+    } finally {
+      master.statusSystem.workersMap.remove(worker.toUniqueId)
+      master.statusSystem.availableWorkers.remove(worker)
+      master.statusSystem.lostWorkers.remove(worker)
+      master.statusSystem.workerEventInfos.remove(worker)
+      master.statusSystem.excludedWorkers.remove(worker)
+      master.statusSystem.manuallyExcludedWorkers.remove(worker)
+      master.statusSystem.shutdownWorkers.remove(worker)
+      master.statusSystem.decommissionWorkers.remove(worker)
+      master.statusSystem.workerLostEvents.remove(worker)
+    }
+  }
+
+  // Exercise the existing Java object stream path without adding a protobuf codec.
+  private def askLegacy(env: NettyRpcEnv, message: Any): Unit = {
+    val bytes = new ByteArrayOutputStream()
+    val header = new DataOutputStream(bytes)
+    header.writeBoolean(false)
+    header.writeBoolean(true)
+    header.writeUTF(externalAddress.host)
+    header.writeInt(externalAddress.port)
+    header.writeUTF(RpcNameConstants.MASTER_EP)
+    val objects = new ObjectOutputStream(header)
+    objects.writeObject(message)
+    objects.close()
+    val connection = env.createClient(externalAddress)
+    val response = connection.sendRpcSync(ByteBuffer.wrap(bytes.toByteArray), 5000)
+    val input = new JavaSerializer(conf).newInstance()
+      .deserializeStream(new ByteBufferInputStream(response))
+    try {
+      input.readObject[Any]() match {
+        case RpcFailure(cause) => throw cause
+        case _ => // Successful legacy responses need no application payload decoding here.
+      }
+    } finally {
+      input.close()
+    }
+  }
+
+  Seq("register", "heartbeat", "unavailable", "decommission", "exclude", "lost", "remove")
+    .foreach { operation =>
+      test(s"registered applications cannot issue worker $operation requests") {
+        withWorker { (worker, disk, _) =>
+          val appId = s"worker-$operation-app"
+          val app = registeredAppRef(appId, s"$appId-secret")
+          assert(app.askSync[PbApplicationMeta](metaRequest(appId)).getSecret == s"$appId-secret")
+          val workers = util.Collections.singletonList(worker)
+          val request = operation match {
+            case "register" => registration(worker, disk)
+            case "heartbeat" => HeartbeatFromWorker(
+                worker.host,
+                worker.rpcPort,
+                worker.pushPort,
+                worker.fetchPort,
+                worker.replicatePort,
+                Seq(disk),
+                util.Collections.emptyMap(),
+                util.Collections.emptySet(),
+                false,
+                WorkerStatus.normalWorkerStatus())
+            case "unavailable" => ReportWorkerUnavailable(workers)
+            case "decommission" => ReportWorkerDecommission(workers)
+            case "exclude" => WorkerExclude(workers, util.Collections.emptyList(), "exclude")
+            case "lost" => workerLost(worker)
+            case "remove" => RemoveWorkersUnavailableInfo(workers, "remove")
+          }
+          val lostTime = System.currentTimeMillis()
+          master.statusSystem.lostWorkers.put(worker, lostTime)
+          val failure = intercept[Exception] {
+            if (operation == "exclude") {
+              askLegacy(clientEnvs.last.asInstanceOf[NettyRpcEnv], request)
+            } else {
+              app.askSync[Any](request)
+            }
+          }
+          assert(master.statusSystem.workersMap.containsKey(worker.toUniqueId))
+          assert(master.statusSystem.availableWorkers.contains(worker))
+          // A reply encoding failure can happen after mutation; it is not an authorization denial.
+          assert(master.statusSystem.lostWorkers.containsKey(worker))
+          assert(master.statusSystem.lostWorkers.get(worker) == lostTime)
+          assert(!master.statusSystem.manuallyExcludedWorkers.contains(worker))
+          assert(!master.statusSystem.shutdownWorkers.contains(worker))
+          assert(!master.statusSystem.decommissionWorkers.contains(worker))
+          assertSecurityFailure(failure)
+        }
+      }
+    }
+
+  test("registered applications cannot send one-way worker loss") {
+    withWorker { (worker, _, internal) =>
+      val appId = "one-way-worker-app"
+      val app = registeredAppRef(appId, "one-way-secret")
+      app.send(workerLost(worker))
+      // This fixture has one dispatcher thread; the following reply is a completion barrier.
+      assert(app.askSync[PbApplicationMeta](metaRequest(appId)).getSecret == "one-way-secret")
+      assert(master.statusSystem.workersMap.containsKey(worker.toUniqueId))
+      assert(master.statusSystem.availableWorkers.contains(worker))
+
+      internal.askSync[Any](workerLost(worker))
+      assert(!master.statusSystem.workersMap.containsKey(worker.toUniqueId))
+
+      val disk = new DiskInfo("/local-test", 1024L * 1024 * 1024, 0L, 0L, 0L, StorageInfo.Type.HDD)
+      assert(internal.askSync[PbRegisterWorkerResponse](registration(worker, disk)).getSuccess)
+      master.self.send(workerLost(worker))
+      master.self.askSync[Any](CheckWorkersAvailable())
+      assert(!master.statusSystem.workersMap.containsKey(worker.toUniqueId))
+    }
+  }
+
+  test("registered applications retain quota and worker availability queries") {
+    val app = registeredAppRef("queries-app", "queries-secret")
+    assert(
+      app.askSync[CheckQuotaResponse](CheckQuota(UserIdentifier("tenant", "user"))).isAvailable)
+    app.askSync[Any](CheckWorkersAvailable())
   }
 }

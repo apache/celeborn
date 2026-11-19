@@ -17,16 +17,15 @@
 
 package org.apache.celeborn.client
 
-import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, TimeUnit}
+import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.util.control.NonFatal
 
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.message.ControlMessages.MapperEnd
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
-// Can Remove this if celeborn don't support scala211 in future
-import org.apache.celeborn.common.util.FunctionConverter._
 
 private[client] case class PendingMapperEnd(request: MapperEnd, enqueuedNanos: Long) {
   def mapId: Int = request.mapId
@@ -45,24 +44,23 @@ private[client] case class PendingMapperEnd(request: MapperEnd, enqueuedNanos: L
  * reported MapperEnd but was then failed by the engine (for example, on a preempted executor)
  * can keep pushing and reviving.
  *
- * @param resolveRegisteredTaskIds celeborn shuffle id -> registered task attempt id per map
- *                                 index (-1 where none), or None if the engine doesn't know the
- *                                 shuffle
+ * @param resolveRegisteredTaskIds returns the registered task attempt IDs in the order of the
+ *                                 requested map indexes, or None if the shuffle is unknown
  * @param endedAttempt             attempt id already confirmed for (shuffleId, mapId), or -1
  * @param isStageEndOrInProcess    whether StageEnd has started for the shuffle
  * @param confirm                  applies a confirmed attempt to the LifecycleManager
  */
 private[client] class MapperEndConfirmer(
     intervalMs: Long,
-    resolveRegisteredTaskIds: Int => Option[Array[Long]],
+    resolveRegisteredTaskIds: (Int, Array[Int]) => Option[Array[Long]],
     endedAttempt: (Int, Int) => Int,
     isStageEndOrInProcess: Int => Boolean,
     confirm: (Int, PendingMapperEnd) => Unit) extends Logging {
 
-  // shuffleId -> mapId -> taskAttemptId -> pending MapperEnd
-  private val pending = JavaUtils.newConcurrentHashMap[
-    Int,
-    ConcurrentHashMap[Int, ConcurrentHashMap[Long, PendingMapperEnd]]]()
+  private type PendingMaps = mutable.Map[Int, mutable.Map[Long, PendingMapperEnd]]
+  // Each shuffle's map is also its lock. Keep confirmation and its commit-state update together
+  // so readers racing the poller can wait for the applied state.
+  private val pending = JavaUtils.newConcurrentHashMap[Int, PendingMaps]()
 
   private val scheduler: ScheduledExecutorService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-mapper-end-confirmer")
@@ -82,91 +80,101 @@ private[client] class MapperEndConfirmer(
   }
 
   def add(shuffleId: Int, mapperEnd: PendingMapperEnd): Unit = {
-    pending
-      .computeIfAbsent(
-        shuffleId,
-        (_: Int) =>
-          JavaUtils.newConcurrentHashMap[Int, ConcurrentHashMap[Long, PendingMapperEnd]]())
-      .computeIfAbsent(
-        mapperEnd.mapId,
-        (_: Int) => JavaUtils.newConcurrentHashMap[Long, PendingMapperEnd]())
-      .put(mapperEnd.taskAttemptId, mapperEnd)
+    val byMap = pending.computeIfAbsent(shuffleId, _ => mutable.HashMap.empty)
+    byMap.synchronized {
+      if ((pending.get(shuffleId) eq byMap) && !isStageEndOrInProcess(shuffleId)) {
+        byMap.getOrElseUpdate(mapperEnd.mapId, mutable.HashMap.empty)
+          .put(mapperEnd.taskAttemptId, mapperEnd)
+      }
+    }
   }
 
   def hasPending(shuffleId: Int): Boolean = {
     val byMap = pending.get(shuffleId)
-    byMap != null && !byMap.isEmpty
+    byMap != null && byMap.synchronized { byMap.nonEmpty }
   }
 
-  def pendingCount: Int = pending.values().asScala.map(_.size()).sum
+  def pendingCount: Int = pending.values().asScala.map { byMap =>
+    byMap.synchronized { byMap.valuesIterator.map(_.size).sum }
+  }.sum
 
-  /**
-   * Confirms every pending map of the shuffle whose registered task attempt is pending.
-   * Safe to call concurrently: each map is claimed with a remove(key, value) before it is
-   * confirmed, so it is confirmed at most once.
-   */
+  /** Confirm matching attempts and wait for any concurrent check of this shuffle to finish. */
   def check(shuffleId: Int): Unit = {
     val byMap = pending.get(shuffleId)
-    if (byMap == null || byMap.isEmpty) {
-      return
-    }
-    if (isStageEndOrInProcess(shuffleId)) {
-      pending.remove(shuffleId)
-      return
-    }
-    val registered = resolveRegisteredTaskIds(shuffleId).orNull
-    if (registered == null) {
-      return
-    }
-    byMap.asScala.foreach { case (mapId, attempts) =>
-      val ended = endedAttempt(shuffleId, mapId)
-      if (ended >= 0) {
-        // Confirmed meanwhile (e.g. through the legacy path); duplicates of that attempt from
-        // RPC retries are not rejections.
-        if (byMap.remove(mapId, attempts)) {
-          logRejected(shuffleId, attempts.values().asScala.filter(_.attemptId != ended), None)
-        }
-      } else if (mapId < registered.length && registered(mapId) >= 0) {
-        val matched = attempts.get(registered(mapId))
-        if (matched != null && byMap.remove(mapId, attempts)) {
-          confirmPending(shuffleId, matched)
-          logRejected(
-            shuffleId,
-            attempts.values().asScala.filter(_.taskAttemptId != matched.taskAttemptId),
-            Some(matched))
+    if (byMap != null) {
+      byMap.synchronized {
+        if (pending.get(shuffleId) eq byMap) {
+          if (isStageEndOrInProcess(shuffleId)) {
+            pending.remove(shuffleId, byMap)
+          } else {
+            resolvePending(shuffleId, byMap, allowFallback = false)
+          }
         }
       }
     }
   }
 
   /**
-   * Called right before StageEnd is forced (e.g. on unregisterShuffle). Confirms what can be
-   * confirmed, then falls back to first-wins for maps the engine has no status for. Returns true
-   * if the engine accepted an attempt for some map that never reported MapperEnd, in which case
-   * the shuffle data can't be trusted.
+   * Before forcing StageEnd, confirm matching attempts and fall back for maps with no Spark
+   * status. Return true if Spark accepted an attempt that did not report MapperEnd.
    */
   def drainWithFallback(shuffleId: Int): Boolean = {
-    check(shuffleId)
-    val byMap = pending.remove(shuffleId)
-    if (byMap == null || byMap.isEmpty) {
+    val byMap = pending.get(shuffleId)
+    if (byMap == null) {
       return false
     }
-    val registered = resolveRegisteredTaskIds(shuffleId).orNull
+    byMap.synchronized {
+      if (!(pending.get(shuffleId) eq byMap)) {
+        false
+      } else {
+        val dataLost = !isStageEndOrInProcess(shuffleId) &&
+          resolvePending(shuffleId, byMap, allowFallback = true)
+        pending.remove(shuffleId, byMap)
+        dataLost
+      }
+    }
+  }
+
+  // Caller holds byMap's lock. Only ask the engine about maps with pending attempts.
+  private def resolvePending(
+      shuffleId: Int,
+      byMap: PendingMaps,
+      allowFallback: Boolean): Boolean = {
+    if (byMap.isEmpty) {
+      return false
+    }
+    val mapIndexes = byMap.keysIterator.toArray
+    val registered = resolveRegisteredTaskIds(shuffleId, mapIndexes).orNull
     var acceptedButUnseen = false
-    byMap.asScala.foreach { case (mapId, attempts) =>
-      if (endedAttempt(shuffleId, mapId) < 0 && !attempts.isEmpty) {
-        val registeredTaskId =
-          if (registered != null && mapId < registered.length) registered(mapId) else -1L
-        if (registeredTaskId >= 0) {
-          logError(s"Spark accepted task attempt $registeredTaskId for shuffle $shuffleId map " +
-            s"$mapId, but only task attempts ${attempts.keySet().asScala.mkString(",")} " +
-            s"reported MapperEnd.")
-          acceptedButUnseen = true
-        } else {
-          val first = attempts.values().asScala.minBy(_.enqueuedNanos)
-          logWarning(s"No Spark map status for shuffle $shuffleId map $mapId, falling back to " +
-            s"the first finished attempt ${Utils.makeMapKey(shuffleId, mapId, first.attemptId)}.")
-          confirmPending(shuffleId, first)
+    mapIndexes.indices.foreach { index =>
+      val mapId = mapIndexes(index)
+      val attempts = byMap(mapId)
+      val ended = endedAttempt(shuffleId, mapId)
+      if (ended >= 0) {
+        byMap.remove(mapId)
+        // Retries of the same MapperEnd are duplicates, not rejections.
+        logRejected(shuffleId, attempts.values.filter(_.attemptId != ended), None)
+      } else {
+        val taskId = if (registered == null) -1L else registered(index)
+        attempts.get(taskId) match {
+          case Some(matched) if taskId >= 0 =>
+            confirmPending(shuffleId, matched)
+            byMap.remove(mapId)
+            logRejected(
+              shuffleId,
+              attempts.values.filter(_.taskAttemptId != taskId),
+              Some(matched))
+          case _ if allowFallback && taskId >= 0 =>
+            logError(s"Spark accepted task attempt $taskId for shuffle $shuffleId map $mapId, " +
+              s"but only task attempts ${attempts.keysIterator.mkString(",")} reported MapperEnd.")
+            acceptedButUnseen = true
+          case _ if allowFallback =>
+            val first = attempts.valuesIterator.minBy(_.enqueuedNanos)
+            logWarning(s"No Spark map status for shuffle $shuffleId map $mapId, falling back to " +
+              s"the first finished attempt ${Utils.makeMapKey(shuffleId, mapId, first.attemptId)}.")
+            confirmPending(shuffleId, first)
+            byMap.remove(mapId)
+          case _ =>
         }
       }
     }
@@ -174,7 +182,12 @@ private[client] class MapperEndConfirmer(
   }
 
   def remove(shuffleId: Int): Unit = {
-    pending.remove(shuffleId)
+    val byMap = pending.get(shuffleId)
+    if (byMap != null) {
+      byMap.synchronized {
+        pending.remove(shuffleId, byMap)
+      }
+    }
   }
 
   private def tick(): Unit = {

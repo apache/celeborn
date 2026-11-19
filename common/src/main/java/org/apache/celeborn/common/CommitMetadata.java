@@ -95,6 +95,6 @@ public class CommitMetadata {
 
   @Override
   public int hashCode() {
-    return Objects.hash(bytes, crc);
+    return Objects.hash(bytes.get(), crc);
   }
 }

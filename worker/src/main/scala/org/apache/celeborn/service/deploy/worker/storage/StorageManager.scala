@@ -637,6 +637,8 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
   def shuffleKeySet(): util.HashSet[String] = {
     val hashSet = new util.HashSet[String]()
     hashSet.addAll(diskFileInfos.keySet())
+    // A shuffle can live only in memory files; decommission and graceful shutdown wait on it too.
+    hashSet.addAll(memoryFileInfos.keySet())
     hashSet
   }
 
@@ -1003,7 +1005,10 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
             val (fileSystemReportedUsableSpace, fileSystemReportedTotalSpace) =
               getFileSystemReportedSpace(diskInfo.mountPoint)
             val actualReserveSize =
-              DiskUtils.getActualReserveSize(diskInfo, diskReserveSize, diskReserveRatio)
+              DiskUtils.getActualReserveSize(
+                fileSystemReportedTotalSpace,
+                diskReserveSize,
+                diskReserveRatio)
             val workingDirUsableSpace =
               Math.min(
                 diskInfo.configuredUsableSpace - totalUsage,
@@ -1064,12 +1069,18 @@ final private[worker] class StorageManager(conf: CelebornConf, workerSource: Abs
       : ResourceConsumption = {
     val diskFileInfos = fileInfos.filter(!_.isDFS)
     val hdfsFileInfos = fileInfos.filter(_.isHdfs)
+    val s3FileInfos = fileInfos.filter(_.isS3)
+    val ossFileInfos = fileInfos.filter(_.isOSS)
     ResourceConsumption(
       diskFileInfos.map(_.getFileLength).sum,
       diskFileInfos.size,
       hdfsFileInfos.map(_.getFileLength).sum,
       hdfsFileInfos.size,
-      subResourceConsumptions)
+      subResourceConsumptions,
+      s3FileInfos.map(_.getFileLength).sum,
+      s3FileInfos.size,
+      ossFileInfos.map(_.getFileLength).sum,
+      ossFileInfos.size)
   }
 
   def notifyFileInfoCommitted(

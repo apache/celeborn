@@ -144,7 +144,7 @@ vi conf/config.yaml
 
 Choose one of flink integration strategies and add the following configuration:
 
-**(Support Flink 1.16 and above versions) Flink Remote Shuffle Service Config**
+**(Support Flink 1.18 and above versions) Flink Remote Shuffle Service Config**
 ```properties
 shuffle-service-factory.class: org.apache.celeborn.plugin.flink.RemoteShuffleServiceFactory
 execution.batch-shuffle-mode: ALL_EXCHANGES_BLOCKING

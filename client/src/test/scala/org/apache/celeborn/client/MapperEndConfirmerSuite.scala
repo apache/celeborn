@@ -18,7 +18,7 @@
 package org.apache.celeborn.client
 
 import java.util.Collections
-import java.util.concurrent.{ConcurrentHashMap, CountDownLatch, Executors, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, CountDownLatch, Executors, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.ArrayBuffer
@@ -33,7 +33,7 @@ class MapperEndConfirmerSuite extends CelebornFunSuite {
   private val numMappers = 3
 
   /** Minimal stand-in for the LifecycleManager side: first confirmed attempt per map wins. */
-  private class Fixture {
+  private class Fixture(beforeConfirm: () => Unit = () => ()) {
     val registered = new ConcurrentHashMap[Int, Array[Long]]()
     val attempts = new ConcurrentHashMap[Int, Array[Int]]()
     val stageEnded = ConcurrentHashMap.newKeySet[Int]()
@@ -42,13 +42,15 @@ class MapperEndConfirmerSuite extends CelebornFunSuite {
 
     val confirmer = new MapperEndConfirmer(
       intervalMs = 10,
-      resolveRegisteredTaskIds = id => Option(registered.get(id)),
+      resolveRegisteredTaskIds = (id, mapIndexes) =>
+        Option(registered.get(id)).map(taskIds => mapIndexes.map(taskIds(_))),
       endedAttempt = (id, mapId) => {
         val a = attempts.get(id)
         if (a == null) -1 else a(mapId)
       },
       isStageEndOrInProcess = id => stageEnded.contains(id),
       confirm = (id, p) => {
+        beforeConfirm()
         confirmCount.incrementAndGet()
         confirmed.synchronized { confirmed += ((id, p)) }
         val a = attempts.computeIfAbsent(id, (_: Int) => Array.fill(numMappers)(-1))
@@ -102,6 +104,7 @@ class MapperEndConfirmerSuite extends CelebornFunSuite {
 
     // retry of map 0 finishes and Spark registers it
     f.add(mapId = 0, attemptId = 1, taskAttemptId = 200)
+    assert(f.confirmer.pendingCount == 2)
     f.registered.put(shuffleId, Array(200L, 101L, -1L))
     f.confirmer.check(shuffleId)
     assert(f.ended(0) == 1)
@@ -155,6 +158,44 @@ class MapperEndConfirmerSuite extends CelebornFunSuite {
     }
     assert(f.confirmCount.get() == numMappers)
     assert(f.confirmed.map(_._2.mapId).sorted == (0 until numMappers))
+  }
+
+  test("reader check waits for an in-progress confirmation to apply its result") {
+    val applying = new CountDownLatch(1)
+    val finish = new CountDownLatch(1)
+    val readerStarted = new CountDownLatch(1)
+    val f = new Fixture(() => {
+      applying.countDown()
+      assert(finish.await(10, TimeUnit.SECONDS))
+    })
+    f.add(mapId = 0, attemptId = 2, taskAttemptId = 42)
+    f.registered.put(shuffleId, Array(42L, -1L, -1L))
+    val pool = Executors.newFixedThreadPool(2)
+    try {
+      val background = pool.submit(new Runnable {
+        override def run(): Unit = f.confirmer.check(shuffleId)
+      })
+      assert(applying.await(10, TimeUnit.SECONDS))
+      val reader = pool.submit(new Runnable {
+        override def run(): Unit = {
+          readerStarted.countDown()
+          f.confirmer.check(shuffleId)
+          assert(f.ended(0) == 2)
+        }
+      })
+      assert(readerStarted.await(10, TimeUnit.SECONDS))
+      intercept[TimeoutException] {
+        reader.get(200, TimeUnit.MILLISECONDS)
+      }
+      finish.countDown()
+      reader.get(10, TimeUnit.SECONDS)
+      background.get(10, TimeUnit.SECONDS)
+      assert(f.confirmCount.get() == 1)
+    } finally {
+      finish.countDown()
+      pool.shutdownNow()
+      f.confirmer.stop()
+    }
   }
 
   test("background thread confirms once Spark registers the attempt") {

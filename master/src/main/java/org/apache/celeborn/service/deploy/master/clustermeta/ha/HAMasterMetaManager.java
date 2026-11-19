@@ -515,16 +515,20 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   @Override
   public void handleApplicationMeta(ApplicationMeta applicationMeta) {
     try {
-      ratisServer.submitRequest(
-          ResourceRequest.newBuilder()
-              .setCmdType(Type.ApplicationMeta)
-              .setRequestId(MasterClient.genRequestId())
-              .setApplicationMetaRequest(
-                  ResourceProtos.ApplicationMetaRequest.newBuilder()
-                      .setAppId(applicationMeta.appId())
-                      .setSecret(applicationMeta.secret())
-                      .build())
-              .build());
+      ResourceProtos.ResourceResponse response =
+          ratisServer.submitRequest(
+              ResourceRequest.newBuilder()
+                  .setCmdType(Type.ApplicationMeta)
+                  .setRequestId(MasterClient.genRequestId())
+                  .setApplicationMetaRequest(
+                      ResourceProtos.ApplicationMetaRequest.newBuilder()
+                          .setAppId(applicationMeta.appId())
+                          .setSecret(applicationMeta.secret())
+                          .build())
+                  .build());
+      if (!response.getSuccess()) {
+        throw new CelebornRuntimeException(response.getMessage());
+      }
     } catch (CelebornRuntimeException e) {
       LOG.error("Handle app meta for {} failed!", applicationMeta.appId(), e);
       throw e;

@@ -43,12 +43,20 @@ object DiskUtils {
     if (diskReserveRatio.isDefined) {
       try {
         val totalSpace = Files.getFileStore(Paths.get(diskInfo.mountPoint)).getTotalSpace
-        actualReserveSize =
-          BigDecimal(totalSpace * diskReserveRatio.get).longValue.max(actualReserveSize)
+        actualReserveSize = getActualReserveSize(totalSpace, diskReserveSize, diskReserveRatio)
       } catch {
         case _: Exception => // Do nothing
       }
     }
     actualReserveSize
+  }
+
+  def getActualReserveSize(
+      physicalTotalSpace: Long,
+      diskReserveSize: Long,
+      diskReserveRatio: Option[Double]): Long = {
+    diskReserveRatio
+      .map(ratio => BigDecimal(physicalTotalSpace * ratio).longValue.max(diskReserveSize))
+      .getOrElse(diskReserveSize)
   }
 }

@@ -221,7 +221,11 @@ class QuotaManagerSuite extends CelebornFunSuite
         "diskBytesWritten: 150.0 GiB, " +
         "diskFileCount: 15000, " +
         "hdfsBytesWritten: 25.0 GiB, " +
-        "hdfsFileCount: 20), " +
+        "hdfsFileCount: 20, " +
+        "s3BytesWritten: 0.0 B, " +
+        "s3FileCount: 0, " +
+        "ossBytesWritten: 0.0 B, " +
+        "ossFileCount: 0), " +
         "Threshold: " +
         "Quota[" +
         "diskBytesWritten=100.0 GiB, " +
@@ -245,7 +249,11 @@ class QuotaManagerSuite extends CelebornFunSuite
         "diskBytesWritten: 150.0 GiB, " +
         "diskFileCount: 15000, " +
         "hdfsBytesWritten: 25.0 GiB, " +
-        "hdfsFileCount: 20), " +
+        "hdfsFileCount: 20, " +
+        "s3BytesWritten: 0.0 B, " +
+        "s3FileCount: 0, " +
+        "ossBytesWritten: 0.0 B, " +
+        "ossFileCount: 0), " +
         "Threshold: Quota[" +
         "diskBytesWritten=100.0 GiB, " +
         "diskFileCount=10000, " +
@@ -258,7 +266,11 @@ class QuotaManagerSuite extends CelebornFunSuite
         "diskBytesWritten: 50.0 GiB, " +
         "diskFileCount: 5000, " +
         "hdfsBytesWritten: 5.0 GiB, " +
-        "hdfsFileCount: 20), " +
+        "hdfsFileCount: 20, " +
+        "s3BytesWritten: 0.0 B, " +
+        "s3FileCount: 0, " +
+        "ossBytesWritten: 0.0 B, " +
+        "ossFileCount: 0), " +
         "Threshold: " +
         "Quota[" +
         "diskBytesWritten=50.0 GiB, " +
@@ -309,7 +321,11 @@ class QuotaManagerSuite extends CelebornFunSuite
         "diskBytesWritten: 40.0 GiB, " +
         "diskFileCount: 500, " +
         "hdfsBytesWritten: 3.0 GiB, " +
-        "hdfsFileCount: 20), " +
+        "hdfsFileCount: 20, " +
+        "s3BytesWritten: 0.0 B, " +
+        "s3FileCount: 0, " +
+        "ossBytesWritten: 0.0 B, " +
+        "ossFileCount: 0), " +
         "Threshold: " +
         "Quota[diskBytesWritten=20.0 GiB, " +
         "diskFileCount=9223372036854775807, " +
@@ -435,6 +451,61 @@ class QuotaManagerSuite extends CelebornFunSuite
     clearUserConsumption()
   }
 
+  test("test user resource consumption metrics include S3 and OSS") {
+    val user = UserIdentifier("tenant_s3", "s3User")
+    val appConsumption = ResourceConsumption(
+      100,
+      1,
+      200,
+      2,
+      s3BytesWritten = 3000,
+      s3FileCount = 3,
+      ossBytesWritten = 4000,
+      ossFileCount = 4)
+    val userConsumption = ResourceConsumption(
+      100,
+      1,
+      200,
+      2,
+      Map("s3App" -> appConsumption).asJava,
+      s3BytesWritten = 3000,
+      s3FileCount = 3,
+      ossBytesWritten = 4000,
+      ossFileCount = 4)
+    val diskUser = UserIdentifier("tenant_s3", "diskUser")
+    statusSystem.updateApplicationInfo("s3App", user, extraInfo)
+    statusSystem.updateApplicationInfo("diskApp", diskUser, extraInfo)
+    addUserConsumption(user, userConsumption)
+    addUserConsumption(
+      diskUser,
+      ResourceConsumption(
+        100,
+        1,
+        200,
+        2,
+        Map("diskApp" -> ResourceConsumption(100, 1, 200, 2)).asJava))
+
+    try {
+      quotaManager.updateResourceConsumption()
+
+      val res = resourceConsumptionSource.getMetrics
+      val labels = s"""$metricsInstanceLabel,name="s3User",role="Master",tenantId="tenant_s3""""
+      assert(res.contains(s"""metrics_s3FileCount_Value{$labels} 3"""))
+      assert(res.contains(s"""metrics_s3BytesWritten_Value{$labels} 3000"""))
+      assert(res.contains(s"""metrics_ossFileCount_Value{$labels} 4"""))
+      assert(res.contains(s"""metrics_ossBytesWritten_Value{$labels} 4000"""))
+
+      // A user without S3/OSS usage gets no S3/OSS gauges.
+      val diskLabels =
+        s"""$metricsInstanceLabel,name="diskUser",role="Master",tenantId="tenant_s3""""
+      assert(res.contains(s"""metrics_diskFileCount_Value{$diskLabels} 1"""))
+      assert(!res.contains(s"""metrics_s3FileCount_Value{$diskLabels}"""))
+      assert(!res.contains(s"""metrics_ossFileCount_Value{$diskLabels}"""))
+    } finally {
+      clearUserConsumption()
+    }
+  }
+
   test("test user level conf") {
     val conf1 = new CelebornConf()
     conf1.set(CelebornConf.DYNAMIC_CONFIG_STORE_BACKEND, "FS")
@@ -521,7 +592,11 @@ class QuotaManagerSuite extends CelebornFunSuite
         "diskBytesWritten: 150.0 GiB, " +
         "diskFileCount: 15000, " +
         "hdfsBytesWritten: 25.0 GiB, " +
-        "hdfsFileCount: 20), " +
+        "hdfsFileCount: 20, " +
+        "s3BytesWritten: 0.0 B, " +
+        "s3FileCount: 0, " +
+        "ossBytesWritten: 0.0 B, " +
+        "ossFileCount: 0), " +
         "Threshold: " +
         "Quota[" +
         "diskBytesWritten=100.0 GiB, " +
@@ -537,7 +612,11 @@ class QuotaManagerSuite extends CelebornFunSuite
         "diskBytesWritten: 80.0 GiB, " +
         "diskFileCount: 0, " +
         "hdfsBytesWritten: 0.0 B, " +
-        "hdfsFileCount: 0), " +
+        "hdfsFileCount: 0, " +
+        "s3BytesWritten: 0.0 B, " +
+        "s3FileCount: 0, " +
+        "ossBytesWritten: 0.0 B, " +
+        "ossFileCount: 0), " +
         "Threshold: " +
         "Quota[" +
         "diskBytesWritten=10.0 GiB, " +
@@ -643,7 +722,11 @@ class QuotaManagerSuite extends CelebornFunSuite
         "diskBytesWritten: 150.0 GiB, " +
         "diskFileCount: 0, " +
         "hdfsBytesWritten: 0.0 B, " +
-        "hdfsFileCount: 0), " +
+        "hdfsFileCount: 0, " +
+        "s3BytesWritten: 0.0 B, " +
+        "s3FileCount: 0, " +
+        "ossBytesWritten: 0.0 B, " +
+        "ossFileCount: 0), " +
         "Threshold: Quota[" +
         "diskBytesWritten=100.0 GiB, " +
         "diskFileCount=10000, " +
@@ -657,7 +740,11 @@ class QuotaManagerSuite extends CelebornFunSuite
         "diskBytesWritten: 80.0 GiB, " +
         "diskFileCount: 0, " +
         "hdfsBytesWritten: 0.0 B, " +
-        "hdfsFileCount: 0), " +
+        "hdfsFileCount: 0, " +
+        "s3BytesWritten: 0.0 B, " +
+        "s3FileCount: 0, " +
+        "ossBytesWritten: 0.0 B, " +
+        "ossFileCount: 0), " +
         "Threshold: Quota[" +
         "diskBytesWritten=150.0 GiB, " +
         "diskFileCount=1500, " +
@@ -671,7 +758,11 @@ class QuotaManagerSuite extends CelebornFunSuite
         "diskBytesWritten: 150.0 GiB, " +
         "diskFileCount: 0, " +
         "hdfsBytesWritten: 0.0 B, " +
-        "hdfsFileCount: 0), " +
+        "hdfsFileCount: 0, " +
+        "s3BytesWritten: 0.0 B, " +
+        "s3FileCount: 0, " +
+        "ossBytesWritten: 0.0 B, " +
+        "ossFileCount: 0), " +
         "Threshold: Quota[" +
         "diskBytesWritten=100.0 GiB, " +
         "diskFileCount=10000, " +

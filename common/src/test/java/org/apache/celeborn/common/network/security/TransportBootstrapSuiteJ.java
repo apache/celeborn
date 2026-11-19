@@ -1,0 +1,315 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.celeborn.common.network.security;
+
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
+
+import java.io.IOException;
+import java.util.Collections;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+
+import com.google.common.base.Throwables;
+import io.netty.channel.Channel;
+import org.junit.Test;
+
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.network.TransportContext;
+import org.apache.celeborn.common.network.client.RpcResponseCallback;
+import org.apache.celeborn.common.network.client.TransportClient;
+import org.apache.celeborn.common.network.client.TransportClientBootstrap;
+import org.apache.celeborn.common.network.client.TransportClientFactory;
+import org.apache.celeborn.common.network.protocol.RequestMessage;
+import org.apache.celeborn.common.network.sasl.SaslClientBootstrap;
+import org.apache.celeborn.common.network.sasl.SaslCredentials;
+import org.apache.celeborn.common.network.sasl.SaslRpcHandler;
+import org.apache.celeborn.common.network.sasl.SaslServerBootstrap;
+import org.apache.celeborn.common.network.sasl.SecretRegistryImpl;
+import org.apache.celeborn.common.network.server.BaseMessageHandler;
+import org.apache.celeborn.common.network.server.TransportServer;
+import org.apache.celeborn.common.network.server.TransportServerBootstrap;
+import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.util.JavaUtils;
+
+public class TransportBootstrapSuiteJ {
+  private static final String APP = "application";
+  private static final String SECRET = "application-secret";
+  private static final String NATIVE_SECRET = "native-secret";
+  private static final String CLIENT_CLASSES = "celeborn.shuffle.client.bootstrap.classes";
+  private static final String SERVER_CLASSES = "celeborn.shuffle.server.bootstrap.classes";
+
+  @Test
+  public void configuredBootstrapsComposeWithNativeSasl() throws Exception {
+    EchoHandler handler = new EchoHandler();
+    TransportConf conf =
+        transportConf(
+            configuration()
+                .set(CLIENT_CLASSES, ConfiguredSaslClient.class.getName())
+                .set(SERVER_CLASSES, ConfiguredSaslServer.class.getName()));
+    try (TransportContext serverContext = new TransportContext(conf, handler);
+        TransportContext clientContext = new TransportContext(conf, new BaseMessageHandler());
+        TransportServer server =
+            new TransportServer(
+                serverContext,
+                "localhost",
+                0,
+                Collections.singletonList(new SaslServerBootstrap(conf, registry(NATIVE_SECRET))));
+        TransportClientFactory factory =
+            new TransportClientFactory(
+                clientContext,
+                Collections.singletonList(
+                    new SaslClientBootstrap(conf, APP, new SaslCredentials(APP, NATIVE_SECRET))));
+        TransportClient client = factory.createClient("localhost", server.getPort())) {
+      assertEquals(APP, client.getClientId());
+      assertEquals(
+          APP, JavaUtils.bytesToString(client.sendRpcSync(JavaUtils.stringToBytes(APP), 10000)));
+      assertEquals(
+          "Business handler must not receive either SASL handshake", 1, handler.requests.get());
+      assertThrows(IllegalStateException.class, () -> client.setClientId("other-application"));
+      IOException unauthorized =
+          assertThrows(
+              IOException.class,
+              () -> client.sendRpcSync(JavaUtils.stringToBytes("other-application"), 10000));
+      assertTrue(
+          Throwables.getRootCause(unauthorized)
+              .getMessage()
+              .contains("not authorized for application"));
+      assertEquals(APP, client.getClientId());
+    }
+  }
+
+  @Test
+  public void invalidConfiguredCredentialsCloseConnectionBeforeNativeSasl() throws Exception {
+    InvalidConfiguredSaslClient.client = null;
+    EchoHandler handler = spy(new EchoHandler());
+    AtomicReference<SaslRpcHandler> nativeHandler = new AtomicReference<>();
+    TransportConf conf =
+        transportConf(
+            configuration()
+                .set(CLIENT_CLASSES, InvalidConfiguredSaslClient.class.getName())
+                .set(SERVER_CLASSES, ConfiguredSaslServer.class.getName()));
+    SaslClientBootstrap nativeClient =
+        spy(new SaslClientBootstrap(conf, APP, new SaslCredentials(APP, NATIVE_SECRET)));
+    SaslServerBootstrap nativeServer = new SaslServerBootstrap(conf, registry(NATIVE_SECRET));
+    try (TransportContext serverContext = new TransportContext(conf, handler);
+        TransportContext clientContext = new TransportContext(conf, new BaseMessageHandler());
+        TransportServer server =
+            serverContext.createServer(
+                "localhost",
+                0,
+                Collections.singletonList(
+                    (channel, delegate) -> {
+                      SaslRpcHandler saslHandler =
+                          spy((SaslRpcHandler) nativeServer.doBootstrap(channel, delegate));
+                      nativeHandler.set(saslHandler);
+                      return saslHandler;
+                    }));
+        TransportClientFactory factory =
+            clientContext.createClientFactory(Collections.singletonList(nativeClient))) {
+      RuntimeException failure =
+          assertThrows(
+              RuntimeException.class, () -> factory.createClient("localhost", server.getPort()));
+      assertTrue(Throwables.getRootCause(failure).getMessage().contains("Mismatched response"));
+      assertNotNull(InvalidConfiguredSaslClient.client);
+      assertFalse(InvalidConfiguredSaslClient.client.getChannel().isOpen());
+      verify(nativeClient, never()).doBootstrap(any(TransportClient.class));
+      verify(handler, timeout(10000)).channelInactive(any(TransportClient.class));
+      assertNotNull(nativeHandler.get());
+      verify(nativeHandler.get(), never()).doAuthChallenge(any(), any(), any());
+      assertEquals(0, handler.requests.get());
+    }
+  }
+
+  @Test
+  public void configurationIsExactModuleAndSupportsBothConstructorForms() {
+    CountingBootstrap.created.set(0);
+    NoArgBootstrap.created.set(0);
+    CelebornConf conf =
+        configuration()
+            .set("celeborn.rpc.client.bootstrap.classes", String.class.getName())
+            .set(
+                CLIENT_CLASSES,
+                CountingBootstrap.class.getName() + "," + NoArgBootstrap.class.getName());
+    try (TransportContext ignored = new TransportContext(transportConf(conf), new EchoHandler());
+        TransportContext internal =
+            new TransportContext(new TransportConf("rpc_service", conf), new EchoHandler())) {
+      assertEquals(1, CountingBootstrap.created.get());
+      assertEquals("shuffle", CountingBootstrap.module);
+      assertEquals(1, NoArgBootstrap.created.get());
+    }
+    conf.set(CLIENT_CLASSES, "");
+    try (TransportContext ignored = new TransportContext(transportConf(conf), new EchoHandler())) {
+      assertEquals(1, CountingBootstrap.created.get());
+    }
+  }
+
+  @Test
+  public void contextOwnsConfiguredInstancesNotFactoriesOrServers() {
+    CountingBootstrap.created.set(0);
+    CountingBootstrap.closed.set(0);
+    NoArgBootstrap.created.set(0);
+    String bootstrapClasses =
+        CountingBootstrap.class.getName() + "," + NoArgBootstrap.class.getName();
+    TransportConf conf =
+        transportConf(
+            configuration()
+                .set(CLIENT_CLASSES, bootstrapClasses)
+                .set(SERVER_CLASSES, bootstrapClasses));
+    try (TransportContext context = new TransportContext(conf, new EchoHandler())) {
+      assertEquals(2, CountingBootstrap.created.get());
+      assertEquals(2, NoArgBootstrap.created.get());
+      try (TransportClientFactory first = context.createClientFactory();
+          TransportClientFactory second = context.createClientFactory();
+          TransportServer server = context.createServer("localhost", 0)) {
+        assertEquals(2, CountingBootstrap.created.get());
+      }
+      assertEquals(0, CountingBootstrap.closed.get());
+      context.close();
+    }
+    assertEquals(2, CountingBootstrap.closed.get());
+  }
+
+  @Test
+  public void invalidBootstrapClosesPreviouslyCreatedInstances() {
+    for (Class<?> invalid : new Class<?>[] {String.class, FailingBootstrap.class}) {
+      CountingBootstrap.closed.set(0);
+      TransportConf conf =
+          transportConf(
+              configuration()
+                  .set(CLIENT_CLASSES, CountingBootstrap.class.getName())
+                  .set(SERVER_CLASSES, invalid.getName()));
+      assertThrows(
+          IllegalArgumentException.class, () -> new TransportContext(conf, new EchoHandler()));
+      assertEquals(1, CountingBootstrap.closed.get());
+    }
+  }
+
+  private static CelebornConf configuration() {
+    return new CelebornConf(false)
+        .set("celeborn.shuffle.io.maxRetries", "1")
+        .set("celeborn.shuffle.io.numConnectionsPerPeer", "1")
+        .set("celeborn.shuffle.io.clientThreads", "1")
+        .set("celeborn.shuffle.io.serverThreads", "1");
+  }
+
+  private static TransportConf transportConf(CelebornConf conf) {
+    return new TransportConf("shuffle", conf);
+  }
+
+  private static SecretRegistryImpl registry(String secret) {
+    SecretRegistryImpl registry = new SecretRegistryImpl();
+    registry.register(APP, secret);
+    return registry;
+  }
+
+  private static class EchoHandler extends BaseMessageHandler {
+    final AtomicInteger requests = new AtomicInteger();
+
+    @Override
+    public boolean checkRegistered() {
+      return true;
+    }
+
+    @Override
+    public void receive(
+        TransportClient client, RequestMessage message, RpcResponseCallback callback) {
+      requests.incrementAndGet();
+      try {
+        checkAuth(client, JavaUtils.bytesToString(message.body().nioByteBuffer()));
+        callback.onSuccess(JavaUtils.stringToBytes(client.getClientId()));
+      } catch (IOException e) {
+        callback.onFailure(e);
+      }
+    }
+  }
+
+  public static class ConfiguredSaslClient extends SaslClientBootstrap {
+    public ConfiguredSaslClient(TransportConf conf) {
+      super(conf, APP, new SaslCredentials(APP, SECRET));
+    }
+  }
+
+  public static class ConfiguredSaslServer extends SaslServerBootstrap {
+    public ConfiguredSaslServer(TransportConf conf) {
+      super(conf, registry(SECRET));
+    }
+  }
+
+  public static class InvalidConfiguredSaslClient extends SaslClientBootstrap {
+    static TransportClient client;
+
+    public InvalidConfiguredSaslClient(TransportConf conf) {
+      super(conf, APP, new SaslCredentials(APP, "invalid-" + SECRET));
+    }
+
+    @Override
+    public void doBootstrap(TransportClient client) {
+      InvalidConfiguredSaslClient.client = client;
+      super.doBootstrap(client);
+    }
+  }
+
+  public static class CountingBootstrap
+      implements TransportClientBootstrap, TransportServerBootstrap {
+    static final AtomicInteger created = new AtomicInteger();
+    static final AtomicInteger closed = new AtomicInteger();
+    static String module;
+
+    public CountingBootstrap(TransportConf conf) {
+      created.incrementAndGet();
+      module = conf.getModuleName();
+    }
+
+    @Override
+    public void doBootstrap(TransportClient client) {}
+
+    @Override
+    public BaseMessageHandler doBootstrap(Channel channel, BaseMessageHandler handler) {
+      return handler;
+    }
+
+    @Override
+    public void close() {
+      closed.incrementAndGet();
+    }
+  }
+
+  public static class NoArgBootstrap implements TransportClientBootstrap, TransportServerBootstrap {
+    static final AtomicInteger created = new AtomicInteger();
+
+    public NoArgBootstrap() {
+      created.incrementAndGet();
+    }
+
+    @Override
+    public void doBootstrap(TransportClient client) {}
+
+    @Override
+    public BaseMessageHandler doBootstrap(Channel channel, BaseMessageHandler handler) {
+      return handler;
+    }
+  }
+
+  public static class FailingBootstrap extends CountingBootstrap {
+    public FailingBootstrap(TransportConf conf) {
+      super(conf);
+      throw new IllegalStateException("Cannot initialize bootstrap");
+    }
+  }
+}

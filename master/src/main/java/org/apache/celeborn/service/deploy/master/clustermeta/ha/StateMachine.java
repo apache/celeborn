@@ -36,6 +36,8 @@ import org.apache.ratis.proto.RaftProtos;
 import org.apache.ratis.protocol.Message;
 import org.apache.ratis.protocol.RaftClientRequest;
 import org.apache.ratis.protocol.RaftGroupId;
+import org.apache.ratis.protocol.RaftGroupMemberId;
+import org.apache.ratis.protocol.RaftPeerId;
 import org.apache.ratis.server.RaftServer;
 import org.apache.ratis.server.protocol.TermIndex;
 import org.apache.ratis.server.raftlog.RaftLog;
@@ -304,9 +306,17 @@ public class StateMachine extends BaseStateMachine {
     }
   }
 
+  @Override
+  public void notifyLeaderChanged(RaftGroupMemberId groupMemberId, RaftPeerId newLeaderId) {
+    if (groupMemberId.getPeerId().equals(newLeaderId)) {
+      metaHandler.invalidateWorkerStats();
+    }
+  }
+
   /** Notifies the state machine that the raft peer is no longer leader. */
   @Override
   public void notifyNotLeader(Collection<TransactionContext> pendingEntries) throws IOException {
+    metaHandler.invalidateWorkerStats();
     masterRatisServer.updateServerRole();
   }
 

@@ -19,14 +19,19 @@ package org.apache.celeborn.common.network.server;
 
 import io.netty.channel.Channel;
 
+import org.apache.celeborn.common.network.TransportBootstrap;
+
 /**
  * A bootstrap which is executed on a TransportServer's client channel once a client connects to the
  * server. This allows customizing the client channel to allow for things such as SASL
  * authentication.
  */
-public interface TransportServerBootstrap {
+public interface TransportServerBootstrap extends TransportBootstrap {
   /**
-   * Customizes the channel to include new features, if needed.
+   * Customizes the channel to include new features, if needed. Configured instances are shared
+   * across connections; create a separate handler for each connection. Authentication handlers must
+   * establish identity before forwarding business requests and preserve the delegate's registration
+   * checks and channel lifecycle callbacks.
    *
    * @param channel The connected channel opened by the client.
    * @param baseMessageHandler The RPC handler for the server.

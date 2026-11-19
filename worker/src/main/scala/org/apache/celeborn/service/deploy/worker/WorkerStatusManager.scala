@@ -76,7 +76,11 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
     storageManager = worker.storageManager
   }
 
-  def doTransition(eventType: WorkerEventType): Unit = this.synchronized {
+  def doTransition(eventType: WorkerEventType): Unit = doTransition(eventType, None)
+
+  def doTransition(
+      eventType: WorkerEventType,
+      decommissionTimeoutMs: Option[Long]): Unit = this.synchronized {
     if (inExitStatus()) {
       logDebug(s"Worker receive event: $eventType, but in exit State: ${getWorkerState()} ")
     } else {
@@ -90,6 +94,9 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
             if currentState == State.InDecommissionThenIdle || currentState == State.Idle =>
           recommissionWorker()
         case WorkerEventType.Graceful | WorkerEventType.Immediately | WorkerEventType.Decommission =>
+          if (eventType == WorkerEventType.Decommission) {
+            worker.configureDecommissionTimeout(decommissionTimeoutMs)
+          }
           exit(eventType)
         case _ =>
           logDebug(s"Worker receive event: $eventType, and has nothing to do ")
@@ -114,6 +121,10 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
       case _ => // ignore
     }
 
+    startExitThread()
+  }
+
+  protected def startExitThread(): Unit = {
     // Compatible with current exit logic
     // trigger shutdown hook to exit
     ThreadUtils.newThread(

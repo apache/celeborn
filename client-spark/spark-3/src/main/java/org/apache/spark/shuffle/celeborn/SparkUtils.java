@@ -334,11 +334,11 @@ public class SparkUtils {
       DynFields.builder().hiddenImpl(DAGScheduler.class, "shuffleIdToMapStage").build();
 
   /**
-   * Returns the task attempt id (MapStatus.mapId) Spark registered for each map index of the
-   * shuffle, -1 where no map output is registered, or null if the shuffle is unknown.
+   * Returns the task attempt ID (MapStatus.mapId) for each requested map index in the same order,
+   * -1 where no map output is registered, or null if the shuffle is unknown.
    */
   public static long[] getRegisteredMapTaskIds(
-      MapOutputTrackerMaster mapOutputTracker, int shuffleId) {
+      MapOutputTrackerMaster mapOutputTracker, int shuffleId, int[] mapIndexes) {
     Option<ShuffleStatus> shuffleStatus = mapOutputTracker.shuffleStatuses().get(shuffleId);
     if (shuffleStatus.isEmpty()) {
       return null;
@@ -349,9 +349,12 @@ public class SparkUtils {
             new AbstractFunction1<MapStatus[], long[]>() {
               @Override
               public long[] apply(MapStatus[] mapStatuses) {
-                long[] taskIds = new long[mapStatuses.length];
-                for (int i = 0; i < mapStatuses.length; i++) {
-                  taskIds[i] = mapStatuses[i] == null ? -1L : mapStatuses[i].mapId();
+                long[] taskIds = new long[mapIndexes.length];
+                for (int i = 0; i < mapIndexes.length; i++) {
+                  int mapIndex = mapIndexes[i];
+                  MapStatus status =
+                      mapIndex >= 0 && mapIndex < mapStatuses.length ? mapStatuses[mapIndex] : null;
+                  taskIds[i] = status == null ? -1L : status.mapId();
                 }
                 return taskIds;
               }
@@ -649,6 +652,19 @@ public class SparkUtils {
   @VisibleForTesting
   public static Map<Integer, Tuple2<Broadcast<TransportMessage>, byte[]>>
       getReducerFileGroupResponseBroadcasts = JavaUtils.newConcurrentHashMap();
+
+  /** The serialized handle of the shuffle's existing broadcast, or null if it has none. */
+  public static byte[] getCachedSerializedGetReducerFileGroupResponse(Integer shuffleId) {
+    return shuffleBroadcastLock.withLock(
+        shuffleId,
+        () -> {
+          Tuple2<Broadcast<TransportMessage>, byte[]> cachedSerializeGetReducerFileGroupResponse =
+              getReducerFileGroupResponseBroadcasts.get(shuffleId);
+          return cachedSerializeGetReducerFileGroupResponse != null
+              ? cachedSerializeGetReducerFileGroupResponse._2
+              : null;
+        });
+  }
 
   public static byte[] serializeGetReducerFileGroupResponse(
       Integer shuffleId, GetReducerFileGroupResponse response) {

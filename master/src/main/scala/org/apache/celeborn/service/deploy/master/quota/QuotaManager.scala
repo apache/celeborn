@@ -393,6 +393,34 @@ class QuotaManager(
           .map(_.hdfsBytesWritten)
           .getOrElse(0L)
       }
+      // Register S3/OSS gauges only once the user has used that storage, so clusters without
+      // S3/OSS do not double the per-user metric count.
+      val consumption = userResourceConsumptionCache.get(userIdentifier)
+      if (consumption != null && (consumption.s3FileCount > 0 || consumption.s3BytesWritten > 0)) {
+        resourceConsumptionSource.addGauge(S3_FILE_COUNT, userIdentifier.toMap) { () =>
+          Option(userResourceConsumptionCache.get(userIdentifier))
+            .map(_.s3FileCount)
+            .getOrElse(0L)
+        }
+        resourceConsumptionSource.addGauge(S3_BYTES_WRITTEN, userIdentifier.toMap) { () =>
+          Option(userResourceConsumptionCache.get(userIdentifier))
+            .map(_.s3BytesWritten)
+            .getOrElse(0L)
+        }
+      }
+      if (consumption != null &&
+        (consumption.ossFileCount > 0 || consumption.ossBytesWritten > 0)) {
+        resourceConsumptionSource.addGauge(OSS_FILE_COUNT, userIdentifier.toMap) { () =>
+          Option(userResourceConsumptionCache.get(userIdentifier))
+            .map(_.ossFileCount)
+            .getOrElse(0L)
+        }
+        resourceConsumptionSource.addGauge(OSS_BYTES_WRITTEN, userIdentifier.toMap) { () =>
+          Option(userResourceConsumptionCache.get(userIdentifier))
+            .map(_.ossBytesWritten)
+            .getOrElse(0L)
+        }
+      }
     }
   }
 

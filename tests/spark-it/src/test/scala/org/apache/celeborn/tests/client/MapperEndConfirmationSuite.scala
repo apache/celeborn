@@ -20,16 +20,18 @@ package org.apache.celeborn.tests.client
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentHashMap
-import java.util.function.{Function => JFunction}
+import java.util.function.BiFunction
 
+import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.client.{LifecycleManager, ShuffleClientImpl}
+import org.apache.celeborn.client.{LifecycleManager, ShuffleClient, ShuffleClientImpl}
 import org.apache.celeborn.client.read.MetricsCallback
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.internal.Logging
+import org.apache.celeborn.common.protocol.ShuffleMode
 import org.apache.celeborn.common.protocol.message.ControlMessages.MapperMetrics
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 
@@ -62,6 +64,16 @@ class MapperEndConfirmationSuite extends AnyFunSuite
       .set(CelebornConf.CLIENT_MAPPER_END_CONFIRMATION_INTERVAL.key, "50ms")
   }
 
+  private def registerResolver(
+      lifecycleManager: LifecycleManager,
+      registered: ConcurrentHashMap[Integer, Array[Long]]): Unit = {
+    lifecycleManager.registerMapTaskIdResolver(new BiFunction[Integer, Array[Int], Array[Long]] {
+      override def apply(appShuffleId: Integer, mapIndexes: Array[Int]): Array[Long] = {
+        Option(registered.get(appShuffleId)).map(ids => mapIndexes.map(ids(_))).orNull
+      }
+    })
+  }
+
   private def push(
       client: ShuffleClientImpl,
       shuffleId: Int,
@@ -79,12 +91,15 @@ class MapperEndConfirmationSuite extends AnyFunSuite
     }
     val in = client.readPartition(shuffleId, 0, 0, 0L, 0, Integer.MAX_VALUE, metricsCallback)
     val out = new ByteArrayOutputStream()
-    var b = in.read()
-    while (b != -1) {
-      out.write(b)
-      b = in.read()
+    try {
+      var b = in.read()
+      while (b != -1) {
+        out.write(b)
+        b = in.read()
+      }
+    } finally {
+      in.close()
     }
-    in.close()
     new String(out.toByteArray, StandardCharsets.UTF_8)
   }
 
@@ -105,9 +120,7 @@ class MapperEndConfirmationSuite extends AnyFunSuite
     val conf = clientConf(confirmationEnabled)
     val lifecycleManager = new LifecycleManager(APP, conf)
     val registered = new ConcurrentHashMap[Integer, Array[Long]]()
-    lifecycleManager.registerMapTaskIdResolver(new JFunction[Integer, Array[Long]] {
-      override def apply(appShuffleId: Integer): Array[Long] = registered.get(appShuffleId)
-    })
+    registerResolver(lifecycleManager, registered)
     val client = new ShuffleClientImpl(APP, conf, UserIdentifier("mock", "mock"))
     client.setupLifecycleManagerRef(lifecycleManager.self)
     try {
@@ -153,5 +166,67 @@ class MapperEndConfirmationSuite extends AnyFunSuite
     assert(attempts.toSeq == Seq(0, 0))
     assert(data.contains("TRUNCATED;"))
     assert(!data.contains("FULL-MAP0;"))
+  }
+
+  test("reader shuffle ID lookup confirms registered attempts and retries a pending result") {
+    val appShuffleId = 3
+    val conf = clientConf(confirmationEnabled = true)
+      .set(CelebornConf.CLIENT_STAGE_RERUN_ENABLED.key, "true")
+      .set(CelebornConf.CLIENT_MAPPER_END_CONFIRMATION_INTERVAL.key, "1h")
+    val lifecycleManager = new LifecycleManager(APP, conf)
+    val registered = new ConcurrentHashMap[Integer, Array[Long]]()
+    registerResolver(lifecycleManager, registered)
+    val client = new ShuffleClientImpl(APP, conf, UserIdentifier("mock", "mock"))
+    client.setupLifecycleManagerRef(lifecycleManager.self)
+    try {
+      val (shuffleId, writeSuccess) = client.getShuffleId(appShuffleId, "writer", true, false)
+      assert(writeSuccess)
+      (0 until numMappers).foreach { mapId =>
+        push(client, shuffleId, mapId, 0, s"MAP$mapId;")
+        client.mapperEnd(shuffleId, mapId, 0, numMappers, 1, MapperMetrics(), 100L + mapId)
+      }
+      assert(!client.getShuffleId(appShuffleId, "reader", false, false)._2)
+      registered.put(appShuffleId, Array(100L, 101L))
+      assert(!lifecycleManager.commitManager.areAllMapperAttemptsFinished(shuffleId))
+      assert(client.getShuffleId(appShuffleId, "reader", false, false) == ((shuffleId, true)))
+      val data = readAll(client, shuffleId)
+      assert(data.contains("MAP0;") && data.contains("MAP1;"))
+    } finally {
+      client.shutdown()
+      lifecycleManager.stop()
+      lifecycleManager.rpcEnv.shutdown()
+    }
+  }
+
+  for (mode <- Seq(ShuffleMode.HASH, ShuffleMode.SORT)) {
+    test(s"$mode writer confirms Spark map statuses with the old fetch protocol") {
+      val conf = new SparkConf(false)
+        .setAppName(s"mapper-end-confirmation-$mode")
+        .setMaster("local[2]")
+        .set("spark.ui.enabled", "false")
+        .set("spark.shuffle.manager", "org.apache.spark.shuffle.celeborn.SparkShuffleManager")
+        .set("spark.shuffle.useOldFetchProtocol", "true")
+        .set("spark.stage.maxConsecutiveAttempts", "1")
+        .set(s"spark.${CelebornConf.MASTER_ENDPOINTS.key}", s"localhost:$masterPort")
+        .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "false")
+        .set(s"spark.${CelebornConf.SPARK_SHUFFLE_FALLBACK_POLICY.key}", "NEVER")
+        .set(s"spark.${CelebornConf.SPARK_SHUFFLE_WRITER_MODE.key}", mode.toString)
+        .set(s"spark.${CelebornConf.CLIENT_PUSH_DYNAMIC_WRITE_MODE_ENABLED.key}", "false")
+        .set(s"spark.${CelebornConf.CLIENT_STAGE_RERUN_ENABLED.key}", "true")
+        .set(s"spark.${CelebornConf.CLIENT_MAPPER_END_CONFIRMATION_ENABLED.key}", "true")
+        .set(s"spark.${CelebornConf.CLIENT_MAPPER_END_CONFIRMATION_INTERVAL.key}", "1h")
+      ShuffleClient.reset()
+      val sc = new SparkContext(conf)
+      try {
+        // Make shuffle map task attempt IDs differ from their partition indexes.
+        assert(sc.parallelize(Seq(1, 2), 2).count() == 2L)
+        val input = 0 until 100
+        val totals = sc.parallelize(input, 4).map(n => (n % 4, n)).reduceByKey(_ + _, 2)
+        assert(totals.collect().toMap == input.groupBy(_ % 4).map { case (k, ns) => k -> ns.sum })
+      } finally {
+        sc.stop()
+        ShuffleClient.reset()
+      }
+    }
   }
 }
