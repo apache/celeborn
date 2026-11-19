@@ -24,6 +24,21 @@ import org.apache.celeborn.common.protocol.StorageInfo
 
 class CelebornConfSuite extends CelebornFunSuite {
 
+  test("client push buffer initial size must be positive") {
+    Seq(CLIENT_PUSH_BUFFER_INITIAL_SIZE.key, "celeborn.push.buffer.initial.size").foreach { key =>
+      Seq("0", "-1").foreach { value =>
+        val error = intercept[IllegalArgumentException] {
+          new CelebornConf().set(key, value).clientPushBufferInitialSize
+        }
+        assert(error.getMessage.contains("Must be positive."))
+      }
+      Seq("1" -> 1, "8k" -> 8192).foreach { case (value, expected) =>
+        assert(new CelebornConf().set(key, value).clientPushBufferInitialSize == expected)
+      }
+    }
+    assert(new CelebornConf().clientPushBufferInitialSize == 8192)
+  }
+
   test("master split slot assign max workers must be positive") {
     Seq("0", "-1").foreach { value =>
       val error = intercept[IllegalArgumentException] {

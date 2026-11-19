@@ -347,7 +347,7 @@ public abstract class CelebornShuffleWriterSuiteBase {
     }
   }
 
-  private void check(
+  protected void check(
       final int approximateSize, final CelebornConf conf, final Serializer serializer)
       throws Exception {
     final boolean useUnsafe = serializer instanceof UnsafeRowSerializer;

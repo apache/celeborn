@@ -5062,6 +5062,7 @@ object CelebornConf extends Logging {
       .categories("client")
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
+      .checkValue(_ > 0, "Must be positive.")
       .createWithDefaultString("8k")
 
   val CLIENT_PUSH_BUFFER_MAX_SIZE: ConfigEntry[Long] =
