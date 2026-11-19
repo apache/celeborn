@@ -169,10 +169,13 @@ private[master] class SpecWorkerCntCalculator(
     val deltaDown =
       math.min(stepBudget, math.max(0, input.registeredWorkerCnt - requiredWorkerCnt))
     val candidateSpecWorkerCnt = math.max(requiredWorkerCnt, input.registeredWorkerCnt - deltaDown)
+    val compensation =
+      if (candidateSpecWorkerCnt < input.specWorkerCnt) ExcludedCompensation.AllExcluded
+      else ExcludedCompensation.UnaccountedOnly
     SpecCandidate(
       math.min(input.specWorkerCnt, candidateSpecWorkerCnt),
       minWorkers,
-      ExcludedCompensation.UnaccountedOnly)
+      compensation)
   }
 
   private def estimate(metrics: MetricRatios, up: Boolean): Int = {
@@ -235,10 +238,14 @@ private[master] object SpecWorkerCntCalculator {
       val ratio = stats.metrics.getOrElse(
         key,
         throw new IllegalArgumentException(s"Missing worker metric: $key"))
-      require(
-        !ratio.isInfinity && (ratio.isNaN || ratio >= 0),
-        s"Worker metric $key must be finite and non-negative, or NaN")
-      ratio
+      if (key == WorkerStats.LastMinuteSystemLoadRatio && ratio < 0 && !ratio.isInfinity) {
+        Double.NaN
+      } else {
+        require(
+          !ratio.isInfinity && (ratio.isNaN || ratio >= 0),
+          s"Worker metric $key must be finite and non-negative, or NaN")
+        ratio
+      }
     }
   }
 

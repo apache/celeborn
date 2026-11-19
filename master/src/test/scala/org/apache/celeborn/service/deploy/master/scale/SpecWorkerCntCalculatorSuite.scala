@@ -210,7 +210,11 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
       intercept[IllegalArgumentException] {
         newCalculator().calSpecWorkerCnt(snapshot(10, missing))
       }
-      Seq(Double.PositiveInfinity, Double.NegativeInfinity, -0.1).foreach { value =>
+      val infinities = Seq(Double.PositiveInfinity, Double.NegativeInfinity)
+      val invalid =
+        if (key == WorkerStats.LastMinuteSystemLoadRatio) infinities
+        else infinities :+ (-0.1)
+      invalid.foreach { value =>
         intercept[IllegalArgumentException] {
           newCalculator().calSpecWorkerCnt(snapshot(
             10,
@@ -245,6 +249,18 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     assert(newCalculator(aligned).calSpecWorkerCnt(snapshot(20, unavailable)) == 30)
     val limited = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "8")
     assert(newCalculator(limited).calSpecWorkerCnt(snapshot(10, unavailable)) == 9)
+  }
+
+  test(
+    "legacy negative system load allows scale-up from memory and prevents load-driven scale-down") {
+    val calculator = newCalculator()
+    val legacy = WorkerStats(low.metrics + (WorkerStats.LastMinuteSystemLoadRatio -> -0.25))
+    val input = snapshot(20).copy(workerStats = Seq.fill(19)(low) :+ legacy)
+    val hot = input.copy(workerStats = input.workerStats.map { stats =>
+      WorkerStats(stats.metrics + (WorkerStats.MemoryPressureRatio -> 0.9))
+    })
+    assert(calculator.cal(hot) == Result(25, 0))
+    assert(calculator.cal(input) == Result(20, 0))
   }
 
   test("remaining disk bytes do not change the ratio calculation") {
@@ -462,10 +478,9 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "8")
     val input = snapshot(8, neutral).copy(specWorkerCnt = 10, excludedWorkerCnt = 2)
     val calculator = newCalculator(conf)
-    assert(calculator.calSpecWorkerCnt(input) == 8)
-    assert(
-      calculator.calSpecWorkerCnt(
-        input.copy(unaccountedExcludedWorkerCnt = 2)) == 8)
+    Seq(0, 2).foreach { unaccounted =>
+      assert(calculator.cal(input.copy(unaccountedExcludedWorkerCnt = unaccounted)) == Result(8, 0))
+    }
   }
 
   test("new exclusions compensate once and remain part of the metric inventory") {
@@ -507,6 +522,32 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
       assert(calculator.calSpecWorkerCnt(input.copy(workerStats =
         Seq.fill(10)(neutral))) == expected)
     }
+  }
+
+  test("low-load rebuilds retain exclusion replacements while registration lags") {
+    val conf = new CelebornConf(false)
+    val calculator = newCalculator(conf)
+    val stats = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.299))
+    val initial = snapshot(100, stats).copy(excludedWorkerCnt = 2, unaccountedExcludedWorkerCnt = 2)
+    assert(calculator.cal(initial.copy(unaccountedExcludedWorkerCnt = 1)) == Result(101, 2))
+
+    var input = initial
+    def accept(expected: Result): Unit = {
+      val result = calculator.cal(input)
+      assert(
+        result == expected,
+        s"input spec=${input.specWorkerCnt}, " +
+          s"unaccounted exclusions=${input.unaccountedExcludedWorkerCnt}")
+      input = input.copy(
+        specWorkerCnt = result.targetSpecWorkerCnt,
+        unaccountedExcludedWorkerCnt = input.excludedWorkerCnt - result.accountedExcludedWorkerCnt)
+    }
+
+    (1 to 3).foreach(_ => accept(Result(102, 2)))
+    conf.set(SCALE_WORKER_NUMBER_MAX.key, "101")
+    (1 to 3).foreach(_ => accept(Result(101, 1)))
+    conf.set(SCALE_WORKER_NUMBER_MAX.key, "2000")
+    accept(Result(102, 2))
   }
 
   test("restoring the spec to demand recomputes accounted excluded replacements") {

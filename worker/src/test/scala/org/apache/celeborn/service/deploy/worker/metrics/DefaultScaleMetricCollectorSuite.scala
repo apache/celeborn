@@ -200,7 +200,7 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite with Eventually {
     }
   }
 
-  test("reports raw ratios for zero memory capacity, negative load and no local disks") {
+  test("reports zero memory capacity, unavailable system load and no local disks") {
     withFixture() { f =>
       f.memory.maxDirectMemory = 0
       when(f.os.getSystemLoadAverage).thenReturn(-1.0)
@@ -212,7 +212,7 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite with Eventually {
         WorkerStats.DiskUsedRatio,
         WorkerStats.DiskRemainingSize))
       assert(metrics(WorkerStats.MemoryPressureRatio) == Double.PositiveInfinity)
-      assert(metrics(WorkerStats.LastMinuteSystemLoadRatio) == -0.25)
+      assert(metrics(WorkerStats.LastMinuteSystemLoadRatio).isNaN)
       assert(metrics(WorkerStats.DiskUsedRatio).isNaN)
       assert(metrics(WorkerStats.DiskRemainingSize) == 0.0)
     }
