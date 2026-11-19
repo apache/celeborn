@@ -30,13 +30,16 @@ import org.apache.celeborn.common.protocol.{PbScaleType, PbWorkerStatus, WorkerE
 import org.apache.celeborn.server.common.service.config.DynamicConfigServiceFactory
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.HAHelper
 
+case class ScaleTarget(targetSpecWorkerCnt: Int, accountedExcludedWorkerCnt: Int)
+
 abstract class BaseK8sScaleManager(conf: CelebornConf) extends AbstractScaleManager(conf) {
 
   protected lazy val configService =
     Option(DynamicConfigServiceFactory.getConfigService(conf))
 
   private var currentLeaderVersion = 0L
-  private var compensatedExcludedCount = 0
+  private var accountedExcludedWorkerCnt = 0
+  private var unconfirmedPlatformUpdate = Option.empty[(ScaleOperation, ScaleTarget)]
 
   protected def calculateSpecWorkerCnt(
       registeredWorkerCnt: Int,
@@ -44,6 +47,21 @@ abstract class BaseK8sScaleManager(conf: CelebornConf) extends AbstractScaleMana
       workerStats: Seq[WorkerStats],
       excludedWorkerCnt: Int,
       newExcludedWorkerCnt: Int): Int
+
+  protected def calculateScaleTarget(
+      registeredWorkerCnt: Int,
+      specWorkerCnt: Int,
+      workerStats: Seq[WorkerStats],
+      excludedWorkerCnt: Int,
+      unaccountedExcludedWorkerCnt: Int): ScaleTarget =
+    ScaleTarget(
+      calculateSpecWorkerCnt(
+        registeredWorkerCnt,
+        specWorkerCnt,
+        workerStats,
+        excludedWorkerCnt,
+        unaccountedExcludedWorkerCnt),
+      excludedWorkerCnt)
 
   protected def getCurrentClusterInfo(): ClusterInfo
 
@@ -72,7 +90,8 @@ abstract class BaseK8sScaleManager(conf: CelebornConf) extends AbstractScaleMana
     val leaderVersion = raft.map(_.getLeaderVersion).getOrElse(-1L)
     if (currentLeaderVersion != leaderVersion) {
       currentLeaderVersion = leaderVersion
-      compensatedExcludedCount = 0
+      accountedExcludedWorkerCnt = 0
+      unconfirmedPlatformUpdate = None
       statusSystem.invalidateWorkerStats()
       return
     }
@@ -81,6 +100,7 @@ abstract class BaseK8sScaleManager(conf: CelebornConf) extends AbstractScaleMana
       return
     }
 
+    // Wait for metrics from every registered worker before planning.
     val registeredWorkers = statusSystem.workersMap.synchronized {
       statusSystem.workersMap.values().asScala.toVector
     }
@@ -91,6 +111,7 @@ abstract class BaseK8sScaleManager(conf: CelebornConf) extends AbstractScaleMana
       return
     }
     val workerStats = registeredWorkers.zip(stats.flatten).toMap
+    // Wait for the last recorded platform operation to reach a terminal state.
     val previous = Option(statusSystem.lastScaleOperation)
     previous.foreach { last =>
       if (last.getLeft.nonEmpty && !last.getRight.isFinished) {
@@ -105,11 +126,20 @@ abstract class BaseK8sScaleManager(conf: CelebornConf) extends AbstractScaleMana
     }
 
     val clusterInfo = getCurrentClusterInfo()
+    unconfirmedPlatformUpdate.foreach { case (operation, target) =>
+      if (clusterInfo.matchesSpec(operation)) {
+        accountedExcludedWorkerCnt = target.accountedExcludedWorkerCnt
+      }
+    }
+    unconfirmedPlatformUpdate = None
     if (!clusterInfo.isInRunningStatus) {
       return
     }
-    val operation = getScaleOperation(clusterInfo, registeredWorkers, workerStats)
+    val (operation, target) = planScaleOperation(clusterInfo, registeredWorkers, workerStats)
     if (operation.scaleType == PbScaleType.NO_SCALE) {
+      if (target.targetSpecWorkerCnt == clusterInfo.specWorkerCnt) {
+        accountedExcludedWorkerCnt = target.accountedExcludedWorkerCnt
+      }
       return
     }
     val window =
@@ -129,7 +159,7 @@ abstract class BaseK8sScaleManager(conf: CelebornConf) extends AbstractScaleMana
           operation.activateWorkers.asJava,
           MasterClient.genRequestId())
       }
-      clusterMayNeedScale(operation, clusterInfo)
+      clusterMayNeedScale(operation, clusterInfo, target)
     } else if (operation.scaleType == PbScaleType.SCALE_DOWN && downEnabled) {
       if (operation.decommissionWorkers.nonEmpty) {
         statusSystem.handleWorkerEvent(
@@ -137,16 +167,21 @@ abstract class BaseK8sScaleManager(conf: CelebornConf) extends AbstractScaleMana
           operation.decommissionWorkers.asJava,
           MasterClient.genRequestId())
       }
-      clusterMayNeedScale(operation, clusterInfo)
+      clusterMayNeedScale(operation, clusterInfo, target)
     }
   }
 
-  private def clusterMayNeedScale(operation: ScaleOperation, clusterInfo: ClusterInfo): Unit = {
+  private def clusterMayNeedScale(
+      operation: ScaleOperation,
+      clusterInfo: ClusterInfo,
+      target: ScaleTarget): Unit = {
     val expectedIndices = ClusterInfo(
       operation.specWorkerCnt,
       operation.reservedWorkerIndices,
       true).expectedWorkerIndices
+    val acceptsTarget = operation.specWorkerCnt == target.targetSpecWorkerCnt
     if (expectedIndices != clusterInfo.expectedWorkerIndices) {
+      // Recheck current registrations because workers can register after planning.
       val safe = statusSystem.workersMap.synchronized {
         statusSystem.workersMap.values().asScala.forall { worker =>
           val index = getWorkerIndex(worker)
@@ -157,17 +192,28 @@ abstract class BaseK8sScaleManager(conf: CelebornConf) extends AbstractScaleMana
       if (!safe) {
         return
       }
+      if (acceptsTarget) {
+        unconfirmedPlatformUpdate = Some((operation, target))
+      }
       val operationId = doScaleOperation(operation)
+      if (acceptsTarget) {
+        accountedExcludedWorkerCnt = target.accountedExcludedWorkerCnt
+        unconfirmedPlatformUpdate = None
+      }
       statusSystem.handleUpdateScaleOperation(operationId, operation)
     } else {
+      if (acceptsTarget) {
+        accountedExcludedWorkerCnt = target.accountedExcludedWorkerCnt
+      }
       statusSystem.handleUpdateScaleOperation("", operation.copy(isFinished = true))
     }
   }
 
-  protected def getScaleOperation(
+  private def planScaleOperation(
       clusterInfo: ClusterInfo,
       registeredWorkers: Seq[WorkerInfo],
-      workerStats: Map[WorkerInfo, WorkerStats]): ScaleOperation = {
+      workerStats: Map[WorkerInfo, WorkerStats]): (ScaleOperation, ScaleTarget) = {
+    // Plan against registrations that belong to the current platform spec.
     val expectedIndices = clusterInfo.expectedWorkerIndices
     val workers =
       registeredWorkers.filter(worker => expectedIndices.contains(getWorkerIndex(worker)))
@@ -182,17 +228,18 @@ abstract class BaseK8sScaleManager(conf: CelebornConf) extends AbstractScaleMana
       statusSystem.manuallyExcludedWorkers.contains(worker) ||
       worker.getWorkerStatus.getState != PbWorkerStatus.State.Normal
     }
-    val newExcludedWorkerCnt = math.max(0, excludedWorkerCnt - compensatedExcludedCount)
-    compensatedExcludedCount = excludedWorkerCnt
-    val targetSpecWorkerCnt = calculateSpecWorkerCnt(
+    val unaccountedExcludedWorkerCnt = math.max(0, excludedWorkerCnt - accountedExcludedWorkerCnt)
+    val target = calculateScaleTarget(
       workers.size,
       clusterInfo.specWorkerCnt,
       normal.map(workerStats),
       excludedWorkerCnt,
-      newExcludedWorkerCnt)
+      unaccountedExcludedWorkerCnt)
+    val targetSpecWorkerCnt = target.targetSpecWorkerCnt
 
     val decommissionCnt = workers.size - targetSpecWorkerCnt
     val allDraining = draining ++ idle
+    // Recommission workers when fewer retirements are needed.
     val activate = allDraining.take(math.max(0, allDraining.size - decommissionCnt))
     val decommission =
       if (activate.nonEmpty || decommissionCnt <= 0) {
@@ -203,52 +250,56 @@ abstract class BaseK8sScaleManager(conf: CelebornConf) extends AbstractScaleMana
       }
     val removable =
       if (activate.nonEmpty || decommissionCnt <= 0) Seq.empty[WorkerInfo] else idle
+    // Keep draining workers in the platform spec until they report Idle.
     val pendingDrainCnt = allDraining.size - activate.size + decommission.size - removable.size
-    val scaleDownSpecWorkerCnt = targetSpecWorkerCnt + pendingDrainCnt
+    val scaleDownSpecWorkerCnt =
+      math.min(clusterInfo.specWorkerCnt, targetSpecWorkerCnt + pendingDrainCnt)
     val currentReserved = clusterInfo.reservedWorkerIndices
       .filter(index => expectedIndices.lastOption.exists(index < _))
     val reserved = (currentReserved ++ removable.map(getWorkerIndex)).distinct.sorted
 
-    if (targetSpecWorkerCnt > clusterInfo.specWorkerCnt || activate.nonEmpty) {
-      val specWorkerCnt =
-        if (targetSpecWorkerCnt < clusterInfo.specWorkerCnt) {
-          math.max(targetSpecWorkerCnt, workers.size)
-        } else {
-          targetSpecWorkerCnt
-        }
-      val reservedWorkerIndices =
-        if (targetSpecWorkerCnt < clusterInfo.specWorkerCnt) {
-          scaleDownReservedIndices(specWorkerCnt, expectedIndices, reserved, workers)
-        } else {
-          reserved.dropRight(math.min(
-            targetSpecWorkerCnt - clusterInfo.specWorkerCnt,
-            reserved.size))
-        }
-      ScaleOperation(
-        specWorkerCnt,
-        reservedWorkerIndices,
-        activate,
-        decommission,
-        PbScaleType.SCALE_UP,
-        currentTimeMillis)
-    } else if (removable.nonEmpty || decommission.nonEmpty ||
-      scaleDownSpecWorkerCnt < clusterInfo.specWorkerCnt) {
-      ScaleOperation(
-        scaleDownSpecWorkerCnt,
-        scaleDownReservedIndices(scaleDownSpecWorkerCnt, expectedIndices, reserved, workers),
-        activate,
-        decommission,
-        PbScaleType.SCALE_DOWN,
-        currentTimeMillis)
-    } else {
-      ScaleOperation(
-        expectedIndices.size,
-        reserved,
-        activate,
-        decommission,
-        PbScaleType.NO_SCALE,
-        currentTimeMillis)
-    }
+    val operation =
+      if (targetSpecWorkerCnt > clusterInfo.specWorkerCnt || activate.nonEmpty) {
+        val specWorkerCnt =
+          if (targetSpecWorkerCnt < clusterInfo.specWorkerCnt) {
+            math.max(targetSpecWorkerCnt, workers.size)
+          } else {
+            targetSpecWorkerCnt
+          }
+        val reservedWorkerIndices =
+          if (targetSpecWorkerCnt < clusterInfo.specWorkerCnt) {
+            scaleDownReservedIndices(specWorkerCnt, expectedIndices, reserved, workers)
+          } else {
+            reserved.dropRight(math.min(
+              targetSpecWorkerCnt - clusterInfo.specWorkerCnt,
+              reserved.size))
+          }
+        ScaleOperation(
+          specWorkerCnt,
+          reservedWorkerIndices,
+          activate,
+          decommission,
+          PbScaleType.SCALE_UP,
+          currentTimeMillis)
+      } else if (removable.nonEmpty || decommission.nonEmpty ||
+        scaleDownSpecWorkerCnt < clusterInfo.specWorkerCnt) {
+        ScaleOperation(
+          scaleDownSpecWorkerCnt,
+          scaleDownReservedIndices(scaleDownSpecWorkerCnt, expectedIndices, reserved, workers),
+          activate,
+          decommission,
+          PbScaleType.SCALE_DOWN,
+          currentTimeMillis)
+      } else {
+        ScaleOperation(
+          expectedIndices.size,
+          reserved,
+          activate,
+          decommission,
+          PbScaleType.NO_SCALE,
+          currentTimeMillis)
+      }
+    (operation, target)
   }
 
   private def scaleDownReservedIndices(

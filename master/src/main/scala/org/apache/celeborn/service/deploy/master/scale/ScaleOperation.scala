@@ -31,6 +31,10 @@ case class ClusterInfo(
     val reserved = reservedWorkerIndices.toSet
     Iterator.from(0).filterNot(reserved).take(specWorkerCnt).toVector
   }
+
+  def matchesSpec(operation: ScaleOperation): Boolean =
+    specWorkerCnt == operation.specWorkerCnt &&
+      reservedWorkerIndices.toSet == operation.reservedWorkerIndices.toSet
 }
 
 case class ScaleOperation(

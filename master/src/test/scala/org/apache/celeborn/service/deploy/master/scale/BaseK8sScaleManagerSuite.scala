@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.service.deploy.master.scale
 
+import java.io.IOException
 import java.util.Collections
 import java.util.concurrent.TimeUnit
 
@@ -91,6 +92,27 @@ class BaseK8sScaleManagerSuite extends AnyFunSuite {
       f.manager.now += 60000
       f.manager.tick()
       assert(f.manager.operations.last.specWorkerCnt == 3)
+    }
+  }
+
+  test("does not increase platform replicas while draining overlapping Worker registrations") {
+    withManager(5, 5) { f =>
+      f.register(0, 1, 2, 3, 4)
+      f.meta.updateRegisterWorkerMeta(
+        "workers-0",
+        1,
+        5,
+        6,
+        7,
+        -1,
+        null,
+        Collections.emptyMap[String, DiskInfo]())
+      f.publishMetrics()
+      assert(f.meta.workersMap.size() == 6)
+      f.manager.tick()
+      assert(f.event(4).contains(WorkerEventType.DecommissionThenIdle))
+      assert(f.manager.operations.isEmpty)
+      assert(f.meta.lastScaleOperation.getRight.specWorkerCnt == 5)
     }
   }
 
@@ -214,6 +236,76 @@ class BaseK8sScaleManagerSuite extends AnyFunSuite {
       f.manager.tick()
       assert(f.manager.exclusionDeltas.toSeq == Seq(2, 0, 0, 1))
       assert(f.meta.lastScaleOperation == null)
+    }
+  }
+
+  test("retries an excluded replacement that did not fit in an accepted target") {
+    withManager(10, 11) { f =>
+      f.register(0 until 10: _*)
+      f.meta.manuallyExcludedWorkers.add(f.worker(0))
+      f.meta.manuallyExcludedWorkers.add(f.worker(1))
+      f.manager.accountedExclusions = Some(1)
+
+      f.conf.set(AUTO_SCALE_UP_ENABLED, false)
+      f.manager.tick()
+      assert(f.manager.operations.isEmpty)
+      f.conf.set(AUTO_SCALE_UP_ENABLED, true)
+      f.manager.beforePlatformUpdate = () => throw new IOException("update rejected")
+      intercept[IOException](f.manager.tick())
+      assert(f.manager.cluster.specWorkerCnt == 10)
+
+      f.manager.beforePlatformUpdate = () => ()
+      f.manager.tick()
+      assert(f.manager.cluster.specWorkerCnt == 11)
+      f.manager.tick()
+      assert(f.manager.operations.size == 1)
+
+      f.manager.target = 12
+      f.manager.accountedExclusions = Some(2)
+      f.manager.tick()
+      f.manager.tick()
+      assert(f.manager.operations.map(_.specWorkerCnt).toSeq == Seq(11, 12))
+      assert(f.manager.exclusionDeltas.toSeq == Seq(2, 2, 2, 1, 1, 0))
+    }
+  }
+
+  test("confirms an excluded replacement from the platform after losing the update response") {
+    withManager(10, 11) { f =>
+      f.register(0 until 10: _*)
+      f.meta.manuallyExcludedWorkers.add(f.worker(0))
+      f.meta.manuallyExcludedWorkers.add(f.worker(1))
+      f.manager.accountedExclusions = Some(1)
+
+      f.manager.afterPlatformUpdate = () => throw new IOException("update response lost")
+      intercept[IOException](f.manager.tick())
+      assert(f.manager.cluster.specWorkerCnt == 11)
+
+      f.manager.onRead = () => throw new IOException("read unavailable")
+      intercept[IOException](f.manager.tick())
+      f.manager.onRead = () => ()
+      f.manager.afterPlatformUpdate = () => ()
+      f.manager.target = 12
+      f.manager.accountedExclusions = Some(2)
+      f.manager.tick()
+      f.manager.tick()
+      assert(f.manager.operations.map(_.specWorkerCnt).toSeq == Seq(11, 12))
+      assert(f.manager.exclusionDeltas.toSeq == Seq(2, 1, 0))
+    }
+  }
+
+  test("accounts for replacements already covered by the observed target") {
+    withManager(10, 10) { f =>
+      f.register(0 until 5: _*)
+      f.meta.manuallyExcludedWorkers.add(f.worker(0))
+      f.meta.manuallyExcludedWorkers.add(f.worker(1))
+
+      f.manager.tick()
+      assert(f.manager.operations.isEmpty)
+
+      f.publishMetrics()
+      f.manager.tick()
+      assert(f.manager.operations.isEmpty)
+      assert(f.manager.exclusionDeltas.toSeq == Seq(2, 0))
     }
   }
 
@@ -348,6 +440,59 @@ class BaseK8sScaleManagerSuite extends AnyFunSuite {
     }
   }
 
+  test("keeps one thousand replicas until the selected quarter finishes draining") {
+    withManager(1000, 750) { f =>
+      f.register((0 until 1000): _*)
+      f.manager.tick()
+      assert(f.manager.operations.isEmpty)
+      assert((0 until 750).forall(index => f.event(index).isEmpty))
+      assert((750 until 1000).forall(index =>
+        f.event(index).contains(WorkerEventType.DecommissionThenIdle)))
+      (750 until 1000).foreach(f.heartbeat(_, State.Idle))
+      f.manager.tick()
+      assert(f.manager.cluster.expectedWorkerIndices == (0 until 750))
+      assert(f.manager.operations.last.specWorkerCnt == 750)
+      assert((0 until 750).forall(index =>
+        f.worker(index).getWorkerStatus.getState == State.Normal))
+    }
+  }
+
+  test("reconciles repeated sparse-ordinal changes across one thousand logical workers") {
+    withManager(1000, 1000) { f =>
+      f.manager.cluster = ClusterInfo(1000, Seq(1, 7, 63, 511), true)
+      f.register(f.manager.cluster.expectedWorkerIndices: _*)
+      val random = new scala.util.Random(13L)
+      val targets = Seq(400, 800, 1, 1000) ++ Seq.fill(40)(1 + random.nextInt(1000))
+      targets.foreach { target =>
+        val oldIndices = f.manager.cluster.expectedWorkerIndices.toSet
+        f.manager.target = target
+        f.manager.tick()
+        if (target < oldIndices.size) {
+          assert(f.manager.cluster.expectedWorkerIndices.toSet == oldIndices)
+          val draining = oldIndices.filter(index =>
+            f.event(index).contains(WorkerEventType.DecommissionThenIdle))
+          assert(draining.size == oldIndices.size - target)
+          draining.foreach(f.heartbeat(_, State.Idle))
+          f.manager.tick()
+          val removed = oldIndices -- f.manager.cluster.expectedWorkerIndices.toSet
+          assert(removed == draining)
+        } else {
+          assert(oldIndices.subsetOf(f.manager.cluster.expectedWorkerIndices.toSet))
+        }
+        val newIndices = f.manager.cluster.expectedWorkerIndices.toSet
+        assert(newIndices.size == target)
+        (oldIndices -- newIndices).foreach(index =>
+          f.meta.updateWorkerLostMeta(s"workers-$index", 1, 2, 3, 4))
+        f.register((newIndices -- oldIndices).toSeq: _*)
+        f.publishMetrics()
+        f.manager.tick()
+        assert(f.meta.workersMap.size() == target)
+        assert(newIndices.forall(index =>
+          f.worker(index).getWorkerStatus.getState == State.Normal))
+      }
+    }
+  }
+
   private def withManager(spec: Int, target: Int)(testBody: Fixture => Unit): Unit = {
     val fixture = new Fixture(spec, target)
     try {
@@ -431,6 +576,9 @@ class BaseK8sScaleManagerSuite extends AnyFunSuite {
     val exclusionDeltas = new ArrayBuffer[Int]
     var onCalculate: () => Unit = () => ()
     var onRead: () => Unit = () => ()
+    var beforePlatformUpdate: () => Unit = () => ()
+    var afterPlatformUpdate: () => Unit = () => ()
+    var accountedExclusions = Option.empty[Int]
     var result = OperationResult(true, true)
 
     def tick(): Unit = checkScale()
@@ -443,8 +591,10 @@ class BaseK8sScaleManagerSuite extends AnyFunSuite {
     override protected def getWorkerIndex(worker: WorkerInfo): Int =
       worker.host.stripPrefix("workers-").toInt
     override protected def doScaleOperation(operation: ScaleOperation): String = {
+      beforePlatformUpdate()
       operations += operation
       cluster = ClusterInfo(operation.specWorkerCnt, operation.reservedWorkerIndices, true)
+      afterPlatformUpdate()
       operations.size.toString
     }
     override protected def checkOperation(operationId: String): OperationResult = {
@@ -461,6 +611,21 @@ class BaseK8sScaleManagerSuite extends AnyFunSuite {
       exclusionDeltas += newExcludedWorkerCnt
       onCalculate()
       target
+    }
+
+    override protected def calculateScaleTarget(
+        registeredWorkerCnt: Int,
+        specWorkerCnt: Int,
+        workerStats: Seq[WorkerStats],
+        excludedWorkerCnt: Int,
+        unaccountedExcludedWorkerCnt: Int): ScaleTarget = {
+      val result = super.calculateScaleTarget(
+        registeredWorkerCnt,
+        specWorkerCnt,
+        workerStats,
+        excludedWorkerCnt,
+        unaccountedExcludedWorkerCnt)
+      result.copy(accountedExcludedWorkerCnt = accountedExclusions.getOrElse(excludedWorkerCnt))
     }
   }
 }
