@@ -231,11 +231,16 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
 
   def addHistogram(name: String, labels: Map[String, String]): Unit = {
     val metricNameWithLabel = metricNameWithCustomizedLabels(name, labels)
+    // Register in the Dropwizard registry under the bare name when no customized labels are
+    // given, so sinks built on metricRegistry (CsvSink/JmxSink) keep exposing existing
+    // histograms under their historical names. Labeled variants register under the
+    // label-aware key, giving each variant its own reservoir instead of a shared one.
+    val registryName = if (labels.isEmpty) name else metricNameWithLabel
     namedHistogram.putIfAbsent(
       metricNameWithLabel,
       NamedHistogram(
         name,
-        metricRegistry.histogram(name, histogramSupplier),
+        metricRegistry.histogram(registryName, histogramSupplier),
         labelsWithCustomizedLabels(labels)))
   }
 
@@ -746,7 +751,8 @@ abstract class AbstractSource(conf: CelebornConf, role: String)
       namedMeters.size() +
       namedGauges.size() +
       namedGaugesWithDetails.size() +
-      namedCounters.size()
+      namedCounters.size() +
+      namedHistogram.size()
     sum
   }
 
