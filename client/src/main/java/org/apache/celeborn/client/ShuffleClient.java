@@ -392,6 +392,23 @@ public abstract class ShuffleClient {
     mapperEnd(shuffleId, mapId, attemptId, numMappers, numPartitions);
   }
 
+  /**
+   * Same as the 6-arg overload, additionally reporting the engine's task attempt id (Spark
+   * taskAttemptId) so the LifecycleManager can check the attempt against the engine before counting
+   * it as finished. The default implementation discards the task attempt id.
+   */
+  public void mapperEnd(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int numPartitions,
+      MapperMetrics metrics,
+      long taskAttemptId)
+      throws IOException {
+    mapperEnd(shuffleId, mapId, attemptId, numMappers, numPartitions, metrics);
+  }
+
   public abstract void readReducerPartitionEnd(
       int shuffleId, int partitionId, int startMapIndex, int endMapIndex, int crc32, long bytes)
       throws IOException;

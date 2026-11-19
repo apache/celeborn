@@ -218,6 +218,13 @@ public class SparkShuffleManager implements ShuffleManager {
                   }
                 });
           }
+          if (celebornConf.clientMapperEndConfirmationEnabled()) {
+            MapOutputTrackerMaster mapOutputTracker =
+                (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();
+            lifecycleManager.registerMapTaskIdResolver(
+                (appShuffleId, mapIndexes) ->
+                    SparkUtils.getRegisteredMapTaskIds(mapOutputTracker, appShuffleId, mapIndexes));
+          }
           if (celebornConf.clientStageRerunEnabled()) {
             MapOutputTrackerMaster mapOutputTracker =
                 (MapOutputTrackerMaster) SparkEnv.get().mapOutputTracker();
