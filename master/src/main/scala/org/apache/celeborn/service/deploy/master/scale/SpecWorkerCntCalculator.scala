@@ -104,17 +104,13 @@ private[master] class SpecWorkerCntCalculator(
 
     while (ratios.hasNext) {
       val (dimension, values) = ratios.next()
-      sumRatios(values) match {
-        case Some(sum) =>
-          val up = BigDecimal.valueOf(dimension.up).multiply(availWorkerCnt)
-          if (sum.compareTo(up) > 0) {
-            return Load.High
-          }
-          allBelowDown = allBelowDown &&
-            sum.compareTo(BigDecimal.valueOf(dimension.down).multiply(availWorkerCnt)) < 0
-        case None =>
-          allBelowDown = false
+      val RatioSum(knownSum, complete) = sumRatios(values)
+      val up = BigDecimal.valueOf(dimension.up).multiply(availWorkerCnt)
+      if (knownSum.compareTo(up) > 0) {
+        return Load.High
       }
+      allBelowDown = allBelowDown && complete &&
+        knownSum.compareTo(BigDecimal.valueOf(dimension.down).multiply(availWorkerCnt)) < 0
     }
 
     if (allBelowDown) Load.Low else Load.Normal
@@ -205,23 +201,24 @@ private[master] class SpecWorkerCntCalculator(
     val maxInt = BigDecimal.valueOf(Int.MaxValue.toLong)
     metrics.values.map { case (dimension, values) =>
       val threshold = BigDecimal.valueOf(if (up) dimension.up else dimension.down)
-      sumRatios(values).fold(0) { sum =>
-        sum.divide(threshold, 0, RoundingMode.CEILING).min(maxInt).intValueExact()
-      }
+      sumRatios(values).knownSum
+        .divide(threshold, 0, RoundingMode.CEILING)
+        .min(maxInt)
+        .intValueExact()
     }.max
   }
 
-  private def sumRatios(values: Seq[Double]): Option[BigDecimal] = {
+  private def sumRatios(values: Seq[Double]): RatioSum = {
     var total = BigDecimal.ZERO
-    var available = true
+    var complete = true
     values.foreach { value =>
       if (value.isNaN) {
-        available = false
-      } else if (available) {
+        complete = false
+      } else {
         total = total.add(BigDecimal.valueOf(value))
       }
     }
-    if (available) Some(total) else None
+    RatioSum(total, complete)
   }
 
   private def makupExcl(
@@ -250,6 +247,8 @@ private[master] class SpecWorkerCntCalculator(
 }
 
 private[master] object SpecWorkerCntCalculator {
+  private case class RatioSum(knownSum: BigDecimal, complete: Boolean)
+
   private case class MetricRatios(
       values: Seq[(Dimension, Seq[Double])],
       availWorkerWithMetricCnt: Int)
