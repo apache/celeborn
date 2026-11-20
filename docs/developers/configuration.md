@@ -26,10 +26,6 @@ Static configuration, referred to as `CelebornConf`, loads configurations from t
 Dynamic configuration allows for changes to be applied at runtime, as necessary, and it takes precedence over the corresponding static configuration in the 
 Celeborn `Master` and `Worker`. A configuration key's dynamic nature is indicated by the `isDynamic` property, as listed in [All Configurations](../configuration/index.md#all-configurations). 
 This means that configurations tagged with the dynamic property can be updated and refreshed while Celeborn is running.
-The filesystem and database config services log a warning when a registered configuration key without the dynamic property is loaded from a dynamic store.
-The warning includes the configuration key and level, tenant ID and user name where applicable, but not the configuration value.
-Repeated refreshes do not repeat the warning for the same key and scope unless the key is removed and loaded again.
-These warnings do not reject configuration entries or validate whether a dynamic key is supported at a particular level.
 
 ### Config Level
 At present dynamic configuration supports various config levels including:
