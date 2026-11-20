@@ -147,6 +147,7 @@ abstract class TierWriterBase(
       waitOnNoPending(numPendingWrites, false)
       closed = true
       finalFlush()
+      prioritizePendingFlushes()
       metaHandler.afterClose()
       waitOnNoPending(notifier.numPendingFlushes, true)
     } finally {
@@ -187,6 +188,8 @@ abstract class TierWriterBase(
 
   // this method is not used in memory tier writer
   def finalFlush(): Unit = {}
+
+  protected def prioritizePendingFlushes(): Unit = {}
 
   @throws[IOException]
   private def waitOnNoPending(counter: AtomicInteger, failWhenTimeout: Boolean): Unit = {
@@ -503,6 +506,10 @@ class LocalTierWriter(
   override def notifyFileCommitted(): Unit =
     storageManager.notifyFileInfoCommitted(shuffleKey, filename, diskFileInfo)
 
+  override protected def prioritizePendingFlushes(): Unit = {
+    if (fileInfo.isReduceFileMeta) flusher.closeWriter(notifier, flushWorkerIndex)
+  }
+
   override def closeResource(): Unit = {
     try if (channel != null) channel.close()
     catch {
@@ -761,6 +768,10 @@ class DfsTierWriter(
 
   override def notifyFileCommitted(): Unit =
     storageManager.notifyFileInfoCommitted(shuffleKey, filename, dfsFileInfo)
+
+  override protected def prioritizePendingFlushes(): Unit = {
+    if (fileInfo.isReduceFileMeta) flusher.closeWriter(notifier, flushWorkerIndex)
+  }
 
   override def closeResource(): Unit = {
     if (s3MultipartUploadHandler != null) {
