@@ -270,6 +270,49 @@ class MemoryManagerSuite extends CelebornFunSuite {
     MemoryManager.reset()
   }
 
+  test("Pinned memory includes memory file storage") {
+    val conf = new CelebornConf()
+    conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL.key, "300s")
+    conf.set(CelebornConf.WORKER_PINNED_MEMORY_CHECK_INTERVAL.key, "0")
+    conf.set(CelebornConf.WORKER_PINNED_MEMORY_RATIO_RESUME.key, "0.001")
+    val memoryManager = MockitoSugar.spy(MemoryManager.initialize(conf))
+    val maxDirectorMemory = memoryManager.maxDirectMemory
+    val pushThreshold =
+      (conf.workerDirectMemoryRatioToPauseReceive * maxDirectorMemory).longValue()
+    val pinnedMemoryResumeThreshold =
+      (conf.workerPinnedMemoryRatioToResume * maxDirectorMemory).longValue()
+    val pushListener = new MockMemoryPressureListener(TransportModuleConstants.PUSH_MODULE)
+    memoryManager.registerMemoryListener(pushListener)
+    Mockito.when(memoryManager.getNettyPinnedDirectMemory).thenReturn(0L)
+    Mockito.when(memoryManager.getMemoryUsage).thenReturn(pushThreshold + 1)
+
+    // Without memory files, pinned memory is only what the pooled allocators and sorter hold.
+    assert(memoryManager.getPinnedMemory === 0L)
+
+    // Memory files hold their data in unpooled buffers, which pooled allocators do not report.
+    val memoryFileBytes = Math.toIntExact(pinnedMemoryResumeThreshold + 1)
+    val memoryFileBuffer =
+      memoryManager.getMemoryFileStorageAllocator.directBuffer(memoryFileBytes, memoryFileBytes)
+    try {
+      assert(memoryManager.getPinnedMemory === memoryFileBytes)
+      memoryManager.switchServingState()
+      assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
+      // Memory file data is held, so push must not resume by pinned memory.
+      assert(pushListener.isPause)
+
+      memoryFileBuffer.release()
+      assert(memoryManager.getPinnedMemory === 0L)
+      memoryManager.switchServingState()
+      assert(memoryManager.servingState == ServingState.PUSH_PAUSED)
+      assert(!pushListener.isPause)
+    } finally {
+      if (memoryFileBuffer.refCnt() > 0) {
+        memoryFileBuffer.release()
+      }
+      MemoryManager.reset()
+    }
+  }
+
   test("[CELEBORN-1792] Test MemoryManager keep resume a while by pinned memory") {
     val conf = new CelebornConf()
     conf.set(CelebornConf.WORKER_DIRECT_MEMORY_CHECK_INTERVAL.key, "300s")

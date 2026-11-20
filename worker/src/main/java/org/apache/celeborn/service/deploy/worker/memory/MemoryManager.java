@@ -30,6 +30,7 @@ import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.util.internal.PlatformDependent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,6 +95,10 @@ public class MemoryManager {
 
   private long memoryFileStorageThreshold;
   private final LongAdder memoryFileStorageCounter = new LongAdder();
+  // Memory files keep their data until they are evicted or their shuffle expires. Unpooled buffers
+  // return that memory as soon as a file releases them, instead of pinning partially used chunks.
+  private final UnpooledByteBufAllocator memoryFileStorageAllocator =
+      new UnpooledByteBufAllocator(true);
   private final StorageManager storageManager;
   private boolean pinnedMemoryCheckEnabled;
   private long pinnedMemoryCheckInterval;
@@ -470,7 +475,13 @@ public class MemoryManager {
   }
 
   public long getPinnedMemory() {
-    return getNettyPinnedDirectMemory() + sortMemoryCounter.get();
+    // Memory file data lives in unpooled buffers that pooled allocators don't count. Including it
+    // here means the pinned resume check only fires while memory files hold less than
+    // celeborn.worker.pinnedMemoryRatioToResume of direct memory; above that, resume relies on
+    // memory file eviction lowering direct memory usage.
+    return getNettyPinnedDirectMemory()
+        + sortMemoryCounter.get()
+        + memoryFileStorageAllocator.metric().usedDirectMemory();
   }
 
   public long getNettyPinnedDirectMemory() {
@@ -610,6 +621,11 @@ public class MemoryManager {
 
   public ByteBufAllocator getStorageByteBufAllocator() {
     return storageManager.storageBufferAllocator();
+  }
+
+  /** Allocator for the data of memory files, which is not counted by the pooled allocators. */
+  public UnpooledByteBufAllocator getMemoryFileStorageAllocator() {
+    return memoryFileStorageAllocator;
   }
 
   @VisibleForTesting
