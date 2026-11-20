@@ -487,6 +487,7 @@ public class JavaUtils {
 
     @Override
     public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
+      Preconditions.checkNotNull(mappingFunction);
       V result;
       if (null == (result = get(key))) {
         result = super.computeIfAbsent(key, mappingFunction);
