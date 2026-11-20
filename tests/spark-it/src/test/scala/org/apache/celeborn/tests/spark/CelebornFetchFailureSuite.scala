@@ -250,7 +250,8 @@ class CelebornFetchFailureSuite extends AnyFunSuite
       .config("spark.sql.shuffle.partitions", 2)
       .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
       .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
-      .config("spark.celeborn.client.push.buffer.max.size", 0)
+      // Keep records on the direct push path while using a positive buffer size.
+      .config("spark.celeborn.client.push.buffer.max.size", 1)
       .config(
         "spark.shuffle.manager",
         "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
@@ -295,7 +296,8 @@ class CelebornFetchFailureSuite extends AnyFunSuite
       .config("spark.sql.shuffle.partitions", 2)
       .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
       .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
-      .config("spark.celeborn.client.push.buffer.max.size", 0)
+      // Keep records on the direct push path while using a positive buffer size.
+      .config("spark.celeborn.client.push.buffer.max.size", 1)
       .config(
         "spark.shuffle.manager",
         "org.apache.spark.shuffle.celeborn.TestCelebornShuffleManager")
@@ -342,7 +344,8 @@ class CelebornFetchFailureSuite extends AnyFunSuite
       .config("spark.sql.shuffle.partitions", 2)
       .config("spark.celeborn.shuffle.forceFallback.partition.enabled", false)
       .config("spark.celeborn.client.spark.stageRerun.enabled", "true")
-      .config("spark.celeborn.client.push.buffer.max.size", 0)
+      // Keep records on the direct push path while using a positive buffer size.
+      .config("spark.celeborn.client.push.buffer.max.size", 1)
       .config("spark.stage.maxConsecutiveAttempts", "1")
       .config("spark.stage.maxAttempts", "1")
       .config(
