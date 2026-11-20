@@ -18,6 +18,7 @@
 package org.apache.celeborn.extension.scale
 
 import java.util.concurrent.{CountDownLatch, ExecutorService, LinkedBlockingQueue, TimeUnit}
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConverters._
 
@@ -41,13 +42,13 @@ class ScaleManagerExtensionSuite extends AnyFunSuite with RandomPortSupport {
     withMaster(conf) { master =>
       manager = ExternalScaleManager.instances.poll(5, TimeUnit.SECONDS)
       assert(manager != null)
-      assert(manager.running.await(5, TimeUnit.SECONDS))
+      assert(manager.started.await(5, TimeUnit.SECONDS))
       assert(manager.conf eq conf)
       assert(manager.metaManager eq master.statusSystem)
-      assert(manager.events.asScala.toSeq == Seq("construct", "init", "run"))
+      assert(manager.events.asScala.toSeq == Seq("construct", "init", "start"))
     }
     assert(manager.stopped.await(5, TimeUnit.SECONDS))
-    assert(manager.events.asScala.toSeq == Seq("construct", "init", "run", "stop"))
+    assert(manager.events.asScala.toSeq == Seq("construct", "init", "start", "stop"))
   }
 
   test("Master starts without a scale manager by default") {
@@ -70,7 +71,7 @@ class ScaleManagerExtensionSuite extends AnyFunSuite with RandomPortSupport {
       withMaster(conf) { master =>
         val manager = ExternalScaleManager.instances.poll(5, TimeUnit.SECONDS)
         assert(manager != null)
-        assert(manager.running.await(5, TimeUnit.SECONDS))
+        assert(manager.started.await(5, TimeUnit.SECONDS))
         val field = classOf[Master].getDeclaredField("forwardMessageThread")
         field.setAccessible(true)
         executor = field.get(master).asInstanceOf[ExecutorService]
@@ -83,7 +84,7 @@ class ScaleManagerExtensionSuite extends AnyFunSuite with RandomPortSupport {
     }
   }
 
-  test("the base starts checks on run and terminates its scheduler on stop") {
+  test("the base starts checks on start and terminates its scheduler on stop") {
     val conf = new CelebornConf(false).set(SCALE_CHECK_INTERVAL.key, "10ms")
     val cycle = new CountDownLatch(1)
     var schedulerThread: Thread = null
@@ -95,13 +96,43 @@ class ScaleManagerExtensionSuite extends AnyFunSuite with RandomPortSupport {
     }
     try {
       assert(!cycle.await(100, TimeUnit.MILLISECONDS))
-      manager.run()
+      manager.start()
       assert(cycle.await(5, TimeUnit.SECONDS))
     } finally {
       manager.stop()
     }
     schedulerThread.join(5000)
     assert(!schedulerThread.isAlive)
+  }
+
+  test("the base handles lifecycle edges and continues after failed checks") {
+    val conf = new CelebornConf(false).set(SCALE_CHECK_INTERVAL.key, "10ms")
+    val idleManager = new AbstractScaleManager(conf) {
+      override protected def checkScale(): Unit = {}
+    }
+    idleManager.stop()
+    idleManager.stop()
+    intercept[IllegalStateException](idleManager.start())
+
+    val checks = new AtomicInteger(0)
+    val recovered = new CountDownLatch(2)
+    val manager = new AbstractScaleManager(conf) {
+      override protected def checkScale(): Unit = {
+        val count = checks.incrementAndGet()
+        recovered.countDown()
+        if (count == 1) {
+          throw new IllegalStateException("transient check failure")
+        }
+      }
+    }
+    try {
+      manager.start()
+      manager.start()
+      assert(recovered.await(5, TimeUnit.SECONDS))
+    } finally {
+      manager.stop()
+      manager.stop()
+    }
   }
 
   private def masterConf(): CelebornConf = {
@@ -129,7 +160,7 @@ class ScaleManagerExtensionSuite extends AnyFunSuite with RandomPortSupport {
 
 class ExternalScaleManager(val conf: CelebornConf) extends ScaleManager {
   val events = new LinkedBlockingQueue[String]()
-  val running = new CountDownLatch(1)
+  val started = new CountDownLatch(1)
   val stopped = new CountDownLatch(1)
   @volatile var metaManager: AbstractMetaManager = _
 
@@ -141,9 +172,9 @@ class ExternalScaleManager(val conf: CelebornConf) extends ScaleManager {
     events.add("init")
   }
 
-  override def run(): Unit = {
-    events.add("run")
-    running.countDown()
+  override def start(): Unit = {
+    events.add("start")
+    started.countDown()
   }
 
   override def stop(): Unit = {

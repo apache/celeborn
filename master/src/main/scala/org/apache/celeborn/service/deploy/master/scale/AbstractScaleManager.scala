@@ -27,15 +27,24 @@ import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager
 abstract class AbstractScaleManager(protected val conf: CelebornConf)
   extends ScaleManager with Logging {
 
-  protected var statusSystem: AbstractMetaManager = _
+  @volatile protected var statusSystem: AbstractMetaManager = _
   private val scaleService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-scale-service")
+  private var started = false
+  private var stopped = false
 
   override def init(metaManager: AbstractMetaManager): Unit = {
     statusSystem = metaManager
   }
 
-  override def run(): Unit = {
+  override def start(): Unit = synchronized {
+    if (stopped) {
+      throw new IllegalStateException("ScaleManager has been stopped")
+    }
+    if (started) {
+      return
+    }
+    started = true
     val interval = conf.get(CelebornConf.SCALE_CHECK_INTERVAL)
     scaleService.scheduleWithFixedDelay(
       new Runnable {
@@ -46,7 +55,12 @@ abstract class AbstractScaleManager(protected val conf: CelebornConf)
       TimeUnit.MILLISECONDS)
   }
 
-  override def stop(): Unit = ThreadUtils.shutdown(scaleService)
+  override def stop(): Unit = synchronized {
+    if (!stopped) {
+      stopped = true
+      ThreadUtils.shutdown(scaleService)
+    }
+  }
 
   protected def checkScale(): Unit
 

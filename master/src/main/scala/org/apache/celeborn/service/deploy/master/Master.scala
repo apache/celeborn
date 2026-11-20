@@ -368,7 +368,7 @@ private[celeborn] class Master(
 
     scaleManager.foreach { manager =>
       manager.init(statusSystem)
-      manager.run()
+      manager.start()
     }
 
   }

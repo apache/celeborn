@@ -6410,9 +6410,11 @@ object CelebornConf extends Logging {
       .categories("master")
       .version("1.0.0")
       .doc("ScaleManager implementation class with a CelebornConf constructor. " +
-        "Master calls init, run and stop; the implementation must handle HA leadership. " +
+        "Master calls init, start and stop; init and start must return promptly and schedule " +
+        "background work asynchronously, and the implementation must handle HA leadership. " +
         "Unset disables autoscaling.")
       .stringConf
+      .checkValue(_.trim.nonEmpty, "ScaleManager class name must not be empty.")
       .createOptional
 
   val SCALE_CHECK_INTERVAL: ConfigEntry[Long] =

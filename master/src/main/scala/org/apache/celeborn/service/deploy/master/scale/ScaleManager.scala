@@ -23,7 +23,7 @@ trait ScaleManager {
 
   def init(metaManager: AbstractMetaManager): Unit
 
-  def run(): Unit
+  def start(): Unit
 
   def stop(): Unit
 }
