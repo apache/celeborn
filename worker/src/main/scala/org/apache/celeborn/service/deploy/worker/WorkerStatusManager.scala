@@ -94,10 +94,7 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
             if currentState == State.InDecommissionThenIdle || currentState == State.Idle =>
           recommissionWorker()
         case WorkerEventType.Graceful | WorkerEventType.Immediately | WorkerEventType.Decommission =>
-          if (eventType == WorkerEventType.Decommission) {
-            worker.configureDecommissionTimeout(decommissionTimeoutMs)
-          }
-          exit(eventType)
+          exit(eventType, decommissionTimeoutMs)
         case _ =>
           logDebug(s"Worker receive event: $eventType, and has nothing to do ")
       }
@@ -112,16 +109,21 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
     }
   }
 
-  private def exit(eventType: WorkerEventType): Unit = {
-    exitEventType = eventType
-    exitEventType match {
-      case WorkerEventType.Immediately => transitionState(State.InExit)
-      case WorkerEventType.Graceful => transitionState(State.InGraceFul)
-      case WorkerEventType.Decommission => transitionState(State.InDecommission)
-      case _ => // ignore
+  private def exit(eventType: WorkerEventType, decommissionTimeoutMs: Option[Long]): Unit = {
+    val targetState = eventType match {
+      case WorkerEventType.Immediately => State.InExit
+      case WorkerEventType.Graceful => State.InGraceFul
+      case WorkerEventType.Decommission => State.InDecommission
+      case other => throw new IllegalArgumentException(s"Unsupported exit event type: $other")
     }
-
-    startExitThread()
+    // Only an accepted exit may change the exit mode and the shutdown hook timeout.
+    if (transitionState(targetState)) {
+      exitEventType = eventType
+      if (eventType == WorkerEventType.Decommission) {
+        worker.configureDecommissionTimeout(decommissionTimeoutMs)
+      }
+      startExitThread()
+    }
   }
 
   protected def startExitThread(): Unit = {
@@ -137,7 +139,7 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
       "worker-exit-thread").start()
   }
 
-  def transitionState(state: State): Unit = this.synchronized {
+  def transitionState(state: State): Boolean = this.synchronized {
     val allowStates = transitionStateMap.get(currentWorkerStatus.getState)
     if (allowStates != null && allowStates.contains(state)) {
       logInfo(s"Worker transition status from ${currentWorkerStatus.getState} to $state.")
@@ -145,9 +147,11 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
       if (worker != null && worker.workerInfo != null) {
         worker.workerInfo.setWorkerStatus(currentWorkerStatus)
       }
+      true
     } else {
       logWarning(
         s"Worker transition status from ${currentWorkerStatus.getState} to $state is not allowed.")
+      false
     }
   }
 
