@@ -60,21 +60,24 @@ The quota for user `tenant_01.Jerry` is
 - diskBytesWritten: 100G
 - diskFileCount: 10000
 - hdfsBytesWritten: 10G
-- diskFileCount: Long.MAX_VALUE
+- hdfsFileCount: Long.MAX_VALUE
 
 The quota for tenant id `tenant_01` is
 
 - diskBytesWritten: 10G
 - diskFileCount: 1000
 - hdfsBytesWritten: 10G
-- diskFileCount: Long.MAX_VALUE
+- hdfsFileCount: Long.MAX_VALUE
 
 The quota for `system default` is
 
 - diskBytesWritten: 1G
 - diskFileCount: 100
 - hdfsBytesWritten: 1G
-- diskFileCount: Long.MAX_VALUE
+- hdfsFileCount: Long.MAX_VALUE
+
+The user and tenant quotas are checked independently. In this example, the tenant's 10G disk
+quota can be reached before Jerry's 100G user quota.
 
 ### FileSystem Store Backend
 
@@ -98,8 +101,9 @@ Here's an example quota setting YAML file of above quota examples:
    users:
      - name: Jerry
        config:
-         celeborn.quota.tenant.diskBytesWritten: 100G
-         celeborn.quota.tenant.diskFileCount: 10000
+         celeborn.quota.user.diskBytesWritten: 100G
+         celeborn.quota.user.diskFileCount: 10000
+         celeborn.quota.user.hdfsBytesWritten: 10G
 ```
 
 ### Database Store Backend
@@ -121,6 +125,7 @@ VALUES
     ( 1, 1, 'tenant_01', 'TENANT', '', 'celeborn.quota.tenant.diskBytesWritten', '10G', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
     ( 2, 1, 'tenant_01', 'TENANT', '', 'celeborn.quota.tenant.diskFileCount', '1000', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
     ( 3, 1, 'tenant_01', 'TENANT', '', 'celeborn.quota.tenant.hdfsBytesWritten', '10G', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
-    ( 4, 1, 'tenant_01', 'TENANT_USER', 'Jerry', 'celeborn.quota.tenant.diskBytesWritten', '100G', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
-    ( 5, 1, 'tenant_01', 'TENANT_USER', 'Jerry', 'celeborn.quota.tenant.diskFileCount', '10000', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' );
+    ( 4, 1, 'tenant_01', 'TENANT_USER', 'Jerry', 'celeborn.quota.user.diskBytesWritten', '100G', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
+    ( 5, 1, 'tenant_01', 'TENANT_USER', 'Jerry', 'celeborn.quota.user.diskFileCount', '10000', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
+    ( 6, 1, 'tenant_01', 'TENANT_USER', 'Jerry', 'celeborn.quota.user.hdfsBytesWritten', '10G', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' );
 ```

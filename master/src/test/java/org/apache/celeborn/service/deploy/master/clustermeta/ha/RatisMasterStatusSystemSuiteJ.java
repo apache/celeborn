@@ -25,6 +25,11 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.*;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -44,6 +49,7 @@ import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.client.MasterNotLeaderException;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
@@ -332,6 +338,82 @@ public class RatisMasterStatusSystemSuiteJ {
       if (!raftServer.isLeader()) {
         raftServer.stop();
       }
+    }
+  }
+
+  @Test
+  public void testConcurrentApplicationRegistrationSurvivesLeaderChange() throws Exception {
+    HAMasterMetaManager leader = pickLeaderStatusSystem();
+    assertNotNull(leader);
+    String appId = "registration-race-" + UUID.randomUUID();
+    CyclicBarrier start = new CyclicBarrier(2);
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    List<Future<Boolean>> registrations = new ArrayList<>();
+    try {
+      for (String secret : Arrays.asList("first-secret", "second-secret")) {
+        registrations.add(
+            executor.submit(
+                () -> {
+                  start.await(10, TimeUnit.SECONDS);
+                  try {
+                    leader.handleApplicationMeta(new ApplicationMeta(appId, secret));
+                    return true;
+                  } catch (CelebornRuntimeException e) {
+                    assertTrue(e.getMessage(), e.getMessage().contains("already registered"));
+                    return false;
+                  }
+                }));
+      }
+      boolean first = registrations.get(0).get(30, TimeUnit.SECONDS);
+      boolean second = registrations.get(1).get(30, TimeUnit.SECONDS);
+      assertTrue("Exactly one registration must succeed", first ^ second);
+      String secret = first ? "first-secret" : "second-secret";
+      HAMasterMetaManager[] systems = {STATUSSYSTEM1, STATUSSYSTEM2, STATUSSYSTEM3};
+      waitFor(
+          () ->
+              Arrays.stream(systems)
+                  .allMatch(
+                      s ->
+                          s.applicationMetas.containsKey(appId)
+                              && secret.equals(s.applicationMetas.get(appId).secret())),
+          "the winning registration on every master");
+
+      HAMasterMetaManager nextLeader = leader == STATUSSYSTEM1 ? STATUSSYSTEM2 : STATUSSYSTEM1;
+      transferLeadership(leader.getRatisServer(), nextLeader.getRatisServer());
+      for (String duplicateSecret : Arrays.asList(secret, "another-secret")) {
+        ResourceProtos.ResourceResponse response =
+            nextLeader
+                .getRatisServer()
+                .submitRequest(
+                    ResourceProtos.ResourceRequest.newBuilder()
+                        .setCmdType(ResourceProtos.Type.ApplicationMeta)
+                        .setRequestId(getNewReqeustId())
+                        .setApplicationMetaRequest(
+                            ResourceProtos.ApplicationMetaRequest.newBuilder()
+                                .setAppId(appId)
+                                .setSecret(duplicateSecret))
+                        .build());
+        assertFalse(response.getSuccess());
+        assertEquals(ResourceProtos.Status.ALREADY_EXISTS, response.getStatus());
+        CelebornRuntimeException failure =
+            assertThrows(
+                CelebornRuntimeException.class,
+                () ->
+                    nextLeader.handleApplicationMeta(new ApplicationMeta(appId, duplicateSecret)));
+        assertTrue(failure.getMessage().contains("already registered"));
+      }
+      // Rejections must neither replace the secret nor stop any replica from applying later writes.
+      String nextAppId = appId + "-next";
+      nextLeader.handleApplicationMeta(new ApplicationMeta(nextAppId, "next-secret"));
+      waitFor(
+          () -> Arrays.stream(systems).allMatch(s -> s.applicationMetas.containsKey(nextAppId)),
+          "a registration after the rejected duplicates on every master");
+      for (HAMasterMetaManager system : systems) {
+        assertEquals(secret, system.applicationMetas.get(appId).secret());
+      }
+    } finally {
+      executor.shutdownNow();
+      assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
     }
   }
 

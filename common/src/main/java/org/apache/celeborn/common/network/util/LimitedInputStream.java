@@ -82,6 +82,10 @@ public final class LimitedInputStream extends FilterInputStream {
 
   @Override
   public int read(byte[] b, int off, int len) throws IOException {
+    Preconditions.checkPositionIndexes(off, off + len, b.length);
+    if (len == 0) {
+      return 0;
+    }
     if (left == 0) {
       return -1;
     }

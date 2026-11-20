@@ -41,9 +41,9 @@ public class ShuffleInMemorySorter {
   /** How many records could be inserted, because part of the array should be left for sorting. */
   private int usableCapacity = 0;
 
-  private final int initialSize;
+  private final long initialSize;
 
-  public ShuffleInMemorySorter(MemoryConsumer consumer, int initialSize) {
+  public ShuffleInMemorySorter(MemoryConsumer consumer, long initialSize) {
     this.consumer = consumer;
     assert (initialSize > 0);
     this.initialSize = initialSize;

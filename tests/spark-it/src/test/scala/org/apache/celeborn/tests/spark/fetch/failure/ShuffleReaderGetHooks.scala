@@ -58,6 +58,10 @@ class ShuffleReaderGetHooks(
       return
     }
     lock.synchronized {
+      // The other reduce task may have deleted the files while this one waited for the lock.
+      if (executed.get()) {
+        return
+      }
       handle match {
         case h: CelebornShuffleHandle[_, _, _] => {
           val appUniqueId = h.appUniqueId
@@ -73,6 +77,10 @@ class ShuffleReaderGetHooks(
             SparkCommonUtils.encodeAppShuffleIdentifier(handle.shuffleId, context)
           val Array(_, stageId, _) = appShuffleIdentifier.split('-')
           if (triggerStageId.isEmpty || triggerStageId.get == stageId.toInt) {
+            // Reduce tasks can start before the workers have committed the shuffle. Files deleted
+            // before the final flush get recreated, since workers open the file channel lazily
+            // with CREATE, and the read succeeds without a fetch failure. Wait for the commit.
+            shuffleClient.updateFileGroup(celebornShuffleId, startPartition)
             if (shuffleIdToBeDeleted.isEmpty) {
               deleteDataFile(appUniqueId, celebornShuffleId)
             } else {

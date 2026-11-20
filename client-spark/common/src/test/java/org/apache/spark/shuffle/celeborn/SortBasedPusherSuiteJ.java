@@ -80,6 +80,38 @@ public class SortBasedPusherSuiteJ {
   }
 
   @Test
+  public void testLargeMemoryThreshold() throws Exception {
+    for (String threshold : new String[] {"64m", "2g", "4g"}) {
+      CelebornConf conf =
+          new CelebornConf().set(CelebornConf.CLIENT_PUSH_SORT_MEMORY_THRESHOLD().key(), threshold);
+      ShuffleClient client = new DummyShuffleClient(conf, tempFile);
+      SortBasedPusher pusher =
+          new SortBasedPusher(
+              taskMemoryManager,
+              client,
+              taskContext,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              conf,
+              null,
+              null,
+              conf.clientPushSortMemoryThreshold(),
+              SendBufferPool.get(4, 30, 60));
+      try {
+        assertEquals(Utils.byteStringAsBytes(threshold), pusher.getPushSortMemoryThreshold());
+        assertEquals(8L * 1024 * 1024, pusher.getUsed());
+      } finally {
+        pusher.close(true);
+        client.shutdown();
+      }
+    }
+  }
+
+  @Test
   public void testMemoryUsage() throws Exception {
     final ShuffleClient client = new DummyShuffleClient(conf, tempFile);
     SortBasedPusher pusher =

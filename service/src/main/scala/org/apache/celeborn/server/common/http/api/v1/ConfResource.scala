@@ -148,7 +148,7 @@ private[api] class ConfResource extends ApiRequestContext {
         if (StringUtils.isEmpty(tenant)) {
           configService.listRawTenantConfigsFromCache().asScala
         } else {
-          List(configService.getRawTenantConfigFromCache(tenant))
+          Option(configService.getRawTenantConfigFromCache(tenant)).toSeq
         }
       tenantConfigs.sortBy(_.getTenantId).map { tenantConfig =>
         new DynamicConfig()
@@ -162,8 +162,8 @@ private[api] class ConfResource extends ApiRequestContext {
       val tenantUserConfigs =
         if (StringUtils.isEmpty(tenant) && StringUtils.isEmpty(name)) {
           configService.listRawTenantUserConfigsFromCache().asScala
-        } else if (tenant.nonEmpty && name.nonEmpty) {
-          List(configService.getRawTenantUserConfigFromCache(tenant, name))
+        } else if (StringUtils.isNotEmpty(tenant) && StringUtils.isNotEmpty(name)) {
+          Option(configService.getRawTenantUserConfigFromCache(tenant, name)).toSeq
         } else {
           List()
         }
