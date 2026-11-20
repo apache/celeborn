@@ -30,11 +30,11 @@ trait CliLogging {
   }
 
   def logInfo(msg: String): Unit = {
-    Console.println(s"${RESET}${GREEN}${msg}")
+    Console.println(s"${GREEN}${msg}${RESET}")
   }
 
   def logError(msg: String): Unit = {
-    Console.println(s"${RESET}${RED}${msg}")
+    Console.println(s"${RED}${msg}${RESET}")
   }
 
 }
