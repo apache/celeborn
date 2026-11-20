@@ -129,7 +129,7 @@ class CelebornShuffleReader[K, C](
 
   override def read(): Iterator[Product2[K, C]] = {
 
-    val startTime = System.currentTimeMillis()
+    val startTimeNanos = System.nanoTime()
     val serializerInstance = newSerializerInstance(dep)
     val shuffleId =
       try {
@@ -154,16 +154,7 @@ class CelebornShuffleReader[K, C](
     logDebug(
       s"get shuffleId $shuffleId for appShuffleId ${handle.shuffleId} attemptNum ${context.stageAttemptNumber()}")
 
-    // Update the context task metrics for each record read.
-    val metricsCallback = new MetricsCallback {
-      override def incBytesRead(bytesWritten: Long): Unit = {
-        metrics.incRemoteBytesRead(bytesWritten)
-        metrics.incRemoteBlocksFetched(1)
-      }
-
-      override def incReadTime(time: Long): Unit =
-        metrics.incFetchWaitTime(time)
-    }
+    val metricsCallback = new CelebornShuffleReader.ReadMetricsCallback(metrics)
 
     if (streamCreatorPool == null) {
       CelebornShuffleReader.synchronized {
@@ -393,10 +384,10 @@ class CelebornShuffleReader[K, C](
     }.toList
     // wait for all futures to complete
     futures.foreach(f => f.get())
-    val end = System.currentTimeMillis()
-    // readTime should include batchOpenStreamTime, getShuffleId Rpc time and updateFileGroup Rpc time
-    metricsCallback.incReadTime(end - startTime)
-    logInfo(s"BatchOpenStream for $partCnt cost ${end - batchOpenStreamStartTime}ms")
+    // Include batch open stream, get shuffle ID, and update file group RPC times in fetch wait.
+    metricsCallback.incReadTimeNanos(System.nanoTime() - startTimeNanos)
+    logInfo(
+      s"BatchOpenStream for $partCnt cost ${System.currentTimeMillis() - batchOpenStreamStartTime}ms")
 
     val streams = JavaUtils.newConcurrentHashMap[Integer, CelebornInputStream]()
 
@@ -495,8 +486,7 @@ class CelebornShuffleReader[K, C](
           logInfo(
             s"inputStream for partition: $partitionId is not null, sleep $sleepCnt times for ${5 * sleepCnt} ms")
         }
-        metricsCallback.incReadTime(
-          TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
+        metricsCallback.incReadTimeNanos(System.nanoTime() - startFetchWait)
         // ensure inputStream is closed when task completes
         context.addTaskCompletionListener[Unit](_ => inputStream.close())
 
@@ -648,6 +638,27 @@ class CelebornShuffleReader[K, C](
 
 object CelebornShuffleReader {
   var streamCreatorPool: ThreadPoolExecutor = null
+
+  final private[celeborn] class ReadMetricsCallback(metrics: ShuffleReadMetricsReporter)
+    extends MetricsCallback {
+
+    private var fetchWaitRemainderNanos = 0L
+
+    override def incBytesRead(bytesRead: Long): Unit = {
+      metrics.incRemoteBytesRead(bytesRead)
+      metrics.incRemoteBlocksFetched(1)
+    }
+
+    override def incReadTime(timeMs: Long): Unit = metrics.incFetchWaitTime(timeMs)
+
+    override def incReadTimeNanos(timeNanos: Long): Unit = {
+      // Spark reports milliseconds. Retain the fraction for the next wait in this reader.
+      val totalNanos = fetchWaitRemainderNanos + timeNanos
+      val elapsedMillis = TimeUnit.NANOSECONDS.toMillis(totalNanos)
+      fetchWaitRemainderNanos = totalNanos - TimeUnit.MILLISECONDS.toNanos(elapsedMillis)
+      incReadTime(elapsedMillis)
+    }
+  }
 
   /**
    * Chooses the locations of a partition to open streams on: the peers of replicated locations for
