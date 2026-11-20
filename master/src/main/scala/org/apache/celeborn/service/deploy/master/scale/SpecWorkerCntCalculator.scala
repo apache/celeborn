@@ -280,7 +280,9 @@ private[master] object SpecWorkerCntCalculator {
 
   private class ScaleConf(defaults: CelebornConf, configService: Option[ConfigService]) {
     private val overrides = configService
-      .map(_.getSystemConfigFromCache.getConfigs.asScala.toMap)
+      .flatMap(service => Option(service.getSystemConfigFromCache))
+      .flatMap(config => Option(config.getConfigs))
+      .map(_.asScala.toMap)
       .getOrElse(Map.empty[String, String])
 
     private def get[T](entry: ConfigEntry[T]): T = {
