@@ -26,7 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
-import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.ReviveRequest;
 import org.apache.celeborn.common.protocol.message.StatusCode;
 import org.apache.celeborn.common.util.ThreadUtils;
@@ -36,6 +35,7 @@ class ReviveManager {
 
   LinkedBlockingQueue<ReviveRequest> requestQueue = new LinkedBlockingQueue<>();
   private final int batchSize;
+  private final boolean adaptivePartitionWriteParallelismEnabled;
   ShuffleClientImpl shuffleClient;
   private final ScheduledExecutorService batchReviveRequestScheduler =
       ThreadUtils.newDaemonSingleThreadScheduledExecutor(
@@ -44,6 +44,8 @@ class ReviveManager {
   public ReviveManager(ShuffleClientImpl shuffleClient, CelebornConf conf) {
     this.shuffleClient = shuffleClient;
     this.batchSize = conf.clientPushReviveBatchSize();
+    this.adaptivePartitionWriteParallelismEnabled =
+        conf.clientShuffleAdaptivePartitionWriteParallelismEnabled();
 
     long interval = conf.clientPushReviveInterval();
     batchReviveRequestScheduler.scheduleWithFixedDelay(
@@ -65,17 +67,34 @@ class ReviveManager {
               ArrayList<ReviveRequest> filteredRequests = new ArrayList<>();
               Map<Integer, ReviveRequest> requestsToSend = new HashMap<>();
 
-              Map<Integer, PartitionLocation> partitionMap =
+              Map<Integer, PartitionLocationGroup> partitionMap =
                   shuffleClient.reducePartitionMap.get(shuffleId);
               // Insert request that is not MapperEnded and with the max epoch
               // into requestsToSend
               Iterator<ReviveRequest> iter = requests.iterator();
+              Map<Integer, ReviveRequest> retireReportDonors = new HashMap<>();
               while (iter.hasNext()) {
                 ReviveRequest req = iter.next();
-                if (shuffleClient.newerPartitionLocationExists(
-                        partitionMap, req.partitionId, req.epoch, false)
-                    || shuffleClient.mapperEnded(shuffleId, req.mapId)) {
+                if (adaptivePartitionWriteParallelismEnabled) {
+                  retireReportDonors.putIfAbsent(req.partitionId, req);
+                }
+                boolean locallySatisfied;
+                if (adaptivePartitionWriteParallelismEnabled) {
+                  locallySatisfied =
+                      shuffleClient.mapperEnded(shuffleId, req.mapId)
+                          || shuffleClient.hasWritableLocation(
+                              partitionMap, req.partitionId, req.mapId);
+                } else {
+                  locallySatisfied =
+                      shuffleClient.newerPartitionLocationExists(
+                              partitionMap, req.partitionId, req.epoch, false)
+                          || shuffleClient.mapperEnded(shuffleId, req.mapId);
+                }
+                if (locallySatisfied) {
                   req.reviveStatus = StatusCode.SUCCESS.getValue();
+                  if (adaptivePartitionWriteParallelismEnabled) {
+                    mapIds.add(req.mapId);
+                  }
                 } else {
                   filteredRequests.add(req);
                   mapIds.add(req.mapId);
@@ -86,11 +105,41 @@ class ReviveManager {
                 }
               }
 
-              if (!requestsToSend.isEmpty()) {
+              ArrayList<ReviveRequest> allToSend = new ArrayList<>(requestsToSend.values());
+              if (adaptivePartitionWriteParallelismEnabled) {
+                // Retire reports are rebuilt from the groups' outstanding retires at send
+                // time — bounded, stale epochs dropped; reports lost to an RPC timeout are
+                // re-sent piggybacked on the partition's next revive.
+                for (Map.Entry<Integer, ReviveRequest> entry : retireReportDonors.entrySet()) {
+                  int partitionId = entry.getKey();
+                  ReviveRequest donor = entry.getValue();
+                  PartitionLocationGroup group = partitionMap.get(partitionId);
+                  if (group == null) {
+                    continue;
+                  }
+                  // An epoch covered by a waiting (non-satisfied) request is reported by it.
+                  ReviveRequest waiting = requestsToSend.get(partitionId);
+                  int coveredEpoch = waiting == null ? -1 : waiting.epoch;
+                  for (PartitionLocationGroup.EpochState retire : group.outstandingRetires()) {
+                    if (retire.location.getEpoch() != coveredEpoch) {
+                      allToSend.add(
+                          new ReviveRequest(
+                              shuffleId,
+                              donor.mapId,
+                              donor.attemptId,
+                              partitionId,
+                              retire.location.getEpoch(),
+                              retire.location,
+                              retire.cause));
+                    }
+                  }
+                }
+              }
+              if (!allToSend.isEmpty()) {
                 // Call reviveBatch. Return null means Exception caught or
                 // SHUFFLE_NOT_REGISTERED
                 Map<Integer, Integer> results =
-                    shuffleClient.reviveBatch(shuffleId, mapIds, requestsToSend.values());
+                    shuffleClient.reviveBatch(shuffleId, mapIds, allToSend);
                 if (results == null) {
                   for (ReviveRequest req : filteredRequests) {
                     req.reviveStatus = StatusCode.REVIVE_FAILED.getValue();
