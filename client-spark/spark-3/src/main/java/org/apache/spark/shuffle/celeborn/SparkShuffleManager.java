@@ -100,7 +100,7 @@ public class SparkShuffleManager implements ShuffleManager {
   // either be "{appId}_{appAttemptId}" or "{appId}"
   private String appUniqueId;
 
-  private LifecycleManager lifecycleManager;
+  private volatile LifecycleManager lifecycleManager;
   private ShuffleAssignmentListener shuffleAssignmentListener;
   private PartitionReviveListener partitionReviveListener;
   private ShuffleClient shuffleClient;
