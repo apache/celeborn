@@ -110,7 +110,7 @@ public abstract class BaseConfigServiceImpl implements ConfigService {
         if (!warnedStaticConfigs.contains(identity)) {
           LOG.warn(
               "Configuration '{}' at level {} (tenant={}, user={}) is not marked as dynamic. "
-                  + "Runtime updates may not take effect. Configure it through the static configuration instead.",
+                  + "Verify whether runtime updates are supported for this configuration.",
               key,
               level,
               tenantId,

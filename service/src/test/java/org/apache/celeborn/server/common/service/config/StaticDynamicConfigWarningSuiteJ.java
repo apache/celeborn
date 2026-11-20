@@ -120,6 +120,40 @@ public class StaticDynamicConfigWarningSuiteJ {
   }
 
   @Test
+  public void testUnmarkedQuotaSwitchStillUpdates() throws IOException {
+    String key = CelebornConf.USER_QUOTA_ENABLED().key();
+    Path file = Files.createTempFile("celeborn-quota-switch", ".yaml");
+    try {
+      Files.write(
+          file,
+          ("- level: SYSTEM\n  config:\n    " + key + ": false\n")
+              .getBytes(StandardCharsets.UTF_8));
+      CelebornConf conf = new CelebornConf();
+      conf.set(CelebornConf.USER_QUOTA_ENABLED(), true);
+      conf.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), file.toString());
+      configService = new FsConfigServiceImpl(conf);
+      Assert.assertTrue(conf.userQuotaEnabled());
+      Assert.assertFalse(configService.getSystemConfigFromCache().userQuotaEnabled());
+      Assert.assertEquals(
+          Collections.singletonList(
+              "Configuration '"
+                  + key
+                  + "' at level SYSTEM (tenant=null, user=null) is not marked as dynamic. "
+                  + "Verify whether runtime updates are supported for this configuration."),
+          warnings);
+
+      Files.write(
+          file,
+          ("- level: SYSTEM\n  config:\n    " + key + ": true\n").getBytes(StandardCharsets.UTF_8));
+      configService.refreshCache();
+      Assert.assertTrue(configService.getSystemConfigFromCache().userQuotaEnabled());
+      Assert.assertEquals(1, warnings.size());
+    } finally {
+      Files.deleteIfExists(file);
+    }
+  }
+
+  @Test
   public void testDbRefreshWarnings() throws IOException {
     CelebornConf conf = new CelebornConf();
     conf.set(
