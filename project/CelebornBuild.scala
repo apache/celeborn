@@ -43,10 +43,10 @@ object Dependencies {
 
   // Dependent library versions
   val apLoaderVersion = "4.0-10"
-  val commonsCompressVersion = "1.4.1"
+  val commonsCompressVersion = "1.26.2"
   val commonsCryptoVersion = "1.0.0"
   val commonsIoVersion = "2.17.0"
-  val commonsLoggingVersion = "1.1.3"
+  val commonsLoggingVersion = "1.3.0"
   val commonsLang3Version = sparkClientProjects.map(_.commonsLang3Version).getOrElse("3.20.0")
   val commonsCollectionsVersion = "3.2.2"
   val findbugsVersion = "1.3.9"
@@ -108,6 +108,9 @@ object Dependencies {
 
   val apLoader = "me.bechberger" % "ap-loader-all" % apLoaderVersion
   val commonsCompress = "org.apache.commons" % "commons-compress" % commonsCompressVersion
+  // Maven resolves the version hadoop-yarn-common declares (nearest wins).
+  val jaxbApi = "javax.xml.bind" % "jaxb-api" % "2.2.11"
+  val commonsCodecMr = "commons-codec" % "commons-codec" % "1.15"
   val commonsCrypto = "org.apache.commons" % "commons-crypto" % commonsCryptoVersion excludeAll(
     ExclusionRule("net.java.dev.jna", "jna"))
   val commonsIo = "commons-io" % "commons-io" % commonsIoVersion
@@ -125,6 +128,10 @@ object Dependencies {
   val hadoopClientRuntime = "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion
   val hadoopMapreduceClientApp = "org.apache.hadoop" % "hadoop-mapreduce-client-app" % hadoopVersion excludeAll(
     ExclusionRule("io.netty", "netty-transport-native-epoll"),
+    // Celeborn's own netty-all (ioNetty) carries the module exclusions; Maven applies them globally.
+    ExclusionRule("io.netty", "netty-all"),
+    // Maven manages bcprov to test scope.
+    ExclusionRule("org.bouncycastle", "bcprov-jdk18on"),
     ExclusionRule("com.google.guava", "guava"),
     ExclusionRule("com.fasterxml.jackson.core", "jackson-annotations"),
     ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"),
@@ -1586,7 +1593,10 @@ object MRClientProjects {
           Dependencies.jakartaActivationApi,
           Dependencies.javaxServletApi
         ) ++ commonUnitTestDependencies,
-        dependencyOverrides += Dependencies.commonsCompress
+        dependencyOverrides ++= Seq(
+          Dependencies.commonsCompress,
+          Dependencies.jaxbApi,
+          Dependencies.commonsCodecMr)
       )
   }
 

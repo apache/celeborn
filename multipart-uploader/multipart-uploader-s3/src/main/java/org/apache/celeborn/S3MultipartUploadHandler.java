@@ -90,7 +90,8 @@ public class S3MultipartUploadHandler implements MultipartUploadHandler {
       ClientOverrideConfiguration overrideConfig =
           ClientOverrideConfiguration.builder()
               .retryStrategy(
-                  AwsRetryStrategy.standardRetryStrategy().toBuilder()
+                  AwsRetryStrategy.standardRetryStrategy()
+                      .toBuilder()
                       .maxAttempts(s3MultiplePartUploadMaxRetries + 1)
                       .backoffStrategy(
                           BackoffStrategy.exponentialDelay(
