@@ -69,9 +69,9 @@ private[celeborn] class RpcMetricsTracker(
 
   def close(): Unit = {
     histogramMap.clear()
-    rpcSource.removeGauge(RpcSource.QUEUE_LENGTH)
-    rpcSource.removeTimer(RpcSource.QUEUE_TIME)
-    rpcSource.removeTimer(RpcSource.PROCESS_TIME)
+    rpcSource.removeGauge(RpcSource.QUEUE_LENGTH, NAME_LABEL)
+    rpcSource.removeTimer(RpcSource.QUEUE_TIME, NAME_LABEL)
+    rpcSource.removeTimer(RpcSource.PROCESS_TIME, NAME_LABEL)
   }
 
   def updateHistogram(name: String, value: Long): Unit = {
