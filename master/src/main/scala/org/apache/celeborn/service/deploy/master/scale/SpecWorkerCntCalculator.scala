@@ -134,7 +134,7 @@ private[master] class SpecWorkerCntCalculator(
     val requiredWorkerCnt =
       math.max(alignedMin, math.min(maxWorkers, estimate(metrics, up = true)))
     val stepBudget =
-      math.max(3, math.max(upStep, (upPercent * availWorkerWithMetricCnt).toInt))
+      math.max(3, math.max(upStep, percentageStep(upPercent, availWorkerWithMetricCnt)))
     val deltaUp =
       math.min(stepBudget, math.max(0, requiredWorkerCnt - availWorkerWithMetricCnt))
 
@@ -190,11 +190,18 @@ private[master] class SpecWorkerCntCalculator(
       scaleConf: ScaleConf): Int = {
     import scaleConf._
     val stepBudget =
-      math.max(1, math.min(downStep, (downPercent * input.registeredWorkerCnt).toInt))
+      math.max(1, math.min(downStep, percentageStep(downPercent, input.registeredWorkerCnt)))
     val deltaDown =
       math.min(stepBudget, math.max(0, input.registeredWorkerCnt - desiredTotalSpec))
     val candidateSpecWorkerCnt = input.registeredWorkerCnt - deltaDown
     math.max(desiredTotalSpec, math.min(input.specWorkerCnt, candidateSpecWorkerCnt))
+  }
+
+  private def percentageStep(percent: Double, workerCnt: Int): Int = {
+    BigDecimal.valueOf(percent)
+      .multiply(BigDecimal.valueOf(workerCnt.toLong))
+      .setScale(0, RoundingMode.FLOOR)
+      .intValueExact()
   }
 
   private def estimate(metrics: MetricRatios, up: Boolean): Int = {

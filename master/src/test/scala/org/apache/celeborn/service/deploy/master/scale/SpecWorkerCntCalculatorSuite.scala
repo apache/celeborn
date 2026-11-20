@@ -100,7 +100,7 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     val cases = Seq(
       (10, 1, 0.01, 13),
       (10, 7, 0.01, 17),
-      (100, 1, 0.29, 128))
+      (100, 1, 0.29, 129))
     cases.foreach { case (count, step, percent, expected) =>
       val conf = baseConf()
         .set(SCALE_UP_POLICY_STEP_NUMBER.key, step.toString)
@@ -135,7 +135,7 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     val cases = Seq(
       (10, 5, 0.01, 9),
       (100, 5, 0.29, 95),
-      (100, 100, 0.29, 72))
+      (100, 100, 0.29, 71))
     cases.foreach { case (count, step, percent, expected) =>
       val conf = baseConf()
         .set(SCALE_DOWN_POLICY_STEP_NUMBER.key, step.toString)
@@ -875,6 +875,21 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
       WorkerStats(neutral.metrics + (WorkerStats.LastMinuteSystemLoadRatio -> -0.25))
     assert(calculator.cal(Input(20, 20, Seq.fill(19)(hotLoad) :+ legacyNegativeLoad)) ==
       Result(25, 0))
+  }
+
+  test("percentage step budgets avoid binary floating-point truncation") {
+    val largeLoad = WorkerStats(low.metrics + (WorkerStats.LastMinuteSystemLoadRatio -> 10.0))
+    Seq((0.29, 129, 71), (0.58, 158, 42)).foreach { case (percent, expectedUp, expectedDown) =>
+      val upConf = baseConf()
+        .set(SCALE_UP_POLICY_STEP_NUMBER.key, "1")
+        .set(SCALE_UP_POLICY_PERCENT.key, percent.toString)
+      assert(newCalculator(upConf).calSpecWorkerCnt(snapshot(100, largeLoad)) == expectedUp)
+
+      val downConf = baseConf()
+        .set(SCALE_DOWN_POLICY_STEP_NUMBER.key, "100")
+        .set(SCALE_DOWN_POLICY_PERCENT.key, percent.toString)
+      assert(newCalculator(downConf).calSpecWorkerCnt(snapshot(100)) == expectedDown)
+    }
   }
 
   test("converging to max preserves unreplaced exclusion accounting across bound changes") {
