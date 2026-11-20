@@ -203,8 +203,6 @@
 ------------------------------------------------------------------------------------
 This project bundles the following dependencies under the Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt):
 
-com.amazonaws:aws-java-sdk-bundle
-com.amazonaws:aws-java-sdk-sts
 com.fasterxml.jackson.core:jackson-annotations
 com.fasterxml.jackson.core:jackson-core
 com.fasterxml.jackson.core:jackson-databind
@@ -219,10 +217,11 @@ com.google.guava:failureaccess
 com.google.guava:guava
 com.lmax:disruptor
 com.thoughtworks.paranamer:paranamer
+com.zaxxer:HikariCP
 commons-cli:commons-cli
+commons-codec:commons-codec
 commons-io:commons-io
 commons-logging:commons-logging
-com.zaxxer:HikariCP
 info.picocli:picocli
 io.dropwizard.metrics:metrics-core
 io.dropwizard.metrics:metrics-graphite
@@ -272,6 +271,8 @@ org.apache.hadoop:hadoop-client-runtime
 org.apache.httpcomponents.client5:httpclient5
 org.apache.httpcomponents.core5:httpcore5
 org.apache.httpcomponents.core5:httpcore5-h2
+org.apache.httpcomponents:httpclient
+org.apache.httpcomponents:httpcore
 org.apache.ibatis:mybatis
 org.apache.logging.log4j:log4j-1.2-api
 org.apache.logging.log4j:log4j-api
@@ -314,8 +315,42 @@ org.scala-lang:scala-library
 org.scala-lang:scala-reflect
 org.slf4j:jcl-over-slf4j
 org.webjars:swagger-ui
+org.wildfly.openssl:wildfly-openssl
 org.xerial.snappy:snappy-java
 org.yaml:snakeyaml
+software.amazon.awssdk:annotations
+software.amazon.awssdk:apache-client
+software.amazon.awssdk:arns
+software.amazon.awssdk:auth
+software.amazon.awssdk:aws-core
+software.amazon.awssdk:aws-query-protocol
+software.amazon.awssdk:aws-xml-protocol
+software.amazon.awssdk:checksums
+software.amazon.awssdk:checksums-spi
+software.amazon.awssdk:crt-core
+software.amazon.awssdk:endpoints-spi
+software.amazon.awssdk:http-auth
+software.amazon.awssdk:http-auth-aws
+software.amazon.awssdk:http-auth-aws-eventstream
+software.amazon.awssdk:http-auth-spi
+software.amazon.awssdk:http-client-spi
+software.amazon.awssdk:identity-spi
+software.amazon.awssdk:json-utils
+software.amazon.awssdk:metrics-spi
+software.amazon.awssdk:profiles
+software.amazon.awssdk:protocol-core
+software.amazon.awssdk:regions
+software.amazon.awssdk:retries
+software.amazon.awssdk:retries-spi
+software.amazon.awssdk:s3
+software.amazon.awssdk:s3-transfer-manager
+software.amazon.awssdk:sdk-core
+software.amazon.awssdk:sts
+software.amazon.awssdk:third-party-jackson-core
+software.amazon.awssdk:utils
+software.amazon.awssdk:utils-lite
+software.amazon.eventstream:eventstream
+software.amazon.s3.analyticsaccelerator:analyticsaccelerator-s3
 
 ------------------------------------------------------------------------------------
 This product bundles various third-party components under other open source licenses.
@@ -340,6 +375,11 @@ com.github.olivergondza:maven-jdk-tools-wrapper
 See licenses/LICENSE-slf4j.txt for details.
 org.slf4j:jul-to-slf4j
 org.slf4j:slf4j-api
+
+MIT No Attribution (MIT-0)
+--------------------------
+See licenses-binary/LICENSE-reactive-streams.txt for details.
+org.reactivestreams:reactive-streams
 
 MOZILLA PUBLIC LICENSE (MPL) 1.1
 ------------
