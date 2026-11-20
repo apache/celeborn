@@ -72,6 +72,46 @@ class MasterScaleManagerLifecycleSuite extends AnyFunSuite with RandomPortSuppor
     }
   }
 
+  test("Stopping a dual-port Master during ScaleManager init skips start and waits for stop") {
+    instances.clear()
+    val conf = masterConf("block-init")
+      .set(INTERNAL_PORT_ENABLED, true)
+      .set(MASTER_INTERNAL_PORT, selectRandomPort())
+    val master = new Master(conf, new MasterArguments(Array.empty, conf))
+    val manager = instances.poll(5, TimeUnit.SECONDS)
+    try {
+      assert(manager != null)
+      assert(manager.initEntered.await(5, TimeUnit.SECONDS))
+      master.stop(CelebornExitKind.EXIT_IMMEDIATELY)
+      assert(!manager.stopped.await(1, TimeUnit.SECONDS), "stop ran while init was blocked")
+    } finally {
+      Option(manager).foreach(_.releaseInit.countDown())
+      stopMaster(master)
+    }
+    assert(manager.stopped.await(5, TimeUnit.SECONDS))
+    assert(manager.events.asScala.toList == Seq("init", "init-completed", "stop"))
+  }
+
+  test("Stopping a dual-port Master during ScaleManager start waits before calling stop") {
+    instances.clear()
+    val conf = masterConf("block-start")
+      .set(INTERNAL_PORT_ENABLED, true)
+      .set(MASTER_INTERNAL_PORT, selectRandomPort())
+    val master = new Master(conf, new MasterArguments(Array.empty, conf))
+    val manager = instances.poll(5, TimeUnit.SECONDS)
+    try {
+      assert(manager != null)
+      assert(manager.startEntered.await(5, TimeUnit.SECONDS))
+      master.stop(CelebornExitKind.EXIT_IMMEDIATELY)
+      assert(!manager.stopped.await(1, TimeUnit.SECONDS), "stop ran while start was blocked")
+    } finally {
+      Option(manager).foreach(_.releaseStart.countDown())
+      stopMaster(master)
+    }
+    assert(manager.stopped.await(5, TimeUnit.SECONDS))
+    assert(manager.events.asScala.toList == Seq("init", "start", "start-completed", "stop"))
+  }
+
   test("Scale check interval must be positive after conversion to milliseconds") {
     val conf = new CelebornConf(false)
     assert(conf.get(SCALE_CHECK_INTERVAL) == 30000L)
@@ -116,24 +156,40 @@ class LifecycleTestScaleManager(conf: CelebornConf) extends ScaleManager {
 
   private val mode = conf.get(ModeKey)
   val events = new LinkedBlockingQueue[String]()
+  val initEntered = new CountDownLatch(1)
+  val releaseInit = new CountDownLatch(1)
+  val startEntered = new CountDownLatch(1)
+  val releaseStart = new CountDownLatch(1)
+  val stopped = new CountDownLatch(1)
   instances.add(this)
 
   override def init(metaManager: AbstractMetaManager): Unit = {
     events.add("init")
+    initEntered.countDown()
     if (mode == "init" || mode == "init-and-stop") {
       throw new IllegalStateException("ScaleManager init failed")
+    }
+    if (mode == "block-init") {
+      require(releaseInit.await(15, TimeUnit.SECONDS))
+      events.add("init-completed")
     }
   }
 
   override def start(): Unit = {
     events.add("start")
+    startEntered.countDown()
     if (mode == "start") {
       throw new IllegalStateException("ScaleManager start failed")
+    }
+    if (mode == "block-start") {
+      require(releaseStart.await(15, TimeUnit.SECONDS))
+      events.add("start-completed")
     }
   }
 
   override def stop(): Unit = {
     events.add("stop")
+    stopped.countDown()
     if (mode == "init-and-stop") {
       throw new IllegalStateException("ScaleManager stop failed")
     }
