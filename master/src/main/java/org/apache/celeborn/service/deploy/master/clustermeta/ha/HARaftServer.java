@@ -187,7 +187,7 @@ public class HARaftServer {
         RaftPeer.newBuilder()
             .setId(localRaftPeerId)
             .setAddress(ratisAddr)
-            .setClientAddress(localNode.rpcEndpoint())
+            .setClientAddress(localNode.clientEndpoint())
             // We use admin address to host the internal rpc address
             .setAdminAddress(localNode.internalRpcEndpoint())
             .build();
@@ -204,7 +204,7 @@ public class HARaftServer {
                 RaftPeer.newBuilder()
                     .setId(raftPeerId)
                     .setAddress(peer.ratisEndpoint())
-                    .setClientAddress(peer.rpcEndpoint())
+                    .setClientAddress(peer.clientEndpoint())
                     // We use admin address to host the internal rpc address
                     .setAdminAddress(peer.internalRpcEndpoint())
                     .build();
@@ -214,7 +214,7 @@ public class HARaftServer {
                 RaftPeer.newBuilder()
                     .setId(raftPeerId)
                     .setAddress(peerRatisAddr)
-                    .setClientAddress(peer.rpcEndpoint())
+                    .setClientAddress(peer.clientEndpoint())
                     // We use admin address to host the internal rpc address
                     .setAdminAddress(peer.internalRpcEndpoint())
                     .build();
@@ -636,17 +636,14 @@ public class HARaftServer {
         // example, in 3 node Ratis, if 2 nodes are down, there will
         // be no leader.
         if (leaderNodeId != null && !leaderNodeId.isEmpty()) {
-          String clientAddress =
-              roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getClientAddress();
-          leaderPeerRpcEndpoint = Utils.addressToIpHostAddressPair(clientAddress);
-          // We use admin address to host the internal rpc address
-          if (conf.internalPortEnabled()) {
-            String adminAddress =
-                roleInfoProto.getFollowerInfo().getLeaderInfo().getId().getAdminAddress();
-            leaderPeerInternalRpcEndpoint = Utils.addressToIpHostAddressPair(adminAddress);
-          } else {
-            leaderPeerInternalRpcEndpoint = leaderPeerRpcEndpoint;
-          }
+          RaftProtos.RaftPeerProto leaderPeer =
+              roleInfoProto.getFollowerInfo().getLeaderInfo().getId();
+          leaderPeerRpcEndpoint =
+              leaderClientEndpointPair(
+                  conf, leaderNodeId.toStringUtf8(), leaderPeer.getClientAddress());
+          leaderPeerInternalRpcEndpoint =
+              leaderInternalEndpointPair(
+                  leaderPeer.getAdminAddress(), leaderPeer.getClientAddress());
         }
 
         setServerRole(thisNodeRole, leaderPeerRpcEndpoint, leaderPeerInternalRpcEndpoint);
@@ -662,6 +659,37 @@ public class HARaftServer {
           e);
       setServerRole(null, null, null);
     }
+  }
+
+  /**
+   * The (ip, host) pair suggested to clients as the leader's address. An explicitly configured
+   * client.host is suggested as is, since it is an externally-reachable name (such as a gateway
+   * hostname routed by SNI) that resolving to an IP would drop. It is read from this node's
+   * configuration rather than the leader's Raft peer metadata: on restart Ratis restores the
+   * persisted peer configuration, which keeps the client address the group was first started with.
+   */
+  @VisibleForTesting
+  static Tuple2<String, String> leaderClientEndpointPair(
+      CelebornConf conf, String leaderNodeId, String clientAddress) {
+    if (conf.haMasterClientHostConfigured(leaderNodeId)) {
+      String endpoint =
+          conf.haMasterClientHost(leaderNodeId) + ":" + conf.haMasterNodePort(leaderNodeId);
+      return Tuple2.apply(endpoint, endpoint);
+    }
+    return Utils.addressToIpHostAddressPair(clientAddress);
+  }
+
+  /**
+   * The (ip, host) pair suggested to workers as the leader's internal address. The admin address
+   * hosts the internal rpc address, which is the rpc address when the internal port is disabled.
+   * Peers added without an admin address (the peer-add API and Ratis shell allow it) fall back to
+   * their client address.
+   */
+  @VisibleForTesting
+  static Tuple2<String, String> leaderInternalEndpointPair(
+      String adminAddress, String clientAddress) {
+    String address = adminAddress == null || adminAddress.isEmpty() ? clientAddress : adminAddress;
+    return Utils.addressToIpHostAddressPair(address);
   }
 
   /** Set the current server role and the leader peer rpc endpoint. */
