@@ -252,9 +252,9 @@ public class PartitionDataWriter implements DeviceObserver {
     return writerString;
   }
 
-  public void flushOnMemoryPressure() throws IOException {
+  public synchronized void flushOnMemoryPressure() throws IOException {
     // this won't happen if this writer is in memory
-    flush();
+    currentTierWriter.flushOnMemoryPressure();
   }
 
   public long getSplitThreshold() {
