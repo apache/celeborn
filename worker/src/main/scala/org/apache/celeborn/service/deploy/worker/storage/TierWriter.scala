@@ -140,11 +140,20 @@ abstract class TierWriterBase(
   }
 
   // close and destroy need to be invoked in synchronized blocks
-  def close(): Long = {
+  def close(): Long = close(true)
+
+  def waitOnNoPendingWrites(): Unit = waitOnNoPending(numPendingWrites, false)
+
+  // The partition writer drains admitted pushes before locking to close the current tier.
+  def close(waitForPendingWrites: Boolean): Long = {
     ensureNotClosed()
     var closeStreamsError: IOException = null
     try {
-      waitOnNoPending(numPendingWrites, false)
+      if (waitForPendingWrites) {
+        waitOnNoPendingWrites()
+      } else {
+        notifier.checkException()
+      }
       closed = true
       finalFlush()
       metaHandler.afterClose()

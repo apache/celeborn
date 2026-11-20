@@ -112,7 +112,7 @@ class StorageManagerSuite extends CelebornFunSuite with MockitoHelper {
           manager.notifyFileInfoCommitted("app-1-0", "0-0-0", fileInfo)
           0L
         }
-      }).when(tier).close()
+      }).when(tier).close(false)
 
       // Exercise the real close/destroy monitor while controlling when commit completes.
       val context = new PartitionDataWriterContext(

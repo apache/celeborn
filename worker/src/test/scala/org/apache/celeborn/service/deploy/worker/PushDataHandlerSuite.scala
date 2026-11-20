@@ -17,15 +17,23 @@
 
 package org.apache.celeborn.service.deploy.worker
 
+import java.nio.ByteBuffer
 import java.util
 
+import io.netty.buffer.{ByteBuf, Unpooled}
+import org.mockito.ArgumentCaptor
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito
 import org.mockito.MockitoSugar._
 import org.scalatest.funsuite.AnyFunSuite
 
 import org.apache.celeborn.common.CelebornConf
-import org.apache.celeborn.common.meta.{DiskFileInfo, DiskInfo, MemoryFileInfo, WorkerInfo}
+import org.apache.celeborn.common.meta.{DiskFileInfo, DiskInfo, MemoryFileInfo, WorkerInfo, WorkerPartitionLocationInfo}
 import org.apache.celeborn.common.meta.DiskStatus
-import org.apache.celeborn.common.protocol.PartitionSplitMode
+import org.apache.celeborn.common.network.buffer.NettyManagedBuffer
+import org.apache.celeborn.common.network.client.RpcResponseCallback
+import org.apache.celeborn.common.network.protocol.{PushData, PushMergedData, TransportMessage}
+import org.apache.celeborn.common.protocol.{PartitionLocation, PartitionSplitMode, PbPushMergedDataSplitPartitionInfo}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.service.deploy.worker.storage.{LocalFlusher, PartitionDataWriter}
 
@@ -57,7 +65,9 @@ class PushDataHandlerSuite extends AnyFunSuite {
   private def buildHandler(
       partitionSplitEnabled: Boolean,
       diskStatus: DiskStatus = DiskStatus.HEALTHY,
-      actualUsableSpace: Long = Long.MaxValue): PushDataHandler = {
+      actualUsableSpace: Long = Long.MaxValue,
+      partitionLocationInfo: WorkerPartitionLocationInfo = mock[WorkerPartitionLocationInfo])
+      : PushDataHandler = {
     val conf = new CelebornConf()
     conf.set(CelebornConf.WORKER_PARTITION_SPLIT_ENABLED.key, partitionSplitEnabled.toString)
     conf.set(CelebornConf.WORKER_PARTITION_SPLIT_MIN_SIZE.key, splitMinimumSize.toString)
@@ -80,8 +90,7 @@ class PushDataHandlerSuite extends AnyFunSuite {
     when(mockWorker.conf).thenReturn(conf)
     when(mockWorker.workerInfo).thenReturn(workerInfo)
     // Provide no-op stubs for all other Worker fields accessed during init
-    when(mockWorker.partitionLocationInfo).thenReturn(mock[
-      org.apache.celeborn.common.meta.WorkerPartitionLocationInfo])
+    when(mockWorker.partitionLocationInfo).thenReturn(partitionLocationInfo)
     when(mockWorker.shufflePartitionType).thenReturn(
       new java.util.concurrent.ConcurrentHashMap[
         String,
@@ -116,6 +125,7 @@ class PushDataHandlerSuite extends AnyFunSuite {
       needMemoryHardSplit: Boolean = false,
       diskFileInfoNull: Boolean = false): PartitionDataWriter = {
     val fileWriter = mock[PartitionDataWriter]
+    when(fileWriter.getException).thenReturn(null)
 
     when(fileWriter.needHardSplitForMemoryShuffleStorage()).thenReturn(needMemoryHardSplit)
 
@@ -144,6 +154,231 @@ class PushDataHandlerSuite extends AnyFunSuite {
   }
 
   // ── test cases ────────────────────────────────────────────────────────────
+
+  for (mode <- Seq(PartitionLocation.Mode.PRIMARY, PartitionLocation.Mode.REPLICA);
+    mapPartition <- Seq(false, true)) {
+    test(s"$mode push (map partition: $mapPartition) rejects admission without changing pending") {
+      val locations = mock[WorkerPartitionLocationInfo]
+      val handler = buildHandler(partitionSplitEnabled = false, partitionLocationInfo = locations)
+      val writer = buildFileWriter(0)
+      when(writer.tryIncrementPendingWrites()).thenReturn(false)
+      val fileInfo = writer.getDiskFileInfo
+      when(writer.getCurrentFileInfo).thenReturn(fileInfo)
+      val location = new WorkingPartition(
+        new PartitionLocation(0, 0, "localhost", 1, 2, 3, 4, mode),
+        writer)
+      when(locations.getPrimaryLocation("app-1", location.getUniqueId)).thenReturn(location)
+      when(locations.getReplicaLocation("app-1", location.getUniqueId)).thenReturn(location)
+      val body = Unpooled.buffer(16).writeZero(16)
+      val push =
+        new PushData(mode.mode(), "app-1", location.getUniqueId, new NettyManagedBuffer(body))
+      val callback = mock[RpcResponseCallback]
+      try {
+        if (mapPartition) {
+          handler.handleMapPartitionPushData(push, callback)
+          verify(callback).onFailure(any[Throwable])
+          verify(callback, never).onSuccess(any[ByteBuffer])
+        } else {
+          handler.handlePushData(push, callback)
+          val response = ArgumentCaptor.forClass(classOf[ByteBuffer])
+          verify(callback).onSuccess(response.capture())
+          assert(response.getValue.get() == StatusCode.HARD_SPLIT.getValue)
+          verify(callback, never).onFailure(any[Throwable])
+        }
+        verify(writer).tryIncrementPendingWrites()
+        verify(writer, never).incrementPendingWrites()
+        verify(writer, never).decrementPendingWrites()
+        verify(writer, never).write(any[ByteBuf])
+        verify(writer, never).needHardSplitForMemoryShuffleStorage()
+      } finally {
+        body.release()
+      }
+    }
+  }
+
+  for (mode <- Seq(PartitionLocation.Mode.PRIMARY, PartitionLocation.Mode.REPLICA)) {
+    test(
+      s"$mode merged push writes accepted partitions and reports rejected admission as hard split") {
+      val locations = mock[WorkerPartitionLocationInfo]
+      val handler = buildHandler(partitionSplitEnabled = false, partitionLocationInfo = locations)
+      val accepted = buildFileWriter(0)
+      val rejected = buildFileWriter(0)
+      when(accepted.tryIncrementPendingWrites()).thenReturn(true)
+      when(rejected.isClosed).thenReturn(false)
+      when(rejected.tryIncrementPendingWrites()).thenReturn(false)
+      val partitions = Array(accepted, rejected).zipWithIndex.map { case (writer, id) =>
+        new WorkingPartition(new PartitionLocation(id, 0, "localhost", 1, 2, 3, 4, mode), writer)
+      }
+      val ids = partitions.map(_.getUniqueId)
+      val entries = partitions.map(p => (p.getUniqueId, p: PartitionLocation))
+      when(locations.getPrimaryLocations("app-1", ids)).thenReturn(entries)
+      when(locations.getReplicaLocations("app-1", ids)).thenReturn(entries)
+      val body = Unpooled.buffer(32).writeZero(32)
+      val push =
+        new PushMergedData(mode.mode(), "app-1", ids, Array(0, 16), new NettyManagedBuffer(body))
+      val callback = mock[RpcResponseCallback]
+      try {
+        handler.handlePushMergedData(push, callback)
+        val response = ArgumentCaptor.forClass(classOf[ByteBuffer])
+        verify(callback).onSuccess(response.capture())
+        assert(response.getValue.get() == StatusCode.HARD_SPLIT.getValue)
+        val transport = TransportMessage.fromByteBuffer(response.getValue)
+        val splits = PbPushMergedDataSplitPartitionInfo.parseFrom(transport.getPayload)
+        assert(splits.getSplitPartitionIndexesList == java.util.Arrays.asList(Integer.valueOf(1)))
+        assert(splits.getStatusCodes(0) == StatusCode.HARD_SPLIT.getValue.toInt)
+        verify(accepted).write(any[ByteBuf])
+        verify(rejected).tryIncrementPendingWrites()
+        verify(rejected, never).incrementPendingWrites()
+        verify(rejected, never).decrementPendingWrites()
+        verify(rejected, never).write(any[ByteBuf])
+        verify(rejected, never).needHardSplitForMemoryShuffleStorage()
+      } finally {
+        body.release()
+      }
+    }
+  }
+
+  for (mode <- Seq(PartitionLocation.Mode.PRIMARY, PartitionLocation.Mode.REPLICA);
+    splitCheckFails <- Seq(false, true)) {
+    test(s"$mode single push returns pending admission when split check fails: $splitCheckFails") {
+      val locations = mock[WorkerPartitionLocationInfo]
+      val handler = buildHandler(partitionSplitEnabled = false, partitionLocationInfo = locations)
+      val writer = buildFileWriter(0, needMemoryHardSplit = !splitCheckFails)
+      when(writer.tryIncrementPendingWrites()).thenReturn(true)
+      val error = new IllegalStateException("split check failed")
+      if (splitCheckFails) {
+        when(writer.needHardSplitForMemoryShuffleStorage()).thenThrow(error)
+      }
+      val location = new WorkingPartition(
+        new PartitionLocation(0, 0, "localhost", 1, 2, 3, 4, mode),
+        writer)
+      when(locations.getPrimaryLocation("app-1", location.getUniqueId)).thenReturn(location)
+      when(locations.getReplicaLocation("app-1", location.getUniqueId)).thenReturn(location)
+      val body = Unpooled.buffer(16).writeZero(16)
+      val push =
+        new PushData(mode.mode(), "app-1", location.getUniqueId, new NettyManagedBuffer(body))
+      val callback = mock[RpcResponseCallback]
+      try {
+        if (splitCheckFails) {
+          assert(intercept[IllegalStateException](handler.handlePushData(push, callback)) eq error)
+        } else {
+          handler.handlePushData(push, callback)
+          val response = ArgumentCaptor.forClass(classOf[ByteBuffer])
+          verify(callback).onSuccess(response.capture())
+          assert(response.getValue.get() == StatusCode.HARD_SPLIT.getValue)
+        }
+        verify(writer).tryIncrementPendingWrites()
+        verify(writer).decrementPendingWrites()
+        verify(writer, never).write(any[ByteBuf])
+      } finally {
+        body.release()
+      }
+    }
+  }
+
+  for (mode <- Seq(PartitionLocation.Mode.PRIMARY, PartitionLocation.Mode.REPLICA);
+    firstAdmission <- Seq("accepted", "hard split", "rejected")) {
+    test(
+      s"$mode merged push cancels earlier admissions after split failure, first: $firstAdmission") {
+      val locations = mock[WorkerPartitionLocationInfo]
+      val handler = buildHandler(partitionSplitEnabled = false, partitionLocationInfo = locations)
+      val first = buildFileWriter(0, needMemoryHardSplit = firstAdmission == "hard split")
+      val second = buildFileWriter(0)
+      when(first.tryIncrementPendingWrites()).thenReturn(firstAdmission != "rejected")
+      when(second.tryIncrementPendingWrites()).thenReturn(true)
+      val error = new IllegalStateException("split check failed")
+      when(second.needHardSplitForMemoryShuffleStorage()).thenThrow(error)
+      val partitions = Array(first, second).zipWithIndex.map { case (writer, id) =>
+        new WorkingPartition(new PartitionLocation(id, 0, "localhost", 1, 2, 3, 4, mode), writer)
+      }
+      val ids = partitions.map(_.getUniqueId)
+      val entries = partitions.map(p => (p.getUniqueId, p: PartitionLocation))
+      when(locations.getPrimaryLocations("app-1", ids)).thenReturn(entries)
+      when(locations.getReplicaLocations("app-1", ids)).thenReturn(entries)
+      val body = Unpooled.buffer(32).writeZero(32)
+      val push =
+        new PushMergedData(mode.mode(), "app-1", ids, Array(0, 16), new NettyManagedBuffer(body))
+      try {
+        assert(intercept[IllegalStateException](
+          handler.handlePushMergedData(push, mock[RpcResponseCallback])) eq error)
+        for (writer <- Seq(first, second)) {
+          verify(writer).tryIncrementPendingWrites()
+          verify(writer, never).write(any[ByteBuf])
+        }
+        if (firstAdmission == "rejected") {
+          verify(first, never).decrementPendingWrites()
+        } else {
+          verify(first).decrementPendingWrites()
+        }
+        verify(second).decrementPendingWrites()
+      } finally {
+        body.release()
+      }
+    }
+  }
+
+  for (mode <- Seq(PartitionLocation.Mode.PRIMARY, PartitionLocation.Mode.REPLICA)) {
+    test(s"$mode merged push cancels each admission when a writer appears twice") {
+      val locations = mock[WorkerPartitionLocationInfo]
+      val handler = buildHandler(partitionSplitEnabled = false, partitionLocationInfo = locations)
+      val writer = buildFileWriter(0)
+      when(writer.tryIncrementPendingWrites()).thenReturn(true)
+      val error = new IllegalStateException("second split check failed")
+      Mockito.when(writer.needHardSplitForMemoryShuffleStorage()).thenReturn(false).thenThrow(error)
+      val partition =
+        new WorkingPartition(new PartitionLocation(0, 0, "localhost", 1, 2, 3, 4, mode), writer)
+      val ids = Array(partition.getUniqueId, partition.getUniqueId)
+      val entries = Array.fill(2)((partition.getUniqueId, partition: PartitionLocation))
+      when(locations.getPrimaryLocations("app-1", ids)).thenReturn(entries)
+      when(locations.getReplicaLocations("app-1", ids)).thenReturn(entries)
+      val body = Unpooled.buffer(32).writeZero(32)
+      val push =
+        new PushMergedData(mode.mode(), "app-1", ids, Array(0, 16), new NettyManagedBuffer(body))
+      try {
+        assert(intercept[IllegalStateException](
+          handler.handlePushMergedData(push, mock[RpcResponseCallback])) eq error)
+        verify(writer, times(2)).tryIncrementPendingWrites()
+        verify(writer, times(2)).decrementPendingWrites()
+        verify(writer, never).write(any[ByteBuf])
+      } finally {
+        body.release()
+      }
+    }
+  }
+
+  for (mode <- Seq(PartitionLocation.Mode.PRIMARY, PartitionLocation.Mode.REPLICA)) {
+    test(s"$mode merged push returns hard-split admission and writes other partitions") {
+      val locations = mock[WorkerPartitionLocationInfo]
+      val handler = buildHandler(partitionSplitEnabled = false, partitionLocationInfo = locations)
+      val split = buildFileWriter(0, needMemoryHardSplit = true)
+      val accepted = buildFileWriter(0)
+      when(split.tryIncrementPendingWrites()).thenReturn(true)
+      when(accepted.tryIncrementPendingWrites()).thenReturn(true)
+      val partitions = Array(split, accepted).zipWithIndex.map { case (writer, id) =>
+        new WorkingPartition(new PartitionLocation(id, 0, "localhost", 1, 2, 3, 4, mode), writer)
+      }
+      val ids = partitions.map(_.getUniqueId)
+      val entries = partitions.map(p => (p.getUniqueId, p: PartitionLocation))
+      when(locations.getPrimaryLocations("app-1", ids)).thenReturn(entries)
+      when(locations.getReplicaLocations("app-1", ids)).thenReturn(entries)
+      val body = Unpooled.buffer(32).writeZero(32)
+      val push =
+        new PushMergedData(mode.mode(), "app-1", ids, Array(0, 16), new NettyManagedBuffer(body))
+      val callback = mock[RpcResponseCallback]
+      try {
+        handler.handlePushMergedData(push, callback)
+        val response = ArgumentCaptor.forClass(classOf[ByteBuffer])
+        verify(callback).onSuccess(response.capture())
+        assert(response.getValue.get() == StatusCode.HARD_SPLIT.getValue)
+        verify(split).decrementPendingWrites()
+        verify(split, never).write(any[ByteBuf])
+        verify(accepted).write(any[ByteBuf])
+        verify(accepted, never).decrementPendingWrites()
+      } finally {
+        body.release()
+      }
+    }
+  }
 
   test("returns HARD_SPLIT when memory shuffle storage needs hard split") {
     val handler = buildHandler(partitionSplitEnabled = true)
