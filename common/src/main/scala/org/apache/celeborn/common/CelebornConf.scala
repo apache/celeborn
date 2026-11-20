@@ -6061,9 +6061,12 @@ object CelebornConf extends Logging {
     buildConf("celeborn.client.spark.push.sort.memory.threshold")
       .withAlternative("celeborn.push.sortMemory.threshold")
       .categories("client")
-      .doc("When SortBasedPusher use memory over the threshold, will trigger push data.")
+      .doc(
+        "When SortBasedPusher exceeds this memory threshold, it pushes data. " +
+          "The threshold must be at least 16 bytes.")
       .version("0.3.0")
       .bytesConf(ByteUnit.BYTE)
+      .checkValue(_ >= 16L, "Must be at least 16 bytes.")
       .createWithDefaultString("64m")
 
   val CLIENT_PUSH_SORT_USE_ADAPTIVE_MEMORY_THRESHOLD: ConfigEntry[Boolean] =
