@@ -6412,6 +6412,9 @@ object CelebornConf extends Logging {
       .doc("ScaleManager implementation class with a CelebornConf constructor. " +
         "Master calls init, start and stop; init and start must return promptly and schedule " +
         "background work asynchronously, and the implementation must handle HA leadership. " +
+        "If init or start fails with a non-fatal exception, Master disables autoscaling and " +
+        "calls stop for cleanup. " +
+        "The implementation must tolerate stop after partial startup. " +
         "Unset disables autoscaling.")
       .stringConf
       .checkValue(_.trim.nonEmpty, "ScaleManager class name must not be empty.")

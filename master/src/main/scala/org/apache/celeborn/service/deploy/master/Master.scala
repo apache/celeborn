@@ -28,6 +28,7 @@ import java.util.function.ToLongFunction
 
 import scala.collection.JavaConverters._
 import scala.util.Random
+import scala.util.control.NonFatal
 
 import com.google.common.annotations.VisibleForTesting
 import org.apache.commons.lang3.function.FailableConsumer
@@ -375,10 +376,25 @@ private[celeborn] class Master(
     }
 
     scaleManager.foreach { manager =>
-      manager.init(statusSystem)
-      manager.start()
+      try {
+        manager.init(statusSystem)
+        manager.start()
+      } catch {
+        case NonFatal(e) =>
+          logError(
+            s"Failed to start ScaleManager ${manager.getClass.getName}. Autoscaling is disabled.",
+            e)
+          stopScaleManager()
+      }
     }
 
+  }
+
+  private def stopScaleManager(): Unit = {
+    scaleManager.foreach { manager =>
+      scaleManager = None
+      Utils.tryLogNonFatalError(manager.stop())
+    }
   }
 
   private def scheduleCheckTask[T](timeoutMS: Long, message: T): ScheduledFuture[_] = {
@@ -399,7 +415,7 @@ private[celeborn] class Master(
     }
     logInfo("Stopping Celeborn Master.")
 
-    scaleManager.foreach(manager => Utils.tryLogNonFatalError(manager.stop()))
+    stopScaleManager()
 
     Option(checkForWorkerTimeoutTask).foreach(_.cancel(true))
     Option(checkForUnavailableWorkerTimeOutTask).foreach(_.cancel(true))
