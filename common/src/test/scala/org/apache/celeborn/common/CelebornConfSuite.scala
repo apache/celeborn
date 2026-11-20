@@ -49,6 +49,17 @@ class CelebornConfSuite extends CelebornFunSuite {
     assert(error.getMessage.contains("Must be non-negative."))
   }
 
+  test("Spark sort memory threshold must hold a record pointer and sorting scratch space") {
+    val key = CelebornConf.CLIENT_PUSH_SORT_MEMORY_THRESHOLD.key
+    val conf = new CelebornConf()
+    for (threshold <- Seq("0b", "8b", "15b")) {
+      conf.set(key, threshold)
+      val error = intercept[IllegalArgumentException](conf.clientPushSortMemoryThreshold)
+      assert(error.getMessage.contains("Must be at least 16 bytes."))
+    }
+    assert(conf.set(key, "16b").clientPushSortMemoryThreshold == 16L)
+  }
+
   test("JVMQuake thresholds should preserve configured time units") {
     val conf = new CelebornConf()
       .set(WORKER_JVM_QUAKE_DUMP_THRESHOLD.key, "30s")
