@@ -64,18 +64,22 @@ private[master] class SpecWorkerCntCalculator(
         ScaleRule.KeepSpec
     }
 
-    val candidate = rule match {
+    rule match {
       case ScaleRule.ScaleUpForLoad | ScaleRule.AlignToMin =>
-        calUpCandidate(oldSpecWorkerCnt, metrics, load, scaleConf)
+        makupExcl(
+          input,
+          calUpCandidate(oldSpecWorkerCnt, metrics, load, scaleConf),
+          maxWorkers)
       case ScaleRule.ScaleDownForLoad =>
-        calDownCandidate(input, downDemand(metrics, scaleConf), scaleConf)
+        calDownForLoad(input, downDemand(metrics, scaleConf), scaleConf)
       case ScaleRule.ConvergeToMax =>
-        calDownCandidate(input, maxWorkers, scaleConf)
+        calConvergeToMax(input, scaleConf)
       case ScaleRule.KeepSpec =>
-        SpecCandidate(oldSpecWorkerCnt, alignedMin, ExclMakup.UnmetOnly)
+        makupExcl(
+          input,
+          SpecCandidate(oldSpecWorkerCnt, alignedMin, ExclMakup.UnmetOnly),
+          maxWorkers)
     }
-
-    makupExcl(input, candidate, maxWorkers)
   }
 
   private def validateInput(input: Input): Unit = {
@@ -158,23 +162,43 @@ private[master] class SpecWorkerCntCalculator(
     math.max(minWorkers, math.min(maxWorkers, estimate(metrics, up = false)))
   }
 
-  private def calDownCandidate(
+  private def calDownForLoad(
       input: Input,
-      requiredWorkerCnt: Int,
-      scaleConf: ScaleConf): SpecCandidate = {
+      requiredAvailWorkerCnt: Int,
+      scaleConf: ScaleConf): Result = {
+    import scaleConf._
+    val desiredTotalSpec =
+      math.min(maxWorkers.toLong, requiredAvailWorkerCnt.toLong + input.exclWorkerCnt).toInt
+    val targetSpecWorkerCnt = calRetireTarget(input, desiredTotalSpec, scaleConf)
+    val accountedExclWorkerCnt =
+      math.min(
+        input.exclWorkerCnt,
+        math.max(0, targetSpecWorkerCnt - requiredAvailWorkerCnt))
+    Result(targetSpecWorkerCnt, accountedExclWorkerCnt)
+  }
+
+  private def calConvergeToMax(input: Input, scaleConf: ScaleConf): Result = {
+    import scaleConf._
+    val targetSpecWorkerCnt = calRetireTarget(input, maxWorkers, scaleConf)
+    val carriedReplacementCnt = input.exclWorkerCnt - input.unaccountedExclWorkerCnt
+    val specWithoutReplacements =
+      math.max(alignedMin, input.specWorkerCnt - carriedReplacementCnt)
+    val accountedExclWorkerCnt =
+      math.min(input.exclWorkerCnt, math.max(0, targetSpecWorkerCnt - specWithoutReplacements))
+    Result(targetSpecWorkerCnt, accountedExclWorkerCnt)
+  }
+
+  private def calRetireTarget(
+      input: Input,
+      desiredTotalSpec: Int,
+      scaleConf: ScaleConf): Int = {
     import scaleConf._
     val stepBudget =
       math.max(1, math.min(downStep, (downPercent * input.registeredWorkerCnt).toInt))
     val deltaDown =
-      math.min(stepBudget, math.max(0, input.registeredWorkerCnt - requiredWorkerCnt))
-    val candidateSpecWorkerCnt = math.max(requiredWorkerCnt, input.registeredWorkerCnt - deltaDown)
-    val compensation =
-      if (candidateSpecWorkerCnt < input.specWorkerCnt) ExclMakup.AllExcl
-      else ExclMakup.UnmetOnly
-    SpecCandidate(
-      math.min(input.specWorkerCnt, candidateSpecWorkerCnt),
-      minWorkers,
-      compensation)
+      math.min(stepBudget, math.max(0, input.registeredWorkerCnt - desiredTotalSpec))
+    val candidateSpecWorkerCnt = input.registeredWorkerCnt - deltaDown
+    math.max(desiredTotalSpec, math.min(input.specWorkerCnt, candidateSpecWorkerCnt))
   }
 
   private def estimate(metrics: MetricRatios, up: Boolean): Int = {
