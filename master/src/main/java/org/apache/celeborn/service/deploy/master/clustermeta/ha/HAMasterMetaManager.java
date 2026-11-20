@@ -41,6 +41,7 @@ import org.apache.celeborn.service.deploy.master.clustermeta.MetaUtil;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.ResourceRequest;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos.Type;
+import org.apache.celeborn.service.deploy.master.scale.ScaleOperation;
 
 public class HAMasterMetaManager extends AbstractMetaManager {
   private static final Logger LOG = LoggerFactory.getLogger(HAMasterMetaManager.class);
@@ -533,5 +534,37 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       LOG.error("Handle app meta for {} failed!", applicationMeta.appId(), e);
       throw e;
     }
+  }
+
+  @Override
+  public void handleUpdateScaleOperation(String operationId, ScaleOperation scaleOperation) {
+    ratisServer.submitRequest(
+        ResourceRequest.newBuilder()
+            .setCmdType(Type.DoScaleOperation)
+            .setRequestId(MasterClient.genRequestId())
+            .setScaleOperationRequest(
+                ResourceProtos.ScaleOperationRequest.newBuilder()
+                    .setOperationId(operationId)
+                    .setScaleOperation(
+                        ResourceProtos.ScaleOperation.newBuilder()
+                            .setScaleType(
+                                ResourceProtos.ScaleType.forNumber(
+                                    scaleOperation.scaleType().getNumber()))
+                            .setExpectedWorkerReplicaNumber(scaleOperation.specWorkerCnt())
+                            .addAllReserveWorkerNumbers(scaleOperation.reservedWorkerIndicesJava())
+                            .setLastScaleTime(scaleOperation.lastScaleTime())
+                            .setIsFinished(scaleOperation.isFinished())))
+            .build());
+  }
+
+  @Override
+  public void handleRemoveScaleOperation(String operationId) {
+    ratisServer.submitRequest(
+        ResourceRequest.newBuilder()
+            .setCmdType(Type.RemoveScaleOperation)
+            .setRequestId(MasterClient.genRequestId())
+            .setRemoveScaleOperationRequest(
+                ResourceProtos.RemoveScaleOperationRequest.newBuilder().setOperationId(operationId))
+            .build());
   }
 }

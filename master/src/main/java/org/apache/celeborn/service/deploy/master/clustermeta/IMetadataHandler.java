@@ -26,6 +26,7 @@ import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
+import org.apache.celeborn.service.deploy.master.scale.ScaleOperation;
 
 public interface IMetadataHandler {
   void handleRegisterApplicationInfo(
@@ -97,6 +98,10 @@ public interface IMetadataHandler {
       int workerEventTypeValue, List<WorkerInfo> workerInfoList, String requestId);
 
   void handleUpdatePartitionSize();
+
+  void handleUpdateScaleOperation(String operationId, ScaleOperation scaleOperation);
+
+  void handleRemoveScaleOperation(String operationId);
 
   void handleApplicationMeta(ApplicationMeta applicationMeta);
 

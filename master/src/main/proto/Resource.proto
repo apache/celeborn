@@ -44,6 +44,8 @@ enum Type {
   RegisterApplicationInfo = 30;
 
   BatchHeartbeat = 31;
+  DoScaleOperation = 32;
+  RemoveScaleOperation = 33;
 }
 
 enum WorkerEventType {
@@ -77,7 +79,33 @@ message ResourceRequest {
   optional BatchUnregisterShuffleRequest batchUnregisterShuffleRequest = 25;
   optional RegisterApplicationInfoRequest registerApplicationInfoRequest = 26;
   optional BatchHeartbeatRequest batchHeartbeatRequest = 27;
+  optional ScaleOperationRequest scaleOperationRequest = 28;
+  optional RemoveScaleOperationRequest removeScaleOperationRequest = 29;
   optional ReviseLostShufflesRequest reviseLostShufflesRequest = 102;
+}
+
+enum ScaleType {
+  UNKNOWN_SCALE = 0;
+  SCALE_UP = 1;
+  SCALE_DOWN = 2;
+  NO_SCALE = 3;
+}
+
+message ScaleOperationRequest {
+  string operationId = 1;
+  ScaleOperation scaleOperation = 2;
+}
+
+message RemoveScaleOperationRequest {
+  string operationId = 1;
+}
+
+message ScaleOperation {
+  ScaleType scaleType = 1;
+  int32 expectedWorkerReplicaNumber = 2;
+  repeated int32 reserveWorkerNumbers = 3;
+  int64 lastScaleTime = 4;
+  bool isFinished = 5;
 }
 
 message DiskInfo {

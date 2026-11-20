@@ -1047,6 +1047,8 @@ enum PbMetaRequestType {
   ReviseLostShuffles = 29;
   RegisterApplicationInfo = 30;
   BatchHeartbeat = 31;
+  DoScaleOperation = 32;
+  RemoveScaleOperation = 33;
 }
 
 message PbMetaRequest {
@@ -1069,7 +1071,33 @@ message PbMetaRequest {
   PbMetaBatchUnregisterShuffles batchUnregisterShuffleRequest = 25;
   PbRegisterApplicationInfo registerApplicationInfoRequest = 26;
   PbBatchHeartbeatRequest batchHeartbeatRequest = 27;
+  PbScaleOperationRequest scaleOperationRequest = 28;
+  PbRemoveScaleOperationRequest removeScaleOperationRequest = 29;
   PbReviseLostShuffles reviseLostShufflesRequest = 102;
+}
+
+enum PbScaleType {
+  UNKNOWN_SCALE = 0;
+  SCALE_UP = 1;
+  SCALE_DOWN = 2;
+  NO_SCALE = 3;
+}
+
+message PbScaleOperationRequest {
+  string operationId = 1;
+  PbScaleOperation scaleOperation = 2;
+}
+
+message PbRemoveScaleOperationRequest {
+  string operationId = 1;
+}
+
+message PbScaleOperation {
+  PbScaleType scaleType = 1;
+  int32 expectedWorkerReplicaNumber = 2;
+  repeated int32 reserveWorkerNumbers = 3;
+  int64 lastScaleTime = 4;
+  bool isFinished = 5;
 }
 
 message PbMetaRequestSlotsRequest {

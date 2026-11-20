@@ -6405,6 +6405,62 @@ object CelebornConf extends Logging {
       .checkValue(_ > 0, "Worker metric memory window size must be positive")
       .createWithDefault(6)
 
+  val SCALE_MANAGER_CLASS_NAME: OptionalConfigEntry[String] =
+    buildConf("celeborn.scale.manager.class")
+      .categories("master")
+      .version("1.0.0")
+      .doc("ScaleManager implementation class with a CelebornConf constructor. " +
+        "Master calls init, run and stop; the implementation must handle HA leadership. " +
+        "Unset disables autoscaling.")
+      .stringConf
+      .createOptional
+
+  val SCALE_CHECK_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.scale.check.interval")
+      .categories("master")
+      .version("1.0.0")
+      .doc("Interval between checks in AbstractScaleManager.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("30s")
+
+  val AUTO_SCALE_UP_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.scale.up.enabled")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Whether the default scale manager may activate workers or add capacity.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val AUTO_SCALE_DOWN_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.scale.down.enabled")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Whether the default scale manager may drain workers or reduce capacity.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val SCALE_UP_STABILIZATION_WINDOW_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.scale.up.stabilizationWindowInterval")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc(
+        "Waiting time before a new scale-up decision after the previous scaling plan was created.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("360s")
+
+  val SCALE_DOWN_STABILIZATION_WINDOW_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.scale.down.stabilizationWindowInterval")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc(
+        "Waiting time before a new scale-down decision after the previous scaling plan was created.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("3600s")
+
   val IDENTITY_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.identity.provider")
       .withAlternative("celeborn.quota.identity.provider")

@@ -59,6 +59,7 @@ import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.util.WorkerStatusUtils;
 import org.apache.celeborn.service.deploy.master.ApplicationMetricsSource;
+import org.apache.celeborn.service.deploy.master.scale.ScaleOperation;
 
 /**
  * Note: Do not update the worker collections directly from outside the metadata manager, especially
@@ -88,6 +89,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final Set<WorkerInfo> shutdownWorkers = ConcurrentHashMap.newKeySet();
   public final Set<WorkerInfo> decommissionWorkers = ConcurrentHashMap.newKeySet();
   public final Set<WorkerInfo> workerLostEvents = ConcurrentHashMap.newKeySet();
+  public Pair<String, ScaleOperation> lastScaleOperation = null;
 
   protected RpcEnv rpcEnv;
   protected CelebornConf conf;
@@ -356,6 +358,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       workerEventInfos.remove(worker);
       if (workerStatus.getState() == PbWorkerStatus.State.Normal) {
         shutdownWorkers.remove(worker);
+        decommissionWorkers.remove(worker);
       }
     }
 
@@ -646,6 +649,16 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           }
         }
       }
+    }
+  }
+
+  public void updateScaleOperation(String operationId, ScaleOperation scaleOperation) {
+    lastScaleOperation = Pair.of(operationId, scaleOperation);
+  }
+
+  public void removeScaleOperation(String operationId) {
+    if (lastScaleOperation != null && operationId.equals(lastScaleOperation.getKey())) {
+      lastScaleOperation = null;
     }
   }
 
