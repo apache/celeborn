@@ -175,8 +175,21 @@ public class SortBasedPusher extends MemoryConsumer {
 
     this.sendBufferPool = sendBufferPool;
 
+    pushBufferMaxSize = conf.clientPushBufferMaxSize();
+    useAdaptiveThreshold = conf.clientPushSortUseAdaptiveMemoryThreshold();
+    maxMemoryFactor = conf.clientPushSortMaxMemoryFactor();
+    this.pushSortMemoryThreshold = pushSortMemoryThreshold;
+
+    this.memoryThresholdManager =
+        new MemoryThresholdManager(maxMemoryFactor, conf.clientPushSortSmallPushTolerateFactor());
+
+    // Allocate before starting the push thread, since a failed constructor cannot close it.
+    long initialSize = Math.min(pushSortMemoryThreshold / Long.BYTES, 1024L * 1024);
+    this.inMemSorter = new ShuffleInMemorySorter(this, initialSize);
+
+    LinkedBlockingQueue<PushTask> pushTaskQueue = null;
     try {
-      LinkedBlockingQueue<PushTask> pushTaskQueue = sendBufferPool.acquirePushTaskQueue();
+      pushTaskQueue = sendBufferPool.acquirePushTaskQueue();
       dataPusher =
           new DataPusher(
               shuffleId,
@@ -192,18 +205,12 @@ public class SortBasedPusher extends MemoryConsumer {
               mapStatusLengths);
     } catch (InterruptedException e) {
       TaskInterruptedHelper.throwTaskKillException();
+    } finally {
+      if (dataPusher == null) {
+        inMemSorter.freeMemory();
+        sendBufferPool.returnPushTaskQueue(pushTaskQueue);
+      }
     }
-
-    pushBufferMaxSize = conf.clientPushBufferMaxSize();
-    useAdaptiveThreshold = conf.clientPushSortUseAdaptiveMemoryThreshold();
-    maxMemoryFactor = conf.clientPushSortMaxMemoryFactor();
-    this.pushSortMemoryThreshold = pushSortMemoryThreshold;
-
-    this.memoryThresholdManager =
-        new MemoryThresholdManager(maxMemoryFactor, conf.clientPushSortSmallPushTolerateFactor());
-
-    long initialSize = Math.min(pushSortMemoryThreshold / Long.BYTES, 1024L * 1024);
-    this.inMemSorter = new ShuffleInMemorySorter(this, initialSize);
     this.peakMemoryUsedBytes = getMemoryUsage();
   }
 
