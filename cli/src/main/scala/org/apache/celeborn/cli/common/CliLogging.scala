@@ -18,6 +18,7 @@
 package org.apache.celeborn.cli.common
 
 import Console.{GREEN, RED, RESET}
+import picocli.CommandLine.Help.Ansi
 
 trait CliLogging {
 
@@ -30,11 +31,15 @@ trait CliLogging {
   }
 
   def logInfo(msg: String): Unit = {
-    Console.println(s"${GREEN}${msg}${RESET}")
+    Console.println(colored(GREEN, msg))
   }
 
   def logError(msg: String): Unit = {
-    Console.println(s"${RED}${msg}${RESET}")
+    Console.println(colored(RED, msg))
+  }
+
+  private def colored(color: String, msg: String): String = {
+    if (Ansi.AUTO.enabled()) s"$RESET$color$msg$RESET" else msg
   }
 
 }
