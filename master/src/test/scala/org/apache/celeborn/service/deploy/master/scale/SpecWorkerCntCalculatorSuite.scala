@@ -852,6 +852,31 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     assert(calculator.cal(neutralAvail) == Result(20, 10))
   }
 
+  test("partial unavailable ratios allow known-sum scale-up while blocking scale-down") {
+    val calculator = newCalculator()
+    ratioKeys.foreach { key =>
+      val hot = WorkerStats(neutral.metrics + (key -> 0.9))
+      val atThreshold = WorkerStats(neutral.metrics + (key -> 0.5))
+      val warming = WorkerStats(neutral.metrics + (key -> Double.NaN))
+      val partialHot = Input(20, 20, Seq.fill(19)(hot) :+ warming)
+      assert(calculator.cal(partialHot) == Result(25, 0), s"hot $key")
+      assert(
+        calculator.cal(Input(20, 20, Seq.fill(19)(atThreshold) :+ warming)) == Result(20, 0),
+        s"threshold $key")
+
+      val warmingLow = WorkerStats(low.metrics + (key -> Double.NaN))
+      assert(
+        calculator.cal(Input(20, 20, Seq.fill(19)(low) :+ warmingLow)) == Result(20, 0),
+        s"low $key")
+    }
+
+    val hotLoad = WorkerStats(neutral.metrics + (WorkerStats.LastMinuteSystemLoadRatio -> 0.9))
+    val legacyNegativeLoad =
+      WorkerStats(neutral.metrics + (WorkerStats.LastMinuteSystemLoadRatio -> -0.25))
+    assert(calculator.cal(Input(20, 20, Seq.fill(19)(hotLoad) :+ legacyNegativeLoad)) ==
+      Result(25, 0))
+  }
+
   test("converging to max preserves unreplaced exclusion accounting across bound changes") {
     val conf = baseConf()
     val calculator = newCalculator(conf)
