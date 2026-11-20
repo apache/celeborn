@@ -44,10 +44,24 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
   @Override
   public synchronized void refreshCache() {
     try (FileInputStream fileInputStream = new FileInputStream(getConfigFile(System.getenv()))) {
+      List<Map<String, Object>> configs = new Yaml().load(fileInputStream);
+      if (configs == null) {
+        throw new IllegalArgumentException(
+            "Dynamic config file is empty or contains no YAML document. "
+                + "Write an empty list ([]) if you intend to clear all dynamic configs.");
+      }
+      validateConfigs(configs);
+
       SystemConfig systemConfig = new SystemConfig(celebornConf);
       Map<String, TenantConfig> tenantConfigs = new HashMap<>();
       Map<Pair<String, String>, TenantConfig> tenantUserConfigs = new HashMap<>();
-      List<Map<String, Object>> configs = new Yaml().load(fileInputStream);
+      if (!configs.isEmpty()) {
+        // Keep the previous system-level values for fields the file does not override. An
+        // explicit empty list is the only way to clear all caches.
+        SystemConfig previousSystemConfig = systemConfigAtomicReference.get();
+        systemConfig.setConfigs(previousSystemConfig.getConfigs());
+        systemConfig.setTags(previousSystemConfig.getTags());
+      }
       for (Map<String, Object> configMap : configs) {
         if (ConfigLevel.SYSTEM.name().equals(configMap.get(CONF_LEVEL))) {
           if (configMap.containsKey(CONF_CONFIG)) {
@@ -57,22 +71,20 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
             systemConfig.setTags(getTags(configMap));
           }
         } else {
-          if (configMap.containsKey(CONF_TENANT_ID)) {
-            String tenantId = (String) configMap.get(CONF_TENANT_ID);
-            if (configMap.containsKey(CONF_CONFIG)) {
-              tenantConfigs.put(
-                  tenantId, new TenantConfig(this, tenantId, null, getConfigs(configMap)));
-            }
-            if (configMap.containsKey(CONF_TENANT_USERS)) {
-              for (Map<String, Object> userConfigMap :
-                  (List<Map<String, Object>>) configMap.get(CONF_TENANT_USERS)) {
-                if (userConfigMap.containsKey(CONF_TENANT_NAME)
-                    && userConfigMap.containsKey(CONF_CONFIG)) {
-                  String name = (String) userConfigMap.get(CONF_TENANT_NAME);
-                  tenantUserConfigs.put(
-                      Pair.of(tenantId, name),
-                      new TenantConfig(this, tenantId, name, getConfigs(userConfigMap)));
-                }
+          String tenantId = (String) configMap.get(CONF_TENANT_ID);
+          if (configMap.containsKey(CONF_CONFIG)) {
+            tenantConfigs.put(
+                tenantId, new TenantConfig(this, tenantId, null, getConfigs(configMap)));
+          }
+          if (configMap.containsKey(CONF_TENANT_USERS)) {
+            for (Map<String, Object> userConfigMap :
+                (List<Map<String, Object>>) configMap.get(CONF_TENANT_USERS)) {
+              if (userConfigMap.containsKey(CONF_TENANT_NAME)
+                  && userConfigMap.containsKey(CONF_CONFIG)) {
+                String name = (String) userConfigMap.get(CONF_TENANT_NAME);
+                tenantUserConfigs.put(
+                    Pair.of(tenantId, name),
+                    new TenantConfig(this, tenantId, name, getConfigs(userConfigMap)));
               }
             }
           }
@@ -84,6 +96,22 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
       tenantUserConfigAtomicReference.set(tenantUserConfigs);
     } catch (IOException e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  private void validateConfigs(List<Map<String, Object>> configs) {
+    for (Map<String, Object> configMap : configs) {
+      Object level = configMap.get(CONF_LEVEL);
+      if (ConfigLevel.SYSTEM.name().equals(level)) {
+        continue;
+      }
+      if (!ConfigLevel.TENANT.name().equals(level) || configMap.get(CONF_TENANT_ID) == null) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Unrecognized dynamic config record, expected level SYSTEM, or level TENANT "
+                    + "with a non-null tenantId, but got %s",
+                configMap));
+      }
     }
   }
 
