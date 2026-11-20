@@ -28,7 +28,6 @@ import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
 
@@ -43,7 +42,8 @@ class SlotsAssignMaxWorkersLargeTest extends AnyFunSuite
   }
 
   override def beforeEach(): Unit = {
-    ShuffleClient.reset()
+    // Test discovery can leave a default session using a different shuffle manager.
+    stopActiveSparkSessions()
   }
 
   override def afterEach(): Unit = {
