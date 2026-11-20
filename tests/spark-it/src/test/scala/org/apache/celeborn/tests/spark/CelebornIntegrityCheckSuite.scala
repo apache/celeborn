@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.tests.spark
 
+import java.nio.charset.StandardCharsets
+
 import org.apache.spark._
 import org.apache.spark.shuffle.celeborn.{SparkUtils, TestCelebornShuffleManager}
 import org.apache.spark.sql.SparkSession
@@ -57,34 +59,29 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
         .config(
           s"spark.${CelebornConf.SHUFFLE_COMPRESSION_CODEC.key}",
           CompressionCodec.NONE.toString)
+        .config(s"spark.${CelebornConf.CLIENT_STAGE_RERUN_ENABLED.key}", "false")
+        .config(s"spark.${CelebornConf.CLIENT_FETCH_CLEAN_FAILED_SHUFFLE.key}", "false")
+        .config(s"spark.${CelebornConf.CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED.key}", "false")
         .getOrCreate()
 
-      // Introduce Data Corruption in single bit in 1 partition location file
+      // Flip "5000" to "5100" inside one serialized value. A random flip could hit a Kryo
+      // length or reference id and abort the job instead of returning wrong data.
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
-      val hook = new ShuffleReaderGetHookForCorruptedData(celebornConf, workerDirs)
+      val hook = new ShuffleReaderGetHookForCorruptedData(
+        celebornConf,
+        workerDirs,
+        targetBytes = Some((",5000,".getBytes(StandardCharsets.US_ASCII), 2)))
       TestCelebornShuffleManager.registerReaderGetHook(hook)
 
+      val value = Range(1, 10000).mkString(",")
       try {
-        val value = Range(1, 10000).mkString(",")
         val tuples = sparkSession.sparkContext.parallelize(1 to 1000, 2)
           .map { i => (i, value) }.groupByKey(16).collect()
 
-        // Usually the flipped bit lands inside a string value and the wrong data is returned
-        // silently, which is what this test is about.
         assert(tuples.length == 1000)
-      } catch {
-        // The flipped bit can also land on a Kryo reference id or length, in which case
-        // deserialization fails and the job aborts. That is still fine with integrity checks
-        // off, as long as it is not the integrity check that failed the job.
-        case e: SparkException if e.getMessage.contains("Job aborted") =>
-          logger.warn("Job aborted on corrupted data with integrity checks disabled", e)
-          assert(
-            !e.getMessage.contains("CommitMetadata mismatch"),
-            s"Integrity check ran even though it is disabled: ${e.getMessage}")
-          assert(
-            e.getMessage.contains("IndexOutOfBounds") ||
-              e.getMessage.contains("com.esotericsoftware.kryo"),
-            s"App aborted for a reason other than Kryo deserialization: ${e.getMessage}")
+        val changed = tuples.flatMap(_._2).filter(_ != value)
+        assert(changed.nonEmpty, "no collected value differs from the original")
+        assert(changed.forall(_ == value.replace(",5000,", ",5100,")))
       } finally {
         sparkSession.stop()
       }
