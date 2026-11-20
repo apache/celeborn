@@ -18,6 +18,10 @@
 package org.apache.celeborn.server.common.service.config;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.DateFormat;
@@ -30,6 +34,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -185,6 +190,164 @@ public class ConfigServiceSuiteJ {
     if (configService != null) {
       configService.shutdown();
     }
+  }
+
+  @Test
+  public void testFsConfigRefreshKeepsPreviousSystemSnapshot() throws IOException {
+    CelebornConf celebornConf = prepareFsConfigRefreshTest();
+    SystemConfig previousSystem = configService.getSystemConfigFromCache();
+    Map<String, String> previousSystemValues = previousSystem.configs;
+    Map<String, Set<String>> previousTags = previousSystem.tags;
+    celebornConf.set(
+        CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(),
+        getClass().getResource("/dynamicConfig_2.yaml").getFile());
+    configService.refreshCache();
+    verifyConfigChanged(configService);
+    verifyTagsChanged(configService);
+    Assert.assertEquals(
+        Integer.valueOf(10),
+        previousSystem.getValue("celeborn.test.int.only", null, Integer.TYPE, ConfigType.STRING));
+    Assert.assertSame(previousSystemValues, previousSystem.configs);
+    Assert.assertSame(previousTags, previousSystem.tags);
+  }
+
+  @Test
+  public void testFsConfigFailedRefreshKeepsPreviousCache() throws Exception {
+    CelebornConf celebornConf = prepareFsConfigRefreshTest();
+    SystemConfig previousSystem = configService.getSystemConfigFromCache();
+    TenantConfig previousTenant = configService.getRawTenantConfigFromCache("tenant_id");
+    TenantConfig previousUser =
+        configService.getRawTenantUserConfigFromCache("tenant_id1", "Jerry");
+    Path configFile = Files.createTempFile("celeborn-invalid-dynamic-config", ".yaml");
+    try {
+      String updatedConfig =
+          new String(
+              Files.readAllBytes(
+                  Paths.get(getClass().getResource("/dynamicConfig_2.yaml").toURI())),
+              StandardCharsets.UTF_8);
+      Files.write(
+          configFile,
+          (updatedConfig + "\n- level: TENANT\n  tenantId: invalid\n  config: []\n")
+              .getBytes(StandardCharsets.UTF_8));
+      celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), configFile.toString());
+      Assert.assertThrows(ClassCastException.class, () -> configService.refreshCache());
+      Assert.assertSame(previousSystem, configService.getSystemConfigFromCache());
+      Assert.assertSame(previousTenant, configService.getRawTenantConfigFromCache("tenant_id"));
+      Assert.assertSame(
+          previousUser, configService.getRawTenantUserConfigFromCache("tenant_id1", "Jerry"));
+      verifySystemConfig(configService);
+      verifyTenantConfig(configService);
+      verifyTenantUserConfig(configService);
+      verifyTags(configService);
+    } finally {
+      Files.deleteIfExists(configFile);
+    }
+  }
+
+  @Test
+  public void testFsConfigEmptySnapshotClearsCaches() throws Exception {
+    CelebornConf celebornConf = prepareFsConfigRefreshTest();
+    Path configFile = Files.createTempFile("celeborn-empty-dynamic-config", ".yaml");
+    try {
+      Files.write(configFile, "[]\n".getBytes(StandardCharsets.UTF_8));
+      celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), configFile.toString());
+      configService.refreshCache();
+      Assert.assertTrue(configService.listRawTenantConfigsFromCache().isEmpty());
+      Assert.assertTrue(configService.listRawTenantUserConfigsFromCache().isEmpty());
+      Assert.assertNull(configService.getRawTenantConfigFromCache("tenant_id"));
+      Assert.assertNull(configService.getRawTenantUserConfigFromCache("tenant_id1", "Jerry"));
+      Assert.assertNull(
+          configService
+              .getSystemConfigFromCache()
+              .getValue("celeborn.test.int.only", null, Integer.TYPE, ConfigType.STRING));
+      Assert.assertTrue(configService.getSystemConfigFromCache().getTags().isEmpty());
+      Assert.assertEquals(
+          2048L,
+          configService
+              .getSystemConfigFromCache()
+              .getValue(
+                  CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE().key(),
+                  CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE(),
+                  Long.TYPE,
+                  ConfigType.BYTES)
+              .longValue());
+    } finally {
+      Files.deleteIfExists(configFile);
+    }
+  }
+
+  @Test
+  public void testFsConfigRefreshKeepsPreviousTagsWhenOmitted() throws Exception {
+    CelebornConf celebornConf = prepareFsConfigRefreshTest();
+    Map<String, Set<String>> previousTags = configService.getSystemConfigFromCache().getTags();
+    Path configFile = Files.createTempFile("celeborn-no-tags-dynamic-config", ".yaml");
+    try {
+      Files.write(
+          configFile,
+          ("- level: SYSTEM\n" + "  config:\n" + "    celeborn.test.int.only: 100\n")
+              .getBytes(StandardCharsets.UTF_8));
+      celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), configFile.toString());
+      configService.refreshCache();
+      SystemConfig systemConfig = configService.getSystemConfigFromCache();
+      Assert.assertNotNull(systemConfig.getTags());
+      Assert.assertEquals(previousTags, systemConfig.getTags());
+      verifyConfigChanged(configService);
+    } finally {
+      Files.deleteIfExists(configFile);
+    }
+  }
+
+  @Test
+  public void testFsConfigUnrecognizedRecordKeepsPreviousCache() throws Exception {
+    CelebornConf celebornConf = prepareFsConfigRefreshTest();
+    SystemConfig previousSystem = configService.getSystemConfigFromCache();
+    TenantConfig previousTenant = configService.getRawTenantConfigFromCache("tenant_id");
+    TenantConfig previousUser =
+        configService.getRawTenantUserConfigFromCache("tenant_id1", "Jerry");
+    Path configFile = Files.createTempFile("celeborn-unrecognized-dynamic-config", ".yaml");
+    try {
+      Files.write(
+          configFile,
+          ("- level: SYSETM\n" + "  config:\n" + "    celeborn.test.int.only: 100\n")
+              .getBytes(StandardCharsets.UTF_8));
+      celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), configFile.toString());
+      Assert.assertThrows(IllegalArgumentException.class, () -> configService.refreshCache());
+      Assert.assertSame(previousSystem, configService.getSystemConfigFromCache());
+      Assert.assertSame(previousTenant, configService.getRawTenantConfigFromCache("tenant_id"));
+      Assert.assertSame(
+          previousUser, configService.getRawTenantUserConfigFromCache("tenant_id1", "Jerry"));
+      verifySystemConfig(configService);
+      verifyTenantConfig(configService);
+      verifyTenantUserConfig(configService);
+      verifyTags(configService);
+    } finally {
+      Files.deleteIfExists(configFile);
+    }
+  }
+
+  @Test
+  public void testFsConfigEmptyFileFailsRefresh() throws Exception {
+    CelebornConf celebornConf = prepareFsConfigRefreshTest();
+    SystemConfig previousSystem = configService.getSystemConfigFromCache();
+    Path configFile = Files.createTempFile("celeborn-empty-file-dynamic-config", ".yaml");
+    try {
+      celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), configFile.toString());
+      Assert.assertThrows(IllegalArgumentException.class, () -> configService.refreshCache());
+      Assert.assertSame(previousSystem, configService.getSystemConfigFromCache());
+    } finally {
+      Files.deleteIfExists(configFile);
+    }
+  }
+
+  private CelebornConf prepareFsConfigRefreshTest() throws IOException {
+    CelebornConf celebornConf = new CelebornConf();
+    celebornConf.set(
+        CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(),
+        getClass().getResource("/dynamicConfig.yaml").getFile());
+    celebornConf.set(CelebornConf.DYNAMIC_CONFIG_REFRESH_INTERVAL(), TimeUnit.HOURS.toMillis(1));
+    celebornConf.set(CelebornConf.CLIENT_PUSH_BUFFER_INITIAL_SIZE(), 2048L);
+    configService = new FsConfigServiceImpl(celebornConf);
+    return celebornConf;
   }
 
   public void verifySystemConfig(ConfigService configService) {
