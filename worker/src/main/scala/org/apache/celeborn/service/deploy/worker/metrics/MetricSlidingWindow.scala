@@ -37,6 +37,6 @@ private[metrics] class MetricSlidingWindow(windowSize: Int) {
   }
 
   def average: Double = {
-    if (count < windowSize) 0.0 else sum / windowSize
+    if (count < windowSize) Double.NaN else sum / windowSize
   }
 }
