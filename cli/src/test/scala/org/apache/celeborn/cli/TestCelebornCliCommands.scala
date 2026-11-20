@@ -468,7 +468,7 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     val stdoutStream = new ByteArrayOutputStream()
     val stdoutPrintStream = new PrintStream(stdoutStream)
     Console.withOut(stdoutPrintStream) {
-      CelebornCli.main(args)
+      CelebornCli.execute(args)
     }
     val stdout = stdoutStream.toString
     assert(stdout.nonEmpty && stdout.contains(stdoutValidationString))
@@ -481,7 +481,7 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     val stderrPrintStream = new PrintStream(stderrStream)
     System.setErr(new PrintStream(stderrStream))
     Console.withErr(stderrPrintStream) {
-      CelebornCli.main(args)
+      CelebornCli.execute(args)
     }
     val stderr = stderrStream.toString
     assert(stderr.nonEmpty && stderr.contains(stderrValidationString))
