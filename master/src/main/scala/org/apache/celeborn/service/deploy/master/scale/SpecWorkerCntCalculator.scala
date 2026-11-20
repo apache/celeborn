@@ -47,8 +47,7 @@ private[master] class SpecWorkerCntCalculator(
     val ratios = dimensions.map { dimension =>
       dimension -> input.workerStats.map(dimension.value)
     }
-    // The metric inventory includes excluded workers, so this is not the available worker count.
-    val metrics = MetricRatios(ratios, input.workerStats.size)
+    val metrics = MetricRatios(ratios, input.workerStats.size - input.exclWorkerCnt)
     val load = classifyLoad(metrics)
     val specPos = classifySpec(oldSpecWorkerCnt, minWorkers, maxWorkers)
 
@@ -73,10 +72,10 @@ private[master] class SpecWorkerCntCalculator(
       case ScaleRule.ConvergeToMax =>
         calDownCandidate(input, maxWorkers, scaleConf)
       case ScaleRule.KeepSpec =>
-        SpecCandidate(oldSpecWorkerCnt, alignedMin, ExcludedCompensation.UnaccountedOnly)
+        SpecCandidate(oldSpecWorkerCnt, alignedMin, ExclMakup.UnmetOnly)
     }
 
-    compensateExcluded(input, candidate, maxWorkers)
+    makupExcl(input, candidate, maxWorkers)
   }
 
   private def validateInput(input: Input): Unit = {
@@ -86,16 +85,16 @@ private[master] class SpecWorkerCntCalculator(
       input.workerStats.size <= input.registeredWorkerCnt,
       "Worker metrics must not exceed the registered worker count")
     require(
-      input.excludedWorkerCnt >= 0 && input.excludedWorkerCnt <= input.workerStats.size,
+      input.exclWorkerCnt >= 0 && input.exclWorkerCnt <= input.workerStats.size,
       "Excluded worker count must be within the worker metric inventory")
     require(
-      input.unaccountedExcludedWorkerCnt >= 0 &&
-        input.unaccountedExcludedWorkerCnt <= input.excludedWorkerCnt,
+      input.unaccountedExclWorkerCnt >= 0 &&
+        input.unaccountedExclWorkerCnt <= input.exclWorkerCnt,
       "Unaccounted excluded worker count must be between zero and total excluded worker count")
   }
 
   private def classifyLoad(metrics: MetricRatios): Load = {
-    val workerCnt = BigDecimal.valueOf(metrics.registeredWorkerWithMetricCnt.toLong)
+    val availWorkerCnt = BigDecimal.valueOf(metrics.availWorkerWithMetricCnt.toLong)
     val ratios = metrics.values.iterator
     var allBelowDown = true
 
@@ -103,12 +102,12 @@ private[master] class SpecWorkerCntCalculator(
       val (dimension, values) = ratios.next()
       sumRatios(values) match {
         case Some(sum) =>
-          val up = BigDecimal.valueOf(dimension.up).multiply(workerCnt)
+          val up = BigDecimal.valueOf(dimension.up).multiply(availWorkerCnt)
           if (sum.compareTo(up) > 0) {
             return Load.High
           }
           allBelowDown = allBelowDown &&
-            sum.compareTo(BigDecimal.valueOf(dimension.down).multiply(workerCnt)) < 0
+            sum.compareTo(BigDecimal.valueOf(dimension.down).multiply(availWorkerCnt)) < 0
         case None =>
           allBelowDown = false
       }
@@ -131,26 +130,26 @@ private[master] class SpecWorkerCntCalculator(
       load: Load,
       scaleConf: ScaleConf): SpecCandidate = {
     import scaleConf._
-    val registeredWorkerWithMetricCnt = metrics.registeredWorkerWithMetricCnt
+    val availWorkerWithMetricCnt = metrics.availWorkerWithMetricCnt
     val requiredWorkerCnt =
       math.max(alignedMin, math.min(maxWorkers, estimate(metrics, up = true)))
     val stepBudget =
-      math.max(3, math.max(upStep, (upPercent * registeredWorkerWithMetricCnt).toInt))
+      math.max(3, math.max(upStep, (upPercent * availWorkerWithMetricCnt).toInt))
     val deltaUp =
-      math.min(stepBudget, math.max(0, requiredWorkerCnt - registeredWorkerWithMetricCnt))
+      math.min(stepBudget, math.max(0, requiredWorkerCnt - availWorkerWithMetricCnt))
 
     if (deltaUp > 0) {
       SpecCandidate(
-        math.max(alignedMin, registeredWorkerWithMetricCnt + deltaUp),
+        math.max(alignedMin, availWorkerWithMetricCnt + deltaUp),
         alignedMin,
-        ExcludedCompensation.AllExcluded)
+        ExclMakup.AllExcl)
     } else if (load == Load.High && requiredWorkerCnt > oldSpecWorkerCnt) {
-      SpecCandidate(requiredWorkerCnt, alignedMin, ExcludedCompensation.AllExcluded)
+      SpecCandidate(requiredWorkerCnt, alignedMin, ExclMakup.AllExcl)
     } else {
       SpecCandidate(
         math.max(alignedMin, oldSpecWorkerCnt),
         alignedMin,
-        ExcludedCompensation.UnaccountedOnly)
+        ExclMakup.UnmetOnly)
     }
   }
 
@@ -170,8 +169,8 @@ private[master] class SpecWorkerCntCalculator(
       math.min(stepBudget, math.max(0, input.registeredWorkerCnt - requiredWorkerCnt))
     val candidateSpecWorkerCnt = math.max(requiredWorkerCnt, input.registeredWorkerCnt - deltaDown)
     val compensation =
-      if (candidateSpecWorkerCnt < input.specWorkerCnt) ExcludedCompensation.AllExcluded
-      else ExcludedCompensation.UnaccountedOnly
+      if (candidateSpecWorkerCnt < input.specWorkerCnt) ExclMakup.AllExcl
+      else ExclMakup.UnmetOnly
     SpecCandidate(
       math.min(input.specWorkerCnt, candidateSpecWorkerCnt),
       minWorkers,
@@ -201,35 +200,35 @@ private[master] class SpecWorkerCntCalculator(
     if (available) Some(total) else None
   }
 
-  private def compensateExcluded(
+  private def makupExcl(
       input: Input,
       candidate: SpecCandidate,
       maxWorkers: Int): Result = {
     // Excluded workers still occupy platform instances but cannot accept new allocations.
-    val carriedReplacementCnt = candidate.excludedCompensation match {
-      case ExcludedCompensation.AllExcluded => 0
-      case ExcludedCompensation.UnaccountedOnly =>
-        input.excludedWorkerCnt - input.unaccountedExcludedWorkerCnt
+    val carriedReplacementCnt = candidate.exclMakup match {
+      case ExclMakup.AllExcl => 0
+      case ExclMakup.UnmetOnly =>
+        input.exclWorkerCnt - input.unaccountedExclWorkerCnt
     }
-    val requestedReplacementCnt = input.excludedWorkerCnt - carriedReplacementCnt
+    val requestedReplacementCnt = input.exclWorkerCnt - carriedReplacementCnt
     val replacementHeadroom = math.max(0, maxWorkers - candidate.specWorkerCnt)
     val addedReplacementCnt = math.min(requestedReplacementCnt, replacementHeadroom)
     val floor = math.min(
       maxWorkers.toLong,
-      candidate.minWorkerCnt.toLong + input.excludedWorkerCnt).toInt
+      candidate.minWorkerCnt.toLong + input.exclWorkerCnt).toInt
     val targetSpecWorkerCnt = math.max(candidate.specWorkerCnt + addedReplacementCnt, floor)
     val specWithoutReplacements =
       math.max(candidate.minWorkerCnt, candidate.specWorkerCnt - carriedReplacementCnt)
-    val accountedExcludedWorkerCnt =
-      math.min(input.excludedWorkerCnt, targetSpecWorkerCnt - specWithoutReplacements)
-    Result(targetSpecWorkerCnt, accountedExcludedWorkerCnt)
+    val accountedExclWorkerCnt =
+      math.min(input.exclWorkerCnt, targetSpecWorkerCnt - specWithoutReplacements)
+    Result(targetSpecWorkerCnt, accountedExclWorkerCnt)
   }
 }
 
 private[master] object SpecWorkerCntCalculator {
   private case class MetricRatios(
       values: Seq[(Dimension, Seq[Double])],
-      registeredWorkerWithMetricCnt: Int)
+      availWorkerWithMetricCnt: Int)
 
   private case class Dimension(key: String, up: Double, down: Double) {
     require(down < up, s"Scale-down threshold must be below scale-up threshold for $key")
@@ -291,9 +290,9 @@ private[master] object SpecWorkerCntCalculator {
    *                      desired total instance count, including pending and excluded workers
    * @param workerStats metrics used to estimate load, excluding Idle and automatically
    *                    decommissioning workers but including excluded workers and their existing load
-   * @param excludedWorkerCnt total excluded workers in the metric inventory; these still occupy
+   * @param exclWorkerCnt total excluded workers in the metric inventory; these still occupy
    *                          platform instances but cannot accept new allocations
-   * @param unaccountedExcludedWorkerCnt excluded workers whose replacements are still due, including
+   * @param unaccountedExclWorkerCnt excluded workers whose replacements are still due, including
    *                                     those capped in earlier rounds; the caller updates its
    *                                     checkpoint after accepting the result's target
    */
@@ -301,10 +300,10 @@ private[master] object SpecWorkerCntCalculator {
       registeredWorkerCnt: Int,
       specWorkerCnt: Int,
       workerStats: Seq[WorkerStats],
-      excludedWorkerCnt: Int = 0,
-      unaccountedExcludedWorkerCnt: Int = 0)
+      exclWorkerCnt: Int = 0,
+      unaccountedExclWorkerCnt: Int = 0)
 
-  case class Result(targetSpecWorkerCnt: Int, accountedExcludedWorkerCnt: Int)
+  case class Result(targetSpecWorkerCnt: Int, accountedExclWorkerCnt: Int)
 }
 
 sealed private trait Load
@@ -333,14 +332,14 @@ private object ScaleRule {
   case object KeepSpec extends ScaleRule
 }
 
-sealed private trait ExcludedCompensation
+sealed private trait ExclMakup
 
-private object ExcludedCompensation {
-  case object AllExcluded extends ExcludedCompensation
-  case object UnaccountedOnly extends ExcludedCompensation
+private object ExclMakup {
+  case object AllExcl extends ExclMakup
+  case object UnmetOnly extends ExclMakup
 }
 
 final private case class SpecCandidate(
     specWorkerCnt: Int,
     minWorkerCnt: Int,
-    excludedCompensation: ExcludedCompensation)
+    exclMakup: ExclMakup)

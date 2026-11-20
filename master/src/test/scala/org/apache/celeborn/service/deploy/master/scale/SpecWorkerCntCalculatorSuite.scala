@@ -287,7 +287,7 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     val calculator = newCalculator(conf)
     for (ratio <- Seq(0.1, 0.4, 0.6); excluded <- Seq(0, 2)) {
       val stats = WorkerStats(ratioKeys.map(_ -> ratio).toMap)
-      var input = Input(5, 10, Seq.fill(5)(stats), excludedWorkerCnt = excluded)
+      var input = Input(5, 10, Seq.fill(5)(stats), exclWorkerCnt = excluded)
       (1 to 3).foreach { round =>
         withClue(s"ratio=$ratio, excluded=$excluded, round=$round: ") {
           val newSpecWorkerCnt = calculator.calSpecWorkerCnt(input)
@@ -312,17 +312,17 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     val calculator = newCalculator(conf)
     assert(calculator.cal(oversized) == Result(1595, 0))
     assert(calculator.cal(
-      oversized.copy(excludedWorkerCnt = 1, unaccountedExcludedWorkerCnt = 1)) == Result(1595, 0))
+      oversized.copy(exclWorkerCnt = 1, unaccountedExclWorkerCnt = 1)) == Result(1595, 0))
   }
 
   test("a capped replacement remains due after the maximum is raised") {
     val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "11")
     val calculator = newCalculator(conf)
-    val input = snapshot(10, neutral).copy(excludedWorkerCnt = 2, unaccountedExcludedWorkerCnt = 2)
+    val input = snapshot(10, neutral).copy(exclWorkerCnt = 2, unaccountedExclWorkerCnt = 2)
 
     def afterAccepting(result: Result): Input = input.copy(
       specWorkerCnt = result.targetSpecWorkerCnt,
-      unaccountedExcludedWorkerCnt = input.excludedWorkerCnt - result.accountedExcludedWorkerCnt)
+      unaccountedExclWorkerCnt = input.exclWorkerCnt - result.accountedExclWorkerCnt)
 
     val first = calculator.cal(input)
     assert(first == Result(11, 1))
@@ -338,7 +338,7 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     val conf = baseConf()
       .set(SCALE_WORKER_NUMBER_MIN.key, "10")
       .set(SCALE_WORKER_NUMBER_MAX.key, "11")
-    val input = snapshot(9, low).copy(excludedWorkerCnt = 2, unaccountedExcludedWorkerCnt = 2)
+    val input = snapshot(9, low).copy(exclWorkerCnt = 2, unaccountedExclWorkerCnt = 2)
     val calculator = newCalculator(conf)
     assert(calculator.cal(input) == Result(11, 1))
     conf.set(SCALE_WORKER_NUMBER_MAX.key, "20")
@@ -348,7 +348,7 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
   test("a metric rebuild can reduce the count of accounted excluded replacements") {
     val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "13")
     val high = WorkerStats(ratioKeys.map(_ -> 0.66).toMap)
-    val input = snapshot(10, high).copy(specWorkerCnt = 12, excludedWorkerCnt = 2)
+    val input = snapshot(10, high).copy(specWorkerCnt = 12, exclWorkerCnt = 2)
     assert(newCalculator(conf).cal(input) == Result(13, 0))
   }
 
@@ -476,25 +476,25 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
 
   test("pending cancellation respects the maximum with existing and new exclusions") {
     val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "8")
-    val input = snapshot(8, neutral).copy(specWorkerCnt = 10, excludedWorkerCnt = 2)
+    val input = snapshot(8, neutral).copy(specWorkerCnt = 10, exclWorkerCnt = 2)
     val calculator = newCalculator(conf)
     Seq(0, 2).foreach { unaccounted =>
-      assert(calculator.cal(input.copy(unaccountedExcludedWorkerCnt = unaccounted)) == Result(8, 0))
+      assert(calculator.cal(input.copy(unaccountedExclWorkerCnt = unaccounted)) == Result(8, 0))
     }
   }
 
   test("new exclusions compensate once and remain part of the metric inventory") {
     val initial =
-      snapshot(10, neutral).copy(excludedWorkerCnt = 2, unaccountedExcludedWorkerCnt = 2)
+      snapshot(10, neutral).copy(exclWorkerCnt = 2, unaccountedExclWorkerCnt = 2)
     val calculator = newCalculator()
     val target = calculator.calSpecWorkerCnt(initial)
     assert(target == 12)
     assert(calculator.calSpecWorkerCnt(initial) == 12)
-    val pending = initial.copy(specWorkerCnt = target, unaccountedExcludedWorkerCnt = 0)
+    val pending = initial.copy(specWorkerCnt = target, unaccountedExclWorkerCnt = 0)
     assert(calculator.calSpecWorkerCnt(pending) == 12)
-    val accepted = snapshot(12, neutral).copy(excludedWorkerCnt = 2)
+    val accepted = snapshot(12, neutral).copy(exclWorkerCnt = 2)
     assert(calculator.calSpecWorkerCnt(accepted) == 12)
-    val cancelled = accepted.copy(excludedWorkerCnt = 0)
+    val cancelled = accepted.copy(exclWorkerCnt = 0)
     assert(calculator.calSpecWorkerCnt(cancelled) == 12)
     assert(calculator.calSpecWorkerCnt(snapshot(12)) == 11)
   }
@@ -511,12 +511,12 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
         .set(SCALE_WORKER_NUMBER_MIN_ALIGN_ENABLED.key, align.toString)
         .set(SCALE_WORKER_NUMBER_MAX.key, maxWorkers.toString)
       val calculator = newCalculator(conf)
-      var input = snapshot(10, stats).copy(excludedWorkerCnt = 2, unaccountedExcludedWorkerCnt = 2)
+      var input = snapshot(10, stats).copy(exclWorkerCnt = 2, unaccountedExclWorkerCnt = 2)
       (1 to 3).foreach { round =>
         withClue(s"min=$minWorkers, align=$align, max=$maxWorkers, round=$round: ") {
           val newSpecWorkerCnt = calculator.calSpecWorkerCnt(input)
           assert(newSpecWorkerCnt == expected)
-          input = input.copy(specWorkerCnt = newSpecWorkerCnt, unaccountedExcludedWorkerCnt = 0)
+          input = input.copy(specWorkerCnt = newSpecWorkerCnt, unaccountedExclWorkerCnt = 0)
         }
       }
       assert(calculator.calSpecWorkerCnt(input.copy(workerStats =
@@ -528,8 +528,8 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     val conf = new CelebornConf(false)
     val calculator = newCalculator(conf)
     val stats = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.299))
-    val initial = snapshot(100, stats).copy(excludedWorkerCnt = 2, unaccountedExcludedWorkerCnt = 2)
-    assert(calculator.cal(initial.copy(unaccountedExcludedWorkerCnt = 1)) == Result(101, 2))
+    val initial = snapshot(100, stats).copy(exclWorkerCnt = 2, unaccountedExclWorkerCnt = 2)
+    assert(calculator.cal(initial.copy(unaccountedExclWorkerCnt = 1)) == Result(101, 2))
 
     var input = initial
     def accept(expected: Result): Unit = {
@@ -537,10 +537,10 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
       assert(
         result == expected,
         s"input spec=${input.specWorkerCnt}, " +
-          s"unaccounted exclusions=${input.unaccountedExcludedWorkerCnt}")
+          s"unaccounted exclusions=${input.unaccountedExclWorkerCnt}")
       input = input.copy(
         specWorkerCnt = result.targetSpecWorkerCnt,
-        unaccountedExcludedWorkerCnt = input.excludedWorkerCnt - result.accountedExcludedWorkerCnt)
+        unaccountedExclWorkerCnt = input.exclWorkerCnt - result.accountedExclWorkerCnt)
     }
 
     (1 to 3).foreach(_ => accept(Result(102, 2)))
@@ -554,16 +554,16 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     val conf = baseConf().set(SCALE_WORKER_NUMBER_MAX.key, "10")
     val calculator = newCalculator(conf)
     val stats = WorkerStats(ratioKeys.map(_ -> 0.6).toMap)
-    (0 to 2).foreach { unaccountedExcludedWorkerCnt =>
+    (0 to 2).foreach { unaccountedExclWorkerCnt =>
       val input = snapshot(10, stats).copy(
         specWorkerCnt = 8,
-        excludedWorkerCnt = 2,
-        unaccountedExcludedWorkerCnt = unaccountedExcludedWorkerCnt)
+        exclWorkerCnt = 2,
+        unaccountedExclWorkerCnt = unaccountedExclWorkerCnt)
       val result = calculator.cal(input)
       assert(result == Result(10, 0))
       val accepted = input.copy(
         specWorkerCnt = result.targetSpecWorkerCnt,
-        unaccountedExcludedWorkerCnt = input.excludedWorkerCnt - result.accountedExcludedWorkerCnt)
+        unaccountedExclWorkerCnt = input.exclWorkerCnt - result.accountedExclWorkerCnt)
       assert(calculator.cal(accepted) == result)
     }
   }
@@ -571,22 +571,26 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
   test("excluded workers retain their existing pressure in demand and trigger calculations") {
     val busy = WorkerStats(neutral.metrics + (WorkerStats.LastMinuteSystemLoadRatio -> 3.0))
     val input = Input(10, 10, Seq.fill(2)(busy) ++ Seq.fill(8)(neutral), 2, 0)
-    assert(newCalculator().calSpecWorkerCnt(input) == 17)
-    assert(newCalculator().calSpecWorkerCnt(snapshot(10, neutral).copy(excludedWorkerCnt =
+    assert(newCalculator().calSpecWorkerCnt(input) == 15)
+    assert(newCalculator().calSpecWorkerCnt(snapshot(10, neutral).copy(exclWorkerCnt =
+      10)) == 15)
+    val zero = WorkerStats(ratioKeys.map(_ -> 0.0).toMap)
+    assert(newCalculator().calSpecWorkerCnt(snapshot(10, zero).copy(exclWorkerCnt =
       10)) == 10)
   }
 
   test("the exclusion floor follows the selected decision branch") {
     val conf = baseConf().set(SCALE_WORKER_NUMBER_MIN.key, "5")
-    val neutralInput = snapshot(5, neutral).copy(excludedWorkerCnt = 2)
+    val zero = WorkerStats(ratioKeys.map(_ -> 0.0).toMap)
+    val neutralInput = Input(5, 5, Seq.fill(3)(neutral) ++ Seq.fill(2)(zero), exclWorkerCnt = 2)
     assert(newCalculator(conf).calSpecWorkerCnt(neutralInput) == 5)
     conf.set(SCALE_WORKER_NUMBER_MIN_ALIGN_ENABLED.key, "true")
     assert(newCalculator(conf).calSpecWorkerCnt(neutralInput) == 7)
     // The low-load branch uses the configured minimum plus total exclusions.
-    assert(newCalculator(conf).calSpecWorkerCnt(snapshot(5).copy(excludedWorkerCnt = 2)) == 7)
+    assert(newCalculator(conf).calSpecWorkerCnt(snapshot(5).copy(exclWorkerCnt = 2)) == 7)
     // Active minimum alignment also includes existing exclusions.
     conf.set(SCALE_WORKER_NUMBER_MIN.key, "12")
-    assert(newCalculator(conf).calSpecWorkerCnt(snapshot(10, neutral).copy(excludedWorkerCnt =
+    assert(newCalculator(conf).calSpecWorkerCnt(snapshot(10, neutral).copy(exclWorkerCnt =
       2)) == 14)
   }
 
@@ -596,7 +600,7 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
       newCalculator().calSpecWorkerCnt(snapshot(10, high).copy(specWorkerCnt = 15)) == 12)
     assert(newCalculator().calSpecWorkerCnt(snapshot(10, high).copy(
       specWorkerCnt = 16,
-      excludedWorkerCnt = 2)) == 14)
+      exclWorkerCnt = 2)) == 14)
     val input = Input(80, 100, Seq.fill(77)(WorkerStats(ratioKeys.map(_ -> 0.65).toMap)))
     assert(newCalculator().calSpecWorkerCnt(input) == 84)
     val recovering = Input(10, 10, Seq.fill(5)(WorkerStats(ratioKeys.map(_ -> 0.7).toMap)))
@@ -605,7 +609,7 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
       WorkerStats.MemoryPressureRatio -> 0.25,
       WorkerStats.LastMinuteSystemLoadRatio -> 0.75,
       WorkerStats.DiskUsedRatio -> 0.25))
-    assert(newCalculator().calSpecWorkerCnt(Input(10, 15, Seq.fill(8)(stats), 2, 1)) == 14)
+    assert(newCalculator().calSpecWorkerCnt(Input(10, 15, Seq.fill(8)(stats), 2, 1)) == 13)
   }
 
   test("empty metrics and automatically draining workers retain the reference count semantics") {
@@ -618,11 +622,14 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     val high = WorkerStats(low.metrics +
       (WorkerStats.LastMinuteSystemLoadRatio -> Double.MaxValue))
     assert(newCalculator().calSpecWorkerCnt(snapshot(10, high)) == 15)
+    val zero = WorkerStats(ratioKeys.map(_ -> 0.0).toMap)
     val conf = baseConf()
-      .set(SCALE_WORKER_NUMBER_MIN.key, "2")
+      .set(SCALE_WORKER_NUMBER_MIN.key, Int.MaxValue.toString)
       .set(SCALE_WORKER_NUMBER_MAX.key, Int.MaxValue.toString)
-    val input = Input(Int.MaxValue, Int.MaxValue, Seq(neutral), 1, 1)
-    assert(newCalculator(conf).calSpecWorkerCnt(input) == Int.MaxValue)
+    val keepInput = Input(Int.MaxValue, Int.MaxValue, Seq(neutral, zero), 1, 1)
+    assert(newCalculator(conf).calSpecWorkerCnt(keepInput) == Int.MaxValue)
+    val downInput = Input(Int.MaxValue, Int.MaxValue, Seq(low, zero), 1, 1)
+    assert(newCalculator(conf).calSpecWorkerCnt(downInput) == Int.MaxValue)
   }
 
   test("every calculator setting can be overridden by system dynamic configuration") {
@@ -741,14 +748,61 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     Seq(
       input.copy(registeredWorkerCnt = -1),
       input.copy(specWorkerCnt = -1),
-      input.copy(excludedWorkerCnt = -1),
-      input.copy(unaccountedExcludedWorkerCnt = 1),
-      input.copy(excludedWorkerCnt = 11),
+      input.copy(exclWorkerCnt = -1),
+      input.copy(unaccountedExclWorkerCnt = 1),
+      input.copy(exclWorkerCnt = 11),
       input.copy(registeredWorkerCnt = 9),
-      input.copy(unaccountedExcludedWorkerCnt = -1)).foreach { invalid =>
+      input.copy(unaccountedExclWorkerCnt = -1)).foreach { invalid =>
       intercept[IllegalArgumentException] {
         newCalculator().calSpecWorkerCnt(invalid)
       }
     }
+  }
+
+  test("excluded workers with low ratios do not mask overload on available workers") {
+    val calculator = newCalculator()
+    val hotAvail = WorkerStats(neutral.metrics + (WorkerStats.MemoryPressureRatio -> 0.9))
+    val lowMemExcluded = WorkerStats(neutral.metrics + (WorkerStats.MemoryPressureRatio -> 0.0))
+    assert(calculator.cal(Input(
+      registeredWorkerCnt = 20,
+      specWorkerCnt = 20,
+      workerStats = Seq.fill(10)(hotAvail) ++ Seq.fill(10)(lowMemExcluded),
+      exclWorkerCnt = 10,
+      unaccountedExclWorkerCnt = 0)) == Result(25, 10))
+
+    val zero = WorkerStats(ratioKeys.map(_ -> 0.0).toMap)
+    val initial = Input(
+      registeredWorkerCnt = 20,
+      specWorkerCnt = 20,
+      workerStats = Seq.fill(10)(hotAvail) ++ Seq.fill(10)(zero),
+      exclWorkerCnt = 10,
+      unaccountedExclWorkerCnt = 0)
+    assert(calculator.cal(initial) == Result(25, 10))
+
+    val registered25 = Input(
+      registeredWorkerCnt = 25,
+      specWorkerCnt = 25,
+      workerStats = Seq.fill(15)(WorkerStats(neutral.metrics +
+        (WorkerStats.MemoryPressureRatio -> 0.6))) ++ Seq.fill(10)(zero),
+      exclWorkerCnt = 10,
+      unaccountedExclWorkerCnt = 0)
+    assert(calculator.cal(registered25) == Result(28, 10))
+
+    val registered28 = Input(
+      registeredWorkerCnt = 28,
+      specWorkerCnt = 28,
+      workerStats = Seq.fill(18)(WorkerStats(neutral.metrics +
+        (WorkerStats.MemoryPressureRatio -> 0.5))) ++ Seq.fill(10)(zero),
+      exclWorkerCnt = 10,
+      unaccountedExclWorkerCnt = 0)
+    assert(calculator.cal(registered28) == Result(28, 10))
+
+    val neutralAvail = Input(
+      registeredWorkerCnt = 20,
+      specWorkerCnt = 20,
+      workerStats = Seq.fill(10)(neutral) ++ Seq.fill(10)(zero),
+      exclWorkerCnt = 10,
+      unaccountedExclWorkerCnt = 0)
+    assert(calculator.cal(neutralAvail) == Result(20, 10))
   }
 }

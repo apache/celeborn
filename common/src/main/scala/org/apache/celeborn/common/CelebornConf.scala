@@ -6544,8 +6544,8 @@ object CelebornConf extends Logging {
       .categories("master")
       .dynamic
       .version("1.0.0")
-      .doc("Scale-up budget as a fraction of the registered workers selected for metric " +
-        "calculation (including excluded workers), rounded down. " +
+      .doc("Scale-up budget as a fraction of the available workers selected for metric " +
+        "calculation (excluding excluded workers), rounded down. " +
         "Combined with the fixed budget and the three-worker minimum budget using the maximum.")
       .doubleConf
       .checkValue(v => v > 0 && v <= 1, "Scale-up percent must be in (0, 1]")
