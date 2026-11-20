@@ -18,6 +18,8 @@
 package org.apache.spark.shuffle.celeborn;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -29,6 +31,7 @@ import scala.collection.mutable.ListBuffer;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext$;
 import org.apache.spark.TaskContextImpl;
+import org.apache.spark.memory.SparkOutOfMemoryError;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.memory.UnifiedMemoryManager;
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -108,6 +111,50 @@ public class SortBasedPusherSuiteJ {
         pusher.close(true);
         client.shutdown();
       }
+    }
+  }
+
+  @Test
+  public void testInitialPointerAllocationFailureDoesNotStartDataPusher() throws Exception {
+    SparkConf limitedMemoryConf =
+        sparkConf
+            .set("spark.memory.offHeap.enabled", "true")
+            .set("spark.memory.offHeap.size", "4m");
+    long attemptId = 100L;
+    TaskMemoryManager limitedMemoryManager =
+        new TaskMemoryManager(UnifiedMemoryManager.apply(limitedMemoryConf, 1), attemptId);
+    ShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    String threadName = "celeborn-client-data-pusher-" + attemptId;
+    try {
+      assertThrows(
+          SparkOutOfMemoryError.class,
+          () ->
+              new SortBasedPusher(
+                  limitedMemoryManager,
+                  client,
+                  taskContext,
+                  0,
+                  0,
+                  0,
+                  attemptId,
+                  1,
+                  1,
+                  conf,
+                  null,
+                  null,
+                  conf.clientPushSortMemoryThreshold(),
+                  SendBufferPool.get(4, 30, 60)));
+      assertFalse(
+          Thread.getAllStackTraces().keySet().stream()
+              .anyMatch(thread -> thread.getName().equals(threadName)));
+    } finally {
+      for (Thread thread : Thread.getAllStackTraces().keySet()) {
+        if (thread.getName().equals(threadName)) {
+          thread.interrupt();
+          thread.join(5000);
+        }
+      }
+      client.shutdown();
     }
   }
 
