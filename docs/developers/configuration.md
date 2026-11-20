@@ -26,6 +26,10 @@ Static configuration, referred to as `CelebornConf`, loads configurations from t
 Dynamic configuration allows for changes to be applied at runtime, as necessary, and it takes precedence over the corresponding static configuration in the 
 Celeborn `Master` and `Worker`. A configuration key's dynamic nature is indicated by the `isDynamic` property, as listed in [All Configurations](../configuration/index.md#all-configurations). 
 This means that configurations tagged with the dynamic property can be updated and refreshed while Celeborn is running.
+The filesystem and database config services log a warning when a registered configuration key without the dynamic property is loaded from a dynamic store.
+The warning includes the configuration key and level, tenant ID and user name where applicable, but not the configuration value.
+Repeated refreshes do not repeat the warning for the same key and scope unless the key is removed and loaded again.
+These warnings do not reject configuration entries or validate whether a dynamic key is supported at a particular level.
 
 ### Config Level
 At present dynamic configuration supports various config levels including:
@@ -75,25 +79,27 @@ The template for the dynamic configuration is as follows:
         ...
 ```
 
-For example, a Celeborn worker `celeborn-worker` has 10 storage directories or disks and the buffer size is set to 256 KiB. A tenant `tenantId1` only uses half of the storage 
-and sets the buffer size to 128 KiB. Meanwhile, a user `user1` needs to change the buffer size to 96 KiB at runtime. The example configurations are as follows: 
+For example, set `celeborn.quota.user.diskBytesWritten` to 256 GiB at the `SYSTEM` level as the default disk-bytes-written quota for each user.
+Override this default to 128 GiB for each user in tenant `tenantId1`, and to 96 GiB for `user1` in that tenant.
+The tenant-level value is a per-user default, not a shared quota for the entire tenant. These values are read by the Master's quota manager
+after the dynamic configuration cache is refreshed and used when quota status is next recalculated. The example configurations are as follows:
 
 ```yaml
 # SYSTEM level configuration
 - level: SYSTEM
   config:
-    celeborn.worker.flusher.buffer.size: 256K # sets buffer size of worker to 256 KiB
+    celeborn.quota.user.diskBytesWritten: 256G # default quota for each user: 256 GiB
 
 # TENANT level configuration
 - tenantId: tenantId1
   level: TENANT
   config:
-    celeborn.worker.flusher.buffer.size: 128K # sets buffer size of tenantId1 to 128 KiB
+    celeborn.quota.user.diskBytesWritten: 128G # default quota for each user in tenantId1: 128 GiB
   users:
     # TENANT_USER level configuration
     - name: user1
       config:
-        celeborn.worker.flusher.buffer.size: 96K # sets buffer size of tenantId1 and user1 to 128 KiB
+        celeborn.quota.user.diskBytesWritten: 96G # quota for user1 in tenantId1: 96 GiB
 ```
 
 ### Database Config Service
@@ -150,18 +156,18 @@ VALUES
     ( 1, 'default', 'celeborn-worker', 'celeborn-namespace.endpoint.com', '2024-02-27 22:08:30', '2024-02-27 22:08:30' );
 
 # SYSTEM level configuration
-# sets buffer size of celeborn-worker to 256 KiB
+# sets the default disk-bytes-written quota for each user to 256 GiB
 INSERT INTO `celeborn_cluster_system_config` ( `id`, `cluster_id`, `config_key`, `config_value`, `type`, `gmt_create`, `gmt_modify` )
 VALUES
-    ( 1, 1, 'celeborn.worker.flusher.buffer.size', '256K', 'QUOTA', '2024-02-27 22:08:30', '2024-02-27 22:08:30' );
+    ( 1, 1, 'celeborn.quota.user.diskBytesWritten', '256G', 'QUOTA', '2024-02-27 22:08:30', '2024-02-27 22:08:30' );
 
 # TENANT/TENANT_USER level configuration
-# TENANT: sets buffer size of tenantId1 to 128 KiB
-# TENANT_USER: sets buffer size of tenantId1 and user1 to 96 KiB
+# TENANT: sets the default quota for each user in tenantId1 to 128 GiB
+# TENANT_USER: sets the quota for user1 in tenantId1 to 96 GiB
 INSERT INTO `celeborn_cluster_tenant_config` ( `id`, `cluster_id`, `tenant_id`, `level`, `name`, `config_key`, `config_value`, `type`, `gmt_create`, `gmt_modify` )
 VALUES
-    ( 1, 1, 'tenantId1', 'TENANT', '', 'celeborn.worker.flusher.buffer.size', '128K', 'worker', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
-    ( 2, 1, 'tenantId1', 'TENANT_USER', 'user1', 'celeborn.worker.flusher.buffer.size', '96K', 'worker', '2024-02-27 22:08:30', '2024-02-27 22:08:30' );
+    ( 1, 1, 'tenantId1', 'TENANT', '', 'celeborn.quota.user.diskBytesWritten', '128G', 'QUOTA', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
+    ( 2, 1, 'tenantId1', 'TENANT_USER', 'user1', 'celeborn.quota.user.diskBytesWritten', '96G', 'QUOTA', '2024-02-27 22:08:30', '2024-02-27 22:08:30' );
 ```
 
 ## Rest API

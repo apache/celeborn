@@ -79,6 +79,7 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
         tenantConfigAtomicReference.set(tenantConfigs);
         tenantUserConfigAtomicReference.set(tenantUserConfigs);
       }
+      warnOnStaticConfigs();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
