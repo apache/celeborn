@@ -140,14 +140,17 @@ finishes pushing its data:
 public abstract void mapperEnd(
     int shuffleId,
     int mapId,
-    int attempted,
-    int numMappers)
+    int attemptId,
+    int numMappers,
+    int numPartitions)
+    throws IOException;
 ```
 
 - `shuffleId` shuffle id of the current task
 - `mapId` map id of the current task
 - `attemptId` attempt id of the current task
 - `numMappers` number of map ids in this shuffle
+- `numPartitions` number of partitions in this shuffle
 
 ## Step Five: Read Data
 After all tasks successfully called `mapperEnd`, you can start reading data from some partition id, using the
@@ -157,16 +160,22 @@ After all tasks successfully called `mapperEnd`, you can start reading data from
 InputStream inputStream = shuffleClient.readPartition(
   shuffleId,
   partitionId,
-  attemptId,
+  attemptNumber,
+  taskId,
   startMapIndex,
-  endMapIndex);
+  endMapIndex,
+  metricsCallback);
 
-int byte = inputstream.read();
+int value = inputStream.read();
 ```
 
+- `attemptNumber` is the reduce task attempt number.
+- `taskId` identifies the reduce task.
+- `metricsCallback` receives read metrics.
+
 For simplicity, to read the whole data from the partition, you can pass 0 and `Integer.MAX_VALUE` to `startMapIndex`
-and `endMapIndex`. This method will create an InputStream for the data, and guarantees no data lost and no
-duplicate reading, else exception will be thrown.
+and `endMapIndex`. This method creates an InputStream for the data and guarantees no data is lost or read more than
+once; otherwise, an exception is thrown.
 
 ## Step Six: Clean Up
 After the shuffle finishes, you can call `LifecycleManager.unregisterShuffle` to clean up resources related to the
