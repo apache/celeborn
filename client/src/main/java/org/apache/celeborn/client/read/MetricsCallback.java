@@ -17,10 +17,17 @@
 
 package org.apache.celeborn.client.read;
 
+import java.util.concurrent.TimeUnit;
+
 public interface MetricsCallback {
   void incBytesRead(long bytesRead);
 
-  void incReadTime(long time);
+  void incReadTime(long timeMs);
+
+  /** Reports a wait measured in nanoseconds. Callbacks may retain sub-millisecond precision. */
+  default void incReadTimeNanos(long timeNanos) {
+    incReadTime(TimeUnit.NANOSECONDS.toMillis(timeNanos));
+  }
 
   default void incDuplicateBytesRead(long bytesRead) {}
 }

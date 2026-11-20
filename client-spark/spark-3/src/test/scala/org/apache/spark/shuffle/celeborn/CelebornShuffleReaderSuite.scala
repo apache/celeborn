@@ -54,6 +54,20 @@ import org.apache.celeborn.common.util.ThreadUtils
 
 class CelebornShuffleReaderSuite extends AnyFunSuite {
 
+  test("fetch wait reports whole milliseconds without losing fractional waits") {
+    val taskMetrics = TaskMetrics.empty
+    val metrics = taskMetrics.createTempShuffleReadMetrics()
+    val callback = new CelebornShuffleReader.ReadMetricsCallback(metrics)
+    callback.incReadTimeNanos(600000L)
+    assert(metrics.fetchWaitTime == 0L)
+    callback.incReadTimeNanos(600000L)
+    assert(metrics.fetchWaitTime == 1L)
+    callback.incReadTimeNanos(1800000L)
+    assert(metrics.fetchWaitTime == 3L)
+    callback.incReadTime(2L)
+    assert(metrics.fetchWaitTime == 5L)
+  }
+
   /**
    * Due to spark limitations, spark local mode can not test speculation tasks ,
    * test the method `checkAndReportFetchFailureForUpdateFileGroupFailure`

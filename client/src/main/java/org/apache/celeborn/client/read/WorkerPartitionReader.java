@@ -198,10 +198,11 @@ public class WorkerPartitionReader implements PartitionReader {
 
       while (chunk == null) {
         checkException();
-        Long startFetchWait = System.nanoTime();
+        long startFetchWait = System.nanoTime();
         chunk = results.poll(pollChunkWaitTime, TimeUnit.MILLISECONDS);
-        long waitTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait);
-        metricsCallback.incReadTime(waitTimeMs);
+        long waitTimeNanos = System.nanoTime() - startFetchWait;
+        metricsCallback.incReadTimeNanos(waitTimeNanos);
+        long waitTimeMs = TimeUnit.NANOSECONDS.toMillis(waitTimeNanos);
         totalWaitTimeMs += waitTimeMs;
         // Log when wait time exceeds another threshold since last log
         if (chunk == null && totalWaitTimeMs >= lastLogTimeMs + partitionReaderWaitLogThreshold) {
