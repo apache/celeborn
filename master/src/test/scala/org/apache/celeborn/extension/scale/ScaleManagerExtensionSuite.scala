@@ -17,6 +17,7 @@
 
 package org.apache.celeborn.extension.scale
 
+import java.net.{InetAddress, ServerSocket}
 import java.util.concurrent.{CountDownLatch, ExecutorService, LinkedBlockingQueue, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -27,6 +28,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.apache.celeborn.RandomPortSupport
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf._
+import org.apache.celeborn.common.exception.CelebornException
 import org.apache.celeborn.common.protocol.PbCheckWorkersAvailableResponse
 import org.apache.celeborn.common.protocol.message.ControlMessages.CheckWorkersAvailable
 import org.apache.celeborn.common.util.CelebornExitKind
@@ -135,6 +137,61 @@ class ScaleManagerExtensionSuite extends AnyFunSuite with RandomPortSupport {
     }
   }
 
+  test("the base rejects non-positive check intervals on construction") {
+    for (interval <- Seq("0ms", "-1ms", "500us")) {
+      val conf = new CelebornConf(false).set(SCALE_CHECK_INTERVAL.key, interval)
+      val error = intercept[IllegalArgumentException] {
+        new AbstractScaleManager(conf) {
+          override protected def checkScale(): Unit = {}
+        }
+      }
+      assert(error.getMessage.contains(SCALE_CHECK_INTERVAL.key))
+    }
+  }
+
+  test("Master fails fast on invalid scale manager configuration before binding ports") {
+    val occupiedSocket = new ServerSocket(0, 1, InetAddress.getByName("localhost"))
+    try {
+      def occupiedConf(): CelebornConf = {
+        masterConf().set(MASTER_PORT, occupiedSocket.getLocalPort)
+      }
+
+      val blankConf = occupiedConf().set(SCALE_MANAGER_CLASS_NAME.key, "   ")
+      val blankError = intercept[IllegalArgumentException] {
+        new Master(blankConf, new MasterArguments(Array.empty, blankConf))
+      }
+      assert(blankError.getMessage.contains(SCALE_MANAGER_CLASS_NAME.key))
+
+      val wrongTypeConf =
+        occupiedConf().set(SCALE_MANAGER_CLASS_NAME.key, classOf[NonScaleManager].getName)
+      val wrongTypeError = intercept[IllegalArgumentException] {
+        new Master(wrongTypeConf, new MasterArguments(Array.empty, wrongTypeConf))
+      }
+      assert(wrongTypeError.getMessage.contains(SCALE_MANAGER_CLASS_NAME.key))
+      assert(wrongTypeError.getMessage.contains(classOf[ScaleManager].getName))
+
+      val invalidIntervalConf = occupiedConf()
+        .set(SCALE_MANAGER_CLASS_NAME.key, classOf[IntervalCheckingScaleManager].getName)
+        .set(SCALE_CHECK_INTERVAL.key, "500us")
+      val intervalError = intercept[CelebornException] {
+        new Master(invalidIntervalConf, new MasterArguments(Array.empty, invalidIntervalConf))
+      }
+      val cause = rootCause(intervalError)
+      assert(cause.isInstanceOf[IllegalArgumentException])
+      assert(cause.getMessage.contains(SCALE_CHECK_INTERVAL.key))
+    } finally {
+      occupiedSocket.close()
+    }
+  }
+
+  private def rootCause(t: Throwable): Throwable = {
+    var current = t
+    while (current.getCause != null && current.getCause != current) {
+      current = current.getCause
+    }
+    current
+  }
+
   private def masterConf(): CelebornConf = {
     new CelebornConf(false)
       .set(HA_ENABLED, false)
@@ -193,3 +250,9 @@ class FailingStopScaleManager(conf: CelebornConf) extends ExternalScaleManager(c
     throw new IllegalStateException("ScaleManager stop failed")
   }
 }
+
+class IntervalCheckingScaleManager(conf: CelebornConf) extends AbstractScaleManager(conf) {
+  override protected def checkScale(): Unit = {}
+}
+
+class NonScaleManager(val conf: CelebornConf)

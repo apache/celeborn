@@ -27,6 +27,7 @@ import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager
 abstract class AbstractScaleManager(protected val conf: CelebornConf)
   extends ScaleManager with Logging {
 
+  private val checkInterval = conf.get(CelebornConf.SCALE_CHECK_INTERVAL)
   @volatile protected var statusSystem: AbstractMetaManager = _
   private val scaleService =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("celeborn-scale-service")
@@ -45,13 +46,12 @@ abstract class AbstractScaleManager(protected val conf: CelebornConf)
       return
     }
     started = true
-    val interval = conf.get(CelebornConf.SCALE_CHECK_INTERVAL)
     scaleService.scheduleWithFixedDelay(
       new Runnable {
         override def run(): Unit = Utils.tryLogNonFatalError(checkScale())
       },
-      interval,
-      interval,
+      checkInterval,
+      checkInterval,
       TimeUnit.MILLISECONDS)
   }
 

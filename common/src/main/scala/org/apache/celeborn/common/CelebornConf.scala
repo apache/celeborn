@@ -6421,8 +6421,9 @@ object CelebornConf extends Logging {
     buildConf("celeborn.scale.check.interval")
       .categories("master")
       .version("1.0.0")
-      .doc("Interval between checks in AbstractScaleManager.")
+      .doc("Interval between checks in AbstractScaleManager. Must be at least 1 ms.")
       .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(_ > 0, "Scale check interval must be positive.")
       .createWithDefaultString("30s")
 
   val IDENTITY_PROVIDER: ConfigEntry[String] =

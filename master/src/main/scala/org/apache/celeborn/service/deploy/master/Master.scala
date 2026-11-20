@@ -102,6 +102,18 @@ private[celeborn] class Master(
     logInfo(getConf)
   }
 
+  private var scaleManager: Option[ScaleManager] =
+    conf.get(CelebornConf.SCALE_MANAGER_CLASS_NAME).map { className =>
+      val instance = Utils.instantiateClassWithCelebornConf[AnyRef](className, conf)
+      instance match {
+        case manager: ScaleManager => manager
+        case _ =>
+          throw new IllegalArgumentException(
+            s"${CelebornConf.SCALE_MANAGER_CLASS_NAME.key} class $className must implement " +
+              classOf[ScaleManager].getName)
+      }
+    }
+
   override val rpcEnv: RpcEnv =
     if (!authEnabled) {
       RpcEnv.create(
@@ -179,10 +191,6 @@ private[celeborn] class Master(
     }
   metricsSystem.registerSource(statusSystem.applicationMetricsSource())
   secretRegistry.setMetadataHandler(statusSystem)
-
-  private val scaleManager = conf.get(CelebornConf.SCALE_MANAGER_CLASS_NAME).map { className =>
-    Utils.instantiateClassWithCelebornConf[ScaleManager](className, conf)
-  }
 
   // Threads
   private val forwardMessageThread =
