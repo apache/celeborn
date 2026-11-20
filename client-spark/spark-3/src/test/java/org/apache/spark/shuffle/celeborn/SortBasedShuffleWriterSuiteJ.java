@@ -18,6 +18,7 @@
 package org.apache.spark.shuffle.celeborn;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,6 +43,7 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.UnsafeProjection;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
+import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.StringType$;
 import org.apache.spark.unsafe.types.UTF8String;
@@ -141,6 +143,98 @@ public class SortBasedShuffleWriterSuiteJ extends CelebornShuffleWriterSuiteBase
       list.$plus$eq(new Tuple2<>(key % numPartitions, unsafeRow));
     }
     return list.toIterator();
+  }
+
+  @Test
+  public void testDataSizeWithFastWrite() throws Exception {
+    checkDataSize(true, "128");
+  }
+
+  @Test
+  public void testDataSizeWithoutFastWrite() throws Exception {
+    checkDataSize(false, "128");
+  }
+
+  @Test
+  public void testGiantRecordDataSizeWithFastWrite() throws Exception {
+    checkDataSize(true, "5");
+  }
+
+  @Test
+  public void testGiantRecordDataSizeWithoutFastWrite() throws Exception {
+    checkDataSize(false, "5");
+  }
+
+  private void checkDataSize(boolean fastWrite, String pushBufferMaxSize) throws Exception {
+    checkDataSize(fastWrite, pushBufferMaxSize, true);
+    checkDataSize(fastWrite, pushBufferMaxSize, false);
+  }
+
+  private void checkDataSize(boolean fastWrite, String pushBufferMaxSize, boolean sortWriter)
+      throws Exception {
+    final SQLMetric dataSize = new SQLMetric("size", 0L);
+    final UnsafeRowSerializer serializer = new UnsafeRowSerializer(1, dataSize);
+    final CelebornConf conf =
+        new CelebornConf()
+            .set(
+                CelebornConf.CLIENT_PUSH_UNSAFEROW_FASTWRITE_ENABLED().key(),
+                Boolean.toString(fastWrite))
+            .set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), pushBufferMaxSize);
+
+    String partitionerClassName =
+        SparkVersionUtil.isGreaterThan(3, 3)
+            ? "org.apache.spark.PartitionIdPassthrough"
+            : "org.apache.spark.sql.execution.PartitionIdPassthrough";
+    final Partitioner partitioner =
+        DynConstructors.builder()
+            .impl(partitionerClassName, int.class)
+            .<Partitioner>build()
+            .newInstance(numPartitions);
+    Mockito.doReturn(partitioner).when(dependency).partitioner();
+    Mockito.doReturn(serializer).when(dependency).serializer();
+
+    final File tempFile = new File(tempDir, UUID.randomUUID().toString());
+    final DummyShuffleClient client = new DummyShuffleClient(conf, tempFile);
+    client.initReducePartitionMap(shuffleId, numPartitions, 1);
+    final CelebornShuffleHandle<Integer, String, String> handle =
+        new CelebornShuffleHandle<>(
+            appId, host, port, userIdentifier, shuffleId, false, numMaps, dependency);
+    final ShuffleWriter writer =
+        sortWriter
+            ? createShuffleWriter(handle, taskContext, conf, client, metrics.shuffleWriteMetrics())
+            : new HashBasedShuffleWriter<>(
+                SparkUtils.celebornShuffleId(client, handle, taskContext, true),
+                handle,
+                taskContext,
+                conf,
+                client,
+                metrics.shuffleWriteMetrics(),
+                SendBufferPool.get(4, 30, 60));
+
+    final int recordCount = 3;
+    ListBuffer<Product2<Integer, UnsafeRow>> records = new ListBuffer<>();
+    for (int i = 0; i < recordCount; i++) {
+      UnsafeRow row = new UnsafeRow(1);
+      row.pointTo(new byte[16], 16);
+      row.setInt(0, i);
+      records.$plus$eq(new Tuple2<>(i, row));
+    }
+
+    try {
+      assertEquals(
+          fastWrite,
+          sortWriter
+              ? ((SortBasedShuffleWriter) writer).canUseFastWrite()
+              : ((HashBasedShuffleWriter) writer).canUseFastWrite());
+      writer.write(records.toIterator());
+      assertTrue(writer.stop(true).isDefined());
+      client.shutdown();
+      assertEquals(recordCount * 16L, dataSize.value());
+      assertEquals(recordCount * (16L + 4L), tempFile.length());
+    } finally {
+      writer.stop(false);
+      client.shutdown();
+    }
   }
 
   @Test
