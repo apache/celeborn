@@ -759,6 +759,52 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
     }
   }
 
+  test("low load with existing exclusions converges down without re-adding replacements") {
+    val calculator = newCalculator(new CelebornConf(false))
+    for (unaccounted <- Seq(0, 10)) {
+      var input = Input(100, 100, Seq.fill(100)(low), 10, unaccounted)
+      val history = scala.collection.mutable.ArrayBuffer.empty[Int]
+      var rounds = 0
+      while (rounds < 30 && history.lastOption != Some(20)) {
+        val result = calculator.cal(input)
+        assert(result.accountedExclWorkerCnt == 10, s"unaccounted=$unaccounted, input=$input")
+        history += result.targetSpecWorkerCnt
+        input = Input(
+          result.targetSpecWorkerCnt,
+          result.targetSpecWorkerCnt,
+          Seq.fill(result.targetSpecWorkerCnt)(low),
+          10,
+          0)
+        rounds += 1
+      }
+      assert(history.take(3) == Seq(95, 90, 85))
+      assert(history.last == 20)
+      assert(calculator.cal(input) == Result(20, 10))
+    }
+    assert(calculator.cal(Input(105, 105, Seq.fill(105)(low), 10, 0)) == Result(100, 10))
+
+    val floorConf = baseConf().set(SCALE_WORKER_NUMBER_MIN.key, "100")
+    val floorCalculator = newCalculator(floorConf)
+    val initial = snapshot(100, low).copy(exclWorkerCnt = 2, unaccountedExclWorkerCnt = 2)
+    val first = floorCalculator.cal(initial)
+    assert(first == Result(102, 2))
+    val pending = initial.copy(
+      specWorkerCnt = first.targetSpecWorkerCnt,
+      unaccountedExclWorkerCnt = initial.exclWorkerCnt - first.accountedExclWorkerCnt)
+    assert(floorCalculator.cal(pending) == Result(102, 2))
+    val caughtUp = snapshot(102, low).copy(exclWorkerCnt = 2, unaccountedExclWorkerCnt = 0)
+    assert(floorCalculator.cal(caughtUp) == Result(102, 2))
+
+    floorConf.set(SCALE_WORKER_NUMBER_MAX.key, "101")
+    val trimmed = floorCalculator.cal(pending)
+    assert(trimmed == Result(101, 1))
+    floorConf.set(SCALE_WORKER_NUMBER_MAX.key, "2000")
+    val restored = pending.copy(
+      specWorkerCnt = trimmed.targetSpecWorkerCnt,
+      unaccountedExclWorkerCnt = pending.exclWorkerCnt - trimmed.accountedExclWorkerCnt)
+    assert(floorCalculator.cal(restored) == Result(102, 2))
+  }
+
   test("excluded workers with low ratios do not mask overload on available workers") {
     val calculator = newCalculator()
     val hotAvail = WorkerStats(neutral.metrics + (WorkerStats.MemoryPressureRatio -> 0.9))
@@ -804,5 +850,28 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
       exclWorkerCnt = 10,
       unaccountedExclWorkerCnt = 0)
     assert(calculator.cal(neutralAvail) == Result(20, 10))
+  }
+
+  test("converging to max preserves unreplaced exclusion accounting across bound changes") {
+    val conf = baseConf()
+    val calculator = newCalculator(conf)
+    val initial =
+      snapshot(10, neutral).copy(exclWorkerCnt = 2, unaccountedExclWorkerCnt = 2)
+    val first = calculator.cal(initial)
+    assert(first == Result(12, 2))
+
+    conf.set(SCALE_WORKER_NUMBER_MAX.key, "11")
+    val trimmedInput = initial.copy(
+      specWorkerCnt = first.targetSpecWorkerCnt,
+      unaccountedExclWorkerCnt = initial.exclWorkerCnt - first.accountedExclWorkerCnt)
+    val second = calculator.cal(trimmedInput)
+    assert(second == Result(11, 1))
+
+    conf.set(SCALE_WORKER_NUMBER_MAX.key, "20")
+    val restoredInput = trimmedInput.copy(
+      specWorkerCnt = second.targetSpecWorkerCnt,
+      unaccountedExclWorkerCnt =
+        trimmedInput.exclWorkerCnt - second.accountedExclWorkerCnt)
+    assert(calculator.cal(restoredInput) == Result(12, 2))
   }
 }
