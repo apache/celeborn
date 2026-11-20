@@ -1041,3 +1041,23 @@ tests:
       - equal:
           path: spec.podManagementPolicy
           value: Parallel
+
+  - it: Should not set a PVC retention policy by default
+    template: worker/statefulset.yaml
+    asserts:
+      - notExists:
+          path: spec.persistentVolumeClaimRetentionPolicy
+
+  - it: Should set `worker.persistentVolumeClaimRetentionPolicy`
+    template: worker/statefulset.yaml
+    set:
+      worker:
+        persistentVolumeClaimRetentionPolicy:
+          whenScaled: Delete
+          whenDeleted: Retain
+    asserts:
+      - equal:
+          path: spec.persistentVolumeClaimRetentionPolicy
+          value:
+            whenScaled: Delete
+            whenDeleted: Retain

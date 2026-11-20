@@ -540,6 +540,10 @@ worker:
     # The group ID to use when modifying the ownership and permissions of the mounted volumes.
     fsGroup: 10006
 
+  # -- What happens to the worker statefulset's PVCs when it is scaled in or deleted, e.g.
+  # `{whenScaled: Delete, whenDeleted: Retain}`. Empty keeps the Kubernetes default (Retain).
+  persistentVolumeClaimRetentionPolicy: {}
+
   # -- Volume claim templates for Celeborn worker pods.
   volumeClaimTemplates:
   # - metadata:

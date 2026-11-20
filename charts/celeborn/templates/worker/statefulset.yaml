@@ -83,6 +83,10 @@ spec:
   volumeClaimTemplates:
   {{- toYaml . | nindent 2 }}
   {{- end }}
+  {{- with .Values.worker.persistentVolumeClaimRetentionPolicy }}
+  persistentVolumeClaimRetentionPolicy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   serviceName: {{ include "celeborn.worker.service.name" . }}
   template:
     metadata:
