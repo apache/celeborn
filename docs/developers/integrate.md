@@ -174,8 +174,8 @@ int value = inputStream.read();
 - `metricsCallback` receives read metrics.
 
 For simplicity, to read the whole data from the partition, you can pass 0 and `Integer.MAX_VALUE` to `startMapIndex`
-and `endMapIndex`. This method creates an InputStream for the data and guarantees no data is lost or read more than
-once; otherwise, an exception is thrown.
+and `endMapIndex`. This method will create an InputStream for the data, and guarantees no data lost and no
+duplicate reading, else exception will be thrown.
 
 ## Step Six: Clean Up
 After the shuffle finishes, you can call `LifecycleManager.unregisterShuffle` to clean up resources related to the
