@@ -89,6 +89,13 @@ trait PartitionMetaHandler {
   def afterClose(): Unit
 
   def getMapIdBitmap(): Option[RoaringBitmap]
+
+  /**
+   * Carries over metadata accumulated by the handler of a previous storage tier, so a file that is
+   * evicted to another tier keeps describing the data written before the eviction.
+   * @param previous the meta handler of the tier writer being evicted
+   */
+  def inheritFrom(previous: PartitionMetaHandler): Unit = {}
 }
 
 class MapPartitionMetaHandler(
@@ -375,6 +382,12 @@ class ReducePartitionMetaHandler(val rangeReadFilter: Boolean, val fileInfo: Fil
 
   def getMapIdBitmap(): Option[RoaringBitmap] = {
     mapIdBitMap
+  }
+
+  override def inheritFrom(previous: PartitionMetaHandler): Unit = {
+    for (bitmap <- mapIdBitMap; previousBitmap <- previous.getMapIdBitmap()) {
+      bitmap.or(previousBitmap)
+    }
   }
 
   override def beforeDestroy(): Unit = {}

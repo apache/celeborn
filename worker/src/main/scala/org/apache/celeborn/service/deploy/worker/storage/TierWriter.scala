@@ -352,6 +352,7 @@ class MemoryTierWriter(
       val numBytes = flushBuffer.readableBytes()
       logDebug(s"Evict ${Utils.bytesToString(
         numBytes)} from memory to other tier ${file.filename} on ${file.storageType} for ${file.shuffleKey}")
+      file.metaHandler.inheritFrom(metaHandler)
       // swap tier writer's flush buffer to memory tier writer's
       // and handle its release
       file.swapFlushBuffer(flushBuffer)
