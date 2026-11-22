@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.common.util;
 
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -30,5 +32,12 @@ public class JavaUtilsSuite {
     for (int i = 0; i < arr.length; i++) {
       Assert.assertTrue(i == inverse[arr[i]]);
     }
+  }
+
+  @Test
+  public void testComputeIfAbsentRejectsNullMappingFunction() {
+    ConcurrentHashMap<String, String> map = JavaUtils.newConcurrentHashMap();
+    map.put("key", "value");
+    Assert.assertThrows(NullPointerException.class, () -> map.computeIfAbsent("key", null));
   }
 }
