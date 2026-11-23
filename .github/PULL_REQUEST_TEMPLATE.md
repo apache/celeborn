@@ -16,7 +16,11 @@ Thanks for sending a pull request!  Here are some tips for you:
 
 ### Does this PR resolve a correctness bug?
 
-<!-- Check if yes. The `correctness` label will be added/removed automatically. -->
+<!--
+Check Yes if the bug can cause silent data loss or corruption, or produce incorrect query results.
+Leave the box unchecked for bugs that only cause job failures, retries, or performance regressions.
+The checkbox controls the `correctness` label.
+-->
 - [ ] Yes
 
 ### Does this PR introduce _any_ user-facing change?
