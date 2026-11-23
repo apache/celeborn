@@ -877,6 +877,36 @@ class SpecWorkerCntCalculatorSuite extends AnyFunSuite {
       Result(25, 0))
   }
 
+  test("a pending scale-up target survives memory window warm-up") {
+    val calculator = newCalculator(new CelebornConf(false))
+    val hot = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.75))
+    val warming = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> Double.NaN))
+    val full = snapshot(10, hot)
+    val partial = full.copy(workerStats = Seq.fill(9)(hot) :+ warming)
+
+    val targets = Seq(full, partial, partial, full).scanLeft(full.specWorkerCnt) { (spec, input) =>
+      calculator.calSpecWorkerCnt(input.copy(specWorkerCnt = spec))
+    }
+    assert(targets == Seq(10, 15, 15, 15, 15))
+    assert(calculator.calSpecWorkerCnt(partial) == 14)
+  }
+
+  test("incomplete scale-up metrics preserve pending exclusion replacements") {
+    val calculator = newCalculator(new CelebornConf(false))
+    val hot = WorkerStats(low.metrics + (WorkerStats.MemoryPressureRatio -> 0.6))
+    val warming = WorkerStats(hot.metrics + (WorkerStats.DiskUsedRatio -> Double.NaN))
+    val partial = Input(10, 13, Seq.fill(9)(hot) :+ warming, exclWorkerCnt = 2)
+    assert(calculator.cal(partial) == Result(14, 2))
+
+    val pending = partial.copy(specWorkerCnt = 15, unaccountedExclWorkerCnt = 1)
+    val kept = calculator.cal(pending)
+    assert(kept == Result(16, 2))
+    val accepted = pending.copy(
+      specWorkerCnt = kept.targetSpecWorkerCnt,
+      unaccountedExclWorkerCnt = pending.exclWorkerCnt - kept.accountedExclWorkerCnt)
+    assert(calculator.cal(accepted) == kept)
+  }
+
   test("percentage step budgets avoid binary floating-point truncation") {
     val largeLoad = WorkerStats(low.metrics + (WorkerStats.LastMinuteSystemLoadRatio -> 10.0))
     Seq((0.29, 129, 71), (0.58, 158, 42)).foreach { case (percent, expectedUp, expectedDown) =>

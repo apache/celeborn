@@ -44,10 +44,10 @@ private[master] class SpecWorkerCntCalculator(
 
     validateInput(input)
     val oldSpecWorkerCnt = input.specWorkerCnt
-    val ratios = dimensions.map { dimension =>
-      dimension -> input.workerStats.map(dimension.value)
+    val sums = dimensions.map { dimension =>
+      dimension -> sumRatios(input.workerStats.iterator.map(dimension.value))
     }
-    val metrics = MetricRatios(ratios, input.workerStats.size - input.exclWorkerCnt)
+    val metrics = MetricRatios(sums, input.workerStats.size - input.exclWorkerCnt)
     val load = classifyLoad(metrics)
     val specPos = classifySpec(oldSpecWorkerCnt, minWorkers, maxWorkers)
 
@@ -64,21 +64,25 @@ private[master] class SpecWorkerCntCalculator(
         ScaleRule.KeepSpec
     }
 
+    def keepSpec: Result =
+      makupExcl(
+        input,
+        SpecCandidate(oldSpecWorkerCnt, alignedMin, ExclMakup.UnmetOnly),
+        maxWorkers)
+
     rule match {
       case ScaleRule.ScaleUpForLoad | ScaleRule.AlignToMin =>
-        makupExcl(
+        val result = makupExcl(
           input,
           calUpCandidate(oldSpecWorkerCnt, metrics, load, scaleConf),
           maxWorkers)
+        if (result.targetSpecWorkerCnt < oldSpecWorkerCnt && !metrics.complete) keepSpec else result
       case ScaleRule.ScaleDownForLoad =>
         calDownForLoad(input, downDemand(metrics, scaleConf), scaleConf)
       case ScaleRule.ConvergeToMax =>
         calConvergeToMax(input, scaleConf)
       case ScaleRule.KeepSpec =>
-        makupExcl(
-          input,
-          SpecCandidate(oldSpecWorkerCnt, alignedMin, ExclMakup.UnmetOnly),
-          maxWorkers)
+        keepSpec
     }
   }
 
@@ -99,12 +103,11 @@ private[master] class SpecWorkerCntCalculator(
 
   private def classifyLoad(metrics: MetricRatios): Load = {
     val availWorkerCnt = BigDecimal.valueOf(metrics.availWorkerWithMetricCnt.toLong)
-    val ratios = metrics.values.iterator
+    val sums = metrics.sums.iterator
     var allBelowDown = true
 
-    while (ratios.hasNext) {
-      val (dimension, values) = ratios.next()
-      val RatioSum(knownSum, complete) = sumRatios(values)
+    while (sums.hasNext) {
+      val (dimension, RatioSum(knownSum, complete)) = sums.next()
       val up = BigDecimal.valueOf(dimension.up).multiply(availWorkerCnt)
       if (knownSum.compareTo(up) > 0) {
         return Load.High
@@ -206,16 +209,16 @@ private[master] class SpecWorkerCntCalculator(
 
   private def estimate(metrics: MetricRatios, up: Boolean): Int = {
     val maxInt = BigDecimal.valueOf(Int.MaxValue.toLong)
-    metrics.values.map { case (dimension, values) =>
+    metrics.sums.map { case (dimension, sum) =>
       val threshold = BigDecimal.valueOf(if (up) dimension.up else dimension.down)
-      sumRatios(values).knownSum
+      sum.knownSum
         .divide(threshold, 0, RoundingMode.CEILING)
         .min(maxInt)
         .intValueExact()
     }.max
   }
 
-  private def sumRatios(values: Seq[Double]): RatioSum = {
+  private def sumRatios(values: Iterator[Double]): RatioSum = {
     var total = BigDecimal.ZERO
     var complete = true
     values.foreach { value =>
@@ -257,8 +260,10 @@ private[master] object SpecWorkerCntCalculator {
   private case class RatioSum(knownSum: BigDecimal, complete: Boolean)
 
   private case class MetricRatios(
-      values: Seq[(Dimension, Seq[Double])],
-      availWorkerWithMetricCnt: Int)
+      sums: Seq[(Dimension, RatioSum)],
+      availWorkerWithMetricCnt: Int) {
+    def complete: Boolean = sums.forall(_._2.complete)
+  }
 
   private case class Dimension(key: String, up: Double, down: Double) {
     require(down < up, s"Scale-down threshold must be below scale-up threshold for $key")
