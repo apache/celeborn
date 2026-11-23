@@ -116,6 +116,9 @@ public class CongestionController {
     this.workerSource.addGauge(
         WorkerSource.WORKER_CONSUME_SPEED(), consumedBufferStatusHub::avgBytesPerSec);
 
+    this.workerSource.addGauge(
+        WorkerSource.WORKER_CONGESTED(), () -> isOverHighWatermark() ? 1 : 0);
+
     this.configService = configService;
 
     if (configService != null) {
