@@ -18,7 +18,7 @@ Thanks for sending a pull request!  Here are some tips for you:
 
 <!--
 Check Yes if the bug can cause silent data loss or corruption, or produce incorrect query results.
-Leave the box unchecked for bugs that only cause job failures, retries, or performance regressions.
+Leave the box unchecked for bugs that only cause job failures, retries, or performance degradation.
 The checkbox controls the `correctness` label.
 -->
 - [ ] Yes
