@@ -49,23 +49,18 @@ class CliConfigManager extends CliLogging {
   }
 
   private def saveConfig(cliConfig: CliConfig): Unit = {
-    try {
-      val file = new File(CliConfigManager.cliConfigFilePath)
-      if (!file.exists()) {
-        file.getParentFile.mkdirs()
-        file.createNewFile()
+    val file = new File(CliConfigManager.cliConfigFilePath)
+    if (!file.exists()) {
+      file.getParentFile.mkdirs()
+      file.createNewFile()
+    }
+    properties.clear()
+    val outputStream = new FileOutputStream(file)
+    Utils.tryWithResources(outputStream) { os =>
+      cliConfig.cliConfigData.foreach { case (key, value) =>
+        properties.setProperty(key, value)
       }
-      properties.clear()
-      val outputStream = new FileOutputStream(file)
-      Utils.tryWithResources(outputStream) { os =>
-        cliConfig.cliConfigData.foreach { case (key, value) =>
-          properties.setProperty(key, value)
-        }
-        properties.store(os, s"Last updated conf at ${LocalDateTime.now()}")
-      }
-    } catch {
-      case e: Exception =>
-        logError(s"Error saving config: ${e.getMessage}")
+      properties.store(os, s"Last updated conf at ${LocalDateTime.now()}")
     }
   }
 
