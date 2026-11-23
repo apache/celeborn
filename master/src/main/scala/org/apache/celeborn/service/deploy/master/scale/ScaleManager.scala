@@ -19,11 +19,21 @@ package org.apache.celeborn.service.deploy.master.scale
 
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager
 
+/**
+ * Lifecycle hooks for a Master autoscaling plugin. Implementations are responsible for honoring
+ * HA leadership when performing scaling operations.
+ */
 trait ScaleManager {
 
+  /**
+   * Receives the Master's metadata manager during RPC endpoint startup. Return promptly and
+   * schedule long-running work asynchronously.
+   */
   def init(metaManager: AbstractMetaManager): Unit
 
+  /** Schedules scaling work asynchronously and returns promptly. */
   def start(): Unit
 
+  /** Stops scaling and releases resources, including after partial startup. */
   def stop(): Unit
 }
