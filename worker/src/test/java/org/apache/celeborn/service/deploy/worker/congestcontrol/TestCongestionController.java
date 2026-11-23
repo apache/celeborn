@@ -28,6 +28,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.server.common.service.config.FsConfigServiceImpl;
 import org.apache.celeborn.service.deploy.worker.WorkerSource;
+import org.apache.celeborn.service.deploy.worker.memory.MemoryManager;
 
 public class TestCongestionController {
 
@@ -365,6 +366,79 @@ public class TestCongestionController {
     controller.getConsumedBufferStatusHub().clear();
     for (UserCongestionControlContext context : controller.getUserCongestionContextMap().values()) {
       context.getUserBufferInfo().getBufferStatusHub().clear();
+    }
+  }
+
+  /** getTotalPendingBytes must track unflushed buffers, not Netty usedDirectMemory. */
+  @Test
+  public void testTotalPendingBytesTracksUnflushedBuffers() {
+    MemoryManager memoryManager = MemoryManager.initialize(new CelebornConf());
+    CongestionController realController =
+        new CongestionController(source, 10, new CelebornConf(), null) {
+          @Override
+          public void trimMemoryUsage() {
+            // No op
+          }
+        };
+    realController.shutDownCheckService();
+    try {
+      long baseline = realController.getTotalPendingBytes();
+
+      memoryManager.incrementDiskBuffer(600);
+      memoryManager.reserveSortMemory(300);
+      memoryManager.incrementMemoryFileStorage(100);
+      Assert.assertEquals(baseline + 1000, realController.getTotalPendingBytes());
+
+      // All buffers flushed/released: pending bytes must return to the baseline,
+      // regardless of how much direct memory Netty still retains.
+      memoryManager.releaseDiskBuffer(600);
+      memoryManager.releaseSortMemory(300);
+      memoryManager.releaseMemoryFileStorage(100);
+      Assert.assertEquals(baseline, realController.getTotalPendingBytes());
+    } finally {
+      realController.close();
+      MemoryManager.reset();
+    }
+  }
+
+  /** Congestion must exit once all pending buffers are flushed and released. */
+  @Test
+  public void testCongestionExitsAfterAllBuffersReleased() {
+    MemoryManager memoryManager = MemoryManager.initialize(new CelebornConf());
+    CelebornConf celebornConf = new CelebornConf();
+    long baseline =
+        memoryManager.getDiskBufferCounter().get()
+            + memoryManager.getMemoryFileStorageCounter()
+            + memoryManager.getSortMemoryCounter().get();
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_DISK_BUFFER_HIGH_WATERMARK().key(),
+        String.valueOf(baseline + 1000));
+    celebornConf.set(
+        CelebornConf.WORKER_CONGESTION_CONTROL_DISK_BUFFER_LOW_WATERMARK().key(),
+        String.valueOf(baseline + 500));
+    CongestionController realController =
+        new CongestionController(source, 10, celebornConf, null) {
+          @Override
+          public void trimMemoryUsage() {
+            // No op
+          }
+        };
+    realController.shutDownCheckService();
+    try {
+      memoryManager.incrementDiskBuffer(1001);
+      realController.checkCongestion();
+      Assert.assertTrue(
+          "pending bytes over high watermark should mark worker congested",
+          realController.isOverHighWatermark());
+
+      memoryManager.releaseDiskBuffer(1001);
+      realController.checkCongestion();
+      Assert.assertFalse(
+          "pending bytes back under low watermark should clear congestion",
+          realController.isOverHighWatermark());
+    } finally {
+      realController.close();
+      MemoryManager.reset();
     }
   }
 }

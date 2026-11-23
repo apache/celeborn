@@ -202,8 +202,17 @@ public class CongestionController {
     consumedBufferStatusHub.add(currentTimeMillis, node);
   }
 
+  /**
+   * Total bytes produced but not yet flushed to disk: disk flusher backlog, memory-staged shuffle
+   * data and in-flight sort memory. Excludes Netty usedDirectMemory, which is a high-water ratchet
+   * (pooled chunks are retained after their buffers are freed) and would keep the worker congested
+   * forever after a load peak.
+   */
   public long getTotalPendingBytes() {
-    return MemoryManager.instance().getMemoryUsage();
+    MemoryManager memoryManager = MemoryManager.instance();
+    return memoryManager.getDiskBufferCounter().get()
+        + memoryManager.getMemoryFileStorageCounter()
+        + memoryManager.getSortMemoryCounter().get();
   }
 
   public void trimMemoryUsage() {
