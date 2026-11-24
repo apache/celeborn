@@ -33,6 +33,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.meta.DiskInfo;
+import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
@@ -423,6 +424,88 @@ public class SlotsAllocatorSuiteJ {
     }
     final boolean shouldReplicate = true;
     checkSlotsOnDFS(workers, partitionIds, shouldReplicate, true, false, false);
+  }
+
+  private static void addHdfsDisks(List<WorkerInfo> workers) {
+    for (WorkerInfo worker : workers) {
+      DiskInfo hdfs =
+          new DiskInfo("HDFS", Long.MAX_VALUE, 999999, 999999, 0, StorageInfo.Type.HDFS);
+      hdfs.availableSlots_$eq(Long.MAX_VALUE / (64 * 1024 * 1024));
+      worker.diskInfos().put("HDFS", hdfs);
+    }
+  }
+
+  private static Map<StorageInfo.Type, Integer> countLocationsByType(
+      Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>> slots) {
+    Map<StorageInfo.Type, Integer> counts = new HashMap<>();
+    for (Tuple2<List<PartitionLocation>, List<PartitionLocation>> locations : slots.values()) {
+      for (PartitionLocation location : locations._1) {
+        counts.merge(location.getStorageInfo().getType(), 1, Integer::sum);
+      }
+    }
+    return counts;
+  }
+
+  private static List<SlotsAssignStrategy> strategies() {
+    return Arrays.asList(
+        new RoundRobinSlotsAssignStrategy(), new LoadAwareSlotsAssignStrategy(3, 0.1, 0, 1, 0));
+  }
+
+  @Test
+  public void testLocalDisksKeepAllSlotsWhileTheyHaveRoom() {
+    List<Integer> partitionIds = IntStream.range(0, 300).boxed().collect(Collectors.toList());
+    for (SlotsAssignStrategy strategy : strategies()) {
+      List<WorkerInfo> workers = prepareWorkers(true);
+      addHdfsDisks(workers);
+
+      Map<StorageInfo.Type, Integer> counts =
+          countLocationsByType(
+              SlotsAllocator.offerSlots(
+                  workers,
+                  partitionIds,
+                  false,
+                  false,
+                  StorageInfo.ALL_TYPES_AVAILABLE_MASK,
+                  false,
+                  0,
+                  strategy));
+
+      assertEquals(
+          strategy.getClass().getSimpleName(),
+          Collections.singletonMap(StorageInfo.Type.SSD, 300),
+          counts);
+    }
+  }
+
+  @Test
+  public void testSlotsOverflowToRemoteDisksWhenLocalDisksAreFull() {
+    List<Integer> partitionIds = IntStream.range(0, 300).boxed().collect(Collectors.toList());
+    for (SlotsAssignStrategy strategy : strategies()) {
+      List<WorkerInfo> workers = prepareWorkers(true);
+      addHdfsDisks(workers);
+      workers.forEach(
+          worker ->
+              worker.diskInfos().values().stream()
+                  .filter(disk -> !disk.storageType().isDFS())
+                  .forEach(disk -> disk.setStatus(DiskStatus.HIGH_DISK_USAGE)));
+
+      Map<StorageInfo.Type, Integer> counts =
+          countLocationsByType(
+              SlotsAllocator.offerSlots(
+                  workers,
+                  partitionIds,
+                  false,
+                  false,
+                  StorageInfo.ALL_TYPES_AVAILABLE_MASK,
+                  false,
+                  0,
+                  strategy));
+
+      assertEquals(
+          strategy.getClass().getSimpleName(),
+          Collections.singletonMap(StorageInfo.Type.HDFS, 300),
+          counts);
+    }
   }
 
   @Test

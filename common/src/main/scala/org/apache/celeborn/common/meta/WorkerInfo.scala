@@ -214,7 +214,9 @@ class WorkerInfo(
       for (newDisk <- newDiskInfos.values().asScala) {
         val mountPoint: String = newDisk.mountPoint
         val curDisk = diskInfos.get(mountPoint)
-        if (estimatedPartitionSize.nonEmpty && !newDisk.storageType.isDFS) {
+        // Heartbeats do not carry slots, so compute them for every disk, as updateDiskSlots does.
+        // Otherwise every heartbeat leaves remote disks without available slots.
+        if (estimatedPartitionSize.nonEmpty) {
           newDisk.maxSlots = newDisk.totalSpace / estimatedPartitionSize.get
           newDisk.availableSlots = newDisk.actualUsableSpace / estimatedPartitionSize.get
         }

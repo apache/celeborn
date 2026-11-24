@@ -29,23 +29,38 @@ import org.apache.celeborn.common.protocol.StorageInfo;
 
 public class RoundRobinSlotsAssignStrategy implements SlotsAssignStrategy {
 
+  /**
+   * Budgets local disks while any of them has slots, and remote disks only once they have none.
+   * Remote disks have practically unlimited slots, so budgeting them together with local disks
+   * would move a share of every shuffle to remote storage even when local disks have room.
+   */
   @Override
   public Map<WorkerInfo, List<UsableDiskInfo>> computeSlotBudgets(
       List<WorkerInfo> workers,
       List<Integer> partitionIds,
       boolean shouldReplicate,
       int availableStorageTypes) {
-    Map<WorkerInfo, List<UsableDiskInfo>> slotBudgets = new HashMap<>();
+    Map<WorkerInfo, List<UsableDiskInfo>> localBudgets = new HashMap<>();
+    Map<WorkerInfo, List<UsableDiskInfo>> remoteBudgets = new HashMap<>();
+    boolean localSlotsAvailable = false;
     for (WorkerInfo worker : workers) {
-      List<UsableDiskInfo> usableDisks =
-          slotBudgets.computeIfAbsent(worker, v -> new ArrayList<>());
+      List<UsableDiskInfo> localDisks =
+          localBudgets.computeIfAbsent(worker, v -> new ArrayList<>());
+      List<UsableDiskInfo> remoteDisks =
+          remoteBudgets.computeIfAbsent(worker, v -> new ArrayList<>());
       for (DiskInfo diskInfo : worker.diskInfos().values()) {
         if (DiskStatus.HEALTHY.equals(diskInfo.status())
             && StorageInfo.isAvailable(diskInfo.storageType(), availableStorageTypes)) {
-          usableDisks.add(new UsableDiskInfo(diskInfo));
+          UsableDiskInfo usableDisk = new UsableDiskInfo(diskInfo);
+          if (diskInfo.storageType().isDFS()) {
+            remoteDisks.add(usableDisk);
+          } else {
+            localDisks.add(usableDisk);
+            localSlotsAvailable |= usableDisk.usableSlots > 0;
+          }
         }
       }
     }
-    return slotBudgets;
+    return localSlotsAvailable ? localBudgets : remoteBudgets;
   }
 }

@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.meta.DiskInfo;
+import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.PartitionLocation;
 import org.apache.celeborn.common.protocol.StorageInfo;
@@ -37,6 +38,8 @@ import org.apache.celeborn.common.protocol.StorageInfo;
 public class SlotsAllocator {
   private static final Logger logger = LoggerFactory.getLogger(SlotsAllocator.class);
   private static final Random rand = new Random();
+  // Preference among remote storages when no slot budget picks one.
+  private static final List<StorageInfo.Type> REMOTE_STORAGE_ORDER = Arrays.asList(S3, OSS, HDFS);
 
   public static Map<WorkerInfo, Tuple2<List<PartitionLocation>, List<PartitionLocation>>>
       offerSlots(
@@ -91,23 +94,42 @@ public class SlotsAllocator {
                 selectedDiskInfo.mountPoint(),
                 selectedDiskInfo.storageType(),
                 availableStorageTypes);
-        workerDiskIndex.put(selectedWorker, (diskIndex + 1) % usableDiskInfos.size());
       }
+      // Advance past remote disks too, or every following slot would stay on the remote disk.
+      workerDiskIndex.put(selectedWorker, (diskIndex + 1) % usableDiskInfos.size());
     } else {
-      if (StorageInfo.localDiskAvailable(availableStorageTypes)) {
-        DiskInfo[] diskInfos =
-            selectedWorker.diskInfos().values().stream()
-                .filter(p -> !p.storageType().isDFS())
-                .collect(Collectors.toList())
-                .toArray(new DiskInfo[0]);
+      List<DiskInfo> localDisks =
+          selectedWorker.diskInfos().values().stream()
+              .filter(p -> !p.storageType().isDFS())
+              .collect(Collectors.toList());
+      List<DiskInfo> healthyLocalDisks =
+          localDisks.stream().filter(DiskInfo::isHealthy).collect(Collectors.toList());
+      Optional<DiskInfo> remoteDisk =
+          selectedWorker.diskInfos().values().stream()
+              .filter(
+                  p ->
+                      p.storageType().isDFS()
+                          && DiskStatus.HEALTHY.equals(p.status())
+                          && StorageInfo.isAvailable(p.storageType(), availableStorageTypes))
+              .min(Comparator.comparingInt(p -> REMOTE_STORAGE_ORDER.indexOf(p.storageType())));
+      boolean localDiskAvailable = StorageInfo.localDiskAvailable(availableStorageTypes);
+      if (localDiskAvailable
+          && !localDisks.isEmpty()
+          && healthyLocalDisks.isEmpty()
+          && remoteDisk.isPresent()) {
+        // Every local disk is unhealthy, e.g. full, so overflow to remote storage.
+        storageInfo = new StorageInfo("", remoteDisk.get().storageType(), availableStorageTypes);
+      } else if (localDiskAvailable) {
+        List<DiskInfo> diskInfos = healthyLocalDisks.isEmpty() ? localDisks : healthyLocalDisks;
         int diskIndex =
-            workerDiskIndex.computeIfAbsent(selectedWorker, v -> rand.nextInt(diskInfos.length));
+            workerDiskIndex.computeIfAbsent(selectedWorker, v -> rand.nextInt(diskInfos.size()))
+                % diskInfos.size();
         storageInfo =
             new StorageInfo(
-                diskInfos[diskIndex].mountPoint(),
-                diskInfos[diskIndex].storageType(),
+                diskInfos.get(diskIndex).mountPoint(),
+                diskInfos.get(diskIndex).storageType(),
                 availableStorageTypes);
-        workerDiskIndex.put(selectedWorker, (diskIndex + 1) % diskInfos.length);
+        workerDiskIndex.put(selectedWorker, (diskIndex + 1) % diskInfos.size());
       } else if (StorageInfo.S3Available(availableStorageTypes)) {
         storageInfo = new StorageInfo("", S3, availableStorageTypes);
       } else if (StorageInfo.OSSAvailable(availableStorageTypes)) {

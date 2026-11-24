@@ -32,7 +32,7 @@ import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.metrics.source.Role
-import org.apache.celeborn.common.protocol.TransportModuleConstants
+import org.apache.celeborn.common.protocol.{StorageInfo, TransportModuleConstants}
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcEndpointAddress, RpcEnv}
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils}
@@ -395,6 +395,25 @@ class WorkerInfoSuite extends CelebornFunSuite {
       if (i < 3) ipAddress.append(".")
     }
     ipAddress.toString
+  }
+
+  test("a heartbeat keeps the available slots of remote disks") {
+    val estimatedPartitionSize = 64L * 1024 * 1024
+    def remoteDisk(): DiskInfo =
+      new DiskInfo("HDFS", Long.MaxValue, 0, 0, 0, StorageInfo.Type.HDFS)
+    val disks = new util.HashMap[String, DiskInfo]()
+    disks.put("HDFS", remoteDisk())
+    val worker = new WorkerInfo("host", 1, 2, 3, 4, 5, disks, null)
+    worker.updateDiskSlots(estimatedPartitionSize)
+    assert(worker.diskInfos.get("HDFS").getAvailableSlots() > 0)
+
+    // Heartbeats do not carry slots, like disks deserialized from a heartbeat.
+    val heartbeatDisks = new util.HashMap[String, DiskInfo]()
+    heartbeatDisks.put("HDFS", remoteDisk())
+    worker.updateThenGetDiskInfos(heartbeatDisks, Some(estimatedPartitionSize))
+
+    assert(
+      worker.diskInfos.get("HDFS").getAvailableSlots() == Long.MaxValue / estimatedPartitionSize)
   }
 
   test("Test WorkerInfo hashcode") {
