@@ -94,11 +94,12 @@ object ControlMessages extends Logging {
         networkLocation: String,
         disks: Map[String, DiskInfo],
         userResourceConsumption: Map[UserIdentifier, ResourceConsumption],
-        requestId: String): PbRegisterWorker = {
+        requestId: String,
+        workerIndex: Int = -1): PbRegisterWorker = {
       val pbDisks = disks.values.map(PbSerDeUtils.toPbDiskInfo).asJava
       val pbUserResourceConsumption =
         PbSerDeUtils.toPbUserResourceConsumption(userResourceConsumption.asJava)
-      PbRegisterWorker.newBuilder()
+      val builder = PbRegisterWorker.newBuilder()
         .setHost(host)
         .setRpcPort(rpcPort)
         .setPushPort(pushPort)
@@ -109,7 +110,10 @@ object ControlMessages extends Logging {
         .addAllDisks(pbDisks)
         .putAllUserResourceConsumption(pbUserResourceConsumption)
         .setRequestId(requestId)
-        .build()
+      if (workerIndex >= 0) {
+        builder.setWorkerIndex(workerIndex)
+      }
+      builder.build()
     }
   }
 

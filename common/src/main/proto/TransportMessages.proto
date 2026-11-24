@@ -191,6 +191,7 @@ message PbWorkerInfo {
   int32 internalPort = 8;
   string networkLocation = 9;
   int64 nextInterruptionNotice = 10; // Unix timestamp when disruption is expected to be initiated
+  optional int32 workerIndex = 11;
 }
 
 message PbFileGroup {
@@ -209,6 +210,7 @@ message PbRegisterWorker {
   map<string, PbResourceConsumption> userResourceConsumption = 8;
   int32 internalPort = 10;
   string networkLocation = 11;
+  optional int32 workerIndex = 12;
 }
 
 message PbMetaRegisterWorkerRequest {
@@ -221,6 +223,7 @@ message PbMetaRegisterWorkerRequest {
   map<string, PbResourceConsumption> userResourceConsumption = 7;
   int32 internalPort = 8;
   string networkLocation = 9;
+  optional int32 workerIndex = 10;
 }
 
 message PbHeartbeatFromWorker {
@@ -789,6 +792,7 @@ message PbSnapshotMetaInfo {
   int64 applicationTotalCount = 20;
   map<string, int64> applicationFallbackCounts = 21;
   map<string, PbApplicationInfo> applicationInfos = 22;
+  PbScaleCheckpoint scaleCheckpoint = 23;
 }
 
 message PbOpenStream {
@@ -1047,6 +1051,7 @@ enum PbMetaRequestType {
   ReviseLostShuffles = 29;
   RegisterApplicationInfo = 30;
   BatchHeartbeat = 31;
+  CompareAndSetScaleCheckpoint = 32;
 }
 
 message PbMetaRequest {
@@ -1069,7 +1074,50 @@ message PbMetaRequest {
   PbMetaBatchUnregisterShuffles batchUnregisterShuffleRequest = 25;
   PbRegisterApplicationInfo registerApplicationInfoRequest = 26;
   PbBatchHeartbeatRequest batchHeartbeatRequest = 27;
+  PbCompareAndSetScaleCheckpointRequest compareAndSetScaleCheckpointRequest = 28;
   PbReviseLostShuffles reviseLostShufflesRequest = 102;
+}
+
+enum PbScaleType {
+  UNKNOWN_SCALE = 0;
+  SCALE_UP = 1;
+  SCALE_DOWN = 2;
+  NO_SCALE = 3;
+}
+
+message PbScaleOperation {
+  PbScaleType scaleType = 1;
+  int32 expectedWorkerReplicaNumber = 2;
+  repeated int32 reserveWorkerNumbers = 3;
+  int64 lastScaleTime = 4;
+  bool isFinished = 5;
+}
+
+message PbScaleOperationRequest {
+  string operationId = 1;
+  PbScaleOperation scaleOperation = 2;
+}
+
+message PbPendingScaleOperation {
+  PbScaleOperation operation = 1;
+  optional int32 accountedExclWorkerCnt = 2;
+  string operationId = 3;
+  string platformVersion = 4;
+  bool removesWorkerIndices = 5;
+}
+
+message PbScaleCheckpoint {
+  int64 revision = 1;
+  int32 accountedExclWorkerCnt = 2;
+  PbScaleOperationRequest lastOperation = 3;
+  PbPendingScaleOperation pending = 4;
+  string workloadUid = 5;
+}
+
+message PbCompareAndSetScaleCheckpointRequest {
+  int64 leaderTerm = 1;
+  int64 expectedRevision = 2;
+  PbScaleCheckpoint checkpoint = 3;
 }
 
 message PbMetaRequestSlotsRequest {
@@ -1111,6 +1159,7 @@ enum PbMetaRequestStatus {
   OK = 1;
   INTERNAL_ERROR= 2;
   ALREADY_EXISTS = 3;
+  STALE_SCALE_CHECKPOINT = 4;
 }
 
 message PbMetaRequestResponse {

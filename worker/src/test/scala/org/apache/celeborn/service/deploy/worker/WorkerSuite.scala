@@ -397,7 +397,8 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
     val argCaptor = ArgumentCaptor.forClass(classOf[PbRegisterWorker])
     val workerConf: Map[String, String] = Map(
       CelebornConf.ACTIVE_STORAGE_TYPES.key -> "HDFS",
-      CelebornConf.HDFS_DIR.key -> "file:///")
+      CelebornConf.HDFS_DIR.key -> "file:///",
+      CelebornConf.WORKER_INDEX.key -> "0")
     setupMiniClusterWithRandomPorts(workerNum = 1, workerConf = workerConf);
 
     try {
@@ -407,6 +408,8 @@ class WorkerSuite extends AnyFunSuite with BeforeAndAfterEach with MiniClusterFe
         .askSync(argCaptor.capture(), ArgumentMatchers.eq(classOf[PbRegisterWorkerResponse]))
       val registrationMessage = argCaptor.getValue;
 
+      assert(registrationMessage.hasWorkerIndex)
+      assert(registrationMessage.getWorkerIndex == 0)
       Assert.assertEquals(2, registrationMessage.getDisksCount)
       val maybeS3DiskInfo = registrationMessage
         .getDisksList.asScala

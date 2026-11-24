@@ -857,6 +857,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerHttpMaxWorkerThreads: Int = get(WORKER_HTTP_MAX_WORKER_THREADS)
   def workerHttpStopTimeout: Long = get(WORKER_HTTP_STOP_TIMEOUT)
   def workerHttpIdleTimeout: Long = get(WORKER_HTTP_IDLE_TIMEOUT)
+  def workerIndex: Int = get(WORKER_INDEX)
   def workerRpcPort: Int = get(WORKER_RPC_PORT)
   def workerPushPort: Int = get(WORKER_PUSH_PORT)
   def workerFetchPort: Int = get(WORKER_FETCH_PORT)
@@ -3845,6 +3846,17 @@ object CelebornConf extends Logging {
       .toSequence
       .createWithDefault(Nil)
 
+  val WORKER_INDEX: ConfigEntry[Int] =
+    buildConf("celeborn.worker.index")
+      .categories("worker")
+      .doc("Optional non-negative Worker ordinal used for autoscaling. " +
+        "Set this to the Pod ordinal for Workers managed by a Kubernetes or OpenKruise " +
+        "StatefulSet. The default of -1 identifies an unmanaged Worker.")
+      .version("1.0.0")
+      .intConf
+      .checkValue(_ >= -1, "Worker index must be -1 or a non-negative ordinal.")
+      .createWithDefault(-1)
+
   val WORKER_RPC_PORT: ConfigEntry[Int] =
     buildConf("celeborn.worker.rpc.port")
       .categories("worker")
@@ -6587,6 +6599,45 @@ object CelebornConf extends Logging {
       .doubleConf
       .checkValue(v => v > 0 && v <= 1, "Scale-down percent must be in (0, 1]")
       .createWithDefault(0.1)
+
+  val AUTO_SCALE_UP_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.scale.up.enabled")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Whether the default scale manager may activate workers or add capacity.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val AUTO_SCALE_DOWN_ENABLED: ConfigEntry[Boolean] =
+    buildConf("celeborn.scale.down.enabled")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc("Whether the default scale manager may drain workers or reduce capacity as a " +
+        "scale-down operation. Recommissioning may still cancel unregistered replicas.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val SCALE_UP_STABILIZATION_WINDOW_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.scale.up.stabilizationWindowInterval")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc(
+        "Waiting time before a new scale-up decision after the previous scaling plan was created.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("360s")
+
+  val SCALE_DOWN_STABILIZATION_WINDOW_INTERVAL: ConfigEntry[Long] =
+    buildConf("celeborn.scale.down.stabilizationWindowInterval")
+      .categories("master")
+      .dynamic
+      .version("1.0.0")
+      .doc(
+        "Waiting time before a new scale-down decision after the previous scaling plan was created.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("3600s")
 
   val IDENTITY_PROVIDER: ConfigEntry[String] =
     buildConf("celeborn.identity.provider")

@@ -103,6 +103,10 @@ public class MetaHandler {
 
   public org.apache.celeborn.common.protocol.PbMetaRequestResponse handleWriteRequest(
       PbMetaRequest request) {
+    return handleWriteRequest(request, -1L);
+  }
+
+  public PbMetaRequestResponse handleWriteRequest(PbMetaRequest request, long entryTerm) {
     PbMetaRequestType metaRequestType = request.getMetaRequestType();
     org.apache.celeborn.common.protocol.PbMetaRequestResponse.Builder responseBuilder =
         getMasterMetaResponseBuilder(request);
@@ -213,14 +217,15 @@ public class MetaHandler {
           break;
 
         case RegisterWorker:
-          host = request.getRegisterWorkerRequest().getHost();
-          rpcPort = request.getRegisterWorkerRequest().getRpcPort();
-          pushPort = request.getRegisterWorkerRequest().getPushPort();
-          fetchPort = request.getRegisterWorkerRequest().getFetchPort();
-          replicatePort = request.getRegisterWorkerRequest().getReplicatePort();
-          String networkLocation = request.getRegisterWorkerRequest().getNetworkLocation();
-          int internalPort = request.getRegisterWorkerRequest().getInternalPort();
-          Map<String, PbDiskInfo> pbDiskInfo = request.getRegisterWorkerRequest().getDisksMap();
+          PbMetaRegisterWorkerRequest register = request.getRegisterWorkerRequest();
+          host = register.getHost();
+          rpcPort = register.getRpcPort();
+          pushPort = register.getPushPort();
+          fetchPort = register.getFetchPort();
+          replicatePort = register.getReplicatePort();
+          String networkLocation = register.getNetworkLocation();
+          int internalPort = register.getInternalPort();
+          Map<String, PbDiskInfo> pbDiskInfo = register.getDisksMap();
           diskInfos = MetaUtil.fromPbDiskInfoMap(pbDiskInfo);
           LOG.debug(
               "Handle worker register for {} {} {} {} {} {} {}",
@@ -239,7 +244,8 @@ public class MetaHandler {
               replicatePort,
               internalPort,
               networkLocation,
-              diskInfos);
+              diskInfos,
+              register.hasWorkerIndex() ? register.getWorkerIndex() : -1);
           break;
 
         case ReportWorkerUnavailable:
@@ -289,6 +295,20 @@ public class MetaHandler {
           List<WorkerInfo> decommissionWorkers =
               decommissionList.stream().map(MetaUtil::pbInfoToInfo).collect(Collectors.toList());
           metaSystem.updateMetaByReportWorkerDecommission(decommissionWorkers);
+          break;
+
+        case CompareAndSetScaleCheckpoint:
+          PbCompareAndSetScaleCheckpointRequest update =
+              request.getCompareAndSetScaleCheckpointRequest();
+          if (entryTerm < 0
+              || update.getLeaderTerm() != entryTerm
+              || !metaSystem.compareAndSetScaleCheckpoint(
+                  update.getExpectedRevision(), update.getCheckpoint())) {
+            return responseBuilder
+                .setSuccess(false)
+                .setStatus(PbMetaRequestStatus.STALE_SCALE_CHECKPOINT)
+                .build();
+          }
           break;
 
         default:

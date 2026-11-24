@@ -26,6 +26,7 @@ import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.net.ssl.KeyManager;
@@ -48,6 +49,7 @@ import org.apache.ratis.protocol.exceptions.RaftException;
 import org.apache.ratis.rpc.CallId;
 import org.apache.ratis.rpc.RpcType;
 import org.apache.ratis.rpc.SupportedRpcType;
+import org.apache.ratis.server.DivisionInfo;
 import org.apache.ratis.server.RaftServer;
 import org.apache.ratis.server.RaftServerConfigKeys;
 import org.apache.ratis.server.storage.RaftStorage.StartupOption;
@@ -62,6 +64,7 @@ import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.exception.CelebornRuntimeException;
 import org.apache.celeborn.common.network.ssl.SSLFactory;
+import org.apache.celeborn.common.protocol.PbMetaRequest;
 import org.apache.celeborn.common.util.ThreadUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.service.deploy.master.clustermeta.ResourceProtos;
@@ -101,6 +104,7 @@ public class HARaftServer {
   private final CelebornConf conf;
   private final AtomicBoolean stopped = new AtomicBoolean(false);
   private final AtomicBoolean unexpectedCloseHandled = new AtomicBoolean(false);
+  private final AtomicLong leaderVersion = new AtomicLong();
   private long workerTimeoutDeadline;
   private long appTimeoutDeadline;
 
@@ -229,7 +233,14 @@ public class HARaftServer {
 
   public ResourceResponse submitRequest(ResourceProtos.ResourceRequest request)
       throws CelebornRuntimeException {
-    String requestId = request.getRequestId();
+    return submitRequest(request.getRequestId(), HAHelper.convertRequestToByteString(request));
+  }
+
+  public ResourceResponse submitMetaRequest(PbMetaRequest request) {
+    return submitRequest(request.getRequestId(), HAHelper.convertRequestToByteString(request));
+  }
+
+  private ResourceResponse submitRequest(String requestId, ByteString data) {
     Tuple2<String, Long> decoded = MasterClient.decodeRequestId(requestId);
     if (decoded == null) {
       throw new CelebornRuntimeException(
@@ -244,7 +255,7 @@ public class HARaftServer {
             .setGroupId(RAFT_GROUP_ID)
             .setCallId(callId)
             .setType(RaftClientRequest.writeRequestType())
-            .setMessage(Message.valueOf(HAHelper.convertRequestToByteString(request)))
+            .setMessage(Message.valueOf(data))
             .build();
 
     RaftClientReply raftClientReply;
@@ -748,6 +759,20 @@ public class HARaftServer {
   public void setDeadlineTime(long increaseWorkerTime, long increaseAppTime) {
     this.workerTimeoutDeadline = System.currentTimeMillis() + increaseWorkerTime;
     this.appTimeoutDeadline = System.currentTimeMillis() + increaseAppTime;
+    leaderVersion.incrementAndGet();
+  }
+
+  public long getLeaderVersion() {
+    return leaderVersion.get();
+  }
+
+  public long getReadyLeaderTerm() throws IOException {
+    if (server.getLifeCycleState() != LifeCycle.State.RUNNING) {
+      return -1L;
+    }
+    DivisionInfo info = server.getDivision(raftGroup.getGroupId()).getInfo();
+    long term = info.getCurrentTerm();
+    return info.isLeader() && info.isLeaderReady() && term == info.getCurrentTerm() ? term : -1L;
   }
 
   public long getWorkerTimeoutDeadline() {
