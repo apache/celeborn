@@ -206,7 +206,7 @@ class QuotaManager(
       val activeUsers = mutable.Set[UserIdentifier]()
 
       val tenantResourceConsumptions =
-        statusSystem.availableWorkers.asScala.flatMap { workerInfo =>
+        statusSystem.availableWorkers.asScala.toSeq.flatMap { workerInfo =>
           workerInfo.userResourceConsumption.asScala
         }.groupBy(_._1.tenantId).toSeq.map { case (tenantId, tenantConsumptionList) =>
           var tenantResourceConsumption = ResourceConsumption(0, 0, 0, 0)

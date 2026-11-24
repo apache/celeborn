@@ -173,6 +173,43 @@ class QuotaManagerSuite extends CelebornFunSuite
     clearUserConsumption()
   }
 
+  test("aggregate identical user consumption from different workers") {
+    val user = UserIdentifier("tenant_01", "Jerry")
+    val appId = "identical-worker-consumption-app"
+    val worker2 = new WorkerInfo("localhost", 20001, 20002, 20003, 20004)
+    val workerBytes = Utils.byteStringAsBytes("60G")
+    def consumption(): ResourceConsumption = {
+      ResourceConsumption(workerBytes, 1, 0, 0).withSubResourceConsumptions(
+        Map(appId -> ResourceConsumption(workerBytes, 1, 0, 0)).asJava)
+    }
+
+    val firstConsumption = consumption()
+    val secondConsumption = consumption()
+    assertEquals(firstConsumption, secondConsumption)
+    statusSystem.updateApplicationInfo(appId, user, extraInfo)
+    worker.userResourceConsumption.put(user, firstConsumption)
+    worker2.userResourceConsumption.put(user, secondConsumption)
+    statusSystem.availableWorkers.add(worker2)
+    try {
+      configService.refreshCache()
+      quotaManager.updateResourceConsumption()
+
+      assertEquals(
+        ResourceConsumption(workerBytes * 2, 2, 0, 0),
+        quotaManager.userResourceConsumptionCache.get(user))
+      val userQuota = quotaManager.checkUserQuotaStatus(user)
+      assertFalse(userQuota.isAvailable)
+      assertTrue(userQuota.reason.contains("DISK_BYTES_WRITTEN(120.0 GiB)"))
+      val appQuota = quotaManager.checkApplicationQuotaStatus(appId)
+      assertFalse(appQuota.isAvailable)
+      assertTrue(appQuota.reason.contains("diskBytesWritten: 120.0 GiB"))
+    } finally {
+      quotaManager.handleAppLost(appId)
+      worker.userResourceConsumption.remove(user)
+      statusSystem.availableWorkers.remove(worker2)
+    }
+  }
+
   test("test check application quota return result") {
     val user = UserIdentifier("tenant_01", "Jerry")
     var rc =
