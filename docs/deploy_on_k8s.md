@@ -153,3 +153,64 @@ in [Kubernetes DNS for Service And Pods](https://kubernetes.io/docs/concepts/ser
 
 > Notice: You should ensure that Spark/Flink/MapReduce can find the Celeborn Master/Worker via IP or the Kubernetes DNS mentioned
 > above
+
+## Autoscaling with OpenKruise
+
+`OpenKruiseScaleManager` manages an existing OpenKruise StatefulSet using
+`apps.kruise.io/v1beta1`. Install OpenKruise and deploy Workers with that resource before
+enabling this manager. The Helm chart's native Kubernetes StatefulSet is not managed by this implementation.
+Binary distributions include the manager and its dependencies in `master-jars`.
+
+Configure the Master with the Worker StatefulSet's namespace and name:
+
+```properties
+celeborn.scale.manager.class org.apache.celeborn.service.deploy.master.scale.OpenKruiseScaleManager
+celeborn.scale.kubernetes.namespace celeborn
+celeborn.scale.kubernetes.workerStatefulSet workers
+celeborn.scale.up.enabled true
+celeborn.scale.down.enabled true
+celeborn.scale.workerNumber.min 2
+celeborn.scale.workerNumber.max 10
+```
+
+Set `celeborn.worker.index` to the Pod ordinal for each managed Worker. With the default
+StatefulSet Pod hostname, `celeborn-env.sh` can pass the ordinal to `start-worker.sh`:
+
+```bash
+export CELEBORN_WORKER_JAVA_OPTS="${CELEBORN_WORKER_JAVA_OPTS:-} -Dceleborn.worker.index=${HOSTNAME##*-}"
+```
+
+Leave `celeborn.worker.index` at its default of `-1` for static Workers. Enable metric
+collection on every Worker:
+
+```properties
+celeborn.metrics.worker.scale.enabled true
+```
+
+The manager uses the Kubernetes client's standard credentials, including the Master's
+ServiceAccount when running in a Pod. Bind a Role with the following rules in the Worker namespace
+to that ServiceAccount:
+
+```yaml
+rules:
+  - apiGroups: ["apps.kruise.io"]
+    resources: ["statefulsets"]
+    verbs: ["get", "patch"]
+```
+
+The default calculator uses memory pressure, normalized system load and disk usage to choose
+the target Worker count. It supports the dynamic settings listed in
+[Master configuration](configuration/master.md). The shared coordinator drains Workers before
+removing their ordinals and recommissions draining or Idle Workers when more capacity is needed.
+
+In HA deployments, enable autoscaling after all Masters support the scale checkpoint and
+all managed Workers register their ordinals. The
+leader records the target in Raft before updating the StatefulSet. After a leadership change,
+the new leader waits for fresh Worker metrics and checks the StatefulSet before counting
+the replacement capacity. Snapshots created before the checkpoint was introduced contain
+no compensation history.
+
+An operation completes after the controller observes its generation and reports the requested
+replica count; ready replicas are not required. Conditions such as `FailedCreatePod` report
+reconciliation failures, but the controller continues retrying. The manager keeps the operation
+pending until it converges.

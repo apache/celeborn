@@ -146,7 +146,7 @@ function build_service {
   # Store the command as an array because $MVN variable might have spaces in it.
   # Normal quoting tricks don't work.
   # See: http://mywiki.wooledge.org/BashFAQ/050
-  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl master,worker,cli,lifecycle-manager -am $@)
+  BUILD_COMMAND=("$MVN" clean package $MVN_DIST_OPT -pl master,master-kubernetes,worker,cli,lifecycle-manager -am $@)
 
   # Actually build the jar
   echo -e "\nBuilding with..."
@@ -164,6 +164,11 @@ function build_service {
   cp "$PROJECT_DIR"/master/target/celeborn-master_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/master-jars/"
   cp "$PROJECT_DIR"/master/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
   for jar in $(ls "$PROJECT_DIR/master/target/scala-$SCALA_VERSION/jars"); do
+    (cd $DIST_DIR/master-jars; ln -snf "../jars/$jar" .)
+  done
+  cp "$PROJECT_DIR"/master-kubernetes/target/celeborn-master-kubernetes_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/master-jars/"
+  cp "$PROJECT_DIR"/master-kubernetes/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
+  for jar in $(ls "$PROJECT_DIR/master-kubernetes/target/scala-$SCALA_VERSION/jars"); do
     (cd $DIST_DIR/master-jars; ln -snf "../jars/$jar" .)
   done
   ## Copy worker jars
@@ -320,7 +325,7 @@ function sbt_build_service {
 
   "${BUILD_COMMAND[@]}"
 
-  $SBT "celeborn-master/copyJars;celeborn-worker/copyJars;celeborn-cli/copyJars;celeborn-lifecycle-manager/copyJars"
+  $SBT "celeborn-master/copyJars;celeborn-master-kubernetes/copyJars;celeborn-worker/copyJars;celeborn-cli/copyJars;celeborn-lifecycle-manager/copyJars"
 
   mkdir -p "$DIST_DIR/jars"
   mkdir -p "$DIST_DIR/master-jars"
@@ -332,6 +337,11 @@ function sbt_build_service {
   cp "$PROJECT_DIR"/master/target/scala-$SCALA_VERSION/celeborn-master_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/master-jars/"
   cp "$PROJECT_DIR"/master/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
   for jar in $(ls "$PROJECT_DIR/master/target/scala-$SCALA_VERSION/jars"); do
+    (cd $DIST_DIR/master-jars; ln -snf "../jars/$jar" .)
+  done
+  cp "$PROJECT_DIR"/master-kubernetes/target/scala-$SCALA_VERSION/celeborn-master-kubernetes_$SCALA_VERSION-$VERSION.jar "$DIST_DIR/master-jars/"
+  cp "$PROJECT_DIR"/master-kubernetes/target/scala-$SCALA_VERSION/jars/*.jar "$DIST_DIR/jars/"
+  for jar in $(ls "$PROJECT_DIR/master-kubernetes/target/scala-$SCALA_VERSION/jars"); do
     (cd $DIST_DIR/master-jars; ln -snf "../jars/$jar" .)
   done
   ## Copy worker jars

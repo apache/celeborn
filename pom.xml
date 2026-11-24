@@ -37,6 +37,7 @@
     <module>client</module>
     <module>service</module>
     <module>master</module>
+    <module>master-kubernetes</module>
     <module>worker</module>
     <module>lifecycle-manager</module>
     <module>cli</module>

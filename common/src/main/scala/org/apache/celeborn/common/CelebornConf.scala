@@ -6600,6 +6600,22 @@ object CelebornConf extends Logging {
       .checkValue(v => v > 0 && v <= 1, "Scale-down percent must be in (0, 1]")
       .createWithDefault(0.1)
 
+  val SCALE_KUBERNETES_NAMESPACE: ConfigEntry[String] =
+    buildConf("celeborn.scale.kubernetes.namespace")
+      .categories("master")
+      .version("1.0.0")
+      .doc("Namespace containing the worker StatefulSet managed by the Kubernetes scale manager.")
+      .stringConf
+      .createWithDefault("default")
+
+  val SCALE_KUBERNETES_WORKER_STATEFULSET: OptionalConfigEntry[String] =
+    buildConf("celeborn.scale.kubernetes.workerStatefulSet")
+      .categories("master")
+      .version("1.0.0")
+      .doc("Worker StatefulSet name required by OpenKruiseScaleManager.")
+      .stringConf
+      .createOptional
+
   val AUTO_SCALE_UP_ENABLED: ConfigEntry[Boolean] =
     buildConf("celeborn.scale.up.enabled")
       .categories("master")
