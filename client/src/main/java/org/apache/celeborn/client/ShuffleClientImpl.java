@@ -692,24 +692,29 @@ public class ShuffleClientImpl extends ShuffleClient {
   @Override
   public Tuple2<Integer, Boolean> getShuffleId(
       int appShuffleId, String appShuffleIdentifier, boolean isWriter, boolean isBarrierStage) {
-    return shuffleIdCache.computeIfAbsent(
-        appShuffleIdentifier,
-        (id) -> {
-          PbGetShuffleId pbGetShuffleId =
-              PbGetShuffleId.newBuilder()
-                  .setAppShuffleId(appShuffleId)
-                  .setAppShuffleIdentifier(appShuffleIdentifier)
-                  .setIsShuffleWriter(isWriter)
-                  .setIsBarrierStage(isBarrierStage)
-                  .build();
-          PbGetShuffleIdResponse pbGetShuffleIdResponse =
-              lifecycleManagerRef.askSync(
-                  pbGetShuffleId,
-                  conf.clientRpcRegisterShuffleAskTimeout(),
-                  ClassTag$.MODULE$.apply(PbGetShuffleIdResponse.class));
-          return Tuple2.apply(
-              pbGetShuffleIdResponse.getShuffleId(), pbGetShuffleIdResponse.getSuccess());
-        });
+    Tuple2<Integer, Boolean> result =
+        shuffleIdCache.computeIfAbsent(
+            appShuffleIdentifier,
+            (id) -> {
+              PbGetShuffleId pbGetShuffleId =
+                  PbGetShuffleId.newBuilder()
+                      .setAppShuffleId(appShuffleId)
+                      .setAppShuffleIdentifier(appShuffleIdentifier)
+                      .setIsShuffleWriter(isWriter)
+                      .setIsBarrierStage(isBarrierStage)
+                      .build();
+              PbGetShuffleIdResponse pbGetShuffleIdResponse =
+                  lifecycleManagerRef.askSync(
+                      pbGetShuffleId,
+                      conf.clientRpcRegisterShuffleAskTimeout(),
+                      ClassTag$.MODULE$.apply(PbGetShuffleIdResponse.class));
+              // A reader may retry after the mapper state has caught up. Cache successful lookups
+              // only.
+              return pbGetShuffleIdResponse.getSuccess()
+                  ? Tuple2.apply(pbGetShuffleIdResponse.getShuffleId(), true)
+                  : null;
+            });
+    return result != null ? result : Tuple2.apply(Utils$.MODULE$.UNKNOWN_APP_SHUFFLE_ID(), false);
   }
 
   @Override
@@ -1860,7 +1865,7 @@ public class ShuffleClientImpl extends ShuffleClient {
   @Override
   public void mapperEnd(int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions)
       throws IOException {
-    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, -1, null);
+    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, -1, null, -1L);
   }
 
   @Override
@@ -1872,14 +1877,28 @@ public class ShuffleClientImpl extends ShuffleClient {
       int numPartitions,
       MapperMetrics metrics)
       throws IOException {
-    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, -1, metrics);
+    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, -1, metrics, -1L);
+  }
+
+  @Override
+  public void mapperEnd(
+      int shuffleId,
+      int mapId,
+      int attemptId,
+      int numMappers,
+      int numPartitions,
+      MapperMetrics metrics,
+      long taskAttemptId)
+      throws IOException {
+    mapEndInternal(
+        shuffleId, mapId, attemptId, numMappers, numPartitions, -1, metrics, taskAttemptId);
   }
 
   @Override
   public void mapPartitionMapperEnd(
       int shuffleId, int mapId, int attemptId, int numMappers, int numPartitions, int partitionId)
       throws IOException {
-    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, partitionId, null);
+    mapEndInternal(shuffleId, mapId, attemptId, numMappers, numPartitions, partitionId, null, -1L);
   }
 
   private void mapEndInternal(
@@ -1889,7 +1908,8 @@ public class ShuffleClientImpl extends ShuffleClient {
       int numMappers,
       int numPartitions,
       Integer partitionId,
-      MapperMetrics metrics)
+      MapperMetrics metrics,
+      long taskAttemptId)
       throws IOException {
     final String mapKey = Utils.makeMapKey(shuffleId, mapId, attemptId);
     PushState pushState = getPushState(mapKey);
@@ -1916,7 +1936,8 @@ public class ShuffleClientImpl extends ShuffleClient {
                   crc32PerPartition,
                   bytesPerPartition,
                   SerdeVersion.V1,
-                  metrics == null ? new MapperMetrics(0L, 0L) : metrics),
+                  metrics == null ? new MapperMetrics(0L, 0L) : metrics,
+                  taskAttemptId),
               rpcMaxRetries,
               rpcRetryWait,
               ClassTag$.MODULE$.apply(MapperEndResponse.class));

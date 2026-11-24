@@ -200,6 +200,14 @@ class UtilsSuite extends CelebornFunSuite {
     assert(mapperEnd.metrics == mapperEndTrans.metrics)
     mapperEnd.crc32PerPartition.array should contain theSameElementsInOrderAs mapperEndTrans.crc32PerPartition
     mapperEnd.bytesWrittenPerPartition.array should contain theSameElementsInOrderAs mapperEndTrans.bytesWrittenPerPartition
+    assert(mapperEndTrans.taskAttemptId == -1L)
+
+    Seq(0L, 7L, Long.MaxValue).foreach { taskAttemptId =>
+      val converted = Utils.fromTransportMessage(
+        Utils.toTransportMessage(mapperEnd.copy(taskAttemptId = taskAttemptId)))
+        .asInstanceOf[MapperEnd]
+      assert(converted.taskAttemptId == taskAttemptId)
+    }
   }
 
   test("PbRequestWorkers messages convert with TransportMessage") {
