@@ -151,6 +151,41 @@ public class TestCongestionController {
     clearBufferStatus(controller);
   }
 
+  @Test
+  public void testWorkerCongestedGauge() {
+    UserIdentifier user = new UserIdentifier("test", "celeborn");
+    UserCongestionControlContext context = controller.getUserCongestionContext(user);
+
+    Assert.assertFalse(controller.isOverHighWatermark());
+
+    // Worker-level congestion: pending bytes over the high watermark
+    produceBytes(controller, user, 1001);
+    pendingBytes = 1001;
+    controller.checkCongestion();
+    Assert.assertTrue(controller.isUserCongested(context));
+    Assert.assertTrue(controller.isOverHighWatermark());
+
+    pendingBytes = 0;
+    controller.getProducedBufferStatusHub().add(new BufferStatusHub.BufferStatusNode(1001));
+    controller.checkCongestion();
+    Assert.assertFalse(controller.isUserCongested(context));
+    Assert.assertFalse(controller.isOverHighWatermark());
+    clearBufferStatus(controller);
+
+    // User-level congestion alone (user produce speed over the user quota
+    // watermark) does not mark the worker-level gauge
+    produceBytes(controller, user, 250000);
+    Assert.assertTrue(controller.isUserCongested(context));
+    Assert.assertFalse(controller.isOverHighWatermark());
+
+    clearBufferStatus(controller);
+    Assert.assertFalse(controller.isUserCongested(context));
+
+    // The gauge is exported via the worker metrics source
+    String metrics = source.getMetrics();
+    Assert.assertTrue(metrics.contains(WorkerSource.WORKER_CONGESTED()));
+  }
+
   public void produceBytes(
       CongestionController controller, UserIdentifier userIdentifier, long numBytes) {
     controller
