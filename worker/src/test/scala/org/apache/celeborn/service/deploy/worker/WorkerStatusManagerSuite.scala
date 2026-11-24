@@ -77,4 +77,36 @@ class WorkerStatusManagerSuite extends AnyFunSuite {
     statusManager.doTransition(WorkerEventType.Recommission)
     Assert.assertEquals(statusManager.getWorkerState(), PbWorkerStatus.State.Normal)
   }
+
+  test("an accepted decommission rejects new writes and reports to the master right away") {
+    worker = mock[Worker]
+    val shutdown = new AtomicBoolean()
+    when(worker.storageManager).thenReturn(mock[StorageManager])
+    when(worker.shutdown).thenReturn(shutdown)
+    when(worker.workerInfo).thenReturn(new WorkerInfo(
+      "host",
+      0,
+      0,
+      0,
+      0,
+      0,
+      Maps.newHashMap(),
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]))
+    val statusManager = new NoExitWorkerStatusManager(conf)
+    statusManager.init(worker)
+
+    statusManager.doTransition(WorkerEventType.Graceful)
+    Assert.assertFalse(shutdown.get())
+
+    val decommissioning = new NoExitWorkerStatusManager(conf)
+    decommissioning.init(worker)
+    decommissioning.doTransition(WorkerEventType.Decommission)
+    Assert.assertEquals(PbWorkerStatus.State.InDecommission, decommissioning.getWorkerState())
+    Assert.assertTrue(shutdown.get())
+    verify(worker, timeout(5000).times(1)).sendWorkerDecommissionToMaster()
+  }
+}
+
+private class NoExitWorkerStatusManager(conf: CelebornConf) extends WorkerStatusManager(conf) {
+  override protected def startExitThread(): Unit = {}
 }

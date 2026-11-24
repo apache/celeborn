@@ -117,11 +117,24 @@ private[celeborn] class WorkerStatusManager(conf: CelebornConf) extends Logging 
     exitEventType match {
       case WorkerEventType.Immediately => transitionState(State.InExit)
       case WorkerEventType.Graceful => transitionState(State.InGraceFul)
-      case WorkerEventType.Decommission => transitionState(State.InDecommission)
+      case WorkerEventType.Decommission =>
+        transitionState(State.InDecommission)
+        startDecommission()
       case _ => // ignore
     }
 
     startExitThread()
+  }
+
+  // Stop taking new writes and tell the master right away, instead of waiting for the shutdown
+  // hook that only starts after the exit delay. The hook reports to the master again.
+  private def startDecommission(): Unit = {
+    shutdown.set(true)
+    ThreadUtils.newDaemonThread(
+      new Runnable {
+        override def run(): Unit = worker.sendWorkerDecommissionToMaster()
+      },
+      "worker-decommission-reporter").start()
   }
 
   protected def startExitThread(): Unit = {
