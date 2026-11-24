@@ -51,6 +51,7 @@ github:
     creation_cap:
       enabled: true
       max_open_pull_requests: 3
+      include_drafts: false
 notifications:
   commits: commits@celeborn.apache.org
   issues: issues@celeborn.apache.org
