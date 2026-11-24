@@ -3202,7 +3202,8 @@ object CelebornConf extends Logging {
       .version("0.3.0")
       .doc("Policy for master to assign slots. Built-in policies are roundrobin and loadaware. " +
         "Additional policies can be registered through the SlotsAssignStrategyProvider SPI. " +
-        "Loadaware policy will be ignored when `HDFS` is enabled in `celeborn.storage.availableTypes`")
+        "Loadaware policy falls back to roundrobin when only remote storage (`HDFS`, `S3` or `OSS`) " +
+        "is enabled in `celeborn.storage.availableTypes`, or when no local disk has available slots")
       .dynamic
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))

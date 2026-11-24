@@ -24,6 +24,7 @@ import java.util.*;
 import org.junit.Test;
 
 import org.apache.celeborn.common.meta.DiskInfo;
+import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.protocol.StorageInfo;
 
@@ -235,22 +236,31 @@ public class BuildStorageInfoSuiteJ {
   }
 
   /**
-   * For DFS storage types (HDFS, S3, OSS), the disk index in {@code workerDiskIndex} must NOT be
-   * advanced after slot assignment, because there is only a single logical endpoint.
+   * After assigning a slot on a remote disk, the disk index must advance too. Otherwise every
+   * following slot of the worker would stay on the remote disk, which never runs out of slots.
    */
   @Test
-  public void testWithBudgets_HDFSDiskDoesNotAdvanceDiskIndex() {
-    DiskInfo disk = makeDiskInfo("HDFS", StorageInfo.Type.HDFS);
+  public void testWithBudgets_HDFSDiskAdvancesDiskIndex() {
+    DiskInfo hdfs = makeDiskInfo("HDFS", StorageInfo.Type.HDFS);
+    DiskInfo local = makeDiskInfo("/mnt/disk1", StorageInfo.Type.HDD);
     WorkerInfo worker = makeWorker("host1", new HashMap<>());
 
-    Map<WorkerInfo, List<UsableDiskInfo>> budgets =
-        budgetsFor(worker, Collections.singletonList(new UsableDiskInfo(disk, 10)));
+    List<UsableDiskInfo> diskList = new ArrayList<>();
+    diskList.add(new UsableDiskInfo(hdfs, Long.MAX_VALUE));
+    diskList.add(new UsableDiskInfo(local, 10));
+    Map<WorkerInfo, List<UsableDiskInfo>> budgets = budgetsFor(worker, diskList);
     Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
     workerDiskIndex.put(worker, 0);
 
-    SlotsAllocator.buildStorageInfo(worker, budgets, workerDiskIndex, StorageInfo.HDFS_MASK);
+    StorageInfo first =
+        SlotsAllocator.buildStorageInfo(
+            worker, budgets, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+    StorageInfo second =
+        SlotsAllocator.buildStorageInfo(
+            worker, budgets, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
 
-    assertEquals(Integer.valueOf(0), workerDiskIndex.get(worker));
+    assertEquals(StorageInfo.Type.HDFS, first.getType());
+    assertEquals(StorageInfo.Type.HDD, second.getType());
   }
 
   /**
@@ -406,6 +416,55 @@ public class BuildStorageInfoSuiteJ {
     // 0b100000 = 32 has none of the bits used by known storage types
     int unknownMask = 0b100000;
     SlotsAllocator.buildStorageInfo(worker, null, new HashMap<>(), unknownMask);
+  }
+
+  /**
+   * When budgets are {@code null} and every local disk of the worker is unhealthy, e.g. full, the
+   * slot must overflow to a remote disk the worker reported, if the shuffle allows it.
+   */
+  @Test
+  public void testWithoutBudgets_unhealthyLocalDisksOverflowToRemoteDisk() {
+    DiskInfo local = makeDiskInfo("/mnt/disk1", StorageInfo.Type.SSD);
+    local.setStatus(DiskStatus.HIGH_DISK_USAGE);
+    DiskInfo hdfs = makeDiskInfo("HDFS", StorageInfo.Type.HDFS);
+    Map<String, DiskInfo> disks = new HashMap<>();
+    disks.put("/mnt/disk1", local);
+    disks.put("HDFS", hdfs);
+    WorkerInfo worker = makeWorker("host1", disks);
+
+    StorageInfo result =
+        SlotsAllocator.buildStorageInfo(
+            worker, null, new HashMap<>(), StorageInfo.LOCAL_DISK_MASK | StorageInfo.HDFS_MASK);
+    assertEquals(StorageInfo.Type.HDFS, result.getType());
+    assertEquals("", result.getMountPoint());
+
+    // A shuffle that does not allow HDFS keeps using the local disk.
+    result =
+        SlotsAllocator.buildStorageInfo(worker, null, new HashMap<>(), StorageInfo.LOCAL_DISK_MASK);
+    assertEquals(StorageInfo.Type.SSD, result.getType());
+  }
+
+  /** When budgets are {@code null}, a healthy local disk is preferred over an unhealthy one. */
+  @Test
+  public void testWithoutBudgets_prefersHealthyLocalDisk() {
+    DiskInfo full = makeDiskInfo("/mnt/disk1", StorageInfo.Type.HDD);
+    full.setStatus(DiskStatus.HIGH_DISK_USAGE);
+    DiskInfo healthy = makeDiskInfo("/mnt/disk2", StorageInfo.Type.HDD);
+    DiskInfo hdfs = makeDiskInfo("HDFS", StorageInfo.Type.HDFS);
+    Map<String, DiskInfo> disks = new LinkedHashMap<>();
+    disks.put("/mnt/disk1", full);
+    disks.put("/mnt/disk2", healthy);
+    disks.put("HDFS", hdfs);
+    WorkerInfo worker = makeWorker("host1", disks);
+    Map<WorkerInfo, Integer> workerDiskIndex = new HashMap<>();
+    workerDiskIndex.put(worker, 0);
+
+    for (int i = 0; i < 2; i++) {
+      StorageInfo result =
+          SlotsAllocator.buildStorageInfo(
+              worker, null, workerDiskIndex, StorageInfo.ALL_TYPES_AVAILABLE_MASK);
+      assertEquals("/mnt/disk2", result.getMountPoint());
+    }
   }
 
   /**
