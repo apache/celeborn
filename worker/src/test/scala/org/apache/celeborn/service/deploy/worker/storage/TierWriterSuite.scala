@@ -103,10 +103,13 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
     }
   }
 
-  private def prepareMemoryWriter: MemoryTierWriter = {
+  private def prepareMemoryWriter: MemoryTierWriter = prepareMemoryWriter(rangeFilter = false)
+
+  private def prepareMemoryWriter(rangeFilter: Boolean): MemoryTierWriter = {
 
     val celebornConf = new CelebornConf()
     celebornConf.set("celeborn.worker.memoryFileStorage.maxFileSize", "80k")
+    celebornConf.set("celeborn.client.shuffle.rangeReadFilter.enabled", rangeFilter.toString)
     val reduceFileMeta = new ReduceFileMeta(celebornConf.shuffleChunkSize)
     val userIdentifier = UserIdentifier("`aa`.`bb`")
     val memoryFileInfo = new MemoryFileInfo(userIdentifier, false, reduceFileMeta)
@@ -339,6 +342,26 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
       localTierWriter.fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getChunkOffsets.size() == 2)
     assert(
       localTierWriter.fileInfo.getFileMeta.asInstanceOf[ReduceFileMeta].getLastChunkOffset == 82944)
+  }
+
+  test("memory tier eviction keeps map ids written before the eviction") {
+    val memoryTierWriter = prepareMemoryWriter(rangeFilter = true)
+    val localTierWriter = prepareLocalTierWriter(true)
+    def push(writer: TierWriterBase, mapId: Int): Unit = {
+      val buf = WriterUtils.generateSparkFormatData(UnpooledByteBufAllocator.DEFAULT, mapId)
+      writer.numPendingWrites.incrementAndGet()
+      writer.write(buf)
+      buf.release()
+    }
+
+    (0 until 4).foreach(push(memoryTierWriter, _))
+    memoryTierWriter.evict(localTierWriter)
+    (4 until 6).foreach(push(localTierWriter, _))
+    localTierWriter.close()
+
+    val bitmap = localTierWriter.metaHandler.getMapIdBitmap().get
+    assert(bitmap.getCardinality === 6)
+    assert((0 until 6).forall(bitmap.contains))
   }
 
   test("test local tier writer with range filter on ") {
