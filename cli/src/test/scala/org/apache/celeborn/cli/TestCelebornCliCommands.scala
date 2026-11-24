@@ -17,15 +17,23 @@
 
 package org.apache.celeborn.cli
 
-import java.io.{ByteArrayOutputStream, File, PrintStream}
+import java.io.{ByteArrayOutputStream, PrintStream}
+import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path}
 import java.util.Base64
+import java.util.concurrent.atomic.AtomicReference
+
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
+import org.apache.commons.io.FileUtils
+import picocli.CommandLine.ExitCode
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.authentication.HttpAuthSchemes
+import org.apache.celeborn.rest.v1.model.WorkerExitRequest
 import org.apache.celeborn.server.common.http.authentication.{UserDefinedPasswordAuthenticationProviderImpl, UserDefineTokenAuthenticationProviderImpl}
 import org.apache.celeborn.service.deploy.MiniClusterFeature
 import org.apache.celeborn.service.deploy.master.Master
@@ -59,8 +67,12 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
 
   protected var master: Master = _
   protected var worker: Worker = _
+  private var configDir: Path = _
 
   override def beforeAll(): Unit = {
+    super.beforeAll()
+    configDir = Files.createTempDirectory("celeborn-cli-commands")
+    sys.props.put("celeborn.testing.cli.config.file", configDir.resolve("cli.conf").toString)
     logInfo("test initialized, setup celeborn mini cluster")
     val (m, w) = setupMiniClusterWithRandomPorts(
       masterConf = celebornConf.getAll.toMap,
@@ -68,7 +80,6 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
       workerNum = 1)
     master = m
     worker = w.head
-    super.beforeAll()
     val aliasCommand = Array(
       "master",
       "--add-cluster-alias",
@@ -81,21 +92,27 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   }
 
   override def afterAll(): Unit = {
-    super.afterAll()
-    logInfo("all test complete, stop celeborn mini cluster")
-    shutdownMiniCluster()
-    val removeAliasCommand = Array(
-      "master",
-      "--remove-cluster-alias",
-      "unit-test")
-    captureOutputAndValidateResponse(removeAliasCommand, s"Cluster alias unit-test removed.")
-    val cliConfigManager = new CliConfigManager
-    val aliasExists = cliConfigManager.loadConfig().exists(_.cliConfigData.contains("unit-test"))
-    assert(!aliasExists)
-    if (new File(CliConfigManager.cliConfigFilePath).exists()) {
-      Files.delete(Paths.get(CliConfigManager.cliConfigFilePath))
+    try {
+      logInfo("all test complete, stop celeborn mini cluster")
+      shutdownMiniCluster()
+      val removeAliasCommand = Array(
+        "master",
+        "--remove-cluster-alias",
+        "unit-test")
+      captureOutputAndValidateResponse(removeAliasCommand, s"Cluster alias unit-test removed.")
+      val cliConfigManager = new CliConfigManager
+      val aliasExists = cliConfigManager.loadConfig().exists(_.cliConfigData.contains("unit-test"))
+      assert(!aliasExists)
+    } finally {
+      sys.props.remove("celeborn.testing.cli.config.file")
+      try {
+        if (configDir != null) {
+          FileUtils.deleteDirectory(configDir.toFile)
+        }
+      } finally {
+        super.afterAll()
+      }
     }
-
   }
 
   test("worker --show-worker-info") {
@@ -139,15 +156,43 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   }
 
   test("worker --exit with --exit-timeout") {
-    val args = Array(
-      "worker",
-      "--hostport",
-      "localhost:1",
-      "--exit",
-      "DECOMMISSION",
-      "--exit-timeout",
-      "30m")
-    captureOutputAndValidateResponse(args, "Sending worker exit type: DECOMMISSION, timeout: 30m")
+    val request = new AtomicReference[WorkerExitRequest]()
+    val server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0)
+    server.createContext(
+      "/",
+      new HttpHandler {
+        override def handle(exchange: HttpExchange): Unit = {
+          try {
+            request.set(new ObjectMapper().readValue(
+              exchange.getRequestBody,
+              classOf[WorkerExitRequest]))
+            val response = """{"success":true,"message":"Exit request accepted"}"""
+              .getBytes(StandardCharsets.UTF_8)
+            exchange.getResponseHeaders.set("Content-Type", "application/json")
+            exchange.sendResponseHeaders(200, response.length)
+            exchange.getResponseBody.write(response)
+          } finally {
+            exchange.close()
+          }
+        }
+      })
+    server.start()
+    try {
+      val args = Array(
+        "worker",
+        "--hostport",
+        s"127.0.0.1:${server.getAddress.getPort}",
+        "--exit",
+        "DECOMMISSION",
+        "--exit-timeout",
+        "30m")
+      captureOutputAndValidateResponse(args, "Sending worker exit type: DECOMMISSION, timeout: 30m")
+      assert(request.get() != null)
+      assert(request.get().getType == WorkerExitRequest.TypeEnum.DECOMMISSION)
+      assert(request.get().getTimeout == "30m")
+    } finally {
+      server.stop(0)
+    }
   }
 
   test("worker --exit-timeout without --exit is rejected") {
@@ -468,7 +513,7 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
     val stdoutStream = new ByteArrayOutputStream()
     val stdoutPrintStream = new PrintStream(stdoutStream)
     Console.withOut(stdoutPrintStream) {
-      CelebornCli.main(args)
+      assert(CelebornCli.execute(args) == ExitCode.OK)
     }
     val stdout = stdoutStream.toString
     assert(stdout.nonEmpty && stdout.contains(stdoutValidationString))
@@ -479,9 +524,15 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
       stderrValidationString: String): Unit = {
     val stderrStream = new ByteArrayOutputStream()
     val stderrPrintStream = new PrintStream(stderrStream)
-    System.setErr(new PrintStream(stderrStream))
-    Console.withErr(stderrPrintStream) {
-      CelebornCli.main(args)
+    val originalErr = System.err
+    try {
+      System.setErr(stderrPrintStream)
+      Console.withErr(stderrPrintStream) {
+        assert(CelebornCli.execute(args) == ExitCode.USAGE)
+      }
+    } finally {
+      System.setErr(originalErr)
+      stderrPrintStream.close()
     }
     val stderr = stderrStream.toString
     assert(stderr.nonEmpty && stderr.contains(stderrValidationString))

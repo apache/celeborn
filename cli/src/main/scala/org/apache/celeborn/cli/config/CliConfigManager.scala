@@ -27,7 +27,10 @@ import org.apache.celeborn.common.util.Utils
 case class CliConfig(cliConfigData: Map[String, String])
 
 object CliConfigManager {
-  val cliConfigFilePath: String = s"${sys.env("HOME")}/.celeborn-cli.conf"
+  def cliConfigFilePath: String =
+    sys.props.get("celeborn.testing.cli.config.file")
+      .filter(_ => sys.props.contains("celeborn.testing"))
+      .getOrElse(s"${sys.env("HOME")}/.celeborn-cli.conf")
 }
 
 class CliConfigManager extends CliLogging {
@@ -49,23 +52,18 @@ class CliConfigManager extends CliLogging {
   }
 
   private def saveConfig(cliConfig: CliConfig): Unit = {
-    try {
-      val file = new File(CliConfigManager.cliConfigFilePath)
-      if (!file.exists()) {
-        file.getParentFile.mkdirs()
-        file.createNewFile()
+    val file = new File(CliConfigManager.cliConfigFilePath)
+    if (!file.exists()) {
+      file.getParentFile.mkdirs()
+      file.createNewFile()
+    }
+    properties.clear()
+    val outputStream = new FileOutputStream(file)
+    Utils.tryWithResources(outputStream) { os =>
+      cliConfig.cliConfigData.foreach { case (key, value) =>
+        properties.setProperty(key, value)
       }
-      properties.clear()
-      val outputStream = new FileOutputStream(file)
-      Utils.tryWithResources(outputStream) { os =>
-        cliConfig.cliConfigData.foreach { case (key, value) =>
-          properties.setProperty(key, value)
-        }
-        properties.store(os, s"Last updated conf at ${LocalDateTime.now()}")
-      }
-    } catch {
-      case e: Exception =>
-        logError(s"Error saving config: ${e.getMessage}")
+      properties.store(os, s"Last updated conf at ${LocalDateTime.now()}")
     }
   }
 

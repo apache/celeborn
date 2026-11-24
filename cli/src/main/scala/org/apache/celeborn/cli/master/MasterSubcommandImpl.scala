@@ -22,7 +22,7 @@ import java.util
 import scala.collection.JavaConverters._
 
 import org.apache.commons.lang3.StringUtils
-import picocli.CommandLine.{Command, ParameterException}
+import picocli.CommandLine.{Command, ExecutionException, ParameterException}
 
 import org.apache.celeborn.cli.config.CliConfigManager
 import org.apache.celeborn.rest.v1.model._
@@ -35,12 +35,13 @@ class MasterSubcommandImpl extends MasterSubcommand {
     if (masterOptions.showClusterApps) log(runShowClusterApps)
     if (masterOptions.showClusterAppsInfo) log(runShowClusterAppsInfo)
     if (masterOptions.showClusterShuffles) log(runShowClusterShuffles)
-    if (masterOptions.unregisterShuffles) log(runUnregisterShuffles)
-    if (masterOptions.excludeWorkers) log(runExcludeWorkers)
-    if (masterOptions.removeExcludedWorkers) log(runRemoveExcludedWorkers)
-    if (masterOptions.removeWorkersUnavailableInfo) log(runRemoveWorkersUnavailableInfo)
+    if (masterOptions.unregisterShuffles) logHandleResponse(runUnregisterShuffles)
+    if (masterOptions.excludeWorkers) logHandleResponse(runExcludeWorkers)
+    if (masterOptions.removeExcludedWorkers) logHandleResponse(runRemoveExcludedWorkers)
+    if (masterOptions.removeWorkersUnavailableInfo)
+      logHandleResponse(runRemoveWorkersUnavailableInfo)
     if (masterOptions.sendWorkerEvent != null && masterOptions.sendWorkerEvent.nonEmpty)
-      log(runSendWorkerEvent)
+      logHandleResponse(runSendWorkerEvent)
     if (masterOptions.showWorkerEventInfo) log(runShowWorkerEventInfo)
     if (masterOptions.showLostWorkers) log(runShowLostWorkers)
     if (masterOptions.showExcludedWorkers) log(runShowExcludedWorkers)
@@ -53,19 +54,26 @@ class MasterSubcommandImpl extends MasterSubcommand {
     if (masterOptions.showConf) log(runShowConf)
     if (masterOptions.showContainerInfo) log(runShowContainerInfo)
     if (masterOptions.showDynamicConf) log(runShowDynamicConf)
-    if (masterOptions.upsertDynamicConf) log(runUpsertDynamicConf)
-    if (masterOptions.deleteDynamicConf) log(runDeleteDynamicConf)
+    if (masterOptions.upsertDynamicConf) logHandleResponse(runUpsertDynamicConf)
+    if (masterOptions.deleteDynamicConf) logHandleResponse(runDeleteDynamicConf)
     if (masterOptions.showThreadDump) log(runShowThreadDump)
     if (masterOptions.showLoggers) log(runShowLoggers)
-    if (masterOptions.setLogLevel) log(runSetLogLevel)
-    if (masterOptions.reviseLostShuffles) log(reviseLostShuffles)
-    if (masterOptions.deleteApps) log(deleteApps)
+    if (masterOptions.setLogLevel) logHandleResponse(runSetLogLevel)
+    if (masterOptions.reviseLostShuffles) logHandleResponse(reviseLostShuffles)
+    if (masterOptions.deleteApps) logHandleResponse(deleteApps)
     if (!StringUtils.isBlank(masterOptions.updateInterruptionNotices))
-      log(updateInterruptionNotices)
+      logHandleResponse(updateInterruptionNotices)
     if (masterOptions.addClusterAlias != null && masterOptions.addClusterAlias.nonEmpty)
       runAddClusterAlias
     if (masterOptions.removeClusterAlias != null && masterOptions.removeClusterAlias.nonEmpty)
       runRemoveClusterAlias
+  }
+
+  private def logHandleResponse(response: HandleResponse): Unit = {
+    if (!response.getSuccess) {
+      throw new ExecutionException(spec.commandLine(), response.getMessage)
+    }
+    log(response)
   }
 
   private[master] def runShowMastersInfo: MasterInfoResponse =
