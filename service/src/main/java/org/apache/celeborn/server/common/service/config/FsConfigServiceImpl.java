@@ -24,11 +24,15 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 import org.apache.celeborn.common.CelebornConf;
 
 public class FsConfigServiceImpl extends BaseConfigServiceImpl implements ConfigService {
+  private static final Logger LOG = LoggerFactory.getLogger(FsConfigServiceImpl.class);
+
   private static final String CONF_TENANT_ID = "tenantId";
   private static final String CONF_TENANT_USERS = "users";
   private static final String CONF_TENANT_NAME = "name";
@@ -44,44 +48,91 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
   @Override
   public synchronized void refreshCache() {
     try (FileInputStream fileInputStream = new FileInputStream(getConfigFile(System.getenv()))) {
+      List<Map<String, Object>> configs = new Yaml().load(fileInputStream);
+      if (configs == null) {
+        throw new IllegalArgumentException(
+            "Dynamic config file is empty or contains no YAML document. "
+                + "Write an empty list ([]) if you intend to clear all dynamic configs.");
+      }
+      validateConfigs(configs);
+
+      SystemConfig systemConfig = new SystemConfig(celebornConf);
       Map<String, TenantConfig> tenantConfigs = new HashMap<>();
       Map<Pair<String, String>, TenantConfig> tenantUserConfigs = new HashMap<>();
-      List<Map<String, Object>> configs = new Yaml().load(fileInputStream);
+      if (!configs.isEmpty()) {
+        // Keep the previous system-level values for fields the file does not override. An
+        // explicit empty list is the only way to clear all caches.
+        SystemConfig previousSystemConfig = systemConfigAtomicReference.get();
+        systemConfig.setConfigs(previousSystemConfig.getConfigs());
+        systemConfig.setTags(previousSystemConfig.getTags());
+      }
       for (Map<String, Object> configMap : configs) {
         if (ConfigLevel.SYSTEM.name().equals(configMap.get(CONF_LEVEL))) {
           if (configMap.containsKey(CONF_CONFIG)) {
-            systemConfigAtomicReference.get().setConfigs(getConfigs(configMap));
+            systemConfig.setConfigs(getConfigs(configMap));
           }
           if (configMap.containsKey(TAGS_CONFIG)) {
-            systemConfigAtomicReference.get().setTags(getTags(configMap));
+            systemConfig.setTags(getTags(configMap));
           }
         } else {
-          if (configMap.containsKey(CONF_TENANT_ID)) {
-            String tenantId = (String) configMap.get(CONF_TENANT_ID);
-            if (configMap.containsKey(CONF_CONFIG)) {
-              tenantConfigs.put(
-                  tenantId, new TenantConfig(this, tenantId, null, getConfigs(configMap)));
-            }
-            if (configMap.containsKey(CONF_TENANT_USERS)) {
-              for (Map<String, Object> userConfigMap :
-                  (List<Map<String, Object>>) configMap.get(CONF_TENANT_USERS)) {
-                if (userConfigMap.containsKey(CONF_TENANT_NAME)
-                    && userConfigMap.containsKey(CONF_CONFIG)) {
-                  String name = (String) userConfigMap.get(CONF_TENANT_NAME);
-                  tenantUserConfigs.put(
-                      Pair.of(tenantId, name),
-                      new TenantConfig(this, tenantId, name, getConfigs(userConfigMap)));
-                }
+          String tenantId = (String) configMap.get(CONF_TENANT_ID);
+          if (configMap.containsKey(CONF_CONFIG)) {
+            tenantConfigs.put(
+                tenantId, new TenantConfig(this, tenantId, null, getConfigs(configMap)));
+          }
+          if (configMap.containsKey(CONF_TENANT_USERS)) {
+            for (Map<String, Object> userConfigMap :
+                (List<Map<String, Object>>) configMap.get(CONF_TENANT_USERS)) {
+              if (userConfigMap.containsKey(CONF_TENANT_NAME)
+                  && userConfigMap.containsKey(CONF_CONFIG)) {
+                String name = (String) userConfigMap.get(CONF_TENANT_NAME);
+                tenantUserConfigs.put(
+                    Pair.of(tenantId, name),
+                    new TenantConfig(this, tenantId, name, getConfigs(userConfigMap)));
               }
             }
           }
         }
-        tenantConfigAtomicReference.set(tenantConfigs);
-        tenantUserConfigAtomicReference.set(tenantUserConfigs);
       }
+      // Publish only after every record has been parsed; readers must not see maps being built.
+      systemConfigAtomicReference.set(systemConfig);
+      tenantConfigAtomicReference.set(tenantConfigs);
+      tenantUserConfigAtomicReference.set(tenantUserConfigs);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private void validateConfigs(List<Map<String, Object>> configs) {
+    for (int index = 0; index < configs.size(); index++) {
+      Map<String, Object> configMap = configs.get(index);
+      Object level = configMap.get(CONF_LEVEL);
+      Object tenantId = configMap.get(CONF_TENANT_ID);
+
+      boolean valid =
+          ConfigLevel.SYSTEM.name().equals(level)
+              || (ConfigLevel.TENANT.name().equals(level) && tenantId != null)
+              || (level == null && tenantId != null);
+      if (!valid) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Invalid dynamic config record at index %d: %s", index, invalidReason(level)));
+      }
+      if (level == null) {
+        // Backward compatibility: records without level have always been treated as tenants.
+        LOG.warn(
+            "Dynamic config record for tenant {} has no level, treating it as a tenant record "
+                + "for backward compatibility",
+            tenantId);
+      }
+    }
+  }
+
+  private static String invalidReason(Object level) {
+    if (ConfigLevel.TENANT.name().equals(level)) {
+      return "tenantId is required for level TENANT";
+    }
+    return level == null ? "missing level and tenantId" : "unrecognized level";
   }
 
   @Override

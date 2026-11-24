@@ -30,6 +30,7 @@ public class SystemConfig extends DynamicConfig {
   public SystemConfig(CelebornConf celebornConf) {
     this.celebornConf = celebornConf;
     this.configs = new HashMap<>();
+    this.tags = Collections.emptyMap();
   }
 
   @Override
