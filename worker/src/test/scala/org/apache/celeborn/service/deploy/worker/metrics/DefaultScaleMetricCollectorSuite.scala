@@ -185,10 +185,13 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite with Eventually {
     }
   }
 
-  test("reports zero until the memory window fills, then reports the sliding average") {
+  test("reports unavailable memory until its window fills, then reports the sliding average") {
     withFixture(2) { f =>
       when(f.memory.getMemoryUsage).thenReturn(512L)
-      assert(f.collect()(WorkerStats.MemoryPressureRatio) == 0.0)
+      val warming = f.collect()
+      assert(warming(WorkerStats.MemoryPressureRatio).isNaN)
+      assert(warming(WorkerStats.LastMinuteSystemLoadRatio) == 0.5)
+      assert(warming(WorkerStats.DiskUsedRatio) == 0.5)
       when(f.memory.getMemoryUsage).thenReturn(1024L)
       assert(f.collect()(WorkerStats.MemoryPressureRatio) == 0.75)
       when(f.memory.getMemoryUsage).thenReturn(0L)
@@ -197,7 +200,7 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite with Eventually {
     }
   }
 
-  test("reports raw ratios for zero memory capacity, negative load and no local disks") {
+  test("reports zero memory capacity, unavailable system load and no local disks") {
     withFixture() { f =>
       f.memory.maxDirectMemory = 0
       when(f.os.getSystemLoadAverage).thenReturn(-1.0)
@@ -209,7 +212,7 @@ class DefaultScaleMetricCollectorSuite extends AnyFunSuite with Eventually {
         WorkerStats.DiskUsedRatio,
         WorkerStats.DiskRemainingSize))
       assert(metrics(WorkerStats.MemoryPressureRatio) == Double.PositiveInfinity)
-      assert(metrics(WorkerStats.LastMinuteSystemLoadRatio) == -0.25)
+      assert(metrics(WorkerStats.LastMinuteSystemLoadRatio).isNaN)
       assert(metrics(WorkerStats.DiskUsedRatio).isNaN)
       assert(metrics(WorkerStats.DiskRemainingSize) == 0.0)
     }
