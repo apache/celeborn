@@ -125,6 +125,7 @@ These metrics are exposed by Celeborn master.
     | PartitionSize                | The size of estimated shuffle partition.                                                  |
     | OfferSlotsTime               | The time for masters to handle `RequestSlots` request when registering shuffle.           |
     | RequestSlotsFailed           | The count of failed `RequestSlots` requests, labeled by the failure status code.           |
+    | QuotaInterruptMarkedAppCount | The count of applications marked for interrupt by the quota check, each counted once. Every master runs the check, so use the active master's value. |
 
   - namespace=CPU
 

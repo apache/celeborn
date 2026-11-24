@@ -33,7 +33,7 @@ import org.apache.celeborn.common.quota.{ResourceConsumption, StorageQuota}
 import org.apache.celeborn.common.util.{JavaUtils, ThreadUtils, Utils}
 import org.apache.celeborn.server.common.service.config.ConfigService
 import org.apache.celeborn.service.deploy.master.MasterSource
-import org.apache.celeborn.service.deploy.master.MasterSource.UPDATE_RESOURCE_CONSUMPTION_TIME
+import org.apache.celeborn.service.deploy.master.MasterSource.{QUOTA_INTERRUPT_MARKED_APP_COUNT, UPDATE_RESOURCE_CONSUMPTION_TIME}
 import org.apache.celeborn.service.deploy.master.clustermeta.AbstractMetaManager
 import org.apache.celeborn.service.deploy.master.quota.QuotaStatus._
 
@@ -97,6 +97,12 @@ class QuotaManager(
       logInfo(s"application $applicationId quota exceeded, detail: ${status.exceedReason}")
     }
     CheckQuotaResponse(!status.exceed, status.exceedReason)
+  }
+
+  def getAppStorageQuota(user: UserIdentifier): StorageQuota = {
+    Option(configService)
+      .map(_.getTenantUserConfigFromCache(user.tenantId, user.name).getAppStorageQuota)
+      .getOrElse(StorageQuota.DEFAULT_QUOTA)
   }
 
   def getUserStorageQuota(user: UserIdentifier): StorageQuota = {
@@ -227,6 +233,9 @@ class QuotaManager(
                 // Step 3: Expire user level exceeded app except already expired app
                 clusterResourceConsumption = clusterResourceConsumption.add(userResourceConsumption)
                 tenantResourceConsumption = tenantResourceConsumption.add(userResourceConsumption)
+                // Narrowest scope first: wider scopes do not count the applications marked here.
+                checkAppResourceConsumption(userIdentifier, resourceConsumptionList)
+
                 val quotaStatus = checkUserQuotaSpace(userIdentifier, userResourceConsumption)
                 userQuotaStatus.put(userIdentifier, quotaStatus)
                 if (interruptShuffleEnabled && quotaStatus.exceed) {
@@ -266,6 +275,26 @@ class QuotaManager(
           tenantResourceConsumptions,
           clusterResourceConsumption,
           clusterQuota)
+      }
+    }
+  }
+
+  def checkAppResourceConsumption(
+      user: UserIdentifier,
+      resourceConsumptionList: Seq[ResourceConsumption]): Unit = {
+    if (interruptShuffleEnabled && appQuotaEnabled) {
+      val quota = getAppStorageQuota(user)
+      if (quota != StorageQuota.DEFAULT_QUOTA) {
+        computeSubConsumption(resourceConsumptionList).foreach { case (appId, consumption) =>
+          if (!appQuotaStatus.containsKey(appId) &&
+            statusSystem.isAppInterruptShuffleEnabled(appId)) {
+            val status =
+              checkQuotaSpace(s"$APPLICATION_EXHAUSTED User: $user. ", consumption, quota)
+            if (status.exceed) {
+              markApp(appId, status.exceedReason)
+            }
+          }
+        }
       }
     }
   }
@@ -352,9 +381,17 @@ class QuotaManager(
       for ((appId, consumption) <- sortedConsumption
         if checkConsumptionExceeded(nonExpired, threshold)) {
         val reason = s"$expireReason Used: ${consumption.simpleString}, Threshold: $threshold"
-        appQuotaStatus.put(appId, QuotaStatus(exceed = true, reason))
+        markApp(appId, reason)
         nonExpired = nonExpired.subtract(consumption)
       }
+    }
+  }
+
+  private def markApp(appId: String, reason: String): Unit = {
+    val alreadyMarked = appQuotaStatus.put(appId, QuotaStatus(exceed = true, reason)) != null
+    if (!alreadyMarked) {
+      logWarning(s"Application $appId is marked for interrupt. $reason")
+      masterSource.incCounter(QUOTA_INTERRUPT_MARKED_APP_COUNT)
     }
   }
 
@@ -457,5 +494,11 @@ class QuotaManager(
     Option(configService)
       .map(_.getSystemConfigFromCache.userQuotaEnabled())
       .getOrElse(celebornConf.userQuotaEnabled)
+  }
+
+  def appQuotaEnabled: Boolean = {
+    Option(configService)
+      .map(_.getSystemConfigFromCache.appQuotaEnabled())
+      .getOrElse(celebornConf.appQuotaEnabled)
   }
 }

@@ -29,4 +29,6 @@ object QuotaStatus {
     "Tenant storage usage reach threshold."
   val USER_EXHAUSTED: String =
     "User storage usage reach threshold."
+  val APPLICATION_EXHAUSTED: String =
+    "Application storage usage reach threshold."
 }

@@ -129,3 +129,28 @@ VALUES
     ( 5, 1, 'tenant_01', 'TENANT_USER', 'Jerry', 'celeborn.quota.user.diskFileCount', '10000', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' ),
     ( 6, 1, 'tenant_01', 'TENANT_USER', 'Jerry', 'celeborn.quota.user.hdfsBytesWritten', '10G', 'master', '2024-02-27 22:08:30', '2024-02-27 22:08:30' );
 ```
+
+## Application Quota
+
+The application quota limits what a single application stores on the workers.
+An application that reaches the limit is marked for interrupt, and its Spark client then cancels the stages that are still writing shuffle data.
+Unlike the other quotas, it is not part of the registration check, so exceeding it never causes a shuffle to fall back to Spark's shuffle.
+It only applies when `celeborn.quota.interruptShuffle.enabled` is true on both the master and the client.
+
+It uses the same [indicators](#quota-indicators) under `celeborn.quota.app.*`, resolved like the other quotas.
+
+For example, to limit the disk bytes written by each application to 500G, and by each application of user `Jerry` to 1T:
+
+```yaml
+-  level: SYSTEM
+   config:
+     celeborn.quota.interruptShuffle.enabled: true
+     celeborn.quota.app.diskBytesWritten: 500G
+
+-  tenantId: tenant_01
+   level: TENANT
+   users:
+     - name: Jerry
+       config:
+         celeborn.quota.app.diskBytesWritten: 1T
+```
