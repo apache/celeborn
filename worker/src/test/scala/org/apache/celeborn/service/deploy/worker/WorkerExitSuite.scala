@@ -140,6 +140,9 @@ class WorkerExitSuite extends AnyFunSuite {
       fixture.exit("DECOMMISSION", "5s")
 
       assert(fixture.statusManager.getWorkerState() == state)
+      val acceptedEvent =
+        if (exitType == "GRACEFUL") WorkerEventType.Graceful else WorkerEventType.Immediately
+      assert(fixture.statusManager.exitEventType == acceptedEvent)
       assert(fixture.exitTimeouts.size() == 1)
       verify(fixture.worker, never).configureDecommissionTimeout(any[Option[Long]]())
       Mockito.verifyNoInteractions(fixture.shutdownHooks)

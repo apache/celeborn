@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import com.google.common.collect.{Maps, Sets}
 import org.junit.Assert
+import org.mockito.ArgumentMatchers.any
 import org.mockito.MockitoSugar._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -76,5 +77,38 @@ class WorkerStatusManagerSuite extends AnyFunSuite {
 
     statusManager.doTransition(WorkerEventType.Recommission)
     Assert.assertEquals(statusManager.getWorkerState(), PbWorkerStatus.State.Normal)
+  }
+
+  test("only the first accepted exit sets the exit mode and the shutdown hook timeout") {
+    worker = mock[Worker]
+    when(worker.storageManager).thenReturn(mock[StorageManager])
+    when(worker.shutdown).thenReturn(new AtomicBoolean())
+    when(worker.workerInfo).thenReturn(new WorkerInfo(
+      "host",
+      0,
+      0,
+      0,
+      0,
+      0,
+      Maps.newHashMap(),
+      JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption]))
+    var exits = 0
+    val statusManager = new WorkerStatusManager(conf) {
+      override protected def startExitThread(): Unit = exits += 1
+    }
+    statusManager.init(worker)
+
+    statusManager.doTransition(WorkerEventType.Decommission)
+    Assert.assertEquals(PbWorkerStatus.State.InDecommission, statusManager.getWorkerState())
+    Assert.assertEquals(WorkerEventType.Decommission, statusManager.exitEventType)
+    verify(worker, times(1)).configureDecommissionTimeout(None)
+    Assert.assertEquals(1, exits)
+
+    statusManager.doTransition(WorkerEventType.Graceful)
+    statusManager.doTransition(WorkerEventType.Decommission, Some(5000L))
+    Assert.assertEquals(PbWorkerStatus.State.InDecommission, statusManager.getWorkerState())
+    Assert.assertEquals(WorkerEventType.Decommission, statusManager.exitEventType)
+    verify(worker, times(1)).configureDecommissionTimeout(any[Option[Long]]())
+    Assert.assertEquals(1, exits)
   }
 }
