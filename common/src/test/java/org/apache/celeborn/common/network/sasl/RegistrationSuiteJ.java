@@ -94,6 +94,27 @@ public class RegistrationSuiteJ extends SaslTestBase {
     }
   }
 
+  @Test
+  public void testInvalidApplicationDoesNotPersistSecret() throws Throwable {
+    TransportConf conf = new TransportConf("shuffle", celebornConf);
+    for (String appId :
+        new String[] {"", ".", "..", "../outside", "app/child", "app\\child", "app:child"}) {
+      TestSecretRegistry registry = new TestSecretRegistry();
+      RegistrationServerBootstrap serverBootstrap = new RegistrationServerBootstrap(conf, registry);
+      RegistrationClientBootstrap clientBootstrap =
+          new RegistrationClientBootstrap(
+              conf, appId, new SaslCredentials(appId, TEST_SECRET), new RegistrationInfo());
+      try {
+        authHelper(conf, serverBootstrap, clientBootstrap);
+        fail("Invalid application registration succeeded");
+      } catch (Throwable failure) {
+        assertTrue(Throwables.getStackTraceAsString(failure).contains("Application identifier"));
+      }
+      assertFalse(registry.isRegistered(appId));
+      assertNull(registry.getSecretKey(appId));
+    }
+  }
+
   static class TestSecretRegistry implements SecretRegistry {
 
     private final Map<String, String> secrets = new HashMap<>();

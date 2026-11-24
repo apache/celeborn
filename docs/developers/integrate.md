@@ -52,7 +52,13 @@ class LifecycleManager(val appUniqueId: String, val conf: CelebornConf)
 ```
 
 - `appUniqueId` is the application id. Celeborn cluster stores, serves, and cleans up data in the granularity of
-  (application id, shuffle id)
+  (application id, shuffle id). The id must be a non-empty single directory component: `.` and `..`,
+  slash (`/`), backslash (`\`), colon (`:`), and control characters are rejected. Colons are rejected
+  on every platform because the id is also used in remote filesystem paths. Dots within names and
+  Unicode characters are supported, for example `myApp.v2` and `作业-1`. Invalid ids fail before the
+  LifecycleManager starts its RPC service. Local storage requires a filesystem provider with secure
+  directory streams; application and shuffle directory aliases are rejected. Configured storage roots
+  must remain under administrator control.
 - `conf` is an object of `CelebornConf`. The only required configuration is the address of Celeborn `Master`. For
   the thorough description of configs, refer to [Configuration](../../configuration)
 

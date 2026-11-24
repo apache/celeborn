@@ -18,6 +18,8 @@
 package org.apache.celeborn.common.meta;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -30,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.StorageInfo;
+import org.apache.celeborn.common.util.SecureLocalFileOperations;
 import org.apache.celeborn.common.util.Utils;
 
 /*
@@ -136,10 +139,18 @@ public class DiskFileInfo extends FileInfo {
             e);
       }
     } else {
-      getFile().delete();
-      new File(getIndexPath()).delete();
-      new File(getSortedPath()).delete();
+      try {
+        deleteLocalFiles();
+      } catch (IOException e) {
+        logger.warn("Unable to safely delete local shuffle files", e);
+      }
     }
+  }
+
+  public void deleteLocalFiles() throws IOException {
+    SecureLocalFileOperations.deleteFile(Paths.get(filePath));
+    SecureLocalFileOperations.deleteFile(Paths.get(getIndexPath()));
+    SecureLocalFileOperations.deleteFile(Paths.get(getSortedPath()));
   }
 
   public String getMountPoint() {
