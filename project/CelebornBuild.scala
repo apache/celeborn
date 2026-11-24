@@ -43,16 +43,17 @@ object Dependencies {
 
   // Dependent library versions
   val apLoaderVersion = "4.0-10"
-  val commonsCompressVersion = "1.4.1"
+  val commonsCompressVersion = "1.26.2"
   val commonsCryptoVersion = "1.0.0"
   val commonsIoVersion = "2.17.0"
-  val commonsLoggingVersion = "1.1.3"
+  val commonsLoggingVersion = "1.3.0"
   val commonsLang3Version = sparkClientProjects.map(_.commonsLang3Version).getOrElse("3.20.0")
   val commonsCollectionsVersion = "3.2.2"
   val findbugsVersion = "1.3.9"
   val guavaVersion = "33.1.0-jre"
-  val hadoopVersion = "3.3.6"
-  val awsS3Version = "1.12.532"
+  val hadoopVersion = "3.4.3"
+  // The AWS SDK v2 release hadoop-aws (hadoopVersion) is built and tested against.
+  val awsSdkVersion = "2.35.4"
   val aliyunOssVersion = "3.13.0"
   val junitInterfaceVersion = "0.13.3"
   // don't forget update `junitInterfaceVersion` when we upgrade junit
@@ -107,6 +108,9 @@ object Dependencies {
 
   val apLoader = "me.bechberger" % "ap-loader-all" % apLoaderVersion
   val commonsCompress = "org.apache.commons" % "commons-compress" % commonsCompressVersion
+  // Maven resolves the version hadoop-yarn-common declares (nearest wins).
+  val jaxbApi = "javax.xml.bind" % "jaxb-api" % "2.2.11"
+  val commonsCodecMr = "commons-codec" % "commons-codec" % "1.15"
   val commonsCrypto = "org.apache.commons" % "commons-crypto" % commonsCryptoVersion excludeAll(
     ExclusionRule("net.java.dev.jna", "jna"))
   val commonsIo = "commons-io" % "commons-io" % commonsIoVersion
@@ -124,6 +128,10 @@ object Dependencies {
   val hadoopClientRuntime = "org.apache.hadoop" % "hadoop-client-runtime" % hadoopVersion
   val hadoopMapreduceClientApp = "org.apache.hadoop" % "hadoop-mapreduce-client-app" % hadoopVersion excludeAll(
     ExclusionRule("io.netty", "netty-transport-native-epoll"),
+    // Celeborn's own netty-all (ioNetty) carries the module exclusions; Maven applies them globally.
+    ExclusionRule("io.netty", "netty-all"),
+    // Maven manages bcprov to test scope.
+    ExclusionRule("org.bouncycastle", "bcprov-jdk18on"),
     ExclusionRule("com.google.guava", "guava"),
     ExclusionRule("com.fasterxml.jackson.core", "jackson-annotations"),
     ExclusionRule("com.fasterxml.jackson.core", "jackson-databind"),
@@ -131,11 +139,18 @@ object Dependencies {
     ExclusionRule("jline", "jline"),
     ExclusionRule("log4j", "log4j"),
     ExclusionRule("org.slf4j", "slf4j-log4j12"))
+  // hadoop-aws depends on the whole AWS SDK v2 bundle; Celeborn ships only the modules it uses.
   val hadoopAws = "org.apache.hadoop" % "hadoop-aws" % hadoopVersion excludeAll (
-    ExclusionRule("com.amazonaws", "aws-java-sdk-bundle"))
-  val awsS3 = "com.amazonaws" % "aws-java-sdk-s3" % awsS3Version
-  // Needed for com.amazonaws.auth.WebIdentityTokenCredentialsProvider
-  val awsSTS = "com.amazonaws" % "aws-java-sdk-sts" % awsS3Version
+    ExclusionRule("software.amazon.awssdk", "bundle"))
+  // The S3 clients use the Apache HTTP client; the Netty one would bring a second Netty.
+  val awsS3 = "software.amazon.awssdk" % "s3" % awsSdkVersion excludeAll (
+    ExclusionRule("software.amazon.awssdk", "netty-nio-client"))
+  // S3AFileSystem loads the transfer manager's classes when it initializes.
+  val awsS3TransferManager = "software.amazon.awssdk" % "s3-transfer-manager" % awsSdkVersion excludeAll (
+    ExclusionRule("software.amazon.awssdk", "netty-nio-client"))
+  // Needed for software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider
+  val awsSTS = "software.amazon.awssdk" % "sts" % awsSdkVersion excludeAll (
+    ExclusionRule("software.amazon.awssdk", "netty-nio-client"))
   val commonsCollections = "commons-collections" % "commons-collections" % commonsCollectionsVersion
   val hadoopAliyun = "org.apache.hadoop" % "hadoop-aliyun" % hadoopVersion
   val aliyunOss = "com.aliyun.oss" % "aliyun-sdk-oss" % aliyunOssVersion
@@ -646,7 +661,7 @@ object CelebornSpi {
 
 object CeleborMPU {
 
-  lazy val hadoopAwsDependencies = Seq(Dependencies.hadoopAws, Dependencies.awsS3, Dependencies.awsSTS)
+  lazy val hadoopAwsDependencies = Seq(Dependencies.hadoopAws, Dependencies.awsS3, Dependencies.awsS3TransferManager, Dependencies.awsSTS)
   lazy val hadoopAliyunDependencies = Seq(Dependencies.commonsCollections, Dependencies.hadoopAliyun, Dependencies.aliyunOss)
 
   lazy val celeborMPU = Project("celeborn-multipart-uploader-s3", file("multipart-uploader/multipart-uploader-s3"))
@@ -1578,7 +1593,10 @@ object MRClientProjects {
           Dependencies.jakartaActivationApi,
           Dependencies.javaxServletApi
         ) ++ commonUnitTestDependencies,
-        dependencyOverrides += Dependencies.commonsCompress
+        dependencyOverrides ++= Seq(
+          Dependencies.commonsCompress,
+          Dependencies.jaxbApi,
+          Dependencies.commonsCodecMr)
       )
   }
 

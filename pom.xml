@@ -71,8 +71,9 @@
     <spark.version>3.3.4</spark.version>
 
     <!-- use hadoop-3 as default  -->
-    <hadoop.version>3.3.6</hadoop.version>
-    <aws.version>1.12.532</aws.version>
+    <hadoop.version>3.4.3</hadoop.version>
+    <!-- The AWS SDK v2 release hadoop-aws (hadoop.version) is built and tested against. -->
+    <aws.version>2.35.4</aws.version>
     <aliyun-sdk-oss.version>3.13.0</aliyun-sdk-oss.version>
     <!--
     If you change codahale.metrics.version, you also need to change
