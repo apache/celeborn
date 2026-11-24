@@ -483,7 +483,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
     try {
       List<ResourceProtos.WorkerAddress> addrs =
           workers.stream().map(MetaUtil::infoToAddr).collect(Collectors.toList());
-      ratisServer.submitRequest(
+      ResourceRequest request =
           ResourceRequest.newBuilder()
               .setCmdType(Type.ReportWorkerDecommission)
               .setRequestId(MasterClient.genRequestId())
@@ -491,7 +491,22 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                   ResourceProtos.ReportWorkerDecommissionRequest.newBuilder()
                       .addAllWorkers(addrs)
                       .build())
-              .build());
+              .build();
+      if (heartbeatAggregator != null) {
+        // Flush pending heartbeats of these workers first, so a Normal heartbeat accepted
+        // before the decommission report cannot be applied after it and drop the worker
+        // from decommissionWorkers.
+        heartbeatAggregator.submitWorkersLifecycle(
+            workers.stream()
+                .map(
+                    w ->
+                        HeartbeatAggregator.workerKey(
+                            w.host(), w.rpcPort(), w.pushPort(), w.fetchPort(), w.replicatePort()))
+                .collect(Collectors.toList()),
+            request);
+      } else {
+        ratisServer.submitRequest(request);
+      }
     } catch (CelebornRuntimeException e) {
       LOG.error("Handle worker decommission failed!", e);
       throw e;

@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
@@ -337,6 +338,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     WorkerInfo worker =
         new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, -1, disks, null);
     AtomicLong availableSlots = new AtomicLong();
+    AtomicBoolean recommissioned = new AtomicBoolean();
     LOG.debug("update worker {}:{} heartbeat {}", host, rpcPort, disks);
     synchronized (workersMap) {
       Optional<WorkerInfo> workerInfo = Optional.ofNullable(workersMap.get(worker.toUniqueId()));
@@ -345,6 +347,15 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             info.updateThenGetDiskInfos(disks, Option.apply(estimatedPartitionSize));
             availableSlots.set(info.totalAvailableSlots());
             info.lastHeartbeat_$eq(time);
+            WorkerStatus previous = info.getWorkerStatus();
+            // Only a Normal newer than a heartbeat-reported drain state is a recommission. A late
+            // Normal RPC or one compared to the register-time placeholder must not count.
+            PbWorkerStatus.State previousState = previous.getState();
+            recommissioned.set(
+                workerStatus.getState() == PbWorkerStatus.State.Normal
+                    && (previousState == PbWorkerStatus.State.InDecommissionThenIdle
+                        || previousState == PbWorkerStatus.State.Idle)
+                    && workerStatus.getStateStartTime() > previous.getStateStartTime());
             info.setWorkerStatus(workerStatus);
             info.setWorkLoad(highWorkload);
           });
@@ -388,8 +399,13 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       }
     }
 
-    // try to update the available workers if the worker status is Normal
     if (workerStatus.getState() == PbWorkerStatus.State.Normal) {
+      synchronized (workersMap) {
+        if (recommissioned.get() && decommissionWorkers.remove(worker)) {
+          LOG.info(
+              "Worker {} is Normal again, removed from decommission workers", worker.toUniqueId());
+        }
+      }
       updateAvailableWorkers(worker);
     }
   }
