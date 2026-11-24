@@ -17,12 +17,17 @@
 
 package org.apache.celeborn.tests.spark
 
-import org.apache.spark.SparkConf
+import java.util
+import java.util.concurrent.{LinkedBlockingQueue, TimeUnit}
+
+import scala.collection.JavaConverters._
+
+import org.apache.spark.{SparkConf, SparkContextHelper}
+import org.apache.spark.shuffle.celeborn.SparkShuffleManager
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
-import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
 
@@ -33,27 +38,43 @@ class SlotsAssignMaxWorkersSmallTest extends AnyFunSuite
   override def beforeAll(): Unit = {
     logInfo("test initialized, setup Celeborn mini cluster")
     setupMiniClusterWithRandomPorts(masterConf = Map(
-      s"${CelebornConf.CLIENT_SLOT_ASSIGN_MAX_WORKERS.key}" -> "5"))
+      s"${CelebornConf.MASTER_SLOT_ASSIGN_MAX_WORKERS.key}" -> "5"))
   }
 
   override def beforeEach(): Unit = {
-    ShuffleClient.reset()
+    // Test discovery can leave a default session using a different shuffle manager.
+    stopActiveSparkSessions()
   }
 
   override def afterEach(): Unit = {
     System.gc()
   }
 
-  test("celeborn spark integration test - slots assign maxWorkers small") {
-    val sparkConf = new SparkConf()
-      .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", "true")
-      .set(s"spark.${CelebornConf.CLIENT_SLOT_ASSIGN_MAX_WORKERS.key}", "1")
-      .setAppName("celeborn-demo").setMaster("local[2]")
-    val ss = SparkSession.builder()
-      .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
-      .getOrCreate()
-    ss.sparkContext.parallelize(1 to 1000, 2)
-      .map { i => (i, Range(1, 1000).mkString(",")) }.groupByKey(16).collect()
-    ss.stop()
+  Seq(false, true).foreach { replicate =>
+    test(s"celeborn spark integration test - client maxWorkers 1, replicate $replicate") {
+      val sparkConf = new SparkConf()
+        .set(s"spark.${CelebornConf.CLIENT_PUSH_REPLICATE_ENABLED.key}", replicate.toString)
+        .set(s"spark.${CelebornConf.CLIENT_SLOT_ASSIGN_MAX_WORKERS.key}", "1")
+        .setAppName("celeborn-demo").setMaster("local[2]")
+      val ss = SparkSession.builder()
+        .config(updateSparkConf(sparkConf, ShuffleMode.HASH))
+        .getOrCreate()
+      try {
+        val assignments = new LinkedBlockingQueue[util.Map[String, Integer]]()
+        SparkContextHelper.env.shuffleManager.asInstanceOf[SparkShuffleManager]
+          .registerShuffleAssignmentListener { (_, _, workerSlots) =>
+            assignments.add(workerSlots)
+          }
+        val result = ss.sparkContext.parallelize(1 to 1000, 2)
+          .map { i => (i, Range(1, 1000).mkString(",")) }.groupByKey(16).collect()
+        assert(result.length == 1000)
+        val assigned = assignments.poll(10, TimeUnit.SECONDS)
+        assert(assigned != null, "expected a Celeborn shuffle assignment")
+        assert(assigned.size() == (if (replicate) 2 else 1))
+        assert(assigned.values().asScala.map(_.intValue()).sum == (if (replicate) 32 else 16))
+      } finally {
+        ss.stop()
+      }
+    }
   }
 }
