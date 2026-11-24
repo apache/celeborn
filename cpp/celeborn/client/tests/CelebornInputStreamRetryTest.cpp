@@ -16,6 +16,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <climits>
 #include <system_error>
 
 #include "celeborn/client/ShuffleClient.h"
@@ -766,6 +767,45 @@ TEST(CelebornInputStreamRetryTest, skipsDuplicateBatchAndStaysAligned) {
   std::vector<uint8_t> buffer(8);
   EXPECT_EQ(stream.read(buffer.data(), 0, 8), 8);
   EXPECT_EQ(std::string(buffer.begin(), buffer.end()), "aaaazzzz");
+}
+
+TEST(CelebornInputStreamRetryTest, skipsDuplicateBatchWithInterleavedMapIds) {
+  auto mockClient = std::make_shared<SequencedMockTransportClient>();
+  mockClient->addFetchSuccess(makeMultiBatchChunkBuffer({
+      {1, 0, /*batchId=*/0, "bbbb"},
+      {0, 0, /*batchId=*/0, "aaaa"},
+      {1, 0, /*batchId=*/0, "bbbb"}, // duplicate from map 1
+      {1, 0, /*batchId=*/1, "cccc"},
+  }));
+
+  auto factory = std::make_shared<SequencedMockClientFactory>(mockClient);
+  auto conf = makeTestConf(false);
+  auto excludedWorkers =
+      std::make_shared<CelebornInputStream::FetchExcludedWorkers>();
+  StubShuffleClient shuffleClient(conf, excludedWorkers);
+
+  std::vector<std::shared_ptr<const PartitionLocation>> locations{
+      makeLocationWithoutPeer()};
+  const std::vector<int> attempts{0, 0};
+
+  CelebornInputStream stream(
+      "test-shuffle-key",
+      conf,
+      factory,
+      std::move(locations),
+      attempts,
+      0,
+      /*startMapIndex=*/0,
+      /*endMapIndex=*/INT_MAX,
+      false,
+      excludedWorkers,
+      &shuffleClient);
+
+  std::vector<uint8_t> buffer(16);
+  const auto bytesRead = stream.read(buffer.data(), 0, buffer.size());
+  ASSERT_GE(bytesRead, 0);
+  EXPECT_EQ(
+      std::string(buffer.begin(), buffer.begin() + bytesRead), "bbbbaaaacccc");
 }
 
 // Verifies that without a peer, getNextChunk() retries the same location

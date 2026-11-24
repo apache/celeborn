@@ -398,7 +398,10 @@ CelebornInputStream::nextReadableLocation() {
 }
 
 std::unordered_set<int>& CelebornInputStream::getBatchRecord(int mapId) {
-  batchRecords_.resize(mapId + 1);
+  const auto requiredSize = static_cast<size_t>(mapId) + 1;
+  if (batchRecords_.size() < requiredSize) {
+    batchRecords_.resize(requiredSize);
+  }
   if (!batchRecords_[mapId]) {
     batchRecords_[mapId] = std::make_unique<std::unordered_set<int>>();
   }
