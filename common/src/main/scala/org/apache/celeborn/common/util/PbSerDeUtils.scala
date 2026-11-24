@@ -305,6 +305,7 @@ object PbSerDeUtils {
       pbWorkerInfo.getInternalPort,
       disks,
       userResourceConsumption)
+    workerInfo.workerIndex = if (pbWorkerInfo.hasWorkerIndex) pbWorkerInfo.getWorkerIndex else -1
     if (masterPersistWorkerNetworkLocation) {
       workerInfo.networkLocation = pbWorkerInfo.getNetworkLocation
     }
@@ -328,6 +329,10 @@ object PbSerDeUtils {
       .setPushPort(workerInfo.pushPort)
       .setReplicatePort(workerInfo.replicatePort)
       .setInternalPort(workerInfo.internalPort)
+    val workerIndex = workerInfo.workerIndex
+    if (workerIndex >= 0) {
+      builder.setWorkerIndex(workerIndex)
+    }
     if (masterPersistWorkerNetworkLocation) {
       builder.setNetworkLocation(workerInfo.networkLocation)
     }
@@ -473,7 +478,8 @@ object PbSerDeUtils {
       workerEventInfos: ConcurrentHashMap[WorkerInfo, WorkerEventInfo],
       applicationMetas: ConcurrentHashMap[String, ApplicationMeta],
       applicationInfos: ConcurrentHashMap[String, ApplicationInfo],
-      decommissionWorkers: java.util.Set[WorkerInfo]): PbSnapshotMetaInfo = {
+      decommissionWorkers: java.util.Set[WorkerInfo],
+      scaleCheckpoint: PbScaleCheckpoint): PbSnapshotMetaInfo = {
     val builder = PbSnapshotMetaInfo.newBuilder()
       .setEstimatedPartitionSize(estimatedPartitionSize)
       .addAllRegisteredShuffle(registeredShuffle.asScala.flatMap { appIdAndShuffleId =>
@@ -502,6 +508,10 @@ object PbSerDeUtils {
       }.asJava)
       .addAllDecommissionWorkers(decommissionWorkers.asScala.map(
         toPbWorkerInfo(_, true, false)).asJava)
+
+    if (scaleCheckpoint != PbScaleCheckpoint.getDefaultInstance) {
+      builder.setScaleCheckpoint(scaleCheckpoint)
+    }
 
     val pbApplicationMetas = applicationMetas.asScala.map {
       case (appId, applicationMeta) => (appId, toPbApplicationMeta(applicationMeta))

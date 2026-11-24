@@ -206,7 +206,7 @@ case "$MODULE" in
     ;;
   *)
     MODULE="server"
-    MVN_MODULES="worker,master,cli"
+    MVN_MODULES="worker,master,master-kubernetes,cli"
     ;;
 esac
 

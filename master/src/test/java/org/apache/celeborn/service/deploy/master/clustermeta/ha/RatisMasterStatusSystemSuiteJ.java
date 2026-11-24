@@ -63,6 +63,7 @@ import org.apache.celeborn.common.network.sasl.registration.RegistrationClientBo
 import org.apache.celeborn.common.network.sasl.registration.RegistrationInfo;
 import org.apache.celeborn.common.network.sasl.registration.RegistrationServerBootstrap;
 import org.apache.celeborn.common.network.util.TransportConf;
+import org.apache.celeborn.common.protocol.PbScaleCheckpoint;
 import org.apache.celeborn.common.protocol.WorkerEventType;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcAddress;
@@ -342,6 +343,36 @@ public class RatisMasterStatusSystemSuiteJ {
   }
 
   @Test
+  public void testScaleCheckpointSurvivesLeaderChangeAndRejectsStaleTerm() throws Exception {
+    HAMasterMetaManager leader = pickLeaderStatusSystem();
+    assertNotNull(leader);
+    long oldTerm = leader.getRatisServer().getReadyLeaderTerm();
+    assertTrue(oldTerm >= 0);
+    PbScaleCheckpoint before = leader.getScaleCheckpoint();
+    PbScaleCheckpoint compensated =
+        before.toBuilder().setWorkloadUid("workload").setAccountedExclWorkerCnt(1).build();
+    assertTrue(
+        leader.handleCompareAndSetScaleCheckpoint(oldTerm, before.getRevision(), compensated));
+
+    HAMasterMetaManager next = leader == STATUSSYSTEM1 ? STATUSSYSTEM2 : STATUSSYSTEM1;
+    transferLeadership(leader.getRatisServer(), next.getRatisServer());
+    PbScaleCheckpoint restored = next.getScaleCheckpoint();
+    assertEquals(compensated.toBuilder().setRevision(before.getRevision() + 1).build(), restored);
+    assertFalse(next.handleCompareAndSetScaleCheckpoint(oldTerm, restored.getRevision(), before));
+    long newTerm = next.getRatisServer().getReadyLeaderTerm();
+    assertTrue(newTerm > oldTerm);
+    assertFalse(next.handleCompareAndSetScaleCheckpoint(newTerm, before.getRevision(), before));
+    assertEquals(restored, next.getScaleCheckpoint());
+    assertTrue(next.handleCompareAndSetScaleCheckpoint(newTerm, restored.getRevision(), before));
+    PbScaleCheckpoint cleared = before.toBuilder().setRevision(restored.getRevision() + 1).build();
+    waitFor(
+        () ->
+            Arrays.asList(STATUSSYSTEM1, STATUSSYSTEM2, STATUSSYSTEM3).stream()
+                .allMatch(replica -> cleared.equals(replica.getScaleCheckpoint())),
+        "the new leader's checkpoint on every master");
+  }
+
+  @Test
   public void testConcurrentApplicationRegistrationSurvivesLeaderChange() throws Exception {
     HAMasterMetaManager leader = pickLeaderStatusSystem();
     assertNotNull(leader);
@@ -468,6 +499,7 @@ public class RatisMasterStatusSystemSuiteJ {
         NETWORK_LOCATION2,
         disks2,
         userResourceConsumption2,
+        0,
         getNewReqeustId());
     statusSystem.handleRegisterWorker(
         HOSTNAME3,
@@ -479,6 +511,7 @@ public class RatisMasterStatusSystemSuiteJ {
         NETWORK_LOCATION3,
         disks3,
         userResourceConsumption3,
+        7,
         getNewReqeustId());
     Thread.sleep(3000L);
 
@@ -496,9 +529,14 @@ public class RatisMasterStatusSystemSuiteJ {
   }
 
   private void assertWorkers(Collection<WorkerInfo> workerInfos) {
+    Map<String, Integer> indices = new HashMap<>();
     for (WorkerInfo workerInfo : workerInfos) {
       assertWorker(workerInfo);
+      indices.put(workerInfo.host(), workerInfo.workerIndex());
     }
+    Assert.assertEquals(Integer.valueOf(-1), indices.get(HOSTNAME1));
+    Assert.assertEquals(Integer.valueOf(0), indices.get(HOSTNAME2));
+    Assert.assertEquals(Integer.valueOf(7), indices.get(HOSTNAME3));
   }
 
   private void assertWorker(WorkerInfo workerInfo) {

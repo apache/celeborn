@@ -333,6 +333,7 @@ private[celeborn] class Worker(
       internalPort,
       diskInfos,
       JavaUtils.newConcurrentHashMap[UserIdentifier, ResourceConsumption])
+  workerInfo.workerIndex = conf.workerIndex
 
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)
@@ -771,7 +772,8 @@ private[celeborn] class Worker(
               // StorageManager have update the disk info.
               workerInfo.diskInfos.asScala.toMap,
               handleResourceConsumption().asScala.toMap,
-              MasterClient.genRequestId()),
+              MasterClient.genRequestId(),
+              workerInfo.workerIndex),
             classOf[PbRegisterWorkerResponse])
         } catch {
           case throwable: Throwable =>

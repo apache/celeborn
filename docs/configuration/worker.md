@@ -134,6 +134,7 @@ license: |
 | celeborn.worker.http.ssl.keystore.path | &lt;undefined&gt; | false | SSL certificate keystore location. | 0.6.0 |  | 
 | celeborn.worker.http.ssl.keystore.type | &lt;undefined&gt; | false | SSL certificate keystore type. | 0.6.0 |  | 
 | celeborn.worker.http.stopTimeout | 5s | false | Worker http server stop timeout. | 0.5.0 |  | 
+| celeborn.worker.index | -1 | false | Optional non-negative Worker ordinal used for autoscaling. Set this to the Pod ordinal for Workers managed by a Kubernetes or OpenKruise StatefulSet. The default of -1 identifies an unmanaged Worker. | 1.0.0 |  | 
 | celeborn.worker.internal.port | 0 | false | Internal server port on the Worker where the master nodes connect. | 0.5.0 |  | 
 | celeborn.worker.jvmProfiler.enabled | false | false | Turn on code profiling via async_profiler in workers. | 0.5.0 |  | 
 | celeborn.worker.jvmProfiler.localDir | . | false | Local file system path on worker where profiler output is saved. Defaults to the working directory of the worker process. | 0.5.0 |  | 

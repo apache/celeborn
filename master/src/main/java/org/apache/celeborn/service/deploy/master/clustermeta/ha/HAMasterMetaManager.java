@@ -33,6 +33,10 @@ import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.network.CelebornRackResolver;
+import org.apache.celeborn.common.protocol.PbCompareAndSetScaleCheckpointRequest;
+import org.apache.celeborn.common.protocol.PbMetaRequest;
+import org.apache.celeborn.common.protocol.PbMetaRequestType;
+import org.apache.celeborn.common.protocol.PbScaleCheckpoint;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.service.deploy.master.ApplicationMetricsSource;
@@ -399,23 +403,27 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       String networkLocation,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      int workerIndex,
       String requestId) {
     try {
+      ResourceProtos.RegisterWorkerRequest.Builder register =
+          ResourceProtos.RegisterWorkerRequest.newBuilder()
+              .setHost(host)
+              .setRpcPort(rpcPort)
+              .setPushPort(pushPort)
+              .setFetchPort(fetchPort)
+              .setReplicatePort(replicatePort)
+              .setInternalPort(internalPort)
+              .setNetworkLocation(networkLocation)
+              .putAllDisks(MetaUtil.toPbDiskInfos(disks));
+      if (workerIndex >= 0) {
+        register.setWorkerIndex(workerIndex);
+      }
       ResourceRequest request =
           ResourceRequest.newBuilder()
               .setCmdType(Type.RegisterWorker)
               .setRequestId(requestId)
-              .setRegisterWorkerRequest(
-                  ResourceProtos.RegisterWorkerRequest.newBuilder()
-                      .setHost(host)
-                      .setRpcPort(rpcPort)
-                      .setPushPort(pushPort)
-                      .setFetchPort(fetchPort)
-                      .setReplicatePort(replicatePort)
-                      .setInternalPort(internalPort)
-                      .setNetworkLocation(networkLocation)
-                      .putAllDisks(MetaUtil.toPbDiskInfos(disks))
-                      .build())
+              .setRegisterWorkerRequest(register)
               .build();
       if (heartbeatAggregator != null) {
         // Flush any pending heartbeat of this worker first, so a stale heartbeat is not
@@ -533,5 +541,28 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       LOG.error("Handle app meta for {} failed!", applicationMeta.appId(), e);
       throw e;
     }
+  }
+
+  @Override
+  public boolean handleCompareAndSetScaleCheckpoint(
+      long leaderTerm, long expectedRevision, PbScaleCheckpoint next) {
+    ResourceProtos.ResourceResponse response =
+        ratisServer.submitMetaRequest(
+            PbMetaRequest.newBuilder()
+                .setMetaRequestType(PbMetaRequestType.CompareAndSetScaleCheckpoint)
+                .setRequestId(MasterClient.genRequestId())
+                .setCompareAndSetScaleCheckpointRequest(
+                    PbCompareAndSetScaleCheckpointRequest.newBuilder()
+                        .setLeaderTerm(leaderTerm)
+                        .setExpectedRevision(expectedRevision)
+                        .setCheckpoint(next))
+                .build());
+    if (response.getStatus() == ResourceProtos.Status.STALE_SCALE_CHECKPOINT) {
+      return false;
+    }
+    if (!response.getSuccess()) {
+      throw new CelebornRuntimeException(response.getMessage());
+    }
+    return true;
   }
 }

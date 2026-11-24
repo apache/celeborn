@@ -479,6 +479,7 @@ object CelebornBuild extends sbt.internal.BuildDef {
       CelebornService.service,
       CelebornWorker.worker,
       CelebornMaster.master,
+      CelebornMasterKubernetes.masterKubernetes,
       CelebornLifecycleManager.lifecycleManager,
       CelebornCli.cli
     ) ++ maybeSparkClientModules ++
@@ -864,6 +865,17 @@ object CelebornMaster {
         Dependencies.ratisShell,
         Dependencies.scalatestMockito % "test",
       ) ++ commonUnitTestDependencies ++ mpuDependencies ++ jmhDependencies
+    )
+}
+
+object CelebornMasterKubernetes {
+  lazy val masterKubernetes = Project("celeborn-master-kubernetes", file("master-kubernetes"))
+    .dependsOn(CelebornMaster.master)
+    .settings(
+      commonSettings,
+      libraryDependencies ++= Seq(
+        "io.fabric8" % "kubernetes-client" % "6.7.0"
+      ) ++ commonUnitTestDependencies
     )
 }
 
