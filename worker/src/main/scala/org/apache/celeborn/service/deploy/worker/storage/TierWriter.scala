@@ -479,7 +479,8 @@ class LocalTierWriter(
     MemoryManager.instance.incrementDiskBuffer(numBytes)
   }
 
-  override def evict(file: TierWriterBase): Unit = ???
+  override def evict(file: TierWriterBase): Unit =
+    throw new UnsupportedOperationException(s"Cannot evict $storageType file $filename")
 
   override def finalFlush(): Unit = {
     flushLock.synchronized {
@@ -697,7 +698,8 @@ class DfsTierWriter(
     MemoryManager.instance.incrementDiskBuffer(numBytes)
   }
 
-  override def evict(file: TierWriterBase): Unit = ???
+  override def evict(file: TierWriterBase): Unit =
+    throw new UnsupportedOperationException(s"Cannot evict $storageType file $filename")
 
   override def finalFlush(): Unit = {
     flushLock.synchronized {

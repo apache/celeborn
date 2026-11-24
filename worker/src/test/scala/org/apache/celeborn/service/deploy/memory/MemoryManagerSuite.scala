@@ -17,20 +17,24 @@
 
 package org.apache.celeborn.service.deploy.memory
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.concurrent.duration.DurationInt
 
 import org.mockito.{Mockito, MockitoSugar}
+import org.mockito.MockitoSugar.mock
 import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.concurrent.Futures.{interval, timeout}
 
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.CelebornConf.{WORKER_DIRECT_MEMORY_RATIO_FOR_MEMORY_FILE_STORAGE, WORKER_DIRECT_MEMORY_RATIO_FOR_READ_BUFFER, WORKER_DIRECT_MEMORY_RATIO_PAUSE_RECEIVE, WORKER_DIRECT_MEMORY_RATIO_PAUSE_REPLICATE, WORKER_DIRECT_MEMORY_RATIO_RESUME}
+import org.apache.celeborn.common.identity.UserIdentifier
+import org.apache.celeborn.common.meta.{MemoryFileInfo, ReduceFileMeta}
 import org.apache.celeborn.common.protocol.TransportModuleConstants
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager
 import org.apache.celeborn.service.deploy.worker.memory.MemoryManager.{MemoryPressureListener, ServingState}
+import org.apache.celeborn.service.deploy.worker.storage.PartitionDataWriter
 
 class MemoryManagerSuite extends CelebornFunSuite {
 
@@ -451,6 +455,43 @@ class MemoryManagerSuite extends CelebornFunSuite {
       memoryManager.sortMemoryReady(),
       "sortMemoryReady must return true when threshold is 0 regardless of serving state")
     MemoryManager.reset()
+  }
+
+  private def memoryFile(length: Long): MemoryFileInfo = {
+    val info = new MemoryFileInfo(UserIdentifier("tenant", "user"), false, new ReduceFileMeta(1))
+    info.updateBytesFlushed(length)
+    info
+  }
+
+  test("memory file eviction evicts the largest file first and survives a failing writer") {
+    val failing = mock[PartitionDataWriter]
+    val healthy = mock[PartitionDataWriter]
+    // NotImplementedError is an Error, like the one evicting a disk tier writer used to throw.
+    Mockito.doThrow(new NotImplementedError("injected")).when(failing).evict(true)
+    val writers = new ConcurrentHashMap[MemoryFileInfo, PartitionDataWriter]()
+    writers.put(memoryFile(2048), failing)
+    writers.put(memoryFile(1024), healthy)
+
+    MemoryManager.evictMemoryWriters(writers, () => true)
+
+    val order = Mockito.inOrder(failing, healthy)
+    order.verify(failing).evict(true)
+    order.verify(healthy).evict(true)
+  }
+
+  test("memory file eviction stops once the memory pressure is gone") {
+    val first = mock[PartitionDataWriter]
+    val second = mock[PartitionDataWriter]
+    val writers = new ConcurrentHashMap[MemoryFileInfo, PartitionDataWriter]()
+    writers.put(memoryFile(2048), first)
+    writers.put(memoryFile(1024), second)
+    var evicted = 0
+    Mockito.doAnswer(_ => { evicted += 1; null }).when(first).evict(true)
+
+    MemoryManager.evictMemoryWriters(writers, () => evicted == 0)
+
+    Mockito.verify(first).evict(true)
+    Mockito.verify(second, Mockito.never()).evict(true)
   }
 
   class MockMemoryPressureListener(

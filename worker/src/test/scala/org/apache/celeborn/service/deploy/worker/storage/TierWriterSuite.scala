@@ -29,6 +29,7 @@ import org.apache.commons.io.FileUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, FSDataOutputStream, Path, RawLocalFileSystem}
 import org.apache.hadoop.util.Progressable
+import org.mockito.ArgumentMatchersSugar.any
 import org.mockito.Mockito
 import org.mockito.MockitoSugar.when
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -362,6 +363,70 @@ class TierWriterSuite extends AnyFunSuite with BeforeAndAfterAll with BeforeAndA
     val bitmap = localTierWriter.metaHandler.getMapIdBitmap().get
     assert(bitmap.getCardinality === 6)
     assert((0 until 6).forall(bitmap.contains))
+  }
+
+  private def partitionDataWriterOver(
+      tierWriter: TierWriterBase,
+      policy: StoragePolicy): PartitionDataWriter = {
+    val conf = new CelebornConf()
+    val storageManager = Mockito.mock(classOf[StorageManager])
+    when(storageManager.storagePolicy).thenReturn(policy)
+    when(policy.createFileWriter(
+      any[PartitionDataWriterContext],
+      any[AtomicInteger],
+      any[FlushNotifier])).thenReturn(tierWriter)
+    val userIdentifier = UserIdentifier("`aa`.`bb`")
+    val context = new PartitionDataWriterContext(
+      1024 * 1024 * 1024,
+      PartitionSplitMode.SOFT,
+      false,
+      new PartitionLocation(1, 0, "host", 1111, 1112, 1113, 1114, PartitionLocation.Mode.PRIMARY),
+      "app1-1",
+      1,
+      userIdentifier,
+      PartitionType.REDUCE,
+      false,
+      false)
+    new PartitionDataWriter(
+      storageManager,
+      new WorkerSource(conf),
+      conf,
+      DeviceMonitor.EmptyMonitor(),
+      context)
+  }
+
+  test("evicting a file that is no longer in memory is a no-op") {
+    val localTierWriter = prepareLocalTierWriter(false)
+    val policy = Mockito.mock(classOf[StoragePolicy])
+    val writer = partitionDataWriterOver(localTierWriter, policy)
+
+    writer.evict(true)
+    writer.evict(false)
+
+    Mockito.verify(policy, Mockito.never()).getEvictedFileWriter(
+      any[TierWriterBase],
+      any[PartitionDataWriterContext],
+      any[AtomicInteger],
+      any[FlushNotifier])
+    assert(writer.getCurrentFileInfo eq localTierWriter.fileInfo)
+    localTierWriter.close()
+  }
+
+  test("a memory file stays in memory when there is no storage to evict it to") {
+    val memoryTierWriter = prepareMemoryWriter
+    val policy = Mockito.mock(classOf[StoragePolicy])
+    when(policy.getEvictedFileWriter(
+      any[TierWriterBase],
+      any[PartitionDataWriterContext],
+      any[AtomicInteger],
+      any[FlushNotifier])).thenReturn(null)
+    val writer = partitionDataWriterOver(memoryTierWriter, policy)
+
+    writer.evict(true)
+
+    assert(writer.getCurrentFileInfo eq memoryTierWriter.fileInfo)
+    assert(!memoryTierWriter.closed)
+    memoryTierWriter.destroy(new IOException("test cleanup"))
   }
 
   test("test local tier writer with range filter on ") {

@@ -205,10 +205,19 @@ public class PartitionDataWriter implements DeviceObserver {
         return;
       }
     }
+    // Only memory files can be evicted. The memory manager works on a snapshot of memory writers,
+    // so it may reach a writer that a push has already evicted to disk.
+    if (!(currentTierWriter instanceof MemoryTierWriter)) {
+      return;
+    }
     TierWriterBase newTierWriter =
         storageManager
             .storagePolicy()
             .getEvictedFileWriter(currentTierWriter, writerContext, numPendingWrites, notifier);
+    if (newTierWriter == null) {
+      logger.warn("No storage to evict {} to, keep it in memory.", this);
+      return;
+    }
     currentTierWriter.evict(newTierWriter);
     currentTierWriter = newTierWriter;
   }
