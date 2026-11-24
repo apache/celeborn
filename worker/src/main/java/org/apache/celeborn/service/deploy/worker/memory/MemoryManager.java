@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.function.BooleanSupplier;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -35,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.celeborn.common.CelebornConf;
+import org.apache.celeborn.common.meta.MemoryFileInfo;
 import org.apache.celeborn.common.metrics.source.AbstractSource;
 import org.apache.celeborn.common.network.util.NettyUtils;
 import org.apache.celeborn.common.protocol.TransportModuleConstants;
@@ -259,30 +261,15 @@ public class MemoryManager {
           ThreadUtils.newDaemonSingleThreadScheduledExecutor("memory-file-storage-checker");
       memoryFileStorageService.scheduleWithFixedDelay(
           () -> {
+            // An escaping throwable would cancel all future runs of this periodic task.
             try {
               if (shouldEvict(aggressiveEvictModeEnabled, evictRatio)) {
-                List<PartitionDataWriter> memoryWriters =
-                    new ArrayList<>(storageManager.memoryWriters().values());
-                if (memoryWriters.isEmpty()) {
-                  return;
-                }
-                logger.info("Start evicting {} memory file infos", memoryWriters.size());
-                // always evict the largest memory file info first
-                memoryWriters.sort(
-                    Comparator.comparingLong(
-                            (PartitionDataWriter o) -> o.getMemoryFileInfo().getFileLength())
-                        .reversed());
-                for (PartitionDataWriter writer : memoryWriters) {
-                  // this branch means that there is no memory pressure
-                  if (!shouldEvict(aggressiveEvictModeEnabled, evictRatio)) {
-                    break;
-                  }
-                  logger.debug("Evict writer {}", writer);
-                  writer.evict(true);
-                }
+                evictMemoryWriters(
+                    storageManager.memoryWriters(),
+                    () -> shouldEvict(aggressiveEvictModeEnabled, evictRatio));
               }
-            } catch (Exception e) {
-              logger.error("Evict thread encounter error", e);
+            } catch (Throwable t) {
+              logger.error("Evict thread encounter error", t);
             }
           },
           checkInterval,
@@ -306,6 +293,38 @@ public class MemoryManager {
         Utils.bytesToString(memoryFileStorageThreshold),
         directMemoryResumeRatio,
         pinnedMemoryResumeRatio);
+  }
+
+  /**
+   * Evicts memory writers, largest first, while {@code shouldContinue} holds. A failure to evict
+   * one writer does not stop the eviction of the others.
+   */
+  @VisibleForTesting
+  public static void evictMemoryWriters(
+      Map<MemoryFileInfo, PartitionDataWriter> memoryWriters, BooleanSupplier shouldContinue) {
+    // Writers keep growing while this runs, so sort on a snapshot of their sizes.
+    List<Map.Entry<Long, PartitionDataWriter>> candidates = new ArrayList<>();
+    for (Map.Entry<MemoryFileInfo, PartitionDataWriter> entry : memoryWriters.entrySet()) {
+      candidates.add(
+          new AbstractMap.SimpleImmutableEntry<>(entry.getKey().getFileLength(), entry.getValue()));
+    }
+    if (candidates.isEmpty()) {
+      return;
+    }
+    logger.info("Start evicting {} memory file infos", candidates.size());
+    candidates.sort(Map.Entry.<Long, PartitionDataWriter>comparingByKey().reversed());
+    for (Map.Entry<Long, PartitionDataWriter> candidate : candidates) {
+      if (!shouldContinue.getAsBoolean()) {
+        break;
+      }
+      PartitionDataWriter writer = candidate.getValue();
+      logger.debug("Evict writer {}", writer);
+      try {
+        writer.evict(true);
+      } catch (Throwable t) {
+        logger.error("Failed to evict writer {}", writer, t);
+      }
+    }
   }
 
   public boolean shouldEvict(boolean aggressiveMemoryFileEvictEnabled, double evictRatio) {
