@@ -17,15 +17,16 @@
 
 package org.apache.celeborn.cli
 
-import java.io.{ByteArrayOutputStream, File, PrintStream}
+import java.io.{ByteArrayOutputStream, PrintStream}
 import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path}
 import java.util.Base64
 import java.util.concurrent.atomic.AtomicReference
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
+import org.apache.commons.io.FileUtils
 import picocli.CommandLine.ExitCode
 
 import org.apache.celeborn.CelebornFunSuite
@@ -66,8 +67,12 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
 
   protected var master: Master = _
   protected var worker: Worker = _
+  private var configDir: Path = _
 
   override def beforeAll(): Unit = {
+    super.beforeAll()
+    configDir = Files.createTempDirectory("celeborn-cli-commands")
+    sys.props.put("celeborn.testing.cli.config.file", configDir.resolve("cli.conf").toString)
     logInfo("test initialized, setup celeborn mini cluster")
     val (m, w) = setupMiniClusterWithRandomPorts(
       masterConf = celebornConf.getAll.toMap,
@@ -75,7 +80,6 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
       workerNum = 1)
     master = m
     worker = w.head
-    super.beforeAll()
     val aliasCommand = Array(
       "master",
       "--add-cluster-alias",
@@ -88,21 +92,27 @@ class TestCelebornCliCommands extends CelebornFunSuite with MiniClusterFeature {
   }
 
   override def afterAll(): Unit = {
-    super.afterAll()
-    logInfo("all test complete, stop celeborn mini cluster")
-    shutdownMiniCluster()
-    val removeAliasCommand = Array(
-      "master",
-      "--remove-cluster-alias",
-      "unit-test")
-    captureOutputAndValidateResponse(removeAliasCommand, s"Cluster alias unit-test removed.")
-    val cliConfigManager = new CliConfigManager
-    val aliasExists = cliConfigManager.loadConfig().exists(_.cliConfigData.contains("unit-test"))
-    assert(!aliasExists)
-    if (new File(CliConfigManager.cliConfigFilePath).exists()) {
-      Files.delete(Paths.get(CliConfigManager.cliConfigFilePath))
+    try {
+      logInfo("all test complete, stop celeborn mini cluster")
+      shutdownMiniCluster()
+      val removeAliasCommand = Array(
+        "master",
+        "--remove-cluster-alias",
+        "unit-test")
+      captureOutputAndValidateResponse(removeAliasCommand, s"Cluster alias unit-test removed.")
+      val cliConfigManager = new CliConfigManager
+      val aliasExists = cliConfigManager.loadConfig().exists(_.cliConfigData.contains("unit-test"))
+      assert(!aliasExists)
+    } finally {
+      sys.props.remove("celeborn.testing.cli.config.file")
+      try {
+        if (configDir != null) {
+          FileUtils.deleteDirectory(configDir.toFile)
+        }
+      } finally {
+        super.afterAll()
+      }
     }
-
   }
 
   test("worker --show-worker-info") {

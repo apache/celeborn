@@ -25,24 +25,45 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
-import org.scalatest.funsuite.AnyFunSuite
+import org.apache.commons.io.FileUtils
 import picocli.CommandLine.ExitCode
 
-class CelebornCliExitCodeSuite extends AnyFunSuite {
-  private def runCli(args: String*): Int = runCliWithHome(None, args: _*)
+import org.apache.celeborn.CelebornFunSuite
+import org.apache.celeborn.cli.config.CliConfigManager
 
-  private def runCliWithHome(home: Option[Path], args: String*): Int = {
+class CelebornCliExitCodeSuite extends CelebornFunSuite {
+  private var configDir: Path = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    configDir = Files.createTempDirectory("celeborn-cli-exit-code")
+    sys.props.put("celeborn.testing.cli.config.file", configDir.resolve("cli.conf").toString)
+  }
+
+  override def afterAll(): Unit = {
+    try {
+      sys.props.remove("celeborn.testing.cli.config.file")
+      if (configDir != null) {
+        FileUtils.deleteDirectory(configDir.toFile)
+      }
+    } finally {
+      super.afterAll()
+    }
+  }
+
+  private def runCli(args: String*): Int = {
     val java = new File(System.getProperty("java.home"), "bin/java").getAbsolutePath
     val command = Seq(
       java,
+      "-Dceleborn.testing=true",
+      s"-Dceleborn.testing.cli.config.file=${CliConfigManager.cliConfigFilePath}",
       "-cp",
       System.getProperty("java.class.path"),
       "org.apache.celeborn.cli.CelebornCli") ++ args
-    val builder = new ProcessBuilder(command: _*)
+    val process = new ProcessBuilder(command: _*)
       .redirectErrorStream(true)
       .redirectOutput(ProcessBuilder.Redirect.INHERIT)
-    home.foreach(path => builder.environment().put("HOME", path.toString))
-    val process = builder.start()
+      .start()
     try {
       assert(process.waitFor(30, TimeUnit.SECONDS), "CLI process timed out")
       process.exitValue()
@@ -51,23 +72,24 @@ class CelebornCliExitCodeSuite extends AnyFunSuite {
     }
   }
 
-  test("CLI exits successfully for help") {
-    assert(runCli("--help") == ExitCode.OK)
+  test("CLI returns success for help") {
+    assert(CelebornCli.execute(Array("--help")) == ExitCode.OK)
   }
 
   test("CLI exits with picocli's usage error status for an unknown option") {
     assert(runCli("--unknown-option") == ExitCode.USAGE)
   }
 
-  test("CLI exits with a usage error when no subcommand is provided") {
-    assert(runCli() == ExitCode.USAGE)
+  test("CLI returns a usage error when no subcommand is provided") {
+    assert(CelebornCli.execute(Array.empty[String]) == ExitCode.USAGE)
   }
 
-  test("CLI exits with an execution error when the server is unreachable") {
-    assert(runCli("master", "--show-workers", "--hostport", "127.0.0.1:1") == ExitCode.SOFTWARE)
+  test("CLI returns an execution error when the server is unreachable") {
+    assert(CelebornCli.execute(
+      Array("master", "--show-workers", "--hostport", "127.0.0.1:1")) == ExitCode.SOFTWARE)
   }
 
-  test("CLI exits with an execution error when the master rejects an operation with HTTP 200") {
+  test("CLI returns an execution error when the master rejects an operation with HTTP 200") {
     val success = new AtomicBoolean(false)
     val server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0)
     server.createContext(
@@ -98,32 +120,42 @@ class CelebornCliExitCodeSuite extends AnyFunSuite {
       commands.foreach { command =>
         val args = Seq("master", "--hostport", s"127.0.0.1:${server.getAddress.getPort}") ++ command
         success.set(false)
-        assert(runCli(args: _*) == ExitCode.SOFTWARE, command.mkString(" "))
+        assert(CelebornCli.execute(args.toArray) == ExitCode.SOFTWARE, command.mkString(" "))
         success.set(true)
-        assert(runCli(args: _*) == ExitCode.OK, command.mkString(" "))
+        assert(CelebornCli.execute(args.toArray) == ExitCode.OK, command.mkString(" "))
       }
     } finally {
       server.stop(0)
     }
   }
 
-  test("CLI exits with an execution error when cluster alias configuration cannot be saved") {
-    val home = Files.createTempFile("celeborn-cli-home", ".tmp")
+  test("CLI returns an execution error when cluster alias configuration cannot be saved") {
+    val invalidParent = Files.createFile(configDir.resolve("regular-file"))
+    val configPath = CliConfigManager.cliConfigFilePath
+    sys.props.put("celeborn.testing.cli.config.file", invalidParent.resolve("cli.conf").toString)
     try {
-      assert(runCliWithHome(
-        Some(home),
+      assert(CelebornCli.execute(Array(
         "master",
         "--add-cluster-alias",
         "test",
         "--host-list",
-        "localhost:9098") == ExitCode.SOFTWARE)
-      assert(runCliWithHome(
-        Some(home),
+        "localhost:9098")) == ExitCode.SOFTWARE)
+      assert(CelebornCli.execute(Array(
         "master",
         "--remove-cluster-alias",
-        "test") == ExitCode.SOFTWARE)
+        "test")) == ExitCode.SOFTWARE)
     } finally {
-      Files.delete(home)
+      sys.props.put("celeborn.testing.cli.config.file", configPath)
     }
+  }
+
+  test("CLI config path override is only honored in testing mode") {
+    val testing = sys.props.remove("celeborn.testing")
+    try {
+      assert(CliConfigManager.cliConfigFilePath == s"${sys.env("HOME")}/.celeborn-cli.conf")
+    } finally {
+      testing.foreach(value => sys.props.put("celeborn.testing", value))
+    }
+    assert(CliConfigManager.cliConfigFilePath == configDir.resolve("cli.conf").toString)
   }
 }
