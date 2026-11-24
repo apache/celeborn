@@ -50,6 +50,8 @@ import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.metrics.WorkerStats;
 import org.apache.celeborn.common.network.CelebornRackResolver;
+import org.apache.celeborn.common.protocol.PbScaleCheckpoint;
+import org.apache.celeborn.common.protocol.PbScaleOperationRequest;
 import org.apache.celeborn.common.protocol.PbSnapshotMetaInfo;
 import org.apache.celeborn.common.protocol.PbWorkerStatus;
 import org.apache.celeborn.common.quota.ResourceConsumption;
@@ -59,6 +61,9 @@ import org.apache.celeborn.common.util.PbSerDeUtils;
 import org.apache.celeborn.common.util.Utils;
 import org.apache.celeborn.common.util.WorkerStatusUtils;
 import org.apache.celeborn.service.deploy.master.ApplicationMetricsSource;
+import org.apache.celeborn.service.deploy.master.scale.ClusterInfo$;
+import org.apache.celeborn.service.deploy.master.scale.ScaleOperation;
+import org.apache.celeborn.service.deploy.master.scale.ScaleOperation$;
 
 /**
  * Note: Do not update the worker collections directly from outside the metadata manager, especially
@@ -88,6 +93,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final Set<WorkerInfo> shutdownWorkers = ConcurrentHashMap.newKeySet();
   public final Set<WorkerInfo> decommissionWorkers = ConcurrentHashMap.newKeySet();
   public final Set<WorkerInfo> workerLostEvents = ConcurrentHashMap.newKeySet();
+  private volatile PbScaleCheckpoint scaleCheckpoint = PbScaleCheckpoint.getDefaultInstance();
+  private Set<Integer> scaleAllowedWorkerIndices;
 
   protected RpcEnv rpcEnv;
   protected CelebornConf conf;
@@ -356,6 +363,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       workerEventInfos.remove(worker);
       if (workerStatus.getState() == PbWorkerStatus.State.Normal) {
         shutdownWorkers.remove(worker);
+        decommissionWorkers.remove(worker);
       }
     }
 
@@ -488,7 +496,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
                 workerEventInfos,
                 applicationMetas,
                 applicationInfos,
-                decommissionWorkers)
+                decommissionWorkers,
+                scaleCheckpoint)
             .toByteArray();
     Files.write(file.toPath(), snapshotBytes);
   }
@@ -502,7 +511,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public void restoreMetaFromFile(File file) throws IOException {
     try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(file))) {
       PbSnapshotMetaInfo snapshotMetaInfo = PbSnapshotMetaInfo.parseFrom(in);
-      cleanUpState();
+      cleanUpState(snapshotMetaInfo.getScaleCheckpoint());
 
       estimatedPartitionSize = snapshotMetaInfo.getEstimatedPartitionSize();
 
@@ -599,10 +608,9 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           .forEach(
               (key, value) -> applicationInfos.put(key, PbSerDeUtils.fromPbApplicationInfo(value)));
 
-      availableWorkers.addAll(
-          workersMap.values().stream()
-              .filter(worker -> isWorkerAvailable(worker))
-              .collect(Collectors.toSet()));
+      synchronized (workersMap) {
+        workersMap.values().forEach(this::updateAvailableWorkers);
+      }
     } catch (Exception e) {
       throw new IOException(e);
     }
@@ -618,12 +626,15 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         (appId, shuffleId) -> LOG.info("RegisteredShuffle {}-{}", appId, shuffleId));
   }
 
-  private void cleanUpState() {
+  private void cleanUpState(PbScaleCheckpoint restoredCheckpoint) {
     registeredAppAndShuffles.clear();
     hostnameSet.clear();
-    workersMap.clear();
-    workerStats.clear();
-    availableWorkers.clear();
+    synchronized (workersMap) {
+      workersMap.clear();
+      workerStats.clear();
+      availableWorkers.clear();
+      updateScaleCheckpoint(restoredCheckpoint);
+    }
     lostWorkers.clear();
     appHeartbeatTime.clear();
     excludedWorkers.clear();
@@ -675,6 +686,38 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
   }
 
+  public PbScaleCheckpoint getScaleCheckpoint() {
+    return scaleCheckpoint;
+  }
+
+  public boolean compareAndSetScaleCheckpoint(long expectedRevision, PbScaleCheckpoint next) {
+    synchronized (workersMap) {
+      if (scaleCheckpoint.getRevision() != expectedRevision) {
+        return false;
+      }
+      updateScaleCheckpoint(next.toBuilder().setRevision(expectedRevision + 1).build());
+      return true;
+    }
+  }
+
+  private void updateScaleCheckpoint(PbScaleCheckpoint next) {
+    scaleAllowedWorkerIndices =
+        next.hasPending() && next.getPending().getRemovesWorkerIndices()
+            ? ClusterInfo$.MODULE$.expectedWorkerIndices(next.getPending().getOperation())
+            : null;
+    workersMap.values().forEach(this::updateAvailableWorkers);
+    scaleCheckpoint = next;
+  }
+
+  public Pair<String, ScaleOperation> lastScaleOperation() {
+    PbScaleCheckpoint checkpoint = scaleCheckpoint;
+    if (!checkpoint.hasLastOperation()) {
+      return null;
+    }
+    PbScaleOperationRequest last = checkpoint.getLastOperation();
+    return Pair.of(last.getOperationId(), ScaleOperation$.MODULE$.fromPb(last.getScaleOperation()));
+  }
+
   public void updateMetaByReportWorkerDecommission(List<WorkerInfo> workers) {
     synchronized (this.workersMap) {
       decommissionWorkers.addAll(workers);
@@ -720,7 +763,11 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             && !workerEventInfos.containsKey(workerInfo))
         && !excludedWorkers.contains(workerInfo)
         && !shutdownWorkers.contains(workerInfo)
-        && !manuallyExcludedWorkers.contains(workerInfo);
+        && !decommissionWorkers.contains(workerInfo)
+        && !manuallyExcludedWorkers.contains(workerInfo)
+        && (scaleAllowedWorkerIndices == null
+            || workerInfo.workerIndex() < 0
+            || scaleAllowedWorkerIndices.contains(workerInfo.workerIndex()));
   }
 
   private void updateAvailableWorkers(WorkerInfo worker) {

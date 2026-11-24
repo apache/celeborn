@@ -30,6 +30,7 @@ import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.network.CelebornRackResolver;
+import org.apache.celeborn.common.protocol.PbScaleCheckpoint;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 import org.apache.celeborn.common.rpc.RpcEnv;
 import org.apache.celeborn.service.deploy.master.ApplicationMetricsSource;
@@ -206,6 +207,12 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   @Override
   public void handleUpdatePartitionSize() {
     updatePartitionSize();
+  }
+
+  @Override
+  public boolean handleCompareAndSetScaleCheckpoint(
+      long leaderTerm, long expectedRevision, PbScaleCheckpoint next) {
+    return compareAndSetScaleCheckpoint(expectedRevision, next);
   }
 
   @Override

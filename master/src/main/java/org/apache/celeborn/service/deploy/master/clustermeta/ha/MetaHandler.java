@@ -103,6 +103,10 @@ public class MetaHandler {
 
   public org.apache.celeborn.common.protocol.PbMetaRequestResponse handleWriteRequest(
       PbMetaRequest request) {
+    return handleWriteRequest(request, -1L);
+  }
+
+  public PbMetaRequestResponse handleWriteRequest(PbMetaRequest request, long entryTerm) {
     PbMetaRequestType metaRequestType = request.getMetaRequestType();
     org.apache.celeborn.common.protocol.PbMetaRequestResponse.Builder responseBuilder =
         getMasterMetaResponseBuilder(request);
@@ -291,6 +295,20 @@ public class MetaHandler {
           List<WorkerInfo> decommissionWorkers =
               decommissionList.stream().map(MetaUtil::pbInfoToInfo).collect(Collectors.toList());
           metaSystem.updateMetaByReportWorkerDecommission(decommissionWorkers);
+          break;
+
+        case CompareAndSetScaleCheckpoint:
+          PbCompareAndSetScaleCheckpointRequest update =
+              request.getCompareAndSetScaleCheckpointRequest();
+          if (entryTerm < 0
+              || update.getLeaderTerm() != entryTerm
+              || !metaSystem.compareAndSetScaleCheckpoint(
+                  update.getExpectedRevision(), update.getCheckpoint())) {
+            return responseBuilder
+                .setSuccess(false)
+                .setStatus(PbMetaRequestStatus.STALE_SCALE_CHECKPOINT)
+                .build();
+          }
           break;
 
         default:

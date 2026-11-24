@@ -180,7 +180,7 @@ public class StateMachine extends BaseStateMachine {
     try {
       PbMetaRequest request =
           HAHelper.convertByteStringToRequest(trx.getStateMachineLogEntry().getLogData());
-      long trxLogIndex = trx.getLogEntry().getIndex();
+      long entryTerm = trx.getLogEntry().getTerm();
       // In the current approach we have one single global thread executor.
       // with single thread. Right now this is being done for correctness, as
       // applyTransaction will be run on multiple Master we want to execute the
@@ -189,7 +189,7 @@ public class StateMachine extends BaseStateMachine {
       // Ref: from Ozone project (OzoneManagerStateMachine)
       CompletableFuture<Message> ratisFuture = new CompletableFuture<>();
       CompletableFuture<PbMetaRequestResponse> future =
-          CompletableFuture.supplyAsync(() -> runCommand(request, trxLogIndex), executorService);
+          CompletableFuture.supplyAsync(() -> runCommand(request, entryTerm), executorService);
       future.thenApply(
           response -> {
             if (!response.getSuccess()) {
@@ -216,9 +216,9 @@ public class StateMachine extends BaseStateMachine {
    * @return response from meta system
    */
   @VisibleForTesting
-  protected PbMetaRequestResponse runCommand(PbMetaRequest request, long trxLogIndex) {
+  protected PbMetaRequestResponse runCommand(PbMetaRequest request, long entryTerm) {
     try {
-      return metaHandler.handleWriteRequest(request);
+      return metaHandler.handleWriteRequest(request, entryTerm);
     } catch (Throwable e) {
       String errorMessage = "Request " + request + "failed with exception";
       ExitUtils.terminate(1, errorMessage, e, LOG);

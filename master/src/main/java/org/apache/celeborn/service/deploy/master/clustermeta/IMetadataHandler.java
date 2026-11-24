@@ -25,6 +25,7 @@ import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
+import org.apache.celeborn.common.protocol.PbScaleCheckpoint;
 import org.apache.celeborn.common.quota.ResourceConsumption;
 
 public interface IMetadataHandler {
@@ -114,6 +115,7 @@ public interface IMetadataHandler {
       String networkLocation,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      int workerIndex,
       String requestId);
 
   void handleReportWorkerUnavailable(List<WorkerInfo> failedNodes, String requestId);
@@ -122,6 +124,9 @@ public interface IMetadataHandler {
       int workerEventTypeValue, List<WorkerInfo> workerInfoList, String requestId);
 
   void handleUpdatePartitionSize();
+
+  boolean handleCompareAndSetScaleCheckpoint(
+      long leaderTerm, long expectedRevision, PbScaleCheckpoint next);
 
   void handleApplicationMeta(ApplicationMeta applicationMeta);
 

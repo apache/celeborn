@@ -1456,15 +1456,16 @@ private[celeborn] class Master(
   }
 
   private def workersAvailable(
-      tmpExcludedWorkerList: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] = {
-    if (tmpExcludedWorkerList.isEmpty) {
-      new util.ArrayList[WorkerInfo](statusSystem.availableWorkers)
-    } else {
-      val availableWorkers = new util.HashSet(statusSystem.availableWorkers)
-      tmpExcludedWorkerList.foreach(availableWorkers.remove)
-      new util.ArrayList[WorkerInfo](availableWorkers)
+      tmpExcludedWorkerList: Set[WorkerInfo] = Set.empty): util.List[WorkerInfo] =
+    statusSystem.workersMap.synchronized {
+      if (tmpExcludedWorkerList.isEmpty) {
+        new util.ArrayList[WorkerInfo](statusSystem.availableWorkers)
+      } else {
+        val availableWorkers = new util.HashSet(statusSystem.availableWorkers)
+        tmpExcludedWorkerList.foreach(availableWorkers.remove)
+        new util.ArrayList[WorkerInfo](availableWorkers)
+      }
     }
-  }
 
   private def handleRequestForApplicationMeta(
       context: RpcCallContext,
