@@ -311,7 +311,9 @@ public class ConfigServiceSuiteJ {
           ("- level: SYSETM\n" + "  config:\n" + "    celeborn.test.int.only: 100\n")
               .getBytes(StandardCharsets.UTF_8));
       celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), configFile.toString());
-      Assert.assertThrows(IllegalArgumentException.class, () -> configService.refreshCache());
+      IllegalArgumentException exception =
+          Assert.assertThrows(IllegalArgumentException.class, () -> configService.refreshCache());
+      Assert.assertFalse(exception.getMessage().contains("celeborn.test.int.only"));
       Assert.assertSame(previousSystem, configService.getSystemConfigFromCache());
       Assert.assertSame(previousTenant, configService.getRawTenantConfigFromCache("tenant_id"));
       Assert.assertSame(
@@ -320,6 +322,48 @@ public class ConfigServiceSuiteJ {
       verifyTenantConfig(configService);
       verifyTenantUserConfig(configService);
       verifyTags(configService);
+    } finally {
+      Files.deleteIfExists(configFile);
+    }
+  }
+
+  @Test
+  public void testFsConfigTenantRecordWithoutLevel() throws Exception {
+    CelebornConf celebornConf = prepareFsConfigRefreshTest();
+    Path configFile = Files.createTempFile("celeborn-no-level-dynamic-config", ".yaml");
+    try {
+      Files.write(
+          configFile,
+          ("- tenantId: tenant_id\n" + "  config:\n" + "    celeborn.test.int.only: 100\n")
+              .getBytes(StandardCharsets.UTF_8));
+      celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), configFile.toString());
+      configService.refreshCache();
+      TenantConfig tenantConfig = configService.getRawTenantConfigFromCache("tenant_id");
+      Assert.assertNotNull(tenantConfig);
+      Assert.assertEquals(
+          Integer.valueOf(100),
+          tenantConfig.getValue("celeborn.test.int.only", null, Integer.TYPE, ConfigType.STRING));
+    } finally {
+      Files.deleteIfExists(configFile);
+    }
+  }
+
+  @Test
+  public void testFsConfigUnrecognizedLevelWithTenantIdIsRejected() throws Exception {
+    CelebornConf celebornConf = prepareFsConfigRefreshTest();
+    SystemConfig previousSystem = configService.getSystemConfigFromCache();
+    Path configFile = Files.createTempFile("celeborn-bad-level-dynamic-config", ".yaml");
+    try {
+      Files.write(
+          configFile,
+          ("- level: SYSETM\n"
+                  + "  tenantId: tenant_id\n"
+                  + "  config:\n"
+                  + "    celeborn.test.int.only: 100\n")
+              .getBytes(StandardCharsets.UTF_8));
+      celebornConf.set(CelebornConf.DYNAMIC_CONFIG_STORE_FS_PATH(), configFile.toString());
+      Assert.assertThrows(IllegalArgumentException.class, () -> configService.refreshCache());
+      Assert.assertSame(previousSystem, configService.getSystemConfigFromCache());
     } finally {
       Files.deleteIfExists(configFile);
     }

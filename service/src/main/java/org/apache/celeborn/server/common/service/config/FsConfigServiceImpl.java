@@ -24,11 +24,15 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 import org.apache.celeborn.common.CelebornConf;
 
 public class FsConfigServiceImpl extends BaseConfigServiceImpl implements ConfigService {
+  private static final Logger LOG = LoggerFactory.getLogger(FsConfigServiceImpl.class);
+
   private static final String CONF_TENANT_ID = "tenantId";
   private static final String CONF_TENANT_USERS = "users";
   private static final String CONF_TENANT_NAME = "name";
@@ -100,19 +104,35 @@ public class FsConfigServiceImpl extends BaseConfigServiceImpl implements Config
   }
 
   private void validateConfigs(List<Map<String, Object>> configs) {
-    for (Map<String, Object> configMap : configs) {
+    for (int index = 0; index < configs.size(); index++) {
+      Map<String, Object> configMap = configs.get(index);
       Object level = configMap.get(CONF_LEVEL);
-      if (ConfigLevel.SYSTEM.name().equals(level)) {
-        continue;
-      }
-      if (!ConfigLevel.TENANT.name().equals(level) || configMap.get(CONF_TENANT_ID) == null) {
+      Object tenantId = configMap.get(CONF_TENANT_ID);
+
+      boolean valid =
+          ConfigLevel.SYSTEM.name().equals(level)
+              || (ConfigLevel.TENANT.name().equals(level) && tenantId != null)
+              || (level == null && tenantId != null);
+      if (!valid) {
         throw new IllegalArgumentException(
             String.format(
-                "Unrecognized dynamic config record, expected level SYSTEM, or level TENANT "
-                    + "with a non-null tenantId, but got %s",
-                configMap));
+                "Invalid dynamic config record at index %d: %s", index, invalidReason(level)));
+      }
+      if (level == null) {
+        // Backward compatibility: records without level have always been treated as tenants.
+        LOG.warn(
+            "Dynamic config record for tenant {} has no level, treating it as a tenant record "
+                + "for backward compatibility",
+            tenantId);
       }
     }
+  }
+
+  private static String invalidReason(Object level) {
+    if (ConfigLevel.TENANT.name().equals(level)) {
+      return "tenantId is required for level TENANT";
+    }
+    return level == null ? "missing level and tenantId" : "unrecognized level";
   }
 
   @Override
