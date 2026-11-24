@@ -23,11 +23,12 @@ import java.util
 import java.util.{Map => JMap}
 import java.util.Collections
 import java.util.concurrent.{ExecutorService, ScheduledFuture, ThreadLocalRandom, TimeUnit}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.util.concurrent.atomic.AtomicReference
 import java.util.function.ToLongFunction
 
 import scala.collection.JavaConverters._
 import scala.util.Random
+import scala.util.control.NonFatal
 
 import com.google.common.annotations.VisibleForTesting
 import org.apache.commons.lang3.function.FailableConsumer
@@ -57,6 +58,7 @@ import org.apache.celeborn.service.deploy.master.audit.ShuffleAuditLogger
 import org.apache.celeborn.service.deploy.master.clustermeta.SingleMasterMetaManager
 import org.apache.celeborn.service.deploy.master.clustermeta.ha.{HAHelper, HAMasterMetaManager, MetaHandler}
 import org.apache.celeborn.service.deploy.master.quota.QuotaManager
+import org.apache.celeborn.service.deploy.master.scale.ScaleManager
 import org.apache.celeborn.service.deploy.master.slotsalloc.{SlotsAllocator, SlotsAssignStrategyManager}
 import org.apache.celeborn.service.deploy.master.tags.TagsManager
 
@@ -65,6 +67,7 @@ private[celeborn] class Master(
     val masterArgs: MasterArguments)
   extends HttpService with RpcEndpoint with Logging {
 
+  @volatile private var stopping = false
   @volatile private var stopped = false
 
   override def serviceName: String = Service.MASTER
@@ -100,6 +103,18 @@ private[celeborn] class Master(
   if (conf.logCelebornConfEnabled) {
     logInfo(getConf)
   }
+
+  private var scaleManager: Option[ScaleManager] =
+    conf.get(CelebornConf.SCALE_MANAGER_CLASS_NAME).map { className =>
+      val instance = Utils.instantiateClassWithCelebornConf[AnyRef](className, conf)
+      instance match {
+        case manager: ScaleManager => manager
+        case _ =>
+          throw new IllegalArgumentException(
+            s"${CelebornConf.SCALE_MANAGER_CLASS_NAME.key} class $className must implement " +
+              classOf[ScaleManager].getName)
+      }
+    }
 
   override val rpcEnv: RpcEnv =
     if (!authEnabled) {
@@ -316,7 +331,9 @@ private[celeborn] class Master(
     }
   }
 
-  private val threadsStarted: AtomicBoolean = new AtomicBoolean(false)
+  private val lifecycleLock = new Object
+  private var threadsStarted = false
+  private var threadsStopped = false
   rpcEnv.setupEndpoint(RpcNameConstants.MASTER_EP, this)
   // Visible for testing
   private[master] var internalRpcEndpoint: RpcEndpoint = _
@@ -336,10 +353,11 @@ private[celeborn] class Master(
   private val messagesHelper: TransportMessagesHelper = new TransportMessagesHelper()
 
   // start threads to check timeout for workers and applications
-  override def onStart(): Unit = {
-    if (!threadsStarted.compareAndSet(false, true)) {
+  override def onStart(): Unit = lifecycleLock.synchronized {
+    if (threadsStarted || threadsStopped) {
       return
     }
+    threadsStarted = true
     if (authEnabled) {
       sendApplicationMetaExecutor = ThreadUtils.newDaemonFixedThreadPool(
         sendApplicationMetaThreads,
@@ -361,6 +379,29 @@ private[celeborn] class Master(
         scheduleCheckTask(dfsExpireDirsTimeoutMS, CheckForDFSExpiredDirsTimeout)
     }
 
+    if (!stopping) {
+      scaleManager.foreach { manager =>
+        try {
+          manager.init(statusSystem)
+          if (!stopping) {
+            manager.start()
+          }
+        } catch {
+          case NonFatal(e) =>
+            logError(
+              s"Failed to start ScaleManager ${manager.getClass.getName}. Autoscaling is disabled.",
+              e)
+            stopScaleManager()
+        }
+      }
+    }
+  }
+
+  private def stopScaleManager(): Unit = {
+    scaleManager.foreach { manager =>
+      scaleManager = None
+      Utils.tryLogNonFatalError(manager.stop())
+    }
   }
 
   private def scheduleCheckTask[T](timeoutMS: Long, message: T): ScheduledFuture[_] = {
@@ -375,11 +416,18 @@ private[celeborn] class Master(
       TimeUnit.MILLISECONDS)
   }
 
-  override def onStop(): Unit = {
-    if (!threadsStarted.compareAndSet(true, false)) {
+  override def onStop(): Unit = lifecycleLock.synchronized {
+    if (threadsStopped) {
+      return
+    }
+    threadsStopped = true
+    if (!threadsStarted) {
+      stopScaleManager()
       return
     }
     logInfo("Stopping Celeborn Master.")
+
+    stopScaleManager()
 
     Option(checkForWorkerTimeoutTask).foreach(_.cancel(true))
     Option(checkForUnavailableWorkerTimeOutTask).foreach(_.cancel(true))
@@ -1717,6 +1765,7 @@ private[celeborn] class Master(
 
   override def stop(exitKind: Int): Unit = synchronized {
     if (!stopped) {
+      stopping = true
       logInfo("Stopping Master")
       // Transfer Raft leadership before shutting down so other masters can
       // immediately take over without waiting for heartbeat timeout.

@@ -97,6 +97,8 @@ license: |
 | celeborn.quota.tenant.enabled | true | false | Whether to enable tenant-level quota. | 0.6.0 |  | 
 | celeborn.quota.user.enabled | true | false | Whether to enable user-level quota. | 0.6.0 |  | 
 | celeborn.redaction.regex | (?i)secret|password|token|access[.]key | false | Regex to decide which Celeborn configuration properties and environment variables in master and worker environments contain sensitive information. When this regex matches a property key or value, the value is redacted from the logging. | 0.5.0 |  | 
+| celeborn.scale.check.interval | 30s | false | Interval between checks in AbstractScaleManager. Must be at least 1 ms. | 1.0.0 |  | 
+| celeborn.scale.manager.class | &lt;undefined&gt; | false | ScaleManager implementation class with a CelebornConf constructor. Master calls init, start and stop; init and start must return promptly and schedule background work asynchronously, and the implementation must handle HA leadership. If init or start fails with a non-fatal exception, Master disables autoscaling and calls stop for cleanup. The implementation must tolerate stop after partial startup. Unset disables autoscaling. | 1.0.0 |  | 
 | celeborn.storage.availableTypes | HDD | false | Enabled storages. Available options: MEMORY,HDD,SSD,HDFS,S3,OSS. Note: HDD and SSD would be treated as identical. | 0.3.0 | celeborn.storage.activeTypes | 
 | celeborn.storage.hdfs.dir | &lt;undefined&gt; | false | HDFS base directory for Celeborn to store shuffle data. | 0.2.0 |  | 
 | celeborn.storage.hdfs.kerberos.keytab | &lt;undefined&gt; | false | Kerberos keytab file path for HDFS storage connection. | 0.3.2 |  | 
