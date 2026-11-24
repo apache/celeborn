@@ -59,7 +59,7 @@ public enum ByteUnit {
     if (d < 0) {
       throw new IllegalArgumentException("Negative size value. Size must be positive: " + d);
     }
-    return d * multiplier;
+    return convertTo(d, BYTE);
   }
 
   public long toKiB(long d) {
