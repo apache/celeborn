@@ -27,6 +27,13 @@ open a Jira ticket first and describe what improvement you would like to do.
 After reaching a consensus, you can open a pull request and your pull request 
 will get merged after reviewed.
 
+### Open Pull Request Limit
+To help reviewers focus on fewer pull requests at a time, users without write access are limited to
+**3 open, non-draft pull requests**. If you reach the limit, wait for existing pull requests to be merged,
+close them, or convert them to drafts before opening another. For work that is split into a series of
+small pull requests, keep only the one that is ready for review, or that the later ones depend on, as
+non-draft, and open the others as drafts until it merges.
+
 ## Improvements on the Schedule
 There are already some further improvements on the schedule and welcome to contact us for collaboration:
 1. Flink support.
