@@ -572,6 +572,7 @@ private[celeborn] class Master(
       val fetchPort = pbRegisterWorker.getFetchPort
       val replicatePort = pbRegisterWorker.getReplicatePort
       val internalPort = pbRegisterWorker.getInternalPort
+      val workerIndex = if (pbRegisterWorker.hasWorkerIndex) pbRegisterWorker.getWorkerIndex else -1
       val networkLocation = pbRegisterWorker.getNetworkLocation
       val disks = pbRegisterWorker.getDisksList.asScala
         .map { pbDiskInfo => pbDiskInfo.getMountPoint -> PbSerDeUtils.fromPbDiskInfo(pbDiskInfo) }
@@ -594,6 +595,7 @@ private[celeborn] class Master(
           networkLocation,
           disks,
           userResourceConsumption,
+          workerIndex,
           requestId))
 
     case requestSlots @ RequestSlots(applicationId, _, _, _, _, _, _, _, _, _, _, _, _) =>
@@ -922,6 +924,7 @@ private[celeborn] class Master(
       networkLocation: String,
       disks: util.Map[String, DiskInfo],
       userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption],
+      workerIndex: Int,
       requestId: String): Unit = {
     val workerToRegister =
       new WorkerInfo(
@@ -957,6 +960,7 @@ private[celeborn] class Master(
         networkLocation,
         disks,
         userResourceConsumption,
+        workerIndex,
         requestId)
       context.reply(RegisterWorkerResponse(true, "Worker in snapshot, re-register."))
     } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
@@ -973,6 +977,7 @@ private[celeborn] class Master(
         networkLocation,
         disks,
         userResourceConsumption,
+        workerIndex,
         requestId)
       context.reply(RegisterWorkerResponse(true, "Worker in workerLostEvents, re-register."))
     } else {
@@ -986,6 +991,7 @@ private[celeborn] class Master(
         networkLocation,
         disks,
         userResourceConsumption,
+        workerIndex,
         requestId)
       logInfo(s"Registered worker $workerToRegister.")
       context.reply(RegisterWorkerResponse(true, ""))

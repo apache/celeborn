@@ -507,6 +507,16 @@ class PbSerDeUtilsTest extends CelebornFunSuite {
     assert(restoredUserResourceConsumption.equals(userResourceConsumption))
   }
 
+  test("WorkerInfo preserves a managed ordinal and omits the unmanaged index") {
+    val worker = new WorkerInfo("host", 1, 2, 3, 4)
+    Seq(-1, 0, 7).foreach { index =>
+      worker.workerIndex = index
+      val pb = PbSerDeUtils.toPbWorkerInfo(worker, false, false)
+      assert(pb.hasWorkerIndex == (index >= 0))
+      assert(PbSerDeUtils.fromPbWorkerInfo(pb).workerIndex == index)
+    }
+  }
+
   test("fromAndToPbWorkerInfo") {
     Seq(false, true).foreach { b =>
       PbSerDeUtils.setMasterPersistWorkerNetworkLocation(b)

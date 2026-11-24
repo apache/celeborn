@@ -857,6 +857,7 @@ class CelebornConf(loadDefaults: Boolean) extends Cloneable with Logging with Se
   def workerHttpMaxWorkerThreads: Int = get(WORKER_HTTP_MAX_WORKER_THREADS)
   def workerHttpStopTimeout: Long = get(WORKER_HTTP_STOP_TIMEOUT)
   def workerHttpIdleTimeout: Long = get(WORKER_HTTP_IDLE_TIMEOUT)
+  def workerIndex: Int = get(WORKER_INDEX)
   def workerRpcPort: Int = get(WORKER_RPC_PORT)
   def workerPushPort: Int = get(WORKER_PUSH_PORT)
   def workerFetchPort: Int = get(WORKER_FETCH_PORT)
@@ -3844,6 +3845,17 @@ object CelebornConf extends Logging {
       .stringConf
       .toSequence
       .createWithDefault(Nil)
+
+  val WORKER_INDEX: ConfigEntry[Int] =
+    buildConf("celeborn.worker.index")
+      .categories("worker")
+      .doc("Optional non-negative Worker ordinal used for autoscaling. " +
+        "Set this to the Pod ordinal for Workers managed by a Kubernetes or OpenKruise " +
+        "StatefulSet. The default of -1 identifies an unmanaged Worker.")
+      .version("1.0.0")
+      .intConf
+      .checkValue(_ >= -1, "Worker index must be -1 or a non-negative ordinal.")
+      .createWithDefault(-1)
 
   val WORKER_RPC_PORT: ConfigEntry[Int] =
     buildConf("celeborn.worker.rpc.port")

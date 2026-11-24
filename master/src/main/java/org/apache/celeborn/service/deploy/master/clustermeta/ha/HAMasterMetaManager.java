@@ -399,23 +399,27 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       String networkLocation,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      int workerIndex,
       String requestId) {
     try {
+      ResourceProtos.RegisterWorkerRequest.Builder register =
+          ResourceProtos.RegisterWorkerRequest.newBuilder()
+              .setHost(host)
+              .setRpcPort(rpcPort)
+              .setPushPort(pushPort)
+              .setFetchPort(fetchPort)
+              .setReplicatePort(replicatePort)
+              .setInternalPort(internalPort)
+              .setNetworkLocation(networkLocation)
+              .putAllDisks(MetaUtil.toPbDiskInfos(disks));
+      if (workerIndex >= 0) {
+        register.setWorkerIndex(workerIndex);
+      }
       ResourceRequest request =
           ResourceRequest.newBuilder()
               .setCmdType(Type.RegisterWorker)
               .setRequestId(requestId)
-              .setRegisterWorkerRequest(
-                  ResourceProtos.RegisterWorkerRequest.newBuilder()
-                      .setHost(host)
-                      .setRpcPort(rpcPort)
-                      .setPushPort(pushPort)
-                      .setFetchPort(fetchPort)
-                      .setReplicatePort(replicatePort)
-                      .setInternalPort(internalPort)
-                      .setNetworkLocation(networkLocation)
-                      .putAllDisks(MetaUtil.toPbDiskInfos(disks))
-                      .build())
+              .setRegisterWorkerRequest(register)
               .build();
       if (heartbeatAggregator != null) {
         // Flush any pending heartbeat of this worker first, so a stale heartbeat is not

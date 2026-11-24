@@ -79,6 +79,31 @@ public interface IMetadataHandler {
       WorkerStatus workerStatus,
       String requestId);
 
+  default void handleRegisterWorker(
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      int internalPort,
+      String networkLocation,
+      Map<String, DiskInfo> disks,
+      Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      String requestId) {
+    handleRegisterWorker(
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        internalPort,
+        networkLocation,
+        disks,
+        userResourceConsumption,
+        -1,
+        requestId);
+  }
+
   void handleRegisterWorker(
       String host,
       int rpcPort,

@@ -176,9 +176,18 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       String networkLocation,
       Map<String, DiskInfo> disks,
       Map<UserIdentifier, ResourceConsumption> userResourceConsumption,
+      int workerIndex,
       String requestId) {
     updateRegisterWorkerMeta(
-        host, rpcPort, pushPort, fetchPort, replicatePort, internalPort, networkLocation, disks);
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        internalPort,
+        networkLocation,
+        disks,
+        workerIndex);
     updateWorkerResourceConsumptions(
         host, rpcPort, pushPort, fetchPort, replicatePort, userResourceConsumption);
   }

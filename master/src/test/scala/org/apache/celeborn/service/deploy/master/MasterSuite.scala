@@ -31,9 +31,9 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.identity.UserIdentifier
 import org.apache.celeborn.common.meta.{DiskInfo, WorkerInfo}
 import org.apache.celeborn.common.network.client.{RpcResponseCallback, TransportClient}
-import org.apache.celeborn.common.protocol.{PbApplicationMetaRequest, PbCheckForWorkerTimeout, PbRegisterWorker, PbRequestWorkers, PbRequestWorkersResponse}
+import org.apache.celeborn.common.protocol.{PbApplicationMetaRequest, PbCheckForWorkerTimeout, PbRequestWorkers, PbRequestWorkersResponse}
 import org.apache.celeborn.common.protocol.StorageInfo
-import org.apache.celeborn.common.protocol.message.ControlMessages.{RequestSlots, RequestSlotsResponse, ReviseLostShuffles}
+import org.apache.celeborn.common.protocol.message.ControlMessages.{RegisterWorker, RequestSlots, RequestSlotsResponse, ReviseLostShuffles}
 import org.apache.celeborn.common.protocol.message.StatusCode
 import org.apache.celeborn.common.quota.ResourceConsumption
 import org.apache.celeborn.common.rpc.{RpcAddress, RpcCallContext}
@@ -140,10 +140,16 @@ class MasterSuite extends AnyFunSuite
         PbCheckForWorkerTimeout.newBuilder().build(),
         (_: Any) => fail("Unexpected message"))
 
-      master.internalRpcEndpoint.receiveAndReply(
-        mock(classOf[org.apache.celeborn.common.rpc.RpcCallContext])).applyOrElse(
-        PbRegisterWorker.newBuilder().build(),
-        (_: Any) => fail("Unexpected message"))
+      Seq(-1, 0, 7, -1).foreach { index =>
+        val registration =
+          RegisterWorker("localhost", 1, 2, 3, 4, 5, "", Map.empty, Map.empty, "", index)
+        assert(registration.hasWorkerIndex == (index >= 0))
+        master.internalRpcEndpoint.receiveAndReply(mock(classOf[RpcCallContext])).applyOrElse(
+          registration,
+          (_: Any) => fail("Unexpected message"))
+        assert(master.statusSystem.workersMap.size() == 1)
+        assert(master.statusSystem.workersMap.values().iterator().next().workerIndex == index)
+      }
       master.stop(CelebornExitKind.EXIT_IMMEDIATELY)
       master.rpcEnv.shutdown()
       master.internalRpcEnvInUse.shutdown()

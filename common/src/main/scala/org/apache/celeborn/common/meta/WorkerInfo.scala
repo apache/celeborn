@@ -43,6 +43,7 @@ class WorkerInfo(
     _diskInfos: util.Map[String, DiskInfo],
     _userResourceConsumption: util.Map[UserIdentifier, ResourceConsumption]) extends Serializable
   with Logging {
+  @volatile var workerIndex: Int = -1
   var networkLocation = NetworkTopology.DEFAULT_RACK
   var nextInterruptionNotice = Long.MaxValue
   var lastHeartbeat: Long = 0

@@ -468,6 +468,7 @@ public class RatisMasterStatusSystemSuiteJ {
         NETWORK_LOCATION2,
         disks2,
         userResourceConsumption2,
+        0,
         getNewReqeustId());
     statusSystem.handleRegisterWorker(
         HOSTNAME3,
@@ -479,6 +480,7 @@ public class RatisMasterStatusSystemSuiteJ {
         NETWORK_LOCATION3,
         disks3,
         userResourceConsumption3,
+        7,
         getNewReqeustId());
     Thread.sleep(3000L);
 
@@ -496,9 +498,14 @@ public class RatisMasterStatusSystemSuiteJ {
   }
 
   private void assertWorkers(Collection<WorkerInfo> workerInfos) {
+    Map<String, Integer> indices = new HashMap<>();
     for (WorkerInfo workerInfo : workerInfos) {
       assertWorker(workerInfo);
+      indices.put(workerInfo.host(), workerInfo.workerIndex());
     }
+    Assert.assertEquals(Integer.valueOf(-1), indices.get(HOSTNAME1));
+    Assert.assertEquals(Integer.valueOf(0), indices.get(HOSTNAME2));
+    Assert.assertEquals(Integer.valueOf(7), indices.get(HOSTNAME3));
   }
 
   private void assertWorker(WorkerInfo workerInfo) {

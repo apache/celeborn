@@ -305,6 +305,7 @@ object PbSerDeUtils {
       pbWorkerInfo.getInternalPort,
       disks,
       userResourceConsumption)
+    workerInfo.workerIndex = if (pbWorkerInfo.hasWorkerIndex) pbWorkerInfo.getWorkerIndex else -1
     if (masterPersistWorkerNetworkLocation) {
       workerInfo.networkLocation = pbWorkerInfo.getNetworkLocation
     }
@@ -328,6 +329,10 @@ object PbSerDeUtils {
       .setPushPort(workerInfo.pushPort)
       .setReplicatePort(workerInfo.replicatePort)
       .setInternalPort(workerInfo.internalPort)
+    val workerIndex = workerInfo.workerIndex
+    if (workerIndex >= 0) {
+      builder.setWorkerIndex(workerIndex)
+    }
     if (masterPersistWorkerNetworkLocation) {
       builder.setNetworkLocation(workerInfo.networkLocation)
     }

@@ -403,6 +403,28 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int internalPort,
       String networkLocation,
       Map<String, DiskInfo> disks) {
+    updateRegisterWorkerMeta(
+        host,
+        rpcPort,
+        pushPort,
+        fetchPort,
+        replicatePort,
+        internalPort,
+        networkLocation,
+        disks,
+        -1);
+  }
+
+  public void updateRegisterWorkerMeta(
+      String host,
+      int rpcPort,
+      int pushPort,
+      int fetchPort,
+      int replicatePort,
+      int internalPort,
+      String networkLocation,
+      Map<String, DiskInfo> disks,
+      int workerIndex) {
     WorkerInfo workerInfo =
         new WorkerInfo(
             host,
@@ -413,6 +435,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             internalPort,
             disks,
             new HashMap<>());
+    workerInfo.workerIndex_$eq(workerIndex);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
     if (networkLocation != null
         && !networkLocation.isEmpty()
@@ -423,7 +446,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
     workerInfo.updateDiskSlots(estimatedPartitionSize);
     synchronized (workersMap) {
-      workersMap.putIfAbsent(workerInfo.toUniqueId(), workerInfo);
+      WorkerInfo existing = workersMap.putIfAbsent(workerInfo.toUniqueId(), workerInfo);
+      if (existing != null) {
+        existing.workerIndex_$eq(workerIndex);
+      }
       workerStats.put(workerInfo, new AtomicReference<>());
       shutdownWorkers.remove(workerInfo);
       lostWorkers.remove(workerInfo);
