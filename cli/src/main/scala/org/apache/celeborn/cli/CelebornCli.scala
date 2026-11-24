@@ -17,7 +17,8 @@
 
 package org.apache.celeborn.cli
 import picocli.CommandLine
-import picocli.CommandLine.Command
+import picocli.CommandLine.{Command, ParameterException, Spec}
+import picocli.CommandLine.Model.CommandSpec
 
 import org.apache.celeborn.cli.common.BaseCommand
 import org.apache.celeborn.cli.master.MasterSubcommandImpl
@@ -29,14 +30,22 @@ import org.apache.celeborn.cli.worker.WorkerSubcommandImpl
     classOf[MasterSubcommandImpl],
     classOf[WorkerSubcommandImpl]))
 class CelebornCli extends BaseCommand {
+  @Spec
+  private var spec: CommandSpec = _
+
   override def run(): Unit = {
-    logError(
+    throw new ParameterException(
+      spec.commandLine(),
       "Master or Worker subcommand needs to be provided. Please run -h to see the usage info.")
   }
 }
 
 object CelebornCli {
   def main(args: Array[String]): Unit = {
+    System.exit(execute(args))
+  }
+
+  private[cli] def execute(args: Array[String]): Int = {
     val cmd = new CommandLine(new CelebornCli())
     cmd.setOptionsCaseInsensitive(false)
     cmd.setSubcommandsCaseInsensitive(false)
