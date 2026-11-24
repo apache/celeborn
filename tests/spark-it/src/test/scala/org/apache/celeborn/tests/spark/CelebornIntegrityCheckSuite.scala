@@ -17,6 +17,8 @@
 
 package org.apache.celeborn.tests.spark
 
+import java.nio.charset.StandardCharsets
+
 import org.apache.spark._
 import org.apache.spark.shuffle.celeborn.{SparkUtils, TestCelebornShuffleManager}
 import org.apache.spark.sql.SparkSession
@@ -39,6 +41,9 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
   }
 
   override def afterEach(): Unit = {
+    // A session left behind by a failed test would otherwise be reused by the next test's
+    // getOrCreate() with the previous test's configs.
+    stopActiveSparkSessions()
     System.gc()
   }
 
@@ -54,29 +59,33 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
         .config(
           s"spark.${CelebornConf.SHUFFLE_COMPRESSION_CODEC.key}",
           CompressionCodec.NONE.toString)
+        .config(s"spark.${CelebornConf.CLIENT_STAGE_RERUN_ENABLED.key}", "false")
+        .config(s"spark.${CelebornConf.CLIENT_FETCH_CLEAN_FAILED_SHUFFLE.key}", "false")
+        .config(s"spark.${CelebornConf.CLIENT_SHUFFLE_INTEGRITY_CHECK_ENABLED.key}", "false")
         .getOrCreate()
 
-      // Introduce Data Corruption in single bit in 1 partition location file
+      // Flip "5000" to "5100" inside one serialized value. A random flip could hit a Kryo
+      // length or reference id and abort the job instead of returning wrong data.
       val celebornConf = SparkUtils.fromSparkConf(sparkSession.sparkContext.getConf)
-      val hook = new ShuffleReaderGetHookForCorruptedData(celebornConf, workerDirs)
+      val hook = new ShuffleReaderGetHookForCorruptedData(
+        celebornConf,
+        workerDirs,
+        targetBytes = Some((",5000,".getBytes(StandardCharsets.US_ASCII), 2)))
       TestCelebornShuffleManager.registerReaderGetHook(hook)
 
       val value = Range(1, 10000).mkString(",")
-      val tuples = sparkSession.sparkContext.parallelize(1 to 1000, 2)
-        .map { i => (i, value) }.groupByKey(16).collect()
-
-      assert(tuples.length == 1000)
-
       try {
-        for (elem <- tuples) {
-          assert(elem._2.mkString(",").equals(value))
-        }
-      } catch {
-        case e: Throwable =>
-          e.getMessage.contains("elem._2.mkString(\",\").equals(value) was false")
+        val tuples = sparkSession.sparkContext.parallelize(1 to 1000, 2)
+          .map { i => (i, value) }.groupByKey(16).collect()
+
+        assert(tuples.length == 1000)
+        val changed = tuples.flatMap(_._2).filter(_ != value)
+        assert(changed.nonEmpty, "no collected value differs from the original")
+        assert(changed.forall(_ == value.replace(",5000,", ",5100,")))
       } finally {
         sparkSession.stop()
       }
+      assert(hook.corruptedCount == 1, "hook did not corrupt any data file; test passed vacuously")
     }
   }
 
@@ -137,6 +146,7 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
       } finally {
         sparkSession.stop()
       }
+      assert(hook.corruptedCount == 1, "hook did not corrupt any data file; test passed vacuously")
     }
   }
 
@@ -174,6 +184,7 @@ class CelebornIntegrityCheckSuite extends AnyFunSuite
       } finally {
         sparkSession.stop()
       }
+      assert(hook.corruptedCount == 1, "hook did not corrupt any data file; test passed vacuously")
     }
   }
 }

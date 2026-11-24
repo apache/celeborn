@@ -36,7 +36,10 @@ class ShuffleReaderGetHookForCorruptedData(
     conf: CelebornConf,
     workerDirs: Seq[String],
     shuffleIdToBeModified: Seq[Int] = Seq(),
-    triggerStageId: Option[Int] = None)
+    triggerStageId: Option[Int] = None,
+    // When set to (pattern, index), flip bit 0 of pattern(index) at the first match of pattern
+    // inside a data section, instead of a random bit at a random offset.
+    targetBytes: Option[(Array[Byte], Int)] = None)
   extends ShuffleManagerHook {
 
   private val logger = LoggerFactory.getLogger(classOf[ShuffleReaderGetHookForCorruptedData])
@@ -84,7 +87,7 @@ class ShuffleReaderGetHookForCorruptedData(
       }
     }
     // If we couldn't corrupt any file through the normal process, use the fallback method
-    if (corruptedCount == 0 && sortedFiles.nonEmpty) {
+    if (corruptedCount == 0 && sortedFiles.nonEmpty && targetBytes.isEmpty) {
       logger.warn(
         "Could not find a valid data section in any file. Using safer fallback corruption method.")
       val fileToCorrupt = sortedFiles.head // Take the largest file for fallback
@@ -126,11 +129,22 @@ class ShuffleReaderGetHookForCorruptedData(
             s"batchId=$batchId, dataSize=$dataSize")
 
           // Validate dataSize - should be positive and within file bounds
-          if (dataSize > 0 && position + headerSize + dataSize <= fileSize) {
-            val dataStartPosition = position + headerSize
+          val dataStartPosition = position + headerSize
+          val offsetInData =
+            if (dataSize > 0 && dataStartPosition + dataSize <= fileSize) {
+              targetBytes match {
+                case Some((pattern, index)) =>
+                  val data = new Array[Byte](dataSize)
+                  raf.readFully(data)
+                  val start = data.indexOfSlice(pattern)
+                  if (start < 0) -1 else start + index
+                case None => random.nextInt(dataSize)
+              }
+            } else {
+              -1
+            }
 
-            // Choose a random position within the data section
-            val offsetInData = random.nextInt(dataSize)
+          if (offsetInData >= 0) {
             val corruptPosition = dataStartPosition + offsetInData
 
             // Read the byte at the position we want to corrupt
@@ -138,7 +152,9 @@ class ShuffleReaderGetHookForCorruptedData(
             val originalByte = raf.readByte()
 
             // Flip one bit in the byte (avoid the sign bit for numeric values)
-            val bitToFlip = 1 << random.nextInt(7) // bits 0-6 only, avoiding the sign bit
+            val bitToFlip =
+              if (targetBytes.isDefined) 1
+              else 1 << random.nextInt(7) // bits 0-6 only, avoiding the sign bit
             val corruptedByte = (originalByte ^ bitToFlip).toByte
 
             // Write back the corrupted byte
