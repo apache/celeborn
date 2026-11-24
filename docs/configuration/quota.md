@@ -19,6 +19,11 @@ license: |
 <!--begin-include-->
 | Key | Default | isDynamic | Description | Since | Deprecated |
 | --- | ------- | --------- | ----------- | ----- | ---------- |
+| celeborn.quota.app.diskBytesWritten | 9223372036854775807b | true | Application level quota dynamic configuration for written disk bytes. A value of 0 means no limit. | 1.0.0 |  | 
+| celeborn.quota.app.diskFileCount | 9223372036854775807 | true | Application level quota dynamic configuration for written disk file count. A value of 0 means no limit. | 1.0.0 |  | 
+| celeborn.quota.app.enabled | true | true | Whether to enable application-level quota. | 1.0.0 |  | 
+| celeborn.quota.app.hdfsBytesWritten | 9223372036854775807b | true | Application level quota dynamic configuration for written hdfs bytes. A value of 0 means no limit. | 1.0.0 |  | 
+| celeborn.quota.app.hdfsFileCount | 9223372036854775807 | true | Application level quota dynamic configuration for written hdfs file count. A value of 0 means no limit. | 1.0.0 |  | 
 | celeborn.quota.cluster.diskBytesWritten | 9223372036854775807b | true | Cluster level quota dynamic configuration for written disk bytes. | 0.6.0 |  | 
 | celeborn.quota.cluster.diskFileCount | 9223372036854775807 | true | Cluster level quota dynamic configuration for written disk file count. | 0.6.0 |  | 
 | celeborn.quota.cluster.enabled | true | false | Whether to enable cluster-level quota. | 0.6.0 |  | 

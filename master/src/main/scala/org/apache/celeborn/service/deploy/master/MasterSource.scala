@@ -31,6 +31,8 @@ class MasterSource(conf: CelebornConf) extends AbstractSource(conf, Role.MASTER)
   // add timers
   addTimer(OFFER_SLOTS_TIME)
   addTimer(UPDATE_RESOURCE_CONSUMPTION_TIME)
+  // add counters
+  addCounter(QUOTA_INTERRUPT_MARKED_APP_COUNT)
   // start cleaner
   startCleaner()
 
@@ -89,4 +91,6 @@ object MasterSource {
 
   private val RequestSlotsFailureStatuses =
     Seq(StatusCode.SLOT_NOT_AVAILABLE, StatusCode.WORKER_EXCLUDED)
+
+  val QUOTA_INTERRUPT_MARKED_APP_COUNT = "QuotaInterruptMarkedAppCount"
 }

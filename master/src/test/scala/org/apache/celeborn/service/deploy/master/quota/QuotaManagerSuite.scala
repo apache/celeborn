@@ -522,9 +522,10 @@ class QuotaManagerSuite extends CelebornFunSuite
       None)
     val statusSystem1 = new SingleMasterMetaManager(rpcEnv, conf)
     statusSystem1.availableWorkers.add(worker)
+    val masterSource1 = new MasterSource(conf1)
     val quotaManager1 = new QuotaManager(
       statusSystem1,
-      new MasterSource(conf1),
+      masterSource1,
       resourceConsumptionSource,
       conf1,
       new FsConfigServiceImpl(conf1))
@@ -573,6 +574,8 @@ class QuotaManagerSuite extends CelebornFunSuite
     addUserConsumption(user1, rc1)
 
     quotaManager1.updateResourceConsumption()
+    assert(masterSource1.getMetrics.contains(
+      s"""metrics_QuotaInterruptMarkedAppCount_Count{$metricsInstanceLabel,role="Master"} 2 """))
     val res1 = quotaManager1.checkUserQuotaStatus(user)
     val res2 = quotaManager1.checkApplicationQuotaStatus("app1")
     val res3 = quotaManager1.checkApplicationQuotaStatus("app2")
@@ -643,9 +646,10 @@ class QuotaManagerSuite extends CelebornFunSuite
       None)
     val statusSystem1 = new SingleMasterMetaManager(rpcEnv, conf)
     statusSystem1.availableWorkers.add(worker)
+    val masterSource1 = new MasterSource(conf1)
     val quotaManager1 = new QuotaManager(
       statusSystem1,
-      new MasterSource(conf1),
+      masterSource1,
       resourceConsumptionSource,
       conf1,
       new FsConfigServiceImpl(conf1))
@@ -699,6 +703,8 @@ class QuotaManagerSuite extends CelebornFunSuite
     addUserConsumption(user2, rc2)
 
     quotaManager1.updateResourceConsumption()
+    assert(masterSource1.getMetrics.contains(
+      s"""metrics_QuotaInterruptMarkedAppCount_Count{$metricsInstanceLabel,role="Master"} 3 """))
     val res1 = quotaManager1.checkUserQuotaStatus(user1)
     val res2 = quotaManager1.checkUserQuotaStatus(user2)
     val res3 = quotaManager1.checkApplicationQuotaStatus("app1")
