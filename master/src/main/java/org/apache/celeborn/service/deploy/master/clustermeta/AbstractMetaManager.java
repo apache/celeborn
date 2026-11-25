@@ -381,10 +381,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             excludedWorkers.stream()
                 .filter(
                     w -> {
+                      // Check the latest worker info instead of the entry kept in excluded
+                      // workers, which may still hold the disk status from when it was excluded.
                       WorkerInfo info = workersMap.get(w.toUniqueId());
                       return info != null
                           && info.isHighWorkLoad()
-                          && hasAvailableStorage(w)
+                          && hasAvailableStorage(info)
                           && info.totalAvailableSlots() > 0;
                     })
                 .collect(Collectors.toList());
