@@ -174,8 +174,7 @@ public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterS
                     CelebornConf.COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_ENABLED().key(),
                     Boolean.toString(mode.equals("dictionary")));
         SQLMetric dataSize = new SQLMetric("size", 0L);
-        Map<Integer, List<byte[]>> batches =
-            writeAndCheckBatches(conf, partitions, dataSize, true);
+        Map<Integer, List<byte[]>> batches = writeAndCheckBatches(conf, partitions, dataSize, true);
         assertArrayEquals(
             mode + ", byteLimited=" + byteLimited,
             byteLimited ? new int[] {2, 2, 1} : new int[] {3, 2},
