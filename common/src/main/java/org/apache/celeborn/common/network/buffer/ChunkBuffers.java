@@ -55,4 +55,6 @@ public abstract class ChunkBuffers {
   }
 
   public abstract ManagedBuffer chunk(int chunkIndex, int offset, int len);
+
+  public void close() {}
 }
