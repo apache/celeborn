@@ -31,7 +31,8 @@ case class MasterNode(
     rpcHost: String,
     rpcPort: Int,
     internalRpcPort: Int,
-    sslEnabled: Boolean) {
+    sslEnabled: Boolean,
+    clientHost: String) {
 
   def isRatisHostUnresolved: Boolean = ratisAddr.isUnresolved
 
@@ -40,6 +41,11 @@ case class MasterNode(
   def ratisEndpoint: String = ratisHost + ":" + ratisPort
 
   def rpcEndpoint: String = rpcHost + ":" + rpcPort
+
+  // Client-facing leader-redirect address. Falls back to rpcHost when clientHost is unset, so
+  // Raft peer traffic is unaffected; only the external redirect hint handed to clients changes.
+  def clientEndpoint: String =
+    (if (clientHost == null || clientHost.isEmpty) rpcHost else clientHost) + ":" + rpcPort
 
   def internalRpcEndpoint: String = rpcHost + ":" + internalRpcPort
 
@@ -56,6 +62,7 @@ object MasterNode extends Logging {
     private var rpcPort = 0
     private var internalRpcPort = 0
     private var sslEnabled = false
+    private var clientHost: String = _
 
     def setNodeId(nodeId: String): this.type = {
       this.nodeId = nodeId
@@ -65,6 +72,7 @@ object MasterNode extends Logging {
     def setHost(host: String): this.type = {
       this.ratisHost = host
       this.rpcHost = host
+      this.clientHost = host
       this
     }
 
@@ -75,6 +83,11 @@ object MasterNode extends Logging {
 
     def setRpcHost(rpcHost: String): this.type = {
       this.rpcHost = rpcHost
+      this
+    }
+
+    def setClientHost(clientHost: String): this.type = {
+      this.clientHost = clientHost
       this
     }
 
@@ -99,7 +112,15 @@ object MasterNode extends Logging {
     }
 
     def build: MasterNode =
-      MasterNode(nodeId, ratisHost, ratisPort, rpcHost, rpcPort, internalRpcPort, sslEnabled)
+      MasterNode(
+        nodeId,
+        ratisHost,
+        ratisPort,
+        rpcHost,
+        rpcPort,
+        internalRpcPort,
+        sslEnabled,
+        clientHost)
   }
 
   private def createSocketAddr(host: String, port: Int): InetSocketAddress = {
