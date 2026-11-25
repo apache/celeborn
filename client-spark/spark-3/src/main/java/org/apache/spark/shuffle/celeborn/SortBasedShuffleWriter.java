@@ -276,7 +276,7 @@ public class SortBasedShuffleWriter<K, V, C> extends ShuffleWriter<K, V> {
       final int serializedRecordSize = 4 + rowSize;
 
       if (dataSize != null) {
-        dataSize.add(serializedRecordSize);
+        dataSize.add(rowSize);
       }
 
       if (serializedRecordSize > pushBufferMaxSize) {
