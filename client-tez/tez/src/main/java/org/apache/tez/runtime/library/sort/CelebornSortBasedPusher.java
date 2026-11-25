@@ -109,12 +109,12 @@ public class CelebornSortBasedPusher<K, V> extends OutputStream {
         recordsPerPartition.putIfAbsent(0, new AtomicInteger());
         bytesPerPartition.putIfAbsent(0, new AtomicLong());
         recordsPerPartition.get(0).incrementAndGet();
-        bytesPerPartition.get(0).incrementAndGet();
+        bytesPerPartition.get(0).addAndGet(dataLen);
       } else {
         recordsPerPartition.computeIfAbsent(partition, p -> new AtomicInteger());
         bytesPerPartition.computeIfAbsent(partition, p -> new AtomicLong());
         recordsPerPartition.get(partition).incrementAndGet();
-        bytesPerPartition.get(partition).incrementAndGet();
+        bytesPerPartition.get(partition).addAndGet(dataLen);
       }
       if (logger.isDebugEnabled()) {
         logger.debug(
