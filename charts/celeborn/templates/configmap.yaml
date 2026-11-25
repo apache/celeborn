@@ -39,7 +39,28 @@ data:
     celeborn.master.ha.node.{{ . }}.host={{ $host }}
     {{- end }}
 
-    {{- range $key, $val := .Values.celeborn }}
+    {{- $conf := deepCopy (.Values.celeborn | default dict) }}
+    {{- $s3 := .Values.s3 | default dict }}
+    {{- if $s3.enabled }}
+    {{- $dir := required "s3.dir is required when s3.enabled is true" $s3.dir }}
+    {{- /* Celeborn's own check (Utils.S3_REGEX); a non-matching dir silently disables S3. */}}
+    {{- if not (regexMatch "^s3a?://[a-z0-9][a-z0-9-]{1,61}[a-z0-9](/.*)?$" $dir) }}
+    {{- fail (printf "s3.dir %q must look like s3a://<bucket>/<path>, with no dots in the bucket name" $dir) }}
+    {{- end }}
+    {{- $types := list }}
+    {{- /* celeborn.storage.activeTypes is the deprecated name of availableTypes. */}}
+    {{- $configured := index $conf "celeborn.storage.availableTypes" | default (index $conf "celeborn.storage.activeTypes") | default "HDD" }}
+    {{- range splitList "," ($configured | toString) }}
+    {{- $types = append $types (. | trim | upper) }}
+    {{- end }}
+    {{- if not (has "S3" $types) }}
+    {{- $types = append $types "S3" }}
+    {{- end }}
+    {{- $_ := set $conf "celeborn.storage.availableTypes" (join "," $types) }}
+    {{- $_ := set $conf "celeborn.storage.s3.dir" $dir }}
+    {{- $_ := set $conf "celeborn.storage.s3.endpoint.region" (required "s3.region is required when s3.enabled is true" $s3.region) }}
+    {{- end }}
+    {{- range $key, $val := $conf }}
     {{ $key }}={{ $val }}
     {{- end }}
 

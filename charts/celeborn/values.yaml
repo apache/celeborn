@@ -583,6 +583,17 @@ worker:
   #       limits:
   #         storage: 100Gi
 
+# S3 storage tier. Needs an image built with `-Paws`. Credentials come from the pods' AWS
+# identity, granted through `serviceAccount` (EKS Pod Identity, or IRSA via its annotations).
+# Jobs opt in with `spark.celeborn.storage.availableTypes`. See README.md.
+s3:
+  # -- Whether to enable the S3 storage tier on masters and workers.
+  enabled: false
+  # -- S3 directory for shuffle data, e.g. `s3a://my-bucket/celeborn`. The bucket name may not contain dots.
+  dir: ""
+  # -- AWS region of the bucket, e.g. `us-east-1`.
+  region: ""
+
 serviceAccount:
   # -- Whether to create a service account for Celeborn.
   create: false

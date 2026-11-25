@@ -489,6 +489,40 @@ keep DNS and endpoints behaving as they did before readiness was gated, so that 
 recovering from deregistration stays addressable. It also sets it when `worker.drain` is enabled -
 see [Draining a worker before it is removed](#draining-a-worker-before-it-is-removed).
 
+## S3 storage tier
+
+Set `s3.enabled`, `s3.dir` and `s3.region` to let masters and workers store shuffle data in
+S3. The chart writes `celeborn.storage.s3.dir` and `celeborn.storage.s3.endpoint.region`, and
+adds `S3` to `celeborn.storage.availableTypes`. The types it starts from are that key, or the
+deprecated `celeborn.storage.activeTypes`, as set in `celeborn`, else `HDD`. The `s3` values
+take precedence over S3 keys set directly in `celeborn`. The chart fails to render without
+`s3.dir` or `s3.region`, or when `s3.dir` is a path Celeborn would reject: Celeborn would
+otherwise log an error and start with S3 disabled.
+
+```yaml
+s3:
+  enabled: true
+  dir: s3a://my-bucket/celeborn
+  region: us-east-1
+serviceAccount:
+  create: true
+  name: celeborn
+  # IRSA only. Not needed with EKS Pod Identity, which binds the role to the service account name.
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::111122223333:role/celeborn-s3
+```
+
+- The image must be built with `-Paws`, which adds hadoop-aws, the AWS SDK and the S3
+  multipart uploader.
+- Credentials come from the pods' AWS identity. With EKS Pod Identity, associate an IAM role
+  with `serviceAccount.name`. With IRSA, set the role in `serviceAccount.annotations`. The role
+  needs object read, write, delete and multipart-upload access under `s3.dir`, and list access
+  on the bucket. The master uses it too, to remove expired shuffle data.
+- Workers only set up the tier. A job writes to S3 when its client sets
+  `celeborn.storage.availableTypes`, `celeborn.storage.s3.dir` and
+  `celeborn.storage.s3.endpoint.region` (for Spark, with the `spark.` prefix). Its executors
+  read S3 partitions directly, so they need read access as well.
+
 ## Documentation
 
 For additional details on deploying the Celeborn Kubernetes Helm chart, please refer to the [Celeborn on Kubernetes](https://celeborn.apache.org/docs/latest/deploy_on_k8s/) documentation.
