@@ -119,30 +119,30 @@ to guarantee no data is lost.
 
 ## Read Data
 ### API specification
-`ShuffleClient` provides an API that creates an InputStream to read data from a partition id. Users can also set
-`startMapIndex` and `endMapIndex` to read data within the map range.
+For normal integrations, `ShuffleClient` provides a convenience overload that creates an input stream for a
+partition. Set `startMapIndex` and `endMapIndex` to limit the read to a map range.
+
 ```java
-  public abstract CelebornInputStream readPartition(
-      int shuffleId,
-      int appShuffleId,
-      int partitionId,
-      int attemptNumber,
-      int startMapIndex,
-      int endMapIndex,
-      ExceptionMaker exceptionMaker,
-      MetricsCallback metricsCallback)
+public CelebornInputStream readPartition(
+    int shuffleId,
+    int partitionId,
+    int attemptNumber,
+    long taskId,
+    int startMapIndex,
+    int endMapIndex,
+    MetricsCallback metricsCallback)
+    throws IOException
 ```
 
-- `shuffleId` is the unique shuffle id of Celeborn
-- `appShuffleId` is the unique shuffle id of the application
-- `partitionId` is the partition id to read from
-- `attemptNumber` is the attempt id of reduce task, can be safely set to any value
-- `startMapIndex` is the index of start map index of interested map range, set to 0 if you want to read all
-  partition data
-- `endMapIndex` is the index of end map index of interested map range, set to `Integer.MAX_VALUE` if you want
-  to read all partition data
-- `exceptionMaker` is the marker of exception including fetch failure exception.
-- `metricsCallback` is the callback of monitoring metrics to increase read bytes and time etc.
+- `shuffleId` is the unique Celeborn shuffle id.
+- `partitionId` is the partition to read.
+- `attemptNumber` is the reduce task attempt number.
+- `taskId` identifies the reduce task.
+- `startMapIndex` and `endMapIndex` select the map range to read. Use `0` and `Integer.MAX_VALUE` to read all
+  partition data.
+- `metricsCallback` receives read metrics such as bytes and time.
+
+This overload uses `shuffleId` as the application shuffle id and delegates stream setup to `ShuffleClient`.
 
 The returned input stream is guaranteed to be `Exactly Once`, meaning no data lost and no duplicated reading, or else
 an exception will be thrown, see [Here](../../developers/faulttolerant#exactly-once).
