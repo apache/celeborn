@@ -23,6 +23,14 @@ license: |
 
 # Upgrading from 0.7 to 1.0
 
+- Since 1.0.0, worker congestion control measures the pending bytes used for the
+  `celeborn.worker.congestionControl.diskBuffer.high/low.watermark` checks as the actual unflushed
+  disk-buffer backlog plus in-flight sort memory (CELEBORN-2600), instead of Netty
+  `usedDirectMemory` plus sort memory. Netty retains pooled chunks after their buffers are freed,
+  so the old metric plateaued near the last load peak and could keep an idle worker congested
+  forever. If you tuned the watermarks against the old metric, re-tune them after upgrading:
+  congestion now triggers later and exits as soon as the disk-buffer backlog drains.
+
 - Since 1.0.0, `celeborn.master.slot.assign.policy` supports custom strategy names registered through
   the `SlotsAssignStrategyProvider` SPI and can be updated through system-level dynamic
   configuration. Existing `ROUNDROBIN` and `LOADAWARE` values remain supported and require no
