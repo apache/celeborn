@@ -32,6 +32,7 @@ import org.scalatest.concurrent.Eventually._
 import org.apache.celeborn.CelebornFunSuite
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.exception.CelebornException
+import org.apache.celeborn.common.protocol.RpcNameConstants
 import org.apache.celeborn.common.util.ThreadUtils
 
 /**
@@ -78,6 +79,40 @@ abstract class RpcEnvSuite extends CelebornFunSuite {
     rpcEndpointRef.send("hello")
     eventually(timeout(5.seconds), interval(10.milliseconds)) {
       assert("hello" === message)
+    }
+  }
+
+  test("rpc metrics snapshot") {
+    assert(env.rpcMetricsSnapshot("does-not-exist").isEmpty)
+
+    env.setupEndpoint(
+      "rpc-metrics-plain",
+      new RpcEndpoint {
+        override val rpcEnv = env
+
+        override def receive = {
+          case _ =>
+        }
+      })
+    assert(env.rpcMetricsSnapshot("rpc-metrics-plain").isEmpty)
+
+    @volatile var message: String = null
+    val rpcEndpointRef = env.setupEndpoint(
+      RpcNameConstants.LIFECYCLE_MANAGER_EP,
+      new RpcEndpoint {
+        override val rpcEnv = env
+
+        override def receive = {
+          case msg: String => message = msg
+        }
+      })
+    rpcEndpointRef.send("hello")
+    eventually(timeout(5.seconds), interval(10.milliseconds)) {
+      assert("hello" === message)
+      val snapshot = env.rpcMetricsSnapshot(RpcNameConstants.LIFECYCLE_MANAGER_EP)
+      assert(snapshot.isDefined)
+      assert(snapshot.get.endpointName == RpcNameConstants.LIFECYCLE_MANAGER_EP)
+      assert(snapshot.get.methods.exists(_.name == RpcSource.PROCESS_TIME))
     }
   }
 

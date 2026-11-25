@@ -88,6 +88,10 @@ private[celeborn] class Dispatcher(nettyEnv: NettyRpcEnv, rpcSource: RpcSource) 
     endpointRef
   }
 
+  private[netty] def endpointRpcMetrics(endpointName: String): Option[RpcMetricsSnapshot] = {
+    Option(endpoints.get(endpointName)).flatMap(_.inbox.metrics.snapshot())
+  }
+
   def getRpcEndpointRef(endpoint: RpcEndpoint): RpcEndpointRef = endpointRefs.get(endpoint)
 
   def removeRpcEndpointRef(endpoint: RpcEndpoint): Unit = endpointRefs.remove(endpoint)
