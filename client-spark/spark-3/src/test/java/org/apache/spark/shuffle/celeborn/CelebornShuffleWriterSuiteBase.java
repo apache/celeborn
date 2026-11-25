@@ -26,9 +26,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -211,7 +213,7 @@ public abstract class CelebornShuffleWriterSuiteBase {
     final KryoSerializer serializer = new KryoSerializer(sparkConf);
     final CelebornConf conf =
         new CelebornConf().set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "128");
-    check(2 << 30, conf, serializer);
+    checkMixedRecords(conf, serializer);
   }
 
   @Test
@@ -219,7 +221,7 @@ public abstract class CelebornShuffleWriterSuiteBase {
     final UnsafeRowSerializer serializer = new UnsafeRowSerializer(2, null);
     final CelebornConf conf =
         new CelebornConf().set(CelebornConf.CLIENT_PUSH_BUFFER_MAX_SIZE().key(), "128");
-    check(2 << 30, conf, serializer);
+    checkMixedRecords(conf, serializer);
   }
 
   @Test
@@ -350,6 +352,27 @@ public abstract class CelebornShuffleWriterSuiteBase {
   private void check(
       final int approximateSize, final CelebornConf conf, final Serializer serializer)
       throws Exception {
+    AtomicInteger total = new AtomicInteger(0);
+    Iterator iterator =
+        getIterator(approximateSize, total, serializer instanceof UnsafeRowSerializer, false);
+    check(iterator, total, conf, serializer, false);
+  }
+
+  private void checkMixedRecords(final CelebornConf conf, final Serializer serializer)
+      throws Exception {
+    AtomicInteger total = new AtomicInteger(0);
+    Iterator iterator = getMixedIterator(total, serializer instanceof UnsafeRowSerializer);
+    assertEquals(4, total.get());
+    check(iterator, total, conf, serializer, true);
+  }
+
+  private void check(
+      final Iterator iterator,
+      final AtomicInteger total,
+      final CelebornConf conf,
+      final Serializer serializer,
+      final boolean mixedRecords)
+      throws Exception {
     final boolean useUnsafe = serializer instanceof UnsafeRowSerializer;
 
     String PartitionIdPassthroughClazz;
@@ -383,12 +406,9 @@ public abstract class CelebornShuffleWriterSuiteBase {
       assertEquals(useUnsafe, ((HashBasedShuffleWriter) writer).canUseFastWrite());
     }
 
-    AtomicInteger total = new AtomicInteger(0);
-    Iterator iterator = getIterator(approximateSize, total, useUnsafe, false);
-
     int expectChecksum = 0;
     for (int i = 0; i < total.intValue(); ++i) {
-      expectChecksum ^= i;
+      expectChecksum ^= mixedRecords ? i * numPartitions : i;
     }
 
     writer.write(iterator);
@@ -409,6 +429,13 @@ public abstract class CelebornShuffleWriterSuiteBase {
         expectedCompressedBytes += DummyShuffleClient.simulatedCompressedLength(batch.length);
       }
     }
+    if (mixedRecords && !(useUnsafe && isColumnarShuffle(writer))) {
+      List<byte[]> batches = client.getPushDataByPartition(mapKey).get(0);
+      assertNotNull(batches);
+      int maxSize = conf.clientPushBufferMaxSize();
+      assertTrue("Missing giant record batch", batches.stream().anyMatch(b -> b.length > maxSize));
+      assertTrue("Missing small record batch", batches.stream().anyMatch(b -> b.length <= maxSize));
+    }
     assertEquals(expectedCompressedBytes, metrics.bytesWritten());
     assertTrue(metrics.bytesWritten() <= tempFile.length());
     assertTrue(metrics.writeTime() > 0);
@@ -420,6 +447,7 @@ public abstract class CelebornShuffleWriterSuiteBase {
     try (FileInputStream fis = new FileInputStream(tempFile)) {
       Iterator it = newSerializerInstance(serializer).deserializeStream(fis).asKeyValueIterator();
       int checksum = 0;
+      Set<Integer> mixedKeys = new HashSet<>();
       while (it.hasNext()) {
         Product2<Integer, ?> record;
         if (useUnsafe) {
@@ -451,13 +479,48 @@ public abstract class CelebornShuffleWriterSuiteBase {
         assertTrue(
             "value " + value + " should equals to normal record or giant record with key.",
             value.equals(key + ": " + NORMAL_RECORD) || value.equals(key + ": " + GIANT_RECORD));
+        if (mixedRecords) {
+          assertTrue(key >= 0 && key < 4 * numPartitions && key % numPartitions == 0);
+          assertTrue(mixedKeys.add(key));
+          assertEquals(
+              key + ": " + (key == 2 * numPartitions ? GIANT_RECORD : NORMAL_RECORD), value);
+        }
       }
       assertEquals(0, total.intValue());
       assertEquals(expectChecksum, checksum);
+      if (mixedRecords) {
+        assertEquals(4, mixedKeys.size());
+      }
     } catch (Exception e) {
       e.printStackTrace();
       fail("Should read with no exception.");
     }
+  }
+
+  protected boolean isColumnarShuffle(ShuffleWriter<Integer, String> writer) {
+    return false;
+  }
+
+  private Iterator getMixedIterator(final AtomicInteger total, final boolean unsafe) {
+    ListBuffer<Product2<Integer, ?>> records = new ListBuffer<>();
+    for (int i = 0; i < 4; i++) {
+      // Route the small and giant records to the same partition.
+      int key = i * numPartitions;
+      String value = key + ": " + (i == 2 ? GIANT_RECORD : NORMAL_RECORD);
+      if (unsafe) {
+        ListBuffer<Object> values = new ListBuffer<>();
+        values.$plus$eq(key);
+        values.$plus$eq(UTF8String.fromString(value));
+        InternalRow row = InternalRow.apply(values.toSeq());
+        DataType[] types = new DataType[] {IntegerType$.MODULE$, StringType$.MODULE$};
+        UnsafeRow unsafeRow = UnsafeProjection.create(types).apply(row);
+        records.$plus$eq(new Tuple2<>(0, unsafeRow));
+      } else {
+        records.$plus$eq(new Tuple2<>(key, value));
+      }
+      total.incrementAndGet();
+    }
+    return records.toIterator();
   }
 
   private Iterator getIterator(
