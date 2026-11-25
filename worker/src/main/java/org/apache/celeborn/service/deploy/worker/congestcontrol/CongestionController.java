@@ -203,16 +203,17 @@ public class CongestionController {
   }
 
   /**
-   * Total bytes produced but not yet flushed to disk: disk flusher backlog, memory-staged shuffle
-   * data and in-flight sort memory. Excludes Netty usedDirectMemory, which is a high-water ratchet
-   * (pooled chunks are retained after their buffers are freed) and would keep the worker congested
-   * forever after a load peak.
+   * Total bytes produced but not yet flushed to disk: disk flusher backlog and in-flight sort
+   * memory. Excludes Netty usedDirectMemory, which is a high-water ratchet (pooled chunks are
+   * retained after their buffers are freed) and would keep the worker congested forever after a
+   * load peak. Excludes memory file storage too: those bytes are not waiting on a flush - they are
+   * only evicted when the worker is direct-memory paused (MemoryManager.shouldEvict), skipped by
+   * the congested-trim flush path (StorageManager.onTrim), and never counted as consumed bytes, so
+   * a worker holding more memory-file data than the low watermark would never exit congestion.
    */
   public long getTotalPendingBytes() {
     MemoryManager memoryManager = MemoryManager.instance();
-    return memoryManager.getDiskBufferCounter().get()
-        + memoryManager.getMemoryFileStorageCounter()
-        + memoryManager.getSortMemoryCounter().get();
+    return memoryManager.getDiskBufferCounter().get() + memoryManager.getSortMemoryCounter().get();
   }
 
   public void trimMemoryUsage() {

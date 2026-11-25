@@ -19,6 +19,8 @@ package org.apache.celeborn.service.deploy.worker.congestcontrol;
 
 import java.io.IOException;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -37,6 +39,10 @@ public class TestCongestionController {
 
   private long pendingBytes = 0L;
   private final long userInactiveTimeMills = 2000L;
+
+  // Larger than the default pooled chunk (16 MiB) so allocating it always reserves at least one
+  // fresh Netty chunk in usedDirectMemory.
+  private static final int NETTY_BUFFER_SIZE = 64 * 1024 * 1024;
 
   @Before
   public void initialize() {
@@ -383,17 +389,29 @@ public class TestCongestionController {
     realController.shutDownCheckService();
     try {
       long baseline = realController.getTotalPendingBytes();
+      // A raw Netty direct buffer is not unflushed shuffle data: pending bytes must be unaffected
+      // both while it is live and after it is released. The old implementation returned Netty
+      // usedDirectMemory and fails both checks - it counts the live buffer, and it stays elevated
+      // on Netty versions/deployments where pooled chunks are retained after release.
+      ByteBuf nettyBuffer = PooledByteBufAllocator.DEFAULT.directBuffer(NETTY_BUFFER_SIZE);
+      Assert.assertEquals(
+          "pending bytes must not count a live Netty direct buffer",
+          baseline,
+          realController.getTotalPendingBytes());
+      nettyBuffer.release();
+      Assert.assertEquals(
+          "pending bytes must not count retained Netty pooled chunks",
+          baseline,
+          realController.getTotalPendingBytes());
 
       memoryManager.incrementDiskBuffer(600);
       memoryManager.reserveSortMemory(300);
-      memoryManager.incrementMemoryFileStorage(100);
-      Assert.assertEquals(baseline + 1000, realController.getTotalPendingBytes());
+      Assert.assertEquals(baseline + 900, realController.getTotalPendingBytes());
 
       // All buffers flushed/released: pending bytes must return to the baseline,
       // regardless of how much direct memory Netty still retains.
       memoryManager.releaseDiskBuffer(600);
       memoryManager.releaseSortMemory(300);
-      memoryManager.releaseMemoryFileStorage(100);
       Assert.assertEquals(baseline, realController.getTotalPendingBytes());
     } finally {
       realController.close();
@@ -407,9 +425,7 @@ public class TestCongestionController {
     MemoryManager memoryManager = MemoryManager.initialize(new CelebornConf());
     CelebornConf celebornConf = new CelebornConf();
     long baseline =
-        memoryManager.getDiskBufferCounter().get()
-            + memoryManager.getMemoryFileStorageCounter()
-            + memoryManager.getSortMemoryCounter().get();
+        memoryManager.getDiskBufferCounter().get() + memoryManager.getSortMemoryCounter().get();
     celebornConf.set(
         CelebornConf.WORKER_CONGESTION_CONTROL_DISK_BUFFER_HIGH_WATERMARK().key(),
         String.valueOf(baseline + 1000));
