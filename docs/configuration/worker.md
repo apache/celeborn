@@ -89,10 +89,13 @@ license: |
 | celeborn.worker.fetch.io.threads | &lt;undefined&gt; | false | Netty IO thread number of worker to handle client fetch data. The default threads number is the number of flush thread. | 0.2.0 |  | 
 | celeborn.worker.fetch.port | 0 | false | Server port for Worker to receive fetch data request from ShuffleClient. | 0.2.0 |  | 
 | celeborn.worker.flusher.buffer.size | 256k | false | Size of buffer used by a single flusher. | 0.2.0 |  | 
+| celeborn.worker.flusher.committingTask.batch.size | 8 | false | Maximum number of priority flush tasks to process before serving a FIFO batch when committing writer priority is enabled. A task already executing is not preempted. | 1.0.0 |  | 
+| celeborn.worker.flusher.committingWriters.priority.enabled | true | false | Prioritize pending flush tasks of REDUCE writers being committed, preserving each writer's flush order. Applies to local and DFS storage. Interleave FIFO tasks to allow ordinary writes to make progress. Disabling this restores FIFO flush scheduling. | 1.0.0 |  | 
 | celeborn.worker.flusher.diskTime.slidingWindow.size | 20 | false | The size of sliding windows used to calculate statistics about flushed time and count. | 0.3.0 | celeborn.worker.flusher.avgFlushTime.slidingWindow.size | 
 | celeborn.worker.flusher.hdd.threads | 1 | false | Flusher's thread count per disk used for write data to HDD disks. | 0.2.0 |  | 
 | celeborn.worker.flusher.hdfs.buffer.size | 4m | false | Size of buffer used by a HDFS flusher. | 0.3.0 |  | 
 | celeborn.worker.flusher.hdfs.threads | 8 | false | Flusher's thread count used for write data to HDFS. | 0.2.0 |  | 
+| celeborn.worker.flusher.normalTask.batch.size | 4 | false | Number of tasks to process in submission order between priority flush batches when committing writer priority is enabled. These tasks may also belong to committing writers. Without pending priority tasks, flushers process FIFO tasks continuously. | 1.0.0 |  | 
 | celeborn.worker.flusher.oss.buffer.size | 6m | false | Size of buffer used by a OSS flusher. | 0.6.0 |  | 
 | celeborn.worker.flusher.oss.threads | 8 | false | Flusher's thread count used for write data to OSS. | 0.6.0 |  | 
 | celeborn.worker.flusher.s3.buffer.size | 6m | false | Size of buffer used by a S3 flusher. | 0.6.0 |  | 
