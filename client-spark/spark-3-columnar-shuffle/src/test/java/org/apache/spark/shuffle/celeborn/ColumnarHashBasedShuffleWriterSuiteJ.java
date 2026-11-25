@@ -23,6 +23,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -36,6 +37,7 @@ import scala.Product2;
 import scala.Tuple2;
 import scala.collection.Iterator;
 import scala.collection.mutable.ListBuffer;
+import scala.reflect.ClassTag$;
 
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.Partitioner;
@@ -43,6 +45,7 @@ import org.apache.spark.SparkVersionUtil;
 import org.apache.spark.TaskContext;
 import org.apache.spark.serializer.DeserializationStream;
 import org.apache.spark.serializer.KryoSerializer;
+import org.apache.spark.serializer.SerializationStream;
 import org.apache.spark.serializer.Serializer;
 import org.apache.spark.serializer.SerializerInstance;
 import org.apache.spark.shuffle.ShuffleWriteMetricsReporter;
@@ -53,6 +56,7 @@ import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
 import org.apache.spark.sql.execution.UnsafeRowSerializer;
 import org.apache.spark.sql.execution.columnar.CelebornBatchBuilder;
 import org.apache.spark.sql.execution.columnar.CelebornColumnarBatchSerializer;
+import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.sql.types.IntegerType$;
 import org.apache.spark.sql.types.StringType$;
 import org.apache.spark.sql.types.StructType;
@@ -150,6 +154,39 @@ public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterS
     }
   }
 
+  @Test
+  public void testColumnarDataSizeUsesInputRows() throws Exception {
+    // Both partitions have full and final partial batches, with interleaved records.
+    final int[] partitions = {0, 1, 0, 1, 0, 1, 0, 1, 0, 1};
+    for (String mode : new String[] {"plain", "codegen", "dictionary"}) {
+      for (boolean byteLimited : new boolean[] {false, true}) {
+        final CelebornConf conf =
+            new CelebornConf()
+                .set(CelebornConf.COLUMNAR_SHUFFLE_BATCH_SIZE().key(), byteLimited ? "100" : "3")
+                .set(
+                    CelebornConf.COLUMNAR_SHUFFLE_BATCH_SIZE_IN_BYTES_ENABLED().key(),
+                    Boolean.toString(byteLimited))
+                .set(CelebornConf.COLUMNAR_SHUFFLE_BATCH_SIZE_IN_BYTES_THRESHOLD().key(), "256")
+                .set(
+                    CelebornConf.COLUMNAR_SHUFFLE_CODEGEN_ENABLED().key(),
+                    Boolean.toString(mode.equals("codegen")))
+                .set(
+                    CelebornConf.COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_ENABLED().key(),
+                    Boolean.toString(mode.equals("dictionary")));
+        SQLMetric dataSize = new SQLMetric("size", 0L);
+        Map<Integer, List<byte[]>> batches = writeAndCheckBatches(conf, partitions, dataSize, true);
+        assertArrayEquals(
+            mode + ", byteLimited=" + byteLimited,
+            byteLimited ? new int[] {2, 2, 1} : new int[] {3, 2},
+            batchRowCounts(batches.get(0)));
+        assertArrayEquals(
+            mode + ", byteLimited=" + byteLimited,
+            byteLimited ? new int[] {4, 1} : new int[] {3, 2},
+            batchRowCounts(batches.get(1)));
+      }
+    }
+  }
+
   private int[] batchRowCounts(List<byte[]> batches) {
     return batches.stream().mapToInt(batch -> ByteBuffer.wrap(batch).getInt()).toArray();
   }
@@ -159,6 +196,12 @@ public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterS
   }
 
   private Map<Integer, List<byte[]>> writeAndCheckBatches(CelebornConf conf, int[] partitions)
+      throws Exception {
+    return writeAndCheckBatches(conf, partitions, null, false);
+  }
+
+  private Map<Integer, List<byte[]>> writeAndCheckBatches(
+      CelebornConf conf, int[] partitions, SQLMetric dataSize, boolean varyRowWidths)
       throws Exception {
     final String partitionIdPassthroughClazz =
         SparkVersionUtil.isGreaterThan(3, 3)
@@ -170,7 +213,7 @@ public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterS
             .<Partitioner>build()
             .newInstance(numPartitions);
     Mockito.doReturn(partitioner).when(dependency).partitioner();
-    Mockito.doReturn(new UnsafeRowSerializer(2, null)).when(dependency).serializer();
+    Mockito.doReturn(new UnsafeRowSerializer(2, dataSize)).when(dependency).serializer();
 
     final File tempFile = new File(tempDir, UUID.randomUUID().toString());
     final DummyShuffleClient client = new DummyShuffleClient(conf, tempFile);
@@ -187,14 +230,26 @@ public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterS
     final UnsafeProjection projection = UnsafeProjection.create(schema);
     final Map<Integer, List<UnsafeRow>> expected = new HashMap<>();
     final ListBuffer<Product2<Integer, UnsafeRow>> records = new ListBuffer<>();
+    final SQLMetric expectedDataSize = new SQLMetric("size", 0L);
+    final SerializationStream rowSerializer =
+        new UnsafeRowSerializer(2, expectedDataSize)
+            .newInstance()
+            .serializeStream(new ByteArrayOutputStream());
     for (int i = 0; i < partitions.length; i++) {
-      // Repeated 100-byte strings keep rows at 128 bytes and allow dictionary encoding.
-      UTF8String value = UTF8String.fromString(String.format(Locale.ROOT, "%0100d", i % 2));
+      // Use two row sizes in the metric test while keeping repeated values for dictionary encoding.
+      int width = varyRowWidths && i % 2 == 1 ? 50 : 100;
+      UTF8String value =
+          UTF8String.fromString(String.format(Locale.ROOT, "%0" + width + "d", i % 2));
       UnsafeRow row = projection.apply(new GenericInternalRow(new Object[] {i, value})).copy();
       records.$plus$eq(new Tuple2<>(partitions[i], row));
+      rowSerializer.writeValue(row, ClassTag$.MODULE$.Object());
       expected.computeIfAbsent(partitions[i], ignored -> new ArrayList<>()).add(row);
     }
+    rowSerializer.close();
     writer.write((Iterator) records.toIterator());
+    if (dataSize != null) {
+      assertEquals(expectedDataSize.value(), dataSize.value());
+    }
     writer.stop(true);
     client.shutdown();
 

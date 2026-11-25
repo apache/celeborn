@@ -126,14 +126,15 @@ public class ColumnarHashBasedShuffleWriter<K, V, C> extends HashBasedShuffleWri
       }
 
       celebornBatchBuilders[partitionId].writeRow(row);
-      celebornBatchBytes[partitionId] += row.getSizeInBytes();
+      int rowSize = row.getSizeInBytes();
+      celebornBatchBytes[partitionId] += rowSize;
+      if (dataSize != null) {
+        dataSize.add(rowSize);
+      }
       if (celebornBatchBuilders[partitionId].getRowCnt() >= columnarShuffleBatchSize
           || celebornBatchBytes[partitionId] >= columnarShuffleBatchSizeInBytes) {
         byte[] arr = celebornBatchBuilders[partitionId].buildColumnBytes();
         pushGiantRecord(partitionId, arr, arr.length);
-        if (dataSize != null) {
-          dataSize.add(arr.length);
-        }
         celebornBatchBuilders[partitionId].newBuilders();
         celebornBatchBytes[partitionId] = 0;
       }
@@ -151,14 +152,10 @@ public class ColumnarHashBasedShuffleWriter<K, V, C> extends HashBasedShuffleWri
   }
 
   private void closeColumnarWrite() throws IOException {
-    SQLMetric dataSize = SparkUtils.getDataSize((UnsafeRowSerializer) depSerializer);
     for (int i = 0; i < celebornBatchBuilders.length; i++) {
       final CelebornBatchBuilder builders = celebornBatchBuilders[i];
       if (builders != null && builders.getRowCnt() > 0) {
         byte[] buffers = builders.buildColumnBytes();
-        if (dataSize != null) {
-          dataSize.add(buffers.length);
-        }
         mergeData(i, buffers, 0, buffers.length);
         // free buffer
         celebornBatchBuilders[i] = null;
