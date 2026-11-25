@@ -391,6 +391,24 @@ KEDA has settled, or pass `--set worker.replicas=<current>` when upgrading.
 For a continuous-delivery tool, tell it to ignore the field - in Argo CD, `ignoreDifferences`
 on `/spec/replicas` for the worker statefulsets, with `RespectIgnoreDifferences=true`.
 
+### Scaled-in workers keep their volumes
+
+A statefulset keeps the PVCs of a pod it scales in, by Kubernetes default. With PVC-backed
+worker storage (`worker.volumeClaimTemplates`), every scale-in leaves that worker's volumes
+behind, still billed and holding expired shuffle data, until someone deletes them. Set
+`worker.persistentVolumeClaimRetentionPolicy` to have Kubernetes delete them on scale-in while
+keeping them when the statefulset itself is deleted:
+
+```yaml
+worker:
+  persistentVolumeClaimRetentionPolicy:
+    whenScaled: Delete
+    whenDeleted: Retain
+```
+
+A rolling restart is not a scale-in, so a restarted worker still finds its volumes. Empty, the
+default, leaves the Kubernetes default (`Retain` for both).
+
 ## Health probes
 
 Both the master and the worker serve `GET /healthz` on their HTTP port, returning `200` when the
