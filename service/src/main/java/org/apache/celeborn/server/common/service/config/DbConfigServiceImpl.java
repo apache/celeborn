@@ -59,6 +59,7 @@ public class DbConfigServiceImpl extends BaseConfigServiceImpl implements Config
                 Collectors.toMap(
                     tenantConfig -> Pair.of(tenantConfig.getTenantId(), tenantConfig.getName()),
                     Function.identity())));
+    warnOnStaticConfigs();
   }
 
   @Override
