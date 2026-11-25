@@ -17,7 +17,7 @@
 
 package org.apache.celeborn.server.common.http.api.v1
 
-import javax.ws.rs.{Consumes, DefaultValue, GET, POST, Produces, QueryParam}
+import javax.ws.rs.{BadRequestException, Consumes, DefaultValue, GET, POST, Produces, QueryParam}
 import javax.ws.rs.core.MediaType
 
 import scala.collection.JavaConverters._
@@ -77,10 +77,13 @@ class LoggerResource extends ApiRequestContext {
       schema = new Schema(implementation = classOf[HandleResponse]))))
   @POST
   def setLoggerLevel(request: LoggerInfo): HandleResponse = {
+    val newLevel = Level.toLevel(request.getLevel, null)
+    if (newLevel == null) {
+      throw new BadRequestException(s"Invalid log level: ${request.getLevel}")
+    }
     val loggerName = request.getName
     val logger = LogManager.getLogger(loggerName)
     val originalLevel = logger.getLevel
-    val newLevel = Level.toLevel(request.getLevel)
     Configurator.setLevel(loggerName, newLevel)
     new HandleResponse().success(true).message(
       s"Set logger `$loggerName` level from `$originalLevel` to `$newLevel`.`")
