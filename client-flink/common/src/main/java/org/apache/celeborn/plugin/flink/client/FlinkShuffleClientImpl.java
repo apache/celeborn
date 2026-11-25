@@ -693,12 +693,11 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       throws IOException {
 
     int retryTimes = 0;
+    int maxRetries = conf.networkIoMaxRetries(TransportModuleConstants.PUSH_MODULE);
     boolean isSuccess = false;
     Exception currentException = null;
     R result = null;
-    while (!Thread.currentThread().isInterrupted()
-        && !isSuccess
-        && retryTimes < conf.networkIoMaxRetries(TransportModuleConstants.PUSH_MODULE)) {
+    while (!Thread.currentThread().isInterrupted() && !isSuccess) {
       logger.debug("RetrySendMessage  retry times {}.", retryTimes);
       try {
         result = supplier.get();
@@ -708,7 +707,7 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
         if (e instanceof InterruptedException) {
           Thread.currentThread().interrupt();
         }
-        if (shouldRetry(e)) {
+        if (shouldRetry(e) && retryTimes < maxRetries && !Thread.currentThread().isInterrupted()) {
           retryTimes++;
           Uninterruptibles.sleepUninterruptibly(
               conf.networkIoRetryWaitMs(TransportModuleConstants.PUSH_MODULE),
@@ -719,6 +718,10 @@ public class FlinkShuffleClientImpl extends ShuffleClientImpl {
       }
     }
     if (!isSuccess) {
+      if (currentException == null) {
+        throw new CelebornIOException(
+            "Interrupted before sending shuffle request", new InterruptedException());
+      }
       if (currentException instanceof IOException) {
         throw (IOException) currentException;
       } else {

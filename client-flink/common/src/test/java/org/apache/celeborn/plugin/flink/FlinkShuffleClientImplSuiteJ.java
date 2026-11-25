@@ -19,6 +19,8 @@ package org.apache.celeborn.plugin.flink;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
@@ -61,6 +63,9 @@ public class FlinkShuffleClientImplSuiteJ {
         };
     when(clientFactory.createClient(primaryLocation.getHost(), primaryLocation.getPushPort(), 1))
         .thenAnswer(t -> client);
+    when(clientFactory.createClient(
+            primaryLocation.getHost(), primaryLocation.getPushPort(), primaryLocation.getId()))
+        .thenReturn(client);
 
     shuffleClient.setDataClientFactory(clientFactory);
   }
@@ -130,5 +135,102 @@ public class FlinkShuffleClientImplSuiteJ {
     } finally {
       Assert.assertTrue("should failed", isFailed);
     }
+  }
+
+  @Test
+  public void testRegionFinishWithoutRetries() throws IOException {
+    conf.set("celeborn.push.io.maxRetries", "0");
+    shuffleClient.regionFinish(2, 3, 4, primaryLocation);
+    verify(client, times(1)).sendRpcSync(any(), anyLong());
+  }
+
+  @Test
+  public void testRegionFinishFailureWithoutRetries() throws IOException {
+    conf.set("celeborn.push.io.maxRetries", "0");
+    IOException failure = new IOException("region finish failed");
+    when(client.sendRpcSync(any(), anyLong())).thenThrow(failure);
+
+    Assert.assertSame(
+        failure,
+        Assert.assertThrows(
+            IOException.class, () -> shuffleClient.regionFinish(2, 3, 4, primaryLocation)));
+    verify(client, times(1)).sendRpcSync(any(), anyLong());
+  }
+
+  @Test
+  public void testRegionFinishRetries() throws IOException {
+    conf.set("celeborn.push.io.maxRetries", "1");
+    conf.set("celeborn.push.io.retryWait", "0ms");
+    when(client.sendRpcSync(any(), anyLong()))
+        .thenThrow(new IOException("first attempt failed"))
+        .thenReturn(ByteBuffer.allocate(0));
+
+    shuffleClient.regionFinish(2, 3, 4, primaryLocation);
+    verify(client, times(2)).sendRpcSync(any(), anyLong());
+  }
+
+  @Test
+  public void testRegionFinishExhaustsRetries() throws IOException {
+    conf.set("celeborn.push.io.maxRetries", "3");
+    conf.set("celeborn.push.io.retryWait", "0ms");
+    IOException failure = new IOException("region finish failed");
+    when(client.sendRpcSync(any(), anyLong())).thenThrow(failure);
+
+    Assert.assertSame(
+        failure,
+        Assert.assertThrows(
+            IOException.class, () -> shuffleClient.regionFinish(2, 3, 4, primaryLocation)));
+    verify(client, times(4)).sendRpcSync(any(), anyLong());
+  }
+
+  @Test
+  public void testRegionFinishDoesNotRetryNonIoFailure() throws IOException {
+    conf.set("celeborn.push.io.retryWait", "0ms");
+    IllegalStateException failure = new IllegalStateException("region finish failed");
+    when(client.sendRpcSync(any(), anyLong())).thenThrow(failure);
+
+    IOException thrown =
+        Assert.assertThrows(
+            IOException.class, () -> shuffleClient.regionFinish(2, 3, 4, primaryLocation));
+    Assert.assertSame(failure, thrown.getCause());
+    verify(client, times(1)).sendRpcSync(any(), anyLong());
+  }
+
+  @Test
+  public void testRegionFinishWhenAlreadyInterrupted() throws IOException {
+    Thread.currentThread().interrupt();
+    try {
+      IOException thrown =
+          Assert.assertThrows(
+              IOException.class, () -> shuffleClient.regionFinish(2, 3, 4, primaryLocation));
+      Assert.assertTrue(thrown.getCause() instanceof InterruptedException);
+      Assert.assertTrue(Thread.currentThread().isInterrupted());
+      verify(client, times(0)).sendRpcSync(any(), anyLong());
+    } finally {
+      Thread.interrupted();
+    }
+  }
+
+  @Test
+  public void testRegionFinishInterruptedAfterFailure() throws IOException {
+    conf.set("celeborn.push.io.retryWait", "0ms");
+    IOException failure = new IOException("region finish failed");
+    when(client.sendRpcSync(any(), anyLong()))
+        .thenAnswer(
+            invocation -> {
+              Thread.currentThread().interrupt();
+              throw failure;
+            });
+
+    try {
+      Assert.assertSame(
+          failure,
+          Assert.assertThrows(
+              IOException.class, () -> shuffleClient.regionFinish(2, 3, 4, primaryLocation)));
+      Assert.assertTrue(Thread.currentThread().isInterrupted());
+    } finally {
+      Thread.interrupted();
+    }
+    verify(client, times(1)).sendRpcSync(any(), anyLong());
   }
 }
