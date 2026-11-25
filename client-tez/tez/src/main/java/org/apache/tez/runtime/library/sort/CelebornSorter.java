@@ -59,7 +59,7 @@ public class CelebornSorter extends ExternalSorter {
         this.conf.getFloat(
             TezRuntimeConfiguration.TEZ_RUNTIME_SORT_SPILL_PERCENT,
             TezRuntimeConfiguration.TEZ_RUNTIME_SORT_SPILL_PERCENT_DEFAULT);
-    int pushSize = (int) (availableMemoryMb * spillper);
+    int pushSize = (int) (initialMemoryAvailable * spillper);
     LOG.info("availableMemoryMb is {}", availableMemoryMb);
     RawComparator intermediateOutputKeyComparator =
         ConfigUtils.getIntermediateOutputKeyComparator(conf);
