@@ -174,13 +174,13 @@ public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterS
                     CelebornConf.COLUMNAR_SHUFFLE_DICTIONARY_ENCODING_ENABLED().key(),
                     Boolean.toString(mode.equals("dictionary")));
         SQLMetric dataSize = new SQLMetric("size", 0L);
-        Map<Integer, List<byte[]>> batches = writeAndCheckBatches(conf, partitions, dataSize);
+        Map<Integer, List<byte[]>> batches = writeAndCheckBatches(conf, partitions, dataSize, true);
         assertArrayEquals(
-            mode,
+            mode + ", byteLimited=" + byteLimited,
             byteLimited ? new int[] {2, 2, 1} : new int[] {3, 2},
             batchRowCounts(batches.get(0)));
         assertArrayEquals(
-            mode,
+            mode + ", byteLimited=" + byteLimited,
             byteLimited ? new int[] {4, 1} : new int[] {3, 2},
             batchRowCounts(batches.get(1)));
       }
@@ -197,11 +197,12 @@ public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterS
 
   private Map<Integer, List<byte[]>> writeAndCheckBatches(CelebornConf conf, int[] partitions)
       throws Exception {
-    return writeAndCheckBatches(conf, partitions, null);
+    return writeAndCheckBatches(conf, partitions, null, false);
   }
 
   private Map<Integer, List<byte[]>> writeAndCheckBatches(
-      CelebornConf conf, int[] partitions, SQLMetric dataSize) throws Exception {
+      CelebornConf conf, int[] partitions, SQLMetric dataSize, boolean varyRowWidths)
+      throws Exception {
     final String partitionIdPassthroughClazz =
         SparkVersionUtil.isGreaterThan(3, 3)
             ? "org.apache.spark.PartitionIdPassthrough"
@@ -236,7 +237,7 @@ public class ColumnarHashBasedShuffleWriterSuiteJ extends CelebornShuffleWriterS
             .serializeStream(new ByteArrayOutputStream());
     for (int i = 0; i < partitions.length; i++) {
       // Use two row sizes in the metric test while keeping repeated values for dictionary encoding.
-      int width = dataSize != null && i % 2 == 1 ? 50 : 100;
+      int width = varyRowWidths && i % 2 == 1 ? 50 : 100;
       UTF8String value =
           UTF8String.fromString(String.format(Locale.ROOT, "%0" + width + "d", i % 2));
       UnsafeRow row = projection.apply(new GenericInternalRow(new Object[] {i, value})).copy();
