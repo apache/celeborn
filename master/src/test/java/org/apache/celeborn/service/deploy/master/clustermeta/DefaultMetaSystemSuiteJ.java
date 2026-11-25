@@ -18,6 +18,7 @@
 package org.apache.celeborn.service.deploy.master.clustermeta;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -46,6 +47,7 @@ import org.apache.celeborn.common.client.MasterClient;
 import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.meta.ApplicationMeta;
 import org.apache.celeborn.common.meta.DiskInfo;
+import org.apache.celeborn.common.meta.DiskStatus;
 import org.apache.celeborn.common.meta.WorkerInfo;
 import org.apache.celeborn.common.meta.WorkerStatus;
 import org.apache.celeborn.common.metrics.source.NamedGauge;
@@ -787,6 +789,163 @@ public class DefaultMetaSystemSuiteJ {
 
     assertEquals(3, statusSystem.excludedWorkers.size());
     assertEquals(0, statusSystem.availableWorkers.size());
+  }
+
+  @Test
+  public void testWorkerWithUnhealthyDisksStaysExcluded() {
+    statusSystem.handleRegisterWorker(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        INTERNALPORT1,
+        NETWORK_LOCATION1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
+    assertTrue(statusSystem.excludedWorkers.isEmpty());
+    assertEquals(1, statusSystem.availableWorkers.size());
+
+    // The disk fails, but the worker still reports the usable space it saw before the failure,
+    // so the worker still has available slots on the master side.
+    Map<String, DiskInfo> unhealthyDisks = new HashMap<>();
+    unhealthyDisks.put(
+        "disk1",
+        new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 100, 0)
+            .setStatus(DiskStatus.CRITICAL_ERROR));
+
+    // The worker must stay excluded on every heartbeat while its disks are unhealthy.
+    for (int i = 0; i < 4; i++) {
+      statusSystem.handleWorkerHeartbeat(
+          HOSTNAME1,
+          RPCPORT1,
+          PUSHPORT1,
+          FETCHPORT1,
+          REPLICATEPORT1,
+          unhealthyDisks,
+          userResourceConsumption1,
+          i + 1,
+          false,
+          workerStatus,
+          getNewReqeustId());
+      assertEquals(1, statusSystem.excludedWorkers.size());
+      assertEquals(0, statusSystem.availableWorkers.size());
+    }
+
+    // The worker is removed from excluded workers once it reports a healthy disk again.
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceConsumption1,
+        5,
+        false,
+        workerStatus,
+        getNewReqeustId());
+    assertTrue(statusSystem.excludedWorkers.isEmpty());
+    assertEquals(1, statusSystem.availableWorkers.size());
+  }
+
+  @Test
+  public void testAutoReleaseRecoveredWorkerWithHighWorkload() {
+    conf.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_ENABLED(), true);
+    conf.set(CelebornConf.MASTER_AUTO_RELEASE_HIGH_WORKLOAD_WORKER_RATIO_THRESHOLD(), 0.5);
+    statusSystem = new SingleMasterMetaManager(mockRpcEnv, conf);
+
+    statusSystem.handleRegisterWorker(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        INTERNALPORT1,
+        NETWORK_LOCATION1,
+        disks1,
+        userResourceConsumption1,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        INTERNALPORT2,
+        NETWORK_LOCATION2,
+        disks2,
+        userResourceConsumption2,
+        getNewReqeustId());
+    statusSystem.handleRegisterWorker(
+        HOSTNAME3,
+        RPCPORT3,
+        PUSHPORT3,
+        FETCHPORT3,
+        REPLICATEPORT3,
+        INTERNALPORT3,
+        NETWORK_LOCATION3,
+        disks3,
+        userResourceConsumption3,
+        getNewReqeustId());
+
+    // worker2 has no disks, so it is excluded and never released.
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME2,
+        RPCPORT2,
+        PUSHPORT2,
+        FETCHPORT2,
+        REPLICATEPORT2,
+        new HashMap<>(),
+        userResourceConsumption2,
+        1,
+        false,
+        workerStatus,
+        getNewReqeustId());
+    assertEquals(1, statusSystem.excludedWorkers.size());
+    assertEquals(2, statusSystem.availableWorkers.size());
+
+    // The disk of worker1 fails, while it still reports the usable space seen before the failure.
+    Map<String, DiskInfo> unhealthyDisks = new HashMap<>();
+    unhealthyDisks.put(
+        "disk1",
+        new DiskInfo("disk1", 64 * 1024 * 1024 * 1024L, 100, 100, 0)
+            .setStatus(DiskStatus.CRITICAL_ERROR));
+    for (int i = 0; i < 2; i++) {
+      statusSystem.handleWorkerHeartbeat(
+          HOSTNAME1,
+          RPCPORT1,
+          PUSHPORT1,
+          FETCHPORT1,
+          REPLICATEPORT1,
+          unhealthyDisks,
+          userResourceConsumption1,
+          i + 1,
+          false,
+          workerStatus,
+          getNewReqeustId());
+      assertEquals(2, statusSystem.excludedWorkers.size());
+      assertEquals(1, statusSystem.availableWorkers.size());
+    }
+
+    // The disk of worker1 recovers but worker1 reports high workload. Since too many workers are
+    // excluded, worker1 should be released based on its current disk status.
+    statusSystem.handleWorkerHeartbeat(
+        HOSTNAME1,
+        RPCPORT1,
+        PUSHPORT1,
+        FETCHPORT1,
+        REPLICATEPORT1,
+        disks1,
+        userResourceConsumption1,
+        3,
+        true,
+        workerStatus,
+        getNewReqeustId());
+    assertEquals(1, statusSystem.excludedWorkers.size());
+    assertFalse(statusSystem.excludedWorkers.stream().anyMatch(w -> w.host().equals(HOSTNAME1)));
+    assertEquals(2, statusSystem.availableWorkers.size());
   }
 
   @Test

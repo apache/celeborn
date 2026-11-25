@@ -360,11 +360,15 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
     }
 
     // If using HDFSONLY mode, workers with empty disks should not be put into excluded worker list.
-    if (!excludedWorkers.contains(worker) && (!hasAvailableStorage(worker) || highWorkload)) {
-      LOG.warn("Worker {} adds to excluded workers, high workload: {}", worker, highWorkload);
-      excludedWorkers.add(worker);
-    } else if ((availableSlots.get() > 0 || hasRemoteStorage) && !highWorkload) {
-      // only unblack if numSlots larger than 0
+    if (!hasAvailableStorage(worker) || highWorkload) {
+      if (!excludedWorkers.contains(worker)) {
+        LOG.warn("Worker {} adds to excluded workers, high workload: {}", worker, highWorkload);
+        excludedWorkers.add(worker);
+      }
+    } else if (availableSlots.get() > 0 || hasRemoteStorage) {
+      // Only remove the worker from excluded workers when it has available storage and slots.
+      // The slots are derived from the reported usable space regardless of the disk status, so a
+      // worker whose disks are all unhealthy must stay excluded instead of being removed here.
       excludedWorkers.remove(worker);
     }
 
@@ -377,10 +381,12 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
             excludedWorkers.stream()
                 .filter(
                     w -> {
+                      // Check the latest worker info instead of the entry kept in excluded
+                      // workers, which may still hold the disk status from when it was excluded.
                       WorkerInfo info = workersMap.get(w.toUniqueId());
                       return info != null
                           && info.isHighWorkLoad()
-                          && hasAvailableStorage(w)
+                          && hasAvailableStorage(info)
                           && info.totalAvailableSlots() > 0;
                     })
                 .collect(Collectors.toList());
