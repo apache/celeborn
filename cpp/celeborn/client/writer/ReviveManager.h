@@ -18,6 +18,7 @@
 #pragma once
 
 #include <folly/experimental/FunctionScheduler.h>
+#include <queue>
 
 #include "celeborn/client/ShuffleClient.h"
 #include "celeborn/conf/CelebornConf.h"

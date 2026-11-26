@@ -265,11 +265,13 @@ OpenStream::OpenStream(
     const std::string& shuffleKey,
     const std::string& filename,
     int32_t startMapIndex,
-    int32_t endMapIndex)
+    int32_t endMapIndex,
+    bool readLocalShuffle)
     : shuffleKey(shuffleKey),
       filename(filename),
       startMapIndex(startMapIndex),
-      endMapIndex(endMapIndex) {}
+      endMapIndex(endMapIndex),
+      readLocalShuffle(readLocalShuffle) {}
 
 TransportMessage OpenStream::toTransportMessage() const {
   MessageType type = OPEN_STREAM;
@@ -278,6 +280,7 @@ TransportMessage OpenStream::toTransportMessage() const {
   pb.set_filename(filename);
   pb.set_startindex(startMapIndex);
   pb.set_endindex(endMapIndex);
+  pb.set_readlocalshuffle(readLocalShuffle);
   std::string payload = pb.SerializeAsString();
   return TransportMessage(type, std::move(payload));
 }

@@ -19,6 +19,7 @@
 #include <array>
 #include <limits>
 
+#include "celeborn/client/writer/PushDataCallback.h"
 #include "celeborn/client/writer/PushMergedDataCallback.h"
 #include "celeborn/utils/CelebornUtils.h"
 

@@ -17,22 +17,12 @@
 
 #pragma once
 
+#include "celeborn/client/reader/PartitionReader.h"
 #include "celeborn/network/TransportClient.h"
 #include "celeborn/protocol/PartitionLocation.h"
 
 namespace celeborn {
 namespace client {
-class PartitionReader {
- public:
-  virtual ~PartitionReader() = default;
-
-  virtual bool hasNext() = 0;
-
-  virtual std::unique_ptr<memory::ReadOnlyByteBuffer> next() = 0;
-
-  virtual const protocol::PartitionLocation& getLocation() const = 0;
-};
-
 class WorkerPartitionReader
     : public PartitionReader,
       public std::enable_shared_from_this<WorkerPartitionReader> {
@@ -46,6 +36,14 @@ class WorkerPartitionReader
       int32_t startMapIndex,
       int32_t endMapIndex,
       network::TransportClientFactory* clientFactory);
+
+  static std::shared_ptr<WorkerPartitionReader> create(
+      const std::shared_ptr<const conf::CelebornConf>& conf,
+      const std::string& shuffleKey,
+      const protocol::PartitionLocation& location,
+      int32_t startMapIndex,
+      int32_t endMapIndex,
+      std::shared_ptr<network::TransportClient> client);
 
   ~WorkerPartitionReader() override;
 
@@ -64,7 +62,7 @@ class WorkerPartitionReader
       const protocol::PartitionLocation& location,
       int32_t startMapIndex,
       int32_t endMapIndex,
-      network::TransportClientFactory* clientFactory);
+      std::shared_ptr<network::TransportClient> client);
 
   void fetchChunks();
 

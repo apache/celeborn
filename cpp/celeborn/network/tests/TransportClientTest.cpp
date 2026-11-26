@@ -19,6 +19,7 @@
 #include <gtest/gtest.h>
 
 #include "celeborn/network/TransportClient.h"
+#include "celeborn/network/internal/TransportClientAddress.h"
 
 using namespace celeborn;
 using namespace celeborn::network;
@@ -169,6 +170,40 @@ class TransportClientTest : public testing::Test {
 
 std::unique_ptr<folly::Init> TransportClientTest::follyInit_ = {};
 std::mutex TransportClientTest::initMutex_ = {};
+
+TEST_F(TransportClientTest, resolvesWorkerSocketAddresses) {
+  const uint16_t port = 7338;
+  for (const auto* host : {"[::1]", "::1"}) {
+    SCOPED_TRACE(host);
+    EXPECT_EQ(
+        network::detail::resolveAddress(host, port),
+        folly::SocketAddress("::1", port));
+  }
+  EXPECT_EQ(
+      network::detail::resolveAddress("127.0.0.1", port),
+      folly::SocketAddress("127.0.0.1", port));
+}
+
+TEST_F(TransportClientTest, detectsLocalPeerBySelectedAddress) {
+  auto localLink = folly::IPAddressV6("fe80::1");
+  localLink.setScopeId(2);
+  const std::unordered_set<folly::IPAddress> localAddresses{
+      folly::IPAddress("192.0.2.10"), folly::IPAddress(localLink)};
+  auto otherLink = localLink;
+  otherLink.setScopeId(3);
+
+  for (const auto& [peer, expected] :
+       std::vector<std::pair<folly::IPAddress, bool>>{
+           {folly::IPAddress("192.0.2.10"), true},
+           {folly::IPAddress("192.0.2.11"), false},
+           {folly::IPAddress("127.0.0.2"), true},
+           {folly::IPAddress("::1"), true},
+           {folly::IPAddress(localLink), true},
+           {folly::IPAddress(otherLink), false}}) {
+    EXPECT_EQ(network::detail::isLocalAddress(peer, localAddresses), expected)
+        << peer;
+  }
+}
 
 TEST_F(TransportClientTest, sendRpcRequestSync) {
   auto mockDispatcher = std::make_unique<MockDispatcher>();

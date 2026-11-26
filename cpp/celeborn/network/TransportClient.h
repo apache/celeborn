@@ -18,6 +18,7 @@
 #pragma once
 
 #include <fmt/chrono.h>
+#include <folly/SocketAddress.h>
 #include <folly/io/IOBuf.h>
 #include <wangle/bootstrap/ClientBootstrap.h>
 #include <wangle/channel/EventBaseHandler.h>
@@ -31,6 +32,7 @@
 
 namespace celeborn {
 namespace network {
+
 /**
  * MessageSerializeHandler serializes Message into folly::IOBuf when write(),
  * and deserializes folly::IOBuf into Message when read().
@@ -76,6 +78,16 @@ class TransportClient {
       std::unique_ptr<MessageDispatcher> dispatcher,
       Timeout defaultTimeout);
 
+  TransportClient(
+      std::unique_ptr<wangle::ClientBootstrap<SerializePipeline>> client,
+      std::unique_ptr<MessageDispatcher> dispatcher,
+      Timeout defaultTimeout,
+      bool localPeer);
+
+  bool isLocalPeer() const {
+    return localPeer_;
+  }
+
   virtual RpcResponse sendRpcRequestSync(const RpcRequest& request) {
     return sendRpcRequestSync(request, defaultTimeout_);
   }
@@ -113,6 +125,7 @@ class TransportClient {
   std::unique_ptr<wangle::ClientBootstrap<SerializePipeline>> client_;
   std::unique_ptr<MessageDispatcher> dispatcher_;
   Timeout defaultTimeout_;
+  const bool localPeer_;
 };
 
 class MessagePipelineFactory

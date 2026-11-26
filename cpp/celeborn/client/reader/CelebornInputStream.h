@@ -17,17 +17,22 @@
 
 #pragma once
 
-#include <map>
-#include <set>
+#include <memory>
 #include <string>
+#include <unordered_set>
+#include <vector>
 
 #include "celeborn/client/compress/Decompressor.h"
-#include "celeborn/client/reader/WorkerPartitionReader.h"
+#include "celeborn/client/reader/PartitionReader.h"
 #include "celeborn/conf/CelebornConf.h"
 #include "celeborn/protocol/PushFailedBatches.h"
 #include "celeborn/utils/CelebornUtils.h"
 
 namespace celeborn {
+namespace network {
+class TransportClientFactory;
+} // namespace network
+
 namespace client {
 class ShuffleClient;
 
