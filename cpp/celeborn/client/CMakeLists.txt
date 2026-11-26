@@ -15,6 +15,7 @@
 add_library(
         client
         reader/WorkerPartitionReader.cpp
+        reader/LocalPartitionReader.cpp
         reader/CelebornInputStream.cpp
         writer/PushState.cpp
         writer/PushStrategy.cpp

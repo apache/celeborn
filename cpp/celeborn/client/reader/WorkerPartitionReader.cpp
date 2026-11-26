@@ -47,8 +47,31 @@ std::shared_ptr<WorkerPartitionReader> WorkerPartitionReader::create(
     int32_t startMapIndex,
     int32_t endMapIndex,
     network::TransportClientFactory* clientFactory) {
+  CELEBORN_CHECK_NOT_NULL(clientFactory);
+  return create(
+      conf,
+      shuffleKey,
+      location,
+      startMapIndex,
+      endMapIndex,
+      clientFactory->createClient(location.host, location.fetchPort));
+}
+
+std::shared_ptr<WorkerPartitionReader> WorkerPartitionReader::create(
+    const std::shared_ptr<const conf::CelebornConf>& conf,
+    const std::string& shuffleKey,
+    const protocol::PartitionLocation& location,
+    int32_t startMapIndex,
+    int32_t endMapIndex,
+    std::shared_ptr<network::TransportClient> client) {
+  CELEBORN_CHECK_NOT_NULL(client.get());
   return std::shared_ptr<WorkerPartitionReader>(new WorkerPartitionReader(
-      conf, shuffleKey, location, startMapIndex, endMapIndex, clientFactory));
+      conf,
+      shuffleKey,
+      location,
+      startMapIndex,
+      endMapIndex,
+      std::move(client)));
 }
 
 WorkerPartitionReader::WorkerPartitionReader(
@@ -57,18 +80,16 @@ WorkerPartitionReader::WorkerPartitionReader(
     const protocol::PartitionLocation& location,
     int32_t startMapIndex,
     int32_t endMapIndex,
-    network::TransportClientFactory* clientFactory)
+    std::shared_ptr<network::TransportClient> client)
     : shuffleKey_(shuffleKey),
       location_(location),
+      client_(std::move(client)),
       startMapIndex_(startMapIndex),
       endMapIndex_(endMapIndex),
       fetchingChunkId_(0),
       toConsumeChunkId_(0),
       maxFetchChunksInFlight_(conf->clientFetchMaxReqsInFlight()),
       fetchTimeout_(conf->clientFetchTimeout()) {
-  CELEBORN_CHECK_NOT_NULL(clientFactory);
-  client_ = clientFactory->createClient(location_.host, location_.fetchPort);
-
   protocol::OpenStream openStream(
       shuffleKey, location_.filename(), startMapIndex_, endMapIndex_);
 

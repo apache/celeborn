@@ -21,7 +21,6 @@
 #include "celeborn/client/compress/Compressor.h"
 #include "celeborn/client/reader/CelebornInputStream.h"
 #include "celeborn/client/writer/DataBatches.h"
-#include "celeborn/client/writer/PushDataCallback.h"
 #include "celeborn/client/writer/PushState.h"
 #include "celeborn/client/writer/ReviveManager.h"
 #include "celeborn/network/NettyRpcEndpointRef.h"

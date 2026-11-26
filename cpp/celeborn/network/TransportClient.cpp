@@ -17,12 +17,30 @@
 
 #include "celeborn/network/TransportClient.h"
 
+#include <ifaddrs.h>
+
 #include "celeborn/network/FrameDecoder.h"
+#include "celeborn/network/internal/TransportClientAddress.h"
 #include "celeborn/protocol/TransportMessage.h"
 
 namespace celeborn {
 namespace network {
 namespace {
+std::unordered_set<folly::IPAddress> localInterfaceAddresses() {
+  std::unordered_set<folly::IPAddress> addresses;
+  ifaddrs* interfaces = nullptr;
+  if (getifaddrs(&interfaces) == 0) {
+    const std::unique_ptr<ifaddrs, decltype(&freeifaddrs)> entries(
+        interfaces, freeifaddrs);
+    for (auto* entry = entries.get(); entry; entry = entry->ifa_next) {
+      if (auto ip = folly::IPAddress::tryFromSockAddr(entry->ifa_addr)) {
+        addresses.insert(*ip);
+      }
+    }
+  }
+  return addresses;
+}
+
 // True when the cause was already classified as retriable by the transport.
 bool isRetriableCause(const std::exception& e) {
   const auto* celebornException =
@@ -96,6 +114,22 @@ std::unique_ptr<std::exception> wrapCallbackException(
 }
 } // namespace
 
+folly::SocketAddress detail::resolveAddress(
+    const std::string& host,
+    uint16_t port) {
+  // Folly's host:port parser accepts the bracketed IPv6 hosts advertised by
+  // JVM workers, including addresses with a scope ID.
+  folly::SocketAddress address;
+  address.setFromHostPort(fmt::format("{}:{}", host, port));
+  return address;
+}
+
+bool detail::isLocalAddress(
+    const folly::IPAddress& peer,
+    const std::unordered_set<folly::IPAddress>& localAddresses) {
+  return peer.isLoopback() || localAddresses.count(peer) != 0;
+}
+
 void MessageSerializeHandler::read(
     Context* ctx,
     std::unique_ptr<folly::IOBuf> msg) {
@@ -113,9 +147,21 @@ TransportClient::TransportClient(
     std::unique_ptr<wangle::ClientBootstrap<SerializePipeline>> client,
     std::unique_ptr<MessageDispatcher> dispatcher,
     Timeout defaultTimeout)
+    : TransportClient(
+          std::move(client),
+          std::move(dispatcher),
+          defaultTimeout,
+          false) {}
+
+TransportClient::TransportClient(
+    std::unique_ptr<wangle::ClientBootstrap<SerializePipeline>> client,
+    std::unique_ptr<MessageDispatcher> dispatcher,
+    Timeout defaultTimeout,
+    bool localPeer)
     : client_(std::move(client)),
       dispatcher_(std::move(dispatcher)),
-      defaultTimeout_(defaultTimeout) {}
+      defaultTimeout_(defaultTimeout),
+      localPeer_(localPeer) {}
 
 RpcResponse TransportClient::sendRpcRequestSync(
     const RpcRequest& request,
@@ -297,7 +343,7 @@ std::shared_ptr<TransportClient> TransportClientFactory::createClient(
     const std::string& host,
     uint16_t port,
     int32_t partitionId) {
-  auto address = folly::SocketAddress(host, port, true);
+  const auto address = detail::resolveAddress(host, port);
   auto pool = clientPools_.withLock([&](auto& registry) {
     auto iter = registry.find(address);
     if (iter != registry.end()) {
@@ -322,13 +368,16 @@ std::shared_ptr<TransportClient> TransportClientFactory::createClient(
     bootstrap->group(clientExecutor_);
     bootstrap->pipelineFactory(std::make_shared<MessagePipelineFactory>());
     try {
-      auto pipeline = bootstrap->connect(folly::SocketAddress(host, port, true))
-                          .get(rpcLookupTimeout_);
+      auto pipeline = bootstrap->connect(address).get(rpcLookupTimeout_);
 
       auto dispatcher = std::make_unique<MessageDispatcher>();
       dispatcher->setPipeline(pipeline);
+      const auto localAddresses = localInterfaceAddresses();
       pool->clients[clientId] = std::make_shared<TransportClient>(
-          std::move(bootstrap), std::move(dispatcher), connectTimeout_);
+          std::move(bootstrap),
+          std::move(dispatcher),
+          connectTimeout_,
+          detail::isLocalAddress(address.getIPAddress(), localAddresses));
       return pool->clients[clientId];
     } catch (const std::exception& e) {
       std::string errorMsg = fmt::format(

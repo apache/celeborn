@@ -155,6 +155,9 @@ class CelebornConf : public BaseConf {
   static constexpr std::string_view kClientFetchExcludedWorkerExpireTimeout{
       "celeborn.client.fetch.excludedWorker.expireTimeout"};
 
+  static constexpr std::string_view kClientReadLocalShuffleFileEnabled{
+      "celeborn.client.readLocalShuffleFile.enabled"};
+
   static constexpr std::string_view
       kClientAdaptiveOptimizeSkewedPartitionReadEnabled{
           "celeborn.client.adaptive.optimizeSkewedPartitionRead.enabled"};
@@ -242,6 +245,8 @@ class CelebornConf : public BaseConf {
   bool clientFetchExcludeWorkerOnFailureEnabled() const;
 
   Timeout clientFetchExcludedWorkerExpireTimeout() const;
+
+  bool clientReadLocalShuffleFileEnabled() const;
 
   bool clientAdaptiveOptimizeSkewedPartitionReadEnabled() const;
 };

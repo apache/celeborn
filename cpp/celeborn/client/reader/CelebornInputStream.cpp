@@ -18,9 +18,11 @@
 #include "celeborn/client/reader/CelebornInputStream.h"
 #include <lz4.h>
 #include <thread>
-#include "CelebornInputStream.h"
+#include <unordered_set>
 #include "celeborn/client/ShuffleClient.h"
 #include "celeborn/client/compress/Decompressor.h"
+#include "celeborn/client/reader/LocalPartitionReader.h"
+#include "celeborn/client/reader/WorkerPartitionReader.h"
 #include "celeborn/utils/CelebornUtils.h"
 
 namespace celeborn {
@@ -368,14 +370,28 @@ std::shared_ptr<PartitionReader> CelebornInputStream::createReader(
   switch (location.storageInfo->type) {
     case protocol::StorageInfo::HDD:
     case protocol::StorageInfo::SSD: {
-      // TODO: support localPartitionReader...
+      CELEBORN_CHECK_NOT_NULL(clientFactory_);
+      // A worker alias can resolve to several IPs. Select the reader and open
+      // the stream using the same connection.
+      auto client =
+          clientFactory_->createClient(location.host, location.fetchPort);
+      CELEBORN_CHECK_NOT_NULL(client);
+      if (conf_->clientReadLocalShuffleFileEnabled() && client->isLocalPeer()) {
+        return LocalPartitionReader::create(
+            conf_,
+            shuffleKey_,
+            location,
+            startMapIndex_,
+            endMapIndex_,
+            std::move(client));
+      }
       return WorkerPartitionReader::create(
           conf_,
           shuffleKey_,
           location,
           startMapIndex_,
           endMapIndex_,
-          clientFactory_.get());
+          std::move(client));
     }
     case protocol::StorageInfo::HDFS:
     default:

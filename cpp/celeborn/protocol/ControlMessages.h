@@ -133,12 +133,14 @@ struct OpenStream {
   std::string filename;
   int32_t startMapIndex;
   int32_t endMapIndex;
+  bool readLocalShuffle;
 
   OpenStream(
       const std::string& shuffleKey,
       const std::string& filename,
       int32_t startMapIndex,
-      int32_t endMapIndex);
+      int32_t endMapIndex,
+      bool readLocalShuffle = false);
 
   TransportMessage toTransportMessage() const;
 };

@@ -16,11 +16,20 @@
  */
 
 #include <gtest/gtest.h>
+#include <unistd.h>
+#include <cerrno>
 #include <climits>
+#include <cstdio>
+#include <cstdlib>
+#include <deque>
+#include <filesystem>
+#include <fstream>
+#include <mutex>
 #include <system_error>
 
 #include "celeborn/client/ShuffleClient.h"
 #include "celeborn/client/reader/CelebornInputStream.h"
+#include "celeborn/client/reader/LocalPartitionReader.h"
 #include "celeborn/conf/CelebornConf.h"
 
 using namespace celeborn;
@@ -243,22 +252,60 @@ std::unique_ptr<ReadOnlyByteBuffer> makeMultiBatchChunkBuffer(
   return ByteBuffer::toReadOnly(std::move(buffer));
 }
 
+class TemporaryShuffleFile {
+ public:
+  TemporaryShuffleFile()
+      : path_((std::filesystem::temp_directory_path() /
+               "celeborn-local-shuffle-XXXXXX")
+                  .string()) {
+    auto fd = ::mkstemp(path_.data());
+    if (fd == -1) {
+      throw std::system_error(
+          errno, std::generic_category(), "Creating temporary shuffle file");
+    }
+    ::close(fd);
+  }
+
+  ~TemporaryShuffleFile() {
+    std::remove(path_.c_str());
+  }
+
+  const std::string& path() const {
+    return path_;
+  }
+
+ private:
+  std::string path_;
+};
+
 // A TransportClient whose sendRpcRequestSync always returns a valid
 // stream handler, and whose fetchChunkAsync walks through a pre-configured
 // sequence of success/failure behaviors. Used to exercise the getNextChunk()
 // retry loop independently of reader-creation failures.
 class SequencedMockTransportClient : public TransportClient {
  public:
-  SequencedMockTransportClient()
-      : TransportClient(nullptr, nullptr, MS(100)),
+  explicit SequencedMockTransportClient(bool localPeer = false)
+      : TransportClient(nullptr, nullptr, MS(100), localPeer),
         streamHandlerResponse_(makeStreamHandlerResponse()) {}
 
   RpcResponse sendRpcRequestSync(const RpcRequest& request, Timeout timeout)
       override {
+    TransportMessage message(request.body());
+    EXPECT_EQ(message.type(), OPEN_STREAM);
+    PbOpenStream openStream;
+    EXPECT_TRUE(openStream.ParseFromString(message.payload()));
+    openStreamRequests_.push_back(std::move(openStream));
     return streamHandlerResponse_;
   }
 
-  void sendRpcRequestWithoutResponse(const RpcRequest& request) override {}
+  void sendRpcRequestWithoutResponse(const RpcRequest& request) override {
+    TransportMessage message(request.body());
+    EXPECT_EQ(message.type(), BUFFER_STREAM_END);
+    PbBufferStreamEnd streamEnd;
+    EXPECT_TRUE(streamEnd.ParseFromString(message.payload()));
+    std::lock_guard<std::mutex> lock(closedStreamsMutex_);
+    closedStreamIds_.push_back(streamEnd.streamid());
+  }
 
   void fetchChunkAsync(
       const StreamChunkSlice& streamChunkSlice,
@@ -295,9 +342,30 @@ class SequencedMockTransportClient : public TransportClient {
     });
   }
 
+  void setStreamHandler(const PbStreamHandler& streamHandler) {
+    TransportMessage message(STREAM_HANDLER, streamHandler.SerializeAsString());
+    streamHandlerResponse_ = RpcResponse(1111, message.toReadOnlyByteBuffer());
+  }
+
+  const std::vector<PbOpenStream>& openStreamRequests() const {
+    return openStreamRequests_;
+  }
+
+  std::vector<int64_t> closedStreamIds() {
+    std::lock_guard<std::mutex> lock(closedStreamsMutex_);
+    return closedStreamIds_;
+  }
+
+  size_t fetchCalls() const {
+    return fetchCallIdx_;
+  }
+
  private:
   RpcResponse streamHandlerResponse_;
   std::vector<FetchBehavior> fetchBehaviors_;
+  std::vector<PbOpenStream> openStreamRequests_;
+  std::mutex closedStreamsMutex_;
+  std::vector<int64_t> closedStreamIds_;
   size_t fetchCallIdx_{0};
 };
 
@@ -306,13 +374,21 @@ class SequencedMockClientFactory : public TransportClientFactory {
   explicit SequencedMockClientFactory(
       std::shared_ptr<SequencedMockTransportClient> client)
       : TransportClientFactory(std::make_shared<CelebornConf>()),
-        client_(std::move(client)) {}
+        clients_{std::move(client)} {}
+
+  void addClient(std::shared_ptr<SequencedMockTransportClient> client) {
+    clients_.push_back(std::move(client));
+  }
 
   std::shared_ptr<TransportClient> createClient(
       const std::string& host,
       uint16_t port) override {
     hosts_.push_back(host);
-    return client_;
+    auto client = clients_.front();
+    if (clients_.size() > 1) {
+      clients_.pop_front();
+    }
+    return client;
   }
 
   const std::vector<std::string>& hosts() const {
@@ -320,7 +396,7 @@ class SequencedMockClientFactory : public TransportClientFactory {
   }
 
  private:
-  std::shared_ptr<SequencedMockTransportClient> client_;
+  std::deque<std::shared_ptr<SequencedMockTransportClient>> clients_;
   std::vector<std::string> hosts_;
 };
 } // namespace
@@ -806,6 +882,174 @@ TEST(CelebornInputStreamRetryTest, skipsDuplicateBatchWithInterleavedMapIds) {
   ASSERT_GE(bytesRead, 0);
   EXPECT_EQ(
       std::string(buffer.begin(), buffer.begin() + bytesRead), "bbbbaaaacccc");
+}
+
+TEST(CelebornInputStreamRetryTest, readsLocalFileUsingWorkerChunkOffsets) {
+  TemporaryShuffleFile localFile;
+  const std::string prefix = "outside requested range";
+  const auto firstChunk = makeChunkBuffer(1, 0, 0, "first")->readToString();
+  const auto secondChunk = makeChunkBuffer(2, 0, 0, "second")->readToString();
+  std::ofstream output(localFile.path(), std::ios::binary);
+  output << prefix << firstChunk << secondChunk;
+  output.close();
+  ASSERT_TRUE(output);
+
+  PbStreamHandler handler;
+  handler.set_streamid(100);
+  handler.set_numchunks(2);
+  handler.set_fullpath(localFile.path());
+  handler.add_chunkoffsets(prefix.size());
+  handler.add_chunkoffsets(prefix.size() + firstChunk.size());
+  handler.add_chunkoffsets(
+      prefix.size() + firstChunk.size() + secondChunk.size());
+
+  auto mockClient =
+      std::make_shared<SequencedMockTransportClient>(/*localPeer=*/true);
+  mockClient->setStreamHandler(handler);
+  mockClient->addFetchSuccess(makeChunkBuffer(1, 0, 0, "wrong"));
+  mockClient->addFetchSuccess(makeChunkBuffer(2, 0, 0, "remote"));
+  auto factory = std::make_shared<SequencedMockClientFactory>(mockClient);
+  auto conf = makeTestConf(false);
+  conf->registerProperty(
+      CelebornConf::kClientReadLocalShuffleFileEnabled, "true");
+  auto excludedWorkers =
+      std::make_shared<CelebornInputStream::FetchExcludedWorkers>();
+  StubShuffleClient shuffleClient(conf, excludedWorkers);
+
+  auto location = makeLocationWithoutPeer();
+  CelebornInputStream stream(
+      "test-shuffle-key",
+      conf,
+      factory,
+      {location},
+      {0, 0, 0},
+      0,
+      1,
+      3,
+      false,
+      excludedWorkers,
+      &shuffleClient);
+
+  std::vector<uint8_t> buffer(11);
+  EXPECT_EQ(stream.read(buffer.data(), 0, buffer.size()), 11);
+  EXPECT_EQ(std::string(buffer.begin(), buffer.end()), "firstsecond");
+  EXPECT_EQ(stream.read(buffer.data(), 0, buffer.size()), -1);
+
+  ASSERT_EQ(mockClient->openStreamRequests().size(), 1);
+  const auto& open = mockClient->openStreamRequests().front();
+  EXPECT_TRUE(open.readlocalshuffle());
+  EXPECT_EQ(open.startindex(), 1);
+  EXPECT_EQ(open.endindex(), 3);
+  EXPECT_EQ(mockClient->fetchCalls(), 0);
+  EXPECT_EQ(mockClient->closedStreamIds(), std::vector<int64_t>{100});
+}
+
+TEST(CelebornInputStreamRetryTest, usesRemoteFetchWhenLocalReadDoesNotApply) {
+  for (bool enableLocalRead : {false, true}) {
+    SCOPED_TRACE(enableLocalRead);
+    auto mockClient = std::make_shared<SequencedMockTransportClient>(
+        /*localPeer=*/!enableLocalRead);
+    mockClient->addFetchSuccess(makeChunkBuffer(0, 0, 0, "remote"));
+    auto factory = std::make_shared<SequencedMockClientFactory>(mockClient);
+    auto conf = makeTestConf(false);
+    auto location = makeLocationWithoutPeer();
+    conf->registerProperty(
+        CelebornConf::kClientReadLocalShuffleFileEnabled,
+        enableLocalRead ? "true" : "false");
+    auto excludedWorkers =
+        std::make_shared<CelebornInputStream::FetchExcludedWorkers>();
+    StubShuffleClient shuffleClient(conf, excludedWorkers);
+    CelebornInputStream stream(
+        "test-shuffle-key",
+        conf,
+        factory,
+        {location},
+        {0},
+        0,
+        0,
+        100,
+        false,
+        excludedWorkers,
+        &shuffleClient);
+
+    std::vector<uint8_t> buffer(6);
+    EXPECT_EQ(stream.read(buffer.data(), 0, buffer.size()), 6);
+    EXPECT_EQ(std::string(buffer.begin(), buffer.end()), "remote");
+    ASSERT_EQ(mockClient->openStreamRequests().size(), 1);
+    EXPECT_FALSE(mockClient->openStreamRequests().front().readlocalshuffle());
+    EXPECT_EQ(mockClient->fetchCalls(), 1);
+  }
+}
+
+TEST(CelebornInputStreamRetryTest, selectsLocalReadByConnectedPeer) {
+  auto local = makeLocationWithoutPeer();
+  auto remote = makeLocationWithoutPeer();
+  local->host = remote->host = "shuffle-worker.example.test";
+  remote->id = 1;
+
+  // The same advertised endpoint selected two different peers. Empty
+  // partitions let us inspect both OpenStream requests without a file.
+  auto localClient =
+      std::make_shared<SequencedMockTransportClient>(/*localPeer=*/true);
+  auto remoteClient =
+      std::make_shared<SequencedMockTransportClient>(/*localPeer=*/false);
+  PbStreamHandler emptyHandler;
+  emptyHandler.set_numchunks(0);
+  localClient->setStreamHandler(emptyHandler);
+  remoteClient->setStreamHandler(emptyHandler);
+  auto factory = std::make_shared<SequencedMockClientFactory>(localClient);
+  factory->addClient(remoteClient);
+  auto conf = makeTestConf(false);
+  conf->registerProperty(
+      CelebornConf::kClientReadLocalShuffleFileEnabled, "true");
+  auto excludedWorkers =
+      std::make_shared<CelebornInputStream::FetchExcludedWorkers>();
+  StubShuffleClient shuffleClient(conf, excludedWorkers);
+  CelebornInputStream stream(
+      "test-shuffle-key",
+      conf,
+      factory,
+      {local, remote},
+      {0},
+      0,
+      0,
+      100,
+      false,
+      excludedWorkers,
+      &shuffleClient);
+
+  EXPECT_EQ(
+      factory->hosts(), (std::vector<std::string>{local->host, remote->host}));
+  ASSERT_EQ(localClient->openStreamRequests().size(), 1);
+  EXPECT_EQ(localClient->openStreamRequests()[0].filename(), local->filename());
+  EXPECT_TRUE(localClient->openStreamRequests()[0].readlocalshuffle());
+  ASSERT_EQ(remoteClient->openStreamRequests().size(), 1);
+  EXPECT_EQ(
+      remoteClient->openStreamRequests()[0].filename(), remote->filename());
+  EXPECT_FALSE(remoteClient->openStreamRequests()[0].readlocalshuffle());
+}
+
+TEST(CelebornInputStreamRetryTest, closesLocalStreamWhenFileCannotBeOpened) {
+  TemporaryShuffleFile localFile;
+  PbStreamHandler handler;
+  handler.set_streamid(100);
+  handler.set_numchunks(1);
+  handler.set_fullpath(localFile.path() + "/missing");
+  handler.add_chunkoffsets(0);
+  handler.add_chunkoffsets(5);
+  auto mockClient = std::make_shared<SequencedMockTransportClient>();
+  mockClient->setStreamHandler(handler);
+
+  EXPECT_THROW(
+      LocalPartitionReader::create(
+          makeTestConf(false),
+          "test-shuffle-key",
+          *makeLocationWithoutPeer(),
+          0,
+          100,
+          mockClient),
+      std::exception);
+  EXPECT_EQ(mockClient->closedStreamIds(), std::vector<int64_t>{100});
 }
 
 // Verifies that without a peer, getNextChunk() retries the same location

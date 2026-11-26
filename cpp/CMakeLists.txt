@@ -361,6 +361,7 @@ install(
   DESTINATION include/celeborn
   FILES_MATCHING PATTERN "*.h"
   PATTERN "tests" EXCLUDE
+  PATTERN "network/internal" EXCLUDE
 )
 
 install(
