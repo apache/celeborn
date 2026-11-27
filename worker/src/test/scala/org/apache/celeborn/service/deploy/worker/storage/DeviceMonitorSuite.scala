@@ -513,4 +513,57 @@ class DeviceMonitorSuite extends AnyFunSuite {
       assertEquals(0, unhealthyDiskCountMetrics.head.gauge.getValue)
     }
   }
+
+  val dfMapperOut =
+    """
+      |Filesystem      Size  Used Avail  Use% Mounted on
+      |/dev/vda1       118G   43G   71G   38% /
+      |/dev/mapper/vg0-lv0  1.8T   91G  1.7T    6% /mnt/disk1
+      |/dev/mapper/vg1-lv1  1.8T   91G  1.7T    6% /mnt/disk2
+      |""".stripMargin
+  val lsMapperOut = "loop0  loop1  dm-0  dm-1  sda  sdb"
+  val dmNameOut =
+    "/sys/block/dm-0/dm/name:vg0-lv0\n/sys/block/dm-1/dm/name:vg1-lv1\n"
+  val dmNamePartialOut = "/sys/block/dm-0/dm/name:vg0-lv0\n"
+
+  test("device mapper mounts resolve to dm block devices") {
+    withObjectMocked[org.apache.celeborn.common.util.Utils.type] {
+      when(Utils.runCommand(dfCmd)) thenReturn dfMapperOut
+      when(Utils.runCommand(lsCmd)) thenReturn lsMapperOut
+      when(Utils.runCommandComplex(DeviceInfo.SYS_BLOCK_DM_NAME_CMD)) thenReturn dmNameOut
+
+      val (dmDeviceInfos, dmDiskInfos) = DeviceInfo.getDeviceAndDiskInfos(
+        dirs.asScala.toArray.map(f =>
+          (f, Long.MaxValue, 1, StorageInfo.Type.HDD)),
+        conf)
+
+      assertEquals(2, dmDeviceInfos.size())
+      val dm0DeviceInfo = dmDeviceInfos.get("dm-0")
+      val dm1DeviceInfo = dmDeviceInfos.get("dm-1")
+      assert(dm0DeviceInfo != null && dm0DeviceInfo.deviceStatAvailable)
+      assert(dm1DeviceInfo != null && dm1DeviceInfo.deviceStatAvailable)
+      assertEquals(dm0DeviceInfo, dmDiskInfos.get("/mnt/disk1").deviceInfo)
+      assertEquals(dm1DeviceInfo, dmDiskInfos.get("/mnt/disk2").deviceInfo)
+    }
+  }
+
+  test("device mapper mounts not found in dm names keep unavailable stat") {
+    withObjectMocked[org.apache.celeborn.common.util.Utils.type] {
+      when(Utils.runCommand(dfCmd)) thenReturn dfMapperOut
+      when(Utils.runCommand(lsCmd)) thenReturn lsMapperOut
+      when(Utils.runCommandComplex(DeviceInfo.SYS_BLOCK_DM_NAME_CMD)) thenReturn dmNamePartialOut
+
+      val (dmDeviceInfos, dmDiskInfos) = DeviceInfo.getDeviceAndDiskInfos(
+        dirs.asScala.toArray.map(f =>
+          (f, Long.MaxValue, 1, StorageInfo.Type.HDD)),
+        conf)
+
+      val dm0DeviceInfo = dmDeviceInfos.get("dm-0")
+      assert(dm0DeviceInfo != null && dm0DeviceInfo.deviceStatAvailable)
+      assertEquals(dm0DeviceInfo, dmDiskInfos.get("/mnt/disk1").deviceInfo)
+      val unmappedDeviceInfo = dmDeviceInfos.get("vg1-lv1")
+      assert(unmappedDeviceInfo != null && !unmappedDeviceInfo.deviceStatAvailable)
+      assertEquals(unmappedDeviceInfo, dmDiskInfos.get("/mnt/disk2").deviceInfo)
+    }
+  }
 }
