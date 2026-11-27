@@ -29,7 +29,7 @@ import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.internal.Logging
 import org.apache.celeborn.common.protocol.StorageInfo
 import org.apache.celeborn.common.util.{JavaUtils, Utils}
-import org.apache.celeborn.common.util.Utils.runCommand
+import org.apache.celeborn.common.util.Utils.{runCommand, runCommandComplex}
 
 class DiskInfo(
     val mountPoint: String,
@@ -222,6 +222,10 @@ class DeviceInfo(val name: String) extends Serializable {
 object DeviceInfo {
   val logger = LoggerFactory.getLogger(classOf[DeviceInfo])
 
+  // Reads each device-mapper device's mapper name, e.g.
+  // /sys/block/dm-2/dm/name:vg0-lv0
+  private[celeborn] val SYS_BLOCK_DM_NAME_CMD = "grep -H . /sys/block/dm-*/dm/name"
+
   /**
    * @param workingDirs array of (workingDir, max usable space, flush thread count, storage type)
    * @return it will return two maps
@@ -250,8 +254,37 @@ object DeviceInfo {
     logger.info(s"ls block\n$lsBlockResult")
     val blocks = lsBlockResult.split("[ \n\r\t]+")
 
+    // LVM/device-mapper devices are listed in /sys/block as dm-N while df
+    // reports their /dev/mapper/<name> path, so map the mapper name back to
+    // the dm name for device stats lookup.
+    val dmNameToBlock =
+      if (blocks.exists(_.startsWith("dm-"))) {
+        val dmNameResult = Option(runCommandComplex(SYS_BLOCK_DM_NAME_CMD)).getOrElse("").trim
+        logger.info(s"dm name\n$dmNameResult")
+        dmNameResult
+          .split("[\n\r]")
+          .flatMap(line => {
+            val tokens = line.trim.split(":", 2)
+            if (tokens.length == 2 && tokens(1).nonEmpty &&
+              tokens(0).startsWith("/sys/block/")) {
+              Some(tokens(1) -> tokens(0).substring("/sys/block/".length).split("/").head)
+            } else {
+              None
+            }
+          })
+          .toMap
+      } else {
+        Map.empty[String, String]
+      }
+
     fsMounts.foreach { case (fileSystem, mountPoint) =>
-      val deviceName = fileSystem.substring(fileSystem.lastIndexOf('/') + 1)
+      val rawDeviceName = fileSystem.substring(fileSystem.lastIndexOf('/') + 1)
+      val deviceName =
+        if (fileSystem.startsWith("/dev/mapper/")) {
+          dmNameToBlock.getOrElse(rawDeviceName, rawDeviceName)
+        } else {
+          rawDeviceName
+        }
       var index = -1
       var maxLength = -1
       blocks.zipWithIndex.foreach(block => {
